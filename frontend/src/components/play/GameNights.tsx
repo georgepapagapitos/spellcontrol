@@ -32,6 +32,7 @@ import {
 import { CalendarPlus, ChevronDown, ChevronRight } from 'lucide-react';
 import { downloadIcs, googleCalendarUrl, type CalendarEvent } from '../../lib/calendar-links';
 import { mapsSearchUrl, searchPlaces } from '../../lib/place-search';
+import { isNativePlatform, openExternal } from '../../lib/platform';
 import { listFriends, sendFriendRequest, type Friend } from '../../lib/friends-client';
 import { FORMAT_OPTIONS, MAX_LOCAL_PLAYERS, gameFormatLabel } from '../../lib/game-formats';
 import { useAuth } from '../../store/auth';
@@ -434,6 +435,11 @@ function NightCard({
               target="_blank"
               rel="noopener noreferrer"
               title={`Open "${night.location}" in Google Maps`}
+              onClick={(e) => {
+                if (!isNativePlatform()) return;
+                e.preventDefault();
+                openExternal(mapsSearchUrl(night.location ?? ''));
+              }}
             >
               {night.location}
             </a>
@@ -539,7 +545,7 @@ function NightCard({
             items={[
               {
                 label: 'Google Calendar',
-                onClick: () => window.open(googleCalendarUrl(calendarEvent), '_blank', 'noopener'),
+                onClick: () => openExternal(googleCalendarUrl(calendarEvent)),
               },
               {
                 label: 'Apple / Outlook (.ics)',

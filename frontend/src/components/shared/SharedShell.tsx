@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { BrandMark } from './BrandMark';
+import { isNativePlatform, openExternal } from '../../lib/platform';
 
 interface Props {
   children: ReactNode;
@@ -34,7 +35,16 @@ export function SharedShell({ children, action, ctaLabel }: Props) {
         </Link>
         <p className="shared-footer-fineprint">
           Card data from{' '}
-          <a href="https://scryfall.com" target="_blank" rel="noopener noreferrer">
+          <a
+            href="https://scryfall.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => {
+              if (!isNativePlatform()) return;
+              e.preventDefault();
+              openExternal('https://scryfall.com');
+            }}
+          >
             Scryfall
           </a>
         </p>

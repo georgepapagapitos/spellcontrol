@@ -24,6 +24,7 @@ import {
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
 import { useCollapsedPref } from '../../lib/use-collapsed-pref';
+import { isNativePlatform, openExternal } from '../../lib/platform';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { buildCardImageIndex, buildCardIndex } from '../../lib/deck-card-index';
 import { ColorPip } from '../shared/ManaSymbol';
@@ -797,6 +798,11 @@ function ComboRow({
                         href={`https://edhrec.com${edhrec.href}`}
                         target="_blank"
                         rel="noreferrer"
+                        onClick={(e) => {
+                          if (!isNativePlatform()) return;
+                          e.preventDefault();
+                          openExternal(`https://edhrec.com${edhrec.href}`);
+                        }}
                       >
                         View on EDHREC
                       </a>
