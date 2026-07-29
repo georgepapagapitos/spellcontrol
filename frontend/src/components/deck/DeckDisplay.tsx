@@ -607,6 +607,8 @@ export interface DeckDisplayProps {
   activeView?: DeckView;
   /** Reveal the standalone Test hand panel — surfaced in the Deck-view toolbar. */
   onShowTestHand?: () => void;
+  /** Opens the add-cards sheet — used by the empty-deck state's CTA (E182). */
+  onAddCards?: () => void;
   /**
    * UX-310: whether the async commander-deck analysis is still in-flight for
    * the first time. When 'pending', the Coach and Power tabs render skeleton
@@ -1344,6 +1346,7 @@ export function DeckDisplay({
   renderSimilarCards,
   activeView = 'deck',
   onShowTestHand,
+  onAddCards,
   analysisState = 'ready',
   onNavigateToTune,
   scoreRevealKey,
@@ -2234,7 +2237,50 @@ export function DeckDisplay({
 
             <div className="deck-display-body">
               <div className="deck-display-main">
-                {viewMode === 'list' && (
+                {/* E182: a brand-new deck (no commander, no cards) previously
+                    rendered a fully interactive toolbar over a blank
+                    .deck-card-list — this is the manual builder's first
+                    impression, so it needs its own state rather than empty
+                    space. Reuses the insight-strip idiom (one row,
+                    --surface-raised) instead of a bespoke illustration.
+                    Commander-format decks with no commander yet get distinct
+                    copy — everything downstream (suggestions, identity)
+                    depends on the commander, so that's the actual next step. */}
+                {visibleGroups.length === 0 && (
+                  <div className="deck-empty-state">
+                    <span className="deck-empty-state-icon" aria-hidden>
+                      <Search width={18} height={18} strokeWidth={2} />
+                    </span>
+                    <div className="deck-empty-state-body">
+                      {formatConfig.hasCommander && !commander ? (
+                        <>
+                          <p className="deck-empty-state-headline">
+                            This deck needs a commander first.
+                          </p>
+                          <p className="deck-empty-state-detail">
+                            Suggestions, color identity, and legality all follow your commander —
+                            add one to get started.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="deck-empty-state-headline">This deck is empty.</p>
+                          <p className="deck-empty-state-detail">
+                            Search the card index below and add your first cards.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-primary deck-empty-state-action"
+                      onClick={() => onAddCards?.()}
+                    >
+                      {formatConfig.hasCommander && !commander ? 'Choose a commander' : 'Add cards'}
+                    </button>
+                  </div>
+                )}
+                {viewMode === 'list' && visibleGroups.length > 0 && (
                   <div
                     className="deck-card-list"
                     {...hoverPeek.listHandlers}
@@ -2282,7 +2328,7 @@ export function DeckDisplay({
                     ))}
                   </div>
                 )}
-                {viewMode === 'grid' && (
+                {viewMode === 'grid' && visibleGroups.length > 0 && (
                   <DeckCardGrid
                     groups={visibleGroups}
                     onRowClick={openPreview}

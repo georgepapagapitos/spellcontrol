@@ -1082,9 +1082,10 @@ export function DeckEditorPage() {
   // Hero totals — a quick at-a-glance summary above the deck composition.
   // The count/value reflect the *mainboard deck only* (commanders + main
   // cards), matching the legality banner's notion of the deck; the sideboard
-  // ("maybe" cards) is surfaced separately so the hero doesn't claim "104
-  // cards" on a 100-card deck. Computed BEFORE the missing-deck early return
-  // so the hook order stays stable across renders.
+  // is surfaced separately (as "+N sideboard", distinct from the "+N
+  // considering" maybe-pile right next to it — E183) so the hero doesn't
+  // claim "104 cards" on a 100-card deck. Computed BEFORE the missing-deck
+  // early return so the hook order stays stable across renders.
   const heroTotals = useMemo(() => {
     if (!deck) return { count: 0, value: 0, sideboard: 0, considering: 0 };
     const sumPrice = (cards: ScryfallCard[]) =>
@@ -2458,7 +2459,7 @@ export function DeckEditorPage() {
               {heroTotals.count === 1 ? 'card' : 'cards'}
               {'\u00A0· '}
               {formatMoney(heroTotals.value)}
-              {heroTotals.sideboard > 0 && `\u00A0· +${heroTotals.sideboard}\u00A0maybe`}
+              {heroTotals.sideboard > 0 && `\u00A0· +${heroTotals.sideboard}\u00A0sideboard`}
               {heroTotals.considering > 0 && `\u00A0· +${heroTotals.considering}\u00A0considering`}
             </span>
             {/* Bracket — glanceable on every view (it left the feature strip). */}
@@ -2548,7 +2549,8 @@ export function DeckEditorPage() {
           <DeckEditorOverflowMenu
             onDuplicate={handleDuplicate}
             onDelete={() => setConfirmDelete(true)}
-            onExport={() => setExportOpen(true)}
+            // No onExport here — the toolbar's .deck-toolbar-export button
+            // (visible ≥1024px) is the single desktop entry point (E181).
             onImport={() => setAppendOpen(true)}
             onBulkEdit={() => setBulkEditOpen(true)}
             onResync={() => setResyncOpen(true)}
@@ -2722,6 +2724,7 @@ export function DeckEditorPage() {
             onExportOpenChange={setExportOpen}
             activeView={safeView}
             onShowTestHand={() => setShowTestHand(true)}
+            onAddCards={handleToggleAddPanel}
             analysisState={analysisState}
             scoreRevealKey={scoreRevealKey}
             onNavigateToTune={
@@ -3389,7 +3392,10 @@ function DeckEditorOverflowMenu({
 }: {
   onDuplicate: () => void;
   onDelete: () => void;
-  onExport: () => void;
+  /** Absent on desktop (≥1024px): the deck toolbar's own Export button
+   *  (`.deck-toolbar-export`) is the single desktop entry point (E181) — the
+   *  kebab still carries it on mobile/tablet, where that button is hidden. */
+  onExport?: () => void;
   /** Opens the paste-into-this-deck dialog (E168 slice 2) — mirrors onExport:
    *  kebab-only at every breakpoint, no separate toolbar button. */
   onImport: () => void;
@@ -3435,6 +3441,53 @@ function DeckEditorOverflowMenu({
     };
   }, [open]);
 
+  // Sectioned groups (E181): a flat 12-13 row list read as an undifferentiated
+  // wall. Undo/Redo stay unlabelled at top (existing convention) and Delete
+  // stays last (STYLE_GUIDE UX-316 — destructive actions live in this menu);
+  // everything else buckets into labelled clusters. Each row is `{ key, label,
+  // onClick }` so a whole section can be built + filtered in one line instead
+  // of ~10 near-identical <button> blocks.
+  type Row = { key: string; label: string; onClick: () => void };
+  const quickActions: Row[] = [
+    onPlaytest && { key: 'playtest', label: 'Playtest', onClick: onPlaytest },
+    onTokens && { key: 'tokens', label: 'Tokens to prep', onClick: onTokens },
+    onPullList && { key: 'pull-list', label: 'Pull list', onClick: onPullList },
+  ].filter((r): r is Row => !!r);
+  const textTools: Row[] = [
+    { key: 'paste', label: 'Paste cards', onClick: onImport },
+    { key: 'bulk-edit', label: 'Bulk edit', onClick: onBulkEdit },
+    { key: 'resync', label: 'Resync from a list', onClick: onResync },
+  ];
+  const deckActions: Row[] = [
+    { key: 'duplicate', label: 'Duplicate', onClick: onDuplicate },
+    { key: 'primer', label: 'Primer', onClick: onPrimer },
+    onExport && { key: 'export', label: 'Export', onClick: onExport },
+    { key: 'feedback', label: 'Get feedback', onClick: onFeedback },
+  ].filter((r): r is Row => !!r);
+
+  const renderRow = (row: Row) => (
+    <button
+      key={row.key}
+      type="button"
+      role="menuitem"
+      className="deck-editor-overflow-item"
+      onClick={() => {
+        setOpen(false);
+        row.onClick();
+      }}
+    >
+      {row.label}
+    </button>
+  );
+
+  const renderSection = (label: string, rows: Row[]) =>
+    rows.length > 0 && (
+      <div className="deck-editor-overflow-section" key={label}>
+        <div className="deck-editor-overflow-label">{label}</div>
+        {rows.map(renderRow)}
+      </div>
+    );
+
   return (
     <div className="deck-editor-overflow" ref={wrapperRef}>
       <button
@@ -3448,166 +3501,58 @@ function DeckEditorOverflowMenu({
         <MoreVertical width={20} height={20} strokeWidth={2.2} aria-hidden />
       </button>
       {open && (
-        <>
-          <div className="deck-editor-overflow-panel" role="menu">
-            {onUndo && (
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-editor-overflow-item"
-                onClick={() => {
-                  setOpen(false);
-                  onUndo();
-                }}
-              >
-                Undo{undoLabel ? ` ${undoLabel}` : ''}
-              </button>
-            )}
-            {onRedo && (
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-editor-overflow-item"
-                onClick={() => {
-                  setOpen(false);
-                  onRedo();
-                }}
-              >
-                Redo{redoLabel ? ` ${redoLabel}` : ''}
-              </button>
-            )}
-            {(onUndo || onRedo) && (
+        <div className="deck-editor-overflow-panel" role="menu">
+          {onUndo && (
+            <button
+              type="button"
+              role="menuitem"
+              className="deck-editor-overflow-item"
+              onClick={() => {
+                setOpen(false);
+                onUndo();
+              }}
+            >
+              Undo{undoLabel ? ` ${undoLabel}` : ''}
+            </button>
+          )}
+          {onRedo && (
+            <button
+              type="button"
+              role="menuitem"
+              className="deck-editor-overflow-item"
+              onClick={() => {
+                setOpen(false);
+                onRedo();
+              }}
+            >
+              Redo{redoLabel ? ` ${redoLabel}` : ''}
+            </button>
+          )}
+          {(onUndo || onRedo) && (
+            <div className="deck-editor-overflow-divider" role="separator" aria-hidden />
+          )}
+          {quickActions.length > 0 && (
+            <>
+              {renderSection('Quick actions', quickActions)}
               <div className="deck-editor-overflow-divider" role="separator" aria-hidden />
-            )}
-            {onPlaytest && (
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-editor-overflow-item"
-                onClick={() => {
-                  setOpen(false);
-                  onPlaytest();
-                }}
-              >
-                Playtest
-              </button>
-            )}
-            {onTokens && (
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-editor-overflow-item"
-                onClick={() => {
-                  setOpen(false);
-                  onTokens();
-                }}
-              >
-                Tokens to prep
-              </button>
-            )}
-            {onPullList && (
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-editor-overflow-item"
-                onClick={() => {
-                  setOpen(false);
-                  onPullList();
-                }}
-              >
-                Pull list
-              </button>
-            )}
-            <button
-              type="button"
-              role="menuitem"
-              className="deck-editor-overflow-item"
-              onClick={() => {
-                setOpen(false);
-                onDuplicate();
-              }}
-            >
-              Duplicate
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="deck-editor-overflow-item"
-              onClick={() => {
-                setOpen(false);
-                onPrimer();
-              }}
-            >
-              Primer
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="deck-editor-overflow-item"
-              onClick={() => {
-                setOpen(false);
-                onExport();
-              }}
-            >
-              Export
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="deck-editor-overflow-item"
-              onClick={() => {
-                setOpen(false);
-                onImport();
-              }}
-            >
-              Paste cards
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="deck-editor-overflow-item deck-editor-overflow-item-touch"
-              onClick={() => {
-                setOpen(false);
-                onBulkEdit();
-              }}
-            >
-              Bulk edit
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="deck-editor-overflow-item"
-              onClick={() => {
-                setOpen(false);
-                onResync();
-              }}
-            >
-              Resync from a list
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="deck-editor-overflow-item"
-              onClick={() => {
-                setOpen(false);
-                onFeedback();
-              }}
-            >
-              Get feedback
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="deck-editor-overflow-item deck-editor-overflow-item--danger"
-              onClick={() => {
-                setOpen(false);
-                onDelete();
-              }}
-            >
-              Delete
-            </button>
-          </div>
-        </>
+            </>
+          )}
+          {renderSection('Text tools', textTools)}
+          <div className="deck-editor-overflow-divider" role="separator" aria-hidden />
+          {renderSection('Deck actions', deckActions)}
+          <div className="deck-editor-overflow-divider" role="separator" aria-hidden />
+          <button
+            type="button"
+            role="menuitem"
+            className="deck-editor-overflow-item deck-editor-overflow-item--danger"
+            onClick={() => {
+              setOpen(false);
+              onDelete();
+            }}
+          >
+            Delete
+          </button>
+        </div>
       )}
     </div>
   );

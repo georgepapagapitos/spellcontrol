@@ -411,6 +411,60 @@ describe('DeckEditorPage — Delete in ⋮ overflow (UX-316)', () => {
   });
 });
 
+describe('DeckEditorPage — ⋮ menu sectioning + Export de-dup (E181)', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+
+  it('omits Export from the desktop ⋮ menu — the toolbar Export button is the single desktop entry point', () => {
+    renderEditor();
+    const [desktopTrigger] = screen.getAllByLabelText('Deck actions');
+    fireEvent.click(desktopTrigger);
+
+    expect(screen.queryByRole('menuitem', { name: 'Export' })).toBeNull();
+  });
+
+  it('keeps Export in the mobile ⋮ menu, where the toolbar button is hidden below 1024px', () => {
+    renderEditor();
+    const [, mobileTrigger] = screen.getAllByLabelText('Deck actions');
+    fireEvent.click(mobileTrigger);
+
+    expect(screen.getByRole('menuitem', { name: 'Export' })).toBeTruthy();
+  });
+
+  it('sections the menu into labelled clusters instead of one flat list', () => {
+    renderEditor();
+    const [, mobileTrigger] = screen.getAllByLabelText('Deck actions');
+    fireEvent.click(mobileTrigger);
+
+    expect(screen.getByText('Text tools')).toBeTruthy();
+    expect(screen.getByText('Deck actions')).toBeTruthy();
+    // Text tools clusters the paste/bulk-edit/resync trio.
+    const textTools = screen.getByText('Text tools').closest('.deck-editor-overflow-section');
+    expect(textTools?.textContent).toContain('Paste cards');
+    expect(textTools?.textContent).toContain('Bulk edit');
+    expect(textTools?.textContent).toContain('Resync from a list');
+    // Deck actions clusters Duplicate/Primer/Get feedback (+ Export on mobile).
+    const deckActions = screen.getByText('Deck actions').closest('.deck-editor-overflow-section');
+    expect(deckActions?.textContent).toContain('Duplicate');
+    expect(deckActions?.textContent).toContain('Primer');
+    expect(deckActions?.textContent).toContain('Get feedback');
+  });
+
+  it('every menu row clears the 44px coarse-pointer floor, not just Bulk edit', () => {
+    renderEditor();
+    const [, mobileTrigger] = screen.getAllByLabelText('Deck actions');
+    fireEvent.click(mobileTrigger);
+
+    const rows = screen.getAllByRole('menuitem');
+    expect(rows.length).toBeGreaterThan(1);
+    for (const row of rows) {
+      expect(row.className).toContain('deck-editor-overflow-item');
+    }
+    // No row opts out of the shared class via the old touch-only variant.
+    expect(document.querySelector('.deck-editor-overflow-item-touch')).toBeNull();
+  });
+});
+
 describe('DeckEditorPage — one-shot BuildReportSheet (UX-316)', () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => localStorage.clear());
