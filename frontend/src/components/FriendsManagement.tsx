@@ -24,6 +24,7 @@ import {
   type FriendActivityItem,
 } from '../lib/friends-client';
 import { useInbox, markInboxSeen } from '../lib/use-inbox';
+import { useConfirm } from '../lib/use-confirm';
 
 type TabId = 'friends' | 'requests' | 'inbox' | 'activity';
 
@@ -102,6 +103,7 @@ export function FriendsManagement() {
 
   // Busy state per-item (keyed by user/request id)
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   const setBusy = (id: string, busy: boolean) =>
     setBusyIds((prev) => {
@@ -296,6 +298,14 @@ export function FriendsManagement() {
   };
 
   const handleRemoveFriend = async (friend: Friend) => {
+    const identity = formatIdentity(friend);
+    const ok = await confirm({
+      title: `Remove ${identity.primary}?`,
+      body: `You'll both lose access to anything the other shared friends-only, and any head-to-head history stops updating. You can send a new friend request later.`,
+      confirmLabel: 'Remove friend',
+      danger: true,
+    });
+    if (!ok) return;
     setBusy(friend.id, true);
     try {
       await removeFriend(friend.id);
@@ -714,6 +724,7 @@ export function FriendsManagement() {
           )}
         </div>
       </div>
+      {confirmDialog}
     </div>
   );
 }
