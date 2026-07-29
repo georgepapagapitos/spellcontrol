@@ -37,12 +37,34 @@ beforeEach(() => {
   mockExchange.mockReset();
 });
 
+let nonceSeq = 0;
+
+/**
+ * Hit the callback with BOTH halves of the CSRF binding: a signed state and
+ * the nonce cookie `GET /google` would have set on this browser. The callback
+ * rejects a state that isn't bound to the caller's browser, so a bare signed
+ * state is no longer sufficient — which is the whole point of the fix.
+ */
+function callbackRequest(
+  query: Record<string, string>,
+  input: { platform: 'web' | 'native'; mode?: 'link'; userId?: string }
+) {
+  const nonce = `test-nonce-${++nonceSeq}`;
+  return request(app)
+    .get('/api/auth/google/callback')
+    .set('Cookie', `spellcontrol_oauth=${nonce}`)
+    .query({ ...query, state: signOAuthState({ ...input, nonce }) });
+}
+
 /** Run the Google callback for a given identity and return the 302 response. */
 function callback(sub: string, email: string, platform: 'web' | 'native' = 'web') {
   mockExchange.mockResolvedValue({ sub, email, emailVerified: true, name: null });
-  return request(app)
-    .get('/api/auth/google/callback')
-    .query({ code: 'auth-code', state: signOAuthState({ platform }) });
+  return callbackRequest({ code: 'auth-code' }, { platform });
+}
+
+/** Link-mode callback for `userId`, with the matching nonce cookie. */
+function linkCallback(userId: string, platform: 'web' | 'native' = 'web', code = 'auth-code') {
+  return callbackRequest({ code }, { platform, mode: 'link', userId });
 }
 
 /** Pull the signup token out of a first-time callback redirect (web hash). */
@@ -83,6 +105,92 @@ describe('GET /api/auth/google', () => {
     const res = await request(app).get('/api/auth/google');
     expect(res.status).toBe(302);
     expect(res.headers.location).toContain('accounts.google.com');
+  });
+
+  it('issues an httpOnly nonce cookie to bind the flow to this browser', async () => {
+    const res = await request(app).get('/api/auth/google');
+    const set = [res.headers['set-cookie'] ?? []].flat().join(';');
+    expect(set).toContain('spellcontrol_oauth=');
+    expect(set).toContain('HttpOnly');
+  });
+});
+
+/**
+ * The state is a server-signed JWT, so anyone can mint one by hitting
+ * /google themselves. Without the cookie half, an attacker could complete the
+ * Google flow with their OWN account, withhold the redirect, and hand the
+ * victim `/callback?code=…&state=…` — silently signing the victim's browser
+ * into the attacker's account, after which sync pushes the victim's collection
+ * and decks into it. Every case below must fail closed.
+ */
+describe('GET /api/auth/google/callback — CSRF state binding', () => {
+  it('rejects a validly-signed state with no nonce cookie', async () => {
+    mockExchange.mockResolvedValue({
+      sub: 'csrf-attacker-sub',
+      email: 'attacker@example.com',
+      emailVerified: true,
+      name: null,
+    });
+    const res = await request(app)
+      .get('/api/auth/google/callback')
+      .query({ code: 'auth-code', state: signOAuthState({ platform: 'web', nonce: 'loose' }) });
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/auth?error=google');
+    expect(extractSessionCookie(res.headers['set-cookie'])).toBeNull();
+  });
+
+  it('rejects a state whose nonce does not match the cookie', async () => {
+    mockExchange.mockResolvedValue({
+      sub: 'csrf-mismatch-sub',
+      email: 'mismatch@example.com',
+      emailVerified: true,
+      name: null,
+    });
+    const res = await request(app)
+      .get('/api/auth/google/callback')
+      .set('Cookie', 'spellcontrol_oauth=browser-nonce')
+      .query({ code: 'auth-code', state: signOAuthState({ platform: 'web', nonce: 'other' }) });
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/auth?error=google');
+    expect(extractSessionCookie(res.headers['set-cookie'])).toBeNull();
+  });
+
+  it('sends a native rejection back through the deep-link error route', async () => {
+    mockExchange.mockResolvedValue({
+      sub: 'csrf-native-sub',
+      email: 'native@example.com',
+      emailVerified: true,
+      name: null,
+    });
+    const res = await request(app)
+      .get('/api/auth/google/callback')
+      .query({ code: 'auth-code', state: signOAuthState({ platform: 'native', nonce: 'loose' }) });
+    expect(res.headers.location).toBe('https://spellcontrol.com/oauth/callback?error=google');
+  });
+
+  it('clears the nonce cookie so a captured state cannot be replayed', async () => {
+    mockExchange.mockResolvedValue({
+      sub: 'csrf-replay-sub',
+      email: 'replay@example.com',
+      emailVerified: true,
+      name: null,
+    });
+    const nonce = 'replay-nonce';
+    const state = signOAuthState({ platform: 'web', nonce });
+    const first = await request(app)
+      .get('/api/auth/google/callback')
+      .set('Cookie', `spellcontrol_oauth=${nonce}`)
+      .query({ code: 'auth-code', state });
+    // First use succeeds (new identity → choose-username screen).
+    expect(first.headers.location).toContain('/auth/choose-username');
+    const cleared = [first.headers['set-cookie'] ?? []].flat().join(';');
+    expect(cleared).toContain('spellcontrol_oauth=;');
+
+    // Replaying the same state without the (now-cleared) cookie fails closed.
+    const replay = await request(app)
+      .get('/api/auth/google/callback')
+      .query({ code: 'auth-code', state });
+    expect(replay.headers.location).toBe('/auth?error=google');
   });
 });
 
@@ -288,12 +396,7 @@ describe('GET /api/auth/me/identities', () => {
       emailVerified: true,
       name: null,
     });
-    await request(app)
-      .get('/api/auth/google/callback')
-      .query({
-        code: 'c',
-        state: signOAuthState({ platform: 'web', mode: 'link', userId }),
-      });
+    await linkCallback(userId, 'web', 'c');
     const res = await request(app).get('/api/auth/me/identities').set('Cookie', cookie);
     expect(res.body.google?.linkedAt).toBeTypeOf('number');
   });
@@ -345,12 +448,7 @@ describe('GET /api/auth/google/callback — link mode', () => {
       emailVerified: true,
       name: null,
     });
-    const res = await request(app)
-      .get('/api/auth/google/callback')
-      .query({
-        code: 'auth-code',
-        state: signOAuthState({ platform: 'web', mode: 'link', userId }),
-      });
+    const res = await linkCallback(userId);
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe('/settings?linked=google');
     // No cookie is set/cleared — the user was already authed via their existing session.
@@ -370,12 +468,7 @@ describe('GET /api/auth/google/callback — link mode', () => {
       emailVerified: true,
       name: null,
     });
-    const res = await request(app)
-      .get('/api/auth/google/callback')
-      .query({
-        code: 'auth-code',
-        state: signOAuthState({ platform: 'web', mode: 'link', userId }),
-      });
+    const res = await linkCallback(userId);
     expect(res.headers.location).toBe('/settings?linkError=already_linked');
   });
 
@@ -387,24 +480,14 @@ describe('GET /api/auth/google/callback — link mode', () => {
       emailVerified: true,
       name: null,
     });
-    await request(app)
-      .get('/api/auth/google/callback')
-      .query({
-        code: 'c1',
-        state: signOAuthState({ platform: 'web', mode: 'link', userId }),
-      });
+    await linkCallback(userId, 'web', 'c1');
     mockExchange.mockResolvedValue({
       sub: 'linkcb-cara-2',
       email: 'cara2@example.com',
       emailVerified: true,
       name: null,
     });
-    const res = await request(app)
-      .get('/api/auth/google/callback')
-      .query({
-        code: 'c2',
-        state: signOAuthState({ platform: 'web', mode: 'link', userId }),
-      });
+    const res = await linkCallback(userId, 'web', 'c2');
     expect(res.headers.location).toBe('/settings?linkError=has_google');
   });
 
@@ -416,18 +499,8 @@ describe('GET /api/auth/google/callback — link mode', () => {
       emailVerified: true,
       name: null,
     });
-    await request(app)
-      .get('/api/auth/google/callback')
-      .query({
-        code: 'c1',
-        state: signOAuthState({ platform: 'web', mode: 'link', userId }),
-      });
-    const res = await request(app)
-      .get('/api/auth/google/callback')
-      .query({
-        code: 'c2',
-        state: signOAuthState({ platform: 'web', mode: 'link', userId }),
-      });
+    await linkCallback(userId, 'web', 'c1');
+    const res = await linkCallback(userId, 'web', 'c2');
     expect(res.headers.location).toBe('/settings?linked=google');
   });
 
@@ -439,12 +512,7 @@ describe('GET /api/auth/google/callback — link mode', () => {
       emailVerified: true,
       name: null,
     });
-    const res = await request(app)
-      .get('/api/auth/google/callback')
-      .query({
-        code: 'auth-code',
-        state: signOAuthState({ platform: 'native', mode: 'link', userId }),
-      });
+    const res = await linkCallback(userId, 'native');
     expect(res.headers.location).toBe('https://spellcontrol.com/oauth/callback?linked=google');
   });
 });
@@ -458,12 +526,7 @@ describe('DELETE /api/auth/me/identities/google', () => {
       emailVerified: true,
       name: null,
     });
-    await request(app)
-      .get('/api/auth/google/callback')
-      .query({
-        code: 'c',
-        state: signOAuthState({ platform: 'web', mode: 'link', userId }),
-      });
+    await linkCallback(userId, 'web', 'c');
 
     const res = await request(app).delete('/api/auth/me/identities/google').set('Cookie', cookie);
     expect(res.status).toBe(200);
@@ -551,9 +614,7 @@ describe('Google callback — same-email auto-link', () => {
       emailVerified: false,
       name: null,
     });
-    const res = await request(app)
-      .get('/api/auth/google/callback')
-      .query({ code: 'auth-code', state: signOAuthState({ platform: 'web' }) });
+    const res = await callbackRequest({ code: 'auth-code' }, { platform: 'web' });
     // Falls through to choose-username — no silent link.
     expect(res.headers.location).toMatch(/^\/auth\/choose-username#/);
     const identities = await pool.query(
@@ -575,9 +636,7 @@ describe('Google callback — same-email auto-link', () => {
       emailVerified: true,
       name: null,
     });
-    const res = await request(app)
-      .get('/api/auth/google/callback')
-      .query({ code: 'auth-code', state: signOAuthState({ platform: 'web' }) });
+    const res = await callbackRequest({ code: 'auth-code' }, { platform: 'web' });
     // Not silently linked into the existing user; sent to choose-username instead.
     expect(res.headers.location).toMatch(/^\/auth\/choose-username#/);
   });
