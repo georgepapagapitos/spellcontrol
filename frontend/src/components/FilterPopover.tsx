@@ -1,7 +1,8 @@
 import { ListFilter } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
+import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
 
 export interface FilterToggle {
   key: string;
@@ -70,24 +71,15 @@ export function FilterPopover({ toggles, ariaLabel = 'Filters' }: Props) {
     });
   }, [open]);
 
-  // Close on outside click or Escape while open.
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (panelRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
+  // Dismiss/focus/back semantics, including dismissing when the page scrolls
+  // out from under this fixed-position panel.
+  useMenuKeyboard({
+    open,
+    onClose: () => setOpen(false),
+    panelRef,
+    triggerRef: buttonRef,
+    dialog: true,
+  });
 
   const handleToggle = () => {
     if (!open && buttonRef.current) {
@@ -105,7 +97,7 @@ export function FilterPopover({ toggles, ariaLabel = 'Filters' }: Props) {
         ref={buttonRef}
         type="button"
         className="filter-popover-btn"
-        aria-haspopup="menu"
+        aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={anyActive ? `${ariaLabel} (${activeCount} active)` : ariaLabel}
         title={ariaLabel}
@@ -124,7 +116,10 @@ export function FilterPopover({ toggles, ariaLabel = 'Filters' }: Props) {
           <div
             ref={panelRef}
             className="filter-popover-panel"
-            role="menu"
+            // `role="menu"` here was a lie — the panel's children are checkbox
+            // rows, not menuitems, so AT announced a menu with no items in it.
+            role="dialog"
+            aria-label={ariaLabel}
             style={{
               position: 'fixed',
               top: panelPos.top,
