@@ -22,6 +22,16 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    // Vitest's defaults (5s per test, 10s per hook) are sized for an idle
+    // machine. Several tests here are genuinely compute-heavy — the
+    // substitute-weight eval and the commander-deck tagger analysis each burn
+    // most of a second on an unloaded box — so when the suite runs alongside
+    // other work (parallel worktrees, a second vitest run) they crossed the
+    // line and produced a DIFFERENT failure set on every run, on an
+    // unmodified tree. Raising the ceiling only costs wall-clock on a test
+    // that was going to fail anyway; a passing test finishes exactly as fast.
+    testTimeout: 20_000,
+    hookTimeout: 30_000,
     // Installs an in-memory `localStorage` shim for persisted stores; inert
     // for tests that don't touch storage.
     setupFiles: ['./src/test/setup.ts'],
