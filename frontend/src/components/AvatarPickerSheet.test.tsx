@@ -74,7 +74,7 @@ describe('AvatarPickerSheet', () => {
     collectionCards = [];
     render(<AvatarPickerSheet current={null} onPick={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByText('Your collection is empty.')).toBeTruthy();
-    expect(screen.getByText('Search below for any card to use as your avatar.')).toBeTruthy();
+    expect(screen.getByText('Search above for any card to use as your avatar.')).toBeTruthy();
     expect(screen.queryByRole('listbox')).toBeNull();
   });
 

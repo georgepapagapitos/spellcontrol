@@ -174,6 +174,14 @@ async function scryfallFetch<T>(endpoint: string, attempt = 0): Promise<T> {
       await new Promise((resolve) => setTimeout(resolve, waitMs));
       return scryfallFetch<T>(endpoint, attempt + 1);
     }
+    // /cards/search 404s when NOTHING matched — that's an empty result set, not
+    // a failure. Callers used to hand-roll `err.message.includes('404')` (three
+    // did; the ones that didn't surfaced "Scryfall API error: 404 Not Found" to
+    // the user instead of "no matches"). Normalize it once, here, so every
+    // search surface gets an empty list.
+    if (response.status === 404 && endpoint.startsWith('/cards/search')) {
+      return { object: 'list', total_cards: 0, has_more: false, data: [] } as T;
+    }
     throw new Error(`Scryfall API error: ${response.status} ${response.statusText}`);
   }
 
@@ -182,18 +190,13 @@ async function scryfallFetch<T>(endpoint: string, attempt = 0): Promise<T> {
 
 async function liveSearchCommanders(query: string): Promise<ScryfallCard[]> {
   if (!query.trim()) return [];
-  try {
-    const encodedQuery = encodeURIComponent(
-      `is:commander f:commander ${normalizeScryfallQuery(query)}`
-    );
-    const response = await scryfallFetch<ScryfallSearchResponse>(
-      `/cards/search?q=${encodedQuery}&order=edhrec`
-    );
-    return response.data;
-  } catch (err) {
-    if (err instanceof Error && err.message.includes('404')) return [];
-    throw err;
-  }
+  const encodedQuery = encodeURIComponent(
+    `is:commander f:commander ${normalizeScryfallQuery(query)}`
+  );
+  const response = await scryfallFetch<ScryfallSearchResponse>(
+    `/cards/search?q=${encodedQuery}&order=edhrec`
+  );
+  return response.data;
 }
 
 async function offlineSearchCommanders(query: string): Promise<ScryfallCard[]> {
@@ -312,16 +315,11 @@ export async function searchCardsLive(
  */
 export async function searchPdhCommanders(query: string): Promise<ScryfallCard[]> {
   if (!query.trim()) return [];
-  try {
-    const response = await searchCardsLive(`t:creature r:uncommon ${query}`, [], {
-      skipFormatFilter: true,
-      order: 'edhrec',
-    });
-    return response.data;
-  } catch (err) {
-    if (err instanceof Error && err.message.includes('404')) return [];
-    throw err;
-  }
+  const response = await searchCardsLive(`t:creature r:uncommon ${query}`, [], {
+    skipFormatFilter: true,
+    order: 'edhrec',
+  });
+  return response.data;
 }
 
 /**
