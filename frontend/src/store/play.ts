@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { create } from 'zustand';
 import { isApplyingServer } from '../lib/applying-server';
 import { genId } from '../lib/id';
@@ -442,7 +443,22 @@ export const usePlayStore = create<PlayState>()(
                     set
                   );
                 } else {
-                  set({ onlineError: e.message || 'Action failed.' });
+                  // Anything else (500, network, a rejected action) used to
+                  // only set an error string, which left the optimistic state
+                  // permanently ahead of the server: the batch is spliced out
+                  // of `pendingActions` before the request so nothing retries
+                  // it, and the poller only adopts server state when
+                  // `fresh.version > serverVersion` — which a *failed* patch
+                  // never advances. The board kept showing an action the
+                  // server never accepted until some other player happened to
+                  // move. Reconcile like the 403 path, surfacing the failure
+                  // whether or not the refetch succeeds.
+                  await recoverFromServerState(
+                    code,
+                    e.message || 'Action failed.',
+                    e.message || 'Action failed.',
+                    set
+                  );
                 }
               }
             }
@@ -584,7 +600,10 @@ usePlayStore.subscribe((state, prev) => {
   if (state.history === prev.history) return;
   // Synchronous guard — see store/collection.ts.
   if (isApplyingServer()) return;
-  void import('../lib/sync').then((sync) => sync.persistGamesState(state.history)).catch(() => {});
+  void import('../lib/sync')
+    .then((sync) => sync.persistGamesState(state.history))
+    // See store/cube.ts — a swallowed persist rejection is invisible data loss.
+    .catch((err) => logger.warn('[store] Failed to persist game history:', err));
 });
 
 // ── Per-deck win/loss aggregation ───────────────────────────────────────────

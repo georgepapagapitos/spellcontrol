@@ -451,10 +451,57 @@ describe('usePlayStore — online flow', () => {
       poisonEnabled: false,
     });
     mockPatch.mockRejectedValue(new Error('network down'));
+    mockGet.mockResolvedValue(makeOnlineGame(1));
     await usePlayStore
       .getState()
       .dispatchOnline({ type: 'life', seat: 0, delta: -1, actorSeat: 0 });
     expect(usePlayStore.getState().onlineError).toBe('network down');
+  });
+
+  // The optimistic apply already happened, and the batch is spliced out of the
+  // pending queue before the request — so a rejected patch left the board
+  // showing a move the server never accepted, with nothing to undo it. The
+  // poller cannot help: it only adopts server state when
+  // `fresh.version > serverVersion`, which a *failed* patch never advances.
+  it('dispatchOnline reconciles from the server after a generic patch failure', async () => {
+    mockCreate.mockResolvedValue(makeOnlineGame(1));
+    await usePlayStore.getState().hostOnline({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+    });
+    const before = usePlayStore.getState().online!.players[0].life;
+
+    mockPatch.mockRejectedValue(new Error('server exploded'));
+    const authoritative = makeOnlineGame(1);
+    mockGet.mockResolvedValue(authoritative);
+
+    await usePlayStore
+      .getState()
+      .dispatchOnline({ type: 'life', seat: 0, delta: -5, actorSeat: 0 });
+
+    // Refetched, and the rejected -5 is gone rather than left on screen.
+    expect(mockGet).toHaveBeenCalled();
+    expect(usePlayStore.getState().online).toBe(authoritative);
+    expect(usePlayStore.getState().online!.players[0].life).toBe(before);
+    expect(usePlayStore.getState().onlineError).toBe('server exploded');
+  });
+
+  it('still surfaces the error when the reconciling refetch also fails', async () => {
+    mockCreate.mockResolvedValue(makeOnlineGame(1));
+    await usePlayStore.getState().hostOnline({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+    });
+    mockPatch.mockRejectedValue(new Error('offline'));
+    mockGet.mockRejectedValue(new Error('offline'));
+    await usePlayStore
+      .getState()
+      .dispatchOnline({ type: 'life', seat: 0, delta: -1, actorSeat: 0 });
+    expect(usePlayStore.getState().onlineError).toBe('offline');
   });
 
   it('leaveOnline tells the server, clears state, and stops polling', async () => {

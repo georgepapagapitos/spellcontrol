@@ -111,10 +111,17 @@ button {
    ramping the press in. Release still eases back via the element's own
    transition.
 
-   Specificity is deliberately the lowest possible (0,1,1) so every
-   existing bespoke `.foo:active` (0,2,0) keeps winning. */
-button:active:not(:disabled),
-[role='button']:active:not([aria-disabled='true']) {
+   Specificity must stay BELOW a bespoke `.foo:active` (0,2,0) so every
+   existing pressed state keeps winning. `:not()` takes the specificity of
+   its argument, so the disabled guards have to sit inside `:where()` (which
+   contributes 0) — written bare, `button:active:not(:disabled)` is (0,2,1)
+   and silently OVERRIDES all ~29 bespoke rules. That regression was visible
+   on the two seam-positioned controls, `.game-board-menu-btn` and
+   `.game-board-undo-btn`: both center themselves with
+   `transform: translate(-50%, -50%)`, so replacing `transform` with
+   `translateY(1px)` dropped the centering and made the hub jump half its
+   own size down-and-right on every press. Keep the guards in `:where()`. */
+:where(button:not(:disabled), [role='button']:not([aria-disabled='true'])):active {
   transform: translateY(1px);
   transition-duration: 0s;
 }
