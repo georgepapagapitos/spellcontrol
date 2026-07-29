@@ -270,7 +270,10 @@ export function AvatarPickerSheet({ current, onPick, onClose }: Props) {
           </div>
         </header>
 
-        <div className="avatar-picker-body">
+        {/* Search sits OUTSIDE the scrolling body so it stays put while the
+            grid scrolls under it (and so SearchPill's toolbar-oriented
+            `flex: 1 1 12rem` can't stretch it vertically — see the CSS). */}
+        <div className="avatar-picker-search">
           <SearchPill
             value={query}
             onChange={handleQueryChange}
@@ -287,11 +290,13 @@ export function AvatarPickerSheet({ current, onPick, onClose }: Props) {
               onKeyDown: handleKeyDown,
             }}
           />
+        </div>
 
+        <div className="avatar-picker-body">
           {!searching && collection.length === 0 && (
             <div className="avatar-picker-empty-collection">
               <p>Your collection is empty.</p>
-              <p>Search below for any card to use as your avatar.</p>
+              <p>Search above for any card to use as your avatar.</p>
             </div>
           )}
 
