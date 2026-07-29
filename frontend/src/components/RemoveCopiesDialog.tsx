@@ -21,6 +21,16 @@ export function RemoveCopiesDialog({ cardName, total, onConfirm, onCancel }: Pro
   // Remove it put "delete every copy of this printing" one Enter away.
   const [qty, setQty] = useState(1);
   const clamp = (n: number) => Math.max(1, Math.min(total, n));
+  // Raw text mirror of qty — lets the field go blank/mid-edit; the clamp only
+  // runs at commit (blur/Enter), not on every keystroke. Resynced from qty
+  // during render (not an effect — avoids react-hooks/set-state-in-effect)
+  // whenever the stepper buttons change it.
+  const [qtyText, setQtyText] = useState('1');
+  const [prevQty, setPrevQty] = useState(qty);
+  if (prevQty !== qty) {
+    setPrevQty(qty);
+    setQtyText(String(qty));
+  }
 
   return (
     <Modal onClose={onCancel} labelledBy="remove-copies-title">
@@ -47,10 +57,16 @@ export function RemoveCopiesDialog({ cardName, total, onConfirm, onCancel }: Pro
             className="card-edit-qty-input"
             min={1}
             max={total}
-            value={qty}
-            onChange={(e) => {
-              const n = Math.floor(Number(e.target.value));
-              if (Number.isFinite(n)) setQty(clamp(n));
+            value={qtyText}
+            onChange={(e) => setQtyText(e.target.value)}
+            onBlur={() => {
+              const n = Math.floor(Number(qtyText));
+              const next = Number.isFinite(n) ? clamp(n) : 1;
+              setQty(next);
+              setQtyText(String(next));
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur();
             }}
             aria-label="Copies to remove"
           />

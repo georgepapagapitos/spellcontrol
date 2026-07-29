@@ -48,6 +48,9 @@
 
 .deck-curve-phases-toggle-btn {
   appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   background: none;
   cursor: pointer;
@@ -82,6 +85,15 @@
 
 .deck-curve-phases-toggle-btn:active {
   transform: translateY(0.5px);
+}
+
+/* Compact segmented control — same coarse-pointer floor as the app's other
+   filter/toggle chips (e.g. .coach-feed-filter-chip), not the full 44px used
+   for primary rows/buttons. */
+@media (pointer: coarse) {
+  .deck-curve-phases-toggle-btn {
+    min-height: 36px;
+  }
 }
 
 /* ── CMC histogram ── */

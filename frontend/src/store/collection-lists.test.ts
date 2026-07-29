@@ -57,10 +57,15 @@ describe('list CRUD', () => {
     expect(list.entries).toEqual([]);
     // setListRule persists fire-and-forget (like renameList) — poll until the
     // rule lands in the cache so the assertion isn't racing the IDB write.
-    await vi.waitFor(async () => {
-      const stored = await loadCollection();
-      expect(stored?.lists?.[0].rule).toEqual(rule);
-    });
+    // The explicit timeout replaces vi.waitFor's 1s default, which is too
+    // tight on a loaded machine — see the note on SETTLE in lib/sync.test.ts.
+    await vi.waitFor(
+      async () => {
+        const stored = await loadCollection();
+        expect(stored?.lists?.[0].rule).toEqual(rule);
+      },
+      { timeout: 10_000 }
+    );
     // Static lists stay rule-less.
     useCollectionStore.getState().createList('Wants');
     expect(useCollectionStore.getState().lists[1].rule).toBeUndefined();
@@ -70,10 +75,13 @@ describe('list CRUD', () => {
     const id = useCollectionStore.getState().createList('Commanders', undefined, 'tracking');
     expect(useCollectionStore.getState().lists[0].kind).toBe('tracking');
     // Persists like the other list mutators (fire-and-forget → poll the cache).
-    await vi.waitFor(async () => {
-      const stored = await loadCollection();
-      expect(stored?.lists?.[0].kind).toBe('tracking');
-    });
+    await vi.waitFor(
+      async () => {
+        const stored = await loadCollection();
+        expect(stored?.lists?.[0].kind).toBe('tracking');
+      },
+      { timeout: 10_000 }
+    );
     // Back to want = the pre-kind default → the field is cleared, not stored.
     useCollectionStore.getState().setListKind(id, 'want');
     expect(useCollectionStore.getState().lists[0].kind).toBeUndefined();

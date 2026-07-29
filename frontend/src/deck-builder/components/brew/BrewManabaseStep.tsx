@@ -1,4 +1,4 @@
-import { useMemo, type JSX } from 'react';
+import { useMemo, useState, type JSX } from 'react';
 import './BrewManabaseStep.css';
 import '@/styles/deck-builder-skeleton.css';
 import { useCardThumb } from '@/lib/card-thumbs';
@@ -62,6 +62,18 @@ export function BrewManabaseStep({ onAccept }: BrewManabaseStepProps): JSX.Eleme
   const tallied = useMemo(() => tallyLands(landPlan ?? []), [landPlan]);
   const totalLands = landPlan?.length ?? 0;
 
+  // Raw text mirror of landCountTarget — lets the field go blank/mid-edit;
+  // the clamp only runs at commit (blur/Enter), not on every keystroke (which
+  // used to fire a full manabase regen on every digit typed). Resynced from
+  // landCountTarget during render (not an effect — avoids
+  // react-hooks/set-state-in-effect) in case it's ever reset externally.
+  const [landCountText, setLandCountText] = useState(String(landCountTarget));
+  const [prevLandCountTarget, setPrevLandCountTarget] = useState(landCountTarget);
+  if (prevLandCountTarget !== landCountTarget) {
+    setPrevLandCountTarget(landCountTarget);
+    setLandCountText(String(landCountTarget));
+  }
+
   return (
     <section className="brew-manabase" aria-labelledby="brew-manabase-heading">
       <header className="brew-slot-header">
@@ -79,11 +91,18 @@ export function BrewManabaseStep({ onAccept }: BrewManabaseStepProps): JSX.Eleme
           type="number"
           min={30}
           max={50}
-          value={landCountTarget}
+          value={landCountText}
           disabled={landPlanLoading}
-          onChange={(e) => {
-            const n = Number(e.target.value);
-            if (Number.isFinite(n)) void setLandCountTarget(n);
+          onChange={(e) => setLandCountText(e.target.value)}
+          onBlur={() => {
+            const trimmed = landCountText.trim();
+            const n = Number(trimmed);
+            const next = trimmed !== '' && Number.isFinite(n) ? n : 30;
+            setLandCountText(String(next));
+            void setLandCountTarget(next);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur();
           }}
         />
       </div>

@@ -1,8 +1,9 @@
 import { ChevronDown } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
+import { isNativePlatform } from '../lib/platform';
 
 export interface SelectOption<T extends string | number> {
   value: T;
@@ -116,27 +117,6 @@ export function SelectMenu<T extends string | number>({
     });
   }, [open]);
 
-  // Keyboard semantics + Escape + outside-pointerdown close live in
-  // useMenuKeyboard. This effect only closes the panel if the trigger scrolls
-  // out of view (e.g. modal scroll). Delayed by one frame so focus-triggered
-  // micro-scrolls from the opening click don't immediately close the panel.
-  useEffect(() => {
-    if (!open) return;
-    const onScroll = (e: Event) => {
-      const target = e.target as Node | null;
-      if (target && panelRef.current && panelRef.current.contains(target)) return;
-      setOpen(false);
-    };
-    let scrollRaf = 0;
-    scrollRaf = requestAnimationFrame(() => {
-      document.addEventListener('scroll', onScroll, { capture: true, passive: true });
-    });
-    return () => {
-      cancelAnimationFrame(scrollRaf);
-      document.removeEventListener('scroll', onScroll, { capture: true });
-    };
-  }, [open]);
-
   const handleToggle = () => {
     if (!open) {
       setQuery(''); // fresh filter each time the panel opens
@@ -196,7 +176,9 @@ export function SelectMenu<T extends string | number>({
       >
         {searchable && (
           <input
-            type="search"
+            // Native WebView paints type=search with an opaque light
+            // background that ignores the dark theme — see SearchPill.
+            type={isNativePlatform() ? 'text' : 'search'}
             className="toolbar-popover-search-input"
             value={query}
             placeholder={searchPlaceholder}

@@ -1,10 +1,11 @@
 import './DiscoverFiltersPopover.css';
 import { ListFilter } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { BRACKET_LABELS } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
+import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
 import {
   DISCOVER_COLOR_ORDER,
   type DiscoverBudgetKey,
@@ -43,10 +44,9 @@ type PanelPos = { top?: number; bottom?: number; left?: number; right?: number }
  * mirrors the real `DeckFiltersPopover.tsx` exactly (verified source, not a
  * misremembered summary): portaled to `document.body`,
  * `computePopoverPlacement`/`getSafeViewport` for flip/clamp, live-toggle
- * with no separate Apply step. Deliberately matches that component's real
- * a11y shape too — `role="dialog"`, no `aria-modal`, no focus trap, no
- * auto-focus, no explicit refocus on close (a known, pre-existing gap shared
- * with the sibling `/decks` filters popover, not this PR's problem to fix).
+ * with no separate Apply step, and the shared `useMenuKeyboard` contract
+ * (focus in on open, Tab trapped, Escape / outside pointerdown / outside
+ * scroll / Android back all dismiss).
  *
  * Unlike DeckFiltersPopover's button/aria-pressed chips, every option here is
  * a real `<input type="radio"|"checkbox">` inside a `<fieldset><legend>` (the
@@ -87,23 +87,15 @@ export function DiscoverFiltersPopover({ filters, onChange }: Props) {
     });
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (panelRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
+  // Dismiss/focus/back semantics, including dismissing when the page scrolls
+  // out from under this fixed-position panel.
+  const { closeAndReturnFocus } = useMenuKeyboard({
+    open,
+    onClose: () => setOpen(false),
+    panelRef,
+    triggerRef: buttonRef,
+    dialog: true,
+  });
 
   const handleToggle = () => {
     if (!open && buttonRef.current) {
@@ -113,14 +105,15 @@ export function DiscoverFiltersPopover({ filters, onChange }: Props) {
     setOpen((v) => !v);
   };
 
-  // Format/Budget: single-value radios close the popover on pick.
+  // Format/Budget: single-value radios close the popover on pick, parking focus
+  // back on the trigger rather than dropping it to the page.
   const setFormat = (format: DeckFormat | null) => {
     onChange({ ...filters, format });
-    setOpen(false);
+    closeAndReturnFocus();
   };
   const setBudget = (budget: DiscoverBudgetKey | null) => {
     onChange({ ...filters, budget });
-    setOpen(false);
+    closeAndReturnFocus();
   };
   // Colors/Bracket: multi-value checkboxes stay open.
   const toggleColor = (c: string) => {

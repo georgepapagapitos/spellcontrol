@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { useState } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { NO_DISCOVER_FILTERS, type DiscoverFilters } from '@/lib/discover-filters';
 import { DiscoverFiltersPopover } from './DiscoverFiltersPopover';
@@ -108,11 +108,25 @@ describe('DiscoverFiltersPopover', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('closes on outside click', () => {
+  // pointerdown, not mousedown — the shared useMenuKeyboard contract dismisses
+  // on pointerdown so a touch tap outside closes the panel too.
+  it('closes on an outside pointerdown', () => {
     render(<Harness />);
     openPanel();
     expect(screen.getByRole('dialog')).toBeTruthy();
-    fireEvent.mouseDown(document.body);
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('closes when the page scrolls out from under the panel', async () => {
+    render(<Harness />);
+    openPanel();
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    // The scroll listener attaches one frame after open.
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+    });
+    fireEvent.scroll(document);
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

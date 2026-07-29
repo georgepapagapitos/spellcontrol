@@ -168,6 +168,18 @@ export function BinderEditor() {
   const [doubleSided, setDoubleSided] = useState(false);
   const [tradeable, setTradeable] = useState(false);
   const [fixedCapacity, setFixedCapacity] = useState<number | null>(null);
+  // Raw text mirror of fixedCapacity — lets the field go blank/mid-edit; the
+  // clamp only runs at commit (blur/Enter), not on every keystroke. Resynced
+  // from fixedCapacity during render (not an effect — avoids
+  // react-hooks/set-state-in-effect) whenever it changes for a reason other
+  // than typing (the Fixed checkbox, pocket-size/double-sided defaults, or
+  // loading an existing binder).
+  const [fixedCapacityText, setFixedCapacityText] = useState('');
+  const [prevFixedCapacity, setPrevFixedCapacity] = useState(fixedCapacity);
+  if (prevFixedCapacity !== fixedCapacity) {
+    setPrevFixedCapacity(fixedCapacity);
+    if (fixedCapacity !== null) setFixedCapacityText(String(fixedCapacity));
+  }
   const [showDeckAllocated, setShowDeckAllocated] = useState(true);
   const [keepPrintingsTogether, setKeepPrintingsTogether] = useState(false);
   const [sectionMode, setSectionMode] = useState<'sort' | 'group'>('sort');
@@ -731,10 +743,16 @@ export function BinderEditor() {
                           min={1}
                           max={100000}
                           step={1}
-                          value={fixedCapacity}
-                          onChange={(e) => {
-                            const cards = parseInt(e.target.value);
-                            setFixedCapacity(Number.isFinite(cards) && cards > 0 ? cards : 1);
+                          value={fixedCapacityText}
+                          onChange={(e) => setFixedCapacityText(e.target.value)}
+                          onBlur={() => {
+                            const cards = parseInt(fixedCapacityText);
+                            const next = Number.isFinite(cards) && cards > 0 ? cards : 1;
+                            setFixedCapacity(next);
+                            setFixedCapacityText(String(next));
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.currentTarget.blur();
                           }}
                           aria-label="Capacity in cards"
                           style={{ width: 100 }}

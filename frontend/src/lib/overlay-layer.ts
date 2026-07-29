@@ -77,25 +77,33 @@ export function trapTab(panel: HTMLElement, e: KeyboardEvent): boolean {
 const layerStack: symbol[] = [];
 
 /**
- * Registers this overlay as a layer for its lifetime and reports whether it is
+ * Registers this overlay as a layer while `active` and reports whether it is
  * the topmost one. Only the topmost layer should answer Escape, the Android
  * back button, or trap Tab.
+ *
+ * `active` exists because not every overlay unmounts when it closes. Modals and
+ * sheets are rendered only while open, so the default (`true`, register for the
+ * component's lifetime) is right for them. Popovers are different: the
+ * component owns the trigger too, so it stays mounted permanently and must
+ * register only while its panel is open — otherwise every mounted SelectMenu on
+ * the page sits in the stack and "topmost" becomes whichever one mounted last.
  *
  * `isTopmost` is a getter, not a boolean, so event handlers read the live
  * stack at press time rather than closing over a stale render's value.
  */
-export function useOverlayLayer(): { isTopmost: () => boolean } {
+export function useOverlayLayer(active = true): { isTopmost: () => boolean } {
   const idRef = useRef<symbol | null>(null);
   if (idRef.current === null) idRef.current = Symbol('overlay-layer');
 
   useEffect(() => {
+    if (!active) return;
     const id = idRef.current as symbol;
     layerStack.push(id);
     return () => {
       const i = layerStack.indexOf(id);
       if (i !== -1) layerStack.splice(i, 1);
     };
-  }, []);
+  }, [active]);
 
   // Stable identity: consumers list `isTopmost` in effect deps, and a fresh
   // function each render would re-run those effects on every render — which

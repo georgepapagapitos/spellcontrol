@@ -1,11 +1,12 @@
 import { ListFilter } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { DeckFormat } from '@/deck-builder/types';
 import type { DeckSource } from '../store/decks';
 import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
 import { ColorPip } from './shared/ManaSymbol';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
+import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
 
 const COLOR_OPTIONS: Array<{ key: string; label: string }> = [
   { key: 'W', label: 'White' },
@@ -79,24 +80,15 @@ export function DeckFiltersPopover({
     });
   }, [open]);
 
-  // Close on outside click or Escape while open.
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (panelRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
+  // Dismiss/focus/back semantics, including dismissing when the page scrolls
+  // out from under this fixed-position panel.
+  useMenuKeyboard({
+    open,
+    onClose: () => setOpen(false),
+    panelRef,
+    triggerRef: buttonRef,
+    dialog: true,
+  });
 
   const handleToggle = () => {
     if (!open && buttonRef.current) {

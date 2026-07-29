@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { isApplyingServer } from '../lib/applying-server';
@@ -179,5 +180,10 @@ export const useCubeStore = create<CubeState>()(
 useCubeStore.subscribe((state, prev) => {
   if (state.saved === prev.saved) return;
   if (isApplyingServer()) return;
-  void import('../lib/sync').then((s) => s.persistCubesState(state.saved)).catch(() => {});
+  void import('../lib/sync')
+    .then((s) => s.persistCubesState(state.saved))
+    // Best-effort, but a swallowed rejection means an IDB write silently
+    // stopped happening and the change never reached the sync queue —
+    // invisible data loss. Log it, as collection.ts's persist helpers do.
+    .catch((err) => logger.warn('[store] Failed to persist cubes:', err));
 });
