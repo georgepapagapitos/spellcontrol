@@ -494,6 +494,15 @@ hard constraint they share.
 **never** be `flex-shrink: 0` + no-wrap. That combination is exactly what clips
 at 320px. If it can't shrink, it must wrap or collapse.
 
+**Every multi-button row declares its own `gap: var(--space-2)`.** `.btn` sets
+no sibling margin by design, so *all* spacing between buttons comes from the
+parent — a flex row that omits `gap` renders its buttons flush against each
+other with zero separation. The `display: flex; justify-content: flex-end;`
+footer idiom is the usual carrier: it was copy-pasted into several action rows
+without the `gap` line, which shipped touching Cancel/Confirm pairs across the
+choice dialogs, the card-picker sheets, the deck-filter popovers and the build
+report. When you write that idiom, write the third line too.
+
 1. **Action rows** — a primary call-to-action plus secondary actions (the page
    heroes: Decks / Collection / Binders).
    - Keep the **primary CTA labelled and always visible.**
@@ -1360,6 +1369,17 @@ a gesture layered on top of the existing tap:
   siblings in some ATs) that a plain toggle button doesn't need to promise.
 - A bulk-action bar appears only while the mode is on, between the toolbar and
   the content — never a floating/sticky overlay that could obscure a row.
+- **The check badge overlays a corner only where there is art beneath it.**
+  `.bulk-check` is absolutely positioned, so it reserves no space in the row's
+  flow — fine on a grid tile or a list row whose leading edge is commander art,
+  but on a **compact** row (decks/binders/lists, no thumbnail) the same badge
+  landed on top of the deck name and ate its first characters (`atraxa` read as
+  `axa`). Compact rows therefore get a dedicated **lane**: the badge centers
+  vertically and the card takes a `padding-left` that clears it. The padding
+  goes on the card rather than its inner link so one shared rule serves all
+  three index surfaces without a per-surface specificity fight — and select
+  mode already routes clicks through the card, so the lane stays a live toggle
+  target rather than dead space.
 
 **Drag reorder — a dedicated handle, never the whole row.** A vertical touch
 drag anywhere in a scrolling list must scroll by default; only a gesture that

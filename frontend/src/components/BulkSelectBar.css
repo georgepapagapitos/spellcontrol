@@ -125,3 +125,23 @@
   background: var(--accent);
   border-color: var(--accent);
 }
+
+/* Compact rows (decks/binders/lists) render no art, so the corner overlay
+   above lands on top of the name and eats its first characters. There the
+   badge gets its own lane instead: centered on the short row, with the card
+   padded to clear it. The padding sits on the card (which has none of its
+   own) rather than its inner link, so no per-surface specificity fight is
+   needed — and select mode already routes clicks through the card, so the
+   lane stays a live toggle target. Grid/list views keep the corner badge
+   they were drawn for (their top-left is art). */
+/* 1.6rem, off the 4px scale on purpose: the badge lane is 8px inset + 22px
+   badge = 30px, and the row's inner link already contributes var(--space-3),
+   so this lands the name ~8px clear of the badge. */
+.is-compact .bulk-selectable {
+  padding-left: 1.6rem;
+}
+.is-compact .bulk-selectable > .bulk-check {
+  top: 50%;
+  left: var(--space-2);
+  transform: translateY(-50%);
+}
