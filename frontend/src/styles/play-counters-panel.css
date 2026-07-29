@@ -131,9 +131,8 @@
   cursor: pointer;
 }
 
-/* Rows flex to fill the panel height instead of scrolling. Even a 6-player
-   pod (poison + 5 commander rows) divides the panel evenly with no
-   overflow. */
+/* Body fills the panel instead of scrolling: the commander-damage tile grid
+   takes the slack, poison keeps its natural row height beneath it. */
 .pp-counters-body {
   flex: 1 1 auto;
   display: flex;
@@ -143,9 +142,8 @@
 }
 
 .pp-counters-body .counter-row {
-  flex: 1 1 0;
-  min-height: 0;
-  /* Slightly tighter than the standalone row so many rows still fit. */
+  flex: 0 0 auto;
+  /* Slightly tighter than the standalone row so it doesn't crowd the grid. */
   padding: 0.3rem 0.55rem;
 }
 
@@ -155,13 +153,136 @@
   white-space: nowrap;
 }
 
+/* ── Commander-damage tiles ─────────────────────────────────────────────────
+   One tile per opponent, tinted with that opponent's own panel color (the
+   pp-color-* class or the inline seat palette — same three vars either way),
+   so "who is killing me" reads without parsing names. auto-fit means a
+   4-player pod gets 3 across and a 6-player pod wraps to 3 + 2, with no
+   overflow and no scrolling at any panel size. */
+.pp-cmd-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(4.25rem, 1fr));
+  gap: 0.35rem;
+}
+
+.pp-cmd-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--pp-edge, #7d8aa3) 55%, transparent);
+  background: linear-gradient(
+    170deg,
+    color-mix(in srgb, var(--pp-base, #4a5366) 55%, transparent) 0%,
+    color-mix(in srgb, var(--pp-base, #4a5366) 22%, transparent) 100%
+  );
+}
+
+.pp-cmd-tile-name {
+  flex: 0 0 auto;
+  padding: 0.22rem 0.35rem;
+  background: color-mix(in srgb, var(--pp-base, #4a5366) 75%, black 25%);
+  color: #fff;
+  font-size: var(--text-xs, 0.72rem);
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The +/− halves are the tap targets — they take all the leftover height so
+   the tile is thumbable at arm's length instead of a small-button hunt. */
+.pp-cmd-tile-step {
+  flex: 1 1 0;
+  min-height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--pp-accent, #d0d8e8);
+  font-size: var(--text-lg, 1.15rem);
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: none; /* hold-to-repeat + swipe-to-dismiss own the gesture */
+  transition: background var(--motion-fast) ease;
+}
+
+.pp-cmd-tile-step:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pp-cmd-tile-step:not(:disabled):hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+}
+
+.pp-cmd-tile-step:not(:disabled):active {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.pp-cmd-tile-step:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: -3px;
+}
+
+.pp-cmd-tile-value {
+  flex: 0 0 auto;
+  padding: 0.05rem 0.2rem;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: var(--text-xl, 1.35rem);
+  font-weight: 800;
+  line-height: 1.1;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Lethal (21+ from one commander) — same red language as the counter chips. */
+.pp-cmd-tile.is-lethal {
+  border-color: rgba(255, 180, 180, 0.85);
+  background: linear-gradient(170deg, rgba(220, 38, 38, 0.55) 0%, rgba(220, 38, 38, 0.25) 100%);
+}
+
+.pp-cmd-tile.is-lethal .pp-cmd-tile-name {
+  background: rgba(160, 20, 20, 0.9);
+}
+
+.pp-cmd-tile.is-lethal .pp-cmd-tile-value {
+  animation: pp-counter-lethal 1.2s ease-in-out infinite;
+  border-radius: var(--radius);
+}
+
+/* Grab handle — the conventional "swipe down to dismiss" tell. Decorative;
+   the ✕ button beside it is the accessible equivalent. */
+.pp-counters-grab {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 2rem;
+  height: 0.22rem;
+  margin-bottom: 0.1rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pp-counters-cover,
   .seat-menu {
     animation: none !important;
     clip-path: none;
   }
-  .pp-counter-chip.is-lethal {
+  .pp-counter-chip.is-lethal,
+  .pp-cmd-tile.is-lethal .pp-cmd-tile-value {
     animation: none !important;
   }
 }
@@ -187,6 +308,12 @@
   .pp-counters-close {
     width: 2.75rem;
     height: 2.75rem;
+  }
+
+  /* Commander-damage tile +/− halves — 1.75 rem = 28 px without this. They
+     still flex to fill, this only raises the floor on a cramped panel. */
+  .pp-cmd-tile-step {
+    min-height: 2.75rem;
   }
 
   /* Counter chips — pill shape, bump min-height so the tap area is tall enough */

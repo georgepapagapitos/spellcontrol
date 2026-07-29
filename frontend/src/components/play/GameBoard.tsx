@@ -388,10 +388,7 @@ function PlayerPanel({
   //   explicit override → MTG color identity → seat-palette fallback.
   // The seat palette is derived deterministically from the game id so each
   // new game draws a fresh set of vivid colors, stable for that game.
-  const overrideKey = player.panelColorKey ? player.panelColorKey.toLowerCase() : null;
-  const hasIdentity = Array.isArray(player.colorIdentity) && player.colorIdentity.length > 0;
-  const identityClass = hasIdentity ? identityKey(player.colorIdentity) : null;
-  const colorKey = overrideKey ?? identityClass;
+  const colorKey = seatColorKey(player);
   const seatPalette = useMemo(() => paletteForSeat(game.id, player.seat), [game.id, player.seat]);
 
   const { display: animatedLife, popKey } = useAnimatedNumber(player.life);
@@ -485,15 +482,18 @@ function PlayerPanel({
     [disabled, dispatch, player.seat, pushDelta]
   );
 
-  // Counters live in tappable corner chips now (see below) — the old
-  // swipe-to-open-drawer gesture is gone, so tap/hold is the only panel
-  // gesture. Swipe detection still cancels a stray vertical drag from
-  // firing a life tap.
+  // Corner chips remain the tap/keyboard affordance for the counters cover;
+  // swipe-up is an additive shortcut for the common in-game move (log the
+  // commander damage that just hit you without hunting for a small chip).
+  // `rotation` makes "up" panel-local, so it means up *for that seat*.
+  // A vertical swipe also cancels the pending life tap/hold inside the hook.
+  const hasCounters = game.poisonEnabled || game.commanderDamageEnabled;
   const tapHandlers = useTapAndHold({
     onTap: (delta: number) => adjust(delta),
     onHoldTick: (delta: number, gearUp: boolean) => adjust(delta, gearUp),
     onPointerStart: (e) => recordPointer(e.clientX, e.clientY),
     onPointerMove: (e) => recordPointer(e.clientX, e.clientY),
+    onSwipeUp: hasCounters && canEdit && !player.eliminated ? () => setDrawerOpen(true) : undefined,
     rotation,
     disabled,
   });
@@ -747,6 +747,7 @@ function PlayerPanel({
             game={game}
             opponents={opponents}
             disabled={countersDisabled}
+            rotation={rotation}
             dispatch={dispatch}
             onClose={() => setDrawerOpen(false)}
           />
@@ -964,17 +965,23 @@ function useTapAndHold({
 // ── Counters popover (poison + commander damage) ───────────────────────────
 
 /**
- * Compact popover opened by tapping a corner counter chip. Replaces the old
- * full-width "Counters" button + swipe-up drawer: the chips keep poison /
- * commander damage glanceable, and this popover (dismissed by tapping
- * outside) holds the +/- controls. Lives inside the panel so it inherits
- * the seat's rotation and reads upright for that player.
+ * Full-panel counters cover, opened by tapping a corner counter chip or by
+ * swiping up on your own panel, and dismissed by swiping back down (or the
+ * ✕ / Esc). Lives inside the panel so it inherits the seat's rotation and
+ * reads upright for that player.
+ *
+ * Commander damage renders as one tile per opponent, tinted with that
+ * opponent's own panel color, so "who is hitting me" is answerable at a
+ * glance from across the table. The reducer already subtracts life 1:1 on
+ * every `cmd-dmg` tick, so the life total behind the cover moves live — there
+ * is nothing to commit on the way out.
  */
 function CountersPopover({
   player,
   game,
   opponents,
   disabled,
+  rotation,
   dispatch,
   onClose,
 }: {
@@ -982,17 +989,41 @@ function CountersPopover({
   game: GameState;
   opponents: GamePlayer[];
   disabled: boolean;
+  /** Panel rotation, so swipe-to-dismiss is panel-local for every seat. */
+  rotation: number;
   dispatch: (a: GameAction) => void;
   onClose: () => void;
 }) {
+  // Reuse the tap/hold hook purely as a swipe detector: `disabled` skips the
+  // tap + hold-repeat arming but still records the pointer start and fires
+  // the swipe callbacks. Bubbles from the tiles too, so a downward drag
+  // started anywhere on the cover dismisses it (and the tile's own hook
+  // cancels its pending tap at the same threshold, so nothing double-fires).
+  const swipeHandlers = useTapAndHold({
+    onTap: () => {},
+    onHoldTick: () => {},
+    onSwipeDown: onClose,
+    rotation,
+    disabled: true,
+  });
   return (
     <div
       className="pp-counters-cover"
       role="dialog"
       aria-label={`${player.name} counters`}
       onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.stopPropagation();
+          onClose();
+        }
+      }}
+      {...swipeHandlers(0)}
     >
       <div className="pp-counters-inner">
+        {/* Grab handle — the conventional "this dismisses by swiping" tell.
+            Decorative: the ✕ beside it is the accessible control. */}
+        <span className="pp-counters-grab" aria-hidden="true" />
         <div className="pp-counters-head">
           <span className="pp-counters-title">Counters</span>
           <button
@@ -1005,6 +1036,28 @@ function CountersPopover({
           </button>
         </div>
         <div className="pp-counters-body">
+          {game.commanderDamageEnabled && opponents.length > 0 && (
+            <div className="pp-cmd-grid">
+              {opponents.map((o) => (
+                <CmdDamageTile
+                  key={o.seat}
+                  opponent={o}
+                  gameId={game.id}
+                  value={player.commanderDamage[o.seat] ?? 0}
+                  disabled={disabled}
+                  onChange={(d) =>
+                    dispatch({
+                      type: 'cmd-dmg',
+                      seat: player.seat,
+                      fromSeat: o.seat,
+                      delta: d,
+                      actorSeat: player.seat,
+                    })
+                  }
+                />
+              ))}
+            </div>
+          )}
           {game.poisonEnabled && (
             <CounterRow
               label="☠ Poison"
@@ -1016,27 +1069,81 @@ function CountersPopover({
               }
             />
           )}
-          {game.commanderDamageEnabled &&
-            opponents.map((o) => (
-              <CounterRow
-                key={o.seat}
-                label={`⚔ ${o.commander ?? o.name}`}
-                value={player.commanderDamage[o.seat] ?? 0}
-                disabled={disabled}
-                lethal={(player.commanderDamage[o.seat] ?? 0) >= 21}
-                onChange={(d) =>
-                  dispatch({
-                    type: 'cmd-dmg',
-                    seat: player.seat,
-                    fromSeat: o.seat,
-                    delta: d,
-                    actorSeat: player.seat,
-                  })
-                }
-              />
-            ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * One opponent's commander damage: a big split tile (+ above the value, −
+ * below) tinted in that opponent's panel color. Same tap-and-hold ramp as
+ * the counter rows, so holding + races to 21.
+ */
+function CmdDamageTile({
+  opponent,
+  gameId,
+  value,
+  disabled,
+  onChange,
+}: {
+  opponent: GamePlayer;
+  gameId: string;
+  value: number;
+  disabled: boolean;
+  onChange: (delta: number) => void;
+}) {
+  const tapHandlers = useTapAndHold({
+    onTap: onChange,
+    onHoldTick: (delta) => onChange(delta),
+    disabled,
+  });
+  const colorKey = seatColorKey(opponent);
+  const palette = paletteForSeat(gameId, opponent.seat);
+  const label = opponent.commander ?? opponent.name;
+  const lethal = value >= 21;
+  return (
+    <div
+      className={`pp-cmd-tile ${colorKey ? `pp-color-${colorKey}` : ''} ${
+        lethal ? 'is-lethal' : ''
+      }`}
+      // Mirrors the panel's own fallback: the pp-color-* class supplies the
+      // vars when a color identity / override exists, otherwise the seat
+      // palette does, inline.
+      style={
+        colorKey
+          ? undefined
+          : {
+              ['--pp-base' as never]: palette.base,
+              ['--pp-edge' as never]: palette.edge,
+              ['--pp-accent' as never]: palette.accent,
+            }
+      }
+    >
+      <span className="pp-cmd-tile-name" title={label}>
+        {label}
+      </span>
+      <button
+        type="button"
+        className="pp-cmd-tile-step is-plus"
+        aria-label={`+1 commander damage from ${label}`}
+        disabled={disabled}
+        {...tapHandlers(1)}
+      >
+        <span aria-hidden="true">+</span>
+      </button>
+      <span className="pp-cmd-tile-value" aria-live="polite">
+        {value}
+      </span>
+      <button
+        type="button"
+        className="pp-cmd-tile-step is-minus"
+        aria-label={`-1 commander damage from ${label}`}
+        disabled={disabled}
+        {...tapHandlers(-1)}
+      >
+        <span aria-hidden="true">−</span>
+      </button>
     </div>
   );
 }
@@ -2232,6 +2339,19 @@ function identityKey(ci: string[]): string {
   if (!ci || ci.length === 0) return 'c';
   if (ci.length === 1) return ci[0].toLowerCase();
   return 'm';
+}
+
+/**
+ * Two-tier panel color key: explicit override → MTG color identity. Null means
+ * neither applies and the caller should fall back to `paletteForSeat`. Shared
+ * by the seat panel and the commander-damage tiles so an opponent's tile is
+ * tinted exactly like that opponent's own panel.
+ */
+function seatColorKey(p: GamePlayer): string | null {
+  if (p.panelColorKey) return p.panelColorKey.toLowerCase();
+  return Array.isArray(p.colorIdentity) && p.colorIdentity.length > 0
+    ? identityKey(p.colorIdentity)
+    : null;
 }
 
 // ── Win celebration ────────────────────────────────────────────────────────
