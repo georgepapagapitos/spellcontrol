@@ -51,7 +51,6 @@ import {
   fetchRulings,
 } from './scryfall';
 import { runScryfallBulkIngest } from './scryfall-bulk';
-import { errorMessage } from './error-utils';
 import { dedupePreservingOrder } from './utils';
 import { getSetMap, getSetCards, SetNotFoundError } from './sets';
 import { parseImport } from './parsers';
@@ -227,8 +226,7 @@ app.get(
       res.json({ rulings });
     } catch (err) {
       logger.error('[rulings] fetch failed:', err);
-      const message = errorMessage(err);
-      res.status(502).json({ error: `Failed to fetch rulings: ${message}` });
+      res.status(502).json({ error: 'Failed to fetch rulings.' });
     }
   }
 );
@@ -574,10 +572,13 @@ app.post(
       if (err instanceof ImportTooLargeError) {
         return res.status(413).json({ error: err.message });
       }
+      // The raw message stays in the server log only — this endpoint is
+      // unauthenticated, and echoing `err.message` leaked internal Scryfall /
+      // SQLite / fs text to anonymous callers. Mirrors the generic wording the
+      // global error handler already uses.
       logger.error('[import] error:', err);
-      const message = errorMessage(err);
       res.status(500).json({
-        error: `Import failed: ${message}. Please check your file format and try again.`,
+        error: 'Import failed. Please check your file format and try again.',
       });
     }
   }
@@ -658,9 +659,8 @@ app.post(
         return res.status(413).json({ error: err.message });
       }
       logger.error('[import-deck] error:', err);
-      const message = errorMessage(err);
       res.status(500).json({
-        error: `Deck import failed: ${message}. Please check the format and try again.`,
+        error: 'Deck import failed. Please check the format and try again.',
       });
     }
   }
@@ -703,8 +703,7 @@ app.get(
       res.json({ printings: cards });
     } catch (err) {
       logger.error('[printings] error:', err);
-      const message = errorMessage(err);
-      res.status(500).json({ error: `Failed to fetch printings: ${message}` });
+      res.status(500).json({ error: 'Failed to fetch printings.' });
     }
   }
 );
@@ -732,8 +731,7 @@ app.get(
       res.json({ card });
     } catch (err) {
       logger.error('[cards/by-id] error:', err);
-      const message = errorMessage(err);
-      res.status(500).json({ error: `by-id lookup failed: ${message}` });
+      res.status(500).json({ error: 'by-id lookup failed.' });
     }
   }
 );
@@ -793,8 +791,7 @@ app.post('/api/refresh-prices', priceLimiter, async (req: Request, res: Response
     res.json({ prices });
   } catch (err) {
     logger.error('[refresh-prices] error:', err);
-    const message = errorMessage(err);
-    res.status(500).json({ error: `Price refresh failed: ${message}.` });
+    res.status(500).json({ error: 'Price refresh failed.' });
   }
 });
 
