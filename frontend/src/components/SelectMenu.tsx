@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { createPortal } from 'react-dom';
 import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
+import { isNativePlatform } from '../lib/platform';
 
 export interface SelectOption<T extends string | number> {
   value: T;
@@ -196,7 +197,9 @@ export function SelectMenu<T extends string | number>({
       >
         {searchable && (
           <input
-            type="search"
+            // Native WebView paints type=search with an opaque light
+            // background that ignores the dark theme — see SearchPill.
+            type={isNativePlatform() ? 'text' : 'search'}
             className="toolbar-popover-search-input"
             value={query}
             placeholder={searchPlaceholder}

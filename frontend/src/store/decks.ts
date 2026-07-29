@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import { isApplyingServer } from '../lib/applying-server';
@@ -1565,5 +1566,8 @@ useDecksStore.subscribe((state, prev) => {
   // Analysis writes (bracket/grade/gap) are derived/cached data — skip sync so
   // merely opening a deck doesn't enqueue a full persistDecksState for all decks.
   if (isApplyingAnalysis()) return;
-  void import('../lib/sync').then((sync) => sync.persistDecksState(state.decks)).catch(() => {});
+  void import('../lib/sync')
+    .then((sync) => sync.persistDecksState(state.decks))
+    // See store/cube.ts — a swallowed persist rejection is invisible data loss.
+    .catch((err) => logger.warn('[store] Failed to persist decks:', err));
 });
