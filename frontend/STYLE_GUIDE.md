@@ -510,6 +510,24 @@ at 320px. If it can't shrink, it must wrap or collapse.
      (Home's Quick Actions are the reference: "Import cards" → "Import",
      "Plan a game night" → "Game night" at ≤600px, long/short span pair with
      the aria-label matching the long form).
+   - **A kebab that outgrows ~6-7 rows needs labelled sections, not one flat
+     list** (E181 — the deck editor's `⋮` had grown to 12-13 rows across
+     fifteen independent PRs, each adding one more item without ever looking
+     at the whole menu). Group rows into small labelled clusters with hairline
+     dividers between them (`DeckEditorOverflowMenu` in `DeckEditorPage.tsx`
+     is the reference — a plain `text-xs`/uppercase/`--text-muted` label
+     above each cluster, same idiom as `.collection-filters-section-label`);
+     keep Undo/Redo unlabelled at top (their own top-of-menu convention
+     predates sectioning) and destructive actions unlabelled at the very
+     bottom. **Every row still needs the coarse-pointer 44px floor** — apply
+     it to the shared row class, not to whichever row happened to be newest
+     when someone last touched the file. **A menu tall enough to threaten
+     off-screen rows needs `max-height` + `overflow-y: auto` on the panel**,
+     not just on the outer page. And before adding a row that already exists
+     as a visible primary control elsewhere on the same surface (E181's kebab
+     carried Undo/Redo/Tokens/Pull list *and* an inline copy of all four),
+     ask which surface is the single source for that action — one export
+     button beats a kebab AND a toolbar disagreeing about the entry point.
 
 2. **Control rows** — pickers with no single primary action (Sort / Group /
    Filter / view-mode toggles; e.g. `.card-list-summary-actions`, the binder
@@ -875,6 +893,45 @@ implementation (`components/deck/BetweenYourDecks.tsx`):
 - This is a re-housing pattern, not a new interaction: the sheet's contents
   should be near-identical to what an inline surface would have shown, just
   gated behind one tap instead of always-on real estate.
+
+## Empty states (E182)
+
+A surface whose primary content is a **generated list** (deck card list,
+collection grid, any grouped-rows view) can legitimately have zero rows —
+a brand-new manual deck, a fresh collection, a filtered-to-nothing view. That
+is a distinct case from the "zero visible items" case in the insight-strip
+rule above: an insight strip is optional advisory content, so it renders
+nothing and disappears; the **primary content region itself** rendering
+nothing is a dead first impression (a fully interactive toolbar pointing at
+blank space), because the surface's whole reason to exist is missing. The
+deck editor shipped fifteen PRs against a populated deck without any of them
+noticing a brand-new deck rendered nothing below its toolbar — this is the
+reference fix (`.deck-empty-state` in `DeckDisplay.tsx` +
+`deck-builder-card-list.css`):
+
+- **Reuse the insight-strip visual language** (one row, `--surface-raised`,
+  `border-radius: var(--radius-lg)`) for the empty-state block itself — don't
+  invent a bespoke illustration/empty-graphic system for one screen. Icon +
+  headline + one detail sentence + a single primary CTA button, laid out like
+  `WedgeHintStrip`/`BuildTimeCoachStrip` but **not dismissible** (there's
+  nothing to dismiss it *to* — the list stays empty until the user acts).
+- **The copy names the next action, not just the absence of content.**
+  "This deck is empty" alone is a dead end; pair it with what to do next
+  ("Search the card index below and add your first cards") and a CTA that
+  performs that action directly (`onAddCards` opens the same add-cards sheet
+  the toolbar's own Add-cards button opens — one entry point, not a second
+  one).
+- **Branch the copy when the *reason* for emptiness differs, not just the
+  count.** A Commander-format deck with no commander yet needs different
+  guidance than a deck that simply has no cards — suggestions, color
+  identity, and legality all key off the commander, so "add a card" is the
+  wrong next step until one exists. Only branch when the underlying cause is
+  genuinely different; don't multiply copy variants for cosmetic reasons.
+- **Compute the condition from the same derived state the list already
+  renders from** (`visibleGroups.length === 0`), not a re-derived proxy
+  (`cards.length === 0`) that can drift from what the grouping logic actually
+  produces — a commander-only deck has 0 mainboard cards but 1 non-empty
+  group (its Commander section), and the empty state must not fire there.
 
 ## Build-time coach strip (E169 Half B) — a NAVIGATING insight strip
 
