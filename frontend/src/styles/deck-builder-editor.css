@@ -64,36 +64,98 @@
   min-width: 0;
 }
 
-/* ── Commander presence (≥600px) ──────────────────────────────────────────
-   The commander's art_crop rides behind the title as a right-anchored
-   backdrop, fading to the page background toward the text so the name/meta
-   keep their contrast in both themes (the gradient starts from var(--bg),
-   which tracks the active theme). Hidden on phones: there the title spans
-   the full row and art behind text would cost legibility. */
+/* ── Commander presence ───────────────────────────────────────────────────
+   The commander's art_crop rides behind the title. Two treatments, one
+   backdrop:
+
+   ≥600px — a right-anchored panel fading to the page background toward the
+   text, so the name/meta keep their contrast in both themes (the gradient
+   starts from var(--bg), which tracks the active theme).
+
+   ≤599px — the art spans the full hero instead. It used to be hidden here
+   ("art behind full-width text costs legibility"), which left phones with a
+   flat charcoal slab and no deck identity at all — the single biggest
+   difference against every competitor's mobile deck page. Legibility is
+   bought back with a vertical scrim rather than by dropping the art: the
+   text sits in the bottom band where the gradient is near-opaque. */
 .deck-editor-hero-artwrap {
-  display: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  pointer-events: none;
+}
+
+.deck-editor-hero-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 25%;
+  /* Slightly below full strength so an ellipsized long title crossing the
+     art zone keeps AA contrast in both themes (the fade below does the
+     heavy lifting; this caps the worst-case bright-art tail). */
+  opacity: 0.9;
+}
+
+.deck-editor-hero-art-fade {
+  position: absolute;
+  inset: 0;
+}
+
+/* Title/meta paint above the backdrop. */
+.deck-editor-hero > :not(.deck-editor-hero-artwrap) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Muted small mono has no contrast headroom over art; step it up one
+   token wherever the backdrop is active. */
+.deck-editor-hero .binder-hero-meta {
+  color: var(--text-secondary);
+}
+
+/* Phones: full-bleed art, vertical scrim. The hero gets real height so the
+   art reads as art and not as a texture behind a label, and bottom padding
+   so the title/meta/visibility chip stack sits in the opaque band. */
+@media (max-width: 599px) {
+  .deck-editor-hero--art {
+    min-height: 8.5rem;
+    justify-content: flex-end;
+    padding: var(--space-4) var(--space-3) var(--space-3);
+    border-left-width: 4px;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  /* Near-opaque under the text, clearing to art up top. Two stacked stops so
+     a bright crop (white borders, snow, Eldrazi) can't wash the name out. */
+  .deck-editor-hero-art-fade {
+    background: linear-gradient(
+      to top,
+      var(--bg) 0%,
+      color-mix(in srgb, var(--bg) 88%, transparent) 38%,
+      color-mix(in srgb, var(--bg) 55%, transparent) 70%,
+      color-mix(in srgb, var(--bg) 35%, transparent) 100%
+    );
+  }
+
+  /* The name is the page's identity on a phone — let it wrap to two lines
+     rather than ellipsizing a commander name into "Urianger Augu…". */
+  .deck-editor-hero--art .deck-editor-name {
+    font-size: var(--text-2xl);
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
 }
 
 @media (min-width: 600px) {
   .deck-editor-hero-artwrap {
-    display: block;
-    position: absolute;
     inset: 0 0 0 auto;
     width: min(24rem, 55%);
-    overflow: hidden;
-    border-radius: var(--radius-lg);
-    pointer-events: none;
-  }
-
-  .deck-editor-hero-art {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center 25%;
-    /* Slightly below full strength so an ellipsized long title crossing the
-       art zone keeps AA contrast in both themes (the fade below does the
-       heavy lifting; this caps the worst-case bright-art tail). */
-    opacity: 0.9;
   }
 
   /* Scrim floor: the meta line (and an ellipsized title) can span the full
@@ -102,8 +164,6 @@
      band adds extra cover exactly where the meta line sits, since
      object-position 25% tends to put the busiest art detail low. */
   .deck-editor-hero-art-fade {
-    position: absolute;
-    inset: 0;
     background:
       linear-gradient(to top, color-mix(in srgb, var(--bg) 60%, transparent) 0%, transparent 50%),
       linear-gradient(
@@ -113,18 +173,6 @@
         color-mix(in srgb, var(--bg) 45%, transparent) 80%,
         color-mix(in srgb, var(--bg) 30%, transparent) 100%
       );
-  }
-
-  /* Title/meta paint above the backdrop. */
-  .deck-editor-hero > :not(.deck-editor-hero-artwrap) {
-    position: relative;
-    z-index: 1;
-  }
-
-  /* Muted small mono has no contrast headroom over art; step it up one
-     token wherever the backdrop is active. */
-  .deck-editor-hero .binder-hero-meta {
-    color: var(--text-secondary);
   }
 }
 
