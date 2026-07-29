@@ -1,24 +1,16 @@
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
-
-// Mirrors Header's formatCount (intentionally copied, not imported — keeps the
-// hub shell decoupled from the header so either can change independently).
-function formatCount(n: number): string {
-  if (n < 1000) return String(n);
-  if (n < 10_000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`;
-  return `${Math.round(n / 1000)}k`;
-}
+import { HubTabsNav } from './HubTabsNav';
 
 /**
- * Tab-bar shell for the Collection hub. Renders Cards / Binders / Lists tabs
- * above an <Outlet/> so the nested index, binder-detail and list-detail routes
- * all keep the tab bar visible.
+ * Tab-bar shell for the Collection hub. Renders Cards / Binders / Lists / Sets
+ * / Cube tabs above an <Outlet/> so the nested index, binder-detail and
+ * list-detail routes all keep the tab bar visible.
  *
  * Active tab is derived from the live pathname here (NOT a src/lib helper —
- * keeps the gated coverage scope clean):
- *  - Cards    : pathname === '/collection' (exact)
- *  - Binders  : pathname starts with '/collection/binders'
- *  - Lists    : pathname starts with '/collection/lists'
+ * keeps the gated coverage scope clean). Cards is an exact match because every
+ * other tab's path is a prefix of it; the rest are prefix matches so their
+ * detail routes keep the parent tab lit.
  */
 export function CollectionHubLayout() {
   const { pathname } = useLocation();
@@ -26,66 +18,44 @@ export function CollectionHubLayout() {
   const binderCount = useCollectionStore((s) => s.binders.length);
   const listCount = useCollectionStore((s) => s.lists.length);
 
-  const cardsActive = pathname === '/collection';
-  const bindersActive = pathname.startsWith('/collection/binders');
-  const listsActive = pathname.startsWith('/collection/lists');
-  const setsActive = pathname.startsWith('/collection/sets');
-  const cubeActive = pathname.startsWith('/collection/cube');
-
   return (
     <>
-      <nav className="collection-hub-tabs" aria-label="Collection sections">
-        <Link
-          to="/collection"
-          className={cardsActive ? 'site-nav-link active' : 'site-nav-link'}
-          aria-current={cardsActive ? 'page' : undefined}
-        >
-          <span>Cards</span>
-          {cardCount > 0 && (
-            <span className="site-nav-count" aria-label={`${cardCount} cards`}>
-              {formatCount(cardCount)}
-            </span>
-          )}
-        </Link>
-        <Link
-          to="/collection/binders"
-          className={bindersActive ? 'site-nav-link active' : 'site-nav-link'}
-          aria-current={bindersActive ? 'page' : undefined}
-        >
-          <span>Binders</span>
-          {binderCount > 0 && (
-            <span className="site-nav-count" aria-label={`${binderCount} binders`}>
-              {formatCount(binderCount)}
-            </span>
-          )}
-        </Link>
-        <Link
-          to="/collection/lists"
-          className={listsActive ? 'site-nav-link active' : 'site-nav-link'}
-          aria-current={listsActive ? 'page' : undefined}
-        >
-          <span>Lists</span>
-          {listCount > 0 && (
-            <span className="site-nav-count" aria-label={`${listCount} lists`}>
-              {formatCount(listCount)}
-            </span>
-          )}
-        </Link>
-        <Link
-          to="/collection/sets"
-          className={setsActive ? 'site-nav-link active' : 'site-nav-link'}
-          aria-current={setsActive ? 'page' : undefined}
-        >
-          <span>Sets</span>
-        </Link>
-        <Link
-          to="/collection/cube"
-          className={cubeActive ? 'site-nav-link active' : 'site-nav-link'}
-          aria-current={cubeActive ? 'page' : undefined}
-        >
-          <span>Cube</span>
-        </Link>
-      </nav>
+      <HubTabsNav
+        ariaLabel="Collection sections"
+        tabs={[
+          {
+            to: '/collection',
+            label: 'Cards',
+            active: pathname === '/collection',
+            count: cardCount,
+            countNoun: 'cards',
+          },
+          {
+            to: '/collection/binders',
+            label: 'Binders',
+            active: pathname.startsWith('/collection/binders'),
+            count: binderCount,
+            countNoun: 'binders',
+          },
+          {
+            to: '/collection/lists',
+            label: 'Lists',
+            active: pathname.startsWith('/collection/lists'),
+            count: listCount,
+            countNoun: 'lists',
+          },
+          {
+            to: '/collection/sets',
+            label: 'Sets',
+            active: pathname.startsWith('/collection/sets'),
+          },
+          {
+            to: '/collection/cube',
+            label: 'Cube',
+            active: pathname.startsWith('/collection/cube'),
+          },
+        ]}
+      />
       <Outlet />
     </>
   );
