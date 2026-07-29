@@ -539,7 +539,20 @@ export const useCollectionStore = create<CollectionState>()(
         const importId = newImportId();
         const existing = get().cards;
         const existingHistory = get().importHistory;
-        const stamped = response.cards.map((c) => ({ ...c, importId }));
+        // Imported cost basis arrives with no currency attached (ManaBox /
+        // Moxfield exports don't say which one their purchase-price column is
+        // in). The viewer's display currency is the best signal available for
+        // what they paid in, so stamp it — absent reads as USD, which would
+        // silently drop a EUR user's whole imported basis from the roll-up (see
+        // `lib/cost-basis.ts`). USD stays absent, since that IS the default.
+        const basisCurrency = getCurrency();
+        const stamped = response.cards.map((c) => ({
+          ...c,
+          importId,
+          ...(c.acquiredPrice !== undefined && basisCurrency !== 'USD'
+            ? { acquiredCurrency: basisCurrency }
+            : {}),
+        }));
         const collectionMode = mode === 'binder' ? 'merge' : mode;
         const newCards = collectionMode === 'merge' ? mergeCards(existing, stamped) : stamped;
         // A 'replace' import over a non-empty collection silently discards the

@@ -163,3 +163,100 @@ describe('CardEditDialog mixed condition/language (E131)', () => {
     );
   });
 });
+
+describe('CardEditDialog cost basis (E203)', () => {
+  beforeEach(() => {
+    fetchPrintingsMock.mockReset();
+    fetchPrintingsMock.mockResolvedValue([current]);
+  });
+
+  function renderPaidDialog(
+    props: Partial<React.ComponentProps<typeof CardEditDialog>> = {},
+    onConfirm = vi.fn()
+  ) {
+    render(
+      <CardEditDialog
+        cardName="Sol Ring"
+        currentScryfallId="sf-a"
+        currentFinish="nonfoil"
+        details={{ condition: 'nm' }}
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+        {...props}
+      />
+    );
+    return onConfirm;
+  }
+
+  const paidField = () => screen.getByLabelText(/^Paid/) as HTMLInputElement;
+
+  it('pre-fills the recorded basis, which alone is not a change', async () => {
+    renderPaidDialog({ details: { condition: 'nm', acquiredPrice: 4.25 } });
+    await waitFor(() => expect(paidField().value).toBe('4.25'));
+    // Nothing edited → Save stays disabled, so there's nothing to no-op away.
+    expect(screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('parses a typed price at commit, tolerating a pasted currency symbol', async () => {
+    const onConfirm = renderPaidDialog();
+    const input = await waitFor(paidField);
+    fireEvent.change(input, { target: { value: '$1,250.5' } });
+    // Mid-typing text is left alone; normalization happens on blur (#1378 pattern).
+    expect(input.value).toBe('$1,250.5');
+    fireEvent.blur(input);
+    expect(input.value).toBe('1250.5');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ details: expect.objectContaining({ acquiredPrice: 1250.5 }) })
+    );
+  });
+
+  it('treats garbage and zero as "not recorded" rather than a free acquisition', async () => {
+    const onConfirm = renderPaidDialog({ details: { condition: 'nm', acquiredPrice: 4 } });
+    const input = await waitFor(paidField);
+    fireEvent.change(input, { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    // Clearing is a real change (4 → unrecorded) that sends no price at all.
+    const { details } = onConfirm.mock.calls[0][0];
+    expect(details.acquiredPrice).toBeUndefined();
+  });
+
+  it('shows a Mixed placeholder for a stack bought at different prices, and leaves it alone', async () => {
+    const onConfirm = renderPaidDialog({
+      quantity: 2,
+      details: { condition: 'nm', acquiredPrice: 4 },
+      mixedDetails: { acquiredPrice: '1 $4.00, 1 $40.00' },
+    });
+    const input = await waitFor(paidField);
+    expect(input.value).toBe('');
+    expect(input.getAttribute('placeholder')).toBe('Mixed (1 $4.00, 1 $40.00)');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Increase quantity' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const { details } = onConfirm.mock.calls[0][0];
+    expect(details.acquiredPriceTouched).toBe(false);
+    expect(details.acquiredPrice).toBeUndefined();
+  });
+
+  it('typing into a mixed basis field marks it touched so the value applies to the stack', async () => {
+    const onConfirm = renderPaidDialog({
+      quantity: 2,
+      details: { condition: 'nm', acquiredPrice: 4 },
+      mixedDetails: { acquiredPrice: '1 $4.00, 1 $40.00' },
+    });
+    const input = await waitFor(paidField);
+    fireEvent.change(input, { target: { value: '12' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        details: expect.objectContaining({ acquiredPrice: 12, acquiredPriceTouched: true }),
+      })
+    );
+  });
+
+  it('omits the field entirely for callers that run without inventory details', async () => {
+    renderPaidDialog({ details: undefined });
+    await screen.findByText('#270');
+    expect(screen.queryByLabelText(/^Paid/)).toBeNull();
+  });
+});

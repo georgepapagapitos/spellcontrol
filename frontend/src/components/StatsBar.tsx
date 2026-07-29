@@ -1,6 +1,9 @@
 import { X } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { useCollectionStore } from '../store/collection';
+import { summarizeCostBasis } from '../lib/cost-basis';
+import { useCurrency } from '../lib/currency';
+import { formatMoney } from '../lib/format-money';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import type { EnrichedCard } from '../types';
@@ -83,6 +86,58 @@ export function StatsBar({ open, onClose }: Props) {
 
       {open && <StatsDrawer cards={cards} onClose={onClose} />}
     </>
+  );
+}
+
+/**
+ * Cost basis vs current market value (E203) — "how did my money do", the
+ * companion to ValueTrend's "what is it worth now".
+ *
+ * Deliberately scoped to copies with a recorded price on both sides, and always
+ * printed WITH that coverage: a collection where 300 of 8,000 copies have a
+ * price cannot report a collection-wide gain, and treating the other 7,700 as
+ * free would turn their entire market value into fake profit.
+ *
+ * Renders nothing when nothing is covered — a user who has never recorded a
+ * price gets no empty state here; the "Paid" field in the card edit dialog is
+ * where the feature is discovered.
+ */
+function CostBasisCard({ cards }: { cards: EnrichedCard[] }) {
+  const currency = useCurrency();
+  const summary = useMemo(() => summarizeCostBasis(cards, currency), [cards, currency]);
+  if (summary.covered === 0) return null;
+
+  const gain = Math.round(summary.gain);
+  const pct = Math.round((summary.gain / summary.basis) * 100);
+  const direction = gain > 0 ? 'up' : gain < 0 ? 'down' : 'flat';
+  // Mirrors STYLE_GUIDE's money-delta rule (as ValueTrend does): a zero delta
+  // reads as "Even", never "+$0".
+  const headline =
+    gain === 0
+      ? 'Even with what you paid'
+      : `${gain > 0 ? '+' : '−'}${formatMoney(Math.abs(gain), { wholeDollars: true })} (${gain > 0 ? '+' : '−'}${Math.abs(pct)}%)`;
+
+  return (
+    <section className="breakdown-card cost-basis" aria-label="Cost basis">
+      <h3 className="breakdown-title">Cost basis</h3>
+      <p className="cost-basis-headline">
+        <span className={`cost-basis-gain cost-basis-gain--${direction}`}>{headline}</span>
+        <span className="cost-basis-sub">
+          {summary.covered.toLocaleString()} of {summary.total.toLocaleString()} copies with a
+          recorded price
+        </span>
+      </p>
+      <dl className="cost-basis-pair">
+        <div className="cost-basis-pair-item">
+          <dt>Paid</dt>
+          <dd>{formatMoney(summary.basis)}</dd>
+        </div>
+        <div className="cost-basis-pair-item">
+          <dt>Now worth</dt>
+          <dd>{formatMoney(summary.market)}</dd>
+        </div>
+      </dl>
+    </section>
   );
 }
 
@@ -185,6 +240,7 @@ function StatsDrawer({ cards, onClose }: { cards: EnrichedCard[]; onClose: () =>
 
         <div className="stats-drawer-body">
           <ValueTrend />
+          <CostBasisCard cards={cards} />
 
           <section className="breakdown-card" aria-label="Cards by color">
             <h3 className="breakdown-title">Colors</h3>

@@ -804,6 +804,50 @@
   color: var(--err-text);
 }
 
+/* Cost basis ("Paid") — same label/field column as the quantity editor so the
+   inventory-details block reads as one form. */
+.card-edit-paid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+}
+
+.card-edit-paid-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.card-edit-paid-input {
+  width: 100%;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  padding: 0 var(--space-2);
+  min-width: 0;
+}
+
+.card-edit-paid-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Coarse pointers get a comfortable field height (the 28px desktop input is
+   fine with a mouse, fiddly with a thumb). */
+@media (pointer: coarse) {
+  .card-edit-paid-input,
+  .card-edit-qty-input {
+    height: 44px;
+  }
+}
+
 .card-edit-sets {
   display: flex;
   flex-direction: column;

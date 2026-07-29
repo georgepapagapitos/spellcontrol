@@ -63,6 +63,21 @@ describe('mergeCard', () => {
     expect(unpriced.pricedAt).toBeUndefined();
   });
 
+  it("keeps the file's purchase price as cost basis, separate from market price", () => {
+    const result = mergeCard(
+      row({ purchasePrice: 2.25 }),
+      card({ prices: { usd: '18.00', usd_foil: null, usd_etched: null } })
+    );
+    // The file says what they paid; Scryfall says what it's worth now. Both survive.
+    expect(result.acquiredPrice).toBe(2.25);
+    expect(result.purchasePrice).toBe(18);
+  });
+
+  it('ignores a zero or absent purchase price rather than recording a free acquisition', () => {
+    expect(mergeCard(row({ purchasePrice: 0 }), card()).acquiredPrice).toBeUndefined();
+    expect(mergeCard(row(), card()).acquiredPrice).toBeUndefined();
+  });
+
   it('passes through per-copy row metadata only when present', () => {
     const full = mergeCard(
       row({ condition: 'lp', language: 'ja', altered: true, proxy: false, misprint: true }),

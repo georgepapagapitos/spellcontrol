@@ -61,6 +61,27 @@ export interface EnrichedCard {
   proxy?: boolean;
   /** True when the user flagged the physical card as a misprint. */
   misprint?: boolean;
+  /**
+   * What the user actually PAID for this copy — cost basis, NOT market value.
+   * (`purchasePrice` above is a legacy misnomer holding the current market
+   * price, restamped from the device-local cache on every read — see
+   * `lib/card-prices.ts`.) Sourced from an import file's purchase-price column
+   * or typed in the edit dialog, and never touched by a price refresh — so it
+   * rides the synced row safely, exactly like `condition`.
+   *
+   * Only ever positive: `0` and absent both mean "no recorded price", since
+   * import columns are full of placeholder zeroes that would otherwise read as
+   * free acquisitions and fabricate enormous gains. `lib/cost-basis.ts` is the
+   * only place that aggregates it.
+   */
+  acquiredPrice?: number;
+  /**
+   * Display currency `acquiredPrice` was recorded in. Absent = USD (mirrors
+   * `ValuePoint.currency`). A $-basis and a €-basis can't be compared against
+   * one market snapshot, so reads filter to the active currency rather than
+   * mixing them — see `lib/cost-basis.ts`.
+   */
+  acquiredCurrency?: string;
   cmc?: number;
   typeLine?: string;
   colorIdentity?: string[];
