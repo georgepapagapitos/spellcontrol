@@ -28,6 +28,7 @@ import {
   type AllocationInfo,
 } from '../lib/allocations';
 import { createIndexedDbStorage } from '../lib/idb-storage';
+import { withTagAdded, withTagRemoved } from '../lib/deck-tags';
 
 const decksIdbStorage = createIndexedDbStorage('spellcontrol-decks');
 import { pickRandomPresetColor } from './../lib/preset-colors';
@@ -77,6 +78,14 @@ export interface DeckCard {
    * never normalize one into the other.
    */
   tags?: string[];
+  /**
+   * Manual drag-order position (E172), only meaningful when the deck view's
+   * sort mode is 'custom'. `undefined` ("never dragged") sorts by `addedAt`
+   * instead — see `lib/deck-reorder.ts` for the fractional-index math. A
+   * drag writes this on ONE row only; every other row's ordering is derived,
+   * never rewritten.
+   */
+  sortIndex?: number;
 }
 
 /** The three zones a `DeckCard` slot can live in — tags (and any other
@@ -387,6 +396,14 @@ interface DecksState {
    * `DeckCard` for the sticky-override contract.
    */
   setCardTags(deckId: string, zone: DeckZone, slotIds: string[], tags: string[]): void;
+  /**
+   * Add or remove ONE tag across N slots in one write (E172 bulk-select),
+   * preserving each slot's own other tags — unlike `setCardTags`, which
+   * blanket-replaces a single-name row's whole tag list, this merges per
+   * slot so a heterogeneous multi-select (different cards, different
+   * existing tags) doesn't clobber anything but the one tag being toggled.
+   */
+  bulkEditTag(deckId: string, zone: DeckZone, slotIds: string[], tag: string, add: boolean): void;
   /** Rename a tag everywhere it appears across cards/sideboard/considering,
    *  in one write. Merges into an existing `to` tag on a card that already
    *  has both (no duplicate). No-op for slots that never had `from`. */
@@ -452,6 +469,29 @@ interface DecksState {
   moveToConsidering(deckId: string, slotId: string): void;
   /** Move a Considering slot back into the mainboard. */
   moveFromConsidering(deckId: string, slotId: string): void;
+
+  /**
+   * Bulk primitives for multi-select editing (E172) — each is ONE `set()`
+   * write regardless of how many slots it touches, the same "never loop
+   * per-card actions" discipline as `resyncDeck`/`setCardTags`. The
+   * single-slot actions above stay as they are (used one row at a time from
+   * a row's own menu); these exist for the toolbar's bulk-action bar.
+   */
+  /** Add N cards to one zone in one write. Each entry can bind its own
+   *  allocated copy (or none). Returns the new slotIds, in order. */
+  bulkAddCards(
+    deckId: string,
+    zone: DeckZone,
+    entries: Array<{ card: ScryfallCard; allocatedCopyId: string | null }>
+  ): string[];
+  /** Remove N slots from one zone in one write. */
+  bulkRemoveCards(deckId: string, zone: DeckZone, slotIds: string[]): void;
+  /** Move N slots from one zone to another in one write, preserving each
+   *  slot's allocation/tags/addedAt/sortIndex untouched. */
+  bulkMoveZone(deckId: string, slotIds: string[], from: DeckZone, to: DeckZone): void;
+  /** Set the manual drag-order index (E172) on N slots — a dragged row's
+   *  whole stack shares one index, written in one write. */
+  setCardSortIndex(deckId: string, zone: DeckZone, slotIds: string[], sortIndex: number): void;
 
   setCommander(deckId: string, card: ScryfallCard | null, allocated?: string | null): void;
   setPartnerCommander(deckId: string, card: ScryfallCard | null, allocated?: string | null): void;
@@ -736,6 +776,27 @@ export const useDecksStore = create<DecksState>()(
         }));
       },
 
+      bulkEditTag: (deckId, zone, slotIds, tag, add) => {
+        const ids = new Set(slotIds);
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId
+              ? touch({
+                  ...d,
+                  [zone]: (d[zone] ?? []).map((c) =>
+                    ids.has(c.slotId)
+                      ? {
+                          ...c,
+                          tags: add ? withTagAdded(c.tags, tag) : withTagRemoved(c.tags, tag),
+                        }
+                      : c
+                  ),
+                })
+              : d
+          ),
+        }));
+      },
+
       renameDeckTag: (deckId, from, to) => {
         const renameOne = (c: DeckCard): DeckCard => {
           if (!c.tags?.includes(from)) return c;
@@ -922,6 +983,63 @@ export const useDecksStore = create<DecksState>()(
             });
           }),
         })),
+
+      bulkAddCards: (deckId, zone, entries) => {
+        const newSlots: DeckCard[] = entries.map((e) => ({
+          slotId: genId('slot'),
+          card: e.card,
+          allocatedCopyId: e.allocatedCopyId,
+          addedAt: Date.now(),
+        }));
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId ? touch({ ...d, [zone]: [...(d[zone] ?? []), ...newSlots] }) : d
+          ),
+        }));
+        return newSlots.map((n) => n.slotId);
+      },
+
+      bulkRemoveCards: (deckId, zone, slotIds) => {
+        const ids = new Set(slotIds);
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId
+              ? touch({ ...d, [zone]: (d[zone] ?? []).filter((c) => !ids.has(c.slotId)) })
+              : d
+          ),
+        }));
+      },
+
+      bulkMoveZone: (deckId, slotIds, from, to) => {
+        if (from === to) return;
+        const ids = new Set(slotIds);
+        set((s) => ({
+          decks: s.decks.map((d) => {
+            if (d.id !== deckId) return d;
+            const moving = (d[from] ?? []).filter((c) => ids.has(c.slotId));
+            if (moving.length === 0) return d;
+            return touch({
+              ...d,
+              [from]: (d[from] ?? []).filter((c) => !ids.has(c.slotId)),
+              [to]: [...(d[to] ?? []), ...moving],
+            });
+          }),
+        }));
+      },
+
+      setCardSortIndex: (deckId, zone, slotIds, sortIndex) => {
+        const ids = new Set(slotIds);
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId
+              ? touch({
+                  ...d,
+                  [zone]: (d[zone] ?? []).map((c) => (ids.has(c.slotId) ? { ...c, sortIndex } : c)),
+                })
+              : d
+          ),
+        }));
+      },
 
       setCommander: (deckId, card, allocated = null) =>
         set((s) => ({

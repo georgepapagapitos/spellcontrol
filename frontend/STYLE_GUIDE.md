@@ -1308,6 +1308,72 @@ Zero visual noise on a standard EDHREC-generated deck: tier 3 only mounts when
 render conditions, so nothing changes for the common case tiers 1–2 already
 cover.
 
+### Selection mode & drag reorder (E172)
+
+Two patterns, both established in code before this guide caught up — this
+section is the write-back, not a new invention.
+
+**Selection mode — explicit toggle, never long-press-to-select.** A row's
+whole-row tap/Enter/Space already means "open the card preview" everywhere in
+the app; a bulk-select affordance must not fight that. The answer is a
+deliberate **mode** the user opts into via a toolbar "Select" pill
+(`.toolbar-pill`, `aria-pressed` carries the on/off state — see
+`CardListTable.tsx`'s `selectMode` and `DeckDisplay.tsx`'s mirror of it), not
+a gesture layered on top of the existing tap:
+
+- While the mode is off, rows behave exactly as before (tap → preview).
+- Turning it on reroutes the row's existing `onClick`/`onKeyDown` handler to
+  toggle selection instead — same handler slot, different target function.
+  Nothing about the card-preview carousel or the row's own buttons (qty
+  stepper, kebab menu — which already `stopPropagation()`) needs to change.
+- The row is `role="button" aria-pressed={selected}` — **not**
+  `role="checkbox"` — with a small visual check glyph (`.deck-row-select-check`)
+  inside, not a native `<input type="checkbox">`. This follows the "Read-only
+  validation indicators" ruling above one level further: a checkbox ARIA role
+  promises native checkbox keyboard semantics (Space only, no Enter, arrow-key
+  siblings in some ATs) that a plain toggle button doesn't need to promise.
+- A bulk-action bar appears only while the mode is on, between the toolbar and
+  the content — never a floating/sticky overlay that could obscure a row.
+
+**Drag reorder — a dedicated handle, never the whole row.** A vertical touch
+drag anywhere in a scrolling list must scroll by default; only a gesture that
+starts on an unambiguous, small, dedicated control should ever hijack it. Two
+non-negotiables that follow from that:
+
+- The drag handle (`.deck-row-drag-handle`, a `GripVertical` icon button) is
+  the **only** element with dnd-kit's `listeners`/`attributes` bound — never
+  the row's own `<li>`. Touching anywhere else on the row keeps scrolling;
+  touching the handle is the only way to arm a drag. `touch-action: none` on
+  the handle stops the browser's native touch-scroll gesture from fighting the
+  handle once it's grabbed — everywhere else on the row keeps the default
+  `touch-action` (native scroll).
+- **Reordering is a deliberate, visible sort mode** ("Custom order" in the
+  Sort menu), not a side effect available under whatever sort is active. The
+  drag handle only renders when that mode is selected — a drag while the
+  header still claims "sorted by CMC" would be a lie, so the affordance simply
+  doesn't exist until the user has explicitly switched to Custom.
+- **`@dnd-kit/*` is the house tool for this shape of problem** — already a
+  dependency, already used once (`SortValueOrderEditor.tsx`). `PointerSensor`
+  with `activationConstraint: { distance: 6 }` + `KeyboardSensor` +
+  `sortableKeyboardCoordinates` gives pointer, touch, and keyboard reordering
+  (focus the handle, Space to pick up, arrow keys to move, Space to drop, Esc
+  to cancel) for free, plus built-in edge auto-scroll and a screen-reader live
+  region — don't hand-roll any of it. Pass a custom `accessibility.announcements`
+  object (per-section, naming the card and its 1-based position) rather than
+  relying on dnd-kit's generic default text.
+- **Don't apply dnd-kit's live `transform`/`transition` style to the row
+  itself** if the same list also animates via a FLIP hook (`use-list-flip.ts`,
+  which already imperatively glides rows on add/remove/reorder) — two systems
+  fighting over one element's inline `transform` is visible jank. Let the FLIP
+  hook own final-position settling; give the actively-dragged row only a dim
+  (`.is-dragging { opacity }`), and use dnd-kit's `<DragOverlay>` (a small
+  floating name chip, portaled by dnd-kit itself) for the "following the
+  pointer" visual instead.
+- Both the checkbox and the drag handle use the ghost-hit-area `::after`
+  technique from "44px touch targets" above — the visible glyph stays small
+  (it sits in a dense row) and the tappable area expands via a centered
+  pseudo-element, same as `.set-filter-chip-x`.
+
 ## Z-index / layering
 
 - **Always use the `--z-*` tokens** (in `styles/tokens.css`), never raw integers:

@@ -795,6 +795,120 @@
   flex: 0 0 auto;
 }
 
+/* ── Multi-select (E172) ──────────────────────────────────────────────
+   Leading checkbox glyph — a togglable <span>, not a native checkbox input
+   (the row itself is the role="button" toggle target, aria-pressed carries
+   the state; see STYLE_GUIDE "Read-only validation indicators" ruling on
+   not misusing role="checkbox" — this mirrors CardListTable's own pattern:
+   role="button" on the row, a visual check glyph inside). */
+.deck-row-select-check {
+  flex: 0 0 auto;
+  width: 1.1rem;
+  height: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--border-strong);
+  border-radius: calc(var(--radius) * 0.5);
+  color: var(--on-accent);
+  background: var(--surface);
+}
+
+.deck-row-select-check[data-checked='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.deck-row.is-selected {
+  background: var(--accent-light);
+}
+
+/* ── Manual reorder (E172) ────────────────────────────────────────────
+   Dedicated drag handle — NOT the whole row — so a vertical touch drag
+   anywhere else on the row keeps scrolling the list by default; only a
+   pointer-down that starts ON the handle arms dnd-kit's PointerSensor. See
+   STYLE_GUIDE "Selection mode & drag reorder". touch-action: none stops the
+   browser's own touch-scroll gesture from fighting the handle's own drag
+   once it's grabbed. */
+.deck-row-drag-handle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--radius) * 0.5);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+.deck-row-drag-handle:active {
+  cursor: grabbing;
+}
+
+.deck-row-drag-handle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deck-row-drag-handle:hover {
+    color: var(--text-primary);
+    background: var(--surface-raised);
+  }
+}
+
+@media (pointer: coarse) {
+  .deck-row-select-check,
+  .deck-row-drag-handle {
+    /* Ghost hit-area technique (STYLE_GUIDE "44px touch targets") — the
+       visible glyph stays small so it doesn't distort the dense row, the
+       tappable area expands via a centered pseudo-element instead. */
+    position: relative;
+  }
+  .deck-row-select-check::after,
+  .deck-row-drag-handle::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.deck-row.is-dragging {
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-row.is-dragging {
+    transition: none;
+  }
+}
+
+/* Floating DragOverlay clone (E172) — a lightweight name-only chip that
+   follows the pointer while dragging; the row being dragged just dims in
+   place (`.is-dragging` above) rather than growing its own transform, so it
+   never fights `useListFlip`'s own position glide on the same node. */
+.deck-row-drag-overlay {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.8rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
+}
+
 /* ── Role-filter lens ─────────────────────────────────────────────────
    Non-matching rows/tiles dim in place while a role filter is active —
    layout is preserved so the matching cards pop instead of reshuffling. */
