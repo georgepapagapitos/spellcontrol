@@ -6,6 +6,7 @@ import { SearchPill } from '../components/SearchPill';
 import { InlineCardSearch, type InlineCardSearchView } from '../components/InlineCardSearch';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { useCollapsedPref } from '../lib/use-collapsed-pref';
+import { isNativePlatform, openExternal } from '../lib/platform';
 import { useStoredView } from '../lib/use-stored-view';
 import { offlineDataAvailable, useOfflineStore } from '../store/offline';
 
@@ -128,7 +129,16 @@ export function SearchPage() {
             <p className="search-syntax-note">
               <code>otag:</code> searches Scryfall’s community-curated functional categories, e.g.{' '}
               <code>otag:repeatable-creature-tokens</code>.{' '}
-              <a href="https://scryfall.com/docs/syntax" target="_blank" rel="noopener noreferrer">
+              <a
+                href="https://scryfall.com/docs/syntax"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                  if (!isNativePlatform()) return;
+                  e.preventDefault();
+                  openExternal('https://scryfall.com/docs/syntax');
+                }}
+              >
                 Full syntax reference
               </a>
             </p>
