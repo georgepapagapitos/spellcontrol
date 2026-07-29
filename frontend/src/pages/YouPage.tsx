@@ -957,6 +957,12 @@ interface WipeConfirmDialogProps {
  */
 function WipeConfirmDialog({ cardCount, step, busy, onAdvance, onCancel }: WipeConfirmDialogProps) {
   const isFinal = step === 2;
+  // Freeze the count at open. `cardCount` is live store state that the very
+  // delete this dialog describes is concurrently zeroing, so while the wipe
+  // ran the still-mounted dialog re-rendered as "permanently remove 0 cards"
+  // before `setWipeStep(0)` landed — reading as "I confirmed and it just sat
+  // there." What the user agreed to is the number they were shown.
+  const [frozenCount] = useState(cardCount);
   return (
     <Modal
       onClose={onCancel}
@@ -970,15 +976,15 @@ function WipeConfirmDialog({ cardCount, step, busy, onAdvance, onCancel }: WipeC
       <p className="choice-dialog-body">
         {isFinal ? (
           <>
-            This will permanently remove <strong>{cardCount.toLocaleString()}</strong>{' '}
-            {cardCount === 1 ? 'card' : 'cards'} and the import history. Your binders stay defined
+            This will permanently remove <strong>{frozenCount.toLocaleString()}</strong>{' '}
+            {frozenCount === 1 ? 'card' : 'cards'} and the import history. Your binders stay defined
             but will be empty. There is no undo.
           </>
         ) : (
           <>
-            You are about to remove all <strong>{cardCount.toLocaleString()}</strong>{' '}
-            {cardCount === 1 ? 'card' : 'cards'} from your collection. Binder definitions and decks
-            are kept, but decks will lose their physical copy assignments.
+            You are about to remove all <strong>{frozenCount.toLocaleString()}</strong>{' '}
+            {frozenCount === 1 ? 'card' : 'cards'} from your collection. Binder definitions and
+            decks are kept, but decks will lose their physical copy assignments.
           </>
         )}
       </p>
