@@ -322,6 +322,14 @@
   color: var(--text-secondary);
 }
 
+/* Every other disclosure header in the app (Combos/Test hand/Stats headers)
+   guarantees 44px on coarse pointers — this one was missed. */
+@media (pointer: coarse) {
+  .coach-feed-browser-section > summary {
+    min-height: 44px;
+  }
+}
+
 .coach-feed-browser-section > summary::-webkit-details-marker {
   display: none;
 }
