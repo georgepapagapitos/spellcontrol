@@ -742,6 +742,32 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   also discouraged — route through `<Modal>` so the exit animation, focus-trap,
   and scroll-lock come for free (see § Motion).
 
+### Game-board panel covers — gestures are panel-local, never screen-local
+
+The multiplayer board rotates each `.player-panel` to face its seat (0 / 90 /
+180 / 270), so **screen "up" is not the player's "up."** Any gesture on a seat
+panel or on a cover rendered inside it (`.pp-counters-cover`, `.seat-menu`)
+resolves direction against that panel's rotation — `useTapAndHold` takes a
+`rotation` prop and inverts for 180° seats. A gesture that reads raw `clientY`
+works for the bottom seat and is backwards for the top one.
+
+- **A swipe is an accelerator, never the only way in.** Every panel cover keeps
+  a visible tap/keyboard affordance — the corner `.pp-counter-chip` opens the
+  counters cover for mouse, keyboard, and anyone who never discovers the
+  gesture. Swipe-up opens, swipe-down dismisses; `Esc` and a `✕` also dismiss.
+- **A swipe-dismissable cover shows a grab handle** (`.pp-counters-grab`) — the
+  conventional tell that the surface moves. It is `aria-hidden`; the `✕` beside
+  it is the accessible control.
+- **Threshold lives in `useTapAndHold`** (40px travel, 1.5:1 vertical dominance)
+  and is shared with the tap-cancel path, so a swipe can never also register as
+  a life tap. Don't add a second, competing threshold.
+- **Anything that identifies another player is tinted in that player's own
+  panel color**, resolved the same three ways the panel is: explicit override →
+  color identity (`pp-color-*`) → `paletteForSeat` inline vars. The
+  commander-damage tiles do this so "who is killing me" is answerable by color
+  from across the table, before any name is read. Use the `seatColorKey` helper
+  rather than re-deriving the override/identity precedence.
+
 ### Store-driven global overlays (E170)
 
 A non-component caller (a background sync push, or anything else that fires
