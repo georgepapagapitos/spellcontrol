@@ -14,6 +14,14 @@ import type { Condition, Finish, ImportRow, ParseResult } from './types';
 
 const SECTION_HEADERS = new Set(['deck', 'sideboard', 'commander', 'maybeboard', 'companion']);
 
+/**
+ * Longest line the matchers below will attempt. The longest real Magic card
+ * name is ~40 characters, so a legitimate MTGA line (`qty name (set) collector`)
+ * never approaches this. Anything longer is reported as unparsed instead of
+ * being fed to the regexes — see the backtracking note in `parseTextList`.
+ */
+const MAX_LINE_LENGTH = 512;
+
 // "1 Sol Ring (CMR) 472" or "1x Sol Ring (CMR) 472"
 const MTGA_FULL = /^(\d+)\s*x?\s+(.+?)\s+\(([A-Za-z0-9]{2,5})\)\s+([A-Za-z0-9★-]+)\s*$/;
 // "1 Sol Ring (CMR)"
@@ -29,8 +37,21 @@ export function parseTextList(text: string): ParseResult {
   let currentSection: string | undefined;
 
   for (const raw of lines) {
-    const line = raw.trim();
+    // Collapse internal whitespace runs before matching. MTGA_FULL and
+    // MTGA_NO_COLLECTOR each pair `\s*x?\s+` with a lazy `(.+?)\s+\(`, so a
+    // long run of spaces hands the backtracker N ways to split one run and the
+    // match cost goes superlinear — a single line of 800 spaces measured at
+    // ~110s of CPU, and `/api/import` takes anonymous input, so that is a
+    // one-request denial of service. Collapsing to a single space leaves
+    // nothing to split; MAX_LINE_LENGTH bounds the multi-megabyte remainder.
+    // Neither changes how a real line parses: card names never contain a
+    // double space, and `unparsedLines` still echoes the untouched `raw`.
+    const line = raw.trim().replace(/\s+/g, ' ');
     if (!line) continue;
+    if (line.length > MAX_LINE_LENGTH) {
+      unparsedLines.push(raw);
+      continue;
+    }
     if (line.startsWith('//') || line.startsWith('#')) continue;
     if (SECTION_HEADERS.has(line.toLowerCase())) {
       currentSection = line.toLowerCase();

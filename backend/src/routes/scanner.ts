@@ -73,7 +73,9 @@ scannerRouter.post(
   }
 );
 
-scannerRouter.get('/stats', async (_req: Request, res: Response) => {
+// Unauthenticated like /match above, so it carries the same per-IP limiter
+// rather than being the one uncapped route on the router.
+scannerRouter.get('/stats', matchLimiter, async (_req: Request, res: Response) => {
   const matcher = await getMatcher(getScannerDataDir());
   if (!matcher) {
     return res.status(503).json({ error: 'Scanner data not provisioned.' });

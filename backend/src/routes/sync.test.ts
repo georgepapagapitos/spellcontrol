@@ -231,6 +231,26 @@ describe('POST /api/sync (push)', () => {
       .send({ deletions: [{ kind: 'binder' }] });
     expect(bad3.status).toBe(400);
   });
+
+  // `kind` used to be validated with `in`, which walks the prototype chain —
+  // so these resolved to an Object.prototype member and got interpolated into
+  // `INSERT INTO ${…}`, yielding a Postgres syntax error and a 500.
+  it('rejects Object.prototype keys as a kind (400, never a 500)', async () => {
+    const cookie = await registerAndGetCookie('push_proto_kind');
+    for (const kind of ['toString', 'constructor', '__proto__', 'hasOwnProperty']) {
+      const upsert = await request(app)
+        .post('/api/sync')
+        .set('Cookie', cookie)
+        .send({ upserts: [{ kind, id: 'x', data: {} }] });
+      expect(upsert.status, `upsert kind=${kind}`).toBe(400);
+
+      const del = await request(app)
+        .post('/api/sync')
+        .set('Cookie', cookie)
+        .send({ deletions: [{ kind, id: 'x' }] });
+      expect(del.status, `deletion kind=${kind}`).toBe(400);
+    }
+  });
 });
 
 describe('deck reject-stale (optimistic concurrency)', () => {

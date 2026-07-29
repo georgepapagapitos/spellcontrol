@@ -113,6 +113,41 @@ describe('GET /api/games/:code', () => {
     expect(res.status).toBe(200);
     expect(res.body.game.code).toBe(code);
   });
+
+  // Join codes are 4 chars (~1M), so without this an authed stranger could
+  // sweep the space and harvest every live session's seats, deck names and
+  // commanders. The 404 must be indistinguishable from an unknown code.
+  it('404s for an authed non-participant, identically to an unknown code', async () => {
+    const hostCookie = await registerAndGetCookie('games_get_host');
+    const strangerCookie = await registerAndGetCookie('games_get_stranger');
+    const created = await request(app).post('/api/games').set('Cookie', hostCookie).send({});
+    const code = created.body.game.code as string;
+
+    const stranger = await request(app).get(`/api/games/${code}`).set('Cookie', strangerCookie);
+    const unknown = await request(app).get('/api/games/ZZZZ').set('Cookie', strangerCookie);
+    expect(stranger.status).toBe(404);
+    expect(stranger.body).toEqual(unknown.body);
+    expect(stranger.body.game).toBeUndefined();
+  });
+
+  it('serves the full state once the caller holds a seat', async () => {
+    const hostCookie = await registerAndGetCookie('games_get_seat_host');
+    const joinerCookie = await registerAndGetCookie('games_get_seat_joiner');
+    const created = await request(app).post('/api/games').set('Cookie', hostCookie).send({});
+    const code = created.body.game.code as string;
+
+    const before = await request(app).get(`/api/games/${code}`).set('Cookie', joinerCookie);
+    expect(before.status).toBe(404);
+
+    await request(app)
+      .post(`/api/games/${code}/join`)
+      .set('Cookie', joinerCookie)
+      .send({ name: 'Joiner' });
+
+    const after = await request(app).get(`/api/games/${code}`).set('Cookie', joinerCookie);
+    expect(after.status).toBe(200);
+    expect(after.body.game.code).toBe(code);
+  });
 });
 
 describe('POST /api/games/:code/join + PATCH /:code', () => {

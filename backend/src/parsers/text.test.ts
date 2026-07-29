@@ -283,6 +283,31 @@ describe('parseTextList', () => {
     });
   });
 
+  describe('pathological input (ReDoS guard)', () => {
+    // MTGA_FULL / MTGA_NO_COLLECTOR pair `\s*x?\s+` with a lazy `(.+?)\s+\(`,
+    // so before the whitespace collapse a single line of 800 spaces cost ~110s
+    // of CPU — and /api/import is unauthenticated. Vitest's own timeout is the
+    // regression guard here: revert the collapse and this test hangs.
+    it('parses a line with a huge internal whitespace run, fast', () => {
+      const { rows } = parseTextList(`1${' '.repeat(5000)}Sol Ring`);
+      expect(rows).toHaveLength(1);
+      expect(rows[0].name).toBe('Sol Ring');
+      expect(rows[0].quantity).toBe(1);
+    });
+
+    it('still matches MTGA lines padded with whitespace runs', () => {
+      const { rows } = parseTextList(`1${' '.repeat(2000)}Sol Ring   (CMR)   472`);
+      expect(rows[0]).toMatchObject({ name: 'Sol Ring', setCode: 'CMR', collectorNumber: '472' });
+    });
+
+    it('reports an over-long line as unparsed instead of matching it', () => {
+      const long = `1 ${'a'.repeat(600)}`;
+      const { rows, unparsedLines } = parseTextList(long);
+      expect(rows).toHaveLength(0);
+      expect(unparsedLines).toEqual([long]);
+    });
+  });
+
   describe('empty input', () => {
     it('returns empty rows for empty string', () => {
       const { rows } = parseTextList('');

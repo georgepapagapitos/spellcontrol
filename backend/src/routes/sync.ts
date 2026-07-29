@@ -64,8 +64,12 @@ const KIND_TO_TABLE: Record<Kind, string> = {
   cube: 'user_cubes',
 };
 
+// `hasOwnProperty`, not `in`: `in` walks the prototype chain, so a body with
+// `kind: "toString"` (or "constructor", "__proto__") passed validation and then
+// interpolated an Object.prototype member into `INSERT INTO ${…}` below — a
+// Postgres syntax error and a 500 on a request that should be a clean 400.
 function isKind(x: unknown): x is Kind {
-  return typeof x === 'string' && x in KIND_TO_TABLE;
+  return typeof x === 'string' && Object.prototype.hasOwnProperty.call(KIND_TO_TABLE, x);
 }
 
 interface UpsertOp {
