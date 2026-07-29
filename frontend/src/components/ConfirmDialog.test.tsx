@@ -75,3 +75,35 @@ describe('ConfirmDialog haptics', () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('ConfirmDialog default focus', () => {
+  // A destructive dialog must not arrive with the destroy button armed: it
+  // appears under the pointer/keyboard mid-interaction, so a reflexive
+  // Enter/Space would commit the deletion the dialog exists to double-check.
+  it('focuses Cancel on a danger dialog', () => {
+    render(
+      <ConfirmDialog
+        title="Delete collection?"
+        body="No undo."
+        confirmLabel="Delete"
+        danger
+        onConfirm={() => {}}
+        onCancel={() => {}}
+      />
+    );
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cancel' }));
+    expect(document.activeElement).not.toBe(screen.getByRole('button', { name: 'Delete' }));
+  });
+
+  it('still focuses the confirm button on a benign dialog', () => {
+    render(
+      <ConfirmDialog
+        title="Reset cache?"
+        body="Your data is kept."
+        onConfirm={() => {}}
+        onCancel={() => {}}
+      />
+    );
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Confirm' }));
+  });
+});
