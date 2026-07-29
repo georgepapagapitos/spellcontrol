@@ -82,6 +82,16 @@
   outline-offset: 2px;
 }
 
+/* Row head + meter bar stack to only ~28px — guarantee a real tap target on
+   coarse pointers, same floor as sibling drill-down rows (DeckColorBalance,
+   EnginePanel's axis rows). */
+@media (pointer: coarse) {
+  .deck-type-breakdown-row-btn {
+    min-height: 44px;
+    justify-content: center;
+  }
+}
+
 .deck-type-breakdown-row-chevron {
   color: var(--text-muted);
   font-size: var(--text-sm);
