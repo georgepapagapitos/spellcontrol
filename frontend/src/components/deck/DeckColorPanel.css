@@ -147,6 +147,15 @@ button.deck-color-donut-legend-row:focus-visible {
   outline-offset: 2px;
 }
 
+/* This row is otherwise a single text line (~16px) — guarantee a real tap
+   target on coarse pointers; the grid's align-items: center keeps swatch/
+   name/pct/chevron centered as the row grows. */
+@media (pointer: coarse) {
+  button.deck-color-donut-legend-row {
+    min-height: 44px;
+  }
+}
+
 /* Persistent tap affordance for tappable legend rows — hover/underline alone
    is invisible on touch. Mirrors .deck-color-balance-chevron in the sibling
    mana-base list; only rendered on interactive rows. */

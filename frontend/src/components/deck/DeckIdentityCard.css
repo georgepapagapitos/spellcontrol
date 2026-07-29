@@ -281,6 +281,15 @@
   border-radius: var(--radius);
 }
 
+/* Every sibling disclosure header in this file (shortfall buttons, the stats/
+   combos/test-hand headers elsewhere) guarantees 44px on coarse pointers —
+   this toggle was the one left out. */
+@media (pointer: coarse) {
+  .deck-identity-card-playstyle-toggle {
+    min-height: 44px;
+  }
+}
+
 .deck-identity-card-playstyle-title {
   /* Section-title style: serif uppercase letter-spacing (per STYLE_GUIDE collapsible rules) */
   font-family: var(--font-serif);
