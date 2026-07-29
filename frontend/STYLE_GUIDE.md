@@ -561,6 +561,17 @@ report. When you write that idiom, write the third line too.
      analogue of this rule. Contextual buttons that survive on the row (e.g.
      Expand/Collapse all) may go icon-only on phones **only** if their glyph
      is unambiguous and they keep `title` + `aria-label`.
+     The **deck toolbar** (`DeckViewPopoverPanel` in `DeckDisplay.tsx`) is the
+     second adopter and the cautionary tale: it kept wrapping instead of
+     collapsing long after this rule was written, and at 360px it reached
+     **nine controls over three rows** — enough chrome that the decklist
+     itself started below the fold on a phone. A control row that wraps to a
+     third row isn't "responsive", it's unshipped.
+   - **A row's own actions collapse separately from its display preferences.**
+     The split is by _what the control does_, not by which fits: display
+     preferences go in the "View" popover, actions that mutate the list
+     (Select, Test hand, Export) go in a sibling `⋮` `OverflowMenu`. Don't
+     park an action inside "View" just because the panel had room.
 
 3. **Card action rows** — actions in the footer of a list card (the game-night
    cards are the reference). A card earns **at most ~3 visible controls**, at
@@ -693,6 +704,32 @@ the underlined-text `variant="link"` (that was the binder's old outlier). To
 right-anchor it, make it the **last** flex child after the view-mode toggle so
 it rides the existing trailing auto-margins — don't add a competing
 `margin-left: auto` (multiple autos split the free space and break the grouping).
+
+## Page hero art — phones get the art, not a downgrade
+
+A hero that has real art available (`art_crop` for a commander, a binder's
+cover card) **renders it at every breakpoint.** The phone treatment is
+different from desktop; it is not _absent_.
+
+- **≥600px** — art as a right-anchored backdrop panel behind the title, with a
+  horizontal fade to `var(--bg)` so the text column keeps its contrast.
+- **≤599px** — art goes **full-bleed across the hero**, the hero takes a real
+  `min-height`, and the title/meta/status chips bottom-anchor into a vertical
+  scrim (`justify-content: flex-end`). The scrim, not the absence of art, is
+  what buys legibility: near-opaque `var(--bg)` under the text, clearing to art
+  at the top.
+
+The rule exists because the deck hero originally did the opposite — it hid the
+commander art below 600px on the reasoning that "art behind full-width text
+costs legibility." The result was that the app's most-visited page opened, on
+the device most people use, as a lowercase word on a flat charcoal slab with no
+identity at all, while every competitor led with the art. **Legibility is a
+scrim problem, not a reason to drop the art.** If a crop is too bright, deepen
+the gradient; don't `display: none` the image.
+
+Gate the phone treatment on art actually being present (`.deck-editor-hero--art`
+is the reference modifier). A hero with no art must not inherit the
+`min-height` — an empty tall slab is worse than the plain hero.
 
 ## Charts (line / trend)
 

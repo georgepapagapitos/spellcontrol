@@ -8,7 +8,7 @@ import { useDecksStore } from '../store/decks';
 import { useCubeStore } from '../store/cube';
 import { listShares, revokeShare, shareUrl } from '../lib/share-client';
 import { fetchPublicProfile } from '../lib/profile-client';
-import { isNativePlatform } from '../lib/platform';
+import { isNativePlatform, openExternal } from '../lib/platform';
 import { useConfirm } from '../lib/use-confirm';
 import { toast } from '../store/toasts';
 import type { ShareKind, ShareRow } from '../lib/shared-types';
@@ -216,6 +216,11 @@ export function SharedLinksSettings() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="settings-share-url"
+                    onClick={(e) => {
+                      if (!isNativePlatform()) return;
+                      e.preventDefault();
+                      openExternal(myProfileUrl);
+                    }}
                   >
                     {myProfileUrl.replace(/^https?:\/\//, '')}
                   </a>
@@ -287,6 +292,11 @@ export function SharedLinksSettings() {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="settings-share-url"
+                      onClick={(e) => {
+                        if (!isNativePlatform()) return;
+                        e.preventDefault();
+                        openExternal(url);
+                      }}
                     >
                       {url.replace(/^https?:\/\//, '')}
                     </a>

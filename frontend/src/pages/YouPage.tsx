@@ -22,7 +22,7 @@ import {
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { InfoTip } from '../components/InfoTip';
 import { SyncIndicator } from '../components/SyncIndicator';
-import { isNativePlatform } from '../lib/platform';
+import { isNativePlatform, openExternal } from '../lib/platform';
 import { OfflineModeSettings } from '../components/OfflineModeSettings';
 import { SharedLinksSettings } from '../components/SharedLinksSettings';
 import { resetAppCacheAndReload } from '../lib/reset-app-cache';
@@ -768,6 +768,11 @@ export function YouPage() {
             href="https://company.wizards.com/en/legal/fancontentpolicy"
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => {
+              if (!isNativePlatform()) return;
+              e.preventDefault();
+              openExternal('https://company.wizards.com/en/legal/fancontentpolicy');
+            }}
           >
             Fan Content Policy
           </a>
@@ -776,7 +781,16 @@ export function YouPage() {
         </p>
         <p>
           Card data and images are provided by{' '}
-          <a href="https://scryfall.com" target="_blank" rel="noopener noreferrer">
+          <a
+            href="https://scryfall.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => {
+              if (!isNativePlatform()) return;
+              e.preventDefault();
+              openExternal('https://scryfall.com');
+            }}
+          >
             Scryfall
           </a>
           . SpellControl is not affiliated with Scryfall, ManaBox, Moxfield, Archidekt, Deckbox,
