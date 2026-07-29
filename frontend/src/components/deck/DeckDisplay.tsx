@@ -203,7 +203,9 @@ import {
   readStoredZoom,
   zoomBucket,
   zoomMinCol,
+  zoomTier,
 } from '@/lib/grid-zoom';
+import { useElementWidth } from '@/lib/use-element-width';
 
 /**
  * Top-level roles for the role-filter lens: the tagger's read plus the
@@ -1521,6 +1523,10 @@ export function DeckDisplay({
     return () => mql.removeEventListener('change', update);
   }, []);
   const effectiveGridZoom = clampZoom(gridZoom, isNarrowGrid);
+  // Measured width of a rendered card grid — the zoom stepper needs it to skip
+  // steps that wouldn't change the column count at this size. Measured on the
+  // `<ul>` itself, not its section wrapper, which adds horizontal padding.
+  const [gridRef, gridWidth] = useElementWidth<HTMLUListElement>();
 
   const handleExportFormatChange = (f: ExportFormat) => {
     setExportFormat(f);
@@ -2192,6 +2198,7 @@ export function DeckDisplay({
               groupBy={groupBy}
               onGroupByChange={handleGroupByChange}
               gridZoom={effectiveGridZoom}
+              gridWidth={gridWidth}
               onGridZoomChange={handleGridZoomChange}
               isNarrowGrid={isNarrowGrid}
               showPrefs={showPrefs}
@@ -2583,6 +2590,8 @@ export function DeckDisplay({
                     onRowClick={openPreview}
                     legalityBySlot={legalityBySlot}
                     gridZoom={effectiveGridZoom}
+                    gridRef={gridRef}
+                    gridWidth={gridWidth}
                     showRoles={showPrefs.roles}
                     roleFilter={activeRoleFilter}
                     synergyByName={synergyByName}
@@ -2993,6 +3002,9 @@ interface ToolbarProps {
   groupBy: DeckGroupBy;
   onGroupByChange: (g: DeckGroupBy) => void;
   gridZoom: number;
+  /** Measured width of a rendered card grid, so the stepper can skip steps
+   *  that wouldn't change the column count at this size. */
+  gridWidth: number;
   onGridZoomChange: (z: number) => void;
   isNarrowGrid: boolean;
   showPrefs: ShowPrefs;
@@ -3196,6 +3208,7 @@ function DeckToolbar({
   groupBy,
   onGroupByChange,
   gridZoom,
+  gridWidth,
   onGridZoomChange,
   isNarrowGrid,
   showPrefs,
@@ -3294,6 +3307,7 @@ function DeckToolbar({
         {viewMode === 'grid' && (
           <ZoomControl
             zoom={gridZoom}
+            width={gridWidth}
             max={isNarrowGrid ? ZOOM_MAX_NARROW : ZOOM_MAX}
             onChange={onGridZoomChange}
           />
@@ -3410,6 +3424,8 @@ function DeckCardGrid({
   onRowClick,
   legalityBySlot,
   gridZoom,
+  gridRef,
+  gridWidth,
   showRoles,
   roleFilter,
   synergyByName,
@@ -3423,6 +3439,10 @@ function DeckCardGrid({
   onRowClick: (name: string) => void;
   legalityBySlot?: Map<string, LegalityIssue>;
   gridZoom: number;
+  /** Callback ref + measured width from `useElementWidth`, attached to every
+   *  section's grid (all equal width; the last to mount is observed). */
+  gridRef: (el: HTMLUListElement | null) => void;
+  gridWidth: number;
   showRoles: boolean;
   /** Active role filter — tiles not filling it render dimmed. */
   roleFilter?: RoleKey | null;
@@ -3477,11 +3497,18 @@ function DeckCardGrid({
               )}
             </header>
             <ul
+              ref={gridRef}
               className={`deck-card-grid grid-${zoomBucket(gridZoom)}`}
               style={
                 {
                   '--card-min-desktop': `${zoomMinCol(gridZoom, 'desktop')}px`,
                   '--card-min-mobile': `${zoomMinCol(gridZoom, 'mobile')}px`,
+                  // Container-derived tier overrides the CSS `@media` (viewport)
+                  // tier once measured — a grid narrower than the viewport got
+                  // the desktop ladder here and the mobile one in JS.
+                  ...(gridWidth > 0
+                    ? { '--card-min': `${zoomMinCol(gridZoom, zoomTier(gridWidth))}px` }
+                    : {}),
                 } as CSSProperties
               }
             >

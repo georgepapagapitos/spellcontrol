@@ -100,6 +100,13 @@
   --space-7: 3rem;
   --space-8: 4rem;
 
+  /* Gutter between cards in every card grid. Must equal `GRID_GAP_PX`
+     (lib/grid-zoom.ts): the collection grid computes its column count in JS
+     while the deck/list grids let CSS `auto-fill` do it, and the two only
+     agree if they use the same gap. They didn't (8/10px vs 0.65rem), which
+     rendered the same zoom step as 4 columns in one grid and 3 in another. */
+  --card-grid-gap: 0.625rem;
+
   /* ── Effects ──────────────────────────────────────────────────────────── */
   --shadow-tooltip: 0 4px 16px rgba(0, 0, 0, 0.4);
   --shadow-modal: 0 12px 40px rgba(0, 0, 0, 0.5);
