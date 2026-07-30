@@ -11,6 +11,10 @@
    preview's skeleton→image arrival instead of hard-swapping, which read as
    "popcorn" on the dense grids. Transition gated for reduced motion below. */
 .card-thumb-img {
+  /* Positioned so the art paints ABOVE the absolutely-positioned skeleton.
+     Without it the opaque skeleton covers the loaded image entirely (a
+     non-positioned replaced element paints before positioned siblings). */
+  position: relative;
   display: block;
   width: 100%;
   height: 100%;
