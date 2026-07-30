@@ -49,6 +49,10 @@ interface Props<T extends string> {
  * tabindex, ←/→ (and ↑/↓) move + select, Home/End jump to the ends. Selection
  * follows focus. Consumers render the active panel themselves and should give
  * it `role="tabpanel"` + `aria-labelledby={`sc-tab-${activeId}`}`.
+ *
+ * `BinderTabs.tsx` is a deliberate, permanent exception to this primitive
+ * (per-tab reorder/edit/delete has no slot here) — see STYLE_GUIDE.md §
+ * "Tabs / view switchers" before extending this component to accommodate it.
  */
 export function Tabs<T extends string>({
   tabs,
