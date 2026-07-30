@@ -21,6 +21,7 @@ export interface CollectionFilterInput {
   borderExpr: ChipExpression;
   finishExpr: ChipExpression;
   conditionExpr: ChipExpression;
+  languageExpr: ChipExpression;
   binderExpr: ChipExpression;
   setFilter: Set<string>;
   priceMin: number | undefined;
@@ -65,6 +66,7 @@ export function hasStructuredFilter(input: CollectionFilterInput): boolean {
  * Flagged keys:
  *   'color'     — color filter carried best-effort (binders use exact color key, collection uses identity-any-of)
  *   'condition' — condition filter dropped (physical-copy only, no binder equivalent)
+ *   'language'  — language filter dropped (physical-copy only, no binder equivalent)
  *   'binder'    — binder membership filter dropped (circular — a binder can't filter by binder)
  *
  * Price, CMC, and name are now faithfully mapped — not flagged.
@@ -172,6 +174,11 @@ export function collectionFiltersToFilterGroup(input: CollectionFilterInput): {
   // Condition — dropped (physical-copy only, no binder equivalent)
   if (!isExpressionEmpty(input.conditionExpr)) {
     flagged.push('condition');
+  }
+
+  // Language — dropped (physical-copy only, no binder equivalent)
+  if (!isExpressionEmpty(input.languageExpr)) {
+    flagged.push('language');
   }
 
   // Binder membership — dropped (circular)

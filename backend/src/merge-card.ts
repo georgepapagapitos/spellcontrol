@@ -10,13 +10,16 @@ import { pickUsdForFinish } from './scryfall-cache';
 // exactly right as COST BASIS — there "what the user paid years ago" is the
 // answer rather than the bug — so the parsed value lands on `acquiredPrice`
 // below instead of being dropped on the floor.
-// Returns 0 when Scryfall has no price for any
-// finish — callers can treat that as "unpriced" rather than a real $0 value.
+// Returns 0 when Scryfall has no price for any finish, OR when the copy is a
+// proxy — a proxy isn't the real printing, so it has no market value even
+// though we resolved a Scryfall match to imitate. Callers treat 0 as
+// "unpriced" rather than a real $0 value. This does NOT touch `acquiredPrice`
+// (cost basis) — a proxy can genuinely have cost the user money to print.
 // Finish-aware ordering lives in `pickUsdForFinish` (shared with the price
 // refresh + share-projection paths) so a foil never silently shows the
 // non-foil price.
 function resolvePrice(row: ImportRow, scryfall: ScryfallCard | undefined): number {
-  if (!scryfall) return 0;
+  if (!scryfall || row.proxy) return 0;
   return pickUsdForFinish(scryfall, row.finish ?? 'nonfoil');
 }
 
@@ -68,11 +71,15 @@ export function mergeCard(row: ImportRow, scryfall?: ScryfallCard): EnrichedCard
     base.edhrecRank = scryfall.edhrec_rank;
     base.imageSmall = scryfall.image_uris?.small || firstFace?.image_uris?.small;
     base.imageNormal = scryfall.image_uris?.normal || firstFace?.image_uris?.normal;
+    base.imageLarge = scryfall.image_uris?.large || firstFace?.image_uris?.large;
     // Two-sided layouts (transform / modal_dfc / reversible / double_faced_token)
     // give each face its own image_uris. Capture the back so the preview can flip.
     const backFace = scryfall.card_faces?.[1];
     if (backFace?.image_uris?.normal) {
       base.imageNormalBack = backFace.image_uris.normal;
+    }
+    if (backFace?.image_uris?.large) {
+      base.imageLargeBack = backFace.image_uris.large;
     }
     base.frameEffects = scryfall.frame_effects;
     // Older fullart lands don't put 'fullart' in frame_effects — they only set full_art.

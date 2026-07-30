@@ -153,6 +153,10 @@ export interface EnrichedCard {
   imageSmall?: string;
   imageNormal?: string;
   imageNormalBack?: string;
+  /** Hero-resolution front art (Scryfall `large`, 672×936); consumers fall back to imageNormal. */
+  imageLarge?: string;
+  /** Back-face hero-resolution image, paired with imageLarge for two-sided layouts. */
+  imageLargeBack?: string;
   /** Cosmetic treatments — fullart, extendedart, showcase, etched, inverted, etc. */
   frameEffects?: string[];
   /** Convenience: true if either Scryfall's full_art flag OR frameEffects contains 'fullart'. */

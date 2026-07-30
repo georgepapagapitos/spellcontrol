@@ -401,6 +401,44 @@ a hero CTA.
   zone, so this is the one place in the deck editor that deliberately never
   reads `viewMode`. A single-tab case (a format with no sideboard) drops the
   `Tabs` strip entirely rather than rendering a 1-item tablist.
+- **`BinderTabs.tsx` is a deliberate, permanent exception to "all tabbed
+  surfaces go through `Tabs.tsx`" above (E164).** It hand-rolls plain
+  `<button className="tab">` elements instead of the primitive because each
+  binder tab carries a **per-tab affordance set the primitive has no slot
+  for**: a `BinderOverflowMenu` (reorder up/down, edit, delete — rendered only
+  for the active tab), a trailing "+ New binder" tab, an "Export" action, and
+  a conditional "Delete all" action. `Tabs`' `TabItem[]` is a flat
+  label/count/icon shape with one `onChange` — it has nowhere to hang a
+  per-tab trailing menu, and bolting one on for this single consumer would be
+  speculative (YAGNI) until a second tab strip needs the same thing. The
+  accessibility cost is real and named honestly in a comment at the top of
+  `BinderTabs.tsx`: no `role="tablist"`/`"tab"`/`aria-selected`, and no roving
+  tabindex or arrow-key/Home/End navigation — `Tabs.tsx` gives you both for
+  free and `BinderTabs` currently doesn't have them.
+  - **What must still stay in lockstep with `Tabs.tsx`** even though the
+    implementations are separate: the pill's corner radius (`var(--radius)`,
+    same token family `Tabs` uses for `.sc-tab`); the **active tab reading as
+    the highest-contrast, filled state** in the same "stamped" vocabulary as
+    every other active/pressed control in the app (T53's inset top-face
+    highlight + weight/color shift) — `BinderTabs` fills with the binder's own
+    color rather than `--accent` because the tab set doubles as a binder-color
+    legend, which is an intentional, narrower divergence, not sloppiness;
+    the `2px solid var(--accent)` / `2px` offset `:focus-visible` ring
+    (`.tab:focus-visible` in `styles/tabs.css` matches the ring every other
+    tab/button in the app uses); and the overflow behavior on a cramped strip
+    — horizontal scroll with a hidden scrollbar and touch momentum
+    (`overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling:
+touch`), byte-identical between `.binder-tab-row` and `.sc-tabs--scrollable`.
+    The 44px coarse-pointer touch target: `.sc-tab` and `.tab` now **both** get
+    an explicit `min-height: 44px` under `pointer: coarse` / `≤700px`. E164
+    closed a real gap here — `.tab`'s `6px 14px` padding alone is only ~33px
+    tall, which breached the E68 convention. Keep the two blocks in lockstep.
+  - **Revisit condition:** if a **second** tab strip ever needs the same
+    per-tab reorder/edit/delete affordance set, extract a slot API onto
+    `Tabs.tsx` (an optional per-tab trailing-affordance render prop) and
+    migrate both consumers onto it — don't copy `BinderTabs`'s hand-rolled
+    pattern to the second call site. One consumer needing this is not enough
+    to justify the primitive growing an affordance-slot API; two is.
 
 ## Typography — the four faces (T53/E154)
 
