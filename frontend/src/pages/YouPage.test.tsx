@@ -8,7 +8,7 @@
  */
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Minimal store mocks so YouPage can render without real stores. auth is a
 // mutable hoisted object (not a fixed factory) so the new "Profile renders
@@ -113,11 +113,14 @@ beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn();
 });
 
-afterEach(() => {
+beforeEach(() => {
   authState.user = null;
   authState.status = 'guest';
-  vi.mocked(Element.prototype.scrollIntoView).mockClear();
   vi.mocked(listPods).mockReset().mockResolvedValue([]);
+});
+
+afterEach(() => {
+  vi.mocked(Element.prototype.scrollIntoView).mockClear();
 });
 
 describe('UX-332 — Settings account card honesty copy', () => {
