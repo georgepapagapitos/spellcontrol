@@ -398,23 +398,25 @@ describe('useDecksStore — sideboard and zones', () => {
     expect(store().decks[0].sideboard).toEqual([]);
   });
 
-  it('moveBetweenZones moves a card from main to sideboard', () => {
+  // Zone moves go through bulkMoveZone (E180) — the old single-slot
+  // moveBetweenZones primitive was retired once every caller batched.
+  it('bulkMoveZone moves a card from cards to sideboard', () => {
     const slotId = store().addCard(id, sfCard('Counterspell'));
-    store().moveBetweenZones(id, slotId, 'main');
+    store().bulkMoveZone(id, [slotId], 'cards', 'sideboard');
     expect(store().decks[0].cards).toHaveLength(0);
     expect(store().decks[0].sideboard.map((c) => c.card.name)).toEqual(['Counterspell']);
   });
 
-  it('moveBetweenZones moves a card from sideboard to main', () => {
+  it('bulkMoveZone moves a card from sideboard to cards', () => {
     const slotId = store().addSideboardCard(id, sfCard('Duress'));
-    store().moveBetweenZones(id, slotId, 'side');
+    store().bulkMoveZone(id, [slotId], 'sideboard', 'cards');
     expect(store().decks[0].sideboard).toHaveLength(0);
     expect(store().decks[0].cards.map((c) => c.card.name)).toEqual(['Duress']);
   });
 
-  it('moveBetweenZones is a no-op for an unknown slot', () => {
+  it('bulkMoveZone is a no-op for an unknown slot', () => {
     store().addCard(id, sfCard('Counterspell'));
-    store().moveBetweenZones(id, 'missing-slot', 'main');
+    store().bulkMoveZone(id, ['missing-slot'], 'cards', 'sideboard');
     expect(store().decks[0].cards).toHaveLength(1);
     expect(store().decks[0].sideboard).toHaveLength(0);
   });
@@ -433,24 +435,27 @@ describe('useDecksStore — considering (E122)', () => {
     expect(store().decks[0].considering).toEqual([]);
   });
 
-  it('moveToConsidering moves a card from main to considering', () => {
+  // Zone moves go through bulkMoveZone (E180) — the old single-slot
+  // moveToConsidering/moveFromConsidering primitives were retired once every
+  // caller batched.
+  it('bulkMoveZone moves a card from cards to considering', () => {
     const slotId = store().addCard(id, sfCard('Counterspell'));
-    store().moveToConsidering(id, slotId);
+    store().bulkMoveZone(id, [slotId], 'cards', 'considering');
     expect(store().decks[0].cards).toHaveLength(0);
     expect(store().decks[0].considering.map((c) => c.card.name)).toEqual(['Counterspell']);
   });
 
-  it('moveFromConsidering moves a card from considering back to the mainboard', () => {
+  it('bulkMoveZone moves a card from considering back to cards', () => {
     const slotId = store().addConsideringCard(id, sfCard('Duress'));
-    store().moveFromConsidering(id, slotId);
+    store().bulkMoveZone(id, [slotId], 'considering', 'cards');
     expect(store().decks[0].considering).toHaveLength(0);
     expect(store().decks[0].cards.map((c) => c.card.name)).toEqual(['Duress']);
   });
 
-  it('moveToConsidering / moveFromConsidering are no-ops for an unknown slot', () => {
+  it('bulkMoveZone is a no-op for an unknown slot, both directions', () => {
     store().addCard(id, sfCard('Counterspell'));
-    store().moveToConsidering(id, 'missing-slot');
-    store().moveFromConsidering(id, 'missing-slot');
+    store().bulkMoveZone(id, ['missing-slot'], 'cards', 'considering');
+    store().bulkMoveZone(id, ['missing-slot'], 'considering', 'cards');
     expect(store().decks[0].cards).toHaveLength(1);
     expect(store().decks[0].considering).toHaveLength(0);
   });
