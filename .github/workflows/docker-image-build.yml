@@ -64,7 +64,13 @@ jobs:
     timeout-minutes: 15
 
     steps:
+      # lfs: true is load-bearing — card-embeddings.bin (28 MB) is Git-LFS
+      # tracked, and the Dockerfile's own stub-guard rejects a checkout that
+      # only has the ~130-byte LFS pointer. See fly-deploy.yml /
+      # scanner-ingest.yml, which need this for the same reason.
       - uses: actions/checkout@v7
+        with:
+          lfs: true
 
       - uses: docker/setup-buildx-action@v3
 
