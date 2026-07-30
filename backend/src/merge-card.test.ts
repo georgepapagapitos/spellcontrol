@@ -78,6 +78,20 @@ describe('mergeCard', () => {
     expect(mergeCard(row(), card()).acquiredPrice).toBeUndefined();
   });
 
+  it('zeroes the market price for a proxy but leaves cost basis untouched (E204)', () => {
+    const result = mergeCard(
+      row({ proxy: true, purchasePrice: 3 }),
+      card({ prices: { usd: '18.00', usd_foil: null, usd_etched: null } })
+    );
+    expect(result.purchasePrice).toBe(0);
+    expect(result.pricedAt).toBeUndefined();
+    expect(result.acquiredPrice).toBe(3); // what the user actually spent on the proxy, if anything
+    // A non-proxy copy of the same printing is unaffected.
+    expect(mergeCard(row({ proxy: false }), card({ prices: { usd: '18.00' } })).purchasePrice).toBe(
+      18
+    );
+  });
+
   it('passes through per-copy row metadata only when present', () => {
     const full = mergeCard(
       row({ condition: 'lp', language: 'ja', altered: true, proxy: false, misprint: true }),
