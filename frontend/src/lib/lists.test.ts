@@ -2,10 +2,12 @@ import { describe, it, expect } from 'vitest';
 import type { EnrichedCard, ListEntry } from '../types';
 import {
   MAX_LIST_NAME,
+  MAX_TARGET_PRICE,
   clampListName,
   makeListEntry,
   ownedCountForEntry,
   entryToCards,
+  parseTargetPrice,
 } from './lists';
 
 function owned(over: Partial<EnrichedCard>): EnrichedCard {
@@ -97,5 +99,31 @@ describe('entryToCards', () => {
   });
   it('sets foil=true for foil/etched finishes', () => {
     expect(entryToCards({ ...entry, finish: 'foil', quantity: 1 })[0].foil).toBe(true);
+  });
+});
+
+describe('parseTargetPrice', () => {
+  it('parses a plain decimal', () => {
+    expect(parseTargetPrice('12.5')).toBe(12.5);
+  });
+  it('rounds to cents', () => {
+    expect(parseTargetPrice('12.999')).toBe(13);
+  });
+  it('tolerates currency symbols and thousands separators', () => {
+    expect(parseTargetPrice('$1,200.00')).toBe(1200);
+    expect(parseTargetPrice('€45')).toBe(45);
+  });
+  it('returns null for blank input (caller clears to absent)', () => {
+    expect(parseTargetPrice('')).toBeNull();
+    expect(parseTargetPrice('   ')).toBeNull();
+  });
+  it('returns undefined for negatives, zero, and garbage (reject, keep prior value)', () => {
+    expect(parseTargetPrice('-5')).toBeUndefined();
+    expect(parseTargetPrice('0')).toBeUndefined();
+    expect(parseTargetPrice('abc')).toBeUndefined();
+    expect(parseTargetPrice('NaN')).toBeUndefined();
+  });
+  it('caps at MAX_TARGET_PRICE', () => {
+    expect(parseTargetPrice('9999999')).toBe(MAX_TARGET_PRICE);
   });
 });

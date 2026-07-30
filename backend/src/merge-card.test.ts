@@ -78,6 +78,20 @@ describe('mergeCard', () => {
     expect(mergeCard(row(), card()).acquiredPrice).toBeUndefined();
   });
 
+  it('zeroes the market price for a proxy but leaves cost basis untouched (E204)', () => {
+    const result = mergeCard(
+      row({ proxy: true, purchasePrice: 3 }),
+      card({ prices: { usd: '18.00', usd_foil: null, usd_etched: null } })
+    );
+    expect(result.purchasePrice).toBe(0);
+    expect(result.pricedAt).toBeUndefined();
+    expect(result.acquiredPrice).toBe(3); // what the user actually spent on the proxy, if anything
+    // A non-proxy copy of the same printing is unaffected.
+    expect(mergeCard(row({ proxy: false }), card({ prices: { usd: '18.00' } })).purchasePrice).toBe(
+      18
+    );
+  });
+
   it('passes through per-copy row metadata only when present', () => {
     const full = mergeCard(
       row({ condition: 'lp', language: 'ja', altered: true, proxy: false, misprint: true }),
@@ -138,6 +152,31 @@ describe('mergeCard', () => {
     expect(result.imageNormalBack).toBe('back.png');
     expect(result.manaCost).toBe('{1}{R} // ');
     expect(result.oracleText).toBe('Front text.\n//\nBack text.');
+  });
+
+  it('carries hero-res imageLarge/imageLargeBack through import enrichment (E187)', () => {
+    const result = mergeCard(
+      row(),
+      card({
+        image_uris: { large: 'front-large.png', normal: 'front-normal.png' },
+        card_faces: [
+          { name: 'A', image_uris: { large: 'a-large.png' } },
+          { name: 'B', image_uris: { large: 'b-large.png' } },
+        ],
+      })
+    );
+    expect(result.imageLarge).toBe('front-large.png');
+    expect(result.imageLargeBack).toBe('b-large.png');
+  });
+
+  it('falls back to the first face large image when top-level image_uris is absent', () => {
+    const result = mergeCard(
+      row(),
+      card({
+        card_faces: [{ name: 'A', image_uris: { large: 'a-large.png' } }],
+      })
+    );
+    expect(result.imageLarge).toBe('a-large.png');
   });
 
   it('falls back cmc/typeLine to the first face when top-level is absent', () => {

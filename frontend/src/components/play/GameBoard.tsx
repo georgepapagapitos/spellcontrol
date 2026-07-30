@@ -1077,6 +1077,16 @@ function CountersPopover({
   );
 }
 
+/** Progress toward 21 commander damage, clamped to [0, 1] for the tile's --fill fill-bar. */
+export function cmdDamageFillRatio(value: number): number {
+  return Math.max(0, Math.min(value, 21)) / 21;
+}
+
+/** "N to lethal" hint text, or null when there's nothing worth showing (0, or already lethal). */
+export function cmdDamageToLethal(value: number): number | null {
+  return value > 0 && value < 21 ? 21 - value : null;
+}
+
 /**
  * One opponent's commander damage: a big split tile (+ above the value, −
  * below) tinted in that opponent's panel color. Same tap-and-hold ramp as
@@ -1104,6 +1114,8 @@ function CmdDamageTile({
   const palette = paletteForSeat(gameId, opponent.seat);
   const label = opponent.commander ?? opponent.name;
   const lethal = value >= 21;
+  const fillRatio = cmdDamageFillRatio(value);
+  const toLethal = cmdDamageToLethal(value);
   return (
     <div
       className={`pp-cmd-tile ${colorKey ? `pp-color-${colorKey}` : ''} ${
@@ -1111,20 +1123,29 @@ function CmdDamageTile({
       }`}
       // Mirrors the panel's own fallback: the pp-color-* class supplies the
       // vars when a color identity / override exists, otherwise the seat
-      // palette does, inline.
-      style={
-        colorKey
-          ? undefined
+      // palette does, inline. --fill (progress-to-21) is set either way.
+      style={{
+        ['--fill' as never]: fillRatio,
+        ...(colorKey
+          ? {}
           : {
               ['--pp-base' as never]: palette.base,
               ['--pp-edge' as never]: palette.edge,
               ['--pp-accent' as never]: palette.accent,
-            }
-      }
+            }),
+      }}
     >
       <span className="pp-cmd-tile-name" title={label}>
         {label}
       </span>
+      {toLethal !== null && (
+        // The value itself is aria-live below, so this derived "N to lethal"
+        // read is a sighted-only convenience — hidden from the AT tree to
+        // avoid announcing the same fact twice per tap.
+        <span className="pp-cmd-tile-hint" aria-hidden="true">
+          {toLethal} to lethal
+        </span>
+      )}
       <button
         type="button"
         className="pp-cmd-tile-step is-plus"

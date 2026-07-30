@@ -74,6 +74,8 @@ interface CardRowProps {
   pricePending?: boolean;
   /** Extra chip after the name badges — e.g. Lists' "Owned" indicator. */
   ownedBadge?: ReactNode;
+  /** Lists' inline target-price editor (E163) — undefined everywhere else. */
+  targetPriceSlot?: ReactNode;
 }
 
 /**
@@ -100,6 +102,7 @@ export function CardRow({
   selected = false,
   pricePending = false,
   ownedBadge,
+  targetPriceSlot,
 }: CardRowProps) {
   const colorKey = getColorKey(card);
   const type = getCardType({ typeLine: card.typeLine } as Parameters<typeof getCardType>[0]);
@@ -200,6 +203,7 @@ export function CardRow({
             formatMoney(card.purchasePrice * qty, { currency: 'USD' })
           )}
         </div>
+        {targetPriceSlot}
       </div>
     </div>
   );

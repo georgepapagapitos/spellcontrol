@@ -2685,6 +2685,7 @@ export function DeckDisplay({
                             onToggleRowSelected={(row) => toggleRowSelected('sideboard', row)}
                             dragEnabled={sort === 'custom'}
                             onReorder={onReorderForZone('sideboard')}
+                            isSingleton={formatConfig.isSingleton}
                             onEditCard={onEditCard}
                             roleFilter={activeRoleFilter}
                             legalityBySlot={legalityBySlot}
@@ -2721,6 +2722,10 @@ export function DeckDisplay({
                           onToggleRowSelected={(row) => toggleRowSelected('considering', row)}
                           dragEnabled={sort === 'custom'}
                           onReorder={onReorderForZone('considering')}
+                          // Considering is copy-limit exempt (E122) regardless of
+                          // format singleton rules — never the artificial 1-copy
+                          // cap `isSingleton ?? true` would otherwise fall back to.
+                          isSingleton={false}
                           roleFilter={activeRoleFilter}
                           onMoveToMainboard={onMoveFromConsidering}
                           synergyByName={synergyByName}

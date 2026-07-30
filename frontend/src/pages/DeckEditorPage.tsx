@@ -202,11 +202,8 @@ export function DeckEditorPage() {
   const removeCard = useDecksStore((s) => s.removeCard);
   const addSideboardCard = useDecksStore((s) => s.addSideboardCard);
   const removeSideboardCard = useDecksStore((s) => s.removeSideboardCard);
-  const moveBetweenZones = useDecksStore((s) => s.moveBetweenZones);
   const addConsideringCard = useDecksStore((s) => s.addConsideringCard);
   const removeConsideringCard = useDecksStore((s) => s.removeConsideringCard);
-  const moveToConsidering = useDecksStore((s) => s.moveToConsidering);
-  const moveFromConsidering = useDecksStore((s) => s.moveFromConsidering);
   const setCommander = useDecksStore((s) => s.setCommander);
   const setPartnerCommander = useDecksStore((s) => s.setPartnerCommander);
   const duplicateDeck = useDecksStore((s) => s.duplicateDeck);
@@ -1875,17 +1872,16 @@ export function DeckEditorPage() {
     });
   };
 
-  // Both zone moves take the row's slot ids — one copy, or its whole stack. The
-  // loop sits inside a single recordEdit so "move all 4" is one undo entry.
+  // Both zone moves take the row's slot ids — one copy, or its whole stack —
+  // and commit as ONE bulkMoveZone write (E180) regardless of how many slots
+  // move, inside a single recordEdit so "move all 4" is one undo entry too.
   const handleMoveToSideboard = (slotIds: string[]) => {
     const name = deck.cards.find((c) => c.slotId === slotIds[0])?.card.name ?? 'card';
     const label =
       slotIds.length === 1
         ? `move ${name} to sideboard`
         : `move ${slotIds.length} × ${name} to sideboard`;
-    recordEdit(deck.id, label, () => {
-      for (const slotId of slotIds) moveBetweenZones(deck.id, slotId, 'main');
-    });
+    recordEdit(deck.id, label, () => bulkMoveZone(deck.id, slotIds, 'cards', 'sideboard'));
   };
 
   const handleMoveToMainboard = (slotIds: string[]) => {
@@ -1894,9 +1890,7 @@ export function DeckEditorPage() {
       slotIds.length === 1
         ? `move ${name} to mainboard`
         : `move ${slotIds.length} × ${name} to mainboard`;
-    recordEdit(deck.id, label, () => {
-      for (const slotId of slotIds) moveBetweenZones(deck.id, slotId, 'side');
-    });
+    recordEdit(deck.id, label, () => bulkMoveZone(deck.id, slotIds, 'sideboard', 'cards'));
   };
 
   // Considering (E122) — mirrors the sideboard zone-move pair above exactly:
@@ -1922,9 +1916,7 @@ export function DeckEditorPage() {
       slotIds.length === 1
         ? `move ${name} to considering`
         : `move ${slotIds.length} × ${name} to considering`;
-    recordEdit(deck.id, label, () => {
-      for (const slotId of slotIds) moveToConsidering(deck.id, slotId);
-    });
+    recordEdit(deck.id, label, () => bulkMoveZone(deck.id, slotIds, 'cards', 'considering'));
   };
 
   const handleMoveFromConsidering = (slotIds: string[]) => {
@@ -1933,9 +1925,7 @@ export function DeckEditorPage() {
       slotIds.length === 1
         ? `move ${name} to mainboard`
         : `move ${slotIds.length} × ${name} to mainboard`;
-    recordEdit(deck.id, label, () => {
-      for (const slotId of slotIds) moveFromConsidering(deck.id, slotId);
-    });
+    recordEdit(deck.id, label, () => bulkMoveZone(deck.id, slotIds, 'considering', 'cards'));
   };
 
   // ── Multi-select bulk operations (E172) ────────────────────────────────

@@ -36,6 +36,7 @@ function makeInput(overrides: Partial<CollectionFilterInput> = {}): CollectionFi
     borderExpr: EMPTY_EXPR,
     finishExpr: EMPTY_EXPR,
     conditionExpr: EMPTY_EXPR,
+    languageExpr: EMPTY_EXPR,
     binderExpr: EMPTY_EXPR,
     setFilter: new Set(),
     priceMin: undefined,
@@ -171,6 +172,15 @@ describe('collectionFiltersToFilterGroup', () => {
     expect(flagged).toContain('condition');
   });
 
+  it('flags language when languageExpr is set, does NOT carry it', () => {
+    const { group, flagged } = collectionFiltersToFilterGroup(
+      makeInput({ languageExpr: chip('ja') })
+    );
+    expect((group.filter as Record<string, unknown>).languageExpr).toBeUndefined();
+    // language is a per-copy field, not on BinderFilter
+    expect(flagged).toContain('language');
+  });
+
   it('flags binder when binderExpr is set, does NOT carry it', () => {
     const { flagged } = collectionFiltersToFilterGroup(makeInput({ binderExpr: chip('myBinder') }));
     expect(flagged).toContain('binder');
@@ -211,6 +221,16 @@ describe('collectionFiltersToFilterGroup', () => {
       makeInput({ conditionExpr: chip('nm') })
     );
     expect(flagged).toContain('condition');
+    expect(flagged).not.toContain('color');
+    expect(flagged).not.toContain('binder');
+    expect(Object.keys(group.filter)).toHaveLength(0);
+  });
+
+  it('flags language and drops languageExpr from the binder filter', () => {
+    const { group, flagged } = collectionFiltersToFilterGroup(
+      makeInput({ languageExpr: chip('ja') })
+    );
+    expect(flagged).toContain('language');
     expect(flagged).not.toContain('color');
     expect(flagged).not.toContain('binder');
     expect(Object.keys(group.filter)).toHaveLength(0);

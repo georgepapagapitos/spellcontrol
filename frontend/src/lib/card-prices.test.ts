@@ -58,6 +58,29 @@ describe('card-prices', () => {
     expect(applyPrices(cards)).toBe(cards);
   });
 
+  it('applyPrices zeroes a proxy copy even though the cache has a real price for the printing (E204)', () => {
+    setPrices({ s1: { usd: 42, pricedAt: 100 } });
+    const [proxyCard, realCard] = applyPrices<{
+      scryfallId: string;
+      proxy?: boolean;
+      purchasePrice: number;
+      pricedAt?: number;
+    }>([
+      { scryfallId: 's1', proxy: true, purchasePrice: 0 },
+      { scryfallId: 's1', purchasePrice: 0 },
+    ]);
+    expect(proxyCard.purchasePrice).toBe(0);
+    expect(proxyCard.pricedAt).toBeUndefined();
+    // A non-proxy copy of the same printing is unaffected.
+    expect(realCard.purchasePrice).toBe(42);
+  });
+
+  it('applyPrices is a no-op reference for an already-zeroed proxy', () => {
+    setPrices({ s1: { usd: 42, pricedAt: 100 } });
+    const cards = [{ scryfallId: 's1', proxy: true, purchasePrice: 0 }];
+    expect(applyPrices(cards)).toBe(cards);
+  });
+
   describe('display currency (EUR)', () => {
     beforeEach(() => {
       useCurrencyStore.getState().setCurrency('EUR');

@@ -52,7 +52,6 @@ vi.mock('../store/decks', () => ({
       removeCard: () => void;
       addSideboardCard: () => void;
       removeSideboardCard: () => void;
-      moveBetweenZones: () => void;
       setCommander: () => void;
       setPartnerCommander: () => void;
       duplicateDeck: () => string;
@@ -72,7 +71,6 @@ vi.mock('../store/decks', () => ({
       removeCard: vi.fn(),
       addSideboardCard: vi.fn(),
       removeSideboardCard: vi.fn(),
-      moveBetweenZones: vi.fn(),
       setCommander: vi.fn(),
       setPartnerCommander: vi.fn(),
       duplicateDeck: vi.fn(() => 'dup-id'),
