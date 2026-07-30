@@ -461,15 +461,10 @@ interface DecksState {
 
   addSideboardCard(deckId: string, card: ScryfallCard, allocatedCopyId?: string | null): string;
   removeSideboardCard(deckId: string, slotId: string): void;
-  moveBetweenZones(deckId: string, slotId: string, from: 'main' | 'side'): void;
 
   /** Considering (E122) — same shape as sideboard's CRUD, a separate park-candidates zone. */
   addConsideringCard(deckId: string, card: ScryfallCard, allocatedCopyId?: string | null): string;
   removeConsideringCard(deckId: string, slotId: string): void;
-  /** Move a mainboard slot into Considering (atomic single-set, mirrors moveBetweenZones). */
-  moveToConsidering(deckId: string, slotId: string): void;
-  /** Move a Considering slot back into the mainboard. */
-  moveFromConsidering(deckId: string, slotId: string): void;
 
   /**
    * Bulk primitives for multi-select editing (E172) — each is ONE `set()`
@@ -907,30 +902,6 @@ export const useDecksStore = create<DecksState>()(
           ),
         })),
 
-      moveBetweenZones: (deckId, slotId, from) =>
-        set((s) => ({
-          decks: s.decks.map((d) => {
-            if (d.id !== deckId) return d;
-            if (from === 'main') {
-              const card = d.cards.find((c) => c.slotId === slotId);
-              if (!card) return d;
-              return touch({
-                ...d,
-                cards: d.cards.filter((c) => c.slotId !== slotId),
-                sideboard: [...d.sideboard, card],
-              });
-            } else {
-              const card = d.sideboard.find((c) => c.slotId === slotId);
-              if (!card) return d;
-              return touch({
-                ...d,
-                sideboard: d.sideboard.filter((c) => c.slotId !== slotId),
-                cards: [...d.cards, card],
-              });
-            }
-          }),
-        })),
-
       addConsideringCard: (deckId, card, allocatedCopyId = null) => {
         const slotId = genId('slot');
         set((s) => ({
@@ -959,34 +930,6 @@ export const useDecksStore = create<DecksState>()(
                 })
               : d
           ),
-        })),
-
-      moveToConsidering: (deckId, slotId) =>
-        set((s) => ({
-          decks: s.decks.map((d) => {
-            if (d.id !== deckId) return d;
-            const card = d.cards.find((c) => c.slotId === slotId);
-            if (!card) return d;
-            return touch({
-              ...d,
-              cards: d.cards.filter((c) => c.slotId !== slotId),
-              considering: [...(d.considering ?? []), card],
-            });
-          }),
-        })),
-
-      moveFromConsidering: (deckId, slotId) =>
-        set((s) => ({
-          decks: s.decks.map((d) => {
-            if (d.id !== deckId) return d;
-            const card = (d.considering ?? []).find((c) => c.slotId === slotId);
-            if (!card) return d;
-            return touch({
-              ...d,
-              considering: (d.considering ?? []).filter((c) => c.slotId !== slotId),
-              cards: [...d.cards, card],
-            });
-          }),
         })),
 
       bulkAddCards: (deckId, zone, entries) => {
