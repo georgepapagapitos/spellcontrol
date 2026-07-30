@@ -9,7 +9,12 @@ import { useEscapeKey } from '@/lib/use-escape-key';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { findCrossDeckMoves, type CrossDeckMove } from '@/lib/cross-deck-moves';
-import { dismissCrossDeckMove, isCrossDeckMoveDismissed } from '@/lib/between-decks-dismissed';
+import {
+  dismissCrossDeckMove,
+  dismissCrossDeckMoves,
+  isCrossDeckMoveDismissed,
+  restoreCrossDeckMoves,
+} from '@/lib/between-decks-dismissed';
 import { useCardThumb } from '@/lib/card-thumbs';
 import { getOwnedPrinting } from '@/deck-builder/services/scryfall/client';
 import { WhyBreakdown } from './WhyBreakdown';
@@ -34,6 +39,25 @@ function Thumb({ url, alt }: { url: string | undefined; alt: string }): JSX.Elem
   );
 }
 
+/** A deck's name behind its own color dot — the two ends of the route read as
+ *  one object each, so "which deck loses / which gains" is legible without
+ *  parsing a sentence. */
+function DeckChip({ name, color }: { name: string; color: string }): JSX.Element {
+  return (
+    <span className="between-decks-deck-chip" style={{ ['--deck-color' as string]: color }}>
+      <span className="between-decks-deck-dot" aria-hidden />
+      <span className="between-decks-deck-name">{name}</span>
+    </span>
+  );
+}
+
+/** "Enchantment · 4 MV" — the pre-em-dash type plus mana value. Grounds the
+ *  suggestion in what the card actually IS, which the first ship never showed. */
+function cardMeta(typeLine: string | undefined, cmc: number | undefined): string {
+  const type = typeLine?.split('—')[0]?.trim();
+  return [type, cmc != null ? `${cmc} MV` : ''].filter(Boolean).join(' · ');
+}
+
 function MoveRow({
   move,
   busy,
@@ -51,36 +75,35 @@ function MoveRow({
     'small'
   );
 
+  const meta = cardMeta(move.cardTypeLine, move.cardCmc);
+
   return (
     <li className="between-decks-move">
-      <div className="between-decks-move-top">
-        <div className="between-decks-move-cards">
-          <div className="between-decks-move-card">
-            <Thumb url={move.cardImageUrl ?? cardThumb} alt={move.cardName} />
-            <span className="between-decks-move-card-name">{move.cardName}</span>
-          </div>
-          <ArrowRight className="between-decks-move-arrow" aria-hidden />
-          <span
-            className="between-decks-move-dest"
-            style={{ ['--deck-color' as string]: move.toDeckColor }}
-          >
-            <span className="between-decks-move-dot" aria-hidden />
-            {move.toDeckName}
+      <div className="between-decks-move-head">
+        <Thumb url={move.cardImageUrl ?? cardThumb} alt={move.cardName} />
+        <div className="between-decks-move-ident">
+          <span className="between-decks-move-card-name">{move.cardName}</span>
+          {meta && <span className="between-decks-move-meta">{meta}</span>}
+          <span className="between-decks-move-route">
+            <DeckChip name={move.fromDeckName} color={move.fromDeckColor} />
+            <ArrowRight className="between-decks-move-arrow" aria-hidden width={14} height={14} />
+            <DeckChip name={move.toDeckName} color={move.toDeckColor} />
           </span>
         </div>
-        <div className="between-decks-move-fit">
-          <span className="between-decks-fit-pips" aria-hidden>
-            {Array.from({ length: FIT_PIP_COUNT }, (_, i) => (
-              <span
-                key={i}
-                className={`between-decks-fit-pip${i < move.fitGain ? ' is-filled' : ''}`}
-              />
-            ))}
-          </span>
-          <span className="between-decks-move-fit-label">
-            Fits {move.fitGain} engine{move.fitGain === 1 ? '' : 's'} in {move.toDeckName}
-          </span>
-        </div>
+      </div>
+
+      <div className="between-decks-move-fit">
+        <span className="between-decks-fit-pips" aria-hidden>
+          {Array.from({ length: FIT_PIP_COUNT }, (_, i) => (
+            <span
+              key={i}
+              className={`between-decks-fit-pip${i < move.fitGain ? ' is-filled' : ''}`}
+            />
+          ))}
+        </span>
+        <span className="between-decks-move-fit-label">
+          Reinforces {move.fitGain} engine{move.fitGain === 1 ? '' : 's'} in {move.toDeckName}
+        </span>
       </div>
 
       <WhyBreakdown factors={move.whyMove} label="Why move this?" />
@@ -88,8 +111,8 @@ function MoveRow({
       <div className="between-decks-move-replacement">
         <Thumb url={move.replacementImageUrl ?? replacementThumb} alt={move.replacementName} />
         <div className="between-decks-move-replacement-text">
-          <span>
-            <strong>{move.replacementName}</strong> stays in {move.fromDeckName}
+          <span className="between-decks-move-replacement-lead">
+            <strong>{move.replacementName}</strong> takes its place in {move.fromDeckName}
           </span>
           <WhyBreakdown factors={move.whyReplacement} label="Why this replacement?" />
         </div>
@@ -98,12 +121,12 @@ function MoveRow({
       <div className="between-decks-move-actions">
         <button
           type="button"
-          className="btn btn-outline between-decks-move-dismiss"
+          className="between-decks-move-dismiss"
           onClick={() => onDismiss(move.id)}
           disabled={busy}
+          aria-label={`Dismiss the suggestion to move ${move.cardName}`}
         >
-          <X width={14} height={14} aria-hidden />
-          Dismiss
+          Not this one
         </button>
         <button
           type="button"
@@ -119,7 +142,7 @@ function MoveRow({
           ) : (
             <ArrowLeftRight width={14} height={14} aria-hidden />
           )}
-          Move
+          Make the swap
         </button>
       </div>
     </li>
@@ -210,36 +233,59 @@ function BetweenYourDecksSheet({
 /** One-row summary: icon, label, a count pill, and (space permitting) a
  *  teaser of the top suggestion — the sibling of the pull-readiness badge
  *  and other quiet index-page affordances, not a card panel. See
- *  STYLE_GUIDE.md "Index-page insight strips". */
+ *  STYLE_GUIDE.md "Index-page insight strips".
+ *
+ *  The trailing ✕ is a sibling of the open-button, not nested inside it —
+ *  a button inside a button is invalid HTML and swallows the inner click on
+ *  some engines. The chrome (border, hover, focus ring) therefore lives on
+ *  the wrapper, which reacts to `:hover` / `:focus-within` of either child.
+ */
 function BetweenYourDecksStrip({
   moves,
   onOpen,
+  onDismissAll,
 }: {
   moves: CrossDeckMove[];
   onOpen: () => void;
+  onDismissAll: () => void;
 }): JSX.Element {
   const top = moves[0];
   return (
-    <button type="button" className="between-decks-strip" onClick={onOpen} aria-haspopup="dialog">
-      <ArrowLeftRight className="between-decks-strip-icon" aria-hidden width={16} height={16} />
-      <span className="between-decks-strip-label">Between your decks</span>
-      <span className="between-decks-strip-count">
-        {moves.length} move{moves.length === 1 ? '' : 's'}
-      </span>
-      {top && (
-        <span className="between-decks-strip-teaser">
-          {top.cardName}
-          <ArrowRight
-            className="between-decks-strip-teaser-arrow"
-            aria-hidden
-            width={11}
-            height={11}
-          />
-          {top.toDeckName}
+    <div className="between-decks-strip">
+      <button
+        type="button"
+        className="between-decks-strip-main"
+        onClick={onOpen}
+        aria-haspopup="dialog"
+      >
+        <ArrowLeftRight className="between-decks-strip-icon" aria-hidden width={16} height={16} />
+        <span className="between-decks-strip-label">Between your decks</span>
+        <span className="between-decks-strip-count">
+          {moves.length} move{moves.length === 1 ? '' : 's'}
         </span>
-      )}
-      <ChevronRight className="between-decks-strip-chevron" aria-hidden width={16} height={16} />
-    </button>
+        {top && (
+          <span className="between-decks-strip-teaser">
+            {top.cardName}
+            <ArrowRight
+              className="between-decks-strip-teaser-arrow"
+              aria-hidden
+              width={11}
+              height={11}
+            />
+            {top.toDeckName}
+          </span>
+        )}
+        <ChevronRight className="between-decks-strip-chevron" aria-hidden width={16} height={16} />
+      </button>
+      <button
+        type="button"
+        className="between-decks-strip-dismiss"
+        onClick={onDismissAll}
+        aria-label={`Hide all ${moves.length} cross-deck suggestion${moves.length === 1 ? '' : 's'}`}
+      >
+        <X width={16} height={16} strokeWidth={2} aria-hidden />
+      </button>
+    </div>
   );
 }
 
@@ -296,6 +342,21 @@ export function BetweenYourDecks(): JSX.Element | null {
     forceRerender((n) => n + 1);
   };
 
+  const handleDismissAll = () => {
+    const ids = visible.map((m) => m.id);
+    dismissCrossDeckMoves(ids);
+    forceRerender((n) => n + 1);
+    haptics.tap();
+    toast.show({
+      message: `Hid ${ids.length} cross-deck suggestion${ids.length === 1 ? '' : 's'}`,
+      actionLabel: 'Undo',
+      onAction: () => {
+        restoreCrossDeckMoves(ids);
+        forceRerender((n) => n + 1);
+      },
+    });
+  };
+
   const handleAccept = async (move: CrossDeckMove) => {
     setBusyId(move.id);
     try {
@@ -339,7 +400,11 @@ export function BetweenYourDecks(): JSX.Element | null {
 
   return (
     <>
-      <BetweenYourDecksStrip moves={visible} onOpen={() => setOpen(true)} />
+      <BetweenYourDecksStrip
+        moves={visible}
+        onOpen={() => setOpen(true)}
+        onDismissAll={handleDismissAll}
+      />
       {open && (
         <BetweenYourDecksSheet
           moves={visible}

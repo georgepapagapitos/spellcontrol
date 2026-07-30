@@ -1,6 +1,11 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { dismissCrossDeckMove, isCrossDeckMoveDismissed } from './between-decks-dismissed';
+import {
+  dismissCrossDeckMove,
+  dismissCrossDeckMoves,
+  isCrossDeckMoveDismissed,
+  restoreCrossDeckMoves,
+} from './between-decks-dismissed';
 
 describe('between-decks-dismissed', () => {
   beforeEach(() => localStorage.clear());
@@ -24,6 +29,22 @@ describe('between-decks-dismissed', () => {
     dismissCrossDeckMove('a:Card:b');
     dismissCrossDeckMove('a:Card:b');
     expect(isCrossDeckMoveDismissed('a:Card:b')).toBe(true);
+  });
+
+  it('dismisses a whole batch at once and leaves others visible', () => {
+    dismissCrossDeckMoves(['a:One:b', 'a:Two:b']);
+    expect(isCrossDeckMoveDismissed('a:One:b')).toBe(true);
+    expect(isCrossDeckMoveDismissed('a:Two:b')).toBe(true);
+    expect(isCrossDeckMoveDismissed('a:Three:b')).toBe(false);
+  });
+
+  it('restores a batch (undo) without disturbing separately dismissed ids', () => {
+    dismissCrossDeckMove('a:Kept:b');
+    dismissCrossDeckMoves(['a:One:b', 'a:Two:b']);
+    restoreCrossDeckMoves(['a:One:b', 'a:Two:b']);
+    expect(isCrossDeckMoveDismissed('a:One:b')).toBe(false);
+    expect(isCrossDeckMoveDismissed('a:Two:b')).toBe(false);
+    expect(isCrossDeckMoveDismissed('a:Kept:b')).toBe(true);
   });
 
   it('survives corrupted localStorage without throwing', () => {
