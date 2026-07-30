@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   cancelGameNight,
   createGameNight,
+  createGameNightGuestInvite,
+  loadGuestInviteToken,
+  resolveGuestInvite,
+  revokeGameNightGuestInvite,
+  saveGuestInviteToken,
   deleteGameNight,
   endGameNightSeries,
   fetchPublicGameNight,
@@ -265,6 +270,97 @@ describe('recurring series (E125)', () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain('/api/game-nights/public/series/ser-tok');
     fetchMock.mockResolvedValue(jsonResponse({ error: 'nope' }, 404));
     await expect(resolveGameNightSeries('gone')).rejects.toBeInstanceOf(GameNightNotFoundError);
+  });
+});
+
+describe('named guest invite links (E208)', () => {
+  /** Minimal Storage stand-in — this file runs in the node env. */
+  function stubStorage(): Map<string, string> {
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    });
+    return store;
+  }
+
+  it('resolves an invite token to its night, and 404s as not-found', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ nightToken: 'night-tok' }));
+    expect(await resolveGuestInvite('inv-tok')).toEqual({ nightToken: 'night-tok' });
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/game-nights/public/invites/inv-tok');
+    fetchMock.mockResolvedValue(jsonResponse({ error: 'nope' }, 404));
+    await expect(resolveGuestInvite('revoked')).rejects.toBeInstanceOf(GameNightNotFoundError);
+  });
+
+  it('stores the credential per night and survives unavailable storage', () => {
+    const store = stubStorage();
+    saveGuestInviteToken('night-tok', 'inv-tok');
+    expect(store.get('gn-invite:night-tok')).toBe('inv-tok');
+    expect(loadGuestInviteToken('night-tok')).toBe('inv-tok');
+    expect(loadGuestInviteToken('other-night')).toBeNull();
+
+    vi.stubGlobal('localStorage', {
+      getItem: () => {
+        throw new Error('private mode');
+      },
+      setItem: () => {
+        throw new Error('private mode');
+      },
+    });
+    expect(() => saveGuestInviteToken('night-tok', 'inv-tok')).not.toThrow();
+    expect(loadGuestInviteToken('night-tok')).toBeNull();
+  });
+
+  it('sends the credential as a header on reads — never a query param', async () => {
+    stubStorage();
+    saveGuestInviteToken('tok', 'inv-tok');
+    fetchMock.mockResolvedValue(jsonResponse({ night: {}, rsvps: [], options: [], canRsvp: true }));
+    await fetchPublicGameNight('tok');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).not.toContain('inv-tok');
+    expect(init.headers['X-Night-Invite']).toBe('inv-tok');
+  });
+
+  it('attaches the credential to every reply path', async () => {
+    stubStorage();
+    saveGuestInviteToken('tok', 'inv-tok');
+    // A fresh Response per call — a shared one has its body read once.
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(jsonResponse({ rsvp: { id: 'r1', displayName: 'Dave' } }))
+    );
+    await rsvpGameNight('tok', { status: 'going', displayName: 'Dave' });
+    await voteGameNight('tok', { optionIds: ['o1'] });
+    await suggestGameNightOption('tok', { startsAt: 123 });
+    for (const [, init] of fetchMock.mock.calls) {
+      expect(JSON.parse(init.body).inviteToken).toBe('inv-tok');
+    }
+  });
+
+  it('omits the credential entirely when there is none', async () => {
+    stubStorage();
+    fetchMock.mockResolvedValue(jsonResponse({ rsvp: { id: 'r1', displayName: 'Dave' } }));
+    await rsvpGameNight('tok', { status: 'going', displayName: 'Dave' });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty('inviteToken');
+  });
+
+  it('mints and revokes host-side', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({ invite: { id: 'i1', label: 'Dave', url: 'https://x/gn/i/inv-tok' } }, 201)
+    );
+    const invite = await createGameNightGuestInvite('n1', 'Dave');
+    expect(invite).toEqual({
+      id: 'i1',
+      label: 'Dave',
+      url: 'https://x/gn/i/inv-tok',
+      weekly: false,
+    });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ label: 'Dave' });
+
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await expect(revokeGameNightGuestInvite('n1', 'i1')).resolves.toBeUndefined();
+    expect(String(fetchMock.mock.calls[1][0])).toContain('/api/game-nights/n1/guest-invites/i1');
+    expect(fetchMock.mock.calls[1][1].method).toBe('DELETE');
   });
 });
 

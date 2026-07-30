@@ -933,6 +933,10 @@ if (existsSync(SPA_DIR)) {
   app.get('/u/:token', createShareLandingHandler(SPA_DIR, lookupPublicUserLandingMeta));
   app.get('/gn/s/:token', createShareLandingHandler(SPA_DIR, lookupGameNightSeriesLandingMeta));
   app.get('/gn/:token', createShareLandingHandler(SPA_DIR, lookupGameNightLandingMeta));
+  // Deliberately NOT /gn/i/:token (E208 named guest invites). That link is one
+  // person's credential, so it must not unfurl the night's details into
+  // whatever chat it's pasted into; it falls through to the plain SPA shell,
+  // resolves client-side, and redirects to /gn/:token which does unfurl.
 
   app.use(
     express.static(SPA_DIR, {

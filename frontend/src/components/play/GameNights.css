@@ -420,6 +420,26 @@
   overflow-y: auto;
 }
 
+/* Mint row for a named guest invite link (E208). The label field takes the
+   room; the button sits on its baseline, wrapping under it when the dialog is
+   narrow rather than squeezing the input to nothing. */
+.game-night-guest-invite-add {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.game-night-guest-invite-add .game-night-dialog-field {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.game-night-guest-invite-add .btn {
+  min-height: 44px;
+}
+
 .game-night-dialog-people-list li {
   display: flex;
   align-items: center;

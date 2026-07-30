@@ -18,6 +18,9 @@ import {
   lockGameNight,
   openGameNightPoll,
   removeGameNightInvite,
+  createGameNightGuestInvite,
+  revokeGameNightGuestInvite,
+  type GuestInvite,
   removeGameNightRsvp,
   rsvpGameNight,
   suggestGameNightOption,
@@ -937,6 +940,11 @@ function NightDialog({
   } | null>(null);
   const [blockedLocally, setBlockedLocally] = useState<Set<string>>(new Set());
   const [unblockedLocally, setUnblockedLocally] = useState<Set<string>>(new Set());
+  // Named invite links (E208), held locally so minting/revoking updates the
+  // list in place while the parent refreshes behind the dialog.
+  const [guestInvites, setGuestInvites] = useState<GuestInvite[]>(night?.guestInvites ?? []);
+  const [guestLabel, setGuestLabel] = useState('');
+  const [minting, setMinting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -1096,6 +1104,65 @@ function NightDialog({
     } catch (err) {
       toast.show({
         message: err instanceof Error ? err.message : "Couldn't remove the invite.",
+        tone: 'error',
+      });
+    } finally {
+      setRemoving(null);
+    }
+  }
+
+  async function addGuestInvite() {
+    const label = guestLabel.trim();
+    if (!night || minting || label === '') return;
+    setMinting(true);
+    try {
+      const invite = await createGameNightGuestInvite(night.id, label);
+      setGuestInvites((prev) => [...prev, { ...invite, weekly: night.series !== null }]);
+      setGuestLabel('');
+      await shareInviteLink(invite.url, label);
+      onPeopleChanged();
+    } catch (err) {
+      toast.show({
+        message: err instanceof Error ? err.message : "Couldn't create the invite link.",
+        tone: 'error',
+      });
+    } finally {
+      setMinting(false);
+    }
+  }
+
+  /**
+   * Hand the link off however the device prefers — the OS share sheet covers
+   * mail, SMS and every chat app in one tap, which is the whole delivery story
+   * for someone without an account. Clipboard is the desktop fallback.
+   */
+  async function shareInviteLink(url: string, label: string) {
+    const shareData = { title: `Game night invite for ${label}`, url };
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share(shareData);
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      toast.show({ message: `Invite link for ${label} copied — send it to them.` });
+    } catch (err) {
+      // A dismissed share sheet rejects; that's a choice, not a failure.
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      toast.show({ message: "Couldn't share the link.", tone: 'error' });
+    }
+  }
+
+  async function revokeGuestInvite(invite: GuestInvite) {
+    if (!night || removing) return;
+    setRemoving(`guest:${invite.id}`);
+    try {
+      await revokeGameNightGuestInvite(night.id, invite.id);
+      setGuestInvites((prev) => prev.filter((g) => g.id !== invite.id));
+      toast.show({ message: `${invite.label}'s link no longer works.` });
+      onPeopleChanged();
+    } catch (err) {
+      toast.show({
+        message: err instanceof Error ? err.message : "Couldn't revoke the link.",
         tone: 'error',
       });
     } finally {
@@ -1462,6 +1529,77 @@ function NightDialog({
                   </li>
                 ))}
               </ul>
+            </fieldset>
+          )}
+
+          {night !== null && (
+            <fieldset className="game-night-dialog-people">
+              <legend>Invite someone without an account</legend>
+              <p className="game-night-dialog-hint">
+                {night.series !== null
+                  ? 'Each person gets their own link that keeps working every week. It admits them even on an invite-only night — no signup.'
+                  : 'Each person gets their own link for this night. It admits them even on an invite-only night — no signup.'}
+              </p>
+              <div className="game-night-guest-invite-add">
+                <label className="game-night-dialog-field">
+                  <span>Who's it for?</span>
+                  <input
+                    type="text"
+                    value={guestLabel}
+                    maxLength={40}
+                    placeholder="Dave"
+                    disabled={minting || saving}
+                    onChange={(e) => setGuestLabel(e.target.value)}
+                    onKeyDown={(e) => {
+                      // Enter here mints the link; it must not submit the dialog.
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        void addGuestInvite();
+                      }
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={minting || saving || guestLabel.trim() === ''}
+                  onClick={() => void addGuestInvite()}
+                >
+                  {minting ? 'Creating…' : 'Create link'}
+                </button>
+              </div>
+              {guestInvites.length > 0 && (
+                <ul className="game-night-dialog-people-list">
+                  {guestInvites.map((invite) => (
+                    <li key={`guest:${invite.id}`}>
+                      <span className="game-night-person-name">{invite.label}</span>
+                      <span className="game-night-person-status">
+                        {invite.weekly ? 'Invite link — every week' : 'Invite link'}
+                      </span>
+                      <div className="game-night-person-actions">
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={removing !== null || saving}
+                          aria-label={`Share ${invite.label}'s invite link`}
+                          onClick={() => void shareInviteLink(invite.url, invite.label)}
+                        >
+                          Share
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-danger"
+                          disabled={removing !== null || saving}
+                          aria-label={`Revoke ${invite.label}'s invite link`}
+                          onClick={() => void revokeGuestInvite(invite)}
+                        >
+                          {removing === `guest:${invite.id}` ? 'Revoking…' : 'Revoke'}
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </fieldset>
           )}
 

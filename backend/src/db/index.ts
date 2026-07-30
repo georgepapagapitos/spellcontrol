@@ -359,6 +359,26 @@ export async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS game_night_blocks_user_idx ON game_night_blocks(user_id);
     -- Optional play format (e.g. 'commander'); powers the "Start game" seed.
     ALTER TABLE game_nights ADD COLUMN IF NOT EXISTS format TEXT;
+    -- Named guest invite links (E208): one unguessable token per invited
+    -- person, so a host can include someone with no SpellControl account on an
+    -- invite-only night. The token IS the reply credential; the label is the
+    -- host's handle on it ("Dave") for copy/revoke. Scoped to a single night
+    -- OR to a series (weekly nights mint against the series so a pinned link
+    -- survives the week, mirroring /gn/s/:token) — never both.
+    CREATE TABLE IF NOT EXISTS game_night_guest_invites (
+      id TEXT PRIMARY KEY,
+      night_id TEXT REFERENCES game_nights(id) ON DELETE CASCADE,
+      series_id TEXT REFERENCES game_night_series(id) ON DELETE CASCADE,
+      token TEXT NOT NULL UNIQUE,
+      label TEXT NOT NULL,
+      created_at BIGINT NOT NULL,
+      revoked_at BIGINT,
+      CHECK ((night_id IS NULL) <> (series_id IS NULL))
+    );
+    CREATE INDEX IF NOT EXISTS game_night_guest_invites_night_idx
+      ON game_night_guest_invites(night_id);
+    CREATE INDEX IF NOT EXISTS game_night_guest_invites_series_idx
+      ON game_night_guest_invites(series_id);
 
     CREATE TABLE IF NOT EXISTS friendships (
       requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

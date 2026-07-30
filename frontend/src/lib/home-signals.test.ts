@@ -450,6 +450,7 @@ describe('upcomingGameNights', () => {
       options: [],
       series: null,
       blocked: [],
+      guestInvites: [],
       ...overrides,
     };
   }

@@ -29,6 +29,7 @@ import { PublicProfilePage } from './pages/PublicProfilePage';
 import { PublicDeckPage } from './pages/PublicDeckPage';
 import { GameNightView } from './pages/GameNightView';
 import { GameNightSeriesView } from './pages/GameNightSeriesView';
+import { GameNightInviteView } from './pages/GameNightLinkForward';
 import { WelcomePage } from './pages/WelcomePage';
 import { DeckComparePage } from './pages/DeckComparePage';
 import { SearchPage } from './pages/SearchPage';
@@ -222,6 +223,7 @@ export default function App() {
         <Route path="/u/:username" element={<PublicProfilePage />} />
         <Route path="/d/:slug" element={<PublicDeckPage />} />
         <Route path="/gn/s/:token" element={<GameNightSeriesView />} />
+        <Route path="/gn/i/:token" element={<GameNightInviteView />} />
         <Route path="/gn/:token" element={<GameNightView />} />
         <Route
           path="*"
@@ -251,6 +253,7 @@ export default function App() {
         <Route path="/u/:username" element={<PublicProfilePage />} />
         <Route path="/d/:slug" element={<PublicDeckPage />} />
         <Route path="/gn/s/:token" element={<GameNightSeriesView />} />
+        <Route path="/gn/i/:token" element={<GameNightInviteView />} />
         <Route path="/gn/:token" element={<GameNightView />} />
         {/* Root: the public marketing landing for first-time/logged-out
             visitors (and search-engine crawlers — empty storage + guest auth);
