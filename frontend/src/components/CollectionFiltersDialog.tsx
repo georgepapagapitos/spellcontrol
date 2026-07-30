@@ -83,6 +83,15 @@ interface Props {
   setConditionExpr?: (next: ChipExpression) => void;
 
   /**
+   * Printed-language filter — collection-page-only (physical-copy field,
+   * same convention as Condition). `languages` is derived from what's
+   * actually in the user's collection, not a fixed enum — see CardListTable.
+   */
+  languageExpr?: ChipExpression;
+  setLanguageExpr?: (next: ChipExpression) => void;
+  languages?: Array<{ value: string; label: string }>;
+
+  /**
    * Binder section is collection-page-only. The deck-editor card search
    * doesn't have a binder concept, so it omits all three of these props
    * and the Binder section disappears entirely.
@@ -228,6 +237,9 @@ function DialogBody({
   setFinishExpr,
   conditionExpr,
   setConditionExpr,
+  languageExpr,
+  setLanguageExpr,
+  languages,
   binderExpr,
   setBinderExpr,
   binders,
@@ -271,6 +283,7 @@ function DialogBody({
   const [draftBorder, setDraftBorder] = useState<ChipExpression>(borderExpr);
   const [draftFinish, setDraftFinish] = useState<ChipExpression>(finishExpr ?? EMPTY_EXPR);
   const [draftCondition, setDraftCondition] = useState<ChipExpression>(conditionExpr ?? EMPTY_EXPR);
+  const [draftLanguage, setDraftLanguage] = useState<ChipExpression>(languageExpr ?? EMPTY_EXPR);
   // Binder + groupPrintings are optional surfaces (collection-page only).
   // When the parent doesn't wire them up, the draft stays at its harmless
   // default and the section just doesn't render.
@@ -290,6 +303,7 @@ function DialogBody({
   const showSurplus = setSurplusOnly !== undefined;
   const showFinish = finishExpr !== undefined;
   const showCondition = conditionExpr !== undefined;
+  const showLanguage = languageExpr !== undefined;
   const showPrice = setPriceMin !== undefined || setPriceMax !== undefined;
   const showCmc = setCmcMin !== undefined || setCmcMax !== undefined;
 
@@ -308,6 +322,7 @@ function DialogBody({
     draftBorder.chips.length > 0 ||
     (showFinish && draftFinish.chips.length > 0) ||
     (showCondition && draftCondition.chips.length > 0) ||
+    (showLanguage && draftLanguage.chips.length > 0) ||
     (showBinder && draftBinder.chips.length > 0) ||
     draftSet.size > 0 ||
     (showPrice && (draftPriceMin !== undefined || draftPriceMax !== undefined)) ||
@@ -365,6 +380,7 @@ function DialogBody({
     setBorderExpr(draftBorder);
     if (showFinish) setFinishExpr?.(draftFinish);
     if (showCondition) setConditionExpr?.(draftCondition);
+    if (showLanguage) setLanguageExpr?.(draftLanguage);
     if (showBinder) setBinderExpr?.(draftBinder);
     setSetFilter(draftSet);
     if (showPrice) {
@@ -395,6 +411,7 @@ function DialogBody({
     setDraftBorder(EMPTY_EXPR);
     setDraftFinish(EMPTY_EXPR);
     setDraftCondition(EMPTY_EXPR);
+    setDraftLanguage(EMPTY_EXPR);
     setDraftBinder(EMPTY_EXPR);
     setDraftSet(new Set());
     setDraftPriceMin(undefined);
@@ -515,6 +532,20 @@ function DialogBody({
               defaultJoiner="OR"
               lockJoiner="OR"
               placeholder="Add condition…"
+            />
+          </section>
+        )}
+
+        {showLanguage && (
+          <section className="collection-filters-section">
+            <div className="collection-filters-section-label">Language</div>
+            <ChipExpressionBuilder
+              value={draftLanguage}
+              onChange={setDraftLanguage}
+              options={languages ?? []}
+              defaultJoiner="OR"
+              lockJoiner="OR"
+              placeholder="Add language…"
             />
           </section>
         )}
