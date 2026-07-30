@@ -6,7 +6,7 @@
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // vi.mock is hoisted above the file's own top-level code — a variable read
 // inside a factory must come from vi.hoisted (see FriendsManagement.test.tsx).
@@ -66,7 +66,7 @@ function pod(overrides: Partial<Pod> = {}): Pod {
   };
 }
 
-afterEach(() => {
+beforeEach(() => {
   authState.status = 'authed';
   vi.mocked(listPods).mockReset().mockResolvedValue([]);
   vi.mocked(createPod).mockReset();

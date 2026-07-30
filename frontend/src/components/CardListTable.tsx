@@ -43,6 +43,7 @@ import type { SetMap } from '../lib/api';
 import { CardRowMenu } from './CardRowMenu';
 import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
+import { LANGUAGE_OPTIONS } from './PrintingPicker';
 import { RemoveCopiesDialog } from './RemoveCopiesDialog';
 import { BulkMoveToBinderSheet } from './BulkMoveToBinderSheet';
 import { useConfirm } from '../lib/use-confirm';
@@ -653,6 +654,18 @@ export function CardListTable({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Language filter options — derived from what's actually in the user's
+  // collection, not a fixed enum (LANGUAGE_OPTIONS is the full add-card
+  // vocabulary, most of which a given collection never uses). Absent
+  // language means English, mirroring CardRow's display-chip convention.
+  const languageOptions = useMemo(() => {
+    const codes = new Set<string>();
+    for (const c of cards) codes.add((c.language || 'en').toLowerCase());
+    return [...codes].sort().map((code) => ({
+      value: code,
+      label: String(LANGUAGE_OPTIONS.find((o) => o.value === code)?.label ?? code.toUpperCase()),
+    }));
+  }, [cards]);
   const [rarityExpr, setRarityExpr] = useState<ChipExpression>({
     chips: [],
     joiners: [],
@@ -667,6 +680,7 @@ export function CardListTable({
   const [borderExpr, setBorderExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
   const [finishExpr, setFinishExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
   const [conditionExpr, setConditionExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
+  const [languageExpr, setLanguageExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
   const [priceMin, setPriceMin] = useState<number | undefined>(undefined);
   const [priceMax, setPriceMax] = useState<number | undefined>(undefined);
   const [cmcMin, setCmcMin] = useState<number | undefined>(undefined);
@@ -865,6 +879,7 @@ export function CardListTable({
   // map directly to BinderFilter fields, so they're compiled separately.
   const compiledBinder = useMemo(() => compileExpression(binderExpr), [binderExpr]);
   const compiledCondition = useMemo(() => compileExpression(conditionExpr), [conditionExpr]);
+  const compiledLanguage = useMemo(() => compileExpression(languageExpr), [languageExpr]);
 
   // Build a BinderFilter from all the non-collection-specific filter state and
   // let the engine handle matching — eliminates the 11 individual compilations
@@ -933,7 +948,11 @@ export function CardListTable({
         // Post-check 3: condition (collection-only, physical copy field)
         if (compiledCondition && !exactMatchesExpression(r.card.condition, compiledCondition))
           return false;
-        // Post-check 4: tradeable surplus (collection-only, needs allocation data)
+        // Post-check 4: language (collection-only, physical copy field;
+        // absent language means English, same default CardRow displays)
+        if (compiledLanguage && !exactMatchesExpression(r.card.language || 'en', compiledLanguage))
+          return false;
+        // Post-check 5: tradeable surplus (collection-only, needs allocation data)
         if (surplusOnly && !surplusByName.has(r.card.name)) return false;
         // Engine check: everything else (type, rarity, oracle, legality, layout,
         // treatment, border, finish, sets, price, cmc, name search)
@@ -944,6 +963,7 @@ export function CardListTable({
       compiledBinder,
       colorFilter,
       compiledCondition,
+      compiledLanguage,
       surplusOnly,
       surplusByName,
       compiledMatchFilter,
@@ -1520,6 +1540,7 @@ export function CardListTable({
     (!isExpressionEmpty(borderExpr) ? 1 : 0) +
     (!isExpressionEmpty(finishExpr) ? 1 : 0) +
     (!isExpressionEmpty(conditionExpr) ? 1 : 0) +
+    (!isExpressionEmpty(languageExpr) ? 1 : 0) +
     (!isExpressionEmpty(binderExpr) ? 1 : 0) +
     (setFilter.size > 0 ? 1 : 0) +
     (priceMin !== undefined || priceMax !== undefined ? 1 : 0) +
@@ -1534,9 +1555,9 @@ export function CardListTable({
 
   // Whether at least one STRUCTURED filter (not just a search term) is active.
   // Used to gate the "Save as binder" button.
-  // Note: condition and binder filters are deliberately excluded from hasStructuredFilter
-  // because they can't be mapped to a binder rule — so those filters alone won't
-  // enable the button.
+  // Note: condition, language, and binder filters are deliberately excluded from
+  // hasStructuredFilter because they can't be mapped to a binder rule — so those
+  // filters alone won't enable the button.
   const structuredFilterActive = hasStructuredFilter({
     colorFilter,
     supertypeExpr,
@@ -1552,6 +1573,7 @@ export function CardListTable({
     borderExpr,
     finishExpr,
     conditionExpr,
+    languageExpr,
     binderExpr,
     setFilter,
     priceMin,
@@ -1577,6 +1599,7 @@ export function CardListTable({
       borderExpr,
       finishExpr,
       conditionExpr,
+      languageExpr,
       binderExpr,
       setFilter,
       priceMin,
@@ -1603,6 +1626,7 @@ export function CardListTable({
     borderExpr,
     finishExpr,
     conditionExpr,
+    languageExpr,
     binderExpr,
     setFilter,
     priceMin,
@@ -1663,6 +1687,7 @@ export function CardListTable({
     setBorderExpr(EMPTY_EXPR);
     setFinishExpr(EMPTY_EXPR);
     setConditionExpr(EMPTY_EXPR);
+    setLanguageExpr(EMPTY_EXPR);
     setBinderExpr(EMPTY_EXPR);
     setSetFilter(new Set());
     setGroupPrintings(true);
@@ -1847,6 +1872,17 @@ export function CardListTable({
         onClear: () => setConditionExpr(EMPTY_EXPR),
       });
     }
+    if (!isExpressionEmpty(languageExpr)) {
+      const labels = languageExpr.chips
+        .filter((c) => c.value.trim())
+        .map((c) => String(LANGUAGE_OPTIONS.find((o) => o.value === c.value)?.label ?? c.value))
+        .join(', ');
+      chips.push({
+        id: 'language',
+        label: `Language: ${labels}`,
+        onClear: () => setLanguageExpr(EMPTY_EXPR),
+      });
+    }
     if (!isExpressionEmpty(binderExpr)) {
       const labels = binderExpr.chips
         .filter((c) => c.value.trim())
@@ -1929,6 +1965,7 @@ export function CardListTable({
     borderExpr,
     finishExpr,
     conditionExpr,
+    languageExpr,
     binderExpr,
     setFilter,
     priceMin,
@@ -1992,6 +2029,9 @@ export function CardListTable({
               setFinishExpr={setFinishExpr}
               conditionExpr={conditionExpr}
               setConditionExpr={setConditionExpr}
+              languageExpr={languageExpr}
+              setLanguageExpr={setLanguageExpr}
+              languages={languageOptions}
               binderExpr={binderExpr}
               setBinderExpr={setBinderExpr}
               binders={binders}
