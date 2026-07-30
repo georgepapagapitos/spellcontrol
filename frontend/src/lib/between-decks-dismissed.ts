@@ -10,9 +10,30 @@
 const DISMISSED_KEY = 'between-decks-dismissed-ids';
 
 export function dismissCrossDeckMove(id: string): void {
+  dismissCrossDeckMoves([id]);
+}
+
+/** Bulk dismiss — the strip's "hide these" affordance clears the whole current
+ *  batch in one write instead of N. It silences exactly these ids, never the
+ *  lane itself: a later batch of suggestions still surfaces. */
+export function dismissCrossDeckMoves(ids: string[]): void {
+  mutateDismissedIds((set) => {
+    for (const id of ids) set.add(id);
+  });
+}
+
+/** Undo partner for `dismissCrossDeckMoves` — one mistap on "hide these" would
+ *  otherwise bury a whole batch with no recovery path. */
+export function restoreCrossDeckMoves(ids: string[]): void {
+  mutateDismissedIds((set) => {
+    for (const id of ids) set.delete(id);
+  });
+}
+
+function mutateDismissedIds(mutate: (set: Set<string>) => void): void {
   try {
     const dismissed = loadDismissedIds();
-    dismissed.add(id);
+    mutate(dismissed);
     localStorage.setItem(DISMISSED_KEY, JSON.stringify([...dismissed]));
   } catch {
     /* ignore storage failures */
