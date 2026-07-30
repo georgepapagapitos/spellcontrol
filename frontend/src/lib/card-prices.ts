@@ -112,14 +112,32 @@ export function _resetForTests(): void {
  * `purchasePrice` is ALWAYS a number on the way out, so reducers/formatters
  * never see `undefined`/`NaN`. A new array is returned only when something
  * changed, so a no-op merge keeps the reference and downstream `useMemo`s skip.
+ *
+ * A `proxy: true` card is force-priced to 0 regardless of what the cache
+ * holds — it isn't the real printing, so it has no market value, and every
+ * consumer (collection total, movers, budget/binder price rules, price
+ * filters) reads `purchasePrice` off the cards this function returns, so
+ * guarding here is the single chokepoint. This never touches `acquiredPrice`
+ * (cost basis) — a proxy can genuinely have cost the user money to print.
  */
 export function applyPrices<
-  T extends { scryfallId: string; finish?: string; purchasePrice?: number; pricedAt?: number },
+  T extends {
+    scryfallId: string;
+    finish?: string;
+    purchasePrice?: number;
+    pricedAt?: number;
+    proxy?: boolean;
+  },
 >(cards: T[]): T[] {
   loadPrices();
   const wantEur = getCurrency() === 'EUR';
   let mutated = false;
   const out = cards.map((c) => {
+    if (c.proxy) {
+      if (c.purchasePrice === 0 && c.pricedAt === undefined) return c;
+      mutated = true;
+      return { ...c, purchasePrice: 0, pricedAt: undefined };
+    }
     // Exact finish, then the bare non-foil entry as a transitional fallback.
     const e =
       cache.get(priceKey(c.scryfallId, c.finish)) ??

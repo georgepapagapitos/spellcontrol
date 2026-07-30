@@ -10,13 +10,16 @@ import { pickUsdForFinish } from './scryfall-cache';
 // exactly right as COST BASIS — there "what the user paid years ago" is the
 // answer rather than the bug — so the parsed value lands on `acquiredPrice`
 // below instead of being dropped on the floor.
-// Returns 0 when Scryfall has no price for any
-// finish — callers can treat that as "unpriced" rather than a real $0 value.
+// Returns 0 when Scryfall has no price for any finish, OR when the copy is a
+// proxy — a proxy isn't the real printing, so it has no market value even
+// though we resolved a Scryfall match to imitate. Callers treat 0 as
+// "unpriced" rather than a real $0 value. This does NOT touch `acquiredPrice`
+// (cost basis) — a proxy can genuinely have cost the user money to print.
 // Finish-aware ordering lives in `pickUsdForFinish` (shared with the price
 // refresh + share-projection paths) so a foil never silently shows the
 // non-foil price.
 function resolvePrice(row: ImportRow, scryfall: ScryfallCard | undefined): number {
-  if (!scryfall) return 0;
+  if (!scryfall || row.proxy) return 0;
   return pickUsdForFinish(scryfall, row.finish ?? 'nonfoil');
 }
 
