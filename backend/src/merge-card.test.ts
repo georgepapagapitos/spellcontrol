@@ -140,6 +140,31 @@ describe('mergeCard', () => {
     expect(result.oracleText).toBe('Front text.\n//\nBack text.');
   });
 
+  it('carries hero-res imageLarge/imageLargeBack through import enrichment (E187)', () => {
+    const result = mergeCard(
+      row(),
+      card({
+        image_uris: { large: 'front-large.png', normal: 'front-normal.png' },
+        card_faces: [
+          { name: 'A', image_uris: { large: 'a-large.png' } },
+          { name: 'B', image_uris: { large: 'b-large.png' } },
+        ],
+      })
+    );
+    expect(result.imageLarge).toBe('front-large.png');
+    expect(result.imageLargeBack).toBe('b-large.png');
+  });
+
+  it('falls back to the first face large image when top-level image_uris is absent', () => {
+    const result = mergeCard(
+      row(),
+      card({
+        card_faces: [{ name: 'A', image_uris: { large: 'a-large.png' } }],
+      })
+    );
+    expect(result.imageLarge).toBe('a-large.png');
+  });
+
   it('falls back cmc/typeLine to the first face when top-level is absent', () => {
     // reversible_card / art_series style: top-level cmc + type_line missing.
     const result = mergeCard(
