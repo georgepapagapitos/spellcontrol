@@ -1,0 +1,78 @@
+name: Docker image build
+
+# Guards against the #1332 class of break: a dependency bump (e.g.
+# better-sqlite3 12 -> 13) can be green on typecheck/lint/every test — even a
+# direct smoke of the library's API — and still fail INSIDE the Docker image
+# build, because the image has no node-gyp toolchain for a native module with
+# no linux prebuild. No other CI job runs `docker build`, so a break here was
+# previously invisible until the post-merge Fly deploy. See docs/BOARD.md E193.
+#
+# There is only one image (backend/Dockerfile also builds and embeds the
+# frontend bundle — see its header comment), so one job covers both apps.
+# It also rebuilds the two `packages/*` shared-package stages inline, so a
+# structural mistake there (e.g. a new shared package missing its Dockerfile
+# stage, per the warning in CLAUDE.md) fails the same way.
+#
+# This is a separate workflow, not a job inside ci.yml, and it triggers only
+# via `paths:` below — not a job with a conditional `if:` that would still
+# report a "skipped" status. A skipped job still posts a check result, so
+# making it required works; but a `paths:`-gated *workflow* never runs at all
+# for a non-matching PR, so it never posts a check either. Do NOT add this
+# workflow to required status checks in branch protection: a required check
+# that never posts leaves the PR stuck waiting forever. It's meant as an
+# always-green safety net for the PRs that touch these paths, not a required
+# gate.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/package.json'
+      - 'backend/package-lock.json'
+      - 'backend/Dockerfile'
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+      - 'packages/game-core/package.json'
+      - 'packages/game-core/package-lock.json'
+      - 'packages/binder-routing/package.json'
+      - 'packages/binder-routing/package-lock.json'
+      - '.github/workflows/docker-image-build.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/package.json'
+      - 'backend/package-lock.json'
+      - 'backend/Dockerfile'
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+      - 'packages/game-core/package.json'
+      - 'packages/game-core/package-lock.json'
+      - 'packages/binder-routing/package.json'
+      - 'packages/binder-routing/package-lock.json'
+      - '.github/workflows/docker-image-build.yml'
+
+concurrency:
+  group: docker-image-build-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build backend image (embeds frontend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: docker build -f backend/Dockerfile .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./backend/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
