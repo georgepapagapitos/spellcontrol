@@ -76,7 +76,7 @@ vi.mock('@dnd-kit/core', () => ({
 
 vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
-import { GameBoard } from './GameBoard';
+import { GameBoard, cmdDamageFillRatio, cmdDamageToLethal } from './GameBoard';
 
 /** Alice (seat 0) plus two opponents, one with a color identity, one without. */
 function renderPod(dispatch = vi.fn()) {
@@ -219,5 +219,38 @@ describe('swipe to log commander damage', () => {
       .closest('.pp-cmd-tile') as HTMLElement;
     expect(carolTile.className).not.toContain('pp-color-');
     expect(carolTile.style.getPropertyValue('--pp-base')).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+
+  it('drives the progress-to-21 fill and "N to lethal" hint from commander damage (E191)', () => {
+    const alice = makeTestPlayer({ commanderDamage: { 1: 9 } });
+    const game = makeTestState([
+      alice,
+      makeTestPlayer({ id: 'p1', seat: 1, name: 'Bob', commander: 'Atraxa', colorIdentity: ['G'] }),
+    ]);
+    render(<GameBoard game={game} dispatch={vi.fn()} canControlAll />);
+    drag(tapZone(0), ALICE_UP);
+
+    const bobTile = screen
+      .getByRole('button', { name: '+1 commander damage from Atraxa' })
+      .closest('.pp-cmd-tile') as HTMLElement;
+    expect(bobTile.style.getPropertyValue('--fill')).toBe(String(9 / 21));
+    const hint = screen.getByText('12 to lethal');
+    expect(hint.getAttribute('aria-hidden')).toBe('true');
+  });
+});
+
+describe('cmdDamageFillRatio / cmdDamageToLethal', () => {
+  it('clamps fill to [0, 1] across the value range', () => {
+    expect(cmdDamageFillRatio(0)).toBe(0);
+    expect(cmdDamageFillRatio(9)).toBeCloseTo(9 / 21);
+    expect(cmdDamageFillRatio(21)).toBe(1);
+    expect(cmdDamageFillRatio(30)).toBe(1); // clamped past lethal
+  });
+
+  it('only surfaces the hint mid-race — hidden at 0 and once already lethal', () => {
+    expect(cmdDamageToLethal(0)).toBeNull();
+    expect(cmdDamageToLethal(9)).toBe(12);
+    expect(cmdDamageToLethal(21)).toBeNull();
+    expect(cmdDamageToLethal(30)).toBeNull();
   });
 });
