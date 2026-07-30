@@ -37,6 +37,7 @@ function makeNight(overrides: Partial<GameNight> = {}): GameNight {
     options: [],
     series: null,
     blocked: [],
+    guestInvites: [],
     ...overrides,
   };
 }

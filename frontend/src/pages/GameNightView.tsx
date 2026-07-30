@@ -321,7 +321,7 @@ function NightBody({
           </h2>
           <p className="game-night-invite-only-note" role="status">
             {night.inviteOnly
-              ? `This night is invite-only — ask ${night.hostUsername} for an invite to reply.`
+              ? `This night is invite-only — ask ${night.hostUsername} for an invite link. It admits you whether or not you have a SpellControl account.`
               : "You can't reply to this game night."}
           </p>
           {polling && <NightPoll options={options} />}

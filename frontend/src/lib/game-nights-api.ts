@@ -79,6 +79,21 @@ export interface GameNight {
   series: NightSeries | null;
   /** Host-only: usernames blocked from rejoining, alphabetical. Empty for non-hosts. */
   blocked: string[];
+  /** Host-only: live named invite links (E208). Empty for non-hosts — each url
+   *  carries a live credential, so this is gated like the rsvp removal handles. */
+  guestInvites: GuestInvite[];
+}
+
+/**
+ * A named invite link (E208) — how a host includes someone with no account on
+ * an invite-only night. The url is the credential; `label` is who it's for.
+ */
+export interface GuestInvite {
+  id: string;
+  label: string;
+  url: string;
+  /** Series-scoped: the same link opens next week's night too. */
+  weekly: boolean;
 }
 
 /** The public (token) view — what a guest with the link sees. */
@@ -251,14 +266,101 @@ export async function removeGameNightInvite(nightId: string, username: string): 
   }
 }
 
+/**
+ * The named guest-invite credential (E208) for a night, stored per night token.
+ * Deliberately kept out of the page URL after the /gn/i/:token landing hop and
+ * sent as a header/body field, never a query param — a query-string credential
+ * is the one channel the E119 audit left open for the older `rsvpId`.
+ */
+function inviteStorageKey(nightToken: string): string {
+  return `gn-invite:${nightToken}`;
+}
+
+export function saveGuestInviteToken(nightToken: string, inviteToken: string): void {
+  try {
+    localStorage.setItem(inviteStorageKey(nightToken), inviteToken);
+  } catch {
+    // Storage unavailable (private mode) — they can still reply this visit
+    // using the link they arrived on; they'll need it again to come back.
+  }
+}
+
+export function loadGuestInviteToken(nightToken: string): string | null {
+  try {
+    return localStorage.getItem(inviteStorageKey(nightToken));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Attach the stored invite credential to a write body. Every reply path goes
+ * through here, so a named guest keeps their reply rights on RSVPs, votes and
+ * slot suggestions alike without each caller having to remember.
+ */
+function withInviteToken<T extends object>(
+  nightToken: string,
+  input: T
+): T & { inviteToken?: string } {
+  const inviteToken = loadGuestInviteToken(nightToken);
+  return inviteToken === null ? input : { ...input, inviteToken };
+}
+
+/** Resolve a named invite link to the night it admits you to. */
+export async function resolveGuestInvite(inviteToken: string): Promise<{ nightToken: string }> {
+  const res = await fetch(
+    apiUrl(`/api/game-nights/public/invites/${encodeURIComponent(inviteToken)}`)
+  );
+  if (res.status === 404) {
+    throw new GameNightNotFoundError();
+  }
+  if (!res.ok) {
+    throw new Error(await readError(res, "Couldn't open that invite."));
+  }
+  return (await res.json()) as { nightToken: string };
+}
+
+/** Host only: mint a named invite link for someone without an account. */
+export async function createGameNightGuestInvite(
+  nightId: string,
+  label: string
+): Promise<GuestInvite> {
+  const res = await fetch(apiUrl(`/api/game-nights/${encodeURIComponent(nightId)}/guest-invites`), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label }),
+  });
+  if (!res.ok) {
+    throw new Error(await readError(res, "Couldn't create the invite link."));
+  }
+  const body = (await res.json()) as { invite: Omit<GuestInvite, 'weekly'> & { weekly?: boolean } };
+  return { weekly: false, ...body.invite };
+}
+
+/** Host only: revoke a named invite link. Any RSVP they already left stays. */
+export async function revokeGameNightGuestInvite(nightId: string, inviteId: string): Promise<void> {
+  const res = await fetch(
+    apiUrl(
+      `/api/game-nights/${encodeURIComponent(nightId)}/guest-invites/${encodeURIComponent(inviteId)}`
+    ),
+    { method: 'DELETE', credentials: 'include' }
+  );
+  if (!res.ok && res.status !== 204) {
+    throw new Error(await readError(res, "Couldn't revoke the link."));
+  }
+}
+
 /** Public read. `rsvpId` is the guest's stored credential for `myRsvp` resolution. */
 export async function fetchPublicGameNight(
   token: string,
   rsvpId?: string
 ): Promise<PublicGameNight> {
   const query = rsvpId ? `?rsvpId=${encodeURIComponent(rsvpId)}` : '';
+  const inviteToken = loadGuestInviteToken(token);
   const res = await fetch(apiUrl(`/api/game-nights/public/${encodeURIComponent(token)}${query}`), {
     credentials: 'include',
+    ...(inviteToken ? { headers: { 'X-Night-Invite': inviteToken } } : {}),
   });
   if (res.status === 404) {
     throw new GameNightNotFoundError();
@@ -285,7 +387,7 @@ export async function rsvpGameNight(
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: JSON.stringify(withInviteToken(token, input)),
   });
   if (res.status === 404) {
     throw new GameNightNotFoundError();
@@ -312,7 +414,7 @@ export async function voteGameNight(
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: JSON.stringify(withInviteToken(token, input)),
   });
   if (res.status === 404) {
     throw new GameNightNotFoundError();
@@ -333,7 +435,7 @@ export async function suggestGameNightOption(
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: JSON.stringify(withInviteToken(token, input)),
   });
   if (res.status === 404) {
     throw new GameNightNotFoundError();

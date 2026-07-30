@@ -368,6 +368,34 @@ export const gameNightInvites = pgTable(
 );
 
 /**
+ * Named guest invite links (E208). One unguessable token per invited person,
+ * so a host can include someone with no account on an invite-only night: the
+ * token IS that person's reply credential (same posture as a guest's rsvp id),
+ * and `label` is the host's handle on it for copy/revoke.
+ *
+ * Scoped to exactly one of `nightId` / `seriesId` (CHECK-enforced in
+ * `ensureSchema`): a weekly night mints against the series so the link a guest
+ * pinned keeps resolving week to week, mirroring the /gn/s/:token contract.
+ * Revoking sets `revokedAt` — the link dies, any RSVP they already left stays.
+ */
+export const gameNightGuestInvites = pgTable(
+  'game_night_guest_invites',
+  {
+    id: text('id').primaryKey(),
+    nightId: text('night_id').references(() => gameNights.id, { onDelete: 'cascade' }),
+    seriesId: text('series_id').references(() => gameNightSeries.id, { onDelete: 'cascade' }),
+    token: text('token').notNull().unique(),
+    label: text('label').notNull(),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    revokedAt: bigint('revoked_at', { mode: 'number' }),
+  },
+  (t) => ({
+    nightIdx: index('game_night_guest_invites_night_idx').on(t.nightId),
+    seriesIdx: index('game_night_guest_invites_series_idx').on(t.seriesId),
+  })
+);
+
+/**
  * Host-blocked accounts (block-on-remove): a removed, account-backed attendee
  * can also be blocked so they can't rejoin via the public link. Guests have no
  * stable identity to block — invite-only is the tool for them instead.

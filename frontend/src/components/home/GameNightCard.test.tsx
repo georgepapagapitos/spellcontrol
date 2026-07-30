@@ -39,6 +39,7 @@ function gameNight(overrides: Partial<GameNight> & { startsAt: number }): GameNi
     options: [],
     series: null,
     blocked: [],
+    guestInvites: [],
     ...overrides,
   };
 }

@@ -57,6 +57,11 @@ function newToken(): string {
   return crypto.randomBytes(24).toString('base64url');
 }
 
+/** The link a host sends a named guest invitee (E208). */
+function guestInviteUrl(token: string): string {
+  return `${ORIGIN}/gn/i/${token}`;
+}
+
 /** Trimmed string within [1, max] length, else null. */
 function cleanRequired(x: unknown, max: number): string | null {
   if (typeof x !== 'string') return null;
@@ -238,16 +243,54 @@ async function resolveVoterRsvp(
 }
 
 /**
+ * The named-guest-invite credential on this request (E208). Reads carry it in
+ * a header, writes in the body — deliberately NEVER a query param, so it can't
+ * land in a proxy access log the way the older `rsvpId` read does (E119).
+ */
+function guestInviteToken(req: Request): string | null {
+  const header = req.get('X-Night-Invite');
+  if (typeof header === 'string' && header.length > 0) return header;
+  const body = req.body as Record<string, unknown> | undefined;
+  const fromBody = body?.inviteToken;
+  return typeof fromBody === 'string' && fromBody.length > 0 ? fromBody : null;
+}
+
+/**
+ * A live named invite link admitting this holder to this night — minted either
+ * against the night itself or against the series it belongs to (weekly links
+ * are series-scoped so they survive week to week).
+ *
+ * Note `series_id = $3` is safely false when the night has no series: NULL
+ * never equals NULL in SQL, so a night-scoped token can't leak across nights.
+ */
+async function hasValidGuestInvite(night: GameNightRow, token: string | null): Promise<boolean> {
+  if (token === null) return false;
+  const found = await getPool().query(
+    `SELECT 1 FROM game_night_guest_invites
+      WHERE token = $1 AND revoked_at IS NULL
+        AND (night_id = $2 OR series_id = $3)
+      LIMIT 1`,
+    [token, night.id, night.seriesId]
+  );
+  return found.rows.length > 0;
+}
+
+/**
  * Whether the caller may write (RSVP / vote / suggest) to an invite-only
- * night: the host, an invited friend, or anyone already holding an RSVP row
- * (authed by user id, guest by their stored rsvpId credential). New faces
- * with just the link are turned away — that's the point of the toggle.
+ * night: someone holding a named invite link, the host, an invited friend, or
+ * anyone already holding an RSVP row (authed by user id, guest by their stored
+ * rsvpId credential). New faces with just the *shared* link are turned away —
+ * that's the point of the toggle.
  */
 async function canReplyInviteOnly(
   night: GameNightRow,
   user: { id: string } | undefined,
-  rsvpId: unknown
+  rsvpId: unknown,
+  inviteToken: string | null
 ): Promise<boolean> {
+  // Checked first, and for authed callers too: a host can hand the link to
+  // anyone, account or not, and it admits them either way.
+  if (await hasValidGuestInvite(night, inviteToken)) return true;
   const pool = getPool();
   if (user) {
     if (user.id === night.hostUserId) return true;
@@ -489,6 +532,18 @@ interface NightView {
   /** Host-only: usernames blocked from rejoining, alphabetical. Empty for
    *  non-hosts — mirrors how rsvp `id` is host-gated. */
   blocked: string[];
+  /** Host-only: live named invite links (E208), oldest first. Carries the url
+   *  (and therefore the credential), so it is gated exactly like rsvp ids —
+   *  never exposed to another attendee. */
+  guestInvites: GuestInviteView[];
+}
+
+interface GuestInviteView {
+  id: string;
+  label: string;
+  url: string;
+  /** Series-scoped: the link keeps working next week too. */
+  weekly: boolean;
 }
 
 /** Load rsvps + unanswered invites + blocked usernames for a set of nights, keyed by night id. */
@@ -506,6 +561,7 @@ async function loadNightDetails(nightIds: string[]): Promise<{
   >;
   awaitingByNight: Map<string, string[]>;
   blockedByNight: Map<string, string[]>;
+  guestInvitesByNight: Map<string, GuestInviteView[]>;
 }> {
   const rsvpsByNight = new Map<
     string,
@@ -520,7 +576,10 @@ async function loadNightDetails(nightIds: string[]): Promise<{
   >();
   const awaitingByNight = new Map<string, string[]>();
   const blockedByNight = new Map<string, string[]>();
-  if (nightIds.length === 0) return { rsvpsByNight, awaitingByNight, blockedByNight };
+  const guestInvitesByNight = new Map<string, GuestInviteView[]>();
+  if (nightIds.length === 0) {
+    return { rsvpsByNight, awaitingByNight, blockedByNight, guestInvitesByNight };
+  }
   const pool = getPool();
   const rsvps = await pool.query<{
     id: string;
@@ -577,7 +636,30 @@ async function loadNightDetails(nightIds: string[]): Promise<{
     arr.push(b.username);
     blockedByNight.set(b.night_id, arr);
   }
-  return { rsvpsByNight, awaitingByNight, blockedByNight };
+  // Night-scoped invites belong to that night; series-scoped ones belong to
+  // every occurrence of the series, which is what makes the link survive the
+  // week. One join covers both.
+  const guestInvites = await pool.query<{
+    night_id: string;
+    id: string;
+    label: string;
+    token: string;
+    weekly: boolean;
+  }>(
+    `SELECT n.id AS night_id, g.id, g.label, g.token, (g.series_id IS NOT NULL) AS weekly
+       FROM game_nights n
+       JOIN game_night_guest_invites g
+         ON g.night_id = n.id OR g.series_id = n.series_id
+      WHERE n.id = ANY($1) AND g.revoked_at IS NULL
+      ORDER BY g.created_at ASC`,
+    [nightIds]
+  );
+  for (const g of guestInvites.rows) {
+    const arr = guestInvitesByNight.get(g.night_id) ?? [];
+    arr.push({ id: g.id, label: g.label, url: guestInviteUrl(g.token), weekly: g.weekly });
+    guestInvitesByNight.set(g.night_id, arr);
+  }
+  return { rsvpsByNight, awaitingByNight, blockedByNight, guestInvitesByNight };
 }
 
 function toNightView(
@@ -595,7 +677,8 @@ function toNightView(
   awaiting: string[],
   options: LoadedOption[],
   series: SeriesInfo | null,
-  blocked: string[]
+  blocked: string[],
+  guestInvites: GuestInviteView[]
 ): NightView {
   const mine = rsvps.find((r) => r.userId === viewerId);
   const isHost = night.hostUserId === viewerId;
@@ -630,8 +713,10 @@ function toNightView(
     awaiting,
     options: toOptionViews(options, (v) => v.userId === viewerId),
     series,
-    // Host-only, mirroring the rsvp id gating just above.
+    // Host-only, mirroring the rsvp id gating just above. The invite urls
+    // carry live credentials, so this gate is load-bearing, not cosmetic.
     blocked: isHost ? blocked : [],
+    guestInvites: isHost ? guestInvites : [],
   };
 }
 
@@ -751,7 +836,8 @@ gameNightsRouter.post('/', requireAuth, async (req: Request, res: Response) => {
     updatedAt: now,
   });
 
-  const { rsvpsByNight, awaitingByNight, blockedByNight } = await loadNightDetails([night.id]);
+  const { rsvpsByNight, awaitingByNight, blockedByNight, guestInvitesByNight } =
+    await loadNightDetails([night.id]);
   const optionsByNight = await loadNightOptions([night.id]);
   res.status(201).json({
     night: toNightView(
@@ -762,7 +848,8 @@ gameNightsRouter.post('/', requireAuth, async (req: Request, res: Response) => {
       awaitingByNight.get(night.id) ?? [],
       optionsByNight.get(night.id) ?? [],
       series,
-      blockedByNight.get(night.id) ?? []
+      blockedByNight.get(night.id) ?? [],
+      guestInvitesByNight.get(night.id) ?? []
     ),
   });
 });
@@ -825,9 +912,8 @@ gameNightsRouter.get('/', requireAuth, async (req: Request, res: Response) => {
       ORDER BY n.starts_at ASC`,
     [req.user!.id, Date.now() - GRACE_MS]
   );
-  const { rsvpsByNight, awaitingByNight, blockedByNight } = await loadNightDetails(
-    rows.rows.map((r) => r.id)
-  );
+  const { rsvpsByNight, awaitingByNight, blockedByNight, guestInvitesByNight } =
+    await loadNightDetails(rows.rows.map((r) => r.id));
   const optionsByNight = await loadNightOptions(rows.rows.map((r) => r.id));
   const nights = rows.rows.map((r) =>
     toNightView(
@@ -858,7 +944,8 @@ gameNightsRouter.get('/', requireAuth, async (req: Request, res: Response) => {
             token: r.series_token,
             endedAt: r.series_ended_at === null ? null : Number(r.series_ended_at),
           },
-      blockedByNight.get(r.id) ?? []
+      blockedByNight.get(r.id) ?? [],
+      guestInvitesByNight.get(r.id) ?? []
     )
   );
   res.json({ nights });
@@ -934,7 +1021,8 @@ gameNightsRouter.patch('/:id', requireAuth, async (req: Request, res: Response) 
 
   const updated = { ...night, ...patch };
   const hostDisplayLabel = await resolveDisplayLabel(req.user!.id);
-  const { rsvpsByNight, awaitingByNight, blockedByNight } = await loadNightDetails([id]);
+  const { rsvpsByNight, awaitingByNight, blockedByNight, guestInvitesByNight } =
+    await loadNightDetails([id]);
   res.json({
     night: toNightView(
       updated,
@@ -944,7 +1032,8 @@ gameNightsRouter.patch('/:id', requireAuth, async (req: Request, res: Response) 
       awaitingByNight.get(id) ?? [],
       nightOptions,
       await seriesInfoOf(night),
-      blockedByNight.get(id) ?? []
+      blockedByNight.get(id) ?? [],
+      guestInvitesByNight.get(id) ?? []
     ),
   });
 });
@@ -985,7 +1074,8 @@ gameNightsRouter.post('/:id/lock', requireAuth, async (req: Request, res: Respon
   await pool.query(`DELETE FROM game_night_options WHERE night_id = $1`, [id]);
 
   const hostDisplayLabel = await resolveDisplayLabel(req.user!.id);
-  const { rsvpsByNight, awaitingByNight, blockedByNight } = await loadNightDetails([id]);
+  const { rsvpsByNight, awaitingByNight, blockedByNight, guestInvitesByNight } =
+    await loadNightDetails([id]);
   res.json({
     night: toNightView(
       { ...night, startsAt },
@@ -995,7 +1085,8 @@ gameNightsRouter.post('/:id/lock', requireAuth, async (req: Request, res: Respon
       awaitingByNight.get(id) ?? [],
       [],
       await seriesInfoOf(night),
-      blockedByNight.get(id) ?? []
+      blockedByNight.get(id) ?? [],
+      guestInvitesByNight.get(id) ?? []
     ),
   });
 });
@@ -1044,7 +1135,8 @@ gameNightsRouter.post('/:id/poll', requireAuth, async (req: Request, res: Respon
   await getPool().query(`UPDATE game_nights SET starts_at = $2 WHERE id = $1`, [id, startsAt]);
 
   const hostDisplayLabel = await resolveDisplayLabel(req.user!.id);
-  const { rsvpsByNight, awaitingByNight, blockedByNight } = await loadNightDetails([id]);
+  const { rsvpsByNight, awaitingByNight, blockedByNight, guestInvitesByNight } =
+    await loadNightDetails([id]);
   res.status(201).json({
     night: toNightView(
       { ...night, startsAt },
@@ -1054,7 +1146,8 @@ gameNightsRouter.post('/:id/poll', requireAuth, async (req: Request, res: Respon
       awaitingByNight.get(id) ?? [],
       (await loadNightOptions([id])).get(id) ?? [],
       await seriesInfoOf(night),
-      blockedByNight.get(id) ?? []
+      blockedByNight.get(id) ?? [],
+      guestInvitesByNight.get(id) ?? []
     ),
   });
 });
@@ -1108,6 +1201,55 @@ gameNightsRouter.get(
       await ensureNextOccurrence(series.id);
     }
     const night = await resolveSeriesNight(series.id);
+    if (!night) {
+      return res.status(404).json({ error: 'Game night not found.' });
+    }
+    res.json({ nightToken: night.token });
+  }
+);
+
+/**
+ * Resolve a named invite link (E208) to the night it admits you to. Returns
+ * nothing but that night's token — the SPA then stores the credential locally
+ * and redirects, so the token spends exactly one hop in a document URL.
+ *
+ * Unknown, revoked, or dangling → 404, the same stealthy contract as every
+ * other token here. A series-scoped invite materializes the next occurrence on
+ * read, exactly like the /gn/s/:token resolve, so a pinned link stays fresh.
+ */
+gameNightsRouter.get(
+  '/public/invites/:token',
+  publicLimiter,
+  async (req: Request, res: Response) => {
+    const token = typeof req.params.token === 'string' ? req.params.token : '';
+    const rows = await getPool().query<{ night_token: string | null; series_id: string | null }>(
+      `SELECT n.token AS night_token, g.series_id
+       FROM game_night_guest_invites g
+       LEFT JOIN game_nights n ON n.id = g.night_id
+      WHERE g.token = $1 AND g.revoked_at IS NULL`,
+      [token]
+    );
+    if (rows.rows.length === 0) {
+      return res.status(404).json({ error: 'Game night not found.' });
+    }
+    const invite = rows.rows[0];
+    if (invite.night_token !== null) {
+      return res.json({ nightToken: invite.night_token });
+    }
+    if (invite.series_id === null) {
+      return res.status(404).json({ error: 'Game night not found.' });
+    }
+    const series = await getPool().query<{ ended_at: string | null }>(
+      `SELECT ended_at FROM game_night_series WHERE id = $1`,
+      [invite.series_id]
+    );
+    if (series.rows.length === 0) {
+      return res.status(404).json({ error: 'Game night not found.' });
+    }
+    if (series.rows[0].ended_at === null) {
+      await ensureNextOccurrence(invite.series_id);
+    }
+    const night = await resolveSeriesNight(invite.series_id);
     if (!night) {
       return res.status(404).json({ error: 'Game night not found.' });
     }
@@ -1195,6 +1337,86 @@ gameNightsRouter.delete(
     );
     if (deleted.rowCount === 0) {
       return res.status(404).json({ error: 'Invite not found.' });
+    }
+    res.status(204).end();
+  }
+);
+
+/**
+ * Mint a named invite link (E208) — the way to include someone with no
+ * SpellControl account on an invite-only night. The host labels it with who
+ * it's for ("Dave") so they can tell their outstanding links apart and revoke
+ * the right one; the returned url is theirs to send however they like.
+ *
+ * A weekly occurrence mints against its SERIES, so the link keeps resolving to
+ * the upcoming night week after week — same reasoning as the /gn/s/:token
+ * stable link (E125). A one-off night mints against the night.
+ */
+gameNightsRouter.post('/:id/guest-invites', requireAuth, async (req: Request, res: Response) => {
+  const id = typeof req.params.id === 'string' ? req.params.id : '';
+  const found = await getDb()
+    .select()
+    .from(gameNights)
+    .where(and(eq(gameNights.id, id), eq(gameNights.hostUserId, req.user!.id)))
+    .limit(1);
+  if (found.length === 0) {
+    return res.status(404).json({ error: 'Game night not found.' });
+  }
+  const night = found[0];
+  const label = cleanRequired((req.body as Record<string, unknown>).label, NAME_MAX);
+  if (label === null) {
+    return res.status(400).json({ error: `label is required (max ${NAME_MAX} characters).` });
+  }
+  const seriesId = night.seriesId;
+  const nightId = seriesId === null ? night.id : null;
+  const pool = getPool();
+  // NULL never matches, so this counts exactly the scope we're minting into.
+  const count = await pool.query<{ n: string }>(
+    `SELECT COUNT(*) AS n FROM game_night_guest_invites
+      WHERE revoked_at IS NULL AND (night_id = $1 OR series_id = $2)`,
+    [nightId, seriesId]
+  );
+  if (Number(count.rows[0].n) >= MAX_INVITES) {
+    return res.status(400).json({ error: `You can have up to ${MAX_INVITES} invite links.` });
+  }
+  const token = newToken();
+  const inviteId = crypto.randomUUID();
+  await pool.query(
+    `INSERT INTO game_night_guest_invites (id, night_id, series_id, token, label, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [inviteId, nightId, seriesId, token, label, Date.now()]
+  );
+  res.status(201).json({ invite: { id: inviteId, label, url: guestInviteUrl(token) } });
+});
+
+/**
+ * Revoke a named invite link (host only). Soft — the link dies immediately,
+ * but any RSVP that person already left stays put as an ordinary guest row,
+ * removable with the existing attendee handle. Un-inviting and un-attending
+ * stay separate, deliberate actions.
+ */
+gameNightsRouter.delete(
+  '/:id/guest-invites/:inviteId',
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const id = typeof req.params.id === 'string' ? req.params.id : '';
+    const inviteId = typeof req.params.inviteId === 'string' ? req.params.inviteId : '';
+    const found = await getDb()
+      .select()
+      .from(gameNights)
+      .where(and(eq(gameNights.id, id), eq(gameNights.hostUserId, req.user!.id)))
+      .limit(1);
+    if (found.length === 0) {
+      return res.status(404).json({ error: 'Game night not found.' });
+    }
+    const night = found[0];
+    const revoked = await getPool().query(
+      `UPDATE game_night_guest_invites SET revoked_at = $1
+        WHERE id = $2 AND revoked_at IS NULL AND (night_id = $3 OR series_id = $4)`,
+      [Date.now(), inviteId, night.id, night.seriesId]
+    );
+    if (revoked.rowCount === 0) {
+      return res.status(404).json({ error: 'Invite link not found.' });
     }
     res.status(204).end();
   }
@@ -1375,7 +1597,8 @@ gameNightsRouter.get(
     const blocked = req.user ? await isBlocked(night.id, req.user.id) : false;
     const canRsvp =
       !blocked &&
-      (!night.inviteOnly || (await canReplyInviteOnly(night, req.user, req.query.rsvpId)));
+      (!night.inviteOnly ||
+        (await canReplyInviteOnly(night, req.user, req.query.rsvpId, guestInviteToken(req))));
     res.json({
       night: {
         token: night.token,
@@ -1429,7 +1652,10 @@ gameNightsRouter.post(
       return res.status(400).json({ error: closed });
     }
     const rsvpBody = req.body as Record<string, unknown>;
-    if (night.inviteOnly && !(await canReplyInviteOnly(night, req.user, rsvpBody.rsvpId))) {
+    if (
+      night.inviteOnly &&
+      !(await canReplyInviteOnly(night, req.user, rsvpBody.rsvpId, guestInviteToken(req)))
+    ) {
       return res.status(403).json({ error: INVITE_ONLY_ERROR });
     }
     const polling = (await loadNightOptions([night.id])).get(night.id) ?? [];
@@ -1548,7 +1774,12 @@ gameNightsRouter.post(
     }
     if (
       night.inviteOnly &&
-      !(await canReplyInviteOnly(night, req.user, (req.body as Record<string, unknown>).rsvpId))
+      !(await canReplyInviteOnly(
+        night,
+        req.user,
+        (req.body as Record<string, unknown>).rsvpId,
+        guestInviteToken(req)
+      ))
     ) {
       return res.status(403).json({ error: INVITE_ONLY_ERROR });
     }
@@ -1619,7 +1850,12 @@ gameNightsRouter.post(
     }
     if (
       night.inviteOnly &&
-      !(await canReplyInviteOnly(night, req.user, (req.body as Record<string, unknown>).rsvpId))
+      !(await canReplyInviteOnly(
+        night,
+        req.user,
+        (req.body as Record<string, unknown>).rsvpId,
+        guestInviteToken(req)
+      ))
     ) {
       return res.status(403).json({ error: INVITE_ONLY_ERROR });
     }

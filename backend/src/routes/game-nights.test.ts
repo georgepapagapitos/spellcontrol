@@ -1644,3 +1644,198 @@ describe('DELETE /api/game-nights/:id?hard=1 (host deletes outright)', () => {
     expect(refused.status).toBe(400);
   });
 });
+
+describe('named guest invite links (E208)', () => {
+  async function mintInvite(
+    cookie: string,
+    nightId: string,
+    label = 'Dave'
+  ): Promise<{ id: string; label: string; url: string }> {
+    const res = await request(app)
+      .post(`/api/game-nights/${nightId}/guest-invites`)
+      .set('Cookie', cookie)
+      .send({ label });
+    expect(res.status).toBe(201);
+    return res.body.invite;
+  }
+
+  const tokenFromUrl = (url: string): string => url.split('/gn/i/')[1];
+
+  it('mints host-only, with a required label', async () => {
+    const host = await makeUser('gn-gi-host');
+    const other = await makeUser('gn-gi-other');
+    const { id } = await createNight(host, { inviteOnly: true });
+
+    const unauth = await request(app)
+      .post(`/api/game-nights/${id}/guest-invites`)
+      .send({ label: 'Dave' });
+    expect(unauth.status).toBe(401);
+
+    const notHost = await request(app)
+      .post(`/api/game-nights/${id}/guest-invites`)
+      .set('Cookie', other)
+      .send({ label: 'Dave' });
+    expect(notHost.status).toBe(404);
+
+    const blank = await request(app)
+      .post(`/api/game-nights/${id}/guest-invites`)
+      .set('Cookie', host)
+      .send({ label: '   ' });
+    expect(blank.status).toBe(400);
+
+    const invite = await mintInvite(host, id);
+    expect(invite.label).toBe('Dave');
+    expect(invite.url).toContain('/gn/i/');
+  });
+
+  it('admits a signed-out holder to an invite-only night; nobody else', async () => {
+    const host = await makeUser('gn-gi-admit');
+    const { id, token } = await createNight(host, { inviteOnly: true });
+    const invite = await mintInvite(host, id);
+    const inviteToken = tokenFromUrl(invite.url);
+
+    // Without the credential: the link reads, but can't reply.
+    const stranger = await request(app).get(`/api/game-nights/public/${token}`);
+    expect(stranger.body.canRsvp).toBe(false);
+    const refused = await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .send({ status: 'going', displayName: 'Nobody' });
+    expect(refused.status).toBe(403);
+
+    // With it — header on the read, body on the write.
+    const read = await request(app)
+      .get(`/api/game-nights/public/${token}`)
+      .set('X-Night-Invite', inviteToken);
+    expect(read.body.canRsvp).toBe(true);
+    const rsvp = await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .send({ status: 'going', displayName: 'Dave', inviteToken });
+    expect(rsvp.status).toBe(201);
+    expect(rsvp.body.rsvp.displayName).toBe('Dave');
+  });
+
+  it("a token minted for one night doesn't open another", async () => {
+    const host = await makeUser('gn-gi-scope');
+    const a = await createNight(host, { inviteOnly: true });
+    const b = await createNight(host, { inviteOnly: true, title: 'Other night' });
+    const inviteToken = tokenFromUrl((await mintInvite(host, a.id)).url);
+
+    const crossed = await request(app)
+      .get(`/api/game-nights/public/${b.token}`)
+      .set('X-Night-Invite', inviteToken);
+    expect(crossed.body.canRsvp).toBe(false);
+  });
+
+  it('revoking kills the link immediately', async () => {
+    const host = await makeUser('gn-gi-revoke');
+    const { id, token } = await createNight(host, { inviteOnly: true });
+    const invite = await mintInvite(host, id);
+    const inviteToken = tokenFromUrl(invite.url);
+
+    const revoked = await request(app)
+      .delete(`/api/game-nights/${id}/guest-invites/${invite.id}`)
+      .set('Cookie', host);
+    expect(revoked.status).toBe(204);
+
+    const resolve = await request(app).get(`/api/game-nights/public/invites/${inviteToken}`);
+    expect(resolve.status).toBe(404);
+    const read = await request(app)
+      .get(`/api/game-nights/public/${token}`)
+      .set('X-Night-Invite', inviteToken);
+    expect(read.body.canRsvp).toBe(false);
+
+    // Second revoke is a 404, not a silent success.
+    const again = await request(app)
+      .delete(`/api/game-nights/${id}/guest-invites/${invite.id}`)
+      .set('Cookie', host);
+    expect(again.status).toBe(404);
+  });
+
+  it('resolves to the night token, and 404s an unknown token', async () => {
+    const host = await makeUser('gn-gi-resolve');
+    const { id, token } = await createNight(host, { inviteOnly: true });
+    const inviteToken = tokenFromUrl((await mintInvite(host, id)).url);
+
+    const ok = await request(app).get(`/api/game-nights/public/invites/${inviteToken}`);
+    expect(ok.status).toBe(200);
+    expect(ok.body).toEqual({ nightToken: token });
+
+    const unknown = await request(app).get('/api/game-nights/public/invites/nope');
+    expect(unknown.status).toBe(404);
+  });
+
+  it('a weekly night mints against the series, so the link survives the week', async () => {
+    const host = await makeUser('gn-gi-weekly');
+    const created = await request(app)
+      .post('/api/game-nights')
+      .set('Cookie', host)
+      .send({ title: 'Weekly', startsAt: IN_A_WEEK(), repeatsWeekly: true, inviteOnly: true });
+    expect(created.status).toBe(201);
+    const nightId = created.body.night.id as string;
+    const inviteToken = tokenFromUrl((await mintInvite(host, nightId)).url);
+
+    const first = await request(app).get(`/api/game-nights/public/invites/${inviteToken}`);
+    expect(first.body.nightToken).toBe(created.body.night.token);
+
+    // Age this week out; the same link must now open next week's occurrence.
+    await pool.query(`UPDATE game_nights SET starts_at = $1 WHERE id = $2`, [
+      Date.now() - 8 * 24 * 60 * 60 * 1000,
+      nightId,
+    ]);
+    const next = await request(app).get(`/api/game-nights/public/invites/${inviteToken}`);
+    expect(next.status).toBe(200);
+    expect(next.body.nightToken).not.toBe(created.body.night.token);
+
+    const read = await request(app)
+      .get(`/api/game-nights/public/${next.body.nightToken}`)
+      .set('X-Night-Invite', inviteToken);
+    expect(read.body.canRsvp).toBe(true);
+  });
+
+  it('a valid link still cannot reply to a night that already happened', async () => {
+    const host = await makeUser('gn-gi-stale');
+    const { id, token } = await createNight(host, { inviteOnly: true });
+    const inviteToken = tokenFromUrl((await mintInvite(host, id)).url);
+    await pool.query(`UPDATE game_nights SET starts_at = $1 WHERE id = $2`, [
+      Date.now() - 3 * 24 * 60 * 60 * 1000,
+      id,
+    ]);
+    const refused = await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .send({ status: 'going', displayName: 'Dave', inviteToken });
+    expect(refused.status).toBe(400);
+  });
+
+  it('the invite urls are host-only — an attendee never sees a credential', async () => {
+    const host = await makeUser('gn-gi-gate-host');
+    const friend = await makeUser('gn-gi-gate-friend');
+    await befriend(host, 'gn-gi-gate-friend', friend, 'gn-gi-gate-host');
+    const friendId = await friendIdOf(host, 'gn-gi-gate-friend');
+    const res = await request(app)
+      .post('/api/game-nights')
+      .set('Cookie', host)
+      .send({ title: 'Night', startsAt: IN_A_WEEK(), inviteUserIds: [friendId] });
+    const nightId = res.body.night.id as string;
+    await mintInvite(host, nightId);
+
+    const hostList = await request(app).get('/api/game-nights').set('Cookie', host);
+    const hostNight = hostList.body.nights.find((n: { id: string }) => n.id === nightId);
+    expect(hostNight.guestInvites).toHaveLength(1);
+    expect(hostNight.guestInvites[0].url).toContain('/gn/i/');
+
+    const friendList = await request(app).get('/api/game-nights').set('Cookie', friend);
+    const friendNight = friendList.body.nights.find((n: { id: string }) => n.id === nightId);
+    expect(friendNight.guestInvites).toEqual([]);
+  });
+
+  it('caps outstanding links per night', async () => {
+    const host = await makeUser('gn-gi-cap');
+    const { id } = await createNight(host, { inviteOnly: true });
+    for (let i = 0; i < 32; i += 1) await mintInvite(host, id, `guest-${i}`);
+    const over = await request(app)
+      .post(`/api/game-nights/${id}/guest-invites`)
+      .set('Cookie', host)
+      .send({ label: 'one too many' });
+    expect(over.status).toBe(400);
+  });
+});
