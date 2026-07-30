@@ -33,6 +33,7 @@ import { InlineCardSearch } from './InlineCardSearch';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { useCardThumb } from '../lib/card-thumbs';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
+import { ListEntryTargetPrice } from './ListEntryTargetPrice';
 import { VerdictBadge } from './deck/VerdictBadge';
 import { ZoomControl } from './ZoomControl';
 import {
@@ -733,6 +734,17 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
               isLastRow={i === sorted.length - 1}
               menu={dynamic ? undefined : rowMenu(r.entry)}
               ownedBadge={dynamic ? undefined : ownedBadge(r.entry)}
+              targetPriceSlot={
+                // A want list is what target price means — a tracking list
+                // already catalogues owned cards, and a dynamic list's rows
+                // are owned collection copies (see isTrackingList).
+                dynamic || tracking ? undefined : (
+                  <ListEntryTargetPrice
+                    entry={r.entry}
+                    onSave={(patch) => void updateListEntry(list.id, r.entry.id, patch)}
+                  />
+                )
+              }
             />
           ))}
         </div>
