@@ -285,7 +285,40 @@ describe('search 404 = no matches', () => {
       vi.fn().mockResolvedValue({ ok: false, status: 500, statusText: 'Internal Server Error' })
     );
 
-    await expect(searchCards('t:zzzzserverdown', [])).rejects.toThrow('500');
+    await expect(searchCards('t:zzzzserverdown', [])).rejects.toThrow(/temporarily unavailable/);
+  });
+});
+
+// Three search surfaces render a thrown error's `.message` verbatim, so the
+// message IS the UI copy. Raw HTTP/browser strings ("Scryfall API error: 503
+// Service Unavailable", "NetworkError when attempting to fetch resource")
+// used to reach players directly.
+describe('user-facing failure messages', () => {
+  beforeEach(() => {
+    gate.offline = false;
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('turns a rejected fetch into a connection message, not a raw TypeError', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockRejectedValue(new TypeError('NetworkError when attempting to fetch resource.'))
+    );
+
+    await expect(searchCards('t:zzzzoffline', [])).rejects.toThrow(
+      /Couldn’t reach Scryfall — check your connection/
+    );
+  });
+
+  it('explains an unparseable query instead of printing "400 Bad Request"', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 400, statusText: 'Bad Request' })
+    );
+
+    await expect(searchCards('t:zzzzbadsyntax', [])).rejects.toThrow(/couldn’t read that search/);
   });
 });
 
@@ -506,8 +539,28 @@ describe('scryfallFetch 429 handling (F26)', () => {
     await vi.runAllTimersAsync();
     await assertion;
 
-    // 1 initial attempt + MAX_429_RETRIES (4) retries = 5 calls, then it stops.
+    // 1 initial attempt + MAX_RETRIES (4) retries = 5 calls, then it stops.
     expect(fetchSpy.mock.calls.length).toBe(5);
+  });
+
+  // Observed in the wild: a well-formed search 503'd once and the raw status
+  // hit the user, while the identical query succeeded on replay.
+  it('retries a transient 503 and succeeds', async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+      calls += 1;
+      if (calls === 1) return new Response('unavailable', { status: 503 });
+      return new Response(JSON.stringify(makeCard({ id: 'recovered-503', layout: 'normal' })), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    const pending = getCardById('transient-503');
+    await vi.runAllTimersAsync();
+    expect((await pending).id).toBe('recovered-503');
+    expect(calls).toBe(2);
   });
 
   it('retries a transient 429 and succeeds', async () => {

@@ -22,8 +22,8 @@ function offlineActive(): boolean {
 
 const BASE_URL = import.meta.env.DEV ? '/scryfall-api' : 'https://api.scryfall.com';
 const MIN_REQUEST_DELAY = 100; // 100ms between requests (Scryfall allows 10/sec)
-const MAX_429_RETRIES = 4; // cap 429 retries so a sustained throttle fails instead of hanging
-const BASE_429_BACKOFF_MS = 1000;
+const MAX_RETRIES = 4; // cap 429/503 retries so a sustained throttle or outage fails instead of hanging
+const BASE_BACKOFF_MS = 1000;
 const COLLECTION_BATCH_SIZE = 75; // Scryfall /cards/collection max per request
 
 // In-memory cache for fetched cards
@@ -152,25 +152,55 @@ class RateLimiter {
 
 const rateLimiter = new RateLimiter();
 
+/**
+ * User-facing message for a failed Scryfall call.
+ *
+ * Three search surfaces render a thrown error's `.message` verbatim
+ * (`use-search-cards`, `CardSearchPanel`, `CommanderSearch`), so whatever comes
+ * out of here is what a player reads. Raw strings used to leak straight
+ * through: a transient upstream blip printed "Scryfall API error: 503 Service
+ * Unavailable", and a dropped connection printed the browser's own
+ * "NetworkError when attempting to fetch resource." The raw detail still goes
+ * to the logger for debugging.
+ */
+function scryfallErrorMessage(status: number | null, statusText = ''): string {
+  if (status === null) return 'Couldn’t reach Scryfall — check your connection and try again.';
+  if (status >= 500) return 'Scryfall is temporarily unavailable — try again in a moment.';
+  // Scryfall answers an unparseable query with 400/422.
+  if (status === 400 || status === 422)
+    return 'Scryfall couldn’t read that search — check the syntax and try again.';
+  return `Scryfall couldn’t complete that request (${status}${statusText ? ` ${statusText}` : ''}).`;
+}
+
 async function scryfallFetch<T>(endpoint: string, attempt = 0): Promise<T> {
   await rateLimiter.throttle();
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    headers: {
-      Accept: 'application/json',
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}${endpoint}`, {
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+  } catch (e) {
+    // fetch() rejects (offline, DNS, dev-proxy down, CORS) with a raw TypeError.
+    // Not retried: the usual cause is a genuinely offline device, and four
+    // backoffs would hold the spinner ~15s before saying so.
+    logger.warn('[scryfall] request failed', endpoint, e);
+    throw new Error(scryfallErrorMessage(null));
+  }
 
   if (!response.ok) {
-    if (response.status === 429 && attempt < MAX_429_RETRIES) {
-      // Rate limited — honor Retry-After if present, else exponential backoff.
-      // Capped (MAX_429_RETRIES) so a sustained throttle throws instead of
-      // recursing forever and hanging deck generation.
+    if ((response.status === 429 || response.status === 503) && attempt < MAX_RETRIES) {
+      // Rate limited (429) or upstream briefly overloaded (503) — honor
+      // Retry-After if present, else exponential backoff. Capped (MAX_RETRIES)
+      // so a sustained throttle/outage throws instead of recursing forever and
+      // hanging deck generation.
       const retryAfter = Number(response.headers.get('Retry-After'));
       const waitMs =
         Number.isFinite(retryAfter) && retryAfter > 0
           ? retryAfter * 1000
-          : BASE_429_BACKOFF_MS * 2 ** attempt;
+          : BASE_BACKOFF_MS * 2 ** attempt;
       await new Promise((resolve) => setTimeout(resolve, waitMs));
       return scryfallFetch<T>(endpoint, attempt + 1);
     }
@@ -182,7 +212,8 @@ async function scryfallFetch<T>(endpoint: string, attempt = 0): Promise<T> {
     if (response.status === 404 && endpoint.startsWith('/cards/search')) {
       return { object: 'list', total_cards: 0, has_more: false, data: [] } as T;
     }
-    throw new Error(`Scryfall API error: ${response.status} ${response.statusText}`);
+    logger.warn('[scryfall] HTTP error', response.status, response.statusText, endpoint);
+    throw new Error(scryfallErrorMessage(response.status, response.statusText));
   }
 
   return response.json();
