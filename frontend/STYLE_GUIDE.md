@@ -1045,6 +1045,34 @@ implementation (`components/deck/BetweenYourDecks.tsx`):
   Pills rule), and space permitting a one-line teaser of the top item that
   truncates with ellipsis — **hide the teaser entirely below 600px rather than
   wrapping it**. Trailing chevron signals "opens something."
+- **The strip carries a batch escape hatch — a trailing `✕` that dismisses
+  every currently-visible item at once.** Per-item dismissal alone means N taps
+  through a sheet to clear a lane the user doesn't want today, which is what
+  made the first "Between your decks" ship feel unshakeable (`#1404`). Rules:
+  - It dismisses **exactly the ids currently shown, never the lane itself** —
+    a genuinely new batch still surfaces later. An "off forever" switch quietly
+    kills a feature the user can never find again.
+  - **Undo toast, not a confirm dialog.** These dismissals are device-local and
+    non-destructive (no deck/collection mutation), so a modal confirm is friction
+    for nothing; `toast.show({ actionLabel: 'Undo', onAction })` restores the
+    batch. Persist via a bulk write, not N single writes.
+  - **The `✕` is a SIBLING of the open-button, never nested inside it.** A
+    `<button>` inside a `<button>` is invalid HTML and some engines swallow the
+    inner click. The chrome (border, hover, focus ring) therefore moves onto a
+    wrapper `<div>` that reacts to `:hover` / `:focus-within` of either child,
+    and each child keeps its own focus ring + 44px coarse target.
+- **Every row in the sheet must be self-sufficient: the user can reconstruct
+  the proposed action from that row alone.** The reference implementation
+  originally rendered `Card → DestinationDeck` and never named the **donor**
+  deck until a sentence at the bottom of the card — so the surface's core object
+  (a two-sided trade) wasn't readable off the row. A suggestion row leads with
+  its subject (art + name + a `Type · N MV` meta line), then states the full
+  action explicitly — for a move/trade, both ends as color-dotted chips with an
+  arrow between them, never just the destination.
+- **The accept and dismiss actions are not visual peers.** The primary action
+  is a `.btn.btn-primary`; the per-row dismissal is a **quiet text button**
+  (`--text-muted`, no border). Two bordered buttons side by side read as a 50/50
+  choice, which misrepresents an advisory suggestion.
 - **Zero visible items → render nothing.** No empty state on the index itself
   (a "you're all caught up" message, if ever needed, lives inside the sheet,
   not as a permanent fixture on the page).
