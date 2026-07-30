@@ -19,6 +19,10 @@ import { useSheetExit } from '../lib/use-sheet-exit';
  * arrow navigation and no tab semantics for assistive tech. Fixing this needs
  * `Tabs` to grow an optional per-tab trailing-affordance slot — not a quick
  * swap — so this is tracked, not silently accepted.
+ *
+ * Ruling (what to keep in lockstep, when to revisit): STYLE_GUIDE.md §
+ * "Tabs / view switchers" — "`BinderTabs.tsx` is a deliberate, permanent
+ * exception".
  */
 interface Props {
   binders: MaterializedBinder[];
