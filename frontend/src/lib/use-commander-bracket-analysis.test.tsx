@@ -167,7 +167,7 @@ describe('useCommanderBracketAnalysis — active', () => {
     );
   });
 
-  it('does not persist (and will not retry) when analysis returns null', async () => {
+  it('does not persist (and will not retry on its own) when analysis returns null', async () => {
     vi.mocked(analyzeCommanderDeck).mockResolvedValue(null);
     const a = args();
     const { rerender } = renderHook(() => useCommanderBracketAnalysis(a));
@@ -176,7 +176,7 @@ describe('useCommanderBracketAnalysis — active', () => {
     });
     expect(a.updateDeck).not.toHaveBeenCalled();
 
-    // Same signature again → guarded by the failed-signature ref.
+    // Same signature again → guarded by the failed-signature state.
     rerender();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500);
@@ -193,5 +193,105 @@ describe('useCommanderBracketAnalysis — active', () => {
       await vi.advanceTimersByTimeAsync(500);
     });
     expect(a.updateDeck).not.toHaveBeenCalled();
+  });
+});
+
+// ── E162: root cause + status/retry surface ─────────────────────────────────
+//
+// Root cause of the "permanent skeleton": `analyzeCommanderDeck` resolves to
+// `null` (EDHREC unreachable, commander not found/indexed) rather than
+// throwing — its own try/catch swallows every failure. Before E162 the hook
+// only tracked that in a ref with no reactive signal, so `gradeBracketSignature`
+// never got set AND nothing ever told the UI the attempt had failed: the caller
+// had no way to distinguish "still working" from "gave up", so every consumer
+// deriving its render off `!deck.gradeBracketSignature` skeletoned forever.
+describe('useCommanderBracketAnalysis — status/retry (E162)', () => {
+  it('reports pending while enabled with no persisted signature and no failure yet', () => {
+    const a = args();
+    const { result } = renderHook(() => useCommanderBracketAnalysis(a));
+    expect(result.current.status).toBe('pending');
+  });
+
+  it('reports ready when the format/deck has no commander analysis to run', () => {
+    const a = args({ hasCommander: false });
+    const { result } = renderHook(() => useCommanderBracketAnalysis(a));
+    expect(result.current.status).toBe('ready');
+  });
+
+  it('reports ready once a signature has ever persisted, even off-signature', () => {
+    const deck = makeDeck();
+    (deck as Deck).gradeBracketSignature = sig(deck);
+    const a = args({ deck });
+    const { result } = renderHook(() => useCommanderBracketAnalysis(a));
+    expect(result.current.status).toBe('ready');
+  });
+
+  it('flips to error status when analysis resolves null (the reproduced root cause)', async () => {
+    vi.mocked(analyzeCommanderDeck).mockResolvedValue(null);
+    const a = args();
+    const { result } = renderHook(() => useCommanderBracketAnalysis(a));
+    expect(result.current.status).toBe('pending');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(result.current.status).toBe('error');
+    expect(a.updateDeck).not.toHaveBeenCalled();
+  });
+
+  it('flips to error status when analysis rejects', async () => {
+    vi.mocked(analyzeCommanderDeck).mockRejectedValue(new Error('edhrec down'));
+    const a = args();
+    const { result } = renderHook(() => useCommanderBracketAnalysis(a));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(result.current.status).toBe('error');
+  });
+
+  it('flips to error status when the analysis stalls past the timeout ceiling', async () => {
+    // A promise that never settles — simulates a hung fetch (no
+    // AbortController/timeout on the EDHREC client's own fetch call).
+    vi.mocked(analyzeCommanderDeck).mockReturnValue(new Promise(() => {}));
+    const a = args();
+    const { result } = renderHook(() => useCommanderBracketAnalysis(a));
+    await act(async () => {
+      // 500ms debounce + 20s stall ceiling.
+      await vi.advanceTimersByTimeAsync(500 + 20_000);
+    });
+    expect(result.current.status).toBe('error');
+    expect(a.updateDeck).not.toHaveBeenCalled();
+  });
+
+  it('retry() clears the failure and re-runs the analysis for the same signature', async () => {
+    vi.mocked(analyzeCommanderDeck).mockResolvedValueOnce(null);
+    const a = args();
+    const { result, rerender } = renderHook(() => useCommanderBracketAnalysis(a));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(result.current.status).toBe('error');
+    expect(analyzeCommanderDeck).toHaveBeenCalledTimes(1);
+
+    vi.mocked(analyzeCommanderDeck).mockResolvedValueOnce(RESULT as never);
+    act(() => {
+      result.current.retry();
+    });
+    rerender();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(analyzeCommanderDeck).toHaveBeenCalledTimes(2);
+    expect(a.updateDeck).toHaveBeenCalledWith(
+      'd1',
+      expect.objectContaining({ gradeBracketSignature: sig(a.deck as Deck) }),
+      true
+    );
+    // updateDeck is a mock here (no real store behind it), so the hook's own
+    // `persistedSignature` input never moves — mirror what the real store
+    // subscription would do (stamp the signature back onto the deck record)
+    // to exercise the 'ready' transition the same way a live consumer sees it.
+    (a.deck as Deck).gradeBracketSignature = sig(a.deck as Deck);
+    rerender();
+    expect(result.current.status).toBe('ready');
   });
 });

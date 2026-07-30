@@ -4,12 +4,16 @@
 //   (a) the skeleton appears while analysisState === 'pending' and no lane
 //       content is available yet, and
 //   (b) the skeleton disappears once analysisState === 'ready'.
+// E162 — a first analysis that fails or stalls (rather than merely being
+// slow) surfaces analysisState === 'error' instead of leaving these tabs
+// skeletoning forever: a failure message + retry affordance replaces the
+// shimmer, on both Tune and Power.
 // DeckDisplay is a large component; this file renders just enough to exercise
 // the DeckAnalysisView branch under test.
 
 import 'fake-indexeddb/auto';
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { DeckDisplay, type DeckDisplayCard } from './DeckDisplay';
@@ -46,11 +50,12 @@ const cards: DeckDisplayCard[] = Array.from({ length: 4 }, () => mkSlot(mkCard()
 /** Render DeckDisplay mounted on a given view tab. */
 function renderOnView(
   activeView: 'tune' | 'power',
-  analysisState: 'pending' | 'ready' = 'pending',
+  analysisState: 'pending' | 'ready' | 'error' = 'pending',
   extraSlots?: {
     coachFeedSlot?: React.ReactNode;
     powerHeroSlot?: React.ReactNode;
     engineSlot?: React.ReactNode;
+    onRetryAnalysis?: () => void;
   }
 ) {
   return render(
@@ -102,6 +107,22 @@ describe('DeckAnalysisView skeleton (UX-310)', () => {
       expect(screen.queryByRole('status', { name: /analyzing your deck/i })).toBeNull();
       expect(screen.getByText('Bracket Fit content')).toBeTruthy();
     });
+
+    // ── E162 ──
+    it('shows a failure message + retry instead of the shimmer when analysis errors', () => {
+      const onRetryAnalysis = vi.fn();
+      renderOnView('tune', 'error', { onRetryAnalysis });
+      expect(screen.queryByRole('status', { name: /analyzing your deck/i })).toBeNull();
+      expect(screen.getByText(/Couldn.t analyze this deck/)).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+      expect(onRetryAnalysis).toHaveBeenCalledTimes(1);
+    });
+
+    it('hides the error placeholder once real lane content has landed', () => {
+      renderOnView('tune', 'error', { coachFeedSlot: <div>Coach content</div> });
+      expect(screen.queryByText(/Couldn.t analyze this deck/)).toBeNull();
+      expect(screen.getByText('Coach content')).toBeTruthy();
+    });
   });
 
   describe('Power tab', () => {
@@ -120,6 +141,22 @@ describe('DeckAnalysisView skeleton (UX-310)', () => {
         powerHeroSlot: <div>Power hero</div>,
       });
       expect(screen.queryByRole('status', { name: /analyzing your deck/i })).toBeNull();
+      expect(screen.getByText('Power hero')).toBeTruthy();
+    });
+
+    // ── E162 ──
+    it('shows a failure message + retry instead of the shimmer when analysis errors', () => {
+      const onRetryAnalysis = vi.fn();
+      renderOnView('power', 'error', { onRetryAnalysis });
+      expect(screen.queryByRole('status', { name: /analyzing your deck/i })).toBeNull();
+      expect(screen.getByText(/Couldn.t analyze this deck/)).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+      expect(onRetryAnalysis).toHaveBeenCalledTimes(1);
+    });
+
+    it('hides the error placeholder once the power hero slot has landed', () => {
+      renderOnView('power', 'error', { powerHeroSlot: <div>Power hero</div> });
+      expect(screen.queryByText(/Couldn.t analyze this deck/)).toBeNull();
       expect(screen.getByText('Power hero')).toBeTruthy();
     });
   });

@@ -179,6 +179,7 @@ import { SaltiestPanel } from './SaltiestPanel';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { computeRoleDensity } from '@/deck-builder/services/deckBuilder/roleDensity';
 import { DeckIdentityCard } from './DeckIdentityCard';
+import { DeckAnalysisSkeleton } from './DeckAnalysisSkeleton';
 import { buildValidationChecklist } from '@/deck-builder/services/deckBuilder/validationChecklist';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import {
@@ -653,15 +654,20 @@ export interface DeckDisplayProps {
    * UX-310: whether the async commander-deck analysis is still in-flight for
    * the first time. When 'pending', the Coach and Power tabs render skeleton
    * placeholders instead of blank space. 'ready' (default) renders
-   * normally — slots that are undefined simply don't appear.
+   * normally — slots that are undefined simply don't appear. E162: 'error'
+   * means the first analysis attempt failed/stalled (EDHREC unreachable, the
+   * commander isn't indexed yet, …) — renders a failure message + retry
+   * affordance instead of skeletoning forever.
    */
-  analysisState?: 'pending' | 'ready';
+  analysisState?: 'pending' | 'ready' | 'error';
   /**
    * UX-311: deep-link from a StatsHero shortfall line to the Coach filter that
    * addresses it. The page switches to the Coach tab and activates the matching
    * filter chip. Only passed for commander decks that have a full analysis result.
    */
   onNavigateToTune?: (lane: LaneId) => void;
+  /** E162: retries a failed/stalled first analysis. Passed only when analysisState is 'error'. */
+  onRetryAnalysis?: () => void;
   /**
    * Session-scoped reveal key for score animations. When non-null, plays the
    * 0→target reveal tween on first delivery; null/undefined suppresses the reveal.
@@ -1430,6 +1436,7 @@ export function DeckDisplay({
   onAddCards,
   analysisState = 'ready',
   onNavigateToTune,
+  onRetryAnalysis,
   scoreRevealKey,
   onAddSuggestedCard,
   addingSuggestedCardNames,
@@ -2780,6 +2787,7 @@ export function DeckDisplay({
             commanderIdentity={commanderIdentity}
             analysisState={analysisState}
             onNavigateToTune={onNavigateToTune}
+            onRetryAnalysis={onRetryAnalysis}
             commander={commander}
             partnerCommander={partnerCommander}
             deckName={title}
@@ -4857,6 +4865,7 @@ function DeckAnalysisView({
   commanderIdentity,
   analysisState = 'ready',
   onNavigateToTune,
+  onRetryAnalysis,
   commander,
   partnerCommander,
   deckName,
@@ -4902,10 +4911,13 @@ function DeckAnalysisView({
   tableRecordSlot?: React.ReactNode;
   /** The deck's legal color identity (commander union); drives the identity gate. */
   commanderIdentity?: string[];
-  /** UX-310: 'pending' shows skeleton placeholders on Tune/Power while analysis loads. */
-  analysisState?: 'pending' | 'ready';
+  /** UX-310: 'pending' shows skeleton placeholders on Tune/Power while analysis loads.
+   *  E162: 'error' shows a failure message + retry instead of skeletoning forever. */
+  analysisState?: 'pending' | 'ready' | 'error';
   /** UX-311: deep-link from a DeckIdentityCard shortfall to the Tune lane that fixes it. */
   onNavigateToTune?: (lane: LaneId) => void;
+  /** E162: retries a failed/stalled first analysis. */
+  onRetryAnalysis?: () => void;
   /** Stronger owned lands found for this deck → the Mana base "Re-analyze lands" CTA. */
   landUpgradeCount?: number;
   /** Session-scoped reveal key for score animations. Null/undefined suppresses the reveal. */
@@ -5002,7 +5014,8 @@ function DeckAnalysisView({
               format={format}
               deckColor={deckColor}
               bracket={effectiveBracketValue}
-              analysisPending={analysisState === 'pending'}
+              analysisState={analysisState}
+              onRetryAnalysis={onRetryAnalysis}
               validation={validation}
               planScore={planScore ?? null}
               edhrecNumDecks={edhrecNumDecks ?? null}
@@ -5082,31 +5095,16 @@ function DeckAnalysisView({
 
       {current === 'power' && (
         <div className="deck-bento deck-bento--power">
-          {/* UX-310: skeleton while the async analysis is still in flight. Only
-              show when analysis hasn't delivered a hero or any panel yet — an
-              incomplete result (e.g. bracket landed but engine hasn't) still
-              has real content to show. */}
-          {analysisState === 'pending' && !powerHeroSlot && !bracketEstimation && !engineSlot && (
-            <div
-              className="deck-analysis-skeleton"
-              role="status"
-              aria-label="Analyzing your deck…"
-              aria-live="polite"
-            >
-              <p className="deck-analysis-skeleton-eyebrow">Analyzing your deck…</p>
-              <div className="deck-analysis-skeleton-bar is-headline" />
-              <div className="deck-analysis-skeleton-bar is-body" />
-              <div className="deck-analysis-skeleton-bar is-body is-short" />
-              <div className="deck-analysis-skeleton-lane">
-                <div className="deck-analysis-skeleton-bar is-body" />
-                <div className="deck-analysis-skeleton-bar is-body is-short" />
-              </div>
-              <div className="deck-analysis-skeleton-lane">
-                <div className="deck-analysis-skeleton-bar is-body" />
-                <div className="deck-analysis-skeleton-bar is-body is-short" />
-              </div>
-            </div>
-          )}
+          {/* UX-310/E162: shimmer or failure+retry while the async analysis
+              hasn't delivered anything yet. Only shown when analysis hasn't
+              delivered a hero or any panel yet — an incomplete result (e.g.
+              bracket landed but engine hasn't) still has real content to show. */}
+          {(analysisState === 'pending' || analysisState === 'error') &&
+            !powerHeroSlot &&
+            !bracketEstimation &&
+            !engineSlot && (
+              <DeckAnalysisSkeleton status={analysisState} onRetry={onRetryAnalysis} />
+            )}
           {powerHeroSlot}
           {/* Detailed breakdowns under the verdict hero. */}
           {/* Bracket + Roles — a compact pair (lone survivor spans full width). */}
@@ -5200,25 +5198,8 @@ function DeckAnalysisView({
 
       {current === 'tune' && (
         <div className="deck-bento deck-bento--tune">
-          {analysisState === 'pending' && !coachFeedSlot && (
-            <div
-              className="deck-analysis-skeleton"
-              role="status"
-              aria-label="Analyzing your deck…"
-              aria-live="polite"
-            >
-              <p className="deck-analysis-skeleton-eyebrow">Analyzing your deck…</p>
-              <div className="deck-analysis-skeleton-bar is-headline" />
-              <div className="deck-analysis-skeleton-bar is-body" />
-              <div className="deck-analysis-skeleton-lane">
-                <div className="deck-analysis-skeleton-bar is-body" />
-                <div className="deck-analysis-skeleton-bar is-body is-short" />
-              </div>
-              <div className="deck-analysis-skeleton-lane">
-                <div className="deck-analysis-skeleton-bar is-body is-short" />
-                <div className="deck-analysis-skeleton-bar is-body" />
-              </div>
-            </div>
+          {(analysisState === 'pending' || analysisState === 'error') && !coachFeedSlot && (
+            <DeckAnalysisSkeleton status={analysisState} onRetry={onRetryAnalysis} />
           )}
           {coachFeedSlot}
         </div>

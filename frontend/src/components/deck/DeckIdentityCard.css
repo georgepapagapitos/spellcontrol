@@ -506,6 +506,41 @@
   border-radius: var(--radius);
 }
 
+/* ── Build health error state (E162) ──────────────────────────────────────── */
+
+.deck-identity-card-error-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+/* Inline retry mid-sentence — matches the `.deck-builder-themes-retry` /
+   `.card-rulings-retry` family: a link-styled button, not a chrome button. */
+.deck-identity-card-retry-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.deck-identity-card-retry-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Coarse-pointer floor: an inline link-button still needs a real tap target. */
+@media (pointer: coarse) {
+  .deck-identity-card-retry-btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
 /* ── Brand mark ───────────────────────────────────────────────────────────── */
 
 .deck-identity-card-brand {
