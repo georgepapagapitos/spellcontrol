@@ -15,6 +15,29 @@ export function clampListName(name: string): string {
   return name.trim().slice(0, MAX_LIST_NAME);
 }
 
+/** Ceiling for a typed target price — mirrors CardEditDialog's MAX_PAID. */
+export const MAX_TARGET_PRICE = 1_000_000;
+
+/**
+ * Parse a typed `ListEntry.targetPrice`. Three outcomes:
+ * - blank → `null` (caller clears the stored value back to absent)
+ * - garbage or non-positive → `undefined` (reject; caller keeps the
+ *   previous stored value, matching the "reject negatives and garbage"
+ *   contract — unlike CardEditDialog's cost-basis field, an invalid edit
+ *   here must NOT silently clear an existing target)
+ * - otherwise → the value, cents-rounded and capped at MAX_TARGET_PRICE
+ *
+ * Tolerates pasted currency symbols and thousands separators.
+ */
+export function parseTargetPrice(raw: string): number | null | undefined {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const cleaned = trimmed.replace(/[$€,\s]/g, '');
+  const n = Number(cleaned);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return Math.min(Math.round(n * 100) / 100, MAX_TARGET_PRICE);
+}
+
 function uuid(): string {
   return typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()

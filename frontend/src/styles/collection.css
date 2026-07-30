@@ -1979,6 +1979,112 @@ i.ss.set-symbol--mythic {
   opacity: 0.5;
 }
 
+/* Inline target-price editor (E163, ListEntryTargetPrice) — a want-list row's
+   own affordance to set/edit/clear what they'd pay, right where the market
+   price already renders. Unset state is a visible "+ Target" pill (not an
+   invisible click target on the price column), set state reads as a quiet
+   chip matching .collection-list-price's tone. */
+.list-target-price {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  border-radius: var(--radius);
+  padding: 0.15rem var(--space-2);
+  cursor: pointer;
+}
+.list-target-price-empty {
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+}
+.list-target-price-set {
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+}
+.list-target-price:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .list-target-price:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+  }
+}
+@media (pointer: coarse) {
+  .list-target-price {
+    min-height: 44px;
+    padding: 0 0.6rem;
+  }
+}
+
+.list-target-price.is-editing {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.list-target-price-symbol {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.list-target-price-input {
+  width: 4.5rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 0.15rem 0.35rem;
+}
+.list-target-price-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+@media (pointer: coarse) {
+  .list-target-price-input {
+    min-height: 44px;
+  }
+}
+
+.list-target-price-clear {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  padding: 0.2rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 2px;
+}
+.list-target-price-clear:focus-visible {
+  color: var(--text-primary);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .list-target-price-clear:hover {
+    color: var(--text-primary);
+  }
+}
+@media (pointer: coarse) {
+  .list-target-price-clear::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
 /* Compact density: text-only rows, no thumbnail, name + meta on a single
    line, tight vertical padding. Used by the binder's compact list mode. */
 .collection-list.is-compact .collection-list-row {
