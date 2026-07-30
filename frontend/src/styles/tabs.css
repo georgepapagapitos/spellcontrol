@@ -23,6 +23,21 @@
     color 0.15s;
 }
 
+/* Touch ergonomics — full 44px hit target on coarse pointers / narrow screens
+   (the 6px padding alone is ~33px tall). Mirrors `.sc-tab` in
+   deck-builder-tabs.css; keep the two in lockstep (STYLE_GUIDE § Tabs). */
+@media (max-width: 700px) {
+  .tab {
+    min-height: 44px;
+  }
+}
+
+@media (pointer: coarse) {
+  .tab {
+    min-height: 44px;
+  }
+}
+
 @media (hover: hover) and (pointer: fine) {
   .tab:hover {
     background: var(--surface-raised);

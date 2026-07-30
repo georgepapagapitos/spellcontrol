@@ -10,13 +10,13 @@
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // vi.mock is hoisted above the file's own top-level code, so a variable
 // referenced inside a factory must come from vi.hoisted (see
 // ConfirmDialog.test.tsx's hapticsMock) or it TDZ-crashes. auth/inbox are
 // mutable hoisted objects (not fixed factories) so the guest-gate and
-// inbox tests below can flip them per test; afterEach resets both.
+// inbox tests below can flip them per test; beforeEach resets both.
 const { authState, inboxState } = vi.hoisted(() => ({
   authState: { status: 'authed' as 'authed' | 'guest' },
   inboxState: {
@@ -105,7 +105,7 @@ beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn();
 });
 
-afterEach(() => {
+beforeEach(() => {
   authState.status = 'authed';
   inboxState.count = 0;
   inboxState.items = [];
