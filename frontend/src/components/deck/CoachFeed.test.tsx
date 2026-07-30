@@ -460,4 +460,42 @@ describe('CoachFeed', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show all suggestions' }));
     expect(screen.getByText('Esper Sentinel')).toBeTruthy();
   });
+
+  // ── E162: error/stalled analysis state ────────────────────────────────────
+
+  describe('analysisState', () => {
+    // No gaps/optimize/synergy/etc. — mirrors the real "first analysis never
+    // landed" shape (deck.gapAnalysis etc. are all undefined pre-success).
+    const emptyProps = { gaps: [], costPlan: undefined, oneAwayCombos: [] };
+
+    it('shows the shimmer skeleton while pending and nothing has landed', () => {
+      render(<CoachFeed {...makeProps({ ...emptyProps, analysisState: 'pending' })} />);
+      expect(screen.getByRole('status', { name: /analyzing your deck/i })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+    });
+
+    it('shows a failure message + retry button when analysis errors', () => {
+      const onRetryAnalysis = vi.fn();
+      render(
+        <CoachFeed {...makeProps({ ...emptyProps, analysisState: 'error', onRetryAnalysis })} />
+      );
+      expect(screen.queryByRole('status', { name: /analyzing your deck/i })).toBeNull();
+      expect(screen.getByText(/Couldn.t analyze this deck/)).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+      expect(onRetryAnalysis).toHaveBeenCalledTimes(1);
+    });
+
+    it('omits the retry button when onRetryAnalysis is not provided', () => {
+      render(<CoachFeed {...makeProps({ ...emptyProps, analysisState: 'error' })} />);
+      expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+    });
+
+    it('renders the real feed instead of the skeleton once changes have landed, even mid-error', () => {
+      // A stale-but-real result (e.g. a prior successful analysis) always wins
+      // over the placeholder — 'error' only ever gates the true empty case.
+      render(<CoachFeed {...makeProps({ analysisState: 'error' })} />);
+      expect(screen.getByText('Cultivate')).toBeTruthy();
+      expect(screen.queryByText(/Couldn.t analyze this deck/)).toBeNull();
+    });
+  });
 });

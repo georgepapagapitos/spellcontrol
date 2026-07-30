@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Deck } from '../store/decks';
 import type { ComboMatchResponse } from '../types/combos';
 import {
@@ -30,6 +30,32 @@ interface Args {
 }
 
 const DEBOUNCE_MS = 500;
+
+/**
+ * E162: a defensive ceiling on a single analysis attempt. `analyzeCommanderDeck`
+ * already catches its own errors and resolves to `null` rather than hanging, so
+ * this shouldn't normally fire — but its EDHREC fetch has no AbortController/
+ * timeout of its own, so a genuinely stuck network request would otherwise pend
+ * forever with no way for the UI to tell "still working" from "stalled". Treated
+ * identically to a `null` result: marks the signature failed, surfaces 'error'.
+ */
+const STALL_TIMEOUT_MS = 20_000;
+
+function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error('Analysis stalled')), ms);
+    promise.then(
+      (v) => {
+        window.clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        window.clearTimeout(timer);
+        reject(e);
+      }
+    );
+  });
+}
 
 /**
  * Bump when the analysis ENGINE changes in a way that should invalidate every
@@ -88,10 +114,18 @@ function buildSignature(
  * `bracketOverride`, when set, is layered on at display time and is never
  * touched here.
  *
- * No-ops for non-commander formats, decks without a commander, and when EDHREC
- * is unreachable (the existing values, if any, are left untouched).
+ * No-ops for non-commander formats and decks without a commander. When EDHREC
+ * is unreachable (or the analysis otherwise fails/stalls) the existing
+ * `deck.gradeBracketSignature`, if any, is left untouched — but if the deck
+ * has *never* had a successful analysis, the returned `status` surfaces
+ * 'error' instead of leaving the caller's "pending" skeleton spinning forever
+ * with no way to tell a slow first analysis from a permanently failed one
+ * (E162). `retry()` clears the failure and re-attempts immediately.
  */
-export function useCommanderBracketAnalysis(args: Args): void {
+export function useCommanderBracketAnalysis(args: Args): {
+  status: 'pending' | 'ready' | 'error';
+  retry: () => void;
+} {
   const {
     deck,
     comboData,
@@ -112,16 +146,27 @@ export function useCommanderBracketAnalysis(args: Args): void {
   const persistedSignature = deck?.gradeBracketSignature;
 
   // Tracks the latest request so a stale async result can't clobber a fresher
-  // one, and a signature whose fetch failed so we don't hammer EDHREC in a
-  // loop within the session (a remount or further edit still retries).
+  // one. `failedSignature` is state (not a ref) so a failure re-renders and
+  // the caller can surface an 'error' status instead of an endless skeleton
+  // (E162) — reactive because it also gates the effect below, so we don't
+  // hammer EDHREC in a loop within the session (a remount, further edit, or
+  // explicit retry() all still retry).
   const reqIdRef = useRef(0);
-  const failedSignatureRef = useRef<string | null>(null);
+  const [failedSignature, setFailedSignature] = useState<string | null>(null);
+  // Bumped by retry() to force the effect below to re-run even when neither
+  // `signature` nor `persistedSignature` changed.
+  const [retryNonce, setRetryNonce] = useState(0);
+
+  const retry = useCallback(() => {
+    setFailedSignature(null);
+    setRetryNonce((n) => n + 1);
+  }, []);
 
   useEffect(() => {
     if (!enabled || !deck || mainboardSize == null || !deck.commander) return;
     if (!signature) return;
     if (signature === persistedSignature) return;
-    if (signature === failedSignatureRef.current) return;
+    if (signature === failedSignature) return;
 
     const deckId = deck.id;
     const commander = deck.commander;
@@ -135,25 +180,28 @@ export function useCommanderBracketAnalysis(args: Args): void {
 
     const myReqId = ++reqIdRef.current;
     const timer = window.setTimeout(() => {
-      analyzeCommanderDeck({
-        commander,
-        partnerCommander,
-        cards,
-        deckSize: mainboardSize,
-        colorIdentity,
-        detectedCombos,
-        targetBracket,
-        oneAwayCombos,
-      })
+      withStallTimeout(
+        analyzeCommanderDeck({
+          commander,
+          partnerCommander,
+          cards,
+          deckSize: mainboardSize,
+          colorIdentity,
+          detectedCombos,
+          targetBracket,
+          oneAwayCombos,
+        }),
+        STALL_TIMEOUT_MS
+      )
         .then((result) => {
           if (reqIdRef.current !== myReqId) return;
           if (!result) {
             // EDHREC unreachable / commander not found — leave existing
             // grade/bracket as-is and avoid re-looping this session.
-            failedSignatureRef.current = signature;
+            setFailedSignature(signature);
             return;
           }
-          failedSignatureRef.current = null;
+          setFailedSignature(null);
           // Flag the write as analysis-derived so the decks-store subscriber
           // skips enqueueing it into the sync queue. The flag is set
           // synchronously around the store mutation so the subscriber (which
@@ -189,13 +237,23 @@ export function useCommanderBracketAnalysis(args: Args): void {
         })
         .catch(() => {
           if (reqIdRef.current !== myReqId) return;
-          failedSignatureRef.current = signature;
+          setFailedSignature(signature);
         });
     }, DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
     // colorIdentity is derived from the commander, which is covered by
     // `signature`; depending on the array identity would thrash the effect.
+    // retryNonce is a manual re-trigger only — its value is never read.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signature, persistedSignature, enabled]);
+  }, [signature, persistedSignature, enabled, failedSignature, retryNonce]);
+
+  const status: 'pending' | 'ready' | 'error' =
+    !enabled || !signature || !!persistedSignature
+      ? 'ready'
+      : failedSignature === signature
+        ? 'error'
+        : 'pending';
+
+  return { status, retry };
 }

@@ -41,8 +41,16 @@ export interface DeckIdentityCardProps {
   deckColor: string; // deck.color hex for no-commander banner
   /** The effective bracket (1-5) from effectiveBracket(deck). */
   bracket?: number;
-  /** Analysis pending = true when !deck.gradeBracketSignature on commander decks. */
-  analysisPending: boolean;
+  /**
+   * 'pending' while !deck.gradeBracketSignature on commander decks (the first
+   * analysis hasn't landed). 'error' (E162) means that first attempt failed
+   * or stalled — renders a failure message + retry instead of skeletoning
+   * forever. 'ready' is the default (non-commander decks, or any deck that's
+   * ever had a successful analysis).
+   */
+  analysisState: 'pending' | 'ready' | 'error';
+  /** E162: retries a failed/stalled first analysis. Passed only when analysisState is 'error'. */
+  onRetryAnalysis?: () => void;
   /**
    * Session-scoped reveal key. When provided, plays a 0→target reveal tween
    * the first time this key is seen. Pass null/undefined to skip the reveal.
@@ -266,7 +274,8 @@ export function DeckIdentityCard({
   format,
   deckColor,
   bracket,
-  analysisPending,
+  analysisState,
+  onRetryAnalysis,
   validation,
   planScore,
   edhrecNumDecks: edhrecNumDecksProp,
@@ -369,7 +378,7 @@ export function DeckIdentityCard({
   const identitySegments = buildIdentityLine({
     identity,
     formatLabel,
-    bracket: analysisPending ? undefined : bracket,
+    bracket: analysisState === 'ready' ? bracket : undefined,
     validation,
   });
 
@@ -473,7 +482,7 @@ export function DeckIdentityCard({
         <CommanderPopularityStat
           edhrecNumDecks={edhrecNumDecks}
           ownCount={effectiveOwnCount}
-          loading={analysisPending || effectiveStatsLoading}
+          loading={analysisState !== 'ready' || effectiveStatsLoading}
           variant="card"
         />
 
@@ -515,7 +524,7 @@ export function DeckIdentityCard({
 
         {/* Pillars */}
         <div
-          className={`deck-identity-card-pillars${planScore || analysisPending ? '' : ' is-solo'}`}
+          className={`deck-identity-card-pillars${planScore || analysisState !== 'ready' ? '' : ' is-solo'}`}
         >
           {/* ── Functional verdict ── */}
           <div className="deck-identity-card-pillar">
@@ -567,15 +576,36 @@ export function DeckIdentityCard({
           </div>
 
           {/* ── Build health ──
-              While the first analysis is still running there is no planScore yet,
-              so the pending check must come first (pending ⇒ planScore is absent). */}
-          {analysisPending ? (
+              While the first analysis is still running (or has failed) there is
+              no planScore yet, so those checks must come before the planScore
+              branch below (pending/error ⇒ planScore is absent). E162: 'error'
+              renders a failure message + retry instead of an endless skeleton. */}
+          {analysisState === 'pending' ? (
             <div className="deck-identity-card-pillar">
               <span className="deck-identity-card-eyebrow">Build health</span>
               <div
                 className="deck-analysis-skeleton-bar deck-identity-card-skeleton-pillar"
                 aria-label="Build health loading…"
               />
+            </div>
+          ) : analysisState === 'error' ? (
+            <div className="deck-identity-card-pillar">
+              <span className="deck-identity-card-eyebrow">Build health</span>
+              <p className="deck-identity-card-error-text">
+                Couldn’t analyze this deck.
+                {onRetryAnalysis && (
+                  <>
+                    {' '}
+                    <button
+                      type="button"
+                      className="deck-identity-card-retry-btn"
+                      onClick={onRetryAnalysis}
+                    >
+                      Retry
+                    </button>
+                  </>
+                )}
+              </p>
             </div>
           ) : (
             planScore && (

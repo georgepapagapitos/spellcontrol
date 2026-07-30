@@ -6,6 +6,7 @@ import { DeckCardRow } from './DeckCardRow';
 import { SubstituteOptions } from './SubstituteOptions';
 import { DeckHoverPeek } from './DeckHoverPeek';
 import { NextBestMove as NextBestMoveComponent } from './NextBestMove';
+import { DeckAnalysisSkeleton } from './DeckAnalysisSkeleton';
 import { VerdictBadge } from './VerdictBadge';
 import { InfoTip } from '../InfoTip';
 import { useDeckHoverPeek } from './use-deck-hover-peek';
@@ -156,8 +157,10 @@ export interface CoachFeedProps {
   // Initial filter (from tuneFocusLane deep-link)
   initialFilter?: string;
   onFilterHandled?: () => void;
-  // Analysis state
-  analysisState?: 'pending' | 'ready';
+  // Analysis state. E162: 'error' = the first analysis attempt failed/stalled.
+  analysisState?: 'pending' | 'ready' | 'error';
+  /** E162: retries a failed/stalled first analysis. Passed only when analysisState is 'error'. */
+  onRetryAnalysis?: () => void;
   // Commander name for row copy
   commanderName?: string;
   // EDHREC theme browser
@@ -210,6 +213,7 @@ export function CoachFeed({
   initialFilter,
   onFilterHandled,
   analysisState = 'ready',
+  onRetryAnalysis,
   commanderName,
   browser,
   busyNames,
@@ -638,9 +642,9 @@ export function CoachFeed({
     [addsAndSwaps, cuts]
   );
 
-  // ── Skeleton ─────────────────────────────────────────────────────────────
+  // ── Skeleton / error ─────────────────────────────────────────────────────
 
-  if (analysisState === 'pending' && allChanges.length === 0) {
+  if ((analysisState === 'pending' || analysisState === 'error') && allChanges.length === 0) {
     return (
       <div className="coach-feed">
         {(nextBestMoves.length > 0 || combosLoading) && (
@@ -653,24 +657,7 @@ export function CoachFeed({
             currentView="tune"
           />
         )}
-        <div
-          className="deck-analysis-skeleton"
-          role="status"
-          aria-label="Analyzing your deck…"
-          aria-live="polite"
-        >
-          <p className="deck-analysis-skeleton-eyebrow">Analyzing your deck…</p>
-          <div className="deck-analysis-skeleton-bar is-headline" />
-          <div className="deck-analysis-skeleton-bar is-body" />
-          <div className="deck-analysis-skeleton-lane">
-            <div className="deck-analysis-skeleton-bar is-body" />
-            <div className="deck-analysis-skeleton-bar is-body is-short" />
-          </div>
-          <div className="deck-analysis-skeleton-lane">
-            <div className="deck-analysis-skeleton-bar is-body is-short" />
-            <div className="deck-analysis-skeleton-bar is-body" />
-          </div>
-        </div>
+        <DeckAnalysisSkeleton status={analysisState} onRetry={onRetryAnalysis} />
       </div>
     );
   }

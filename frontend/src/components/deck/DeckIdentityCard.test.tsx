@@ -75,7 +75,7 @@ const base: DeckIdentityCardProps = {
   format: 'commander',
   deckColor: '#3a7bd5',
   bracket: undefined,
-  analysisPending: false,
+  analysisState: 'ready',
   validation: makeValidation([PASS('size'), PASS('identity')]),
   planScore: healthyPlan,
   manaCurve: {},
@@ -230,10 +230,39 @@ describe('DeckIdentityCard', () => {
   it('shows the Build health skeleton while analysis is pending (no planScore yet)', () => {
     // A pending first analysis means planScore is absent — the skeleton must not
     // depend on planScore existing.
-    const { container } = renderCard({ analysisPending: true, planScore: null });
+    const { container } = renderCard({ analysisState: 'pending', planScore: null });
     expect(container.querySelector('.deck-identity-card-skeleton-pillar')).not.toBeNull();
     expect(hasText(/^Build health$/)).toBe(true);
     expect(container.querySelector('.deck-identity-card-pillars.is-solo')).toBeNull();
+  });
+
+  // ── E162: error/stalled analysis state ────────────────────────────────────
+
+  it('shows a Build health failure message with retry when analysis errors (no planScore)', () => {
+    const onRetryAnalysis = vi.fn();
+    const { container } = renderCard({
+      analysisState: 'error',
+      planScore: null,
+      onRetryAnalysis,
+    });
+    expect(container.querySelector('.deck-identity-card-skeleton-pillar')).toBeNull();
+    expect(hasText(/^Build health$/)).toBe(true);
+    expect(hasText(/Couldn.t analyze this deck\./)).toBe(true);
+    expect(container.querySelector('.deck-identity-card-pillars.is-solo')).toBeNull();
+
+    const retryBtn = screen.getByRole('button', { name: 'Retry' });
+    fireEvent.click(retryBtn);
+    expect(onRetryAnalysis).toHaveBeenCalledTimes(1);
+  });
+
+  it('omits the retry button when onRetryAnalysis is not provided', () => {
+    renderCard({ analysisState: 'error', planScore: null });
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+  });
+
+  it('never shows a bracket segment while analysis is errored', () => {
+    renderCard({ analysisState: 'error', bracket: 3, planScore: null });
+    expect(screen.queryByText(/Bracket 3/)).toBeNull();
   });
 
   it('renders commander + partner names and the human format label', () => {

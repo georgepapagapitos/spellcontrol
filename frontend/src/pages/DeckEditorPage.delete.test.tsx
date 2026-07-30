@@ -211,7 +211,7 @@ vi.mock('../components/deck/PartnerCommanderSelector', () => ({
 vi.mock('../lib/materialize', () => ({ materializeBinders: () => ({ binders: [] }) }));
 vi.mock('../lib/use-deck-combos', () => ({ useDeckCombos: () => ({ combos: [] }) }));
 vi.mock('../lib/use-commander-bracket-analysis', () => ({
-  useCommanderBracketAnalysis: () => null,
+  useCommanderBracketAnalysis: () => ({ status: 'ready', retry: () => {} }),
 }));
 vi.mock('../lib/use-undo-redo-keyboard', () => ({
   useUndoRedoKeyboard: () => {},

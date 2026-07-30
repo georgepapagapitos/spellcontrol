@@ -863,7 +863,10 @@ export function DeckEditorPage() {
 
   // Keep grade/bracket live for any commander deck as its cards change —
   // generated and manual alike (the user's bracketOverride layers on top).
-  useCommanderBracketAnalysis({
+  // E162: also surfaces 'error' (EDHREC unreachable / commander not indexed /
+  // stalled fetch) + retry() so a permanently failed first analysis doesn't
+  // read as an endless skeleton — see analysisState below.
+  const bracketAnalysis = useCommanderBracketAnalysis({
     deck,
     comboData: comboData.data,
     mainboardSize: deck ? DECK_FORMAT_CONFIGS[deck.format].mainboardSize : undefined,
@@ -936,10 +939,15 @@ export function DeckEditorPage() {
   // run. `gradeBracketSignature` is only set after a successful analysis
   // completes, so its absence means no result has landed yet. Non-commander
   // decks or decks without a commander skip analysis entirely → 'ready'.
-  const analysisState = useMemo<'pending' | 'ready'>(() => {
+  // E162: once a signature has EVER persisted, a later background re-analysis
+  // failing is deliberately silent (stale-but-fine result stays on screen —
+  // see the hook's own docs) — 'error' only applies before the FIRST success,
+  // which is the case that used to skeleton forever with no way out.
+  const analysisState = useMemo<'pending' | 'ready' | 'error'>(() => {
     if (!deck || !DECK_FORMAT_CONFIGS[deck.format].hasCommander || !deck.commander) return 'ready';
-    return deck.gradeBracketSignature ? 'ready' : 'pending';
-  }, [deck]);
+    if (deck.gradeBracketSignature) return 'ready';
+    return bracketAnalysis.status === 'error' ? 'error' : 'pending';
+  }, [deck, bracketAnalysis.status]);
 
   // Session-scoped reveal key for score animations. Non-null only when analysis
   // is ready and the deck has a gradeBracketSignature. The module-level registry
@@ -2811,6 +2819,7 @@ export function DeckEditorPage() {
               // Tune lanes don't exist yet, so a deep-link would land on nothing.
               analysisState === 'ready' ? handleNavigateToTune : undefined
             }
+            onRetryAnalysis={analysisState === 'error' ? bracketAnalysis.retry : undefined}
             renderSwapSuggestions={renderSwapSuggestions}
             renderSimilarCards={renderSimilarCards}
             powerHeroSlot={
@@ -2893,6 +2902,7 @@ export function DeckEditorPage() {
                   initialFilter={tuneFocusLane ?? undefined}
                   onFilterHandled={clearTuneFocus}
                   analysisState={analysisState}
+                  onRetryAnalysis={analysisState === 'error' ? bracketAnalysis.retry : undefined}
                   commanderName={deck.commander?.name}
                   busyNames={
                     bracketFitSwapName
