@@ -6,6 +6,7 @@ import {
   MIN_HEALTHY_POOL_DECKS,
   MIN_HEALTHY_POOL_CARDS,
 } from './client';
+import { frontFaceName } from '@/lib/card-text';
 import type { EDHRECCard, EDHRECCommanderData } from '@/deck-builder/types';
 
 // E93: isPoolTooThin gates the fallback ladder — these fixtures are the exact
@@ -237,5 +238,24 @@ describe('parseSaltIndex — E126 salt-gate reactivation (2026-07-23)', () => {
     expect(map.get('Both')).toBe(2.5);
     expect(map.get('BadSalt')).toBeCloseTo(1.25, 2); // falls through to label
     expect(map.has('Neither')).toBe(false);
+  });
+
+  // E165: belt-and-suspenders fixture on the parseSaltIndex → saltFor chain.
+  // EDHREC's salt.json keys DFCs by front face only (deckGenerator.ts's
+  // `saltFor` closure: direct lookup, then falls back to
+  // `saltIndex.get(frontFaceName(name))` for a full "Front // Back" Scryfall
+  // name). This mirrors that exact two-step lookup against the REAL
+  // parseSaltIndex output for a captured DFC shape, rather than a synthetic
+  // predicate. See board E165 / the 2026-07-23 salt name-matching audit.
+  it('resolves a DFC salt score by front-face name and by full Scryfall name', () => {
+    const map = parseSaltIndex([{ name: 'Fable of the Mirror-Breaker', salt: 1.8421052631578947 }]);
+    const saltFor = (name: string): number | undefined =>
+      map.get(name) ?? (name.includes(' // ') ? map.get(frontFaceName(name)) : undefined);
+
+    expect(saltFor('Fable of the Mirror-Breaker')).toBeCloseTo(1.8421, 3);
+    expect(saltFor('Fable of the Mirror-Breaker // Reflection of Kiki-Jiki')).toBeCloseTo(
+      1.8421,
+      3
+    );
   });
 });
