@@ -222,6 +222,30 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       next.zones[action.to] = dest;
       return withHistory(state, next);
     }
+    case 'RESOLVE_TOP': {
+      const byId = new Map(state.zones.library.map((c) => [c.id, c]));
+      // One card can only go one place: first list to claim an id wins, so a
+      // malformed dispatch can never duplicate a card into two zones.
+      const claimed = new Set<string>();
+      const pick = (ids: readonly string[] | undefined): PlaytestCard[] =>
+        (ids ?? []).reduce<PlaytestCard[]>((out, id) => {
+          const card = byId.get(id);
+          if (card && !claimed.has(id)) {
+            claimed.add(id);
+            out.push(card);
+          }
+          return out;
+        }, []);
+      const top = pick(action.top);
+      const bottom = pick(action.bottom);
+      const graveyard = pick(action.graveyard);
+      if (claimed.size === 0) return state;
+      const rest = state.zones.library.filter((c) => !claimed.has(c.id));
+      const next = snapshot(state);
+      next.zones.library = [...top, ...rest, ...bottom];
+      next.zones.graveyard = next.zones.graveyard.concat(graveyard);
+      return withHistory(state, next);
+    }
     case 'MOVE_TO_BATTLEFIELD': {
       const loc = locate(state, action.cardId);
       if (!loc) return state;
