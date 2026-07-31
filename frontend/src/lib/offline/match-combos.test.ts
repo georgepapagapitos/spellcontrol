@@ -107,4 +107,21 @@ describe('matchCombosLocal', () => {
     const res = await matchCombosLocal({ ownedOracleIds: ['a'], deckOracleIds: ['a'] });
     expect(res.inDeck.map((m) => m.combo.id)).toEqual(['real']);
   });
+
+  it('reports almostInCollectionTotal as the true pre-truncation count', async () => {
+    const combos: OfflineCombo[] = [];
+    for (let i = 0; i < 201; i++) {
+      combos.push(combo(`almost-${i}`, ['a', `missing-${i}`]));
+    }
+    await replaceCombos(combos);
+    const res = await matchCombosLocal({ ownedOracleIds: ['a'] });
+    expect(res.almostInCollection).toHaveLength(200);
+    expect(res.almostInCollectionTotal).toBe(201);
+  });
+
+  it('almostInCollectionTotal matches the untruncated length when under the cap', async () => {
+    await replaceCombos([combo('c1', ['a', 'b', 'c'])]);
+    const res = await matchCombosLocal({ ownedOracleIds: ['a', 'b'] });
+    expect(res.almostInCollectionTotal).toBe(res.almostInCollection.length);
+  });
 });

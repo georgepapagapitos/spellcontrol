@@ -31,6 +31,7 @@ const response = (): ComboMatchResponse => ({
   oneAway: [match('ug', 'gu'), match('r', 'r'), match('c', 'c'), match('unknown', '')],
   almostInCollection: [match('wub', 'wub')],
   source: 'local',
+  almostInCollectionTotal: 1,
 });
 
 describe('filterByIdentity', () => {
@@ -46,6 +47,10 @@ describe('filterByIdentity', () => {
 
   it('never filters inDeck — assembled combos are facts, not suggestions', () => {
     expect(filterByIdentity(response(), 'GU').inDeck.map((m) => m.combo.id)).toEqual(['in-r']);
+  });
+
+  it('carries almostInCollectionTotal through unchanged (it reflects server truncation, not identity filtering)', () => {
+    expect(filterByIdentity(response(), 'GU').almostInCollectionTotal).toBe(1);
   });
 
   it('colorless commander ("") keeps only colorless/unknown combos', () => {

@@ -79,8 +79,16 @@ function combo(id: string, name: string, missing: string[] = []): ComboMatch {
 const refetch = vi.fn();
 
 function setResult(over: Partial<ComboMatchResponse>) {
+  const almostInCollection = over.almostInCollection ?? [];
   useDeckCombos.mockReturnValue({
-    data: { inDeck: [], oneAway: [], almostInCollection: [], source: 'local', ...over },
+    data: {
+      inDeck: [],
+      oneAway: [],
+      almostInCollection,
+      source: 'local' as const,
+      almostInCollectionTotal: almostInCollection.length,
+      ...over,
+    },
     loading: false,
     error: null,
     refetch,
@@ -121,6 +129,28 @@ describe('CollectionCombosPage', () => {
     expect(screen.getByText(/Near Miss/)).toBeTruthy();
     // Scope-specific copy: the deck panel says "in deck" here.
     expect(screen.getByLabelText('1 of 2 pieces in collection')).toBeTruthy();
+  });
+
+  it('discloses the server truncation on the one-away tab instead of a bare 200 (E213)', () => {
+    setResult({
+      almostInCollection: [combo('c2', 'Near Miss', ['ox'])],
+      almostInCollectionTotal: 8294,
+    });
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: /One card away/ }));
+
+    expect(screen.getByText(/Showing 1 of 8,294 combos one card away/)).toBeTruthy();
+  });
+
+  it('shows no truncation note when the true total fits the returned bucket', () => {
+    setResult({
+      almostInCollection: [combo('c2', 'Near Miss', ['ox'])],
+      almostInCollectionTotal: 1,
+    });
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: /One card away/ }));
+
+    expect(screen.queryByText(/Showing \d+ of/)).toBeNull();
   });
 
   it('names the commanders you own that could host a complete combo', () => {

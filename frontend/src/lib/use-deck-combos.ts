@@ -70,6 +70,7 @@ function filterByIdentity(
     oneAway: data.oneAway.filter(fits),
     almostInCollection: data.almostInCollection.filter(fits),
     source: data.source,
+    almostInCollectionTotal: data.almostInCollectionTotal,
   };
 }
 
