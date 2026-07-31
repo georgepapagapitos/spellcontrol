@@ -77,6 +77,7 @@ export async function matchCombosLocal(opts: {
     inDeck,
     oneAway,
     almostInCollection: almostInCollection.slice(0, ALMOST_LIMIT),
+    almostInCollectionTotal: almostInCollection.length,
   };
 }
 

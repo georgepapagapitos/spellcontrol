@@ -53,6 +53,8 @@ export interface ComboMatchResponse {
    * as final (E212).
    */
   source: 'local' | 'server';
+  /** True count before the backend's ALMOST_LIMIT truncation. */
+  almostInCollectionTotal: number;
 }
 
 export interface ComboDetail {

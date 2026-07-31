@@ -92,6 +92,18 @@ export function CollectionCombosPage() {
   // identity every render, invalidating every downstream filter memo.
   const rawComplete = useMemo(() => data?.inDeck ?? [], [data?.inDeck]);
   const rawOneAway = useMemo(() => data?.almostInCollection ?? [], [data?.almostInCollection]);
+  // The matcher caps this bucket (see ALMOST_LIMIT in match.ts); the true
+  // count lets the UI say so instead of a bare 200 reading as the real answer.
+  //
+  // ⚠️ Only trustworthy on the LOCAL matcher. The server path (`partial`) has
+  // already capped its candidate pool at MAX_CANDIDATE_COMBOS=2000 before this
+  // bucket is even built, so its "total" counts only what survived that cap —
+  // a confident "Showing 200 of 340" would contradict the partial-results
+  // banner sitting right above it, and the reassuring number is the wrong one.
+  // Suppress the disclosure entirely there; the banner already says the answer
+  // is incomplete, which is the honest message.
+  const oneAwayTotal = data?.almostInCollectionTotal ?? rawOneAway.length;
+  const oneAwayTruncated = !partial && oneAwayTotal > rawOneAway.length;
 
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 200);
@@ -226,6 +238,13 @@ export function CollectionCombosPage() {
               },
             ]}
           />
+
+          {tab === 'oneAway' && oneAwayTruncated && (
+            <p className="combos-truncation-note">
+              Showing {rawOneAway.length.toLocaleString()} of {oneAwayTotal.toLocaleString()} combos
+              one card away — narrow with search or filters to find more.
+            </p>
+          )}
 
           {error && <p className="deck-combos-empty deck-combos-error">{error}</p>}
 

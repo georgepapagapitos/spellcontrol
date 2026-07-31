@@ -33,7 +33,14 @@ const mockPull = pullSync as unknown as ReturnType<typeof vi.fn>;
 const mockPush = pushSync as unknown as ReturnType<typeof vi.fn>;
 
 function combos(over: Partial<ComboMatchResponse> = {}): ComboMatchResponse {
-  return { inDeck: [], oneAway: [], almostInCollection: [], source: 'local', ...over };
+  return {
+    inDeck: [],
+    oneAway: [],
+    almostInCollection: [],
+    almostInCollectionTotal: 0,
+    source: 'local',
+    ...over,
+  };
 }
 
 beforeEach(async () => {

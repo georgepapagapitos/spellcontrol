@@ -40,7 +40,7 @@ describe('timeout + abort handling', () => {
 
 describe('matchCombos', () => {
   it('POSTs the request body and returns the parsed match buckets', async () => {
-    const empty = { inDeck: [], oneAway: [], almostInCollection: [] };
+    const empty = { inDeck: [], oneAway: [], almostInCollection: [], almostInCollectionTotal: 0 };
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(empty));
 
     const result = await matchCombos({
@@ -78,7 +78,7 @@ describe('matchCombos', () => {
 describe('matchCombos (client-side)', () => {
   it('matches locally against the cached dataset and never calls the server', async () => {
     vi.mocked(ensureCombosCached).mockResolvedValue(true);
-    const local = { inDeck: [], oneAway: [], almostInCollection: [] };
+    const local = { inDeck: [], oneAway: [], almostInCollection: [], almostInCollectionTotal: 0 };
     vi.mocked(matchCombosLocal).mockResolvedValue(local);
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
