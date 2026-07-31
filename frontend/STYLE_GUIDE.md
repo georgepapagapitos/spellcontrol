@@ -1605,6 +1605,26 @@ non-negotiables that follow from that:
   than B's — and B is whatever A physically overlaps, _not_ what's near it in the
   DOM. A sticky element creates its own stacking context, so its token wins
   against later siblings regardless of source order.
+- **`.app-main` must never form a stacking context — no exceptions.** It is the
+  scroll region every page renders into, and the mobile tab bar is its _later
+  sibling_ in `.app-shell`. The moment `.app-main` becomes a stacking context its
+  entire subtree composites as one unit at its own (auto) level, so every
+  `position: fixed` overlay inside it — sheets, modals, scrims, at any `--z-*`
+  token, including `--z-overlay` (1100) — paints **below** the tab bar. Nothing
+  throws; sheets just render with the nav sitting on top of them at every mobile
+  and native breakpoint. The properties that do it: `view-transition-name`,
+  `transform`, `filter`, `backdrop-filter`, `perspective`, `contain` (layout /
+  paint / strict / content), `container-type`, `will-change` of any of those,
+  `isolation: isolate`. **This shipped once already:** the route transition named
+  `.app-main` — `view-transition-name` forms a stacking context _permanently_,
+  not only while a transition runs. The fix was to name the **chrome**
+  (`.site-header`, `.mobile-tab-bar`, `.scan-fab-root` →
+  `view-transition-name: sc-chrome-*`, each with `animation: none`) and let the
+  content animate as `root`, which by definition excludes anything separately
+  named. Guarded by `styles/overlay-containment.test.ts`.
+- **Sheets that portal to `<body>` were immune** to the above, which is why this
+  class of bug reads as arbitrary — roughly half the sheets looked correct. Never
+  take a working portaled sheet as evidence the in-tree ones are fine.
 
 ## Motion
 

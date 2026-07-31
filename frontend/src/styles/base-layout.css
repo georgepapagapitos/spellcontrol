@@ -163,28 +163,51 @@ select {
    the two primary navs (Header, MobileTabBar); everything else — modals,
    sheets, in-page tabs — keeps its own existing animation.
 
-   Only `.app-main` is named, so ONLY the content region animates. The
-   header and tab bar are stable chrome and cut instantly, which is exactly
-   what a native push does: the frame stays, the content moves. Killing the
-   root animation is what keeps the chrome from cross-fading with it.
+   Effect wanted: ONLY the content region animates — the header and tab bar
+   are stable chrome and cut instantly, which is exactly what a native push
+   does (the frame stays, the content moves).
+
+   ⚠️ That is achieved by naming the CHROME, never `.app-main`. A
+   `view-transition-name` makes its element a stacking context permanently —
+   not just while a transition runs — so naming `.app-main` (the scroll
+   region every page renders into) trapped every `position: fixed` overlay
+   inside it: sheets, modals and scrims all painted BELOW the mobile tab bar
+   even at `--z-overlay` (1100), because the whole `.app-main` subtree
+   composited as one unit beneath its later sibling. Naming the chrome
+   instead pulls the header/tab bar/FAB out of the root snapshot, so what's
+   left in `root` IS the content — same animation, no stacking context on
+   the scroll container. Guarded by overlay-containment.test.ts.
 
    No feature guard needed: react-router falls back to a plain navigation
    where `document.startViewTransition` is unsupported, and a browser that
    ignores `view-transition-name` simply renders the old instant swap. */
-.app-main {
-  view-transition-name: app-main;
+.site-header {
+  view-transition-name: sc-chrome-header;
 }
 
-::view-transition-old(root),
-::view-transition-new(root) {
+.mobile-tab-bar {
+  view-transition-name: sc-chrome-tabbar;
+}
+
+.scan-fab-root {
+  view-transition-name: sc-chrome-fab;
+}
+
+/* Chrome is captured separately purely so it holds still — never animate it. */
+::view-transition-old(sc-chrome-header),
+::view-transition-new(sc-chrome-header),
+::view-transition-old(sc-chrome-tabbar),
+::view-transition-new(sc-chrome-tabbar),
+::view-transition-old(sc-chrome-fab),
+::view-transition-new(sc-chrome-fab) {
   animation: none;
 }
 
-::view-transition-old(app-main) {
+::view-transition-old(root) {
   animation: sc-route-out 90ms var(--ease-out-soft) both;
 }
 
-::view-transition-new(app-main) {
+::view-transition-new(root) {
   animation: sc-route-in 180ms var(--ease-out-soft) both;
 }
 
