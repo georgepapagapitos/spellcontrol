@@ -62,6 +62,8 @@ export function PlaytestBoard({ state }: Props) {
   const keepOpeningHand = usePlaytestStore((s) => s.keepOpeningHand);
   const mulliganOpeningHand = usePlaytestStore((s) => s.mulliganOpeningHand);
   const finalizeBottom = usePlaytestStore((s) => s.finalizeBottom);
+  const freeMulligan = usePlaytestStore((s) => s.freeMulligan);
+  const setFreeMulligan = usePlaytestStore((s) => s.setFreeMulligan);
   const resistanceLevel = usePlaytestStore((s) => s.resistanceLevel);
   const setResistanceLevel = usePlaytestStore((s) => s.setResistanceLevel);
   const lastResistanceEvent = usePlaytestStore((s) => s.lastResistanceEvent);
@@ -624,6 +626,8 @@ export function PlaytestBoard({ state }: Props) {
           mulliganCount={mulliganCount}
           cardLookup={cardLookup}
           deckName={deck?.name}
+          freeMulligan={freeMulligan}
+          onFreeMulliganChange={setFreeMulligan}
           onExit={() => navigate(playtestDeckId ? `/decks/${playtestDeckId}` : '/decks')}
           onKeep={keepOpeningHand}
           onMulligan={mulliganOpeningHand}

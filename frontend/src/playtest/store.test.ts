@@ -77,6 +77,50 @@ function store() {
 
 beforeEach(() => {
   store().teardown();
+  store().setFreeMulligan(false);
+});
+
+describe('playtest store — free mulligan variant (E226)', () => {
+  function mulliganOnce() {
+    store().init('deck-1', { library: threatLibrary(), seed: 42 });
+    store().mulliganOpeningHand();
+  }
+
+  it('keeps the London bottom-N step by default', () => {
+    mulliganOnce();
+    store().keepOpeningHand();
+    expect(store().phase).toBe('mulligan-bottom');
+  });
+
+  it('skips the bottom-N step when free mulligans are on', () => {
+    store().setFreeMulligan(true);
+    mulliganOnce();
+    store().keepOpeningHand();
+    expect(store().phase).toBe('playing');
+  });
+
+  it('still redraws a full seven', () => {
+    store().setFreeMulligan(true);
+    mulliganOnce();
+    store().mulliganOpeningHand();
+    expect(store().mulliganCount).toBe(2);
+    expect(store().state!.zones.hand).toHaveLength(7);
+  });
+
+  it('releases a hand already stranded on the bottom-N step', () => {
+    mulliganOnce();
+    store().keepOpeningHand();
+    expect(store().phase).toBe('mulligan-bottom');
+    store().setFreeMulligan(true);
+    expect(store().phase).toBe('playing');
+  });
+
+  it('is a device preference — a new session keeps it armed', () => {
+    store().setFreeMulligan(true);
+    store().init('deck-1', { library: threatLibrary(), seed: 42 });
+    expect(store().freeMulligan).toBe(true);
+    expect(localStorage.getItem('spellcontrol:playtest:freeMulligan')).toBe('1');
+  });
 });
 
 describe('playtest store — resistance mode', () => {
