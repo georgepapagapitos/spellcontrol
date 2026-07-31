@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import type { ComboMatch, ComboMatchResponse } from '../types/combos';
 
 const useDeckCombos = vi.fn();
@@ -43,6 +44,15 @@ vi.mock('../store/auth', () => ({
 
 import { CollectionCombosPage } from './CollectionCombosPage';
 
+/** The host-commander asides link and navigate, so a Router is required. */
+function renderPage() {
+  return render(
+    <MemoryRouter>
+      <CollectionCombosPage />
+    </MemoryRouter>
+  );
+}
+
 function combo(id: string, name: string, missing: string[] = []): ComboMatch {
   return {
     combo: {
@@ -81,7 +91,7 @@ describe('CollectionCombosPage', () => {
   });
 
   it('sends no deck, so the matcher buckets against the collection', () => {
-    render(<CollectionCombosPage />);
+    renderPage();
     expect(useDeckCombos).toHaveBeenCalledWith(
       expect.objectContaining({ deckOracleIds: [], format: 'commander' })
     );
@@ -89,7 +99,7 @@ describe('CollectionCombosPage', () => {
 
   it('relabels the matcher\'s inDeck bucket as "Complete"', () => {
     setResult({ inDeck: [combo('c1', 'Owned Combo')] });
-    render(<CollectionCombosPage />);
+    renderPage();
 
     expect(screen.getByText('1 complete · 0 one away')).toBeTruthy();
     expect(screen.getByText(/Owned Combo/)).toBeTruthy();
@@ -99,7 +109,7 @@ describe('CollectionCombosPage', () => {
 
   it('shows almostInCollection under the one-away tab, counted in pieces owned', () => {
     setResult({ almostInCollection: [combo('c2', 'Near Miss', ['ox'])] });
-    render(<CollectionCombosPage />);
+    renderPage();
 
     expect(screen.getByText('0 complete · 1 one away')).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: /One card away/ }));
@@ -111,7 +121,7 @@ describe('CollectionCombosPage', () => {
 
   it('names the commanders you own that could host a complete combo', () => {
     setResult({ inDeck: [combo('c1', 'Owned Combo')] });
-    render(<CollectionCombosPage />);
+    renderPage();
 
     // Kess is UB and the combo is 'ub' — Llanowar Elves (G, not legendary)
     // must not appear.
@@ -159,7 +169,7 @@ describe('CollectionCombosPage', () => {
 
   it('prompts for cards when the collection has no combo-matchable ids', () => {
     setResult({});
-    render(<CollectionCombosPage />);
+    renderPage();
     expect(screen.getByText('No combos you can build outright yet.')).toBeTruthy();
   });
 });

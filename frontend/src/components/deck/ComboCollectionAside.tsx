@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Library, Crown } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { getCardByName } from '@/deck-builder/services/scryfall/client';
+import { toast } from '../../store/toasts';
 import type { EnrichedCard } from '../../types';
 import type { ComboCardRef } from '../../types/combos';
 import type { CardLocation } from '../../lib/card-locations';
@@ -26,6 +28,41 @@ interface Props {
  */
 export function ComboCollectionAside({ cards, hosts, locations }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [seeding, setSeeding] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  /**
+   * Open the deck builder seeded with this commander and the combo's pieces
+   * pinned as must-includes.
+   *
+   * The collection row is an `EnrichedCard`, but the builder's prefill wants a
+   * full `ScryfallCard`, so one lookup is unavoidable here. It's a single card
+   * and it's cached, but it IS a round-trip — hence the pending label and the
+   * disabled state rather than a silently unresponsive button.
+   */
+  const seed = async (commander: EnrichedCard) => {
+    if (seeding) return;
+    setSeeding(commander.name);
+    try {
+      const resolved = await getCardByName(commander.name);
+      if (!resolved) throw new Error(`Couldn't find a printing for ${commander.name}.`);
+      navigate('/decks/new', {
+        state: {
+          prefill: {
+            commander: resolved,
+            mustIncludeCards: cards.map((c) => c.cardName),
+          },
+        },
+      });
+    } catch (err) {
+      toast.show({
+        message:
+          err instanceof Error ? err.message : `Couldn't open a build for ${commander.name}.`,
+        tone: 'error',
+      });
+      setSeeding(null);
+    }
+  };
 
   const located = cards
     .map((c) => ({ card: c, at: locations.get(c.oracleId) }))
@@ -46,7 +83,21 @@ export function ComboCollectionAside({ cards, hosts, locations }: Props) {
             {hosts.length > 1 ? `${hosts.length} commanders you own can run this:` : null}
           </span>{' '}
           <span className="combo-aside-names">
-            {shown.map((c) => c.name).join(', ')}
+            {shown.map((c, i) => (
+              <span key={c.name}>
+                {i > 0 && ', '}
+                <button
+                  type="button"
+                  className="btn-link combo-aside-host"
+                  onClick={() => void seed(c)}
+                  disabled={seeding !== null}
+                  title={`Build a ${c.name} deck around this combo`}
+                >
+                  {c.name}
+                </button>
+                {seeding === c.name && <span className="combo-aside-page"> — opening…</span>}
+              </span>
+            ))}
             {rest > 0 && (
               <>
                 {' '}

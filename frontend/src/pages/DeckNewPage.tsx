@@ -19,12 +19,25 @@ import { usePublishOnCreate, type PublishOutcome } from '../lib/use-publish-on-c
 import type { ScryfallCard, DeckFormat, EDHRECTheme } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 
+/**
+ * Router-state seed for a build. Two shapes share it:
+ *
+ *  - **Regenerate** (ReadinessSpotlight / DecksIndexPage) replays a saved
+ *    deck's settings, so it supplies the full set.
+ *  - **Combo seed** (the collection combos view) knows only a commander and
+ *    the cards that must survive, and wants this page's own defaults for
+ *    everything else — hence the regenerate-only fields are optional. An
+ *    absent field means "leave it alone", never "reset it".
+ */
 interface PrefillState {
   commander: ScryfallCard;
-  themes: EDHRECTheme[];
-  targetBracket: number | 'all';
-  landCount: number;
-  collectionMode: boolean;
+  themes?: EDHRECTheme[];
+  targetBracket?: number | 'all';
+  landCount?: number;
+  collectionMode?: boolean;
+  /** Card names the build must keep — the pieces of a combo being built
+   *  around. Commander-scoped build intent; never persisted. */
+  mustIncludeCards?: string[];
   /** The deck this regenerate ran from — lands the completed build on the compare diff instead of the editor. */
   sourceDeckId?: string;
   /** Format of the source deck — a PDH regenerate must stay PDH. */
@@ -175,13 +188,23 @@ export function DeckNewPage() {
       mtgFormat: prefill?.format === 'paupercommander' ? 'paupercommander' : 'commander',
     });
     if (prefill) {
+      // ORDER IS LOAD-BEARING: setCommander() clears mustIncludeCards (forced
+      // picks are commander-specific, so a carried-over pick would warp the
+      // next deck). The combo seed's must-includes therefore have to be
+      // written AFTER it, never before — swapping these two lines silently
+      // drops them, with no type error. Covered by DeckNewPage.prefill.test.
       setCommander(prefill.commander);
       updateCustomizationStore({
-        targetBracket: prefill.targetBracket as 'all' | 1 | 2 | 3 | 4 | 5,
-        landCount: prefill.landCount,
-        collectionMode: prefill.collectionMode,
-        // Explicitly undefined for pre-feature decks: a lingering roll from an
-        // unrelated session must not leak into this regenerate.
+        // Regenerate supplies these; a combo seed doesn't and must keep the
+        // page's defaults, so each is written only when actually present.
+        ...(prefill.targetBracket !== undefined && {
+          targetBracket: prefill.targetBracket as 'all' | 1 | 2 | 3 | 4 | 5,
+        }),
+        ...(prefill.landCount !== undefined && { landCount: prefill.landCount }),
+        ...(prefill.collectionMode !== undefined && { collectionMode: prefill.collectionMode }),
+        ...(prefill.mustIncludeCards?.length ? { mustIncludeCards: prefill.mustIncludeCards } : {}),
+        // Always written, even as undefined: for pre-feature decks a lingering
+        // roll from an unrelated session must not leak into this regenerate.
         varietySeed: prefill.varietySeed,
       });
     }
