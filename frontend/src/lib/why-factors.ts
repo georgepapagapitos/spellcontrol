@@ -534,3 +534,19 @@ export function buildCutFactors(s: CutSignals): WhyFactor[] {
   }
   return out;
 }
+
+/**
+ * E222: the cardFit misfit cascade → factors for a Cuts-lane row.
+ *
+ * Uses each reason's `detail`, not its `label`: the label restates the raw
+ * number the row already renders ("Played in 2% of decklists"), while the
+ * detail is the interpretation that earns a factor slot ("Below the inclusion
+ * floor (5%)"). That's rule 2 in this file's header.
+ *
+ * Tone is `pro` throughout — on a CUT row, evidence the card doesn't fit is a
+ * reason to take the suggested action, matching how `buildCutFactors` tags
+ * "Lightly played here".
+ */
+export function buildMisfitFactors(reasons: { label: string; detail: string }[]): WhyFactor[] {
+  return reasons.map((r) => ({ text: r.detail, tone: 'pro' as const }));
+}
