@@ -433,6 +433,20 @@
   outline-offset: 2px;
 }
 
+/* `.sc-tabs` is a block-level flex container, so it stretches to whatever it
+   sits in. Inside the deck editor's panel that's the intended full-width strip,
+   but the collection combos page is a full-page surface — two short tabs were
+   rendering a boxed track running the entire viewport width. Hug the content
+   instead; max-width keeps the variant's horizontal scroll on narrow screens. */
+.combos-page-tabs {
+  width: fit-content;
+  max-width: 100%;
+  /* .deck-combos-body is a flex COLUMN, so its default align-items:stretch
+     would fight an auto width. Explicit rather than relying on fit-content
+     alone suppressing the stretch. */
+  align-self: flex-start;
+}
+
 /* ── Collection-view aside: host commanders + where the pieces live ──────────
    Rendered only via ComboRow's `aside` slot, which the collection combos page
    fills and the deck panel leaves empty — so these never apply on a deck. */

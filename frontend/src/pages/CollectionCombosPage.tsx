@@ -160,6 +160,7 @@ export function CollectionCombosPage() {
           <Tabs
             ariaLabel="Combo bucket"
             variant="scrollable"
+            className="combos-page-tabs"
             value={tab}
             onChange={setTab}
             tabs={[
