@@ -18,6 +18,7 @@ export type LogEntryKind =
   | 'mulligan'
   | 'shuffle'
   | 'scry'
+  | 'mill'
   | 'token'
   | 'tap-all'
   | 'resistance'
@@ -95,6 +96,29 @@ export function buildLogEntries(
 
     case 'MULLIGAN':
       return [{ turn, kind: 'mulligan', text: `Mulliganed to ${next.zones.hand.length}` }];
+
+    case 'RESOLVE_TOP': {
+      if (next === current) return []; // no-op (nothing resolvable in the lists)
+      // Milled count comes from the resulting state, so ids the reducer
+      // discarded (not in the library, or repeated) can't inflate it.
+      const milled = next.zones.graveyard.length - current.zones.graveyard.length;
+      if (action.mode === 'mill') {
+        return [{ turn, kind: 'mill', text: `Milled ${milled} card${milled === 1 ? '' : 's'}` }];
+      }
+      const looked = new Set([...action.top, ...(action.bottom ?? []), ...(action.graveyard ?? [])])
+        .size;
+      const kept = new Set(action.top).size;
+      const verb = action.mode === 'scry' ? 'Scried' : 'Surveilled';
+      const away =
+        action.mode === 'scry' ? `${looked - kept} to the bottom` : `${milled} to the graveyard`;
+      return [
+        {
+          turn,
+          kind: action.mode === 'surveil' ? 'mill' : 'scry',
+          text: looked > kept ? `${verb} ${looked} — ${away}` : `${verb} ${looked}`,
+        },
+      ];
+    }
 
     case 'MOVE_TO_BATTLEFIELD': {
       const loc = locate(current, action.cardId);

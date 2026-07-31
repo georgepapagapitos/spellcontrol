@@ -894,3 +894,71 @@ describe('SET_DESIGNATION', () => {
     expect(s.citysBlessing).toBe(false);
   });
 });
+
+describe('RESOLVE_TOP (scry / surveil / mill)', () => {
+  it('reorders the kept cards on top and sends the rest to the bottom', () => {
+    const s = init(20);
+    const [a, b, c] = s.zones.library;
+    const before = s.zones.library.length;
+    const next = applyAction(s, {
+      type: 'RESOLVE_TOP',
+      mode: 'scry',
+      top: [c.id, a.id],
+      bottom: [b.id],
+    });
+    expect(next.zones.library.slice(0, 2).map((x) => x.id)).toEqual([c.id, a.id]);
+    expect(next.zones.library.at(-1)!.id).toBe(b.id);
+    expect(next.zones.library).toHaveLength(before);
+    expect(next.zones.graveyard).toHaveLength(0);
+  });
+
+  it('mills into the graveyard in the given order', () => {
+    const s = init(20);
+    const [a, b] = s.zones.library;
+    const next = applyAction(s, {
+      type: 'RESOLVE_TOP',
+      mode: 'mill',
+      top: [],
+      graveyard: [a.id, b.id],
+    });
+    expect(next.zones.graveyard.map((x) => x.id)).toEqual([a.id, b.id]);
+    expect(next.zones.library.map((x) => x.id)).not.toContain(a.id);
+    expect(allCardIds(next)).toEqual(allCardIds(s));
+  });
+
+  it('ignores ids outside the library and never duplicates a card claimed twice', () => {
+    const s = init(20);
+    const [a] = s.zones.library;
+    const handCard = s.zones.hand[0];
+    const next = applyAction(s, {
+      type: 'RESOLVE_TOP',
+      mode: 'surveil',
+      top: [a.id, 'nope', handCard.id],
+      graveyard: [a.id],
+    });
+    expect(next.zones.library[0].id).toBe(a.id);
+    expect(next.zones.graveyard).toHaveLength(0);
+    expect(next.zones.hand.map((x) => x.id)).toContain(handCard.id);
+    expect(allCardIds(next)).toEqual(allCardIds(s));
+  });
+
+  it('is a no-op (no history push) when nothing resolvable was passed', () => {
+    const s = init(20);
+    expect(applyAction(s, { type: 'RESOLVE_TOP', mode: 'scry', top: ['nope'] })).toBe(s);
+  });
+
+  it('pushes exactly one undo entry that restores the prior library', () => {
+    const s = applyAction(init(20), { type: 'DRAW', n: 1 });
+    const [a, b] = s.zones.library;
+    const next = applyAction(s, {
+      type: 'RESOLVE_TOP',
+      mode: 'mill',
+      top: [a.id],
+      graveyard: [b.id],
+    });
+    expect(next.past).toHaveLength(s.past.length + 1);
+    const undone = applyAction(next, { type: 'UNDO' });
+    expect(undone.zones.library.map((x) => x.id)).toEqual(s.zones.library.map((x) => x.id));
+    expect(undone.zones.graveyard).toEqual(s.zones.graveyard);
+  });
+});

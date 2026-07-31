@@ -412,11 +412,12 @@ describe('game log (E140 + E142)', () => {
     expect(log[2].text).toBe(store().lastResistanceEvent!.message);
   });
 
-  it('logScryPeek appends a scry entry at the current turn', () => {
-    store().init('deck-1', { library: threatLibrary(3), seed: 42 });
-    store().logScryPeek();
+  it('a resolved scry logs what was kept and what went to the bottom', () => {
+    store().init('deck-1', { library: threatLibrary(12), seed: 42 });
+    const [a, b] = store().state!.zones.library;
+    store().dispatch({ type: 'RESOLVE_TOP', mode: 'scry', top: [a.id], bottom: [b.id] });
     expect(store().gameLog).toEqual([
-      { seq: 1, turn: 1, kind: 'scry', text: 'Peeked at the top of the library' },
+      { seq: 1, turn: 1, kind: 'scry', text: 'Scried 2 — 1 to the bottom' },
     ]);
   });
 
