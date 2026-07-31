@@ -153,9 +153,6 @@ interface PlaytestStore {
   /** Restore a previously-saved session in place of `init` (E137 resume). */
   hydrate(deckId: string, snapshot: PlaytestSnapshot): void;
   dispatch(action: PlaytestAction): void;
-  /** Log a scry/peek (opening the top-of-library viewer) — not a reducer
-   *  action, so it doesn't flow through `dispatch`. */
-  logScryPeek(): void;
   /** Switch difficulty (or turn it off); persists the choice as the device's
    *  "last used" preference and appends a game-log entry when armed. */
   setResistanceLevel(level: ResistanceLevel): void;
@@ -386,15 +383,6 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
         lastSessionRecord: defeatCapture.record,
         lastSessionAggregates: defeatCapture.aggregates,
       }),
-    });
-  },
-  logScryPeek() {
-    const { state, gameLog } = get();
-    if (!state) return;
-    set({
-      gameLog: appendLogEntries(gameLog, [
-        { turn: state.turn, kind: 'scry', text: 'Peeked at the top of the library' },
-      ]),
     });
   },
   setResistanceLevel(level) {
