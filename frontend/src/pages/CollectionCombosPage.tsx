@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ComboMatch } from '../types/combos';
 import { useCollectionStore } from '../store/collection';
 import { useAuth } from '../store/auth';
 import { getSyncState, onSyncedChange } from '../lib/sync';
@@ -7,11 +8,15 @@ import { useDeckCombos } from '../lib/use-deck-combos';
 import { BrandMark } from '../components/shared/BrandMark';
 import { CardPreview } from '../components/CardPreview';
 import { Tabs } from '../components/Tabs';
+import { SearchPill } from '../components/SearchPill';
+import { ComboFiltersPopover } from '../components/ComboFiltersPopover';
 import { ComboRow } from '../components/deck/ComboRow';
 import { ComboCollectionAside } from '../components/deck/ComboCollectionAside';
 import { useComboPreview } from '../components/deck/use-combo-preview';
+import { useDebouncedValue } from '../lib/use-debounced-value';
 import { buildCardLocationIndex } from '../lib/card-locations';
 import { commandersForIdentity, ownedCommanders } from '../lib/combo-hosts';
+import { emptyComboFilters, filterCombos, countActiveFilters } from '../lib/combo-filters';
 
 type Tab = 'complete' | 'oneAway';
 
@@ -71,11 +76,37 @@ export function CollectionCombosPage() {
     format: 'commander',
   });
 
-  const complete = data?.inDeck ?? [];
-  const oneAway = data?.almostInCollection ?? [];
+  const rawComplete = data?.inDeck ?? [];
+  const rawOneAway = data?.almostInCollection ?? [];
+
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 200);
+  const [filters, setFilters] = useState(emptyComboFilters);
+
+  // A combo is hostable if any owned commander's identity covers it — the same
+  // derivation the per-row aside shows, reused as a filter predicate.
+  const canHost = useCallback(
+    (m: ComboMatch) => commandersForIdentity(commanders, m.combo.identity).length > 0,
+    [commanders]
+  );
+
+  const opts = useMemo(() => ({ search: debouncedSearch, canHost }), [debouncedSearch, canHost]);
+  const complete = useMemo(
+    () => filterCombos(rawComplete, filters, opts),
+    [rawComplete, filters, opts]
+  );
+  const oneAway = useMemo(
+    () => filterCombos(rawOneAway, filters, opts),
+    [rawOneAway, filters, opts]
+  );
 
   const [tab, setTab] = useState<Tab>('complete');
   const matches = tab === 'complete' ? complete : oneAway;
+
+  // Distinguishes "you own no combos" from "your filters hid them all" — the
+  // empty state has to say which, or it reads as a broken page.
+  const narrowed = debouncedSearch.trim().length > 0 || countActiveFilters(filters) > 0;
+  const rawTotal = rawComplete.length + rawOneAway.length;
 
   const hasCollection = ownedOracleIds.length > 0;
   const loadingCollection =
@@ -105,6 +136,24 @@ export function CollectionCombosPage() {
           </p>
         </div>
       </header>
+
+      {rawTotal > 0 && (
+        <div className="combos-search-row">
+          <SearchPill
+            value={search}
+            onChange={setSearch}
+            placeholder="Search combos"
+            ariaLabel="Search combos by card name or result"
+            trailing={
+              <ComboFiltersPopover
+                filters={filters}
+                setFilters={setFilters}
+                hasCommanders={commanders.length > 0}
+              />
+            }
+          />
+        </div>
+      )}
 
       <div className="deck-combos-panel is-embedded" role="region" aria-label="Collection combos">
         <div className="deck-combos-body">
@@ -141,6 +190,24 @@ export function CollectionCombosPage() {
             <div className="deck-combos-empty">
               {!hasCollection ? (
                 <p>Add cards to your collection to see which combos you can already build.</p>
+              ) : narrowed ? (
+                // The collection DOES have matches — the search/filters hid
+                // them. Saying "no combos" here would read as a broken page.
+                <>
+                  <p>No combos match your search and filters.</p>
+                  <p className="deck-combos-empty-secondary">
+                    <button
+                      type="button"
+                      className="btn-link"
+                      onClick={() => {
+                        setSearch('');
+                        setFilters(emptyComboFilters());
+                      }}
+                    >
+                      Clear search and filters
+                    </button>
+                  </p>
+                </>
               ) : tab === 'complete' ? (
                 <>
                   <p>No combos you can build outright yet.</p>
