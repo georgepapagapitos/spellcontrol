@@ -6,7 +6,9 @@ import { rateLimit } from 'express-rate-limit';
 import multer from 'multer';
 import path from 'path';
 import { existsSync } from 'fs';
+import { gzip } from 'node:zlib';
 import { DB_PATH, getScryfallCache, pickEurForFinish, pickUsdForFinish } from './scryfall-cache';
+import { resolveOracleFacts, ORACLE_REQUEST_LIMIT, type OracleRequest } from './oracle-facts';
 import { closeDb, ensureSchema } from './db';
 import { promoteAdminsAtBoot } from './admin/bootstrap';
 import { authRouter } from './routes/auth';
@@ -198,6 +200,55 @@ app.post('/api/cards/oracle-ids', priceLimiter, (req: Request, res: Response) =>
     if (card?.oracle_id) oracleIds[id] = card.oracle_id;
   }
   res.json({ oracleIds });
+});
+
+/**
+ * Bulk oracle facts by name — the collection-scale read behind cube generation.
+ * See `oracle-facts.ts` for why this exists and what it deliberately omits.
+ *
+ * Gzipped by hand (node:zlib, the same thing `offline/bulk-cache` does) because
+ * there's no compression middleware in this app and a 10k-card answer is worth
+ * ~4x on the wire. Not worth a new dependency.
+ */
+app.post('/api/cards/oracle-facts', priceLimiter, async (req: Request, res: Response) => {
+  const raw = (req.body && (req.body as { cards?: unknown }).cards) as unknown;
+  if (!Array.isArray(raw)) {
+    return res
+      .status(400)
+      .json({ error: 'Body must be { cards: Array<{ name: string, scryfallId?: string }> }.' });
+  }
+
+  const requests: OracleRequest[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') continue;
+    const { name, scryfallId } = entry as { name?: unknown; scryfallId?: unknown };
+    if (typeof name !== 'string' || !name) continue;
+    requests.push({
+      name,
+      scryfallId: typeof scryfallId === 'string' && scryfallId ? scryfallId : undefined,
+    });
+    if (requests.length >= ORACLE_REQUEST_LIMIT) break;
+  }
+
+  try {
+    const cards = await resolveOracleFacts(requests, cache);
+    const body = Buffer.from(JSON.stringify({ cards }), 'utf-8');
+    gzip(body, (err, gzipped) => {
+      if (err) {
+        logger.warn('[oracle-facts] gzip failed, sending uncompressed:', err);
+        return res.type('application/json').send(body);
+      }
+      res
+        .set({
+          'Content-Type': 'application/json; charset=utf-8',
+          'Content-Encoding': 'gzip',
+        })
+        .send(gzipped);
+    });
+  } catch (err) {
+    logger.error('[oracle-facts] failed:', err);
+    res.status(502).json({ error: 'Failed to resolve card data.' });
+  }
 });
 
 /**

@@ -8,6 +8,7 @@ import { useCubeStore } from '../../store/cube';
 import { useAuth } from '../../store/auth';
 import { buildAvailableCollection } from '../../lib/collection-availability';
 import { getCardsByNames } from '../../deck-builder/services/scryfall/client';
+import { fetchCubeOracle } from '../../lib/cube/oracle';
 import { loadTaggerData } from '../../deck-builder/services/tagger/client';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
@@ -121,6 +122,9 @@ export function CollabCube() {
     setFetchProgress(null);
     setFailedFriends([]);
     setCube(null);
+    // Drop the previous run's preview art so the picks effect refires for the
+    // NEW picks — it's gated on an empty map.
+    setEnrichedMap(new Map());
 
     try {
       // Fetch selected friends' collections concurrently; don't abort on one failure.
@@ -155,11 +159,13 @@ export function CollabCube() {
         for (const fc of cards) if (fc.name) allNames.add(fc.name);
       }
 
-      const enriched = await getCardsByNames([...allNames], (fetched, total) => {
+      // Oracle facts for the merged pool (my collection + friends') come from
+      // our own cache-backed endpoint — see fetchCubeOracle. Card art for the
+      // picks is fetched afterwards by the effect below.
+      const enriched = await fetchCubeOracle([...allNames], collectionCards, (fetched, total) => {
         setFetchProgress({ fetched, total });
       });
       setFetchProgress(null);
-      setEnrichedMap(enriched);
 
       // Build my CubeCard pool from my collection.
       const myPool = namesToCubePool(myUniqueNames, collectionCards, enriched);
@@ -203,6 +209,21 @@ export function CollabCube() {
       tone: 'success',
     });
   }, [cube, pushToast]);
+
+  // Card art/printing details for the picks — the only Scryfall call this flow
+  // makes, a few hundred names rather than every card in the merged pool.
+  // Mirrors BuildCube's picks effect.
+  useEffect(() => {
+    if (cube === null || enrichedMap.size > 0) return;
+    let cancelled = false;
+    const names = [...new Set(cube.picks.map((p) => p.card.name))];
+    getCardsByNames(names).then((enriched) => {
+      if (!cancelled) setEnrichedMap(enriched);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [cube, enrichedMap.size]);
 
   // Build the flat allPicks for the preview carousel. Must be before early return.
   const allPicks = useMemo(() => cube?.picks ?? [], [cube]);
