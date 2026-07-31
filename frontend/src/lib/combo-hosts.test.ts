@@ -64,4 +64,15 @@ describe('commandersForIdentity', () => {
     expect(commandersForIdentity([unknown], 'u')).toEqual([]);
     expect(commandersForIdentity([unknown], 'c')).toHaveLength(1);
   });
+
+  it('ranks a tighter colour-identity match ahead of an alphabetically-earlier loose one', () => {
+    // Both trivially host a UB combo. Aardvark is 5-colour and alphabetically
+    // first; Kess is UBR (3-colour, tighter). Kess must rank first.
+    const aardvark = card({
+      name: 'Aardvark, Broad Ruler',
+      colorIdentity: ['W', 'U', 'B', 'R', 'G'],
+    });
+    const result = commandersForIdentity([aardvark, kess], 'ub');
+    expect(result.map((c) => c.name)).toEqual(['Kess, Dissident Mage', 'Aardvark, Broad Ruler']);
+  });
 });
