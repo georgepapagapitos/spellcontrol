@@ -72,6 +72,12 @@ interface CardRowProps {
   /** While a price refresh is in flight and this card has no price yet, the
    *  price slot shows a same-size shimmer instead of a misleading $0. */
   pricePending?: boolean;
+  /**
+   * What the price slot's number means on this surface. Owned copies carry the
+   * cost recorded at import (the default); a list's rows are unowned printing
+   * references priced from Scryfall, so that surface says so instead.
+   */
+  priceTitle?: string;
   /** Extra chip after the name badges — e.g. Lists' "Owned" indicator. */
   ownedBadge?: ReactNode;
   /** Lists' inline target-price editor (E163) — undefined everywhere else. */
@@ -101,6 +107,7 @@ export function CardRow({
   selectMode = false,
   selected = false,
   pricePending = false,
+  priceTitle = 'Purchase cost recorded at import',
   ownedBadge,
   targetPriceSlot,
 }: CardRowProps) {
@@ -192,7 +199,7 @@ export function CardRow({
         </div>
         <div
           className="collection-list-price"
-          title={pricePending ? 'Updating price…' : 'Purchase cost recorded at import'}
+          title={pricePending ? 'Updating price…' : priceTitle}
         >
           {pricePending ? (
             <span className="collection-list-price-pending" aria-label="Price updating">

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { LayoutList, AlignJustify, LayoutGrid, Search } from 'lucide-react';
+import { LayoutList, AlignJustify, Captions, LayoutGrid, Search } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type {
   BinderFilter,
@@ -27,11 +27,18 @@ import { ViewModeToggle } from './ViewModeToggle';
 import { Legend } from './Legend';
 import { SortDirArrow } from './SortDirArrow';
 import { CardRow } from './shared/CardRow';
+import {
+  CardGridCell,
+  GridCaptionList,
+  gridSetLabel,
+  useGridCaptionPrefs,
+} from './shared/CardGridCell';
+import { ToolbarPopover } from './shared/ToolbarPopover';
 import { CardPreview } from './CardPreview';
 import { OverflowMenu } from './OverflowMenu';
 import { InlineCardSearch } from './InlineCardSearch';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
-import { useCardThumb } from '../lib/card-thumbs';
+import { formatMoney } from '../lib/format-money';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ListEntryTargetPrice } from './ListEntryTargetPrice';
 import { VerdictBadge } from './deck/VerdictBadge';
@@ -147,56 +154,10 @@ function SkeletonGrid({ count, style }: { count: number; style?: React.CSSProper
       {Array.from({ length: count }, (_, i) => (
         <div
           key={i}
-          className="list-entries-grid-cell list-entries-grid-cell--skeleton"
+          className="collection-grid-item list-entries-grid-cell--skeleton"
           aria-hidden
         />
       ))}
-    </div>
-  );
-}
-
-/** A single card tile in the grid. Uses the CDN-backed `useCardThumb` hook
- *  (never the rate-limited Scryfall API directly). Clicking opens the preview. */
-function ListEntryGridCell({
-  name,
-  imageUrl,
-  qty,
-  onActivate,
-}: {
-  name: string;
-  /** The row card's own art (exact printing) — the name-keyed thumb is only a
-   *  fallback, since it resolves to Scryfall's default printing. */
-  imageUrl?: string;
-  qty: number;
-  onActivate: () => void;
-}) {
-  const thumb = useCardThumb(imageUrl ? undefined : name, 'normal');
-  const url = imageUrl ?? thumb;
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="list-entries-grid-cell"
-      aria-label={`${name}${qty > 1 ? `, quantity ${qty}` : ''}`}
-      onClick={onActivate}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onActivate();
-        }
-      }}
-    >
-      {url ? (
-        <img src={url} alt={name} loading="lazy" className="list-entries-grid-img" />
-      ) : (
-        <div className="list-entries-grid-placeholder">{name}</div>
-      )}
-      {qty > 1 && (
-        <span className="list-entries-grid-qty" aria-hidden>
-          <span className="list-entries-grid-qty-x">×</span>
-          {qty}
-        </span>
-      )}
     </div>
   );
 }
@@ -243,6 +204,9 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
   const [sortKey, setSortKey] = useState<SortField>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [view, setView] = useState<'list' | 'compact' | 'grid'>('list');
+  // Grid caption prefs are shared with the collection grid (one key, one set
+  // of toggles) — a list tile carries the same price + set lines by default.
+  const [captionPrefs, setCaptionPrefs] = useGridCaptionPrefs();
   const [gridZoom, setGridZoomRaw] = useState(() => readStoredZoom(GRID_SIZE_KEY));
   const setGridZoom = (z: number) => {
     setGridZoomRaw(z);
@@ -490,6 +454,17 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
     }
   };
 
+  // Grid caption line 1 — echoes the active sort key's value so any ordering
+  // is legible in grid view. Lists have no import/edit timestamps, so it's
+  // rank for the EDHREC sort and the card's market price otherwise (pinned
+  // USD, matching the price sort and the list rows).
+  const captionFor = (r: EnrichedListRow): string => {
+    if (sortKey === 'edhrec') {
+      return r.card.edhrecRank != null ? `#${r.card.edhrecRank.toLocaleString('en-US')}` : '—';
+    }
+    return formatMoney(r.card.purchasePrice, { currency: 'USD', zeroAsDash: true });
+  };
+
   const handleEditConfirm = (sel: PrintingSelection) => {
     if (!editing) return;
     void updateListEntry(list.id, editing.id, {
@@ -672,6 +647,18 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
               onChange={setGridZoom}
             />
           )}
+          {/* Same caption toggles as the collection's grid, and the same
+              ≤640px gate — a phone toolbar can't afford another pill, and the
+              captions still render (the prefs are shared, set in either
+              surface). */}
+          {view === 'grid' && !isNarrow && (
+            <ToolbarPopover
+              label="Details"
+              icon={<Captions width={14} height={14} strokeWidth={2} aria-hidden />}
+            >
+              {() => <GridCaptionList prefs={captionPrefs} onChange={setCaptionPrefs} />}
+            </ToolbarPopover>
+          )}
           {/* Lists reuses CardRow's collection glyph set (TypeIcon, FoilBadge,
               RarityBadge) — mount the Key at the trailing end of the toolbar so
               those glyphs are explained, same as collection/binder surfaces. */}
@@ -709,11 +696,13 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
           aria-label={`${list.name} cards`}
         >
           {sorted.map((r, i) => (
-            <ListEntryGridCell
+            <CardGridCell
               key={r.card.copyId}
-              name={r.card.name}
-              imageUrl={r.card.imageNormal}
+              card={r.card}
               qty={r.entry.quantity}
+              size={zoomBucket(effectiveZoom)}
+              caption={captionPrefs.sortValue ? captionFor(r) : null}
+              setLabel={gridSetLabel(r.card, captionPrefs)}
               onActivate={() => setPreviewIndex(i)}
             />
           ))}
@@ -732,6 +721,7 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
               allocations={[]}
               onActivate={() => setPreviewIndex(i)}
               isLastRow={i === sorted.length - 1}
+              priceTitle="Market price for this printing"
               menu={dynamic ? undefined : rowMenu(r.entry)}
               ownedBadge={dynamic ? undefined : ownedBadge(r.entry)}
               targetPriceSlot={
