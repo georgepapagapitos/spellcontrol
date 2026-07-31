@@ -108,6 +108,11 @@ export function PlaytestBoard({ state }: Props) {
   const [showResistancePicker, setShowResistancePicker] = useState(false);
   const [showDesignations, setShowDesignations] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  // Battlefield selection + copy buffer (E226). Deliberately UI state, not
+  // reducer state: selecting a card isn't a game action and must never land
+  // on the 50-deep undo stack.
+  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+  const [clipboard, setClipboard] = useState<readonly string[]>([]);
   const [lifePanelOpen, setLifePanelOpen] = useState(false);
   // Banner dismissal is tracked by event id so a new opponent response (even
   // with an identical message) re-shows and re-announces the banner.
@@ -195,8 +200,46 @@ export function PlaytestBoard({ state }: Props) {
   // Battlefield passes them straight through to every card's
   // React.memo(PlaytestCardView), and a fresh identity here would defeat
   // that memo for the whole battlefield on every dispatch.
+  // Modifier-click builds a selection; a plain click is still the tap gesture
+  // and drops any selection, so nothing lingers invisibly after you move on.
   const handleCardClick = useCallback(
-    (cardId: string) => dispatch({ type: 'TAP', cardId }),
+    (cardId: string, e: React.MouseEvent | React.KeyboardEvent) => {
+      if (e.shiftKey || e.metaKey || e.ctrlKey) {
+        setSelected((prev) => {
+          const next = new Set(prev);
+          if (!next.delete(cardId)) next.add(cardId);
+          return next;
+        });
+        return;
+      }
+      setSelected((prev) => (prev.size === 0 ? prev : new Set()));
+      dispatch({ type: 'TAP', cardId });
+    },
+    [dispatch]
+  );
+
+  const clearSelection = useCallback(
+    () => setSelected((prev) => (prev.size === 0 ? prev : new Set())),
+    []
+  );
+
+  /**
+   * Token-copy `sourceIds`, minting each clone's instance id here so the
+   * reducer stays pure. The clipboard then re-points at the clones it just
+   * made, which is what makes repeated pastes cascade across the battlefield
+   * instead of restacking on the same spot.
+   */
+  const cloneCards = useCallback(
+    (sourceIds: readonly string[]) => {
+      if (sourceIds.length === 0) return;
+      // Same id shape as TokenCreator's: wall-clock + entropy, so an id can't
+      // collide with one already in a resumed snapshot.
+      const batch = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const clones = sourceIds.map((sourceId, i) => ({ sourceId, id: `copy-${batch}-${i}` }));
+      dispatch({ type: 'CLONE_BF_CARDS', clones });
+      haptics.tap();
+      return clones.map((c) => c.id);
+    },
     [dispatch]
   );
 
@@ -300,8 +343,10 @@ export function PlaytestBoard({ state }: Props) {
   }, [tableDefeatedTurn, deck, fireSealMoment]);
 
   // Desktop keyboard shortcuts (Moxfield parity): D draw, N next turn, U untap
-  // all, Z / Ctrl+Z undo. Ignored while typing or while any sheet/modal/context
-  // menu is open; harmless if it never fires on touch.
+  // all, Z / Ctrl+Z undo, Ctrl/⌘+C / +V copy-paste the selection, Esc clears
+  // it. Ignored while typing or while any sheet/modal/context menu is open;
+  // harmless if it never fires on touch (the context menu's Duplicate is the
+  // keyboard-free path to the same clone).
   useEffect(() => {
     function isTypingTarget(target: EventTarget | null) {
       if (!(target instanceof HTMLElement)) return false;
@@ -312,6 +357,22 @@ export function PlaytestBoard({ state }: Props) {
     function onKeyDown(e: KeyboardEvent) {
       if (anySheetOpen || isTypingTarget(e.target)) return;
       const key = e.key.toLowerCase();
+      if (key === 'escape') {
+        clearSelection();
+        return;
+      }
+      if (e.ctrlKey || e.metaKey) {
+        // Only intercept when there's something to act on, so ⌘C over a real
+        // text selection elsewhere on the page still copies text.
+        if (key === 'c' && selected.size > 0) {
+          e.preventDefault();
+          setClipboard([...selected]);
+        } else if (key === 'v' && clipboard.length > 0) {
+          e.preventDefault();
+          const made = cloneCards(clipboard);
+          if (made) setClipboard(made);
+        }
+      }
       if (key === 'z') {
         e.preventDefault();
         if (canUndo) dispatch({ type: 'UNDO' });
@@ -332,7 +393,16 @@ export function PlaytestBoard({ state }: Props) {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [anySheetOpen, canUndo, dispatch, state.zones.library.length]);
+  }, [
+    anySheetOpen,
+    canUndo,
+    dispatch,
+    state.zones.library.length,
+    selected,
+    clipboard,
+    cloneCards,
+    clearSelection,
+  ]);
 
   return (
     <div className={`playtest-board${isNarrow ? ' playtest-board--narrow' : ''}`}>
@@ -446,10 +516,40 @@ export function PlaytestBoard({ state }: Props) {
           <div ref={battlefieldRef} className="playtest-battlefield-wrap">
             <Battlefield
               cards={state.battlefield}
+              selectedIds={selected}
+              onBackgroundClick={clearSelection}
               onCardClick={handleCardClick}
               onCardContextMenu={handleCardContext}
               onCardLongPress={isNarrow ? handleCardLongPress : undefined}
             />
+            {/* Selection readout. Renders nothing at all when nothing is selected,
+            so it never displaces the board — and a selection can only exist on a
+            device with modifier keys, which is exactly where the shortcuts it
+            names are usable. */}
+            {selected.size > 0 && (
+              <div className="playtest-selection" role="status">
+                <span className="playtest-selection__count">
+                  {selected.size} selected
+                  {clipboard.length > 0 && ` · ${clipboard.length} copied`}
+                </span>
+                <button type="button" onClick={() => setClipboard([...selected])}>
+                  Copy <kbd>⌘C</kbd>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const made = cloneCards(clipboard);
+                    if (made) setClipboard(made);
+                  }}
+                  disabled={clipboard.length === 0}
+                >
+                  Paste <kbd>⌘V</kbd>
+                </button>
+                <button type="button" onClick={clearSelection}>
+                  Clear <kbd>Esc</kbd>
+                </button>
+              </div>
+            )}
           </div>
           {!isNarrow && (
             <aside className="playtest-piles">
@@ -550,6 +650,13 @@ export function PlaytestBoard({ state }: Props) {
           }}
           onTransform={() => {
             dispatch({ type: 'TRANSFORM', cardId: ctx.cardId });
+            setCtx(null);
+          }}
+          // Acting on a card that's part of the live selection copies the
+          // whole selection — otherwise just the card you opened the menu on.
+          selectionSize={selected.has(ctx.cardId) ? selected.size : 1}
+          onDuplicate={() => {
+            cloneCards(selected.has(ctx.cardId) ? [...selected] : [ctx.cardId]);
             setCtx(null);
           }}
           onAddCounter={(k) =>

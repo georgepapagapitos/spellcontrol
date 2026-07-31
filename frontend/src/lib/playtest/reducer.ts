@@ -14,6 +14,9 @@ const DEFAULT_OPENING_HAND = 7;
 const MAX_UNDO_STACK = 50;
 const MAX_STICKERS_PER_CARD = 8;
 const MAX_STICKER_LENGTH = 30;
+/** Unitless x/y step between a clone and its source — the same coordinate
+ *  space `MOVE_TO_BATTLEFIELD` uses, which the UI maps to pixels 1:1. */
+const CLONE_OFFSET = 18;
 const ZONES: Zone[] = ['library', 'hand', 'graveyard', 'exile', 'command'];
 
 function emptyZones(): Record<Zone, PlaytestCard[]> {
@@ -361,6 +364,33 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         x: action.x,
         y: action.y,
       });
+      return withHistory(state, next);
+    }
+    case 'CLONE_BF_CARDS': {
+      const added: BattlefieldCard[] = [];
+      for (const { sourceId, id } of action.clones) {
+        const src = state.battlefield.find((b) => b.card.id === sourceId);
+        if (!src) continue;
+        // Cascade within the paste so a multi-card group fans out instead of
+        // landing as one indistinguishable stack. Successive pastes cascade
+        // too — the UI re-points its clipboard at the clones it just made.
+        const step = CLONE_OFFSET * (added.length + 1);
+        added.push({
+          card: { ...src.card, id, isToken: true },
+          tapped: false,
+          faceDown: false,
+          // The one piece of "which face" state that IS copiable: a copy of a
+          // transformed permanent copies the face it's showing (rule 707.8).
+          showBackFace: src.showBackFace,
+          counters: {},
+          stickers: [],
+          x: src.x + step,
+          y: src.y + step,
+        });
+      }
+      if (added.length === 0) return state;
+      const next = snapshot(state);
+      next.battlefield = next.battlefield.concat(added);
       return withHistory(state, next);
     }
     case 'FLIP_FACE': {

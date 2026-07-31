@@ -12,11 +12,15 @@ interface Props {
   // Battlefield's `.map`) can pass the same stable callback to every card
   // instead of allocating a fresh closure per card per render — that
   // closure-per-card churn is what breaks memo below.
-  onClick?: (cardId: string) => void;
+  onClick?: (cardId: string, e: React.MouseEvent | React.KeyboardEvent) => void;
   onContextMenu?: (cardId: string, e: React.MouseEvent) => void;
   onLongPress?: (cardId: string, clientX: number, clientY: number) => void;
   /** When true, positions the card absolutely using bf.x/bf.y. */
   positioned?: boolean;
+  /** Part of the current battlefield selection (E226 group copy). A plain
+   *  boolean rather than the whole set so `memo` only re-renders the cards
+   *  whose own selection actually changed. */
+  selected?: boolean;
   size?: 'sm' | 'md' | 'lg';
 }
 
@@ -28,6 +32,7 @@ export const PlaytestCardView = memo(function PlaytestCardView({
   onContextMenu,
   onLongPress,
   positioned = false,
+  selected = false,
   size = 'md',
 }: Props) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -54,9 +59,9 @@ export const PlaytestCardView = memo(function PlaytestCardView({
     opacity: isDragging ? 0.4 : 1,
   };
 
-  const activate = () => {
+  const activate = (e: React.MouseEvent | React.KeyboardEvent) => {
     if (onLongPress && longPress.consumedClick()) return;
-    onClick?.(card.id);
+    onClick?.(card.id, e);
   };
 
   return (
@@ -68,6 +73,7 @@ export const PlaytestCardView = memo(function PlaytestCardView({
       style={style}
       {...attributes}
       {...listeners}
+      className={selected ? 'playtest-card--selected' : undefined}
       onClick={activate}
       onKeyDown={(e) => {
         // Same activation as a click — overrides dnd-kit's own keyboard-sensor
@@ -75,7 +81,7 @@ export const PlaytestCardView = memo(function PlaytestCardView({
         // affordance) with the far more useful "tap/play this card" a11y path.
         if (e.key !== 'Enter' && e.key !== ' ') return;
         e.preventDefault();
-        activate();
+        activate(e);
       }}
       onContextMenu={onContextMenu ? (e) => onContextMenu(card.id, e) : undefined}
       onTouchStart={onLongPress ? longPress.onTouchStart : undefined}
@@ -85,6 +91,7 @@ export const PlaytestCardView = memo(function PlaytestCardView({
       role="button"
       tabIndex={0}
       aria-label={card.name}
+      aria-pressed={selected || undefined}
     />
   );
 });

@@ -136,6 +136,23 @@ export type PlaytestAction =
   | { type: 'ADD_STICKER'; cardId: string; text: string }
   | { type: 'REMOVE_STICKER'; cardId: string; index: number }
   | { type: 'CREATE_TOKEN'; card: PlaytestCard; x: number; y: number }
+  | {
+      /** Token-copy one or more battlefield cards (the Ctrl+C / Ctrl+V group
+       *  clone, and the context menu's Duplicate). Copies are tokens — MTG
+       *  rule 707.2 — so they cease to exist when they leave the battlefield,
+       *  which `MOVE_TO_ZONE` already handles.
+       *
+       *  Only printed characteristics are copied: counters, stickers, tapped
+       *  and face-down state are not (rule 707.2 again — a copy has none of
+       *  the original's non-copiable state). Each clone lands at its source's
+       *  position plus a cascading offset so a pasted group never hides
+       *  underneath the originals.
+       *
+       *  The caller supplies the new instance ids so the reducer stays pure;
+       *  sources that aren't on the battlefield are skipped. */
+      type: 'CLONE_BF_CARDS';
+      clones: Array<{ sourceId: string; id: string }>;
+    }
   | { type: 'FLIP_FACE'; cardId: string }
   | { type: 'TRANSFORM'; cardId: string }
   | {
