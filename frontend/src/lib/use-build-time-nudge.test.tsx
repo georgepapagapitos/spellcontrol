@@ -45,7 +45,7 @@ function makeDeck(over: Partial<Deck> = {}): Deck {
 }
 
 function combos(over: Partial<ComboMatchResponse> = {}): ComboMatchResponse {
-  return { inDeck: [], oneAway: [], almostInCollection: [], ...over };
+  return { inDeck: [], oneAway: [], almostInCollection: [], source: 'local', ...over };
 }
 
 function args(over: Partial<Parameters<typeof useBuildTimeNudge>[0]> = {}) {

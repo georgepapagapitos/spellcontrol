@@ -44,6 +44,15 @@ export interface ComboMatchResponse {
   inDeck: ComboMatch[];
   oneAway: ComboMatch[];
   almostInCollection: ComboMatch[];
+  /**
+   * Which matcher produced this result. `'local'` ran against the full
+   * device-cached dataset (the ground truth). `'server'` means the client-side
+   * cache couldn't be used, so this went through `/api/combos/match` instead —
+   * which caps candidates at 2000 for memory safety and can under-report a
+   * large collection's combos. Surfaces so a truncated answer isn't presented
+   * as final (E212).
+   */
+  source: 'local' | 'server';
 }
 
 export interface ComboDetail {

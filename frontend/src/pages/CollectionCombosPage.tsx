@@ -76,11 +76,17 @@ export function CollectionCombosPage() {
     [collection, binders]
   );
 
-  const { data, loading, error } = useDeckCombos({
+  const { data, loading, error, refetch } = useDeckCombos({
     deckOracleIds: [],
     ownedOracleIds,
     format: 'commander',
   });
+
+  // E212: `source: 'server'` means the device-local combo dataset couldn't be
+  // cached, so this went through the server matcher instead — which caps
+  // candidates at 2000 for memory safety and can under-report a collection
+  // this size. Never present that silently as the final answer.
+  const partial = data?.source === 'server';
 
   // Memoized because the `?? []` fallback would otherwise mint a fresh array
   // identity every render, invalidating every downstream filter memo.
@@ -166,6 +172,18 @@ export function CollectionCombosPage() {
           </p>
         </div>
       </header>
+
+      {partial && (
+        <div className="deck-combos-partial-banner" role="status" aria-live="polite">
+          <span>
+            Showing partial results — your device couldn&rsquo;t load the full combo dataset, so
+            some combos may be missing.
+          </span>
+          <button type="button" className="btn-link" onClick={refetch} disabled={loading}>
+            {loading ? 'Retrying…' : 'Retry'}
+          </button>
+        </div>
+      )}
 
       {rawTotal > 0 && (
         <div className="combos-search-row">

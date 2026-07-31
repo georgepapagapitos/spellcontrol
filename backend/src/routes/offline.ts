@@ -118,6 +118,25 @@ offlineRouter.get('/combos', bulkLimiter, async (req: Request, res: Response) =>
 });
 
 /**
+ * Combos-only version check, independent of oracle-bulk readiness. `/manifest`
+ * 503s until the (unrelated) Scryfall oracle bulk finishes its 30-60s rebuild
+ * after every deploy — but the combo dataset is Postgres-backed and ready the
+ * whole time. `ensure-combos.ts` polls this instead so a cold combo cache
+ * doesn't silently fall back to the capped server matcher during that window
+ * (E212 — that fallback was measured showing 14% of a real collection's combos).
+ */
+offlineRouter.get('/combos-version', async (_req: Request, res: Response) => {
+  try {
+    const combos = await getCombosBulk();
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json({ combosVersion: combos.version });
+  } catch (err) {
+    logger.error('[offline] combos-version failed:', err);
+    res.status(503).json({ error: 'Offline combos bulk not yet available.' });
+  }
+});
+
+/**
  * Admin-only manual refresh of the oracle bulk. The combos bulk follows the
  * existing nightly combo ingest, so no manual trigger is exposed here.
  */

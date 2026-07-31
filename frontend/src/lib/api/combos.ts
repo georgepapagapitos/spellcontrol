@@ -34,17 +34,23 @@ export async function matchCombos(req: MatchRequest): Promise<ComboMatchResponse
   // server endpoint when the dataset can't be cached (e.g. offline + empty
   // cache on first run) — for a logged-in user that still works.
   if (await ensureCombosCached()) {
-    return matchCombosLocal({
+    const local = await matchCombosLocal({
       ownedOracleIds: req.ownedOracleIds,
       deckOracleIds: req.deckOracleIds,
       format: req.format,
     });
+    return { ...local, source: 'local' };
   }
-  return fetchJson<ComboMatchResponse>('/api/combos/match', {
+  // Fallback path — device-local cache couldn't be used. `/api/combos/match`
+  // caps candidates at 2000 for memory safety (see MAX_CANDIDATE_COMBOS), so
+  // this can under-report a large collection. Tag it so callers don't present
+  // it as a complete answer (E212).
+  const server = await fetchJson<Omit<ComboMatchResponse, 'source'>>('/api/combos/match', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   });
+  return { ...server, source: 'server' };
 }
 
 export async function getCombo(id: string): Promise<ComboDetail> {
