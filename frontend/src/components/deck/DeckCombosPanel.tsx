@@ -3,6 +3,7 @@ import { CheckCircle2, ChevronDown, ChevronUp, Circle, Sparkles } from 'lucide-r
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
 import { useCollapsedPref } from '../../lib/use-collapsed-pref';
+import { useComboPreview } from './use-combo-preview';
 import { buildCardImageIndex, buildCardIndex } from '../../lib/deck-card-index';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
@@ -14,9 +15,7 @@ import {
   useEdhrecComboOverlay,
   type EdhrecComboStat,
 } from '../../lib/edhrec-combo-overlay';
-import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
-import type { EnrichedCard } from '../../types';
-import type { ComboMatch, ComboCardRef } from '../../types/combos';
+import type { ComboMatch } from '../../types/combos';
 import { CardPreview } from '../CardPreview';
 import { Tabs } from '../Tabs';
 import { ComboRow } from './ComboRow';
@@ -72,43 +71,8 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
 
   const cardIndex = useMemo(() => buildCardIndex(collection, deck), [collection, deck]);
 
-  // ── Combo card preview state ────────────────────────────────────────────
-  const [previewCards, setPreviewCards] = useState<EnrichedCard[] | null>(null);
-  const [previewIndex, setPreviewIndex] = useState(0);
-  const [previewComboTitle, setPreviewComboTitle] = useState('');
-
-  const resolveComboCard = useCallback(
-    (ref: ComboCardRef): EnrichedCard | null =>
-      cardIndex.byOracle.get(ref.oracleId) ??
-      cardIndex.byName.get(ref.cardName.toLowerCase()) ??
-      null,
-    [cardIndex]
-  );
-
-  const openComboPreview = useCallback(
-    async (combo: ComboCardRef[], tappedIndex: number) => {
-      // Try local resolution first; fall back to Scryfall fetch for any gaps.
-      const resolved: EnrichedCard[] = [];
-      for (const ref of combo) {
-        let card = resolveComboCard(ref);
-        if (!card) {
-          try {
-            const scryfall = await getCardByName(ref.cardName);
-            if (scryfall) card = scryfallToEnrichedCard(scryfall);
-          } catch {
-            /* leave null — skip this card in the carousel */
-          }
-        }
-        if (card) resolved.push(card);
-      }
-      if (resolved.length === 0) return;
-      // Clamp the tapped index in case a card couldn't be resolved.
-      setPreviewCards(resolved);
-      setPreviewIndex(Math.min(tappedIndex, resolved.length - 1));
-      setPreviewComboTitle(combo.map((c) => c.cardName).join(' + '));
-    },
-    [resolveComboCard]
-  );
+  // ── Combo card preview state (shared with the collection combos view) ────
+  const preview = useComboPreview(cardIndex);
 
   const [tab, setTab] = useState<Tab>('inDeck');
   // Default to collapsed: the panel is opt-in discovery — most deck-page loads
@@ -409,7 +373,7 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
                 cardImageIndex={cardImageIndex}
                 ownedOracleIds={ownedOracleIdSet}
                 onAddMissing={() => void handleAddMissing(match)}
-                onCardTap={(cardIndex) => void openComboPreview(match.combo.cards, cardIndex)}
+                onCardTap={(tapped) => void preview.open(match.combo.cards, tapped)}
               />
             ))}
           </ul>
@@ -420,19 +384,19 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
         </div>
       </div>
 
-      {previewCards && previewCards.length > 0 && (
+      {preview.cards && preview.cards.length > 0 && (
         <CardPreview
           source="suggestion"
           showRole
-          cards={previewCards}
-          index={previewIndex}
-          binderName={previewComboTitle}
-          sectionLabels={previewCards.map(() => 'Combo')}
-          pageNumbers={previewCards.map(() => 0)}
+          cards={preview.cards}
+          index={preview.index}
+          binderName={preview.title}
+          sectionLabels={preview.cards.map(() => 'Combo')}
+          pageNumbers={preview.cards.map(() => 0)}
           totalPages={1}
           currentDeckId={_deckId}
-          onIndexChange={setPreviewIndex}
-          onClose={() => setPreviewCards(null)}
+          onIndexChange={preview.setIndex}
+          onClose={preview.close}
         />
       )}
     </div>
