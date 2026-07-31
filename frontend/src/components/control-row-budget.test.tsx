@@ -53,7 +53,9 @@ vi.mock('./CardPreview', () => ({
 
 import { DeckDisplay, type DeckDisplayCard } from './deck/DeckDisplay';
 import { CardListTable } from './CardListTable';
+import { ListDetailView } from './ListDetailView';
 import { ShortcutRegistryProvider } from '../lib/shortcut-registry';
+import type { ListDef } from '../types';
 
 const STYLE_GUIDE_POINTER =
   'Per STYLE_GUIDE.md § "Toolbars & action rows" rule 2, new display-preference ' +
@@ -196,6 +198,39 @@ describe('control-row budget — collection toolbar (CardListTable)', () => {
       document.querySelector('.card-list-summary-actions'),
       5,
       'Collection toolbar with grouping active (.card-list-summary-actions)'
+    );
+  });
+});
+
+describe('control-row budget — list detail toolbar (ListDetailView)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    stubNarrowViewport(true);
+  });
+
+  const list: ListDef = {
+    id: 'list-1',
+    name: 'Test list',
+    entries: [],
+    createdAt: 0,
+    updatedAt: 0,
+  } as unknown as ListDef;
+
+  it('the ≤640px controls row stays within budget', () => {
+    const { container } = render(
+      <ShortcutRegistryProvider>
+        <MemoryRouter>
+          <ListDetailView list={list} rows={[]} loading={false} />
+        </MemoryRouter>
+      </ShortcutRegistryProvider>
+    );
+    // Lists carries the same display controls as the collection, so it folds
+    // them into the same shared "View" popover at this width rather than
+    // stacking layout + zoom + Details + key as inline pills.
+    assertControlBudget(
+      container.querySelector('.card-list-summary-actions'),
+      4,
+      'List detail toolbar (.card-list-summary-actions)'
     );
   });
 });
