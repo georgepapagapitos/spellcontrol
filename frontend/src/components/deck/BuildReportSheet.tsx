@@ -5,7 +5,7 @@ import { useSheetExit } from '@/lib/use-sheet-exit';
 import { useCardThumb } from '@/lib/card-thumbs';
 import { BuildReportPanel } from './BuildReportPanel';
 import type { BuildReport } from '@/deck-builder/types';
-import type { ComboMatch } from '@/types/combos';
+import type { ComboMatch, ComboSeedContext } from '@/types/combos';
 import { markBuildReportSeen } from '@/lib/build-report-seen';
 import './BuildReportSheet.css';
 
@@ -22,6 +22,8 @@ interface Props {
   oneAwayCombos?: ComboMatch[];
   /** Owned oracle ids — ranks owned-missing-piece combos first. */
   ownedOracleIds?: ReadonlySet<string>;
+  /** Combo this build was seeded from (E215) — confirms it assembled. */
+  comboSeedContext?: ComboSeedContext | null;
 }
 
 /**
@@ -44,6 +46,7 @@ export function BuildReportSheet({
   onReviewConflicts,
   oneAwayCombos,
   ownedOracleIds,
+  comboSeedContext,
 }: Props) {
   const sheetRef = useRef<HTMLDivElement>(null);
   // The panel ref gives the sheet initial focus, which is what makes the
@@ -115,6 +118,7 @@ export function BuildReportSheet({
             report={report}
             oneAwayCombos={oneAwayCombos}
             ownedOracleIds={ownedOracleIds}
+            comboSeedContext={comboSeedContext}
           />
         </div>
         <div className="build-report-sheet-footer">

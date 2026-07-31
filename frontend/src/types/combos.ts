@@ -57,6 +57,20 @@ export interface ComboMatchResponse {
   almostInCollectionTotal: number;
 }
 
+/**
+ * Router-state payload carried from a combo seed (ComboCollectionAside's
+ * "build around this" click) through deck generation to the post-build
+ * summary. Never persisted on the deck itself — same one-shot lifecycle as
+ * `justGenerated` (see DeckEditorPage), since it describes build *intent*,
+ * not a property of the saved deck.
+ */
+export interface ComboSeedContext {
+  /** The combo's pieces — same set the generator received as mustIncludeCards. */
+  pieceNames: string[];
+  /** What the combo does (combo.produces), for display. */
+  produces: string[];
+}
+
 export interface ComboDetail {
   id: string;
   identity: string;

@@ -159,6 +159,39 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Combo-seed confirmation (E215) — the one-shot post-generation sheet's
+   answer to "did the combo I clicked for actually assemble?". Leads the
+   report, ahead of every other flag/note, on the same loud-callout footing
+   as .build-report-flag but tone-split success/warn per outcome. */
+.build-report-combo-seed {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0 0 0.15rem;
+  padding: 0.55rem 0.7rem;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  border-radius: var(--radius);
+  overflow-wrap: anywhere;
+}
+
+.build-report-combo-seed-icon {
+  flex: none;
+  margin-top: 0.15rem;
+}
+
+.build-report-combo-seed.is-assembled {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--success) 40%, transparent);
+}
+
+.build-report-combo-seed.is-partial {
+  color: var(--warn-text);
+  background: var(--warn-bg);
+  border: 0.5px solid var(--warn-border);
+}
+
 /* "Why these cards?" disclosure listing the owned substitutions. */
 .build-report-subs {
   font-size: var(--text-sm);

@@ -20,6 +20,9 @@ const MANY_HOSTS = 20;
 interface Props {
   /** The combo's pieces, so each can be located in the binders. */
   cards: ComboCardRef[];
+  /** What the combo does — carried into the seed so the new-deck page and the
+   *  post-build summary can name it without a second lookup. */
+  produces: string[];
   /** Commanders in the collection whose identity can host this combo. */
   hosts: EnrichedCard[];
   /** oracleId → binder page, from `buildCardLocationIndex`. */
@@ -34,7 +37,7 @@ interface Props {
  * the materialized binder layout — so this adds no requests to a list that can
  * already be hundreds of rows long.
  */
-export function ComboCollectionAside({ cards, hosts, locations }: Props) {
+export function ComboCollectionAside({ cards, produces, hosts, locations }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [seeding, setSeeding] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -54,11 +57,15 @@ export function ComboCollectionAside({ cards, hosts, locations }: Props) {
     try {
       const resolved = await getCardByName(commander.name);
       if (!resolved) throw new Error(`Couldn't find a printing for ${commander.name}.`);
+      const pieceNames = cards.map((c) => c.cardName);
       navigate('/decks/new', {
         state: {
           prefill: {
             commander: resolved,
-            mustIncludeCards: cards.map((c) => c.cardName),
+            mustIncludeCards: pieceNames,
+            // E215: carries the combo's identity through to the new-deck page
+            // and — via the generation nav state — to the post-build summary.
+            comboContext: { pieceNames, produces },
           },
         },
       });

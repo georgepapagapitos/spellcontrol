@@ -126,4 +126,20 @@ describe('resolveGenerationNavState', () => {
     expect(resolveGenerationNavState(true, false)).toBeUndefined();
     expect(resolveGenerationNavState(true, true)).toBeUndefined();
   });
+
+  it('relays a combo seed context onto a normal landing (E215)', () => {
+    const comboContext = {
+      pieceNames: ['Sanguine Bond', 'Exquisite Blood'],
+      produces: ['Infinite life loss'],
+    };
+    expect(resolveGenerationNavState(false, true, comboContext)).toEqual({
+      justGenerated: true,
+      comboContext,
+    });
+  });
+
+  it('drops a combo seed context on a compare landing, same as every other flag', () => {
+    const comboContext = { pieceNames: ['Sanguine Bond', 'Exquisite Blood'], produces: [] };
+    expect(resolveGenerationNavState(true, false, comboContext)).toBeUndefined();
+  });
 });

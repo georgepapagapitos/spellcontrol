@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Zap } from 'lucide-react';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
 import { BackLink } from '../components/BackLink';
 import { useDeckBuilderStore } from '@/deck-builder/store';
@@ -17,6 +18,7 @@ import { useDecksStore } from '../store/decks';
 import { buildAllocationMap, pickCollectionCopy } from '../lib/allocations';
 import { usePublishOnCreate, type PublishOutcome } from '../lib/use-publish-on-create';
 import type { ScryfallCard, DeckFormat, EDHRECTheme } from '@/deck-builder/types';
+import type { ComboSeedContext } from '../types/combos';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 
 /**
@@ -38,6 +40,11 @@ interface PrefillState {
   /** Card names the build must keep — the pieces of a combo being built
    *  around. Commander-scoped build intent; never persisted. */
   mustIncludeCards?: string[];
+  /** Set alongside `mustIncludeCards` when this build was seeded from a
+   *  combo — names the combo so this page and the post-build summary can
+   *  disclose it. Absent for a plain must-include (e.g. a future non-combo
+   *  caller) and for every other prefill shape. Never persisted. */
+  comboContext?: ComboSeedContext;
   /** The deck this regenerate ran from — lands the completed build on the compare diff instead of the editor. */
   sourceDeckId?: string;
   /** Format of the source deck — a PDH regenerate must stay PDH. */
@@ -153,6 +160,7 @@ export function DeckNewPage() {
     sourceDeckId: prefill?.sourceDeckId,
     beforeNavigate: waitForTakeoverExit,
     onCreated: publishGeneratedDeck,
+    comboContext: prefill?.comboContext,
   });
 
   const [showImport, setShowImport] = useState(false);
@@ -407,6 +415,32 @@ export function DeckNewPage() {
           </button>
         </p>
       </header>
+
+      {/* Combo-seed disclosure (E215) — the whole reason someone clicked a
+          host commander on /collection/combos was to build around this combo;
+          say so before anything else, not six sections down in a collapsed
+          "Must-include cards" accordion. */}
+      {prefill?.comboContext && (
+        <section
+          className="deck-builder-section combo-seed-banner"
+          aria-label="Building around a combo"
+        >
+          <p className="combo-seed-banner-label">
+            <Zap width={13} height={13} aria-hidden />
+            Building around a combo
+          </p>
+          <p className="combo-seed-banner-pieces">{prefill.comboContext.pieceNames.join(' + ')}</p>
+          {prefill.comboContext.produces.length > 0 && (
+            <p className="combo-seed-banner-produces">
+              {prefill.comboContext.produces.slice(0, 3).join(' · ')}
+            </p>
+          )}
+          <p className="combo-seed-banner-hint">
+            These cards are pinned as must-includes below — generation will do everything it can to
+            seat all of them.
+          </p>
+        </section>
+      )}
 
       {showImport && (
         <ImportDeckDialog onClose={() => setShowImport(false)} format={selectedFormat} />

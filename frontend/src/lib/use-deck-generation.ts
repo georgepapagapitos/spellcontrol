@@ -27,6 +27,7 @@ import type {
   GeneratedDeck,
   DeckFormatConfig,
 } from '@/deck-builder/types';
+import type { ComboSeedContext } from '../types/combos';
 
 /**
  * Hard gate a freshly generated deck before it's ever saved (E128): illegal
@@ -79,6 +80,10 @@ interface Options {
     destination: string,
     navState?: Record<string, unknown>
   ) => boolean | Promise<boolean>;
+  /** Combo this build was seeded from (E215) — relayed into the completed
+   *  build's one-shot nav state so the post-build summary can confirm the
+   *  combo assembled. Never persisted on the deck; see ComboSeedContext. */
+  comboContext?: ComboSeedContext;
 }
 
 /**
@@ -103,6 +108,9 @@ export function resolveGenerationDestination(
  *     no report to show, so it carries no state at all.
  *   - promptVisibility → show DeckPublishNudge, for a surface that never
  *     offered a creation-time visibility choice (the guided/brew builders).
+ *   - comboContext → relayed as-is (E215) so the build-report sheet can
+ *     confirm the seeded combo assembled. A compare landing carries no state
+ *     at all, same as the other two.
  *
  * `offeredVisibilityChoice` is derived from the presence of an `onCreated`
  * hand-off rather than a second opt-in flag, precisely so the two can't
@@ -113,10 +121,15 @@ export function resolveGenerationDestination(
  */
 export function resolveGenerationNavState(
   landedOnCompare: boolean,
-  offeredVisibilityChoice: boolean
+  offeredVisibilityChoice: boolean,
+  comboContext?: ComboSeedContext
 ): Record<string, unknown> | undefined {
   if (landedOnCompare) return undefined;
-  return { justGenerated: true, ...(offeredVisibilityChoice ? {} : { promptVisibility: true }) };
+  return {
+    justGenerated: true,
+    ...(offeredVisibilityChoice ? {} : { promptVisibility: true }),
+    ...(comboContext ? { comboContext } : {}),
+  };
 }
 
 /**
@@ -133,6 +146,7 @@ export function useDeckGeneration({
   beforeNavigate,
   sourceDeckId,
   onCreated,
+  comboContext,
 }: Options = {}) {
   const navigate = useNavigate();
 
@@ -338,7 +352,7 @@ export function useDeckGeneration({
       const landedOnCompare = sourceDeckId != null && existingDeckIds.has(sourceDeckId);
       // Computed once, so the hand-off below and the navigate below it can't
       // drift apart. See resolveGenerationNavState for what each flag means.
-      const navState = resolveGenerationNavState(landedOnCompare, !!onCreated);
+      const navState = resolveGenerationNavState(landedOnCompare, !!onCreated, comboContext);
       if (await onCreated?.(id, destination, navState)) return;
       if (landedOnCompare) {
         toast.show({ message: 'Comparing your previous build with the new one.', tone: 'info' });
@@ -372,6 +386,7 @@ export function useDeckGeneration({
     beforeNavigate,
     sourceDeckId,
     onCreated,
+    comboContext,
   ]);
 
   return {

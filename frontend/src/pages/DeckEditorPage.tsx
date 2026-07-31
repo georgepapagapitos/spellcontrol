@@ -121,6 +121,7 @@ import { MovePrintingPrompt } from '../components/deck/MovePrintingPrompt';
 import { MoveToDeckSheet } from '../components/deck/MoveToDeckSheet';
 import { BuildReportSheet } from '../components/deck/BuildReportSheet';
 import { isBuildReportSeen } from '../lib/build-report-seen';
+import type { ComboSeedContext } from '../types/combos';
 import { computeNewArrivals, type ArrivalsByType } from '../lib/new-arrivals';
 import { BackLink } from '../components/BackLink';
 import { ColorPicker } from '../components/ColorPicker';
@@ -394,6 +395,13 @@ export function DeckEditorPage() {
   );
   const [showPublishNudge] = useState(
     () => !!(location.state as { promptVisibility?: boolean } | null)?.promptVisibility
+  );
+  // E215 — combo the build was seeded from, relayed by useDeckGeneration in
+  // the same one-shot router state as justGenerated. Captured once at mount
+  // like the flags above; a refresh loses it exactly like they do (fine —
+  // it's build intent, not a saved property of the deck).
+  const [comboSeedContext] = useState(
+    () => (location.state as { comboContext?: ComboSeedContext } | null)?.comboContext ?? null
   );
   // Feedback Tool: mint/copy the suggestion link + review submitted responses.
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -3407,6 +3415,7 @@ export function DeckEditorPage() {
           report={deck.buildReport}
           oneAwayCombos={comboData.data?.oneAway}
           ownedOracleIds={ownedOracleIdSet}
+          comboSeedContext={comboSeedContext}
           onClose={() => setShowBuildReport(false)}
           onReviewConflicts={() => {
             setShowBuildReport(false);

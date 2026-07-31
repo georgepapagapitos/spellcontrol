@@ -34,6 +34,7 @@ vi.mock('../components/deck/DeckCustomizer', () => ({ DeckCustomizer: () => null
 vi.mock('../components/deck/GenerationModePicker', () => ({ GenerationModePicker: () => null }));
 vi.mock('../components/deck/GenerationTakeover', () => ({ GenerationTakeover: () => null }));
 
+import { screen } from '@testing-library/react';
 import { DeckNewPage } from './DeckNewPage';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 
@@ -86,6 +87,31 @@ describe('DeckNewPage prefill', () => {
     expect(after.targetBracket).toBe(defaults.targetBracket);
     expect(after.landCount).toBe(defaults.landCount);
     expect(after.collectionMode).toBe(defaults.collectionMode);
+  });
+
+  it('discloses the combo a build was seeded from (E215), before any scrolling', () => {
+    renderWithPrefill({
+      commander,
+      mustIncludeCards: ["Thassa's Oracle", 'Demonic Consultation'],
+      comboContext: {
+        pieceNames: ["Thassa's Oracle", 'Demonic Consultation'],
+        produces: ['Win the game'],
+      },
+    });
+
+    expect(screen.getByText('Building around a combo')).toBeTruthy();
+    expect(screen.getByText("Thassa's Oracle + Demonic Consultation")).toBeTruthy();
+    expect(screen.getByText('Win the game')).toBeTruthy();
+  });
+
+  it('renders no combo disclosure on a plain new-deck visit (the common case)', () => {
+    renderWithPrefill(undefined);
+    expect(screen.queryByText('Building around a combo')).not.toBeTruthy();
+  });
+
+  it('renders no combo disclosure for a regenerate prefill, which has no comboContext', () => {
+    renderWithPrefill({ commander, targetBracket: 3, landCount: 36, collectionMode: true });
+    expect(screen.queryByText('Building around a combo')).not.toBeTruthy();
   });
 
   it('still applies a full regenerate prefill', () => {
