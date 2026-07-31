@@ -79,6 +79,37 @@ describe('ScryfallCache', () => {
     expect(s.fresh).toBe(0);
   });
 
+  // Oracle-only readers (cube pool ranking) pass allowStale: rules text doesn't
+  // change, and expiring it would force a pointless Scryfall re-fetch.
+  it('returns TTL-expired rows when allowStale is set', () => {
+    cache.setMany([card('old')]);
+    const eightDaysAgo = Date.now() - 8 * 24 * 60 * 60 * 1000;
+    (
+      cache as unknown as {
+        db: { prepare: (sql: string) => { run: (...args: unknown[]) => void } };
+      }
+    ).db
+      .prepare('UPDATE cards SET cached_at = ? WHERE scryfall_id = ?')
+      .run(eightDaysAgo, 'old');
+    expect(cache.getMany(['old']).size).toBe(0);
+    expect(cache.getMany(['old'], true).get('old')?.name).toBe('Sol Ring');
+  });
+
+  it('returns TTL-expired alias lookups when allowStale is set', () => {
+    cache.setMany([card('alias-id')]);
+    cache.setLookups([{ key: 'n:sol ring', scryfallId: 'alias-id' }]);
+    const eightDaysAgo = Date.now() - 8 * 24 * 60 * 60 * 1000;
+    const db = (
+      cache as unknown as {
+        db: { prepare: (sql: string) => { run: (...args: unknown[]) => void } };
+      }
+    ).db;
+    db.prepare('UPDATE cards SET cached_at = ?').run(eightDaysAgo);
+    db.prepare('UPDATE card_lookups SET cached_at = ?').run(eightDaysAgo);
+    expect(cache.getManyByKeys(['n:sol ring']).size).toBe(0);
+    expect(cache.getManyByKeys(['n:sol ring'], true).get('n:sol ring')?.name).toBe('Sol Ring');
+  });
+
   it('skips malformed JSON rows on read', () => {
     cache.setMany([card('a')]);
     (
