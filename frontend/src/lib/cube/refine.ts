@@ -79,6 +79,7 @@ function bestSwapForAxis(
   size: number,
   currentScore: number,
   rankP80: number,
+  synergyLevel: number,
   power: (c: CubeCard) => number,
   draftable: ReadonlySet<AxisKey>
 ): { picks: Pick[]; out: CubeCard; in: CubeCard; newScore: number } | null {
@@ -119,7 +120,7 @@ function bestSwapForAxis(
       bucket: chosen.p.bucket,
       reason: `${AXIS_LABEL.get(axis) ?? axis} support`,
     };
-    const newScore = scoreCube(candidate, pool, band, size, rankP80).total;
+    const newScore = scoreCube(candidate, pool, band, size, rankP80, synergyLevel).total;
     if (newScore > currentScore + EPS && (!best || newScore > best.newScore)) {
       best = { picks: candidate, out: chosen.p.card, in: inCard, newScore };
     }
@@ -135,14 +136,16 @@ export function refineCube(
   greedy: GeneratedCube,
   pool: CubeCard[],
   band: BandTargets,
-  size: number
+  size: number,
+  /** "Best cards ↔ Synergy" — how much of the objective sits on archetype depth. */
+  synergyLevel = 1
 ): RefineResult {
   const rankP80 = computeRankP80(pool);
   const power = (c: CubeCard) => rawPower(c, rankP80);
 
   let picks = greedy.picks.slice();
   const pickedIds = new Set(picks.map((p) => p.card.oracleId));
-  let scored = scoreCube(picks, pool, band, size, rankP80);
+  let scored = scoreCube(picks, pool, band, size, rankP80, synergyLevel);
   let currentScore = scored.total;
   const swapLog: SwapLogEntry[] = [];
 
@@ -160,7 +163,7 @@ export function refineCube(
 
   const MAX_ITER = Math.min(2 * size, 720);
   for (let iter = 0; iter < MAX_ITER; iter++) {
-    scored = scoreCube(picks, pool, band, size, rankP80);
+    scored = scoreCube(picks, pool, band, size, rankP80, synergyLevel);
     const axisScore = new Map(scored.axes.map((a) => [a.axis, a.score]));
     // Weakest-supported draftable axis first (absent from the cube = 0);
     // lexicographic tiebreak for determinism (M13).
@@ -178,6 +181,7 @@ export function refineCube(
         size,
         currentScore,
         rankP80,
+        synergyLevel,
         power,
         draftableSet
       );
@@ -207,6 +211,6 @@ export function refineCube(
   }
 
   // Final breakdown of the climbed picks (rankP80 reused — no pool re-sort).
-  const finalScored = scoreCube(picks, pool, band, size, rankP80);
+  const finalScored = scoreCube(picks, pool, band, size, rankP80, synergyLevel);
   return { picks, byBucket, swapLog, finalScore: finalScored.total, score: finalScored };
 }

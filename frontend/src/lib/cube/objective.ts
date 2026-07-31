@@ -45,6 +45,45 @@ const W = {
   power: 0.05,
 } as const;
 
+/**
+ * Term weights for a given synergy level (the "Best cards ↔ Synergy" slider).
+ * At 1 these are `W` verbatim; below it the archetype weight shrinks and the
+ * freed weight spreads proportionally across the environment terms — so sliding
+ * toward "Best cards" makes the refiner care about curve/interaction/balance
+ * instead of theme depth, rather than meaning nothing at all. Always sums to 1.
+ */
+function weightsFor(synergyLevel: number): Record<keyof typeof W, number> {
+  const archetype = W.archetype * synergyLevel;
+  const k = (1 - archetype) / (1 - W.archetype);
+  return {
+    archetype,
+    glue: W.glue * k,
+    color: W.color * k,
+    curve: W.curve * k,
+    interaction: W.interaction * k,
+    power: W.power * k,
+  };
+}
+
+/**
+ * How well an achieved value fits its corpus target, in (0, 1].
+ *
+ * Deliberately NEVER zero. The old `max(0, 1 - d/tol)` clamp created dead zones:
+ * on a real collection the interaction term pinned at exactly 0.000, so the
+ * hill-climbing refiner saw no gradient there and would freely cut the cube's
+ * removal to feed an archetype — the cut cost nothing, because 0 can't go lower.
+ * A rational falloff keeps a gradient everywhere while still penalizing hard:
+ * on-target 1, one tolerance out 0.5, three out 0.1.
+ *
+ * Rational (multiply/divide only) rather than `Math.exp`, whose results are
+ * implementation-defined — this module's contract is same-pool → same-cube on
+ * every engine.
+ */
+export function fit(diff: number, tol: number): number {
+  const r = diff / Math.max(tol, 1e-9);
+  return 1 / (1 + r * r);
+}
+
 /** Draftability of one archetype axis within the cube. */
 export interface AxisSupport {
   axis: AxisKey;
@@ -159,7 +198,8 @@ export function scoreCube(
   pool: CubeCard[],
   band: BandTargets,
   size: number,
-  rankP80: number = computeRankP80(pool)
+  rankP80: number = computeRankP80(pool),
+  synergyLevel = 1
 ): CubeScore {
   const cards = picks.map((p) => p.card);
   const MIN_DEPTH = minDepth(size);
@@ -278,7 +318,7 @@ export function scoreCube(
     const share = (byBucket[c] ?? 0) / pickCount;
     const t = band.color[c];
     const tol = Math.max(0.01, (t.p75 - t.p25) / 2);
-    colorSum += Math.max(0, 1 - Math.abs(share - t.median) / tol);
+    colorSum += fit(Math.abs(share - t.median), tol);
   }
   const color = colorSum / COLORS.length;
 
@@ -291,7 +331,7 @@ export function scoreCube(
     const t = band.curve[s];
     const targetN = t.median * nlCount;
     const tol = Math.max(1, ((t.p75 - t.p25) * nlCount) / 2);
-    curveSum += Math.max(0, 1 - Math.abs(fill - targetN) / tol);
+    curveSum += fit(Math.abs(fill - targetN), tol);
   }
   const curve = curveSum / CURVE_SLOTS.length;
 
@@ -308,7 +348,7 @@ export function scoreCube(
   const iP25 = band.role.removal.p25 + band.role.boardwipe.p25;
   const iP75 = band.role.removal.p75 + band.role.boardwipe.p75;
   const iTol = Math.max(0.01, (iP75 - iP25) / 2);
-  const interaction = Math.max(0, 1 - Math.abs(achieved - iTarget) / iTol);
+  const interaction = fit(Math.abs(achieved - iTarget), iTol);
 
   // ── Term F: power consistency ───────────────────────────────────────────
   // M8 — penalize a weak bottom decile, not high variance (so a few legit
@@ -321,13 +361,14 @@ export function scoreCube(
   // to noise. A catastrophically fixing-starved cube is capped at 75%.
   const fixingMultiplier = landCount < band.fixingLands.p25 * 0.5 ? 0.75 : 1;
 
+  const w = weightsFor(synergyLevel);
   const weighted =
-    W.archetype * archetype +
-    W.glue * glue +
-    W.color * color +
-    W.curve * curve +
-    W.interaction * interaction +
-    W.power * power;
+    w.archetype * archetype +
+    w.glue * glue +
+    w.color * color +
+    w.curve * curve +
+    w.interaction * interaction +
+    w.power * power;
   const total = fixingMultiplier * weighted;
 
   axes.sort((a, b) => b.score - a.score || a.axis.localeCompare(b.axis));

@@ -6,6 +6,7 @@ import {
   rawPower,
   computeRankP80,
   targetArchetypeCount,
+  fit,
   type CubeScore,
 } from './objective';
 
@@ -264,5 +265,51 @@ describe('scoreCube — other terms', () => {
     expect(scoreCube(picksOf(strong), strong, band360, 360).power).toBeGreaterThan(
       scoreCube(picksOf(weakTail), weakTail, band360, 360).power
     );
+  });
+});
+
+describe('fit — the corpus-target falloff', () => {
+  // Why this matters: the old `max(0, 1 - d/tol)` clamp hit exactly 0 on real
+  // collections, and a zeroed term gives the hill-climbing refiner no gradient —
+  // it could cut the cube's removal for free. `fit` must never reach 0.
+  it('is 1 on target, 0.5 one tolerance out, and never reaches 0', () => {
+    expect(fit(0, 0.1)).toBe(1);
+    expect(fit(0.1, 0.1)).toBeCloseTo(0.5, 10);
+    expect(fit(1000, 0.1)).toBeGreaterThan(0);
+  });
+
+  it('decreases monotonically as the miss grows', () => {
+    const vals = [0, 1, 2, 5, 20].map((d) => fit(d, 1));
+    for (let i = 1; i < vals.length; i++) expect(vals[i]).toBeLessThan(vals[i - 1]);
+  });
+
+  it('gives a real gradient where the old clamp was flat at zero', () => {
+    // Both are >1 tolerance off target: the old formula scored both exactly 0.
+    expect(fit(3, 1)).toBeGreaterThan(fit(4, 1));
+  });
+});
+
+describe('scoreCube — synergy level reweights the objective', () => {
+  it('weights sum to 1 at every level (total stays in [0, 1])', () => {
+    const band = targetsForSize(360);
+    const cube = generateCube(richPool(), 360, { synergyLevel: 1 });
+    for (const level of [0, 0.25, 0.5, 1]) {
+      const s = scoreCube(cube.picks, richPool(), band, 360, undefined, level);
+      expect(s.total).toBeGreaterThanOrEqual(0);
+      expect(s.total).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('shifts weight between archetype and the environment terms', () => {
+    const band = targetsForSize(360);
+    const pool = richPool(); // untagged → no draftable axes → archetype term is 1 (M4)
+    const cube = generateCube(pool, 360, { synergyLevel: 1 });
+    const hi = scoreCube(cube.picks, pool, band, 360, undefined, 1);
+    const lo = scoreCube(cube.picks, pool, band, 360, undefined, 0.1);
+    // Same picks, identical per-term values — only the weighting differs. Here
+    // archetype is the strongest term, so weighting it more must raise the total.
+    expect(lo.archetype).toBe(hi.archetype);
+    expect(hi.archetype).toBeGreaterThan(hi.curve);
+    expect(hi.total).toBeGreaterThan(lo.total);
   });
 });
