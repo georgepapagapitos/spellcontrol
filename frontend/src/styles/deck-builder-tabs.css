@@ -208,6 +208,47 @@
   color: var(--on-accent);
 }
 
+/* ── Health badge (E223) ──────────────────────────────────────────────────
+   A tab's own verdict, carried on the strip so "which view needs attention"
+   is answerable without opening anything. Tone-tinted rather than accent-
+   filled: the accent is reserved for selection, and a badge that changed
+   colour on select would read as a state change. Colour is never the only
+   cue — the badge text (a bracket number, "2 to tune") carries the meaning,
+   and the .sr-only description beside it carries the rest. */
+.sc-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 1.25rem;
+  height: 1.05rem;
+  padding: 0 0.3rem;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+}
+
+.sc-tab-badge[data-tone='success'] {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 45%, transparent);
+}
+
+.sc-tab-badge[data-tone='warn'] {
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+  color: var(--warn-text);
+}
+
+.sc-tab-badge[data-tone='err'] {
+  background: var(--err-bg);
+  border-color: var(--err-border);
+  color: var(--err-text);
+}
+
 /* Touch ergonomics — full 44px hit target on coarse pointers / narrow screens
    while staying compact on the desktop sidebar. */
 @media (max-width: 700px) {
