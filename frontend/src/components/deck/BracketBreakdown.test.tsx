@@ -158,3 +158,88 @@ describe('BracketBreakdown', () => {
     );
   });
 });
+
+// E223 — the breakdown documented the elevation thresholds but never said how
+// far off you were. The two rules mirrored here are bracketEstimator.ts's:
+// floor >= 4 reaches Bracket 5 at 80, floor < 4 bumps one bracket at 66.
+describe('BracketBreakdown — distance to the next threshold', () => {
+  function distanceText(container: HTMLElement): string | undefined {
+    return container
+      .querySelector('.bracket-breakdown-distance')
+      ?.textContent?.replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  it('counts the points to the +1 bracket bump below floor 4', () => {
+    const { container } = render(
+      <BracketBreakdown
+        estimation={makeEstimation({
+          bracket: 3,
+          label: 'Upgraded',
+          softScore: 58,
+          hardFloors: [{ bracket: 3, reason: '2 Game Changer cards' }],
+        })}
+      />
+    );
+    expect(distanceText(container)).toBe(
+      '8 more power points (58 → 66) would move this to Bracket 4 (Optimized).'
+    );
+  });
+
+  it('counts the points to cEDH at floor 4 or above', () => {
+    const { container } = render(
+      <BracketBreakdown
+        estimation={makeEstimation({
+          bracket: 4,
+          softScore: 66,
+          hardFloors: [{ bracket: 4, reason: 'Mass land denial (Armageddon)' }],
+        })}
+      />
+    );
+    expect(distanceText(container)).toBe(
+      '14 more power points (66 → 80) would move this to Bracket 5 (cEDH).'
+    );
+  });
+
+  it('says nothing once the deck has already crossed its threshold', () => {
+    // Bumped: floor 3 + 70 → bracket 4. No further score-driven move exists.
+    const bumped = render(
+      <BracketBreakdown
+        estimation={makeEstimation({
+          bracket: 4,
+          softScore: 70,
+          hardFloors: [{ bracket: 3, reason: '2 Game Changer cards' }],
+        })}
+      />
+    );
+    expect(distanceText(bumped.container)).toBeUndefined();
+    bumped.unmount();
+
+    // Already cEDH — nothing above it.
+    const cedh = render(
+      <BracketBreakdown
+        estimation={makeEstimation({
+          bracket: 5,
+          label: 'cEDH',
+          softScore: 84,
+          hardFloors: [{ bracket: 4, reason: 'Mass land denial (Armageddon)' }],
+        })}
+      />
+    );
+    expect(distanceText(cedh.container)).toBeUndefined();
+  });
+
+  it('singularizes a one-point gap', () => {
+    const { container } = render(
+      <BracketBreakdown
+        estimation={makeEstimation({
+          bracket: 1,
+          label: 'Exhibition',
+          softScore: 65,
+          hardFloors: [],
+        })}
+      />
+    );
+    expect(distanceText(container)).toContain('1 more power point (65 → 66)');
+  });
+});

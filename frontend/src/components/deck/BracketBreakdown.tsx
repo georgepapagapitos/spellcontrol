@@ -171,6 +171,28 @@ export function BracketBreakdown({
   const elevatedToCedh = floor >= 4 && softScore >= ELEVATE_CEDH_THRESHOLD && bracket === 5;
   const elevatedByBump = floor < 4 && softScore >= ELEVATE_BUMP_THRESHOLD && bracket > floor;
 
+  // Distance to the next threshold the power signal can still cross. The
+  // estimator only elevates two ways (bracketEstimator.ts): floor ≥ 4 reaches
+  // cEDH at 80, floor < 4 bumps one bracket at 66. Once a deck has crossed its
+  // applicable threshold there's no further score-driven move, so this is null
+  // — the "elevated" notes below already say what happened.
+  const nextThreshold: { need: number; at: number; target: string } | null =
+    floor >= 4
+      ? bracket < 5
+        ? {
+            need: ELEVATE_CEDH_THRESHOLD - softScore,
+            at: ELEVATE_CEDH_THRESHOLD,
+            target: `Bracket 5 (${bracketLabel(5)})`,
+          }
+        : null
+      : bracket === floor
+        ? {
+            need: ELEVATE_BUMP_THRESHOLD - softScore,
+            at: ELEVATE_BUMP_THRESHOLD,
+            target: `Bracket ${Math.min(floor + 1, 4)} (${bracketLabel(Math.min(floor + 1, 4))})`,
+          }
+        : null;
+
   // Sort hard floors strongest-first for display.
   const sortedFloors = [...hardFloors].sort((a, b) => b.bracket - a.bracket);
 
@@ -306,6 +328,13 @@ export function BracketBreakdown({
           <p className="bracket-breakdown-summary-note">
             Power signal ≥ {ELEVATE_BUMP_THRESHOLD} bumped the floor from Bracket {floor} up to
             Bracket {bracket}.
+          </p>
+        )}
+        {nextThreshold && (
+          <p className="bracket-breakdown-summary-note bracket-breakdown-distance">
+            <strong>{nextThreshold.need}</strong> more power{' '}
+            {nextThreshold.need === 1 ? 'point' : 'points'} ({softScore} → {nextThreshold.at}) would
+            move this to {nextThreshold.target}.
           </p>
         )}
       </div>
