@@ -37,7 +37,8 @@
 /* Sticky search — sister rule to .decks-index-search-row and
    .collection-toolbar-row. Only the search bar pins; the sort/view
    row scrolls away with the list. */
-.binders-index-search-row {
+.binders-index-search-row,
+.combos-search-row {
   position: sticky;
   /* `.app-main` is the sole scroll container; the header sits outside
      it, so the scrollport top is already under the header — pin at 0,
@@ -60,12 +61,14 @@
    DecksHubTabs shipped, `.collection-hub-tabs ~ * .decks-index-search-row`
    in deck-builder-decks-index.css), including the -1px subpixel-seam
    overlap. */
-.collection-hub-tabs ~ * .binders-index-search-row {
+.collection-hub-tabs ~ * .binders-index-search-row,
+.collection-hub-tabs ~ * .combos-search-row {
   top: calc(var(--hub-tabs-sticky-h) - 1px);
 }
 
 @media (max-width: 600px) {
-  .binders-index-search-row {
+  .binders-index-search-row,
+  .combos-search-row {
     padding: 0.35rem var(--page-gutter, var(--space-2)) 0.3rem;
     margin-bottom: var(--space-1);
   }

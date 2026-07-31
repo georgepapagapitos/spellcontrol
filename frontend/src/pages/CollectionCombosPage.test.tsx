@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { ComboMatch, ComboMatchResponse } from '../types/combos';
 
@@ -118,6 +118,43 @@ describe('CollectionCombosPage', () => {
     expect(screen.getByText(/1 commander you own can run this/)).toBeTruthy();
     expect(screen.getByText(/Kess, Dissident Mage/)).toBeTruthy();
     expect(screen.queryByText(/Llanowar Elves/)).toBeNull();
+  });
+
+  it('filters the list by a card-name search', async () => {
+    setResult({
+      inDeck: [combo('c1', 'Owned Combo'), combo('c2', 'Other Combo')],
+    });
+    render(<CollectionCombosPage />);
+    expect(screen.getByText(/Owned Combo/)).toBeTruthy();
+
+    fireEvent.change(screen.getByRole('textbox', { name: /Search combos/ }), {
+      target: { value: 'Other' },
+    });
+
+    // The search is debounced, so the drop takes a beat.
+    await waitFor(() => expect(screen.queryByText(/Owned Combo/)).toBeNull());
+    expect(screen.getByText(/Other Combo/)).toBeTruthy();
+  });
+
+  it('says the filters hid the rows rather than claiming there are none', async () => {
+    setResult({ inDeck: [combo('c1', 'Owned Combo')] });
+    render(<CollectionCombosPage />);
+
+    fireEvent.change(screen.getByRole('textbox', { name: /Search combos/ }), {
+      target: { value: 'zzzz-no-such-card' },
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText('No combos match your search and filters.')).toBeTruthy()
+    );
+    // …and offers a way out.
+    expect(screen.getByRole('button', { name: 'Clear search and filters' })).toBeTruthy();
+  });
+
+  it('hides the search row entirely when there is nothing to search', () => {
+    setResult({});
+    render(<CollectionCombosPage />);
+    expect(screen.queryByRole('textbox', { name: /Search combos/ })).toBeNull();
   });
 
   it('prompts for cards when the collection has no combo-matchable ids', () => {
