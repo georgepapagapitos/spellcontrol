@@ -45,6 +45,11 @@ export function CollectionHubLayout() {
             countNoun: 'lists',
           },
           {
+            to: '/collection/combos',
+            label: 'Combos',
+            active: pathname.startsWith('/collection/combos'),
+          },
+          {
             to: '/collection/sets',
             label: 'Sets',
             active: pathname.startsWith('/collection/sets'),

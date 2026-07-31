@@ -1,0 +1,101 @@
+// @vitest-environment happy-dom
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import type { ComboMatch, ComboMatchResponse } from '../types/combos';
+
+const useDeckCombos = vi.fn();
+
+vi.mock('../lib/use-deck-combos', () => ({
+  useDeckCombos: (args: unknown) => useDeckCombos(args),
+}));
+vi.mock('../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('../lib/sync', () => ({ getSyncState: () => 'ready', onSyncedChange: () => () => {} }));
+vi.mock('../components/shared/BrandMark', () => ({ BrandMark: () => null }));
+vi.mock('../components/CardPreview', () => ({ CardPreview: () => null }));
+
+const cards = [
+  { oracleId: 'o1', name: 'A' },
+  { oracleId: 'o2', name: 'B' },
+];
+vi.mock('../store/collection', () => ({
+  useCollectionStore: (sel: (s: unknown) => unknown) =>
+    sel({ cards: cards.map((c) => ({ ...c, purchasePrice: 0 })), hydrating: false }),
+}));
+vi.mock('../store/auth', () => ({
+  useAuth: (sel: (s: unknown) => unknown) => sel({ status: 'guest' }),
+}));
+
+import { CollectionCombosPage } from './CollectionCombosPage';
+
+function combo(id: string, name: string, missing: string[] = []): ComboMatch {
+  return {
+    combo: {
+      id,
+      identity: 'ub',
+      produces: ['Infinite mana'],
+      prerequisites: null,
+      description: null,
+      manaNeeded: null,
+      popularity: 0,
+      cardCount: 2,
+      bracket: null,
+      bracketTag: null,
+      cards: [
+        { oracleId: 'o1', cardName: name, quantity: 1 },
+        { oracleId: 'ox', cardName: 'Partner Piece', quantity: 1 },
+      ],
+    },
+    presentOracleIds: ['o1'],
+    missingOracleIds: missing,
+  };
+}
+
+function setResult(over: Partial<ComboMatchResponse>) {
+  useDeckCombos.mockReturnValue({
+    data: { inDeck: [], oneAway: [], almostInCollection: [], ...over },
+    loading: false,
+    error: null,
+  });
+}
+
+describe('CollectionCombosPage', () => {
+  beforeEach(() => {
+    useDeckCombos.mockReset();
+    setResult({});
+  });
+
+  it('sends no deck, so the matcher buckets against the collection', () => {
+    render(<CollectionCombosPage />);
+    expect(useDeckCombos).toHaveBeenCalledWith(
+      expect.objectContaining({ deckOracleIds: [], format: 'commander' })
+    );
+  });
+
+  it('relabels the matcher\'s inDeck bucket as "Complete"', () => {
+    setResult({ inDeck: [combo('c1', 'Owned Combo')] });
+    render(<CollectionCombosPage />);
+
+    expect(screen.getByText('1 complete · 0 one away')).toBeTruthy();
+    expect(screen.getByText(/Owned Combo/)).toBeTruthy();
+    // Complete rows have no add CTA on this surface — there's no deck to add to.
+    expect(screen.queryByRole('button', { name: /^Add / })).toBeNull();
+  });
+
+  it('shows almostInCollection under the one-away tab, counted in pieces owned', () => {
+    setResult({ almostInCollection: [combo('c2', 'Near Miss', ['ox'])] });
+    render(<CollectionCombosPage />);
+
+    expect(screen.getByText('0 complete · 1 one away')).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: /One card away/ }));
+
+    expect(screen.getByText(/Near Miss/)).toBeTruthy();
+    // Scope-specific copy: the deck panel says "in deck" here.
+    expect(screen.getByLabelText('1 of 2 pieces in collection')).toBeTruthy();
+  });
+
+  it('prompts for cards when the collection has no combo-matchable ids', () => {
+    setResult({});
+    render(<CollectionCombosPage />);
+    expect(screen.getByText('No combos you can build outright yet.')).toBeTruthy();
+  });
+});

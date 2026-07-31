@@ -11,6 +11,7 @@ import { SetsPage } from './pages/SetsPage';
 import { BinderPage } from './pages/BinderPage';
 import { BindersIndexPage } from './pages/BindersIndexPage';
 import { ListsPage } from './pages/ListsPage';
+import { CollectionCombosPage } from './pages/CollectionCombosPage';
 import { DecksIndexPage } from './pages/DecksIndexPage';
 import { DiscoverDecksPage } from './pages/DiscoverDecksPage';
 import { SavedDecksPage } from './pages/SavedDecksPage';
@@ -288,6 +289,7 @@ export default function App() {
             <Route path="binders/:id" element={<BinderPage />} />
             <Route path="lists" element={<ListsPage />} />
             <Route path="lists/:id" element={<ListsPage />} />
+            <Route path="combos" element={<CollectionCombosPage />} />
             <Route path="sets" element={<SetsPage />} />
             <Route path="sets/:code" element={<SetsPage />} />
             <Route path="cube" element={<CubePage />} />

@@ -64,9 +64,19 @@ export interface ComboRowProps {
   cardImageIndex: CardImageIndex;
   /** Oracle IDs of cards the user owns in their collection. */
   ownedOracleIds: Set<string>;
-  onAddMissing: () => void;
+  /** Omit on surfaces with no deck to add into (the collection view) — the
+   *  add CTA is then not rendered at all. */
+  onAddMissing?: () => void;
   /** Called when a card thumbnail is tapped. Index is position within the combo's cards array. */
   onCardTap: (cardIndex: number) => void;
+  /**
+   * What the row is counting pieces against. 'deck' (default) is the deck
+   * editor: present = in the deck, and a missing piece may still be owned.
+   * 'collection' is the collection-wide view, where present = owned outright
+   * and a missing piece is by definition not owned — so the "own the missing
+   * piece" aside never applies.
+   */
+  scope?: 'deck' | 'collection';
 }
 
 export function ComboRow({
@@ -77,6 +87,7 @@ export function ComboRow({
   ownedOracleIds,
   onAddMissing,
   onCardTap,
+  scope = 'deck',
 }: ComboRowProps) {
   const { combo } = match;
   const missingOracleId = match.missingOracleIds[0] ?? null;
@@ -103,6 +114,11 @@ export function ComboRow({
 
   const presentCount = match.presentOracleIds.length;
   const totalCount = combo.cards.length;
+  const inDeckScope = scope === 'deck';
+  const whereLabel = inDeckScope ? 'in deck' : 'in collection';
+  // A missing piece that's still owned is only meaningful against a deck; in
+  // collection scope "missing" already means "not owned".
+  const showOwnedAside = inDeckScope && isOneAway && missingIsOwned;
 
   return (
     <li className="deck-combos-row expanded">
@@ -165,11 +181,14 @@ export function ComboRow({
       {/* ── Piece count — scans at a glance ("3 of 4 in deck · {mana}") ── */}
       <p
         className="deck-combos-piece-count"
-        aria-label={`${presentCount} of ${totalCount} pieces in deck${isOneAway && missingIsOwned ? ' · own the missing piece' : ''}`}
+        aria-label={`${presentCount} of ${totalCount} pieces ${whereLabel}${showOwnedAside ? ' · own the missing piece' : ''}`}
       >
         <span className="deck-combos-piece-count-have">{presentCount}</span>
-        <span className="deck-combos-piece-count-sep"> of {totalCount} pieces in deck</span>
-        {isOneAway && missingIsOwned && (
+        <span className="deck-combos-piece-count-sep">
+          {' '}
+          of {totalCount} pieces {whereLabel}
+        </span>
+        {showOwnedAside && (
           <span className="deck-combos-piece-count-sep">
             {' · '}
             <span className="deck-combos-piece-count-owned">own the missing piece</span>
@@ -203,7 +222,7 @@ export function ComboRow({
               : ' (not owned)'
             : isNotOwnedInDeck
               ? ' (not owned — need to acquire)'
-              : ' (in deck)';
+              : ` (${whereLabel})`;
           return (
             <li key={c.oracleId} className={`deck-combos-card-tile${tileClass}`}>
               {/* Plus separator between cards. Visual rather than semantic
@@ -379,8 +398,9 @@ export function ComboRow({
         </>
       )}
 
-      {/* ── Add button — primary CTA for one-away combos ── */}
-      {isOneAway && missingCardName && (
+      {/* ── Add button — primary CTA for one-away combos, when there's a deck
+            to add into (omitted on the collection-wide view) ── */}
+      {isOneAway && missingCardName && onAddMissing && (
         <button
           type="button"
           className="deck-combos-add"
