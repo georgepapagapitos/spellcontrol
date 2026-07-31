@@ -67,4 +67,39 @@ describe('CommanderPopularityStat', () => {
     expect(screen.queryByRole('button', { name: /platform decks/i })).toBeNull();
     expect(screen.getByText(/156 on SpellControl/)).toBeTruthy();
   });
+
+  // E224 — this count is the denominator behind every EDHREC-derived number on
+  // the deck, so it's where the thin-sample caveat belongs.
+  describe('thin-sample disclosure', () => {
+    it('discloses a thin EDHREC sample with its exact size', () => {
+      render(
+        <CommanderPopularityStat
+          edhrecNumDecks={12}
+          ownCount={null}
+          loading={false}
+          variant="card"
+        />
+      );
+      expect(screen.getByText(/Based on only 12 decks on EDHREC/)).toBeTruthy();
+    });
+
+    it('discloses it on the blended line too', () => {
+      render(
+        <CommanderPopularityStat edhrecNumDecks={31} ownCount={4} loading={false} variant="card" />
+      );
+      expect(screen.getByText(/Based on only 31 decks on EDHREC/)).toBeTruthy();
+    });
+
+    it('stays silent on a healthy sample', () => {
+      const { container } = render(
+        <CommanderPopularityStat
+          edhrecNumDecks={12400}
+          ownCount={156}
+          loading={false}
+          variant="card"
+        />
+      );
+      expect(container.textContent).not.toContain('hunch');
+    });
+  });
 });

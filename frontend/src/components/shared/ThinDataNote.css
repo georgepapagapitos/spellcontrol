@@ -1,0 +1,16 @@
+/* ── ThinDataNote (E224) ───────────────────────────────────────────────────
+   Sample-size disclosure on EDHREC-derived numbers. Dashed rather than solid
+   on purpose: a solid warn box would read as an error the user caused, and
+   this isn't a fault — it's a caveat on someone else's data. Muted, one line,
+   sitting under the number it qualifies. */
+
+.thin-data-note {
+  margin: var(--space-1) 0 0;
+  padding: 0.3rem var(--space-2);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
