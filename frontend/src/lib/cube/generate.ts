@@ -12,7 +12,7 @@
 import { CubeSize, ColorBucket, CurveSlot, Role, targetsForSize, BandTargets } from './targets';
 import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 import type { CubeScore } from './objective';
-import { AXIS_LABEL, draftablePoolAxes } from './objective';
+import { AXIS_LABEL } from './objective';
 import { refineCube } from './refine';
 
 export interface CubeCard {
@@ -60,9 +60,10 @@ export interface GeneratedCube {
 /** Optional knobs for cube generation. */
 export interface CubeGenOptions {
   /**
-   * 0 = pure goodstuff by EDHREC rank (today's behavior, byte-for-byte).
-   * 1 = lean hard into the archetypes the owned pool can actually support.
-   * Scales the per-axis inclusion floors; anything in between interpolates.
+   * 0 = pure goodstuff by EDHREC rank, unrefined (byte-for-byte, no score).
+   * Above 0 the objective-driven refiner runs, and the level sets how much of
+   * the objective's weight sits on archetype depth vs. a balanced draft
+   * environment (curve, interaction, color) — see `weightsFor` in ./objective.
    */
   synergyLevel?: number;
 }
@@ -126,14 +127,6 @@ function apportion(shares: Record<ColorBucket, number>, size: number): Record<Co
   return out;
 }
 
-/** Distinct archetype axes a card touches (as enabler or payoff). */
-export function axesTouched(c: CubeCard): AxisKey[] {
-  const prod = c.synergyProducers ?? [];
-  const pay = c.synergyPayoffs ?? [];
-  if (!prod.length && !pay.length) return [];
-  return [...new Set([...prod, ...pay])];
-}
-
 type AxisCount = { producers: number; payoffs: number };
 
 /** Per-axis enabler/payoff tallies across a set of cards. */
@@ -151,58 +144,12 @@ function countAxes(cards: CubeCard[]): Map<AxisKey, AxisCount> {
   return counts;
 }
 
-/**
- * Per-axis inclusion floors from the owned pool: aim to include `synergyLevel`
- * of every owned card on each archetype axis that has BOTH enablers and
- * payoffs. An axis with only one side isn't draftable (enablers with nothing to
- * cash them in, or vice-versa), so it gets no selection pressure — PR4 surfaces
- * that as an explicit gap instead.
- */
-function deriveAxisFloors(pool: CubeCard[], synergyLevel: number): Map<AxisKey, number> {
-  const support = new Map<AxisKey, number>();
-  for (const c of pool) {
-    for (const k of axesTouched(c)) support.set(k, (support.get(k) ?? 0) + 1);
-  }
-  const floors = new Map<AxisKey, number>();
-  // Only draftable axes (BOTH an enabler and a payoff in the pool) get selection
-  // pressure — reuse the canonical predicate so this can't drift from objective/refine.
-  for (const k of draftablePoolAxes(pool)) {
-    const floor = Math.round((support.get(k) ?? 0) * synergyLevel);
-    if (floor > 0) floors.set(k, floor);
-  }
-  return floors;
-}
-
-/**
- * Pick the best cards to MEET the axis floors, across the whole pool (an enabler
- * in Black and its payoff in Red are one archetype). Greedy best-first so a card
- * serving two axes fills both. These get reserved a slot in their bucket even if
- * a higher-ranked goodstuff card would otherwise edge them out — that
- * displacement is exactly what makes the archetype draftable.
- */
-function selectAxisReserved(pool: CubeCard[], floors: Map<AxisKey, number>): Set<CubeCard> {
-  const reserved = new Set<CubeCard>();
-  if (floors.size === 0) return reserved;
-  const filled = new Map<AxisKey, number>();
-  const candidates = pool.filter((c) => axesTouched(c).length > 0).sort(byQuality);
-  for (const card of candidates) {
-    const axes = axesTouched(card);
-    if (!axes.some((k) => (filled.get(k) ?? 0) < (floors.get(k) ?? 0))) continue;
-    reserved.add(card);
-    for (const k of axes) {
-      if ((filled.get(k) ?? 0) < (floors.get(k) ?? 0)) filled.set(k, (filled.get(k) ?? 0) + 1);
-    }
-  }
-  return reserved;
-}
-
 /** Select up to `target` cards from a bucket pool, shaping toward curve & role sub-targets. */
 function selectBucket(
   pool: CubeCard[],
   target: number,
   band: BandTargets,
-  isLandBucket: boolean,
-  reserved?: ReadonlySet<CubeCard>
+  isLandBucket: boolean
 ): { picks: CubeCard[]; deferred: CubeCard[] } {
   const sorted = [...pool].sort(byQuality);
   if (isLandBucket || sorted.length <= target) {
@@ -234,18 +181,8 @@ function selectBucket(
     if (card.role) roleFill[card.role]++;
   };
 
-  // Archetype-reserved cards go in first (best-first, capped at target). They
-  // count toward curve/role so the rest of the bucket shapes around them.
-  if (reserved) {
-    for (const card of sorted) {
-      if (picks.length >= target) break;
-      if (reserved.has(card)) take(card);
-    }
-  }
-
-  // Fill the remaining slots by quality, shaping toward curve & role sub-targets.
+  // Fill slots by quality, shaping toward curve & role sub-targets.
   for (const card of sorted) {
-    if (reserved?.has(card)) continue;
     if (picks.length >= target) {
       deferred.push(card);
       continue;
@@ -302,26 +239,13 @@ export function generateCube(
   for (const b of BUCKETS) shares[b] = band.color[b].median;
   const targetByBucket = apportion(shares, size);
 
-  // Archetype-density floors from the owned pool, reserved across buckets so an
-  // enabler and its payoff in different colors fill one axis. synergyLevel 0
-  // (the default) skips this entirely → output identical to pure goodstuff.
-  const reserved =
-    synergyLevel > 0 ? selectAxisReserved(pool, deriveAxisFloors(pool, synergyLevel)) : undefined;
-
   // Select per bucket, capping at what's owned.
   const picks: Pick[] = [];
   const byBucket = {} as Record<ColorBucket, number>;
   const leftovers: CubeCard[] = [];
   for (const b of BUCKETS) {
     const want = Math.min(targetByBucket[b], buckets[b].length);
-    // Lands don't carry archetype identity → never reserved.
-    const { picks: sel, deferred } = selectBucket(
-      buckets[b],
-      want,
-      band,
-      b === 'land',
-      b === 'land' ? undefined : reserved
-    );
+    const { picks: sel, deferred } = selectBucket(buckets[b], want, band, b === 'land');
     byBucket[b] = sel.length;
     for (const c of sel) picks.push({ card: c, bucket: b, reason: reasonFor(c, b) });
     leftovers.push(...deferred);
@@ -349,12 +273,21 @@ export function generateCube(
   const gaps = buildGaps(byBucket, band, size, pool.length, shortfall, poolAxes);
 
   // Engaging the slider turns on the objective-driven refiner: hill-climb the
-  // greedy seed toward better archetype support, and attach the objective score
-  // so the UI can explain what the cube supports. Swaps stay in-bucket and only
-  // cut goodstuff filler, so byBucket (and the color/fixing/archetype gaps above)
-  // are unchanged — only which cards fill each bucket improves. synergyLevel 0
-  // keeps the byte-for-byte goodstuff cube with no score (archetype depth is a
-  // synergy-slider feature; a pure goodstuff cube isn't built toward it).
+  // greedy seed toward a better cube, and attach the objective score so the UI
+  // can explain what the cube supports. Swaps stay in-bucket, so byBucket (and
+  // the color/fixing/archetype gaps above) are unchanged — only which cards fill
+  // each bucket improves. `synergyLevel` sets how much of the objective's weight
+  // sits on archetype depth vs. a well-balanced environment, which is exactly
+  // what the "Best cards ↔ Synergy" slider promises. synergyLevel 0 keeps the
+  // byte-for-byte goodstuff cube with no score.
+  //
+  // The refiner is the ONLY archetype mechanism. An earlier design also reserved
+  // per-axis slots before the greedy shaped curve/roles; measured against the
+  // objective on a real 2.6k-card pool it was net-negative at every size (360:
+  // 0.632 refiner-only vs 0.470 with the reserve) — it wrecked curve and ate the
+  // cube's removal for no archetype gain at all (0.457 → 0.456), because the
+  // reserve pre-empts slots the greedy needs for shape. Deleted; don't reinstate
+  // without an A/B on a real pool.
   let finalPicks = picks;
   let finalByBucket = byBucket;
   let score: CubeScore | undefined;
@@ -363,7 +296,8 @@ export function generateCube(
       { size, picks, byBucket, targetByBucket, gaps, shortfall, poolSize: pool.length },
       pool,
       band,
-      size
+      size,
+      synergyLevel
     );
     finalPicks = refined.picks;
     finalByBucket = refined.byBucket;

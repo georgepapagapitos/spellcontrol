@@ -153,8 +153,8 @@ describe('generateCube — pool smaller than size', () => {
 
 describe('generateCube — synergy slider', () => {
   // A rich pool plus deliberately LOW-quality (high-rank) Black sacrifice cards:
-  // pure goodstuff would never pick them, so any that appear came from the axis
-  // reserve. 10 enablers + 10 payoffs = a draftable archetype.
+  // pure goodstuff would never pick them, so any that appear were swapped in by
+  // the objective refiner. 10 enablers + 10 payoffs = a draftable archetype.
   function withSacrifice(): CubeCard[] {
     const pool = richPool();
     for (let i = 0; i < 10; i++) {
@@ -185,7 +185,23 @@ describe('generateCube — synergy slider', () => {
     expect(hi).toBeGreaterThan(lo);
   });
 
-  it('reserves an archetype across colors (enabler + payoff in different buckets)', () => {
+  // Regression: engaging synergy used to reserve per-axis slots BEFORE the greedy
+  // shaped curve/roles, which ate the cube's removal to pay for archetype cards
+  // (measured on a real 2.6k pool: 23.5% → 12.6% interaction, and a LOWER
+  // objective score than not engaging synergy at all). The refiner replaced it,
+  // and the objective's fit curve no longer bottoms out at 0 — so cutting
+  // interaction now costs score instead of being free.
+  it('does not strip interaction to pay for archetypes', () => {
+    const pool = withSacrifice();
+    const removalCount = (c: ReturnType<typeof generateCube>) =>
+      c.picks.filter((p) => p.card.role === 'removal' || p.card.role === 'boardwipe').length;
+    const goodstuff = removalCount(generateCube(pool, 360, { synergyLevel: 0 }));
+    const synergy = removalCount(generateCube(pool, 360, { synergyLevel: 1 }));
+    expect(goodstuff).toBeGreaterThan(0); // the fixture actually has interaction
+    expect(synergy).toBeGreaterThanOrEqual(goodstuff);
+  });
+
+  it('picks up an archetype split across colors (enabler + payoff in different buckets)', () => {
     const pool = richPool();
     pool.push(card({ name: 'Outlet', colors: ['B'], rank: 9000, synergyProducers: ['sacrifice'] }));
     pool.push(card({ name: 'Payoff', colors: ['R'], rank: 9001, synergyPayoffs: ['sacrifice'] }));
