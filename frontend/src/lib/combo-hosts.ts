@@ -27,35 +27,63 @@ export function ownedCommanders(cards: EnrichedCard[]): EnrichedCard[] {
 }
 
 /**
- * Filter `commanders` to those whose colour identity contains every colour the
- * combo needs, ranked tightest-identity-match first.
- *
  * `identity` is Spellbook's format — lowercase WUBRG letters, or "c" for
  * colorless. Colorless fits under any commander, so 'c' is not a requirement.
  * A commander with no `colorIdentity` recorded is treated as colorless and so
  * only hosts colorless combos — never guessed into a match.
- *
- * Ranking is by the commander's own identity size, smallest first: a 2-colour
- * commander whose identity closely matches the combo is a build someone would
- * actually make, where a 5-colour goodstuff pile merely contains it as a
- * superset — in a large collection nearly every commander does, so plain
- * alphabetical order surfaces noise. EDHREC synergy and collection readiness
- * would rank better, but both need a per-commander network fetch; this runs
- * once per page (not per row), so it stays pure and local. Ties break by name
- * for deterministic output.
  */
+function neededColours(identity: string): string[] {
+  return [...identity.toLowerCase()].filter((ch) => ch !== 'c');
+}
+
+function covers(commander: EnrichedCard, needed: string[]): boolean {
+  const have = new Set((commander.colorIdentity ?? []).map((ch) => ch.toLowerCase()));
+  return needed.every((ch) => have.has(ch));
+}
+
+/** Filter `commanders` to those whose colour identity contains every colour the combo needs. */
 export function commandersForIdentity(
   commanders: EnrichedCard[],
   identity: string
 ): EnrichedCard[] {
-  const needed = [...identity.toLowerCase()].filter((ch) => ch !== 'c');
-  const hosts = commanders.filter((c) => {
-    const have = new Set((c.colorIdentity ?? []).map((ch) => ch.toLowerCase()));
-    return needed.every((ch) => have.has(ch));
-  });
-  return hosts.sort((a, b) => {
+  const needed = neededColours(identity);
+  return commanders.filter((c) => covers(c, needed));
+}
+
+/**
+ * Same test as `commandersForIdentity`, but a short-circuiting boolean instead
+ * of building a filtered array. Used by the collection page's per-row "can
+ * host" filter predicate (`canHost`, called once per combo, hundreds of times
+ * per page) — that path only needs yes/no, so it shouldn't pay for an array
+ * allocation, let alone the ranking sort below.
+ */
+export function hasHostForIdentity(commanders: EnrichedCard[], identity: string): boolean {
+  const needed = neededColours(identity);
+  return commanders.some((c) => covers(c, needed));
+}
+
+/**
+ * Rank already-filtered hosts so the ones a player would actually build float
+ * to the top of the aside's display list. Only called on the small number of
+ * combos actually rendered on screen (not the per-row `canHost` filter path),
+ * so a sort here is cheap.
+ *
+ * Primary key is EDHREC popularity (`edhrecRank`, lower = more played) — pure,
+ * local, already loaded on ~90% of a real collection, zero added cost. A
+ * commander with no recorded rank sorts after every ranked one in its tier,
+ * never guessed into first place. Colour-identity size is the tiebreak: among
+ * commanders with the same (or no) rank, the tighter match wins over a
+ * 5-colour goodstuff pile that merely contains the combo as a superset. Name
+ * is the final tiebreak for deterministic output.
+ */
+export function rankHosts(hosts: EnrichedCard[]): EnrichedCard[] {
+  return [...hosts].sort((a, b) => {
+    const ra = a.edhrecRank ?? Infinity;
+    const rb = b.edhrecRank ?? Infinity;
+    if (ra !== rb) return ra - rb;
     const na = (a.colorIdentity ?? []).length;
     const nb = (b.colorIdentity ?? []).length;
-    return na !== nb ? na - nb : a.name.localeCompare(b.name);
+    if (na !== nb) return na - nb;
+    return a.name.localeCompare(b.name);
   });
 }

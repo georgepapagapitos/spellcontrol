@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { commandersForIdentity, ownedCommanders } from './combo-hosts';
+import {
+  commandersForIdentity,
+  hasHostForIdentity,
+  ownedCommanders,
+  rankHosts,
+} from './combo-hosts';
 import type { EnrichedCard } from '../types';
 
 function card(over: Partial<EnrichedCard> = {}): EnrichedCard {
@@ -64,15 +69,44 @@ describe('commandersForIdentity', () => {
     expect(commandersForIdentity([unknown], 'u')).toEqual([]);
     expect(commandersForIdentity([unknown], 'c')).toHaveLength(1);
   });
+});
 
-  it('ranks a tighter colour-identity match ahead of an alphabetically-earlier loose one', () => {
-    // Both trivially host a UB combo. Aardvark is 5-colour and alphabetically
-    // first; Kess is UBR (3-colour, tighter). Kess must rank first.
+describe('hasHostForIdentity', () => {
+  it('agrees with commandersForIdentity without building an array', () => {
+    const kess = card(); // UBR
+    const thrasios = card({ name: 'Thrasios', colorIdentity: ['G', 'U'] });
+    expect(hasHostForIdentity([kess, thrasios], 'ub')).toBe(true);
+    expect(hasHostForIdentity([thrasios], 'ubr')).toBe(false);
+  });
+});
+
+describe('rankHosts', () => {
+  it('ranks a more-played commander ahead of an alphabetically-earlier, unranked one', () => {
+    // Both are mono-black (already filtered). Aardvark sorts first
+    // alphabetically but has no recorded EDHREC rank; Zubaz is ranked and
+    // must come first.
+    const aardvark = card({
+      name: 'Aardvark, Broad Ruler',
+      colorIdentity: ['B'],
+      edhrecRank: undefined,
+    });
+    const zubaz = card({ name: 'Zubaz, Grim Harvester', colorIdentity: ['B'], edhrecRank: 500 });
+    expect(rankHosts([aardvark, zubaz]).map((c) => c.name)).toEqual([
+      'Zubaz, Grim Harvester',
+      'Aardvark, Broad Ruler',
+    ]);
+  });
+
+  it('breaks an EDHREC-rank tie by tighter colour identity, not name', () => {
+    const kess = card({ colorIdentity: ['U', 'B', 'R'], edhrecRank: 100 }); // Kess, Dissident Mage
     const aardvark = card({
       name: 'Aardvark, Broad Ruler',
       colorIdentity: ['W', 'U', 'B', 'R', 'G'],
+      edhrecRank: 100,
     });
-    const result = commandersForIdentity([aardvark, kess], 'ub');
-    expect(result.map((c) => c.name)).toEqual(['Kess, Dissident Mage', 'Aardvark, Broad Ruler']);
+    expect(rankHosts([aardvark, kess]).map((c) => c.name)).toEqual([
+      'Kess, Dissident Mage',
+      'Aardvark, Broad Ruler',
+    ]);
   });
 });

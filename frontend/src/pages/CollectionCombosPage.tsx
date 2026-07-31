@@ -16,7 +16,12 @@ import { useComboPreview } from '../components/deck/use-combo-preview';
 import { useMissingCardPrices } from '../components/deck/use-missing-prices';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { buildCardLocationIndex } from '../lib/card-locations';
-import { commandersForIdentity, ownedCommanders } from '../lib/combo-hosts';
+import {
+  commandersForIdentity,
+  hasHostForIdentity,
+  ownedCommanders,
+  rankHosts,
+} from '../lib/combo-hosts';
 import { emptyComboFilters, filterCombos, countActiveFilters } from '../lib/combo-filters';
 
 type Tab = 'complete' | 'oneAway';
@@ -89,7 +94,7 @@ export function CollectionCombosPage() {
   // A combo is hostable if any owned commander's identity covers it — the same
   // derivation the per-row aside shows, reused as a filter predicate.
   const canHost = useCallback(
-    (m: ComboMatch) => commandersForIdentity(commanders, m.combo.identity).length > 0,
+    (m: ComboMatch) => hasHostForIdentity(commanders, m.combo.identity),
     [commanders]
   );
 
@@ -267,7 +272,7 @@ export function CollectionCombosPage() {
                   aside={
                     <ComboCollectionAside
                       cards={match.combo.cards}
-                      hosts={commandersForIdentity(commanders, match.combo.identity)}
+                      hosts={rankHosts(commandersForIdentity(commanders, match.combo.identity))}
                       locations={locations}
                     />
                   }
