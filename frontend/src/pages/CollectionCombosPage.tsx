@@ -8,7 +8,10 @@ import { BrandMark } from '../components/shared/BrandMark';
 import { CardPreview } from '../components/CardPreview';
 import { Tabs } from '../components/Tabs';
 import { ComboRow } from '../components/deck/ComboRow';
+import { ComboCollectionAside } from '../components/deck/ComboCollectionAside';
 import { useComboPreview } from '../components/deck/use-combo-preview';
+import { buildCardLocationIndex } from '../lib/card-locations';
+import { commandersForIdentity, ownedCommanders } from '../lib/combo-hosts';
 
 type Tab = 'complete' | 'oneAway';
 
@@ -31,6 +34,7 @@ type Tab = 'complete' | 'oneAway';
  */
 export function CollectionCombosPage() {
   const collection = useCollectionStore((s) => s.cards);
+  const binders = useCollectionStore((s) => s.binders);
   const hydrating = useCollectionStore((s) => s.hydrating);
   const authStatus = useAuth((s) => s.status);
 
@@ -52,6 +56,14 @@ export function CollectionCombosPage() {
   const cardImageIndex = useMemo(() => buildCardImageIndex(collection, null), [collection]);
   const cardIndex = useMemo(() => buildCardIndex(collection, null), [collection]);
   const preview = useComboPreview(cardIndex);
+
+  // Both derivations are pure and local — computed once for the whole page,
+  // not per row, so a few hundred combo rows add no requests and no rescans.
+  const commanders = useMemo(() => ownedCommanders(collection), [collection]);
+  const locations = useMemo(
+    () => buildCardLocationIndex(collection, binders),
+    [collection, binders]
+  );
 
   const { data, loading, error } = useDeckCombos({
     deckOracleIds: [],
@@ -158,6 +170,13 @@ export function CollectionCombosPage() {
                   cardImageIndex={cardImageIndex}
                   ownedOracleIds={ownedOracleIdSet}
                   onCardTap={(tapped) => void preview.open(match.combo.cards, tapped)}
+                  aside={
+                    <ComboCollectionAside
+                      cards={match.combo.cards}
+                      hosts={commandersForIdentity(commanders, match.combo.identity)}
+                      locations={locations}
+                    />
+                  }
                 />
               ))}
             </ul>
