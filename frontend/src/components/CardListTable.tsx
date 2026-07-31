@@ -2,7 +2,6 @@ import {
   AlignJustify,
   Bookmark,
   Captions,
-  Check,
   CheckSquare,
   ChevronDown,
   ChevronLeft,
@@ -75,7 +74,6 @@ import { useCardsWithTags, cardTagLabel } from '../lib/card-tags';
 import { InlineCardSearch } from './InlineCardSearch';
 import { SortDirArrow } from './SortDirArrow';
 import { useDebouncedValue } from '../lib/use-debounced-value';
-import { classifyFoil } from '../lib/foil-style';
 import { sortCards, printingKey, type SortContext } from '../lib/sorting';
 import { getSectionMeta } from '@spellcontrol/binder-routing';
 import {
@@ -97,8 +95,15 @@ import {
 import { fetchTypeSuggestions } from '../lib/scryfall-catalog';
 import { parseTypeLine, SUPERTYPES, TYPES } from '../lib/card-types';
 import { CardRow } from './shared/CardRow';
-import { RarityBadge } from './shared/RarityBadge';
-import { SetSymbol } from './shared/SetSymbol';
+import {
+  CardGridCell,
+  GridCaptionList,
+  GRID_CAPTION_H,
+  GRID_CAPTION_PLATE_PAD,
+  gridSetLabel,
+  useGridCaptionPrefs,
+  type GridCaptionPrefs,
+} from './shared/CardGridCell';
 import { ToolbarPopover } from './shared/ToolbarPopover';
 import { buildEditedCards, isNoOpCardEdit, stackCopies, stackDetailMix } from '../lib/edit-card';
 import {
@@ -168,55 +173,6 @@ function readStoredCollectionView(): ViewMode {
   // grid. Only fires when nothing was ever persisted; an explicit list/
   // compact choice above always wins.
   return 'grid';
-}
-
-// Grid captions — detail lines under each card, per-line toggleable from the
-// "Details" toolbar popover (mirroring the decks "Show" prefs): persisted per
-// device, default on. `sortValue` echoes the active sort key's value (dates
-// for the date sorts, EDHREC rank for that sort, otherwise the card's price);
-// `set` is the collector-app set line — rarity-tinted keyrune symbol + set
-// code · collector number.
-interface GridCaptionPrefs {
-  sortValue: boolean;
-  set: boolean;
-}
-const GRID_CAPTION_PREFS_KEY = 'mtg-collection-grid-caption-prefs';
-// Pre-details boolean key (PR #1203) — read once for migration, then unused.
-const GRID_CAPTION_LEGACY_KEY = 'mtg-collection-grid-caption';
-const DEFAULT_GRID_CAPTION_PREFS: GridCaptionPrefs = { sortValue: true, set: true };
-const GRID_CAPTION_LABEL: Record<keyof GridCaptionPrefs, string> = {
-  sortValue: 'Price / sort value',
-  set: 'Set & rarity',
-};
-// Shared checkbox list for the caption prefs — rendered by the desktop
-// "Details" popover and inside the narrow-viewport "View" popover.
-function GridCaptionList({
-  prefs,
-  onChange,
-}: {
-  prefs: GridCaptionPrefs;
-  onChange: (next: GridCaptionPrefs) => void;
-}) {
-  return (
-    <ul className="toolbar-popover-list" role="menu" aria-label="Card details">
-      {(Object.keys(GRID_CAPTION_LABEL) as (keyof GridCaptionPrefs)[]).map((k) => (
-        <li key={k}>
-          <button
-            type="button"
-            role="menuitemcheckbox"
-            aria-checked={prefs[k]}
-            className={`toolbar-popover-item${prefs[k] ? ' active' : ''}`}
-            onClick={() => onChange({ ...prefs, [k]: !prefs[k] })}
-          >
-            <span className="toolbar-popover-check" aria-hidden>
-              {prefs[k] ? '✓' : ''}
-            </span>
-            {GRID_CAPTION_LABEL[k]}
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
 }
 
 const VIEW_MODE_OPTIONS = [
@@ -312,30 +268,6 @@ function ViewPopoverPanel({
   );
 }
 
-// Rendered height (px) of ONE caption line, and the extra height the caption
-// footer plate adds below the last line — keep both in sync with
-// .collection-grid-captions / .collection-grid-caption in styles/collection.css.
-// Folded into the grid virtualizer's row-height estimate, which is
-// measureElement-free, so an estimate/CSS mismatch shows up as scroll drift.
-const GRID_CAPTION_H = 20;
-const GRID_CAPTION_PLATE_PAD = 4;
-
-function readStoredGridCaptionPrefs(): GridCaptionPrefs {
-  try {
-    const raw = localStorage.getItem(GRID_CAPTION_PREFS_KEY);
-    if (raw) {
-      return { ...DEFAULT_GRID_CAPTION_PREFS, ...(JSON.parse(raw) as Partial<GridCaptionPrefs>) };
-    }
-    // Migrate the legacy all-or-nothing toggle: an explicit "off" carries over
-    // as everything off; "on"/absent falls through to the defaults.
-    if (localStorage.getItem(GRID_CAPTION_LEGACY_KEY) === '0') {
-      return { sortValue: false, set: false };
-    }
-  } catch {
-    /* ignore */
-  }
-  return DEFAULT_GRID_CAPTION_PREFS;
-}
 type SortKey =
   | 'name'
   | 'set'
@@ -573,18 +505,7 @@ export function CardListTable({
   const effectiveZoom = clampZoom(gridZoom, isNarrow);
   // Coarse bucket driving the cell-chrome scaling classes (badges, qty pill).
   const effectiveGridSize = zoomBucket(effectiveZoom);
-  const [gridCaptionPrefs, setGridCaptionPrefsRaw] = useState<GridCaptionPrefs>(
-    readStoredGridCaptionPrefs
-  );
-  const setGridCaptionPrefs = (next: GridCaptionPrefs) => {
-    setGridCaptionPrefsRaw(next);
-    try {
-      localStorage.setItem(GRID_CAPTION_PREFS_KEY, JSON.stringify(next));
-      localStorage.removeItem(GRID_CAPTION_LEGACY_KEY);
-    } catch {
-      /* ignore */
-    }
-  };
+  const [gridCaptionPrefs, setGridCaptionPrefs] = useGridCaptionPrefs();
   // Rendered caption lines per tile — scales the virtualizer row estimate.
   const gridCaptionLines = (gridCaptionPrefs.sortValue ? 1 : 0) + (gridCaptionPrefs.set ? 1 : 0);
   const [binderExpr, setBinderExpr] = useState<ChipExpression>({
@@ -2418,126 +2339,63 @@ export function CardListTable({
                   }
                   if (idx >= displayRows.length) return null;
                   const r = displayRows[idx];
-                  const foilStyle = classifyFoil(r.card);
-                  const foilClass = foilStyle !== 'none' ? ` is-foil foil-${foilStyle}` : '';
                   const selected = selectedRowKeys.has(r.key);
-                  const caption = gridCaptionPrefs.sortValue ? captionFor(r) : null;
-                  const setLabel = gridCaptionPrefs.set
-                    ? `${r.card.setCode.toUpperCase()}${
-                        r.card.collectorNumber ? ` · ${r.card.collectorNumber}` : ''
-                      }`
-                    : null;
-                  return (
-                    <div key={r.key} className="collection-grid-cell">
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        aria-pressed={selectMode ? selected : undefined}
-                        className={`collection-grid-item grid-${effectiveGridSize}${foilClass}${
-                          selectMode ? ' is-selectable' : ''
-                        }${selected ? ' is-selected' : ''}`}
-                        onClick={() => (selectMode ? toggleRow(r.key) : setPreviewIndex(idx))}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            if (selectMode) toggleRow(r.key);
-                            else setPreviewIndex(idx);
-                          }
-                        }}
-                        aria-label={`${r.card.name}, quantity ${r.qty}${r.card.foil ? ', foil' : ''}${
-                          caption && caption !== '—' ? `, ${caption}` : ''
-                        }${setLabel ? `, ${setLabel}` : ''}${
-                          selectMode ? (selected ? ', selected' : ', not selected') : ''
-                        }`}
+                  const setLabel = gridSetLabel(r.card, gridCaptionPrefs);
+                  // Two collection-only corner chips beside the ×qty badge: a
+                  // set code when the same name appears as several printings
+                  // (redundant while the set caption is on), and the surplus
+                  // count while the "Tradeable surplus" filter is active.
+                  const dupChip =
+                    setLabel === null && duplicateNames.has(r.card.name) ? (
+                      <span
+                        className="collection-grid-set"
+                        title={setSymbolTitle({
+                          setCode: r.card.setCode,
+                          setName: r.card.setName || setMap?.[r.card.setCode.toUpperCase()]?.name,
+                          collectorNumber: r.card.collectorNumber,
+                          rarity: r.card.rarity,
+                        })}
                       >
-                        {selectMode && (
-                          <span
-                            className="collection-grid-check"
-                            data-checked={selected}
-                            aria-hidden
-                          >
-                            {selected && <Check width={14} height={14} strokeWidth={3} />}
-                          </span>
-                        )}
-                        {r.card.imageNormal ? (
-                          <img
-                            src={r.card.imageNormal}
-                            alt={r.card.name}
-                            loading="lazy"
-                            className="collection-grid-img"
-                          />
-                        ) : (
-                          <div className="collection-grid-placeholder">{r.card.name}</div>
-                        )}
-                        {r.card.foil && (
+                        {r.card.setCode.toUpperCase()}
+                      </span>
+                    ) : null;
+                  const surplus = surplusOnly ? surplusByName.get(r.card.name) : undefined;
+                  const surplusChip = surplus ? (
+                    <span
+                      className="collection-grid-surplus"
+                      title={`${surplus} unallocated ${
+                        surplus === 1 ? 'copy' : 'copies'
+                      } beyond your kept copy`}
+                    >
+                      {surplus} free
+                    </span>
+                  ) : null;
+                  return (
+                    <CardGridCell
+                      key={r.key}
+                      card={r.card}
+                      qty={r.qty}
+                      size={effectiveGridSize}
+                      caption={gridCaptionPrefs.sortValue ? captionFor(r) : null}
+                      setLabel={setLabel}
+                      selectMode={selectMode}
+                      selected={selected}
+                      onActivate={() => (selectMode ? toggleRow(r.key) : setPreviewIndex(idx))}
+                      cornerExtras={
+                        dupChip || surplusChip ? (
                           <>
-                            <div className="card-preview-foil-shine" aria-hidden="true" />
-                            <div className="card-preview-foil-glare" aria-hidden="true" />
+                            {dupChip}
+                            {surplusChip}
                           </>
-                        )}
-                        {/* The Set & rarity caption line carries rarity (glyph
-                            tint) and set code, so the on-card overlays that
-                            duplicate them are suppressed while it's shown. */}
-                        {!gridCaptionPrefs.set && (
-                          <RarityBadge rarity={r.card.rarity} className="collection-grid-rarity" />
-                        )}
-                        {(r.qty > 1 ||
-                          (!gridCaptionPrefs.set && duplicateNames.has(r.card.name)) ||
-                          (surplusOnly && surplusByName.has(r.card.name))) && (
-                          <div className="collection-grid-corner">
-                            {r.qty > 1 && (
-                              <span className="collection-grid-qty">
-                                <span className="collection-grid-qty-x" aria-hidden="true">
-                                  ×
-                                </span>
-                                {r.qty}
-                              </span>
-                            )}
-                            {!gridCaptionPrefs.set && duplicateNames.has(r.card.name) && (
-                              <span
-                                className="collection-grid-set"
-                                title={setSymbolTitle({
-                                  setCode: r.card.setCode,
-                                  setName:
-                                    r.card.setName || setMap?.[r.card.setCode.toUpperCase()]?.name,
-                                  collectorNumber: r.card.collectorNumber,
-                                  rarity: r.card.rarity,
-                                })}
-                              >
-                                {r.card.setCode.toUpperCase()}
-                              </span>
-                            )}
-                            {surplusOnly && surplusByName.has(r.card.name) && (
-                              <span
-                                className="collection-grid-surplus"
-                                title={`${surplusByName.get(r.card.name)} unallocated ${
-                                  surplusByName.get(r.card.name) === 1 ? 'copy' : 'copies'
-                                } beyond your kept copy`}
-                              >
-                                {surplusByName.get(r.card.name)} free
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        <div className="collection-grid-badges">
+                        ) : null
+                      }
+                      badges={
+                        <>
                           <DeckBadge allocations={allocationsFor(r.card)} />
                           <BinderBadge binders={r.binders} />
-                        </div>
-                      </div>
-                      {(caption !== null || setLabel !== null) && (
-                        <div className="collection-grid-captions" aria-hidden="true">
-                          {caption !== null && (
-                            <div className="collection-grid-caption">{caption}</div>
-                          )}
-                          {setLabel !== null && (
-                            <div className="collection-grid-caption collection-grid-caption--set">
-                              <SetSymbol setCode={r.card.setCode} rarity={r.card.rarity} />
-                              <span className="collection-grid-caption-set-label">{setLabel}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                        </>
+                      }
+                    />
                   );
                 })}
               </div>
