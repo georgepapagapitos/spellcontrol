@@ -27,6 +27,7 @@ import { CardContextMenu } from './CardContextMenu';
 import { MobileZonesPanel } from './MobileZonesPanel';
 import { OpeningHandSheet } from './OpeningHandSheet';
 import { PlaytestCardFace } from './PlaytestCardFace';
+import { ScrySheet } from './ScrySheet';
 import { TokenCreator } from './TokenCreator';
 import { DiceRoller } from './DiceRoller';
 import { PlaytestStatsSheet } from './PlaytestStatsSheet';
@@ -45,7 +46,7 @@ interface Props {
   state: PlaytestState;
 }
 
-type ViewerMode = { zone: Zone; topN?: number } | null;
+type ViewerMode = { zone: Zone } | null;
 type ContextState = { cardId: string; x: number; y: number } | null;
 
 function parseDraggable(id: string): { source: 'bf' | 'hand' | 'zone'; cardId: string } | null {
@@ -67,7 +68,6 @@ export function PlaytestBoard({ state }: Props) {
   const lastSessionRecord = usePlaytestStore((s) => s.lastSessionRecord);
   const lastSessionAggregates = usePlaytestStore((s) => s.lastSessionAggregates);
   const gameLog = usePlaytestStore((s) => s.gameLog);
-  const logScryPeek = usePlaytestStore((s) => s.logScryPeek);
   const playtestDeckId = usePlaytestStore((s) => s.deckId);
   const deck = useDecksStore((s) =>
     playtestDeckId ? s.decks.find((d) => d.id === playtestDeckId) : undefined
@@ -96,6 +96,7 @@ export function PlaytestBoard({ state }: Props) {
   const [viewer, setViewer] = useState<ViewerMode>(null);
   const [ctx, setCtx] = useState<ContextState>(null);
   const [tokenCreator, setTokenCreator] = useState(false);
+  const [showScry, setShowScry] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showLog, setShowLog] = useState(false);
   // Highest resistance-entry seq seen so far — drives the ActionBar's unread
@@ -229,6 +230,7 @@ export function PlaytestBoard({ state }: Props) {
     viewer !== null ||
     ctx !== null ||
     tokenCreator ||
+    showScry ||
     showStats ||
     showLog ||
     showDice ||
@@ -236,13 +238,6 @@ export function PlaytestBoard({ state }: Props) {
     showDesignations ||
     lifePanelOpen ||
     Boolean(confirmDialog);
-
-  // Scry/peek has no reducer action of its own (it's just the library viewer
-  // opened with a topN) — log it explicitly alongside opening the viewer.
-  function handleScry() {
-    logScryPeek();
-    setViewer({ zone: 'library', topN: 3 });
-  }
 
   const hasUnreadLog = gameLog.some((e) => e.kind === 'resistance' && e.seq > lastSeenLogSeq);
   function handleOpenLog() {
@@ -368,7 +363,7 @@ export function PlaytestBoard({ state }: Props) {
           });
           if (ok) dispatch({ type: 'RESET' });
         }}
-        onScry={handleScry}
+        onScry={() => setShowScry(true)}
         onCreateToken={() => setTokenCreator(true)}
         onOpenStats={() => setShowStats(true)}
         onOpenLog={handleOpenLog}
@@ -504,7 +499,7 @@ export function PlaytestBoard({ state }: Props) {
           commanderTax={state.commanderTax}
           onOpenZone={(zone) => setViewer({ zone })}
           onShuffleLibrary={() => dispatch({ type: 'SHUFFLE_LIBRARY' })}
-          onScry={handleScry}
+          onScry={() => setShowScry(true)}
         />
       )}
 
@@ -512,8 +507,6 @@ export function PlaytestBoard({ state }: Props) {
         <ZoneViewerModal
           zone={viewer.zone}
           cards={state.zones[viewer.zone]}
-          topN={viewer.topN}
-          ordered={viewer.zone === 'library'}
           onClose={() => setViewer(null)}
           onMove={(cardId, to) => {
             if (to === 'battlefield') {
@@ -589,6 +582,17 @@ export function PlaytestBoard({ state }: Props) {
             void resolveTokenArt(name).then((imageUrl) => {
               if (imageUrl) dispatch({ type: 'SET_CARD_IMAGE', cardId: id, imageUrl });
             });
+          }}
+        />
+      )}
+
+      {showScry && (
+        <ScrySheet
+          library={state.zones.library}
+          onClose={() => setShowScry(false)}
+          onResolve={(resolution) => {
+            haptics.tap();
+            dispatch({ type: 'RESOLVE_TOP', ...resolution });
           }}
         />
       )}

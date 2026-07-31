@@ -14,11 +14,18 @@ const DISPLAY_LIMIT = 3;
  *  crowding a bento card. */
 const FAN_LIMIT = 5;
 
-function ArrivalThumb({ name }: { name: string }) {
-  const art = useCardThumb(name, 'normal');
+/**
+ * `owned` is the art of a printing actually in the collection. Arrivals are
+ * grouped by name, so any owned copy of that name is the right answer — the
+ * name lookup alone rendered a default printing the user may not hold. Falls
+ * back to it for a card enriched before `imageNormal` existed.
+ */
+function ArrivalThumb({ name, owned }: { name: string; owned?: string }) {
+  const art = useCardThumb(owned ? undefined : name, 'normal');
+  const src = owned ?? art;
   return (
     <span className="home-thumb card-thumb-tilt" aria-hidden="true">
-      {art ? <img src={art} alt="" loading="lazy" /> : <span className="home-thumb-skeleton" />}
+      {src ? <img src={src} alt="" loading="lazy" /> : <span className="home-thumb-skeleton" />}
     </span>
   );
 }
@@ -68,6 +75,20 @@ export function NewArrivalsCard() {
     return names;
   }, [rows]);
 
+  // Owned-printing art for the ≤5 fan thumbs. One pass keyed to just those
+  // names, not a full name→image index of the whole collection.
+  const ownedArt = useMemo(() => {
+    const want = new Set(fanNames.map((n) => n.toLowerCase()));
+    const found = new Map<string, string>();
+    if (want.size === 0) return found;
+    for (const card of collectionCards) {
+      if (found.size === want.size) break;
+      const key = card.name.toLowerCase();
+      if (card.imageNormal && want.has(key) && !found.has(key)) found.set(key, card.imageNormal);
+    }
+    return found;
+  }, [collectionCards, fanNames]);
+
   return (
     <HomeCard
       title="New arrivals"
@@ -81,7 +102,7 @@ export function NewArrivalsCard() {
         <div className="home-arrivals-fan">
           <span className="home-arrivals-fan-thumbs">
             {fanNames.map((name) => (
-              <ArrivalThumb key={name} name={name} />
+              <ArrivalThumb key={name} name={name} owned={ownedArt.get(name.toLowerCase())} />
             ))}
           </span>
           <span className="home-arrivals-fan-count">{displayTotal} new</span>
