@@ -12,7 +12,7 @@ export async function matchCombosLocal(opts: {
   ownedOracleIds: Iterable<string>;
   deckOracleIds?: Iterable<string>;
   format?: string;
-}): Promise<ComboMatchResponse> {
+}): Promise<Omit<ComboMatchResponse, 'source'>> {
   const all = await getAllCombos();
   const owned = toSet(opts.ownedOracleIds);
   const inDeckSet = opts.deckOracleIds ? toSet(opts.deckOracleIds) : null;

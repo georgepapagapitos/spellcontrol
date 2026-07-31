@@ -247,6 +247,35 @@
   color: var(--err-text);
 }
 
+/* E212: shown when a combo match came back through the capped server
+ * fallback instead of the full local dataset — never let that read as a
+ * complete answer. */
+.deck-combos-partial-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--warn-text);
+  background: var(--warn-bg);
+  border: 0.5px solid var(--warn-border);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.deck-combos-partial-banner .btn-link {
+  flex-shrink: 0;
+}
+
+@media (pointer: coarse) {
+  .deck-combos-partial-banner .btn-link {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
 .deck-combos-close-btn {
   align-self: flex-start;
   background: transparent;

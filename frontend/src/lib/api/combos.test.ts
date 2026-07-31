@@ -49,7 +49,9 @@ describe('matchCombos', () => {
       format: 'commander',
     });
 
-    expect(result).toEqual(empty);
+    // E212: tagged with the matcher that produced it — this went through the
+    // capped server fallback, not the full local dataset.
+    expect(result).toEqual({ ...empty, source: 'server' });
     expect(fetchSpy).toHaveBeenCalledWith(
       '/api/combos/match',
       expect.objectContaining({
@@ -86,7 +88,9 @@ describe('matchCombos (client-side)', () => {
       format: 'commander',
     });
 
-    expect(result).toBe(local);
+    // E212: tagged 'local' — this is the full-dataset answer, cacheable and
+    // presentable as final.
+    expect(result).toEqual({ ...local, source: 'local' });
     expect(matchCombosLocal).toHaveBeenCalledWith({
       ownedOracleIds: ['a'],
       deckOracleIds: ['a'],

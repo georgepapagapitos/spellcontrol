@@ -76,17 +76,21 @@ function combo(id: string, name: string, missing: string[] = []): ComboMatch {
   };
 }
 
+const refetch = vi.fn();
+
 function setResult(over: Partial<ComboMatchResponse>) {
   useDeckCombos.mockReturnValue({
-    data: { inDeck: [], oneAway: [], almostInCollection: [], ...over },
+    data: { inDeck: [], oneAway: [], almostInCollection: [], source: 'local', ...over },
     loading: false,
     error: null,
+    refetch,
   });
 }
 
 describe('CollectionCombosPage', () => {
   beforeEach(() => {
     useDeckCombos.mockReset();
+    refetch.mockReset();
     setResult({});
   });
 
@@ -171,5 +175,31 @@ describe('CollectionCombosPage', () => {
     setResult({});
     renderPage();
     expect(screen.getByText('No combos you can build outright yet.')).toBeTruthy();
+  });
+
+  // E212: a `source: 'server'` result went through the capped server
+  // fallback (2000-candidate cap), not the full local dataset — this asserts
+  // it can never render as an unqualified final answer.
+  it('shows a partial-results banner when the match came from the server fallback', () => {
+    setResult({ inDeck: [combo('c1', 'Owned Combo')], source: 'server' });
+    renderPage();
+
+    expect(screen.getByText(/Showing partial results/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+  });
+
+  it('shows no banner when the match came from the full local dataset', () => {
+    setResult({ inDeck: [combo('c1', 'Owned Combo')], source: 'local' });
+    renderPage();
+
+    expect(screen.queryByText(/Showing partial results/)).toBeNull();
+  });
+
+  it('retrying the partial banner calls refetch', () => {
+    setResult({ inDeck: [combo('c1', 'Owned Combo')], source: 'server' });
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(refetch).toHaveBeenCalledTimes(1);
   });
 });

@@ -6,7 +6,7 @@ import {
   replaceCombos,
   writeStandaloneCombosVersion,
 } from './db';
-import type { OfflineCombo, OfflineManifest } from './types';
+import type { OfflineCombo } from './types';
 
 /**
  * Ensure the global combo dataset is cached in the device-local offline DB so
@@ -16,9 +16,11 @@ import type { OfflineCombo, OfflineManifest } from './types';
  * This is the *combos-only* slice of the offline snapshot: it does NOT download
  * the ~30MB oracle-card cache (that's full offline mode). The combo dataset is
  * global reference data (identical for everyone, nightly-ingested from
- * Commander Spellbook), tiny (~200–400 KB gzipped), and lives in
- * `spellcontrol-offline` — the same device-local store as the Scryfall/tagger
- * caches, **never** touched by the per-account `/api/sync` machinery.
+ * Commander Spellbook), and lives in `spellcontrol-offline` — the same
+ * device-local store as the Scryfall/tagger caches, **never** touched by the
+ * per-account `/api/sync` machinery. It is NOT tiny: measured 2026-07-31 at
+ * 17.0 MB gzipped (102k combos, 159 MB raw) — plan storage/transfer budgets
+ * against that, not the old "~200-400 KB" estimate this comment used to carry.
  *
  * Deduped per session (one inflight promise). Refreshes when the dataset
  * version moves, but serves a stale cache rather than failing if the refresh
@@ -79,12 +81,20 @@ async function run(): Promise<boolean> {
   return true;
 }
 
-async function fetchManifest(): Promise<OfflineManifest | null> {
+/**
+ * Hits `/api/offline/combos-version`, NOT `/api/offline/manifest` — the
+ * manifest 503s until the (unrelated) Scryfall oracle-card bulk finishes its
+ * 30-60s rebuild after every deploy, even though the combo dataset is
+ * Postgres-backed and ready the whole time. Gating on the full manifest here
+ * made a cold combo cache fall back to the capped server matcher for every
+ * user who visited during that window (E212).
+ */
+async function fetchManifest(): Promise<{ combosVersion: string } | null> {
   try {
-    const res = await fetch(apiUrl('/api/offline/manifest'), {
+    const res = await fetch(apiUrl('/api/offline/combos-version'), {
       headers: { Accept: 'application/json' },
     });
-    return res.ok ? ((await res.json()) as OfflineManifest) : null;
+    return res.ok ? ((await res.json()) as { combosVersion: string }) : null;
   } catch {
     return null;
   }

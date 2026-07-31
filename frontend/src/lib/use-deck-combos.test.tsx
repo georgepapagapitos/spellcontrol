@@ -9,7 +9,7 @@ vi.mock('./api/combos', () => ({
 
 import { matchCombos } from './api/combos';
 
-const empty = { inDeck: [], oneAway: [], almostInCollection: [] };
+const empty = { inDeck: [], oneAway: [], almostInCollection: [], source: 'local' as const };
 
 beforeEach(() => {
   __testing.cache.clear();

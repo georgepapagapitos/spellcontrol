@@ -125,6 +125,7 @@ describe('comboMatchesToDetected', () => {
         },
       ],
       almostInCollection: [],
+      source: 'local',
     };
     const detected = comboMatchesToDetected(resp);
     expect(detected).toHaveLength(1);
@@ -190,6 +191,7 @@ describe('comboMatchesToDetected', () => {
       ],
       oneAway: [],
       almostInCollection: [],
+      source: 'local',
     };
     const detected = comboMatchesToDetected(resp);
     expect(detected).toHaveLength(2);
@@ -229,6 +231,7 @@ describe('comboMatchesToDetected', () => {
       ],
       oneAway: [],
       almostInCollection: [],
+      source: 'local',
     };
     const detected = comboMatchesToDetected(resp);
     expect(detected[0].bracketTag).toBeNull();

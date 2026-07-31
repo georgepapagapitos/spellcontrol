@@ -124,6 +124,21 @@ describe('GET /api/offline/oracle-cards', () => {
   });
 });
 
+describe('GET /api/offline/combos-version', () => {
+  it('serves the combos version even while the (unrelated) oracle bulk is rebuilding', async () => {
+    // E212: /manifest 503s until the oracle bulk finishes its 30-60s rebuild
+    // after every deploy, even though the combo dataset is Postgres-backed
+    // and ready the whole time. combos-version must not inherit that gate —
+    // otherwise a cold combo cache falls back to the capped server matcher
+    // for every user who visits during that window.
+    await __resetOracleBulkForTesting();
+    const res = await request(app).get('/api/offline/combos-version');
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ combosVersion: expect.any(String) });
+    await refreshOracleBulk();
+  });
+});
+
 describe('GET /api/offline/combos', () => {
   it('serves gzipped JSON with an ETag', async () => {
     const res = await request(app)
