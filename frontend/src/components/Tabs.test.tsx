@@ -109,3 +109,39 @@ describe('Tabs', () => {
     expect(indicator?.style.opacity).toBe('0');
   });
 });
+
+// E223 — health badges. The badge's whole point is being readable without
+// opening the tab, which means readable to a screen reader too: the glanceable
+// text is decorative, the description carries the meaning.
+describe('Tabs — health badges', () => {
+  const BADGED: Array<TabItem<Id>> = [
+    { id: 'a', label: 'Alpha' },
+    {
+      id: 'b',
+      label: 'Beta',
+      badge: { text: '3', description: 'deck health: 3 to tune', tone: 'warn' },
+    },
+    { id: 'c', label: 'Gamma' },
+  ];
+
+  it('folds the badge description into the tab’s accessible name', () => {
+    render(<Tabs ariaLabel="x" value="a" onChange={() => {}} tabs={BADGED} />);
+    const beta = screen.getByRole('tab', { name: /Beta/ });
+    expect(beta.textContent).toContain('deck health: 3 to tune');
+  });
+
+  it('renders the glanceable text with its tone, hidden from the a11y tree', () => {
+    const { container } = render(
+      <Tabs ariaLabel="x" value="a" onChange={() => {}} tabs={BADGED} />
+    );
+    const badge = container.querySelector('.sc-tab-badge');
+    expect(badge?.textContent).toBe('3');
+    expect(badge?.getAttribute('data-tone')).toBe('warn');
+    expect(badge?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('renders no badge element when a tab has none', () => {
+    const { container } = render(<Tabs ariaLabel="x" value="a" onChange={() => {}} tabs={TABS} />);
+    expect(container.querySelector('.sc-tab-badge')).toBeNull();
+  });
+});

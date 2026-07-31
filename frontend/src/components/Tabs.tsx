@@ -1,5 +1,12 @@
 import { useLayoutEffect, useRef, type ReactNode, type Ref } from 'react';
 
+/** A tab's health badge — see {@link TabItem.badge}. */
+export interface TabBadge {
+  text: string;
+  description: string;
+  tone?: 'success' | 'warn' | 'err' | 'neutral';
+}
+
 export interface TabItem<T extends string> {
   /** Stable id — also used to derive the tab button's DOM id. */
   id: T;
@@ -7,6 +14,14 @@ export interface TabItem<T extends string> {
   label: ReactNode;
   /** Optional pill count badge (e.g. combo counts). `null`/omitted hides it. */
   count?: number | null;
+  /**
+   * Optional health badge — an already-computed verdict for the tab's own
+   * view (a bracket number, a "2 to tune" roll-up), so the strip answers
+   * "which view needs attention" without opening anything. `text` is the
+   * glanceable form; `description` spells it out and is appended to the tab's
+   * accessible name, so a badge is never a bare unexplained number.
+   */
+  badge?: TabBadge | null;
   /** Optional leading icon. */
   icon?: ReactNode;
   /** Overrides the button's accessible name when the label isn't plain text. */
@@ -198,6 +213,16 @@ export function Tabs<T extends string>({
               <span className={countClass} aria-hidden>
                 {t.count}
               </span>
+            )}
+            {t.badge && (
+              <>
+                <span className="sc-tab-badge" data-tone={t.badge.tone ?? 'neutral'} aria-hidden>
+                  {t.badge.text}
+                </span>
+                {/* Inside the button, so the badge joins the tab's accessible
+                    name instead of reading as a stray number. */}
+                <span className="sr-only">, {t.badge.description}</span>
+              </>
             )}
           </button>
         );

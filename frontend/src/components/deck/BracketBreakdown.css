@@ -328,6 +328,17 @@
   color: var(--accent);
 }
 
+/* Distance to the next threshold — forward-looking "how far", not a verdict
+   about what already happened, so it reads muted beside the accent-toned
+   elevation notes above it. */
+.bracket-breakdown-distance {
+  color: var(--text-secondary);
+}
+
+.bracket-breakdown-distance strong {
+  color: var(--text-primary);
+}
+
 /* ── Responsive ──────────────────────────────────────────────────────── */
 /* Narrow boxes: tighten the section/floor/summary padding and gaps. Bar
    labels truncate with an ellipsis while the mono value stays pinned
