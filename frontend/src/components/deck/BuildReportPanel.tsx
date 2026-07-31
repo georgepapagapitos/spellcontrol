@@ -8,6 +8,7 @@ import { comboPayoffScore } from '@/lib/combo-payoff';
 import { VerdictBadge } from './VerdictBadge';
 import { OwnershipBadge } from './OwnershipBadge';
 import { ColorPip } from '@/components/shared/ManaSymbol';
+import { THIN_SAMPLE_FLOOR } from '@/components/shared/ThinDataNote';
 import { InfoTip } from '../InfoTip';
 
 const COLOR_WORDS: Record<string, string> = {
@@ -546,6 +547,15 @@ export function BuildReportPanel({
               </li>
             ))}
           </ul>
+          {/* E224: the "Low sample" chip above named a limit without stating
+              it. One disclosure for the list, since the per-pick deck counts
+              aren't carried this far — the floor is the useful number anyway. */}
+          {packagePicks.some((p) => p.lowSample) && (
+            <p className="thin-data-note">
+              Picks marked “Low sample” come from fewer than {THIN_SAMPLE_FLOOR} decks pairing those
+              cards — treat them as a hunch, not a stat.
+            </p>
+          )}
           {liftPicksNote && <p className="build-report-lift-note">{liftPicksNote}</p>}
         </details>
       )}
