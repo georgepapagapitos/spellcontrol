@@ -962,3 +962,106 @@ describe('RESOLVE_TOP (scry / surveil / mill)', () => {
     expect(undone.zones.graveyard).toEqual(s.zones.graveyard);
   });
 });
+
+describe('CLONE_BF_CARDS', () => {
+  /** Puts `handIndex` onto the battlefield at (x, y) and returns the state. */
+  function play(s: PlaytestState, handIndex: number, x = 100, y = 100): PlaytestState {
+    return applyAction(s, {
+      type: 'MOVE_TO_BATTLEFIELD',
+      cardId: s.zones.hand[handIndex].id,
+      x,
+      y,
+    });
+  }
+
+  it('copies printed characteristics but not counters, stickers or tapped state', () => {
+    let s = play(init(20), 0);
+    const srcId = s.battlefield[0].card.id;
+    s = applyAction(s, { type: 'TAP', cardId: srcId });
+    s = applyAction(s, { type: 'SET_COUNTER', cardId: srcId, counter: '+1/+1', delta: 2 });
+    s = applyAction(s, { type: 'ADD_STICKER', cardId: srcId, text: 'flying' });
+
+    const next = applyAction(s, {
+      type: 'CLONE_BF_CARDS',
+      clones: [{ sourceId: srcId, id: 'copy-1' }],
+    });
+    const clone = next.battlefield.at(-1)!;
+    expect(clone.card.name).toBe(s.battlefield[0].card.name);
+    expect(clone.card.id).toBe('copy-1');
+    expect(clone.card.isToken).toBe(true);
+    expect(clone.tapped).toBe(false);
+    expect(clone.counters).toEqual({});
+    expect(clone.stickers).toEqual([]);
+  });
+
+  it('cascades each clone in the batch off its own source', () => {
+    let s = play(init(20), 0, 10, 20);
+    s = play(s, 0, 200, 300); // hand[0] again — the first card shifted down
+    const [a, b] = s.battlefield;
+    const next = applyAction(s, {
+      type: 'CLONE_BF_CARDS',
+      clones: [
+        { sourceId: a.card.id, id: 'copy-a' },
+        { sourceId: b.card.id, id: 'copy-b' },
+      ],
+    });
+    const [cloneA, cloneB] = next.battlefield.slice(-2);
+    expect(cloneA.x).toBeGreaterThan(a.x);
+    expect(cloneB.x).toBeGreaterThan(b.x);
+    // Second clone steps further than the first, so a pasted group fans out
+    // instead of landing as one indistinguishable stack.
+    expect(cloneB.x - b.x).toBeGreaterThan(cloneA.x - a.x);
+  });
+
+  it('copies the visible face of a transformed permanent', () => {
+    let s = play(init(20), 0);
+    const srcId = s.battlefield[0].card.id;
+    s = applyAction(s, { type: 'TRANSFORM', cardId: srcId });
+    const next = applyAction(s, {
+      type: 'CLONE_BF_CARDS',
+      clones: [{ sourceId: srcId, id: 'copy-1' }],
+    });
+    expect(next.battlefield.at(-1)!.showBackFace).toBe(true);
+  });
+
+  it('skips sources that are not on the battlefield, and no-ops when none are', () => {
+    const s = play(init(20), 0);
+    const srcId = s.battlefield[0].card.id;
+    const partial = applyAction(s, {
+      type: 'CLONE_BF_CARDS',
+      clones: [
+        { sourceId: 'gone', id: 'copy-x' },
+        { sourceId: srcId, id: 'copy-1' },
+      ],
+    });
+    expect(partial.battlefield).toHaveLength(2);
+    expect(applyAction(s, { type: 'CLONE_BF_CARDS', clones: [] })).toBe(s);
+    expect(
+      applyAction(s, { type: 'CLONE_BF_CARDS', clones: [{ sourceId: 'gone', id: 'c' }] })
+    ).toBe(s);
+  });
+
+  it('pushes one undo entry for the whole batch', () => {
+    let s = play(init(20), 0);
+    s = play(s, 0);
+    const before = s.battlefield.length;
+    const next = applyAction(s, {
+      type: 'CLONE_BF_CARDS',
+      clones: s.battlefield.map((b, i) => ({ sourceId: b.card.id, id: `copy-${i}` })),
+    });
+    expect(next.battlefield).toHaveLength(before * 2);
+    expect(next.past).toHaveLength(s.past.length + 1);
+    expect(applyAction(next, { type: 'UNDO' }).battlefield).toHaveLength(before);
+  });
+
+  it('clones cease to exist when they leave the battlefield (they are tokens)', () => {
+    const s = play(init(20), 0);
+    const cloned = applyAction(s, {
+      type: 'CLONE_BF_CARDS',
+      clones: [{ sourceId: s.battlefield[0].card.id, id: 'copy-1' }],
+    });
+    const exiled = applyAction(cloned, { type: 'MOVE_TO_ZONE', cardId: 'copy-1', to: 'graveyard' });
+    expect(exiled.battlefield).toHaveLength(1);
+    expect(exiled.zones.graveyard).toHaveLength(0);
+  });
+});

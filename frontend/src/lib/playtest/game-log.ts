@@ -177,6 +177,22 @@ export function buildLogEntries(
         },
       ];
 
+    case 'CLONE_BF_CARDS': {
+      // Counted from the resulting battlefield, so clones whose source had
+      // already left don't get logged as though they happened.
+      const made = next.battlefield.length - current.battlefield.length;
+      if (made <= 0) return [];
+      const only = made === 1 ? next.battlefield.at(-1)?.card.name : undefined;
+      return [
+        {
+          turn,
+          kind: 'token',
+          text: only ? `Copied ${only}` : `Copied ${made} permanents`,
+          ...(only && { cardName: only }),
+        },
+      ];
+    }
+
     case 'UNTAP_ALL':
       return [{ turn, kind: 'tap-all', text: 'Untapped all permanents' }];
 

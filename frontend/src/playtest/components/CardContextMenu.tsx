@@ -24,6 +24,11 @@ interface Props {
   onRemoveSticker(index: number): void;
   onFlip(): void;
   onTransform(): void;
+  /** Token-copy this card. When a multi-card selection is active and includes
+   *  this card, the whole selection is copied — `selectionSize` says so. */
+  onDuplicate(): void;
+  /** How many cards `onDuplicate` will copy (1 unless a selection is live). */
+  selectionSize?: number;
   onMoveTo(zone: Zone): void;
 }
 
@@ -47,6 +52,8 @@ export function CardContextMenu({
   onRemoveSticker,
   onFlip,
   onTransform,
+  onDuplicate,
+  selectionSize = 1,
   onMoveTo,
 }: Props) {
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -87,6 +94,9 @@ export function CardContextMenu({
       </button>
       <button type="button" className="playtest-ctx-action" onClick={onFlip}>
         Flip face
+      </button>
+      <button type="button" className="playtest-ctx-action" onClick={onDuplicate}>
+        {selectionSize > 1 ? `Duplicate ${selectionSize} selected` : 'Duplicate'}
       </button>
       {canTransform && (
         <button type="button" className="playtest-ctx-action" onClick={onTransform}>
