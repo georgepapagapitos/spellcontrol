@@ -29,9 +29,20 @@ const plainGroup: BinderFilterGroup = {
 const binder = (groups: BinderFilterGroup[]): BinderDef =>
   ({ id: 'b', filterGroups: groups }) as unknown as BinderDef;
 
+// Shape of public/otag-index.json: a parallel tag array, cards holding indices
+// into it. Hierarchy is pre-expanded by the build script, so no ancestors here.
 const SNAPSHOT = {
   generatedAt: '2026-01-01T00:00:00Z',
-  tags: { 'mana-rock': ['Sol Ring'], ramp: ['Sol Ring', 'Llanowar Elves'] },
+  tags: [
+    { s: 'mana-rock', l: 'mana-rock', d: 'Artifact that produces mana' },
+    { s: 'ramp', l: 'ramp', d: '' },
+    { s: 'sweeper', l: 'sweeper', d: 'Destroys many permanents at once' },
+  ],
+  cards: {
+    'Sol Ring': [0, 1],
+    'Llanowar Elves': [1],
+    'Wrath of God': [2],
+  },
 };
 
 describe('card-tags pure helpers', () => {
@@ -71,7 +82,7 @@ describe('card-tags snapshot load + decorate', () => {
 
     await mod.ensureCardTags();
     expect(mod.isCardTagsReady()).toBe(true);
-    expect(mod.listCardTags()).toEqual(['mana-rock', 'ramp']);
+    expect(mod.listCardTags()).toEqual(['mana-rock', 'ramp', 'sweeper']);
     expect(mod.getCardTags('Sol Ring')).toEqual(['mana-rock', 'ramp']);
     expect(mod.getCardTags('Mountain')).toEqual([]);
 
@@ -79,6 +90,23 @@ describe('card-tags snapshot load + decorate', () => {
     expect(out[0].tags).toEqual(['mana-rock', 'ramp']);
     expect(out[1].tags).toBeUndefined();
     expect(out[1]).toBe(input[1]); // untagged card not copied
+  });
+
+  it('carries legacy slugs alongside their modern equivalent so saved rules keep matching', async () => {
+    // Binder rules persisted under the old 23-tag vocabulary say "boardwipe";
+    // the full corpus calls it "sweeper". A card tagged sweeper must answer to
+    // both, or every existing boardwipe binder silently empties.
+    const mod = await import('./card-tags');
+    await mod.ensureCardTags();
+    expect(mod.getCardTags('Wrath of God')).toEqual(['sweeper', 'boardwipe']);
+  });
+
+  it('exposes the corpus description, empty when the tag has none', async () => {
+    const mod = await import('./card-tags');
+    await mod.ensureCardTags();
+    expect(mod.cardTagDescription('sweeper')).toBe('Destroys many permanents at once');
+    expect(mod.cardTagDescription('ramp')).toBe('');
+    expect(mod.cardTagDescription('nope')).toBe('');
   });
 
   it('failed fetch leaves tags unavailable (rules match nothing, no throw)', async () => {

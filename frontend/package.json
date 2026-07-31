@@ -12,8 +12,8 @@
     "refresh-card-similar": "node scripts/refresh-card-similar.mjs --force",
     "mine:cube-targets": "node scripts/mine-cube-targets.mjs",
     "build:shared": "npm --prefix ../packages/game-core run build && npm --prefix ../packages/binder-routing run build",
-    "predev": "npm run build:shared && node scripts/refresh-tagger.mjs && node scripts/refresh-rules.mjs && node scripts/refresh-sld-drops.mjs",
-    "prebuild": "npm run build:shared && node scripts/refresh-tagger.mjs && node scripts/refresh-rules.mjs && node scripts/refresh-sld-drops.mjs",
+    "predev": "npm run build:shared && node scripts/refresh-tagger.mjs && node scripts/refresh-otag-index.mjs && node scripts/refresh-rules.mjs && node scripts/refresh-sld-drops.mjs",
+    "prebuild": "npm run build:shared && node scripts/refresh-tagger.mjs && node scripts/refresh-otag-index.mjs && node scripts/refresh-rules.mjs && node scripts/refresh-sld-drops.mjs",
     "dev": "vite",
     "build": "tsc -p tsconfig.build.json && vite build",
     "preview": "vite preview",
@@ -26,7 +26,8 @@
     "lint:css": "stylelint \"src/**/*.css\"",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\"",
-    "refresh-sld-drops": "node scripts/refresh-sld-drops.mjs --force"
+    "refresh-sld-drops": "node scripts/refresh-sld-drops.mjs --force",
+    "refresh-otags": "node scripts/refresh-otag-index.mjs --force"
   },
   "dependencies": {
     "@capacitor-community/camera-preview": "^8.0.1",
