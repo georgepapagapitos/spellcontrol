@@ -96,11 +96,31 @@ export interface PlaytestState {
   past: Omit<PlaytestState, 'past'>[];
 }
 
+/** Scry, surveil, and mill are the same operation — look at the top N of the
+ *  library and redistribute it — differing only in where the cards you don't
+ *  keep on top are allowed to go (bottom for scry, graveyard for the other
+ *  two) and, for mill, in nothing going back on top by default. */
+export type ScryMode = 'scry' | 'surveil' | 'mill';
+
 export type PlaytestAction =
   | { type: 'DRAW'; n?: number }
   | { type: 'SHUFFLE_LIBRARY' }
   | { type: 'MULLIGAN'; handSize?: number }
   | { type: 'MOVE_TO_ZONE'; cardId: string; to: Zone; toIndex?: number }
+  | {
+      /** Resolve a look-at-the-top-N. Ids not currently in the library — and
+       *  repeats across the three lists — are ignored; `top` keeps cards on
+       *  top in the given order, `bottom` puts them under the library in the
+       *  given order, `graveyard` mills them. Cards in the peeked window that
+       *  appear in none of the lists simply stay where they were. `mode` is
+       *  carried for the game log only — the reducer treats all three the
+       *  same way. */
+      type: 'RESOLVE_TOP';
+      mode: ScryMode;
+      top: string[];
+      bottom?: string[];
+      graveyard?: string[];
+    }
   | {
       type: 'MOVE_TO_BATTLEFIELD';
       cardId: string;

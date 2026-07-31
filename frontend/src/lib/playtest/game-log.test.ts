@@ -27,6 +27,41 @@ function entry(overrides: Partial<GameLogEntry> = {}): GameLogEntry {
 }
 
 describe('buildLogEntries', () => {
+  it.each([
+    ['scry', { bottom: 1 }, 'scry', 'Scried 3 — 1 to the bottom'],
+    ['surveil', { graveyard: 1 }, 'mill', 'Surveilled 3 — 1 to the graveyard'],
+  ] as const)('logs a resolved %s', (mode, away, kind, text) => {
+    const s = init(10, 1, 0);
+    const [a, b, c] = s.zones.library;
+    const action = {
+      type: 'RESOLVE_TOP' as const,
+      mode,
+      top: [a.id, b.id],
+      ...('bottom' in away ? { bottom: [c.id] } : { graveyard: [c.id] }),
+    };
+    expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([{ turn: 1, kind, text }]);
+  });
+
+  it('logs a mill by the number that actually reached the graveyard', () => {
+    const s = init(10, 1, 0);
+    const [a, b] = s.zones.library;
+    const action = {
+      type: 'RESOLVE_TOP' as const,
+      mode: 'mill' as const,
+      top: [],
+      graveyard: [a.id, b.id, 'not-in-library'],
+    };
+    expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([
+      { turn: 1, kind: 'mill', text: 'Milled 2 cards' },
+    ]);
+  });
+
+  it('logs nothing for a scry that resolved to nothing', () => {
+    const s = init(10, 1, 0);
+    const action = { type: 'RESOLVE_TOP' as const, mode: 'scry' as const, top: ['nope'] };
+    expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([]);
+  });
+
   it('logs a turn boundary', () => {
     const s = init(10, 1, 0);
     const next = applyAction(s, { type: 'NEXT_TURN' });
