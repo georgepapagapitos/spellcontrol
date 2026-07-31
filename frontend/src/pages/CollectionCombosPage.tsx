@@ -309,6 +309,7 @@ export function CollectionCombosPage() {
                   aside={
                     <ComboCollectionAside
                       cards={match.combo.cards}
+                      produces={match.combo.produces}
                       hosts={rankHosts(commandersForIdentity(commanders, match.combo.identity))}
                       locations={locations}
                     />

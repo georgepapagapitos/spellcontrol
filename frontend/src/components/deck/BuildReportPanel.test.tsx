@@ -694,6 +694,39 @@ describe('BuildReportPanel', () => {
   });
 });
 
+describe('combo-seed confirmation (E215)', () => {
+  const comboSeedContext = {
+    pieceNames: ['Sanguine Bond', 'Exquisite Blood'],
+    produces: ['Infinite life loss'],
+  };
+
+  it('is absent when the build was not seeded from a combo', () => {
+    const { container } = render(<BuildReportPanel report={makeReport()} />);
+    expect(container.querySelector('.build-report-combo-seed')).toBeNull();
+  });
+
+  it('confirms assembly when nothing was skipped', () => {
+    render(<BuildReportPanel report={makeReport()} comboSeedContext={comboSeedContext} />);
+    expect(screen.getByText('The combo you built around is in this deck')).toBeTruthy();
+    expect(screen.getByText('Sanguine Bond + Exquisite Blood — all seated.')).toBeTruthy();
+  });
+
+  it("flags a partial assembly using the generator's own skip note, without double-printing it", () => {
+    const note = "Couldn't include 1 of your 2 must-include cards: Exquisite Blood (over budget).";
+    const { container } = render(
+      <BuildReportPanel
+        report={makeReport({ mustIncludeSkippedNote: note })}
+        comboSeedContext={comboSeedContext}
+      />
+    );
+    expect(screen.getByText("Didn't fully assemble the combo you built around")).toBeTruthy();
+    // The note appears once (in the combo banner), not a second time in the
+    // generic must-include flag it would otherwise also render.
+    expect(screen.getAllByText(note)).toHaveLength(1);
+    expect(container.querySelector('.build-report-combo-seed.is-partial')).not.toBeNull();
+  });
+});
+
 describe('claimedConflicts (E134 — proactive visibility)', () => {
   it('renders nothing when there are no conflicts', () => {
     const { container } = render(<BuildReportPanel report={makeReport({ claimedConflicts: 0 })} />);

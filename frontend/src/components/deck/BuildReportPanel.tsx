@@ -1,8 +1,8 @@
 import { useMemo, useState, type JSX } from 'react';
 import './BuildReportPanel.css';
-import { Check, Loader2, Plus } from 'lucide-react';
+import { AlertOctagon, Check, Loader2, Plus, Sparkles } from 'lucide-react';
 import type { BuildReport, DeckDataSource, GenerationMode } from '@/deck-builder/types';
-import type { ComboMatch } from '@/types/combos';
+import type { ComboMatch, ComboSeedContext } from '@/types/combos';
 import { ROLE_TITLES, type RoleKey } from '@/lib/role-badges';
 import { comboPayoffScore } from '@/lib/combo-payoff';
 import { VerdictBadge } from './VerdictBadge';
@@ -96,6 +96,7 @@ export function BuildReportPanel({
   addingCardNames,
   oneAwayCombos,
   ownedOracleIds,
+  comboSeedContext,
 }: {
   report: BuildReport;
   /** Jump to the Coach "Fix gaps" lane to add cards for the under-target roles.
@@ -119,6 +120,14 @@ export function BuildReportPanel({
   /** Oracle ids the user owns — flags one-away combos whose missing piece is
    *  already in the collection (those rank first: they're free to finish). */
   ownedOracleIds?: ReadonlySet<string>;
+  /** Combo this build was seeded from (E215), when this is the one-shot
+   *  post-generation sheet. Absent everywhere else (incl. the persistent
+   *  Stats-tab panel, since the seed intent isn't persisted). Confirms the
+   *  combo assembled — or, honestly, that a forced pick got skipped — using
+   *  `mustIncludeSkippedNote` below, which the generator already computes for
+   *  exactly this build's must-includes (the combo's pieces, and nothing
+   *  else, since this flow is the only source of mustIncludeCards here). */
+  comboSeedContext?: ComboSeedContext | null;
 }): JSX.Element {
   const [justAdded, setJustAdded] = useState<Set<string>>(new Set());
 
@@ -245,6 +254,32 @@ export function BuildReportPanel({
 
   return (
     <div className="build-report">
+      {comboSeedContext && (
+        <p
+          className={`build-report-combo-seed${mustIncludeSkippedNote ? ' is-partial' : ' is-assembled'}`}
+        >
+          {mustIncludeSkippedNote ? (
+            <AlertOctagon
+              className="build-report-combo-seed-icon"
+              width={14}
+              height={14}
+              aria-hidden
+            />
+          ) : (
+            <Sparkles className="build-report-combo-seed-icon" width={14} height={14} aria-hidden />
+          )}
+          <span>
+            <strong>
+              {mustIncludeSkippedNote
+                ? "Didn't fully assemble the combo you built around"
+                : 'The combo you built around is in this deck'}
+            </strong>
+            <br />
+            {mustIncludeSkippedNote ?? `${comboSeedContext.pieceNames.join(' + ')} — all seated.`}
+          </span>
+        </p>
+      )}
+
       {integrityNotes?.map((note) => (
         <p key={note} className="build-report-flag">
           {note}
@@ -283,7 +318,11 @@ export function BuildReportPanel({
 
       {landCountNote && <p className="build-report-line build-report-source">{landCountNote}</p>}
 
-      {mustIncludeSkippedNote && <p className="build-report-flag">{mustIncludeSkippedNote}</p>}
+      {/* Combo builds already surface this note in the confirmation banner
+          above — don't say it twice. */}
+      {mustIncludeSkippedNote && !comboSeedContext && (
+        <p className="build-report-flag">{mustIncludeSkippedNote}</p>
+      )}
 
       {brewDialNote && <p className="build-report-line build-report-source">{brewDialNote}</p>}
       {varietyNote && <p className="build-report-line build-report-source">{varietyNote}</p>}
