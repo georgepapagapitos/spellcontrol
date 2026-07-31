@@ -134,7 +134,7 @@ describe('CollectionCombosPage', () => {
     setResult({
       inDeck: [combo('c1', 'Owned Combo'), combo('c2', 'Other Combo')],
     });
-    render(<CollectionCombosPage />);
+    renderPage();
     expect(screen.getByText(/Owned Combo/)).toBeTruthy();
 
     fireEvent.change(screen.getByRole('textbox', { name: /Search combos/ }), {
@@ -148,7 +148,7 @@ describe('CollectionCombosPage', () => {
 
   it('says the filters hid the rows rather than claiming there are none', async () => {
     setResult({ inDeck: [combo('c1', 'Owned Combo')] });
-    render(<CollectionCombosPage />);
+    renderPage();
 
     fireEvent.change(screen.getByRole('textbox', { name: /Search combos/ }), {
       target: { value: 'zzzz-no-such-card' },
@@ -163,7 +163,7 @@ describe('CollectionCombosPage', () => {
 
   it('hides the search row entirely when there is nothing to search', () => {
     setResult({});
-    render(<CollectionCombosPage />);
+    renderPage();
     expect(screen.queryByRole('textbox', { name: /Search combos/ })).toBeNull();
   });
 
