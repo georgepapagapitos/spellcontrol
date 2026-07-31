@@ -16,6 +16,7 @@ import { useCardThumb } from '../../lib/card-thumbs';
 import { ColorPip } from '../shared/ManaSymbol';
 import type { EdhrecComboStat } from '../../lib/edhrec-combo-overlay';
 import type { ComboMatch } from '../../types/combos';
+import { formatMoney } from '../../lib/format-money';
 import { MagicText } from './MagicText';
 import { OwnershipBadge } from './OwnershipBadge';
 
@@ -83,6 +84,12 @@ export interface ComboRowProps {
    * passes nothing, so that surface is unchanged.
    */
   aside?: ReactNode;
+  /**
+   * Market price of the missing piece, when known. Only meaningful on a
+   * one-away row; undefined renders nothing (an unknown price and an
+   * un-fetched one look the same to the user, deliberately).
+   */
+  missingPrice?: number;
 }
 
 export function ComboRow({
@@ -95,6 +102,7 @@ export function ComboRow({
   onCardTap,
   scope = 'deck',
   aside,
+  missingPrice,
 }: ComboRowProps) {
   const { combo } = match;
   const missingOracleId = match.missingOracleIds[0] ?? null;
@@ -291,6 +299,11 @@ export function ComboRow({
               missingIsOwned ? 'Owned — add it to complete this combo' : 'Not in your collection'
             }
           />
+          {missingPrice !== undefined && (
+            <span className="deck-combos-missing-price" title="Current market price (Scryfall)">
+              {formatMoney(missingPrice)}
+            </span>
+          )}
         </div>
       )}
 

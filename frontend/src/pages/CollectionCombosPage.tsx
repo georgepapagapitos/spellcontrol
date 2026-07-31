@@ -13,6 +13,7 @@ import { ComboFiltersPopover } from '../components/ComboFiltersPopover';
 import { ComboRow } from '../components/deck/ComboRow';
 import { ComboCollectionAside } from '../components/deck/ComboCollectionAside';
 import { useComboPreview } from '../components/deck/use-combo-preview';
+import { useMissingCardPrices } from '../components/deck/use-missing-prices';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { buildCardLocationIndex } from '../lib/card-locations';
 import { commandersForIdentity, ownedCommanders } from '../lib/combo-hosts';
@@ -76,8 +77,10 @@ export function CollectionCombosPage() {
     format: 'commander',
   });
 
-  const rawComplete = data?.inDeck ?? [];
-  const rawOneAway = data?.almostInCollection ?? [];
+  // Memoized because the `?? []` fallback would otherwise mint a fresh array
+  // identity every render, invalidating every downstream filter memo.
+  const rawComplete = useMemo(() => data?.inDeck ?? [], [data?.inDeck]);
+  const rawOneAway = useMemo(() => data?.almostInCollection ?? [], [data?.almostInCollection]);
 
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 200);
@@ -102,6 +105,28 @@ export function CollectionCombosPage() {
 
   const [tab, setTab] = useState<Tab>('complete');
   const matches = tab === 'complete' ? complete : oneAway;
+
+  // Prices for the missing pieces. Only the one-away tab has any, and only
+  // while it's the tab being looked at — no point fetching for a list the user
+  // isn't on. The missing card is never in the collection, so these can't come
+  // from local data (see useMissingCardPrices).
+  const missingNames = useMemo(() => {
+    if (tab !== 'oneAway') return [];
+    const names: string[] = [];
+    for (const m of oneAway) {
+      const id = m.missingOracleIds[0];
+      const card = id ? m.combo.cards.find((c) => c.oracleId === id) : undefined;
+      if (card) names.push(card.cardName);
+    }
+    return names;
+  }, [tab, oneAway]);
+  const missingPrices = useMissingCardPrices(missingNames);
+
+  const priceFor = (m: ComboMatch): number | undefined => {
+    const id = m.missingOracleIds[0];
+    const card = id ? m.combo.cards.find((c) => c.oracleId === id) : undefined;
+    return card ? missingPrices.get(card.cardName.toLowerCase()) : undefined;
+  };
 
   // Distinguishes "you own no combos" from "your filters hid them all" — the
   // empty state has to say which, or it reads as a broken page.
@@ -238,6 +263,7 @@ export function CollectionCombosPage() {
                   cardImageIndex={cardImageIndex}
                   ownedOracleIds={ownedOracleIdSet}
                   onCardTap={(tapped) => void preview.open(match.combo.cards, tapped)}
+                  missingPrice={tab === 'oneAway' ? priceFor(match) : undefined}
                   aside={
                     <ComboCollectionAside
                       cards={match.combo.cards}

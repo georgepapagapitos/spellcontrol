@@ -404,6 +404,16 @@
   white-space: nowrap;
 }
 
+/* Market price of the missing piece (collection combos view). Sits at the end
+   of the missing-piece line; flex-shrink:0 so the card name ellipsizes into it
+   rather than the price wrapping to its own line. */
+.deck-combos-missing-price {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
 /* Tablet & smaller: panel stacks under the deck (existing rule at 1024px).
    On true mobile the panel needs full-width breathing room and a tighter
    internal density so the rich detail still reads. */
