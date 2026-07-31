@@ -1,6 +1,7 @@
 import './ValueMoversCard.css';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { TrendingUp } from 'lucide-react';
+import { useCollectionStore } from '../../store/collection';
 import { useCurrency } from '../../lib/currency';
 import { formatMoney } from '../../lib/format-money';
 import { useCardThumb } from '../../lib/card-thumbs';
@@ -32,11 +33,19 @@ interface MoversData {
   today: string;
 }
 
-function MoverThumb({ name }: { name: string }) {
-  const art = useCardThumb(name, 'normal');
+/**
+ * `owned` is the art of the printing the user actually holds, keyed off the
+ * mover's `scryfallId` — a mover IS a printing (prices move per printing), so
+ * showing a name-resolved default printing misrepresented what moved. Falls
+ * back to the name lookup only for a card enriched before `imageNormal`
+ * existed, or one that left the collection since the refresh that logged it.
+ */
+function MoverThumb({ name, owned }: { name: string; owned?: string }) {
+  const art = useCardThumb(owned ? undefined : name, 'normal');
+  const src = owned ?? art;
   return (
     <span className="home-thumb card-thumb-tilt" aria-hidden="true">
-      {art ? <img src={art} alt="" loading="lazy" /> : <span className="home-thumb-skeleton" />}
+      {src ? <img src={src} alt="" loading="lazy" /> : <span className="home-thumb-skeleton" />}
     </span>
   );
 }
@@ -216,6 +225,24 @@ export function ValueMoversCard() {
   }, [currency]);
 
   const movers = data?.movers;
+  const shown = useMemo(() => movers?.movers.slice(0, DISPLAY_LIMIT) ?? [], [movers]);
+
+  // Owned-printing art for the ≤4 rows on screen. One pass over the collection
+  // (not a full id→image index of 10k+ cards) keyed to just the ids we need.
+  const collectionCards = useCollectionStore((s) => s.cards);
+  const ownedArt = useMemo(() => {
+    const want = new Set(shown.map((m) => m.scryfallId));
+    const found = new Map<string, string>();
+    if (want.size === 0) return found;
+    for (const card of collectionCards) {
+      if (found.size === want.size) break;
+      if (card.imageNormal && want.has(card.scryfallId) && !found.has(card.scryfallId)) {
+        found.set(card.scryfallId, card.imageNormal);
+      }
+    }
+    return found;
+  }, [collectionCards, shown]);
+
   const fresh =
     !!data &&
     movers != null &&
@@ -264,13 +291,13 @@ export function ValueMoversCard() {
             </div>
           )}
           <ul className="home-movers-list">
-            {movers.movers.slice(0, DISPLAY_LIMIT).map((m) => {
+            {shown.map((m) => {
               const moveAmount = m.after - m.before;
               const up = moveAmount > 0;
               const pct = m.before !== 0 ? Math.round((moveAmount / m.before) * 100) : null;
               return (
                 <li key={`${m.scryfallId}:${m.finish}`} className="home-movers-row">
-                  <MoverThumb name={m.name} />
+                  <MoverThumb name={m.name} owned={ownedArt.get(m.scryfallId)} />
                   <span className="home-movers-info">
                     <span className="home-movers-name">{m.name}</span>
                     <span className="home-movers-price">{formatMoney(m.after)}</span>
