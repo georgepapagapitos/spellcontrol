@@ -8,6 +8,14 @@ import type { ComboCardRef } from '../../types/combos';
 import type { CardLocation } from '../../lib/card-locations';
 
 const SHOWN_COMMANDERS = 3;
+/**
+ * Past this many hosts, the exact count stops being useful information — a
+ * mono-colour combo in a large collection can legally sit under hundreds of
+ * commanders, and "419 commanders you own can run this" reads as noise, not a
+ * fact worth leading with. Below the threshold the count is still a real,
+ * useful number.
+ */
+const MANY_HOSTS = 20;
 
 interface Props {
   /** The combo's pieces, so each can be located in the binders. */
@@ -80,7 +88,10 @@ export function ComboCollectionAside({ cards, hosts, locations }: Props) {
           <Crown className="combo-aside-icon" width={12} height={12} aria-hidden />
           <span className="combo-aside-label">
             {hosts.length === 1 ? '1 commander you own can run this:' : null}
-            {hosts.length > 1 ? `${hosts.length} commanders you own can run this:` : null}
+            {hosts.length > 1 && hosts.length <= MANY_HOSTS
+              ? `${hosts.length} commanders you own can run this:`
+              : null}
+            {hosts.length > MANY_HOSTS ? 'Best commanders you own for this:' : null}
           </span>{' '}
           <span className="combo-aside-names">
             {shown.map((c, i) => (
