@@ -1,13 +1,15 @@
 // @vitest-environment happy-dom
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Customization } from '@/deck-builder/types';
+import { getBanList } from '@/deck-builder/services/scryfall/client';
 import { DeckCustomizer } from './DeckCustomizer';
 
 let collectionCards: { name: string }[] = [];
 
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
   autocompleteCardName: vi.fn().mockResolvedValue([]),
+  getBanList: vi.fn().mockResolvedValue([]),
 }));
 vi.mock('../../store/collection', () => ({
   useCollectionStore: (sel: (s: { cards: unknown[] }) => unknown) =>
@@ -61,6 +63,7 @@ function baseCustomization(overrides: Partial<Customization> = {}): Customizatio
 
 beforeEach(() => {
   collectionCards = [{ name: 'Sol Ring' }, { name: 'Arcane Signet' }];
+  vi.mocked(getBanList).mockReset().mockResolvedValue([]);
 });
 
 describe('DeckCustomizer — collection controls', () => {
@@ -260,6 +263,103 @@ describe('DeckCustomizer — collapsed group summaries', () => {
     );
     fireEvent.click(screen.getByText('Budget'));
     expect(screen.queryByText(/\$50 deck/)).toBeNull();
+  });
+});
+
+describe('DeckCustomizer — Arena only / Tiny Leaders', () => {
+  function openPool() {
+    fireEvent.click(screen.getByText('Card pool'));
+  }
+
+  it('patches arenaOnly and tinyLeaders from the pool group', () => {
+    const update = vi.fn();
+    render(<DeckCustomizer customization={baseCustomization()} update={update} />);
+    openPool();
+    fireEvent.click(screen.getByLabelText(/Arena only/));
+    expect(update).toHaveBeenCalledWith({ arenaOnly: true });
+    fireEvent.click(screen.getByLabelText(/Tiny Leaders/));
+    expect(update).toHaveBeenCalledWith({ tinyLeaders: true });
+  });
+
+  it('names both in the collapsed pool summary when on', () => {
+    render(
+      <DeckCustomizer
+        customization={baseCustomization({ arenaOnly: true, tinyLeaders: true })}
+        update={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Arena only · Tiny Leaders')).toBeTruthy();
+  });
+
+  it('clears both with Reset all', () => {
+    const update = vi.fn();
+    render(
+      <DeckCustomizer
+        customization={baseCustomization({ arenaOnly: true, tinyLeaders: true, banLists: [] })}
+        update={update}
+      />
+    );
+    fireEvent.click(screen.getByTitle('Reset all customization to defaults'));
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ arenaOnly: false, tinyLeaders: false, banLists: [] })
+    );
+  });
+});
+
+describe('DeckCustomizer — ban-list presets', () => {
+  function openBanLists() {
+    fireEvent.click(screen.getByText('Ban lists'));
+  }
+
+  it('applies a fetched preset as an enabled ban list', async () => {
+    vi.mocked(getBanList).mockResolvedValue(['Black Lotus', 'Channel']);
+    const update = vi.fn();
+    render(<DeckCustomizer customization={baseCustomization()} update={update} />);
+    openBanLists();
+    fireEvent.click(screen.getByText('Commander'));
+    await waitFor(() => expect(update).toHaveBeenCalled());
+    expect(getBanList).toHaveBeenCalledWith('commander');
+    expect(update).toHaveBeenCalledWith({
+      banLists: [
+        {
+          id: 'commander',
+          name: 'Commander',
+          cards: ['Black Lotus', 'Channel'],
+          isPreset: true,
+          enabled: true,
+        },
+      ],
+    });
+  });
+
+  it('shows the card count on an applied preset and drops it on re-click', () => {
+    const update = vi.fn();
+    render(
+      <DeckCustomizer
+        customization={baseCustomization({
+          banLists: [
+            { id: 'brawl', name: 'Brawl', cards: ['Sol Ring'], isPreset: true, enabled: true },
+          ],
+        })}
+        update={update}
+      />
+    );
+    openBanLists();
+    const chip = screen.getByText('Brawl (1)');
+    expect(chip.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(chip);
+    expect(update).toHaveBeenCalledWith({ banLists: [] });
+  });
+
+  it('surfaces a retryable message when the fetch fails', async () => {
+    vi.mocked(getBanList).mockRejectedValue(new Error('offline'));
+    const update = vi.fn();
+    render(<DeckCustomizer customization={baseCustomization()} update={update} />);
+    openBanLists();
+    fireEvent.click(screen.getByText('Pauper EDH'));
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(screen.getByText(/Couldn't load the Pauper EDH ban list/)).toBeTruthy();
+    expect(update).not.toHaveBeenCalled();
   });
 });
 

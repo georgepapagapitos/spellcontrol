@@ -119,6 +119,11 @@ const daysAgo = (n: number) => Date.now() - n * 86400000;
 beforeEach(() => {
   vi.clearAllMocks();
   mockUseCardThumb.mockReturnValue(undefined);
+  // Every card that resolves owned-printing art reads the collection; default
+  // it to empty so a case that doesn't care needn't stub the store.
+  mockUseCollectionStore.mockImplementation((sel: (s: Record<string, unknown>) => unknown) =>
+    sel({ cards: [], importHistory: [], binders: [], lists: [] })
+  );
 });
 
 describe('ValueMoversCard', () => {
@@ -216,6 +221,41 @@ describe('ValueMoversCard', () => {
     const img = container.querySelector('.home-thumb img') as HTMLImageElement | null;
     expect(img?.getAttribute('src')).toBe('riser-thumb.png');
     expect(img?.getAttribute('alt')).toBe('');
+  });
+
+  it('prefers the owned printing art over the name lookup, keyed on scryfallId', async () => {
+    mockUseCardThumb.mockReturnValue('wrong-printing.png');
+    mockUseCollectionStore.mockImplementation((sel: (s: Record<string, unknown>) => unknown) =>
+      sel({
+        cards: [
+          makeCard({ name: 'Riser', scryfallId: 'other-printing', imageNormal: 'not-mine.png' }),
+          makeCard({ name: 'Riser', scryfallId: 'a', imageNormal: 'my-printing.png' }),
+        ],
+        importHistory: [],
+      })
+    );
+    mockGetValueHistory.mockResolvedValue([]);
+    mockGetLatestMovers.mockResolvedValue({
+      day: dayKey(Date.now()),
+      at: Date.now(),
+      movers: [
+        {
+          scryfallId: 'a',
+          finish: 'nonfoil',
+          name: 'Riser',
+          setCode: 'tst',
+          before: 1,
+          after: 3,
+          copies: 1,
+        },
+      ],
+    });
+    const { container } = renderIn(<ValueMoversCard />);
+    await screen.findByText('Riser');
+    const img = container.querySelector('.home-thumb img') as HTMLImageElement | null;
+    expect(img?.getAttribute('src')).toBe('my-printing.png');
+    // The name lookup is skipped entirely once the owned printing is in hand.
+    expect(mockUseCardThumb).toHaveBeenCalledWith(undefined, 'normal');
   });
 
   it('carries polarity on the delta chip via glyph + sign + SR text, not color alone', async () => {
@@ -380,6 +420,31 @@ describe('NewArrivalsCard', () => {
     const img = container.querySelector('.home-arrivals-fan-thumbs img') as HTMLImageElement | null;
     expect(img?.getAttribute('src')).toBe('sol-ring.png');
     expect(img?.getAttribute('alt')).toBe('');
+  });
+
+  it('fans the owned printing art when the arriving card carries one', () => {
+    mockUseCardThumb.mockReturnValue('wrong-printing.png');
+    const deck = makeDeck({ id: 'atraxa', name: 'Atraxa Superfriends', updatedAt: 1000 });
+    mockUseDecksStore.mockImplementation((sel: (s: { decks: Deck[] }) => unknown) =>
+      sel({ decks: [deck] })
+    );
+    mockUseCollectionStore.mockImplementation((sel: (s: Record<string, unknown>) => unknown) =>
+      sel({
+        cards: [
+          makeCard({
+            name: 'Sol Ring',
+            updatedAt: 2000,
+            colorIdentity: [],
+            imageNormal: 'my-sol-ring.png',
+          }),
+        ],
+        importHistory: [],
+      })
+    );
+    const { container } = renderIn(<NewArrivalsCard />);
+    const img = container.querySelector('.home-arrivals-fan-thumbs img') as HTMLImageElement | null;
+    expect(img?.getAttribute('src')).toBe('my-sol-ring.png');
+    expect(mockUseCardThumb).toHaveBeenCalledWith(undefined, 'normal');
   });
 });
 

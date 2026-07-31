@@ -8,7 +8,7 @@ import type {
   MaxRarity,
   Pacing,
 } from '@/deck-builder/types';
-import { autocompleteCardName } from '@/deck-builder/services/scryfall/client';
+import { autocompleteCardName, getBanList } from '@/deck-builder/services/scryfall/client';
 import { constrainsToCollection } from '@/deck-builder/services/deckBuilder/deckFilters';
 import { currencySymbol } from '@/lib/currency';
 import { isNativePlatform, openExternal } from '@/lib/platform';
@@ -87,6 +87,9 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
       ignoreOwnedRarity: false,
       gameChangerLimit: 'unlimited',
       comboCount: 1,
+      arenaOnly: false,
+      tinyLeaders: false,
+      banLists: [],
       tempoAutoDetect: true,
       saltTolerance: 2,
       brewLevel: 0.5,
@@ -206,6 +209,13 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
             onChange={(next) => update({ bannedCards: next })}
           />
         </CollapsibleGroup>
+        <CollapsibleGroup
+          title="Ban lists"
+          defaultOpen={false}
+          count={(customization.banLists ?? []).length}
+        >
+          <BanListsGroup customization={customization} update={update} />
+        </CollapsibleGroup>
       </div>
     </section>
   );
@@ -299,6 +309,8 @@ function poolSummary(c: Customization): string {
         : c.comboCount === 3
           ? 'Many combos'
           : null,
+    c.arenaOnly ? 'Arena only' : null,
+    c.tinyLeaders ? 'Tiny Leaders' : null,
   ].filter(Boolean);
   return parts.length ? parts.join(' · ') : 'Any card';
 }
@@ -770,6 +782,86 @@ function PoolGroup({ customization, update }: DeckCustomizerProps) {
           onChange={(v) => update({ comboCount: v })}
         />
       </Field>
+
+      <Toggle
+        label="Arena only"
+        hint="Only cards playable on MTG Arena."
+        checked={customization.arenaOnly}
+        onChange={(v) => update({ arenaOnly: v })}
+      />
+      <Toggle
+        label="Tiny Leaders"
+        hint="Caps every non-land card at mana value 3."
+        checked={customization.tinyLeaders}
+        onChange={(v) => update({ tinyLeaders: v })}
+      />
+    </>
+  );
+}
+
+// ── Ban lists — live Scryfall presets (banned:<format>) ──────────────────
+const BAN_PRESETS = [
+  { format: 'commander', label: 'Commander' },
+  { format: 'brawl', label: 'Brawl' },
+  { format: 'standardbrawl', label: 'Standard Brawl' },
+  { format: 'paupercommander', label: 'Pauper EDH' },
+];
+
+function BanListsGroup({ customization, update }: DeckCustomizerProps) {
+  const lists = customization.banLists ?? [];
+  const [loading, setLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const toggle = async (format: string, label: string) => {
+    setError(null);
+    if (lists.some((l) => l.id === format)) {
+      update({ banLists: lists.filter((l) => l.id !== format) });
+      return;
+    }
+    setLoading(format);
+    try {
+      const cards = await getBanList(format);
+      if (cards.length === 0) throw new Error('empty ban list');
+      update({
+        banLists: [...lists, { id: format, name: label, cards, isPreset: true, enabled: true }],
+      });
+    } catch {
+      setError(`Couldn't load the ${label} ban list. Check your connection and try again.`);
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  return (
+    <>
+      <p className="deck-customizer-hint">
+        Pulled live from Scryfall. Every card banned in the format is excluded from generation, on
+        top of your own excluded cards.
+      </p>
+      <div className="ban-preset-row">
+        {BAN_PRESETS.map(({ format, label }) => {
+          const applied = lists.find((l) => l.id === format);
+          const busy = loading === format;
+          return (
+            <button
+              key={format}
+              type="button"
+              className={`preset-pill${applied ? ' active' : ''}`}
+              aria-pressed={!!applied}
+              aria-busy={busy}
+              disabled={loading !== null}
+              onClick={() => toggle(format, label)}
+            >
+              {busy ? 'Loading…' : applied ? `${label} (${applied.cards.length})` : label}
+            </button>
+          );
+        })}
+      </div>
+      {error && (
+        <p className="deck-customizer-hint" role="alert">
+          {error}
+        </p>
+      )}
     </>
   );
 }
@@ -1194,17 +1286,22 @@ function PresetEditableNumber({
 /** Themed checkbox row used by the customizer. */
 function Toggle({
   label,
+  hint,
   checked,
   onChange,
 }: {
   label: string;
+  hint?: string;
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
   return (
     <label className="field-checkbox deck-customizer-toggle">
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-      <span>{label}</span>
+      <span>
+        {label}
+        {hint && <small className="deck-customizer-toggle-hint">{hint}</small>}
+      </span>
     </label>
   );
 }

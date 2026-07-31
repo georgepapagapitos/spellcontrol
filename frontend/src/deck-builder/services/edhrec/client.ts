@@ -69,6 +69,10 @@ function emptyCommanderData(): EDHRECCommanderData {
   };
 }
 const MIN_REQUEST_DELAY = 100; // 100ms between requests
+// Cap 429/503 retries so a sustained throttle or outage throws instead of
+// recursing forever. Mirrors scryfall/client.ts's scryfallFetch discipline.
+export const MAX_RETRIES = 4;
+const BASE_BACKOFF_MS = 1000;
 
 class RateLimiter {
   private lastRequestTime = 0;
@@ -216,7 +220,7 @@ function getTargetBracketSuffix(targetBracket?: TargetBracket): string {
   return `/${TARGET_BRACKET_SLUGS[targetBracket]}`;
 }
 
-async function edhrecFetch<T>(endpoint: string): Promise<T> {
+async function edhrecFetch<T>(endpoint: string, attempt = 0): Promise<T> {
   await rateLimiter.throttle();
 
   const response = await fetch(`${BASE_URL}${endpoint}`, {
@@ -226,10 +230,20 @@ async function edhrecFetch<T>(endpoint: string): Promise<T> {
   });
 
   if (!response.ok) {
-    if (response.status === 429) {
-      // Rate limited - wait and retry once
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      return edhrecFetch<T>(endpoint);
+    if ((response.status === 429 || response.status === 503) && attempt < MAX_RETRIES) {
+      // Rate limited (429) or upstream briefly overloaded (503) — honor
+      // Retry-After if present, else exponential backoff. The old branch said
+      // "retry once" but recursed with no attempt counter, so a sustained
+      // throttle recursed forever and hung every caller; a flat 2s wait also
+      // ignored a `Retry-After: 60`, which just extends the block (the same
+      // lesson already learned on the Scryfall client).
+      const retryAfter = Number(response.headers.get('Retry-After'));
+      const waitMs =
+        Number.isFinite(retryAfter) && retryAfter > 0
+          ? retryAfter * 1000
+          : BASE_BACKOFF_MS * 2 ** attempt;
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      return edhrecFetch<T>(endpoint, attempt + 1);
     }
     throw new Error(`EDHREC API error: ${response.status} ${response.statusText}`);
   }
