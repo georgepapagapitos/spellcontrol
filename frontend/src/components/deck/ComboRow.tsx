@@ -77,6 +77,12 @@ export interface ComboRowProps {
    * piece" aside never applies.
    */
   scope?: 'deck' | 'collection';
+  /**
+   * Supplementary per-row content, rendered under the piece grid. Used by the
+   * collection view for host commanders + binder locations; the deck panel
+   * passes nothing, so that surface is unchanged.
+   */
+  aside?: ReactNode;
 }
 
 export function ComboRow({
@@ -88,6 +94,7 @@ export function ComboRow({
   onAddMissing,
   onCardTap,
   scope = 'deck',
+  aside,
 }: ComboRowProps) {
   const { combo } = match;
   const missingOracleId = match.missingOracleIds[0] ?? null;
@@ -286,6 +293,8 @@ export function ComboRow({
           />
         </div>
       )}
+
+      {aside}
 
       {/* Bracket meta is now inside the detail section (see below). */}
 

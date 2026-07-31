@@ -13,13 +13,29 @@ vi.mock('../lib/sync', () => ({ getSyncState: () => 'ready', onSyncedChange: () 
 vi.mock('../components/shared/BrandMark', () => ({ BrandMark: () => null }));
 vi.mock('../components/CardPreview', () => ({ CardPreview: () => null }));
 
+// One commander-eligible legend (UB) so the host-commander line has something
+// to find, plus a plain creature that must not qualify.
 const cards = [
-  { oracleId: 'o1', name: 'A' },
-  { oracleId: 'o2', name: 'B' },
+  {
+    oracleId: 'o1',
+    name: 'Kess, Dissident Mage',
+    typeLine: 'Legendary Creature — Human Wizard',
+    oracleText: '',
+    legalities: { commander: 'legal' },
+    colorIdentity: ['U', 'B'],
+    purchasePrice: 0,
+  },
+  {
+    oracleId: 'o2',
+    name: 'Llanowar Elves',
+    typeLine: 'Creature — Elf Druid',
+    colorIdentity: ['G'],
+    purchasePrice: 0,
+  },
 ];
 vi.mock('../store/collection', () => ({
   useCollectionStore: (sel: (s: unknown) => unknown) =>
-    sel({ cards: cards.map((c) => ({ ...c, purchasePrice: 0 })), hydrating: false }),
+    sel({ cards, binders: [], hydrating: false }),
 }));
 vi.mock('../store/auth', () => ({
   useAuth: (sel: (s: unknown) => unknown) => sel({ status: 'guest' }),
@@ -91,6 +107,17 @@ describe('CollectionCombosPage', () => {
     expect(screen.getByText(/Near Miss/)).toBeTruthy();
     // Scope-specific copy: the deck panel says "in deck" here.
     expect(screen.getByLabelText('1 of 2 pieces in collection')).toBeTruthy();
+  });
+
+  it('names the commanders you own that could host a complete combo', () => {
+    setResult({ inDeck: [combo('c1', 'Owned Combo')] });
+    render(<CollectionCombosPage />);
+
+    // Kess is UB and the combo is 'ub' — Llanowar Elves (G, not legendary)
+    // must not appear.
+    expect(screen.getByText(/1 commander you own can run this/)).toBeTruthy();
+    expect(screen.getByText(/Kess, Dissident Mage/)).toBeTruthy();
+    expect(screen.queryByText(/Llanowar Elves/)).toBeNull();
   });
 
   it('prompts for cards when the collection has no combo-matchable ids', () => {
