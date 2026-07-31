@@ -180,7 +180,12 @@ import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commander
 import { computeRoleDensity } from '@/deck-builder/services/deckBuilder/roleDensity';
 import { DeckIdentityCard } from './DeckIdentityCard';
 import { DeckAnalysisSkeleton } from './DeckAnalysisSkeleton';
-import { buildValidationChecklist } from '@/deck-builder/services/deckBuilder/validationChecklist';
+import {
+  buildValidationChecklist,
+  summarizeValidation,
+  type ValidationResult,
+  type ValidationSummary,
+} from '@/deck-builder/services/deckBuilder/validationChecklist';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import {
   buildCommanderProfile,
@@ -646,6 +651,12 @@ export interface DeckDisplayProps {
    * hub tab bar lives in the page (`DeckEditorPage`), which owns this state.
    */
   activeView?: DeckView;
+  /**
+   * Reports the deck-health roll-up whenever it changes, so the page's view
+   * tabs can badge the Stats tab with the same verdict the Stats board shows.
+   * Must be referentially stable (the effect that calls it depends on it).
+   */
+  onDeckHealthChange?: (summary: ValidationSummary) => void;
   /** Reveal the standalone Test hand panel — surfaced in the Deck-view toolbar. */
   onShowTestHand?: () => void;
   /** Opens the add-cards sheet — used by the empty-deck state's CTA (E182). */
@@ -1432,6 +1443,7 @@ export function DeckDisplay({
   renderSwapSuggestions,
   renderSimilarCards,
   activeView = 'deck',
+  onDeckHealthChange,
   onShowTestHand,
   onAddCards,
   analysisState = 'ready',
@@ -1968,6 +1980,35 @@ export function DeckDisplay({
     () => buildManaData(allCards, commander, partnerCommander),
     [allCards, commander, partnerCommander]
   );
+
+  // Generated decks pass roleCounts in; manual decks don't — derive them on
+  // the fly from the tagger so the Roles panel works for either flow.
+  const derivedRoles = useMemo(() => {
+    if (roleCounts !== undefined) return null;
+    return computeRoleCounts(allCards);
+  }, [allCards, roleCounts]);
+
+  // Pass/fail deck-health checklist for the Stats board — legality gates plus the
+  // soft role/curve targets, derived from the live list + role analysis. Lives
+  // here rather than in DeckAnalysisView so the Deck view can report the same
+  // verdict upward (E223's tab badge) without a second, drifting computation.
+  const validation = useMemo(
+    () =>
+      buildValidationChecklist({
+        cards: allCards,
+        commanderIdentity,
+        roleCounts: roleCounts ?? derivedRoles?.roleCounts,
+        roleTargets,
+        averageCmc: manaData.averageCmc,
+      }),
+    [allCards, commanderIdentity, roleCounts, derivedRoles, roleTargets, manaData.averageCmc]
+  );
+
+  // Report the roll-up to the page so the view tabs can badge it. The memo above
+  // is the only trigger, so this fires on real deck changes, not every render.
+  useEffect(() => {
+    onDeckHealthChange?.(summarizeValidation(validation));
+  }, [validation, onDeckHealthChange]);
 
   const exportText = useMemo(
     () =>
@@ -2789,7 +2830,8 @@ export function DeckDisplay({
             winConditionSlot={winConditionSlot}
             powerHeroSlot={powerHeroSlot}
             tableRecordSlot={tableRecordSlot}
-            commanderIdentity={commanderIdentity}
+            derivedRoles={derivedRoles}
+            validation={validation}
             analysisState={analysisState}
             onNavigateToTune={onNavigateToTune}
             onRetryAnalysis={onRetryAnalysis}
@@ -4867,7 +4909,6 @@ function DeckAnalysisView({
   winConditionSlot,
   powerHeroSlot,
   tableRecordSlot,
-  commanderIdentity,
   analysisState = 'ready',
   onNavigateToTune,
   onRetryAnalysis,
@@ -4883,6 +4924,8 @@ function DeckAnalysisView({
   oneAwayCombos,
   ownedOracleIds,
   landUpgradeCount,
+  derivedRoles,
+  validation,
 }: {
   view: AnalysisTabId;
   allCards: ScryfallCard[];
@@ -4915,7 +4958,6 @@ function DeckAnalysisView({
   powerHeroSlot?: React.ReactNode;
   tableRecordSlot?: React.ReactNode;
   /** The deck's legal color identity (commander union); drives the identity gate. */
-  commanderIdentity?: string[];
   /** UX-310: 'pending' shows skeleton placeholders on Tune/Power while analysis loads.
    *  E162: 'error' shows a failure message + retry instead of skeletoning forever. */
   analysisState?: 'pending' | 'ready' | 'error';
@@ -4947,14 +4989,11 @@ function DeckAnalysisView({
   oneAwayCombos?: ComboMatch[];
   /** Owned oracle ids — ranks owned-missing-piece combos first. */
   ownedOracleIds?: ReadonlySet<string>;
+  /** Tagger-derived role counts for manual decks; null when the deck passed its own. */
+  derivedRoles: ReturnType<typeof computeRoleCounts> | null;
+  /** Deck-health checklist — computed once in DeckDisplay so the tab badge can't drift. */
+  validation: ValidationResult;
 }) {
-  // Generated decks pass roleCounts in; manual decks don't — derive them on
-  // the fly from the tagger so the Roles panel works for either flow.
-  const derivedRoles = useMemo(() => {
-    if (roleCounts !== undefined) return null;
-    return computeRoleCounts(allCards);
-  }, [allCards, roleCounts]);
-
   // Overlapping multi-role counts (a card counts toward every role it fills),
   // always derived from the live card list — complements the primary-role bars.
   const roleDensity = useMemo(() => computeRoleDensity(allCards), [allCards]);
@@ -4973,20 +5012,6 @@ function DeckAnalysisView({
   const effectiveBoardwipeSub = boardwipeSubtypeCounts ?? derivedRoles?.boardwipeSubtypeCounts;
   const effectiveDrawSub = cardDrawSubtypeCounts ?? derivedRoles?.cardDrawSubtypeCounts;
   const showRoles = effectiveRoleCounts !== undefined;
-
-  // Pass/fail deck-health checklist for the Stats board — legality gates plus the
-  // soft role/curve targets, derived from the live list + role analysis.
-  const validation = useMemo(
-    () =>
-      buildValidationChecklist({
-        cards: allCards,
-        commanderIdentity,
-        roleCounts: effectiveRoleCounts,
-        roleTargets,
-        averageCmc: manaData.averageCmc,
-      }),
-    [allCards, commanderIdentity, effectiveRoleCounts, roleTargets, manaData.averageCmc]
-  );
 
   const effectiveBracketValue = bracketOverride ?? bracketEstimation?.bracket;
   const bracketOverridden = bracketOverride != null;
