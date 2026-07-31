@@ -1,10 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   isPoolTooThin,
   parseEdhrecResponse,
   parseSaltIndex,
+  fetchCardLiftPool,
   MIN_HEALTHY_POOL_DECKS,
   MIN_HEALTHY_POOL_CARDS,
+  MAX_RETRIES,
 } from './client';
 import { frontFaceName } from '@/lib/card-text';
 import type { EDHRECCard, EDHRECCommanderData } from '@/deck-builder/types';
@@ -257,5 +259,55 @@ describe('parseSaltIndex — E126 salt-gate reactivation (2026-07-23)', () => {
       1.8421,
       3
     );
+  });
+});
+
+// The 429/503 retry cap on edhrecFetch. The old branch commented "retry once"
+// but recursed with no attempt counter, so a sustained throttle recursed
+// forever and hung every caller — a real hazard once a surface fans out to
+// ~99 sequential card-page fetches (E219 phase b). Exercised through
+// fetchCardLiftPool, the public entry point that reaches edhrecFetch.
+describe('edhrecFetch retry discipline', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  /** Minimal Response stand-in — edhrecFetch reads ok/status/statusText/headers/json. */
+  function res(status: number, body: unknown = {}) {
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      statusText: String(status),
+      headers: { get: () => null },
+      json: async () => body,
+    };
+  }
+
+  it('caps retries on a sustained 429 instead of recursing forever', async () => {
+    const fetchMock = vi.fn(async () => res(429));
+    vi.stubGlobal('fetch', fetchMock);
+    vi.useFakeTimers();
+
+    // fetchCardLiftPool soft-fails to [] — the assertion that matters is the
+    // bounded call count (unbounded recursion would never settle).
+    const pending = fetchCardLiftPool('Retry Cap Probe');
+    await vi.runAllTimersAsync();
+
+    await expect(pending).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(MAX_RETRIES + 1); // initial + 4 retries
+  });
+
+  it('still retries a transient 429 and succeeds', async () => {
+    let calls = 0;
+    const fetchMock = vi.fn(async () => (++calls === 1 ? res(429) : res(200, {})));
+    vi.stubGlobal('fetch', fetchMock);
+    vi.useFakeTimers();
+
+    const pending = fetchCardLiftPool('Transient Throttle Probe');
+    await vi.runAllTimersAsync();
+
+    await expect(pending).resolves.toEqual([]); // empty page parses to no entries
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
