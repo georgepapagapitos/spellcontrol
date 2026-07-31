@@ -64,8 +64,13 @@ export class ScryfallCache {
 
   /**
    * Returns map of scryfallId -> card for all fresh hits. Misses are simply omitted.
+   *
+   * `allowStale` serves the readers that only want ORACLE facts (name, type
+   * line, oracle text, cmc) rather than prices. The TTL exists because prices
+   * move; a card's rules text does not, so expiring an oracle-only read just
+   * forces a pointless Scryfall round-trip. Never pass it on a price path.
    */
-  getMany(scryfallIds: string[]): Map<string, ScryfallCard> {
+  getMany(scryfallIds: string[], allowStale = false): Map<string, ScryfallCard> {
     if (scryfallIds.length === 0) return new Map();
 
     try {
@@ -82,7 +87,7 @@ export class ScryfallCache {
       const result = new Map<string, ScryfallCard>();
       const now = Date.now();
       for (const row of rows) {
-        if (now - row.cached_at > TTL_MS) continue;
+        if (!allowStale && now - row.cached_at > TTL_MS) continue;
         try {
           result.set(row.scryfall_id, JSON.parse(row.data));
         } catch {
@@ -101,9 +106,10 @@ export class ScryfallCache {
    * `card_lookups` alias table joined to `cards`. Returns a map of lookup_key ->
    * card for every fresh hit; misses (unknown key, stale alias, or stale/missing
    * underlying card) are omitted. Both the alias row and the card row must be
-   * within the TTL for a hit.
+   * within the TTL for a hit — unless `allowStale`, which oracle-only readers
+   * pass for the reason documented on {@link getMany}.
    */
-  getManyByKeys(keys: string[]): Map<string, ScryfallCard> {
+  getManyByKeys(keys: string[], allowStale = false): Map<string, ScryfallCard> {
     if (keys.length === 0) return new Map();
 
     try {
@@ -125,8 +131,8 @@ export class ScryfallCache {
       const result = new Map<string, ScryfallCard>();
       const now = Date.now();
       for (const row of rows) {
-        if (now - row.lookup_cached_at > TTL_MS) continue;
-        if (now - row.card_cached_at > TTL_MS) continue;
+        if (!allowStale && now - row.lookup_cached_at > TTL_MS) continue;
+        if (!allowStale && now - row.card_cached_at > TTL_MS) continue;
         try {
           result.set(row.lookup_key, JSON.parse(row.data));
         } catch {

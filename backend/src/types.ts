@@ -38,6 +38,8 @@ export interface ScryfallCard {
   finishes?: string[];
   /** EDHREC popularity rank. Lower = more popular. Missing for some cards (tokens, weird sets). */
   edhrec_rank?: number;
+  /** Scryfall's parsed keyword list (e.g. ["Flying","Lifelink"]). Feeds synergy classification. */
+  keywords?: string[];
   /** Cosmetic treatments on this printing (e.g. "fullart", "extendedart", "showcase", "etched"). */
   frame_effects?: string[];
   /** Promo treatments — where Scryfall encodes specialty foils like "textured", "surgefoil",
