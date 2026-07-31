@@ -4,18 +4,36 @@ import { PlaytestCardView } from './PlaytestCardView';
 
 interface Props {
   cards: BattlefieldCard[];
-  onCardClick(cardId: string): void;
+  /** Ids in the current selection (E226 group copy); empty set = none. */
+  selectedIds: ReadonlySet<string>;
+  /** A click that landed on the battlefield itself, not on a card. */
+  onBackgroundClick(): void;
+  onCardClick(cardId: string, e: React.MouseEvent | React.KeyboardEvent): void;
   onCardContextMenu(cardId: string, e: React.MouseEvent): void;
   onCardLongPress?(cardId: string, clientX: number, clientY: number): void;
 }
 
-export function Battlefield({ cards, onCardClick, onCardContextMenu, onCardLongPress }: Props) {
+export function Battlefield({
+  cards,
+  selectedIds,
+  onBackgroundClick,
+  onCardClick,
+  onCardContextMenu,
+  onCardLongPress,
+}: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: 'battlefield' });
   return (
     <div
       ref={setNodeRef}
       className={`playtest-battlefield${isOver ? ' is-over' : ''}`}
       aria-label="Battlefield"
+      // Clicking bare felt clears the selection — the standard
+      // click-away-to-deselect gesture. Cards stop their own clicks from
+      // reaching here by handling them first (React bubbles, so compare the
+      // target instead of relying on stopPropagation in every card).
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onBackgroundClick();
+      }}
     >
       {cards.length === 0 && (
         <p className="playtest-battlefield__empty">
@@ -33,6 +51,7 @@ export function Battlefield({ cards, onCardClick, onCardContextMenu, onCardLongP
           bf={bf}
           draggableId={`bf:${bf.card.id}`}
           positioned
+          selected={selectedIds.has(bf.card.id)}
           onClick={onCardClick}
           onContextMenu={onCardContextMenu}
           onLongPress={onCardLongPress}

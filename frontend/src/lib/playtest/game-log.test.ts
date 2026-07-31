@@ -62,6 +62,44 @@ describe('buildLogEntries', () => {
     expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([]);
   });
 
+  /** A state with `n` cards already on the battlefield. */
+  function withBattlefield(n: number): PlaytestState {
+    let s = init(10, 1, n);
+    for (const c of [...s.zones.hand]) {
+      s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: c.id, x: 0, y: 0 });
+    }
+    return s;
+  }
+
+  it('names the card when a single permanent is copied', () => {
+    const s = withBattlefield(1);
+    const action = {
+      type: 'CLONE_BF_CARDS' as const,
+      clones: [{ sourceId: s.battlefield[0].card.id, id: 'copy-1' }],
+    };
+    const name = s.battlefield[0].card.name;
+    expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([
+      { turn: 1, kind: 'token', text: `Copied ${name}`, cardName: name },
+    ]);
+  });
+
+  it('counts a group copy', () => {
+    const s = withBattlefield(3);
+    const action = {
+      type: 'CLONE_BF_CARDS' as const,
+      clones: s.battlefield.map((b, i) => ({ sourceId: b.card.id, id: `copy-${i}` })),
+    };
+    expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([
+      { turn: 1, kind: 'token', text: 'Copied 3 permanents' },
+    ]);
+  });
+
+  it('logs nothing when every source had already left', () => {
+    const s = withBattlefield(1);
+    const action = { type: 'CLONE_BF_CARDS' as const, clones: [{ sourceId: 'gone', id: 'c' }] };
+    expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([]);
+  });
+
   it('logs a turn boundary', () => {
     const s = init(10, 1, 0);
     const next = applyAction(s, { type: 'NEXT_TURN' });
