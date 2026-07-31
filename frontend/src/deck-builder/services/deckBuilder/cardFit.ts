@@ -49,6 +49,9 @@ export interface Misfit {
   card: ScryfallCard;
   /** Higher = worse fit. */
   misfitScore: number;
+  /** EDHREC inclusion % for this commander, when known. Undefined = the card
+   *  isn't on the commander's page at all (the `inclusion-absent` reason). */
+  inclusion?: number;
   reasons: MisfitReason[];
   suggestedReplacement?: GapAnalysisCard;
 }
@@ -156,13 +159,47 @@ export function computeMisfits(inputs: MisfitInputs): Misfit[] {
       const excludeNames = new Set(excludeBase);
       excludeNames.add(card.name);
       const suggestedReplacement = pickReplacement(card, role, gapCandidates, excludeNames);
-      misfits.push({ card, misfitScore, reasons, suggestedReplacement });
+      misfits.push({ card, misfitScore, inclusion: incl, reasons, suggestedReplacement });
     }
   }
 
   // Highest misfitScore first.
   misfits.sort((a, b) => b.misfitScore - a.misfitScore);
   return misfits;
+}
+
+/**
+ * Persistable projection of a `Misfit` — name + the reason cascade, WITHOUT the
+ * embedded `ScryfallCard`.
+ *
+ * `Misfit` carries whole card objects, so it must never be written to a deck
+ * row: rows are whole-entity, LWW and synced, so ~10 full cards per deck would
+ * bloat every push. This mirrors `OptimizeCard`'s name-keyed shape — the UI
+ * resolves the card from the mainboard by name, exactly as the Cuts lane
+ * already does for optimizer removals.
+ */
+export interface MisfitSummary {
+  name: string;
+  misfitScore: number;
+  /** Carried so the Cuts row renders its real play-rate. Without it
+   *  `classifyInclusion` reads undefined as 0 and paints a FALSE "Off-meta"
+   *  chip on a card that is merely lightly played. Undefined here is honest —
+   *  it means the card genuinely has no EDHREC data for this commander. */
+  inclusion?: number;
+  reasons: MisfitReason[];
+  /** Gap-candidate name only (the full card is re-resolved at render time). */
+  suggestedReplacement?: string;
+}
+
+/** Slim `Misfit[]` → `MisfitSummary[]`, preserving the already-sorted order. */
+export function summarizeMisfits(misfits: Misfit[]): MisfitSummary[] {
+  return misfits.map((m) => ({
+    name: m.card.name,
+    misfitScore: m.misfitScore,
+    inclusion: m.inclusion,
+    reasons: m.reasons,
+    suggestedReplacement: m.suggestedReplacement?.name,
+  }));
 }
 
 /** Pick a replacement from gap candidates: same role first, else same primary type. */

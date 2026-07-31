@@ -11,7 +11,13 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   },
 }));
 
-import { computeMisfits, computeCardFitSubscore, pickReplacement, type Misfit } from './cardFit';
+import {
+  computeMisfits,
+  computeCardFitSubscore,
+  pickReplacement,
+  summarizeMisfits,
+  type Misfit,
+} from './cardFit';
 
 function card(name: string, over: Partial<ScryfallCard> = {}): ScryfallCard {
   return {
@@ -193,5 +199,50 @@ describe('computeCardFitSubscore', () => {
   it('never drops below 0', () => {
     expect(computeCardFitSubscore(mf(100), 100).value).toBe(40); // 100-40-20
     expect(computeCardFitSubscore(mf(100), 100).value).toBeGreaterThanOrEqual(0);
+  });
+});
+
+// E222: the slim projection written to the (synced) deck row.
+describe('summarizeMisfits', () => {
+  it('drops the ScryfallCard but keeps the reason cascade', () => {
+    const misfits = computeMisfits({
+      cards: [card('Ornithopter'), card('Sol Ring')],
+      cardInclusionMap: {},
+      cardSynergyMap: {},
+    });
+    const summaries = summarizeMisfits(misfits);
+
+    expect(summaries.length).toBe(misfits.length);
+    expect(summaries.length).toBeGreaterThan(0);
+
+    for (const s of summaries) {
+      // The whole reason this projection exists: deck rows are whole-entity and
+      // synced, so a full card object per misfit would bloat every push.
+      expect(s).not.toHaveProperty('card');
+      expect(typeof s.name).toBe('string');
+      expect(s.reasons.length).toBeGreaterThanOrEqual(2); // the >=2-reason gate
+      for (const r of s.reasons) {
+        expect(r.kind).toBeTruthy();
+        expect(r.detail).toBeTruthy(); // buildMisfitFactors renders `detail`
+      }
+    }
+  });
+
+  it('preserves order and flattens the replacement to a name', () => {
+    const gaps: GapAnalysisCard[] = [
+      { name: 'Arcane Signet', role: 'ramp', typeLine: 'Artifact' } as GapAnalysisCard,
+    ];
+    const misfits = computeMisfits({
+      cards: [card('Ornithopter')],
+      cardInclusionMap: {},
+      cardSynergyMap: {},
+      gapCandidates: gaps,
+    });
+    const summaries = summarizeMisfits(misfits);
+
+    expect(summaries.map((s) => s.name)).toEqual(misfits.map((m) => m.card.name));
+    for (const s of summaries) {
+      expect(typeof (s.suggestedReplacement ?? '')).toBe('string');
+    }
   });
 });
