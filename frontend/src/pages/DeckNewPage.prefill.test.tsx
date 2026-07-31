@@ -23,6 +23,17 @@ vi.mock('../store/auth', () => ({
 }));
 vi.mock('../lib/sync', () => ({ isOnline: () => true, onSyncedChange: () => () => {} }));
 
+// Setting a commander makes useDeckGeneration pre-fetch EDHREC data (see the
+// "Pre-fetch the EDHREC land suggestion" effect in use-deck-generation.ts).
+// These tests are synchronous, so that promise settles AFTER the test ends —
+// against the suite's global fetch guard it rejects into teardown, which vitest
+// reports as `EnvironmentTeardownError: Closing rpc while "onUserConsoleLog"
+// was pending` and fails the whole run even though every test passed. Stub it:
+// this file is about the prefill ordering contract, not about EDHREC.
+vi.mock('@/deck-builder/services/edhrec/client', () => ({
+  fetchCommanderData: () => Promise.resolve(null),
+}));
+
 vi.mock('../components/deck/ImportDeckDialog', () => ({ ImportDeckDialog: () => null }));
 vi.mock('../components/deck/CommanderSearch', () => ({ CommanderSearch: () => null }));
 vi.mock('../components/deck/CommanderProfileCard', () => ({ CommanderProfileCard: () => null }));

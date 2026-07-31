@@ -5,6 +5,8 @@ import { useAuth } from '../store/auth';
 import { getSyncState, onSyncedChange } from '../lib/sync';
 import { buildCardImageIndex, buildCardIndex } from '../lib/deck-card-index';
 import { useDeckCombos } from '../lib/use-deck-combos';
+import { searchCombos } from '../lib/api/combos';
+import type { ComboSearchResult } from '../lib/offline';
 import { BrandMark } from '../components/shared/BrandMark';
 import { CardPreview } from '../components/CardPreview';
 import { Tabs } from '../components/Tabs';
@@ -126,28 +128,81 @@ export function CollectionCombosPage() {
     [rawOneAway, filters, opts]
   );
 
+  // ── E216: dataset-wide search ────────────────────────────────────────────
+  // Typing a card name used to filter only the buckets the matcher returned —
+  // which are capped, and only ever "own everything" / "own all but one". So a
+  // combo you own 1 of 3 of was unreachable at ANY cap: it has no bucket. This
+  // queries the whole local dataset instead, closest-first.
+  const query = debouncedSearch.trim();
+
+  // One state cell keyed by the query it belongs to. Everything else is
+  // DERIVED, so the only setState happens inside the async callback — the
+  // react-hooks/set-state-in-effect rule bans a synchronous one in the effect
+  // body, and a separate "pending" flag would need exactly that. Same shape as
+  // `use-missing-prices.ts`, which solved this identically.
+  const [searchState, setSearchState] = useState<{
+    query: string;
+    result: ComboSearchResult | null;
+  }>({ query: '', result: null });
+
+  useEffect(() => {
+    if (!query) return;
+    let cancelled = false;
+    searchCombos({ query, ownedOracleIds, format: 'commander' })
+      .then((result) => {
+        if (!cancelled) setSearchState({ query, result });
+      })
+      .catch(() => {
+        // Search is an enhancement over the bucket filter, not a replacement —
+        // on failure fall through to the old behaviour rather than erroring.
+        if (!cancelled) setSearchState({ query, result: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [query, ownedOracleIds]);
+
+  // Stale results (from the previous query) never paint: the cell only counts
+  // once its stamped query matches the live one.
+  const settled = searchState.query === query;
+  const searchResult = settled ? searchState.result : null;
+  const searchPending = query.length > 0 && !settled;
+
+  // A null result means the local dataset wasn't available (see searchCombos) —
+  // then we keep filtering the fetched buckets, exactly as before.
+  const searchMode = query.length > 0 && searchResult !== null;
+  const searchMatches = useMemo(
+    () => (searchResult ? filterCombos(searchResult.matches, filters, { canHost }) : []),
+    [searchResult, filters, canHost]
+  );
+  const searchTruncated = searchResult ? searchResult.total > searchResult.matches.length : false;
+
   const [tab, setTab] = useState<Tab>('complete');
-  const matches = tab === 'complete' ? complete : oneAway;
+  const matches = searchMode ? searchMatches : tab === 'complete' ? complete : oneAway;
 
   // Prices for the missing pieces. Only the one-away tab has any, and only
   // while it's the tab being looked at — no point fetching for a list the user
   // isn't on. The missing card is never in the collection, so these can't come
   // from local data (see useMissingCardPrices).
+  // Derived from whatever is actually rendered, so search results get prices
+  // too. Rows missing 0 pieces contribute nothing, so the Complete tab still
+  // fetches nothing — same outcome as the old tab check, one rule instead of two.
   const missingNames = useMemo(() => {
-    if (tab !== 'oneAway') return [];
     const names: string[] = [];
-    for (const m of oneAway) {
-      const id = m.missingOracleIds[0];
-      const card = id ? m.combo.cards.find((c) => c.oracleId === id) : undefined;
+    for (const m of matches) {
+      if (m.missingOracleIds.length !== 1) continue;
+      const card = m.combo.cards.find((c) => c.oracleId === m.missingOracleIds[0]);
       if (card) names.push(card.cardName);
     }
     return names;
-  }, [tab, oneAway]);
+  }, [matches]);
   const missingPrices = useMissingCardPrices(missingNames);
 
   const priceFor = (m: ComboMatch): number | undefined => {
-    const id = m.missingOracleIds[0];
-    const card = id ? m.combo.cards.find((c) => c.oracleId === id) : undefined;
+    // Only meaningful at exactly one missing piece — with two, "the price" has
+    // no referent, so the row shows none rather than an arbitrary one.
+    if (m.missingOracleIds.length !== 1) return undefined;
+    const card = m.combo.cards.find((c) => c.oracleId === m.missingOracleIds[0]);
     return card ? missingPrices.get(card.cardName.toLowerCase()) : undefined;
   };
 
@@ -179,7 +234,13 @@ export function CollectionCombosPage() {
             <span>
               {loading
                 ? 'Checking your collection…'
-                : `${complete.length.toLocaleString()} complete · ${oneAway.length.toLocaleString()} one away`}
+                : searchMode
+                  ? // In search mode the bucket counts describe a list that
+                    // isn't on screen — showing "4 complete · 9 one away" above
+                    // 22 search results reads as a contradiction. Fall back to
+                    // the collection-wide totals, which stay true either way.
+                    `${rawComplete.length.toLocaleString()} complete · ${oneAwayTotal.toLocaleString()} one away in your collection`
+                  : `${complete.length.toLocaleString()} complete · ${oneAway.length.toLocaleString()} one away`}
             </span>
           </p>
         </div>
@@ -217,29 +278,41 @@ export function CollectionCombosPage() {
 
       <div className="deck-combos-panel is-embedded" role="region" aria-label="Collection combos">
         <div className="deck-combos-body">
-          <Tabs
-            ariaLabel="Combo bucket"
-            variant="scrollable"
-            className="combos-page-tabs"
-            value={tab}
-            onChange={setTab}
-            tabs={[
-              {
-                id: 'complete',
-                label: 'Complete',
-                count: complete.length,
-                ariaLabel: `Complete, ${complete.length} combos`,
-              },
-              {
-                id: 'oneAway',
-                label: 'One card away',
-                count: oneAway.length,
-                ariaLabel: `One card away, ${oneAway.length} combos`,
-              },
-            ]}
-          />
+          {/* Searching answers a different question than the buckets do — "what
+              can this card do, and how close am I?" — so the tabs step aside for
+              one list ordered by distance. Clearing the search restores them. */}
+          {searchMode ? (
+            <p className="combos-truncation-note" role="status" aria-live="polite">
+              {searchMatches.length.toLocaleString()}
+              {searchTruncated ? ` of ${searchResult!.total.toLocaleString()}` : ''} combos matching
+              “{query}”, closest first
+              {searchTruncated ? ' — narrow with filters to see more' : ''}
+            </p>
+          ) : (
+            <Tabs
+              ariaLabel="Combo bucket"
+              variant="scrollable"
+              className="combos-page-tabs"
+              value={tab}
+              onChange={setTab}
+              tabs={[
+                {
+                  id: 'complete',
+                  label: 'Complete',
+                  count: complete.length,
+                  ariaLabel: `Complete, ${complete.length} combos`,
+                },
+                {
+                  id: 'oneAway',
+                  label: 'One card away',
+                  count: oneAway.length,
+                  ariaLabel: `One card away, ${oneAway.length} combos`,
+                },
+              ]}
+            />
+          )}
 
-          {tab === 'oneAway' && oneAwayTruncated && (
+          {!searchMode && tab === 'oneAway' && oneAwayTruncated && (
             <p className="combos-truncation-note">
               Showing {rawOneAway.length.toLocaleString()} of {oneAwayTotal.toLocaleString()} combos
               one card away — narrow with search or filters to find more.
@@ -248,9 +321,11 @@ export function CollectionCombosPage() {
 
           {error && <p className="deck-combos-empty deck-combos-error">{error}</p>}
 
-          {loading && matches.length === 0 && (
+          {(loading || searchPending) && matches.length === 0 && (
             <p className="deck-combos-empty" role="status" aria-live="polite">
-              Checking your collection against the combo database…
+              {searchPending
+                ? 'Searching every combo…'
+                : 'Checking your collection against the combo database…'}
             </p>
           )}
 
