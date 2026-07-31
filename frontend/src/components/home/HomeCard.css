@@ -86,6 +86,10 @@
   /* Empty rows sink below every populated card so a phone's first
      viewportful leads with real signals, not a stack of invitations. */
   order: 9;
+  /* The bento is align-items: stretch, so an empty one-liner otherwise
+     inflates to its tall row-mate's height and floats its text at the
+     vertical middle. Top-align it and keep the row at its natural height. */
+  align-self: start;
 }
 
 .home-card--empty > svg {
