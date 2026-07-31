@@ -796,6 +796,40 @@
   flex: 0 0 auto;
 }
 
+/* With a hint the label block is two lines — align the box to the first one. */
+.deck-customizer-toggle:has(.deck-customizer-toggle-hint) {
+  align-items: flex-start;
+}
+
+.deck-customizer-toggle:has(.deck-customizer-toggle-hint) input[type='checkbox'] {
+  margin-top: 0.15rem;
+}
+
+.deck-customizer-toggle-hint {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+}
+
+/* ── Ban-list presets — wrapping chip row (4 formats, long labels) ────── */
+.ban-preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.ban-preset-row .preset-pill {
+  padding: 0.4rem var(--space-3);
+}
+
+@media (pointer: coarse) {
+  .ban-preset-row .preset-pill {
+    min-height: 44px;
+  }
+}
+
 .deck-customizer-hint {
   margin: 0;
   font-size: var(--text-sm);
