@@ -2463,11 +2463,22 @@ grid** — consistently, not just where the row had room.
 **Per-density field budgets.** Each density has a fixed budget — add a field by
 trading one out, not by squeezing:
 
-| Density            | Fields                                                                                                                                                                                                                                                               |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **List** (66px)    | thumb · name · foil · deck/binder badges · type glyph · rarity chip + set code + CN · mana · qty · value · condition + language chips (deviations only — detail-when-present, like the page chip)                                                                    |
-| **Compact** (32px) | name · type glyph · rarity chip · set code · mana · qty · value — CN returns ≥768px; foil/deck/binder badges return ≥1024px; condition/language follow CN (return ≥768px)                                                                                            |
-| **Grid** (tile)    | art + qty badge + corner deck/binder badges + **rarity chip** (top-right corner, every tile); a **set-code chip** (bottom-left, next to qty) appears **only when the same card name has >1 printing** in the current rows — art is the identity until it's ambiguous |
+| Density            | Fields                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **List** (66px)    | thumb · name · foil · deck/binder badges · type glyph · rarity chip + set code + CN · mana · qty · value · condition + language chips (deviations only — detail-when-present, like the page chip)                                                                                                                                                                                                                                                                                                       |
+| **Compact** (32px) | name · type glyph · rarity chip · set code · mana · qty · value — CN returns ≥768px; foil/deck/binder badges return ≥1024px; condition/language follow CN (return ≥768px)                                                                                                                                                                                                                                                                                                                               |
+| **Grid** (tile)    | art + qty badge + corner deck/binder badges + the **"Details" caption plate** under the card (price/sort-value line + rarity-tinted `SetSymbol` · set code · CN; per-line toggleable, default on). That set line carries the printing identity, so while it shows, the on-card **rarity chip** and duplicate-name **set-code chip** are suppressed; with it off both return — rarity top-right on every tile, the set chip bottom-left only when the same card name has >1 printing in the current rows |
+
+**One row, one tile — both are shared primitives.** A card row is
+`components/shared/CardRow`; a grid tile is `components/shared/CardGridCell`.
+Per-surface extras go in as slots (`menu`, `ownedBadge`, `targetPriceSlot`;
+`cornerExtras`, `badges`, `ariaExtra`) — never as a private re-implementation.
+The lists grid shipped its own tile once and silently missed the whole caption
+plate, which is the same drift `CardRow` was extracted to end (#1413).
+`CardGridCell.test.tsx` guards that every grid renders the shared tile. The
+caption prefs are one device-wide setting shared by all grids, and the ≤640px
+"View" popover that houses them is `shared/ViewPopoverPanel` (§ Toolbars &
+action rows).
 
 **Detail-when-present.** Per-copy chips (the binder page chip, condition,
 language) render **only when that specific copy carries the value** — no

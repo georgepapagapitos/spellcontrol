@@ -4,7 +4,6 @@ import {
   Captions,
   CheckSquare,
   ChevronDown,
-  ChevronLeft,
   ChevronsDownUp,
   ChevronsUpDown,
   Eye,
@@ -51,7 +50,7 @@ import { useToastsStore } from '../store/toasts';
 import { useRegisterShortcuts, isTypingTarget } from '../lib/shortcut-registry';
 import { setSymbolTitle } from '../lib/set-symbols';
 import { DeckBadge } from './DeckBadge';
-import { Legend, LegendContent } from './Legend';
+import { Legend } from './Legend';
 import { BinderBadge, type BinderInfo } from './BinderBadge';
 import { useAllocations, computeSurplusByName, type AllocationInfo } from '../lib/allocations';
 import { ViewModeToggle } from './ViewModeToggle';
@@ -102,9 +101,9 @@ import {
   GRID_CAPTION_PLATE_PAD,
   gridSetLabel,
   useGridCaptionPrefs,
-  type GridCaptionPrefs,
 } from './shared/CardGridCell';
 import { ToolbarPopover } from './shared/ToolbarPopover';
+import { ViewPopoverPanel } from './shared/ViewPopoverPanel';
 import { buildEditedCards, isNoOpCardEdit, stackCopies, stackDetailMix } from '../lib/edit-card';
 import {
   compileExpression,
@@ -192,81 +191,6 @@ const VIEW_MODE_OPTIONS = [
     icon: <AlignJustify width={14} height={14} strokeWidth={2} aria-hidden />,
   },
 ];
-
-// Narrow-viewport "View" popover panel — consolidates the display controls
-// (layout, card size, Details captions, symbol key) that would otherwise wrap
-// the sticky toolbar onto extra rows on a phone. The symbol key opens as a
-// sub-page of the same panel (the standalone Legend popover's lifetime is tied
-// to its trigger, which unmounts with this panel). State lives here so it
-// resets whenever the popover closes.
-function ViewPopoverPanel({
-  view,
-  setView,
-  zoom,
-  zoomMax,
-  gridWidth,
-  onZoomChange,
-  captionPrefs,
-  onCaptionPrefsChange,
-}: {
-  view: ViewMode;
-  setView: (v: ViewMode) => void;
-  zoom: number;
-  zoomMax: number;
-  /** Measured width of the grid, so the stepper can skip steps that wouldn't
-   *  change the column count at this size. */
-  gridWidth: number;
-  onZoomChange: (next: number) => void;
-  captionPrefs: GridCaptionPrefs;
-  onCaptionPrefsChange: (next: GridCaptionPrefs) => void;
-}) {
-  const [keyOpen, setKeyOpen] = useState(false);
-  if (keyOpen) {
-    return (
-      <div className="view-popover-key">
-        <button
-          type="button"
-          className="toolbar-popover-item view-popover-back"
-          onClick={() => setKeyOpen(false)}
-        >
-          <ChevronLeft width={14} height={14} strokeWidth={2} aria-hidden />
-          <span>Back</span>
-        </button>
-        <LegendContent context="collection" />
-      </div>
-    );
-  }
-  return (
-    <>
-      <div className="view-popover-row">
-        <span className="view-popover-row-label">Layout</span>
-        <ViewModeToggle<ViewMode>
-          ariaLabel="Collection view mode"
-          value={view}
-          onChange={setView}
-          options={VIEW_MODE_OPTIONS}
-        />
-      </div>
-      {view === 'grid' && (
-        <div className="view-popover-row">
-          <span className="view-popover-row-label">Card size</span>
-          <ZoomControl zoom={zoom} width={gridWidth} max={zoomMax} onChange={onZoomChange} />
-        </div>
-      )}
-      {view === 'grid' && (
-        <div className="view-popover-section">
-          <span className="view-popover-section-title">Details</span>
-          <GridCaptionList prefs={captionPrefs} onChange={onCaptionPrefsChange} />
-        </div>
-      )}
-      <div className="view-popover-section">
-        <button type="button" className="toolbar-popover-item" onClick={() => setKeyOpen(true)}>
-          <span>Symbol key…</span>
-        </button>
-      </div>
-    </>
-  );
-}
 
 type SortKey =
   | 'name'
@@ -2135,9 +2059,11 @@ export function CardListTable({
               panelClassName="toolbar-popover-panel toolbar-popover-panel--fixed view-popover-panel"
             >
               {() => (
-                <ViewPopoverPanel
+                <ViewPopoverPanel<ViewMode>
                   view={view}
                   setView={setView}
+                  options={VIEW_MODE_OPTIONS}
+                  ariaLabel="Collection view mode"
                   zoom={effectiveZoom}
                   zoomMax={ZOOM_MAX_NARROW}
                   gridWidth={gridWidth}

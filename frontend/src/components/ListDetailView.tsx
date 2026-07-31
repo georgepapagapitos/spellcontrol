@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { LayoutList, AlignJustify, Captions, LayoutGrid, Search } from 'lucide-react';
+import { LayoutList, AlignJustify, Captions, Eye, LayoutGrid, Search } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type {
   BinderFilter,
@@ -34,6 +34,7 @@ import {
   useGridCaptionPrefs,
 } from './shared/CardGridCell';
 import { ToolbarPopover } from './shared/ToolbarPopover';
+import { ViewPopoverPanel } from './shared/ViewPopoverPanel';
 import { CardPreview } from './CardPreview';
 import { OverflowMenu } from './OverflowMenu';
 import { InlineCardSearch } from './InlineCardSearch';
@@ -638,20 +639,16 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
             leadingIcon={<SortDirArrow dir={sortDir} />}
             renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={sortDir} /> : null)}
           />
-          <ViewModeToggle value={view} onChange={setView} options={VIEW_OPTIONS} />
-          {view === 'grid' && (
+          {!isNarrow && <ViewModeToggle value={view} onChange={setView} options={VIEW_OPTIONS} />}
+          {!isNarrow && view === 'grid' && (
             <ZoomControl
               zoom={effectiveZoom}
               width={gridWidth}
-              max={isNarrow ? ZOOM_MAX_NARROW : ZOOM_MAX}
+              max={ZOOM_MAX}
               onChange={setGridZoom}
             />
           )}
-          {/* Same caption toggles as the collection's grid, and the same
-              ≤640px gate — a phone toolbar can't afford another pill, and the
-              captions still render (the prefs are shared, set in either
-              surface). */}
-          {view === 'grid' && !isNarrow && (
+          {!isNarrow && view === 'grid' && (
             <ToolbarPopover
               label="Details"
               icon={<Captions width={14} height={14} strokeWidth={2} aria-hidden />}
@@ -662,7 +659,36 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
           {/* Lists reuses CardRow's collection glyph set (TypeIcon, FoilBadge,
               RarityBadge) — mount the Key at the trailing end of the toolbar so
               those glyphs are explained, same as collection/binder surfaces. */}
-          <Legend context="collection" variant="pill" align="right" />
+          {!isNarrow && <Legend context="collection" variant="pill" align="right" />}
+          {/* ≤640px: layout, card size, Details and the symbol key collapse
+              into one "View" popover so the sticky toolbar stays a single row
+              — the same panel the collection uses. See STYLE_GUIDE "Toolbars
+              & action rows". */}
+          {isNarrow && (
+            <ToolbarPopover
+              label="View"
+              icon={<Eye width={14} height={14} strokeWidth={2} aria-hidden />}
+              haspopup="dialog"
+              panelRole="dialog"
+              panelAriaLabel="View options"
+              panelClassName="toolbar-popover-panel toolbar-popover-panel--fixed view-popover-panel"
+            >
+              {() => (
+                <ViewPopoverPanel<'list' | 'compact' | 'grid'>
+                  view={view}
+                  setView={setView}
+                  options={VIEW_OPTIONS}
+                  ariaLabel="List view mode"
+                  zoom={effectiveZoom}
+                  zoomMax={ZOOM_MAX_NARROW}
+                  gridWidth={gridWidth}
+                  onZoomChange={setGridZoom}
+                  captionPrefs={captionPrefs}
+                  onCaptionPrefsChange={setCaptionPrefs}
+                />
+              )}
+            </ToolbarPopover>
+          )}
         </div>
       </div>
 
