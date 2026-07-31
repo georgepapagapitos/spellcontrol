@@ -153,14 +153,35 @@ export function blendTagPageIntoPool(input: BlendInput): BlendResult {
 }
 
 /**
- * Build-report disclosure. Names the real data lineage and the sample size that
- * justified reaching for it — never a bare "N cards added".
+ * Narrow the pool-level injection list to the cards that actually SHIPPED in
+ * the finished deck, and word the disclosure off that number.
+ *
+ * The distinction is load-bearing in both directions. The blend puts up to 15
+ * cards per category into the candidate pool — ~90 for a thin commander — but
+ * only a handful survive the type passes into the final 99. Reporting the pool
+ * count reads as "we added 93 cards to your deck", which is simply false. And
+ * the misfit exemption should cover exactly the cards on the list: one that
+ * never made the deck can't be flagged as a misfit anyway.
  */
-export function buildArchetypeBlendNote(
-  themeName: string,
-  injectedCount: number,
-  commanderNumDecks: number
-): string | undefined {
-  if (injectedCount === 0) return undefined;
-  return `Added ${injectedCount} card${injectedCount === 1 ? '' : 's'} from the ${themeName} archetype page — this commander has only ${commanderNumDecks.toLocaleString()} deck${commanderNumDecks === 1 ? '' : 's'} on record, so the theme page filled the gaps.`;
+export function summarizeSeatedBlend(
+  injectedNames: readonly string[],
+  finalDeck: readonly { name: string }[],
+  themeName: string | undefined,
+  commanderNumDecks: number | undefined
+): { names: string[] | undefined; note: string | undefined } {
+  if (injectedNames.length === 0 || !themeName) return { names: undefined, note: undefined };
+
+  const inDeck = new Set(finalDeck.map((c) => c.name.toLowerCase()));
+  const names = injectedNames.filter((n) => inDeck.has(n.toLowerCase()));
+  if (names.length === 0) return { names: undefined, note: undefined };
+
+  const decks = commanderNumDecks ?? 0;
+  const sample =
+    decks > 0
+      ? ` — this commander has only ${decks.toLocaleString()} deck${decks === 1 ? '' : 's'} on record, so the theme page filled the gaps.`
+      : ` — the theme page filled gaps this commander's own page couldn't.`;
+  return {
+    names,
+    note: `${names.length} card${names.length === 1 ? '' : 's'} in this deck came from the ${themeName} archetype page${sample}`,
+  };
 }

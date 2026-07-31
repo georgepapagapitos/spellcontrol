@@ -133,12 +133,14 @@ export interface GenerationState {
   /** E93 disclosure: set when a bracket-narrowed EDHREC page was too thin and
    *  generation laddered down to a broader page. Undefined otherwise. */
   bracketPoolFallbackNote: string | undefined;
-  /** E221 disclosure: set when archetype tag-page blending injected cards. */
-  archetypeBlendNote: string | undefined;
-  /** E221: names injected by the blend, carried to the build report and the
-   *  misfit pass so a blended card isn't flagged for the very absence that
-   *  caused its injection. Empty when the flag is off or nothing was injected. */
+  /** E221: names the blend injected into the POOL. Narrowed to the cards that
+   *  actually shipped (summarizeSeatedBlend) before it reaches the build report
+   *  and the misfit pass. Empty when the flag is off or nothing was injected. */
   archetypeBlendNames: string[];
+  /** E221: the theme whose tag page was blended in, for the disclosure. */
+  archetypeBlendTheme: string | undefined;
+  /** E221: the commander page's own deck count — the sample the note cites. */
+  archetypeBlendCommanderDecks: number | undefined;
   themeOverlapCounts: Map<string, number>;
   roleTargets: Record<RoleKey, number> | null;
   roleTargetBreakdown: Record<RoleKey, RoleTargetBreakdown> | undefined;
@@ -228,8 +230,9 @@ export function createState(context: GenerationContext): GenerationState {
     edhrecData: null,
     dataSource: 'scryfall',
     bracketPoolFallbackNote: undefined,
-    archetypeBlendNote: undefined,
     archetypeBlendNames: [],
+    archetypeBlendTheme: undefined,
+    archetypeBlendCommanderDecks: undefined,
     themeOverlapCounts: new Map<string, number>(),
     roleTargets: null,
     roleTargetBreakdown: undefined,

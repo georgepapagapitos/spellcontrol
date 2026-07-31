@@ -8,8 +8,8 @@ import {
   MAX_INJECTED_PER_CATEGORY,
   blendTagPageIntoPool,
   blendWeight,
-  buildArchetypeBlendNote,
   resolveArchetypeBlend,
+  summarizeSeatedBlend,
 } from './archetypeBlend';
 
 function card(name: string, inclusion: number, numDecks = 10_000): EDHRECCard {
@@ -211,16 +211,46 @@ describe('blendTagPageIntoPool', () => {
   });
 });
 
-describe('buildArchetypeBlendNote', () => {
-  it('names the theme and the commander sample that justified reaching for it', () => {
-    expect(buildArchetypeBlendNote('Aristocrats', 7, 42)).toBe(
-      'Added 7 cards from the Aristocrats archetype page — this commander has only 42 decks on record, so the theme page filled the gaps.'
+// The blend injects up to 15/category into the POOL (~90 for a thin commander)
+// but only a handful survive into the final 99. A live niche run disclosed
+// "Added 93 cards" for a deck that seated far fewer — the pool count is simply
+// the wrong number to show a user, and the wrong set to exempt from misfits.
+describe('summarizeSeatedBlend', () => {
+  const deck = [{ name: 'Blood Artist' }, { name: 'Sol Ring' }, { name: 'Command Tower' }];
+
+  it('counts only the injected cards that actually shipped', () => {
+    const { names, note } = summarizeSeatedBlend(
+      ['Blood Artist', 'Zulaport Cutthroat', 'Deadly Dispute'],
+      deck,
+      'Aristocrats',
+      42
+    );
+    expect(names).toEqual(['Blood Artist']);
+    expect(note).toBe(
+      '1 card in this deck came from the Aristocrats archetype page — this commander has only 42 decks on record, so the theme page filled the gaps.'
     );
   });
 
-  it('singularizes and stays silent when nothing was injected', () => {
-    expect(buildArchetypeBlendNote('Tokens', 1, 1)).toContain('Added 1 card from');
-    expect(buildArchetypeBlendNote('Tokens', 1, 1)).toContain('only 1 deck on record');
-    expect(buildArchetypeBlendNote('Tokens', 0, 42)).toBeUndefined();
+  it('pluralizes both the card count and the deck sample', () => {
+    const { note } = summarizeSeatedBlend(['Blood Artist', 'Sol Ring'], deck, 'Tokens', 1);
+    expect(note).toContain('2 cards in this deck');
+    expect(note).toContain('only 1 deck on record');
+  });
+
+  it('matches case-insensitively, like the pool dedup does', () => {
+    const { names } = summarizeSeatedBlend(['blood artist'], deck, 'Aristocrats', 42);
+    expect(names).toEqual(['blood artist']);
+  });
+
+  it('stays silent when nothing was injected, or nothing survived', () => {
+    expect(summarizeSeatedBlend([], deck, 'Tokens', 42).note).toBeUndefined();
+    expect(summarizeSeatedBlend(['Never Seated'], deck, 'Tokens', 42).note).toBeUndefined();
+    expect(summarizeSeatedBlend(['Never Seated'], deck, 'Tokens', 42).names).toBeUndefined();
+  });
+
+  it('drops the sample clause rather than claiming "0 decks on record"', () => {
+    const { note } = summarizeSeatedBlend(['Blood Artist'], deck, 'Aristocrats', 0);
+    expect(note).toContain('came from the Aristocrats archetype page');
+    expect(note).not.toContain('0 decks');
   });
 });

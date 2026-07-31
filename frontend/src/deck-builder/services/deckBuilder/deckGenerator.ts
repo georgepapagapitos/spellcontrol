@@ -109,6 +109,7 @@ import {
 } from './packageBoost';
 import { buildManabaseSummary } from './manabaseMath';
 import { auditDeckCoherence } from './coherenceAudit';
+import { summarizeSeatedBlend } from './archetypeBlend';
 import { buildSubstitutionPlan, type SubstituteRow } from './substituteFinder';
 import { resolveMultiCopyCards } from './multiCopy';
 import { generateLands, CHANNEL_LAND_BOOST, MDFC_LAND_BOOST } from './landGenerator';
@@ -4280,6 +4281,19 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     colorIdentity, // enables the answer-coverage matrix (E79)
   });
 
+  // E221: `state.archetypeBlendNames` is what the blend put in the POOL — up to
+  // 15 per category. Only some of those survive the type passes into the final
+  // 99, so reporting the pool count would tell the user "Added 93 cards" for a
+  // deck that seated a handful. Narrow to what actually shipped: that's both
+  // the honest number for the disclosure and the correct set for the misfit
+  // exemption (a card that never made the deck can't be flagged as a misfit).
+  const archetypeBlendSeated = summarizeSeatedBlend(
+    state.archetypeBlendNames,
+    [...nonLandCards, ...categories.lands],
+    state.archetypeBlendTheme,
+    state.archetypeBlendCommanderDecks
+  );
+
   return {
     commander,
     partnerCommander,
@@ -4310,9 +4324,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     composition: targets,
     dataSource: state.dataSource,
     bracketPoolFallbackNote: state.bracketPoolFallbackNote,
-    archetypeBlendNote: state.archetypeBlendNote,
-    archetypeBlendNames:
-      state.archetypeBlendNames.length > 0 ? [...state.archetypeBlendNames] : undefined,
+    archetypeBlendNote: archetypeBlendSeated.note,
+    archetypeBlendNames: archetypeBlendSeated.names,
     integrityNotes: integrityNotes.length > 0 ? integrityNotes : undefined,
     generationMode: mode,
     generationModeDetail: altPool?.detail,

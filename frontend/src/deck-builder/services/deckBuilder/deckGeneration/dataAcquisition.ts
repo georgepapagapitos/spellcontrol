@@ -25,11 +25,7 @@ import { bracketLabel } from '../bracketEstimator';
 import { calculateCardPriority } from '../cardPicking';
 import { loadCardSimilar, hasCardSimilar } from '../cardSimilar';
 import { buildAlternatePool, type AlternatePoolResult } from '../phaseAlternatePool';
-import {
-  blendTagPageIntoPool,
-  buildArchetypeBlendNote,
-  resolveArchetypeBlend,
-} from '../archetypeBlend';
+import { blendTagPageIntoPool, resolveArchetypeBlend } from '../archetypeBlend';
 import type { GenerationState, GenerationContext } from './state';
 
 // ── Merge cardlists from multiple theme results ──
@@ -823,12 +819,11 @@ async function applyArchetypeBlend(state: GenerationState): Promise<void> {
     if (injectedNames.length === 0) return;
 
     state.edhrecData = { ...state.edhrecData, cardlists };
+    // Pool-level list; deckGenerator narrows it to what actually shipped before
+    // it reaches the report (summarizeSeatedBlend).
     state.archetypeBlendNames = injectedNames;
-    state.archetypeBlendNote = buildArchetypeBlendNote(
-      theme.name,
-      injectedNames.length,
-      commanderNumDecks
-    );
+    state.archetypeBlendTheme = theme.name;
+    state.archetypeBlendCommanderDecks = commanderNumDecks;
     logger.debug(
       `[DeckGen] E221: blended ${injectedNames.length} cards from "${theme.slug}"` +
         `${tagPage.colorSlug ? `/${tagPage.colorSlug}` : ' (unfiltered)'} at w=${weight.toFixed(2)}`
