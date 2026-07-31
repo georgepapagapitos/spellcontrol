@@ -25,6 +25,9 @@ const MIN_REQUEST_DELAY = 100; // 100ms between requests (Scryfall allows 10/sec
 const MAX_RETRIES = 4; // cap 429/503 retries so a sustained throttle or outage fails instead of hanging
 const BASE_BACKOFF_MS = 1000;
 const COLLECTION_BATCH_SIZE = 75; // Scryfall /cards/collection max per request
+// Ceiling on the per-card follow-up requests a single batch resolve may fire
+// after the batched pass (see the tail of liveGetCardsByNames).
+const FOLLOWUP_REQUEST_BUDGET = 100;
 
 // In-memory cache for fetched cards
 const cardCache = new Map<string, ScryfallCard>();
@@ -461,6 +464,56 @@ export async function getOwnedPrinting(scryfallId: string, name: string): Promis
 }
 
 /**
+ * POST /cards/collection with the same 429/503 discipline `scryfallFetch` uses
+ * (F26): honor `Retry-After`, exponential backoff otherwise, and CAP the
+ * retries. The three batch loops below each hand-rolled their own "429 → sleep
+ * 1500ms → retry this batch forever" branch, which is exactly wrong when
+ * Scryfall answers a throttled client with `Retry-After: 60`: we kept firing
+ * every 1.5s through the whole cooldown (40 more strikes), so the block
+ * deepened and the loop never terminated — cube generation hung instead of
+ * failing. Returns null when the batch can't be had; callers skip it.
+ */
+async function postCollection(
+  identifiers: Array<Record<string, string>>,
+  attempt = 0
+): Promise<{ data: ScryfallCard[]; not_found: Array<{ name?: string; set?: string }> } | null> {
+  await rateLimiter.acquire();
+
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}/cards/collection`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ identifiers }),
+    });
+  } catch (err) {
+    logger.warn('[Scryfall] Collection batch failed:', err);
+    return null;
+  }
+
+  if (response.ok) {
+    return (await response.json()) as {
+      data: ScryfallCard[];
+      not_found: Array<{ name?: string; set?: string }>;
+    };
+  }
+
+  if ((response.status === 429 || response.status === 503) && attempt < MAX_RETRIES) {
+    const retryAfter = Number(response.headers.get('Retry-After'));
+    const waitMs =
+      Number.isFinite(retryAfter) && retryAfter > 0
+        ? retryAfter * 1000
+        : BASE_BACKOFF_MS * 2 ** attempt;
+    logger.warn(`[Scryfall] Collection fetch throttled (${response.status}), waiting ${waitMs}ms`);
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+    return postCollection(identifiers, attempt + 1);
+  }
+
+  logger.warn('[Scryfall] Collection fetch failed', response.status, response.statusText);
+  return null;
+}
+
+/**
  * Batch-resolve exact printings by Scryfall id via /cards/collection (75 per
  * request). Returns a map keyed by id; unknown/non-playable ids are simply
  * absent — callers fall back to name resolution for those. Live-only, like
@@ -480,28 +533,12 @@ export async function getCardsByIds(ids: string[]): Promise<Map<string, Scryfall
 
   for (let i = 0; i < uncached.length; i += COLLECTION_BATCH_SIZE) {
     const batch = uncached.slice(i, i + COLLECTION_BATCH_SIZE);
-    await rateLimiter.acquire();
-    try {
-      const response = await fetch(`${BASE_URL}/cards/collection`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ identifiers: batch.map((id) => ({ id })) }),
-      });
-      if (response.ok) {
-        const data = (await response.json()) as { data: ScryfallCard[] };
-        for (const card of data.data) {
-          if (!isPlayableCard(card) || !card.id) continue;
-          cardCache.set(card.id, card);
-          result.set(card.id, freshCopy(card));
-        }
-      } else if (response.status === 429) {
-        logger.warn('[Scryfall] Rate limited on id-collection fetch, backing off...');
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        i -= COLLECTION_BATCH_SIZE;
-        continue;
-      }
-    } catch (err) {
-      logger.warn('[Scryfall] Id-collection batch failed:', err);
+    const data = await postCollection(batch.map((id) => ({ id })));
+    if (!data) continue;
+    for (const card of data.data) {
+      if (!isPlayableCard(card) || !card.id) continue;
+      cardCache.set(card.id, card);
+      result.set(card.id, freshCopy(card));
     }
   }
   return result;
@@ -540,7 +577,11 @@ async function fetchCardByNameThrottled(name: string, retries = 2): Promise<Scry
     }
 
     if (response.status === 429 && retries > 0) {
-      const backoffMs = 1000 * (3 - retries);
+      // Honor Retry-After — Scryfall answers a throttled client with 60s, and
+      // retrying sooner just extends the block.
+      const retryAfter = Number(response.headers.get('Retry-After'));
+      const backoffMs =
+        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 1000 * (3 - retries);
       logger.warn(`[Scryfall] Rate limited, backing off ${backoffMs}ms...`);
       await new Promise((resolve) => setTimeout(resolve, backoffMs));
       return fetchCardByNameThrottled(name, retries - 1);
@@ -639,57 +680,34 @@ async function liveGetCardsByNames(
       ? batch.map((name) => ({ name, set: preferredSet }))
       : batch.map((name) => ({ name }));
 
-    await rateLimiter.acquire();
+    const data = await postCollection(identifiers);
 
-    try {
-      const response = await fetch(`${BASE_URL}/cards/collection`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({ identifiers }),
-      });
-
-      if (response.ok) {
-        const data = (await response.json()) as {
-          data: ScryfallCard[];
-          not_found: Array<{ name?: string; set?: string }>;
-        };
-        for (const card of data.data) {
-          if (!isPlayableCard(card)) continue;
-          const cacheKey = preferredSet ? `${card.name}|${preferredSet}` : card.name;
-          cardCache.set(cacheKey, card);
-          if (!preferredSet) cardCache.set(card.name, card); // also cache under plain name when no set preference
-          const copy = freshCopy(card);
-          result.set(card.name, copy);
-          // For DFCs, also store under front-face name so EDHREC lookups match
-          if (card.name.includes(' // ')) {
-            const frontFace = frontFaceName(card.name);
-            result.set(frontFace, copy);
-            if (preferredSet) cardCache.set(`${frontFace}|${preferredSet}`, card);
-            else cardCache.set(frontFace, card);
-          }
+    if (data) {
+      for (const card of data.data) {
+        if (!isPlayableCard(card)) continue;
+        const cacheKey = preferredSet ? `${card.name}|${preferredSet}` : card.name;
+        cardCache.set(cacheKey, card);
+        if (!preferredSet) cardCache.set(card.name, card); // also cache under plain name when no set preference
+        const copy = freshCopy(card);
+        result.set(card.name, copy);
+        // For DFCs, also store under front-face name so EDHREC lookups match
+        if (card.name.includes(' // ')) {
+          const frontFace = frontFaceName(card.name);
+          result.set(frontFace, copy);
+          if (preferredSet) cardCache.set(`${frontFace}|${preferredSet}`, card);
+          else cardCache.set(frontFace, card);
         }
-        if (data.not_found.length > 0) {
-          if (preferredSet) {
-            // Collect not-found names for fallback pass without set constraint
-            for (const nf of data.not_found) {
-              if (nf.name) setNotFoundNames.push(nf.name);
-            }
-          } else {
-            logger.warn(`[Scryfall] ${data.not_found.length} cards not found in collection batch`);
-          }
-        }
-      } else if (response.status === 429) {
-        // Rate limited - back off and retry this batch
-        logger.warn('[Scryfall] Rate limited on collection fetch, backing off...');
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        i -= COLLECTION_BATCH_SIZE; // retry this batch
-        continue;
       }
-    } catch (err) {
-      logger.warn('[Scryfall] Collection batch failed:', err);
+      if (data.not_found.length > 0) {
+        if (preferredSet) {
+          // Collect not-found names for fallback pass without set constraint
+          for (const nf of data.not_found) {
+            if (nf.name) setNotFoundNames.push(nf.name);
+          }
+        } else {
+          logger.warn(`[Scryfall] ${data.not_found.length} cards not found in collection batch`);
+        }
+      }
     }
 
     onProgress?.(Math.min(i + COLLECTION_BATCH_SIZE, uncachedNames.length), uncachedNames.length);
@@ -702,44 +720,18 @@ async function liveGetCardsByNames(
     );
     for (let i = 0; i < setNotFoundNames.length; i += COLLECTION_BATCH_SIZE) {
       const batch = setNotFoundNames.slice(i, i + COLLECTION_BATCH_SIZE);
-      const identifiers = batch.map((name) => ({ name }));
-
-      await rateLimiter.acquire();
-
-      try {
-        const response = await fetch(`${BASE_URL}/cards/collection`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-          },
-          body: JSON.stringify({ identifiers }),
-        });
-
-        if (response.ok) {
-          const data = (await response.json()) as {
-            data: ScryfallCard[];
-            not_found: Array<{ name?: string }>;
-          };
-          for (const card of data.data) {
-            if (!isPlayableCard(card)) continue;
-            cardCache.set(card.name, card);
-            const copy = freshCopy(card);
-            result.set(card.name, copy);
-            if (card.name.includes(' // ')) {
-              const frontFace = frontFaceName(card.name);
-              result.set(frontFace, copy);
-              cardCache.set(frontFace, card);
-            }
-          }
-        } else if (response.status === 429) {
-          logger.warn('[Scryfall] Rate limited on fallback collection fetch, backing off...');
-          await new Promise((resolve) => setTimeout(resolve, 1500));
-          i -= COLLECTION_BATCH_SIZE;
-          continue;
+      const data = await postCollection(batch.map((name) => ({ name })));
+      if (!data) continue;
+      for (const card of data.data) {
+        if (!isPlayableCard(card)) continue;
+        cardCache.set(card.name, card);
+        const copy = freshCopy(card);
+        result.set(card.name, copy);
+        if (card.name.includes(' // ')) {
+          const frontFace = frontFaceName(card.name);
+          result.set(frontFace, copy);
+          cardCache.set(frontFace, card);
         }
-      } catch (err) {
-        logger.warn('[Scryfall] Fallback collection batch failed:', err);
       }
     }
   }
@@ -750,16 +742,30 @@ async function liveGetCardsByNames(
   // usd_foil, so a $1 common whose default printing only has a $89 foil price
   // would look "priced" and skip the cheapest-nonfoil re-fetch below.
   // Skip when user specified a preferred set — they want that set's printing, not the cheapest
+  // ponytail: bounded tail. Both passes below cost ONE request per card, on top
+  // of the batched work. At deck scale (~100 names) that's a handful; at
+  // COLLECTION scale it's the whole ballgame — cube generation enriches every
+  // unique name a player owns (10k+), where a few percent unpriced/unmatched
+  // names became 500+ extra single-card requests and got the client 429'd with
+  // Scryfall's "use our bulk data" warning. The batched pass already resolved
+  // these names' oracle data; the tail only sharpens price and rescues odd
+  // spellings, so capping it degrades those two things instead of failing the
+  // whole fetch. Raise it only behind bulk data (offline mode already skips
+  // this path entirely).
+  let followupBudget = FOLLOWUP_REQUEST_BUDGET;
+
   if (!preferredSet) {
     const noPriceNames = uncachedNames.filter((name) => {
       const card = result.get(name);
       return card && !card.prices?.usd;
     });
     if (noPriceNames.length > 0) {
+      const pass = noPriceNames.slice(0, followupBudget);
+      followupBudget -= pass.length;
       logger.debug(
-        `[Scryfall] Re-fetching ${noPriceNames.length} cards with no price for older printings...`
+        `[Scryfall] Re-fetching ${pass.length}/${noPriceNames.length} cards with no price for older printings...`
       );
-      for (const name of noPriceNames) {
+      for (const name of pass) {
         const card = await fetchCardByNameThrottled(name);
         if (card && getCardPrice(card)) {
           cardCache.set(name, card);
@@ -772,8 +778,11 @@ async function liveGetCardsByNames(
   // For any names not found via collection, try individual fallback
   const notFound = uncachedNames.filter((name) => !result.has(name));
   if (notFound.length > 0) {
-    logger.debug(`[Scryfall] Retrying ${notFound.length} not-found cards individually...`);
-    for (const name of notFound) {
+    const pass = notFound.slice(0, followupBudget);
+    logger.debug(
+      `[Scryfall] Retrying ${pass.length}/${notFound.length} not-found cards individually...`
+    );
+    for (const name of pass) {
       const card = await fetchCardByNameThrottled(name);
       if (card) {
         result.set(name, freshCopy(card));
