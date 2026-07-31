@@ -46,6 +46,7 @@ import { buildGapAnalysis } from './gapAnalysisBuilder';
 import { computeHiddenGems } from './hiddenGems';
 import { loadCardSimilar, getSimilarRank } from './cardSimilar';
 import { computePlanScore, type PlanScore, type StrategyEngineInput } from './planScore';
+import { computeMisfits, summarizeMisfits, type MisfitSummary } from './cardFit';
 import { buildCostPlan, type CostPlan } from './costAnalyzer';
 import { frontFaceName } from '@/lib/card-text';
 import { analyzeDeckSynergy, isLoadBearing, type DeckSynergy } from '../synergy/deckSynergy';
@@ -413,6 +414,9 @@ export interface CommanderDeckAnalysisResult extends GradeBracketResult {
   cardInclusionMap?: Record<string, number>;
   /** 0-100 PlanScore (strategy/roles/curve/cardFit). Undefined if not computable. */
   planScore?: PlanScore;
+  /** E222: the cardFit sub-score's own misfit cascade, slim (name + reasons).
+   *  Same lifecycle as planScore — undefined when the grade branch didn't run. */
+  misfits?: MisfitSummary[];
   /**
    * EDHREC's own sample size for this commander (its `numDecks`) — already
    * fetched here to feed planScore's byline (social W4's CommanderPopularityStat
@@ -731,20 +735,29 @@ export async function analyzeCommanderDeck(
     const strategyEngine = buildStrategyEngineInput(deckSynergy, nonLand.length);
 
     let planScore: PlanScore | undefined;
+    // E222: the misfit cascade computed for the cardFit sub-score, surfaced as
+    // its own slim field. `computePlanScore` collapses `computeMisfits`' typed
+    // reasons into a single 0-100 number, so every label and citation was being
+    // discarded one line later; the Cuts lane can render them. Recomputed here
+    // rather than threaded out of computePlanScore so that function's signature
+    // and arithmetic stay byte-identical — it's a pure O(cards) map-lookup pass.
+    let misfits: MisfitSummary[] | undefined;
     if (gradeBracket.curvePhases) {
       const commanderNames = [params.commander.name];
       if (params.partnerCommander) commanderNames.push(params.partnerCommander.name);
+      const misfitInputs = {
+        cards: params.cards,
+        cardInclusionMap,
+        cardSynergyMap,
+        gapCandidates: gapAnalysis,
+        commanderNames,
+      };
+      misfits = summarizeMisfits(computeMisfits(misfitInputs));
       planScore = computePlanScore({
         roleCounts,
         roleTargets,
         curvePhases: gradeBracket.curvePhases,
-        misfitInputs: {
-          cards: params.cards,
-          cardInclusionMap,
-          cardSynergyMap,
-          gapCandidates: gapAnalysis,
-          commanderNames,
-        },
+        misfitInputs,
         gapCount: gapAnalysis.length,
         // Strategy from the deck's own producer↔payoff engine (oracle-text
         // grounded). Scores `partial` when no engine is detected.
@@ -916,6 +929,7 @@ export async function analyzeCommanderDeck(
       hiddenGems,
       cardInclusionMap,
       planScore,
+      misfits,
       edhrecNumDecks: edhrecData.stats?.numDecks ?? null,
       optimizeSwaps,
       costPlan,
