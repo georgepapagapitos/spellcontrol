@@ -177,6 +177,11 @@ export function useCommanderBracketAnalysis(args: Args): {
     // plan (target-pool fetch + upshift combo-completion adds happen inside).
     const targetBracket = bracketOverride ?? undefined;
     const oneAwayCombos = comboData?.oneAway ?? [];
+    // E221: cards generation injected from a theme's EDHREC tag page. Without
+    // this the misfit pass flags every one of them (absent from the commander's
+    // page by construction) and the Coach recommends cutting exactly what
+    // generation deliberately added.
+    const archetypeBlendNames = deck.buildReport?.archetypeBlendNames;
 
     const myReqId = ++reqIdRef.current;
     const timer = window.setTimeout(() => {
@@ -190,6 +195,7 @@ export function useCommanderBracketAnalysis(args: Args): {
           detectedCombos,
           targetBracket,
           oneAwayCombos,
+          archetypeBlendNames,
         }),
         STALL_TIMEOUT_MS
       )

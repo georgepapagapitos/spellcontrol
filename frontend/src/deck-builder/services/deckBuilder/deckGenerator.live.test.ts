@@ -113,6 +113,15 @@ function customization(overrides: Partial<Customization> = {}): Customization {
         : process.env.LIVE_GEN_PRICE_SANITY === '0'
           ? false
           : undefined,
+    // E221 A/B knob, same two-way shape: LIVE_GEN_ARCHETYPE_BLEND=1 forces
+    // archetype tag-page blending ON, =0 forces it OFF, unset leaves the
+    // product default (OFF until the panel clears).
+    archetypeBlend:
+      process.env.LIVE_GEN_ARCHETYPE_BLEND === '1'
+        ? true
+        : process.env.LIVE_GEN_ARCHETYPE_BLEND === '0'
+          ? false
+          : undefined,
     ...overrides,
   };
 }

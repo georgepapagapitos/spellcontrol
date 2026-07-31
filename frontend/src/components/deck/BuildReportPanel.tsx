@@ -203,6 +203,7 @@ export function BuildReportPanel({
     varietyNote,
     landSqueezeTrimNote,
     bracketPoolFallbackNote,
+    archetypeBlendNote,
     integrityNotes,
     budgetNote,
     roleCapOverflowNote,
@@ -315,6 +316,12 @@ export function BuildReportPanel({
 
       {bracketPoolFallbackNote && (
         <p className="build-report-line build-report-source">{bracketPoolFallbackNote}</p>
+      )}
+
+      {/* E221: names the real data lineage — which theme page backfilled this
+          deck, and the commander sample size that justified reaching for it. */}
+      {archetypeBlendNote && (
+        <p className="build-report-line build-report-source">{archetypeBlendNote}</p>
       )}
 
       {landCountNote && <p className="build-report-line build-report-source">{landCountNote}</p>}

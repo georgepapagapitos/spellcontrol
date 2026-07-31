@@ -4310,6 +4310,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     composition: targets,
     dataSource: state.dataSource,
     bracketPoolFallbackNote: state.bracketPoolFallbackNote,
+    archetypeBlendNote: state.archetypeBlendNote,
+    archetypeBlendNames:
+      state.archetypeBlendNames.length > 0 ? [...state.archetypeBlendNames] : undefined,
     integrityNotes: integrityNotes.length > 0 ? integrityNotes : undefined,
     generationMode: mode,
     generationModeDetail: altPool?.detail,

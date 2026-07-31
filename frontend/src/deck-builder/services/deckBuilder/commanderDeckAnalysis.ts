@@ -461,6 +461,13 @@ export interface AnalyzeCommanderDeckParams {
    * power-up adds for the upshift case. Only used when `targetBracket` is set.
    */
   oneAwayCombos?: ComboMatch[];
+  /**
+   * E221: names this deck's generation injected from a theme's EDHREC tag page
+   * (`BuildReport.archetypeBlendNames`). Threaded into the misfit pass so a
+   * blended card isn't flagged for being absent from the commander's page —
+   * that absence is why it was injected. Absent for manual / pre-E221 decks.
+   */
+  archetypeBlendNames?: string[];
 }
 
 const RECOMMENDATION_SUPERTYPE = /^(Legendary|Basic|Snow|Tribal|Kindred|World|Ongoing)\s+/i;
@@ -751,6 +758,9 @@ export async function analyzeCommanderDeck(
         cardSynergyMap,
         gapCandidates: gapAnalysis,
         commanderNames,
+        blendedNames: params.archetypeBlendNames?.length
+          ? new Set(params.archetypeBlendNames)
+          : undefined,
       };
       misfits = summarizeMisfits(computeMisfits(misfitInputs));
       planScore = computePlanScore({

@@ -163,6 +163,12 @@ export function assembleBuildReport(input: {
   if (generated.landSqueezeTrimNote) report.landSqueezeTrimNote = generated.landSqueezeTrimNote;
   if (generated.bracketPoolFallbackNote)
     report.bracketPoolFallbackNote = generated.bracketPoolFallbackNote;
+  if (generated.archetypeBlendNote) report.archetypeBlendNote = generated.archetypeBlendNote;
+  // Load-bearing, not just disclosure: the analysis hook reads these back out
+  // of the persisted report to exempt blended cards from the misfit pass. Drop
+  // them here and the Coach starts recommending cuts of the injected cards.
+  if (generated.archetypeBlendNames && generated.archetypeBlendNames.length > 0)
+    report.archetypeBlendNames = generated.archetypeBlendNames;
   if (generated.integrityNotes && generated.integrityNotes.length > 0)
     report.integrityNotes = generated.integrityNotes;
   if (generated.comboUpsideNotes && generated.comboUpsideNotes.length > 0)
