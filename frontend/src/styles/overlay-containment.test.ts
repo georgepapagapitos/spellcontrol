@@ -23,6 +23,14 @@ import { dirname, join } from 'node:path';
 //     scroller with a 1px block-axis range under the active tab's -1px margin.
 //  4. Coarse-pointer 44px floor (STYLE_GUIDE § Responsive) on the dismiss /
 //     reveal / row-menu controls that shipped at 18-32px.
+//  5. `.app-main` must never form a stacking context. It is the scroll region
+//     every page renders into, so any of these properties on it traps EVERY
+//     `position: fixed` overlay in the app — sheets, modals, scrims — inside
+//     it, and the mobile tab bar (a later sibling) paints straight over them
+//     no matter how high their z-index is. `view-transition-name: app-main`
+//     did exactly this: it forms a stacking context permanently, not only
+//     while a transition runs. The route transition now names the chrome
+//     instead (see base-layout.css § Route view transitions).
 const srcRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel: string) => readFileSync(join(srcRoot, rel), 'utf8');
 
@@ -58,6 +66,57 @@ describe('overlay scroll containment', () => {
       ).toBe(true);
     });
   }
+});
+
+describe('.app-main never forms a stacking context', () => {
+  // Every property that makes an element a stacking context AND a containing
+  // block for its fixed descendants. `contain`/`container-type` are listed
+  // with the values that imply layout containment.
+  const TRAPS = [
+    /view-transition-name:\s*(?!none)/,
+    /(?<!-)transform:\s*(?!none)/,
+    /\bfilter:\s*(?!none)/,
+    /backdrop-filter:\s*(?!none)/,
+    /perspective:\s*(?!none)/,
+    /contain:\s*[^;]*\b(layout|paint|strict|content)\b/,
+    /container-type:\s*(?!normal)/,
+    /will-change:\s*[^;]*\b(transform|filter|perspective|opacity|view-transition-name)\b/,
+    /isolation:\s*isolate/,
+  ];
+
+  const css = read('styles/base-layout.css');
+
+  it('finds the .app-main rules it is asserting against', () => {
+    // Without this the loop below passes vacuously if the selector is ever
+    // renamed or the rules move to another file.
+    expect(blocks(css, '.app-main').length).toBeGreaterThan(0);
+  });
+
+  for (const trap of TRAPS) {
+    it(`declares no ${String(trap)}`, () => {
+      const offenders = blocks(css, '.app-main').filter((b) => trap.test(b));
+      expect(
+        offenders,
+        `.app-main declares a stacking-context-forming property. It is the scroll ` +
+          `region every page renders into, so this traps every position:fixed overlay ` +
+          `inside it and the mobile tab bar paints over sheets/modals regardless of ` +
+          `z-index. Put the property on a wrapper that hosts no overlays instead.`
+      ).toEqual([]);
+    });
+  }
+
+  it('runs the route transition off the chrome, not the content', () => {
+    // If the chrome loses its names the root snapshot swallows header + tab
+    // bar and they cross-fade with the content — the regression that made
+    // someone move the name onto .app-main in the first place.
+    for (const sel of ['.site-header', '.mobile-tab-bar', '.scan-fab-root']) {
+      expect(
+        blocks(css, sel).some((b) => /view-transition-name:\s*sc-chrome-/.test(b)),
+        `${sel} must carry its own view-transition-name so it is pulled out of the ` +
+          `root snapshot and holds still during a route change`
+      ).toBe(true);
+    }
+  });
 });
 
 describe('shared confirm-dialog action row', () => {
