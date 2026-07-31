@@ -1,36 +1,56 @@
 /**
- * Scryfall oracle-tag (otag) lookup for binder rules.
+ * Scryfall oracle-tag (otag) lookup for binder rules and the card-tags sheet.
  *
- * Loads the bundled `tagger-tags.json` snapshot (the same file the deck builder
- * uses, served from /public) and builds a name→tags reverse index so a binder
- * rule like "tag IS mana-rock" can be matched against the user's collection
- * offline. The routing engine reads `EnrichedCard.tags`; this module is what
- * decorates cards with it just before materializing — the tags are reference
- * data and are NEVER persisted or synced (they're derived from the card name).
+ * Loads the bundled `otag-index.json` artifact (built by
+ * scripts/refresh-otag-index.mjs from Scryfall's oracle_tags + oracle_cards bulk
+ * feeds) and builds a name→tags index so a binder rule like "tag IS mana-rock"
+ * can be matched against the user's collection offline. The routing engine reads
+ * `EnrichedCard.tags`; this module decorates cards with it just before
+ * materializing — the tags are reference data and are NEVER persisted or synced
+ * (they're derived from the card name).
  *
- * ponytail: independent fetch from the deck builder's own tagger client (same
- * URL, different index shape). The browser HTTP cache serves the second hit, so
- * the only real duplication is one extra parse when both subsystems run in a
- * session. Sharing one loader would force a core lib to import the self-contained
- * deck-builder subsystem (wrong dependency direction); not worth it.
+ * NOT the same corpus as the deck builder's `tagger-tags.json`. That file is 23
+ * hand-curated functional buckets its role classification is tuned against; this
+ * is the full ~4.5k-tag community vocabulary for display and filtering. Kept
+ * separate on purpose so deck generation can't shift when the corpus does.
+ *
+ * Tag hierarchy is pre-expanded at build time (a card tagged
+ * `hate-graveyard-cast` already carries `hate-graveyard` here), so lookup stays a
+ * plain Map hit with no ancestor walk.
  */
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { logger } from './logger';
 import { isExpressionEmpty } from './rules';
 import type { BinderDef, BinderFilter, BinderFilterGroup, EnrichedCard } from '../types';
 
-const TAG_REPO_URL =
-  (import.meta.env.VITE_TAG_REPO_URL as string | undefined) ?? '/tagger-tags.json';
+const OTAG_INDEX_URL =
+  (import.meta.env.VITE_OTAG_INDEX_URL as string | undefined) ?? '/otag-index.json';
 
-interface TaggerData {
+interface OtagIndex {
   generatedAt: string;
-  tags: Record<string, string[]>;
+  /** Parallel array; `cards` values are indices into it. */
+  tags: { s: string; l: string; d: string }[];
+  cards: Record<string, number[]>;
 }
+
+/**
+ * Slugs that existing binder rules may have persisted under the old 23-tag
+ * vocabulary but that the full corpus names differently. A card matching the
+ * modern slug also gets the legacy one, so saved rules keep matching without a
+ * migration. Additive only — never remove an entry, rules are user data.
+ */
+const LEGACY_TAG_ALIASES: Record<string, string> = {
+  boardwipe: 'sweeper',
+  'graveyard-hate': 'hate-graveyard',
+  sacrifice: 'sacrifice-outlet',
+};
 
 /** name → tags, e.g. "Sol Ring" → ["mana-rock", "ramp"]. Null until loaded. */
 let tagsByName: Map<string, string[]> | null = null;
-/** Sorted list of tag keys present in the snapshot (for the editor picker). */
+/** Sorted list of tag slugs present in the corpus (for the editor picker). */
 let availableTags: string[] = [];
+/** slug → { label, description } from the corpus, for UI copy. */
+let tagMeta: Map<string, { label: string; description: string }> = new Map();
 let loadPromise: Promise<void> | null = null;
 
 const listeners = new Set<() => void>();
@@ -63,19 +83,35 @@ export async function ensureCardTags(): Promise<void> {
         loadFailed = false;
         emit();
       }
-      const res = await fetch(TAG_REPO_URL);
+      const res = await fetch(OTAG_INDEX_URL);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: TaggerData = await res.json();
+      const data: OtagIndex = await res.json();
+
+      const slugs = data.tags.map((t) => t.s);
+      tagMeta = new Map(data.tags.map((t) => [t.s, { label: t.l, description: t.d }]));
+      // Legacy slug → the modern slug it now lives under, inverted so the load
+      // below can append the legacy name to any card carrying the modern one.
+      const legacyBySlug = new Map<string, string[]>();
+      for (const [legacy, modern] of Object.entries(LEGACY_TAG_ALIASES)) {
+        const list = legacyBySlug.get(modern);
+        if (list) list.push(legacy);
+        else legacyBySlug.set(modern, [legacy]);
+      }
+
       const byName = new Map<string, string[]>();
-      for (const [tag, names] of Object.entries(data.tags)) {
-        for (const name of names) {
-          const list = byName.get(name);
-          if (list) list.push(tag);
-          else byName.set(name, [tag]);
+      for (const [name, ids] of Object.entries(data.cards)) {
+        const tags: string[] = [];
+        for (const id of ids) {
+          const slug = slugs[id];
+          if (slug === undefined) continue;
+          tags.push(slug);
+          const legacy = legacyBySlug.get(slug);
+          if (legacy) tags.push(...legacy);
         }
+        byName.set(name, tags);
       }
       tagsByName = byName;
-      availableTags = Object.keys(data.tags).sort();
+      availableTags = [...slugs].sort();
       emit();
     } catch (err) {
       loadFailed = true;
@@ -96,12 +132,19 @@ export function getCardTags(name: string): string[] {
   return tagsByName?.get(name) ?? [];
 }
 
-/** Tag keys available in the snapshot. Empty until loaded. */
+/** Tag keys available in the corpus. Empty until loaded. */
 export function listCardTags(): string[] {
   return availableTags;
 }
 
-/** A few tags whose kebab key doesn't title-case cleanly. */
+/** Scryfall's own description for a tag, or '' when it has none / isn't loaded.
+ *  Only ~29% of the corpus carries one, so callers must handle the empty case. */
+export function cardTagDescription(tag: string): string {
+  return tagMeta.get(tag)?.description ?? '';
+}
+
+/** A few tags whose kebab key doesn't title-case cleanly. Takes precedence over
+ *  the corpus label, which is usually just the slug repeated. */
 const TAG_LABELS: Record<string, string> = {
   'card-advantage': 'Card advantage',
   'graveyard-hate': 'Graveyard hate',
@@ -117,7 +160,11 @@ const TAG_LABELS: Record<string, string> = {
 
 /** Human label for a tag key, e.g. "mana-rock" → "Mana rock". */
 export function cardTagLabel(tag: string): string {
-  return TAG_LABELS[tag] ?? tag.charAt(0).toUpperCase() + tag.slice(1).replace(/-/g, ' ');
+  const curated = TAG_LABELS[tag];
+  if (curated) return curated;
+  // Corpus labels are frequently the slug verbatim; title-case either way.
+  const raw = tagMeta.get(tag)?.label || tag;
+  return raw.charAt(0).toUpperCase() + raw.slice(1).replace(/-/g, ' ');
 }
 
 function filterUsesTags(f: BinderFilter): boolean {

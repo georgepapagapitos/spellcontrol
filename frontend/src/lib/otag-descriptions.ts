@@ -1,10 +1,16 @@
 /**
- * One-line human descriptions for the curated Scryfall oracle-tag (otag)
- * snapshot bundled at /tagger-tags.json (see lib/card-tags.ts for the lookup
- * machinery). Keys must track the snapshot's tag set — pinned by
- * otag-descriptions.test.ts against the actual JSON so a snapshot regen that
- * adds a tag fails loudly instead of falling back silently.
+ * One-line human descriptions for the oracle tags we care most about.
+ *
+ * These were written for the original 23-tag curated snapshot. The corpus is now
+ * the full ~4.5k-tag Scryfall vocabulary (see lib/card-tags.ts), which is far too
+ * large to hand-write copy for and only carries its own description for ~29% of
+ * tags. So the resolution order in {@link describeOtag} is: our curated copy →
+ * Scryfall's description → a humanized slug. These entries stay because they read
+ * better than Scryfall's for the concepts users hit most; they are a preferred
+ * override, no longer an exhaustive set.
  */
+import { cardTagDescription } from './card-tags';
+
 export const OTAG_DESCRIPTIONS: Record<string, string> = {
   ramp: 'Accelerates your mana beyond one land per turn',
   'cost-reducer': 'Makes your spells cheaper to cast',
@@ -32,9 +38,14 @@ export const OTAG_DESCRIPTIONS: Record<string, string> = {
 };
 
 /**
- * Description for a tag key, falling back to a humanized label
- * ("some-new-tag" → "Some new tag") for keys outside the snapshot.
+ * Description for a tag key: our curated copy first, then Scryfall's own
+ * description from the corpus, then a humanized label ("some-new-tag" → "Some
+ * new tag") when neither exists.
  */
 export function describeOtag(key: string): string {
-  return OTAG_DESCRIPTIONS[key] ?? key.charAt(0).toUpperCase() + key.slice(1).replace(/-/g, ' ');
+  return (
+    OTAG_DESCRIPTIONS[key] ||
+    cardTagDescription(key) ||
+    key.charAt(0).toUpperCase() + key.slice(1).replace(/-/g, ' ')
+  );
 }
