@@ -2886,6 +2886,7 @@ export function DeckEditorPage() {
                 <CoachFeed
                   gaps={deck.gapAnalysis ?? []}
                   optimize={deck.optimizeSwaps}
+                  misfits={deck.misfits}
                   synergy={deck.synergyAnalysis?.suggestions ?? []}
                   substitutes={substitutionPlan?.rows ?? []}
                   costPlan={effectiveCostPlan ?? undefined}

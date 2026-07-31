@@ -18,6 +18,7 @@ import type { ScryfallCard, GapAnalysisCard } from '@/deck-builder/types';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
 import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
+import type { MisfitSummary } from '@/deck-builder/services/deckBuilder/cardFit';
 import type { BracketFitMove } from '@/deck-builder/services/deckBuilder/bracketFit';
 import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import { parsePrice } from '@/deck-builder/services/deckBuilder/costAnalyzer';
@@ -30,6 +31,7 @@ import {
   buildComboCompletionFactors,
   buildGapAddFactors,
   buildLandUpgradeFactors,
+  buildMisfitFactors,
   buildOptimizeFactors,
   buildSynergyPickFactors,
   type WhyFactor,
@@ -352,6 +354,67 @@ export function fromOptimizeCard(
     typeLine: o.primaryType,
     imageUrl: o.imageUrl,
   };
+}
+
+/**
+ * E222: adapt a cardFit misfit into a Cuts-lane Change.
+ *
+ * `computeMisfits` produces a typed, cited reason cascade for every deck card
+ * failing ≥2 of its six fit checks — data that until now was collapsed into the
+ * single 0-100 cardFit sub-score and discarded. The optimizer's own removals
+ * (`fromOptimizeCard`) are gated differently (INCLUSION_FLOOR, role/curve
+ * tiers), so misfits both enrich rows it already flagged and surface cards it
+ * skips entirely.
+ *
+ * `card`/`inclusion` are intentionally absent: `MisfitSummary` is name-keyed so
+ * it stays cheap to persist, and the feed resolves the card from the mainboard.
+ */
+export function fromMisfit(m: MisfitSummary): Change {
+  return {
+    id: `cardfit:cut:${m.name}`,
+    type: 'cut',
+    lane: 'upgrade',
+    name: m.name,
+    // reasons[0] is the highest-signal rung — computeMisfits appends in cascade
+    // order (inclusion → synergy → role → theme).
+    reason: m.reasons[0]?.label,
+    whyFactors: buildMisfitFactors(m.reasons),
+    // Real play-rate, so the row shows "In N% of decks". Left undefined only
+    // when EDHREC genuinely has no data for this card — which is exactly when
+    // DeckCardRow's "Off-meta" chip is the truthful read.
+    inclusion: m.inclusion,
+    // Cut rows are ownership-blind — the card is already in the deck.
+    ownership: undefined,
+  };
+}
+
+/**
+ * Fold cardFit misfits into the optimizer's cut rows.
+ *
+ * The two engines gate differently (the optimizer on INCLUSION_FLOOR + role /
+ * curve tiers, misfits on ≥2 of six fit checks), so they overlap without
+ * matching. Where both flag a card the **optimizer row wins** — it carries the
+ * resolved card, inclusion, role and price the row renders — and we only graft
+ * on the misfit's cited factors, which are strictly richer than the optimizer's
+ * one-liner. Where only the misfit fires, it becomes its own row.
+ *
+ * Returns a new array; `optimizeCuts` entries are copied, never mutated in
+ * place (the caller's memo may hand us the same objects across renders).
+ */
+export function mergeMisfitCuts(optimizeCuts: Change[], misfits: MisfitSummary[]): Change[] {
+  const merged = optimizeCuts.map((c) => ({ ...c }));
+  const byName = new Map(merged.map((c) => [c.name.toLowerCase(), c]));
+  const extra: Change[] = [];
+
+  for (const m of misfits) {
+    const existing = byName.get(m.name.toLowerCase());
+    if (existing) {
+      existing.whyFactors = [...(existing.whyFactors ?? []), ...buildMisfitFactors(m.reasons)];
+    } else {
+      extra.push(fromMisfit(m));
+    }
+  }
+  return [...merged, ...extra];
 }
 
 /**

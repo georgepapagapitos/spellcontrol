@@ -218,6 +218,7 @@ export function useCommanderBracketAnalysis(args: Args): {
                 hiddenGems: result.hiddenGems,
                 cardInclusionMap: result.cardInclusionMap,
                 planScore: result.planScore,
+                misfits: result.misfits,
                 edhrecNumDecks: result.edhrecNumDecks ?? null,
                 optimizeSwaps: result.optimizeSwaps,
                 costPlan: result.costPlan,
