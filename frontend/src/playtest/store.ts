@@ -73,15 +73,45 @@ export function tryRecordSession(
  *  - `opening` — initial hand on screen; user can Keep or Mulligan.
  *  - `mulligan-bottom` — London mulligan: after N mulligans the user must
  *    send N cards from hand to the bottom of the library before play starts.
+ *    Skipped entirely under the free-mulligan variant (E226).
  *  - `playing` — normal play; no opening-hand UI.
  */
 export type PlaytestPhase = 'opening' | 'mulligan-bottom' | 'playing';
+
+/* ── Free-mulligan variant (E226) ─────────────────────────────────────────
+ * A casual house rule (and how most goldfishing is actually done): every
+ * mulligan redraws a full seven with no cards sent to the bottom. It's a way
+ * you play, not a property of one game, so it's remembered per device the
+ * same way the Resistance level is — a player who always goldfishes on free
+ * mulligans shouldn't re-arm it every session. Deliberately NOT in the
+ * session snapshot: the device preference is the single source of truth, so
+ * a resumed game can't disagree with the toggle the player is looking at. */
+const FREE_MULLIGAN_KEY = 'spellcontrol:playtest:freeMulligan';
+
+export function loadFreeMulligan(): boolean {
+  try {
+    return localStorage.getItem(FREE_MULLIGAN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function saveFreeMulligan(on: boolean): void {
+  try {
+    localStorage.setItem(FREE_MULLIGAN_KEY, on ? '1' : '0');
+  } catch {
+    /* best-effort — storage unavailable/full */
+  }
+}
 
 interface PlaytestStore {
   state: PlaytestState | null;
   deckId: string | null;
   phase: PlaytestPhase;
   mulliganCount: number;
+  /** Free-mulligan variant: mulligans redraw a full seven and the
+   *  bottom-N step is skipped. Device preference — see `loadFreeMulligan`. */
+  freeMulligan: boolean;
   /** "Resistance" mode — a simulated opponent that responds to plays.
    *  'off' disables it; the other three levels are difficulty presets (E142). */
   resistanceLevel: ResistanceLevel;
@@ -126,7 +156,10 @@ interface PlaytestStore {
   /** Switch difficulty (or turn it off); persists the choice as the device's
    *  "last used" preference and appends a game-log entry when armed. */
   setResistanceLevel(level: ResistanceLevel): void;
-  /** Advance from opening → either playing (no mulligans) or mulligan-bottom. */
+  /** Turn the free-mulligan variant on/off; persists as a device preference. */
+  setFreeMulligan(on: boolean): void;
+  /** Advance from opening → either playing (no mulligans taken, or the
+   *  free-mulligan variant) or mulligan-bottom. */
   keepOpeningHand(): void;
   /** Reshuffle hand + library; increment mulligan count; stay on opening. */
   mulliganOpeningHand(): void;
@@ -148,6 +181,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
   deckId: null,
   phase: 'opening',
   mulliganCount: 0,
+  freeMulligan: loadFreeMulligan(),
   resistanceLevel: 'off',
   resistanceState: null,
   resistancePast: [],
@@ -382,9 +416,17 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       gameLog: nextLog,
     });
   },
+  setFreeMulligan(on) {
+    saveFreeMulligan(on);
+    // Flipping it on while already sitting in the bottom-N step means the
+    // player just decided those cards shouldn't be owed — drop straight into
+    // play rather than stranding them on a step the variant doesn't have.
+    const { phase } = get();
+    set({ freeMulligan: on, ...(on && phase === 'mulligan-bottom' && { phase: 'playing' }) });
+  },
   keepOpeningHand() {
-    const { mulliganCount } = get();
-    set({ phase: mulliganCount > 0 ? 'mulligan-bottom' : 'playing' });
+    const { mulliganCount, freeMulligan } = get();
+    set({ phase: mulliganCount > 0 && !freeMulligan ? 'mulligan-bottom' : 'playing' });
   },
   mulliganOpeningHand() {
     const current = get().state;
