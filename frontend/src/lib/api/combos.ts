@@ -1,5 +1,6 @@
 import { handleResponse, fetchWithAbortTimeout } from '../fetch-utils';
-import { ensureCombosCached, matchCombosLocal } from '../offline';
+import { ensureCombosCached, matchCombosLocal, searchCombosLocal } from '../offline';
+import type { ComboSearchResult } from '../offline';
 import type { ComboDetail, ComboMatchResponse } from '../../types/combos';
 
 export interface MatchRequest {
@@ -34,17 +35,41 @@ export async function matchCombos(req: MatchRequest): Promise<ComboMatchResponse
   // server endpoint when the dataset can't be cached (e.g. offline + empty
   // cache on first run) — for a logged-in user that still works.
   if (await ensureCombosCached()) {
-    return matchCombosLocal({
+    const local = await matchCombosLocal({
       ownedOracleIds: req.ownedOracleIds,
       deckOracleIds: req.deckOracleIds,
       format: req.format,
     });
+    return { ...local, source: 'local' };
   }
-  return fetchJson<ComboMatchResponse>('/api/combos/match', {
+  // Fallback path — device-local cache couldn't be used. `/api/combos/match`
+  // caps candidates at 2000 for memory safety (see MAX_CANDIDATE_COMBOS), so
+  // this can under-report a large collection. Tag it so callers don't present
+  // it as a complete answer (E212).
+  const server = await fetchJson<Omit<ComboMatchResponse, 'source'>>('/api/combos/match', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   });
+  return { ...server, source: 'server' };
+}
+
+/**
+ * E216: dataset-wide combo search. Local-only by design — the server's
+ * `/match` endpoint can't answer it (it caps its candidate pool at 2000 by
+ * popularity before bucketing, which is exactly the truncation this exists to
+ * escape). Returns `null` when the local dataset isn't cached, and the caller
+ * then falls back to filtering the already-fetched buckets — i.e. the old
+ * behaviour, alongside E212's partial-results banner that already explains why
+ * the answer is incomplete.
+ */
+export async function searchCombos(req: {
+  query: string;
+  ownedOracleIds: string[];
+  format?: string;
+}): Promise<ComboSearchResult | null> {
+  if (!(await ensureCombosCached())) return null;
+  return searchCombosLocal(req);
 }
 
 export async function getCombo(id: string): Promise<ComboDetail> {

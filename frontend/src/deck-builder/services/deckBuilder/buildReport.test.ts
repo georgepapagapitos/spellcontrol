@@ -1013,3 +1013,37 @@ describe('E167: fixupRepairs disclosure (post-gen fixup pass)', () => {
     expect(report.fixupRepairs).toBeUndefined();
   });
 });
+
+// E221 — assembleBuildReport is a FIELD ALLOWLIST: anything not copied across
+// explicitly is silently dropped on save. For archetypeBlendNames that isn't
+// cosmetic — the analysis hook reads it back out of the persisted report to
+// exempt blended cards from the misfit pass, so dropping it here would have
+// the Coach recommending cuts of the cards generation deliberately added.
+describe('assembleBuildReport — archetype blend (E221)', () => {
+  it('carries the blend note and names through to the persisted report', () => {
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        archetypeBlendNote: 'Added 3 cards from the Aristocrats archetype page — …',
+        archetypeBlendNames: ['Blood Artist', 'Zulaport Cutthroat', 'Deadly Dispute'],
+      }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+    expect(report.archetypeBlendNote).toContain('Aristocrats archetype page');
+    expect(report.archetypeBlendNames).toEqual([
+      'Blood Artist',
+      'Zulaport Cutthroat',
+      'Deadly Dispute',
+    ]);
+  });
+
+  it('leaves both fields absent when the blend did nothing', () => {
+    const report = assembleBuildReport({
+      generated: makeGenerated(),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+    expect(report.archetypeBlendNote).toBeUndefined();
+    expect(report.archetypeBlendNames).toBeUndefined();
+  });
+});

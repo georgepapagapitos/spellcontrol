@@ -1,6 +1,7 @@
 import './CommanderPopularityStat.css';
 import type { JSX } from 'react';
 import { InfoTip } from '@/components/InfoTip';
+import { ThinDataNote } from '@/components/shared/ThinDataNote';
 
 export interface CommanderPopularityStatProps {
   /** EDHREC's own sample size for this commander (its `numDecks`). */
@@ -41,21 +42,35 @@ export function CommanderPopularityStat({
   if (loading) return null;
   if (edhrecNumDecks === 0 && ownCount === null) return null;
 
+  // E224: this commander's EDHREC deck count is the denominator behind every
+  // EDHREC-derived number on the deck — inclusion percentages, gap analysis,
+  // suggestions. Disclose it once, here at the sample itself, rather than
+  // badging every derived row.
+  const thinNote = <ThinDataNote sampleSize={edhrecNumDecks} />;
+
   if (ownCount === null) {
     return (
-      <p className="commander-popularity-stat">{edhrecNumDecks.toLocaleString()} decks on EDHREC</p>
+      <>
+        <p className="commander-popularity-stat">
+          {edhrecNumDecks.toLocaleString()} decks on EDHREC
+        </p>
+        {thinNote}
+      </>
     );
   }
 
   return (
-    <p className="commander-popularity-stat">
-      {ownCount.toLocaleString()} on SpellControl · {edhrecNumDecks.toLocaleString()} on EDHREC
-      {variant === 'card' && (
-        <InfoTip
-          label="platform decks"
-          text="Decks built and published on SpellControl with this commander — updates nightly."
-        />
-      )}
-    </p>
+    <>
+      <p className="commander-popularity-stat">
+        {ownCount.toLocaleString()} on SpellControl · {edhrecNumDecks.toLocaleString()} on EDHREC
+        {variant === 'card' && (
+          <InfoTip
+            label="platform decks"
+            text="Decks built and published on SpellControl with this commander — updates nightly."
+          />
+        )}
+      </p>
+      {thinNote}
+    </>
   );
 }

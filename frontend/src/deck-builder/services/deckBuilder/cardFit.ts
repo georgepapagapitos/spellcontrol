@@ -49,6 +49,9 @@ export interface Misfit {
   card: ScryfallCard;
   /** Higher = worse fit. */
   misfitScore: number;
+  /** EDHREC inclusion % for this commander, when known. Undefined = the card
+   *  isn't on the commander's page at all (the `inclusion-absent` reason). */
+  inclusion?: number;
   reasons: MisfitReason[];
   suggestedReplacement?: GapAnalysisCard;
 }
@@ -84,10 +87,22 @@ export interface MisfitInputs {
   gapCandidates?: GapAnalysisCard[];
   /** Commander name(s) — never suggest these as replacements. */
   commanderNames?: string[];
+  /**
+   * E221: names injected by archetype tag-page blending. A blended card is
+   * absent from the commander's EDHREC page BY CONSTRUCTION — that absence is
+   * precisely why it was injected — so the two "absent" reasons are suppressed
+   * for it. Without this every blended card trips the 2-reason threshold and
+   * the Coach ends up telling the user to cut the cards generation just added.
+   * `inclusion-low` / `synergy-low` still fire when data exists but is weak,
+   * and `role-missing` / `theme-off` are untouched: those are real signals
+   * about a blended card.
+   */
+  blendedNames?: ReadonlySet<string>;
 }
 
 export function computeMisfits(inputs: MisfitInputs): Misfit[] {
-  const { cards, cardInclusionMap, cardSynergyMap, themeByCard, gapCandidates } = inputs;
+  const { cards, cardInclusionMap, cardSynergyMap, themeByCard, gapCandidates, blendedNames } =
+    inputs;
 
   const misfits: Misfit[] = [];
 
@@ -99,14 +114,19 @@ export function computeMisfits(inputs: MisfitInputs): Misfit[] {
     if (isAnyLand(card)) continue; // lands evaluated separately, not as misfits here
 
     const reasons: MisfitReason[] = [];
+    // E221: an archetype-blended card's absence from the commander page is
+    // expected — attribute it, don't penalize it.
+    const isBlended = blendedNames?.has(card.name) ?? false;
 
     const incl = cardInclusionMap[card.name];
     if (incl == null) {
-      reasons.push({
-        kind: 'inclusion-absent',
-        label: "Not played in this commander's decks",
-        detail: 'Card has no inclusion data on EDHREC for this commander',
-      });
+      if (!isBlended) {
+        reasons.push({
+          kind: 'inclusion-absent',
+          label: "Not played in this commander's decks",
+          detail: 'Card has no inclusion data on EDHREC for this commander',
+        });
+      }
     } else if (incl < INCLUSION_LOW) {
       reasons.push({
         kind: 'inclusion-low',
@@ -117,11 +137,13 @@ export function computeMisfits(inputs: MisfitInputs): Misfit[] {
 
     const syn = cardSynergyMap?.[card.name];
     if (syn == null) {
-      reasons.push({
-        kind: 'synergy-absent',
-        label: 'No commander synergy data',
-        detail: "Card isn't on this commander's EDHREC page",
-      });
+      if (!isBlended) {
+        reasons.push({
+          kind: 'synergy-absent',
+          label: 'No commander synergy data',
+          detail: "Card isn't on this commander's EDHREC page",
+        });
+      }
     } else if (syn <= SYNERGY_LOW) {
       reasons.push({
         kind: 'synergy-low',
@@ -156,13 +178,47 @@ export function computeMisfits(inputs: MisfitInputs): Misfit[] {
       const excludeNames = new Set(excludeBase);
       excludeNames.add(card.name);
       const suggestedReplacement = pickReplacement(card, role, gapCandidates, excludeNames);
-      misfits.push({ card, misfitScore, reasons, suggestedReplacement });
+      misfits.push({ card, misfitScore, inclusion: incl, reasons, suggestedReplacement });
     }
   }
 
   // Highest misfitScore first.
   misfits.sort((a, b) => b.misfitScore - a.misfitScore);
   return misfits;
+}
+
+/**
+ * Persistable projection of a `Misfit` — name + the reason cascade, WITHOUT the
+ * embedded `ScryfallCard`.
+ *
+ * `Misfit` carries whole card objects, so it must never be written to a deck
+ * row: rows are whole-entity, LWW and synced, so ~10 full cards per deck would
+ * bloat every push. This mirrors `OptimizeCard`'s name-keyed shape — the UI
+ * resolves the card from the mainboard by name, exactly as the Cuts lane
+ * already does for optimizer removals.
+ */
+export interface MisfitSummary {
+  name: string;
+  misfitScore: number;
+  /** Carried so the Cuts row renders its real play-rate. Without it
+   *  `classifyInclusion` reads undefined as 0 and paints a FALSE "Off-meta"
+   *  chip on a card that is merely lightly played. Undefined here is honest —
+   *  it means the card genuinely has no EDHREC data for this commander. */
+  inclusion?: number;
+  reasons: MisfitReason[];
+  /** Gap-candidate name only (the full card is re-resolved at render time). */
+  suggestedReplacement?: string;
+}
+
+/** Slim `Misfit[]` → `MisfitSummary[]`, preserving the already-sorted order. */
+export function summarizeMisfits(misfits: Misfit[]): MisfitSummary[] {
+  return misfits.map((m) => ({
+    name: m.card.name,
+    misfitScore: m.misfitScore,
+    inclusion: m.inclusion,
+    reasons: m.reasons,
+    suggestedReplacement: m.suggestedReplacement?.name,
+  }));
 }
 
 /** Pick a replacement from gap candidates: same role first, else same primary type. */

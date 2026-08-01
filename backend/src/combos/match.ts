@@ -69,6 +69,8 @@ export interface MatchResult {
   inDeck: ComboMatch[];
   oneAway: ComboMatch[];
   almostInCollection: ComboMatch[];
+  /** True count before the ALMOST_LIMIT truncation, so callers can disclose it. */
+  almostInCollectionTotal: number;
 }
 
 const ALMOST_LIMIT = 200;
@@ -137,6 +139,7 @@ export function matchCombos(input: MatchInput): MatchResult {
     inDeck,
     oneAway,
     almostInCollection: almostInCollection.slice(0, ALMOST_LIMIT),
+    almostInCollectionTotal: almostInCollection.length,
   };
 }
 

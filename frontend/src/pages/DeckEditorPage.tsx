@@ -31,7 +31,9 @@ import {
   type AnalysisTabId,
   type DeckView,
 } from '../components/deck/DeckDisplay';
-import { Tabs } from '../components/Tabs';
+import { Tabs, type TabBadge } from '../components/Tabs';
+import { bracketLabel } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import type { ValidationSummary } from '@/deck-builder/services/deckBuilder/validationChecklist';
 import { materializeBinders } from '../lib/materialize';
 import { formatMoney } from '../lib/format-money';
 import { buildCommanderKey } from '../lib/commander-key';
@@ -121,6 +123,7 @@ import { MovePrintingPrompt } from '../components/deck/MovePrintingPrompt';
 import { MoveToDeckSheet } from '../components/deck/MoveToDeckSheet';
 import { BuildReportSheet } from '../components/deck/BuildReportSheet';
 import { isBuildReportSeen } from '../lib/build-report-seen';
+import type { ComboSeedContext } from '../types/combos';
 import { computeNewArrivals, type ArrivalsByType } from '../lib/new-arrivals';
 import { BackLink } from '../components/BackLink';
 import { ColorPicker } from '../components/ColorPicker';
@@ -395,6 +398,13 @@ export function DeckEditorPage() {
   const [showPublishNudge] = useState(
     () => !!(location.state as { promptVisibility?: boolean } | null)?.promptVisibility
   );
+  // E215 — combo the build was seeded from, relayed by useDeckGeneration in
+  // the same one-shot router state as justGenerated. Captured once at mount
+  // like the flags above; a refresh loses it exactly like they do (fine —
+  // it's build intent, not a saved property of the deck).
+  const [comboSeedContext] = useState(
+    () => (location.state as { comboContext?: ComboSeedContext } | null)?.comboContext ?? null
+  );
   // Feedback Tool: mint/copy the suggestion link + review submitted responses.
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [addZone, setAddZone] = useState<'main' | 'side' | 'considering'>('main');
@@ -485,6 +495,15 @@ export function DeckEditorPage() {
   // state is slot-keyed, which BracketFitLane can't see). Tracked separately so a
   // swap-in-flight disables only its own row.
   const [bracketFitSwapName, setBracketFitSwapName] = useState<string | null>(null);
+  // Deck-health roll-up reported up by DeckDisplay (which computes the
+  // checklist for the Stats board) so the view tabs can badge it — E223. Held
+  // by value so an identical re-report doesn't re-render the page.
+  const [deckHealth, setDeckHealth] = useState<ValidationSummary | null>(null);
+  const handleDeckHealthChange = useCallback((next: ValidationSummary) => {
+    setDeckHealth((prev) =>
+      prev && prev.tone === next.tone && prev.label === next.label ? prev : next
+    );
+  }, []);
   const openView = useCallback(
     (next: DeckView) => {
       setView(next);
@@ -2413,12 +2432,31 @@ export function DeckEditorPage() {
   // The Tune tab carries no count badge — a bare number there read as a
   // mystery (it was the in-deck combo count); the combo count is shown,
   // clearly labelled, on the "In deck" sub-tab of the embedded Combos panel.
-  const viewTabs: Array<{ id: DeckView; label: string }> = [
+  // E223 — per-tab health badges. Each is an already-computed verdict for that
+  // tab's own view (nothing new is calculated here), so the strip answers
+  // "which view needs attention" before you open one. Coach stays bare: its
+  // only candidate number was the in-deck combo count, which read as a mystery.
+  const statsBadge: TabBadge | null = deckHealth
+    ? {
+        text: deckHealth.tone === 'success' ? '✓' : deckHealth.label.split(' ')[0],
+        description: `deck health: ${deckHealth.label.toLowerCase()}`,
+        tone: deckHealth.tone,
+      }
+    : null;
+  const powerBadge: TabBadge | null =
+    bracketValue !== undefined
+      ? {
+          text: String(bracketValue),
+          description: `bracket ${bracketValue} of 5, ${bracketLabel(bracketValue)}`,
+          tone: 'neutral',
+        }
+      : null;
+  const viewTabs: Array<{ id: DeckView; label: string; badge?: TabBadge | null }> = [
     { id: 'deck', label: 'Deck' },
-    { id: 'stats', label: 'Stats' },
+    { id: 'stats', label: 'Stats', badge: statsBadge },
     ...(showAnalysisExtras
       ? [
-          { id: 'power' as DeckView, label: 'Power' },
+          { id: 'power' as DeckView, label: 'Power', badge: powerBadge },
           { id: 'tune' as DeckView, label: 'Coach' },
         ]
       : []),
@@ -2693,6 +2731,7 @@ export function DeckEditorPage() {
           tabs={viewTabs.map((t) => ({
             id: t.id,
             label: t.label,
+            badge: t.badge,
             controls: `deck-view-panel-${t.id}`,
           }))}
         />
@@ -2810,6 +2849,7 @@ export function DeckEditorPage() {
             exportOpen={exportOpen}
             onExportOpenChange={setExportOpen}
             activeView={safeView}
+            onDeckHealthChange={handleDeckHealthChange}
             onShowTestHand={() => setShowTestHand(true)}
             onAddCards={handleToggleAddPanel}
             analysisState={analysisState}
@@ -2878,6 +2918,7 @@ export function DeckEditorPage() {
                 <CoachFeed
                   gaps={deck.gapAnalysis ?? []}
                   optimize={deck.optimizeSwaps}
+                  misfits={deck.misfits}
                   synergy={deck.synergyAnalysis?.suggestions ?? []}
                   substitutes={substitutionPlan?.rows ?? []}
                   costPlan={effectiveCostPlan ?? undefined}
@@ -3407,6 +3448,7 @@ export function DeckEditorPage() {
           report={deck.buildReport}
           oneAwayCombos={comboData.data?.oneAway}
           ownedOracleIds={ownedOracleIdSet}
+          comboSeedContext={comboSeedContext}
           onClose={() => setShowBuildReport(false)}
           onReviewConflicts={() => {
             setShowBuildReport(false);

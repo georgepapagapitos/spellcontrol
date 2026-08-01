@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { matchCombos } from './api/combos';
 import type { ComboMatch, ComboMatchResponse } from '../types/combos';
 
@@ -26,6 +26,13 @@ interface State {
   data: ComboMatchResponse | null;
   loading: boolean;
   error: string | null;
+}
+
+interface Result extends State {
+  /** Re-run the match, bypassing the module cache. Use when `data?.source ===
+   * 'server'` and the caller wants to give the (possibly-truncated) fallback
+   * another chance at the full local dataset. */
+  refetch: () => void;
 }
 
 const DEBOUNCE_MS = 250;
@@ -62,10 +69,18 @@ function filterByIdentity(
     inDeck: data.inDeck,
     oneAway: data.oneAway.filter(fits),
     almostInCollection: data.almostInCollection.filter(fits),
+    source: data.source,
+    almostInCollectionTotal: data.almostInCollectionTotal,
   };
 }
 
 function rememberCache(key: string, value: ComboMatchResponse): void {
+  // Never cache a `source: 'server'` result. It's the fallback path (the
+  // device-local dataset couldn't be used) and can under-report a large
+  // collection — caching it made the degraded answer stick for the rest of
+  // the session even after the local cache recovered (E212). Leaving it
+  // uncached means the next mount retries automatically.
+  if (value.source === 'server') return;
   if (cache.size >= CACHE_LIMIT) {
     const oldestKey = cache.keys().next().value;
     if (oldestKey) cache.delete(oldestKey);
@@ -73,7 +88,7 @@ function rememberCache(key: string, value: ComboMatchResponse): void {
   cache.set(key, value);
 }
 
-export function useDeckCombos(args: Args): State {
+export function useDeckCombos(args: Args): Result {
   const { deckOracleIds, ownedOracleIds, format, colorIdentity, enabled = true } = args;
   // Stable string key so the filter memo survives an unstable array reference.
   const identityKey = colorIdentity
@@ -113,6 +128,14 @@ export function useDeckCombos(args: Args): State {
   // a fresher one.
   const reqIdRef = useRef(0);
 
+  // Bumped by `refetch()` to force the effect below to re-run even though
+  // `key`/`enabled` didn't change — e.g. retrying a `source: 'server'` result.
+  const [retryTick, setRetryTick] = useState(0);
+  const refetch = useCallback(() => {
+    setState((s) => ({ ...s, loading: true, error: null }));
+    setRetryTick((n) => n + 1);
+  }, []);
+
   useEffect(() => {
     if (!enabled) return;
     if (cache.has(key)) return; // already served by the render-phase reset
@@ -143,7 +166,7 @@ export function useDeckCombos(args: Args): State {
     // arrays via closure is fine because the effect re-runs whenever they
     // change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, enabled]);
+  }, [key, enabled, retryTick]);
 
   // Identity filtering happens on the way out (the cache stays raw): the key
   // above doesn't include identity, but identity is a function of the deck's
@@ -153,7 +176,7 @@ export function useDeckCombos(args: Args): State {
     [state.data, identityKey]
   );
 
-  return { ...state, data };
+  return { ...state, data, refetch };
 }
 
 export const __testing = { cache, buildKey, filterByIdentity };

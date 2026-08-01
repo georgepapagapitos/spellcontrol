@@ -105,7 +105,14 @@ export function ComboRow({
   missingPrice,
 }: ComboRowProps) {
   const { combo } = match;
-  const missingOracleId = match.missingOracleIds[0] ?? null;
+  // E216: a match can now be missing MORE than one piece (card-scoped search
+  // surfaces combos you own 1 of 3 of), so membership drives the art grid
+  // rather than a single id. The scalar below stays for the genuinely
+  // single-piece concerns — the add CTA, the market price, and the
+  // owned-but-not-in-deck aside — which are only meaningful at exactly one.
+  const missingIds = useMemo(() => new Set(match.missingOracleIds), [match.missingOracleIds]);
+  const missingCount = match.missingOracleIds.length;
+  const missingOracleId = missingCount === 1 ? match.missingOracleIds[0]! : null;
   const missingCardName = missingOracleId
     ? combo.cards.find((c) => c.oracleId === missingOracleId)?.cardName
     : null;
@@ -178,10 +185,16 @@ export function ComboRow({
       {/* ── Row header — status icon + color identity + combo name ── */}
       <header className="deck-combos-row-header">
         <span
-          className={`deck-combos-row-status ${isOneAway ? 'is-near-miss' : 'is-complete'}`}
-          aria-label={isOneAway ? 'One card away' : 'Complete'}
+          className={`deck-combos-row-status ${missingCount > 0 ? 'is-near-miss' : 'is-complete'}`}
+          aria-label={
+            missingCount === 0
+              ? 'Complete'
+              : missingCount === 1
+                ? 'One card away'
+                : `${missingCount} cards away`
+          }
         >
-          {isOneAway ? (
+          {missingCount > 0 ? (
             <AlertTriangle width={14} height={14} aria-hidden />
           ) : (
             <CheckCircle2 width={14} height={14} aria-hidden />
@@ -220,7 +233,7 @@ export function ComboRow({
       {/* ── Card art grid — present cards full colour; missing dimmed ── */}
       <ul className="deck-combos-card-grid" role="list">
         {combo.cards.map((c, i) => {
-          const isMissing = c.oracleId === missingOracleId;
+          const isMissing = missingIds.has(c.oracleId);
           // On the "one-away" tab: owned = in collection but not in deck.
           // On the "in-deck" tab: check if the piece is actually owned in
           // the collection — D2: show not-owned icon for unowned pieces.

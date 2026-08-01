@@ -13,6 +13,7 @@ import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import { CUBE_SIZES, SIZE_INFO, type ColorBucket, type CubeSize } from '../../lib/cube/targets';
 import type { GeneratedCube, CubeCard } from '../../lib/cube/generate';
 import type { Ownership } from '../../lib/cube/import';
+import type { OracleFacts } from '../../lib/cube/oracle';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
 
@@ -54,11 +55,16 @@ export const BUCKET_COLOR: Record<ColorBucket, string> = {
  * Map unique card names to a `CubeCard[]` pool, preferring Scryfall-enriched data
  * and falling back to the owned collection copy. Shared by the solo and collab
  * build flows (both build the same name→CubeCard pool from their own collection).
+ *
+ * Takes `OracleFacts`, not a full `ScryfallCard`, because ranking reads only
+ * oracle data — that's what lets the pool pass come from our own backend
+ * (`fetchCubeOracle`) rather than a collection-scale walk of the Scryfall API.
+ * A full `ScryfallCard` still satisfies the type.
  */
 export function namesToCubePool(
   names: string[],
   collectionCards: EnrichedCard[],
-  enriched: Map<string, ScryfallCard>
+  enriched: Map<string, OracleFacts>
 ): CubeCard[] {
   const ownedByName = new Map<string, EnrichedCard>();
   for (const c of collectionCards)

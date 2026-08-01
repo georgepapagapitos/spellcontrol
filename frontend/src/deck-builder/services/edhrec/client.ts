@@ -69,6 +69,10 @@ function emptyCommanderData(): EDHRECCommanderData {
   };
 }
 const MIN_REQUEST_DELAY = 100; // 100ms between requests
+// Cap 429/503 retries so a sustained throttle or outage throws instead of
+// recursing forever. Mirrors scryfall/client.ts's scryfallFetch discipline.
+export const MAX_RETRIES = 4;
+const BASE_BACKOFF_MS = 1000;
 
 class RateLimiter {
   private lastRequestTime = 0;
@@ -216,7 +220,7 @@ function getTargetBracketSuffix(targetBracket?: TargetBracket): string {
   return `/${TARGET_BRACKET_SLUGS[targetBracket]}`;
 }
 
-async function edhrecFetch<T>(endpoint: string): Promise<T> {
+async function edhrecFetch<T>(endpoint: string, attempt = 0): Promise<T> {
   await rateLimiter.throttle();
 
   const response = await fetch(`${BASE_URL}${endpoint}`, {
@@ -226,10 +230,20 @@ async function edhrecFetch<T>(endpoint: string): Promise<T> {
   });
 
   if (!response.ok) {
-    if (response.status === 429) {
-      // Rate limited - wait and retry once
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      return edhrecFetch<T>(endpoint);
+    if ((response.status === 429 || response.status === 503) && attempt < MAX_RETRIES) {
+      // Rate limited (429) or upstream briefly overloaded (503) — honor
+      // Retry-After if present, else exponential backoff. The old branch said
+      // "retry once" but recursed with no attempt counter, so a sustained
+      // throttle recursed forever and hung every caller; a flat 2s wait also
+      // ignored a `Retry-After: 60`, which just extends the block (the same
+      // lesson already learned on the Scryfall client).
+      const retryAfter = Number(response.headers.get('Retry-After'));
+      const waitMs =
+        Number.isFinite(retryAfter) && retryAfter > 0
+          ? retryAfter * 1000
+          : BASE_BACKOFF_MS * 2 ** attempt;
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      return edhrecFetch<T>(endpoint, attempt + 1);
     }
     throw new Error(`EDHREC API error: ${response.status} ${response.statusText}`);
   }
@@ -1057,6 +1071,14 @@ interface RawTopCommanderEntry {
   color_identity?: string[];
 }
 
+interface RawTagPageResponse {
+  container?: {
+    json_dict?: {
+      cardlists?: Array<RawCardList & { header?: string }>;
+    };
+  };
+}
+
 interface RawTopCommandersResponse {
   container?: {
     json_dict?: {
@@ -1150,6 +1172,135 @@ const playstyleCommanderCache = new Map<
 >();
 
 /**
+ * Everything an EDHREC tag page carries. The commander list is what the
+ * play-style search consumes; the cardlists and deck count come off the
+ * *same* response and used to be thrown away.
+ */
+export interface EDHRECTagPageData {
+  /** The page's "Top Commanders" list (partner pairs filtered out). */
+  commanders: EDHRECTopCommander[];
+  /** Every card on the page, bucketed by type — same shape as commander data. */
+  cardlists: EDHRECCommanderData['cardlists'];
+  /**
+   * Decks carrying this tag in these colors — the denominator behind every
+   * inclusion percentage on the page. EDHREC never states it directly; it is
+   * the largest `potential_decks` across the page's cardviews, which is the
+   * count for a card every deck on the page could play. Verified live against
+   * the page's own per-color deck totals (they sum to exactly this number).
+   */
+  potentialDecks: number;
+  /**
+   * Names off the page's `highsynergycards` list specifically — the cards that
+   * define this archetype, as opposed to `topcards`/`gamechangers`, which are
+   * generic power in these colours. `parseCardlists` collapses all three under
+   * `isThemeSynergyCard`, so the distinction has to be captured here or it's
+   * lost: injecting the generic lists into a thin pool adds exactly the
+   * goodstuff an archetype blend is supposed to be an alternative to (E221).
+   */
+  highSynergyNames: string[];
+  /** The color slug actually used, or null when the unfiltered page was read. */
+  colorSlug: string | null;
+}
+
+const tagPageCache = new Map<string, { data: EDHRECTagPageData; timestamp: number }>();
+
+/** Pick the commander list off a tag page, by tag first then header text. */
+function findTagPageList(
+  cardlists: Array<RawCardList & { header?: string }>,
+  tag: string,
+  headerPattern: RegExp
+) {
+  return (
+    cardlists.find((c) => c.tag?.toLowerCase() === tag) ??
+    cardlists.find((c) => headerPattern.test(c.header ?? ''))
+  );
+}
+
+/**
+ * Fetch an EDHREC tag page ("aristocrats", "tokens", "voltron") whole.
+ *
+ * Pass `colors` to read the color-filtered page (`/pages/tags/{tag}/{color}.json`),
+ * which scopes both the commanders and the cardlist to that identity. Not every
+ * tag × color combination has a page — EDHREC answers 403 — so a filtered miss
+ * falls back to the unfiltered page rather than losing the fetch, and reports
+ * which one it read via `colorSlug`.
+ *
+ * Returns null when offline. Cached for 30 minutes per tag × color.
+ */
+export async function fetchTagPageData(
+  tagSlug: string,
+  colors: string[] = []
+): Promise<EDHRECTagPageData | null> {
+  const tag = tagSlug.toLowerCase().trim();
+  const colorKey = colors.includes('C') ? 'C' : sortWUBRG(colors, /* excludeC */ true).join('');
+  const requestedSlug = colorKey ? (COLOR_SLUG_MAP[colorKey] ?? null) : null;
+
+  const cacheKey = `${tag}|${requestedSlug ?? ''}`;
+  const cached = tagPageCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < TOP_COMMANDER_CACHE_TTL) {
+    return cached.data;
+  }
+
+  if (offlineActive()) return null;
+
+  let response: RawTagPageResponse | null = null;
+  let colorSlug = requestedSlug;
+  if (requestedSlug) {
+    try {
+      response = await edhrecFetch<RawTagPageResponse>(`/pages/tags/${tag}/${requestedSlug}.json`);
+    } catch (error) {
+      logger.debug(
+        `[EDHREC] No "${requestedSlug}" page for tag "${tag}", using all colors:`,
+        error
+      );
+      colorSlug = null;
+    }
+  }
+  if (!response) {
+    response = await edhrecFetch<RawTagPageResponse>(`/pages/tags/${tag}.json`);
+  }
+
+  const rawLists = response.container?.json_dict?.cardlists ?? [];
+  // The page leads with "New Commanders" then "Top Commanders" — prefer the latter.
+  const commanderList =
+    findTagPageList(rawLists, 'topcommanders', /top commanders/i) ??
+    findTagPageList(rawLists, 'commanders', /commanders/i) ??
+    rawLists[0];
+
+  const commanders: EDHRECTopCommander[] = (commanderList?.cardviews ?? [])
+    .filter((e) => !e.name.includes('//'))
+    .slice(0, 18)
+    .map((entry, i) => ({
+      rank: i + 1,
+      name: entry.name,
+      sanitized: entry.sanitized,
+      colorIdentity: entry.color_identity?.map((c) => c.toUpperCase()) ?? [],
+      numDecks: entry.num_decks ?? entry.inclusion ?? 0,
+    }));
+
+  let potentialDecks = 0;
+  for (const list of rawLists) {
+    for (const card of list.cardviews ?? []) {
+      if ((card.potential_decks ?? 0) > potentialDecks) potentialDecks = card.potential_decks ?? 0;
+    }
+  }
+
+  // parseCardlists drops the commander lists (their tags aren't card types),
+  // so the cardlists come back free of the commanders above.
+  const data: EDHRECTagPageData = {
+    commanders,
+    cardlists: parseCardlists(response),
+    potentialDecks,
+    highSynergyNames: (
+      rawLists.find((l) => l.tag?.toLowerCase() === 'highsynergycards')?.cardviews ?? []
+    ).map((c) => c.name),
+    colorSlug,
+  };
+  tagPageCache.set(cacheKey, { data, timestamp: Date.now() });
+  return data;
+}
+
+/**
  * Fetch the top commanders for a play style (an EDHREC theme/tag such as
  * "aristocrats", "tokens", "voltron"). Backs the "search by play style"
  * entry in the guided builder. Color identity isn't on the tag page, so
@@ -1162,31 +1313,11 @@ export async function fetchPlaystyleCommanders(tagSlug: string): Promise<EDHRECT
     return cached.data;
   }
 
-  if (offlineActive()) return [];
-
   try {
-    const response = await edhrecFetch<RawTopCommandersResponse>(`/pages/tags/${key}.json`);
-    const cardlists = response.container?.json_dict?.cardlists ?? [];
-    // The tag page leads with "New Commanders" then "Top Commanders" —
-    // prefer the latter, falling back to the first commander-ish list.
-    const list =
-      cardlists.find((c) => /top commanders/i.test(c.header ?? '')) ??
-      cardlists.find((c) => /commanders/i.test(c.header ?? '')) ??
-      cardlists[0];
-
-    const entries = (list?.cardviews ?? []).filter((e) => !e.name.includes('//')).slice(0, 18);
-
-    let commanders: EDHRECTopCommander[] = entries.map((entry, i) => ({
-      rank: i + 1,
-      name: entry.name,
-      sanitized: entry.sanitized,
-      colorIdentity: entry.color_identity?.map((c) => c.toUpperCase()) ?? [],
-      numDecks: entry.num_decks ?? entry.inclusion ?? 0,
-    }));
-
+    const page = await fetchTagPageData(key);
+    if (!page) return [];
     // Tag pages omit color_identity — backfill from Scryfall for the pips.
-    commanders = await backfillColorIdentities(commanders);
-
+    const commanders = await backfillColorIdentities(page.commanders);
     playstyleCommanderCache.set(key, { data: commanders, timestamp: Date.now() });
     return commanders;
   } catch (error) {

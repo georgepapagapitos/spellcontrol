@@ -77,6 +77,50 @@ function store() {
 
 beforeEach(() => {
   store().teardown();
+  store().setFreeMulligan(false);
+});
+
+describe('playtest store — free mulligan variant (E226)', () => {
+  function mulliganOnce() {
+    store().init('deck-1', { library: threatLibrary(), seed: 42 });
+    store().mulliganOpeningHand();
+  }
+
+  it('keeps the London bottom-N step by default', () => {
+    mulliganOnce();
+    store().keepOpeningHand();
+    expect(store().phase).toBe('mulligan-bottom');
+  });
+
+  it('skips the bottom-N step when free mulligans are on', () => {
+    store().setFreeMulligan(true);
+    mulliganOnce();
+    store().keepOpeningHand();
+    expect(store().phase).toBe('playing');
+  });
+
+  it('still redraws a full seven', () => {
+    store().setFreeMulligan(true);
+    mulliganOnce();
+    store().mulliganOpeningHand();
+    expect(store().mulliganCount).toBe(2);
+    expect(store().state!.zones.hand).toHaveLength(7);
+  });
+
+  it('releases a hand already stranded on the bottom-N step', () => {
+    mulliganOnce();
+    store().keepOpeningHand();
+    expect(store().phase).toBe('mulligan-bottom');
+    store().setFreeMulligan(true);
+    expect(store().phase).toBe('playing');
+  });
+
+  it('is a device preference — a new session keeps it armed', () => {
+    store().setFreeMulligan(true);
+    store().init('deck-1', { library: threatLibrary(), seed: 42 });
+    expect(store().freeMulligan).toBe(true);
+    expect(localStorage.getItem('spellcontrol:playtest:freeMulligan')).toBe('1');
+  });
 });
 
 describe('playtest store — resistance mode', () => {
@@ -412,11 +456,12 @@ describe('game log (E140 + E142)', () => {
     expect(log[2].text).toBe(store().lastResistanceEvent!.message);
   });
 
-  it('logScryPeek appends a scry entry at the current turn', () => {
-    store().init('deck-1', { library: threatLibrary(3), seed: 42 });
-    store().logScryPeek();
+  it('a resolved scry logs what was kept and what went to the bottom', () => {
+    store().init('deck-1', { library: threatLibrary(12), seed: 42 });
+    const [a, b] = store().state!.zones.library;
+    store().dispatch({ type: 'RESOLVE_TOP', mode: 'scry', top: [a.id], bottom: [b.id] });
     expect(store().gameLog).toEqual([
-      { seq: 1, turn: 1, kind: 'scry', text: 'Peeked at the top of the library' },
+      { seq: 1, turn: 1, kind: 'scry', text: 'Scried 2 — 1 to the bottom' },
     ]);
   });
 

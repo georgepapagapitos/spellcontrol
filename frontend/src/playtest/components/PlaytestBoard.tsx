@@ -27,6 +27,7 @@ import { CardContextMenu } from './CardContextMenu';
 import { MobileZonesPanel } from './MobileZonesPanel';
 import { OpeningHandSheet } from './OpeningHandSheet';
 import { PlaytestCardFace } from './PlaytestCardFace';
+import { ScrySheet } from './ScrySheet';
 import { TokenCreator } from './TokenCreator';
 import { DiceRoller } from './DiceRoller';
 import { PlaytestStatsSheet } from './PlaytestStatsSheet';
@@ -45,7 +46,7 @@ interface Props {
   state: PlaytestState;
 }
 
-type ViewerMode = { zone: Zone; topN?: number } | null;
+type ViewerMode = { zone: Zone } | null;
 type ContextState = { cardId: string; x: number; y: number } | null;
 
 function parseDraggable(id: string): { source: 'bf' | 'hand' | 'zone'; cardId: string } | null {
@@ -61,13 +62,14 @@ export function PlaytestBoard({ state }: Props) {
   const keepOpeningHand = usePlaytestStore((s) => s.keepOpeningHand);
   const mulliganOpeningHand = usePlaytestStore((s) => s.mulliganOpeningHand);
   const finalizeBottom = usePlaytestStore((s) => s.finalizeBottom);
+  const freeMulligan = usePlaytestStore((s) => s.freeMulligan);
+  const setFreeMulligan = usePlaytestStore((s) => s.setFreeMulligan);
   const resistanceLevel = usePlaytestStore((s) => s.resistanceLevel);
   const setResistanceLevel = usePlaytestStore((s) => s.setResistanceLevel);
   const lastResistanceEvent = usePlaytestStore((s) => s.lastResistanceEvent);
   const lastSessionRecord = usePlaytestStore((s) => s.lastSessionRecord);
   const lastSessionAggregates = usePlaytestStore((s) => s.lastSessionAggregates);
   const gameLog = usePlaytestStore((s) => s.gameLog);
-  const logScryPeek = usePlaytestStore((s) => s.logScryPeek);
   const playtestDeckId = usePlaytestStore((s) => s.deckId);
   const deck = useDecksStore((s) =>
     playtestDeckId ? s.decks.find((d) => d.id === playtestDeckId) : undefined
@@ -96,6 +98,7 @@ export function PlaytestBoard({ state }: Props) {
   const [viewer, setViewer] = useState<ViewerMode>(null);
   const [ctx, setCtx] = useState<ContextState>(null);
   const [tokenCreator, setTokenCreator] = useState(false);
+  const [showScry, setShowScry] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showLog, setShowLog] = useState(false);
   // Highest resistance-entry seq seen so far — drives the ActionBar's unread
@@ -105,6 +108,11 @@ export function PlaytestBoard({ state }: Props) {
   const [showResistancePicker, setShowResistancePicker] = useState(false);
   const [showDesignations, setShowDesignations] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  // Battlefield selection + copy buffer (E226). Deliberately UI state, not
+  // reducer state: selecting a card isn't a game action and must never land
+  // on the 50-deep undo stack.
+  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+  const [clipboard, setClipboard] = useState<readonly string[]>([]);
   const [lifePanelOpen, setLifePanelOpen] = useState(false);
   // Banner dismissal is tracked by event id so a new opponent response (even
   // with an identical message) re-shows and re-announces the banner.
@@ -192,8 +200,46 @@ export function PlaytestBoard({ state }: Props) {
   // Battlefield passes them straight through to every card's
   // React.memo(PlaytestCardView), and a fresh identity here would defeat
   // that memo for the whole battlefield on every dispatch.
+  // Modifier-click builds a selection; a plain click is still the tap gesture
+  // and drops any selection, so nothing lingers invisibly after you move on.
   const handleCardClick = useCallback(
-    (cardId: string) => dispatch({ type: 'TAP', cardId }),
+    (cardId: string, e: React.MouseEvent | React.KeyboardEvent) => {
+      if (e.shiftKey || e.metaKey || e.ctrlKey) {
+        setSelected((prev) => {
+          const next = new Set(prev);
+          if (!next.delete(cardId)) next.add(cardId);
+          return next;
+        });
+        return;
+      }
+      setSelected((prev) => (prev.size === 0 ? prev : new Set()));
+      dispatch({ type: 'TAP', cardId });
+    },
+    [dispatch]
+  );
+
+  const clearSelection = useCallback(
+    () => setSelected((prev) => (prev.size === 0 ? prev : new Set())),
+    []
+  );
+
+  /**
+   * Token-copy `sourceIds`, minting each clone's instance id here so the
+   * reducer stays pure. The clipboard then re-points at the clones it just
+   * made, which is what makes repeated pastes cascade across the battlefield
+   * instead of restacking on the same spot.
+   */
+  const cloneCards = useCallback(
+    (sourceIds: readonly string[]) => {
+      if (sourceIds.length === 0) return;
+      // Same id shape as TokenCreator's: wall-clock + entropy, so an id can't
+      // collide with one already in a resumed snapshot.
+      const batch = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const clones = sourceIds.map((sourceId, i) => ({ sourceId, id: `copy-${batch}-${i}` }));
+      dispatch({ type: 'CLONE_BF_CARDS', clones });
+      haptics.tap();
+      return clones.map((c) => c.id);
+    },
     [dispatch]
   );
 
@@ -229,6 +275,7 @@ export function PlaytestBoard({ state }: Props) {
     viewer !== null ||
     ctx !== null ||
     tokenCreator ||
+    showScry ||
     showStats ||
     showLog ||
     showDice ||
@@ -236,13 +283,6 @@ export function PlaytestBoard({ state }: Props) {
     showDesignations ||
     lifePanelOpen ||
     Boolean(confirmDialog);
-
-  // Scry/peek has no reducer action of its own (it's just the library viewer
-  // opened with a topN) — log it explicitly alongside opening the viewer.
-  function handleScry() {
-    logScryPeek();
-    setViewer({ zone: 'library', topN: 3 });
-  }
 
   const hasUnreadLog = gameLog.some((e) => e.kind === 'resistance' && e.seq > lastSeenLogSeq);
   function handleOpenLog() {
@@ -303,8 +343,10 @@ export function PlaytestBoard({ state }: Props) {
   }, [tableDefeatedTurn, deck, fireSealMoment]);
 
   // Desktop keyboard shortcuts (Moxfield parity): D draw, N next turn, U untap
-  // all, Z / Ctrl+Z undo. Ignored while typing or while any sheet/modal/context
-  // menu is open; harmless if it never fires on touch.
+  // all, Z / Ctrl+Z undo, Ctrl/⌘+C / +V copy-paste the selection, Esc clears
+  // it. Ignored while typing or while any sheet/modal/context menu is open;
+  // harmless if it never fires on touch (the context menu's Duplicate is the
+  // keyboard-free path to the same clone).
   useEffect(() => {
     function isTypingTarget(target: EventTarget | null) {
       if (!(target instanceof HTMLElement)) return false;
@@ -315,6 +357,22 @@ export function PlaytestBoard({ state }: Props) {
     function onKeyDown(e: KeyboardEvent) {
       if (anySheetOpen || isTypingTarget(e.target)) return;
       const key = e.key.toLowerCase();
+      if (key === 'escape') {
+        clearSelection();
+        return;
+      }
+      if (e.ctrlKey || e.metaKey) {
+        // Only intercept when there's something to act on, so ⌘C over a real
+        // text selection elsewhere on the page still copies text.
+        if (key === 'c' && selected.size > 0) {
+          e.preventDefault();
+          setClipboard([...selected]);
+        } else if (key === 'v' && clipboard.length > 0) {
+          e.preventDefault();
+          const made = cloneCards(clipboard);
+          if (made) setClipboard(made);
+        }
+      }
       if (key === 'z') {
         e.preventDefault();
         if (canUndo) dispatch({ type: 'UNDO' });
@@ -335,7 +393,16 @@ export function PlaytestBoard({ state }: Props) {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [anySheetOpen, canUndo, dispatch, state.zones.library.length]);
+  }, [
+    anySheetOpen,
+    canUndo,
+    dispatch,
+    state.zones.library.length,
+    selected,
+    clipboard,
+    cloneCards,
+    clearSelection,
+  ]);
 
   return (
     <div className={`playtest-board${isNarrow ? ' playtest-board--narrow' : ''}`}>
@@ -368,7 +435,7 @@ export function PlaytestBoard({ state }: Props) {
           });
           if (ok) dispatch({ type: 'RESET' });
         }}
-        onScry={handleScry}
+        onScry={() => setShowScry(true)}
         onCreateToken={() => setTokenCreator(true)}
         onOpenStats={() => setShowStats(true)}
         onOpenLog={handleOpenLog}
@@ -449,10 +516,40 @@ export function PlaytestBoard({ state }: Props) {
           <div ref={battlefieldRef} className="playtest-battlefield-wrap">
             <Battlefield
               cards={state.battlefield}
+              selectedIds={selected}
+              onBackgroundClick={clearSelection}
               onCardClick={handleCardClick}
               onCardContextMenu={handleCardContext}
               onCardLongPress={isNarrow ? handleCardLongPress : undefined}
             />
+            {/* Selection readout. Renders nothing at all when nothing is selected,
+            so it never displaces the board — and a selection can only exist on a
+            device with modifier keys, which is exactly where the shortcuts it
+            names are usable. */}
+            {selected.size > 0 && (
+              <div className="playtest-selection" role="status">
+                <span className="playtest-selection__count">
+                  {selected.size} selected
+                  {clipboard.length > 0 && ` · ${clipboard.length} copied`}
+                </span>
+                <button type="button" onClick={() => setClipboard([...selected])}>
+                  Copy <kbd>⌘C</kbd>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const made = cloneCards(clipboard);
+                    if (made) setClipboard(made);
+                  }}
+                  disabled={clipboard.length === 0}
+                >
+                  Paste <kbd>⌘V</kbd>
+                </button>
+                <button type="button" onClick={clearSelection}>
+                  Clear <kbd>Esc</kbd>
+                </button>
+              </div>
+            )}
           </div>
           {!isNarrow && (
             <aside className="playtest-piles">
@@ -504,7 +601,7 @@ export function PlaytestBoard({ state }: Props) {
           commanderTax={state.commanderTax}
           onOpenZone={(zone) => setViewer({ zone })}
           onShuffleLibrary={() => dispatch({ type: 'SHUFFLE_LIBRARY' })}
-          onScry={handleScry}
+          onScry={() => setShowScry(true)}
         />
       )}
 
@@ -512,8 +609,6 @@ export function PlaytestBoard({ state }: Props) {
         <ZoneViewerModal
           zone={viewer.zone}
           cards={state.zones[viewer.zone]}
-          topN={viewer.topN}
-          ordered={viewer.zone === 'library'}
           onClose={() => setViewer(null)}
           onMove={(cardId, to) => {
             if (to === 'battlefield') {
@@ -557,6 +652,13 @@ export function PlaytestBoard({ state }: Props) {
             dispatch({ type: 'TRANSFORM', cardId: ctx.cardId });
             setCtx(null);
           }}
+          // Acting on a card that's part of the live selection copies the
+          // whole selection — otherwise just the card you opened the menu on.
+          selectionSize={selected.has(ctx.cardId) ? selected.size : 1}
+          onDuplicate={() => {
+            cloneCards(selected.has(ctx.cardId) ? [...selected] : [ctx.cardId]);
+            setCtx(null);
+          }}
           onAddCounter={(k) =>
             dispatch({ type: 'SET_COUNTER', cardId: ctx.cardId, counter: k, delta: 1 })
           }
@@ -593,6 +695,17 @@ export function PlaytestBoard({ state }: Props) {
         />
       )}
 
+      {showScry && (
+        <ScrySheet
+          library={state.zones.library}
+          onClose={() => setShowScry(false)}
+          onResolve={(resolution) => {
+            haptics.tap();
+            dispatch({ type: 'RESOLVE_TOP', ...resolution });
+          }}
+        />
+      )}
+
       {showDice && <DiceRoller onClose={() => setShowDice(false)} />}
 
       {showResistancePicker && (
@@ -620,6 +733,8 @@ export function PlaytestBoard({ state }: Props) {
           mulliganCount={mulliganCount}
           cardLookup={cardLookup}
           deckName={deck?.name}
+          freeMulligan={freeMulligan}
+          onFreeMulliganChange={setFreeMulligan}
           onExit={() => navigate(playtestDeckId ? `/decks/${playtestDeckId}` : '/decks')}
           onKeep={keepOpeningHand}
           onMulligan={mulliganOpeningHand}

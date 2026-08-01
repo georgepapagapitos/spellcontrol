@@ -21,6 +21,7 @@ interface Props {
   onNextTurn(): void;
   onUndo(): void;
   onReset(): void;
+  /** Opens the scry/surveil/mill sheet for the top of the library. */
   onScry(): void;
   onCreateToken(): void;
   onOpenStats(): void;
@@ -79,7 +80,7 @@ export function ActionBar({
   const overflowItems: OverflowMenuItem[] = [
     { label: 'Shuffle', onClick: onShuffle },
     { label: 'Mulligan', onClick: onMulligan },
-    { label: 'Scry', onClick: onScry, disabled: libraryCount === 0 },
+    { label: 'Scry / surveil / mill', onClick: onScry, disabled: libraryCount === 0 },
     { label: 'Create token', onClick: onCreateToken },
     { label: 'Roll dice', onClick: onOpenDice },
     {
@@ -131,7 +132,12 @@ export function ActionBar({
           <button type="button" onClick={onMulligan}>
             Mulligan
           </button>
-          <button type="button" onClick={onScry} disabled={libraryCount === 0}>
+          <button
+            type="button"
+            onClick={onScry}
+            disabled={libraryCount === 0}
+            title="Look at the top of your library — scry, surveil, or mill"
+          >
             Scry
           </button>
           <button type="button" onClick={onCreateToken}>

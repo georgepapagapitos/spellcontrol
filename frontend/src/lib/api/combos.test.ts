@@ -40,7 +40,7 @@ describe('timeout + abort handling', () => {
 
 describe('matchCombos', () => {
   it('POSTs the request body and returns the parsed match buckets', async () => {
-    const empty = { inDeck: [], oneAway: [], almostInCollection: [] };
+    const empty = { inDeck: [], oneAway: [], almostInCollection: [], almostInCollectionTotal: 0 };
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(empty));
 
     const result = await matchCombos({
@@ -49,7 +49,9 @@ describe('matchCombos', () => {
       format: 'commander',
     });
 
-    expect(result).toEqual(empty);
+    // E212: tagged with the matcher that produced it — this went through the
+    // capped server fallback, not the full local dataset.
+    expect(result).toEqual({ ...empty, source: 'server' });
     expect(fetchSpy).toHaveBeenCalledWith(
       '/api/combos/match',
       expect.objectContaining({
@@ -76,7 +78,7 @@ describe('matchCombos', () => {
 describe('matchCombos (client-side)', () => {
   it('matches locally against the cached dataset and never calls the server', async () => {
     vi.mocked(ensureCombosCached).mockResolvedValue(true);
-    const local = { inDeck: [], oneAway: [], almostInCollection: [] };
+    const local = { inDeck: [], oneAway: [], almostInCollection: [], almostInCollectionTotal: 0 };
     vi.mocked(matchCombosLocal).mockResolvedValue(local);
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
@@ -86,7 +88,9 @@ describe('matchCombos (client-side)', () => {
       format: 'commander',
     });
 
-    expect(result).toBe(local);
+    // E212: tagged 'local' — this is the full-dataset answer, cacheable and
+    // presentable as final.
+    expect(result).toEqual({ ...local, source: 'local' });
     expect(matchCombosLocal).toHaveBeenCalledWith({
       ownedOracleIds: ['a'],
       deckOracleIds: ['a'],

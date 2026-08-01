@@ -120,4 +120,28 @@ describe('matchCombos', () => {
     });
     expect(result.inDeck.map((m) => m.combo.popularity)).toEqual([5000, 800, 100]);
   });
+
+  it('reports almostInCollectionTotal as the true pre-truncation count', () => {
+    // 201 one-away-in-collection combos so the 200 cap actually bites.
+    const combos: ComboInput[] = [];
+    for (let i = 0; i < 201; i++) {
+      combos.push(
+        combo({
+          id: `almost-${i}`,
+          cards: [thassa, { oracleId: `oracle-missing-${i}`, cardName: `Missing ${i}` }],
+        })
+      );
+    }
+    const result = matchCombos({ combos, ownedOracleIds: ['oracle-thassa'] });
+    expect(result.almostInCollection).toHaveLength(200);
+    expect(result.almostInCollectionTotal).toBe(201);
+  });
+
+  it('almostInCollectionTotal matches the untruncated length when under the cap', () => {
+    const result = matchCombos({
+      combos: [oracleConsult, oracleLabman],
+      ownedOracleIds: ['oracle-thassa', 'oracle-consult'],
+    });
+    expect(result.almostInCollectionTotal).toBe(result.almostInCollection.length);
+  });
 });

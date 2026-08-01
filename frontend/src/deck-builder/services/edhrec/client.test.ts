@@ -1,10 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
+  fetchTagPageData,
   isPoolTooThin,
   parseEdhrecResponse,
   parseSaltIndex,
+  fetchCardLiftPool,
   MIN_HEALTHY_POOL_DECKS,
   MIN_HEALTHY_POOL_CARDS,
+  MAX_RETRIES,
 } from './client';
 import { frontFaceName } from '@/lib/card-text';
 import type { EDHRECCard, EDHRECCommanderData } from '@/deck-builder/types';
@@ -257,5 +260,176 @@ describe('parseSaltIndex — E126 salt-gate reactivation (2026-07-23)', () => {
       1.8421,
       3
     );
+  });
+});
+
+// E220: the tag page carries a full cardlist and a deck count that
+// fetchPlaystyleCommanders used to read and throw away. Shapes below mirror a
+// live curl of json.edhrec.com/pages/tags/aristocrats.json (2026-07-31), where
+// the largest potential_decks (73161) equals the sum of the page's own
+// per-color deck totals — i.e. the number of decks carrying the tag.
+describe('fetchTagPageData — the whole tag page, not just the commanders', () => {
+  function tagPage(potential = 73161) {
+    return {
+      container: {
+        json_dict: {
+          cardlists: [
+            {
+              tag: 'topcommanders',
+              header: 'Top Commanders',
+              cardviews: [
+                { name: 'Teysa Karlov', sanitized: 'teysa-karlov', num_decks: 15409 },
+                { name: 'Kraum // Tymna', sanitized: 'kraum-tymna', num_decks: 900 },
+              ],
+            },
+            {
+              tag: 'creatures',
+              header: 'Creatures',
+              cardviews: [
+                {
+                  name: 'Blood Artist',
+                  sanitized: 'blood-artist',
+                  num_decks: 40000,
+                  potential_decks: potential,
+                },
+              ],
+            },
+            {
+              tag: 'lands',
+              header: 'Lands',
+              cardviews: [
+                {
+                  name: 'Command Tower',
+                  sanitized: 'command-tower',
+                  num_decks: 50000,
+                  // Colour-restricted denominator — always below the page total.
+                  potential_decks: 9800,
+                },
+              ],
+            },
+          ],
+        },
+      },
+    };
+  }
+
+  function mockFetch(handler: (url: string) => { ok: boolean; status?: number; body?: unknown }) {
+    const calls: string[] = [];
+    const fn = vi.fn(async (url: string) => {
+      calls.push(url);
+      const res = handler(url);
+      return {
+        ok: res.ok,
+        status: res.status ?? (res.ok ? 200 : 403),
+        statusText: res.ok ? 'OK' : 'Forbidden',
+        json: async () => res.body ?? {},
+      } as unknown as Response;
+    });
+    vi.stubGlobal('fetch', fn);
+    return calls;
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('returns the commanders, the full cardlist and the page deck count', async () => {
+    mockFetch(() => ({ ok: true, body: tagPage() }));
+    const page = await fetchTagPageData('e220-plain');
+
+    expect(page?.commanders.map((c) => c.name)).toEqual(['Teysa Karlov']); // partner pair dropped
+    expect(page?.cardlists.creatures.map((c) => c.name)).toEqual(['Blood Artist']);
+    expect(page?.cardlists.lands.map((c) => c.name)).toEqual(['Command Tower']);
+    expect(page?.potentialDecks).toBe(73161);
+    expect(page?.colorSlug).toBeNull();
+  });
+
+  it('keeps the commander lists out of the cardlists', async () => {
+    mockFetch(() => ({ ok: true, body: tagPage() }));
+    const page = await fetchTagPageData('e220-nobleed');
+    const named = [...(page?.cardlists.allNonLand ?? []), ...(page?.cardlists.lands ?? [])].map(
+      (c) => c.name
+    );
+    expect(named).not.toContain('Teysa Karlov');
+  });
+
+  it('reads the color-filtered page when colors are given', async () => {
+    const calls = mockFetch(() => ({ ok: true, body: tagPage(12515) }));
+    const page = await fetchTagPageData('e220-colors', ['B', 'G']);
+
+    expect(calls.some((u) => u.endsWith('/pages/tags/e220-colors/golgari.json'))).toBe(true);
+    expect(page?.colorSlug).toBe('golgari');
+    expect(page?.potentialDecks).toBe(12515);
+  });
+
+  it('falls back to the unfiltered page when the color page 403s', async () => {
+    const calls = mockFetch((url) =>
+      url.includes('/mono-blue.json') ? { ok: false, status: 403 } : { ok: true, body: tagPage() }
+    );
+    const page = await fetchTagPageData('e220-403', ['U']);
+
+    expect(calls).toEqual([
+      expect.stringContaining('/pages/tags/e220-403/mono-blue.json'),
+      expect.stringContaining('/pages/tags/e220-403.json'),
+    ]);
+    expect(page?.colorSlug).toBeNull();
+    expect(page?.cardlists.creatures).toHaveLength(1);
+  });
+
+  it('serves a repeat read from cache without a second request', async () => {
+    const calls = mockFetch(() => ({ ok: true, body: tagPage() }));
+    await fetchTagPageData('e220-cache');
+    await fetchTagPageData('e220-cache');
+    expect(calls).toHaveLength(1);
+  });
+});
+
+// The 429/503 retry cap on edhrecFetch. The old branch commented "retry once"
+// but recursed with no attempt counter, so a sustained throttle recursed
+// forever and hung every caller — a real hazard once a surface fans out to
+// ~99 sequential card-page fetches (E219 phase b). Exercised through
+// fetchCardLiftPool, the public entry point that reaches edhrecFetch.
+describe('edhrecFetch retry discipline', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  /** Minimal Response stand-in — edhrecFetch reads ok/status/statusText/headers/json. */
+  function res(status: number, body: unknown = {}) {
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      statusText: String(status),
+      headers: { get: () => null },
+      json: async () => body,
+    };
+  }
+
+  it('caps retries on a sustained 429 instead of recursing forever', async () => {
+    const fetchMock = vi.fn(async () => res(429));
+    vi.stubGlobal('fetch', fetchMock);
+    vi.useFakeTimers();
+
+    // fetchCardLiftPool soft-fails to [] — the assertion that matters is the
+    // bounded call count (unbounded recursion would never settle).
+    const pending = fetchCardLiftPool('Retry Cap Probe');
+    await vi.runAllTimersAsync();
+
+    await expect(pending).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(MAX_RETRIES + 1); // initial + 4 retries
+  });
+
+  it('still retries a transient 429 and succeeds', async () => {
+    let calls = 0;
+    const fetchMock = vi.fn(async () => (++calls === 1 ? res(429) : res(200, {})));
+    vi.stubGlobal('fetch', fetchMock);
+    vi.useFakeTimers();
+
+    const pending = fetchCardLiftPool('Transient Throttle Probe');
+    await vi.runAllTimersAsync();
+
+    await expect(pending).resolves.toEqual([]); // empty page parses to no entries
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

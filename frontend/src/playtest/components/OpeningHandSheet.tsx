@@ -38,6 +38,10 @@ interface Props {
    */
   cardLookup?: Map<string, ScryfallCard>;
   deckName?: string;
+  /** Free-mulligan variant (E226): every mulligan redraws a full seven and
+   *  the bottom-N step never happens. */
+  freeMulligan: boolean;
+  onFreeMulliganChange(on: boolean): void;
   /** Leave playtest and return to the deck. The sheet is otherwise
    *  non-dismissable (Keep / Mulligan), so this is the only way out. */
   onExit?(): void;
@@ -54,6 +58,8 @@ export function OpeningHandSheet({
   mulliganCount,
   cardLookup,
   deckName,
+  freeMulligan,
+  onFreeMulliganChange,
   onExit,
   onKeep,
   onMulligan,
@@ -267,6 +273,24 @@ export function OpeningHandSheet({
               {handStats.keepable ? 'Keepable' : 'Mulligan?'}
             </span>
           </p>
+        )}
+
+        {/* The variant is only meaningful while you can still mulligan, so it
+            lives on the opening step and disappears once you're bottoming. */}
+        {!isMulliganBottom && (
+          <label className="playtest-opening-variant">
+            <input
+              type="checkbox"
+              checked={freeMulligan}
+              onChange={(e) => onFreeMulliganChange(e.target.checked)}
+            />
+            <span className="playtest-opening-variant__text">
+              <span className="playtest-opening-variant__label">Free mulligans</span>
+              <span className="playtest-opening-variant__desc">
+                Redraw a full seven — nothing goes to the bottom.
+              </span>
+            </span>
+          </label>
         )}
 
         <div className="card-picker-footer playtest-opening-footer">
