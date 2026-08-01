@@ -88,6 +88,8 @@ interface PendingImport {
   preview?: string;
   /** True for sample-set imports — flagged in history so users can find & delete them. */
   isSample?: boolean;
+  /** "Mark all as proxies" toggle at import time — stamped on the request, not the scan path. */
+  proxy?: boolean;
 }
 
 /**
@@ -151,6 +153,8 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   const [confirmingDeleteImports, setConfirmingDeleteImports] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const canScan = useCanScan();
+  /** "These are all proxies" toggle — applies to paste + file-drop, NOT the scan path. */
+  const [markAsProxies, setMarkAsProxies] = useState(false);
 
   const rawCards = useCollectionStore((s) => s.cards);
   const binders = useCollectionStore((s) => s.binders);
@@ -237,6 +241,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       files: stagedFiles,
       label: `${stagedFiles.length} files`,
       preview: `${stagedFiles.length} file${stagedFiles.length === 1 ? '' : 's'}`,
+      proxy: markAsProxies,
     });
   };
 
@@ -245,9 +250,10 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     if (!text || isLoading) return;
     const lineCount = text.split('\n').filter((l) => l.trim()).length;
     queueImport({
-      fn: (onProgress) => importText(text, onProgress),
+      fn: (onProgress) => importText(text, onProgress, markAsProxies),
       label: 'pasted-list',
       preview: `${lineCount} line${lineCount === 1 ? '' : 's'}`,
+      proxy: markAsProxies,
     });
   };
 
@@ -308,6 +314,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       parts.push(`${totals.clampedCount} rows over the copy limit — capped`);
     }
     if (mode === 'binder' && binderName) parts.push(`binder "${binderName}" created`);
+    if (p.proxy) parts.push('marked as proxies');
     setSuccessMsg(parts.join(' · '));
     setStagedFiles([]);
     setStageNote(null);
@@ -356,6 +363,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     if (mode === 'binder' && binderName) {
       parts.push(`binder "${binderName}" created`);
     }
+    if (p.proxy) parts.push('marked as proxies');
     setSuccessMsg(parts.join(' · '));
     if (p.label === 'pasted-list') setPasteText('');
     setRecentImportIds(new Set([id]));
@@ -402,14 +410,17 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
         const parsedFiles: { file: File; result: UploadResponse }[] = [];
         for (let i = 0; i < p.files.length; i++) {
           const file = p.files[i];
-          const result = await importFile(file, (prog) =>
-            setImportProgress({
-              chunkIndex: prog.chunkIndex,
-              totalChunks: prog.totalChunks,
-              fileLabel: file.name,
-              fileIndex: i + 1,
-              totalFiles,
-            })
+          const result = await importFile(
+            file,
+            (prog) =>
+              setImportProgress({
+                chunkIndex: prog.chunkIndex,
+                totalChunks: prog.totalChunks,
+                fileLabel: file.name,
+                fileIndex: i + 1,
+                totalFiles,
+              }),
+            p.proxy
           );
           parsedFiles.push({ file, result });
         }
@@ -827,6 +838,23 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
               disabled={isLoading}
             />
           )}
+
+          <label className="field-checkbox import-proxy-toggle">
+            <input
+              type="checkbox"
+              checked={markAsProxies}
+              onChange={(e) => setMarkAsProxies(e.target.checked)}
+              disabled={isLoading}
+            />
+            <span>
+              Mark all as proxies
+              <InfoTip
+                label="marking an import as proxies"
+                ariaLabel="What does marking an import as proxies do?"
+                text="Proxy copies count as owned in your collection and binders, but carry no market value — their cost, if any, still counts toward what you paid."
+              />
+            </span>
+          </label>
 
           <div className="import-card-footer">
             <span className="import-card-hint">

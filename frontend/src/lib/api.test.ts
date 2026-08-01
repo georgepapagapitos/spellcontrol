@@ -88,6 +88,34 @@ describe('api', () => {
     ]);
   });
 
+  it('importText carries the proxy flag on every chunk, not just the first', async () => {
+    // 1200 rows → 3 chunks at chunk size 500. Every independent /api/import
+    // call must carry proxy:true — a single-chunk-only test wouldn't catch a
+    // miss on the worker-pool path.
+    const lines = Array.from({ length: 1200 }, (_, i) => `Card ${i}`);
+    const text = lines.join('\n');
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(uploadOk({ totalRows: 500 }))
+      .mockResolvedValueOnce(uploadOk({ totalRows: 500 }))
+      .mockResolvedValueOnce(uploadOk({ totalRows: 200 }));
+
+    await importText(text, undefined, true);
+
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    for (const call of fetchSpy.mock.calls) {
+      const init = call[1] as RequestInit;
+      expect(JSON.parse(init.body as string)).toMatchObject({ proxy: true });
+    }
+  });
+
+  it('importText omits the proxy field when the flag is not set', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(uploadOk());
+    await importText('Sol Ring');
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(init.body as string)).toEqual({ text: 'Sol Ring' });
+  });
+
   it('importText retries a transient network failure on a single chunk', async () => {
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')

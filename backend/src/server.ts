@@ -10,6 +10,7 @@ import { gzip } from 'node:zlib';
 import { DB_PATH, getScryfallCache, pickEurForFinish, pickUsdForFinish } from './scryfall-cache';
 import { resolveOracleFacts, ORACLE_REQUEST_LIMIT, type OracleRequest } from './oracle-facts';
 import { closeDb, ensureSchema } from './db';
+import { parseMarkAllAsProxies } from './import-proxy-flag';
 import { promoteAdminsAtBoot } from './admin/bootstrap';
 import { authRouter } from './routes/auth';
 import { adminRouter } from './routes/admin';
@@ -563,6 +564,9 @@ app.post(
             'No cards found in the input. Try uploading a CSV from a supported tool, or pasting card names one per line.',
         });
       }
+
+      // "Mark all as proxies" import-time flag (see import-proxy-flag.ts).
+      if (parseMarkAllAsProxies(req.body)) rows.forEach((r) => (r.proxy = true));
 
       // Resolve the parsed (unexpanded) rows: resolveCards dedupes by identifier
       // anyway, so quantity has no bearing on the network calls. Expanding only
