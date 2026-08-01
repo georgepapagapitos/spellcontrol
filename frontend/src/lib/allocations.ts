@@ -341,8 +341,9 @@ export function dedupeDeckAllocations(decks: Deck[]): { decks: Deck[]; changed: 
  *      finish, restrict to it — same hard-filter semantics as the printing:
  *      an explicit foil pick in the edit-printing dialog is deliberate intent,
  *      not a hint the default ranking may overrule.
- *   4. Non-foil over foil (foils are usually display copies).
- *   5. Cheapest purchasePrice (so the deck claims the budget copy first;
+ *   4. Real printings over proxies (play the real card; the proxy is the spare).
+ *   5. Non-foil over foil (foils are usually display copies).
+ *   6. Cheapest purchasePrice (so the deck claims the budget copy first;
  *      premium copies stay free for the user).
  */
 export function pickCollectionCopy(
@@ -683,8 +684,16 @@ export interface StealableCopy {
   donorCard?: ScryfallCard;
 }
 
-/** Same finish-then-price ranking pickCollectionCopy uses, as a comparator. */
+/** Same proxy-then-finish-then-price ranking pickCollectionCopy uses, as a comparator. */
 export function compareCopyPreference(a: EnrichedCard, b: EnrichedCard): number {
+  // Real printings before proxies. This MUST outrank the price tiebreak below:
+  // a proxy is force-priced to 0 by applyPrices (lib/card-prices.ts), so without
+  // it every proxy would win "cheapest first" and decks would claim the proxy
+  // while the real copy sat unused in a binder. Play the real card; the proxy is
+  // the spare.
+  const aProxy = a.proxy ? 1 : 0;
+  const bProxy = b.proxy ? 1 : 0;
+  if (aProxy !== bProxy) return aProxy - bProxy;
   const finishRank = { nonfoil: 0, foil: 1, etched: 2 } as const;
   const aRank = finishRank[a.finish] ?? (a.foil ? 1 : 0);
   const bRank = finishRank[b.finish] ?? (b.foil ? 1 : 0);
