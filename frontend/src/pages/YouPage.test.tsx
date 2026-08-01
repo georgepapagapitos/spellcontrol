@@ -127,9 +127,7 @@ describe('UX-332 — Settings account card honesty copy', () => {
   it('explains that local data merges on sign-in when the user is not signed in', () => {
     renderYouPage();
     // The guest-state row should mention that local cards will be added to the account.
-    expect(
-      screen.getByText(/any cards on this device will be added to your account/i)
-    ).toBeTruthy();
+    expect(screen.getByText(/the cards here are added to your account/i)).toBeTruthy();
   });
 });
 

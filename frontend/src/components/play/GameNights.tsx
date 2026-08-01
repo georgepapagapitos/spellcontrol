@@ -1316,8 +1316,7 @@ function NightDialog({
               </fieldset>
               {repeatWeekly && (
                 <p className="game-night-dialog-hint">
-                  Same time every week. You'll get one stable link that always opens the next night
-                  — perfect for pinning in the group chat.
+                  Same time every week, on one link that always opens the next night.
                 </p>
               )}
             </>

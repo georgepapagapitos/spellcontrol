@@ -394,9 +394,8 @@ export function YouPage() {
                 <div className="settings-row-text">
                   <div className="settings-row-label">Not signed in</div>
                   <div className="settings-row-hint">
-                    Your collection, binders, and decks are saved on this device. Sign in to sync
-                    them across devices and back them up. Any cards on this device will be added to
-                    your account when you sign in.
+                    Everything is saved on this device. Sign in to back it up and sync — the cards
+                    here are added to your account.
                   </div>
                 </div>
                 <Link to="/auth" className="pill-btn pill-btn-primary">
@@ -414,8 +413,7 @@ export function YouPage() {
                 Sign-in methods
               </h2>
               <p className="settings-card-hint">
-                Add another way to sign in, or remove one. You always need at least one — the
-                account can&apos;t end up with no way to sign in.
+                Add another way to sign in, or remove one — you always need at least one.
               </p>
             </header>
             <div className="settings-card-body">
@@ -687,8 +685,7 @@ export function YouPage() {
               Troubleshooting
             </h2>
             <p className="settings-card-hint">
-              If the app feels stuck on an old version after an update, reset the cached app shell
-              to fetch the latest from the server.
+              For when the app feels stuck on an old version after an update.
             </p>
           </header>
           <div className="settings-card-body">
@@ -696,8 +693,8 @@ export function YouPage() {
               <div className="settings-row-text">
                 <div className="settings-row-value">Reset app cache</div>
                 <div className="settings-row-hint">
-                  Clears the cached HTML / JS / CSS bundles, then reloads to fetch the latest from
-                  the server. Your decks, collection, and binders are not affected.
+                  Reloads the app from the server. Your decks, collection, and binders aren&apos;t
+                  touched.
                 </div>
               </div>
               <button
