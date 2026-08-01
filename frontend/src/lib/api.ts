@@ -78,11 +78,11 @@ export interface ImportProgress {
 
 export type ImportProgressCallback = (progress: ImportProgress) => void;
 
-async function postImportChunk(text: string): Promise<UploadResponse> {
+async function postImportChunk(text: string, proxy?: boolean): Promise<UploadResponse> {
   const response = await fetchWithTimeout('/api/import', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify(proxy ? { text, proxy: true } : { text }),
   });
   const data = await handleResponse<UploadResponse>(response);
   // Deploy-skew guard: a native app can run against a backend that predates
@@ -97,11 +97,11 @@ async function postImportChunk(text: string): Promise<UploadResponse> {
   };
 }
 
-async function postImportChunkWithRetry(text: string): Promise<UploadResponse> {
+async function postImportChunkWithRetry(text: string, proxy?: boolean): Promise<UploadResponse> {
   let lastErr: unknown;
   for (let attempt = 0; ; attempt++) {
     try {
-      return await postImportChunk(text);
+      return await postImportChunk(text, proxy);
     } catch (err) {
       lastErr = err;
       // Retry transient network failures and transient server statuses
@@ -140,12 +140,13 @@ async function postImportChunkWithRetry(text: string): Promise<UploadResponse> {
  */
 export async function importText(
   text: string,
-  onProgress?: ImportProgressCallback
+  onProgress?: ImportProgressCallback,
+  proxy?: boolean
 ): Promise<UploadResponse> {
   const chunks = chunkImportText(text, IMPORT_CHUNK_SIZE);
   if (chunks.length === 1) {
     onProgress?.({ chunkIndex: 1, totalChunks: 1 });
-    return postImportChunkWithRetry(text);
+    return postImportChunkWithRetry(text, proxy);
   }
 
   // Upload chunks with bounded concurrency. Results are kept in input order so the
@@ -159,7 +160,7 @@ export async function importText(
   const worker = async (): Promise<void> => {
     for (let i = nextChunk++; i < chunks.length; i = nextChunk++) {
       try {
-        responses[i] = await postImportChunkWithRetry(chunks[i]);
+        responses[i] = await postImportChunkWithRetry(chunks[i], proxy);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         throw new Error(`Import failed on batch ${i + 1} of ${chunks.length}: ${message}`);
@@ -184,9 +185,10 @@ export async function importText(
  */
 export async function importFile(
   file: File,
-  onProgress?: ImportProgressCallback
+  onProgress?: ImportProgressCallback,
+  proxy?: boolean
 ): Promise<UploadResponse> {
-  return importText(await file.text(), onProgress);
+  return importText(await file.text(), onProgress, proxy);
 }
 
 /**
