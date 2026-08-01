@@ -106,6 +106,27 @@ export async function recordValueSnapshot(value: number, at = Date.now()): Promi
   await tx.done;
 }
 
+/**
+ * Log today's point as $0 for a collection that just went empty — but only if
+ * the log already has points.
+ *
+ * The price-refresh tick is the only other writer, and it bails out on an
+ * empty collection (there's nothing to price), so without this the last total
+ * from before the cards were deleted stays the newest point FOREVER — the trim
+ * in recordValueSnapshot only runs on write, so it never even ages out. That's
+ * the home hero cheerfully valuing a collection you no longer own.
+ *
+ * The has-points check is what keeps this from being a plain
+ * `recordValueSnapshot(0)` at the call sites: a user who has never imported
+ * anything must keep an empty log, so the hero hides the value line instead of
+ * greeting them with $0.
+ */
+export async function recordEmptyCollectionSnapshot(at = Date.now()): Promise<void> {
+  const db = await getDB();
+  if ((await db.count(STORE)) === 0) return;
+  await recordValueSnapshot(0, at);
+}
+
 /** All points in the ACTIVE display currency, oldest → newest. Points logged
  *  under the other currency are kept in the DB (switching back restores that
  *  trend) but never surfaced into a mixed-currency series. */

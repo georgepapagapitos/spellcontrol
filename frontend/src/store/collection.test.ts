@@ -21,6 +21,7 @@ import { saveCollection, loadCollection, clearCollection } from '../lib/local-ca
 import { _resetForTests as resetPriceCache } from '../lib/card-prices';
 import { useCurrencyStore } from '../lib/currency';
 import { captureCollectionSnapshot } from '../lib/collection-snapshot';
+import { clearValueHistory, getValueHistory, recordValueSnapshot } from '../lib/value-history';
 import type { BinderDef, BinderInput, EnrichedCard, UploadResponse } from '../types';
 
 function enriched(
@@ -1506,6 +1507,19 @@ describe('destructive-op undo', () => {
       expect(s.uploadedAt).toBe(7);
       // Restore persisted the rehydrated collection.
       expect(saveCollection).toHaveBeenCalled();
+    });
+
+    it('logs a $0 value point so the home hero stops showing the deleted total', async () => {
+      await recordValueSnapshot(420);
+      try {
+        useCollectionStore.setState({ cards: [enriched({ copyId: 'a', scryfallId: 'sfA' })] });
+        await useCollectionStore.getState().clearCards();
+        await flush();
+        const points = await getValueHistory();
+        expect(points[points.length - 1].value).toBe(0);
+      } finally {
+        await clearValueHistory();
+      }
     });
 
     it('does not offer Undo when the collection was already empty', async () => {
