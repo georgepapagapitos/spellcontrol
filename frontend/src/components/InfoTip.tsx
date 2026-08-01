@@ -48,9 +48,20 @@ export interface InfoTipProps {
   /** Extra class appended to the trigger button, e.g. to opt a specific call
    *  site into a larger (pointer: coarse) touch target via a ghost ::after. */
   className?: string;
+  /** Override the trigger's glyph — defaults to the ⓘ icon. For a trigger
+   *  that's itself the informative content (e.g. a "CB2" combo-count badge)
+   *  rather than a generic "learn more" affordance. */
+  icon?: ReactNode;
 }
 
-export function InfoTip({ label, text, wide, ariaLabel, className }: InfoTipProps): JSX.Element {
+export function InfoTip({
+  label,
+  text,
+  wide,
+  ariaLabel,
+  className,
+  icon,
+}: InfoTipProps): JSX.Element {
   const btnRef = useRef<HTMLButtonElement>(null);
   const [pos, setPos] = useState<TipPos | null>(null);
 
@@ -109,7 +120,7 @@ export function InfoTip({ label, text, wide, ariaLabel, className }: InfoTipProp
         onFocus={place}
         onBlur={close}
       >
-        <Info width={13} height={13} aria-hidden />
+        {icon ?? <Info width={13} height={13} aria-hidden />}
       </button>
       {pos &&
         createPortal(

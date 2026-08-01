@@ -96,6 +96,7 @@ import { useTouchPeek } from '@/lib/use-touch-peek';
 import { COLOR_INFO } from '../../lib/colors';
 import { classifyFoil } from '../../lib/foil-style';
 import { FoilBadge } from '../FoilBadge';
+import { ComboBadge } from './ComboBadge';
 import { Legend, LegendContent } from '../Legend';
 import { OverflowMenu } from '../OverflowMenu';
 import {
@@ -515,6 +516,15 @@ export interface DeckDisplayProps {
    * subtle inclusion-% chip. Absent for manual/unanalyzed decks.
    */
   cardInclusionMap?: Record<string, number>;
+  /**
+   * Every combo (in-deck or one-away) each in-deck card participates in,
+   * keyed by oracle id — computed once by the caller from the same
+   * `useDeckCombos` data DeckCombosPanel already renders (E216-scoped
+   * matcher; see use-deck-combos.ts), never a second match. Drives the
+   * inline row-level "CB"/"CB2" superscript badge; omit/empty to render no
+   * badges at all.
+   */
+  combosByOracle?: Map<string, ComboMatch[]>;
   rampSubtypeCounts?: Record<string, number>;
   removalSubtypeCounts?: Record<string, number>;
   boardwipeSubtypeCounts?: Record<string, number>;
@@ -1407,6 +1417,7 @@ export function DeckDisplay({
   categoryTargets,
   buildReport,
   cardInclusionMap,
+  combosByOracle,
   rampSubtypeCounts,
   removalSubtypeCounts,
   boardwipeSubtypeCounts,
@@ -2633,6 +2644,7 @@ export function DeckDisplay({
                         }
                         synergyByName={synergyByName}
                         cardInclusionMap={cardInclusionMap}
+                        combosByOracle={combosByOracle}
                         cardProvenance={cardProvenance}
                       />
                     ))}
@@ -2740,6 +2752,7 @@ export function DeckDisplay({
                             onUseOwnCopy={onUseOwnCopy}
                             synergyByName={synergyByName}
                             cardInclusionMap={cardInclusionMap}
+                            combosByOracle={combosByOracle}
                             cardProvenance={cardProvenance}
                           />
                         ))
@@ -2771,6 +2784,7 @@ export function DeckDisplay({
                           onMoveToMainboard={onMoveFromConsidering}
                           synergyByName={synergyByName}
                           cardInclusionMap={cardInclusionMap}
+                          combosByOracle={combosByOracle}
                           cardProvenance={cardProvenance}
                         />
                       ))
@@ -3912,6 +3926,7 @@ function CategorySection({
   headerAction,
   synergyByName,
   cardInclusionMap,
+  combosByOracle,
   cardProvenance,
   target,
   selectMode,
@@ -3953,6 +3968,9 @@ function CategorySection({
   headerAction?: React.ReactNode;
   synergyByName?: Map<string, string[]>;
   cardInclusionMap?: Record<string, number>;
+  /** Every combo each in-deck card participates in, keyed by oracle id — see
+   *  the doc on DeckDisplayProps.combosByOracle. */
+  combosByOracle?: Map<string, ComboMatch[]>;
   /** Per-card "why is this here" reason (S2), keyed by card name. */
   cardProvenance?: Record<string, string>;
   /** E172 multi-select — a row's checkbox replaces tap-to-preview when true. */
@@ -4040,6 +4058,9 @@ function CategorySection({
           onUseOwnCopy={entry.leaving ? undefined : onUseOwnCopy}
           synergyReasons={synergyByName?.get(entry.item.card.name)}
           inclusionPct={resolveInclusionPct(cardInclusionMap, entry.item)}
+          combos={
+            entry.item.card.oracle_id ? combosByOracle?.get(entry.item.card.oracle_id) : undefined
+          }
           provenanceReason={cardProvenance?.[entry.item.card.name]}
           entering={entry.entering}
           leaving={entry.leaving}
@@ -4143,6 +4164,7 @@ function DeckCardRow({
   onUseOwnCopy,
   synergyReasons,
   inclusionPct,
+  combos,
   provenanceReason,
   entering,
   leaving,
@@ -4183,6 +4205,9 @@ function DeckCardRow({
   synergyReasons?: string[];
   /** EDHREC inclusion rate (0–100) for this card; renders a subtle chip when set. */
   inclusionPct?: number;
+  /** Every combo this row's card participates in (in-deck or one-away) —
+   *  drives the inline "CB"/"CB2" badge. Undefined/empty renders nothing. */
+  combos?: ComboMatch[];
   /** Per-card "why is this here" reason (S2) — folded into whichever of the
    *  synergy/inclusion tooltips above renders for this row. Undefined for
    *  manual adds and decks generated before this shipped. */
@@ -4495,6 +4520,7 @@ function DeckCardRow({
           )}
           {legalityIssue && <LegalityBadge issue={legalityIssue} className="deck-row-illegal" />}
           {row.foil && <FoilBadge card={row} />}
+          {row.card.oracle_id && <ComboBadge oracleId={row.card.oracle_id} matches={combos} />}
           {/* User tags (E171) — always visible when set (never hover-gated,
               unlike the system-derived hints below): a card's own tags are
               user-authored content, and staying visible is exactly what
