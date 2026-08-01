@@ -956,6 +956,15 @@ export interface RoleTargetBreakdown {
   blended: number; // final target after blend + pacing + clamp
 }
 
+/** Mana-philosophy wheel weights — see manaPhilosophy.ts for the semantics and
+ *  the normalization rule (sum to 1, per-axis floor, no axis ever 0). */
+export interface ManaPhilosophy {
+  reliable: number;
+  greedy: number;
+  spelllands: number;
+  budget: number;
+}
+
 // User customization
 export interface Customization {
   deckFormat: DeckSize;
@@ -1008,6 +1017,14 @@ export interface Customization {
   // flag until a 0-regressed panel clears. No UI toggle in v1 — the live-eval
   // harness forces it via LIVE_GEN_HYPER_FOCUS=1/0, mirroring archetypeBlend.
   hyperFocus?: boolean;
+  // Mana-philosophy wheel (Manafoundry ranked item 22): four blendable weights
+  // steering nonbasic land selection (reliable / greedy / spelllands / budget),
+  // normalized to sum to 1 with a per-axis floor so no axis ever reaches 0.
+  // `undefined` = OFF and the whole pass is skipped (byte-identical
+  // generation); ships behind the flag until a 0-regressed panel clears. No UI
+  // in v1 — the wheel control is its own design pass; the live-eval harness
+  // forces weights via LIVE_GEN_MANA_PHILOSOPHY="r,g,s,b". See manaPhilosophy.ts.
+  manaPhilosophy?: ManaPhilosophy;
   ignoreOwnedBudget: boolean; // When true, owned cards don't count against budget limits
   ignoreOwnedRarity: boolean; // When true, owned cards skip max-rarity restriction
   currency: 'USD' | 'EUR'; // Price currency for budget filtering and display

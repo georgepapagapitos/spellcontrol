@@ -113,6 +113,7 @@ import { summarizeSeatedBlend } from './archetypeBlend';
 import { buildSubstitutionPlan, type SubstituteRow } from './substituteFinder';
 import { resolveMultiCopyCards } from './multiCopy';
 import { generateLands, CHANNEL_LAND_BOOST, MDFC_LAND_BOOST } from './landGenerator';
+import { resolveManaPhilosophy } from './manaPhilosophy';
 import {
   pickEdhrecTypePass,
   bumpRoleAndSubtypeCounts,
@@ -1183,6 +1184,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // needs this same value, and it depends only on `customization`, already
   // in scope this early.
   const priceSanity = resolvePriceSanity(customization);
+  // E231 mana-philosophy wheel — null (the shipped default) leaves generateLands
+  // byte-identical. Hoisted here for the same reason as priceSanity above: both
+  // generateLands call sites below need it.
+  const manaPhilosophy = resolveManaPhilosophy(customization);
   // True when detectedArchetype came only from the oracle-text keyword-vote
   // heuristic (commanderProfile.primaryArchetype) — neither the user's own
   // theme picks nor EDHREC's own ranked commander-page themes resolved to a
@@ -2612,7 +2617,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         resolvedPacing,
         undefined,
         context.collectionBasicPrintings,
-        fillGates
+        fillGates,
+        manaPhilosophy
       )),
     ];
 
@@ -2904,7 +2910,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         resolvedPacing,
         undefined,
         context.collectionBasicPrintings,
-        fillGates
+        fillGates,
+        manaPhilosophy
       )),
     ];
   }
