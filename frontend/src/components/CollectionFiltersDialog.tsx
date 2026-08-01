@@ -153,6 +153,13 @@ interface Props {
   surplusOnly?: boolean;
   setSurplusOnly?: (next: boolean) => void;
 
+  /**
+   * Proxy filter — same optional-pair convention as surplusOnly/groupPrintings:
+   * omit both props to hide the section entirely.
+   */
+  proxyOnly?: boolean;
+  setProxyOnly?: (next: boolean) => void;
+
   activeCount: number;
 }
 
@@ -263,6 +270,8 @@ function DialogBody({
   setGroupPrintings,
   surplusOnly,
   setSurplusOnly,
+  proxyOnly,
+  setProxyOnly,
   onClose,
 }: Props & { onClose: () => void }) {
   // Draft state — seeded once from props on mount; this component is
@@ -295,12 +304,14 @@ function DialogBody({
   const [draftCmcMax, setDraftCmcMax] = useState<number | undefined>(cmcMax);
   const [draftGroup, setDraftGroup] = useState<boolean>(groupPrintings ?? true);
   const [draftSurplusOnly, setDraftSurplusOnly] = useState<boolean>(surplusOnly ?? false);
+  const [draftProxyOnly, setDraftProxyOnly] = useState<boolean>(proxyOnly ?? false);
 
   const showBinder = binderExpr !== undefined && !hideBinderFilter;
   const showOracleTags = oracleTagExpr !== undefined;
   const showScryfallQuery = setScryfallQuery !== undefined;
   const showOptions = groupPrintings !== undefined;
   const showSurplus = setSurplusOnly !== undefined;
+  const showProxy = setProxyOnly !== undefined;
   const showFinish = finishExpr !== undefined;
   const showCondition = conditionExpr !== undefined;
   const showLanguage = languageExpr !== undefined;
@@ -328,7 +339,8 @@ function DialogBody({
     (showPrice && (draftPriceMin !== undefined || draftPriceMax !== undefined)) ||
     (showCmc && (draftCmcMin !== undefined || draftCmcMax !== undefined)) ||
     (showOptions && !draftGroup) ||
-    (showSurplus && draftSurplusOnly);
+    (showSurplus && draftSurplusOnly) ||
+    (showProxy && draftProxyOnly);
 
   // Assemble the current draft chip state into a BinderFilter so FilterFieldEditor
   // can read it as a unified value. The patch handler routes each key back to its
@@ -393,6 +405,7 @@ function DialogBody({
     }
     if (showOptions) setGroupPrintings?.(draftGroup);
     if (showSurplus) setSurplusOnly?.(draftSurplusOnly);
+    if (showProxy) setProxyOnly?.(draftProxyOnly);
     onClose();
   };
 
@@ -420,6 +433,7 @@ function DialogBody({
     setDraftCmcMax(undefined);
     setDraftGroup(true);
     setDraftSurplusOnly(false);
+    setDraftProxyOnly(false);
   };
 
   return (
@@ -612,6 +626,20 @@ function DialogBody({
             <p className="filter-popover-hint">
               Copies not in any deck or cube, beyond your first kept copy. Basic lands excluded.
             </p>
+          </section>
+        )}
+
+        {showProxy && (
+          <section className="collection-filters-section">
+            <div className="collection-filters-section-label">Proxy</div>
+            <label className="filter-popover-row">
+              <input
+                type="checkbox"
+                checked={draftProxyOnly}
+                onChange={(e) => setDraftProxyOnly(e.target.checked)}
+              />
+              <span className="filter-popover-label">Proxies only</span>
+            </label>
           </section>
         )}
 

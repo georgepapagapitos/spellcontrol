@@ -2480,6 +2480,20 @@ caption prefs are one device-wide setting shared by all grids, and the ≤640px
 "View" popover that houses them is `shared/ViewPopoverPanel` (§ Toolbars &
 action rows).
 
+**Proxy chip — scoped to `proxy`, not its `altered`/`misprint` siblings.**
+`shared/ProxyBadge` renders a small warn-toned "P" chip (letter-first, WCAG
+1.4.1 — never color-only) in `CardRow`'s name line (next to `FoilBadge`) and
+in `CardGridCell`'s top-right corner, sharing that spot with the rarity chip
+via a `.collection-grid-topright` flex cluster rather than a private overlay
+(the corner already exists for exactly this — see "one row, one tile" above).
+It's baked into the two shared primitives directly, not a per-surface slot,
+so every consumer gets it for free. `altered`/`misprint` have identical
+plumbing (`CardEditDialog`'s flag chips, `CardPreview`'s inspector line) but
+stay inspector-only: unlike proxy, they don't change a computed value — a
+proxy is force-priced to $0 by `applyPrices` (`lib/card-prices.ts`), which is
+what makes it worth surfacing at a glance everywhere a price total is read.
+Revisit if a real ask for altered/misprint at-a-glance ever lands.
+
 **Detail-when-present.** Per-copy chips (the binder page chip, condition,
 language) render **only when that specific copy carries the value** — no
 dash, no "Not set" placeholder; absence renders nothing, keeping rows quiet

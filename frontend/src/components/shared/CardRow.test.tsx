@@ -92,4 +92,15 @@ describe('CardRow', () => {
     const { container } = renderRow(1, { language: 'ja' });
     expect(container.querySelector('.card-list-language')?.textContent).toBe('Japanese');
   });
+
+  it('shows the proxy chip for a proxy copy and not for a normal one', () => {
+    const proxy = renderRow(1, { proxy: true });
+    const badge = proxy.container.querySelector('.proxy-badge');
+    expect(badge).toBeTruthy();
+    expect(badge?.getAttribute('aria-label')).toBe('Proxy');
+    proxy.unmount();
+
+    const normal = renderRow(1);
+    expect(normal.container.querySelector('.proxy-badge')).toBeNull();
+  });
 });

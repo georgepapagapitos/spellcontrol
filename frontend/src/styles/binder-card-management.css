@@ -226,6 +226,10 @@
   color: var(--accent);
 }
 
+.binder-card-editor-proxy {
+  color: var(--warn-text);
+}
+
 .binder-card-editor-pinned-tag {
   color: var(--accent);
   font-size: var(--text-xs);

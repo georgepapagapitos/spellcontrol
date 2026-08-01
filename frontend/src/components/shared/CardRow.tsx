@@ -5,6 +5,7 @@ import type { AllocationInfo } from '../../lib/allocations';
 import { FoilBadge } from '../FoilBadge';
 import { DeckBadge } from '../DeckBadge';
 import { BinderBadge } from '../BinderBadge';
+import { ProxyBadge } from './ProxyBadge';
 import { RarityBadge } from './RarityBadge';
 import { ManaCost } from '../ManaCost';
 import { TypeIcon } from './ManaSymbol';
@@ -149,6 +150,7 @@ export function CardRow({
         <div className="collection-list-name">
           {card.name}
           {card.foil && <FoilBadge card={card} />}
+          <ProxyBadge card={card} />
           <DeckBadge allocations={allocations} />
           <BinderBadge binders={binders ?? []} />
           {ownedBadge}
