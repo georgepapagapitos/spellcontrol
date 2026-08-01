@@ -12,6 +12,11 @@ import { CardPreview } from '../components/CardPreview';
 import { Tabs } from '../components/Tabs';
 import { SearchPill } from '../components/SearchPill';
 import { ComboFiltersPopover } from '../components/ComboFiltersPopover';
+import {
+  FilterChipsRow,
+  colorChipLabel,
+  type FilterChipDescriptor,
+} from '../components/shared/FilterChipsRow';
 import { ComboRow } from '../components/deck/ComboRow';
 import { ComboCollectionAside } from '../components/deck/ComboCollectionAside';
 import { useComboPreview } from '../components/deck/use-combo-preview';
@@ -24,7 +29,12 @@ import {
   ownedCommanders,
   rankHosts,
 } from '../lib/combo-hosts';
-import { emptyComboFilters, filterCombos, countActiveFilters } from '../lib/combo-filters';
+import {
+  COMBO_RESULT_LABELS,
+  emptyComboFilters,
+  filterCombos,
+  countActiveFilters,
+} from '../lib/combo-filters';
 
 type Tab = 'complete' | 'oneAway';
 
@@ -110,6 +120,43 @@ export function CollectionCombosPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 200);
   const [filters, setFilters] = useState(emptyComboFilters);
+
+  // Active-filter chips — the same affordance the collection/lists/decks carry.
+  // Labels mirror ComboFiltersPopover's own option wording.
+  const filterChips = useMemo<FilterChipDescriptor[]>(() => {
+    const chips: FilterChipDescriptor[] = [];
+    if (search.trim())
+      chips.push({ id: 'search', label: `"${search.trim()}"`, onClear: () => setSearch('') });
+    if (filters.colors.size > 0)
+      chips.push({
+        id: 'colors',
+        label: `Color: ${colorChipLabel(filters.colors)}`,
+        onClear: () => setFilters({ ...filters, colors: new Set() }),
+      });
+    if (filters.results.size > 0)
+      chips.push({
+        id: 'results',
+        label: `Produces: ${[...filters.results].map((r) => COMBO_RESULT_LABELS[r]).join(', ')}`,
+        onClear: () => setFilters({ ...filters, results: new Set() }),
+      });
+    if (filters.pieceCounts.size > 0)
+      chips.push({
+        id: 'pieces',
+        label: `Pieces: ${[...filters.pieceCounts].join(', ')}`,
+        onClear: () => setFilters({ ...filters, pieceCounts: new Set() }),
+      });
+    if (filters.hostOnly)
+      chips.push({
+        id: 'hostOnly',
+        label: 'One of mine can host it',
+        onClear: () => setFilters({ ...filters, hostOnly: false }),
+      });
+    return chips;
+  }, [search, filters]);
+  const clearAllFilters = () => {
+    setSearch('');
+    setFilters(emptyComboFilters());
+  };
 
   // A combo is hostable if any owned commander's identity covers it — the same
   // derivation the per-row aside shows, reused as a filter predicate.
@@ -275,6 +322,8 @@ export function CollectionCombosPage() {
           />
         </div>
       )}
+
+      <FilterChipsRow chips={filterChips} onClearAll={clearAllFilters} />
 
       <div className="deck-combos-panel is-embedded" role="region" aria-label="Collection combos">
         <div className="deck-combos-body">

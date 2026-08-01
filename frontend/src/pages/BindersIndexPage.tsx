@@ -30,6 +30,7 @@ import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { SortDirArrow } from '../components/SortDirArrow';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
+import { FilterChipsRow } from '../components/shared/FilterChipsRow';
 import { OverflowMenu } from '../components/OverflowMenu';
 import { InfoTip } from '../components/InfoTip';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
@@ -289,6 +290,15 @@ export function BindersIndexPage() {
           />
         </div>
       )}
+
+      <FilterChipsRow
+        chips={
+          search.trim()
+            ? [{ id: 'search', label: `"${search.trim()}"`, onClear: () => setSearch('') }]
+            : []
+        }
+        onClearAll={() => setSearch('')}
+      />
 
       {binders.length > 0 && (
         <div className="binders-index-sort-bar">

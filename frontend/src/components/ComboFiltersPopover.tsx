@@ -5,6 +5,7 @@ import { ColorPip } from './shared/ManaSymbol';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
 import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
 import {
+  COMBO_RESULT_LABELS,
   countActiveFilters,
   emptyComboFilters,
   type ComboFilterState,
@@ -21,14 +22,9 @@ const COLOR_OPTIONS: Array<{ key: string; label: string }> = [
   { key: 'C', label: 'Colorless' },
 ];
 
-const RESULT_OPTIONS: Array<{ key: ComboResultKind; label: string }> = [
-  { key: 'win', label: 'Wins the game' },
-  { key: 'mana', label: 'Mana' },
-  { key: 'damage', label: 'Damage' },
-  { key: 'draw', label: 'Draw' },
-  { key: 'tokens', label: 'Tokens' },
-  { key: 'life', label: 'Life' },
-];
+const RESULT_OPTIONS = (
+  Object.entries(COMBO_RESULT_LABELS) as Array<[ComboResultKind, string]>
+).map(([key, label]) => ({ key, label }));
 
 const PIECE_OPTIONS: Array<{ key: ComboPieceCount; label: string }> = [
   { key: '2', label: '2 cards' },
