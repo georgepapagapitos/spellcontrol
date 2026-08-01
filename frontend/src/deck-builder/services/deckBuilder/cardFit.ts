@@ -87,10 +87,22 @@ export interface MisfitInputs {
   gapCandidates?: GapAnalysisCard[];
   /** Commander name(s) — never suggest these as replacements. */
   commanderNames?: string[];
+  /**
+   * E221: names injected by archetype tag-page blending. A blended card is
+   * absent from the commander's EDHREC page BY CONSTRUCTION — that absence is
+   * precisely why it was injected — so the two "absent" reasons are suppressed
+   * for it. Without this every blended card trips the 2-reason threshold and
+   * the Coach ends up telling the user to cut the cards generation just added.
+   * `inclusion-low` / `synergy-low` still fire when data exists but is weak,
+   * and `role-missing` / `theme-off` are untouched: those are real signals
+   * about a blended card.
+   */
+  blendedNames?: ReadonlySet<string>;
 }
 
 export function computeMisfits(inputs: MisfitInputs): Misfit[] {
-  const { cards, cardInclusionMap, cardSynergyMap, themeByCard, gapCandidates } = inputs;
+  const { cards, cardInclusionMap, cardSynergyMap, themeByCard, gapCandidates, blendedNames } =
+    inputs;
 
   const misfits: Misfit[] = [];
 
@@ -102,14 +114,19 @@ export function computeMisfits(inputs: MisfitInputs): Misfit[] {
     if (isAnyLand(card)) continue; // lands evaluated separately, not as misfits here
 
     const reasons: MisfitReason[] = [];
+    // E221: an archetype-blended card's absence from the commander page is
+    // expected — attribute it, don't penalize it.
+    const isBlended = blendedNames?.has(card.name) ?? false;
 
     const incl = cardInclusionMap[card.name];
     if (incl == null) {
-      reasons.push({
-        kind: 'inclusion-absent',
-        label: "Not played in this commander's decks",
-        detail: 'Card has no inclusion data on EDHREC for this commander',
-      });
+      if (!isBlended) {
+        reasons.push({
+          kind: 'inclusion-absent',
+          label: "Not played in this commander's decks",
+          detail: 'Card has no inclusion data on EDHREC for this commander',
+        });
+      }
     } else if (incl < INCLUSION_LOW) {
       reasons.push({
         kind: 'inclusion-low',
@@ -120,11 +137,13 @@ export function computeMisfits(inputs: MisfitInputs): Misfit[] {
 
     const syn = cardSynergyMap?.[card.name];
     if (syn == null) {
-      reasons.push({
-        kind: 'synergy-absent',
-        label: 'No commander synergy data',
-        detail: "Card isn't on this commander's EDHREC page",
-      });
+      if (!isBlended) {
+        reasons.push({
+          kind: 'synergy-absent',
+          label: 'No commander synergy data',
+          detail: "Card isn't on this commander's EDHREC page",
+        });
+      }
     } else if (syn <= SYNERGY_LOW) {
       reasons.push({
         kind: 'synergy-low',

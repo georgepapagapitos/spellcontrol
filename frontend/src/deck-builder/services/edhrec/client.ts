@@ -1189,6 +1189,15 @@ export interface EDHRECTagPageData {
    * the page's own per-color deck totals (they sum to exactly this number).
    */
   potentialDecks: number;
+  /**
+   * Names off the page's `highsynergycards` list specifically — the cards that
+   * define this archetype, as opposed to `topcards`/`gamechangers`, which are
+   * generic power in these colours. `parseCardlists` collapses all three under
+   * `isThemeSynergyCard`, so the distinction has to be captured here or it's
+   * lost: injecting the generic lists into a thin pool adds exactly the
+   * goodstuff an archetype blend is supposed to be an alternative to (E221).
+   */
+  highSynergyNames: string[];
   /** The color slug actually used, or null when the unfiltered page was read. */
   colorSlug: string | null;
 }
@@ -1282,6 +1291,9 @@ export async function fetchTagPageData(
     commanders,
     cardlists: parseCardlists(response),
     potentialDecks,
+    highSynergyNames: (
+      rawLists.find((l) => l.tag?.toLowerCase() === 'highsynergycards')?.cardviews ?? []
+    ).map((c) => c.name),
     colorSlug,
   };
   tagPageCache.set(cacheKey, { data, timestamp: Date.now() });

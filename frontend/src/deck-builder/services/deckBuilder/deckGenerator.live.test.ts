@@ -113,6 +113,15 @@ function customization(overrides: Partial<Customization> = {}): Customization {
         : process.env.LIVE_GEN_PRICE_SANITY === '0'
           ? false
           : undefined,
+    // E221 A/B knob, same two-way shape: LIVE_GEN_ARCHETYPE_BLEND=1 forces
+    // archetype tag-page blending ON, =0 forces it OFF, unset leaves the
+    // product default (OFF until the panel clears).
+    archetypeBlend:
+      process.env.LIVE_GEN_ARCHETYPE_BLEND === '1'
+        ? true
+        : process.env.LIVE_GEN_ARCHETYPE_BLEND === '0'
+          ? false
+          : undefined,
     ...overrides,
   };
 }
@@ -196,6 +205,96 @@ const RUNS: RunSpec[] = [
     overrides: { targetBracket: 4 },
   },
 ];
+
+/**
+ * E221 NICHE PANEL — the panel that measures whether archetype tag-page
+ * blending actually does anything.
+ *
+ * The standard RUNS panel above is the WRONG instrument for this mechanism,
+ * twice over:
+ *   1. Every commander on it has hundreds-to-thousands of EDHREC decks, so the
+ *      blend weight floors at 0.35 and there's no thin pool to backfill.
+ *   2. More fundamentally, it passes `selectedThemes: []` — no theme is ever
+ *      selected, so the blend has no tag page to blend FROM and cannot fire at
+ *      all. A flat result there is evidence of inapplicability, not safety.
+ *
+ * These pairs were chosen by QUERYING EDHREC for the real commander-theme deck
+ * count (`/pages/commanders/{slug}/{theme}.json`, 2026-07-31) rather than
+ * guessing which commanders are niche — the count is recorded per row so the
+ * selection is auditable and re-checkable when the data shifts. They span
+ * 7 → 159 decks, i.e. weight ~0.9 down to ~0.55.
+ */
+interface NicheSpec extends RunSpec {
+  themeName: string;
+  themeSlug: string;
+  /** EDHREC decks on this commander-theme page when the panel was fixed. */
+  measuredDecks: number;
+}
+
+const NICHE_RUNS: NicheSpec[] = [
+  {
+    commanderName: 'Obeka, Brute Chronologist',
+    variant: 'wheels',
+    themeName: 'Wheels',
+    themeSlug: 'wheels',
+    measuredDecks: 7,
+  },
+  {
+    commanderName: 'Obeka, Brute Chronologist',
+    variant: 'sacrifice',
+    themeName: 'Sacrifice',
+    themeSlug: 'sacrifice',
+    measuredDecks: 9,
+  },
+  {
+    commanderName: 'Sefris of the Hidden Ways',
+    variant: 'zombies',
+    themeName: 'Zombies',
+    themeSlug: 'zombies',
+    measuredDecks: 14,
+  },
+  {
+    commanderName: 'Gisa, Glorious Resurrector',
+    variant: 'zombies',
+    themeName: 'Zombies',
+    themeSlug: 'zombies',
+    measuredDecks: 29,
+  },
+  {
+    commanderName: 'Gnostro, Voice of the Crags',
+    variant: 'spellslinger',
+    themeName: 'Spellslinger',
+    themeSlug: 'spellslinger',
+    measuredDecks: 39,
+  },
+  {
+    commanderName: 'Sefris of the Hidden Ways',
+    variant: 'mill',
+    themeName: 'Mill',
+    themeSlug: 'mill',
+    measuredDecks: 47,
+  },
+  {
+    commanderName: 'Sivitri, Dragon Master',
+    variant: 'control',
+    themeName: 'Control',
+    themeSlug: 'control',
+    measuredDecks: 71,
+  },
+  {
+    // Just above the niche band on purpose: the weight is nearly floored here,
+    // so this row is the control — a big blend effect on THIS deck would mean
+    // the weight curve isn't doing its job.
+    commanderName: 'Gisa, Glorious Resurrector',
+    variant: 'aristocrats',
+    themeName: 'Aristocrats',
+    themeSlug: 'aristocrats',
+    measuredDecks: 159,
+  },
+];
+
+/** LIVE_GEN_PANEL=niche swaps the standard panel for the E221 niche panel. */
+const PANEL = process.env.LIVE_GEN_PANEL === 'niche' ? NICHE_RUNS : RUNS;
 
 function slugify(name: string, variant: string): string {
   const base = name
@@ -295,14 +394,14 @@ const ONLY = process.env.LIVE_GEN_ONLY?.split(',')
   .filter(Boolean);
 const ACTIVE_RUNS =
   ONLY && ONLY.length > 0
-    ? RUNS.filter((r) =>
+    ? PANEL.filter((r) =>
         ONLY.some(
           (o) =>
             slugify(r.commanderName, r.variant).includes(o) ||
             r.commanderName.toLowerCase().includes(o)
         )
       )
-    : RUNS;
+    : PANEL;
 
 describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
   it.each(ACTIVE_RUNS)(
@@ -323,7 +422,20 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
           partnerCommander: null,
           colorIdentity,
           customization: custom,
-          selectedThemes: [],
+          // Niche-panel rows carry a real EDHREC theme (source 'edhrec' + slug
+          // is what state.ts requires to populate selectedThemesWithSlugs);
+          // the standard panel stays theme-less exactly as before.
+          selectedThemes:
+            'themeSlug' in spec
+              ? [
+                  {
+                    name: (spec as NicheSpec).themeName,
+                    slug: (spec as NicheSpec).themeSlug,
+                    source: 'edhrec' as const,
+                    isSelected: true,
+                  },
+                ]
+              : [],
           collectionNames: COLLECTION_NAMES,
         };
 

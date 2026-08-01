@@ -169,6 +169,12 @@ export interface EDHRECCard {
   isThemeSynergyCard?: boolean; // true if from highsynergycards, topcards, gamechangers
   isNewCard?: boolean; // true if from the newcards list (gets a small relevancy boost)
   isGameChanger?: boolean; // true if from the gamechangers list specifically
+  /** E221: set on a pool entry injected from the theme's EDHREC tag page
+   *  rather than the commander's own page. Drives the build-report disclosure
+   *  and exempts the card from the two "absent from the commander page" misfit
+   *  reasons (cardFit.ts) — that absence is why it was injected, not evidence
+   *  against it. */
+  blendSource?: 'archetype-blend';
   image_uris?: Array<{
     normal: string;
     art_crop?: string;
@@ -556,6 +562,15 @@ export interface BuildReport {
    *  tie-break never decided an outcome (off via budgetOption='expensive', or no
    *  qualifying pair ever arose). */
   priceSanityNote?: string;
+  /** Disclosure (E221) when archetype tag-page blending injected cards into a
+   *  thin commander×theme pool. Names the theme and the commander's own deck
+   *  count, so the reader can see why we reached past their commander's page.
+   *  Undefined when the flag is off or nothing was injected. */
+  archetypeBlendNote?: string;
+  /** Card names injected by the blend (E221). Threaded into the misfit pass so
+   *  a blended card isn't flagged for the absence that caused its injection —
+   *  see cardFit.ts's `blendedNames`. Undefined when nothing was injected. */
+  archetypeBlendNames?: string[];
   /** Disclosure (E110) when a casual-bracket ask (bracket <= 2) with no budget
    *  set still produced a high-total deck — bracket caps power, not price.
    *  Note-only; the total is unchanged. Undefined off the casual end, when a
@@ -790,6 +805,8 @@ export interface GeneratedDeck {
   comboAuditBracketBlockNote?: string; // e.g. N combo-audit swaps skipped to stay within the target bracket (E104)
   landSqueezeTrimNote?: string; // e.g. N cards cut to reconcile an auto-tuned land count raise (E88)
   bracketPoolFallbackNote?: string; // e.g. bracket-narrowed EDHREC page was too thin — laddered down to a broader page (E93)
+  archetypeBlendNote?: string; // e.g. N cards backfilled from the theme's EDHREC tag page because the commander's own page is thin (E221)
+  archetypeBlendNames?: string[]; // the names that note refers to — threaded into the misfit pass so they aren't flagged for the absence that caused them (E221)
   comboUpsideNotes?: ComboUpsideNote[]; // expensive combo pieces kept for still-incomplete-combo upside
   comboCompletionNotes?: string[]; // one per combo the build's own picks completed with cards already in the deck
   roleDeficitNotes?: string[]; // e.g. removal shipped under target and the pool's next options were outcompeted at pick time (E160)
@@ -979,6 +996,12 @@ export interface Customization {
   // true/false always wins. No UI toggle yet — the live-eval harness can
   // still force either value via LIVE_GEN_PRICE_SANITY (deckGenerator.live.test.ts).
   priceSanity?: boolean;
+  // E221: archetype tag-page blending — backfills a thin commander×theme pool
+  // from the theme's own EDHREC tag page, weighted by how little local data
+  // there is. `undefined` = OFF; this ships behind the flag until a 0-regressed
+  // panel clears (see docs/e221-archetype-blend-spec.md §4). No UI toggle in
+  // v1 — the live-eval harness forces it via LIVE_GEN_ARCHETYPE_BLEND=1/0.
+  archetypeBlend?: boolean;
   ignoreOwnedBudget: boolean; // When true, owned cards don't count against budget limits
   ignoreOwnedRarity: boolean; // When true, owned cards skip max-rarity restriction
   currency: 'USD' | 'EUR'; // Price currency for budget filtering and display
