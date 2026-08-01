@@ -28,6 +28,7 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useScrollContainer } from '../lib/scroll-container';
 import { formatMoney } from '../lib/format-money';
+import { applyPrices } from '../lib/card-prices';
 import type {
   BinderFilter,
   ChipExpression,
@@ -444,6 +445,7 @@ export function CardListTable({
   // beyond the keep floor (see computeSurplusByName). Independent of
   // groupPrintings — works whether rows are per-printing or per-copy.
   const [surplusOnly, setSurplusOnly] = useState(false);
+  const [proxyOnly, setProxyOnly] = useState(false);
   const [colorFilter, setColorFilter] = useState<Set<string>>(new Set());
   const [supertypeExpr, setSupertypeExpr] = useState<ChipExpression>({
     chips: [],
@@ -799,6 +801,8 @@ export function CardListTable({
           return false;
         // Post-check 5: tradeable surplus (collection-only, needs allocation data)
         if (surplusOnly && !surplusByName.has(r.card.name)) return false;
+        // Post-check 6: proxy-only (collection-only, physical copy field)
+        if (proxyOnly && !r.card.proxy) return false;
         // Engine check: everything else (type, rarity, oracle, legality, layout,
         // treatment, border, finish, sets, price, cmc, name search)
         return cardMatchesCompiled(r.card, compiledMatchFilter);
@@ -811,6 +815,7 @@ export function CardListTable({
       compiledLanguage,
       surplusOnly,
       surplusByName,
+      proxyOnly,
       compiledMatchFilter,
     ]
   );
@@ -1368,6 +1373,43 @@ export function CardListTable({
     clearSelection();
   }, [selectedCopyIds, allCards, allocatedCopyIds, confirm, applyRemoval, clearSelection]);
 
+  // Smart toggle (mirrors the "Select all"/"Deselect all" pill above): marks
+  // every selected copy as proxy, unless they're ALL already proxy, in which
+  // case it unmarks. Non-destructive and instantly reversible (Undo toast),
+  // so this skips the blocking confirm() that guards handleBulkDelete — that
+  // bar is for data loss, not a flag flip. applyPrices re-runs inline so the
+  // collection total reflects the price zeroing immediately, the same
+  // chokepoint refreshPrices/reapplyCardPrices use (lib/card-prices.ts).
+  const bulkProxyAllMarked = useMemo(() => {
+    if (selectedRowKeys.size === 0) return false;
+    const ids = new Set(selectedCopyIds());
+    const targets = allCards.filter((c) => ids.has(c.copyId));
+    return targets.length > 0 && targets.every((c) => c.proxy);
+  }, [selectedRowKeys, selectedCopyIds, allCards]);
+
+  const handleBulkToggleProxy = useCallback(() => {
+    const ids = selectedCopyIds();
+    const idSet = new Set(ids);
+    const targets = allCards.filter((c) => idSet.has(c.copyId));
+    if (targets.length === 0) return;
+    const nextProxy = !bulkProxyAllMarked;
+    const prevCards = allCards;
+    const next = applyPrices(
+      allCards.map((c) =>
+        idSet.has(c.copyId) ? { ...c, proxy: nextProxy, updatedAt: Date.now() } : c
+      )
+    );
+    replaceAllCards(next);
+    pushToast({
+      message: `${nextProxy ? 'Marked' : 'Unmarked'} ${targets.length} ${
+        targets.length === 1 ? 'copy' : 'copies'
+      } as proxy.`,
+      tone: 'success',
+      actionLabel: 'Undo',
+      onAction: () => replaceAllCards(applyPrices(prevCards)),
+    });
+  }, [selectedCopyIds, allCards, bulkProxyAllMarked, replaceAllCards, pushToast]);
+
   // Count active filter *groups*, not individual chips — five colors
   // selected is still one filter group, so the badge stays glanceable.
   const activeFilterCount =
@@ -1391,7 +1433,8 @@ export function CardListTable({
     (priceMin !== undefined || priceMax !== undefined ? 1 : 0) +
     (cmcMin !== undefined || cmcMax !== undefined ? 1 : 0) +
     (groupPrintings ? 0 : 1) +
-    (surplusOnly ? 1 : 0);
+    (surplusOnly ? 1 : 0) +
+    (proxyOnly ? 1 : 0);
 
   // Empty chip expression reused for clearing chip-based filters.
   // Stable reference (same shape every time) — memoized so the
@@ -1537,6 +1580,7 @@ export function CardListTable({
     setSetFilter(new Set());
     setGroupPrintings(true);
     setSurplusOnly(false);
+    setProxyOnly(false);
     setPriceMin(undefined);
     setPriceMax(undefined);
     setCmcMin(undefined);
@@ -1793,6 +1837,13 @@ export function CardListTable({
         onClear: () => setSurplusOnly(false),
       });
     }
+    if (proxyOnly) {
+      chips.push({
+        id: 'proxy',
+        label: 'Proxies only',
+        onClear: () => setProxyOnly(false),
+      });
+    }
     return chips;
   }, [
     search,
@@ -1818,6 +1869,7 @@ export function CardListTable({
     cmcMin,
     cmcMax,
     surplusOnly,
+    proxyOnly,
     groupPrintings,
     EMPTY_EXPR,
   ]);
@@ -1896,6 +1948,8 @@ export function CardListTable({
               setGroupPrintings={setGroupPrintings}
               surplusOnly={surplusOnly}
               setSurplusOnly={setSurplusOnly}
+              proxyOnly={proxyOnly}
+              setProxyOnly={setProxyOnly}
               activeCount={activeFilterCount}
             />
           }
@@ -2098,6 +2152,14 @@ export function CardListTable({
             onClick={() => setBulkMoveOpen(true)}
           >
             Move to…
+          </button>
+          <button
+            type="button"
+            className="toolbar-pill"
+            disabled={selectedRowKeys.size === 0}
+            onClick={handleBulkToggleProxy}
+          >
+            {bulkProxyAllMarked ? 'Unmark proxy' : 'Mark as proxy'}
           </button>
           <button
             type="button"

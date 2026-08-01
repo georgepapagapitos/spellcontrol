@@ -82,6 +82,21 @@ describe('CardGridCell captions', () => {
     expect(document.querySelector('.collection-grid-qty')?.textContent).toContain('3');
     expect(screen.getByRole('button').getAttribute('aria-label')).toContain('CMR · 472');
   });
+
+  it('shows the proxy chip for a proxy card and not for a normal one, with an accessible name', () => {
+    const proxyCard = { ...card, proxy: true };
+    const { container, unmount } = render(
+      <CardGridCell card={proxyCard} qty={1} size="1x" onActivate={() => {}} />
+    );
+    const badge = container.querySelector('.proxy-badge');
+    expect(badge).not.toBeNull();
+    expect(badge?.getAttribute('aria-label')).toBe('Proxy');
+    expect(screen.getByRole('button').getAttribute('aria-label')).toContain('proxy');
+    unmount();
+
+    render(<CardGridCell card={card} qty={1} size="1x" onActivate={() => {}} />);
+    expect(document.querySelector('.proxy-badge')).toBeNull();
+  });
 });
 
 const componentsDir = dirname(fileURLToPath(import.meta.url));

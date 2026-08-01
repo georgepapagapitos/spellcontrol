@@ -415,6 +415,7 @@ function OrderTab({
               <span className="binder-card-editor-meta">
                 {card.setCode.toUpperCase()} #{card.collectorNumber}
                 {card.foil ? <span className="binder-card-editor-foil"> foil</span> : null}
+                {card.proxy ? <span className="binder-card-editor-proxy"> proxy</span> : null}
               </span>
             </li>
           ))}
@@ -456,6 +457,7 @@ function SortableCardRow({ card }: { card: EnrichedCard }) {
       <span className="binder-card-editor-meta">
         {card.setCode.toUpperCase()} #{card.collectorNumber}
         {card.foil ? <span className="binder-card-editor-foil"> foil</span> : null}
+        {card.proxy ? <span className="binder-card-editor-proxy"> proxy</span> : null}
       </span>
     </li>
   );
