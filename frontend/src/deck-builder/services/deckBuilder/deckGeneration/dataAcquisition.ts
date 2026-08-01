@@ -813,6 +813,7 @@ async function applyArchetypeBlend(state: GenerationState): Promise<void> {
     const { cardlists, injectedNames, weight } = blendTagPageIntoPool({
       pool: state.edhrecData.cardlists,
       tagPageCardlists: tagPage.cardlists,
+      highSynergyNames: tagPage.highSynergyNames,
       tagPagePotentialDecks: tagPage.potentialDecks,
       commanderNumDecks,
     });

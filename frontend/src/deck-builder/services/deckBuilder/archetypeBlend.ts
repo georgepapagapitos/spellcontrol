@@ -65,11 +65,28 @@ const CATEGORIES = [
   'lands',
 ] as const;
 
+/**
+ * Ceiling on the theme-synergy tier. Separate from the per-category cap because
+ * this list is the point of the feature — it's what actually defines the
+ * archetype — while the type buckets are ordered by raw inclusion and skew
+ * toward generic goodstuff.
+ */
+export const MAX_INJECTED_SYNERGY = 15;
+
 export interface BlendInput {
   /** The commander pool being augmented (mutated copy returned, never in place). */
   pool: EDHRECCommanderData['cardlists'];
   /** Cardlists off the theme's tag page — same shape, from fetchTagPageData. */
   tagPageCardlists: EDHRECCommanderData['cardlists'];
+  /**
+   * Names off the tag page's `highsynergycards` list — the archetype-defining
+   * cards. Injected FIRST and marked `isThemeSynergyCard`, which is what earns
+   * them priority in cardPicking's `isHighSynergyCard` split regardless of
+   * their `Unknown` primary_type. Deliberately NOT `topcards`/`gamechangers`:
+   * those are generic power in these colours, i.e. the goodstuff this feature
+   * exists to be an alternative to.
+   */
+  highSynergyNames?: readonly string[];
   /** The tag page's own deck count — sets the per-card trust floor. */
   tagPagePotentialDecks: number;
   /** The COMMANDER page's deck count — sets the weight. */
@@ -119,6 +136,34 @@ export function blendTagPageIntoPool(input: BlendInput): BlendResult {
 
   const injectedNames: string[] = [];
 
+  // ── Tier 1: the archetype-defining cards ──────────────────────────────────
+  // These live only in the tag page's `allNonLand` union (parseCardlists gives
+  // highsynergycards no type bucket), which is exactly why the type-bucket loop
+  // below can't see them. Injected first so they claim their slots before the
+  // generic buckets, and marked isThemeSynergyCard so cardPicking prioritizes
+  // them despite carrying primary_type 'Unknown'.
+  const highSynergy = new Set((input.highSynergyNames ?? []).map((n) => n.toLowerCase()));
+  if (highSynergy.size > 0) {
+    const candidates = tagPageCardlists.allNonLand
+      .filter((c) => highSynergy.has(c.name.toLowerCase()))
+      .filter((c) => c.num_decks >= floor)
+      .filter((c) => !known.has(c.name.toLowerCase()))
+      .sort((a, b) => b.inclusion - a.inclusion)
+      .slice(0, MAX_INJECTED_SYNERGY);
+
+    for (const candidate of candidates) {
+      known.add(candidate.name.toLowerCase());
+      next.allNonLand.push({
+        ...candidate,
+        inclusion: candidate.inclusion * weight,
+        isThemeSynergyCard: true,
+        blendSource: ARCHETYPE_BLEND_SOURCE,
+      });
+      injectedNames.push(candidate.name);
+    }
+  }
+
+  // ── Tier 2: per-type backfill ─────────────────────────────────────────────
   for (const category of CATEGORIES) {
     const candidates = tagPageCardlists[category]
       .filter((c) => c.num_decks >= floor)

@@ -200,6 +200,71 @@ describe('blendTagPageIntoPool', () => {
     ]);
   });
 
+  // The defect Gate 2b caught: highsynergycards/topcards/gamechangers get no
+  // type bucket from parseCardlists — they live only in allNonLand — so the
+  // per-category loop never saw the archetype-defining list, and the generic
+  // type buckets (ordered by raw inclusion) supplied cost-reducers instead.
+  it('injects the archetype-defining high-synergy cards the type buckets can’t see', () => {
+    const payoff = { ...card('Mayhem Devil', 55), primary_type: 'Unknown' };
+    const tagPage = lists({ creatures: [card('Etherium Sculptor', 70)] });
+    tagPage.allNonLand = [...tagPage.allNonLand, payoff]; // synergy lists land here only
+
+    const result = blendTagPageIntoPool({
+      pool: emptyLists(),
+      tagPageCardlists: tagPage,
+      highSynergyNames: ['Mayhem Devil'],
+      tagPagePotentialDecks: 10_000,
+      commanderNumDecks: 100,
+    });
+
+    expect(result.injectedNames).toContain('Mayhem Devil');
+    const seated = result.cardlists.allNonLand.find((c) => c.name === 'Mayhem Devil')!;
+    // isThemeSynergyCard is what earns it priority in cardPicking's
+    // isHighSynergyCard split despite primary_type 'Unknown'.
+    expect(seated.isThemeSynergyCard).toBe(true);
+    expect(seated.blendSource).toBe('archetype-blend');
+  });
+
+  it('gives the synergy tier first claim over the generic type buckets', () => {
+    const dual = card('Ashnod’s Altar', 40);
+    const tagPage = lists({ artifacts: [dual] });
+    tagPage.allNonLand = [...tagPage.allNonLand];
+
+    const result = blendTagPageIntoPool({
+      pool: emptyLists(),
+      tagPageCardlists: tagPage,
+      highSynergyNames: ['Ashnod’s Altar'],
+      tagPagePotentialDecks: 10_000,
+      commanderNumDecks: 100,
+    });
+
+    // Injected once, via the synergy tier — not duplicated into artifacts too.
+    expect(result.injectedNames.filter((n) => n === 'Ashnod’s Altar')).toHaveLength(1);
+    expect(result.cardlists.allNonLand.filter((c) => c.name === 'Ashnod’s Altar')).toHaveLength(1);
+    expect(
+      result.cardlists.allNonLand.find((c) => c.name === 'Ashnod’s Altar')!.isThemeSynergyCard
+    ).toBe(true);
+  });
+
+  it('applies the same trust floor and weight to the synergy tier', () => {
+    const tagPage = lists({});
+    tagPage.allNonLand = [card('Too Rare', 90, 49), card('Solid', 20, 50)];
+
+    const result = blendTagPageIntoPool({
+      pool: emptyLists(),
+      tagPageCardlists: tagPage,
+      highSynergyNames: ['Too Rare', 'Solid'],
+      tagPagePotentialDecks: 10_000, // floor 50
+      commanderNumDecks: BLEND_N_MAX, // weight 0.35
+    });
+
+    expect(result.injectedNames).toEqual(['Solid']);
+    expect(result.cardlists.allNonLand.find((c) => c.name === 'Solid')!.inclusion).toBeCloseTo(
+      20 * BLEND_WEIGHT_MIN,
+      10
+    );
+  });
+
   it('is a no-op when the tag page adds nothing', () => {
     const result = blendTagPageIntoPool({
       pool: lists({ creatures: [card('Blood Artist', 60)] }),
