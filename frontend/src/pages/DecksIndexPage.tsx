@@ -35,6 +35,11 @@ import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { DeckFiltersPopover } from '../components/DeckFiltersPopover';
+import {
+  FilterChipsRow,
+  colorChipLabel,
+  type FilterChipDescriptor,
+} from '../components/shared/FilterChipsRow';
 import { OverflowMenu } from '../components/OverflowMenu';
 import {
   SelectToggle,
@@ -246,6 +251,43 @@ export function DecksIndexPage() {
   const setColorFilter = (next: Set<string>) => {
     setColorFilterRaw(next);
     persistFilters(formatFilter, sourceFilter, next);
+  };
+  // Active-filter chips — same affordance the collection and lists carry, so a
+  // filtered deck list says what's filtering it and each × clears one slice.
+  const filterChips = useMemo<FilterChipDescriptor[]>(() => {
+    const chips: FilterChipDescriptor[] = [];
+    if (search.trim())
+      chips.push({ id: 'search', label: `"${search.trim()}"`, onClear: () => setSearch('') });
+    if (formatFilter.size > 0)
+      chips.push({
+        id: 'format',
+        label: `Format: ${[...formatFilter].map((f) => DECK_FORMAT_CONFIGS[f]?.label ?? f).join(', ')}`,
+        onClear: () => setFormatFilter(new Set()),
+      });
+    if (sourceFilter.size > 0)
+      chips.push({
+        id: 'source',
+        label: `Source: ${[...sourceFilter].map((s) => (s === 'generated' ? 'Generated' : 'Manual')).join(', ')}`,
+        onClear: () => setSourceFilter(new Set()),
+      });
+    if (colorFilter.size > 0)
+      chips.push({
+        id: 'color',
+        label: `Color: ${colorChipLabel(colorFilter)}`,
+        onClear: () => setColorFilter(new Set()),
+      });
+    return chips;
+    // setXFilter are re-created each render (they close over sibling filter
+    // state to persist all three together) — depending on them would rebuild
+    // the chips every render for nothing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, formatFilter, sourceFilter, colorFilter]);
+  const clearAllFilters = () => {
+    setSearch('');
+    setFormatFilterRaw(new Set());
+    setSourceFilterRaw(new Set());
+    setColorFilterRaw(new Set());
+    persistFilters(new Set(), new Set(), new Set());
   };
   // Combined sort pill: clicking the active field flips direction;
   // clicking a different field switches to it with its default direction.
@@ -515,6 +557,8 @@ export function DecksIndexPage() {
             />
           </div>
         )}
+
+        <FilterChipsRow chips={filterChips} onClearAll={clearAllFilters} />
 
         {decks.length > 0 && (
           <div className="decks-index-sort-bar">

@@ -21,6 +21,16 @@ export interface ComboFilterState {
   hostOnly: boolean;
 }
 
+/** Human labels for the result buckets — shared by the popover and its chips. */
+export const COMBO_RESULT_LABELS: Record<ComboResultKind, string> = {
+  win: 'Wins the game',
+  mana: 'Mana',
+  damage: 'Damage',
+  draw: 'Draw',
+  tokens: 'Tokens',
+  life: 'Life',
+};
+
 export function emptyComboFilters(): ComboFilterState {
   return { colors: new Set(), results: new Set(), pieceCounts: new Set(), hostOnly: false };
 }

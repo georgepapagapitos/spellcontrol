@@ -15,10 +15,18 @@ import { CommanderTypeahead } from '../components/CommanderTypeahead';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import {
+  FilterChipsRow,
+  colorChipLabel,
+  type FilterChipDescriptor,
+} from '../components/shared/FilterChipsRow';
+import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
+import { BRACKET_LABELS } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { listDiscoverDecks, type DiscoverDeck, type DiscoverSortKey } from '../lib/discover-client';
 import {
   parseDiscoverFiltersFromSearchParams,
   discoverFiltersToSearchParams,
+  DISCOVER_BUDGET_LABELS,
   NO_DISCOVER_FILTERS,
   type DiscoverFilters,
 } from '../lib/discover-filters';
@@ -222,6 +230,46 @@ export function DiscoverDecksPage() {
     filters.colors.length > 0 ||
     filters.budget != null;
 
+  // Active-filter chips — same affordance the collection/lists/decks carry.
+  // Filters live in the URL here, so each × is just a narrower setFilters.
+  const filterChips = useMemo<FilterChipDescriptor[]>(() => {
+    const chips: FilterChipDescriptor[] = [];
+    if (filters.commander)
+      chips.push({
+        id: 'commander',
+        label: `Commander: ${filters.commander}`,
+        onClear: () => setFilters({ ...filters, commander: null }),
+      });
+    if (filters.format)
+      chips.push({
+        id: 'format',
+        label: `Format: ${DECK_FORMAT_CONFIGS[filters.format]?.label ?? filters.format}`,
+        onClear: () => setFilters({ ...filters, format: null }),
+      });
+    if (filters.brackets.length > 0)
+      chips.push({
+        id: 'brackets',
+        label: `Bracket: ${filters.brackets.map((n) => BRACKET_LABELS[n] ?? n).join(', ')}`,
+        onClear: () => setFilters({ ...filters, brackets: [] }),
+      });
+    if (filters.colors.length > 0)
+      chips.push({
+        id: 'colors',
+        label: `Color: ${colorChipLabel(filters.colors)}`,
+        onClear: () => setFilters({ ...filters, colors: [] }),
+      });
+    if (filters.budget)
+      chips.push({
+        id: 'budget',
+        label: `Budget: ${DISCOVER_BUDGET_LABELS[filters.budget]}`,
+        onClear: () => setFilters({ ...filters, budget: null }),
+      });
+    return chips;
+    // setFilters is re-created each render (it closes over setSearchParams);
+    // the chips only need to track the filter values themselves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters]);
+
   return (
     <>
       <DecksHubTabs />
@@ -263,6 +311,11 @@ export function DiscoverDecksPage() {
             ]}
           />
         </div>
+
+        <FilterChipsRow
+          chips={filterChips}
+          onClearAll={() => setFilters({ ...NO_DISCOVER_FILTERS })}
+        />
 
         {filters.budget != null && (
           <p className="discover-budget-note">

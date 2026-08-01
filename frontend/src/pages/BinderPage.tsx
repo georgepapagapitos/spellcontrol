@@ -29,6 +29,7 @@ import { BinderView } from '../components/BinderView';
 import { BinderListView } from '../components/BinderListView';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
+import { FilterChipsRow } from '../components/shared/FilterChipsRow';
 import { FilterPopover } from '../components/FilterPopover';
 import { useSetMap } from '../lib/api';
 import { useConfirm } from '../lib/use-confirm';
@@ -381,6 +382,14 @@ export function BinderPage() {
           }
         />
       </div>
+      <FilterChipsRow
+        chips={
+          search.trim()
+            ? [{ id: 'search', label: `"${search.trim()}"`, onClear: () => setSearch('') }]
+            : []
+        }
+        onClearAll={() => setSearch('')}
+      />
       {view === 'pages' ? (
         <BinderView
           binders={materialized}
