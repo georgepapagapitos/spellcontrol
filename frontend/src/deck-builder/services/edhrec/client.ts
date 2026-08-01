@@ -1367,6 +1367,39 @@ export async function fetchCommandersIncludingColors(
 }
 
 /**
+ * Fetch commanders from EDHREC for all color combos that are a *subset* of
+ * the given colors — i.e. playable within that color identity. E.g.
+ * colors=['W','G'] returns mono-white, mono-green, selesnya, and colorless
+ * commanders, but not azorius or golgari. Returns all entries (not capped to
+ * 12) sorted by deck count, with duplicates removed.
+ */
+export async function fetchCommandersWithinColors(colors: string[]): Promise<EDHRECTopCommander[]> {
+  const required = new Set(colors.map((c) => c.toUpperCase()).filter((c) => c !== 'C'));
+
+  // Find all color keys whose colors are entirely contained in the given set.
+  const matchingKeys = ALL_COLOR_KEYS.filter((key) => [...key].every((c) => required.has(c)));
+
+  // Colorless is a subset of every identity, so it's always included.
+  const results = await Promise.all([
+    fetchAllCommandersForColor(['C']),
+    ...matchingKeys.map((key) => fetchAllCommandersForColor(key.split(''))),
+  ]);
+
+  // Union + dedupe by name, keeping the entry with the highest deck count
+  const map = new Map<string, EDHRECTopCommander>();
+  for (const list of results) {
+    for (const cmd of list) {
+      const existing = map.get(cmd.name);
+      if (!existing || cmd.numDecks > existing.numDecks) {
+        map.set(cmd.name, cmd);
+      }
+    }
+  }
+
+  return [...map.values()].sort((a, b) => b.numDecks - a.numDecks);
+}
+
+/**
  * Fetch ALL commanders (up to 100) for an exact color combo from EDHREC.
  * Unlike fetchTopCommanders which returns top 12, this returns the full page.
  * Results are cached for 30 minutes.
