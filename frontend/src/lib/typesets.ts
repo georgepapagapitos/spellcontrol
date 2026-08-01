@@ -29,10 +29,15 @@ export interface TypeSetDef {
 
 /**
  * The set whose fonts are hard-linked in index.html. Changing this constant
- * re-skins the app for everyone who has never opened the picker, so it must
- * be changed together with that <link>.
+ * re-skins the app for everyone who has never opened the picker, so it travels
+ * with THREE other edits — miss one and the first paint disagrees with the
+ * rest of the app:
+ *   1. the static <link> in index.html (which faces get preloaded),
+ *   2. the `--font-*` fallbacks in styles/tokens.css (what renders before any
+ *      [data-typeset] rule matches),
+ *   3. the DEFAULT_TYPESET literal in index.html's pre-paint script.
  */
-export const DEFAULT_TYPESET = 'folio';
+export const DEFAULT_TYPESET = 'grimoire';
 
 const GF = 'https://fonts.googleapis.com/css2?';
 
