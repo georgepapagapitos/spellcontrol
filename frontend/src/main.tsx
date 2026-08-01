@@ -31,6 +31,7 @@ import './styles/binder-card-management.css';
 import './styles/admin-scanner.css';
 import './styles/holographic.css';
 import './styles/themes.css';
+import './styles/typesets.css';
 // Split from the former styles/deck-builder.css — imported in original cascade order (byte-identical).
 import './styles/deck-builder-page.css';
 import './styles/deck-builder-commander.css';
@@ -69,6 +70,7 @@ import './styles/play-layout-editor.css';
 import './styles/play-counters-panel.css';
 import './styles/shared.css';
 import { bootstrapTheme, useThemeStore } from './store/theme';
+import { bootstrapTypeSet } from './store/typeset';
 import { loadTaggerData } from './deck-builder/services/tagger/client';
 import { loadCardSimilar } from './deck-builder/services/deckBuilder/cardSimilar';
 import { registerPwa } from './lib/register-pwa';
@@ -77,6 +79,7 @@ import { initKeyboardLayer } from './lib/keyboard';
 
 tagPlatform();
 bootstrapTheme();
+bootstrapTypeSet();
 void syncStatusBar();
 initKeyboardLayer();
 // Re-sync the native status bar icons whenever the user switches themes;

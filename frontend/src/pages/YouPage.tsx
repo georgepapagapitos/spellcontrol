@@ -29,6 +29,7 @@ import { resetAppCacheAndReload } from '../lib/reset-app-cache';
 import { AdminPanel } from '../components/AdminPanel';
 import { getPendingCount } from '../lib/sync';
 import { ProfileEditor } from '../components/ProfileEditor';
+import { TypeSetPicker } from '../components/TypeSetPicker';
 import { FriendsManagement } from '../components/FriendsManagement';
 import { scrollToHeading } from '../lib/scroll-to-heading';
 import { listPods, pendingPodInviteCount, type Pod } from '../lib/pods-client';
@@ -522,6 +523,21 @@ export function YouPage() {
                 </label>
               ))}
             </fieldset>
+          </div>
+        </section>
+
+        <section className="settings-card" aria-labelledby="settings-typeface-title">
+          <header className="settings-card-header">
+            <h2 id="settings-typeface-title" className="settings-card-title">
+              Typeface
+            </h2>
+            <p className="settings-card-hint">
+              A set changes every face at once — titles, body, labels, and numerals are picked to go
+              together. Independent of theme.
+            </p>
+          </header>
+          <div className="settings-card-body">
+            <TypeSetPicker />
           </div>
         </section>
       </div>

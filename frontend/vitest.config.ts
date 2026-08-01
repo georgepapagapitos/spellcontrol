@@ -21,6 +21,14 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    // happy-dom fetches the href of any <link rel="stylesheet"> appended to
+    // the document. The typeface picker appends real Google Fonts links, so
+    // without this the suite makes live network calls — slow, offline-hostile,
+    // and a source of unhandled NetworkError noise on teardown. No test should
+    // ever need a remote stylesheet's contents.
+    environmentOptions: {
+      happyDOM: { settings: { disableCSSFileLoading: true } },
+    },
     globals: true,
     // Vitest's defaults (5s per test, 10s per hook) are sized for an idle
     // machine. Several tests here are genuinely compute-heavy — the
