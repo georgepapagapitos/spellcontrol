@@ -30,6 +30,7 @@ import type {
   Customization,
   CollectionStrategy,
   GeneratedDeck,
+  ManaPhilosophy,
   ScryfallCard,
 } from '@/deck-builder/types';
 import type { GenerationContext } from './deckGeneration/state';
@@ -62,6 +63,17 @@ const COLLECTION_NAMES: Set<string> | undefined = COLLECTION_PATH
 const COLLECTION_STRATEGY: CollectionStrategy | undefined =
   (process.env.LIVE_GEN_COLLECTION_STRATEGY as CollectionStrategy | undefined) ??
   (COLLECTION_NAMES ? 'prefer' : undefined);
+
+// E231 A/B knob: LIVE_GEN_MANA_PHILOSOPHY="reliable,greedy,spelllands,budget"
+// (four raw numbers — the engine normalizes them) forces the mana-philosophy
+// wheel on; unset leaves the product default, which is OFF (no wheel pass at
+// all, manabase byte-identical).
+function manaPhilosophyEnv(): ManaPhilosophy | undefined {
+  const raw = process.env.LIVE_GEN_MANA_PHILOSOPHY;
+  if (!raw) return undefined;
+  const [reliable, greedy, spelllands, budget] = raw.split(',').map((v) => Number(v.trim()) || 0);
+  return { reliable, greedy, spelllands, budget };
+}
 
 // ---- Customization factory (copied from deckGenerator.golden.test.ts) -----
 
@@ -122,6 +134,7 @@ function customization(overrides: Partial<Customization> = {}): Customization {
         : process.env.LIVE_GEN_ARCHETYPE_BLEND === '0'
           ? false
           : undefined,
+    manaPhilosophy: manaPhilosophyEnv(),
     ...overrides,
   };
 }
