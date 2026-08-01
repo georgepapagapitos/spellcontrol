@@ -227,8 +227,7 @@ export function TagsPage() {
           <div className="tags-page-status tags-page-landing">
             <p className="empty-state-tagline">Pick a tag to see what it finds.</p>
             <p className="empty-state-hint">
-              Choose more than one to narrow — “sweeper” plus “instant speed” is a much shorter
-              list. Tap a result to read it; + adds a copy to your collection.
+              Combine tags to narrow — “sweeper” plus “instant speed” is a much shorter list.
             </p>
           </div>
         )

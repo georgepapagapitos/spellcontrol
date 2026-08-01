@@ -182,7 +182,6 @@ export function SearchPage() {
           <p className="empty-state-tagline">Every card, one search away.</p>
           <p className="empty-state-hint">
             Type a card name, or use Scryfall syntax like “t:dragon cmc&lt;4” or “o:landfall c:g”.
-            Tap a result to read it; + adds a copy to your collection.
           </p>
         </div>
       )}
