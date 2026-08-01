@@ -692,8 +692,7 @@ export function FriendsManagement() {
             <div className="empty-state" role="status">
               <p className="empty-state-tagline">Nothing new from friends yet.</p>
               <p className="empty-state-hint">
-                Add friends or check back later — this fills in as they publish decks or share with
-                you.
+                This fills in as friends publish decks or share with you.
               </p>
             </div>
           ) : (

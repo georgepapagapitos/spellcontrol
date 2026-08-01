@@ -171,8 +171,8 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
         <div className="empty-state">
           <p className="empty-state-tagline">No game nights planned.</p>
           <p className="empty-state-hint">
-            Pick a date — or let the group vote on one — invite friends, and share the link. Anyone
-            can RSVP, no account needed.
+            Pick a date or let the group vote, then share the link. Anyone can RSVP, no account
+            needed.
           </p>
           <div className="empty-state-actions">
             <button type="button" className="btn btn-primary" onClick={() => setDialog('create')}>
