@@ -36,7 +36,12 @@ import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../
 import { reconcileBinderRefs, addRef, removeRef, setOrderRefs } from '../lib/binder-refs';
 import { acknowledgeInSnapshot, referencedLegalityFormats } from '../lib/binder-drift';
 import { computeBinderMoves, formatBinderMoveMessage, type BinderMove } from '../lib/binder-moves';
-import { computeMovers, recordDailyMovers, recordValueSnapshot } from '../lib/value-history';
+import {
+  computeMovers,
+  recordDailyMovers,
+  recordEmptyCollectionSnapshot,
+  recordValueSnapshot,
+} from '../lib/value-history';
 import { logBinderMoves } from '../lib/welcome-digest';
 import { bindersUseTags, decorateWithTags, ensureCardTags } from '../lib/card-tags';
 import { buildAllocationMap } from '../lib/allocations';
@@ -995,7 +1000,16 @@ export const useCollectionStore = create<CollectionState>()(
 
       autoRefreshStalePrices: async () => {
         const s = get();
-        if (s.cards.length === 0 || s.isRefreshingPrices) return;
+        if (s.isRefreshingPrices) return;
+        if (s.cards.length === 0) {
+          // Boot-time catch-all for a collection emptied somewhere the local
+          // subscriber below can't see — most importantly a DELETE that arrived
+          // as a sync tombstone from another device, which lands under the
+          // applyingServer guard. Records $0 (no-op on a never-used log) and
+          // stops: there is nothing to price.
+          void recordEmptyCollectionSnapshot().catch(() => {});
+          return;
+        }
         // Never reach for the network when we know we're offline. (navigator is
         // absent in the node test env; treat that as "online" so logic is testable.)
         if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
@@ -1683,4 +1697,25 @@ useCollectionStore.subscribe((state, prev) => {
   void import('../lib/sync')
     .then((sync) => sync.persistBindersState(state.binders))
     .catch(() => {});
+});
+
+/**
+ * Log a $0 value point the moment the collection goes empty locally.
+ *
+ * A subscriber rather than a hook in `persistCollection()` because the widest
+ * path to empty — `clearCards()` — writes through `clearCollection()` and never
+ * calls `persistCollection` at all. Every local emptying is a `set({ cards })`,
+ * so watching the transition is the one place they all pass through.
+ *
+ * `isApplyingServer()` is load-bearing here, not copied boilerplate: `sync.ts`'s
+ * `resetInMemoryStores()` blanks `cards` on logout/account-switch, and that is
+ * NOT the collection being emptied — recording $0 there would corrupt today's
+ * point for a collection that still exists. The boot-time catch-all in
+ * `autoRefreshStalePrices` is what covers the deletions this guard skips.
+ */
+useCollectionStore.subscribe((state, prev) => {
+  if (state.cards === prev.cards) return;
+  if (state.cards.length > 0 || prev.cards.length === 0) return;
+  if (isApplyingServer()) return;
+  void recordEmptyCollectionSnapshot().catch(() => {});
 });
