@@ -12,6 +12,7 @@ import {
   getLatestMovers,
   getValueHistory,
   recordDailyMovers,
+  recordEmptyCollectionSnapshot,
   recordValueSnapshot,
   type CardMover,
   type ValueDelta,
@@ -110,6 +111,25 @@ describe('recordValueSnapshot / getValueHistory', () => {
     expect(points).toHaveLength(90);
     expect(points[0].day).toBe(dayKey(atDay(5)));
     expect(points[89].day).toBe(dayKey(atDay(94)));
+  });
+});
+
+describe('recordEmptyCollectionSnapshot', () => {
+  it('logs $0 so an emptied collection stops reporting its old total', async () => {
+    await recordValueSnapshot(420, atDay(0));
+    await recordEmptyCollectionSnapshot(atDay(1));
+    expect((await getValueHistory()).map((p) => p.value)).toEqual([420, 0]);
+  });
+
+  it('does nothing when the log is empty — a user who never imported keeps no trend', async () => {
+    await recordEmptyCollectionSnapshot(atDay(0));
+    expect(await getValueHistory()).toEqual([]);
+  });
+
+  it('overwrites the same day, so deleting the collection zeroes today at once', async () => {
+    await recordValueSnapshot(420, atDay(0));
+    await recordEmptyCollectionSnapshot(atDay(0));
+    expect((await getValueHistory()).map((p) => p.value)).toEqual([0]);
   });
 });
 
