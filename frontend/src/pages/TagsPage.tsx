@@ -1,4 +1,4 @@
-import { LayoutGrid, List, X } from 'lucide-react';
+import { ChevronDown, LayoutGrid, List, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import './TagsPage.css';
@@ -43,6 +43,10 @@ export function TagsPage() {
   );
   const ready = useCardTagsReady();
   const loadError = useCardTagsError();
+  const hasSelection = selected.length > 0;
+  // Browse mode is the whole page until something is selected; after that the
+  // cards are the point and the browser is opt-in.
+  const [browseOpen, setBrowseOpen] = useState(!hasSelection);
 
   const matches = useMemo(
     () => (ready ? searchTags(listCardTagsRanked(), tagQuery, TAG_LIMIT) : []),
@@ -50,11 +54,23 @@ export function TagsPage() {
   );
   const total = ready ? listCardTagsRanked().length : 0;
 
-  const setSelected = (next: string[]) =>
+  const setSelected = (next: string[]) => {
     setParams(next.length ? { t: next.join(',') } : {}, { replace: true });
+    // First pick swaps the page into results mode; emptying the selection (a
+    // chip × or Clear all) puts the browser back. Picks in between leave the
+    // panel as the user left it.
+    if (!hasSelection && next.length) setBrowseOpen(false);
+    else if (!next.length) setBrowseOpen(true);
+  };
 
   const toggleTag = (slug: string) =>
     setSelected(selected.includes(slug) ? selected.filter((s) => s !== slug) : [...selected, slug]);
+
+  // Typing is an intent to browse — don't make the user open the panel first.
+  const onTagQueryChange = (next: string) => {
+    setTagQuery(next);
+    if (next.trim()) setBrowseOpen(true);
+  };
 
   const query = tagsToQuery(selected);
 
@@ -72,7 +88,7 @@ export function TagsPage() {
         className="tags-page-pill"
         placeholder={total ? `Search ${total.toLocaleString()} tags…` : 'Search tags…'}
         value={tagQuery}
-        onChange={setTagQuery}
+        onChange={onTagQueryChange}
         ariaLabel="Search card tags"
       />
 
@@ -99,56 +115,83 @@ export function TagsPage() {
         </div>
       )}
 
-      {!ready && loadError ? (
-        <div className="tags-page-status" role="alert">
-          <p className="empty-state-tagline">Couldn’t load the tag list.</p>
-          <p className="empty-state-hint">
-            The tag snapshot ships with the app, so this is usually a one-off.{' '}
-            <button type="button" className="tags-retry" onClick={() => void ensureCardTags()}>
-              Try again
-            </button>
-          </p>
-        </div>
-      ) : !ready ? (
-        <p className="tags-page-status" role="status">
-          Loading tags…
-        </p>
-      ) : matches.length === 0 ? (
-        <div className="tags-page-status">
-          <p className="empty-state-tagline">No tag matches “{tagQuery.trim()}”.</p>
-          <p className="empty-state-hint">
-            Tags describe function — try “sweeper”, “tutor”, “token”, or “counter”.
-          </p>
-        </div>
-      ) : (
-        <>
-          <ul className="tags-list" role="list">
-            {matches.map(({ slug, count }) => {
-              const active = selected.includes(slug);
-              return (
-                <li key={slug}>
-                  <button
-                    type="button"
-                    className={`tags-row${active ? ' is-active' : ''}`}
-                    aria-pressed={active}
-                    onClick={() => toggleTag(slug)}
-                  >
-                    <span className="tags-row-head">
-                      <span className="tags-row-label">{cardTagLabel(slug)}</span>
-                      <span className="tags-row-count">{count.toLocaleString()} cards</span>
-                    </span>
-                    <span className="tags-row-desc">{describeOtag(slug)}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          {total > matches.length && (
-            <p className="tags-list-note">
-              Showing {matches.length} of {total.toLocaleString()} tags — search to narrow.
+      {/* Once a tag is picked the page is about the CARDS, so the browser
+          collapses to a disclosure rather than pushing results a full screen
+          down. Reopening it caps at 40vh with its own scroll, so the results
+          never get shoved off-screen again. */}
+      {hasSelection && (
+        <button
+          type="button"
+          className="tags-browse-toggle"
+          aria-expanded={browseOpen}
+          aria-controls="tags-browse-panel"
+          onClick={() => setBrowseOpen((open) => !open)}
+        >
+          <ChevronDown
+            className={`tags-browse-chevron${browseOpen ? ' is-open' : ''}`}
+            width={13}
+            height={13}
+            strokeWidth={2}
+            aria-hidden
+          />
+          {browseOpen ? 'Hide tags' : 'Add another tag'}
+        </button>
+      )}
+
+      {browseOpen && (
+        <div id="tags-browse-panel">
+          {!ready && loadError ? (
+            <div className="tags-page-status" role="alert">
+              <p className="empty-state-tagline">Couldn’t load the tag list.</p>
+              <p className="empty-state-hint">
+                The tag snapshot ships with the app, so this is usually a one-off.{' '}
+                <button type="button" className="tags-retry" onClick={() => void ensureCardTags()}>
+                  Try again
+                </button>
+              </p>
+            </div>
+          ) : !ready ? (
+            <p className="tags-page-status" role="status">
+              Loading tags…
             </p>
+          ) : matches.length === 0 ? (
+            <div className="tags-page-status">
+              <p className="empty-state-tagline">No tag matches “{tagQuery.trim()}”.</p>
+              <p className="empty-state-hint">
+                Tags describe function — try “sweeper”, “tutor”, “token”, or “counter”.
+              </p>
+            </div>
+          ) : (
+            <>
+              <ul className={`tags-list${hasSelection ? ' tags-list--panel' : ''}`} role="list">
+                {matches.map(({ slug, count }) => {
+                  const active = selected.includes(slug);
+                  return (
+                    <li key={slug}>
+                      <button
+                        type="button"
+                        className={`tags-row${active ? ' is-active' : ''}`}
+                        aria-pressed={active}
+                        onClick={() => toggleTag(slug)}
+                      >
+                        <span className="tags-row-head">
+                          <span className="tags-row-label">{cardTagLabel(slug)}</span>
+                          <span className="tags-row-count">{count.toLocaleString()} cards</span>
+                        </span>
+                        <span className="tags-row-desc">{describeOtag(slug)}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {total > matches.length && (
+                <p className="tags-list-note">
+                  Showing {matches.length} of {total.toLocaleString()} tags — search to narrow.
+                </p>
+              )}
+            </>
           )}
-        </>
+        </div>
       )}
 
       {selected.length > 0 ? (

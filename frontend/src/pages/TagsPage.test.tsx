@@ -51,17 +51,42 @@ describe('TagsPage', () => {
     expect(screen.getByText('Pick a tag to see what it finds.')).toBeTruthy();
   });
 
-  it('searches a selected tag and intersects further picks', () => {
+  it('collapses the browser on the first pick so results aren’t pushed off-screen', () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: /Removal/ }));
     expect(screen.getByTestId('results').textContent).toBe('otag:removal');
-    fireEvent.click(screen.getByRole('button', { name: /Mana rock/ }));
-    expect(screen.getByTestId('results').textContent).toBe('otag:removal otag:mana-rock');
+    // The 120-row grid is gone; only the disclosure remains.
+    expect(screen.queryByRole('button', { name: /6,258 cards/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Add another tag' })).toBeTruthy();
   });
 
-  it('restores a selection from the ?t= param', () => {
+  it('reopens the browser to intersect a second tag', () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /Removal/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add another tag' }));
+    fireEvent.click(screen.getByRole('button', { name: /Mana rock/ }));
+    expect(screen.getByTestId('results').textContent).toBe('otag:removal otag:mana-rock');
+    // Stays open for a third pick — only the first selection collapses it.
+    expect(screen.getByRole('button', { name: 'Hide tags' })).toBeTruthy();
+  });
+
+  it('restores the browser when the last tag is cleared', () => {
+    renderPage('/tags?t=removal');
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all' }));
+    expect(screen.getByRole('button', { name: /6,258 cards/ })).toBeTruthy();
+    expect(screen.queryByTestId('results')).toBeNull();
+  });
+
+  it('restores a selection from the ?t= param, browser collapsed', () => {
     renderPage('/tags?t=mana-rock');
     expect(screen.getByTestId('results').textContent).toBe('otag:mana-rock');
+    expect(screen.queryByRole('button', { name: /369 cards/ })).toBeNull();
+  });
+
+  it('reopens the browser when the user types, without needing the disclosure', () => {
+    renderPage('/tags?t=removal');
+    fireEvent.change(screen.getByLabelText('Search card tags'), { target: { value: 'rock' } });
+    expect(screen.getByRole('button', { name: /369 cards/ })).toBeTruthy();
   });
 
   it('filters the tag list and shows a no-match empty state', () => {

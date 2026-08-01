@@ -78,6 +78,59 @@
 
 /* --- tag browser ----------------------------------------------------- */
 
+/* Disclosure, shown only once a tag is selected — in browse mode the grid is
+   already the page and there's nothing to toggle. */
+.tags-browse-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: var(--space-2);
+  padding: 0.15rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.tags-browse-toggle[aria-expanded='true'] {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+.tags-browse-chevron {
+  transition: transform 120ms ease;
+}
+
+.tags-browse-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tags-browse-chevron {
+    transition: none;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tags-browse-toggle:hover {
+    color: var(--text-primary);
+    border-color: var(--text-secondary);
+  }
+}
+
+.tags-browse-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .tags-browse-toggle {
+    min-height: 44px;
+  }
+}
+
 .tags-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -85,6 +138,15 @@
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+/* Reopened alongside results: cap the height so the cards stay on screen
+   instead of being pushed a full page down again. */
+.tags-list--panel {
+  max-height: 40vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: var(--space-1);
 }
 
 .tags-row {
@@ -225,11 +287,12 @@
   max-width: 1100px;
 }
 
+/* Only the head/pill/selection stay on the reading rail. The tag grid itself
+   spans the full width here on purpose — more tags per screen is precisely
+   what stops this page being a long scroll. */
 .tags-page--grid .tags-page-head,
 .tags-page--grid .tags-page-pill,
 .tags-page--grid .tags-selected,
-.tags-page--grid .tags-list,
-.tags-page--grid .tags-list-note,
 .tags-page--grid .tags-page-status {
   width: 100%;
   max-width: 540px;
