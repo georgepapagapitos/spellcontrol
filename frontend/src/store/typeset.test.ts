@@ -3,7 +3,12 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useTypeSetStore, bootstrapTypeSet } from './typeset';
 import { DEFAULT_TYPESET, TYPESETS } from '../lib/typesets';
 
-const VALID = 'grimoire';
+// Must NOT be DEFAULT_TYPESET: these cases assert that a non-default set
+// injects a font <link>, and the default deliberately injects none (its faces
+// are already in index.html). Asserted below so flipping the default can't
+// silently turn those into vacuous tests.
+const VALID = 'codex';
+const OTHER = 'broadsheet';
 const INVALID = 'not-a-real-typeset';
 const KEY = 'spellcontrol-typeset';
 
@@ -21,6 +26,15 @@ beforeEach(() => {
 });
 
 describe('typeset store', () => {
+  it('the fixtures are genuinely non-default (guards the assertions below)', () => {
+    // If a future default flip made VALID/OTHER the default, every
+    // "injects a link" case below would silently start asserting nothing.
+    expect(VALID).not.toBe(DEFAULT_TYPESET);
+    expect(OTHER).not.toBe(DEFAULT_TYPESET);
+    expect(TYPESETS.find((t) => t.id === VALID)?.href).toBeTruthy();
+    expect(TYPESETS.find((t) => t.id === OTHER)?.href).toBeTruthy();
+  });
+
   it('setTypeSet stamps data-typeset and persists', () => {
     useTypeSetStore.getState().setTypeSet(VALID);
     expect(useTypeSetStore.getState().typeset).toBe(VALID);
@@ -45,9 +59,9 @@ describe('typeset store', () => {
 
   it('reuses one link element across switches instead of stacking them', () => {
     useTypeSetStore.getState().setTypeSet(VALID);
-    useTypeSetStore.getState().setTypeSet('broadsheet');
+    useTypeSetStore.getState().setTypeSet(OTHER);
     expect(document.querySelectorAll('#sc-typeset-fonts')).toHaveLength(1);
-    expect(fontLink()!.href).toBe(TYPESETS.find((t) => t.id === 'broadsheet')!.href);
+    expect(fontLink()!.href).toBe(TYPESETS.find((t) => t.id === OTHER)!.href);
   });
 
   it('removes the injected link when returning to the default set', () => {

@@ -58,19 +58,25 @@
   --info: #7aa5e8;
 
   /* ── Typography ───────────────────────────────────────────────────────── */
-  --font-serif: 'Eczar', 'Georgia', serif;
-  --font-mono: 'IBM Plex Mono', 'Menlo', 'Consolas', monospace;
-  /* Label face (restyle T53 Phase 2) — condensed grotesque for chrome, tab,
-     and tape labels only (always uppercase + letter-spaced there); body
-     text stays --font-serif. Loaded in index.html beside Eczar/Plex. */
-  --font-label: 'Archivo Narrow', 'Avenir Next Condensed', 'Arial Narrow', sans-serif;
-  /* Display face (restyle Phase 6, E154) — vintage Goudy oldstyle for
-     HERO-TIER titles only: binder/deck hero names and page-identity titles
-     at --text-xl and up. Ships a single 400 cut — every rule using it must
-     pin font-weight: 400 or the browser synthesizes a smeared faux-bold.
-     Section titles, dialog titles, body all stay --font-serif; see
-     STYLE_GUIDE § Typography. Loaded in index.html beside the others. */
-  --font-display: 'Sorts Mill Goudy', 'Eczar', 'Georgia', serif;
+  /* These four are the FALLBACK values only — what renders before any
+     [data-typeset] rule matches. The real per-set values live in
+     styles/typesets.css and are selected by the user (STYLE_GUIDE § Type
+     sets). Keep these four mirroring DEFAULT_TYPESET (currently `grimoire`)
+     and the static <link> in index.html: if they drift, the pre-attribute
+     paint uses faces that aren't downloaded and the first frame renders in
+     Georgia before snapping.
+
+     Roles, not faces — every rule elsewhere is written against the token:
+       --font-serif    body, controls, section/lane titles
+       --font-display  HERO TIER only (--text-xl and up); always weight 400,
+                       several sets' display faces ship a single cut and the
+                       browser synthesizes a smeared faux-bold otherwise
+       --font-label    chrome/tab/tape labels, uppercase + letter-spaced only
+       --font-mono     data: prices, qty, set codes, tabular numerals */
+  --font-serif: 'Vollkorn', 'Georgia', serif;
+  --font-mono: 'Space Mono', 'Menlo', 'Consolas', monospace;
+  --font-label: 'Oswald', 'Avenir Next Condensed', 'Arial Narrow', sans-serif;
+  --font-display: 'Germania One', 'Vollkorn', 'Georgia', serif;
 
   /* Type scale — 8 steps. Use these instead of raw rem values so adjacent
      sizes don't drift apart by a single pixel and look like accidents. */

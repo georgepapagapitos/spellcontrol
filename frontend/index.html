@@ -49,8 +49,13 @@
     <meta name="twitter:image" content="https://spellcontrol.com/og-image.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Faces for the DEFAULT type set only (grimoire: Germania One / Vollkorn
+         / Oswald / Space Mono). Every other set's stylesheet is injected at
+         runtime by store/typeset.ts, so a user on a non-default set never pays
+         for these. Keep in lockstep with DEFAULT_TYPESET in lib/typesets.ts and
+         the `--font-*` fallbacks in styles/tokens.css. -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Eczar:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Sorts+Mill+Goudy&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Germania+One&family=Oswald:wght@400;500;600&family=Space+Mono:wght@400;700&family=Vollkorn:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <script>
@@ -90,6 +95,34 @@
         } catch (e) {}
         document.documentElement.setAttribute('data-theme', id);
         document.documentElement.setAttribute('data-scheme', SCHEMES[id]);
+
+        // Same trick for the type set. This one matters MORE than the theme:
+        // a late attribute swap changes the font of every element, so every
+        // line box re-measures and the whole page reflows, where a late theme
+        // only repaints. bootstrapTypeSet() in store/typeset.ts runs at module
+        // load — i.e. after this document is parsed — so without this the
+        // first paint would use the default faces and then jump.
+        // Keep TYPESETS + DEFAULT_TYPESET in sync with lib/typesets.ts.
+        var TYPESETS = [
+          'folio',
+          'codex',
+          'grimoire',
+          'almanac',
+          'workshop',
+          'broadsheet',
+          'plain',
+        ];
+        var DEFAULT_TYPESET = 'grimoire';
+        var ts = DEFAULT_TYPESET;
+        try {
+          var traw = localStorage.getItem('spellcontrol-typeset');
+          if (traw) {
+            var tparsed = JSON.parse(traw);
+            var tsaved = tparsed && tparsed.state && tparsed.state.typeset;
+            if (tsaved && TYPESETS.indexOf(tsaved) !== -1) ts = tsaved;
+          }
+        } catch (e) {}
+        document.documentElement.setAttribute('data-typeset', ts);
       })();
     </script>
   </head>

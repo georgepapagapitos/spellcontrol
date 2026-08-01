@@ -453,9 +453,10 @@ user choice — see § Type sets.
 | Label   | `--font-label`   | Chrome/tab/tape labels, uppercase + tracked — see § App chrome                                       | prose, headings, form controls                        |
 | Data    | `--font-mono`    | Data: prices, qty, set codes, tabular numerals                                                       | —                                                     |
 
-In the default set (**Folio**) those roles are Eczar / Sorts Mill Goudy /
-Archivo Narrow / IBM Plex Mono respectively — the pairing the rest of this
-section's examples were written against.
+In the default set (**Grimoire**) those roles are Vollkorn / Germania One /
+Oswald / Space Mono respectively. Older examples in this section were written
+against **Folio** (Eczar / Sorts Mill Goudy / Archivo Narrow / IBM Plex Mono),
+which is still a selectable set — where one names a face, read the role.
 
 ### Type sets — the user-selectable typeface axis
 
@@ -509,16 +510,19 @@ Rulings for `--font-display` (restyle Phase 6):
   `--font-serif`: dialog/sheet/modal titles (a confirm dialog is not ceremony),
   section and lane headings, empty-state taglines, error-state titles
   ("Link not found"), stat numerals, the `--text-lg` home greeting.
-- **Single 400 cut — always pair `font-family: var(--font-display)` with
-  `font-weight: 400`.** Sorts Mill Goudy ships no bold; a leftover 600/700
-  makes the browser synthesize a smeared faux-bold. Hierarchy comes from size
+- **Always pair `font-family: var(--font-display)` with `font-weight: 400`.**
+  Several sets' display faces ship a single cut (Germania One, Sorts Mill
+  Goudy, Marcellus, IM Fell English…), and a leftover 600/700 makes the
+  browser synthesize a smeared faux-bold. Sets whose face does have a bold
+  simply render regular. Hierarchy comes from size
   - face contrast (the vintage-print convention), never weight. A rename input
     smaller than its title (`.pod-hub-name-input`, `--text-lg`) is a form
     control and stays `--font-serif` — only a same-size editable twin of the
     title itself (`.deck-editor-name-input`) wears the display face.
-- **Fallback degrades to Eczar, not Georgia-bold-soup:** the stack is
-  `'Sorts Mill Goudy', 'Eczar', 'Georgia', serif`, so a failed font load
-  renders a lighter Eczar title and nothing else moves.
+- **Fallback degrades to the set's own body face, not Georgia-bold-soup:**
+  every set's display stack ends `<display>, <its body face>, 'Georgia', serif`
+  (default: `'Germania One', 'Vollkorn', 'Georgia', serif`), so a failed font
+  load renders a lighter same-set title and nothing else moves.
 - **The display wordmark is one voice (E156).** Everywhere "SpellControl"
   renders at identity scale — `.site-brand` (header chrome), `.shared-brand`
   (public brandbar), `.auth-title` — it wears `--font-display` at
