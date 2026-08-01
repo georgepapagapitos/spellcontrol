@@ -70,10 +70,8 @@ export function OfflineModeSettings(): React.ReactElement | null {
           Card data
         </h2>
         <p className="settings-card-hint">
-          A local copy of the Scryfall card catalog and combo dataset is kept on this device so
-          searches, deck generation, and combo matching work without a network round-trip. It
-          refreshes automatically in the background; refresh it manually below if you need the
-          latest data right away.
+          The card catalog and combo data are kept on this device so search, deck generation, and
+          combo matching work offline. It refreshes in the background.
         </p>
       </header>
       <div className="settings-card-body">

@@ -259,8 +259,8 @@ function BracketGroup({ customization, update }: DeckCustomizerProps) {
         </fieldset>
         {customization.targetBracket === 1 && (
           <p className="deck-customizer-hint">
-            Exhibition is a themed-build intent, not a measurable power level — the build report
-            will always estimate it at Core (2) or higher. That's expected, not a miss.
+            Exhibition is a themed-build intent, not a power level — expect the build report to
+            estimate it at Core (2) or higher.
           </p>
         )}
       </div>
