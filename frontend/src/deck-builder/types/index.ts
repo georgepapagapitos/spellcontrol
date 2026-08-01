@@ -1002,6 +1002,12 @@ export interface Customization {
   // panel clears (see docs/e221-archetype-blend-spec.md §4). No UI toggle in
   // v1 — the live-eval harness forces it via LIVE_GEN_ARCHETYPE_BLEND=1/0.
   archetypeBlend?: boolean;
+  // Hyper Focus (Manafoundry ranked item 21): bias picks toward cards the
+  // selected THEME distinguishes, by diffing the theme pool against the
+  // commander's own no-theme base pool. `undefined` = OFF; ships behind the
+  // flag until a 0-regressed panel clears. No UI toggle in v1 — the live-eval
+  // harness forces it via LIVE_GEN_HYPER_FOCUS=1/0, mirroring archetypeBlend.
+  hyperFocus?: boolean;
   ignoreOwnedBudget: boolean; // When true, owned cards don't count against budget limits
   ignoreOwnedRarity: boolean; // When true, owned cards skip max-rarity restriction
   currency: 'USD' | 'EUR'; // Price currency for budget filtering and display

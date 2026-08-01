@@ -26,6 +26,7 @@ import { calculateCardPriority } from '../cardPicking';
 import { loadCardSimilar, hasCardSimilar } from '../cardSimilar';
 import { buildAlternatePool, type AlternatePoolResult } from '../phaseAlternatePool';
 import { blendTagPageIntoPool, resolveArchetypeBlend } from '../archetypeBlend';
+import { computeHyperFocusBoosts, resolveHyperFocus } from '../hyperFocus';
 import type { GenerationState, GenerationContext } from './state';
 
 // ── Merge cardlists from multiple theme results ──
@@ -775,6 +776,7 @@ export async function acquireCardPoolPhase(
   }
 
   await applyArchetypeBlend(state);
+  await applyHyperFocus(state);
 
   return { altPool, scryfallQuery };
 }
@@ -793,6 +795,65 @@ export async function acquireCardPoolPhase(
  * theme — the blend needs a tag page to blend *from*. Any failure is swallowed:
  * a missing tag page means the deck builds exactly as it would have.
  */
+/**
+ * Hyper Focus (Manafoundry item 21) — diff the theme pool against the
+ * commander's own no-theme page and bias picks toward what the theme actually
+ * distinguishes. Runs AFTER the blend so the diff sees the final pool.
+ *
+ * Writes additive deltas into `state.staticComboBoosts`, the same pick-score
+ * map the combo priority boost uses, so a card can be both a combo piece and
+ * theme-exclusive and carry both.
+ *
+ * Costs one extra EDHREC fetch (the base commander page), cached per slug and
+ * only when the flag is on. Never throws — an optional steering signal must not
+ * be able to fail a generation.
+ */
+async function applyHyperFocus(state: GenerationState): Promise<void> {
+  const { customization, commander, partnerCommander } = state.context;
+  if (!resolveHyperFocus(customization)) return;
+
+  // Nothing to diff against without a theme — the base page IS the pool.
+  if (state.cfg.selectedThemesWithSlugs.length === 0 || !state.edhrecData) return;
+  // Alternative generators synthesize their pool from Scryfall and have no
+  // EDHREC commander page behind them (mirrors applyArchetypeBlend).
+  if (state.dataSource === 'scryfall' || state.dataSource === 'paupercommander') return;
+
+  try {
+    const base = partnerCommander
+      ? await fetchPartnerCommanderData(
+          commander.name,
+          partnerCommander.name,
+          state.cfg.budgetOption
+        )
+      : await fetchCommanderData(commander.name, state.cfg.budgetOption);
+    if (!base) return;
+
+    const baseInclusion = new Map(base.cardlists.allNonLand.map((c) => [c.name, c.inclusion]));
+    const themeInclusion = new Map(
+      state.edhrecData.cardlists.allNonLand.map((c) => [c.name, c.inclusion])
+    );
+    // Scored over the pool we will actually pick from. A base-only staple
+    // usually isn't in it at all (the theme merge doesn't backfill base
+    // staples), so the generic penalty is inert in the common case and only
+    // bites when such a card really is a candidate — which is the correct
+    // behaviour, not a dead tier.
+    const boosts = computeHyperFocusBoosts({
+      poolNames: themeInclusion.keys(),
+      themeInclusion,
+      baseInclusion,
+    });
+    for (const [name, delta] of boosts) {
+      state.staticComboBoosts.set(name, (state.staticComboBoosts.get(name) ?? 0) + delta);
+    }
+    logger.debug(
+      `[DeckGen] Hyper Focus: scored ${boosts.size} pool cards against the base page ` +
+        `(${baseInclusion.size} base / ${themeInclusion.size} theme)`
+    );
+  } catch (error) {
+    logger.warn('[DeckGen] Hyper Focus skipped —', error);
+  }
+}
+
 async function applyArchetypeBlend(state: GenerationState): Promise<void> {
   const { customization, colorIdentity } = state.context;
   if (!resolveArchetypeBlend(customization)) return;
