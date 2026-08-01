@@ -13,7 +13,6 @@ import {
   ListPlus,
   Plus,
   Search,
-  X,
 } from 'lucide-react';
 import {
   useCallback,
@@ -103,6 +102,7 @@ import {
   gridSetLabel,
   useGridCaptionPrefs,
 } from './shared/CardGridCell';
+import { FilterChipsRow, type FilterChipDescriptor } from './shared/FilterChipsRow';
 import { ToolbarPopover } from './shared/ToolbarPopover';
 import { ViewPopoverPanel } from './shared/ViewPopoverPanel';
 import { buildEditedCards, isNoOpCardEdit, stackCopies, stackDetailMix } from '../lib/edit-card';
@@ -1591,13 +1591,8 @@ export function CardListTable({
   // Each chip knows how to clear its own slice so × on a chip is surgical.
   // The chips are derived state; the single place that maps filter state →
   // human labels avoids scattering label strings across the JSX.
-  type FilterChip = {
-    id: string;
-    label: string;
-    onClear: () => void;
-  };
-  const activeFilterChips = useMemo<FilterChip[]>(() => {
-    const chips: FilterChip[] = [];
+  const activeFilterChips = useMemo<FilterChipDescriptor[]>(() => {
+    const chips: FilterChipDescriptor[] = [];
 
     if (search.trim()) {
       chips.push({
@@ -1961,29 +1956,7 @@ export function CardListTable({
           filter group; × on a chip clears just that slice. Only renders
           when at least one filter or search is active. */}
       {activeFilterChips.length > 0 && (
-        <div className="collection-filter-chips" role="group" aria-label="Active filters">
-          {activeFilterChips.map((chip) => (
-            <span key={chip.id} className="collection-filter-chip">
-              <span className="collection-filter-chip-label">{chip.label}</span>
-              <button
-                type="button"
-                className="collection-filter-chip-clear"
-                aria-label={`Remove filter: ${chip.label}`}
-                onClick={chip.onClear}
-              >
-                <X width={12} height={12} strokeWidth={2.5} aria-hidden />
-              </button>
-            </span>
-          ))}
-          {activeFilterChips.length > 1 && (
-            <button
-              type="button"
-              className="collection-filter-chips-clear-all"
-              onClick={clearAllFilters}
-            >
-              Clear all
-            </button>
-          )}
+        <FilterChipsRow chips={activeFilterChips} onClearAll={clearAllFilters}>
           {structuredFilterActive && (
             <button
               type="button"
@@ -2004,7 +1977,7 @@ export function CardListTable({
               <span>Save to list</span>
             </button>
           )}
-        </div>
+        </FilterChipsRow>
       )}
 
       {saveToListOpen && (

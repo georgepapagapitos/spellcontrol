@@ -7,6 +7,7 @@ import { BRACKET_LABELS } from '@/deck-builder/services/deckBuilder/bracketEstim
 import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
 import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
 import {
+  DISCOVER_BUDGET_LABELS,
   DISCOVER_COLOR_ORDER,
   type DiscoverBudgetKey,
   type DiscoverFilters,
@@ -25,12 +26,9 @@ const COLOR_OPTIONS: Array<{ key: string; label: string }> = [
 
 const BRACKET_OPTIONS = [1, 2, 3, 4, 5];
 
-const BUDGET_OPTIONS: Array<{ key: DiscoverBudgetKey; label: string }> = [
-  { key: 'under50', label: 'Under $50' },
-  { key: '50to150', label: '$50–$150' },
-  { key: '150to400', label: '$150–$400' },
-  { key: '400plus', label: '$400+' },
-];
+const BUDGET_OPTIONS = (
+  Object.entries(DISCOVER_BUDGET_LABELS) as Array<[DiscoverBudgetKey, string]>
+).map(([key, label]) => ({ key, label }));
 
 interface Props {
   filters: DiscoverFilters;

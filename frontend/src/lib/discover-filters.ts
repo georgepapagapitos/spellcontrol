@@ -30,6 +30,14 @@ export const NO_DISCOVER_FILTERS: DiscoverFilters = {
 /** Canonical order for the colors filter — matches the popover's own render order. */
 export const DISCOVER_COLOR_ORDER = ['W', 'U', 'B', 'R', 'G', 'C'] as const;
 
+/** Human labels for the budget buckets — shared by the popover and its chips. */
+export const DISCOVER_BUDGET_LABELS: Record<DiscoverBudgetKey, string> = {
+  under50: 'Under $50',
+  '50to150': '$50–$150',
+  '150to400': '$150–$400',
+  '400plus': '$400+',
+};
+
 const VALID_BUDGETS = new Set<DiscoverBudgetKey>(['under50', '50to150', '150to400', '400plus']);
 const VALID_COLORS = new Set<string>(DISCOVER_COLOR_ORDER);
 

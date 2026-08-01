@@ -33,6 +33,7 @@ import {
   gridSetLabel,
   useGridCaptionPrefs,
 } from './shared/CardGridCell';
+import { FilterChipsRow } from './shared/FilterChipsRow';
 import { ToolbarPopover } from './shared/ToolbarPopover';
 import { ViewPopoverPanel } from './shared/ViewPopoverPanel';
 import { CardPreview } from './CardPreview';
@@ -600,28 +601,7 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
         />
       </div>
 
-      {activeChips.length > 0 && (
-        <div className="collection-filter-chips" role="group" aria-label="Active filters">
-          {activeChips.map((chip) => (
-            <span key={chip.id} className="collection-filter-chip">
-              <span className="collection-filter-chip-label">{chip.label}</span>
-              <button
-                type="button"
-                className="collection-filter-chip-clear"
-                aria-label={`Remove filter: ${chip.label}`}
-                onClick={chip.onClear}
-              >
-                ✕
-              </button>
-            </span>
-          ))}
-          {activeChips.length > 1 && (
-            <button type="button" className="collection-filter-chips-clear-all" onClick={clearAll}>
-              Clear all
-            </button>
-          )}
-        </div>
-      )}
+      <FilterChipsRow chips={activeChips} onClearAll={clearAll} />
 
       <div className="card-list-summary-line card-list-controls-sticky">
         <div className="card-list-summary-actions">
