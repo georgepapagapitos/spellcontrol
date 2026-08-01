@@ -613,6 +613,45 @@ describe('commanderEligible filter', () => {
   });
 });
 
+describe('proxy filter', () => {
+  const proxyCard = makeCard({ proxy: true });
+  const realCard = makeCard({ proxy: false });
+  const unsetCard = makeCard({});
+
+  it('true matches proxies only', () => {
+    const f: BinderFilter = { proxy: true };
+    expect(cardMatchesFilter(proxyCard, f)).toBe(true);
+    expect(cardMatchesFilter(realCard, f)).toBe(false);
+    expect(cardMatchesFilter(unsetCard, f)).toBe(false);
+  });
+
+  it('false matches non-proxies, treating unset the same as false', () => {
+    const f: BinderFilter = { proxy: false };
+    expect(cardMatchesFilter(proxyCard, f)).toBe(false);
+    expect(cardMatchesFilter(realCard, f)).toBe(true);
+    expect(cardMatchesFilter(unsetCard, f)).toBe(true);
+  });
+
+  it('undefined imposes no constraint', () => {
+    const f: BinderFilter = {};
+    expect(cardMatchesFilter(proxyCard, f)).toBe(true);
+    expect(cardMatchesFilter(realCard, f)).toBe(true);
+    expect(cardMatchesFilter(unsetCard, f)).toBe(true);
+  });
+
+  it('compileFilter round-trips the flag', () => {
+    expect(compileFilter({ proxy: true }).proxy).toBe(true);
+    expect(compileFilter({ proxy: false }).proxy).toBe(false);
+    expect(compileFilter({}).proxy).toBeUndefined();
+  });
+
+  it('isFilterEmpty is false when only proxy is set', () => {
+    expect(isFilterEmpty({ proxy: true })).toBe(false);
+    expect(isFilterEmpty({ proxy: false })).toBe(false);
+    expect(isFilterEmpty({})).toBe(true);
+  });
+});
+
 describe('scryfallQuery (snapshot-resolved oracle ids)', () => {
   const shock = makeCard({ oracleId: 'oid-shock' });
   const other = makeCard({ oracleId: 'oid-other' });

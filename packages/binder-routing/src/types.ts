@@ -168,6 +168,8 @@ export interface BinderFilter {
   treatments?: ChipExpression;
   borderColors?: ChipExpression;
   commanderEligible?: boolean;
+  /** Matches (or excludes) cards flagged as proxies. Undefined imposes no constraint. */
+  proxy?: boolean;
   /**
    * A Scryfall search query (e.g. "is:shockland") snapshot-resolved to a set of
    * oracle ids. Scryfall's curated filters can't be evaluated offline, so the
