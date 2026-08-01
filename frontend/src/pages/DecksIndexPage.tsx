@@ -658,8 +658,8 @@ export function DecksIndexPage() {
             <EmptyStateMark />
             <p className="empty-state-tagline">No decks yet.</p>
             <p className="empty-state-hint">
-              Build a deck from scratch with the guided builder, import a list you already have, or
-              add a known product — a preconstructed deck or Secret Lair drop.
+              Build one from scratch, import a list you already have, or add a precon or Secret Lair
+              drop.
             </p>
             <div className="empty-state-actions decks-empty-actions">
               <Link to="/decks/new/guided" className="btn btn-primary empty-state-action">

@@ -45,6 +45,7 @@ import { LANGUAGE_OPTIONS } from './PrintingPicker';
 import { RemoveCopiesDialog } from './RemoveCopiesDialog';
 import { BulkMoveToBinderSheet } from './BulkMoveToBinderSheet';
 import { useConfirm } from '../lib/use-confirm';
+import { useCanScan } from '../lib/use-can-scan';
 import { removeCopiesOfPrinting, printingFinishKey } from '../lib/collection-mutations';
 import { useToastsStore } from '../store/toasts';
 import { useRegisterShortcuts, isTypingTarget } from '../lib/shortcut-registry';
@@ -557,6 +558,8 @@ export function CardListTable({
   }, [clearSelection]);
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
   const { confirm, dialog: confirmDialog } = useConfirm();
+  // Scanning is native-only (see use-can-scan) — don't promise it on web.
+  const canScan = useCanScan();
   const listContainerRef = useRef<HTMLDivElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const controlsRowRef = useRef<HTMLDivElement>(null);
@@ -2206,7 +2209,8 @@ export function CardListTable({
         <div className="empty-state">
           <p className="empty-state-tagline">Your collection is empty</p>
           <p className="empty-state-hint">
-            Search for a card above to add it, or use Add cards to import a list or scan your cards.
+            Search for a card above to add it, or use Add cards to import a list
+            {canScan ? ' or scan your cards' : ''}.
           </p>
           {onAddCards && (
             <button
@@ -2222,10 +2226,7 @@ export function CardListTable({
       ) : sorted.length === 0 && !showScryfall ? (
         <div className="empty-state">
           <p className="empty-state-tagline">No matches</p>
-          <p className="empty-state-hint">
-            No cards match your current filters. Try broadening your search or clearing some
-            filters.
-          </p>
+          <p className="empty-state-hint">Try a broader search or fewer filters.</p>
           <button type="button" className="btn empty-state-action" onClick={clearAllFilters}>
             Clear filters
           </button>

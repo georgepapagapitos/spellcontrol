@@ -351,8 +351,7 @@ export function BindersIndexPage() {
             <EmptyStateMark />
             <p className="empty-state-tagline">No binders yet.</p>
             <p className="empty-state-hint">
-              Import your collection first, then build rule-based binders to organize it. Or try the
-              samples to see how binder rules work.
+              Binders sort your collection by rule. Import it first, or try the samples to see how.
             </p>
             <div className="empty-state-actions">
               <Link to="/collection" className="btn btn-primary">
@@ -373,8 +372,8 @@ export function BindersIndexPage() {
             <EmptyStateMark />
             <p className="empty-state-tagline">Build your first binder.</p>
             <p className="empty-state-hint">
-              A binder is a set of rules that catches cards from your collection. Make one for each
-              deck, format, or theme you want to plan around.
+              A binder is a rule that catches cards from your collection — one per deck, format, or
+              theme.
             </p>
             <div className="empty-state-actions">
               <button

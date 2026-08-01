@@ -312,10 +312,8 @@ export function ListsPage() {
           <EmptyStateMark />
           <p className="empty-state-tagline">No lists yet.</p>
           <p className="empty-state-hint">
-            Create a list to curate cards by hand — a wishlist or trade pile of cards to acquire, or
-            a tracking list of cards you own, like every eligible commander across your binders. Or
-            make a dynamic list: a rule over your collection that stays current as cards come in.
-            Lists never affect your collection, binders, or decks.
+            A wishlist, a trade pile, or a rule that keeps itself current. Lists never touch your
+            collection, binders, or decks.
           </p>
           <div className="empty-state-actions">
             <button type="button" className="btn btn-primary" onClick={handleCreate}>
