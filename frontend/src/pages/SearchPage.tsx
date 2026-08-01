@@ -1,6 +1,6 @@
 import { AlignJustify, HelpCircle, LayoutGrid, List } from 'lucide-react';
 import { useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import './SearchPage.css';
 import { SearchPill } from '../components/SearchPill';
 import { InlineCardSearch, type InlineCardSearchView } from '../components/InlineCardSearch';
@@ -81,7 +81,11 @@ export function SearchPage() {
         <h1>Card search</h1>
         <p className="search-page-sub">
           Look up any card — art, oracle text, rulings, printings, and prices. You don’t need to own
-          it.
+          it.{' '}
+          <Link className="search-page-tags-link" to="/tags">
+            Browse by tag
+          </Link>{' '}
+          when you know what a card should do but not what it’s called.
         </p>
       </header>
       <SearchPill

@@ -33,14 +33,36 @@
   gap: var(--space-2);
 }
 
+/* Now a link into /tags, not just a label — it keeps the pill shape (it still
+   reads as the tag's name) but takes the interactive affordances. */
 .card-otags-chip {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   padding: 0.1rem 0.55rem;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--accent-light);
   color: var(--text-primary);
   font-size: var(--text-xs);
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card-otags-chip:hover {
+    border-color: var(--accent);
+  }
+}
+
+.card-otags-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .card-otags-chip,
+  .card-otags-search-link {
+    min-height: 44px;
+  }
 }
 
 .card-otags-search-link {

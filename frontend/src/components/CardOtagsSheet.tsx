@@ -1,5 +1,6 @@
 import { ExternalLink } from 'lucide-react';
 import { useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import './CardOtagsSheet.css';
 import {
   cardTagLabel,
@@ -96,7 +97,16 @@ export function CardOtagsSheet({ card, onClose }: Props) {
             {tags.map((tag) => (
               <li key={tag} className="card-otags-row">
                 <div className="card-otags-row-head">
-                  <span className="card-otags-chip">{cardTagLabel(tag)}</span>
+                  {/* In-app first: the chip opens the tag explorer, so "what
+                      else does this?" no longer has to leave for scryfall.com. */}
+                  <Link
+                    className="card-otags-chip"
+                    to={`/tags?t=${encodeURIComponent(tag)}`}
+                    onClick={onClose}
+                    aria-label={`Browse every ${cardTagLabel(tag)} card`}
+                  >
+                    {cardTagLabel(tag)}
+                  </Link>
                   <a
                     className="card-otags-search-link"
                     href={`https://scryfall.com/search?q=${encodeURIComponent(`otag:${tag}`)}`}
