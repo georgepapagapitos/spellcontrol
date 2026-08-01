@@ -473,8 +473,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
           Share {resourceLabel}
         </h2>
         <p className="choice-dialog-body">
-          Sharing a public link needs an account, so the link stays tied to you and you can revoke
-          it later. Signing in also syncs your collection across devices.
+          Public links need an account, so the link stays yours and you can revoke it later.
         </p>
         <div className="choice-dialog-actions">
           <button type="button" className="btn" onClick={onClose}>
