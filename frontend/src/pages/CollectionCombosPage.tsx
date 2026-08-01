@@ -38,6 +38,9 @@ import {
 
 type Tab = 'complete' | 'oneAway';
 
+/** Combo rows rendered per page. Each row mounts several card thumbnails. */
+const PAGE_SIZE = 40;
+
 /**
  * Collection-wide combo discovery — "what can the cards I physically own
  * already do?", independent of any deck.
@@ -227,22 +230,42 @@ export function CollectionCombosPage() {
   const [tab, setTab] = useState<Tab>('complete');
   const matches = searchMode ? searchMatches : tab === 'complete' ? complete : oneAway;
 
+  // A large collection puts 1k+ rows in a bucket, and every ComboRow mounts
+  // card thumbnails plus an aside — mounting them all is what made this page
+  // crawl. Render a window and grow it on demand.
+  //
+  // Keyed by the list it belongs to, so switching tab / search / filters resets
+  // to the first page with no effect (same derived-state shape as `searchState`
+  // above — the react-hooks/set-state-in-effect rule bans the effect version).
+  //
+  // ponytail: fixed-size pages, no virtualization. Upgrade path if users
+  // routinely page deep: swap the button for an IntersectionObserver sentinel
+  // or a windowing library.
+  const [pager, setPager] = useState<{ list: readonly ComboMatch[]; count: number }>({
+    list: matches,
+    count: PAGE_SIZE,
+  });
+  const shown = pager.list === matches ? pager.count : PAGE_SIZE;
+  const visibleMatches = useMemo(() => matches.slice(0, shown), [matches, shown]);
+  const remaining = matches.length - visibleMatches.length;
+
   // Prices for the missing pieces. Only the one-away tab has any, and only
   // while it's the tab being looked at — no point fetching for a list the user
   // isn't on. The missing card is never in the collection, so these can't come
   // from local data (see useMissingCardPrices).
-  // Derived from whatever is actually rendered, so search results get prices
-  // too. Rows missing 0 pieces contribute nothing, so the Complete tab still
-  // fetches nothing — same outcome as the old tab check, one rule instead of two.
+  // Derived from whatever is actually rendered — the visible window, not the
+  // whole bucket — so search results get prices too and a 1k-row bucket doesn't
+  // ask Scryfall for rows nobody has scrolled to. Rows missing 0 pieces
+  // contribute nothing, so the Complete tab still fetches nothing.
   const missingNames = useMemo(() => {
     const names: string[] = [];
-    for (const m of matches) {
+    for (const m of visibleMatches) {
       if (m.missingOracleIds.length !== 1) continue;
       const card = m.combo.cards.find((c) => c.oracleId === m.missingOracleIds[0]);
       if (card) names.push(card.cardName);
     }
     return names;
-  }, [matches]);
+  }, [visibleMatches]);
   const missingPrices = useMissingCardPrices(missingNames);
 
   const priceFor = (m: ComboMatch): number | undefined => {
@@ -419,7 +442,7 @@ export function CollectionCombosPage() {
 
           {!error && matches.length > 0 && (
             <ul className="deck-combos-list" role="list">
-              {matches.map((match) => (
+              {visibleMatches.map((match) => (
                 <ComboRow
                   key={match.combo.id}
                   match={match}
@@ -441,6 +464,17 @@ export function CollectionCombosPage() {
                 />
               ))}
             </ul>
+          )}
+
+          {remaining > 0 && (
+            <button
+              type="button"
+              className="btn combos-more-btn"
+              onClick={() => setPager({ list: matches, count: shown + PAGE_SIZE })}
+            >
+              Show {Math.min(PAGE_SIZE, remaining).toLocaleString()} more ·{' '}
+              {remaining.toLocaleString()} not shown
+            </button>
           )}
         </div>
       </div>
