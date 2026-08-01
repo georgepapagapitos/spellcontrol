@@ -9,9 +9,11 @@ import type { ImportHistoryEntry } from '../lib/local-cards';
 // InlineCardSearch) is real, so these are integration-style tests of the
 // reimport gate + replace confirm wiring + the single review surface,
 // rather than unit tests of any one function.
-const importTextMock = vi.fn<(text: string) => Promise<UploadResponse>>();
+const importTextMock =
+  vi.fn<(text: string, onProgress?: unknown, proxy?: boolean) => Promise<UploadResponse>>();
 vi.mock('../lib/api', () => ({
-  importText: (text: string) => importTextMock(text),
+  importText: (text: string, onProgress?: unknown, proxy?: boolean) =>
+    importTextMock(text, onProgress, proxy),
   importFile: vi.fn(),
   importRows: vi.fn(),
 }));
@@ -221,6 +223,31 @@ describe('UploadPanel reimport gate (content-based)', () => {
     await waitFor(() => expect(importCardsMock).toHaveBeenCalledTimes(1));
     expect(importCardsMock.mock.calls[0][2]).toBe('merge');
     expect(screen.queryByText('This looks like a re-import')).toBeNull();
+  });
+});
+
+describe('UploadPanel "mark all as proxies" toggle', () => {
+  it('threads proxy:true to importText when checked before a paste import', async () => {
+    importTextMock.mockResolvedValue(mkResponse([card(1)]));
+
+    render(<UploadPanel />);
+    fireEvent.click(screen.getByRole('checkbox', { name: /mark all as proxies/i }));
+    await paste();
+    fireEvent.click(screen.getByRole('button', { name: /Add to collection/ }));
+
+    await waitFor(() => expect(importCardsMock).toHaveBeenCalledTimes(1));
+    expect(importTextMock).toHaveBeenCalledWith('1 Forest', expect.anything(), true);
+  });
+
+  it('leaves proxy undefined when the toggle is left off', async () => {
+    importTextMock.mockResolvedValue(mkResponse([card(1)]));
+
+    render(<UploadPanel />);
+    await paste();
+    fireEvent.click(screen.getByRole('button', { name: /Add to collection/ }));
+
+    await waitFor(() => expect(importCardsMock).toHaveBeenCalledTimes(1));
+    expect(importTextMock).toHaveBeenCalledWith('1 Forest', expect.anything(), false);
   });
 });
 

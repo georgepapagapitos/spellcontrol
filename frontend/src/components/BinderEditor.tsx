@@ -207,6 +207,8 @@ export function BinderEditor() {
   const [importPasteText, setImportPasteText] = useState('');
   const importFileRef = useRef<HTMLInputElement>(null);
   const [importFiles_, setImportFiles] = useState<File[]>([]);
+  /** "These are all proxies" toggle for the binder-import UI. */
+  const [importAsProxies, setImportAsProxies] = useState(false);
   const [importStageNote, setImportStageNote] = useState<string | null>(null);
   // One draft binder per staged file. Each file becomes its own binder; the
   // user can rename it and recolor it before saving.
@@ -500,7 +502,7 @@ export function BinderEditor() {
                 fileIndex: currentFileOrdinal,
                 totalFiles,
               });
-            const result = await importFile(file, onProgress);
+            const result = await importFile(file, onProgress, importAsProxies);
             if (j === 0) {
               await importCards(result, file.name, 'binder', {
                 binderName: draft?.name.trim() || stripExtension(file.name),
@@ -517,8 +519,11 @@ export function BinderEditor() {
           }
         }
       } else {
-        const result = await importText(importPasteText.trim(), (prog) =>
-          setImportProgress({ chunkIndex: prog.chunkIndex, totalChunks: prog.totalChunks })
+        const result = await importText(
+          importPasteText.trim(),
+          (prog) =>
+            setImportProgress({ chunkIndex: prog.chunkIndex, totalChunks: prog.totalChunks }),
+          importAsProxies
         );
         await importCards(result, 'pasted-list', 'binder', {
           binderName: name.trim(),
@@ -1196,6 +1201,25 @@ export function BinderEditor() {
                     disabled={saving}
                   />
                 </div>
+                <label
+                  className="field-checkbox import-proxy-toggle"
+                  style={{ marginTop: '0.5rem' }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={importAsProxies}
+                    onChange={(e) => setImportAsProxies(e.target.checked)}
+                    disabled={saving}
+                  />
+                  <span>
+                    Mark all as proxies
+                    <InfoTip
+                      label="marking an import as proxies"
+                      ariaLabel="What does marking an import as proxies do?"
+                      text="Proxy copies count as owned in this binder, but carry no market value — their cost, if any, still counts toward what you paid."
+                    />
+                  </span>
+                </label>
               </section>
             )}
 
