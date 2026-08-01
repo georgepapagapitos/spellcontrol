@@ -350,6 +350,31 @@ describe('pickCollectionCopy', () => {
     const b = card({ copyId: 'b', purchasePrice: 5 });
     expect(pickCollectionCopy('Sol Ring', [a, b], claimed)?.copyId).toBe('b');
   });
+
+  // A proxy is force-priced to 0, so it would win the cheapest-first tiebreak
+  // and leave the real copy unused — the proxy rank has to outrank price.
+  it('prefers a real copy over a proxy despite the proxy being $0', () => {
+    const proxy = card({ copyId: 'a', proxy: true, purchasePrice: 0 });
+    const real = card({ copyId: 'b', purchasePrice: 50 });
+    expect(pickCollectionCopy('Sol Ring', [proxy, real], allocated)?.copyId).toBe('b');
+  });
+
+  it('prefers a real foil over a proxy non-foil (real outranks finish)', () => {
+    const proxy = card({ copyId: 'a', proxy: true, finish: 'nonfoil', purchasePrice: 0 });
+    const realFoil = card({ copyId: 'b', foil: true, finish: 'foil', purchasePrice: 20 });
+    expect(pickCollectionCopy('Sol Ring', [proxy, realFoil], allocated)?.copyId).toBe('b');
+  });
+
+  it('falls back to the proxy when no real copy is free', () => {
+    const proxy = card({ copyId: 'a', proxy: true, purchasePrice: 0 });
+    expect(pickCollectionCopy('Sol Ring', [proxy], allocated)?.copyId).toBe('a');
+  });
+
+  it('still ranks by finish then price among copies of the same proxy status', () => {
+    const proxyFoil = card({ copyId: 'a', proxy: true, foil: true, finish: 'foil' });
+    const proxyNonFoil = card({ copyId: 'b', proxy: true, finish: 'nonfoil' });
+    expect(pickCollectionCopy('Sol Ring', [proxyFoil, proxyNonFoil], allocated)?.copyId).toBe('b');
+  });
 });
 
 describe('pickCollectionCopy with preferredScryfallId', () => {
