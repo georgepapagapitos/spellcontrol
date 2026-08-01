@@ -26,6 +26,12 @@ import type { BinderDef, BinderFilter, BinderFilterGroup, EnrichedCard } from '.
 const OTAG_INDEX_URL =
   (import.meta.env.VITE_OTAG_INDEX_URL as string | undefined) ?? '/otag-index.json';
 
+/** A corpus tag plus how many cards carry it. */
+export interface TagCount {
+  slug: string;
+  count: number;
+}
+
 interface OtagIndex {
   generatedAt: string;
   /** Parallel array; `cards` values are indices into it. */
@@ -51,6 +57,9 @@ let tagsByName: Map<string, string[]> | null = null;
 let availableTags: string[] = [];
 /** slug → { label, description } from the corpus, for UI copy. */
 let tagMeta: Map<string, { label: string; description: string }> = new Map();
+/** slug → how many corpus cards carry it, most-used first (the tag explorer's
+ *  default ordering). Counted during load — the walk is already happening. */
+let rankedTags: TagCount[] = [];
 let loadPromise: Promise<void> | null = null;
 
 const listeners = new Set<() => void>();
@@ -99,12 +108,14 @@ export async function ensureCardTags(): Promise<void> {
       }
 
       const byName = new Map<string, string[]>();
+      const counts = new Map<string, number>();
       for (const [name, ids] of Object.entries(data.cards)) {
         const tags: string[] = [];
         for (const id of ids) {
           const slug = slugs[id];
           if (slug === undefined) continue;
           tags.push(slug);
+          counts.set(slug, (counts.get(slug) ?? 0) + 1);
           const legacy = legacyBySlug.get(slug);
           if (legacy) tags.push(...legacy);
         }
@@ -112,6 +123,12 @@ export async function ensureCardTags(): Promise<void> {
       }
       tagsByName = byName;
       availableTags = [...slugs].sort();
+      // Legacy aliases are deliberately absent — they're match-compatibility
+      // duplicates of a modern slug, not browsable concepts of their own.
+      rankedTags = data.tags
+        .map((t) => ({ slug: t.s, count: counts.get(t.s) ?? 0 }))
+        .filter((t) => t.count > 0)
+        .sort((a, b) => b.count - a.count || a.slug.localeCompare(b.slug));
       emit();
     } catch (err) {
       loadFailed = true;
@@ -135,6 +152,11 @@ export function getCardTags(name: string): string[] {
 /** Tag keys available in the corpus. Empty until loaded. */
 export function listCardTags(): string[] {
   return availableTags;
+}
+
+/** Corpus tags with card counts, most-used first. Empty until loaded. */
+export function listCardTagsRanked(): TagCount[] {
+  return rankedTags;
 }
 
 /** Scryfall's own description for a tag, or '' when it has none / isn't loaded.

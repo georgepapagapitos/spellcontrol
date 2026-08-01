@@ -34,6 +34,7 @@ import { GameNightInviteView } from './pages/GameNightLinkForward';
 import { WelcomePage } from './pages/WelcomePage';
 import { DeckComparePage } from './pages/DeckComparePage';
 import { SearchPage } from './pages/SearchPage';
+import { TagsPage } from './pages/TagsPage';
 import { FriendHubPage } from './pages/FriendHubPage';
 import { PodsIndexPage } from './pages/PodsIndexPage';
 import { PodHubPage } from './pages/PodHubPage';
@@ -307,6 +308,7 @@ export default function App() {
           <Route path="/decks/:id/playtest" element={<PlaytestPage />} />
           <Route path="/play" element={<PlayPage />} />
           <Route path="/search" element={<SearchPage />} />
+          <Route path="/tags" element={<TagsPage />} />
           <Route path="/you" element={<YouPage />} />
           <Route path="/friends" element={<Navigate to="/you" replace />} />
           <Route path="/friends/:friendId" element={<FriendHubPage />} />

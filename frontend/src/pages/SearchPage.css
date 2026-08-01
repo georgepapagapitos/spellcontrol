@@ -20,6 +20,10 @@
   max-width: 60ch;
 }
 
+.search-page-tags-link {
+  color: var(--accent);
+}
+
 /* The results block (.inline-card-search) brings its own top margin; the
    landing empty-state doesn't, so the pill carries the gap. */
 .search-page-pill {
