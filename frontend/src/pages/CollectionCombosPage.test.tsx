@@ -111,6 +111,48 @@ describe('CollectionCombosPage', () => {
     setResult({});
   });
 
+  it('renders one page of rows at a time and grows on "Show more"', () => {
+    setResult({ inDeck: Array.from({ length: 95 }, (_, i) => combo(`c${i}`, `Combo ${i}`)) });
+    renderPage();
+
+    // 40 per page, so the 41st row is absent until the button is pressed, and
+    // the tab count still reports the whole bucket.
+    expect(screen.getByText(/Combo 39/)).toBeTruthy();
+    expect(screen.queryByText(/Combo 40/)).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Complete, 95 combos' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /Show 40 more · 55 not shown/ }));
+    expect(screen.getByText(/Combo 79/)).toBeTruthy();
+    expect(screen.queryByText(/Combo 80/)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /Show 15 more · 15 not shown/ }));
+    expect(screen.getByText(/Combo 94/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /not shown/ })).toBeNull();
+  });
+
+  it('windows each tab separately, and a filter change resets the window', () => {
+    setResult({
+      inDeck: Array.from({ length: 50 }, (_, i) => combo(`c${i}`, `Combo ${i}`)),
+      almostInCollection: [combo('a1', 'Away Combo', ['ox'])],
+    });
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /Show 10 more/ }));
+    expect(screen.getByText(/Combo 49/)).toBeTruthy();
+
+    // The other tab starts at page one — it's a different list…
+    fireEvent.click(screen.getByRole('tab', { name: /One card away/ }));
+    expect(screen.getByText(/Away Combo/)).toBeTruthy();
+    // …and coming back keeps where you were, rather than yanking you to the top.
+    fireEvent.click(screen.getByRole('tab', { name: /Complete/ }));
+    expect(screen.getByText(/Combo 49/)).toBeTruthy();
+
+    // Narrowing produces a different list, so the window starts over.
+    fireEvent.change(screen.getByLabelText('Search combos by card name or result'), {
+      target: { value: 'Combo' },
+    });
+    return waitFor(() => expect(screen.queryByText(/Combo 49/)).toBeNull());
+  });
+
   it('E216: searching queries the whole dataset and replaces the tabs with one closest-first list', async () => {
     // Two pieces missing — a shape the bucketed matcher can NEVER return, so
     // this row existing at all is the point of the feature.
