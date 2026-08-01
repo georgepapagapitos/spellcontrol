@@ -440,6 +440,12 @@ export interface BinderFilter {
    */
   commanderEligible?: boolean;
   /**
+   * Proxy constraint. undefined = no constraint; true = card must be flagged
+   * `proxy`; false = must NOT be. Keeps real cards and proxies out of the same
+   * physical binder.
+   */
+  proxy?: boolean;
+  /**
    * A Scryfall search query (e.g. "is:shockland") snapshot-resolved to oracle
    * ids. Scryfall's curated filters can't be evaluated offline, so the editor
    * resolves the query against the live API once and stores `oracleIds`;

@@ -19,6 +19,19 @@ describe('cleanFilter', () => {
     expect('commanderEligible' in cleanFilter({ priceMin: 0.4 })).toBe(false);
   });
 
+  it('preserves proxy: true through save (regression for the commanderEligible-shaped #235 leak)', () => {
+    expect(cleanFilter({ proxy: true })).toEqual({ proxy: true });
+  });
+
+  it('preserves proxy: false', () => {
+    expect(cleanFilter({ proxy: false })).toEqual({ proxy: false });
+  });
+
+  it('keeps proxy absent when unset (no spurious key)', () => {
+    expect(cleanFilter({}).proxy).toBeUndefined();
+    expect('proxy' in cleanFilter({ priceMin: 0.4 })).toBe(false);
+  });
+
   it('still passes representative scalar and chip fields through unchanged', () => {
     const f: BinderFilter = {
       priceMin: 0.4,

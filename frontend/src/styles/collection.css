@@ -1135,6 +1135,27 @@ i.ss.set-symbol--mythic {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
+/* CardGridCell-only: when the proxy chip and rarity badge can coexist, both
+   ride inside this positioned flex cluster instead — the rarity badge's own
+   position:absolute above is overridden back to static so the two chips sit
+   side by side rather than stacking on the same coordinates. Other grid
+   tiles (e.g. SetsPage) that render RarityBadge standalone are unaffected. */
+.collection-grid-topright {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.collection-grid-topright .collection-grid-rarity {
+  position: static;
+  top: auto;
+  right: auto;
+}
+
 /* Page-number chip — shown on binder list rows so the user can find a
    card in physical storage without leaving the list. */
 .card-list-page {

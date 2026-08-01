@@ -1,0 +1,37 @@
+/* Proxy chip — a small "P" glyph, warn-toned (not the real printing / $0
+   value). Same shape family as FoilBadge (glyph chip, not a token-governed
+   button/card surface), distinct color + letter so it's never color-only. */
+.proxy-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 4px;
+  vertical-align: middle;
+  font-size: var(--text-xs);
+  font-weight: 800;
+  line-height: 1;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border: 1px solid var(--warn-border);
+}
+
+.proxy-badge::before {
+  content: 'P';
+}
+
+/* Standalone chip nudged off the preceding name/foil chip. */
+.collection-list-name > .proxy-badge {
+  margin-left: 0.4rem;
+}
+
+/* Grid tile: sits beside the rarity chip in the top-right corner cluster —
+   nudged up to ~match RarityBadge's 1.25rem circle, with the same on-art
+   drop shadow so it reads at grid-1x zoom too. */
+.collection-grid-proxy {
+  width: 1.1rem;
+  height: 1.1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
