@@ -201,10 +201,14 @@
   /* ── Z-index scale ───────────────────────────────────────────────────── */
   --z-dropdown: 50;
   --z-popover: 60;
-  --z-menu: 80;
   --z-panel: 100;
   --z-sheet-bg: 110;
   --z-sheet-fg: 111;
+  /* Portaled ⋮ / account menus sit ABOVE app chrome and sheets: they're always
+     opened from a trigger that is itself on top of that chrome (e.g. the
+     account avatar in the sticky site header), so anything lower paints the
+     panel *underneath* its own trigger's bar. */
+  --z-menu: 120;
   --z-suggest: 200;
   --z-modal: 1000;
   --z-overlay: 1100;
