@@ -211,9 +211,8 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
         ) : (
           <div className="deck-feedback-body">
             <p className="deck-feedback-hint">
-              Anyone with this link gets a suggestion-only view of the deck — they can propose cuts
-              and adds, rate the power bracket, and leave comments. You review every suggestion here
-              and apply the ones you like with one tap.
+              Anyone with this link can propose cuts and adds, rate the bracket, and comment. You
+              review everything here before any of it lands.
             </p>
             {linkError && (
               <p role="alert" className="deck-feedback-error">

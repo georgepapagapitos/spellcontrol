@@ -324,9 +324,8 @@ export function DeckFeedbackView({ data, token }: Props) {
       )}
 
       <p className="feedback-howto">
-        Tap any card to read it in full — the scissors marks it as a suggested cut. Search below to
-        suggest additions. Your suggestions are collected and sent when you submit — nothing changes
-        the deck until the owner accepts.
+        Tap a card to read it; the scissors suggests a cut. Search below to suggest adds. Nothing
+        changes until you submit and the owner accepts.
       </p>
 
       <section className="feedback-add">
