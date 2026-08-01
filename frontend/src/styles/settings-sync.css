@@ -653,6 +653,53 @@
   font-family: var(--font-mono);
 }
 
+/* ── Typeface picker (components/TypeSetPicker.tsx) ────────────────────────
+   Reuses the theme picker's tile wholesale; only the swatch changes, from a
+   color disc to a live "Aa" specimen. Each tile carries its own
+   `data-typeset`, and styles/typesets.css scopes the font tokens by that
+   attribute rather than to :root, so every tile renders in the set it offers
+   — the picker previews rather than describes. */
+.settings-typeset-swatch {
+  display: grid;
+  place-items: center;
+  /* Wider than the theme picker's circle: a two-letter specimen needs the
+     room, and these display faces vary a lot in width. */
+  width: 2.4rem;
+  height: 2.1rem;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  font-family: var(--font-display);
+  /* Display faces are used at weight 400 app-wide — several ship a single cut
+     and the browser synthesizes a smeared faux-bold otherwise. */
+  font-weight: 400;
+  font-size: var(--text-md);
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.settings-typeset-name {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-md);
+}
+
+/* Hint renders in the set's own body face, so a tile previews the
+   display/body pairing rather than just the title face. Overrides the theme
+   tile's --font-mono. */
+.settings-typeset-hint {
+  font-family: var(--font-serif);
+  line-height: 1.35;
+}
+
+/* Hints are full sentences and wrap to different line counts per set, so the
+   theme tile's centered alignment is what keeps a row from reading ragged —
+   the specimen stays optically tied to its name whether the hint runs one
+   line or three. (An `align-items: start` version of this floated the short
+   hints away from their specimen.) Only the extra row height differs. */
+.settings-typeset-option {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
 /* Reuse pill-btn for the action buttons; just add a danger variant for
    destructive actions like Sign out / Delete. */
 .pill-btn-danger {

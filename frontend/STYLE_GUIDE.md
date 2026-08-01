@@ -440,14 +440,61 @@ touch`), byte-identical between `.binder-tab-row` and `.sc-tabs--scrollable`.
     pattern to the second call site. One consumer needing this is not enough
     to justify the primitive growing an affordance-slot API; two is.
 
-## Typography — the four faces (T53/E154)
+## Typography — the four roles (T53/E154)
 
-| Face             | Token            | Scope                                                                                                | Never                                                 |
-| ---------------- | ---------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| Eczar            | `--font-serif`   | The default: body, controls, section/lane titles (incl. the serif-caps `.deck-combos-title` family)  | —                                                     |
-| Sorts Mill Goudy | `--font-display` | **Hero tier only**: binder/deck hero names + page-identity titles at `--text-xl` and up (list below) | body, chrome, section titles, dialog titles, numerals |
-| Archivo Narrow   | `--font-label`   | Chrome/tab/tape labels, uppercase + tracked — see § App chrome                                       | prose, headings, form controls                        |
-| IBM Plex Mono    | `--font-mono`    | Data: prices, qty, set codes, tabular numerals                                                       | —                                                     |
+There are always exactly **four type roles**, and every rule below is written
+against the *token*, never against a face name. Which faces fill them is a
+user choice — see § Type sets.
+
+| Role    | Token            | Scope                                                                                                | Never                                                 |
+| ------- | ---------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Body    | `--font-serif`   | The default: body, controls, section/lane titles (incl. the serif-caps `.deck-combos-title` family)  | —                                                     |
+| Display | `--font-display` | **Hero tier only**: binder/deck hero names + page-identity titles at `--text-xl` and up (list below) | body, chrome, section titles, dialog titles, numerals |
+| Label   | `--font-label`   | Chrome/tab/tape labels, uppercase + tracked — see § App chrome                                       | prose, headings, form controls                        |
+| Data    | `--font-mono`    | Data: prices, qty, set codes, tabular numerals                                                       | —                                                     |
+
+In the default set (**Folio**) those roles are Eczar / Sorts Mill Goudy /
+Archivo Narrow / IBM Plex Mono respectively — the pairing the rest of this
+section's examples were written against.
+
+### Type sets — the user-selectable typeface axis
+
+`lib/typesets.ts` + `styles/typesets.css` + the picker in
+`components/TypeSetPicker.tsx`. A set is a `data-typeset="<id>"` attribute on
+`<html>`, exactly parallel to a theme's `data-theme`, and the two axes compose
+freely: **a set touches only the four type tokens, a theme only color tokens.**
+Rulings:
+
+- **Sets swap all four roles together, never one.** There is deliberately no
+  per-face picker. The display face's contrast is chosen against its body face
+  and the label face against the chrome; letting users mix across sets is how a
+  UI stops reading as one system. Adding a set means choosing a whole pairing.
+- **Nothing but the four font tokens belongs in a `[data-typeset]` block.**
+  Sizing stays on the `--text-*` scale and color stays with the themes. The one
+  sanctioned exception is an optical correction where a body face's x-height
+  makes the shared scale read a step small — use native `font-size-adjust`
+  (as `almanac` does), never a per-set `--text-*` override, which would fork
+  the scale.
+- **Every stack ends in the same generic families as the `tokens.css`
+  defaults**, so a set whose webfont fails to load degrades to the same system
+  serif/sans/mono rather than to an unrelated face.
+- **Only the active set's fonts are downloaded.** The default set's `<link>` is
+  static in `index.html`; every other set's is injected by `store/typeset.ts`
+  and removed on the way back to the default. `typeSetHref(DEFAULT_TYPESET)`
+  returns `null` for exactly that reason — returning its href would double-fetch
+  the same families. The picker is the one place that loads them all, so its
+  tiles preview rather than describe.
+- **`font-weight: 400` on `--font-display` still holds for every set.** Several
+  display faces ship a single cut and synthesize a smeared faux-bold otherwise;
+  sets whose face does have a bold simply render regular. Hierarchy still comes
+  from size and face contrast, never weight.
+- **A new set must be checked at 360px before it lands.** The label face sets
+  the width of every mobile tab-bar cell, and a wide one overflows its cell —
+  the exact bug E159 fixed. Verify the tab bar and the Collection hub strip at
+  360px, not just at desktop.
+- **Changing `DEFAULT_TYPESET` re-skins the app for everyone who has never
+  opened the picker**, and must be changed together with the static `<link>` in
+  `index.html`.
 
 Rulings for `--font-display` (restyle Phase 6):
 

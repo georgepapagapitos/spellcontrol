@@ -1,0 +1,94 @@
+/* typesets.css — user-selectable type sets (sibling of themes.css).
+ *
+ * Each `[data-typeset]` block overrides ONLY the four type tokens declared in
+ * tokens.css. Nothing else belongs here: sizing stays on the --text-* scale,
+ * and color stays with the themes, so a set and a theme compose freely.
+ *
+ * Registry + font loading: lib/typesets.ts. Import order is load-bearing —
+ * this must come after tokens.css (see STYLE_GUIDE "CSS file layout").
+ *
+ * Every stack ends in the same generic families as the tokens.css defaults, so
+ * a set whose webfont fails to load degrades to the same system serif/sans/
+ * mono rather than to an unrelated face.
+ *
+ * The `--font-display` rule in binder-hero.css pins `font-weight: 400`, which
+ * every set relies on: several display faces here ship a single cut, and a
+ * synthesized faux-bold smears them. Sets whose display face DOES have a bold
+ * (Fraunces, Bodoni Moda) simply render regular — the hierarchy comes from
+ * size and face contrast, per STYLE_GUIDE § Typography.
+ */
+
+/* Folio — the default (Sorts Mill Goudy / Archivo Narrow / Eczar / Plex Mono).
+   Declared for completeness so the picker's "Folio" tile is a real selection
+   and not just "whatever tokens.css happens to say"; the values match
+   tokens.css exactly. */
+[data-typeset='folio'] {
+  --font-display: 'Sorts Mill Goudy', 'Eczar', 'Georgia', serif;
+  --font-serif: 'Eczar', 'Georgia', serif;
+  --font-label: 'Archivo Narrow', 'Avenir Next Condensed', 'Arial Narrow', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Menlo', 'Consolas', monospace;
+}
+
+/* Codex — Marcellus keeps Folio's body/label/data faces and swaps only the
+   hero tier for an inscriptional roman with far more presence at --text-3xl. */
+[data-typeset='codex'] {
+  --font-display: 'Marcellus', 'Eczar', 'Georgia', serif;
+  --font-serif: 'Eczar', 'Georgia', serif;
+  --font-label: 'Archivo Narrow', 'Avenir Next Condensed', 'Arial Narrow', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Menlo', 'Consolas', monospace;
+}
+
+/* Grimoire — Germania One is a heavy blackletter-flavoured display face; it
+   needs a sturdy body (Vollkorn) and a condensed label (Oswald) underneath or
+   the hero overpowers the page. */
+[data-typeset='grimoire'] {
+  --font-display: 'Germania One', 'Eczar', 'Georgia', serif;
+  --font-serif: 'Vollkorn', 'Georgia', serif;
+  --font-label: 'Oswald', 'Avenir Next Condensed', 'Arial Narrow', sans-serif;
+  --font-mono: 'Space Mono', 'Menlo', 'Consolas', monospace;
+}
+
+/* Almanac — 1680s press revival with a typewriter for chrome and data, so the
+   tab/tape labels read as struck onto the page rather than set with it. */
+[data-typeset='almanac'] {
+  --font-display: 'IM Fell English', 'Georgia', serif;
+  --font-serif: 'EB Garamond', 'Georgia', serif;
+  --font-label: 'Cutive Mono', 'Courier New', monospace;
+  --font-mono: 'Cutive Mono', 'Menlo', 'Consolas', monospace;
+}
+
+/* Workshop — Fraunces' soft wonk over a warm body, with Oswald standing in for
+   embossed label tape. */
+[data-typeset='workshop'] {
+  --font-display: 'Fraunces', 'Georgia', serif;
+  --font-serif: 'Alegreya', 'Georgia', serif;
+  --font-label: 'Oswald', 'Avenir Next Condensed', 'Arial Narrow', sans-serif;
+  --font-mono: 'DM Mono', 'Menlo', 'Consolas', monospace;
+}
+
+/* Broadsheet — didone display over a workhorse body; Bebas Neue is caps-only,
+   which is fine because --font-label is uppercase-only by convention
+   (STYLE_GUIDE § App chrome). */
+[data-typeset='broadsheet'] {
+  --font-display: 'Bodoni Moda', 'Georgia', serif;
+  --font-serif: 'Lora', 'Georgia', serif;
+  --font-label: 'Bebas Neue', 'Avenir Next Condensed', 'Arial Narrow', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Menlo', 'Consolas', monospace;
+}
+
+/* Plain — no webfont at all. The accessibility and low-bandwidth escape hatch:
+   whatever the OS considers most readable, including a user's own override. */
+[data-typeset='plain'] {
+  --font-display: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-label: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'Menlo', 'Consolas', monospace;
+}
+
+/* EB Garamond and Cutive Mono run small for their point size, which makes
+   Almanac's body text read a step below every other set. `font-size-adjust`
+   is the native fix — it scales the face to a target x-height ratio instead
+   of us hand-tuning --text-* per set (which would break the shared scale). */
+[data-typeset='almanac'] body {
+  font-size-adjust: ex-height 0.46;
+}
