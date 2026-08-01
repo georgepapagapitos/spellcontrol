@@ -123,7 +123,7 @@ import { MovePrintingPrompt } from '../components/deck/MovePrintingPrompt';
 import { MoveToDeckSheet } from '../components/deck/MoveToDeckSheet';
 import { BuildReportSheet } from '../components/deck/BuildReportSheet';
 import { isBuildReportSeen } from '../lib/build-report-seen';
-import type { ComboSeedContext } from '../types/combos';
+import type { ComboMatch, ComboSeedContext } from '../types/combos';
 import { computeNewArrivals, type ArrivalsByType } from '../lib/new-arrivals';
 import { BackLink } from '../components/BackLink';
 import { ColorPicker } from '../components/ColorPicker';
@@ -844,6 +844,23 @@ export function DeckEditorPage() {
     colorIdentity: comboColorIdentity,
   });
   const comboOverlay = useEdhrecComboOverlay(deck?.commander?.name ?? null);
+
+  // E216-scoped combo data (comboData, above) already buckets combos into
+  // in-deck / one-away for the Combos panel — reused here rather than a
+  // second match, keyed by oracle id so each deck row's inline "CB"/"CB2"
+  // badge can look itself up in O(1) and never disagree with the panel.
+  const combosByOracle = useMemo(() => {
+    const map = new Map<string, ComboMatch[]>();
+    const all = [...(comboData.data?.inDeck ?? []), ...(comboData.data?.oneAway ?? [])];
+    for (const match of all) {
+      for (const c of match.combo.cards) {
+        const list = map.get(c.oracleId);
+        if (list) list.push(match);
+        else map.set(c.oracleId, [match]);
+      }
+    }
+    return map;
+  }, [comboData.data]);
 
   // Count one-away combos whose missing piece the user already owns.
   // Uses the `oneAway` bucket (not `almostInCollection`, which is empty for
@@ -2831,6 +2848,7 @@ export function DeckEditorPage() {
             existingCardCounts={existingCardCounts}
             onMarkArrivalsReviewed={() => markArrivalsReviewed(deck.id)}
             cardInclusionMap={deck.cardInclusionMap}
+            combosByOracle={combosByOracle}
             rampSubtypeCounts={deck.rampSubtypeCounts}
             removalSubtypeCounts={deck.removalSubtypeCounts}
             boardwipeSubtypeCounts={deck.boardwipeSubtypeCounts}
