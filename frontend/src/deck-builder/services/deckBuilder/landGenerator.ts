@@ -11,6 +11,7 @@ import type {
   DeckSize,
   CollectionStrategy,
   Pacing,
+  ManaPhilosophy,
 } from '@/deck-builder/types';
 import {
   getCardsByNames,
@@ -36,6 +37,7 @@ import {
 } from './manabaseMath';
 import { producedManaColors } from '@/lib/mana-sources';
 import { landPowerScore } from './landPower';
+import { computeManaPhilosophyBoosts } from './manaPhilosophy';
 
 /** Ceiling for the color-deficit nonbasic boost — a bounded re-rank (below the
  *  MDFC/channel boosts), never a new eligibility path. */
@@ -143,7 +145,10 @@ export async function generateLands(
   // Same hard gates every other pick path enforces (E71 controls audit).
   // Without this, lands bypass the game-changer cap AND never get flagged
   // isGameChanger — Field of the Dead lands unnoticed in a Bracket-2 deck.
-  gates?: FillHardGates
+  gates?: FillHardGates,
+  // Mana-philosophy wheel (E231). `null`/omitted = OFF and the boost pass below
+  // is skipped entirely, so the manabase is byte-identical while unset.
+  manaPhilosophy: ManaPhilosophy | null = null
 ): Promise<ScryfallCard[]> {
   const lands: ScryfallCard[] = [];
   const enforceAvailableCounts = collectionStrategy === 'available';
@@ -319,6 +324,22 @@ export async function generateLands(
           const penalty = isMdfcLand(card) ? Math.round(basePenalty / 2) : basePenalty;
           landPenalties.set(name, (landPenalties.get(name) ?? 0) + penalty);
         }
+      }
+    }
+
+    // Mana-philosophy wheel (E231): the user's blend over what kind of manabase
+    // to build. Applied last among the intrinsic boosts so it re-ranks on top of
+    // them (fixing / channel / MDFC / merit / pacing) rather than replacing any
+    // — same bounded-re-rank tradition as every other signal here. Unset (the
+    // shipped default) skips this entirely.
+    if (manaPhilosophy) {
+      for (const [name, boost] of computeManaPhilosophyBoosts(
+        landCardMap,
+        identitySet,
+        manaPhilosophy,
+        currency
+      )) {
+        landPenalties.set(name, (landPenalties.get(name) ?? 0) + boost);
       }
     }
 

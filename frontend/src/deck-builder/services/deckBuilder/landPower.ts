@@ -57,8 +57,19 @@ function basicTypeCount(card: ScryfallCard): number {
   }).length;
 }
 
+/**
+ * Identity colors this land effectively supplies: what it taps for, plus (for
+ * fetch lands producing nothing themselves) what it can find. Off-identity
+ * production is dropped — an off-color land isn't fixing.
+ */
+export function landColorCoverage(card: ScryfallCard, identity: ReadonlySet<string>): number {
+  const fix = new Set(producedManaColors(card, identity).filter((c) => identity.has(c)));
+  for (const c of fetchableBasicColors(card, identity)) fix.add(c);
+  return fix.size;
+}
+
 /** Non-mana upside: an activated ability or a keyworded spell-like effect. */
-function hasUpside(card: ScryfallCard): boolean {
+export function hasLandUpside(card: ScryfallCard): boolean {
   const ot = (card.oracle_text ?? card.card_faces?.[0]?.oracle_text ?? '').toLowerCase();
   if (isChannelLand(card) || /\bchannel\b/.test(ot)) return true;
   // An activated ability whose cost isn't purely tapping for mana.
@@ -92,14 +103,8 @@ function painPenalty(card: ScryfallCard): number {
 export function landPowerScore(card: ScryfallCard, identity: ReadonlySet<string>): number {
   if (!isLandCard(card)) return 0;
 
-  // Colors this land effectively supplies, clamped to the deck's identity: what
-  // it taps for, plus (for fetch lands producing nothing themselves) what it can
-  // find. Off-identity production is dropped — an off-color land isn't fixing.
-  const produced = producedManaColors(card, identity);
-  const fix = new Set(produced.filter((c) => identity.has(c)));
-  for (const c of fetchableBasicColors(card, identity)) fix.add(c);
-  const nColors = fix.size;
-  const producesColorless = produced.includes('C');
+  const nColors = landColorCoverage(card, identity);
+  const producesColorless = producedManaColors(card, identity).includes('C');
 
   const tapped = tappedKind(card);
   let score = 0;
@@ -121,7 +126,7 @@ export function landPowerScore(card: ScryfallCard, identity: ReadonlySet<string>
 
   if (fetchedBasicRequirement(card)) score += 12; // deck-thinning fetch
   if (isMdfcLand(card)) score += 12; // near-free land slot (spell side)
-  if (hasUpside(card)) score += 10; // channel / activated ability / effect
+  if (hasLandUpside(card)) score += 10; // channel / activated ability / effect
   score -= painPenalty(card); // painland / pay-life self-cost the color count ignores
 
   // A basic land is the explicit floor: cap it below any real nonbasic so the
