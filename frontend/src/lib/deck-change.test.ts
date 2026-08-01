@@ -15,6 +15,7 @@ import {
   fromComboCompletion,
   fromBrewCandidate,
   mergeImprove,
+  mergeMisfitCuts,
   parsePrice,
 } from './deck-change';
 import type { BrewCandidate } from '@/deck-builder/services/deckBuilder/brewSlots';
@@ -822,5 +823,72 @@ describe('whyFactors wiring — every lane adapter carries a structured breakdow
     expect(
       (c.whyFactors ?? []).some((f) => /two-card combo/.test(f.text) && f.tone === 'con')
     ).toBe(true);
+  });
+});
+
+// E222: folding the cardFit misfit cascade into the optimizer's cut rows.
+describe('mergeMisfitCuts', () => {
+  const misfit = (name: string, details: string[], inclusion?: number) => ({
+    name,
+    misfitScore: 20,
+    inclusion,
+    reasons: details.map((detail, i) => ({
+      kind: 'inclusion-low' as const,
+      label: `label ${i}`,
+      detail,
+    })),
+  });
+
+  const optimizeCut = (name: string): Change =>
+    fromOptimizeCard(
+      { name, reason: 'Low synergy', reasonCategory: 'low-synergy' } as OptimizeCard,
+      'cut'
+    );
+
+  it('enriches an existing optimizer row instead of duplicating it', () => {
+    const out = mergeMisfitCuts(
+      [optimizeCut('Ornithopter')],
+      [misfit('Ornithopter', ['Below the inclusion floor (5%)'])]
+    );
+
+    expect(out).toHaveLength(1); // one row, not two
+    expect(out[0].reason).toBe('Low synergy'); // optimizer's copy wins
+    expect((out[0].whyFactors ?? []).some((f) => /inclusion floor/.test(f.text))).toBe(true);
+  });
+
+  it('matches case-insensitively', () => {
+    const out = mergeMisfitCuts([optimizeCut('Sol Ring')], [misfit('sol ring', ['because'])]);
+    expect(out).toHaveLength(1);
+  });
+
+  it('adds a row for a misfit the optimizer skipped', () => {
+    const out = mergeMisfitCuts([optimizeCut('Ornithopter')], [misfit('Ancestral Blade', ['why'])]);
+    expect(out.map((c) => c.name).sort()).toEqual(['Ancestral Blade', 'Ornithopter']);
+    const added = out.find((c) => c.name === 'Ancestral Blade');
+    expect(added?.type).toBe('cut');
+    expect(added?.ownership).toBeUndefined(); // cut rows are ownership-blind
+  });
+
+  it('does not mutate the input rows', () => {
+    const original = optimizeCut('Ornithopter');
+    const before = (original.whyFactors ?? []).length;
+    mergeMisfitCuts([original], [misfit('Ornithopter', ['a', 'b'])]);
+    expect((original.whyFactors ?? []).length).toBe(before);
+  });
+
+  it('carries real inclusion so the row never shows a false Off-meta chip', () => {
+    // classifyInclusion() reads undefined as 0 => "Off-meta". A 2%-played card
+    // is NOT off-meta, so the number has to survive the projection.
+    const out = mergeMisfitCuts([], [misfit('Ancestral Blade', ['why'], 2)]);
+    expect(out[0].inclusion).toBe(2);
+
+    // Genuinely absent data stays undefined — there "Off-meta" is truthful.
+    const absent = mergeMisfitCuts([], [misfit('Nonesuch', ['why'])]);
+    expect(absent[0].inclusion).toBeUndefined();
+  });
+
+  it('is a no-op with no misfits', () => {
+    const cuts = [optimizeCut('Ornithopter')];
+    expect(mergeMisfitCuts(cuts, [])).toEqual(cuts);
   });
 });

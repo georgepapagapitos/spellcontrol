@@ -22,6 +22,7 @@ import {
   isPlayableCard,
   getCardById,
   getCardByName,
+  getCardsByNames,
   getOwnedPrinting,
   getCardByNameResilient,
   searchCards,
@@ -561,6 +562,66 @@ describe('scryfallFetch 429 handling (F26)', () => {
     await vi.runAllTimersAsync();
     expect((await pending).id).toBe('recovered-503');
     expect(calls).toBe(2);
+  });
+
+  // The batched /cards/collection loops used to hand-roll their own 429 branch
+  // (sleep 1500ms, retry the SAME batch, no cap, Retry-After ignored). Against
+  // Scryfall's 60s throttle that fired ~40 more requests per cooldown and never
+  // terminated — cube generation, which enriches a whole collection, hung.
+  it('caps retries on a sustained 429 batch instead of retrying it forever', async () => {
+    vi.useFakeTimers();
+    let collectionCalls = 0;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: RequestInfo | URL) => {
+      if (String(input).includes('/cards/collection')) collectionCalls += 1;
+      return new Response('rate limited', {
+        status: 429,
+        headers: { 'Retry-After': '60' },
+      });
+    });
+
+    const pending = getCardsByNames(['Sustained Throttle Card']);
+    await vi.runAllTimersAsync();
+    expect((await pending).size).toBe(0);
+
+    // 1 attempt + MAX_RETRIES (4), then it gives up on the batch.
+    expect(collectionCalls).toBe(5);
+  });
+
+  // The per-card follow-up passes (price sharpening + not-found rescue) cost one
+  // request each. On a collection-sized resolve that tail is what got us 429'd.
+  it('bounds the per-card follow-up pass on a collection-sized resolve', async () => {
+    vi.useFakeTimers();
+    const names = Array.from({ length: 250 }, (_, i) => `Followup Budget Card ${i}`);
+    let searchCalls = 0;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes('/cards/collection')) {
+          const body = JSON.parse(String(init?.body)) as { identifiers: Array<{ name: string }> };
+          // Everything resolves, but with no usd price — so every single card is
+          // a candidate for the price re-fetch pass.
+          return new Response(
+            JSON.stringify({
+              data: body.identifiers.map(({ name }) =>
+                makeCard({ id: name, name, layout: 'normal' })
+              ),
+              not_found: [],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        if (url.includes('/cards/search')) searchCalls += 1;
+        return new Response('not found', { status: 404 });
+      }
+    );
+
+    const pending = getCardsByNames(names);
+    await vi.runAllTimersAsync();
+    expect((await pending).size).toBe(250);
+
+    // Bounded — unbounded, this was one request per unpriced name (250 here,
+    // thousands for a real collection).
+    expect(searchCalls).toBe(100);
   });
 
   it('retries a transient 429 and succeeds', async () => {

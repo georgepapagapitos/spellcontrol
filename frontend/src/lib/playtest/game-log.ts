@@ -18,6 +18,7 @@ export type LogEntryKind =
   | 'mulligan'
   | 'shuffle'
   | 'scry'
+  | 'mill'
   | 'token'
   | 'tap-all'
   | 'resistance'
@@ -96,6 +97,29 @@ export function buildLogEntries(
     case 'MULLIGAN':
       return [{ turn, kind: 'mulligan', text: `Mulliganed to ${next.zones.hand.length}` }];
 
+    case 'RESOLVE_TOP': {
+      if (next === current) return []; // no-op (nothing resolvable in the lists)
+      // Milled count comes from the resulting state, so ids the reducer
+      // discarded (not in the library, or repeated) can't inflate it.
+      const milled = next.zones.graveyard.length - current.zones.graveyard.length;
+      if (action.mode === 'mill') {
+        return [{ turn, kind: 'mill', text: `Milled ${milled} card${milled === 1 ? '' : 's'}` }];
+      }
+      const looked = new Set([...action.top, ...(action.bottom ?? []), ...(action.graveyard ?? [])])
+        .size;
+      const kept = new Set(action.top).size;
+      const verb = action.mode === 'scry' ? 'Scried' : 'Surveilled';
+      const away =
+        action.mode === 'scry' ? `${looked - kept} to the bottom` : `${milled} to the graveyard`;
+      return [
+        {
+          turn,
+          kind: action.mode === 'surveil' ? 'mill' : 'scry',
+          text: looked > kept ? `${verb} ${looked} — ${away}` : `${verb} ${looked}`,
+        },
+      ];
+    }
+
     case 'MOVE_TO_BATTLEFIELD': {
       const loc = locate(current, action.cardId);
       if (!loc || loc.from === 'battlefield') return []; // reposition, not a play
@@ -152,6 +176,22 @@ export function buildLogEntries(
           cardName: action.card.name,
         },
       ];
+
+    case 'CLONE_BF_CARDS': {
+      // Counted from the resulting battlefield, so clones whose source had
+      // already left don't get logged as though they happened.
+      const made = next.battlefield.length - current.battlefield.length;
+      if (made <= 0) return [];
+      const only = made === 1 ? next.battlefield.at(-1)?.card.name : undefined;
+      return [
+        {
+          turn,
+          kind: 'token',
+          text: only ? `Copied ${only}` : `Copied ${made} permanents`,
+          ...(only && { cardName: only }),
+        },
+      ];
+    }
 
     case 'UNTAP_ALL':
       return [{ turn, kind: 'tap-all', text: 'Untapped all permanents' }];

@@ -23,6 +23,7 @@ import {
   fromCostSwapRow,
   fromComboCompletion,
   fromLandUpgradeMove,
+  mergeMisfitCuts,
   mergeImprove,
   type Change,
   type ChangeOwnership,
@@ -38,6 +39,7 @@ import type { BracketFitPlan } from '@/deck-builder/services/deckBuilder/bracket
 import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import type { ComboMatch } from '@/types/combos';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
+import type { MisfitSummary } from '@/deck-builder/services/deckBuilder/cardFit';
 import type {
   NextBestMove,
   NextBestMoveFocus,
@@ -107,6 +109,8 @@ export interface CoachFeedProps {
   // Data sources
   gaps: GapAnalysisCard[];
   optimize?: OptimizeSwaps;
+  /** E222: cardFit misfits (deck.misfits) — merged into the Cuts lane. */
+  misfits?: MisfitSummary[];
   synergy: SynergySuggestion[];
   substitutes: SubstituteRow[];
   costPlan?: CostPlan;
@@ -191,6 +195,7 @@ export interface CoachFeedProps {
 export function CoachFeed({
   gaps,
   optimize,
+  misfits,
   synergy,
   substitutes,
   costPlan,
@@ -409,11 +414,18 @@ export function CoachFeed({
       fromLandUpgradeMove(m, resolveOwnership(m.inName))
     );
 
+    // E222: cardFit misfits folded into the optimizer's cut rows — enriching
+    // the ones it already flagged, adding rows for the ones it skips.
+    const optimizeCuts = mergeMisfitCuts(
+      (optimize?.removals ?? []).map((o) => fromOptimizeCard(o, 'cut')),
+      misfits ?? []
+    );
+
     const swapsAndCuts = [
       ...costChanges,
       ...bracketChanges.filter((c) => c.type === 'swap' || c.type === 'cut'),
       ...landChanges,
-      ...(optimize?.removals ?? []).map((o) => fromOptimizeCard(o, 'cut')),
+      ...optimizeCuts,
     ];
 
     // Bracket adds (not swaps/cuts).
@@ -431,6 +443,7 @@ export function CoachFeed({
   }, [
     gaps,
     optimize,
+    misfits,
     synergy,
     substitutes,
     costPlan,

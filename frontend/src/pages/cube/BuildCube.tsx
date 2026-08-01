@@ -15,6 +15,7 @@ import { formatRelativeTime } from '../../lib/format-time';
 import { buildAvailableCollection } from '../../lib/collection-availability';
 import { bindCubeCopies } from '../../lib/bind-cube-copies';
 import { getCardsByNames } from '../../deck-builder/services/scryfall/client';
+import { fetchCubeOracle } from '../../lib/cube/oracle';
 import { loadTaggerData } from '../../deck-builder/services/tagger/client';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
@@ -101,15 +102,21 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
     setStatus('working');
     setError('');
     setFetchProgress(null);
+    // Drop the previous run's preview art so the picks effect refires for the
+    // NEW picks — it's gated on an empty map.
+    setEnrichedMap(new Map());
     cubeStore.clear();
     try {
       await loadTaggerData(); // ensures cubeRole is populated; cached/deduped
-      const enriched = await getCardsByNames(uniqueNames, (fetched, total) => {
+      // Pool ranking reads oracle facts for the WHOLE collection — a bulk-data
+      // workload Scryfall doesn't want walked card-by-card from a browser, so
+      // it comes from our own cache-backed endpoint. Card previews are filled
+      // in separately by the effect below, for the picks only.
+      const enriched = await fetchCubeOracle(uniqueNames, collectionCards, (fetched, total) => {
         setFetchProgress({ fetched, total });
       });
       // Fetch phase complete — clear progress so we show the "finalizing" skeleton.
       setFetchProgress(null);
-      setEnrichedMap(enriched);
       const pool = namesToCubePool(uniqueNames, collectionCards, enriched);
       const newCube = generateCube(pool, size, { synergyLevel });
       cubeStore.setResult(size, newCube);
@@ -120,9 +127,10 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
     }
   }, [uniqueNames, collectionCards, size, synergyLevel, cubeStore]);
 
-  // When the store has a persisted result but enrichedMap is empty (e.g. after
-  // a tab-switch or page reload), re-fetch Scryfall data for the cube's own
-  // cards so the row thumbnails and CardPreview have images. We fetch the cube's
+  // Card art/printing details for the picks. This is the ONLY Scryfall call the
+  // cube flow makes — a few hundred names, well inside the batch endpoint's
+  // comfort zone — and it also covers the case where the store has a persisted
+  // result but enrichedMap is empty (a tab-switch or page reload). We fetch the cube's
   // PICK names (always present in the persisted result) — not the collection's
   // `uniqueNames`, which hydrates from IDB asynchronously and, under "available
   // only", excludes the very cards already committed to this cube.

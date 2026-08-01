@@ -30,7 +30,12 @@ const selfPath = fileURLToPath(import.meta.url);
 const srcDir = resolve(dirname(selfPath), '..');
 
 /** Written in place by the predev/prebuild refresh scripts. */
-const REGENERATED_ASSETS = ['tagger-tags.json', 'comprehensive-rules.json', 'sld-drops.json'];
+const REGENERATED_ASSETS = [
+  'tagger-tags.json',
+  'otag-index.json',
+  'comprehensive-rules.json',
+  'sld-drops.json',
+];
 
 /**
  * Deliberate exceptions — tests whose whole point is to track whatever snapshot

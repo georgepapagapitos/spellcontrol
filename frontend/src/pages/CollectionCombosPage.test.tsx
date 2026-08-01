@@ -9,6 +9,13 @@ const useDeckCombos = vi.fn();
 vi.mock('../lib/use-deck-combos', () => ({
   useDeckCombos: (args: unknown) => useDeckCombos(args),
 }));
+// E216: dataset-wide search. Resolving to null is the "local dataset
+// unavailable" path, which must degrade to the old bucket filtering — that's
+// the default so every pre-existing test keeps exercising the fallback.
+const searchCombos = vi.fn(async (_args: unknown): Promise<unknown> => null);
+vi.mock('../lib/api/combos', () => ({
+  searchCombos: (args: unknown) => searchCombos(args),
+}));
 vi.mock('../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
 vi.mock('../lib/sync', () => ({ getSyncState: () => 'ready', onSyncedChange: () => () => {} }));
 vi.mock('../components/shared/BrandMark', () => ({ BrandMark: () => null }));
@@ -76,18 +83,69 @@ function combo(id: string, name: string, missing: string[] = []): ComboMatch {
   };
 }
 
+const refetch = vi.fn();
+
 function setResult(over: Partial<ComboMatchResponse>) {
+  const almostInCollection = over.almostInCollection ?? [];
   useDeckCombos.mockReturnValue({
-    data: { inDeck: [], oneAway: [], almostInCollection: [], ...over },
+    data: {
+      inDeck: [],
+      oneAway: [],
+      almostInCollection,
+      source: 'local' as const,
+      almostInCollectionTotal: almostInCollection.length,
+      ...over,
+    },
     loading: false,
     error: null,
+    refetch,
   });
 }
 
 describe('CollectionCombosPage', () => {
   beforeEach(() => {
     useDeckCombos.mockReset();
+    refetch.mockReset();
+    searchCombos.mockReset();
+    searchCombos.mockResolvedValue(null);
     setResult({});
+  });
+
+  it('E216: searching queries the whole dataset and replaces the tabs with one closest-first list', async () => {
+    // Two pieces missing — a shape the bucketed matcher can NEVER return, so
+    // this row existing at all is the point of the feature.
+    const twoAway = combo('far', 'Far Combo', ['ox', 'oy']);
+    searchCombos.mockResolvedValue({
+      matches: [combo('near', 'Near Combo', ['ox']), twoAway],
+      total: 2,
+    });
+    // The search pill only renders once there's something to search.
+    setResult({ inDeck: [combo('seed', 'Seed Combo')] });
+    renderPage();
+    fireEvent.change(screen.getByLabelText('Search combos by card name or result'), {
+      target: { value: 'combo' },
+    });
+
+    await waitFor(() => expect(screen.getByText(/closest first/)).toBeTruthy());
+    expect(searchCombos).toHaveBeenCalledWith(
+      expect.objectContaining({ query: 'combo', format: 'commander' })
+    );
+    // Tabs step aside — the bucket model doesn't apply to a card-scoped answer.
+    expect(screen.queryByRole('tab', { name: /Complete/ })).toBeNull();
+    expect(screen.getByText(/Far Combo/)).toBeTruthy();
+  });
+
+  it('E216: falls back to filtering the fetched buckets when the local dataset is unavailable', async () => {
+    searchCombos.mockResolvedValue(null);
+    setResult({ inDeck: [combo('c1', 'Owned Combo')] });
+    renderPage();
+    fireEvent.change(screen.getByLabelText('Search combos by card name or result'), {
+      target: { value: 'owned' },
+    });
+
+    // Tabs stay — this is the old behaviour, which E212's banner explains.
+    await waitFor(() => expect(screen.getByText(/Owned Combo/)).toBeTruthy());
+    expect(screen.queryByText(/closest first/)).toBeNull();
   });
 
   it('sends no deck, so the matcher buckets against the collection', () => {
@@ -117,6 +175,28 @@ describe('CollectionCombosPage', () => {
     expect(screen.getByText(/Near Miss/)).toBeTruthy();
     // Scope-specific copy: the deck panel says "in deck" here.
     expect(screen.getByLabelText('1 of 2 pieces in collection')).toBeTruthy();
+  });
+
+  it('discloses the server truncation on the one-away tab instead of a bare 200 (E213)', () => {
+    setResult({
+      almostInCollection: [combo('c2', 'Near Miss', ['ox'])],
+      almostInCollectionTotal: 8294,
+    });
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: /One card away/ }));
+
+    expect(screen.getByText(/Showing 1 of 8,294 combos one card away/)).toBeTruthy();
+  });
+
+  it('shows no truncation note when the true total fits the returned bucket', () => {
+    setResult({
+      almostInCollection: [combo('c2', 'Near Miss', ['ox'])],
+      almostInCollectionTotal: 1,
+    });
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: /One card away/ }));
+
+    expect(screen.queryByText(/Showing \d+ of/)).toBeNull();
   });
 
   it('names the commanders you own that could host a complete combo', () => {
@@ -171,5 +251,31 @@ describe('CollectionCombosPage', () => {
     setResult({});
     renderPage();
     expect(screen.getByText('No combos you can build outright yet.')).toBeTruthy();
+  });
+
+  // E212: a `source: 'server'` result went through the capped server
+  // fallback (2000-candidate cap), not the full local dataset — this asserts
+  // it can never render as an unqualified final answer.
+  it('shows a partial-results banner when the match came from the server fallback', () => {
+    setResult({ inDeck: [combo('c1', 'Owned Combo')], source: 'server' });
+    renderPage();
+
+    expect(screen.getByText(/Showing partial results/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+  });
+
+  it('shows no banner when the match came from the full local dataset', () => {
+    setResult({ inDeck: [combo('c1', 'Owned Combo')], source: 'local' });
+    renderPage();
+
+    expect(screen.queryByText(/Showing partial results/)).toBeNull();
+  });
+
+  it('retrying the partial banner calls refetch', () => {
+    setResult({ inDeck: [combo('c1', 'Owned Combo')], source: 'server' });
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(refetch).toHaveBeenCalledTimes(1);
   });
 });

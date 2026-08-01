@@ -1,13 +1,14 @@
 import { useMemo, useState, type JSX } from 'react';
 import './BuildReportPanel.css';
-import { Check, Loader2, Plus } from 'lucide-react';
+import { AlertOctagon, Check, Loader2, Plus, Sparkles } from 'lucide-react';
 import type { BuildReport, DeckDataSource, GenerationMode } from '@/deck-builder/types';
-import type { ComboMatch } from '@/types/combos';
+import type { ComboMatch, ComboSeedContext } from '@/types/combos';
 import { ROLE_TITLES, type RoleKey } from '@/lib/role-badges';
 import { comboPayoffScore } from '@/lib/combo-payoff';
 import { VerdictBadge } from './VerdictBadge';
 import { OwnershipBadge } from './OwnershipBadge';
 import { ColorPip } from '@/components/shared/ManaSymbol';
+import { THIN_SAMPLE_FLOOR } from '@/components/shared/ThinDataNote';
 import { InfoTip } from '../InfoTip';
 
 const COLOR_WORDS: Record<string, string> = {
@@ -96,6 +97,7 @@ export function BuildReportPanel({
   addingCardNames,
   oneAwayCombos,
   ownedOracleIds,
+  comboSeedContext,
 }: {
   report: BuildReport;
   /** Jump to the Coach "Fix gaps" lane to add cards for the under-target roles.
@@ -119,6 +121,14 @@ export function BuildReportPanel({
   /** Oracle ids the user owns — flags one-away combos whose missing piece is
    *  already in the collection (those rank first: they're free to finish). */
   ownedOracleIds?: ReadonlySet<string>;
+  /** Combo this build was seeded from (E215), when this is the one-shot
+   *  post-generation sheet. Absent everywhere else (incl. the persistent
+   *  Stats-tab panel, since the seed intent isn't persisted). Confirms the
+   *  combo assembled — or, honestly, that a forced pick got skipped — using
+   *  `mustIncludeSkippedNote` below, which the generator already computes for
+   *  exactly this build's must-includes (the combo's pieces, and nothing
+   *  else, since this flow is the only source of mustIncludeCards here). */
+  comboSeedContext?: ComboSeedContext | null;
 }): JSX.Element {
   const [justAdded, setJustAdded] = useState<Set<string>>(new Set());
 
@@ -193,6 +203,7 @@ export function BuildReportPanel({
     varietyNote,
     landSqueezeTrimNote,
     bracketPoolFallbackNote,
+    archetypeBlendNote,
     integrityNotes,
     budgetNote,
     roleCapOverflowNote,
@@ -245,6 +256,32 @@ export function BuildReportPanel({
 
   return (
     <div className="build-report">
+      {comboSeedContext && (
+        <p
+          className={`build-report-combo-seed${mustIncludeSkippedNote ? ' is-partial' : ' is-assembled'}`}
+        >
+          {mustIncludeSkippedNote ? (
+            <AlertOctagon
+              className="build-report-combo-seed-icon"
+              width={14}
+              height={14}
+              aria-hidden
+            />
+          ) : (
+            <Sparkles className="build-report-combo-seed-icon" width={14} height={14} aria-hidden />
+          )}
+          <span>
+            <strong>
+              {mustIncludeSkippedNote
+                ? "Didn't fully assemble the combo you built around"
+                : 'The combo you built around is in this deck'}
+            </strong>
+            <br />
+            {mustIncludeSkippedNote ?? `${comboSeedContext.pieceNames.join(' + ')} — all seated.`}
+          </span>
+        </p>
+      )}
+
       {integrityNotes?.map((note) => (
         <p key={note} className="build-report-flag">
           {note}
@@ -281,9 +318,19 @@ export function BuildReportPanel({
         <p className="build-report-line build-report-source">{bracketPoolFallbackNote}</p>
       )}
 
+      {/* E221: names the real data lineage — which theme page backfilled this
+          deck, and the commander sample size that justified reaching for it. */}
+      {archetypeBlendNote && (
+        <p className="build-report-line build-report-source">{archetypeBlendNote}</p>
+      )}
+
       {landCountNote && <p className="build-report-line build-report-source">{landCountNote}</p>}
 
-      {mustIncludeSkippedNote && <p className="build-report-flag">{mustIncludeSkippedNote}</p>}
+      {/* Combo builds already surface this note in the confirmation banner
+          above — don't say it twice. */}
+      {mustIncludeSkippedNote && !comboSeedContext && (
+        <p className="build-report-flag">{mustIncludeSkippedNote}</p>
+      )}
 
       {brewDialNote && <p className="build-report-line build-report-source">{brewDialNote}</p>}
       {varietyNote && <p className="build-report-line build-report-source">{varietyNote}</p>}
@@ -507,6 +554,15 @@ export function BuildReportPanel({
               </li>
             ))}
           </ul>
+          {/* E224: the "Low sample" chip above named a limit without stating
+              it. One disclosure for the list, since the per-pick deck counts
+              aren't carried this far — the floor is the useful number anyway. */}
+          {packagePicks.some((p) => p.lowSample) && (
+            <p className="thin-data-note">
+              Picks marked “Low sample” come from fewer than {THIN_SAMPLE_FLOOR} decks pairing those
+              cards — treat them as a hunch, not a stat.
+            </p>
+          )}
           {liftPicksNote && <p className="build-report-lift-note">{liftPicksNote}</p>}
         </details>
       )}

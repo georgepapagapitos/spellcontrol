@@ -23,22 +23,13 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-const manifest = (combosVersion: string) => ({
-  oracleVersion: 'o1',
-  oracleCardCount: 0,
-  oracleByteSize: 0,
-  oracleUpdatedAt: 0,
-  combosVersion,
-  combosCount: 3,
-  combosByteSize: 100,
-  combosUpdatedAt: 0,
-});
+const manifest = (combosVersion: string) => ({ combosVersion });
 
-/** fetch stub routing manifest/combos URLs to canned responses. */
+/** fetch stub routing combos-version/combos URLs to canned responses. */
 function routeFetch(routes: { manifest?: Response | Error; combos?: Response | Error }) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
     const u = String(url);
-    const pick = u.includes('/api/offline/manifest') ? routes.manifest : routes.combos;
+    const pick = u.includes('/api/offline/combos-version') ? routes.manifest : routes.combos;
     if (pick instanceof Error) return Promise.reject(pick);
     if (pick) return Promise.resolve(pick);
     throw new Error(`unexpected fetch ${u}`);
@@ -90,7 +81,16 @@ describe('ensureCombosCached', () => {
   it('falls back to the full manifest version when no standalone version is stored', async () => {
     vi.mocked(getOfflineDataStats).mockResolvedValue({ cardCount: 0, comboCount: 3 });
     vi.mocked(readStandaloneCombosVersion).mockResolvedValue(null);
-    vi.mocked(readManifest).mockResolvedValue(manifest('v9'));
+    vi.mocked(readManifest).mockResolvedValue({
+      oracleVersion: 'o1',
+      oracleCardCount: 0,
+      oracleByteSize: 0,
+      oracleUpdatedAt: 0,
+      combosVersion: 'v9',
+      combosCount: 3,
+      combosByteSize: 100,
+      combosUpdatedAt: 0,
+    });
     routeFetch({ manifest: jsonResponse(manifest('v9')) });
 
     expect(await ensureCombosCached()).toBe(true);

@@ -10,10 +10,6 @@ import { MOVE_DESTINATIONS } from '../lib/zones';
 interface Props {
   zone: Zone;
   cards: PlaytestCard[];
-  /** When non-null, restricts the view to the top N cards (used for scry/reveal). */
-  topN?: number;
-  /** True if the source zone's order matters (library top is index 0). */
-  ordered?: boolean;
   onClose(): void;
   onMove(cardId: string, to: Zone | 'battlefield'): void;
   onShuffleAfter?(): void;
@@ -28,29 +24,17 @@ const DESTINATIONS: Array<{ key: Zone | 'battlefield'; label: string }> = [
   ...MOVE_DESTINATIONS.slice(1), // graveyard, exile, library (bottom), command
 ];
 
-export function ZoneViewerModal({
-  zone,
-  cards,
-  topN,
-  ordered,
-  onClose,
-  onMove,
-  onShuffleAfter,
-}: Props) {
+export function ZoneViewerModal({ zone, cards, onClose, onMove, onShuffleAfter }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   useLockBodyScroll();
   useEscapeKey(beginClose);
   const [filter, setFilter] = useState('');
 
   const visible = useMemo(() => {
-    let pool = cards;
-    if (topN != null) pool = ordered ? cards.slice(0, topN) : cards.slice(-topN);
     const nq = normalizeForSearch(filter);
-    if (!nq) return pool;
-    return pool.filter((c) => normalizeForSearch(c.name).includes(nq));
-  }, [cards, filter, topN, ordered]);
-
-  const titleLabel = topN != null ? `Top ${topN} of ${zone}` : zone;
+    if (!nq) return cards;
+    return cards.filter((c) => normalizeForSearch(c.name).includes(nq));
+  }, [cards, filter]);
 
   return (
     <div className="card-picker-root" role="presentation" onClick={() => beginClose()}>
@@ -65,16 +49,14 @@ export function ZoneViewerModal({
       >
         <div className="card-picker-handle" aria-hidden />
         <div className="card-picker-header">
-          <h2 className="card-picker-title playtest-zone-title">{titleLabel}</h2>
-          {topN == null && (
-            <SearchPill
-              value={filter}
-              onChange={setFilter}
-              placeholder={`Search ${zone}…`}
-              ariaLabel={`Search ${zone}`}
-              autoFocus
-            />
-          )}
+          <h2 className="card-picker-title playtest-zone-title">{zone}</h2>
+          <SearchPill
+            value={filter}
+            onChange={setFilter}
+            placeholder={`Search ${zone}…`}
+            ariaLabel={`Search ${zone}`}
+            autoFocus
+          />
         </div>
         {visible.length === 0 ? (
           <p className="playtest-zone-empty">No cards.</p>

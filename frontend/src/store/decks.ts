@@ -17,6 +17,7 @@ import type {
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import type { BracketFitPlan } from '@/deck-builder/services/deckBuilder/bracketFit';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
+import type { MisfitSummary } from '@/deck-builder/services/deckBuilder/cardFit';
 import type { OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { CostPlan } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { SynergyAnalysis } from '@/deck-builder/services/synergy/analysis';
@@ -184,6 +185,13 @@ export interface Deck {
    * cards change), like roleTargets/gapAnalysis — not a generation snapshot.
    */
   planScore?: PlanScore;
+  /**
+   * E222: the cardFit sub-score's misfit cascade (name + typed reasons), kept
+   * live alongside planScore. Slim by construction — `MisfitSummary` omits the
+   * `ScryfallCard` that `Misfit` carries, so this stays comparable in size to
+   * `optimizeSwaps.removals` rather than bloating a synced deck row.
+   */
+  misfits?: MisfitSummary[];
   /**
    * EDHREC's own sample size for this commander (its `numDecks`) — kept live
    * by useCommanderBracketAnalysis alongside planScore. Powers the

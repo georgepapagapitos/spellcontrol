@@ -16,6 +16,7 @@ import {
   fetchPartnerCommanderData,
   fetchPartnerThemeData,
   fetchCommanderCombosRaw,
+  fetchTagPageData,
   isPoolTooThin,
 } from '@/deck-builder/services/edhrec/client';
 import { prefetchBasicLands, getGameChangerNames } from '@/deck-builder/services/scryfall/client';
@@ -24,6 +25,7 @@ import { bracketLabel } from '../bracketEstimator';
 import { calculateCardPriority } from '../cardPicking';
 import { loadCardSimilar, hasCardSimilar } from '../cardSimilar';
 import { buildAlternatePool, type AlternatePoolResult } from '../phaseAlternatePool';
+import { blendTagPageIntoPool, resolveArchetypeBlend } from '../archetypeBlend';
 import type { GenerationState, GenerationContext } from './state';
 
 // ── Merge cardlists from multiple theme results ──
@@ -772,7 +774,65 @@ export async function acquireCardPoolPhase(
     }
   }
 
+  await applyArchetypeBlend(state);
+
   return { altPool, scryfallQuery };
+}
+
+/**
+ * ── E221: archetype tag-page blending ──
+ *
+ * Pool AUGMENTATION, deliberately not a post-fill phase. Injecting here — after
+ * the pool ladder has settled, before any type pass runs — means budget,
+ * bracket, role caps, colour identity, legality, salt, ban lists and price
+ * sanity all apply to injected cards unchanged, for free. Every post-fill phase
+ * we've shipped that seated cards outside the normal pick path discovered at
+ * the gate that it had bypassed a gate the pick path enforces (#1044).
+ *
+ * Off by default (`resolveArchetypeBlend`), and a no-op without a selected
+ * theme — the blend needs a tag page to blend *from*. Any failure is swallowed:
+ * a missing tag page means the deck builds exactly as it would have.
+ */
+async function applyArchetypeBlend(state: GenerationState): Promise<void> {
+  const { customization, colorIdentity } = state.context;
+  if (!resolveArchetypeBlend(customization)) return;
+
+  const theme = state.cfg.selectedThemesWithSlugs[0];
+  if (!theme?.slug || !state.edhrecData) return;
+
+  // Alternative generators synthesize their own pool from Scryfall and have no
+  // EDHREC commander page behind them, so there's no local sample to weight
+  // against — leave those pools alone.
+  if (state.dataSource === 'scryfall' || state.dataSource === 'paupercommander') return;
+
+  try {
+    const tagPage = await fetchTagPageData(theme.slug, colorIdentity);
+    if (!tagPage) return;
+
+    const commanderNumDecks = state.edhrecData.stats.numDecks;
+    const { cardlists, injectedNames, weight } = blendTagPageIntoPool({
+      pool: state.edhrecData.cardlists,
+      tagPageCardlists: tagPage.cardlists,
+      highSynergyNames: tagPage.highSynergyNames,
+      tagPagePotentialDecks: tagPage.potentialDecks,
+      commanderNumDecks,
+    });
+    if (injectedNames.length === 0) return;
+
+    state.edhrecData = { ...state.edhrecData, cardlists };
+    // Pool-level list; deckGenerator narrows it to what actually shipped before
+    // it reaches the report (summarizeSeatedBlend).
+    state.archetypeBlendNames = injectedNames;
+    state.archetypeBlendTheme = theme.name;
+    state.archetypeBlendCommanderDecks = commanderNumDecks;
+    logger.debug(
+      `[DeckGen] E221: blended ${injectedNames.length} cards from "${theme.slug}"` +
+        `${tagPage.colorSlug ? `/${tagPage.colorSlug}` : ' (unfiltered)'} at w=${weight.toFixed(2)}`
+    );
+  } catch (error) {
+    // Never fail a generation over an optional backfill.
+    logger.warn('[DeckGen] E221: archetype blend skipped —', error);
+  }
 }
 
 export interface PopulateGenerationCacheContext {

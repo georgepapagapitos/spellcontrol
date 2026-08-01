@@ -55,11 +55,28 @@ if (typeof globalThis.localStorage === 'undefined') {
  * lands inside each caller's own `catch` instead, which is why it also emits
  * zero of its own message.
  */
-globalThis.fetch = ((input: RequestInfo | URL) =>
-  Promise.reject(
-    new Error(
-      `[test] Unstubbed network call to ${String(input instanceof Request ? input.url : input)}. ` +
-        `Tests must not hit the network — stub it with vi.stubGlobal('fetch', …) ` +
-        `or mock the calling module.`
-    )
-  )) as typeof fetch;
+/**
+ * …except the LIVE_GEN eval harness, which is a deliberate live-network run —
+ * it IS the deck-gen ship gate (`deckGenerator.live.test.ts` + the
+ * `deckgen-eval-gate` skill), generating real decks off real EDHREC/Scryfall
+ * data. That harness captures `globalThis.fetch` in its own `beforeAll` to use
+ * as the pass-through for everything but two static fixtures; `setupFiles` run
+ * first, so an unconditional guard here becomes the thing it captures and every
+ * deck in the panel fails with "Couldn't reach Scryfall".
+ *
+ * That failure is invisible at the vitest level — the panel test still reports
+ * green because it catches per-deck errors and writes a summary — so the gate
+ * silently produced 0-deck panels whose "identical" comparison looked like a
+ * pass. Gate on the env var rather than the guard, and leave the guard in force
+ * for every ordinary run (LIVE_GEN unset).
+ */
+if (!process.env.LIVE_GEN) {
+  globalThis.fetch = ((input: RequestInfo | URL) =>
+    Promise.reject(
+      new Error(
+        `[test] Unstubbed network call to ${String(input instanceof Request ? input.url : input)}. ` +
+          `Tests must not hit the network — stub it with vi.stubGlobal('fetch', …) ` +
+          `or mock the calling module.`
+      )
+    )) as typeof fetch;
+}

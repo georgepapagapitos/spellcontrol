@@ -27,6 +27,79 @@ function entry(overrides: Partial<GameLogEntry> = {}): GameLogEntry {
 }
 
 describe('buildLogEntries', () => {
+  it.each([
+    ['scry', { bottom: 1 }, 'scry', 'Scried 3 — 1 to the bottom'],
+    ['surveil', { graveyard: 1 }, 'mill', 'Surveilled 3 — 1 to the graveyard'],
+  ] as const)('logs a resolved %s', (mode, away, kind, text) => {
+    const s = init(10, 1, 0);
+    const [a, b, c] = s.zones.library;
+    const action = {
+      type: 'RESOLVE_TOP' as const,
+      mode,
+      top: [a.id, b.id],
+      ...('bottom' in away ? { bottom: [c.id] } : { graveyard: [c.id] }),
+    };
+    expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([{ turn: 1, kind, text }]);
+  });
+
+  it('logs a mill by the number that actually reached the graveyard', () => {
+    const s = init(10, 1, 0);
+    const [a, b] = s.zones.library;
+    const action = {
+      type: 'RESOLVE_TOP' as const,
+      mode: 'mill' as const,
+      top: [],
+      graveyard: [a.id, b.id, 'not-in-library'],
+    };
+    expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([
+      { turn: 1, kind: 'mill', text: 'Milled 2 cards' },
+    ]);
+  });
+
+  it('logs nothing for a scry that resolved to nothing', () => {
+    const s = init(10, 1, 0);
+    const action = { type: 'RESOLVE_TOP' as const, mode: 'scry' as const, top: ['nope'] };
+    expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([]);
+  });
+
+  /** A state with `n` cards already on the battlefield. */
+  function withBattlefield(n: number): PlaytestState {
+    let s = init(10, 1, n);
+    for (const c of [...s.zones.hand]) {
+      s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: c.id, x: 0, y: 0 });
+    }
+    return s;
+  }
+
+  it('names the card when a single permanent is copied', () => {
+    const s = withBattlefield(1);
+    const action = {
+      type: 'CLONE_BF_CARDS' as const,
+      clones: [{ sourceId: s.battlefield[0].card.id, id: 'copy-1' }],
+    };
+    const name = s.battlefield[0].card.name;
+    expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([
+      { turn: 1, kind: 'token', text: `Copied ${name}`, cardName: name },
+    ]);
+  });
+
+  it('counts a group copy', () => {
+    const s = withBattlefield(3);
+    const action = {
+      type: 'CLONE_BF_CARDS' as const,
+      clones: s.battlefield.map((b, i) => ({ sourceId: b.card.id, id: `copy-${i}` })),
+    };
+    expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([
+      { turn: 1, kind: 'token', text: 'Copied 3 permanents' },
+    ]);
+  });
+
+  it('logs nothing when every source had already left', () => {
+    const s = withBattlefield(1);
+    const action = { type: 'CLONE_BF_CARDS' as const, clones: [{ sourceId: 'gone', id: 'c' }] };
+    expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([]);
+  });
+
   it('logs a turn boundary', () => {
     const s = init(10, 1, 0);
     const next = applyAction(s, { type: 'NEXT_TURN' });

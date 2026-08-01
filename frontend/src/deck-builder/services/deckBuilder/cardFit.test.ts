@@ -11,7 +11,13 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   },
 }));
 
-import { computeMisfits, computeCardFitSubscore, pickReplacement, type Misfit } from './cardFit';
+import {
+  computeMisfits,
+  computeCardFitSubscore,
+  pickReplacement,
+  summarizeMisfits,
+  type Misfit,
+} from './cardFit';
 
 function card(name: string, over: Partial<ScryfallCard> = {}): ScryfallCard {
   return {
@@ -193,5 +199,113 @@ describe('computeCardFitSubscore', () => {
   it('never drops below 0', () => {
     expect(computeCardFitSubscore(mf(100), 100).value).toBe(40); // 100-40-20
     expect(computeCardFitSubscore(mf(100), 100).value).toBeGreaterThanOrEqual(0);
+  });
+});
+
+// E222: the slim projection written to the (synced) deck row.
+describe('summarizeMisfits', () => {
+  it('drops the ScryfallCard but keeps the reason cascade', () => {
+    const misfits = computeMisfits({
+      cards: [card('Ornithopter'), card('Sol Ring')],
+      cardInclusionMap: {},
+      cardSynergyMap: {},
+    });
+    const summaries = summarizeMisfits(misfits);
+
+    expect(summaries.length).toBe(misfits.length);
+    expect(summaries.length).toBeGreaterThan(0);
+
+    for (const s of summaries) {
+      // The whole reason this projection exists: deck rows are whole-entity and
+      // synced, so a full card object per misfit would bloat every push.
+      expect(s).not.toHaveProperty('card');
+      expect(typeof s.name).toBe('string');
+      expect(s.reasons.length).toBeGreaterThanOrEqual(2); // the >=2-reason gate
+      for (const r of s.reasons) {
+        expect(r.kind).toBeTruthy();
+        expect(r.detail).toBeTruthy(); // buildMisfitFactors renders `detail`
+      }
+    }
+  });
+
+  it('preserves order and flattens the replacement to a name', () => {
+    const gaps: GapAnalysisCard[] = [
+      { name: 'Arcane Signet', role: 'ramp', typeLine: 'Artifact' } as GapAnalysisCard,
+    ];
+    const misfits = computeMisfits({
+      cards: [card('Ornithopter')],
+      cardInclusionMap: {},
+      cardSynergyMap: {},
+      gapCandidates: gaps,
+    });
+    const summaries = summarizeMisfits(misfits);
+
+    expect(summaries.map((s) => s.name)).toEqual(misfits.map((m) => m.card.name));
+    for (const s of summaries) {
+      expect(typeof (s.suggestedReplacement ?? '')).toBe('string');
+    }
+  });
+});
+
+// E221 — the cross-system trap. An archetype-blended card is absent from the
+// commander's EDHREC page BY CONSTRUCTION (that absence is *why* it was
+// injected), so without an exemption every blended card trips the 2-reason
+// threshold → cardFit sub-score drops → planScore drops → NextBestMove tells
+// the user to cut exactly what generation deliberately added.
+describe('computeMisfits — archetype-blend exemption', () => {
+  it('flags a blend-shaped card when it is NOT marked as blended', () => {
+    const misfits = computeMisfits({
+      cards: [card('Sol Ring')], // tagged role mocked, so only the two "absent" reasons fire
+      cardInclusionMap: {},
+    });
+    expect(misfits).toHaveLength(1);
+    expect(misfits[0].reasons.map((r) => r.kind).sort()).toEqual([
+      'inclusion-absent',
+      'synergy-absent',
+    ]);
+  });
+
+  it('does not flag the same card once it is marked as blended', () => {
+    const misfits = computeMisfits({
+      cards: [card('Sol Ring')],
+      cardInclusionMap: {},
+      blendedNames: new Set(['Sol Ring']),
+    });
+    expect(misfits).toEqual([]);
+  });
+
+  it('still flags a blended card on reasons that are real signals about it', () => {
+    // No tagged role + off every active theme: two reasons that have nothing to
+    // do with the commander page, so the exemption must not swallow them.
+    const misfits = computeMisfits({
+      cards: [card('Random Card')],
+      cardInclusionMap: {},
+      themeByCard: new Set(['something else']),
+      blendedNames: new Set(['Random Card']),
+    });
+    expect(misfits).toHaveLength(1);
+    expect(misfits[0].reasons.map((r) => r.kind).sort()).toEqual(['role-missing', 'theme-off']);
+  });
+
+  it('still flags a blended card whose data exists but is weak', () => {
+    // inclusion-low + synergy-low fire on present-but-poor data; only the
+    // *absent* reasons are exempted.
+    const misfits = computeMisfits({
+      cards: [card('Sol Ring')],
+      cardInclusionMap: { 'Sol Ring': 1 },
+      cardSynergyMap: { 'Sol Ring': -0.5 },
+      blendedNames: new Set(['Sol Ring']),
+    });
+    expect(misfits).toHaveLength(1);
+    expect(misfits[0].reasons.map((r) => r.kind).sort()).toEqual(['inclusion-low', 'synergy-low']);
+  });
+
+  it('exempts only the named cards, not the whole deck', () => {
+    const misfits = computeMisfits({
+      cards: [card('Sol Ring'), card('Swords to Plowshares')],
+      cardInclusionMap: {},
+      blendedNames: new Set(['Sol Ring']),
+    });
+    expect(misfits.map((m) => m.card.name)).toEqual(['Swords to Plowshares']);
   });
 });
