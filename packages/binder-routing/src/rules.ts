@@ -49,6 +49,7 @@ interface CompiledFilter {
   cmcMax?: number;
   edhrecRankMax?: number;
   commanderEligible?: boolean;
+  proxy?: boolean;
 }
 
 export function compileFilter(filter: BinderFilter): CompiledFilter {
@@ -87,6 +88,7 @@ export function compileFilter(filter: BinderFilter): CompiledFilter {
   if (filter.cmcMax !== undefined) out.cmcMax = filter.cmcMax;
   if (filter.edhrecRankMax !== undefined) out.edhrecRankMax = filter.edhrecRankMax;
   if (filter.commanderEligible !== undefined) out.commanderEligible = filter.commanderEligible;
+  if (filter.proxy !== undefined) out.proxy = filter.proxy;
 
   return out;
 }
@@ -194,6 +196,9 @@ export function cardMatchesCompiled(
     if (isCommanderEligible(card) !== f.commanderEligible) return false;
   }
 
+  // card.proxy unset/false both mean "not a proxy" — coerce to boolean before compare.
+  if (f.proxy !== undefined && Boolean(card.proxy) !== f.proxy) return false;
+
   return true;
 }
 
@@ -299,6 +304,7 @@ export function isFilterEmpty(filter: BinderFilter): boolean {
     (!filter.setCodes || filter.setCodes.length === 0) &&
     filter.edhrecRankMax === undefined &&
     filter.commanderEligible === undefined &&
+    filter.proxy === undefined &&
     !filter.scryfallQuery?.query.trim()
   );
 }

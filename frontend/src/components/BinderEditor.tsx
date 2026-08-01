@@ -63,6 +63,7 @@ function isFilterEmpty(f: BinderFilter): boolean {
   if (f.manaCost?.trim()) return false;
   if (f.nameContains?.trim()) return false;
   if (f.commanderEligible !== undefined) return false;
+  if (f.proxy !== undefined) return false;
   if (f.edhrecRankMax !== undefined) return false;
   if (f.setCodes && f.setCodes.length > 0) return false;
   const chipFields = [
@@ -90,8 +91,9 @@ function isFilterEmpty(f: BinderFilter): boolean {
 // ABOVE the fold (always visible, most-reached-for fields):
 //   Type line, Color identity, Rarity, CMC (mana value), Price
 // BELOW the fold (collapsed behind "More rules" expander):
-//   Name contains, Mana cost, Commander, Sets, Finishes, Layout, Treatment,
-//   Border, EDHREC popularity, Legalities, Oracle text, Scryfall query
+//   Name contains, Mana cost, Commander, Proxy, Sets, Finishes, Layout,
+//   Treatment, Border, EDHREC popularity, Legalities, Oracle text, Scryfall
+//   query
 //
 // Auto-open rule: if any collapsed field carries a value, the expander must
 // start open so the user can see their active rules when editing.
@@ -101,6 +103,7 @@ function hasCollapsedFieldValue(f: BinderFilter): boolean {
   if (f.nameContains?.trim()) return true;
   if (f.manaCost?.trim()) return true;
   if (f.commanderEligible !== undefined) return true;
+  if (f.proxy !== undefined) return true;
   if (f.setCodes && f.setCodes.length > 0) return true;
   if (f.edhrecRankMax !== undefined) return true;
   if (f.finishes && f.finishes.chips.length > 0) return true;
@@ -1561,8 +1564,8 @@ function StarterTemplates({ onApply }: { onApply: (tpl: StarterTemplate) => void
  *   Type line, Color identity, Rarity, Mana value (CMC), Price
  *
  * Below the fold (collapsed by default):
- *   Name contains, Mana cost, Commander, Sets, Finishes, Layout, Treatment,
- *   Border, EDHREC popularity, Legalities, Oracle text
+ *   Name contains, Mana cost, Commander, Proxy, Sets, Finishes, Layout,
+ *   Treatment, Border, EDHREC popularity, Legalities, Oracle text
  *
  * Auto-open: if any below-fold field has a value (editing an existing binder),
  * the expander starts open so active rules are never hidden.
@@ -1586,6 +1589,7 @@ function FilterGroupFields({
   const patch = onPatch;
   // Radios group by shared `name` — several rule editors can be on screen.
   const commanderEligibleGroup = useId();
+  const proxyGroup = useId();
   const edhrecEnabled = filter.edhrecRankMax !== undefined;
   const setsRowRef = useRef<HTMLDivElement>(null);
 
@@ -1775,6 +1779,39 @@ function FilterGroupFields({
             </fieldset>
           </div>
 
+          {/* Proxy */}
+          <div className="rule-row">
+            <span className="rule-label">
+              Proxy{' '}
+              <InfoTip
+                label="proxy filter"
+                text="Matches cards flagged as proxies — stand-in copies with no market value. Use this to keep proxies out of binders meant for real cards, or to route them into a dedicated proxy binder."
+              />
+            </span>
+            <fieldset className="rule-segmented" aria-label="Proxy">
+              {(
+                [
+                  { v: undefined, label: 'Any' },
+                  { v: true, label: 'Is' },
+                  { v: false, label: 'Is not' },
+                ] as const
+              ).map(({ v, label }) => (
+                <label
+                  key={label}
+                  className={`rule-segmented-pill${filter.proxy === v ? ' active' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name={proxyGroup}
+                    checked={filter.proxy === v}
+                    onChange={() => patch({ proxy: v })}
+                  />
+                  <span>{label}</span>
+                </label>
+              ))}
+            </fieldset>
+          </div>
+
           {/* Sets */}
           <div className="rule-row" ref={setsRowRef}>
             <span className="rule-label">Sets</span>
@@ -1892,6 +1929,9 @@ function autoSummary(f: BinderFilter): string {
 
   if (f.commanderEligible === true) parts.push('Commander');
   else if (f.commanderEligible === false) parts.push('Not commander');
+
+  if (f.proxy === true) parts.push('Proxy');
+  else if (f.proxy === false) parts.push('Not proxy');
 
   if (f.setCodes && f.setCodes.length > 0) {
     push(
