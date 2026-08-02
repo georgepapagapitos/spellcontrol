@@ -3,15 +3,20 @@
  * Each catalog is fetched at most once per session (in-memory cache).
  * Callers get a flat, sorted, deduplicated string array.
  */
+import { scryfallFetch } from '@/lib/scryfall-fetch';
 
 const cache = new Map<string, string[]>();
 
+/**
+ * Goes through `scryfallFetch` like every other Scryfall call. It used to be a
+ * bare `fetch` with no limiter and no backoff, and the two exported helpers
+ * below fire eight and three catalogs *in parallel* — a guaranteed burst that
+ * neither spaced itself nor backed off when Scryfall pushed back.
+ */
 async function fetchCatalog(name: string): Promise<string[]> {
   if (cache.has(name)) return cache.get(name)!;
   try {
-    const res = await fetch(`https://api.scryfall.com/catalog/${name}`);
-    if (!res.ok) return [];
-    const json = await res.json();
+    const json = await scryfallFetch<{ data?: string[] }>(`/catalog/${name}`);
     const data: string[] = json.data ?? [];
     cache.set(name, data);
     return data;
