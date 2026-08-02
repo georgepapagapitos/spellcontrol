@@ -7,6 +7,7 @@ import { offlineDataAvailable, useOfflineStore } from '@/store/offline';
 import { frontFaceName } from '@/lib/card-text';
 import { normalizeScryfallQuery } from '@/lib/normalize-search';
 import { scryfallFetch, scryfallRequest } from '@/lib/scryfall-fetch';
+import { persistCard, readCachedCards } from './cache';
 
 /**
  * Cheap synchronous gate used to short-circuit every Scryfall call when the
@@ -26,8 +27,33 @@ const COLLECTION_BATCH_SIZE = 75; // Scryfall /cards/collection max per request
 // after the batched pass (see the tail of liveGetCardsByNames).
 const FOLLOWUP_REQUEST_BUDGET = 100;
 
-// In-memory cache for fetched cards
-const cardCache = new Map<string, ScryfallCard>();
+/**
+ * In-memory cache for fetched cards, mirrored to IndexedDB (see `./cache`) so a
+ * reload or a new tab doesn't re-fetch everything we already resolved.
+ *
+ * `cardCache.set` is write-through; the offline paths write to `memoryCache`
+ * directly instead, because offline cards are rehydrated from the slim payload
+ * and persisting those would poison later live reads with degraded data.
+ */
+const memoryCache = new Map<string, ScryfallCard>();
+
+const cardCache = {
+  get: (key: string): ScryfallCard | undefined => memoryCache.get(key),
+  set: (key: string, card: ScryfallCard): void => {
+    memoryCache.set(key, card);
+    persistCard(key, card);
+  },
+};
+
+/** Pull any of these keys we already hold on disk into the in-memory cache, so
+ *  the synchronous cache checks downstream can see them. Best-effort. */
+async function primeFromDisk(keys: string[]): Promise<void> {
+  const missing = keys.filter((key) => !memoryCache.has(key));
+  if (missing.length === 0) return;
+  for (const [key, card] of await readCachedCards(missing)) {
+    memoryCache.set(key, card);
+  }
+}
 
 // In-memory cache for search results (used by fillWithScryfall fallbacks)
 const searchCache = new Map<string, { data: ScryfallSearchResponse; timestamp: number }>();
@@ -248,6 +274,7 @@ export async function getRandomPdhCommander(colorIdentity: string[] = []): Promi
 }
 
 async function liveGetCardByName(name: string, exact = true): Promise<ScryfallCard> {
+  await primeFromDisk([name]);
   const cached = cardCache.get(name);
   if (cached) return freshCopy(cached);
 
@@ -284,7 +311,8 @@ async function offlineGetCardByNameImpl(name: string): Promise<ScryfallCard> {
     // don't cache it — resolved for good once the client re-syncs.
     throw new Error(`Card "${name}" not found in offline data.`);
   }
-  cardCache.set(card.name, card);
+  // memoryCache, not cardCache — never persist slim offline data (see cardCache).
+  memoryCache.set(card.name, card);
   return freshCopy(card);
 }
 
@@ -305,6 +333,7 @@ export async function getCardByName(name: string, exact = true): Promise<Scryfal
  * `getOwnedPrinting`, which degrades to name resolution + an id override.
  */
 export async function getCardById(id: string): Promise<ScryfallCard> {
+  await primeFromDisk([id]);
   const cached = cardCache.get(id);
   if (cached) return freshCopy(cached);
 
@@ -388,6 +417,8 @@ async function postCollection(
 export async function getCardsByIds(ids: string[]): Promise<Map<string, ScryfallCard>> {
   const result = new Map<string, ScryfallCard>();
   if (ids.length === 0 || offlineActive()) return result;
+
+  await primeFromDisk(ids);
 
   const uncached: string[] = [];
   for (const id of ids) {
@@ -487,12 +518,13 @@ async function offlineGetCardsByNamesImpl(
   for (const [name, card] of found) {
     // Skip poisoned pre-#304 offline rows so they never enter the cache or result.
     if (!isPlayableCard(card)) continue;
-    cardCache.set(name, card);
+    // memoryCache, not cardCache — never persist slim offline data (see cardCache).
+    memoryCache.set(name, card);
     result.set(name, freshCopy(card));
     if (card.name.includes(' // ')) {
       const front = frontFaceName(card.name);
       result.set(front, freshCopy(card));
-      cardCache.set(front, card);
+      memoryCache.set(front, card);
     }
   }
   onProgress?.(uncachedNames.length, uncachedNames.length);
@@ -509,6 +541,9 @@ async function liveGetCardsByNames(
   preferredSet?: string
 ): Promise<Map<string, ScryfallCard>> {
   if (names.length === 0) return new Map();
+
+  // One bulk disk read for the whole request, before the synchronous partition.
+  await primeFromDisk(preferredSet ? names.map((n) => `${n}|${preferredSet}`) : names);
 
   const { result, uncachedNames } = partitionCachedCards(names, preferredSet);
   if (uncachedNames.length === 0) return result;
@@ -693,6 +728,7 @@ async function liveUpgradeCardPrintings(
     `[Scryfall] Upgrading printings for ${entries.length} cards with filters: ${filters}${strict ? ' (strict)' : ''}`
   );
   const cacheKeyPrefix = `upgrade|${filters}|`;
+  await primeFromDisk(entries.map((e) => `${cacheKeyPrefix}${e.searchName}`));
   let upgraded = 0;
   const matchedKeys = new Set<string>();
 
@@ -802,7 +838,8 @@ export async function prefetchBasicLands(): Promise<void> {
   const basicLands = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes'];
 
   // Check if already cached
-  const uncached = basicLands.filter((name) => !cardCache.has(name));
+  await primeFromDisk(basicLands);
+  const uncached = basicLands.filter((name) => !memoryCache.has(name));
   if (uncached.length === 0) return;
 
   await getCardsByNames(uncached);
