@@ -6,6 +6,17 @@
   padding: var(--space-4);
 }
 
+/* Collection is a heavier grid surface than the rest of the hub — widen the
+   column while that tab is active rather than cramping a card grid into the
+   640px identity/list column width. */
+.friend-hub--wide {
+  max-width: 960px;
+}
+
+.friend-hub-tabs {
+  margin-bottom: var(--space-4);
+}
+
 .friend-hub-back {
   display: inline-flex;
   align-items: center;
@@ -241,6 +252,70 @@
 /* a11y (UX-cohesion): 44px touch target on coarse pointers. */
 @media (pointer: coarse) {
   .friend-hub-row-open {
+    min-height: 2.75rem;
+  }
+}
+
+/* ── Collection browser ──────────────────────────────────────────── */
+
+.friend-hub-collection-contract {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.friend-hub-collection-skeleton {
+  height: 20rem;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised) 25%,
+    var(--surface) 50%,
+    var(--surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .friend-hub-collection-skeleton {
+    animation: none;
+  }
+}
+
+.friend-hub-collection-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.friend-hub-collection-search {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.friend-hub-collection-grid {
+  margin-bottom: var(--space-4);
+}
+
+.friend-hub-collection-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.friend-hub-collection-more {
+  display: block;
+  margin: 0 auto;
+}
+
+/* a11y (UX-cohesion): 44px touch target on coarse pointers — the search pill
+   and color-filter row already meet it via their own shared CSS; only the
+   "Show more" button is new here. */
+@media (pointer: coarse) {
+  .friend-hub-collection-more {
     min-height: 2.75rem;
   }
 }
