@@ -39,7 +39,7 @@ import { computeBinderMoves, formatBinderMoveMessage, type BinderMove } from '..
 import {
   computeMovers,
   recordDailyMovers,
-  recordEmptyCollectionSnapshot,
+  recordCollectionSnapshot,
   recordValueSnapshot,
 } from '../lib/value-history';
 import { logBinderMoves } from '../lib/welcome-digest';
@@ -1007,7 +1007,7 @@ export const useCollectionStore = create<CollectionState>()(
           // as a sync tombstone from another device, which lands under the
           // applyingServer guard. Records $0 (no-op on a never-used log) and
           // stops: there is nothing to price.
-          void recordEmptyCollectionSnapshot().catch(() => {});
+          void recordCollectionSnapshot(0).catch(() => {});
           return;
         }
         // Never reach for the network when we know we're offline. (navigator is
@@ -1700,12 +1700,19 @@ useCollectionStore.subscribe((state, prev) => {
 });
 
 /**
- * Log a $0 value point the moment the collection goes empty locally.
+ * Keep today's value point honest whenever the collection changes locally.
+ *
+ * The price-refresh tick is the log's only other writer, and it runs only when
+ * a price is stale — so a collection emptied, re-imported, or edited against a
+ * warm price cache never triggers one, and the newest point stays frozen at
+ * whatever the last refresh saw. That's the home hero valuing a collection you
+ * deleted, and (once the $0 point lands) valuing the one you re-imported at $0
+ * until a price goes stale a day later.
  *
  * A subscriber rather than a hook in `persistCollection()` because the widest
  * path to empty — `clearCards()` — writes through `clearCollection()` and never
- * calls `persistCollection` at all. Every local emptying is a `set({ cards })`,
- * so watching the transition is the one place they all pass through.
+ * calls `persistCollection` at all. Every local change is a `set({ cards })`, so
+ * watching them is the one place they all pass through.
  *
  * `isApplyingServer()` is load-bearing here, not copied boilerplate: `sync.ts`'s
  * `resetInMemoryStores()` blanks `cards` on logout/account-switch, and that is
@@ -1715,7 +1722,19 @@ useCollectionStore.subscribe((state, prev) => {
  */
 useCollectionStore.subscribe((state, prev) => {
   if (state.cards === prev.cards) return;
-  if (state.cards.length > 0 || prev.cards.length === 0) return;
   if (isApplyingServer()) return;
-  void recordEmptyCollectionSnapshot().catch(() => {});
+  // refreshPrices re-sets `cards` once per price chunk and records its own
+  // snapshot at the end — one point per refresh, not one per chunk.
+  if (state.isRefreshingPrices) return;
+  if (state.cards.length === 0) {
+    if (prev.cards.length === 0) return;
+    void recordCollectionSnapshot(0).catch(() => {});
+    return;
+  }
+  const total = state.cards.reduce((sum, c) => sum + (c.purchasePrice ?? 0), 0);
+  // Cards but no value = prices aren't applied yet (mid-boot hydrate, or a cold
+  // price cache). Logging that $0 would poison today's point; the refresh that
+  // fills the prices in records the real one.
+  if (total <= 0) return;
+  void recordCollectionSnapshot(total).catch(() => {});
 });
