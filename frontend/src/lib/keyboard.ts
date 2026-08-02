@@ -1,4 +1,3 @@
-import { useSyncExternalStore } from 'react';
 import { Keyboard } from '@capacitor/keyboard';
 import { isNativePlatform } from '@/lib/platform';
 import { logger } from '@/lib/logger';
@@ -138,24 +137,4 @@ export function initKeyboardLayer(): void {
  */
 export function preventFocusSteal(e: { preventDefault: () => void }): void {
   e.preventDefault();
-}
-
-function subscribe(fn: () => void): () => void {
-  subscribers.add(fn);
-  return () => {
-    subscribers.delete(fn);
-  };
-}
-
-/**
- * Subscribe a component to keyboard state. Prefer the `--keyboard-inset` CSS
- * variable for pure layout — reach for this hook only when JS must read the
- * geometry (e.g. a portaled tray sizing itself).
- */
-export function useKeyboard(): KeyboardState {
-  return useSyncExternalStore(
-    subscribe,
-    () => state,
-    () => state
-  );
 }

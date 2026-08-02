@@ -391,13 +391,6 @@ export function hasDrift(result: DriftResult): boolean {
   return result.added.length > 0 || result.removed.length > 0;
 }
 
-/** True if the binder has a snapshot at all. Used to gate the "Mark reviewed"
- *  button — for never-reviewed binders we still want the button visible so
- *  the user can opt in. */
-export function hasSnapshot(def: BinderDef): boolean {
-  return def.lastReviewedSnapshot !== undefined;
-}
-
 /**
  * Surgically updates ONE card's presence in a review-baseline snapshot,
  * without recapturing the whole binder (that's what `captureBinderSnapshot` /

@@ -219,12 +219,3 @@ function putDeck(fileName: string, deck: MtgjsonDeckFile): void {
     deckCache.delete(oldest);
   }
 }
-
-/** Test-only: clears both cache layers. */
-export function __resetProductCaches(): void {
-  indexCache = null;
-  indexInFlight = null;
-  deckCache.clear();
-  deckInFlight.clear();
-  commanderSummaryCache.clear();
-}

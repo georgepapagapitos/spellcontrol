@@ -772,60 +772,6 @@ export async function fetchCommanderThemes(commanderName: string): Promise<EDHRE
 }
 
 /**
- * Fetch themes for partner commanders (combines both)
- */
-export async function fetchPartnerThemes(
-  commander1: string,
-  commander2: string
-): Promise<EDHRECTheme[]> {
-  // Try both orderings - EDHREC doesn't always use alphabetical order
-  const [slugA, slugB] = getPartnerSlugs(commander1, commander2);
-
-  for (const slug of [slugA, slugB]) {
-    try {
-      const data = await fetchCommanderData(slug);
-      if (data.themes.length > 0) {
-        return data.themes;
-      }
-    } catch {
-      // This ordering didn't work, try the other
-    }
-  }
-
-  // Fallback: fetch both individually and merge themes
-  const [data1, data2] = await Promise.all([
-    fetchCommanderData(commander1).catch(() => null),
-    fetchCommanderData(commander2).catch(() => null),
-  ]);
-
-  const themes1 = data1?.themes || [];
-  const themes2 = data2?.themes || [];
-
-  // Merge and deduplicate themes
-  const themeMap = new Map<string, EDHRECTheme>();
-
-  for (const theme of [...themes1, ...themes2]) {
-    const existing = themeMap.get(theme.name);
-    if (existing) {
-      // Combine counts
-      existing.count += theme.count;
-    } else {
-      themeMap.set(theme.name, { ...theme });
-    }
-  }
-
-  const merged = Array.from(themeMap.values());
-  const totalDecks = merged.reduce((sum, t) => sum + t.count, 0);
-
-  // Recalculate percentages
-  for (const theme of merged) {
-    theme.popularityPercent = totalDecks > 0 ? (theme.count / totalDecks) * 100 : 0;
-  }
-
-  return merged.sort((a, b) => b.count - a.count);
-}
-
-/**
  * Fetch theme-specific commander data from EDHREC
  * Uses endpoint like /pages/commanders/skullbriar-the-walking-grave/plus-1-plus-1-counters.json
  */
@@ -967,13 +913,6 @@ export async function fetchPartnerPopularity(commanderName: string): Promise<Map
     logger.error(`[EDHREC] Failed to fetch partner popularity for ${commanderName}:`, error);
     return new Map();
   }
-}
-
-/**
- * Clear the commander cache
- */
-export function clearCommanderCache(): void {
-  commanderCache.clear();
 }
 
 // --- Salt index ---
@@ -1783,15 +1722,4 @@ async function fetchRawCardPage(cardName: string): Promise<RawCardPageResponse |
 export async function fetchCardLiftPool(cardName: string): Promise<LiftEntry[]> {
   const raw = await fetchRawCardPage(cardName);
   return raw ? parseCardLiftPool(raw) : [];
-}
-
-/**
- * The headline `highliftcards`/`topcards` relations for a single seed card —
- * the "why this card" evidence lists, as opposed to the merged pool above.
- */
-export async function fetchCardRelations(
-  cardName: string
-): Promise<{ highLift: LiftEntry[]; topCards: LiftEntry[] }> {
-  const raw = await fetchRawCardPage(cardName);
-  return raw ? parseCardRelations(raw) : { highLift: [], topCards: [] };
 }

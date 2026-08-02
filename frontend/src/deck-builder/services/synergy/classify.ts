@@ -30,8 +30,3 @@ export function classifyCard(card: CardLike): CardSynergy {
   }
   return { name: card.name, producers, payoffs };
 }
-
-/** True when the card produces or pays off any axis at all. */
-export function hasAnySynergy(card: CardSynergy): boolean {
-  return card.producers.length > 0 || card.payoffs.length > 0;
-}

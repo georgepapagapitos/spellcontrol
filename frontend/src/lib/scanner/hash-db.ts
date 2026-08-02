@@ -163,7 +163,3 @@ function uuidFromBytes(buf: Uint8Array, offset: number): string {
     hex.slice(10, 16).join('')
   );
 }
-
-export function resetHashDbLoaderForTests(): void {
-  pending = null;
-}

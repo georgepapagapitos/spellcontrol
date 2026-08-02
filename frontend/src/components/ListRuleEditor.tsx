@@ -8,7 +8,7 @@ import { useCardsWithTags, groupsUseTags } from '../lib/card-tags';
 import { fetchTypeSuggestions, fetchOracleSuggestions } from '../lib/scryfall-catalog';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
-import { FilterGroupList } from './BinderEditor';
+import { FilterGroupList } from './FilterGroupEditor';
 import './ListRuleEditor.css';
 
 interface Props {

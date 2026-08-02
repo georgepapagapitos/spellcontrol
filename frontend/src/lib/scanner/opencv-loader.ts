@@ -120,7 +120,3 @@ function waitForMat(win: { cv?: { Mat?: unknown } }, t0: number): Promise<OpenCv
     }, POLL_MS);
   });
 }
-
-export function resetOpenCvLoaderForTests(): void {
-  pending = null;
-}

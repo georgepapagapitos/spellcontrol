@@ -491,56 +491,6 @@ const ROLE_FLAVOR: Record<
   },
 };
 
-export function getRoleVerdict(rb: RoleBreakdown): { verdict: string; message: string } {
-  const { current, target, deficit, role } = rb;
-  const flavor = ROLE_FLAVOR[role] || {
-    noun: role,
-    okMsg: 'this role is well covered.',
-    whyItMatters: '',
-  };
-  const surplus = current - target;
-
-  // Zero cards — always critically low with special message
-  if (current === 0) {
-    return {
-      verdict: 'critically-low',
-      message: flavor.zeroMsg,
-    };
-  }
-  // Over target by 3+
-  if (surplus >= 3) {
-    return {
-      verdict: 'high',
-      message: `${current} ${flavor.noun} is ${surplus} above the ${target} target — you could swap a few for other roles or synergy pieces.`,
-    };
-  }
-  // On target or slightly above
-  if (current >= target) {
-    return {
-      verdict: 'ok',
-      message: `${current} ${flavor.noun} ${current === 1 ? 'effect' : 'sources'} is solid — ${flavor.okMsg}`,
-    };
-  }
-  // 1-2 short
-  if (deficit <= 2) {
-    return {
-      verdict: 'slightly-low',
-      message: `${current} ${flavor.noun} is ${deficit} short of the ${target} target. Close, but a couple more would help consistency.`,
-    };
-  }
-  // 3-4 short
-  if (deficit <= 4) {
-    return {
-      verdict: 'low',
-      message: `${current} ${flavor.noun} is ${deficit} below the ${target} target. ${flavor.whyItMatters}`,
-    };
-  }
-  return {
-    verdict: 'critically-low',
-    message: `Only ${current} ${flavor.noun} — ${deficit} short of ${target}. ${flavor.whyItMatters}`,
-  };
-}
-
 export function getManaGrade(
   manaBase: ManaBaseAnalysis,
   manaSources: ManaSourcesAnalysis,
@@ -991,25 +941,6 @@ export function getManaTrajectory(
 }
 
 /** Generate a human-readable HTML summary about the deck's health. Returns HTML with <strong> tags. */
-const SUMMARY_SVGS: Record<string, string> = {
-  // Sprout — matches ROLE_META.ramp
-  ramp: '<path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"/>',
-  // Swords — matches ROLE_META.removal
-  removal:
-    '<polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" x2="9" y1="14" y2="18"/><line x1="7" x2="4" y1="17" y2="20"/><line x1="3" x2="5" y1="19" y2="21"/>',
-  // Flame — matches ROLE_META.boardwipe
-  boardwipe:
-    '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
-  // BookOpen — matches ROLE_META.cardDraw
-  cardDraw:
-    '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
-  // Mountain — matches Mana tab icon
-  lands: '<path d="m8 3 4 8 5-5 5 15H2L8 3z"/>',
-  // ChartColumn (BarChart3) — matches Curve tab icon
-  curve:
-    '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
-};
-
 export interface SummaryItem {
   icon: string; // key into SUMMARY_SVGS
   label: string; // e.g. "Removal"
@@ -2033,13 +1964,6 @@ export function computeOptimizeSwaps(
   const additions = additionCandidates.slice(0, additionRoom);
 
   return { removals, additions };
-}
-
-/** SVG markup for a summary icon */
-export function summaryIconSvg(key: string): string {
-  const svg = SUMMARY_SVGS[key];
-  if (!svg) return '';
-  return `<svg class="inline-block w-3.5 h-3.5 mr-0.5 -mt-px opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svg}</svg>`;
 }
 
 // ─── Smart Suggestion Scoring ────────────────────────────────────────

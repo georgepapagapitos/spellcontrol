@@ -221,18 +221,6 @@ async function peekFirstNonWhitespace(stream: Readable): Promise<string | null> 
 }
 
 /**
- * Back-compat wrapper for callers that still want an array. Drains the
- * stream into memory — DO NOT use this for the production scheduler
- * (defeats the streaming win). Kept for tests and any future caller that
- * legitimately wants the full collection in memory.
- */
-export async function fetchSpellbookBulk(): Promise<unknown[]> {
-  const out: unknown[] = [];
-  for await (const v of streamSpellbookVariants()) out.push(v);
-  return out;
-}
-
-/**
  * Defensive parser. Returns null when the variant is missing the bits we need
  * (id, at least one card with an oracle id) — the dataset has plenty of
  * historical/incomplete variants and we'd rather drop them silently than

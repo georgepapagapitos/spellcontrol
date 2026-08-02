@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 #
-# Build context is the REPO ROOT (see .github/workflows/docker-publish.yml
+# Build context is the REPO ROOT (see .github/workflows/docker-image-build.yml
 # `context: .` and `file: ./backend/Dockerfile`). The image mirrors the repo
 # layout — /app/backend + /app/packages/game-core — so the backend's
 # `file:../packages/game-core` dependency resolves to the same relative path
