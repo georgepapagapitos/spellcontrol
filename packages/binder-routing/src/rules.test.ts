@@ -449,6 +449,10 @@ describe('cardMatchesFilter', () => {
       expect(
         cardMatchesFilter(makeCard({ name: 'Jötun Grunt' }), { nameContains: 'jotun grunt' })
       ).toBe(true);
+      // Mobile keyboards emit a curly apostrophe — it has to fold like the straight one.
+      expect(
+        cardMatchesFilter(makeCard({ name: "Urza's Saga" }), { nameContains: 'Urza’s Saga' })
+      ).toBe(true);
     });
     it('edhrecRankMax bounds', () => {
       expect(cardMatchesFilter(makeCard({ edhrecRank: 50 }), { edhrecRankMax: 100 })).toBe(true);

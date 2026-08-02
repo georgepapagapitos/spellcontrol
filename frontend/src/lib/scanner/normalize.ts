@@ -20,42 +20,6 @@ export interface ClaheOptions {
 }
 
 /**
- * Apply CLAHE to a canvas. Returns a new canvas with the equalized
- * grayscale rendered into the RGB channels (alpha=255).
- */
-export function applyCLAHE(source: HTMLCanvasElement, opts: ClaheOptions = {}): HTMLCanvasElement {
-  const ctx = source.getContext('2d', { willReadFrequently: true });
-  if (!ctx) throw new Error('source canvas has no 2D context');
-  const w = source.width;
-  const h = source.height;
-  const rgba = ctx.getImageData(0, 0, w, h).data;
-
-  const gray = new Uint8Array(w * h);
-  for (let i = 0, j = 0; i < rgba.length; i += 4, j++) {
-    // BT.601 luminance — matches sharp's default greyscale conversion so
-    // the CLAHE input is comparable to the backend reference pipeline.
-    gray[j] = (0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2]) | 0;
-  }
-
-  const equalized = claheGrayscale(gray, w, h, opts);
-
-  const outCtx = document.createElement('canvas').getContext('2d');
-  if (!outCtx) throw new Error('output canvas has no 2D context');
-  const out = outCtx.canvas;
-  out.width = w;
-  out.height = h;
-  const outData = outCtx.createImageData(w, h);
-  for (let i = 0, j = 0; i < equalized.length; i++, j += 4) {
-    outData.data[j] = equalized[i];
-    outData.data[j + 1] = equalized[i];
-    outData.data[j + 2] = equalized[i];
-    outData.data[j + 3] = 255;
-  }
-  outCtx.putImageData(outData, 0, 0);
-  return out;
-}
-
-/**
  * Pure-JS CLAHE on a width×height grayscale buffer.
  *
  * Algorithm:

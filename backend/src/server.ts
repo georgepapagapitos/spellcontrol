@@ -2,7 +2,6 @@ import { logger } from './logger';
 import cookieParser from 'cookie-parser';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import helmet from 'helmet';
-import { rateLimit } from 'express-rate-limit';
 import multer from 'multer';
 import path from 'path';
 import { existsSync } from 'fs';
@@ -10,6 +9,7 @@ import { gzip } from 'node:zlib';
 import { DB_PATH, getScryfallCache, pickEurForFinish, pickUsdForFinish } from './scryfall-cache';
 import { resolveOracleFacts, ORACLE_REQUEST_LIMIT, type OracleRequest } from './oracle-facts';
 import { closeDb, ensureSchema } from './db';
+import { testAwareLimiter } from './route-utils';
 import { parseMarkAllAsProxies } from './import-proxy-flag';
 import { promoteAdminsAtBoot } from './admin/bootstrap';
 import { authRouter } from './routes/auth';
@@ -145,11 +145,15 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // of ~500 lines (lib/api.ts). At 500/chunk this covers up to ~30k-card
 // imports without users tripping the limiter mid-upload; it's still tight
 // enough to throttle abusive single-IP scripting.
-const importLimiter = rateLimit({ windowMs: 60_000, max: 60 });
-const priceLimiter = rateLimit({ windowMs: 60_000, max: 30 });
-const productLimiter = rateLimit({ windowMs: 60_000, max: 60 });
+const importLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 });
+const priceLimiter = testAwareLimiter({ windowMs: 60_000, max: 30 });
+const productLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 });
+// Each uncached set code fans out to up to MAX_SET_PAGES Scryfall requests
+// (sets.ts), so an unlimited public route lets one IP drive unbounded
+// upstream traffic. Matches the other public Scryfall-backed routes.
+const setsLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 });
 
-/** Scryfall card UUID — validates the :id path param on the rulings route. */
+/** Scryfall card UUID — validates the :id path param on the card-by-id routes. */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Kept ABOVE the sync snapshot cap (MAX_SNAPSHOT_BYTES, 64MB) so an oversize
@@ -260,7 +264,7 @@ app.post('/api/cards/oracle-facts', priceLimiter, async (req: Request, res: Resp
  */
 app.get(
   '/api/cards/:id/rulings',
-  rateLimit({ windowMs: 60_000, max: 60 }),
+  testAwareLimiter({ windowMs: 60_000, max: 60 }),
   async (req: Request, res: Response) => {
     const id = typeof req.params.id === 'string' ? req.params.id : '';
     if (!UUID_RE.test(id)) {
@@ -334,7 +338,7 @@ app.get('/.well-known/assetlinks.json', (_req: Request, res: Response) => {
   ]);
 });
 
-app.get('/api/sets', async (_req: Request, res: Response) => {
+app.get('/api/sets', setsLimiter, async (_req: Request, res: Response) => {
   try {
     const sets = await getSetMap();
     res.set('Cache-Control', 'public, max-age=3600');
@@ -346,7 +350,7 @@ app.get('/api/sets', async (_req: Request, res: Response) => {
 });
 
 /** Full card list of one set (every printing), for the set-completion checklist. */
-app.get('/api/sets/:code/cards', async (req: Request, res: Response) => {
+app.get('/api/sets/:code/cards', setsLimiter, async (req: Request, res: Response) => {
   const code = String(req.params.code || '').toLowerCase();
   if (!/^[a-z0-9]{2,10}$/.test(code)) {
     return res.status(400).json({ error: 'Invalid set code.' });
@@ -738,7 +742,7 @@ app.post(
  */
 app.get(
   '/api/cards/:name/printings',
-  rateLimit({ windowMs: 60_000, max: 60 }),
+  testAwareLimiter({ windowMs: 60_000, max: 60 }),
   async (req: Request, res: Response) => {
     try {
       const rawName = req.params.name;
@@ -775,11 +779,11 @@ app.get(
  */
 app.get(
   '/api/cards/by-id/:id',
-  rateLimit({ windowMs: 60_000, max: 240 }),
+  testAwareLimiter({ windowMs: 60_000, max: 240 }),
   async (req: Request, res: Response) => {
     try {
       const id = typeof req.params.id === 'string' ? req.params.id : '';
-      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      if (!UUID_RE.test(id)) {
         return res.status(400).json({ error: 'id must be a Scryfall UUID' });
       }
       const card = await getCardById(id, cache);

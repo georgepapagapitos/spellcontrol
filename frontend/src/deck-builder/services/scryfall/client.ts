@@ -1175,11 +1175,6 @@ export async function getBanList(format: string): Promise<string[]> {
   return getCardRepository().getBanList(format);
 }
 
-/** Convenience alias for commander ban list */
-export async function getCommanderBanList(): Promise<string[]> {
-  return getBanList('commander');
-}
-
 async function liveAutocompleteCardName(query: string): Promise<string[]> {
   if (!query.trim() || query.length < 2) return [];
   const encodedQuery = encodeURIComponent(query);
@@ -1299,34 +1294,6 @@ export const CHANNEL_LANDS: Record<string, string> = {
 /** Check if a card is one of the 5 Kamigawa channel lands. */
 export function isChannelLand(card: ScryfallCard): boolean {
   return card.name in CHANNEL_LANDS;
-}
-
-/** Get channel lands that match a given color identity. */
-export function getChannelLandsForColors(
-  colorIdentity: string[]
-): { name: string; color: string }[] {
-  return Object.entries(CHANNEL_LANDS)
-    .filter(([, color]) => colorIdentity.includes(color))
-    .map(([name, color]) => ({ name, color }));
-}
-
-// Search Scryfall for MDFC spell/lands matching a commander's color identity.
-// Returns ALL cards where front face is a spell and back face is a land.
-// Paginates through all results so nothing is missed.
-export async function searchMdfcLands(colorIdentity: string[]): Promise<ScryfallCard[]> {
-  const query = 'is:mdfc t:land';
-  const allCards: ScryfallCard[] = [];
-  let page = 1;
-  let hasMore = true;
-
-  while (hasMore) {
-    const result = await searchCards(query, colorIdentity, { order: 'edhrec', page });
-    allCards.push(...result.data);
-    hasMore = result.has_more;
-    page++;
-  }
-
-  return allCards.filter((card) => isMdfcLand(card));
 }
 
 // Get back face image URL for a double-faced card

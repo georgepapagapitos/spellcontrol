@@ -19,8 +19,3 @@ export function resolveTokenArt(displayName: string): Promise<string | null> {
   }
   return pending;
 }
-
-/** Test-only: clear the module-level cache between cases. */
-export function __resetTokenArtCacheForTests(): void {
-  cache.clear();
-}
