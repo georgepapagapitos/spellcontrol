@@ -723,6 +723,17 @@
   transition: transform var(--motion-base) var(--ease-out-soft);
 }
 
+/* The whole row is the tap target (role=button → opens the preview), so it
+   carries the coarse-pointer floor itself. 36px, not 44: this is a dense
+   100-row deck list and the row is full-width, so height is the axis with
+   slack. Anything taller strands one 20px line of text in a sea of padding —
+   which is exactly what the kebab's old `min-height: 44px` did (~50px rows). */
+@media (pointer: coarse) {
+  .deck-row {
+    min-height: 36px;
+  }
+}
+
 .deck-row.is-entering {
   animation: deck-row-enter var(--motion-base) var(--ease-out-soft) both;
 }
@@ -878,7 +889,9 @@
     top: 50%;
     left: 50%;
     width: 44px;
-    height: 44px;
+    /* Height capped at the row's coarse min-height (not 44px) so adjacent
+       rows' ghosts can't overlap and steal each other's taps. */
+    height: 36px;
     transform: translate(-50%, -50%);
   }
 }
@@ -1137,11 +1150,25 @@
 }
 
 /* Coarse-pointer floor (STYLE_GUIDE § Responsive): a 0.875rem glyph with
-   0.125rem padding is ~18px — the deck row's only menu affordance. */
+   0.125rem padding is ~18px — the deck row's only menu affordance. Uses the
+   ghost hit-area technique, NOT a 44px box: a hard `min-height: 44px` here
+   inflated every deck row to ~50px for one 20px line of text, which read as
+   a wall of empty space on phones. Same reason `.deck-row-select-check` /
+   `.deck-row-drag-handle` (above) ghost their targets — this is a dense row. */
 @media (pointer: coarse) {
   .deck-row-menu-trigger {
-    min-width: 44px;
-    min-height: 44px;
+    position: relative;
+  }
+  .deck-row-menu-trigger::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    /* Capped at the row's own coarse min-height so two vertically adjacent
+       kebab ghosts can't overlap and steal each other's taps. */
+    height: 36px;
+    transform: translate(-50%, -50%);
   }
 }
 

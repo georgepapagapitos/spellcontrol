@@ -151,10 +151,14 @@ describe('sticky hub tab strip', () => {
 
 describe('coarse-pointer touch floor', () => {
   // [file, selector] — controls whose base size is below 44px, each of which
-  // must grow inside a (pointer: coarse) block.
+  // must grow inside a (pointer: coarse) block. A control sitting in a dense
+  // list row grows its *ghost* (`::after`) instead of its own box — see
+  // STYLE_GUIDE "44px touch targets"; growing the box itself inflates every
+  // row (the deck row hit ~50px for one line of text). Point the guard at the
+  // ghost in that case so the floor is still enforced.
   const CONTROLS: Array<[string, string]> = [
     ['styles/modals-dialogs.css', '.modal-close'],
-    ['styles/deck-builder-card-list.css', '.deck-row-menu-trigger'],
+    ['styles/deck-builder-card-list.css', '.deck-row-menu-trigger::after'],
     ['styles/auth.css', '.auth-reveal'],
     ['styles/tooltip-legend.css', '.banner-dismiss'],
   ];
