@@ -62,10 +62,10 @@
     justify-content: flex-start;
   }
 
-  .deck-toolbar-search {
-    flex: 1;
-    min-width: 0;
-  }
+  /* No `.deck-toolbar-search` rule here — it would be dead. The
+     `max-width: 1024px` block BELOW also matches at phone widths and comes
+     later in the file, so it wins at equal specificity. The phone override
+     lives at the end of this file; see the note there. */
 }
 
 @media (max-width: 1024px) {
@@ -143,3 +143,25 @@
 
 /* @media (max-width: 380px) {} — no longer hides the card image; the
    stacked layout from the 600px breakpoint already shrinks gracefully. */
+
+/* ── Phone overrides that must outrank the 1024px block above ──────────────
+   ⚠️ Ordering trap: this file's `max-width` blocks run NARROW → WIDE, so the
+   `max-width: 1024px` block also matches at 360px and, being later, wins every
+   equal-specificity tie against the `max-width: 600px` block near the top. A
+   phone rule written up there is silently dead. Until the file is reordered
+   wide → narrow, phone overrides belong here, after it. */
+@media (max-width: 600px) {
+  /* The 1024px rule (`flex: 1; min-width: 0`) lets the search pill shrink
+     below its own placeholder — at 360px it rendered a clipped "Searc",
+     which STYLE_GUIDE § control rows forbids outright ("strips wrap, never
+     clip"). Sharing the row is right for a 601–1024 tablet and wrong for a
+     phone, so give it its own full-width line. The 100% basis is what makes
+     that deterministic — the container's `flex-wrap` alone leaves Search
+     stranded mid-line — and `order: -1` puts it first, since search is the
+     control you actually reach for on a 100-card list. */
+  .deck-toolbar-search {
+    flex: 1 0 100%;
+    order: -1;
+    max-width: none;
+  }
+}
