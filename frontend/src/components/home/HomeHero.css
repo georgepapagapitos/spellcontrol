@@ -188,8 +188,12 @@
   outline-offset: 2px;
 }
 
+/* The 44px touch floor belongs on the SPAN, not the label wrapper: the wrapper
+   centers its span (align-items: center), so a floor set there grew the track
+   while the selected chip stayed text-height — a small lozenge rattling around
+   inside a tall pill. Same placement as .settings-currency-option. */
 @media (pointer: coarse) {
-  .home-hero-scope-option {
+  .home-hero-scope-option span {
     min-height: 44px;
   }
 }
