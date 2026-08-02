@@ -1,15 +1,15 @@
 // @vitest-environment happy-dom
 /**
  * FriendsManagement — guest gate, search-add, request actions, inbox, the
- * friendsTab deep-link contract, and the Activity tab (new-from-friends
- * aggregated feed).
+ * `?tab=` deep-link contract (plus its legacy `?friendsTab=` alias), and the
+ * Activity tab (new-from-friends aggregated feed).
  *
  * The Activity-tab block covers the lazy-fetch-once contract (fetch on first
  * selection, never on mount, never again on re-selection), both row-type
  * renders, the empty state, and the error+retry path.
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // vi.mock is hoisted above the file's own top-level code, so a variable
@@ -85,9 +85,9 @@ import {
 async function renderPage(initialPath = '/') {
   const utils = render(
     <MemoryRouter initialEntries={[initialPath]}>
-      {/* Stand-in for the heading YouPage renders around this component —
-          the friendsTab deep-link effect scrolls/focuses it by id. */}
-      <h2 id="you-friends-group-title">Friends</h2>
+      {/* Stand-in for the heading FriendsPage renders around this component —
+          the tab deep-link effect scrolls/focuses it by id. */}
+      <h2 id="friends-page-heading-title">Friends</h2>
       <FriendsManagement />
     </MemoryRouter>
   );
@@ -100,8 +100,8 @@ function openActivityTab() {
 }
 
 beforeAll(() => {
-  // happy-dom doesn't implement scrollIntoView; the friendsTab deep-link
-  // effect calls it whenever a non-default tab is selected.
+  // happy-dom doesn't implement scrollIntoView; the tab deep-link effect
+  // calls it whenever a non-default tab is selected.
   Element.prototype.scrollIntoView = vi.fn();
 });
 
@@ -198,7 +198,7 @@ describe('FriendsManagement — guest gate', () => {
     authState.status = 'guest';
     render(
       <MemoryRouter>
-        <h2 id="you-friends-group-title">Friends</h2>
+        <h2 id="friends-page-heading-title">Friends</h2>
         <FriendsManagement />
       </MemoryRouter>
     );
@@ -368,13 +368,13 @@ describe('FriendsManagement — inbox', () => {
   });
 });
 
-describe('FriendsManagement — friendsTab deep link', () => {
-  it('defaults to the Friends tab and does not steal focus when there is no friendsTab param', async () => {
+describe('FriendsManagement — tab deep link', () => {
+  it('defaults to the Friends tab and does not steal focus when there is no tab param', async () => {
     await renderPage('/');
     expect(screen.getByRole('tab', { name: /^friends$/i }).getAttribute('aria-selected')).toBe(
       'true'
     );
-    expect(document.activeElement?.id).not.toBe('you-friends-group-title');
+    expect(document.activeElement?.id).not.toBe('friends-page-heading-title');
   });
 
   it.each([
@@ -383,13 +383,49 @@ describe('FriendsManagement — friendsTab deep link', () => {
   ])(
     'selects the %s tab and scrolls/focuses the Friends heading',
     async (tabId, tabNamePattern) => {
-      await renderPage(`/?friendsTab=${tabId}`);
+      await renderPage(`/?tab=${tabId}`);
 
       expect(screen.getByRole('tab', { name: tabNamePattern }).getAttribute('aria-selected')).toBe(
         'true'
       );
-      await waitFor(() => expect(document.activeElement?.id).toBe('you-friends-group-title'));
+      await waitFor(() => expect(document.activeElement?.id).toBe('friends-page-heading-title'));
       expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
     }
   );
+});
+
+describe('FriendsManagement — tab param aliasing (?tab= over legacy ?friendsTab=)', () => {
+  it('still honors the legacy ?friendsTab= param for old links/bookmarks', async () => {
+    await renderPage('/?friendsTab=requests');
+    expect(screen.getByRole('tab', { name: /^requests$/i }).getAttribute('aria-selected')).toBe(
+      'true'
+    );
+  });
+
+  it('prefers ?tab= when both the new and legacy params are present', async () => {
+    await renderPage('/?tab=inbox&friendsTab=requests');
+    expect(screen.getByRole('tab', { name: /^inbox$/i }).getAttribute('aria-selected')).toBe(
+      'true'
+    );
+  });
+
+  it('writes ?tab= (never ?friendsTab=) when switching tabs by click', async () => {
+    let currentSearch = '';
+    function LocationProbe() {
+      currentSearch = useLocation().search;
+      return null;
+    }
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <LocationProbe />
+        <FriendsManagement />
+      </MemoryRouter>
+    );
+    await screen.findByRole('tablist');
+
+    fireEvent.click(screen.getByRole('tab', { name: /^requests$/i }));
+
+    await waitFor(() => expect(currentSearch).toContain('tab=requests'));
+    expect(currentSearch).not.toContain('friendsTab');
+  });
 });

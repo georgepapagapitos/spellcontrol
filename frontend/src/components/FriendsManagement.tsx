@@ -67,10 +67,14 @@ export function FriendsManagement() {
   const { count: inboxCount, items: inbox } = useInbox();
 
   // Active tab is derived from the URL, not local state, so a link elsewhere
-  // in the app (e.g. the home activity strip's /you?friendsTab=inbox) can
-  // switch the visible tab even when this component is already mounted.
+  // in the app (e.g. the home activity strip's /friends?tab=inbox) can switch
+  // the visible tab even when this component is already mounted. `tab` is the
+  // current param name; `friendsTab` is read too so links/bookmarks minted
+  // while this lived at /you?friendsTab= keep working.
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab: TabId = TABS.find((t) => t.id === searchParams.get('friendsTab'))?.id ?? 'friends';
+  const tab: TabId =
+    TABS.find((t) => t.id === (searchParams.get('tab') ?? searchParams.get('friendsTab')))?.id ??
+    'friends';
 
   // Search
   const [query, setQuery] = useState('');
@@ -131,7 +135,8 @@ export function FriendsManagement() {
   const handleTabChange = useCallback(
     (next: TabId) => {
       setSearchParams((p) => {
-        p.set('friendsTab', next);
+        p.set('tab', next);
+        p.delete('friendsTab');
         return p;
       });
     },
@@ -151,13 +156,13 @@ export function FriendsManagement() {
     }
   }, [status, tab, loadActivity]);
 
-  // Deep-link arrival: scroll the Friends heading (owned by the parent YouPage
-  // group, not this component) into view and focus it, so a non-default
-  // friendsTab always lands the user — or a screen reader — announced at
-  // "Friends" instead of silently at the top of a long Settings page.
+  // Deep-link arrival: scroll the page heading (owned by the parent
+  // FriendsPage, not this component) into view and focus it, so a non-default
+  // tab always lands the user — or a screen reader — announced at "Friends"
+  // instead of silently at the top of the page.
   useEffect(() => {
     if (tab === 'friends') return;
-    scrollToHeading('you-friends-group-title');
+    scrollToHeading('friends-page-heading-title');
   }, [tab]);
 
   // Inline .then() chain on purpose: react-hooks/set-state-in-effect flags
@@ -327,20 +332,18 @@ export function FriendsManagement() {
   // ── Guest gate ───────────────────────────────────────────────────────────────
   if (status === 'guest') {
     return (
-      // No <h1>Friends</h1> here — the parent YouPage group already renders
-      // that heading (id="you-friends-group-title"); repeating it here would
-      // read as a duplicate immediately below it and add a second page <h1>.
-      <div className="friends-page">
-        <div className="friends-signin-prompt">
-          <p className="friends-signin-title">Sign in to connect with friends</p>
-          <p className="friends-signin-body">
-            Create an account or sign in to send friend requests, track your friends&rsquo;
-            collections, and more.
-          </p>
-          <Link to="/auth" className="friends-signin-btn">
-            Sign in
-          </Link>
-        </div>
+      // No <h1>Friends</h1> here — the parent FriendsPage already renders
+      // that heading (id="friends-page-heading-title"); repeating it here
+      // would read as a duplicate immediately below it and add a second <h1>.
+      <div className="friends-signin-prompt">
+        <p className="friends-signin-title">Sign in to connect with friends</p>
+        <p className="friends-signin-body">
+          Create an account or sign in to send friend requests, track your friends&rsquo;
+          collections, and more.
+        </p>
+        <Link to="/auth" className="friends-signin-btn">
+          Sign in
+        </Link>
       </div>
     );
   }
@@ -363,7 +366,7 @@ export function FriendsManagement() {
   });
 
   return (
-    <div className="friends-page">
+    <>
       {/* ── Add Friend search ──────────────────────────────────────────────── */}
       <section aria-label="Add a friend">
         <form className="friends-search-form" onSubmit={(e) => void handleSearch(e)}>
@@ -724,6 +727,6 @@ export function FriendsManagement() {
         </div>
       </div>
       {confirmDialog}
-    </div>
+    </>
   );
 }

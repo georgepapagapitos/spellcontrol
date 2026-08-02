@@ -125,8 +125,8 @@ export function PodsIndexPage() {
   }
 
   // ── Guest gate — same sign-in-prompt pattern as FriendsManagement's own
-  // guest branch (the closest precedent, since /friends now folds into
-  // /you). ─────────────────────────────────────────────────────────────────
+  // guest branch (the closest precedent — Pods is a sibling destination to
+  // /friends). ──────────────────────────────────────────────────────────────
   if (status === 'guest') {
     return (
       <div className="pods-index-page">

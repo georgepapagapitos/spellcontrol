@@ -22,8 +22,8 @@ function rowHref(item: FriendActivityItem): string {
  * Home's new-from-friends rail (social program W3): the first 3 entries of
  * `w2-friends-activity-feed`'s aggregated feed — a friend publishing a deck,
  * or sharing something with their friends audience. No `viewAllHref`: the
- * only other place this feed renders is `/you`'s Friends > Activity tab,
- * not worth a second hop for 3 rows.
+ * only other place this feed renders is `/friends`'s Activity tab, not worth
+ * a second hop for 3 rows.
  */
 export function NewFromFriendsCard() {
   const status = useAuth((s) => s.status);
@@ -68,7 +68,7 @@ export function NewFromFriendsCard() {
       onRetry={handleRetry}
       empty={empty}
       emptyText={guest ? 'Sign in to see what friends are sharing.' : 'Nothing new yet.'}
-      viewAllHref="/you?friendsTab=friends"
+      viewAllHref="/friends?tab=friends"
       viewAllLabel="Find friends"
     >
       <ul className="new-from-friends-list" aria-label="New from friends">

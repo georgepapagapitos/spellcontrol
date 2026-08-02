@@ -30,17 +30,36 @@ import { AdminPanel } from '../components/AdminPanel';
 import { getPendingCount } from '../lib/sync';
 import { ProfileEditor } from '../components/ProfileEditor';
 import { TypeSetPicker } from '../components/TypeSetPicker';
-import { FriendsManagement } from '../components/FriendsManagement';
+import { SettingsSection } from '../components/settings/SettingsSection';
+import { SettingsRow } from '../components/settings/SettingsRow';
 import { scrollToHeading } from '../lib/scroll-to-heading';
-import { listPods, pendingPodInviteCount, type Pod } from '../lib/pods-client';
+import { listFriends } from '../lib/friends-client';
+import { useFriendRequests } from '../lib/use-friend-requests';
 
 // Header account-menu deep link (`/you?section=…`) → the group heading to
 // scroll/focus. Values are the header menu's own vocabulary, not the heading
-// ids themselves, so a rename of one heading only needs updating here.
+// ids themselves, so a rename of one heading only needs updating here. Every
+// group on the page has an entry — `appearance` and `sharing` are the two
+// Header.tsx currently links to; the rest are addressable for future links.
 const SECTION_HEADING_IDS: Record<string, string> = {
+  profile: 'settings-profile-group-title',
+  account: 'settings-account-group-title',
   appearance: 'settings-appearance-group-title',
+  'collection-preferences': 'settings-collection-prefs-group-title',
+  collection: 'settings-collection-group-title',
   sharing: 'settings-sharing-group-title',
+  data: 'settings-data-group-title',
+  admin: 'settings-admin-group-title',
+  danger: 'settings-danger-group-title',
 };
+
+function friendsSummary(count: number | null, pending: number): string {
+  if (count === null) return 'Manage friend requests and shared collections.';
+  const friendsPart = `${count} ${count === 1 ? 'friend' : 'friends'}`;
+  if (pending === 0) return `${friendsPart}.`;
+  const pendingPart = `${pending} pending ${pending === 1 ? 'request' : 'requests'}`;
+  return `${friendsPart} · ${pendingPart}.`;
+}
 
 export function YouPage() {
   const username = useAuth((s) => s.user?.username ?? null);
@@ -89,11 +108,12 @@ export function YouPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const sectionParam = searchParams.get('section');
 
-  // Pods pending the caller's reply — feeds the "Pods" link's own badge only
-  // (no dependency on the unified activity feed's Home badge). Best-effort:
-  // a failure just leaves the badge off, same as the identities fetch below.
-  const [pods, setPods] = useState<Pod[] | null>(null);
-  const pendingPodInvites = pods ? pendingPodInviteCount(pods) : 0;
+  // Friends pointer row (Identity tier) — a summary + link to /friends, not
+  // the friend list itself (that's a real page now). Pending count reuses
+  // the shared hook; the total is a best-effort fetch, same shape as the
+  // identities fetch above.
+  const pendingFriendRequests = useFriendRequests();
+  const [friendCount, setFriendCount] = useState<number | null>(null);
 
   // Fetch the user's linked sign-in methods once they're authed. Best-effort:
   // a failure leaves `identities` null, which hides the section (the Settings
@@ -116,9 +136,9 @@ export function YouPage() {
   useEffect(() => {
     if (!username) return;
     let cancelled = false;
-    listPods()
+    listFriends()
       .then((r) => {
-        if (!cancelled) setPods(r);
+        if (!cancelled) setFriendCount(r.length);
       })
       .catch(() => {});
     return () => {
@@ -158,10 +178,9 @@ export function YouPage() {
   }, [searchParams, setSearchParams]);
 
   // Deep-link arrival from the header's account menu (Settings / Shared
-  // links): scroll the matching group heading into view and focus it, same
-  // contract as FriendsManagement's `?friendsTab=` deep link. An absent or
-  // unknown `section` value is a no-op — the page just stays wherever it
-  // naturally lands.
+  // links): scroll the matching group heading into view and focus it. An
+  // absent or unknown `section` value is a no-op — the page just stays
+  // wherever it naturally lands.
   useEffect(() => {
     const id = sectionParam ? SECTION_HEADING_IDS[sectionParam] : undefined;
     if (id) scrollToHeading(id);
@@ -337,102 +356,69 @@ export function YouPage() {
         </div>
       </header>
 
-      {/* ── 0. Profile (authed only) ──────────────────────────────────────── */}
+      {/* ═══ Identity — who you are ══════════════════════════════════════ */}
+      <h2 className="settings-tier-header">Identity</h2>
+
       {username && (
         <div role="group" aria-labelledby="settings-profile-group-title">
-          <h2 id="settings-profile-group-title" className="sr-only">
+          <h2 id="settings-profile-group-title" className="settings-section-header">
             Profile
           </h2>
-          <section className="settings-card" aria-labelledby="settings-profile-title">
-            <header className="settings-card-header">
-              <h2 id="settings-profile-title" className="settings-card-title">
-                Profile
-              </h2>
-              <p className="settings-card-hint">
-                Shown on your public profile and anywhere you appear to other players.
-              </p>
-            </header>
-            <div className="settings-card-body">
-              <ProfileEditor />
-            </div>
-          </section>
+          <SettingsSection
+            id="settings-profile-title"
+            title="Profile"
+            hint="Shown on your public profile and anywhere you appear to other players."
+          >
+            <ProfileEditor />
+          </SettingsSection>
         </div>
       )}
 
-      {/* ── 1. Account ─────────────────────────────────────────────────────── */}
       <div role="group" aria-labelledby="settings-account-group-title">
-        <h2 id="settings-account-group-title" className="sr-only">
+        <h2 id="settings-account-group-title" className="settings-section-header">
           Account
         </h2>
-        <section className="settings-card" aria-labelledby="settings-account-title">
-          <header className="settings-card-header">
-            <h2 id="settings-account-title" className="settings-card-title">
-              Account
-            </h2>
-          </header>
-          <div className="settings-card-body">
-            {username ? (
-              <>
-                <div className="settings-row">
-                  <div className="settings-row-text">
-                    <div className="settings-row-label">Signed in as</div>
-                    <div className="settings-row-value">{username}</div>
-                  </div>
+        <SettingsSection id="settings-account-title" title="Account">
+          {username ? (
+            <>
+              <SettingsRow
+                label="Signed in as"
+                value={username}
+                actions={
                   <button type="button" className="btn" onClick={openSignOut}>
                     Sign out
                   </button>
-                </div>
-                <div className="settings-row">
-                  <div className="settings-row-text">
-                    <div className="settings-row-label">Sync status</div>
-                  </div>
-                  <SyncIndicator />
-                </div>
-              </>
-            ) : (
-              <div className="settings-row">
-                <div className="settings-row-text">
-                  <div className="settings-row-label">Not signed in</div>
-                  <div className="settings-row-hint">
-                    Everything is saved on this device. Sign in to back it up and sync — the cards
-                    here are added to your account.
-                  </div>
-                </div>
+                }
+              />
+              <SettingsRow label="Sync status" actions={<SyncIndicator />} />
+            </>
+          ) : (
+            <SettingsRow
+              label="Not signed in"
+              hint="Everything is saved on this device. Sign in to back it up and sync — the cards here are added to your account."
+              actions={
                 <Link to="/auth" className="pill-btn pill-btn-primary">
                   Sign in to sync
                 </Link>
-              </div>
-            )}
-          </div>
-        </section>
+              }
+            />
+          )}
+        </SettingsSection>
 
         {username && identities && (
-          <section className="settings-card" aria-labelledby="settings-signin-title">
-            <header className="settings-card-header">
-              <h2 id="settings-signin-title" className="settings-card-title">
-                Sign-in methods
-              </h2>
-              <p className="settings-card-hint">
-                Add another way to sign in, or remove one — you always need at least one.
-              </p>
-            </header>
-            <div className="settings-card-body">
-              {/* Password row: status-only for now; action slot left open for a
-                  future Set/Change password flow to slot in. */}
-              <div className="settings-row">
-                <div className="settings-row-text">
-                  <div className="settings-row-label">Password</div>
-                  <div className="settings-row-hint">{identities.password ? 'Set' : 'Not set'}</div>
-                </div>
-              </div>
-              <div className="settings-row">
-                <div className="settings-row-text">
-                  <div className="settings-row-label">Google</div>
-                  <div className="settings-row-hint">
-                    {identities.google ? 'Linked' : 'Not linked'}
-                  </div>
-                </div>
-                {identities.google ? (
+          <SettingsSection
+            id="settings-signin-title"
+            title="Sign-in methods"
+            hint="Add another way to sign in, or remove one — you always need at least one."
+          >
+            {/* Password row: status-only for now; action slot left open for a
+                future Set/Change password flow to slot in. */}
+            <SettingsRow label="Password" hint={identities.password ? 'Set' : 'Not set'} />
+            <SettingsRow
+              label="Google"
+              hint={identities.google ? 'Linked' : 'Not linked'}
+              actions={
+                identities.google ? (
                   <button
                     type="button"
                     className="btn btn-danger"
@@ -449,140 +435,141 @@ export function YouPage() {
                   >
                     {linkBusy ? 'Opening Google…' : 'Link Google account'}
                   </button>
-                )}
-              </div>
-            </div>
-          </section>
+                )
+              }
+            />
+          </SettingsSection>
+        )}
+
+        {username && (
+          <SettingsSection id="settings-friends-title" title="Friends">
+            <SettingsRow
+              value="Friends"
+              hint={friendsSummary(friendCount, pendingFriendRequests)}
+              actions={
+                <Link to="/friends" className="btn">
+                  Manage friends
+                </Link>
+              }
+            />
+          </SettingsSection>
         )}
       </div>
 
-      {/* ── 1b. Friends ────────────────────────────────────────────────────── */}
-      <div role="group" aria-labelledby="you-friends-group-title">
-        <div className="you-friends-header">
-          <h2 id="you-friends-group-title" className="settings-section-header">
-            Friends
-          </h2>
-          <Link
-            to="/pods"
-            className="site-nav-link"
-            aria-label={
-              pendingPodInvites > 0
-                ? `Pods, ${pendingPodInvites} pending invite${pendingPodInvites === 1 ? '' : 's'}`
-                : undefined
-            }
-          >
-            <span>Pods</span>
-            {pendingPodInvites > 0 && (
-              <span className="friends-nav-link-badge" aria-hidden="true">
-                {pendingPodInvites}
-              </span>
-            )}
-          </Link>
-        </div>
-        <FriendsManagement />
-      </div>
+      {/* ═══ Preferences — set-and-forget defaults ═══════════════════════ */}
+      <h2 className="settings-tier-header">Preferences</h2>
 
-      {/* ── 2. Appearance ──────────────────────────────────────────────────── */}
       <div role="group" aria-labelledby="settings-appearance-group-title">
         <h2 id="settings-appearance-group-title" className="settings-section-header">
           Appearance
         </h2>
-        <section className="settings-card" aria-labelledby="settings-appearance-title">
-          <header className="settings-card-header">
-            <h2 id="settings-appearance-title" className="settings-card-title">
-              Theme
-            </h2>
-            <p className="settings-card-hint">Theme re-skins the whole app to a guild palette.</p>
-          </header>
-          <div className="settings-card-body">
-            <fieldset className="settings-theme-grid" aria-label="Choose theme">
-              {THEMES.map((t) => (
-                <label
-                  key={t.id}
-                  className={`settings-theme-option${t.id === theme ? ' is-active' : ''}`}
-                >
-                  <input
-                    type="radio"
-                    name="theme"
-                    value={t.id}
-                    checked={t.id === theme}
-                    onChange={() => setTheme(t.id)}
-                    className="settings-theme-radio"
-                  />
-                  <span
-                    className="settings-theme-swatch"
-                    aria-hidden="true"
-                    style={{
-                      background: `linear-gradient(135deg, ${t.swatch[0]} 0 50%, ${t.swatch[1]} 50% 100%)`,
-                    }}
-                  />
-                  <span className="settings-theme-name">{t.name}</span>
-                  <span className="settings-theme-guild">{t.guild}</span>
-                </label>
-              ))}
-            </fieldset>
-          </div>
-        </section>
+        <SettingsSection
+          id="settings-appearance-title"
+          title="Theme"
+          hint="Theme re-skins the whole app to a guild palette."
+        >
+          <fieldset className="settings-theme-grid" aria-label="Choose theme">
+            {THEMES.map((t) => (
+              <label
+                key={t.id}
+                className={`settings-theme-option${t.id === theme ? ' is-active' : ''}`}
+              >
+                <input
+                  type="radio"
+                  name="theme"
+                  value={t.id}
+                  checked={t.id === theme}
+                  onChange={() => setTheme(t.id)}
+                  className="settings-theme-radio"
+                />
+                <span
+                  className="settings-theme-swatch"
+                  aria-hidden="true"
+                  style={{
+                    background: `linear-gradient(135deg, ${t.swatch[0]} 0 50%, ${t.swatch[1]} 50% 100%)`,
+                  }}
+                />
+                <span className="settings-theme-name">{t.name}</span>
+                <span className="settings-theme-guild">{t.guild}</span>
+              </label>
+            ))}
+          </fieldset>
+        </SettingsSection>
 
-        <section className="settings-card" aria-labelledby="settings-typeface-title">
-          <header className="settings-card-header">
-            <h2 id="settings-typeface-title" className="settings-card-title">
-              Typeface
-            </h2>
-            <p className="settings-card-hint">
-              A set changes every face at once — titles, body, labels, and numerals are picked to go
-              together. Independent of theme.
-            </p>
-          </header>
-          <div className="settings-card-body">
-            <TypeSetPicker />
-          </div>
-        </section>
+        <SettingsSection
+          id="settings-typeface-title"
+          title="Typeface"
+          hint="A set changes every face at once — titles, body, labels, and numerals are picked to go together. Independent of theme."
+        >
+          <TypeSetPicker />
+        </SettingsSection>
       </div>
 
-      {/* ── 3. Collection ──────────────────────────────────────────────────── */}
+      <div role="group" aria-labelledby="settings-collection-prefs-group-title">
+        <h2 id="settings-collection-prefs-group-title" className="settings-section-header">
+          Collection preferences
+        </h2>
+        <SettingsSection
+          id="settings-collection-prefs-title"
+          title="Price currency"
+          hint="Show card prices and collection value in USD (TCGplayer) or EUR (Cardmarket)."
+        >
+          <fieldset className="settings-currency-toggle" aria-label="Price currency">
+            {(['USD', 'EUR'] as const).map((c) => (
+              <label key={c} className="settings-currency-option">
+                <input
+                  type="radio"
+                  name="price-currency"
+                  value={c}
+                  checked={currency === c}
+                  onChange={() => handleCurrencyChange(c)}
+                />
+                <span>{c === 'USD' ? '$ USD' : '€ EUR'}</span>
+              </label>
+            ))}
+          </fieldset>
+        </SettingsSection>
+      </div>
+
+      {/* ═══ Your data — backup, sharing, storage ════════════════════════ */}
+      <h2 className="settings-tier-header">Your data</h2>
+
       <div role="group" aria-labelledby="settings-collection-group-title">
         <h2 id="settings-collection-group-title" className="settings-section-header">
           Collection
         </h2>
-        <section className="settings-card" aria-labelledby="settings-collection-title">
-          <header className="settings-card-header">
-            <h2 id="settings-collection-title" className="settings-card-title">
-              Collection
-            </h2>
-            <p className="settings-card-hint">
-              Back up and keep card data fresh. Exports are JSON files you can re-import later.
-            </p>
-          </header>
-          <div className="settings-card-body">
-            <div className="settings-row">
-              <div className="settings-row-text">
-                <div className="settings-row-value settings-row-value--with-tip">
-                  Export full collection
-                  <InfoTip
-                    label="binders and lists"
-                    wide
-                    text={
-                      <>
-                        <strong>Binders</strong> are rule-driven — you define filters (color, set,
-                        rarity, etc.) and SpellControl automatically routes matching cards into
-                        them.
-                        <br />
-                        <br />
-                        <strong>Lists</strong> are named groups of cards — hand-curated want lists
-                        (cards to acquire), tracking lists (cards you own, catalogued outside your
-                        binders), or dynamic lists driven by a rule like binders are.
-                        <br />
-                        <br />
-                        The backup includes both binder rule definitions and lists.
-                      </>
-                    }
-                  />
-                </div>
-                <div className="settings-row-hint">
-                  Download a JSON backup containing every card and binder definition.
-                </div>
-              </div>
+        <SettingsSection
+          id="settings-collection-title"
+          title="Collection"
+          hint="Back up and keep card data fresh. Exports are JSON files you can re-import later."
+        >
+          <SettingsRow
+            value={
+              <>
+                Export full collection
+                <InfoTip
+                  label="binders and lists"
+                  wide
+                  text={
+                    <>
+                      <strong>Binders</strong> are rule-driven — you define filters (color, set,
+                      rarity, etc.) and SpellControl automatically routes matching cards into them.
+                      <br />
+                      <br />
+                      <strong>Lists</strong> are named groups of cards — hand-curated want lists
+                      (cards to acquire), tracking lists (cards you own, catalogued outside your
+                      binders), or dynamic lists driven by a rule like binders are.
+                      <br />
+                      <br />
+                      The backup includes both binder rule definitions and lists.
+                    </>
+                  }
+                />
+              </>
+            }
+            valueWithTip
+            hint="Download a JSON backup containing every card and binder definition."
+            actions={
               <button
                 type="button"
                 className="btn"
@@ -591,39 +578,18 @@ export function YouPage() {
               >
                 Download backup
               </button>
-            </div>
+            }
+          />
 
-            <div className="settings-row">
-              <div className="settings-row-text">
-                <div className="settings-row-value">Price currency</div>
-                <div className="settings-row-hint">
-                  Show card prices and collection value in USD (TCGplayer) or EUR (Cardmarket).
-                </div>
-              </div>
-              <fieldset className="settings-currency-toggle" aria-label="Price currency">
-                {(['USD', 'EUR'] as const).map((c) => (
-                  <label key={c} className="settings-currency-option">
-                    <input
-                      type="radio"
-                      name="price-currency"
-                      value={c}
-                      checked={currency === c}
-                      onChange={() => handleCurrencyChange(c)}
-                    />
-                    <span>{c === 'USD' ? '$ USD' : '€ EUR'}</span>
-                  </label>
-                ))}
-              </fieldset>
-            </div>
-
-            <div className="settings-row">
-              <div className="settings-row-text">
-                <div className="settings-row-value">Refresh card prices</div>
-                <div className="settings-row-hint">
-                  Re-fetch {currency} prices from Scryfall for every card in your collection.
-                  {pricesUpdated && ` Last updated ${pricesUpdated}.`}
-                </div>
-              </div>
+          <SettingsRow
+            value="Refresh card prices"
+            hint={
+              <>
+                Re-fetch {currency} prices from Scryfall for every card in your collection.
+                {pricesUpdated && ` Last updated ${pricesUpdated}.`}
+              </>
+            }
+            actions={
               <button
                 type="button"
                 className="btn"
@@ -632,21 +598,22 @@ export function YouPage() {
               >
                 {isRefreshingPrices ? 'Refreshing…' : 'Refresh prices'}
               </button>
-            </div>
+            }
+          />
 
-            <div className="settings-row">
-              <div className="settings-row-text">
-                <div className="settings-row-value settings-row-value--with-tip">
-                  Repair deck allocations
-                  <InfoTip
-                    label="deck allocations"
-                    text="An allocation links each card slot in a deck to a specific physical copy in your collection — so if you own two copies of a card, SpellControl knows which one is claimed by which deck. Repair re-runs this matching after edits or re-imports."
-                  />
-                </div>
-                <div className="settings-row-hint">
-                  Re-map each deck’s reserved copies after edits or re-imports.
-                </div>
-              </div>
+          <SettingsRow
+            value={
+              <>
+                Repair deck allocations
+                <InfoTip
+                  label="deck allocations"
+                  text="An allocation links each card slot in a deck to a specific physical copy in your collection — so if you own two copies of a card, SpellControl knows which one is claimed by which deck. Repair re-runs this matching after edits or re-imports."
+                />
+              </>
+            }
+            valueWithTip
+            hint="Re-map each deck’s reserved copies after edits or re-imports."
+            actions={
               <button
                 type="button"
                 className="btn"
@@ -655,13 +622,13 @@ export function YouPage() {
               >
                 Repair
               </button>
-            </div>
-          </div>
-        </section>
+            }
+          />
+        </SettingsSection>
       </div>
 
-      {/* ── 4. Sharing (authed only — SharedLinksSettings self-hides for guests,
-              so the whole group is suppressed when there’s no username) ─────── */}
+      {/* Sharing (authed only — SharedLinksSettings self-hides for guests, so
+          the whole group is suppressed when there's no username) */}
       {username && (
         <div role="group" aria-labelledby="settings-sharing-group-title">
           <h2 id="settings-sharing-group-title" className="settings-section-header">
@@ -671,7 +638,6 @@ export function YouPage() {
         </div>
       )}
 
-      {/* ── 5. Data & Storage ─────────────────────────────────────── */}
       <div role="group" aria-labelledby="settings-data-group-title">
         <h2 id="settings-data-group-title" className="settings-section-header">
           Data &amp; Storage
@@ -679,24 +645,15 @@ export function YouPage() {
 
         <OfflineModeSettings />
 
-        <section className="settings-card" aria-labelledby="settings-troubleshooting-title">
-          <header className="settings-card-header">
-            <h2 id="settings-troubleshooting-title" className="settings-card-title">
-              Troubleshooting
-            </h2>
-            <p className="settings-card-hint">
-              For when the app feels stuck on an old version after an update.
-            </p>
-          </header>
-          <div className="settings-card-body">
-            <div className="settings-row">
-              <div className="settings-row-text">
-                <div className="settings-row-value">Reset app cache</div>
-                <div className="settings-row-hint">
-                  Reloads the app from the server. Your decks, collection, and binders aren&apos;t
-                  touched.
-                </div>
-              </div>
+        <SettingsSection
+          id="settings-troubleshooting-title"
+          title="Troubleshooting"
+          hint="For when the app feels stuck on an old version after an update."
+        >
+          <SettingsRow
+            value="Reset app cache"
+            hint="Reloads the app from the server. Your decks, collection, and binders aren't touched."
+            actions={
               <button
                 type="button"
                 className="btn"
@@ -705,12 +662,12 @@ export function YouPage() {
               >
                 {resetCacheBusy ? 'Resetting…' : 'Reset cache'}
               </button>
-            </div>
-          </div>
-        </section>
+            }
+          />
+        </SettingsSection>
       </div>
 
-      {/* ── 6. Admin (admin users only) ────────────────────────────────── */}
+      {/* ═══ Admin (admin users only) ═════════════════════════════════════ */}
       {isAdmin && userId && (
         <div role="group" aria-labelledby="settings-admin-group-title">
           <h2 id="settings-admin-group-title" className="settings-section-header">
@@ -720,7 +677,7 @@ export function YouPage() {
         </div>
       )}
 
-      {/* ── 7. Danger zone ─────────────────────────────────────────────── */}
+      {/* ═══ Danger zone ═══════════════════════════════════════════════════ */}
       <h2 id="settings-danger-group-title" className="settings-section-header">
         Danger zone
       </h2>
@@ -773,7 +730,7 @@ export function YouPage() {
         </div>
       </section>
 
-      {/* ── 8. Footer ─────────────────────────────────────────────────────── */}
+      {/* ═══ Footer ═══════════════════════════════════════════════════════ */}
       <footer className="settings-page-about">
         <p>
           SpellControl is unofficial Fan Content permitted under the{' '}
