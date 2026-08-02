@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
+  getScryfallStats,
   parseRetryAfter,
   resetScryfallRateLimit,
+  resetScryfallStats,
   scryfallFetch,
   scryfallRequest,
 } from './scryfall-fetch';
@@ -14,6 +16,7 @@ const ok = (body: unknown = {}) =>
 
 beforeEach(() => {
   resetScryfallRateLimit();
+  resetScryfallStats();
   vi.restoreAllMocks();
 });
 
@@ -128,6 +131,71 @@ describe('scryfallRequest', () => {
 
     expect(at).toHaveLength(2);
     expect(at[1] - at[0]).toBeGreaterThanOrEqual(100);
+  });
+});
+
+// The tally is the only way we can answer "did the 429s actually stop?" —
+// client-side throttling never reaches our server.
+describe('scryfall stats', () => {
+  it('counts every request, including retries', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(ok());
+
+    await scryfallRequest('/cards/named?exact=A');
+    await scryfallRequest('/cards/named?exact=B');
+
+    expect(getScryfallStats()).toMatchObject({ requests: 2, throttled: 0, gaveUp: 0 });
+  });
+
+  it('counts a 429, the retry it caused, and the time parked', async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+      calls += 1;
+      if (calls === 1) {
+        return new Response('slow down', { status: 429, headers: { 'Retry-After': '3' } });
+      }
+      return ok();
+    });
+
+    const pending = scryfallRequest('/cards/search?q=x');
+    await vi.runAllTimersAsync();
+    await pending;
+
+    const s = getScryfallStats();
+    expect(s.throttled).toBe(1);
+    // The retry is a second request — the count is what we SENT, not what we asked for.
+    expect(s.requests).toBe(2);
+    expect(s.gaveUp).toBe(0);
+    expect(s.cooldownMs).toBeGreaterThanOrEqual(3000);
+  });
+
+  it('records a request that burned every retry', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('no', { status: 429 }));
+
+    const pending = scryfallRequest('/cards/search?q=sustained');
+    await vi.runAllTimersAsync();
+    await pending;
+
+    const s = getScryfallStats();
+    expect(s.gaveUp).toBe(1);
+    expect(s.requests).toBe(5); // 1 attempt + 4 retries
+    expect(s.throttled).toBe(5);
+  });
+
+  it('separates 503 from 429 so an outage does not read as throttling', async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+      calls += 1;
+      return calls === 1 ? new Response('down', { status: 503 }) : ok();
+    });
+
+    const pending = scryfallRequest('/cards/named?exact=A');
+    await vi.runAllTimersAsync();
+    await pending;
+
+    expect(getScryfallStats()).toMatchObject({ unavailable: 1, throttled: 0 });
   });
 });
 

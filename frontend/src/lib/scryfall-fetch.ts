@@ -103,6 +103,63 @@ export function resetScryfallRateLimit(): void {
 }
 
 /**
+ * Running tally of what we actually asked Scryfall for.
+ *
+ * This exists to answer one question with a number instead of a feeling: is a
+ * deck generation still firing hundreds of requests, and is Scryfall still
+ * throttling us? Client-side 429s never reach our server, so without this we
+ * are blind — and "requests per cold generation" is the figure that decides
+ * whether it's worth serving card data from the bulk dump we already ingest
+ * nightly (`backend/src/scryfall-bulk.ts`) instead of from the public API.
+ *
+ * A single counter is only possible because `scryfallRequest` is the app's one
+ * choke point. Don't add a second tally somewhere else — extend this.
+ */
+export interface ScryfallStats {
+  /** HTTP requests actually sent, retries included. */
+  requests: number;
+  /** Responses that came back 429. */
+  throttled: number;
+  /** Responses that came back 503. */
+  unavailable: number;
+  /** Requests that burned every retry and returned a failing response. */
+  gaveUp: number;
+  /** Total time the shared cooldown parked the queue, in ms. */
+  cooldownMs: number;
+}
+
+const stats: ScryfallStats = {
+  requests: 0,
+  throttled: 0,
+  unavailable: 0,
+  gaveUp: 0,
+  cooldownMs: 0,
+};
+
+/** Snapshot of the tally since process start (or the last reset). */
+export function getScryfallStats(): ScryfallStats {
+  return { ...stats };
+}
+
+/** Zero the tally — call before a run you want to measure in isolation. */
+export function resetScryfallStats(): void {
+  stats.requests = 0;
+  stats.throttled = 0;
+  stats.unavailable = 0;
+  stats.gaveUp = 0;
+  stats.cooldownMs = 0;
+}
+
+// Reachable from the devtools console during a real deck generation:
+//   __scryfallStats()            → the tally so far
+//   __resetScryfallStats()       → zero it, then generate, then read again
+// Dev only; never shipped to production users.
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  (window as unknown as Record<string, unknown>).__scryfallStats = getScryfallStats;
+  (window as unknown as Record<string, unknown>).__resetScryfallStats = resetScryfallStats;
+}
+
+/**
  * `Retry-After` is either delta-seconds or an HTTP-date (RFC 9110). We only
  * parsed the numeric form, so a dated header read as `NaN` and we fell back to
  * our own backoff — ignoring the one authoritative answer to "how long?".
@@ -128,13 +185,19 @@ export function parseRetryAfter(header: string | null): number | null {
 export async function scryfallRequest(path: string, init?: RequestInit): Promise<Response> {
   for (let attempt = 0; ; attempt++) {
     await rateLimiter.acquire();
+    stats.requests += 1;
     const response = await fetch(`${SCRYFALL_BASE_URL}${path}`, {
       ...init,
       headers: init?.headers ?? { Accept: 'application/json' },
     });
 
     if (response.status !== 429 && response.status !== 503) return response;
-    if (attempt >= MAX_RETRIES) return response;
+    if (response.status === 429) stats.throttled += 1;
+    else stats.unavailable += 1;
+    if (attempt >= MAX_RETRIES) {
+      stats.gaveUp += 1;
+      return response;
+    }
 
     const backoff = Math.min(BASE_BACKOFF_MS * 2 ** attempt, MAX_BACKOFF_MS);
     // Jitter so a throttled burst doesn't wake in lockstep and strike together.
@@ -144,6 +207,7 @@ export async function scryfallRequest(path: string, init?: RequestInit): Promise
       `[scryfall] ${response.status} on ${path} — cooling down ${Math.round(waitMs)}ms (attempt ${attempt + 1})`
     );
     // The next acquire() waits this out, and so does every other caller.
+    stats.cooldownMs += Math.round(waitMs);
     rateLimiter.cooldown(waitMs);
   }
 }
