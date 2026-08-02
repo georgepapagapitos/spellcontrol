@@ -37,6 +37,7 @@ import type { GenerationContext } from './deckGeneration/state';
 import { generateDeck, clearGenerationCache } from './deckGenerator';
 import { assembleBuildReport } from './buildReport';
 import { getCardByName, getCardPrice } from '@/deck-builder/services/scryfall/client';
+import { getScryfallStats, resetScryfallStats, type ScryfallStats } from '@/lib/scryfall-fetch';
 import { validateCardRole, getCardTags } from '@/deck-builder/services/tagger/client';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -394,6 +395,20 @@ interface SummaryEntry {
   deckGrade?: GeneratedDeck['deckGrade'] | null;
   deckScore?: number | null;
   generationSeconds?: number;
+  /**
+   * What this one generation cost Scryfall: requests sent, 429s eaten, ms
+   * parked in the shared cooldown. `requests` is the figure that decides
+   * whether card resolution should move onto the bulk dump we already ingest
+   * nightly (`backend/src/scryfall-bulk.ts`) instead of the public API — a
+   * generation still firing hundreds of requests for data sitting in our own
+   * SQLite is the case for building that endpoint.
+   *
+   * NOTE: this panel runs in node, where `indexedDB` is undefined, so the
+   * persistent card cache is a deliberate no-op here. These numbers measure the
+   * limiter and the raw request volume, NOT the cache — cold-vs-warm cache
+   * behavior can only be measured in a browser.
+   */
+  scryfall?: ScryfallStats;
   error?: string;
 }
 
@@ -425,6 +440,7 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
       const t0 = Date.now();
       try {
         clearGenerationCache();
+        resetScryfallStats();
         const commander = await getCardByName(spec.commanderName);
         if (!commander)
           throw new Error(`getCardByName returned nothing for "${spec.commanderName}"`);
@@ -526,6 +542,11 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
         console.error(`[deckGen-live] FAILED ${spec.commanderName} [${spec.variant}]:`, err);
       } finally {
         entry.generationSeconds = Math.round((Date.now() - t0) / 100) / 10;
+        entry.scryfall = getScryfallStats();
+        console.log(
+          `[deckGen-live] ${slug}: ${entry.scryfall.requests} scryfall requests, ` +
+            `${entry.scryfall.throttled} × 429, ${entry.scryfall.cooldownMs}ms parked`
+        );
         summaries.push(entry);
       }
       // Never fail the run over one bad commander — the point is the dump,
@@ -539,6 +560,25 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
     // Depends on it.each above having populated `summaries` — vitest runs
     // its within a describe block in declaration order.
     writeFileSync(join(OUT_DIR, 'summary.json'), JSON.stringify(summaries, null, 2));
+
+    // Panel-wide Scryfall cost, printed so an A/B is readable without opening
+    // summary.json. Per-deck averages are what to compare across branches.
+    const totals = summaries.reduce(
+      (acc, s) => ({
+        requests: acc.requests + (s.scryfall?.requests ?? 0),
+        throttled: acc.throttled + (s.scryfall?.throttled ?? 0),
+        gaveUp: acc.gaveUp + (s.scryfall?.gaveUp ?? 0),
+        cooldownMs: acc.cooldownMs + (s.scryfall?.cooldownMs ?? 0),
+      }),
+      { requests: 0, throttled: 0, gaveUp: 0, cooldownMs: 0 }
+    );
+    const perDeck = summaries.length > 0 ? Math.round(totals.requests / summaries.length) : 0;
+    console.log(
+      `[deckGen-live] SCRYFALL TOTAL over ${summaries.length} decks: ` +
+        `${totals.requests} requests (${perDeck}/deck), ${totals.throttled} × 429, ` +
+        `${totals.gaveUp} gave up, ${Math.round(totals.cooldownMs / 1000)}s parked`
+    );
+
     expect(summaries.length).toBe(ACTIVE_RUNS.length);
   });
 });
