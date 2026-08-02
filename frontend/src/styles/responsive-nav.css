@@ -20,9 +20,10 @@
 
 /* Tablet & smaller */
 @media (max-width: 900px) {
-  body {
-    padding-bottom: 1.25rem;
-  }
+  /* No `body { padding-bottom }` here — it was dead. The `max-width: 1023px`
+     block below also matches at every width this one does and, being later at
+     equal specificity, won every tie; body padding was always its 0.85rem.
+     Same ordering trap that hid the deck toolbar's search-pill clip (#1471). */
 
   .site-header-inner {
     height: 3rem;
@@ -484,6 +485,18 @@
   overflow-y: hidden;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+  /* Fade both ends so a tab that runs past the edge reads as "there's more
+     this way" instead of as a broken, hard-clipped layout — the scrollbar is
+     hidden above, so without this the strip gives no scroll affordance at all.
+     Sized to the gutter, so when every tab fits (the 3-tab Decks hub) the fade
+     falls on empty padding and nothing visibly changes. */
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--page-gutter, var(--space-4)),
+    #000 calc(100% - var(--page-gutter, var(--space-4))),
+    transparent 100%
+  );
 }
 
 .collection-hub-tabs::-webkit-scrollbar {
