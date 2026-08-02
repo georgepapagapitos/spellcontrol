@@ -89,6 +89,27 @@ export function formatDayKey(day: string): string {
 }
 
 /**
+ * Subscribe to writes into this log.
+ *
+ * Every writer is a fire-and-forget background path (the price-refresh tick,
+ * the collection-store subscriber, the boot catch-all), so a surface that
+ * rendered the log at mount has no way to learn it went stale a beat later —
+ * it would show the old point until the next launch. Callers re-read on notify.
+ */
+const changeListeners = new Set<() => void>();
+
+export function onValueHistoryChange(listener: () => void): () => void {
+  changeListeners.add(listener);
+  return () => {
+    changeListeners.delete(listener);
+  };
+}
+
+function notifyValueHistoryChange(): void {
+  for (const listener of changeListeners) listener();
+}
+
+/**
  * Upsert today's point (last write per day wins) and trim the log to the
  * newest MAX_POINTS. Stamped with the active display currency. `at` is
  * injectable for tests.
@@ -104,6 +125,7 @@ export async function recordValueSnapshot(value: number, at = Date.now()): Promi
     await tx.store.delete(key);
   }
   await tx.done;
+  notifyValueHistoryChange();
 }
 
 /**
@@ -268,6 +290,7 @@ export async function recordDailyMovers(movers: CardMover[], at = Date.now()): P
     await tx.store.delete(key);
   }
   await tx.done;
+  notifyValueHistoryChange();
 }
 
 /** Newest movers record in the ACTIVE display currency, or null. */
