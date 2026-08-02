@@ -2031,6 +2031,36 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
   centered `::after` ghost (`position: absolute; width/height: 44px;
 transform: translate(-50%, -50%)` on a `position: relative` parent) rather
   than inflating the visible control — reference `.set-filter-chip-x`.
+- **In a dense list row, NO control may take the 44px on its own box — every
+  one of them ghosts.** A row is `display: flex; align-items: center`, so a
+  child with `min-height: 44px` sets the **row's** height. One un-ghosted
+  control therefore inflates every row in the list: the deck list's `⋮`
+  (`.deck-row-menu-trigger`) did exactly this and rendered ~50px rows for a
+  single ~20px line of text — 30px of dead space per row, 10 rows visible at
+  360px where 15 fit (#1466). Its two row-siblings
+  (`.deck-row-select-check`, `.deck-row-drag-handle`) were already ghosted;
+  the odd one out is what you're looking for. **Cap the ghost's `height` at
+  the row's own coarse `min-height`, not 44px** — once rows are ~36px, two
+  vertically adjacent 44px ghosts overlap and the later DOM sibling wins, so
+  tapping the top of one row's control fires the **row above's**. Ghost
+  `width` can stay 44px (no horizontal neighbour).
+- **When the row itself is the tap target, the row carries the floor —
+  at 36px, not 44.** `.deck-row` is `role="button"` (opens the card preview),
+  so the floor belongs on `.deck-row`, not on whichever child happens to be
+  tallest. 36 rather than 44 because the row is full-width: height is the
+  axis with slack, and a 100-card decklist is a density surface, not a
+  settings menu. Reserve the full 44 for free-standing controls and
+  popover/menu rows (`.deck-row-menu-item` keeps 44).
+- **`styles/overlay-containment.test.ts` guards a named list of controls that
+  must reach 44px on coarse.** When one converts to the ghost pattern, point
+  its entry at the pseudo-element (`.deck-row-menu-trigger::after`) — the
+  guard's matcher keys on `selector {`, so the base selector's entry goes red.
+  The floor stays enforced, just on the ghost.
+- **Verifying any of this needs real touch emulation, not just a narrow
+  viewport.** A headless shot at 360px still reports `pointer: fine`, so every
+  `@media (pointer: coarse)` block is invisible and the shot looks like a
+  valid phone check while proving nothing. `.claude/tools/shoot.mjs --touch`
+  sets `isMobile`/`hasTouch`; that gap is why #1466 survived earlier passes.
 - **No horizontal overflow at 320px** (the hard floor).
 - **Both themes on every tier** — light and dark are independent surfaces.
 
