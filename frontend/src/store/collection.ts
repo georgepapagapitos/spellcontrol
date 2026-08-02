@@ -1010,6 +1010,22 @@ export const useCollectionStore = create<CollectionState>()(
           void recordCollectionSnapshot(0).catch(() => {});
           return;
         }
+        // …and the same catch-all for a collection that came BACK. The authed
+        // boot path writes `cards` from sync's local rehydrate, under the
+        // applyingServer guard — so the store subscriber never sees the cards
+        // arrive, and prices restored from the device cache are usually fresh,
+        // so the refresh below returns early too. Without this, a log left at
+        // $0 by a delete (or by this function's own empty branch firing in the
+        // window before the first pull lands) stays $0 until a price goes stale
+        // a day later, and the hero reports $0 for a collection you can see.
+        // App.tsx re-fires this when the collection becomes non-empty, which is
+        // what makes it a correction rather than a boot-order gamble.
+        const total = s.cards.reduce((sum, c) => sum + (c.purchasePrice ?? 0), 0);
+        // A $0 total here is an unpriced collection, not a worthless one —
+        // logging it would poison today's point; the refresh below fills the
+        // prices in and records the real one.
+        if (total > 0) void recordCollectionSnapshot(total).catch(() => {});
+
         // Never reach for the network when we know we're offline. (navigator is
         // absent in the node test env; treat that as "online" so logic is testable.)
         if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
