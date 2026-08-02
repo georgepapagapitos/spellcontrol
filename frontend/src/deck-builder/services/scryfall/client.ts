@@ -6,6 +6,7 @@ import { offlineGetCardByName, offlineGetCardsByNames, offlineSearchCards } from
 import { offlineDataAvailable, useOfflineStore } from '@/store/offline';
 import { frontFaceName } from '@/lib/card-text';
 import { normalizeScryfallQuery } from '@/lib/normalize-search';
+import { scryfallFetch, scryfallRequest } from '@/lib/scryfall-fetch';
 
 /**
  * Cheap synchronous gate used to short-circuit every Scryfall call when the
@@ -20,10 +21,6 @@ function offlineActive(): boolean {
   }
 }
 
-const BASE_URL = import.meta.env.DEV ? '/scryfall-api' : 'https://api.scryfall.com';
-const MIN_REQUEST_DELAY = 100; // 100ms between requests (Scryfall allows 10/sec)
-const MAX_RETRIES = 4; // cap 429/503 retries so a sustained throttle or outage fails instead of hanging
-const BASE_BACKOFF_MS = 1000;
 const COLLECTION_BATCH_SIZE = 75; // Scryfall /cards/collection max per request
 // Ceiling on the per-card follow-up requests a single batch resolve may fire
 // after the batched pass (see the tail of liveGetCardsByNames).
@@ -102,124 +99,6 @@ function freshCopy(card: ScryfallCard): ScryfallCard {
     ...clean
   } = card;
   return clean;
-}
-
-/**
- * Queue-based rate limiter that ensures requests are properly spaced.
- * All Scryfall requests MUST go through this to prevent 429 errors.
- */
-class RateLimiter {
-  private queue: Array<() => void> = [];
-  private processing = false;
-  private lastRequestTime = 0;
-
-  /**
-   * Wait for permission to make a request.
-   * Returns a promise that resolves when it's safe to send.
-   */
-  async acquire(): Promise<void> {
-    return new Promise((resolve) => {
-      this.queue.push(resolve);
-      this.processQueue();
-    });
-  }
-
-  private async processQueue(): Promise<void> {
-    if (this.processing || this.queue.length === 0) return;
-
-    this.processing = true;
-
-    while (this.queue.length > 0) {
-      const now = Date.now();
-      const timeSinceLastRequest = now - this.lastRequestTime;
-
-      if (timeSinceLastRequest < MIN_REQUEST_DELAY) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, MIN_REQUEST_DELAY - timeSinceLastRequest)
-        );
-      }
-
-      this.lastRequestTime = Date.now();
-      const resolve = this.queue.shift();
-      if (resolve) resolve();
-    }
-
-    this.processing = false;
-  }
-
-  // Alias for backwards compatibility
-  async throttle(): Promise<void> {
-    return this.acquire();
-  }
-}
-
-const rateLimiter = new RateLimiter();
-
-/**
- * User-facing message for a failed Scryfall call.
- *
- * Three search surfaces render a thrown error's `.message` verbatim
- * (`use-search-cards`, `CardSearchPanel`, `CommanderSearch`), so whatever comes
- * out of here is what a player reads. Raw strings used to leak straight
- * through: a transient upstream blip printed "Scryfall API error: 503 Service
- * Unavailable", and a dropped connection printed the browser's own
- * "NetworkError when attempting to fetch resource." The raw detail still goes
- * to the logger for debugging.
- */
-function scryfallErrorMessage(status: number | null, statusText = ''): string {
-  if (status === null) return 'Couldn’t reach Scryfall — check your connection and try again.';
-  if (status >= 500) return 'Scryfall is temporarily unavailable — try again in a moment.';
-  // Scryfall answers an unparseable query with 400/422.
-  if (status === 400 || status === 422)
-    return 'Scryfall couldn’t read that search — check the syntax and try again.';
-  return `Scryfall couldn’t complete that request (${status}${statusText ? ` ${statusText}` : ''}).`;
-}
-
-async function scryfallFetch<T>(endpoint: string, attempt = 0): Promise<T> {
-  await rateLimiter.throttle();
-
-  let response: Response;
-  try {
-    response = await fetch(`${BASE_URL}${endpoint}`, {
-      headers: {
-        Accept: 'application/json',
-      },
-    });
-  } catch (e) {
-    // fetch() rejects (offline, DNS, dev-proxy down, CORS) with a raw TypeError.
-    // Not retried: the usual cause is a genuinely offline device, and four
-    // backoffs would hold the spinner ~15s before saying so.
-    logger.warn('[scryfall] request failed', endpoint, e);
-    throw new Error(scryfallErrorMessage(null));
-  }
-
-  if (!response.ok) {
-    if ((response.status === 429 || response.status === 503) && attempt < MAX_RETRIES) {
-      // Rate limited (429) or upstream briefly overloaded (503) — honor
-      // Retry-After if present, else exponential backoff. Capped (MAX_RETRIES)
-      // so a sustained throttle/outage throws instead of recursing forever and
-      // hanging deck generation.
-      const retryAfter = Number(response.headers.get('Retry-After'));
-      const waitMs =
-        Number.isFinite(retryAfter) && retryAfter > 0
-          ? retryAfter * 1000
-          : BASE_BACKOFF_MS * 2 ** attempt;
-      await new Promise((resolve) => setTimeout(resolve, waitMs));
-      return scryfallFetch<T>(endpoint, attempt + 1);
-    }
-    // /cards/search 404s when NOTHING matched — that's an empty result set, not
-    // a failure. Callers used to hand-roll `err.message.includes('404')` (three
-    // did; the ones that didn't surfaced "Scryfall API error: 404 Not Found" to
-    // the user instead of "no matches"). Normalize it once, here, so every
-    // search surface gets an empty list.
-    if (response.status === 404 && endpoint.startsWith('/cards/search')) {
-      return { object: 'list', total_cards: 0, has_more: false, data: [] } as T;
-    }
-    logger.warn('[scryfall] HTTP error', response.status, response.statusText, endpoint);
-    throw new Error(scryfallErrorMessage(response.status, response.statusText));
-  }
-
-  return response.json();
 }
 
 async function liveSearchCommanders(query: string): Promise<ScryfallCard[]> {
@@ -464,24 +343,21 @@ export async function getOwnedPrinting(scryfallId: string, name: string): Promis
 }
 
 /**
- * POST /cards/collection with the same 429/503 discipline `scryfallFetch` uses
- * (F26): honor `Retry-After`, exponential backoff otherwise, and CAP the
- * retries. The three batch loops below each hand-rolled their own "429 → sleep
- * 1500ms → retry this batch forever" branch, which is exactly wrong when
- * Scryfall answers a throttled client with `Retry-After: 60`: we kept firing
- * every 1.5s through the whole cooldown (40 more strikes), so the block
- * deepened and the loop never terminated — cube generation hung instead of
- * failing. Returns null when the batch can't be had; callers skip it.
+ * POST /cards/collection through the shared request path (F26), which honors
+ * `Retry-After`, backs off with jitter, parks every other caller for the same
+ * cooldown, and CAPS the retries. The three batch loops below each hand-rolled
+ * their own "429 → sleep 1500ms → retry this batch forever" branch, which is
+ * exactly wrong when Scryfall answers a throttled client with `Retry-After: 60`:
+ * we kept firing every 1.5s through the whole cooldown (40 more strikes), so
+ * the block deepened and the loop never terminated — cube generation hung
+ * instead of failing. Returns null when the batch can't be had; callers skip it.
  */
 async function postCollection(
-  identifiers: Array<Record<string, string>>,
-  attempt = 0
+  identifiers: Array<Record<string, string>>
 ): Promise<{ data: ScryfallCard[]; not_found: Array<{ name?: string; set?: string }> } | null> {
-  await rateLimiter.acquire();
-
   let response: Response;
   try {
-    response = await fetch(`${BASE_URL}/cards/collection`, {
+    response = await scryfallRequest('/cards/collection', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ identifiers }),
@@ -496,17 +372,6 @@ async function postCollection(
       data: ScryfallCard[];
       not_found: Array<{ name?: string; set?: string }>;
     };
-  }
-
-  if ((response.status === 429 || response.status === 503) && attempt < MAX_RETRIES) {
-    const retryAfter = Number(response.headers.get('Retry-After'));
-    const waitMs =
-      Number.isFinite(retryAfter) && retryAfter > 0
-        ? retryAfter * 1000
-        : BASE_BACKOFF_MS * 2 ** attempt;
-    logger.warn(`[Scryfall] Collection fetch throttled (${response.status}), waiting ${waitMs}ms`);
-    await new Promise((resolve) => setTimeout(resolve, waitMs));
-    return postCollection(identifiers, attempt + 1);
   }
 
   logger.warn('[Scryfall] Collection fetch failed', response.status, response.statusText);
@@ -548,16 +413,13 @@ export async function getCardsByIds(ids: string[]): Promise<Map<string, Scryfall
  * Fetch a single card by name with proper rate limiting.
  * Returns null if not found instead of throwing.
  */
-async function fetchCardByNameThrottled(name: string, retries = 2): Promise<ScryfallCard | null> {
+async function fetchCardByNameThrottled(name: string): Promise<ScryfallCard | null> {
   try {
-    await rateLimiter.acquire();
-
     // Search for cheapest USD paper printing across all sets
     // Filter out digital-only printings and require a USD price
     const searchQuery = encodeURIComponent(`!"${name}" -is:digital`);
-    const response = await fetch(
-      `${BASE_URL}/cards/search?q=${searchQuery}&unique=prints&order=usd&dir=asc`,
-      { headers: { Accept: 'application/json' } }
+    const response = await scryfallRequest(
+      `/cards/search?q=${searchQuery}&unique=prints&order=usd&dir=asc`
     );
 
     if (response.ok) {
@@ -576,24 +438,9 @@ async function fetchCardByNameThrottled(name: string, retries = 2): Promise<Scry
       }
     }
 
-    if (response.status === 429 && retries > 0) {
-      // Honor Retry-After — Scryfall answers a throttled client with 60s, and
-      // retrying sooner just extends the block.
-      const retryAfter = Number(response.headers.get('Retry-After'));
-      const backoffMs =
-        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 1000 * (3 - retries);
-      logger.warn(`[Scryfall] Rate limited, backing off ${backoffMs}ms...`);
-      await new Promise((resolve) => setTimeout(resolve, backoffMs));
-      return fetchCardByNameThrottled(name, retries - 1);
-    }
-
     // Fallback to /cards/named if search returned no results (name mismatch, etc.)
     if (response.status === 404) {
-      await rateLimiter.acquire();
-      const namedResponse = await fetch(
-        `${BASE_URL}/cards/named?exact=${encodeURIComponent(name)}`,
-        { headers: { Accept: 'application/json' } }
-      );
+      const namedResponse = await scryfallRequest(`/cards/named?exact=${encodeURIComponent(name)}`);
       if (!namedResponse.ok) return null;
       const card = (await namedResponse.json()) as ScryfallCard;
       if (!isPlayableCard(card)) return null;
@@ -872,14 +719,9 @@ async function liveUpgradeCardPrintings(
     const fullQuery = `(${nameQuery}) ${filters}`;
     const encodedQuery = encodeURIComponent(fullQuery);
 
-    await rateLimiter.acquire();
-
     try {
-      const response = await fetch(
-        `${BASE_URL}/cards/search?q=${encodedQuery}&unique=prints&order=released&dir=desc`,
-        {
-          headers: { Accept: 'application/json' },
-        }
+      const response = await scryfallRequest(
+        `/cards/search?q=${encodedQuery}&unique=prints&order=released&dir=desc`
       );
 
       if (response.ok) {

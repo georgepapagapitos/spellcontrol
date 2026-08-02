@@ -29,6 +29,14 @@ import {
   searchTokenArt,
   commanderSearchIdentity,
 } from './client';
+import { resetScryfallRateLimit } from '@/lib/scryfall-fetch';
+
+// The Scryfall limiter is a module singleton with a shared cooldown. A test that
+// serves `Retry-After: 60` under fake timers would otherwise leave a cooldown
+// stamped ~60s into the future and stall whatever runs next.
+beforeEach(() => {
+  resetScryfallRateLimit();
+});
 
 function makeCard(overrides: Partial<ScryfallCard>): ScryfallCard {
   return {
