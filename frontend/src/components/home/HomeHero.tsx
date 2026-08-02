@@ -116,6 +116,12 @@ export function HomeHero() {
   const [valueData, setValueData] = useState<{ points: ValuePoint[]; today: string } | undefined>(
     undefined
   );
+  // Re-read when the collection grows or shrinks: the collection store's
+  // subscriber logs a fresh point on that same change (synchronously, so its
+  // IndexedDB write is queued ahead of this read), and without this the hero
+  // would greet an import — or a deletion — with the stale previous total
+  // until the next launch.
+  const cardCount = useCollectionStore((s) => s.cards.length);
   useEffect(() => {
     if (!authed) return;
     let stale = false;
@@ -129,7 +135,7 @@ export function HomeHero() {
     return () => {
       stale = true;
     };
-  }, [authed, currency]);
+  }, [authed, currency, cardCount]);
 
   const points = valueData?.points ?? [];
   const delta = computeValueDelta(points);

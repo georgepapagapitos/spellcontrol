@@ -107,24 +107,25 @@ export async function recordValueSnapshot(value: number, at = Date.now()): Promi
 }
 
 /**
- * Log today's point as $0 for a collection that just went empty — but only if
- * the log already has points.
+ * Correct today's point after the collection itself changed — but only if the
+ * log already has points.
  *
- * The price-refresh tick is the only other writer, and it bails out on an
- * empty collection (there's nothing to price), so without this the last total
- * from before the cards were deleted stays the newest point FOREVER — the trim
- * in recordValueSnapshot only runs on write, so it never even ages out. That's
- * the home hero cheerfully valuing a collection you no longer own.
+ * The price-refresh tick is the only other writer, and it runs only when a
+ * price is stale (never at all on an empty collection — there's nothing to
+ * price). So without this the newest point stays whatever the last refresh
+ * saw, FOREVER: the trim in recordValueSnapshot only runs on write, so a stale
+ * total never even ages out. That's the home hero cheerfully valuing a
+ * collection you deleted, or valuing at $0 one you just re-imported.
  *
  * The has-points check is what keeps this from being a plain
- * `recordValueSnapshot(0)` at the call sites: a user who has never imported
+ * `recordValueSnapshot()` at the call sites: a user who has never imported
  * anything must keep an empty log, so the hero hides the value line instead of
- * greeting them with $0.
+ * greeting them with $0. The first point is always the price refresh's to make.
  */
-export async function recordEmptyCollectionSnapshot(at = Date.now()): Promise<void> {
+export async function recordCollectionSnapshot(value: number, at = Date.now()): Promise<void> {
   const db = await getDB();
   if ((await db.count(STORE)) === 0) return;
-  await recordValueSnapshot(0, at);
+  await recordValueSnapshot(value, at);
 }
 
 /** All points in the ACTIVE display currency, oldest → newest. Points logged

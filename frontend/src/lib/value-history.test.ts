@@ -12,7 +12,7 @@ import {
   getLatestMovers,
   getValueHistory,
   recordDailyMovers,
-  recordEmptyCollectionSnapshot,
+  recordCollectionSnapshot,
   recordValueSnapshot,
   type CardMover,
   type ValueDelta,
@@ -114,22 +114,29 @@ describe('recordValueSnapshot / getValueHistory', () => {
   });
 });
 
-describe('recordEmptyCollectionSnapshot', () => {
+describe('recordCollectionSnapshot', () => {
   it('logs $0 so an emptied collection stops reporting its old total', async () => {
     await recordValueSnapshot(420, atDay(0));
-    await recordEmptyCollectionSnapshot(atDay(1));
+    await recordCollectionSnapshot(0, atDay(1));
     expect((await getValueHistory()).map((p) => p.value)).toEqual([420, 0]);
   });
 
   it('does nothing when the log is empty — a user who never imported keeps no trend', async () => {
-    await recordEmptyCollectionSnapshot(atDay(0));
+    await recordCollectionSnapshot(0, atDay(0));
     expect(await getValueHistory()).toEqual([]);
   });
 
   it('overwrites the same day, so deleting the collection zeroes today at once', async () => {
     await recordValueSnapshot(420, atDay(0));
-    await recordEmptyCollectionSnapshot(atDay(0));
+    await recordCollectionSnapshot(0, atDay(0));
     expect((await getValueHistory()).map((p) => p.value)).toEqual([0]);
+  });
+
+  it('re-values the same day when the cards come back, no price refresh needed', async () => {
+    await recordValueSnapshot(420, atDay(0));
+    await recordCollectionSnapshot(0, atDay(0));
+    await recordCollectionSnapshot(360, atDay(0));
+    expect((await getValueHistory()).map((p) => p.value)).toEqual([360]);
   });
 });
 

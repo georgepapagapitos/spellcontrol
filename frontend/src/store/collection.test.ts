@@ -1514,9 +1514,36 @@ describe('destructive-op undo', () => {
       try {
         useCollectionStore.setState({ cards: [enriched({ copyId: 'a', scryfallId: 'sfA' })] });
         await useCollectionStore.getState().clearCards();
+        await vi.waitFor(async () => {
+          const points = await getValueHistory();
+          expect(points[points.length - 1].value).toBe(0);
+        });
+      } finally {
+        await clearValueHistory();
+      }
+    });
+
+    it('re-values the log when cards come back, without waiting for a price refresh', async () => {
+      await recordValueSnapshot(420);
+      try {
+        useCollectionStore.setState({ cards: [enriched({ copyId: 'a', scryfallId: 'sfA' })] });
+        await useCollectionStore.getState().clearCards();
         await flush();
-        const points = await getValueHistory();
-        expect(points[points.length - 1].value).toBe(0);
+
+        // Re-import: prices come straight off the warm device cache, so no
+        // refresh fires — the subscriber is the only thing that unsticks the $0.
+        useCollectionStore.setState({
+          cards: [
+            enriched({ copyId: 'b', scryfallId: 'sfB', purchasePrice: 12 }),
+            enriched({ copyId: 'c', scryfallId: 'sfC', purchasePrice: 8 }),
+          ],
+        });
+        // The subscriber's write is fire-and-forget, so poll rather than
+        // assume one macrotask is enough (it isn't on a loaded CI box).
+        await vi.waitFor(async () => {
+          const points = await getValueHistory();
+          expect(points[points.length - 1].value).toBe(20);
+        });
       } finally {
         await clearValueHistory();
       }
