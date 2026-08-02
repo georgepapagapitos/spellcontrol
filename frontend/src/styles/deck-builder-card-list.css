@@ -802,6 +802,26 @@
   }
 }
 
+/* Phones: hide the same trailing hints outright. The comment above reasoned
+   that touch rows "are full-width" and so had room — but full-width at 360px
+   is NARROWER than the desktop column that rule was protecting, so the one
+   tier that needed the space was the only tier still paying for it. The
+   allocation chip + ✦ + "62%" cost ~70px, which is what pushed the card NAME
+   — the thing you actually scan a decklist by — down to ~18 ellipsised
+   characters ("Champions of the P…", "Dionus, Elvish Arch…").
+   Nothing is lost: all three live in the card preview with the reason prose
+   their tooltips can't deliver on touch anyway, and tapping the row is
+   already what opens it. Tighter gaps buy the name a few more characters. */
+@media (max-width: 600px) {
+  .deck-row-hovermeta {
+    display: none;
+  }
+
+  .deck-row {
+    gap: var(--space-1);
+  }
+}
+
 .deck-row-menu {
   width: 0.75rem;
   flex: 0 0 auto;
