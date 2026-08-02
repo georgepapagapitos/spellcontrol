@@ -100,7 +100,7 @@ describe('ActivityStripCard', () => {
     expect(screen.getByText('No new activity.')).toBeTruthy();
   });
 
-  it('renders a friend-requests row linking to /you?friendsTab=requests', () => {
+  it('renders a friend-requests row linking to /friends?tab=requests', () => {
     mockUseActivity.mockReturnValue({
       count: 1,
       actionRequired: [friendRequest('r1')],
@@ -109,7 +109,7 @@ describe('ActivityStripCard', () => {
     });
     renderCard();
     const link = screen.getByRole('link', { name: '1 friend request waiting' });
-    expect(link.getAttribute('href')).toBe('/you?friendsTab=requests');
+    expect(link.getAttribute('href')).toBe('/friends?tab=requests');
   });
 
   it('pluralizes the friend-requests row for more than one', () => {

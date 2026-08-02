@@ -11,7 +11,17 @@
   font-size: var(--text-xl);
   font-weight: 400;
   color: var(--text-primary);
-  margin: 0 0 var(--space-5);
+  margin: 0;
+}
+
+/* Page heading + the "Pods" shortcut, side by side (moved here from
+   settings-sync.css's old .you-friends-header when Friends left /you). */
+.friends-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
 }
 
 /* ── Add Friend search ───────────────────────────────────────────────────── */

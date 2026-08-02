@@ -734,18 +734,20 @@
   font-weight: 600;
 }
 
-/* Friends group header — the "Pods" link sits beside the heading, visually
-   and structurally separated from FriendsManagement's own tablist below it
-   (never inline with the tabs, which would read as an unlabelled 4th tab). */
-.you-friends-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.you-friends-header .settings-section-header {
-  margin: 0;
+/* Tier header — one level up from .settings-section-header, marking one of
+   the page's few top-level tiers (Identity / Preferences / Your data) so the
+   page reads as a hierarchy instead of 9 flat peers. Larger + a top hairline
+   to read as a bigger break than the group headers nested under it. */
+.settings-tier-header {
+  margin: var(--space-5) 0 0;
+  padding-top: var(--space-4);
+  border-top: 0.5px solid var(--border);
+  font-family: var(--font-serif);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 /* About footer — legal/attribution text demoted from a full card to quiet

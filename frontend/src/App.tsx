@@ -21,6 +21,7 @@ import { BrewBuildPage } from './pages/BrewBuildPage';
 import { DeckEditorPage } from './pages/DeckEditorPage';
 import { PlaytestPage } from './pages/PlaytestPage';
 import { YouPage } from './pages/YouPage';
+import { FriendsPage } from './pages/FriendsPage';
 import { AdminPage } from './pages/AdminPage';
 import { PlayPage } from './pages/PlayPage';
 import AuthPage from './pages/AuthPage';
@@ -310,7 +311,7 @@ export default function App() {
           <Route path="/search" element={<SearchPage />} />
           <Route path="/tags" element={<TagsPage />} />
           <Route path="/you" element={<YouPage />} />
-          <Route path="/friends" element={<Navigate to="/you" replace />} />
+          <Route path="/friends" element={<FriendsPage />} />
           <Route path="/friends/:friendId" element={<FriendHubPage />} />
           <Route path="/pods" element={<PodsIndexPage />} />
           <Route path="/pods/:id" element={<PodHubPage />} />

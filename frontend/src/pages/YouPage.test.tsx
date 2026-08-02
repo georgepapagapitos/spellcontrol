@@ -5,6 +5,9 @@
  * Verifies:
  *  - UX-332: guest-state account card explains that local data merges on sign-in.
  *  - UX-335: InfoTip for "deck allocations" renders; InfoTip for "binders and lists" renders.
+ *  - w7-you-ia: the page's tier hierarchy (Identity → Preferences → Your data)
+ *    and the Friends pointer row that replaced the inline FriendsManagement
+ *    mount now that Friends lives at its own /friends route.
  */
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -55,8 +58,14 @@ vi.mock('../lib/auth-api', () => ({
   requestGoogleLinkIntent: vi.fn(),
   unlinkGoogle: vi.fn(),
 }));
+// Backs both YouPage's own friend-count fetch and the shared
+// useFriendRequests() hook (which imports listRequests from this module too).
+vi.mock('../lib/friends-client', () => ({
+  listFriends: vi.fn(() => Promise.resolve([])),
+  listRequests: vi.fn(() => Promise.resolve({ incoming: [], outgoing: [] })),
+}));
 // Only the network call is stubbed — pendingPodInviteCount stays real (pure,
-// no side effects) so the "Pods" badge count is exercised for real.
+// no side effects) so any badge math exercised elsewhere stays honest.
 vi.mock('../lib/pods-client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../lib/pods-client')>();
   return { ...actual, listPods: vi.fn(() => Promise.resolve([])) };
@@ -80,14 +89,12 @@ vi.mock('../components/AdminPanel', () => ({
 vi.mock('../components/SyncIndicator', () => ({
   SyncIndicator: () => null,
 }));
-// Both have their own dedicated test files (ProfileEditor.test.tsx,
-// FriendsManagement.test.tsx) — stub them here so this file stays scoped to
-// YouPage's own structure (section order, copy, InfoTips).
+// Has its own dedicated test file (ProfileEditor.test.tsx) — stub it here so
+// this file stays scoped to YouPage's own structure (section order, copy,
+// InfoTips). FriendsManagement no longer mounts on this page at all (it
+// moved to FriendsPage.test.tsx along with the Pods-link tests).
 vi.mock('../components/ProfileEditor', () => ({
   ProfileEditor: () => null,
-}));
-vi.mock('../components/FriendsManagement', () => ({
-  FriendsManagement: () => null,
 }));
 vi.mock('../lib/themes', () => ({
   THEMES: [{ id: 'default', name: 'Default', guild: 'None', swatch: ['#000', '#fff'] }],
@@ -97,7 +104,6 @@ vi.mock('@capacitor/browser', () => ({
 }));
 
 import { YouPage } from './YouPage';
-import { listPods } from '../lib/pods-client';
 
 function renderYouPage(initialPath = '/') {
   return render(
@@ -116,7 +122,6 @@ beforeAll(() => {
 beforeEach(() => {
   authState.user = null;
   authState.status = 'guest';
-  vi.mocked(listPods).mockReset().mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -146,76 +151,54 @@ describe('UX-335 — Settings InfoTips', () => {
   });
 });
 
-describe('w3-you-page — Profile carried through + Friends group inserted', () => {
-  it('renders Profile first and Friends between Account and Appearance for a signed-in user', () => {
+describe('w7-you-ia — tier hierarchy', () => {
+  it('orders Identity → Preferences → Your data, with Profile first and Friends inside Identity', () => {
     authState.user = { username: 'alice', id: 'u1' };
     authState.status = 'authed';
     const { container } = renderYouPage();
 
     const headings = Array.from(container.querySelectorAll('h2')).map((h) => h.textContent);
-    expect(headings[0]).toBe('Profile');
+    const idx = (text: string) => headings.indexOf(text);
 
-    const friendsIdx = headings.indexOf('Friends');
-    const accountIdx = headings.lastIndexOf('Account');
-    const appearanceIdx = headings.indexOf('Appearance');
-    expect(friendsIdx).toBeGreaterThan(-1);
-    expect(friendsIdx).toBeGreaterThan(accountIdx);
-    expect(friendsIdx).toBeLessThan(appearanceIdx);
+    expect(idx('Identity')).toBe(0);
+    expect(idx('Profile')).toBeGreaterThan(idx('Identity'));
+    expect(idx('Account')).toBeGreaterThan(idx('Profile'));
+    expect(idx('Friends')).toBeGreaterThan(idx('Account'));
+    expect(idx('Preferences')).toBeGreaterThan(idx('Friends'));
+    expect(idx('Appearance')).toBeGreaterThan(idx('Preferences'));
+    expect(idx('Your data')).toBeGreaterThan(idx('Appearance'));
+    expect(idx('Collection')).toBeGreaterThan(idx('Your data'));
+    expect(idx('Danger zone')).toBeGreaterThan(idx('Collection'));
+  });
+
+  it('every group keeps a visible heading — none fall back to sr-only', () => {
+    authState.user = { username: 'alice', id: 'u1' };
+    authState.status = 'authed';
+    const { container } = renderYouPage();
+
+    const groupHeadings = container.querySelectorAll(
+      'h2.settings-section-header, h2.settings-tier-header'
+    );
+    expect(groupHeadings.length).toBeGreaterThan(0);
+    groupHeadings.forEach((h) => expect(h.className).not.toContain('sr-only'));
   });
 });
 
-describe('w5-pods-index-page — Pods link + badge', () => {
-  it('renders the Pods link beside the Friends heading with the pending-invite count', async () => {
+describe('w7-you-ia — Friends pointer', () => {
+  it('links to /friends with a summary, not the full FriendsManagement UI', () => {
     authState.user = { username: 'alice', id: 'u1' };
     authState.status = 'authed';
-    vi.mocked(listPods).mockResolvedValue([
-      {
-        id: 'p1',
-        name: 'Pod A',
-        ownerUserId: 'o1',
-        ownerUsername: 'oscar',
-        createdAt: 1,
-        myStatus: 'invited',
-        memberCount: 2,
-      },
-      {
-        id: 'p2',
-        name: 'Pod B',
-        ownerUserId: 'o2',
-        ownerUsername: 'oscar',
-        createdAt: 2,
-        myStatus: 'member',
-        memberCount: 3,
-      },
-    ]);
     renderYouPage();
 
-    const link = await screen.findByRole('link', { name: /pods, 1 pending invite/i });
-    expect(link.getAttribute('href')).toBe('/pods');
-    expect(link.textContent).toContain('1');
+    const link = screen.getByRole('link', { name: /manage friends/i });
+    expect(link.getAttribute('href')).toBe('/friends');
+    // The old inline mount rendered a 4-tab strip; that must be gone from /you.
+    expect(screen.queryByRole('tablist')).toBeNull();
   });
 
-  it('shows no badge when there are no pending pod invites', async () => {
-    authState.user = { username: 'alice', id: 'u1' };
-    authState.status = 'authed';
-    vi.mocked(listPods).mockResolvedValue([
-      {
-        id: 'p2',
-        name: 'Pod B',
-        ownerUserId: 'o2',
-        ownerUsername: 'oscar',
-        createdAt: 2,
-        myStatus: 'member',
-        memberCount: 3,
-      },
-    ]);
+  it('is absent for guests', () => {
     renderYouPage();
-
-    await waitFor(() => expect(listPods).toHaveBeenCalled());
-    // Plain "Pods" — no aria-label override, since undefined falls back to
-    // the link's own text content as its accessible name.
-    const link = await screen.findByRole('link', { name: /^pods$/i });
-    expect(link.getAttribute('href')).toBe('/pods');
+    expect(screen.queryByRole('link', { name: /manage friends/i })).toBeNull();
   });
 });
 
