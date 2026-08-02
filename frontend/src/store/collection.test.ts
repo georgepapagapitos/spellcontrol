@@ -866,6 +866,32 @@ describe('autoRefreshStalePrices', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('still re-values the log when prices are fresh — the authed-boot catch-all', async () => {
+    // The authed boot writes `cards` from sync's rehydrate, under the
+    // applyingServer guard, so the store subscriber never sees them arrive;
+    // with prices restored fresh from the device cache no refresh runs either.
+    // Without this catch-all the hero keeps reporting a stale $0.
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await recordValueSnapshot(0);
+    try {
+      useCollectionStore.setState({
+        cards: [
+          enriched({ copyId: 'c1', scryfallId: 'sf1', pricedAt: Date.now(), purchasePrice: 30 }),
+          enriched({ copyId: 'c2', scryfallId: 'sf2', pricedAt: Date.now(), purchasePrice: 12 }),
+        ],
+      });
+      await useCollectionStore.getState().autoRefreshStalePrices();
+      expect(fetchMock).not.toHaveBeenCalled();
+      await vi.waitFor(async () => {
+        const points = await getValueHistory();
+        expect(points[points.length - 1].value).toBe(42);
+      });
+    } finally {
+      await clearValueHistory();
+    }
+  });
+
   it('refreshes when a price is stale and records the attempt timestamp', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ prices: {} }) });
     vi.stubGlobal('fetch', fetchMock);

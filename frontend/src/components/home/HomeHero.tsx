@@ -20,6 +20,7 @@ import {
   dayKey,
   formatValueDeltaChip,
   getValueHistory,
+  onValueHistoryChange,
   type ValuePoint,
 } from '../../lib/value-history';
 
@@ -116,12 +117,14 @@ export function HomeHero() {
   const [valueData, setValueData] = useState<{ points: ValuePoint[]; today: string } | undefined>(
     undefined
   );
-  // Re-read when the collection grows or shrinks: the collection store's
-  // subscriber logs a fresh point on that same change (synchronously, so its
-  // IndexedDB write is queued ahead of this read), and without this the hero
-  // would greet an import — or a deletion — with the stale previous total
-  // until the next launch.
-  const cardCount = useCollectionStore((s) => s.cards.length);
+  // Re-read whenever the log itself is written. Every writer is a
+  // fire-and-forget background path — the collection subscriber, the boot
+  // catch-all in autoRefreshStalePrices, the price-refresh tick — and several
+  // of them land AFTER this component mounted, so watching the log beats
+  // guessing at a proxy (a card count can't see a price refresh, and a store
+  // change fires before the write it triggers has landed).
+  const [logTick, setLogTick] = useState(0);
+  useEffect(() => onValueHistoryChange(() => setLogTick((n) => n + 1)), []);
   useEffect(() => {
     if (!authed) return;
     let stale = false;
@@ -135,7 +138,7 @@ export function HomeHero() {
     return () => {
       stale = true;
     };
-  }, [authed, currency, cardCount]);
+  }, [authed, currency, logTick]);
 
   const points = valueData?.points ?? [];
   const delta = computeValueDelta(points);

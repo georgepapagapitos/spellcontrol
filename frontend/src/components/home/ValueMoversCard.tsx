@@ -13,6 +13,7 @@ import {
   formatValueDeltaChip,
   getLatestMovers,
   getValueHistory,
+  onValueHistoryChange,
   type MoverRecord,
   type ValuePoint,
 } from '../../lib/value-history';
@@ -208,11 +209,12 @@ export function ValueMoversCard() {
   // getLatestMovers/getValueHistory filter to the active display currency —
   // reload on switch.
   const currency = useCurrency();
-  // …and re-read when the collection grows or shrinks: the store subscriber
-  // logs a fresh point on that same change (synchronously, so its IndexedDB
-  // write is queued before this read), and without this the card would sit on
-  // a pre-import total until the next launch.
-  const cardCount = useCollectionStore((s) => s.cards.length);
+  // …and re-read whenever either log is written. The writers are all
+  // fire-and-forget background paths that can land after this card mounted
+  // (the boot catch-all in autoRefreshStalePrices is exactly that), so it
+  // watches the log itself rather than a store-shaped proxy for it.
+  const [logTick, setLogTick] = useState(0);
+  useEffect(() => onValueHistoryChange(() => setLogTick((n) => n + 1)), []);
 
   useEffect(() => {
     let stale = false;
@@ -227,7 +229,7 @@ export function ValueMoversCard() {
     return () => {
       stale = true;
     };
-  }, [currency, cardCount]);
+  }, [currency, logTick]);
 
   const movers = data?.movers;
   const shown = useMemo(() => movers?.movers.slice(0, DISPLAY_LIMIT) ?? [], [movers]);

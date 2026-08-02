@@ -11,6 +11,7 @@ import {
   formatValueDeltaChip,
   getLatestMovers,
   getValueHistory,
+  onValueHistoryChange,
   recordDailyMovers,
   recordCollectionSnapshot,
   recordValueSnapshot,
@@ -137,6 +138,23 @@ describe('recordCollectionSnapshot', () => {
     await recordCollectionSnapshot(0, atDay(0));
     await recordCollectionSnapshot(360, atDay(0));
     expect((await getValueHistory()).map((p) => p.value)).toEqual([360]);
+  });
+});
+
+describe('onValueHistoryChange', () => {
+  it('fires on every write to either store, so a mounted surface can re-read', async () => {
+    const seen: string[] = [];
+    const off = onValueHistoryChange(() => seen.push('tick'));
+    try {
+      await recordValueSnapshot(100, atDay(0));
+      await recordDailyMovers([mover({ before: 1, after: 4 })], atDay(0));
+      expect(seen).toHaveLength(2);
+    } finally {
+      off();
+    }
+    // Unsubscribed listeners stop hearing about it.
+    await recordValueSnapshot(200, atDay(1));
+    expect(seen).toHaveLength(2);
   });
 });
 
