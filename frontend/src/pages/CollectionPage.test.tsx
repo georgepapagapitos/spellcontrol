@@ -51,7 +51,14 @@ function renderPage(initialEntry = '/collection') {
 
 beforeEach(() => {
   // Reset collection store to empty/ready state.
-  useCollectionStore.setState({ cards: [], binders: [], hydrating: false, error: null });
+  useCollectionStore.setState({
+    cards: [],
+    binders: [],
+    hydrating: false,
+    error: null,
+    isRefreshingPrices: false,
+    priceRefreshProgress: null,
+  });
   syncMock.state = 'idle';
   useAuth.setState({ status: 'guest' });
 });
@@ -78,6 +85,68 @@ describe('CollectionPage – collection load feedback', () => {
     });
     renderPage('/collection');
     expect(screen.queryByText('Loading your collection…')).toBeNull();
+  });
+});
+
+describe('CollectionPage – hero total while pricing', () => {
+  // Measured on the 11.5k-card dev collection: the hero read
+  // Pricing… → $1,646 → $3,351 → $4,770 → … → $7,754 over ~60s, because the
+  // pending state was gated on `collectionValue === 0` and gave way to a live
+  // PARTIAL sum the moment the first chunk landed. A settled-looking $1,646
+  // against a true $7,754 is worse than showing no number at all.
+  const priced = (n: number, each: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      copyId: `c${i}`,
+      scryfallId: `sf${i}`,
+      name: `Card ${i}`,
+      purchasePrice: each,
+    })) as never;
+
+  it('never shows a partial total mid-refresh, even once some prices have landed', () => {
+    useCollectionStore.setState({
+      cards: priced(3, 100), // $300 so far — but the refresh is still running
+      isRefreshingPrices: true,
+      priceRefreshProgress: { done: 1, total: 6 },
+    });
+    renderPage('/collection');
+    expect(screen.getByText(/Pricing 1\/6/)).toBeTruthy();
+    expect(screen.queryByText('$300')).toBeNull();
+  });
+
+  it('reports how far along the refresh is', () => {
+    useCollectionStore.setState({
+      cards: priced(1, 5),
+      isRefreshingPrices: true,
+      priceRefreshProgress: { done: 4, total: 6 },
+    });
+    renderPage('/collection');
+    expect(screen.getByText(/Pricing 4\/6/)).toBeTruthy();
+  });
+
+  it('shows the total once the refresh finishes', () => {
+    useCollectionStore.setState({
+      cards: priced(3, 100),
+      isRefreshingPrices: false,
+      priceRefreshProgress: null,
+    });
+    renderPage('/collection');
+    expect(screen.getByText('$300')).toBeTruthy();
+    expect(screen.queryByText(/Pricing/)).toBeNull();
+  });
+
+  it('keeps the total visible during an untracked background re-price', () => {
+    // The other half of the contract. `autoRefreshStalePrices` only passes
+    // `{ track: true }` for the fresh-device first fill, so a routine daily
+    // staleness refresh leaves `priceRefreshProgress` null — and must NOT blank
+    // out a perfectly good total or flash a spinner on a normal launch.
+    useCollectionStore.setState({
+      cards: priced(3, 100),
+      isRefreshingPrices: true,
+      priceRefreshProgress: null,
+    });
+    renderPage('/collection');
+    expect(screen.getByText('$300')).toBeTruthy();
+    expect(screen.queryByText(/Pricing/)).toBeNull();
   });
 });
 

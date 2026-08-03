@@ -24,6 +24,7 @@ export function CollectionPage() {
   const cards = useCardsWithTags(rawCards, bindersUseTags(binders));
   const hydrating = useCollectionStore((s) => s.hydrating);
   const isRefreshingPrices = useCollectionStore((s) => s.isRefreshingPrices);
+  const priceRefreshProgress = useCollectionStore((s) => s.priceRefreshProgress);
   const error = useCollectionStore((s) => s.error);
   const setError = useCollectionStore((s) => s.setError);
   const authStatus = useAuth((s) => s.status);
@@ -144,12 +145,26 @@ export function CollectionPage() {
                 <span aria-label="Collection totals">
                   {displayCardCount.toLocaleString()} {collectionCardCount === 1 ? 'card' : 'cards'}{' '}
                   ·{' '}
-                  {isRefreshingPrices && collectionValue === 0 ? (
-                    // The prominent total must not read as a real $0 while the
-                    // collection is still being priced — show progress instead.
+                  {isRefreshingPrices && priceRefreshProgress ? (
+                    // The prominent total must not read as a settled figure
+                    // while the collection is being priced for the FIRST time —
+                    // not as a real $0, and not as a partial sum either. The
+                    // old guard was `collectionValue === 0`, which only held
+                    // until the first chunk landed and then showed the running
+                    // subtotal: measured $1,646 → $3,351 → $4,770 → $7,754 over
+                    // ~60s on an 11.5k-card collection. A confident $1,646
+                    // against a true $7,754 is worse than showing no number.
+                    //
+                    // `priceRefreshProgress` is exactly the right signal and
+                    // needs no state of our own: the store only populates it
+                    // for `{ track: noPrices }` — the fresh-device first fill.
+                    // A routine daily staleness refresh leaves it null, so an
+                    // existing total keeps rendering and the pill never flashes
+                    // on a normal launch (autoRefreshStalePrices says so in as
+                    // many words).
                     <span className="collection-hero-pricing" aria-live="polite">
                       <span className="sync-indicator-spinner" aria-hidden="true" />
-                      Pricing…
+                      {`Pricing ${priceRefreshProgress.done}/${priceRefreshProgress.total}…`}
                     </span>
                   ) : (
                     <span title="Current market value (Scryfall)">
