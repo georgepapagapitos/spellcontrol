@@ -2,7 +2,8 @@ import { logger } from './logger';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
-import streamArray from 'stream-json/streamers/stream-array.js';
+import { createInterface } from 'node:readline';
+import { createGunzip } from 'node:zlib';
 import type { ScryfallCard } from './types';
 import type { ScryfallCache } from './cache';
 import { cardAliasKeys, SCRYFALL_USER_AGENT } from './scryfall';
@@ -42,9 +43,19 @@ interface BulkCard extends Partial<ScryfallCard> {
 
 export interface BulkIndexEntry {
   type: string;
-  download_uri: string;
+  /**
+   * Scryfall's current field: a gzipped, line-delimited JSON feed. It replaced
+   * `download_uri` (an uncompressed JSON *array*), which no longer appears in
+   * the index at all — reading the old name yielded `undefined`, and the daily
+   * ingest died on `fetch(undefined)` every night, caught and logged rather
+   * than thrown so nothing surfaced. `download_uri` stays here, optional, so a
+   * rollback on their side still resolves.
+   */
+  jsonl_download_uri?: string;
+  download_uri?: string;
   updated_at: string;
   size?: number;
+  compressed_size?: number;
 }
 
 export interface BulkIndexResponse {
@@ -54,11 +65,15 @@ export interface BulkIndexResponse {
 /**
  * Fetches the Scryfall bulk-data index and returns the entry for the given
  * `type` (e.g. `'default_cards'` or `'oracle_cards'`). Throws if the request
- * fails or the type is absent from the index.
+ * fails, the type is absent, or the entry carries no usable download URI —
+ * the last of which used to sail through as `undefined` and only fail later.
+ *
+ * `gzipped` tells the caller how to read it: the JSONL feeds are `.jsonl.gz`,
+ * while a legacy `download_uri` would be a plain JSON array.
  */
 export async function fetchScryfallBulkEntry(
   type: string
-): Promise<{ url: string; updatedAt: string }> {
+): Promise<{ url: string; updatedAt: string; jsonl: boolean }> {
   const res = await fetch(SCRYFALL_BULK_INDEX_URL, {
     headers: { Accept: 'application/json', 'User-Agent': SCRYFALL_USER_AGENT },
   });
@@ -66,7 +81,48 @@ export async function fetchScryfallBulkEntry(
   const body = (await res.json()) as BulkIndexResponse;
   const entry = body.data.find((e) => e.type === type);
   if (!entry) throw new Error(`Scryfall bulk index has no ${type} entry`);
-  return { url: entry.download_uri, updatedAt: entry.updated_at };
+  const url = entry.jsonl_download_uri ?? entry.download_uri;
+  if (!url) throw new Error(`Scryfall bulk index entry ${type} has no download URI`);
+  return { url, updatedAt: entry.updated_at, jsonl: url === entry.jsonl_download_uri };
+}
+
+/**
+ * Streams a gzipped JSONL bulk feed, yielding one parsed object per line.
+ * The dumps are hundreds of MB, so this never materializes the whole feed —
+ * same reason the old code used a streaming array parser.
+ *
+ * Shared with the scanner ingests: three call sites each had their own copy of
+ * "fetch the index, read `download_uri`, pipe into a JSON-array parser", and
+ * when Scryfall changed the field all three broke independently. One place to
+ * fix next time.
+ */
+export async function* streamBulkJsonl<T>(url: string): AsyncGenerator<T> {
+  const ctrl = new AbortController();
+  const res = await fetch(url, {
+    headers: { 'User-Agent': SCRYFALL_USER_AGENT },
+    signal: ctrl.signal,
+  });
+  if (!res.ok || !res.body) {
+    throw new Error(`Scryfall bulk download returned ${res.status}`);
+  }
+  const nodeStream = Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]);
+  const lines = createInterface({
+    input: url.endsWith('.gz') ? nodeStream.pipe(createGunzip()) : nodeStream,
+    crlfDelay: Infinity,
+  });
+  try {
+    for await (const line of lines) {
+      if (line) yield JSON.parse(line) as T;
+    }
+  } finally {
+    // A caller breaking out early (the scanner ingest's `--limit`) runs this via
+    // the iterator's `return()`. Without the abort, undici leaves the HTTP/2
+    // stream dangling and raises NGHTTP2_PROTOCOL_ERROR seconds after we
+    // thought we were done.
+    lines.close();
+    ctrl.abort();
+    nodeStream.destroy();
+  }
 }
 
 /** Scryfall layouts that aren't real game pieces and can share a name with the
@@ -87,23 +143,14 @@ async function fetchDefaultCardsUrl(): Promise<{ url: string; updatedAt: string 
 }
 
 /**
- * Streams the `default_cards` dump one card at a time. The file is ~450MB+ of a
- * single JSON array; a `JSON.parse` of the whole thing would OOM small
- * containers, so we pull elements off a streaming parser (same pattern as the
- * offline oracle bulk and the scanner ingests). Yields raw bulk cards.
+ * Streams the `default_cards` dump one card at a time. The feed is ~77MB
+ * gzipped / far larger raw, so it's never materialized whole — reading it
+ * line-by-line keeps peak memory flat regardless of dump size.
  */
 export async function* streamDefaultCards(): AsyncGenerator<BulkCard> {
   const { url } = await fetchDefaultCardsUrl();
   logger.info('[scryfall-bulk] downloading default_cards from', url);
-  const res = await fetch(url, { headers: { 'User-Agent': SCRYFALL_USER_AGENT } });
-  if (!res.ok || !res.body) {
-    throw new Error(`Scryfall default_cards download returned ${res.status}`);
-  }
-  const nodeStream = Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]);
-  const pipeline = nodeStream.pipe(streamArray.withParserAsStream());
-  for await (const entry of pipeline) {
-    yield (entry as { value: BulkCard }).value;
-  }
+  yield* streamBulkJsonl<BulkCard>(url);
 }
 
 /**

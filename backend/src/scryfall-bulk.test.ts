@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import os from 'os';
 import path from 'path';
 import fs from 'fs';
+import { gzipSync } from 'node:zlib';
 import { ScryfallCache } from './cache';
 import {
   projectBulkCard,
@@ -9,6 +10,7 @@ import {
   runScryfallBulkIngest,
   readBulkMeta,
   writeBulkMeta,
+  fetchScryfallBulkEntry,
 } from './scryfall-bulk';
 
 let dir: string;
@@ -149,12 +151,23 @@ describe('runScryfallBulkIngest', () => {
   });
 
   it('ingests from the network and stamps meta when forced', async () => {
+    // Scryfall's real index shape: `jsonl_download_uri` pointing at a gzipped,
+    // line-delimited feed. This test used to mock `download_uri` and a JSON
+    // array — a shape Scryfall no longer serves — so it stayed green for weeks
+    // while the nightly ingest died on `fetch(undefined)` in production.
     const indexBody = {
       data: [
-        { type: 'oracle_cards', download_uri: 'https://x/oracle', updated_at: 'x' },
-        { type: 'default_cards', download_uri: 'https://x/default', updated_at: 'x' },
+        { type: 'oracle_cards', jsonl_download_uri: 'https://x/oracle.jsonl.gz', updated_at: 'x' },
+        {
+          type: 'default_cards',
+          jsonl_download_uri: 'https://x/default.jsonl.gz',
+          updated_at: 'x',
+        },
       ],
     };
+    const feed = gzipSync(
+      [JSON.stringify(bulk()), JSON.stringify(bulk({ games: ['arena'] }))].join('\n')
+    );
     vi.spyOn(global, 'fetch').mockImplementation((url) => {
       if (String(url).endsWith('/bulk-data')) {
         return Promise.resolve(
@@ -163,13 +176,60 @@ describe('runScryfallBulkIngest', () => {
           })
         );
       }
-      // The default_cards download — a JSON array of bulk cards.
-      return Promise.resolve(new Response(JSON.stringify([bulk(), bulk({ games: ['arena'] })])));
+      return Promise.resolve(new Response(new Uint8Array(feed)));
     });
 
     const result = await runScryfallBulkIngest(cache, dbPath, { force: true });
     expect(result).toEqual({ written: 1, aliases: 2, skipped: 1 });
     expect(cache.getManyByKeys(['nsc:sol ring|cmr|472']).size).toBe(1);
     expect(readBulkMeta(dbPath)).not.toBeNull();
+  });
+});
+
+describe('fetchScryfallBulkEntry', () => {
+  function indexResponse(entries: unknown[]) {
+    return Promise.resolve(
+      new Response(JSON.stringify({ data: entries }), {
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+  }
+
+  // The regression this whole change exists for.
+  it('resolves the JSONL download uri Scryfall actually serves', async () => {
+    vi.spyOn(global, 'fetch').mockImplementation(() =>
+      indexResponse([
+        { type: 'default_cards', jsonl_download_uri: 'https://x/d.jsonl.gz', updated_at: 'u' },
+      ])
+    );
+    await expect(fetchScryfallBulkEntry('default_cards')).resolves.toEqual({
+      url: 'https://x/d.jsonl.gz',
+      updatedAt: 'u',
+      jsonl: true,
+    });
+  });
+
+  it('still accepts a legacy download_uri, in case they put it back', async () => {
+    vi.spyOn(global, 'fetch').mockImplementation(() =>
+      indexResponse([{ type: 'default_cards', download_uri: 'https://x/d.json', updated_at: 'u' }])
+    );
+    const entry = await fetchScryfallBulkEntry('default_cards');
+    expect(entry.url).toBe('https://x/d.json');
+    expect(entry.jsonl).toBe(false);
+  });
+
+  // The actual failure mode: a missing uri used to return `undefined` and blow
+  // up much later as "Failed to parse URL from undefined", inside a catch that
+  // only logged. Fail where the problem is.
+  it('throws when the entry carries no download uri at all', async () => {
+    vi.spyOn(global, 'fetch').mockImplementation(() =>
+      indexResponse([{ type: 'default_cards', updated_at: 'u' }])
+    );
+    await expect(fetchScryfallBulkEntry('default_cards')).rejects.toThrow(/no download URI/);
+  });
+
+  it('throws when the requested type is absent', async () => {
+    vi.spyOn(global, 'fetch').mockImplementation(() => indexResponse([]));
+    await expect(fetchScryfallBulkEntry('default_cards')).rejects.toThrow(/no default_cards/);
   });
 });
