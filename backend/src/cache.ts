@@ -69,8 +69,17 @@ export class ScryfallCache {
    * line, oracle text, cmc) rather than prices. The TTL exists because prices
    * move; a card's rules text does not, so expiring an oracle-only read just
    * forces a pointless Scryfall round-trip. Never pass it on a price path.
+   *
+   * `maxAgeMs` tightens the bar below the default TTL. The price refresh passes
+   * a day-and-a-half window: the nightly bulk ingest restamps every printing,
+   * so a row older than that means the ingest has been missing runs, and those
+   * prices shouldn't be trusted for money.
    */
-  getMany(scryfallIds: string[], allowStale = false): Map<string, ScryfallCard> {
+  getMany(
+    scryfallIds: string[],
+    allowStale = false,
+    maxAgeMs: number = TTL_MS
+  ): Map<string, ScryfallCard> {
     if (scryfallIds.length === 0) return new Map();
 
     try {
@@ -87,7 +96,7 @@ export class ScryfallCache {
       const result = new Map<string, ScryfallCard>();
       const now = Date.now();
       for (const row of rows) {
-        if (!allowStale && now - row.cached_at > TTL_MS) continue;
+        if (!allowStale && now - row.cached_at > maxAgeMs) continue;
         try {
           result.set(row.scryfall_id, JSON.parse(row.data));
         } catch {

@@ -795,6 +795,14 @@ app.get(
   }
 );
 
+/**
+ * How old a cached printing may be and still be trusted for money. The bulk
+ * ingest restamps every printing nightly, so a healthy cache is always well
+ * inside this; the extra half-day is slack for one missed run. Past it we go
+ * live rather than quote prices from a dump that stopped arriving.
+ */
+const PRICE_MAX_AGE_MS = 36 * 60 * 60 * 1000;
+
 app.post('/api/refresh-prices', priceLimiter, async (req: Request, res: Response) => {
   try {
     const raw = (req.body && (req.body as { scryfallIds?: unknown }).scryfallIds) as unknown;
@@ -810,7 +818,31 @@ app.post('/api/refresh-prices', priceLimiter, async (req: Request, res: Response
       return res.json({ prices: {} });
     }
 
-    const cards = await fetchCardsByIds(ids, cache);
+    // Serve from the nightly `default_cards` dump, which carries prices and
+    // restamps every printing daily (scryfall-bulk.ts). Only ids the dump
+    // doesn't cover go to the live API.
+    //
+    // This route used to call fetchCardsByIds for EVERY id — that function
+    // bypasses the cache deliberately, wanting current prices rather than the
+    // 7-day snapshot. It cost ~14 upstream requests per 1000-id chunk, and
+    // because it runs server-side, every user's refresh spends the SAME
+    // per-IP budget on our one Fly machine. It was the live 429 source:
+    //
+    //   POST /api/refresh-prices 200 8583ms
+    //   [scryfall] batch 5 hit 429, waiting 30000ms before retry 1/5
+    //   POST /api/refresh-prices 200 66790ms
+    //
+    // Daily prices are the right granularity for valuing a collection, and are
+    // far fresher than the 7-day TTL the bypass was written to avoid.
+    const cached = cache.getMany(ids, false, PRICE_MAX_AGE_MS);
+    const uncached = ids.filter((id) => !cached.has(id));
+    const fetched = uncached.length > 0 ? await fetchCardsByIds(uncached, cache) : [];
+    if (uncached.length > 0) {
+      logger.info(
+        `[refresh-prices] ${cached.size}/${ids.length} from bulk cache, ${uncached.length} live`
+      );
+    }
+    const cards = [...cached.values(), ...fetched];
 
     const now = Date.now();
     // Return the price for EACH finish (the client picks the one matching the
