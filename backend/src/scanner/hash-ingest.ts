@@ -16,16 +16,13 @@
 // into place at the end. A network blip mid-run loses the partial write but
 // not the previous artifact — the rename happens only on full success.
 
-import { Readable } from 'node:stream';
-import type { ReadableStream as WebReadableStream } from 'node:stream/web';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import sharp from 'sharp';
-import streamArray from 'stream-json/streamers/stream-array.js';
 import { logger } from '../logger';
+import { fetchScryfallBulkEntry, streamBulkJsonl } from '../scryfall-bulk';
 import { computePHash, PHASH_INPUT_SIZE } from './phash';
 
-const SCRYFALL_BULK_URL = 'https://api.scryfall.com/bulk-data';
 const SCRYFALL_UA = 'spellcontrol/1.0 (scanner-v2-hash-ingest)';
 const MAGIC_LE = 0x48314353; // "SC1H" in little-endian byte order
 const SCHEMA_VERSION = 1;
@@ -53,12 +50,6 @@ export interface IngestResult {
   elapsedMs: number;
 }
 
-interface ScryfallBulkEntry {
-  type: string;
-  download_uri: string;
-  updated_at: string;
-}
-
 interface ScryfallCard {
   id?: unknown;
   image_uris?: { art_crop?: unknown } | null;
@@ -69,54 +60,22 @@ interface ScryfallCard {
  * Look up the canonical `unique_artwork` download URI. Scryfall's bulk-data
  * URLs are versioned; resolving live here keeps us pulling the freshest
  * dataset without baking a URL into source.
+ *
+ * Delegates to the shared resolver: this file used to carry its own copy that
+ * read the long-gone `download_uri` field, so the ingest died on
+ * `fetch(undefined)` the same way the nightly card ingest did.
  */
 export async function getUniqueArtworkDownloadUrl(): Promise<string> {
-  const res = await fetch(SCRYFALL_BULK_URL, {
-    headers: { 'User-Agent': SCRYFALL_UA, Accept: 'application/json' },
-  });
-  if (!res.ok) {
-    throw new Error(`Scryfall /bulk-data failed: HTTP ${res.status}`);
-  }
-  const body = (await res.json()) as { data?: ScryfallBulkEntry[] };
-  const entry = body.data?.find((e) => e.type === 'unique_artwork');
-  if (!entry) {
-    throw new Error('Scryfall /bulk-data missing `unique_artwork` entry');
-  }
-  return entry.download_uri;
+  return (await fetchScryfallBulkEntry('unique_artwork')).url;
 }
 
 /**
- * Stream the Scryfall bulk-data JSON array, yielding one card object at a
- * time. Mirrors the streaming pattern in `combos/ingest.ts` to bound peak
- * memory regardless of dataset size.
- *
- * Caller break-out (e.g. `--limit`) closes the underlying fetch via the
- * abort controller in the `finally` — otherwise undici lets the HTTP/2
- * stream dangle and surfaces a NGHTTP2_PROTOCOL_ERROR seconds after we
- * thought we were done.
+ * Stream the Scryfall bulk feed, yielding one card object at a time, to bound
+ * peak memory regardless of dataset size. Caller break-out (e.g. `--limit`) is
+ * handled inside the shared reader.
  */
 export async function* streamUniqueArtwork(url: string): AsyncIterable<ScryfallCard> {
-  const ctrl = new AbortController();
-  const res = await fetch(url, {
-    headers: { 'User-Agent': SCRYFALL_UA, Accept: 'application/json' },
-    signal: ctrl.signal,
-  });
-  if (!res.ok) throw new Error(`unique_artwork download failed: HTTP ${res.status}`);
-  if (!res.body) throw new Error('unique_artwork response missing body');
-
-  const nodeStream = Readable.fromWeb(res.body as unknown as WebReadableStream<Uint8Array>);
-  const pipeline = nodeStream.pipe(streamArray.withParserAsStream());
-  try {
-    for await (const item of pipeline as AsyncIterable<{ value: unknown }>) {
-      yield item.value as ScryfallCard;
-    }
-  } finally {
-    // `return()` on a broken-out iterator runs this; abort propagates down
-    // to undici and tears the HTTP/2 stream cleanly instead of letting it
-    // time out.
-    ctrl.abort();
-    nodeStream.destroy();
-  }
+  yield* streamBulkJsonl<ScryfallCard>(url);
 }
 
 /**

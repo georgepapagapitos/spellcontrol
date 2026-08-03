@@ -38,13 +38,14 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { pipeline as streamPipeline } from 'node:stream/promises';
+import { createInterface } from 'node:readline';
+import { createGunzip } from 'node:zlib';
 import sharp from 'sharp';
-import streamArray from 'stream-json/streamers/stream-array.js';
 import * as ort from 'onnxruntime-node';
 import { logger } from '../logger';
+import { fetchScryfallBulkEntry, streamBulkJsonl } from '../scryfall-bulk';
 import { uuidToBytes } from './hash-ingest';
 
-const SCRYFALL_BULK_URL = 'https://api.scryfall.com/bulk-data';
 const SCRYFALL_UA = 'spellcontrol/1.0 (scanner-v2-embedding-ingest)';
 const MAGIC_LE = 0x45314353; // "SC1E" in little-endian byte order
 const SCHEMA_VERSION = 1;
@@ -77,26 +78,19 @@ export interface EmbeddingIngestResult {
   elapsedMs: number;
 }
 
-interface ScryfallBulkEntry {
-  type: string;
-  download_uri: string;
-}
-
 interface ScryfallCard {
   id?: unknown;
   image_uris?: { art_crop?: unknown } | null;
   card_faces?: Array<{ image_uris?: { art_crop?: unknown } | null }> | null;
 }
 
+/**
+ * Delegates to the shared resolver. This file used to carry its own copy that
+ * read the long-gone `download_uri` field — the third of three independent
+ * copies that all broke together when Scryfall renamed it.
+ */
 export async function getUniqueArtworkDownloadUrl(): Promise<string> {
-  const res = await fetch(SCRYFALL_BULK_URL, {
-    headers: { 'User-Agent': SCRYFALL_UA, Accept: 'application/json' },
-  });
-  if (!res.ok) throw new Error(`Scryfall /bulk-data failed: HTTP ${res.status}`);
-  const body = (await res.json()) as { data?: ScryfallBulkEntry[] };
-  const entry = body.data?.find((e) => e.type === 'unique_artwork');
-  if (!entry) throw new Error('Scryfall /bulk-data missing `unique_artwork` entry');
-  return entry.download_uri;
+  return (await fetchScryfallBulkEntry('unique_artwork')).url;
 }
 
 /**
@@ -109,12 +103,13 @@ export async function getUniqueArtworkDownloadUrl(): Promise<string> {
  * decouples upstream socket health from local processing rate entirely.
  */
 async function downloadBulkToTemp(url: string): Promise<string> {
-  const tmpPath = path.join(os.tmpdir(), `scanner-v2-bulk-${process.pid}-${Date.now()}.json`);
-  logger.info(`[embedding-ingest] downloading bulk JSON → ${tmpPath}`);
+  // Keep the upstream extension: the feed is gzipped JSONL, and
+  // `streamUniqueArtwork` decides whether to gunzip by looking at the suffix.
+  const ext = url.endsWith('.gz') ? '.jsonl.gz' : '.jsonl';
+  const tmpPath = path.join(os.tmpdir(), `scanner-v2-bulk-${process.pid}-${Date.now()}${ext}`);
+  logger.info(`[embedding-ingest] downloading bulk feed → ${tmpPath}`);
   const t0 = Date.now();
-  const res = await fetch(url, {
-    headers: { 'User-Agent': SCRYFALL_UA, Accept: 'application/json' },
-  });
+  const res = await fetch(url, { headers: { 'User-Agent': SCRYFALL_UA } });
   if (!res.ok) throw new Error(`unique_artwork download failed: HTTP ${res.status}`);
   if (!res.body) throw new Error('unique_artwork response missing body');
   await streamPipeline(
@@ -122,31 +117,31 @@ async function downloadBulkToTemp(url: string): Promise<string> {
     createWriteStream(tmpPath)
   );
   const sizeMb = ((await fs.stat(tmpPath)).size / 1_000_000).toFixed(1);
-  logger.info(`[embedding-ingest] bulk JSON saved (${sizeMb} MB in ${Date.now() - t0}ms)`);
+  logger.info(`[embedding-ingest] bulk feed saved (${sizeMb} MB in ${Date.now() - t0}ms)`);
   return tmpPath;
 }
 
 export async function* streamUniqueArtwork(urlOrPath: string): AsyncIterable<ScryfallCard> {
-  const source = /^https?:\/\//i.test(urlOrPath)
-    ? Readable.fromWeb(
-        (await (async () => {
-          const r = await fetch(urlOrPath, {
-            headers: { 'User-Agent': SCRYFALL_UA, Accept: 'application/json' },
-          });
-          if (!r.ok) throw new Error(`unique_artwork download failed: HTTP ${r.status}`);
-          if (!r.body) throw new Error('unique_artwork response missing body');
-          return r.body;
-        })()) as unknown as WebReadableStream<Uint8Array>
-      )
-    : createReadStream(urlOrPath);
+  // Remote reads go through the shared JSONL reader; the local path is the
+  // temp-file case above, which exists to decouple upstream socket health from
+  // this ingest's much slower per-card inference rate (see downloadBulkToTemp).
+  if (/^https?:\/\//i.test(urlOrPath)) {
+    yield* streamBulkJsonl<ScryfallCard>(urlOrPath);
+    return;
+  }
 
-  const pipeline = source.pipe(streamArray.withParserAsStream());
+  const file = createReadStream(urlOrPath);
+  const lines = createInterface({
+    input: urlOrPath.endsWith('.gz') ? file.pipe(createGunzip()) : file,
+    crlfDelay: Infinity,
+  });
   try {
-    for await (const item of pipeline as AsyncIterable<{ value: unknown }>) {
-      yield item.value as ScryfallCard;
+    for await (const line of lines) {
+      if (line) yield JSON.parse(line) as ScryfallCard;
     }
   } finally {
-    source.destroy();
+    lines.close();
+    file.destroy();
   }
 }
 
