@@ -1443,3 +1443,87 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* ── Pinch-to-zoom layer ───────────────────────────────────────────────────
+   A committed pinch lifts the card out of the carousel into this layer rather
+   than scaling the slide in place. The track is an `overflow-x: auto`
+   scroll-snap container (a scaled slide would just be clipped) and
+   .card-preview-image-frame already carries useHolographic's imperative 3D
+   transform, so there is no free transform slot down there. Lifting out also
+   gives the behaviour a zoom is expected to have: the surrounding chrome gets
+   out of the way. See lib/use-card-zoom.ts. */
+.card-preview-zoom {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  /* Above the panel (1), close button (2) and carousel nav (3). */
+  z-index: 4;
+  /* `visibility`, NOT `display: none` — the image has to stay laid out so
+     useCardZoom can measure it at scale 1 when the pinch commits. */
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  /* Opaque enough to read fine print against; the carousel behind it is
+     faded but still painted. */
+  background: rgba(0, 0, 0, 0.82);
+  overflow: hidden;
+  padding: var(--safe-top) 0 var(--safe-bottom);
+  transition:
+    opacity 0.2s var(--ease-out-soft),
+    visibility 0.2s var(--ease-out-soft);
+}
+
+.card-preview-sheet[data-zoomed='true'] .card-preview-zoom {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  /* The layer owns every axis while zoomed — pan is handled in JS, and any
+     native scroll leaking through would fight it. */
+  touch-action: none;
+}
+
+.card-preview-zoom-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius-lg);
+  transform-origin: center;
+  will-change: transform;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Chrome steps aside while zoomed. Opacity rather than display/visibility so
+   nothing reflows on the way in or out — the card must not jump. */
+.card-preview-sheet[data-zoomed='true'] .card-preview-track,
+.card-preview-sheet[data-zoomed='true'] .card-preview-flip-row,
+.card-preview-sheet[data-zoomed='true'] .card-preview-panel,
+.card-preview-sheet[data-zoomed='true'] .card-preview-grabber,
+.card-preview-sheet[data-zoomed='true'] .carousel-nav-layer,
+.card-preview-sheet[data-zoomed='true'] .card-preview-close {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.card-preview-track,
+.card-preview-flip-row,
+.card-preview-panel,
+.card-preview-grabber,
+.carousel-nav-layer,
+.card-preview-close {
+  transition: opacity 0.2s var(--ease-out-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-preview-zoom,
+  .card-preview-zoom-img,
+  .card-preview-track,
+  .card-preview-flip-row,
+  .card-preview-panel,
+  .card-preview-grabber,
+  .carousel-nav-layer,
+  .card-preview-close {
+    transition: none;
+  }
+}

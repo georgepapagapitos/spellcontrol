@@ -443,7 +443,7 @@ touch`), byte-identical between `.binder-tab-row` and `.sc-tabs--scrollable`.
 ## Typography — the four roles (T53/E154)
 
 There are always exactly **four type roles**, and every rule below is written
-against the *token*, never against a face name. Which faces fill them is a
+against the _token_, never against a face name. Which faces fill them is a
 user choice — see § Type sets.
 
 | Role    | Token            | Scope                                                                                                | Never                                                 |
@@ -1079,6 +1079,38 @@ Rulings settled while building this:
 - **A fired long-press `preventDefault`s its terminating touchend**, so a
   hybrid pointer+touch device's synthetic compat mouse events can't chain
   into the desktop hover-peek right as the touch one closes (no double-peek).
+
+### Zoom in a gesture-saturated sheet — lift out, don't scale in place
+
+Ruling from the card-preview pinch-to-zoom. When a surface already has
+several gesture owners, **do not add zoom as a fourth claimant on the same
+node** — promote the zoomed subject into its own layer that owns its touches
+outright, and step the surrounding chrome aside.
+
+- **Why not in place:** `.card-preview-track` is an `overflow-x: auto`
+  scroll-snap container (a scaled slide is simply clipped), and
+  `.card-preview-image-frame` already carries `useHolographic`'s imperative
+  3D transform. There is no free transform slot and no un-clipped box.
+- **The layer** is `position: absolute; inset: 0` above the sheet's chrome
+  (z-index 4, over panel 1 / close 2 / nav 3), `touch-action: none`, and holds
+  a single `<img>` the hook transforms imperatively.
+- **Hide it with `visibility`, never `display: none`.** The image has to stay
+  laid out so the gesture can measure it at scale 1 the instant the pinch
+  commits; `display: none` reports a zero box and the pan clamp collapses.
+- **Chrome steps aside with `opacity`, not `display`/`visibility`** — nothing
+  may reflow on the way in or out, or the card visibly jumps.
+- **Reuse the already-rendered image URL** so the zoomed layer paints from
+  cache with no flash and no extra Scryfall request. `large` (672×936) is the
+  ceiling Scryfall offers; past ~2.5× it visibly softens, so that is the Zoom
+  button's step and 4× is the pinch clamp.
+- **Give it a non-touch entry.** Pinch is invisible and touch-only, so the
+  gesture is paired with a labelled control in the existing action row —
+  that's also the only path a mouse or keyboard has.
+- **Escape unwinds one layer at a time:** the zoom absorbs the first press,
+  the sheet closes on the next. Same rule as any nested overlay.
+- **Touches aimed at a control are never swallowed.** A capture-phase gesture
+  listener on the sheet must bail on `closest('button, a, input, select,
+textarea')` — the same guard the long-press peek uses above.
 
 ## Index-page insight strips (UX-334)
 
