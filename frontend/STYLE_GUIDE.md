@@ -1099,6 +1099,19 @@ outright, and step the surrounding chrome aside.
   commits; `display: none` reports a zero box and the pan clamp collapses.
 - **Chrome steps aside with `opacity`, not `display`/`visibility`** — nothing
   may reflow on the way in or out, or the card visibly jumps.
+- **Always leave one visible way out.** Fading _every_ control (close button
+  included) leaves a full-bleed image with no affordance — tap-anywhere-to-exit
+  is the right idiom but nothing on screen advertises it, so it only works for
+  someone who already knows the gesture. Keep the close control lit, raise it
+  above the zoom layer, and have it **unwind one layer at a time** (exit zoom,
+  not dismiss the sheet) with its `aria-label` retargeted to match.
+- **Never put an element that already declares `transition` into a blanket
+  `transition: opacity` rule.** `transition` is a shorthand: a later rule at
+  equal specificity **replaces** the earlier declaration instead of adding to
+  it. Doing this silently killed the panel's `height` animation (the Details
+  expand/collapse) and the close button's press feel. Fold `opacity` into the
+  element's own declaration; keep blanket rules for elements with no transition
+  of their own. CI-guarded by `styles/card-preview-zoom-fade.test.ts`.
 - **Reuse the already-rendered image URL** so the zoomed layer paints from
   cache with no flash and no extra Scryfall request. `large` (672×936) is the
   ceiling Scryfall offers; past ~2.5× it visibly softens, so that is the Zoom

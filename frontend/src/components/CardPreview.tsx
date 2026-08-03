@@ -545,9 +545,14 @@ export function CardPreview({
           className="card-preview-close"
           onClick={(e) => {
             e.stopPropagation();
-            beginClose();
+            // Unwind one layer at a time, same rule as Escape: while zoomed
+            // this is the visible way back to the card + its details, not a
+            // way to dismiss the whole preview.
+            if (zoomed) exitZoom();
+            else beginClose();
           }}
-          aria-label="Close preview"
+          aria-label={zoomed ? 'Exit zoom' : 'Close preview'}
+          title={zoomed ? 'Exit zoom' : undefined}
         >
           ×
         </button>
