@@ -180,7 +180,8 @@
   -webkit-backdrop-filter: blur(8px);
   transition:
     background var(--motion-fast),
-    transform var(--motion-fast);
+    transform var(--motion-fast),
+    opacity 0.2s var(--ease-out-soft);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -754,7 +755,9 @@
      query. ponytail: animating `height` relayouts each frame, but it's one
      panel + one card and stays smooth on-device; revisit with a transform if a
      low-end device ever struggles. */
-  transition: height var(--motion-gentle) var(--ease-out-soft);
+  transition:
+    height var(--motion-gentle) var(--ease-out-soft),
+    opacity 0.2s var(--ease-out-soft);
 }
 
 /* Details toggle: chevron points up to expand, flips down to collapse; the
@@ -1495,24 +1498,37 @@
 }
 
 /* Chrome steps aside while zoomed. Opacity rather than display/visibility so
-   nothing reflows on the way in or out — the card must not jump. */
+   nothing reflows on the way in or out — the card must not jump.
+   The close button is deliberately NOT in this list: it stays lit as the
+   always-visible way back out (see the [data-zoomed] close rule below). */
 .card-preview-sheet[data-zoomed='true'] .card-preview-track,
 .card-preview-sheet[data-zoomed='true'] .card-preview-flip-row,
 .card-preview-sheet[data-zoomed='true'] .card-preview-panel,
 .card-preview-sheet[data-zoomed='true'] .card-preview-grabber,
-.card-preview-sheet[data-zoomed='true'] .carousel-nav-layer,
-.card-preview-sheet[data-zoomed='true'] .card-preview-close {
+.card-preview-sheet[data-zoomed='true'] .carousel-nav-layer {
   opacity: 0;
   pointer-events: none;
 }
 
+/* Only elements with NO transition of their own belong in a blanket rule.
+   `transition` is a shorthand, so listing an element that already declares one
+   (later in the cascade, equal specificity) REPLACES it rather than adding to
+   it — that silently killed the panel's height animation and the close
+   button's hover transition once already. Those two get `opacity` folded into
+   their own existing declarations instead. */
 .card-preview-track,
 .card-preview-flip-row,
-.card-preview-panel,
 .card-preview-grabber,
-.carousel-nav-layer,
-.card-preview-close {
+.carousel-nav-layer {
   transition: opacity 0.2s var(--ease-out-soft);
+}
+
+/* The close button rides above the zoom layer while zoomed so there is always
+   a visible, tappable exit — a tap anywhere works too, but nothing on screen
+   advertises that, and an unlabelled full-bleed image with no affordance is a
+   dead end for anyone who doesn't already know the gesture. */
+.card-preview-sheet[data-zoomed='true'] .card-preview-close {
+  z-index: 5;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1520,10 +1536,8 @@
   .card-preview-zoom-img,
   .card-preview-track,
   .card-preview-flip-row,
-  .card-preview-panel,
   .card-preview-grabber,
-  .carousel-nav-layer,
-  .card-preview-close {
+  .carousel-nav-layer {
     transition: none;
   }
 }
