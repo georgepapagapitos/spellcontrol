@@ -95,6 +95,53 @@ describe('ScryfallCache', () => {
     expect(cache.getMany(['old'], true).get('old')?.name).toBe('Sol Ring');
   });
 
+  // The price refresh serves from the nightly bulk dump instead of hitting
+  // Scryfall for every id, so it needs a tighter freshness bar than the 7-day
+  // TTL: a row that old means the ingest stopped running, and stale prices are
+  // money. See PRICE_MAX_AGE_MS in server.ts.
+  describe('maxAgeMs', () => {
+    const DAY = 24 * 60 * 60 * 1000;
+
+    function backdate(id: string, ms: number) {
+      (
+        cache as unknown as {
+          db: { prepare: (sql: string) => { run: (...args: unknown[]) => void } };
+        }
+      ).db
+        .prepare('UPDATE cards SET cached_at = ? WHERE scryfall_id = ?')
+        .run(Date.now() - ms, id);
+    }
+
+    it('serves a row inside the tighter window', () => {
+      cache.setMany([card('fresh')]);
+      backdate('fresh', 12 * 60 * 60 * 1000);
+      expect(cache.getMany(['fresh'], false, 36 * 60 * 60 * 1000).get('fresh')?.name).toBe(
+        'Sol Ring'
+      );
+    });
+
+    // The one that matters: within the 7-day TTL, so the default read would
+    // hand back prices from a dump that stopped arriving days ago.
+    it('rejects a row that is inside the TTL but outside the tighter window', () => {
+      cache.setMany([card('stale-price')]);
+      backdate('stale-price', 3 * DAY);
+      expect(cache.getMany(['stale-price']).size).toBe(1); // default TTL: a hit
+      expect(cache.getMany(['stale-price'], false, 36 * 60 * 60 * 1000).size).toBe(0);
+    });
+
+    it('leaves every existing caller on the 7-day TTL when omitted', () => {
+      cache.setMany([card('six-days')]);
+      backdate('six-days', 6 * DAY);
+      expect(cache.getMany(['six-days']).size).toBe(1);
+    });
+
+    it('is ignored when allowStale is set, as for oracle-only readers', () => {
+      cache.setMany([card('oracle')]);
+      backdate('oracle', 30 * DAY);
+      expect(cache.getMany(['oracle'], true, 60 * 60 * 1000).get('oracle')?.name).toBe('Sol Ring');
+    });
+  });
+
   it('returns TTL-expired alias lookups when allowStale is set', () => {
     cache.setMany([card('alias-id')]);
     cache.setLookups([{ key: 'n:sol ring', scryfallId: 'alias-id' }]);
