@@ -541,14 +541,32 @@
   cursor: default;
 }
 
+/* Raised chip, NOT an accent fill — STYLE_GUIDE § Tabs / view switchers (E201).
+   `--accent` stays reserved for primary actions; a segment sitting in a track
+   marks selection by lifting out of it. This control was missed in the E201
+   convergence (`.share-audience`, `.rule-segmented`, `.binder-mode-toggle`,
+   `.card-group-layout-toggle`, `.home-hero-search-scope`,
+   `.settings-currency-toggle` all moved), which mattered more than usual
+   because ViewModeToggle is shared by the collection, binder, decks and
+   PUBLIC share views — the accent pill was the loudest thing on a shared deck
+   page a stranger sees. */
 .toolbar-viewmode-btn.active {
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--surface-raised);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  color: var(--text-primary);
 }
 
 @media (pointer: coarse) {
+  /* No fixed track height here. It used to be 2.75rem while the button was
+     ALSO 2.75rem — with the track's 0.15rem padding that left a 2.45rem
+     content box holding a 2.75rem chip, so the selected pill bulged 4.8px out
+     of its own track on every touch device (measured). `height: auto` — not
+     just dropping the coarse override, which would leave the 2.1rem base
+     height and make the overflow worse — so the track sizes itself from the
+     chip + padding: the 44px target survives and containment holds by
+     construction rather than by two numbers agreeing. */
   .toolbar-viewmode {
-    height: 2.75rem;
+    height: auto;
   }
 
   .toolbar-viewmode-btn {
