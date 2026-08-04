@@ -1,0 +1,37 @@
+/* Share-destination rows in the card preview's Share dialog. Reuses
+   .choice-dialog-option; this only turns it into an icon + text row. */
+.card-share-option {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+}
+
+.card-share-option:disabled {
+  cursor: default;
+}
+
+.card-share-option-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.card-share-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.card-share-spinner {
+  width: 18px;
+  height: 18px;
+  animation: spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-share-spinner {
+    animation: none;
+  }
+}
