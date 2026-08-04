@@ -114,6 +114,49 @@ describe('scryfallRequest', () => {
     expect(bystanderHit!.at - start).toBeGreaterThanOrEqual(5_000);
   });
 
+  // Scryfall omits Access-Control-Allow-Origin on its 429s, so in a production
+  // (cross-origin) build the response never reaches JS — fetch rejects and the
+  // 429 branch above never runs. Before this, that meant a real throttle set NO
+  // cooldown and the rest of the burst kept firing into an active block.
+  it('parks the queue when a request fails opaquely while online', async () => {
+    vi.useFakeTimers();
+    const hits: Array<{ url: string; at: number }> = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      hits.push({ url, at: Date.now() });
+      // Only the first request is CORS-blocked; everything else is fine.
+      if (hits.length === 1) throw new TypeError('NetworkError when attempting to fetch resource.');
+      return ok({ fine: true });
+    });
+
+    const start = Date.now();
+    const blocked = scryfallRequest('/cards/named?exact=Arena%20Rector');
+    const bystander = scryfallRequest('/cards/search?q=bystander');
+    await vi.runAllTimersAsync();
+    await Promise.all([blocked, bystander]);
+
+    const bystanderHit = hits.find((h) => h.url.includes('bystander'));
+    expect(bystanderHit).toBeDefined();
+    expect(bystanderHit!.at - start).toBeGreaterThanOrEqual(1_000);
+    expect(getScryfallStats().blocked).toBe(1);
+  });
+
+  it('surfaces a sustained opaque failure instead of burning the full retry budget', async () => {
+    vi.useFakeTimers();
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValue(new TypeError('NetworkError when attempting to fetch resource.'));
+
+    const pending = scryfallRequest('/cards/named?exact=Sol%20Ring');
+    const assertion = expect(pending).rejects.toThrow(TypeError);
+    await vi.runAllTimersAsync();
+    await assertion;
+
+    // 1 initial attempt + MAX_OPAQUE_RETRIES, NOT the 5 a readable 429 gets — a
+    // genuinely offline device must not sit behind four backoffs.
+    expect(fetchSpy.mock.calls.length).toBe(2);
+  });
+
   it('spaces sequential requests by the minimum delay', async () => {
     vi.useFakeTimers();
     const at: number[] = [];

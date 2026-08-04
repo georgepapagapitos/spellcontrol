@@ -803,6 +803,29 @@ app.get(
  */
 const PRICE_MAX_AGE_MS = 36 * 60 * 60 * 1000;
 
+/**
+ * Exact-name card lookup answered from the nightly bulk dump. `/cards/named` was
+ * the last high-frequency Scryfall call the browser still made on every card
+ * add, and a client-side 429 is invisible to us — Scryfall omits
+ * `Access-Control-Allow-Origin` on 429 responses, so the body never reaches JS
+ * and the throttle surfaces to the user as a generic network error.
+ *
+ * Cache-only on purpose: **this must never fall back to a live Scryfall fetch.**
+ * That would move miss traffic onto the shared Fly egress IP, which is exactly
+ * what earned us the throttling this endpoint exists to avoid. A miss returns
+ * `{ card: null }`; the frontend keeps its existing browser-side live path, from
+ * the user's own IP, and only pays for it on the rare card the dump lacks.
+ */
+app.get(
+  '/api/cards/named',
+  testAwareLimiter({ windowMs: 60_000, max: 240 }),
+  (req: Request, res: Response) => {
+    const exact = typeof req.query.exact === 'string' ? req.query.exact.trim() : '';
+    if (!exact) return res.status(400).json({ error: 'exact is required.' });
+    res.json({ card: cache.getCheapestByName(exact, PRICE_MAX_AGE_MS) });
+  }
+);
+
 app.post('/api/refresh-prices', priceLimiter, async (req: Request, res: Response) => {
   try {
     const raw = (req.body && (req.body as { scryfallIds?: unknown }).scryfallIds) as unknown;

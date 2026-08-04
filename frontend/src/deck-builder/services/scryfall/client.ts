@@ -7,6 +7,7 @@ import { offlineDataAvailable, useOfflineStore } from '@/store/offline';
 import { frontFaceName } from '@/lib/card-text';
 import { normalizeScryfallQuery } from '@/lib/normalize-search';
 import { scryfallFetch, scryfallRequest } from '@/lib/scryfall-fetch';
+import { apiUrl } from '@/lib/api-base';
 import { persistCard, readCachedCards } from './cache';
 
 /**
@@ -273,10 +274,41 @@ export async function getRandomPdhCommander(colorIdentity: string[] = []): Promi
   );
 }
 
+/**
+ * Exact-name resolve through our own backend, which answers from the Scryfall
+ * bulk dump it already ingests nightly (`GET /api/cards/named`). Returns null on
+ * a miss or any failure so the caller falls through to the live browser path —
+ * the backend deliberately never goes live itself, so a miss costs the user's
+ * own IP one request rather than putting the shared Fly IP back in Scryfall's
+ * sights.
+ */
+async function bulkGetCardByName(name: string): Promise<ScryfallCard | null> {
+  try {
+    const res = await fetch(apiUrl(`/api/cards/named?exact=${encodeURIComponent(name)}`));
+    if (!res.ok) return null;
+    const { card } = (await res.json()) as { card: ScryfallCard | null };
+    return card && isPlayableCard(card) ? card : null;
+  } catch {
+    return null;
+  }
+}
+
 async function liveGetCardByName(name: string, exact = true): Promise<ScryfallCard> {
   await primeFromDisk([name]);
   const cached = cardCache.get(name);
   if (cached) return freshCopy(cached);
+
+  // The bulk dump already carries every printing, and it picks the cheapest
+  // nonfoil directly — so a hit here also skips the foil-only follow-up below.
+  // Fuzzy matching is Scryfall's own algorithm, so it stays on the live path.
+  if (exact) {
+    const bulk = await bulkGetCardByName(name);
+    if (bulk) {
+      cardCache.set(name, bulk);
+      cardCache.set(bulk.name, bulk);
+      return freshCopy(bulk);
+    }
+  }
 
   const param = exact ? 'exact' : 'fuzzy';
   const encodedName = encodeURIComponent(name);
