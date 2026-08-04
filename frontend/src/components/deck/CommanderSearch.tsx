@@ -729,7 +729,7 @@ export function CommanderSearch({ value, onSelect, format = 'commander' }: Props
     setSearchLoading(true);
     setError(null);
     try {
-      const card = await getCardByName(name, true);
+      const card = await getCardByName(name);
       selectCard(card);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't load card");
