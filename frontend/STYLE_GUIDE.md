@@ -971,9 +971,11 @@ reference.
   caption naming the direction (`⚔ dealt to <name>`), and the panel's own now-
   demoted value kept as a small readout (`.pp-life-chip`) so board state isn't
   lost. A bare swapped numeral is a bug, not a minimal implementation.
-- **Rotation follows the reader, not the seat.** In a mode, all panels rotate
-  to face whoever opened it (`cmdFocusRot`) — the numbers are theirs to read.
-  This is the one exception to "each panel faces its own seat."
+- **Seat rotation is fixed — a mode NEVER re-orients the board.** Each panel
+  keeps facing its own seat, always. Turning every panel toward whoever opened
+  the mode was tried and reverted: it reads as the seats themselves moving, so
+  the board looks broken at the moment the user most needs to trust it. A mode
+  changes what a panel *says*, never where it sits or which way it faces.
 - **Three ways out, always:** an explicit labelled button
   (`.pp-cmd-focus-done`), a swipe back down on any panel, and `Esc`. The
   title and the button live on the anchor panel, which is already rotated

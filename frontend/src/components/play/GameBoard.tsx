@@ -108,11 +108,6 @@ export function GameBoard({
   // Resolve against live state so a seat that leaves mid-focus drops the mode
   // instead of stranding the board in a meaningless state.
   const cmdFocus = game.players.find((p) => p.seat === cmdFocusSeat) ?? null;
-  const cmdFocusIdx = cmdFocus ? game.players.indexOf(cmdFocus) : -1;
-  // In focus mode the numbers describe what the FOCUSED player has taken, so
-  // every panel is rotated to read upright for them — they're the reader.
-  const cmdFocusRot =
-    cmdFocusIdx >= 0 ? (board.seats[(cmdFocusIdx + slotShift) % total]?.rot ?? 0) : 0;
   // Focus is only enterable from a panel the viewer may edit, but permissions
   // can change under an online game — re-derive rather than trusting entry.
   const cmdFocusCanEdit =
@@ -215,9 +210,11 @@ export function GameBoard({
               slot={slot}
               // Rotation only applies in shared (local) mode — on online
               // games each device is in front of its owner, always upright.
-              // In commander-damage focus mode every panel turns to face the
-              // focused player, since the numbers are theirs to read.
-              rotation={isShared ? (cmdFocus ? cmdFocusRot : slot.rot) : 0}
+              // Seat rotation is FIXED: it never changes with board state,
+              // including commander-damage focus mode. Re-orienting the board
+              // under a mode reads as the seats moving, which is disorienting
+              // and looks broken — the panel stays where and how it sits.
+              rotation={isShared ? slot.rot : 0}
               canEdit={canControlAll || (viewerUserId != null && p.userId === viewerUserId)}
               canLayout={canControlAll}
               cmdFocus={cmdFocus}
@@ -554,8 +551,9 @@ function PlayerPanel({
         : canOpenCounters && game.poisonEnabled
           ? () => setDrawerOpen(true)
           : undefined,
-    // Swiping back down anywhere on the board leaves focus mode — every panel
-    // is rotated to the focused player, so "down" is down for whoever opened it.
+    // Swiping back down leaves focus mode. Panel-local like every other board
+    // gesture, so on your own panel it's the exact reverse of the swipe that
+    // opened it; the button and Esc cover anyone reaching across the table.
     onSwipeDown: cmdFocus ? onCmdFocusExit : undefined,
     rotation,
     disabled,
