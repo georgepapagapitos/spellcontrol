@@ -1,6 +1,10 @@
 import { Archetype } from '@/deck-builder/types';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
+import {
+  buildCommanderProfile,
+  getCombinedOracleText,
+  VOLTRON_KEYWORDS,
+} from '@/deck-builder/services/deckBuilder/commanderProfile';
 import type { EnrichedCard } from '../types';
 
 /**
@@ -42,6 +46,14 @@ export interface Playstyle {
    * archetype match weighs more than an incidental ability hint.
    */
   archetypeSignals: Archetype[];
+  /**
+   * Direct oracle-text fallback for playstyles no {@link buildCommanderProfile}
+   * detector covers. Matched against the combined, lowercased oracle text and
+   * worth 1 point — the same as a theme hit. Only set it when the profile
+   * emits nothing for this playstyle; theme/archetype overlap is the primary
+   * signal everywhere else.
+   */
+  oracleSignal?: RegExp;
 }
 
 /**
@@ -159,8 +171,16 @@ export const PLAYSTYLES: Playstyle[] = [
     label: 'Superfriends',
     edhrecSlug: 'planeswalkers',
     blurb: 'Stick planeswalkers and protect them.',
+    // No detector emits either theme — this playstyle rides entirely on the
+    // oracle signal below. The themes stay listed so a future superfriends
+    // detector wires itself up for free.
     themeSignals: ['superfriends', 'planeswalkers'],
     archetypeSignals: [],
+    // Deliberately narrow: a bare /planeswalker/ also matches the removal
+    // boilerplate ("destroy target creature or planeswalker") that half of
+    // modern Magic carries, which would file most commanders here.
+    oracleSignal:
+      /\bplaneswalkers? you control\b|\byou control a planeswalker\b|\bplaneswalker spells?\b|\bloyalty counters?\b/,
   },
 ];
 
@@ -186,6 +206,7 @@ export function playstyleById(id: string): Playstyle | undefined {
  */
 export function classifyCommanderPlaystyles(card: ScryfallCard): PlaystyleMatch[] {
   const profile = buildCommanderProfile(card);
+  const oracleText = getCombinedOracleText(card).toLowerCase();
   const themes = new Set(profile.suggestedThemes);
   // All archetype signals the profile carries: the chosen primary, plus every
   // ability's hint (so a tokens commander that also has a sac outlet still
@@ -205,6 +226,7 @@ export function classifyCommanderPlaystyles(card: ScryfallCard): PlaystyleMatch[
       if (profile.primaryArchetype === arch) score += 2;
       else if (abilityArchetypes.has(arch)) score += 1;
     }
+    if (playstyle.oracleSignal?.test(oracleText)) score += 1;
     if (score > 0) matches.push({ playstyle, score });
   }
 
@@ -217,11 +239,48 @@ export function classifyCommanderPlaystyles(card: ScryfallCard): PlaystyleMatch[
 }
 
 /**
- * Convenience for an owned collection card: adapt its (already-lowercased)
- * `oracleText`/`typeLine` to the shape the classifier reads. The double
- * lowercasing inside the profile builder is harmless; we lose only the
- * keyword/power-based Voltron structural signal (EnrichedCard carries neither),
- * which oracle-derived equipment/aura themes still cover for most commanders.
+ * Recover a card's keyword abilities from its oracle text.
+ *
+ * Scryfall prints keyword abilities on their own line as a comma-separated
+ * list ("Flying, first strike", "Ward {2}", "Protection from red"), while every
+ * real ability line is a sentence ending in a period. That trailing period is
+ * the discriminator: it keeps "target creature gains flying until end of turn."
+ * from reading as a flying keyword. Reminder text in parens is stripped first,
+ * since it ends in a period inside the parens.
+ *
+ * Only {@link VOLTRON_KEYWORDS} are recovered — they're the only keywords
+ * {@link buildCommanderProfile} reads off the `keywords` array.
+ */
+function keywordsFromOracleText(oracleText: string): string[] {
+  const segments = oracleText
+    .split('\n')
+    .map((line) =>
+      line
+        .replace(/\([^)]*\)/g, '')
+        .trim()
+        .toLowerCase()
+    )
+    .filter((line) => line.length > 0 && !line.endsWith('.'))
+    .flatMap((line) => line.split(/\s*,\s*/));
+  return [...VOLTRON_KEYWORDS].filter((kw) =>
+    // Exact for bare keywords ("trample"), prefix for parameterized ones
+    // ("ward {2}", "protection from red").
+    segments.some((seg) => seg === kw || seg.startsWith(`${kw} `))
+  );
+}
+
+/**
+ * Convenience for an owned collection card: adapt its `oracleText`/`typeLine`
+ * to the shape the classifier reads.
+ *
+ * EnrichedCard carries no Scryfall `keywords` array, so the Voltron playstyle —
+ * which is detected structurally from keywords/power, never from an oracle
+ * phrase — used to be unreachable for every owned commander, leaving that
+ * bucket permanently empty. {@link keywordsFromOracleText} recovers the keyword
+ * half. The `power >= 4` half stays lost (EnrichedCard has no `power`), so a
+ * keyword-less big-butt commander still won't file under Voltron from the
+ * collection — that's the weakest branch of the signal (archWeight 1) and would
+ * need a schema change to fix.
  */
 export function classifyOwnedCommanderPlaystyles(card: EnrichedCard): PlaystyleMatch[] {
   return classifyCommanderPlaystyles({
@@ -229,6 +288,7 @@ export function classifyOwnedCommanderPlaystyles(card: EnrichedCard): PlaystyleM
     oracle_text: card.oracleText,
     type_line: card.typeLine,
     color_identity: card.colorIdentity,
+    keywords: keywordsFromOracleText(card.oracleText ?? ''),
   } as ScryfallCard);
 }
 
