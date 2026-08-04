@@ -11,7 +11,6 @@ import {
   RefreshCw,
   RotateCw,
   Share2,
-  ZoomIn,
 } from 'lucide-react';
 import {
   type ReactNode,
@@ -45,7 +44,6 @@ import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useCenteredSlide } from '../lib/use-centered-slide';
 import { useMaxBoundaryScroll } from '../lib/use-max-boundary-scroll';
 import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
-import { useCardZoom } from '../lib/use-card-zoom';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import type { AllocationInfo } from '../lib/allocations';
 import type { BinderInfo } from './BinderBadge';
@@ -196,8 +194,6 @@ export function CardPreview({
   const sheetRef = useRef<HTMLDivElement>(null);
   const panelInnerRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
-  const zoomLayerRef = useRef<HTMLDivElement>(null);
-  const zoomImgRef = useRef<HTMLImageElement>(null);
   const [selected, setSelected] = useState(index);
   // Compact (image-hero) ↔ expanded (text-hero) panel. Expanded is a fixed
   // taller height applied to every card, so swiping between cards stays
@@ -360,16 +356,6 @@ export function CardPreview({
     sheetRef
   );
 
-  const getTurn = useCallback(() => turned[selected] ?? 0, [turned, selected]);
-  const { zoomed, exitZoom, zoomIn } = useCardZoom({
-    sheetRef,
-    layerRef: zoomLayerRef,
-    imgRef: zoomImgRef,
-    getTurn,
-    // Nothing to zoom if the art failed to load.
-    enabled: !imgErrors[cards[selected]?.scryfallId ?? ''],
-  });
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -377,10 +363,7 @@ export function CardPreview({
         // sheet's document-level Escape listener can't also fire and dismiss
         // both layers on one press.
         e.stopPropagation();
-        // Zoom is a layer above the sheet — unwind it first, so one Escape
-        // never collapses both the zoom and the preview.
-        if (zoomed) exitZoom();
-        else beginClose();
+        beginClose();
         return;
       }
       let next: number | null = null;
@@ -392,7 +375,7 @@ export function CardPreview({
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [beginClose, selected, cards.length, zoomed, exitZoom]);
+  }, [beginClose, selected, cards.length]);
 
   const { isDragging, axisLockRef, touchHandlers } = useSwipeDownDismiss({
     onDismiss: beginClose,
@@ -401,17 +384,8 @@ export function CardPreview({
     // Only let a downward swipe dismiss when the panel is scrolled to the top;
     // otherwise the gesture scrolls the (taller, expanded) panel content. The
     // panel's own `overflow-y` handles the scroll once we defer to native.
-    // Never while zoomed: a one-finger pan is the zoom layer's own gesture,
-    // and useCardZoom stops those touches during capture anyway — this is the
-    // belt to that suspenders.
-    canStartDrag: () => !zoomed && (panelInnerRef.current?.scrollTop ?? 0) <= 0,
+    canStartDrag: () => (panelInnerRef.current?.scrollTop ?? 0) <= 0,
   });
-
-  // Changing what's on screen invalidates the zoomed image, so drop out of
-  // zoom whenever the card, its face, or its rotation changes.
-  useEffect(() => {
-    exitZoom();
-  }, [selected, flipped, turned, exitZoom]);
 
   // The drag offset is applied imperatively to the sheet by the hook. Once the
   // gesture ends (isDragging false) and we're not mid-dismiss, clear that
@@ -505,7 +479,7 @@ export function CardPreview({
   if (!cards[selected]) return null;
   const current = cards[selected];
 
-  // Highest-res art for the face on screen — fed to both the zoom layer and Share.
+  // Highest-res art for the face on screen — what Share hands off.
   const faceSrc =
     flipped[selected] && current.imageNormalBack
       ? current.imageLargeBack || current.imageNormalBack
@@ -602,7 +576,6 @@ export function CardPreview({
         className={`card-preview-sheet${isDragging ? ' is-dragging' : ''}${
           isClosing ? ' is-closing' : ''
         }`}
-        data-zoomed={zoomed}
         style={exitStyle}
         onAnimationEnd={onAnimationEnd}
         {...touchHandlers}
@@ -612,14 +585,9 @@ export function CardPreview({
           className="card-preview-close"
           onClick={(e) => {
             e.stopPropagation();
-            // Unwind one layer at a time, same rule as Escape: while zoomed
-            // this is the visible way back to the card + its details, not a
-            // way to dismiss the whole preview.
-            if (zoomed) exitZoom();
-            else beginClose();
+            beginClose();
           }}
-          aria-label={zoomed ? 'Exit zoom' : 'Close preview'}
-          title={zoomed ? 'Exit zoom' : undefined}
+          aria-label="Close preview"
         >
           ×
         </button>
@@ -652,31 +620,6 @@ export function CardPreview({
           {slideEls}
         </div>
 
-        {/* Zoom layer. Always mounted (and laid out — the CSS hides it with
-            `visibility`, not `display`) so useCardZoom can measure the image
-            at scale 1 the moment a pinch commits. The src is the same URL the
-            slide already rendered, so it comes straight from cache with no
-            flash. Click exits for mouse users; touch exits via the hook's
-            tap handling. */}
-        <div
-          className="card-preview-zoom"
-          ref={zoomLayerRef}
-          aria-hidden={!zoomed}
-          onClick={(e) => {
-            e.stopPropagation();
-            exitZoom();
-          }}
-        >
-          <img
-            ref={zoomImgRef}
-            className="card-preview-zoom-img"
-            src={faceSrc}
-            alt={`${current.name} (zoomed)`}
-            draggable={false}
-            decoding="async"
-          />
-        </div>
-
         {/* Always rendered so single-faced and transform cards reserve the
             same vertical space — otherwise navigating between them would
             shift the panel up/down. */}
@@ -702,21 +645,6 @@ export function CardPreview({
             />
             <span>Details</span>
           </button>
-          {(current.imageLarge || current.imageNormal) && (
-            <button
-              type="button"
-              className="card-preview-flip-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                zoomIn();
-              }}
-              aria-label="Zoom in on card"
-              title="Zoom in"
-            >
-              <ZoomIn width={18} height={18} strokeWidth={2} aria-hidden />
-              <span>Zoom</span>
-            </button>
-          )}
           {faceSrc && (
             <button
               type="button"

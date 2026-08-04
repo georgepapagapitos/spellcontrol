@@ -233,41 +233,6 @@ describe('CardPreview turn (sideways layouts)', () => {
     expect(frame.getAttribute('data-turn')).toBe('0');
   });
 
-  it('close button exits zoom instead of dismissing the preview', () => {
-    const onClose = vi.fn();
-    render(
-      <MemoryRouter>
-        <CardPreview
-          cards={[mk({ imageNormal: 'https://cards.example/front.jpg' })]}
-          index={0}
-          binderName=""
-          sectionLabels={['']}
-          pageNumbers={[0]}
-          totalPages={0}
-          onIndexChange={() => {}}
-          onClose={onClose}
-        />
-      </MemoryRouter>
-    );
-    const sheet = document.querySelector('.card-preview-sheet')!;
-    expect(sheet.getAttribute('data-zoomed')).toBe('false');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Zoom in on card' }));
-    expect(sheet.getAttribute('data-zoomed')).toBe('true');
-
-    // While zoomed the × is the visible way OUT OF THE ZOOM — one layer at a
-    // time, same as Escape. Dismissing the whole preview here would strand the
-    // user, since every other control is faded out.
-    fireEvent.click(screen.getByRole('button', { name: 'Exit zoom' }));
-    expect(sheet.getAttribute('data-zoomed')).toBe('false');
-    expect(onClose).not.toHaveBeenCalled();
-
-    // Back to being the preview's close button. (Actually firing onClose goes
-    // through useSheetExit's sheet-fall animationend, which happy-dom never
-    // dispatches — the reverted label is what proves the branch flipped.)
-    expect(screen.getByRole('button', { name: 'Close preview' })).toBeTruthy();
-  });
-
   it('toggles a Kamigawa flip card 180°', () => {
     renderPreview(mk({ layout: 'flip' }));
     fireEvent.click(screen.getByRole('button', { name: 'Turn upside down' }));
