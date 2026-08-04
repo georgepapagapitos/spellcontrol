@@ -32,6 +32,7 @@ function makeOnlineGame(status: 'lobby' | 'active' | 'finished'): GameState {
     layout: 'pod',
     tapOrientation: 'horizontal',
     activeSeat: null,
+    startingSeat: null,
     designations: { monarch: null, initiative: null },
     players: [
       {

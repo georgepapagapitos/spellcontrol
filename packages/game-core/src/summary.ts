@@ -74,6 +74,13 @@ export interface GameSummary {
   turns: number;
   durationMs: number;
   firstBlood: FirstBlood | null;
+  /**
+   * The seat that was on the play, carried through from state so the persisted
+   * summary is self-contained (the rollups never see the live game). Null when
+   * the pod never recorded a first player — consumers must render that as "—",
+   * never as seat 0, and must exclude the game from any on-the-play rate.
+   */
+  startingSeat: number | null;
   winnerSeat: number | null;
   /** One entry per seat, in seat order. */
   seats: SeatSummary[];
@@ -233,6 +240,7 @@ export function summarizeGame(state: GameState, now: number = Date.now()): GameS
     turns,
     durationMs: state.startedAt ? (state.endedAt ?? now) - state.startedAt : 0,
     firstBlood,
+    startingSeat: state.startingSeat ?? null,
     winnerSeat: state.winnerSeat,
     seats: state.players.map((p) => {
       const a = acc.get(p.seat)!;
