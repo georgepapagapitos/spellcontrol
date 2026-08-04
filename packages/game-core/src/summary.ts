@@ -62,7 +62,16 @@ export interface FirstBlood {
   amount: number;
 }
 
-/** One dealer→victim commander-damage total. Only non-zero pairs are listed. */
+/**
+ * One dealer→victim commander-damage total. Only non-zero pairs are listed.
+ *
+ * Deliberately aggregated per SEAT, summing both commanders of a Partner pair:
+ * this is a "how hard did that player hit me" output stat, and the sum is the
+ * honest answer to it. It is NOT a lethality check — never compare an edge
+ * against 21, because 11 from one partner plus 10 from the other totals 21
+ * here and kills nobody. The 21 rule reads `GamePlayer.commanderDamage`
+ * per-key (see `cmdDamageKey`).
+ */
 export interface CommanderDamageEdge {
   fromSeat: number;
   toSeat: number;
