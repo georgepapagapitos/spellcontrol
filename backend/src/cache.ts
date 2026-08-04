@@ -156,6 +156,80 @@ export class ScryfallCache {
   }
 
   /**
+   * Cheapest cached paper printing of a card by exact name — the bulk dump's
+   * answer to `/cards/named`, with no network involved.
+   *
+   * `cardAliasKeys` deliberately skips the bare `n:<name>` alias because a name
+   * maps to many printings and we don't replicate Scryfall's "best printing"
+   * heuristic. We don't have to: the `card_lookups` primary key already indexes
+   * every printing under `ns:<name>|<set>`, so a bounded range scan over that
+   * prefix enumerates a card's printings and we pick from them ourselves. No new
+   * index, and no `json_extract` scan of the 100k-row `cards` table.
+   *
+   * The upper bound stays inside the `ns:` namespace, which also excludes the
+   * `nsc:` (name+set+collector) keys — they sort after every `ns:` key, since
+   * `'c' > ':'`.
+   *
+   * Selection mirrors the frontend's price-ordered `/cards/search` fallback:
+   * cheapest nonfoil USD, else cheapest foil USD, else whatever printing came
+   * back. Returns null when nothing is cached inside `maxAgeMs`, which the
+   * caller reads as "go ask Scryfall".
+   */
+  getCheapestByName(name: string, maxAgeMs: number = TTL_MS): ScryfallCard | null {
+    // Multi-face names are stored under the front face (see cardAliasKeys).
+    const front = name.split(' // ')[0].trim().toLowerCase();
+    if (!front) return null;
+
+    try {
+      const stmt = this.db.prepare(
+        `SELECT c.data AS data, l.cached_at AS lookup_cached_at, c.cached_at AS card_cached_at
+           FROM card_lookups l
+           JOIN cards c ON c.scryfall_id = l.scryfall_id
+          WHERE l.lookup_key >= ? AND l.lookup_key < ?`
+      );
+      const rows = stmt.all(`ns:${front}|`, `ns:${front}|￿`) as Array<{
+        data: string;
+        lookup_cached_at: number;
+        card_cached_at: number;
+      }>;
+
+      const now = Date.now();
+      const cards: ScryfallCard[] = [];
+      for (const row of rows) {
+        if (now - row.lookup_cached_at > maxAgeMs) continue;
+        if (now - row.card_cached_at > maxAgeMs) continue;
+        try {
+          cards.push(JSON.parse(row.data));
+        } catch {
+          /* skip malformed */
+        }
+      }
+      if (cards.length === 0) return null;
+
+      // Infinity == "no price in this currency", so it always loses the min.
+      // Not `Number(raw)` alone: the dump writes an absent price as null, and
+      // `Number(null)` is 0 — which read as free and beat every real price.
+      const priceOf = (card: ScryfallCard, key: 'usd' | 'usd_foil'): number => {
+        const raw = card.prices?.[key];
+        if (raw == null || raw === '') return Infinity;
+        const n = Number(raw);
+        return Number.isFinite(n) ? n : Infinity;
+      };
+      const cheapestBy = (key: 'usd' | 'usd_foil'): ScryfallCard | null =>
+        cards.reduce<ScryfallCard | null>(
+          (best, card) =>
+            priceOf(card, key) < (best ? priceOf(best, key) : Infinity) ? card : best,
+          null
+        );
+
+      return cheapestBy('usd') ?? cheapestBy('usd_foil') ?? cards[0];
+    } catch (err) {
+      logger.error('[cache] getCheapestByName failed, treating as cache miss:', err);
+      return null;
+    }
+  }
+
+  /**
    * Records identifier-key -> scryfall_id aliases so a future name/set/collector
    * lookup can resolve from cache. Call after the corresponding cards have been
    * persisted via {@link setMany}.

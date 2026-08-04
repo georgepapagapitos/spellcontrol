@@ -458,7 +458,12 @@ describe('getCardByNameResilient', () => {
     const result = await getCardByNameResilient('Resilient Live Miss');
 
     expect(result).toBeNull();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // Two calls: the bulk probe at our own backend, then exactly ONE live
+    // Scryfall attempt. The point of the test is the latter — a live miss is
+    // terminal, with no pointless retry against the same endpoint.
+    const urls = fetchMock.mock.calls.map((c) => String(c[0]));
+    expect(urls.filter((u) => u.startsWith('/api/cards/named'))).toHaveLength(1);
+    expect(urls.filter((u) => !u.startsWith('/api/'))).toHaveLength(1);
   });
 });
 
@@ -525,6 +530,66 @@ describe('getCardByName foil-only-default fallback', () => {
     const result = await getCardByName(name);
 
     expect(result.id).toBe('foil-exclusive');
+  });
+});
+
+// `/cards/named` was the last high-frequency Scryfall call the browser made on
+// every card add, and a client 429 is invisible to us (Scryfall omits CORS
+// headers on 429s). Our backend already holds every printing from the nightly
+// bulk dump, so a hit means the browser never touches Scryfall at all.
+describe('getCardByName bulk-first resolve', () => {
+  beforeEach(() => {
+    gate.offline = false;
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('serves an exact name from our backend without touching Scryfall', async () => {
+    const name = 'Bulkfirst Test Rector';
+    const bulk = makeCard({ id: 'bulk-hit', name, layout: 'normal', prices: { usd: '18.99' } });
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.startsWith('/api/cards/named'))
+        return { ok: true, json: async () => ({ card: bulk }) };
+      return { ok: false, status: 404, statusText: 'Not Found' };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await getCardByName(name);
+
+    expect(result.id).toBe('bulk-hit');
+    // The backend already resolved the cheapest nonfoil, so the foil-only
+    // follow-up search must not fire either.
+    const urls = fetchMock.mock.calls.map((c) => String(c[0]));
+    expect(urls.every((u) => u.startsWith('/api/'))).toBe(true);
+  });
+
+  it('falls through to the live path when the bulk dump has no such card', async () => {
+    const name = 'Bulkfirst Brandnew Spoiler';
+    const live = makeCard({ id: 'live-hit', name, layout: 'normal', prices: { usd: '3.00' } });
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      // A miss is `{ card: null }`, NOT an error — the backend never goes live.
+      if (url.startsWith('/api/cards/named'))
+        return { ok: true, json: async () => ({ card: null }) };
+      if (url.includes('/cards/named')) return { ok: true, json: async () => live };
+      return { ok: false, status: 404, statusText: 'Not Found' };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    expect((await getCardByName(name)).id).toBe('live-hit');
+  });
+
+  it('falls through to the live path when our backend is unreachable', async () => {
+    const name = 'Bulkfirst Backend Down';
+    const live = makeCard({ id: 'live-hit-2', name, layout: 'normal', prices: { usd: '3.00' } });
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.startsWith('/api/cards/named')) throw new TypeError('Failed to fetch');
+      if (url.includes('/cards/named')) return { ok: true, json: async () => live };
+      return { ok: false, status: 404, statusText: 'Not Found' };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    expect((await getCardByName(name)).id).toBe('live-hit-2');
   });
 });
 
