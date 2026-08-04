@@ -599,11 +599,15 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
         players: updatePlayer(next, action.seat, (p) => {
           const cur = p.commanderDamage[action.fromSeat] ?? 0;
           const nextDmg = Math.max(0, cur + action.delta);
+          // Life moves by the damage actually applied, not the requested
+          // delta — decrementing at 0 is clamped, so it must not hand out
+          // free life. (Reachable from the board's ± controls.)
+          const applied = nextDmg - cur;
           return {
             ...p,
             commanderDamage: { ...p.commanderDamage, [action.fromSeat]: nextDmg },
             // Commander damage also reduces life by the same amount.
-            life: p.life - action.delta,
+            life: p.life - applied,
           };
         }),
         events: pushEvent(next, {
