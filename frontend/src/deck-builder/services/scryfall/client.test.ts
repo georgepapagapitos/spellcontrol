@@ -432,7 +432,7 @@ describe('getCardByNameResilient', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => live }));
 
     // Tiny timeout so the test is fast.
-    const result = await getCardByNameResilient('Resilient Stall Fallback', true, 20);
+    const result = await getCardByNameResilient('Resilient Stall Fallback', 20);
 
     expect(result?.name).toBe('Resilient Stall Fallback');
   });
@@ -577,6 +577,16 @@ describe('getCardByName bulk-first resolve', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     expect((await getCardByName(name)).id).toBe('live-hit');
+
+    // Never `?fuzzy=`. Scryfall's fuzzy matcher fails OPEN, not closed — it
+    // answers `sol rng` with Oathsworn Giant rather than an error — and every
+    // caller here feeds an already-canonical name, so a silent wrong card is
+    // strictly worse than a miss.
+    const liveUrl = fetchMock.mock.calls
+      .map((c) => String(c[0]))
+      .find((u) => !u.startsWith('/api/'));
+    expect(liveUrl).toContain('exact=');
+    expect(liveUrl).not.toContain('fuzzy');
   });
 
   it('falls through to the live path when our backend is unreachable', async () => {

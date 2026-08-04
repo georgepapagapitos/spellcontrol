@@ -3712,7 +3712,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedBudget,
       ignoreOwnedRarity,
       getBasicLand: async (name) =>
-        getCachedCard(name) ?? (await getCardByName(name, true).catch(() => null)),
+        getCachedCard(name) ?? (await getCardByName(name).catch(() => null)),
     });
     coherenceRepairs = [...comboAuditRepairs, ...repairResult.repairs];
     // A repair add can complete a tracked combo — refresh completeness against

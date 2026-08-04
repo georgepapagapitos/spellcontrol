@@ -425,7 +425,7 @@ export async function generateLands(
     availableCount('Command Tower') > 0
   ) {
     try {
-      const commandTower = await getCardByName('Command Tower', true);
+      const commandTower = await getCardByName('Command Tower');
       lands.push(commandTower);
       usedNames.add('Command Tower');
     } catch {
@@ -476,10 +476,10 @@ export async function generateLands(
       let basicCard = getCachedCard(basicName);
       if (!basicCard) {
         try {
-          basicCard = await getCardByName(basicName, true);
+          basicCard = await getCardByName(basicName);
         } catch {
           try {
-            basicCard = await getCardByName(basicName, true); // retry once
+            basicCard = await getCardByName(basicName); // retry once
           } catch {
             failedBasics.push({ basicName, countForColor });
             continue;
@@ -513,7 +513,7 @@ export async function generateLands(
     let wastesCard = getCachedCard('Wastes');
     if (!wastesCard) {
       try {
-        wastesCard = await getCardByName('Wastes', true);
+        wastesCard = await getCardByName('Wastes');
       } catch {
         // Skip if can't fetch
       }
