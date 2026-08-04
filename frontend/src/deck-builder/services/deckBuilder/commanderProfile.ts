@@ -578,7 +578,9 @@ const DETECTORS: Detector[] = [
 ];
 
 // Voltron is detected structurally (not via a single oracle phrase).
-const VOLTRON_KEYWORDS = new Set([
+// Exported so the display-side playstyle index can recover these from oracle
+// text for collection cards, which carry no Scryfall `keywords` array.
+export const VOLTRON_KEYWORDS = new Set([
   'trample',
   'double strike',
   'flying',
