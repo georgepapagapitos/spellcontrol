@@ -144,6 +144,19 @@ export interface GameState {
    */
   activeSeat: number | null;
   /**
+   * The seat that took the first turn ("on the play"), or null when nobody
+   * recorded it. Set by the random-first-player table tool, which used to
+   * announce its pick into the log and throw the fact away — the log line is
+   * prose nothing can aggregate, so the pick is now state.
+   *
+   * Deliberately NOT inferred from `activeSeat` at start: a pod that never
+   * passes turns leaves activeSeat null forever, and a pod that does pass
+   * turns has already moved it by the time anyone reads it. Absent means
+   * "nobody recorded who went first", which every consumer must render as
+   * "—" rather than folding into seat 0. Legacy states read null.
+   */
+  startingSeat: number | null;
+  /**
    * Table designations (Monarch, Initiative). Each is a seat number or null
    * (unclaimed). One holder at most per designation; claiming transfers it.
    * Persisted per game; legacy states default to both null via the resolver.
@@ -206,6 +219,7 @@ export type GameAction =
           | 'format'
           | 'layout'
           | 'tapOrientation'
+          | 'startingSeat'
         >
       >;
       ts?: number;
@@ -383,6 +397,7 @@ export function createGameState(input: {
     layout: input.layout ?? 'pod',
     tapOrientation: input.tapOrientation ?? 'horizontal',
     activeSeat: null,
+    startingSeat: null,
     designations: { monarch: null, initiative: null },
     players: input.players,
     events: [],
@@ -444,6 +459,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
   let next: GameState = {
     ...prev,
     activeSeat: prev.activeSeat ?? null,
+    startingSeat: prev.startingSeat ?? null,
     designations: resolveDesignations(prev.designations),
   };
 
@@ -490,8 +506,11 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
         winnerSeat: null,
         startedAt: null,
         endedAt: null,
-        // Reset turn tracking and designations when the game resets.
+        // Reset turn tracking, the on-the-play seat, and designations when the
+        // game resets — a reset is a fresh game at the same table, so last
+        // game's first player is stale, not inherited.
         activeSeat: null,
+        startingSeat: null,
         designations: { monarch: null, initiative: null },
         players: prev.players.map((p) => ({
           ...p,
@@ -526,6 +545,10 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       next = {
         ...next,
         players: prev.players.filter((p) => p.seat !== action.seat),
+        // Drop the on-the-play mark if its holder left: seats are reusable by
+        // a later joiner, and a stale seat number would credit "went first"
+        // to whoever sits there next.
+        startingSeat: next.startingSeat === action.seat ? null : next.startingSeat,
         events: pushEvent(next, {
           kind: 'leave',
           actorSeat: null,

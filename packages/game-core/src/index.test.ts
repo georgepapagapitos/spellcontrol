@@ -186,6 +186,49 @@ describe('applyAction', () => {
     expect(s.players[1].life).toBe(startingLife);
   });
 
+  it('records the on-the-play seat, and clears it on reset', () => {
+    let s = applyAction(lobby(), { type: 'start' });
+    expect(s.startingSeat).toBeNull();
+
+    s = applyAction(s, { type: 'settings', patch: { startingSeat: 1 } });
+    expect(s.startingSeat).toBe(1);
+    // Not a rules change, so it earns no log row — the tool already writes its
+    // own note, and a duplicate "Settings changed" would bury real moments.
+    expect(s.events.some((e) => e.kind === 'settings')).toBe(false);
+
+    // A reset is a fresh game at the same table: last game's first player is
+    // stale, not inherited.
+    s = applyAction(s, { type: 'reset' });
+    expect(s.startingSeat).toBeNull();
+  });
+
+  it('drops the on-the-play seat when that player leaves', () => {
+    let s = applyAction(lobby(3), { type: 'start' });
+    s = applyAction(s, { type: 'settings', patch: { startingSeat: 2 } });
+
+    // Seats are reusable by a later joiner, so a stale seat number would
+    // credit "went first" to whoever sits there next.
+    s = applyAction(s, { type: 'remove-player', seat: 2 });
+    expect(s.startingSeat).toBeNull();
+  });
+
+  it('leaves the on-the-play seat alone when a DIFFERENT player leaves', () => {
+    let s = applyAction(lobby(3), { type: 'start' });
+    s = applyAction(s, { type: 'settings', patch: { startingSeat: 0 } });
+
+    s = applyAction(s, { type: 'remove-player', seat: 2 });
+    expect(s.startingSeat).toBe(0);
+  });
+
+  it('reads a legacy state with no startingSeat as null rather than undefined', () => {
+    const legacy = applyAction(lobby(), { type: 'start' });
+    // Simulate a persisted state written before the field existed.
+    delete (legacy as { startingSeat?: number | null }).startingSeat;
+
+    const s = applyAction(legacy, { type: 'life', seat: 0, delta: -1, actorSeat: 0 });
+    expect(s.startingSeat).toBeNull();
+  });
+
   it('cmd-dmg throws on unknown seat', () => {
     expect(() =>
       applyAction(lobby(), { type: 'cmd-dmg', seat: 99, fromSeat: 0, delta: 1, actorSeat: 0 })
