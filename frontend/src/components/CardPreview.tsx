@@ -9,6 +9,7 @@ import {
   Pencil,
   RefreshCw,
   RotateCw,
+  Share2,
   ZoomIn,
 } from 'lucide-react';
 import {
@@ -22,6 +23,8 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
+import { Share } from '@capacitor/share';
+import { toast } from '../store/toasts';
 import type { EnrichedCard } from '../types';
 import { CardRulings } from './CardRulings';
 import { CardText, CardLegalities } from './CardDetails';
@@ -497,6 +500,36 @@ export function CardPreview({
   if (!cards[selected]) return null;
   const current = cards[selected];
 
+  // Highest-res art for the face on screen — fed to both the zoom layer and Share.
+  const faceSrc =
+    flipped[selected] && current.imageNormalBack
+      ? current.imageLargeBack || current.imageNormalBack
+      : current.imageLarge || current.imageNormal;
+
+  // ponytail: shares the Scryfall image URL, not the image bytes — every chat
+  // app unfurls a direct .jpg inline. Attaching the file would mean pulling in
+  // @capacitor/filesystem to stage it; add that only if link-unfurling proves
+  // insufficient. No system sheet (most desktop browsers) → copy the link.
+  const shareCard = async () => {
+    if (!faceSrc) return;
+    try {
+      await Share.share({
+        title: current.name,
+        text: current.name,
+        url: faceSrc,
+        dialogTitle: `Share ${current.name}`,
+      });
+    } catch (err) {
+      if ((err as { message?: string })?.message?.toLowerCase().includes('cancel')) return;
+      try {
+        await navigator.clipboard.writeText(faceSrc);
+        toast.show({ message: 'Card image link copied to clipboard.', tone: 'success' });
+      } catch {
+        toast.show({ message: "Couldn't share this card.", tone: 'warn' });
+      }
+    }
+  };
+
   // Which Secret Lair drop this printing came from (E140) — SLD cards only.
   const sldDropLabel =
     current.setCode?.toUpperCase() === SLD_CODE && sldIndex && current.collectorNumber
@@ -603,11 +636,7 @@ export function CardPreview({
           <img
             ref={zoomImgRef}
             className="card-preview-zoom-img"
-            src={
-              flipped[selected] && current.imageNormalBack
-                ? current.imageLargeBack || current.imageNormalBack
-                : current.imageLarge || current.imageNormal
-            }
+            src={faceSrc}
             alt={`${current.name} (zoomed)`}
             draggable={false}
             decoding="async"
@@ -652,6 +681,21 @@ export function CardPreview({
             >
               <ZoomIn width={18} height={18} strokeWidth={2} aria-hidden />
               <span>Zoom</span>
+            </button>
+          )}
+          {faceSrc && (
+            <button
+              type="button"
+              className="card-preview-flip-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                void shareCard();
+              }}
+              aria-label="Share card image"
+              title="Share card image"
+            >
+              <Share2 width={18} height={18} strokeWidth={2} aria-hidden />
+              <span>Share</span>
             </button>
           )}
           {current.imageNormalBack && (

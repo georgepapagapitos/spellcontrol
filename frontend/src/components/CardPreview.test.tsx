@@ -18,6 +18,9 @@ vi.mock('./CardImageFrame', () => ({
   ),
 }));
 
+const shareMock = vi.fn();
+vi.mock('@capacitor/share', () => ({ Share: { share: (o: unknown) => shareMock(o) } }));
+
 import { CardPreview } from './CardPreview';
 
 beforeAll(() => {
@@ -127,6 +130,36 @@ describe('CardPreview printing identity (T36)', () => {
 
     renderPreview(mk({ language: 'en' }));
     expect(screen.queryByLabelText(/^Language/)).toBeNull();
+  });
+});
+
+describe('CardPreview share', () => {
+  it('shares the highest-res art for the face on screen, and follows a flip', async () => {
+    shareMock.mockClear();
+    renderPreview(
+      mk({
+        name: 'Delver of Secrets',
+        imageNormal: 'https://img/front-normal.jpg',
+        imageLarge: 'https://img/front-large.jpg',
+        imageNormalBack: 'https://img/back-normal.jpg',
+      })
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Share card image' }));
+    expect(shareMock.mock.calls[0][0]).toMatchObject({
+      title: 'Delver of Secrets',
+      url: 'https://img/front-large.jpg',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show back face' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Share card image' }));
+    // No back-large printing → falls back to the back's normal art.
+    expect(shareMock.mock.calls[1][0]).toMatchObject({ url: 'https://img/back-normal.jpg' });
+  });
+
+  it('renders no Share button for a card with no art', () => {
+    renderPreview(mk({}));
+    expect(screen.queryByRole('button', { name: 'Share card image' })).toBeNull();
   });
 });
 
