@@ -1,10 +1,12 @@
 // @vitest-environment happy-dom
 /**
- * Swipe-to-log-commander-damage.
+ * Commander-damage focus mode.
  *
- * Covers the gesture (swipe up on your own panel opens the counters cover,
- * swipe back down dismisses it), the per-opponent tiles inside it, and the
- * seat-color tinting that makes each tile readable as "that player".
+ * Covers entry (⚔ chip / swipe up on your own panel), the board-level meaning
+ * flip (every OTHER panel becomes "damage this player dealt to me", the
+ * focused player keeps their life), the dispatch attribution, and the ways
+ * out. The dangerous failure here is a number that still reads as life, so
+ * the labelling is asserted as hard as the wiring.
  *
  * Mock harness mirrors GameBoard.test.tsx — GameBoard unconditionally touches
  * usePlayStore / haptics / wake-lock / undo-stack / dnd-kit regardless of
@@ -79,9 +81,9 @@ vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
 import { GameBoard, cmdDamageFillRatio, cmdDamageToLethal } from './GameBoard';
 
 /** Alice (seat 0) plus two opponents, one with a color identity, one without. */
-function renderPod(dispatch = vi.fn()) {
+function renderPod(dispatch = vi.fn(), alice: Partial<GamePlayer> = {}) {
   const game = makeTestState([
-    makeTestPlayer(),
+    makeTestPlayer(alice),
     makeTestPlayer({ id: 'p1', seat: 1, name: 'Bob', commander: 'Atraxa', colorIdentity: ['G'] }),
     makeTestPlayer({ id: 'p2', seat: 2, name: 'Carol', commander: null, colorIdentity: [] }),
   ]);
@@ -94,12 +96,13 @@ function renderPod(dispatch = vi.fn()) {
  * seat 0 is rotated 180° and seats 1–2 are upright, which is exactly why the
  * gesture is interpreted in panel-local space rather than screen space.
  */
-function tapZone(seat: number) {
+function tapZone(seat: number, label = '+1 life') {
   // The +1 step button carries the same label as the tap zone, so filter to
   // the zones themselves before indexing by seat.
-  return screen
-    .getAllByLabelText('+1 life')
-    .filter((el) => el.classList.contains('player-panel-tapzone'))[seat];
+  const zones = screen
+    .getAllByLabelText(label)
+    .filter((el) => el.classList.contains('player-panel-tapzone'));
+  return zones[seat];
 }
 
 /** Drag `dy` px in SCREEN space (negative = toward the top of the display). */
@@ -108,18 +111,34 @@ function drag(el: Element, dy: number) {
   fireEvent.pointerMove(el, { clientX: 100, clientY: 200 + dy, pointerId: 1 });
 }
 
+function tap(el: Element, pointerId = 9) {
+  fireEvent.pointerDown(el, { clientX: 10, clientY: 10, pointerId });
+  fireEvent.pointerUp(el, { clientX: 10, clientY: 10, pointerId });
+}
+
 /** Alice (seat 0) is rotated 180°, so "up" for her is screen-DOWN. */
 const ALICE_UP = 60;
 const ALICE_DOWN = -60;
 
-describe('swipe to log commander damage', () => {
-  it('swiping up on your own panel opens the counters cover', () => {
+/** Present only while the board is in commander-damage focus mode. */
+function focusBar() {
+  return document.querySelector('.pp-cmd-focus-bar');
+}
+
+describe('entering commander-damage focus mode', () => {
+  it('swiping up on your own panel flips the other panels to damage dealt to you', () => {
     renderPod();
-    expect(screen.queryByRole('dialog', { name: 'Alice counters' })).toBeNull();
+    expect(focusBar()).toBeNull();
 
     drag(tapZone(0), ALICE_UP);
 
-    expect(screen.getByRole('dialog', { name: 'Alice counters' })).toBeTruthy();
+    expect(focusBar()).toBeTruthy();
+    // Bob and Carol's panels now log damage TO Alice, labelled by commander
+    // with a name fallback.
+    expect(screen.getByLabelText('Atraxa: 0 commander damage dealt to Alice')).toBeTruthy();
+    expect(screen.getByLabelText('Carol: 0 commander damage dealt to Alice')).toBeTruthy();
+    // Alice's own panel keeps her life — it's the anchor, and it drops live.
+    expect(screen.getByLabelText('Alice: 40 life')).toBeTruthy();
   });
 
   it('reads the gesture in panel space, so an upright seat swipes screen-up', () => {
@@ -129,18 +148,18 @@ describe('swipe to log commander damage', () => {
     // Alice's. Same physical motion toward each player, opposite dy.
     drag(tapZone(1), -60);
 
-    expect(screen.getByRole('dialog', { name: 'Bob counters' })).toBeTruthy();
-    expect(screen.queryByRole('dialog', { name: 'Alice counters' })).toBeNull();
+    // Bob is now the anchor (his life), and the OTHER seats became sources.
+    expect(screen.getByLabelText('Bob: 40 life')).toBeTruthy();
+    expect(screen.getByLabelText('Alice: 0 commander damage dealt to Bob')).toBeTruthy();
+    expect(screen.getByLabelText('Carol: 0 commander damage dealt to Bob')).toBeTruthy();
   });
 
-  it('swiping back down on the cover dismisses it', () => {
+  it('the commander-damage chip opens the same mode on web', () => {
     renderPod();
-    drag(tapZone(0), ALICE_UP);
-    const cover = screen.getByRole('dialog', { name: 'Alice counters' });
 
-    drag(cover, ALICE_DOWN);
+    fireEvent.click(screen.getAllByLabelText(/^Commander damage, highest/)[0]);
 
-    expect(screen.queryByRole('dialog', { name: 'Alice counters' })).toBeNull();
+    expect(focusBar()).toBeTruthy();
   });
 
   it('ignores a drag that is short or predominantly horizontal', () => {
@@ -149,32 +168,21 @@ describe('swipe to log commander damage', () => {
 
     // Under the 40px threshold.
     drag(zone, 20);
-    expect(screen.queryByRole('dialog', { name: 'Alice counters' })).toBeNull();
+    expect(focusBar()).toBeNull();
 
     // Far enough vertically, but the horizontal component dominates.
     fireEvent.pointerDown(zone, { clientX: 100, clientY: 200, pointerId: 1 });
     fireEvent.pointerMove(zone, { clientX: 300, clientY: 250, pointerId: 1 });
-    expect(screen.queryByRole('dialog', { name: 'Alice counters' })).toBeNull();
+    expect(focusBar()).toBeNull();
   });
+});
 
-  it('shows one tile per opponent, labelled by commander with a name fallback', () => {
-    renderPod();
-    drag(tapZone(0), ALICE_UP);
-
-    // Bob has a commander; Carol does not, so she falls back to her name.
-    expect(screen.getByRole('button', { name: '+1 commander damage from Atraxa' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '+1 commander damage from Carol' })).toBeTruthy();
-    // No self-tile: you can't deal commander damage to yourself.
-    expect(screen.queryByRole('button', { name: '+1 commander damage from Alice' })).toBeNull();
-  });
-
-  it('tapping a tile dispatches cmd-dmg attributed to that opponent seat', () => {
+describe('logging damage in focus mode', () => {
+  it('tapping an opponent panel dispatches cmd-dmg attributed to that seat', () => {
     const { dispatch } = renderPod();
     drag(tapZone(0), ALICE_UP);
 
-    const plus = screen.getByRole('button', { name: '+1 commander damage from Atraxa' });
-    fireEvent.pointerDown(plus, { clientX: 10, clientY: 10, pointerId: 2 });
-    fireEvent.pointerUp(plus, { clientX: 10, clientY: 10, pointerId: 2 });
+    tap(tapZone(0, '+1 commander damage from Atraxa'));
 
     expect(dispatch).toHaveBeenCalledWith({
       type: 'cmd-dmg',
@@ -185,13 +193,11 @@ describe('swipe to log commander damage', () => {
     });
   });
 
-  it('decrements from the minus half of the tile', () => {
+  it('decrements from the opposite half of the same panel', () => {
     const { dispatch } = renderPod();
     drag(tapZone(0), ALICE_UP);
 
-    const minus = screen.getByRole('button', { name: '-1 commander damage from Atraxa' });
-    fireEvent.pointerDown(minus, { clientX: 10, clientY: 10, pointerId: 3 });
-    fireEvent.pointerUp(minus, { clientX: 10, clientY: 10, pointerId: 3 });
+    tap(tapZone(0, '-1 commander damage from Atraxa'));
 
     expect(dispatch).toHaveBeenCalledWith({
       type: 'cmd-dmg',
@@ -202,40 +208,75 @@ describe('swipe to log commander damage', () => {
     });
   });
 
-  it('tints each tile with that opponent color: identity class, else seat palette', () => {
+  it('leaves the focused player’s own panel adjusting life, not damage', () => {
+    const { dispatch } = renderPod();
+    drag(tapZone(0), ALICE_UP);
+
+    tap(tapZone(0, '+1 life'));
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'life',
+      seat: 0,
+      delta: 1,
+      actorSeat: 0,
+    });
+  });
+
+  it('shows each source’s damage, their own life as a readout, and the lethal race', () => {
+    renderPod(vi.fn(), { commanderDamage: { 1: 9 } });
+    drag(tapZone(0), ALICE_UP);
+
+    const bobPanel = screen
+      .getByLabelText('Atraxa: 9 commander damage dealt to Alice')
+      .closest('.player-panel') as HTMLElement;
+    expect(bobPanel.style.getPropertyValue('--fill')).toBe(String(9 / 21));
+    // Bob's own life is demoted, not discarded — the board stays readable.
+    expect(bobPanel.querySelector('.pp-life-chip')?.textContent).toBe('40 life');
+    const hint = screen.getByText('12 to lethal');
+    expect(hint.getAttribute('aria-hidden')).toBe('true');
+    // ...and the caption names who the damage is going to, so a bare "9"
+    // can't be misread as Bob's life total.
+    expect(bobPanel.querySelector('.pp-cmd-caption')?.textContent).toContain('dealt to Alice');
+  });
+
+  it('marks a source lethal at 21 from that one commander', () => {
+    renderPod(vi.fn(), { commanderDamage: { 1: 21 } });
+    drag(tapZone(0), ALICE_UP);
+
+    const bobPanel = screen
+      .getByLabelText('Atraxa: 21 commander damage dealt to Alice')
+      .closest('.player-panel') as HTMLElement;
+    expect(bobPanel.classList.contains('is-cmd-lethal')).toBe(true);
+  });
+});
+
+describe('leaving focus mode', () => {
+  it('the return button restores the normal board', () => {
     renderPod();
     drag(tapZone(0), ALICE_UP);
 
-    // Bob is mono-green → the shared pp-color-g palette class.
-    const bobTile = screen
-      .getByRole('button', { name: '+1 commander damage from Atraxa' })
-      .closest('.pp-cmd-tile') as HTMLElement;
-    expect(bobTile.classList.contains('pp-color-g')).toBe(true);
-    expect(bobTile.style.getPropertyValue('--pp-base')).toBe('');
+    fireEvent.click(screen.getByRole('button', { name: 'Return to game' }));
 
-    // Carol has no identity and no override → inline seat-palette vars.
-    const carolTile = screen
-      .getByRole('button', { name: '+1 commander damage from Carol' })
-      .closest('.pp-cmd-tile') as HTMLElement;
-    expect(carolTile.className).not.toContain('pp-color-');
-    expect(carolTile.style.getPropertyValue('--pp-base')).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(focusBar()).toBeNull();
+    expect(screen.getByLabelText('Bob: 40 life')).toBeTruthy();
   });
 
-  it('drives the progress-to-21 fill and "N to lethal" hint from commander damage (E191)', () => {
-    const alice = makeTestPlayer({ commanderDamage: { 1: 9 } });
-    const game = makeTestState([
-      alice,
-      makeTestPlayer({ id: 'p1', seat: 1, name: 'Bob', commander: 'Atraxa', colorIdentity: ['G'] }),
-    ]);
-    render(<GameBoard game={game} dispatch={vi.fn()} canControlAll />);
+  it('swiping back down leaves the mode', () => {
+    renderPod();
     drag(tapZone(0), ALICE_UP);
 
-    const bobTile = screen
-      .getByRole('button', { name: '+1 commander damage from Atraxa' })
-      .closest('.pp-cmd-tile') as HTMLElement;
-    expect(bobTile.style.getPropertyValue('--fill')).toBe(String(9 / 21));
-    const hint = screen.getByText('12 to lethal');
-    expect(hint.getAttribute('aria-hidden')).toBe('true');
+    drag(tapZone(0, '+1 life'), ALICE_DOWN);
+
+    expect(focusBar()).toBeNull();
+  });
+
+  it('Escape leaves the mode', () => {
+    renderPod();
+    drag(tapZone(0), ALICE_UP);
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(focusBar()).toBeNull();
   });
 });
 

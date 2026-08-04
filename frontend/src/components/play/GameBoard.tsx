@@ -58,8 +58,16 @@ interface Props {
  * Interaction model is touch-first: tap the left half of a panel to decrement
  * life, the right half to increment (top/bottom when tapOrientation is
  * vertical). Press and hold to repeat. Visible ±1 step buttons sit on the
- * edges as a discoverable backup. Commander damage lives in a slide-down
- * drawer so it doesn't crowd the resting view.
+ * edges as a discoverable backup.
+ *
+ * Commander damage is a board-level *focus mode* rather than a per-panel
+ * drawer: one player claims focus (⚔ chip or swipe up on their own panel) and
+ * every OTHER panel stops showing its owner's life and starts showing the
+ * commander damage that player has dealt to the focused player — same seats,
+ * same colors, same positions, so "who is hitting me" is answered by the
+ * physical table, not by a list. The focused player's own panel keeps their
+ * life total, which ticks down live as they log damage (the `cmd-dmg` reducer
+ * subtracts life 1:1), so nothing needs committing on the way out.
  */
 export function GameBoard({
   game,
@@ -93,6 +101,24 @@ export function GameBoard({
       : 0;
   const [menuOpen, setMenuOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  // Commander-damage focus mode: the seat currently asking "how much has each
+  // of you hit me for?". Null = normal board. Held here (not per panel)
+  // because entering it changes every OTHER panel's meaning.
+  const [cmdFocusSeat, setCmdFocusSeat] = useState<number | null>(null);
+  // Resolve against live state so a seat that leaves mid-focus drops the mode
+  // instead of stranding the board in a meaningless state.
+  const cmdFocus = game.players.find((p) => p.seat === cmdFocusSeat) ?? null;
+  const cmdFocusIdx = cmdFocus ? game.players.indexOf(cmdFocus) : -1;
+  // In focus mode the numbers describe what the FOCUSED player has taken, so
+  // every panel is rotated to read upright for them — they're the reader.
+  const cmdFocusRot =
+    cmdFocusIdx >= 0 ? (board.seats[(cmdFocusIdx + slotShift) % total]?.rot ?? 0) : 0;
+  // Focus is only enterable from a panel the viewer may edit, but permissions
+  // can change under an online game — re-derive rather than trusting entry.
+  const cmdFocusCanEdit =
+    cmdFocus != null &&
+    (canControlAll || (viewerUserId != null && cmdFocus.userId === viewerUserId));
+  const exitCmdFocus = useCallback(() => setCmdFocusSeat(null), []);
 
   // Keep the screen awake while a game is in progress (real-table use: the
   // phone sits untouched between turns).
@@ -144,6 +170,19 @@ export function GameBoard({
     return () => window.removeEventListener('keydown', onKey);
   }, [onUndo, undoLabel]);
 
+  // Esc leaves commander-damage focus mode — the keyboard equivalent of the
+  // "Return to game" button and the swipe-back gesture.
+  useEffect(() => {
+    if (cmdFocusSeat == null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      exitCmdFocus();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [cmdFocusSeat, exitCmdFocus]);
+
   // Lock body scroll while the board is mounted — it's a fullscreen overlay.
   useLockBodyScroll();
 
@@ -151,7 +190,7 @@ export function GameBoard({
     <div
       className={`game-board game-board-${Math.min(total, 6)} layout-${
         isCustomLayout(board.id) ? 'custom' : board.id
-      } mode-${game.mode}`}
+      } mode-${game.mode}${cmdFocus ? ' is-cmd-focus' : ''}`}
       data-shared={isShared || undefined}
     >
       <div
@@ -176,10 +215,15 @@ export function GameBoard({
               slot={slot}
               // Rotation only applies in shared (local) mode — on online
               // games each device is in front of its owner, always upright.
-              rotation={isShared ? slot.rot : 0}
+              // In commander-damage focus mode every panel turns to face the
+              // focused player, since the numbers are theirs to read.
+              rotation={isShared ? (cmdFocus ? cmdFocusRot : slot.rot) : 0}
               canEdit={canControlAll || (viewerUserId != null && p.userId === viewerUserId)}
               canLayout={canControlAll}
-              opponents={game.players.filter((o) => o.seat !== p.seat)}
+              cmdFocus={cmdFocus}
+              cmdFocusCanEdit={cmdFocusCanEdit}
+              onCmdFocus={() => setCmdFocusSeat(p.seat)}
+              onCmdFocusExit={exitCmdFocus}
               undoNonce={undoNonce}
               onUndo={onUndo}
               undoLabel={undoLabel}
@@ -302,7 +346,10 @@ function PlayerPanel({
   rotation,
   canEdit,
   canLayout,
-  opponents,
+  cmdFocus,
+  cmdFocusCanEdit,
+  onCmdFocus,
+  onCmdFocusExit,
   undoNonce,
   onUndo,
   undoLabel,
@@ -318,7 +365,12 @@ function PlayerPanel({
   canEdit: boolean;
   /** Viewer may change board geometry (local, or online host). */
   canLayout: boolean;
-  opponents: GamePlayer[];
+  /** Player currently logging the commander damage they've received, if any. */
+  cmdFocus: GamePlayer | null;
+  /** Whether the viewer may edit the focused player's counters. */
+  cmdFocusCanEdit: boolean;
+  onCmdFocus: () => void;
+  onCmdFocusExit: () => void;
   /** Increments on every undo so the panel can drop stale burst chips. */
   undoNonce: number;
   onUndo: () => void;
@@ -337,6 +389,19 @@ function PlayerPanel({
   // Initialize to the player's current eliminated state so a restored/resumed
   // game that loads an already-eliminated player doesn't fire the beat on mount.
   const prevEliminatedRef = useRef(player.eliminated);
+  // Focus mode splits panels in two: the focused player's own panel keeps
+  // showing their life (it drops live as they log damage), and every other
+  // panel becomes "commander damage THIS player has dealt to them".
+  const isCmdSelf = cmdFocus != null && cmdFocus.seat === player.seat;
+  const cmdTarget = cmdFocus != null && !isCmdSelf ? cmdFocus : null;
+  const cmdValue = cmdTarget ? (cmdTarget.commanderDamage[player.seat] ?? 0) : 0;
+  /** This panel's commander, for damage attribution — name is the fallback. */
+  const cmdSourceLabel = player.commander ?? player.name;
+  /** Every ±1 control reads as life or as commander damage, never ambiguously. */
+  const stepLabel = (delta: number) =>
+    cmdTarget
+      ? `${delta > 0 ? '+1' : '-1'} commander damage from ${cmdSourceLabel}`
+      : `${delta > 0 ? '+1' : '-1'} life`;
   // Life taps are blocked while any panel overlay is open (seat menu /
   // counters drawer) — otherwise a stray tap on the panel underneath the
   // overlay would change life unexpectedly while the user is picking a
@@ -344,13 +409,18 @@ function PlayerPanel({
   // Gates the life tap-zones / step buttons: also off while any overlay
   // (seat menu / counters / keypad) is open so a tap underneath doesn't
   // leak through.
-  const disabled =
-    !canEdit ||
-    player.eliminated ||
-    game.status === 'finished' ||
-    seatMenuOpen ||
-    drawerOpen ||
-    keypadOpen;
+  // In focus mode an opponent panel edits the FOCUSED player's counters, so
+  // the gate follows that player (and their eliminated state), not this one's
+  // — a dead player's commander can still be the one that killed you, and
+  // their panel must stay tickable while you reconstruct the damage.
+  const disabled = cmdTarget
+    ? !cmdFocusCanEdit || cmdTarget.eliminated || game.status === 'finished'
+    : !canEdit ||
+      player.eliminated ||
+      game.status === 'finished' ||
+      seatMenuOpen ||
+      drawerOpen ||
+      keypadOpen;
   // The counters popover's OWN +/- controls must stay live while it's open,
   // so they use this narrower gate (no overlay flags).
   const countersDisabled = !canEdit || player.eliminated || game.status === 'finished';
@@ -362,7 +432,7 @@ function PlayerPanel({
   const colorKey = seatColorKey(player);
   const seatPalette = useMemo(() => paletteForSeat(game.id, player.seat), [game.id, player.seat]);
 
-  const { display: animatedLife, popKey } = useAnimatedNumber(player.life);
+  const { display: animatedLife, popKey } = useAnimatedNumber(cmdTarget ? cmdValue : player.life);
   const { chips, push: pushDelta, clear: clearDelta } = useFloatingDelta();
   // An undo just reverted the life — drop the running-burst chip immediately
   // so the "+6" badge doesn't hang around for its normal 1.5s lifetime.
@@ -446,25 +516,47 @@ function PlayerPanel({
   const adjust = useCallback(
     (delta: number, skipTap = false) => {
       if (disabled) return;
-      dispatch({ type: 'life', seat: player.seat, delta, actorSeat: player.seat });
+      if (cmdTarget) {
+        // Attributed to the focused player as actor: they're the one at the
+        // device logging what hit them.
+        dispatch({
+          type: 'cmd-dmg',
+          seat: cmdTarget.seat,
+          fromSeat: player.seat,
+          delta,
+          actorSeat: cmdTarget.seat,
+        });
+      } else {
+        dispatch({ type: 'life', seat: player.seat, delta, actorSeat: player.seat });
+      }
       pushDelta(delta, lastPointerRef.current.x, lastPointerRef.current.y);
       if (!skipTap) haptics.tap();
     },
-    [disabled, dispatch, player.seat, pushDelta]
+    [disabled, dispatch, player.seat, pushDelta, cmdTarget]
   );
 
-  // Corner chips remain the tap/keyboard affordance for the counters cover;
-  // swipe-up is an additive shortcut for the common in-game move (log the
-  // commander damage that just hit you without hunting for a small chip).
+  // Corner chips remain the tap/keyboard affordance; swipe-up is an additive
+  // shortcut for the common in-game move (log what just hit you without
+  // hunting for a small chip). Commander damage claims the gesture when it's
+  // enabled — it's the frequent one — and poison keeps the counters cover.
   // `rotation` makes "up" panel-local, so it means up *for that seat*.
   // A vertical swipe also cancels the pending life tap/hold inside the hook.
-  const hasCounters = game.poisonEnabled || game.commanderDamageEnabled;
+  const canOpenCounters = canEdit && !player.eliminated && game.status !== 'finished';
   const tapHandlers = useTapAndHold({
     onTap: (delta: number) => adjust(delta),
     onHoldTick: (delta: number, gearUp: boolean) => adjust(delta, gearUp),
     onPointerStart: (e) => recordPointer(e.clientX, e.clientY),
     onPointerMove: (e) => recordPointer(e.clientX, e.clientY),
-    onSwipeUp: hasCounters && canEdit && !player.eliminated ? () => setDrawerOpen(true) : undefined,
+    onSwipeUp: cmdFocus
+      ? undefined
+      : canOpenCounters && game.commanderDamageEnabled
+        ? onCmdFocus
+        : canOpenCounters && game.poisonEnabled
+          ? () => setDrawerOpen(true)
+          : undefined,
+    // Swiping back down anywhere on the board leaves focus mode — every panel
+    // is rotated to the focused player, so "down" is down for whoever opened it.
+    onSwipeDown: cmdFocus ? onCmdFocusExit : undefined,
     rotation,
     disabled,
   });
@@ -493,6 +585,8 @@ function PlayerPanel({
           lethalFlash ? 'is-lethal-flash' : ''
         } ${isLowLife ? 'is-low-life' : ''} ${elimBeat ? 'is-elim-beat' : ''} ${
           isActiveTurn ? 'is-active-turn' : ''
+        } ${cmdTarget ? 'is-cmd-source' : ''} ${isCmdSelf ? 'is-cmd-self' : ''} ${
+          cmdTarget && cmdValue >= 21 ? 'is-cmd-lethal' : ''
         }`}
         // Rotation is set as a CSS variable consumed by the .player-panel
         // transform rule so it composes cleanly with any other transforms.
@@ -502,6 +596,8 @@ function PlayerPanel({
         // (see `.player-panel[data-sideways]`).
         style={{
           ['--pp-rot' as never]: `${rotation}deg`,
+          // Progress-to-21, consumed by the .pp-cmd-fill bar.
+          ...(cmdTarget ? { ['--fill' as never]: cmdDamageFillRatio(cmdValue) } : {}),
           ...(colorKey
             ? {}
             : {
@@ -512,16 +608,25 @@ function PlayerPanel({
         }}
         data-seat={player.seat}
         data-sideways={isSideways || undefined}
-        aria-label={`${player.name}: ${player.life} life`}
+        aria-label={
+          cmdTarget
+            ? `${cmdSourceLabel}: ${cmdValue} commander damage dealt to ${cmdTarget.name}`
+            : `${player.name}: ${player.life} life`
+        }
       >
         <CommanderArt name={player.commander} />
+        {cmdTarget && <div className="pp-cmd-fill" aria-hidden="true" />}
         {(game.tapOrientation ?? 'horizontal') === 'vertical' ? (
           <>
-            <div className="player-panel-tapzone is-top" {...tapHandlers(1)} aria-label="+1 life" />
+            <div
+              className="player-panel-tapzone is-top"
+              {...tapHandlers(1)}
+              aria-label={stepLabel(1)}
+            />
             <div
               className="player-panel-tapzone is-bottom"
               {...tapHandlers(-1)}
-              aria-label="-1 life"
+              aria-label={stepLabel(-1)}
             />
           </>
         ) : (
@@ -529,12 +634,12 @@ function PlayerPanel({
             <div
               className="player-panel-tapzone is-left"
               {...tapHandlers(-1)}
-              aria-label="-1 life"
+              aria-label={stepLabel(-1)}
             />
             <div
               className="player-panel-tapzone is-right"
               {...tapHandlers(1)}
-              aria-label="+1 life"
+              aria-label={stepLabel(1)}
             />
           </>
         )}
@@ -572,23 +677,32 @@ function PlayerPanel({
             )}
           </div>
 
-          <button
-            type="button"
-            className="player-panel-menu-btn is-corner-br"
-            aria-label="Seat menu"
-            onClick={(e) => {
-              e.stopPropagation();
-              setSeatMenuOpen((v) => !v);
-            }}
-          >
-            ⋯
-          </button>
+          {/* Hidden in focus mode: it would collide with the return bar, and
+              seat admin isn't what anyone is doing mid-damage-log. */}
+          {!cmdFocus && (
+            <button
+              type="button"
+              className="player-panel-menu-btn is-corner-br"
+              aria-label="Seat menu"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSeatMenuOpen((v) => !v);
+              }}
+            >
+              ⋯
+            </button>
+          )}
 
           <div className="player-panel-life-wrap">
+            {cmdTarget && (
+              <span className="pp-cmd-caption">
+                <span aria-hidden="true">⚔</span> dealt to {cmdTarget.name}
+              </span>
+            )}
             <button
               type="button"
               className="player-panel-step-btn"
-              aria-label="-1 life"
+              aria-label={stepLabel(-1)}
               disabled={disabled}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
@@ -606,13 +720,19 @@ function PlayerPanel({
             <button
               type="button"
               className="player-panel-life player-panel-life-btn"
-              aria-label={`Set life — currently ${player.life}`}
+              aria-label={
+                cmdTarget
+                  ? `${cmdValue} commander damage from ${cmdSourceLabel}`
+                  : `Set life — currently ${player.life}`
+              }
               aria-live="polite"
-              disabled={!canEdit || game.status === 'finished'}
+              // No set-by-keypad for commander damage: the number isn't this
+              // panel's to set, and the keypad would edit the wrong player.
+              disabled={cmdTarget != null || !canEdit || game.status === 'finished'}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
-                if (!canEdit || game.status === 'finished') return;
+                if (cmdTarget || !canEdit || game.status === 'finished') return;
                 setKeypadOpen(true);
               }}
             >
@@ -620,10 +740,17 @@ function PlayerPanel({
                 {animatedLife}
               </span>
             </button>
+            {cmdTarget && cmdDamageToLethal(cmdValue) !== null && (
+              // The value itself is aria-live above, so this derived read is a
+              // sighted-only convenience — hidden so it isn't announced twice.
+              <span className="pp-cmd-hint" aria-hidden="true">
+                {cmdDamageToLethal(cmdValue)} to lethal
+              </span>
+            )}
             <button
               type="button"
               className="player-panel-step-btn"
-              aria-label="+1 life"
+              aria-label={stepLabel(1)}
               disabled={disabled}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
@@ -638,7 +765,16 @@ function PlayerPanel({
             </button>
           </div>
 
-          {(game.poisonEnabled || game.commanderDamageEnabled) && (
+          {/* Focus mode: this panel's own life is no longer the headline, so
+              keep it as a small readout — you shouldn't lose the board state
+              just because you're logging damage. */}
+          {cmdTarget && (
+            <div className="player-panel-counters">
+              <span className="pp-life-chip">{player.life} life</span>
+            </div>
+          )}
+
+          {!cmdFocus && (game.poisonEnabled || game.commanderDamageEnabled) && (
             <div className="player-panel-counters">
               {game.poisonEnabled && (
                 <button
@@ -661,11 +797,12 @@ function PlayerPanel({
                 <button
                   type="button"
                   className={`pp-counter-chip ${maxCmdDmg >= 21 ? 'is-lethal' : ''}`}
-                  aria-label={`Commander damage, highest ${maxCmdDmg}. Open counters`}
+                  aria-label={`Commander damage, highest ${maxCmdDmg}. Log damage you've received`}
+                  disabled={!canOpenCounters}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setDrawerOpen(true);
+                    onCmdFocus();
                   }}
                 >
                   <span className="pp-counter-icon" aria-hidden="true">
@@ -712,11 +849,30 @@ function PlayerPanel({
           </button>
         )}
 
+        {/* The focused player's own panel carries the mode's title and the
+            explicit way out — it's already rotated to face them, and it's
+            where they're looking while their life ticks down. */}
+        {isCmdSelf && (
+          <div className="pp-cmd-focus-bar">
+            <span className="pp-cmd-focus-title">Commander damage you&rsquo;ve received</span>
+            <button
+              type="button"
+              className="pp-cmd-focus-done"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onCmdFocusExit();
+              }}
+            >
+              Return to game
+            </button>
+          </div>
+        )}
+
         {drawerOpen && (
           <CountersPopover
             player={player}
             game={game}
-            opponents={opponents}
             disabled={countersDisabled}
             rotation={rotation}
             dispatch={dispatch}
@@ -933,24 +1089,20 @@ function useTapAndHold({
   });
 }
 
-// ── Counters popover (poison + commander damage) ───────────────────────────
+// ── Counters popover (poison) ──────────────────────────────────────────────
 
 /**
- * Full-panel counters cover, opened by tapping a corner counter chip or by
- * swiping up on your own panel, and dismissed by swiping back down (or the
- * ✕ / Esc). Lives inside the panel so it inherits the seat's rotation and
- * reads upright for that player.
+ * Full-panel counters cover, opened by tapping the poison chip and dismissed
+ * by swiping back down (or the ✕ / Esc). Lives inside the panel so it
+ * inherits the seat's rotation and reads upright for that player.
  *
- * Commander damage renders as one tile per opponent, tinted with that
- * opponent's own panel color, so "who is hitting me" is answerable at a
- * glance from across the table. The reducer already subtracts life 1:1 on
- * every `cmd-dmg` tick, so the life total behind the cover moves live — there
- * is nothing to commit on the way out.
+ * Commander damage is NOT here — it's the board-level focus mode (see
+ * `PlayerPanel`), which puts each opponent's damage on that opponent's own
+ * seat instead of in a list.
  */
 function CountersPopover({
   player,
   game,
-  opponents,
   disabled,
   rotation,
   dispatch,
@@ -958,7 +1110,6 @@ function CountersPopover({
 }: {
   player: GamePlayer;
   game: GameState;
-  opponents: GamePlayer[];
   disabled: boolean;
   /** Panel rotation, so swipe-to-dismiss is panel-local for every seat. */
   rotation: number;
@@ -1007,28 +1158,6 @@ function CountersPopover({
           </button>
         </div>
         <div className="pp-counters-body">
-          {game.commanderDamageEnabled && opponents.length > 0 && (
-            <div className="pp-cmd-grid">
-              {opponents.map((o) => (
-                <CmdDamageTile
-                  key={o.seat}
-                  opponent={o}
-                  gameId={game.id}
-                  value={player.commanderDamage[o.seat] ?? 0}
-                  disabled={disabled}
-                  onChange={(d) =>
-                    dispatch({
-                      type: 'cmd-dmg',
-                      seat: player.seat,
-                      fromSeat: o.seat,
-                      delta: d,
-                      actorSeat: player.seat,
-                    })
-                  }
-                />
-              ))}
-            </div>
-          )}
           {game.poisonEnabled && (
             <CounterRow
               label="☠ Poison"
@@ -1046,7 +1175,7 @@ function CountersPopover({
   );
 }
 
-/** Progress toward 21 commander damage, clamped to [0, 1] for the tile's --fill fill-bar. */
+/** Progress toward 21 commander damage, clamped to [0, 1] for the panel's --fill bar. */
 export function cmdDamageFillRatio(value: number): number {
   return Math.max(0, Math.min(value, 21)) / 21;
 }
@@ -1054,90 +1183,6 @@ export function cmdDamageFillRatio(value: number): number {
 /** "N to lethal" hint text, or null when there's nothing worth showing (0, or already lethal). */
 export function cmdDamageToLethal(value: number): number | null {
   return value > 0 && value < 21 ? 21 - value : null;
-}
-
-/**
- * One opponent's commander damage: a big split tile (+ above the value, −
- * below) tinted in that opponent's panel color. Same tap-and-hold ramp as
- * the counter rows, so holding + races to 21.
- */
-function CmdDamageTile({
-  opponent,
-  gameId,
-  value,
-  disabled,
-  onChange,
-}: {
-  opponent: GamePlayer;
-  gameId: string;
-  value: number;
-  disabled: boolean;
-  onChange: (delta: number) => void;
-}) {
-  const tapHandlers = useTapAndHold({
-    onTap: onChange,
-    onHoldTick: (delta) => onChange(delta),
-    disabled,
-  });
-  const colorKey = seatColorKey(opponent);
-  const palette = paletteForSeat(gameId, opponent.seat);
-  const label = opponent.commander ?? opponent.name;
-  const lethal = value >= 21;
-  const fillRatio = cmdDamageFillRatio(value);
-  const toLethal = cmdDamageToLethal(value);
-  return (
-    <div
-      className={`pp-cmd-tile ${colorKey ? `pp-color-${colorKey}` : ''} ${
-        lethal ? 'is-lethal' : ''
-      }`}
-      // Mirrors the panel's own fallback: the pp-color-* class supplies the
-      // vars when a color identity / override exists, otherwise the seat
-      // palette does, inline. --fill (progress-to-21) is set either way.
-      style={{
-        ['--fill' as never]: fillRatio,
-        ...(colorKey
-          ? {}
-          : {
-              ['--pp-base' as never]: palette.base,
-              ['--pp-edge' as never]: palette.edge,
-              ['--pp-accent' as never]: palette.accent,
-            }),
-      }}
-    >
-      <span className="pp-cmd-tile-name" title={label}>
-        {label}
-      </span>
-      {toLethal !== null && (
-        // The value itself is aria-live below, so this derived "N to lethal"
-        // read is a sighted-only convenience — hidden from the AT tree to
-        // avoid announcing the same fact twice per tap.
-        <span className="pp-cmd-tile-hint" aria-hidden="true">
-          {toLethal} to lethal
-        </span>
-      )}
-      <button
-        type="button"
-        className="pp-cmd-tile-step is-plus"
-        aria-label={`+1 commander damage from ${label}`}
-        disabled={disabled}
-        {...tapHandlers(1)}
-      >
-        <span aria-hidden="true">+</span>
-      </button>
-      <span className="pp-cmd-tile-value" aria-live="polite">
-        {value}
-      </span>
-      <button
-        type="button"
-        className="pp-cmd-tile-step is-minus"
-        aria-label={`-1 commander damage from ${label}`}
-        disabled={disabled}
-        {...tapHandlers(-1)}
-      >
-        <span aria-hidden="true">−</span>
-      </button>
-    </div>
-  );
 }
 
 function CounterRow({
