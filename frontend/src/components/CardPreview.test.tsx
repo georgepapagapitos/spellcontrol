@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, vi, beforeAll } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
 
@@ -16,6 +16,20 @@ vi.mock('./CardImageFrame', () => ({
   CardImageFrame: (p: { turn?: number }) => (
     <div data-testid="card-image-frame" data-turn={p.turn} />
   ),
+}));
+
+const shareMock = vi.fn();
+vi.mock('@capacitor/share', () => ({ Share: { share: (o: unknown) => shareMock(o) } }));
+const writeFileMock = vi.fn(async (o: { path: string }) => ({ uri: `file:///cache/${o.path}` }));
+vi.mock('@capacitor/filesystem', () => ({
+  Directory: { Cache: 'CACHE' },
+  Filesystem: { writeFile: (o: { path: string }) => writeFileMock(o) },
+}));
+const fetchMock = vi.fn();
+const nativeMock = vi.fn(() => false);
+vi.mock('../lib/platform', () => ({
+  isNativePlatform: () => nativeMock(),
+  openExternal: vi.fn(),
 }));
 
 import { CardPreview } from './CardPreview';
@@ -127,6 +141,71 @@ describe('CardPreview printing identity (T36)', () => {
 
     renderPreview(mk({ language: 'en' }));
     expect(screen.queryByLabelText(/^Language/)).toBeNull();
+  });
+});
+
+describe('CardPreview share', () => {
+  const flipCard = mk({
+    name: 'Delver of Secrets',
+    imageNormal: 'https://img/front-normal.jpg',
+    imageLarge: 'https://img/front-large.jpg',
+    imageNormalBack: 'https://img/back-normal.jpg',
+  });
+
+  beforeEach(() => {
+    shareMock.mockClear();
+    writeFileMock.mockClear();
+    nativeMock.mockReturnValue(false);
+    fetchMock.mockClear();
+    fetchMock.mockResolvedValue({ blob: async () => new Blob(['art'], { type: 'image/jpeg' }) });
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  it('shares the image bytes for the face on screen, and follows a flip', async () => {
+    const shared: File[] = [];
+    vi.stubGlobal('navigator', navigator);
+    Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true });
+    Object.defineProperty(navigator, 'share', {
+      value: async (d: { files: File[] }) => shared.push(...d.files),
+      configurable: true,
+    });
+
+    // The card-detail lookup shares the global fetch; only art URLs are ours.
+    const artFetches = () =>
+      fetchMock.mock.calls.map((c) => String(c[0])).filter((u) => u.startsWith('https://img/'));
+
+    renderPreview(flipCard);
+    fireEvent.click(screen.getByRole('button', { name: 'Share card image' }));
+    await waitFor(() => expect(shared).toHaveLength(1));
+    expect(artFetches()).toEqual(['https://img/front-large.jpg']);
+    expect(shared[0].name).toBe('delver-of-secrets.jpg');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show back face' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Share card image' }));
+    await waitFor(() => expect(shared).toHaveLength(2));
+    // No back-large printing → falls back to the back's normal art.
+    expect(artFetches()[1]).toBe('https://img/back-normal.jpg');
+  });
+
+  it('stages the file in the app cache dir and shares the URI on native', async () => {
+    nativeMock.mockReturnValue(true);
+    renderPreview(flipCard);
+    fireEvent.click(screen.getByRole('button', { name: 'Share card image' }));
+
+    await waitFor(() => expect(shareMock).toHaveBeenCalled());
+    expect(writeFileMock.mock.calls[0][0]).toMatchObject({
+      path: 'delver-of-secrets.jpg',
+      directory: 'CACHE',
+    });
+    expect(shareMock.mock.calls[0][0]).toMatchObject({
+      title: 'Delver of Secrets',
+      files: ['file:///cache/delver-of-secrets.jpg'],
+    });
+  });
+
+  it('renders no Share button for a card with no art', () => {
+    renderPreview(mk({}));
+    expect(screen.queryByRole('button', { name: 'Share card image' })).toBeNull();
   });
 });
 

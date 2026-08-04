@@ -7,8 +7,10 @@ import {
   Layers,
   Notebook,
   Pencil,
+  Loader2,
   RefreshCw,
   RotateCw,
+  Share2,
   ZoomIn,
 } from 'lucide-react';
 import {
@@ -22,6 +24,9 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
+import { Share } from '@capacitor/share';
+import { Directory, Filesystem } from '@capacitor/filesystem';
+import { toast } from '../store/toasts';
 import type { EnrichedCard } from '../types';
 import { CardRulings } from './CardRulings';
 import { CardText, CardLegalities } from './CardDetails';
@@ -203,6 +208,9 @@ export function CardPreview({
   // cached; oracle text already renders instantly from the EnrichedCard.
   const detail = useCardDetail(cards[selected]?.name);
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
+  // Fetching + staging the full-res art takes a beat on a cold cache; the button
+  // shows a spinner and refuses a second tap until the sheet opens.
+  const [sharing, setSharing] = useState(false);
   // Per-card art-loaded flag. Drives the skeleton→image cross-fade so the
   // hero image lands gracefully under the sheet's rise animation instead
   // of popping in. Keyed by scryfallId since slides stay mounted.
@@ -497,6 +505,65 @@ export function CardPreview({
   if (!cards[selected]) return null;
   const current = cards[selected];
 
+  // Highest-res art for the face on screen — fed to both the zoom layer and Share.
+  const faceSrc =
+    flipped[selected] && current.imageNormalBack
+      ? current.imageLargeBack || current.imageNormalBack
+      : current.imageLarge || current.imageNormal;
+
+  // Share the image *bytes*, not a link. Native stages the jpg in the app cache
+  // dir — the one location the app's FileProvider exposes (res/xml/file_paths.xml)
+  // — and hands Share a file:// URI; web hands a File to the Web Share API. Where
+  // no file-capable share sheet exists (most desktop browsers) we save the image
+  // instead, so the button always ends in the user holding the picture.
+  const shareCard = async () => {
+    if (!faceSrc || sharing) return;
+    setSharing(true);
+    try {
+      const filename = `${current.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.jpg`;
+      // Safe on native despite CapacitorHttp being enabled: its fetch patch
+      // routes GET through the original window.fetch (via a proxy URL), so the
+      // bytes arrive intact rather than round-tripped as text.
+      const blob = await (await fetch(faceSrc)).blob();
+      if (isNativePlatform()) {
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onerror = () => reject(reader.error);
+          reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '');
+          reader.readAsDataURL(blob);
+        });
+        const { uri } = await Filesystem.writeFile({
+          path: filename,
+          data: base64,
+          directory: Directory.Cache,
+        });
+        await Share.share({ title: current.name, files: [uri], dialogTitle: 'Share card image' });
+      } else {
+        const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+        if (navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ files: [file], title: current.name });
+        } else {
+          const href = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = href;
+          a.download = filename;
+          a.click();
+          // Firefox needs the blob URL to outlive the click.
+          setTimeout(() => URL.revokeObjectURL(href), 1000);
+          toast.show({ message: 'Card image saved.', tone: 'success' });
+        }
+      }
+    } catch (err) {
+      // Dismissing the system sheet rejects (AbortError on web, "Share canceled"
+      // on Android) — a cancel is a no-op, not a failure worth a toast.
+      const e = err as { name?: string; message?: string };
+      if (e?.name === 'AbortError' || e?.message?.toLowerCase().includes('cancel')) return;
+      toast.show({ message: "Couldn't share this card image.", tone: 'warn' });
+    } finally {
+      setSharing(false);
+    }
+  };
+
   // Which Secret Lair drop this printing came from (E140) — SLD cards only.
   const sldDropLabel =
     current.setCode?.toUpperCase() === SLD_CODE && sldIndex && current.collectorNumber
@@ -603,11 +670,7 @@ export function CardPreview({
           <img
             ref={zoomImgRef}
             className="card-preview-zoom-img"
-            src={
-              flipped[selected] && current.imageNormalBack
-                ? current.imageLargeBack || current.imageNormalBack
-                : current.imageLarge || current.imageNormal
-            }
+            src={faceSrc}
             alt={`${current.name} (zoomed)`}
             draggable={false}
             decoding="async"
@@ -652,6 +715,27 @@ export function CardPreview({
             >
               <ZoomIn width={18} height={18} strokeWidth={2} aria-hidden />
               <span>Zoom</span>
+            </button>
+          )}
+          {faceSrc && (
+            <button
+              type="button"
+              className="card-preview-flip-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                void shareCard();
+              }}
+              aria-label="Share card image"
+              title="Share card image"
+              disabled={sharing}
+              aria-busy={sharing}
+            >
+              {sharing ? (
+                <Loader2 className="card-preview-share-spinner" aria-hidden />
+              ) : (
+                <Share2 width={18} height={18} strokeWidth={2} aria-hidden />
+              )}
+              <span>Share</span>
             </button>
           )}
           {current.imageNormalBack && (
