@@ -630,6 +630,28 @@
   transform: scale(0.96);
 }
 
+/* In-flight action (Share, while the art is fetched + staged). */
+.card-preview-flip-btn:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.card-preview-flip-btn:disabled:active {
+  transform: none;
+}
+
+.card-preview-share-spinner {
+  width: 18px;
+  height: 18px;
+  animation: spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-preview-share-spinner {
+    animation: none;
+  }
+}
+
 /* Destructive action (e.g. Delete) in the icon bar. */
 .card-preview-flip-btn.is-danger {
   color: #ff8a8a;
