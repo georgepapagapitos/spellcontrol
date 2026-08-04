@@ -37,6 +37,7 @@ import { SLD_CODE, dropsForNumber, useSldDrops } from '../lib/sld-drops';
 import { formatMoney } from '../lib/format-money';
 import { formatPricedDate } from '../lib/price-freshness';
 import { CardImageFrame } from './CardImageFrame';
+import { CardShareDialog } from './CardShareDialog';
 import { foilFinishLabel } from '../lib/foil-style';
 import { LANGUAGE_OPTIONS } from './PrintingPicker';
 import { ManaCost } from './ManaCost';
@@ -152,6 +153,22 @@ interface Props {
   source?: CardPreviewSource;
 }
 
+/**
+ * Can the platform put an image file in a system share sheet? Native always
+ * can (Capacitor's Share plugin); browsers answer via `canShare`, and an empty
+ * probe File is enough to ask. Desktop browsers say no — they get our own
+ * share dialog instead.
+ */
+function canShareFiles(): boolean {
+  if (isNativePlatform()) return true;
+  try {
+    const probe = new File([], 'card.jpg', { type: 'image/jpeg' });
+    return navigator.canShare?.({ files: [probe] }) ?? false;
+  } catch {
+    return false;
+  }
+}
+
 const PRELOAD_RADIUS = 2;
 // Turn toggles (degrees) for single-faced layouts printed sideways — one turn
 // to read, one turn back upright. Split halves (incl. DSK Rooms) all read at
@@ -207,6 +224,7 @@ export function CardPreview({
   // Fetching + staging the full-res art takes a beat on a cold cache; the button
   // shows a spinner and refuses a second tap until the sheet opens.
   const [sharing, setSharing] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   // Per-card art-loaded flag. Drives the skeleton→image cross-fade so the
   // hero image lands gracefully under the sheet's rise animation instead
   // of popping in. Keyed by scryfallId since slides stay mounted.
@@ -358,6 +376,8 @@ export function CardPreview({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // The share dialog is a layer above us and owns its own Escape.
+      if (shareOpen) return;
       if (e.key === 'Escape') {
         // The preview is always the topmost overlay; capture + stop so a host
         // sheet's document-level Escape listener can't also fire and dismiss
@@ -375,7 +395,7 @@ export function CardPreview({
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [beginClose, selected, cards.length]);
+  }, [beginClose, selected, cards.length, shareOpen]);
 
   const { isDragging, axisLockRef, touchHandlers } = useSwipeDownDismiss({
     onDismiss: beginClose,
@@ -487,18 +507,16 @@ export function CardPreview({
 
   // Share the image *bytes*, not a link. Native stages the jpg in the app cache
   // dir — the one location the app's FileProvider exposes (res/xml/file_paths.xml)
-  // — and hands Share a file:// URI; web hands a File to the Web Share API. Where
-  // no file-capable share sheet exists (most desktop browsers) we save the image
-  // instead, so the button always ends in the user holding the picture.
-  const shareCard = async () => {
-    if (!faceSrc || sharing) return;
+  // — and hands Share a file:// URI; mobile web hands a File to the Web Share
+  // API. Both land the user in the system sheet, recent conversations and all.
+  const systemShare = async () => {
     setSharing(true);
     try {
       const filename = `${current.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.jpg`;
       // Safe on native despite CapacitorHttp being enabled: its fetch patch
       // routes GET through the original window.fetch (via a proxy URL), so the
       // bytes arrive intact rather than round-tripped as text.
-      const blob = await (await fetch(faceSrc)).blob();
+      const blob = await (await fetch(faceSrc!)).blob();
       if (isNativePlatform()) {
         const base64 = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
@@ -514,18 +532,7 @@ export function CardPreview({
         await Share.share({ title: current.name, files: [uri], dialogTitle: 'Share card image' });
       } else {
         const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
-        if (navigator.canShare?.({ files: [file] })) {
-          await navigator.share({ files: [file], title: current.name });
-        } else {
-          const href = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = href;
-          a.download = filename;
-          a.click();
-          // Firefox needs the blob URL to outlive the click.
-          setTimeout(() => URL.revokeObjectURL(href), 1000);
-          toast.show({ message: 'Card image saved.', tone: 'success' });
-        }
+        await navigator.share({ files: [file], title: current.name });
       }
     } catch (err) {
       // Dismissing the system sheet rejects (AbortError on web, "Share canceled"
@@ -536,6 +543,14 @@ export function CardPreview({
     } finally {
       setSharing(false);
     }
+  };
+
+  // Desktop browsers have no system share sheet; they get our own dialog of
+  // destinations instead of a silent download.
+  const shareCard = () => {
+    if (!faceSrc || sharing) return;
+    if (canShareFiles()) void systemShare();
+    else setShareOpen(true);
   };
 
   // Which Secret Lair drop this printing came from (E140) — SLD cards only.
@@ -651,7 +666,7 @@ export function CardPreview({
               className="card-preview-flip-btn"
               onClick={(e) => {
                 e.stopPropagation();
-                void shareCard();
+                shareCard();
               }}
               aria-label="Share card image"
               title="Share card image"
@@ -1039,6 +1054,22 @@ export function CardPreview({
           </div>
         </div>
       </div>
+      {/* Portaled out of the backdrop's DOM subtree, and its clicks stopped
+          here: React bubbles portal events through the *component* tree, so
+          without this every tap inside the dialog would reach the backdrop's
+          onClose and dismiss the whole preview underneath it. */}
+      {shareOpen &&
+        faceSrc &&
+        createPortal(
+          <div onClick={(e) => e.stopPropagation()}>
+            <CardShareDialog
+              name={current.name}
+              imageUrl={faceSrc}
+              onClose={() => setShareOpen(false)}
+            />
+          </div>,
+          document.body
+        )}
     </div>,
     document.body
   );
