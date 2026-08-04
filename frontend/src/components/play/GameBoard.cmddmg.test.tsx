@@ -162,6 +162,24 @@ describe('entering commander-damage focus mode', () => {
     expect(focusBar()).toBeTruthy();
   });
 
+  it('does NOT re-orient the board — every seat keeps its own rotation', () => {
+    renderPod();
+    const rotations = () =>
+      Array.from(document.querySelectorAll('.player-panel[data-seat]')).map((el) =>
+        (el as HTMLElement).style.getPropertyValue('--pp-rot')
+      );
+    // Default 3p layout: seat 0 rotated 180°, seats 1–2 upright.
+    const before = rotations();
+    expect(before).toEqual(['180deg', '0deg', '0deg']);
+
+    drag(tapZone(0), ALICE_UP);
+
+    // Turning the panels toward whoever opened the mode reads as the seats
+    // themselves moving, which looks broken. A mode changes what a panel
+    // says, never where it sits or which way it faces.
+    expect(rotations()).toEqual(before);
+  });
+
   it('ignores a drag that is short or predominantly horizontal', () => {
     renderPod();
     const zone = tapZone(0);
