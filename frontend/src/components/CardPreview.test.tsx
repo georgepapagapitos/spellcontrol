@@ -207,6 +207,21 @@ describe('CardPreview share', () => {
     renderPreview(mk({}));
     expect(screen.queryByRole('button', { name: 'Share card image' })).toBeNull();
   });
+
+  it('opens the share dialog instead of a silent download where the OS has no sheet', async () => {
+    Object.defineProperty(navigator, 'canShare', { value: () => false, configurable: true });
+    renderPreview(flipCard);
+    fireEvent.click(screen.getByRole('button', { name: 'Share card image' }));
+
+    // No art fetched yet, no system share — the user picks a destination first.
+    expect(await screen.findByText('Share Delver of Secrets')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Save image/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Copy image link/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Email/ })).toBeTruthy();
+    expect(
+      fetchMock.mock.calls.filter((c) => String(c[0]).startsWith('https://img/'))
+    ).toHaveLength(0);
+  });
 });
 
 describe('CardPreview turn (sideways layouts)', () => {

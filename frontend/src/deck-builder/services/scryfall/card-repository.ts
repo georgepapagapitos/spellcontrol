@@ -27,7 +27,7 @@ export interface CardRepository {
   ): Promise<ScryfallSearchResponse>;
 
   /** Resolve a single card by (case-insensitive) name. Throws if not found. */
-  getCardByName(name: string, exact?: boolean): Promise<ScryfallCard>;
+  getCardByName(name: string): Promise<ScryfallCard>;
 
   /** Batch-resolve cards by name. Missing names are simply absent from the map. */
   getCardsByNames(
