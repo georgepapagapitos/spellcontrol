@@ -254,6 +254,13 @@ export interface PodStanding {
 export interface PodRecords {
   firstBlood: { userId: string; username: string; games: number; rate: number } | null;
   mostKos: { userId: string; username: string; kos: number } | null;
+  /**
+   * Best win rate when on the play. Null until someone clears the server's
+   * small-sample floor on recorded starts — a pod that never taps the
+   * first-player tool never earns this one at all, which is absent data and
+   * must read as absent.
+   */
+  onThePlay: { userId: string; username: string; wins: number; starts: number } | null;
   archenemy: {
     killerId: string;
     killerName: string;
@@ -268,7 +275,12 @@ export interface PodLeaderboard {
   records: PodRecords;
 }
 
-const NO_RECORDS: PodRecords = { firstBlood: null, mostKos: null, archenemy: null };
+const NO_RECORDS: PodRecords = {
+  firstBlood: null,
+  mostKos: null,
+  onThePlay: null,
+  archenemy: null,
+};
 
 export async function fetchPodLeaderboard(id: string): Promise<PodLeaderboard> {
   const res = await fetch(apiUrl(`/api/pods/${encodeURIComponent(id)}/leaderboard`), {

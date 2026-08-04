@@ -19,6 +19,15 @@ export const podStatsRouter: Router = Router();
 const readLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 }); // mirrors game-results.ts's readLimiter
 
 /**
+ * Minimum recorded starts before the "converts the play" superlative will
+ * name anyone. Without a floor, a single 1-for-1 start is a 100% conversion
+ * rate and wins the title outright — the superlative would report noise as a
+ * fact. Three is the smallest sample that isn't a coin flip; raise it if the
+ * title starts churning between members every game night.
+ */
+const MIN_ON_THE_PLAY = 3;
+
+/**
  * Pod-context projection over the shared toPublic()/ResultRow. The pod gate
  * below only requires >=2 pod members present in a game, never "every
  * participant is a pod member", so a qualifying game can include strangers who
@@ -195,6 +204,12 @@ podStatsRouter.get(
         avgPlacement: derived.avgPlacement,
         firstBlood: derived.firstBloodDrawn,
         kos: derived.kos,
+        // On-the-play carries its OWN denominator: a pod can have summaries
+        // for every game and still never have tapped the first-player tool,
+        // which is absent data, not a 0% win rate on the play.
+        onThePlayGames: derived.onThePlayGames,
+        wentFirst: derived.wentFirst,
+        wonGoingFirst: derived.wonGoingFirst,
       };
     });
     standings.sort(
@@ -226,6 +241,8 @@ function podRecords(
     ratedGames: number;
     firstBlood: number;
     kos: number;
+    wentFirst: number;
+    wonGoingFirst: number;
   }[],
   games: PublicGameResult[],
   nameById: Map<string, string>
@@ -237,6 +254,15 @@ function podRecords(
 
   const bloodiest = best(standings, (s) => s.firstBlood);
   const deadliest = best(standings, (s) => s.kos);
+  // "Converts the play" — who actually wins when they start. Requires at least
+  // MIN_ON_THE_PLAY starts, because 1-for-1 is 100% and would top this every
+  // time on pure noise. Null until someone clears the bar, and null renders as
+  // absent like every other superlative here.
+  const converter =
+    best(
+      standings.filter((s) => s.wentFirst >= MIN_ON_THE_PLAY),
+      (s) => s.wonGoingFirst / s.wentFirst
+    ) ?? null;
   // Member-vs-member only — see bothInPod. `standings` is already
   // roster-derived, so the two superlatives above are member-scoped already.
   const rivalry = killEdges(games).find((e) => bothInPod(e, nameById)) ?? null;
@@ -252,6 +278,14 @@ function podRecords(
       : null,
     mostKos: deadliest
       ? { userId: deadliest.userId, username: deadliest.username, kos: deadliest.kos }
+      : null,
+    onThePlay: converter
+      ? {
+          userId: converter.userId,
+          username: converter.username,
+          wins: converter.wonGoingFirst,
+          starts: converter.wentFirst,
+        }
       : null,
     archenemy: rivalry
       ? {

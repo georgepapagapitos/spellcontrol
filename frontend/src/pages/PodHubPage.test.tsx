@@ -107,7 +107,12 @@ function podDetail(overrides: Partial<PodDetail> = {}): PodDetail {
 
 /** A pod with no summary-carrying games — the default for tests that aren't
  *  about the records strip (which renders nothing in this state). */
-const NO_RECORDS: PodRecords = { firstBlood: null, mostKos: null, archenemy: null };
+const NO_RECORDS: PodRecords = {
+  firstBlood: null,
+  mostKos: null,
+  onThePlay: null,
+  archenemy: null,
+};
 
 /** Standings default to "no derived data", so a test opts in to the stats
  *  columns only when it's actually asserting on them. */
@@ -423,6 +428,21 @@ describe('PodHubPage — leaderboard', () => {
     expect(screen.queryByLabelText('Pod records')).toBeNull();
   });
 
+  it('omits on-the-play while the other superlatives render', async () => {
+    vi.mocked(getPod).mockResolvedValue(podDetail());
+    vi.mocked(fetchPodLeaderboard).mockResolvedValue({
+      standings: [standing({ userId: 'owner1', username: 'sam', played: 4, wins: 3 })],
+      // A pod that never taps the first-player tool earns every other record
+      // and simply never earns this one — absent, not 0%.
+      records: { ...NO_RECORDS, mostKos: { userId: 'owner1', username: 'sam', kos: 5 } },
+    });
+    renderPage();
+
+    const strip = await screen.findByLabelText('Pod records');
+    expect(within(strip).getByText('Most KOs')).toBeTruthy();
+    expect(within(strip).queryByText('On the play')).toBeNull();
+  });
+
   it('renders the superlatives once the pod has them', async () => {
     vi.mocked(getPod).mockResolvedValue(podDetail());
     vi.mocked(fetchPodLeaderboard).mockResolvedValue({
@@ -442,6 +462,7 @@ describe('PodHubPage — leaderboard', () => {
       records: {
         firstBlood: { userId: 'owner1', username: 'sam', games: 2, rate: 0.5 },
         mostKos: { userId: 'owner1', username: 'sam', kos: 5 },
+        onThePlay: { userId: 'owner1', username: 'sam', wins: 3, starts: 4 },
         archenemy: {
           killerId: 'owner1',
           killerName: 'sam',
@@ -457,6 +478,10 @@ describe('PodHubPage — leaderboard', () => {
     expect(within(strip).getByText('50%')).toBeTruthy();
     expect(within(strip).getByText('×3')).toBeTruthy();
     expect(within(strip).getByText(/sam → viewer/)).toBeTruthy();
+    // On the play shows the sample, not just a rate — "3/4" is honest in a
+    // way a bare 75% isn't.
+    expect(within(strip).getByText('On the play')).toBeTruthy();
+    expect(within(strip).getByText('3/4')).toBeTruthy();
 
     const heading = screen.getByText('Leaderboard');
     const panel = heading.closest('.deck-stats-panel') as HTMLElement;

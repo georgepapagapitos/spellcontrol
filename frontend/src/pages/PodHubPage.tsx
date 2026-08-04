@@ -97,8 +97,8 @@ function PodLeaderboardRow({ standing }: { standing: PodStanding }) {
  * displaces content to show an empty state.
  */
 function PodRecordsStrip({ records }: { records: PodRecords }) {
-  const { firstBlood, mostKos, archenemy } = records;
-  if (!firstBlood && !mostKos && !archenemy) return null;
+  const { firstBlood, mostKos, onThePlay, archenemy } = records;
+  if (!firstBlood && !mostKos && !onThePlay && !archenemy) return null;
   return (
     <ul className="pod-hub-records" aria-label="Pod records">
       {firstBlood && (
@@ -114,6 +114,19 @@ function PodRecordsStrip({ records }: { records: PodRecords }) {
           <span className="pod-hub-record-label">Most KOs</span>
           <span className="pod-hub-record-value">
             {mostKos.username} <b>{mostKos.kos}</b>
+          </span>
+        </li>
+      )}
+      {onThePlay && (
+        <li>
+          <span className="pod-hub-record-label">On the play</span>
+          {/* Both numbers shown, not just the rate: "3 of 4" is honest about
+              the sample in a way a bare 75% isn't. */}
+          <span className="pod-hub-record-value">
+            {onThePlay.username}{' '}
+            <b>
+              {onThePlay.wins}/{onThePlay.starts}
+            </b>
           </span>
         </li>
       )}
