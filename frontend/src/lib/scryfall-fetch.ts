@@ -17,6 +17,10 @@ export const SCRYFALL_BASE_URL = import.meta.env.DEV ? '/scryfall-api' : 'https:
 
 const MIN_REQUEST_DELAY = 100; // 100ms between requests (Scryfall allows 10/sec)
 const MAX_RETRIES = 4; // cap 429/503 retries so a sustained throttle or outage fails instead of hanging
+// A CORS-blocked 429 is indistinguishable from a dead network at the API level,
+// so it gets its own much smaller budget: enough to park the shared queue, not
+// enough to hold a spinner ~15s when the device really is unreachable.
+const MAX_OPAQUE_RETRIES = 1;
 const BASE_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30_000; // ceiling on *computed* backoff; an explicit Retry-After is always honored in full
 const JITTER_MS = 250;
@@ -120,6 +124,12 @@ export interface ScryfallStats {
   requests: number;
   /** Responses that came back 429. */
   throttled: number;
+  /**
+   * Requests that failed opaquely while the device reported itself online —
+   * almost always a CORS-blocked 429 (see {@link scryfallRequest}). Counted
+   * apart from `throttled` because we never actually saw a status code.
+   */
+  blocked: number;
   /** Responses that came back 503. */
   unavailable: number;
   /** Requests that burned every retry and returned a failing response. */
@@ -131,6 +141,7 @@ export interface ScryfallStats {
 const stats: ScryfallStats = {
   requests: 0,
   throttled: 0,
+  blocked: 0,
   unavailable: 0,
   gaveUp: 0,
   cooldownMs: 0,
@@ -145,6 +156,7 @@ export function getScryfallStats(): ScryfallStats {
 export function resetScryfallStats(): void {
   stats.requests = 0;
   stats.throttled = 0;
+  stats.blocked = 0;
   stats.unavailable = 0;
   stats.gaveUp = 0;
   stats.cooldownMs = 0;
@@ -179,17 +191,52 @@ export function parseRetryAfter(header: string | null): number | null {
  * callers back off too. Capped at MAX_RETRIES so a sustained throttle or an
  * outage returns the failing response instead of hanging deck generation.
  *
- * Network-level failures (offline, DNS, dev-proxy down, CORS) reject as they
- * would from a bare `fetch` — callers already handle those their own way.
+ * Network-level failures (offline, DNS, dev-proxy down) reject as they would
+ * from a bare `fetch` — callers already handle those their own way — but see
+ * the opaque-throttle handling below for why a rejection can't be taken at face
+ * value while the device is online.
  */
 export async function scryfallRequest(path: string, init?: RequestInit): Promise<Response> {
+  let opaqueFailures = 0;
+
   for (let attempt = 0; ; attempt++) {
     await rateLimiter.acquire();
     stats.requests += 1;
-    const response = await fetch(`${SCRYFALL_BASE_URL}${path}`, {
-      ...init,
-      headers: init?.headers ?? { Accept: 'application/json' },
-    });
+
+    let response: Response;
+    try {
+      response = await fetch(`${SCRYFALL_BASE_URL}${path}`, {
+        ...init,
+        headers: init?.headers ?? { Accept: 'application/json' },
+      });
+    } catch (err) {
+      // Scryfall omits `Access-Control-Allow-Origin` on its 429s. A cross-origin
+      // response without that header never reaches JS: `fetch` rejects, and the
+      // 429 branch below is unreachable in a production build — exactly the case
+      // it was written for. (Dev is immune: the Vite `/scryfall-api` proxy makes
+      // these same-origin, so the status arrives readable.) So the whole burst
+      // would keep firing on the 100ms cadence into an active block, deepening it.
+      //
+      // A rejection while the device believes it is online is overwhelmingly that
+      // throttle, so park the shared queue exactly as a readable 429 would. We
+      // can't read Retry-After either, so this uses our own backoff rather than
+      // the 60s Scryfall asks for — enough to stop the burst without freezing the
+      // app for a minute on what might just be a blip. Genuine offline rejects
+      // straight through: no amount of backoff fixes a missing network.
+      const online = typeof navigator === 'undefined' || navigator.onLine !== false;
+      if (!online || opaqueFailures >= MAX_OPAQUE_RETRIES) throw err;
+
+      opaqueFailures += 1;
+      stats.blocked += 1;
+      const waitMs =
+        Math.min(BASE_BACKOFF_MS * 2 ** attempt, MAX_BACKOFF_MS) + Math.random() * JITTER_MS;
+      logger.warn(
+        `[scryfall] opaque failure on ${path} — likely a CORS-blocked 429; cooling down ${Math.round(waitMs)}ms`
+      );
+      stats.cooldownMs += Math.round(waitMs);
+      rateLimiter.cooldown(waitMs);
+      continue;
+    }
 
     if (response.status !== 429 && response.status !== 503) return response;
     if (response.status === 429) stats.throttled += 1;

@@ -261,3 +261,90 @@ describe('ScryfallCache identifier lookups', () => {
     expect(cache.getManyByKeys(['n:sol ring']).get('n:sol ring')?.id).toBe('id-b');
   });
 });
+
+describe('ScryfallCache.getCheapestByName', () => {
+  /** Store a printing the way the bulk ingest does: card row + `ns:`/`nsc:` aliases. */
+  function printing(
+    id: string,
+    name: string,
+    set: string,
+    prices?: ScryfallCard['prices']
+  ): ScryfallCard {
+    const c: ScryfallCard = {
+      id,
+      name,
+      rarity: 'rare',
+      set,
+      set_name: set.toUpperCase(),
+      collector_number: '1',
+      prices,
+    };
+    cache.setMany([c]);
+    cache.setLookups([
+      { key: `ns:${name.toLowerCase()}|${set}`, scryfallId: id },
+      { key: `nsc:${name.toLowerCase()}|${set}|1`, scryfallId: id },
+    ]);
+    return c;
+  }
+
+  it('returns null when the name is unknown or blank', () => {
+    expect(cache.getCheapestByName('Arena Rector')).toBeNull();
+    expect(cache.getCheapestByName('   ')).toBeNull();
+  });
+
+  it('picks the cheapest nonfoil USD printing across sets', () => {
+    printing('id-2xm', 'Arena Rector', '2xm', { usd: '24.50' });
+    printing('id-bro', 'Arena Rector', 'bro', { usd: '18.99' });
+    printing('id-sld', 'Arena Rector', 'sld', { usd: null, usd_foil: '5.00' });
+
+    expect(cache.getCheapestByName('Arena Rector')?.id).toBe('id-bro');
+  });
+
+  // A foil-only default (Secret Lair et al.) is exactly what made the live path
+  // fire a SECOND request to the price-ordered search endpoint.
+  it('falls back to the cheapest foil when no printing has a nonfoil price', () => {
+    printing('id-a', 'Foily Thing', 'sld', { usd: null, usd_foil: '89.28' });
+    printing('id-b', 'Foily Thing', 'slx', { usd: null, usd_foil: '42.00' });
+
+    expect(cache.getCheapestByName('Foily Thing')?.id).toBe('id-b');
+  });
+
+  it('returns a printing even when nothing carries a price at all', () => {
+    printing('id-a', 'Priceless', 'unk');
+    expect(cache.getCheapestByName('Priceless')?.id).toBe('id-a');
+  });
+
+  // The prefix scan is the whole trick — it must not bleed into a neighbouring
+  // name, and it must not pick up the `nsc:` keys (which sort after every `ns:`).
+  it('scans only the requested name, not neighbours or nsc: keys', () => {
+    printing('id-rector', 'Arena Rector', 'bro', { usd: '18.99' });
+    printing('id-arena', 'Arena', 'unh', { usd: '0.25' });
+    printing('id-long', 'Arena Rector of Doom', 'xxx', { usd: '0.01' });
+
+    expect(cache.getCheapestByName('Arena Rector')?.id).toBe('id-rector');
+    expect(cache.getCheapestByName('Arena')?.id).toBe('id-arena');
+  });
+
+  it('matches case-insensitively and on the front face of a split name', () => {
+    printing('id-a', 'Fire', 'apc', { usd: '1.00' });
+    expect(cache.getCheapestByName('fire')?.id).toBe('id-a');
+    expect(cache.getCheapestByName('Fire // Ice')?.id).toBe('id-a');
+  });
+
+  // Callers pass the 36h price window: past it the nightly ingest has been
+  // missing runs and the prices shouldn't be quoted as money.
+  it('honors a tightened max age', () => {
+    printing('id-a', 'Arena Rector', 'bro', { usd: '18.99' });
+    const twoDaysAgo = Date.now() - 2 * 24 * 60 * 60 * 1000;
+    (
+      cache as unknown as {
+        db: { prepare: (sql: string) => { run: (...args: unknown[]) => void } };
+      }
+    ).db
+      .prepare('UPDATE cards SET cached_at = ? WHERE scryfall_id = ?')
+      .run(twoDaysAgo, 'id-a');
+
+    expect(cache.getCheapestByName('Arena Rector', 36 * 60 * 60 * 1000)).toBeNull();
+    expect(cache.getCheapestByName('Arena Rector')?.id).toBe('id-a');
+  });
+});

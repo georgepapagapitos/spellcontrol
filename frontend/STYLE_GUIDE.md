@@ -949,10 +949,38 @@ works for the bottom seat and is backwards for the top one.
   a life tap. Don't add a second, competing threshold.
 - **Anything that identifies another player is tinted in that player's own
   panel color**, resolved the same three ways the panel is: explicit override →
-  color identity (`pp-color-*`) → `paletteForSeat` inline vars. The
-  commander-damage tiles do this so "who is killing me" is answerable by color
-  from across the table, before any name is read. Use the `seatColorKey` helper
-  rather than re-deriving the override/identity precedence.
+  color identity (`pp-color-*`) → `paletteForSeat` inline vars. Use the
+  `seatColorKey` helper rather than re-deriving the override/identity
+  precedence.
+
+### Board modes — per-player data belongs on that player's seat
+
+When a surface answers "what has each *other* player done to me?"
+(commander damage is the case in hand), it is a **board-level mode**, not a
+list inside one panel. Every seat keeps its position and color and changes
+what its number *means*; the physical table does the identifying, so nobody
+has to re-find "Nathan" in a popup. `.game-board.is-cmd-focus` is the
+reference.
+
+- **The anchor panel keeps its normal reading.** The player who opened the
+  mode still sees their own life total, undimmed (`.is-cmd-self`), so the
+  consequence of each tick is visible in place. Don't stage the effect to
+  apply on close — the underlying action already moves life live.
+- **Every other panel is visibly re-skinned so its number can't be misread as
+  life.** Required, not decorative: dim + desaturate (`.is-cmd-source`), a
+  caption naming the direction (`⚔ dealt to <name>`), and the panel's own now-
+  demoted value kept as a small readout (`.pp-life-chip`) so board state isn't
+  lost. A bare swapped numeral is a bug, not a minimal implementation.
+- **Rotation follows the reader, not the seat.** In a mode, all panels rotate
+  to face whoever opened it (`cmdFocusRot`) — the numbers are theirs to read.
+  This is the one exception to "each panel faces its own seat."
+- **Three ways out, always:** an explicit labelled button
+  (`.pp-cmd-focus-done`), a swipe back down on any panel, and `Esc`. The
+  title and the button live on the anchor panel, which is already rotated
+  correctly and is where the user is looking.
+- **Seat admin is suppressed** (the `⋯` button and the counter chips) — the
+  panel's controls now mean something else, and leaving stale affordances
+  around is how a tap edits the wrong player.
 
 ### Store-driven global overlays (E170)
 

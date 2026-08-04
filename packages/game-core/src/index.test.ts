@@ -176,11 +176,14 @@ describe('applyAction', () => {
     ).toThrow();
   });
 
-  it('cmd-dmg negative delta clamps at 0', () => {
-    let s = applyAction(lobby(), { type: 'start' });
-    s = applyAction(s, { type: 'cmd-dmg', seat: 1, fromSeat: 0, delta: 5, actorSeat: 0 });
+  it('cmd-dmg negative delta clamps at 0, and refunds only the damage applied', () => {
+    const s0 = applyAction(lobby(), { type: 'start' });
+    const startingLife = s0.players[1].life;
+    let s = applyAction(s0, { type: 'cmd-dmg', seat: 1, fromSeat: 0, delta: 5, actorSeat: 0 });
     s = applyAction(s, { type: 'cmd-dmg', seat: 1, fromSeat: 0, delta: -20, actorSeat: 0 });
     expect(s.players[1].commanderDamage[0]).toBe(0);
+    // The 15 points the clamp swallowed must not become bonus life.
+    expect(s.players[1].life).toBe(startingLife);
   });
 
   it('cmd-dmg throws on unknown seat', () => {
