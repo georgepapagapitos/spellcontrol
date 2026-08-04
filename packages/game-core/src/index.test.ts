@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   applyAction,
+  cmdDamageKey,
   createGameState,
   gameToRecord,
   makePlayer,
@@ -227,6 +228,71 @@ describe('applyAction', () => {
 
     const s = applyAction(legacy, { type: 'life', seat: 0, delta: -1, actorSeat: 0 });
     expect(s.startingSeat).toBeNull();
+  });
+
+  it('tracks a partner pair as two independent commanders', () => {
+    let s = applyAction(lobby(), { type: 'start' });
+    s = applyAction(s, { type: 'cmd-dmg', seat: 1, fromSeat: 0, delta: 7, actorSeat: 0 });
+    s = applyAction(s, {
+      type: 'cmd-dmg',
+      seat: 1,
+      fromSeat: 0,
+      fromPartner: true,
+      delta: 4,
+      actorSeat: 0,
+    });
+
+    expect(s.players[1].commanderDamage[cmdDamageKey(0)]).toBe(7);
+    expect(s.players[1].commanderDamage[cmdDamageKey(0, true)]).toBe(4);
+    // Both still drain life 1:1 — the split is about the 21 rule, not damage.
+    expect(s.players[1].life).toBe(40 - 11);
+  });
+
+  it('does NOT kill at 21 combined across a partner pair (rule 903.10a)', () => {
+    let s = applyAction(lobby(), { type: 'start' });
+    // 11 + 10 = 21 total, but neither commander reached 21 on its own, so
+    // nobody dies. This is the false kill the per-seat bucket used to fire.
+    s = applyAction(s, { type: 'cmd-dmg', seat: 1, fromSeat: 0, delta: 11, actorSeat: 0 });
+    s = applyAction(s, {
+      type: 'cmd-dmg',
+      seat: 1,
+      fromSeat: 0,
+      fromPartner: true,
+      delta: 10,
+      actorSeat: 0,
+    });
+
+    expect(s.players[1].eliminated).toBe(false);
+    expect(s.status).toBe('active');
+  });
+
+  it('kills at 21 from ONE partner even with the other untouched', () => {
+    let s = applyAction(lobby(), { type: 'start' });
+    s = applyAction(s, {
+      type: 'cmd-dmg',
+      seat: 1,
+      fromSeat: 0,
+      fromPartner: true,
+      delta: 21,
+      actorSeat: 0,
+    });
+
+    expect(s.players[1].eliminated).toBe(true);
+  });
+
+  it('reads a pre-partner state as the primary commander (no migration)', () => {
+    let s = applyAction(lobby(), { type: 'start' });
+    // Exactly what a row written before partners existed looks like: a bare
+    // seat number as the key, because JSON object keys were always strings.
+    s = {
+      ...s,
+      players: s.players.map((p) => (p.seat === 1 ? { ...p, commanderDamage: { '0': 9 } } : p)),
+    };
+
+    s = applyAction(s, { type: 'cmd-dmg', seat: 1, fromSeat: 0, delta: 2, actorSeat: 0 });
+
+    expect(s.players[1].commanderDamage[cmdDamageKey(0)]).toBe(11);
+    expect(s.players[1].commanderDamage[cmdDamageKey(0, true)]).toBeUndefined();
   });
 
   it('cmd-dmg throws on unknown seat', () => {
