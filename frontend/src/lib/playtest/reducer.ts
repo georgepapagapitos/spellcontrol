@@ -17,6 +17,10 @@ const MAX_STICKER_LENGTH = 30;
 /** Unitless x/y step between a clone and its source — the same coordinate
  *  space `MOVE_TO_BATTLEFIELD` uses, which the UI maps to pixels 1:1. */
 const CLONE_OFFSET = 18;
+/** Unitless x/y step between an attached card and its host, so an aura or
+ *  Equipment reads as tucked under the permanent it's on rather than hidden
+ *  exactly behind it. */
+const ATTACH_OFFSET = 14;
 const ZONES: Zone[] = ['library', 'hand', 'graveyard', 'exile', 'command'];
 
 function emptyZones(): Record<Zone, PlaytestCard[]> {
@@ -47,6 +51,7 @@ export function createPlaytestState(init: PlaytestInit): PlaytestState {
     opponents: Array.from({ length: opponentCount }, () => ({
       life: opponentLife,
       commanderDamage: 0,
+      counters: {},
     })),
     startingLife: life,
     startingOpponentLife: opponentLife,
@@ -55,6 +60,7 @@ export function createPlaytestState(init: PlaytestInit): PlaytestState {
     monarch: false,
     initiative: false,
     citysBlessing: false,
+    playerCounters: {},
     past: [],
   };
 }
@@ -86,6 +92,7 @@ function snapshot(state: PlaytestState): Omit<PlaytestState, 'past'> {
     monarch: state.monarch,
     initiative: state.initiative,
     citysBlessing: state.citysBlessing,
+    playerCounters: { ...state.playerCounters },
   };
 }
 
@@ -123,6 +130,53 @@ function locate(state: PlaytestState, cardId: string): Locator | null {
   const bfIdx = state.battlefield.findIndex((b) => b.card.id === cardId);
   if (bfIdx >= 0) return { source: 'battlefield', index: bfIdx };
   return null;
+}
+
+/** Strip the attachment link off one card. Returns the same object when there
+ *  was nothing to strip, so untouched cards keep their identity for memo. */
+function withoutAttachment(bf: BattlefieldCard): BattlefieldCard {
+  if (bf.attachedTo === undefined) return bf;
+  const next = { ...bf };
+  delete next.attachedTo;
+  return next;
+}
+
+/** Detach everything hanging off `hostId` — a permanent that left the
+ *  battlefield can't keep attachments pointing at it. */
+function detachFrom(battlefield: readonly BattlefieldCard[], hostId: string): BattlefieldCard[] {
+  return battlefield.map((b) => (b.attachedTo === hostId ? withoutAttachment(b) : b));
+}
+
+/** Walk the attachment chain up from `fromId`; true if it reaches `needle`.
+ *  A visited set keeps a malformed pre-existing cycle from spinning forever. */
+function attachmentReaches(
+  battlefield: readonly BattlefieldCard[],
+  fromId: string,
+  needle: string
+): boolean {
+  const seen = new Set<string>();
+  let cursor: string | undefined = fromId;
+  while (cursor !== undefined && !seen.has(cursor)) {
+    if (cursor === needle) return true;
+    seen.add(cursor);
+    cursor = battlefield.find((b) => b.card.id === cursor)?.attachedTo;
+  }
+  return false;
+}
+
+/** Re-seat `hostId` and everything attached to it at the end of the array.
+ *  Render order is stacking order, so this lands the host on top with its
+ *  attachments immediately under it. */
+function restackWithAttachments(
+  battlefield: readonly BattlefieldCard[],
+  hostId: string
+): BattlefieldCard[] {
+  const host = battlefield.find((b) => b.card.id === hostId);
+  if (!host) return battlefield.slice();
+  const attached = battlefield.filter((b) => b.attachedTo === hostId);
+  const moved = new Set(attached.map((b) => b.card.id));
+  moved.add(hostId);
+  return [...battlefield.filter((b) => !moved.has(b.card.id)), ...attached, host];
 }
 
 /** Remove the card identified by `loc` from its current location. Returns it. */
@@ -172,6 +226,7 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         opponents: state.opponents.map(() => ({
           life: state.startingOpponentLife,
           commanderDamage: 0,
+          counters: {},
         })),
         startingLife: state.startingLife,
         startingOpponentLife: state.startingOpponentLife,
@@ -182,6 +237,8 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         monarch: false,
         initiative: false,
         citysBlessing: false,
+        // A new game: poison/energy/experience don't carry over either.
+        playerCounters: {},
         past: [],
       };
     }
@@ -217,6 +274,10 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       if (!loc) return state;
       const next = snapshot(state);
       const { card, bf } = pluck(next, loc);
+      // Anything equipped/enchanted onto a permanent that just left the
+      // battlefield falls off — done before the token check so it applies on
+      // both exits below.
+      if (bf) next.battlefield = detachFrom(next.battlefield, action.cardId);
       // Tokens that leave the battlefield cease to exist (MTG rule 704.5d).
       if (bf?.card.isToken && action.to !== 'command') return withHistory(state, next);
       const dest = next.zones[action.to].slice();
@@ -288,16 +349,23 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
     case 'MOVE_BF_POSITION': {
       const idx = state.battlefield.findIndex((b) => b.card.id === action.cardId);
       if (idx < 0) return state;
+      const prev = state.battlefield[idx];
+      const dx = action.x - prev.x;
+      const dy = action.y - prev.y;
       const next = snapshot(state);
+      // Attachments ride along with their host, so dragging an equipped
+      // creature never strands its Equipment across the board.
+      next.battlefield = next.battlefield.map((b) => {
+        if (b.card.id === action.cardId) return { ...b, x: action.x, y: action.y };
+        if (b.attachedTo !== action.cardId) return b;
+        return { ...b, x: b.x + dx, y: b.y + dy };
+      });
       // A drag is the intentional "bring to front" gesture: move the moved
       // card to the end of the array so render order (== stacking order)
-      // puts it above whatever it now overlaps. TAP does not reorder —
-      // untapping a stack shouldn't reshuffle it.
-      const bf = { ...next.battlefield[idx], x: action.x, y: action.y };
-      next.battlefield = next.battlefield
-        .slice(0, idx)
-        .concat(next.battlefield.slice(idx + 1))
-        .concat(bf);
+      // puts it above whatever it now overlaps, with its own attachments
+      // tucked just beneath it. TAP does not reorder — untapping a stack
+      // shouldn't reshuffle it.
+      next.battlefield = restackWithAttachments(next.battlefield, action.cardId);
       return withHistory(state, next);
     }
     case 'TAP': {
@@ -391,6 +459,65 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       if (added.length === 0) return state;
       const next = snapshot(state);
       next.battlefield = next.battlefield.concat(added);
+      return withHistory(state, next);
+    }
+    case 'ATTACH': {
+      const idx = state.battlefield.findIndex((b) => b.card.id === action.cardId);
+      if (idx < 0) return state;
+      if (action.targetId === null) {
+        if (state.battlefield[idx].attachedTo === undefined) return state;
+        const next = snapshot(state);
+        next.battlefield = next.battlefield.map((b, i) => (i === idx ? withoutAttachment(b) : b));
+        return withHistory(state, next);
+      }
+      // Self-attachment and cycles would strand a card behind a host it can
+      // never be freed from — reject rather than store a broken relation.
+      const targetId = action.targetId;
+      if (targetId === action.cardId) return state;
+      const host = state.battlefield.find((b) => b.card.id === targetId);
+      if (!host) return state;
+      if (attachmentReaches(state.battlefield, targetId, action.cardId)) return state;
+      if (state.battlefield[idx].attachedTo === targetId) return state;
+      // Snap to the host, fanned by how many things are already on it, so a
+      // creature carrying three Equipment doesn't hide them in one pile.
+      const alreadyOn = state.battlefield.filter((b) => b.attachedTo === targetId).length;
+      const step = ATTACH_OFFSET * (alreadyOn + 1);
+      const next = snapshot(state);
+      next.battlefield = next.battlefield.map((b, i) =>
+        i === idx ? { ...b, attachedTo: targetId, x: host.x + step, y: host.y + step } : b
+      );
+      next.battlefield = restackWithAttachments(next.battlefield, targetId);
+      return withHistory(state, next);
+    }
+    case 'SET_PLAYER_COUNTER': {
+      const isSelf = action.player === 'self';
+      // Narrowed off `action.player` directly rather than via `isSelf` — a
+      // boolean alias doesn't carry the narrowing into the branches below.
+      const idx = action.player === 'self' ? -1 : action.player;
+      if (!isSelf && (!Number.isInteger(idx) || idx < 0 || idx >= state.opponents.length)) {
+        return state;
+      }
+      const current = isSelf
+        ? (state.playerCounters?.[action.counter] ?? 0)
+        : (state.opponents[idx].counters?.[action.counter] ?? 0);
+      // Player counters floor at zero — healing poison out means "none", not a
+      // debt. Mirrors SET_COUNTER, where hitting zero drops the key entirely.
+      const updated = Math.max(0, current + action.delta);
+      if (updated === current) return state;
+      const rebag = (bag: Record<string, number> | undefined): Record<string, number> => {
+        const out = { ...bag };
+        if (updated <= 0) delete out[action.counter];
+        else out[action.counter] = updated;
+        return out;
+      };
+      const next = snapshot(state);
+      if (isSelf) {
+        next.playerCounters = rebag(state.playerCounters);
+      } else {
+        next.opponents = next.opponents.map((o, i) =>
+          i === idx ? { ...o, counters: rebag(o.counters) } : o
+        );
+      }
       return withHistory(state, next);
     }
     case 'FLIP_FACE': {

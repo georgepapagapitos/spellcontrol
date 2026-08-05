@@ -4,13 +4,22 @@ import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { getSafeViewport } from '@/lib/popover-placement';
 import type { Zone } from '@/lib/playtest';
-import { MOVE_DESTINATIONS } from '../lib/zones';
+import { MOVE_DESTINATIONS, destinationKey } from '../lib/zones';
 
 interface Props {
   x: number;
   y: number;
   cardName: string;
   stickers: string[];
+  /** Live counter tallies on this card — drives the value shown beside each
+   *  ± row, and surfaces custom counter kinds that aren't in COUNTER_KINDS. */
+  counters: Record<string, number>;
+  /** Other battlefield permanents this card can be attached to. */
+  attachTargets: Array<{ id: string; name: string }>;
+  /** Name of the permanent this card is currently attached to, if any. */
+  attachedToName?: string;
+  /** `null` detaches. */
+  onAttach(targetId: string | null): void;
   /** Current commander tax (already ×2, e.g. 4 for "Tax: +4"); 0/undefined hides the line. */
   tax?: number;
   /** Only true two-faced cards (transform/MDFC) offer Transform. */
@@ -29,10 +38,11 @@ interface Props {
   onDuplicate(): void;
   /** How many cards `onDuplicate` will copy (1 unless a selection is live). */
   selectionSize?: number;
-  onMoveTo(zone: Zone): void;
+  onMoveTo(zone: Zone, toIndex?: number): void;
 }
 
 const COUNTER_KINDS = ['+1/+1', '-1/-1', 'loyalty', 'charge'];
+const MAX_COUNTER_NAME = 20;
 
 const MENU_MARGIN = 8;
 
@@ -41,6 +51,10 @@ export function CardContextMenu({
   y,
   cardName,
   stickers,
+  counters,
+  attachTargets,
+  attachedToName,
+  onAttach,
   tax,
   canTransform = false,
   variant = 'floating',
@@ -59,6 +73,7 @@ export function CardContextMenu({
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [clamped, setClamped] = useState<{ left: number; top: number } | null>(null);
   const [stickerText, setStickerText] = useState('');
+  const [counterText, setCounterText] = useState('');
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
 
   useLockBodyScroll();
@@ -84,6 +99,21 @@ export function CardContextMenu({
     setStickerText('');
   }
 
+  function submitCounter() {
+    const kind = counterText.trim().slice(0, MAX_COUNTER_NAME);
+    if (!kind) return;
+    onAddCounter(kind);
+    setCounterText('');
+  }
+
+  // The four presets plus whatever custom kinds are already on the card, so a
+  // counter added by name stays adjustable (and removable) afterwards rather
+  // than being visible only on the card face.
+  const counterKinds = [
+    ...COUNTER_KINDS,
+    ...Object.keys(counters).filter((k) => !COUNTER_KINDS.includes(k)),
+  ];
+
   // Action list — identical markup in both variants; only the surrounding
   // chrome differs (a cursor-anchored popover vs. the shared bottom sheet).
   const items = (
@@ -105,18 +135,87 @@ export function CardContextMenu({
       )}
       <div className="playtest-ctx-group">
         <div className="playtest-ctx-heading">Counters</div>
-        {COUNTER_KINDS.map((k) => (
+        {counterKinds.map((k) => (
           <div key={k} className="playtest-ctx-counter">
             <span>{k}</span>
-            <button type="button" onClick={() => onRemoveCounter(k)} aria-label={`remove ${k}`}>
+            <span className="playtest-ctx-counter__value" aria-hidden>
+              {counters[k] ?? 0}
+            </span>
+            <button
+              type="button"
+              onClick={() => onRemoveCounter(k)}
+              aria-label={`remove ${k}, currently ${counters[k] ?? 0}`}
+            >
               −
             </button>
-            <button type="button" onClick={() => onAddCounter(k)} aria-label={`add ${k}`}>
+            <button
+              type="button"
+              onClick={() => onAddCounter(k)}
+              aria-label={`add ${k}, currently ${counters[k] ?? 0}`}
+            >
               +
             </button>
           </div>
         ))}
+        {/* The reducer already accepts any counter name — this input is the
+            only thing that was missing for saga chapters, ascend, fade, etc. */}
+        <div className="playtest-ctx-counter-add">
+          <input
+            type="text"
+            value={counterText}
+            onChange={(e) => setCounterText(e.target.value)}
+            placeholder="Other counter (e.g. chapter)"
+            maxLength={MAX_COUNTER_NAME}
+            aria-label="Counter name"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') submitCounter();
+            }}
+          />
+          <button
+            type="button"
+            disabled={!counterText.trim()}
+            onClick={submitCounter}
+            aria-label="add counter"
+          >
+            Add
+          </button>
+        </div>
       </div>
+      {(attachTargets.length > 0 || attachedToName) && (
+        <div className="playtest-ctx-group">
+          <div className="playtest-ctx-heading">Attached to</div>
+          {attachedToName ? (
+            <div className="playtest-ctx-attached">
+              <span>{attachedToName}</span>
+              <button type="button" onClick={() => onAttach(null)} aria-label="unattach">
+                Unattach
+              </button>
+            </div>
+          ) : (
+            <div className="playtest-ctx-attached playtest-ctx-attached--none">Not attached</div>
+          )}
+          {attachTargets.length > 0 && (
+            // A native <select> rather than a custom list: it stays usable at
+            // any board size, opens the platform picker on touch, and is
+            // keyboard/screen-reader correct for free.
+            <select
+              className="playtest-ctx-attach-select"
+              value=""
+              aria-label={`Attach ${cardName} to`}
+              onChange={(e) => {
+                if (e.target.value) onAttach(e.target.value);
+              }}
+            >
+              <option value="">{attachedToName ? 'Move to…' : 'Attach to…'}</option>
+              {attachTargets.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
       <div className="playtest-ctx-group">
         <div className="playtest-ctx-heading">Stickers</div>
         {/* The reducer hard-caps at 8 per card; mirror it here so the input
@@ -163,10 +262,10 @@ export function CardContextMenu({
         <div className="playtest-ctx-heading">Move to</div>
         {MOVE_DESTINATIONS.map((z) => (
           <button
-            key={z.key}
+            key={destinationKey(z)}
             type="button"
             className="playtest-ctx-action"
-            onClick={() => onMoveTo(z.key)}
+            onClick={() => onMoveTo(z.key, z.toIndex)}
           >
             {z.label}
           </button>

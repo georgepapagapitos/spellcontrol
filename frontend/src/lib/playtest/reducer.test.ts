@@ -672,7 +672,7 @@ describe('life & opponents (E138)', () => {
   it('defaults to a 1v1, 20-life game when no life config is given', () => {
     const s = init();
     expect(s.life).toBe(20);
-    expect(s.opponents).toEqual([{ life: 20, commanderDamage: 0 }]);
+    expect(s.opponents).toEqual([{ life: 20, commanderDamage: 0, counters: {} }]);
     expect(s.startingLife).toBe(20);
     expect(s.startingOpponentLife).toBe(20);
     expect(s.commanderDamageThreshold).toBe(21);
@@ -690,9 +690,9 @@ describe('life & opponents (E138)', () => {
     });
     expect(s.life).toBe(40);
     expect(s.opponents).toEqual([
-      { life: 40, commanderDamage: 0 },
-      { life: 40, commanderDamage: 0 },
-      { life: 40, commanderDamage: 0 },
+      { life: 40, commanderDamage: 0, counters: {} },
+      { life: 40, commanderDamage: 0, counters: {} },
+      { life: 40, commanderDamage: 0, counters: {} },
     ]);
   });
 
@@ -811,8 +811,8 @@ describe('life & opponents (E138)', () => {
       s = applyAction(s, { type: 'RESET' });
       expect(s.life).toBe(40);
       expect(s.opponents).toEqual([
-        { life: 5, commanderDamage: 0 },
-        { life: 5, commanderDamage: 0 },
+        { life: 5, commanderDamage: 0, counters: {} },
+        { life: 5, commanderDamage: 0, counters: {} },
       ]);
       expect(s.tableDefeatedTurn).toBeNull();
     });
@@ -1063,5 +1063,189 @@ describe('CLONE_BF_CARDS', () => {
     const exiled = applyAction(cloned, { type: 'MOVE_TO_ZONE', cardId: 'copy-1', to: 'graveyard' });
     expect(exiled.battlefield).toHaveLength(1);
     expect(exiled.zones.graveyard).toHaveLength(0);
+  });
+});
+
+describe('ATTACH', () => {
+  /** Three permanents on the battlefield at known, distinct positions. */
+  function board(): PlaytestState {
+    let s = init(20);
+    for (const xy of [100, 200, 300]) {
+      s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: s.zones.hand[0].id, x: xy, y: xy });
+    }
+    return s;
+  }
+
+  const idOf = (s: PlaytestState, i: number) => s.battlefield[i].card.id;
+  const find = (s: PlaytestState, id: string) => s.battlefield.find((b) => b.card.id === id);
+
+  it('attaches a card to a host and snaps it under that host', () => {
+    const s = board();
+    const [aura, host] = [idOf(s, 0), idOf(s, 1)];
+    const hostPos = { x: find(s, host)!.x, y: find(s, host)!.y };
+    const next = applyAction(s, { type: 'ATTACH', cardId: aura, targetId: host });
+    const attached = find(next, aura)!;
+    expect(attached.attachedTo).toBe(host);
+    // Snapped to the host, not left at its old coordinates.
+    expect(attached.x).toBeGreaterThan(hostPos.x);
+    expect(attached.y).toBeGreaterThan(hostPos.y);
+  });
+
+  it('fans multiple attachments on one host instead of stacking them exactly', () => {
+    let s = board();
+    const [a, b, host] = [idOf(s, 0), idOf(s, 1), idOf(s, 2)];
+    s = applyAction(s, { type: 'ATTACH', cardId: a, targetId: host });
+    s = applyAction(s, { type: 'ATTACH', cardId: b, targetId: host });
+    expect(find(s, a)!.x).not.toBe(find(s, b)!.x);
+  });
+
+  it('renders the host above its own attachments (host last in the array)', () => {
+    let s = board();
+    const [aura, host] = [idOf(s, 0), idOf(s, 1)];
+    s = applyAction(s, { type: 'ATTACH', cardId: aura, targetId: host });
+    const order = s.battlefield.map((bf) => bf.card.id);
+    expect(order.indexOf(aura)).toBeLessThan(order.indexOf(host));
+    expect(order.at(-1)).toBe(host);
+  });
+
+  it('drags attachments along with their host, preserving relative offset', () => {
+    let s = board();
+    const [aura, host] = [idOf(s, 0), idOf(s, 1)];
+    s = applyAction(s, { type: 'ATTACH', cardId: aura, targetId: host });
+    const auraBefore = { x: find(s, aura)!.x, y: find(s, aura)!.y };
+    const hostBefore = { x: find(s, host)!.x, y: find(s, host)!.y };
+    const moved = applyAction(s, { type: 'MOVE_BF_POSITION', cardId: host, x: 500, y: 400 });
+    expect(find(moved, aura)!.x).toBe(auraBefore.x + (500 - hostBefore.x));
+    expect(find(moved, aura)!.y).toBe(auraBefore.y + (400 - hostBefore.y));
+  });
+
+  it('detaches with a null target', () => {
+    let s = board();
+    const [aura, host] = [idOf(s, 0), idOf(s, 1)];
+    s = applyAction(s, { type: 'ATTACH', cardId: aura, targetId: host });
+    s = applyAction(s, { type: 'ATTACH', cardId: aura, targetId: null });
+    expect(find(s, aura)!.attachedTo).toBeUndefined();
+  });
+
+  it('drops the attachment when the host leaves the battlefield', () => {
+    let s = board();
+    const [aura, host] = [idOf(s, 0), idOf(s, 1)];
+    s = applyAction(s, { type: 'ATTACH', cardId: aura, targetId: host });
+    const killed = applyAction(s, { type: 'MOVE_TO_ZONE', cardId: host, to: 'graveyard' });
+    // The aura stays on the battlefield; only the dangling reference goes.
+    expect(find(killed, aura)).toBeDefined();
+    expect(find(killed, aura)!.attachedTo).toBeUndefined();
+  });
+
+  it('rejects self-attachment and cycles', () => {
+    let s = board();
+    const [a, b] = [idOf(s, 0), idOf(s, 1)];
+    expect(applyAction(s, { type: 'ATTACH', cardId: a, targetId: a })).toBe(s);
+    s = applyAction(s, { type: 'ATTACH', cardId: a, targetId: b });
+    // b → a would close the loop a → b → a.
+    expect(applyAction(s, { type: 'ATTACH', cardId: b, targetId: a })).toBe(s);
+  });
+
+  it('no-ops on a missing card, a missing host, or a redundant re-attach', () => {
+    let s = board();
+    const [aura, host] = [idOf(s, 0), idOf(s, 1)];
+    expect(applyAction(s, { type: 'ATTACH', cardId: 'nope', targetId: host })).toBe(s);
+    expect(applyAction(s, { type: 'ATTACH', cardId: aura, targetId: 'nope' })).toBe(s);
+    expect(applyAction(s, { type: 'ATTACH', cardId: aura, targetId: null })).toBe(s);
+    s = applyAction(s, { type: 'ATTACH', cardId: aura, targetId: host });
+    expect(applyAction(s, { type: 'ATTACH', cardId: aura, targetId: host })).toBe(s);
+  });
+
+  it('is undoable', () => {
+    const s = board();
+    const [aura, host] = [idOf(s, 0), idOf(s, 1)];
+    const attached = applyAction(s, { type: 'ATTACH', cardId: aura, targetId: host });
+    expect(find(applyAction(attached, { type: 'UNDO' }), aura)!.attachedTo).toBeUndefined();
+  });
+
+  it('copies do not inherit the attachment (non-copiable state, rule 707.2)', () => {
+    let s = board();
+    const [aura, host] = [idOf(s, 0), idOf(s, 1)];
+    s = applyAction(s, { type: 'ATTACH', cardId: aura, targetId: host });
+    s = applyAction(s, { type: 'CLONE_BF_CARDS', clones: [{ sourceId: aura, id: 'copy-1' }] });
+    expect(find(s, 'copy-1')!.attachedTo).toBeUndefined();
+  });
+});
+
+describe('SET_PLAYER_COUNTER', () => {
+  const s0 = () =>
+    createPlaytestState({
+      library: deck(20),
+      seed: 1,
+      life: 40,
+      opponentCount: 2,
+      opponentLife: 40,
+    });
+
+  it('adds and removes counters on yourself', () => {
+    let s = applyAction(s0(), {
+      type: 'SET_PLAYER_COUNTER',
+      player: 'self',
+      counter: 'energy',
+      delta: 3,
+    });
+    expect(s.playerCounters?.energy).toBe(3);
+    s = applyAction(s, {
+      type: 'SET_PLAYER_COUNTER',
+      player: 'self',
+      counter: 'energy',
+      delta: -1,
+    });
+    expect(s.playerCounters?.energy).toBe(2);
+  });
+
+  it('tracks poison per opponent independently', () => {
+    let s = applyAction(s0(), {
+      type: 'SET_PLAYER_COUNTER',
+      player: 0,
+      counter: 'poison',
+      delta: 10,
+    });
+    expect(s.opponents[0].counters?.poison).toBe(10);
+    expect(s.opponents[1].counters?.poison).toBeUndefined();
+    s = applyAction(s, { type: 'SET_PLAYER_COUNTER', player: 1, counter: 'poison', delta: 4 });
+    expect(s.opponents[0].counters?.poison).toBe(10);
+    expect(s.opponents[1].counters?.poison).toBe(4);
+  });
+
+  it('floors at zero and drops the key rather than storing a 0', () => {
+    let s = applyAction(s0(), {
+      type: 'SET_PLAYER_COUNTER',
+      player: 'self',
+      counter: 'poison',
+      delta: 2,
+    });
+    s = applyAction(s, {
+      type: 'SET_PLAYER_COUNTER',
+      player: 'self',
+      counter: 'poison',
+      delta: -5,
+    });
+    expect(s.playerCounters).toEqual({});
+  });
+
+  it('no-ops at zero, on a bad index, and on a zero delta', () => {
+    const s = s0();
+    const call = (player: 'self' | number, delta: number) =>
+      applyAction(s, { type: 'SET_PLAYER_COUNTER', player, counter: 'poison', delta });
+    expect(call('self', -1)).toBe(s);
+    expect(call(9, 1)).toBe(s);
+    expect(call('self', 0)).toBe(s);
+  });
+
+  it('is undoable and cleared by RESET', () => {
+    const s = applyAction(s0(), {
+      type: 'SET_PLAYER_COUNTER',
+      player: 'self',
+      counter: 'energy',
+      delta: 3,
+    });
+    expect(applyAction(s, { type: 'UNDO' }).playerCounters).toEqual({});
+    expect(applyAction(s, { type: 'RESET' }).playerCounters).toEqual({});
   });
 });

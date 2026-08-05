@@ -14,13 +14,21 @@ interface Props {
   commanderDamage?: number;
   commanderDamageThreshold: number;
   defeated: boolean;
+  /** Player-scoped counters (poison/energy/experience/…) for this player. */
+  counters: Record<string, number>;
   onClose(): void;
   onAdjustLife(delta: number): void;
   onAdjustCommanderDamage?(delta: number): void;
+  onAdjustCounter(kind: string, delta: number): void;
 }
 
 const MARGIN = 8;
 const STEPS = [-5, -1, 1, 5] as const;
+/** Poison is the one alternate kill condition life/commander damage can't
+ *  express; energy and experience are the other two counters a deck routinely
+ *  tracks on the player. Anything else gets added by name. */
+const PLAYER_COUNTER_KINDS = ['poison', 'energy', 'experience'];
+const MAX_COUNTER_NAME = 20;
 
 function Stepper({
   label,
@@ -79,12 +87,15 @@ export function LifeAdjustPanel({
   commanderDamage,
   commanderDamageThreshold,
   defeated,
+  counters,
   onClose,
   onAdjustLife,
   onAdjustCommanderDamage,
+  onAdjustCounter,
 }: Props) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [clamped, setClamped] = useState<{ left: number; top: number } | null>(null);
+  const [counterText, setCounterText] = useState('');
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
 
   useLockBodyScroll();
@@ -104,6 +115,20 @@ export function LifeAdjustPanel({
     setClamped({ left, top });
   }, [anchorRect, variant]);
 
+  function submitCounter() {
+    const kind = counterText.trim().slice(0, MAX_COUNTER_NAME);
+    if (!kind) return;
+    onAdjustCounter(kind, 1);
+    setCounterText('');
+  }
+
+  // Presets plus any custom kind already on this player, so a counter added by
+  // name stays adjustable afterwards.
+  const counterKinds = [
+    ...PLAYER_COUNTER_KINDS,
+    ...Object.keys(counters).filter((k) => !PLAYER_COUNTER_KINDS.includes(k)),
+  ];
+
   const body = (
     <>
       <Stepper label="Life" value={life} onAdjust={onAdjustLife} />
@@ -121,6 +146,54 @@ export function LifeAdjustPanel({
           </p>
         </div>
       )}
+      <div className="playtest-life-panel__counters">
+        <div className="playtest-life-panel__counters-heading">Counters</div>
+        {counterKinds.map((k) => (
+          <div key={k} className="playtest-life-panel__counter">
+            <span className="playtest-life-panel__counter-label">{k}</span>
+            <button
+              type="button"
+              className="playtest-life-panel__step"
+              onClick={() => onAdjustCounter(k, -1)}
+              aria-label={`${k} minus 1, currently ${counters[k] ?? 0}`}
+            >
+              −
+            </button>
+            <span className="playtest-life-panel__value" aria-live="polite">
+              {counters[k] ?? 0}
+            </span>
+            <button
+              type="button"
+              className="playtest-life-panel__step"
+              onClick={() => onAdjustCounter(k, 1)}
+              aria-label={`${k} plus 1, currently ${counters[k] ?? 0}`}
+            >
+              +
+            </button>
+          </div>
+        ))}
+        <div className="playtest-life-panel__counter-add">
+          <input
+            type="text"
+            value={counterText}
+            onChange={(e) => setCounterText(e.target.value)}
+            placeholder="Other counter"
+            maxLength={MAX_COUNTER_NAME}
+            aria-label="Counter name"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') submitCounter();
+            }}
+          />
+          <button
+            type="button"
+            disabled={!counterText.trim()}
+            onClick={submitCounter}
+            aria-label="add counter"
+          >
+            Add
+          </button>
+        </div>
+      </div>
       {defeated && (
         <p className="playtest-life-panel__defeated">Defeated — heal to bring them back</p>
       )}

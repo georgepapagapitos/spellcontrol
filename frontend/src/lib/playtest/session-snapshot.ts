@@ -94,6 +94,17 @@ function isValidSnapshot(v: unknown): v is PlaytestSnapshot {
   if (state.monarch !== undefined && typeof state.monarch !== 'boolean') return false;
   if (state.initiative !== undefined && typeof state.initiative !== 'boolean') return false;
   if (state.citysBlessing !== undefined && typeof state.citysBlessing !== 'boolean') return false;
+  // Player counters are optional-by-design (absent === no counters), so an
+  // older snapshot needs no backfill at all — but a present-and-malformed bag
+  // is rejected rather than handed to the reducer, same as the fields above.
+  if (
+    state.playerCounters !== undefined &&
+    (typeof state.playerCounters !== 'object' ||
+      state.playerCounters === null ||
+      Array.isArray(state.playerCounters))
+  ) {
+    return false;
+  }
   return true;
 }
 

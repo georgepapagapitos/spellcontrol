@@ -12,8 +12,11 @@ interface Props {
   monarch: boolean;
   initiative: boolean;
   citysBlessing: boolean;
+  /** Your own player-scoped counters; each opponent's live on `opponents[i]`. */
+  playerCounters: Record<string, number>;
   onAdjustLife(player: 'self' | number, delta: number): void;
   onAdjustCommanderDamage(opponent: number, delta: number): void;
+  onAdjustCounter(player: 'self' | number, kind: string, delta: number): void;
   /** Lets the parent fold the adjust popover into its "any sheet open" gate
    *  (e.g. to suspend keyboard shortcuts while it's up). */
   onOpenChange?(open: boolean): void;
@@ -34,8 +37,10 @@ export function LifeStrip({
   monarch,
   initiative,
   citysBlessing,
+  playerCounters,
   onAdjustLife,
   onAdjustCommanderDamage,
+  onAdjustCounter,
   onOpenChange,
 }: Props) {
   const [selected, setSelected] = useState<Selected>(null);
@@ -54,11 +59,18 @@ export function LifeStrip({
 
   const opponentLabel = (i: number) => (opponents.length > 1 ? `Opponent ${i + 1}` : 'Opponent');
 
+  /** "poison 3, energy 1" — reused for both the aria-label and the visible
+   *  badges so the two can never describe different state. */
+  const counterEntries = (bag: Record<string, number> | undefined) =>
+    Object.entries(bag ?? {}).filter(([, v]) => v > 0);
+
   const heldDesignationLabels = [
     monarch && 'Monarch',
     initiative && 'Initiative',
     citysBlessing && "City's Blessing",
   ].filter((label): label is string => Boolean(label));
+
+  const selfCounters = counterEntries(playerCounters);
 
   return (
     <div className="playtest-life-strip" role="group" aria-label="Life totals">
@@ -68,7 +80,7 @@ export function LifeStrip({
         onClick={(e) => openPanel('self', e)}
         aria-label={`You: ${life} life${
           heldDesignationLabels.length > 0 ? `, ${heldDesignationLabels.join(', ')}` : ''
-        }`}
+        }${selfCounters.length > 0 ? `, ${selfCounters.map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}`}
       >
         <span className="playtest-life-chip__label">You</span>
         {heldDesignationLabels.length > 0 && (
@@ -79,9 +91,19 @@ export function LifeStrip({
           </span>
         )}
         <span className="playtest-life-chip__life">{life}</span>
+        {selfCounters.length > 0 && (
+          <span className="playtest-life-chip__counters" aria-hidden>
+            {selfCounters.map(([k, v]) => (
+              <span key={k} className="playtest-life-chip__counter" title={k}>
+                {k.slice(0, 3)}:{v}
+              </span>
+            ))}
+          </span>
+        )}
       </button>
       {opponents.map((o, i) => {
         const defeated = isOpponentDefeated(o, commanderDamageThreshold);
+        const oppCounters = counterEntries(o.counters);
         return (
           <button
             key={i}
@@ -92,6 +114,10 @@ export function LifeStrip({
             onClick={(e) => openPanel(i, e)}
             aria-label={`${opponentLabel(i)}: ${o.life} life${
               o.commanderDamage > 0 ? `, ${o.commanderDamage} commander damage` : ''
+            }${
+              oppCounters.length > 0
+                ? `, ${oppCounters.map(([k, v]) => `${k} ${v}`).join(', ')}`
+                : ''
             }${defeated ? ', defeated' : ''}`}
           >
             <span className="playtest-life-chip__label">
@@ -101,6 +127,15 @@ export function LifeStrip({
             {o.commanderDamage > 0 && (
               <span className="playtest-life-chip__cmdr" aria-hidden>
                 {o.commanderDamage}
+              </span>
+            )}
+            {oppCounters.length > 0 && (
+              <span className="playtest-life-chip__counters" aria-hidden>
+                {oppCounters.map(([k, v]) => (
+                  <span key={k} className="playtest-life-chip__counter" title={k}>
+                    {k.slice(0, 3)}:{v}
+                  </span>
+                ))}
               </span>
             )}
             {defeated && (
@@ -123,7 +158,9 @@ export function LifeStrip({
           defeated={
             selected !== 'self' && isOpponentDefeated(opponents[selected], commanderDamageThreshold)
           }
+          counters={(selected === 'self' ? playerCounters : opponents[selected].counters) ?? {}}
           onClose={closePanel}
+          onAdjustCounter={(kind, delta) => onAdjustCounter(selected, kind, delta)}
           onAdjustLife={(delta) => onAdjustLife(selected, delta)}
           onAdjustCommanderDamage={
             selected === 'self' ? undefined : (delta) => onAdjustCommanderDamage(selected, delta)
