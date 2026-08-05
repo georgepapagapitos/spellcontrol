@@ -45,6 +45,14 @@ const config: CapacitorConfig = {
     },
   },
   android: {
+    // Android's WebView ships pinch-to-zoom OFF (Capacitor defaults
+    // `zoomEnabled` to false), so on device the browser zoom every other
+    // platform gives you for free simply does not exist. The card preview
+    // has no zoom control of its own — reading a card's fine print IS the
+    // native gesture — so turn it on. Capacitor already calls
+    // `setDisplayZoomControls(false)`, so this adds the gesture without the
+    // legacy on-screen ± widget.
+    zoomEnabled: true,
     // Transparent WebView background so the camera-preview plugin's native
     // preview (rendered behind the WebView via toBack:true) can show
     // through when the scanner is active. The HTML body still paints its

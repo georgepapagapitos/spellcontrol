@@ -310,9 +310,34 @@
   padding: var(--space-2) 0.8rem;
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
+  max-width: min(92vw, 34rem);
   gap: 0.6rem;
   font-size: var(--text-sm);
   box-shadow: var(--shadow-modal);
+}
+
+/* The dismiss control keeps its 44px target via padding while the icon stays
+   16px, so the banner doesn't grow taller than the text row. */
+.play-code-dismiss {
+  margin: -0.875rem -0.6rem -0.875rem auto;
+  padding: 0.875rem 0.6rem;
+  border: 0;
+  background: none;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  display: inline-flex;
+  border-radius: var(--radius);
+}
+
+.play-code-dismiss:focus-visible {
+  color: #fff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .play-code-dismiss:hover {
+    color: #fff;
+  }
 }
 
 .play-code-label {

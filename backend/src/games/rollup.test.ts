@@ -43,6 +43,7 @@ function summary(seats: SeatSummary[], over: Partial<GameSummary> = {}): GameSum
     turns: 4,
     durationMs: 60_000,
     firstBlood: null,
+    startingSeat: null,
     winnerSeat: null,
     seats,
     commanderDamage: [],
@@ -102,6 +103,49 @@ describe('rollupForUser', () => {
     const a = rollupForUser(games, 'a');
     expect(a.firstBloodDrawn).toBe(1);
     expect(a.firstBloodTaken).toBe(1);
+  });
+
+  it('counts on-the-play starts and the wins from them', () => {
+    const games = [
+      game(
+        ['a', 'b'],
+        summary([seatSummary(0), seatSummary(1)], { startingSeat: 0, winnerSeat: 0 })
+      ),
+      game(
+        ['a', 'b'],
+        summary([seatSummary(0), seatSummary(1)], { startingSeat: 0, winnerSeat: 1 })
+      ),
+      game(
+        ['a', 'b'],
+        summary([seatSummary(0), seatSummary(1)], { startingSeat: 1, winnerSeat: 1 })
+      ),
+    ];
+    const a = rollupForUser(games, 'a');
+    expect(a.onThePlayGames).toBe(3);
+    expect(a.wentFirst).toBe(2);
+    expect(a.wonGoingFirst).toBe(1); // the start b converted doesn't count for a
+    const b = rollupForUser(games, 'b');
+    expect(b.wentFirst).toBe(1);
+    expect(b.wonGoingFirst).toBe(1);
+  });
+
+  it('excludes games with no recorded first player from the on-the-play denominator', () => {
+    const games = [
+      game(
+        ['a', 'b'],
+        summary([seatSummary(0), seatSummary(1)], { startingSeat: 0, winnerSeat: 0 })
+      ),
+      // Summary present in every other respect — the pod just never tapped the
+      // first-player tool. Counting this as "didn't go first" would assert
+      // something the data doesn't say.
+      game(['a', 'b'], summary([seatSummary(0), seatSummary(1)], { winnerSeat: 1 })),
+      game(['a', 'b'], null), // pre-migration row: excluded from everything
+    ];
+    const a = rollupForUser(games, 'a');
+    expect(a.ratedGames).toBe(2); // both summary-carrying games
+    expect(a.onThePlayGames).toBe(1); // but only one recorded a first player
+    expect(a.wentFirst).toBe(1);
+    expect(a.wonGoingFirst).toBe(1);
   });
 
   it('counts KOs credited to the player and times the player was KO’d', () => {

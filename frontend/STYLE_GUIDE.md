@@ -971,9 +971,11 @@ reference.
   caption naming the direction (`⚔ dealt to <name>`), and the panel's own now-
   demoted value kept as a small readout (`.pp-life-chip`) so board state isn't
   lost. A bare swapped numeral is a bug, not a minimal implementation.
-- **Rotation follows the reader, not the seat.** In a mode, all panels rotate
-  to face whoever opened it (`cmdFocusRot`) — the numbers are theirs to read.
-  This is the one exception to "each panel faces its own seat."
+- **Seat rotation is fixed — a mode NEVER re-orients the board.** Each panel
+  keeps facing its own seat, always. Turning every panel toward whoever opened
+  the mode was tried and reverted: it reads as the seats themselves moving, so
+  the board looks broken at the moment the user most needs to trust it. A mode
+  changes what a panel *says*, never where it sits or which way it faces.
 - **Three ways out, always:** an explicit labelled button
   (`.pp-cmd-focus-done`), a swipe back down on any panel, and `Esc`. The
   title and the button live on the anchor panel, which is already rotated
@@ -981,6 +983,14 @@ reference.
 - **Seat admin is suppressed** (the `⋯` button and the counter chips) — the
   panel's controls now mean something else, and leaving stale affordances
   around is how a tap edits the wrong player.
+- **One panel, one number — unless the rules say otherwise, and then split it.**
+  A seat with two commanders (Partner / Friends Forever / Doctor's Companion)
+  gets `.is-cmd-split`: two `.pp-cmd-half` counters, each with its own name,
+  numeral, progress fill, and ± zones. This is a correctness requirement, not a
+  layout preference — rule 903.10a counts to 21 per *commander*, so two tallies
+  that could be read as halves of one total would invite exactly the wrong
+  arithmetic. When a panel splits, **suppress the panel-wide tap zones**: a
+  zone spanning both halves swallows every tap and credits it to the primary.
 
 ### Store-driven global overlays (E170)
 
@@ -1108,49 +1118,48 @@ Rulings settled while building this:
   hybrid pointer+touch device's synthetic compat mouse events can't chain
   into the desktop hover-peek right as the touch one closes (no double-peek).
 
-### Zoom in a gesture-saturated sheet — lift out, don't scale in place
+### Zoom is the platform's job — don't build one
 
-Ruling from the card-preview pinch-to-zoom. When a surface already has
-several gesture owners, **do not add zoom as a fourth claimant on the same
-node** — promote the zoomed subject into its own layer that owns its touches
-outright, and step the surrounding chrome aside.
+Ruling from the card preview, which shipped a hand-rolled pinch-to-zoom layer
+(#1479/#1480) and had it deleted two builds later. **Do not implement zoom.**
+Every platform we ship on already has pinch-to-zoom plus a pointer/keyboard
+equivalent, tuned by people with the whole gesture stack to test against. A
+custom one is a second, worse zoom that fights the real one: ours overshot,
+clamped pan wrong, froze if you lifted one finger out of the pinch, needed its
+own exit affordance and its own button, and stacked a fourth gesture owner onto
+a sheet that already had three.
 
-- **Why not in place:** `.card-preview-track` is an `overflow-x: auto`
-  scroll-snap container (a scaled slide is simply clipped), and
-  `.card-preview-image-frame` already carries `useHolographic`'s imperative
-  3D transform. There is no free transform slot and no un-clipped box.
-- **The layer** is `position: absolute; inset: 0` above the sheet's chrome
-  (z-index 4, over panel 1 / close 2 / nav 3), `touch-action: none`, and holds
-  a single `<img>` the hook transforms imperatively.
-- **Hide it with `visibility`, never `display: none`.** The image has to stay
-  laid out so the gesture can measure it at scale 1 the instant the pinch
-  commits; `display: none` reports a zero box and the pan clamp collapses.
-- **Chrome steps aside with `opacity`, not `display`/`visibility`** — nothing
-  may reflow on the way in or out, or the card visibly jumps.
-- **Always leave one visible way out.** Fading _every_ control (close button
-  included) leaves a full-bleed image with no affordance — tap-anywhere-to-exit
-  is the right idiom but nothing on screen advertises it, so it only works for
-  someone who already knows the gesture. Keep the close control lit, raise it
-  above the zoom layer, and have it **unwind one layer at a time** (exit zoom,
-  not dismiss the sheet) with its `aria-label` retargeted to match.
+What it costs instead is configuration — invisible, and easy to break:
+
+- **Keep `pinch-zoom` in every restricted `touch-action`.** The property
+  **intersects down the ancestor chain**, so one bare `touch-action: pan-x`
+  between the card and the viewport disables native zoom for that whole subtree
+  — silently, with the carousel still swiping perfectly. Write
+  `touch-action: pan-x pinch-zoom`, never bare `pan-x`. CI-guarded by
+  `styles/card-preview-touch-contract.test.ts`.
+- **Android needs `zoomEnabled: true` in `capacitor.config.ts`.** Android's
+  WebView ships pinch-to-zoom **off** and Capacitor's default keeps it off, so
+  the packaged app is the one surface where "the browser handles it" is false
+  until you say otherwise. Capacitor already sets
+  `setDisplayZoomControls(false)`, so this is the gesture without the legacy
+  on-screen ± widget.
+- **Leave the viewport meta zoomable** — no `user-scalable=no`, no
+  `maximum-scale`. Accessibility floor, not a preference.
+- **No zoom button.** The gesture is universal on touch and pointer/keyboard
+  users have browser zoom; a button is a redundant control competing for space
+  in the action row.
+
+Still true, and cheap to get wrong when adding *any* overlay animation:
+
 - **Never put an element that already declares `transition` into a blanket
-  `transition: opacity` rule.** `transition` is a shorthand: a later rule at
+  `transition: <prop>` rule.** `transition` is a shorthand: a later rule at
   equal specificity **replaces** the earlier declaration instead of adding to
   it. Doing this silently killed the panel's `height` animation (the Details
-  expand/collapse) and the close button's press feel. Fold `opacity` into the
-  element's own declaration; keep blanket rules for elements with no transition
-  of their own. CI-guarded by `styles/card-preview-zoom-fade.test.ts`.
-- **Reuse the already-rendered image URL** so the zoomed layer paints from
-  cache with no flash and no extra Scryfall request. `large` (672×936) is the
-  ceiling Scryfall offers; past ~2.5× it visibly softens, so that is the Zoom
-  button's step and 4× is the pinch clamp.
-- **Give it a non-touch entry.** Pinch is invisible and touch-only, so the
-  gesture is paired with a labelled control in the existing action row —
-  that's also the only path a mouse or keyboard has.
-- **Escape unwinds one layer at a time:** the zoom absorbs the first press,
-  the sheet closes on the next. Same rule as any nested overlay.
+  expand/collapse) and the close button's press feel. Fold the new property
+  into the element's own declaration; keep blanket rules for elements with no
+  transition of their own. Same CI guard as above.
 - **Touches aimed at a control are never swallowed.** A capture-phase gesture
-  listener on the sheet must bail on `closest('button, a, input, select,
+  listener on a sheet must bail on `closest('button, a, input, select,
 textarea')` — the same guard the long-press peek uses above.
 
 ## Index-page insight strips (UX-334)

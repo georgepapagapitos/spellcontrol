@@ -1,4 +1,4 @@
-import { BookOpen } from 'lucide-react';
+import { BookOpen, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../store/auth';
@@ -82,6 +82,9 @@ export function PlayPage() {
   // Starting a new local game while one is active overwrites it; hold the setup
   // here and confirm first instead of silently discarding the in-progress game.
   const [pendingStart, setPendingStart] = useState<LocalGameSetup | null>(null);
+  // Which game's join-code banner the host dismissed. Keyed by code so a new
+  // game's banner shows again without an effect to reset it.
+  const [codeHiddenFor, setCodeHiddenFor] = useState<string | null>(null);
 
   const handleStartLocal = (setup: LocalGameSetup) => {
     if (local) setPendingStart(setup);
@@ -193,14 +196,23 @@ export function PlayPage() {
                 /* UX-323: only show the join-code banner while the game is still
                    in lobby/waiting. Once the game is active or finished, the
                    code has served its purpose and the banner occludes counter
-                   chips. The code remains visible inside the GameMenu sheet. */
-                online.status === 'lobby' ? (
+                   chips. The code remains visible inside the GameMenu sheet —
+                   which is also where it goes when the host dismisses it here. */
+                online.status === 'lobby' && codeHiddenFor !== online.code ? (
                   <div className="play-code-banner">
                     <span className="play-code-label">Join code</span>
                     <span className="play-code-value">{online.code}</span>
                     <span className="play-code-hint">
                       Players go to Play → Online → Join, then enter this code.
                     </span>
+                    <button
+                      type="button"
+                      className="play-code-dismiss"
+                      aria-label="Hide join code — it stays in the game menu"
+                      onClick={() => setCodeHiddenFor(online.code)}
+                    >
+                      <X width={16} height={16} strokeWidth={2} aria-hidden />
+                    </button>
                   </div>
                 ) : undefined
               }
@@ -483,6 +495,10 @@ function LocalSetup({
                     deckId: deck?.id ?? null,
                     deckName: deck?.name ?? null,
                     commander: deck?.commander?.name ?? null,
+                    // Decks already model the second commander, so a Partner
+                    // seat splits its damage counter with no setup step —
+                    // nobody stops mid-game to type in a commander name.
+                    partner: deck?.partnerCommander?.name ?? null,
                     colorIdentity: deck?.commander?.color_identity ?? [],
                   })
                 }
@@ -638,7 +654,7 @@ function SeatDeck({
 }
 
 function blankPlayer(name: string): LocalGameSetup['players'][number] {
-  return { name, deckId: null, deckName: null, commander: null, colorIdentity: [] };
+  return { name, deckId: null, deckName: null, commander: null, partner: null, colorIdentity: [] };
 }
 
 const DECK_PICKER_NONE = '__none__';
@@ -689,6 +705,7 @@ function OnlineSetup({
     hostDeckId: string | null;
     hostDeckName: string | null;
     hostCommander: string | null;
+    hostPartner: string | null;
     hostColorIdentity: string[];
   }) => void;
   onJoin: (
@@ -698,6 +715,7 @@ function OnlineSetup({
       deckId: string | null;
       deckName: string | null;
       commander: string | null;
+      partner: string | null;
       colorIdentity: string[];
     }
   ) => void;
@@ -748,6 +766,7 @@ function OnlineSetup({
               hostDeckId: deck?.id ?? null,
               hostDeckName: deck?.name ?? null,
               hostCommander: deck?.commander?.name ?? null,
+              hostPartner: deck?.partnerCommander?.name ?? null,
             });
           }}
         >
@@ -840,6 +859,7 @@ function OnlineSetup({
               deckId: deck?.id ?? null,
               deckName: deck?.name ?? null,
               commander: deck?.commander?.name ?? null,
+              partner: deck?.partnerCommander?.name ?? null,
               colorIdentity: deck?.commander?.color_identity ?? [],
             });
           }}

@@ -40,6 +40,18 @@ export interface PlayerRollup {
   kos: number;
   /** Times they were eliminated with credit going to someone else. */
   timesKilled: number;
+  /**
+   * Games where a first player was recorded at all — the honest denominator
+   * for the two counts below, deliberately SEPARATE from `ratedGames`. A pod
+   * that never taps the first-player tool still has a summary in every other
+   * respect, so folding these in would report "0% wins on the play" for a pod
+   * that simply never recorded who started.
+   */
+  onThePlayGames: number;
+  /** Of those, the games this player was the one on the play. */
+  wentFirst: number;
+  /** Of the games they went first, the ones they won. */
+  wonGoingFirst: number;
 }
 
 /** One killer→victim tally across a set of games. */
@@ -64,6 +76,9 @@ export function rollupForUser(games: RollupGame[], userId: string): PlayerRollup
   let firstBloodTaken = 0;
   let kos = 0;
   let timesKilled = 0;
+  let onThePlayGames = 0;
+  let wentFirst = 0;
+  let wonGoingFirst = 0;
   const placements: number[] = [];
 
   for (const g of games) {
@@ -78,6 +93,17 @@ export function rollupForUser(games: RollupGame[], userId: string): PlayerRollup
     if (g.summary.firstBlood?.seat === seat) firstBloodTaken++;
     if (g.summary.firstBlood?.bySeat === seat) firstBloodDrawn++;
     kos += g.summary.seats.filter((s) => s.killedBySeat === seat).length;
+
+    // Null startingSeat = nobody recorded a first player. Skipped entirely
+    // rather than counted as "didn't go first", which would be a claim the
+    // data doesn't support. Legacy rows (pre-field) land here too.
+    if (g.summary.startingSeat != null) {
+      onThePlayGames++;
+      if (g.summary.startingSeat === seat) {
+        wentFirst++;
+        if (g.summary.winnerSeat === seat) wonGoingFirst++;
+      }
+    }
   }
 
   return {
@@ -88,6 +114,9 @@ export function rollupForUser(games: RollupGame[], userId: string): PlayerRollup
     firstBloodTaken,
     kos,
     timesKilled,
+    onThePlayGames,
+    wentFirst,
+    wonGoingFirst,
   };
 }
 

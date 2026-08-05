@@ -74,7 +74,7 @@ export async function addBasicLands(ctx: LandTopUpContext, amount: number): Prom
       let basicCard = getCachedCard(basicName);
       if (!basicCard) {
         try {
-          basicCard = await getCardByName(basicName, true);
+          basicCard = await getCardByName(basicName);
         } catch {
           continue;
         }
@@ -91,7 +91,7 @@ export async function addBasicLands(ctx: LandTopUpContext, amount: number): Prom
     let wastesCard = getCachedCard('Wastes');
     if (!wastesCard) {
       try {
-        wastesCard = await getCardByName('Wastes', true);
+        wastesCard = await getCardByName('Wastes');
       } catch {
         // Skip if can't fetch
       }

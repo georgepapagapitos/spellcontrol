@@ -58,14 +58,33 @@ export interface GamePlayer {
   deckName: string | null;
   /** Commander name (display only). */
   commander: string | null;
+  /**
+   * Second commander for a Partner / Friends Forever / Doctor's Companion
+   * pair; null for the overwhelmingly common single-commander seat. Display
+   * only, like `commander` — but its presence is what splits this seat's
+   * commander-damage counter in two, because rule 903.10a counts to 21 per
+   * *commander*, not per player. A Background is an enchantment and never
+   * deals combat damage, so a commander+Background seat correctly leaves this
+   * null. Legacy players read undefined → null.
+   */
+  partner: string | null;
   /** Commander color identity (W/U/B/R/G); drives the *default* panel color. */
   colorIdentity: string[];
   /** Player-chosen panel color override (W/U/B/R/G/M/C) or null to auto. */
   panelColorKey: string | null;
   life: number;
   poison: number;
-  /** Commander damage taken from each opponent seat. */
-  commanderDamage: Record<number, number>;
+  /**
+   * Commander damage taken, keyed per *dealing commander* via `cmdDamageKey`:
+   * `"3"` is seat 3's primary commander, `"3#p"` is seat 3's partner.
+   *
+   * The keys were always strings on the wire (JSON object keys are), so every
+   * row written before partners existed keys as `"3"` and keeps meaning
+   * exactly what it meant — seat 3's primary. That is why this needed no
+   * migration. Never sum two keys to test lethality: 11 from one commander
+   * plus 10 from its partner is 21 total and kills nobody.
+   */
+  commanderDamage: Record<string, number>;
   eliminated: boolean;
   isHost: boolean;
   /** Server-set presence flag for online games. Local games leave this true. */
@@ -95,6 +114,8 @@ export interface GameEvent {
   targetSeat: number | null;
   delta?: number;
   fromSeat?: number;
+  /** cmd-dmg only: the damage came from that seat's partner, not its primary. */
+  fromPartner?: boolean;
   message?: string;
 }
 
@@ -144,6 +165,19 @@ export interface GameState {
    */
   activeSeat: number | null;
   /**
+   * The seat that took the first turn ("on the play"), or null when nobody
+   * recorded it. Set by the random-first-player table tool, which used to
+   * announce its pick into the log and throw the fact away — the log line is
+   * prose nothing can aggregate, so the pick is now state.
+   *
+   * Deliberately NOT inferred from `activeSeat` at start: a pod that never
+   * passes turns leaves activeSeat null forever, and a pod that does pass
+   * turns has already moved it by the time anyone reads it. Absent means
+   * "nobody recorded who went first", which every consumer must render as
+   * "—" rather than folding into seat 0. Legacy states read null.
+   */
+  startingSeat: number | null;
+  /**
    * Table designations (Monarch, Initiative). Each is a seat number or null
    * (unclaimed). One holder at most per designation; claiming transfers it.
    * Persisted per game; legacy states default to both null via the resolver.
@@ -175,6 +209,7 @@ export type GameAction =
           | 'deckId'
           | 'deckName'
           | 'commander'
+          | 'partner'
           | 'colorIdentity'
           | 'panelColorKey'
           | 'connected'
@@ -189,6 +224,12 @@ export type GameAction =
       type: 'cmd-dmg';
       seat: number;
       fromSeat: number;
+      /**
+       * True when the damage came from that seat's PARTNER rather than its
+       * primary commander. Optional and false-by-default so every existing
+       * dispatch (and every persisted online action) keeps its meaning.
+       */
+      fromPartner?: boolean;
       delta: number;
       actorSeat: number | null;
       ts?: number;
@@ -206,6 +247,7 @@ export type GameAction =
           | 'format'
           | 'layout'
           | 'tapOrientation'
+          | 'startingSeat'
         >
       >;
       ts?: number;
@@ -309,11 +351,28 @@ function requireSeat(players: GamePlayer[], seat: number): GamePlayer {
   return p;
 }
 
+/**
+ * Key into `GamePlayer.commanderDamage` for damage dealt BY one commander.
+ * `"3"` is seat 3's primary commander; `"3#p"` is seat 3's partner.
+ *
+ * The primary key is the bare seat number precisely so that every row written
+ * before partners existed still resolves to the right bucket — no migration.
+ * Shared with the client so the board and the reducer can never disagree on
+ * which counter a tap belongs to.
+ */
+export function cmdDamageKey(fromSeat: number, fromPartner = false): string {
+  return fromPartner ? `${fromSeat}#p` : `${fromSeat}`;
+}
+
 function checkLossConditions(player: GamePlayer, state: GameState): boolean {
   if (player.eliminated) return true;
   if (player.life <= 0) return true;
   if (state.poisonEnabled && player.poison >= 10) return true;
   if (state.commanderDamageEnabled) {
+    // Per-VALUE, never a sum: rule 903.10a is 21 from *the same commander*, so
+    // 11 from one partner plus 10 from the other kills nobody. This loop was
+    // already per-value, which is why re-keying the map per commander made the
+    // rule correct here with no change to this function.
     for (const dmg of Object.values(player.commanderDamage)) {
       if (dmg >= 21) return true;
     }
@@ -383,6 +442,7 @@ export function createGameState(input: {
     layout: input.layout ?? 'pod',
     tapOrientation: input.tapOrientation ?? 'horizontal',
     activeSeat: null,
+    startingSeat: null,
     designations: { monarch: null, initiative: null },
     players: input.players,
     events: [],
@@ -403,6 +463,7 @@ export function makePlayer(input: {
   deckId?: string | null;
   deckName?: string | null;
   commander?: string | null;
+  partner?: string | null;
   colorIdentity?: string[];
   startingLife: number;
   isHost?: boolean;
@@ -416,6 +477,7 @@ export function makePlayer(input: {
     deckId: input.deckId ?? null,
     deckName: input.deckName ?? null,
     commander: input.commander ?? null,
+    partner: input.partner ?? null,
     colorIdentity: input.colorIdentity ?? [],
     panelColorKey: null,
     life: input.startingLife,
@@ -444,6 +506,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
   let next: GameState = {
     ...prev,
     activeSeat: prev.activeSeat ?? null,
+    startingSeat: prev.startingSeat ?? null,
     designations: resolveDesignations(prev.designations),
   };
 
@@ -490,8 +553,11 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
         winnerSeat: null,
         startedAt: null,
         endedAt: null,
-        // Reset turn tracking and designations when the game resets.
+        // Reset turn tracking, the on-the-play seat, and designations when the
+        // game resets — a reset is a fresh game at the same table, so last
+        // game's first player is stale, not inherited.
         activeSeat: null,
+        startingSeat: null,
         designations: { monarch: null, initiative: null },
         players: prev.players.map((p) => ({
           ...p,
@@ -526,6 +592,10 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       next = {
         ...next,
         players: prev.players.filter((p) => p.seat !== action.seat),
+        // Drop the on-the-play mark if its holder left: seats are reusable by
+        // a later joiner, and a stale seat number would credit "went first"
+        // to whoever sits there next.
+        startingSeat: next.startingSeat === action.seat ? null : next.startingSeat,
         events: pushEvent(next, {
           kind: 'leave',
           actorSeat: null,
@@ -597,7 +667,8 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       next = {
         ...next,
         players: updatePlayer(next, action.seat, (p) => {
-          const cur = p.commanderDamage[action.fromSeat] ?? 0;
+          const key = cmdDamageKey(action.fromSeat, action.fromPartner);
+          const cur = p.commanderDamage[key] ?? 0;
           const nextDmg = Math.max(0, cur + action.delta);
           // Life moves by the damage actually applied, not the requested
           // delta — decrementing at 0 is clamped, so it must not hand out
@@ -605,7 +676,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
           const applied = nextDmg - cur;
           return {
             ...p,
-            commanderDamage: { ...p.commanderDamage, [action.fromSeat]: nextDmg },
+            commanderDamage: { ...p.commanderDamage, [key]: nextDmg },
             // Commander damage also reduces life by the same amount.
             life: p.life - applied,
           };
@@ -615,6 +686,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
           actorSeat: action.actorSeat,
           targetSeat: action.seat,
           fromSeat: action.fromSeat,
+          fromPartner: action.fromPartner || undefined,
           delta: action.delta,
           ts,
         }),

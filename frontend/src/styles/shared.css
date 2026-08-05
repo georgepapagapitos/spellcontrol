@@ -135,6 +135,12 @@
 }
 
 .shared-view {
+  /* width:100% is load-bearing, not redundant: this is a flex item of
+     .shared-shell, and the `margin: 0 auto` below cancels the default
+     align-self:stretch (per flexbox, auto cross-axis margins beat stretch).
+     Without it the column collapses to fit-content — a ~520px mobile-width
+     strip stranded in the middle of a 1600px desktop window. */
+  width: 100%;
   max-width: 1200px;
   margin: 0 auto;
   padding: var(--space-5) calc(var(--space-4) + var(--safe-right)) var(--space-8)

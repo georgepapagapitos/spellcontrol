@@ -43,7 +43,8 @@ describe('PLAYSTYLES vocabulary', () => {
 
   it('every playstyle carries at least one signal', () => {
     for (const p of PLAYSTYLES) {
-      expect(p.themeSignals.length + p.archetypeSignals.length).toBeGreaterThan(0);
+      expect(p.themeSignals.length + p.archetypeSignals.length + (p.oracleSignal ? 1 : 0)) //
+        .toBeGreaterThan(0);
     }
   });
 
@@ -189,4 +190,75 @@ describe('classifyOwnedCommanderPlaystyles (EnrichedCard adapter)', () => {
     } as EnrichedCard;
     expect(classifyOwnedCommanderPlaystyles(owned)).toEqual([]);
   });
+
+  it('recovers keyword abilities from the oracle text so Voltron is reachable', () => {
+    const owned = {
+      name: 'Sword Swinger',
+      typeLine: 'Legendary Creature — Human Knight',
+      // Scryfall prints keyword abilities on their own line, no trailing period.
+      oracleText: 'flying, double strike\nwhenever ~ attacks, it gets +1/+0.',
+      colorIdentity: ['W'],
+    } as EnrichedCard;
+    expect(classifyOwnedCommanderPlaystyles(owned).map((m) => m.playstyle.id)).toContain('voltron');
+  });
+
+  it('does not read a granted keyword in a sentence as the commander having it', () => {
+    const owned = {
+      name: 'Flight Granter',
+      typeLine: 'Legendary Creature — Bird Wizard',
+      // "gains flying" sits in a sentence (trailing period) — not a keyword line.
+      // Two mentions so a naive substring scan would clear the 2-keyword floor.
+      oracleText:
+        '{t}: target creature gains flying until end of turn.\n{t}: target creature gains trample until end of turn.',
+      colorIdentity: ['U'],
+    } as EnrichedCard;
+    expect(classifyOwnedCommanderPlaystyles(owned).map((m) => m.playstyle.id)).not.toContain(
+      'voltron'
+    );
+  });
+});
+
+/**
+ * The bug this guards: a playstyle chip whose signals nothing can emit renders
+ * as a permanently empty bucket ("None of your commanders fit that playstyle
+ * yet") no matter how large the collection. Voltron (keyword-detected, and the
+ * adapter dropped keywords) and Superfriends (no detector emits its themes)
+ * both shipped that way. A per-playstyle exemplar is the only check that fails
+ * when it recurs — asserting the vocabulary's shape does not, which is why the
+ * original "carries at least one signal" test passed throughout.
+ */
+describe('every playstyle is reachable from an owned collection card', () => {
+  const EXEMPLARS: Record<string, string> = {
+    aristocrats: 'whenever a creature you control dies, each opponent loses 1 life.',
+    tokens: 'whenever ~ attacks, create a 1/1 green saproling creature token.',
+    voltron: 'flying, double strike',
+    spellslinger: 'whenever you cast an instant or sorcery spell, draw a card.',
+    control: 'when ~ deals combat damage to a player, you become the monarch.',
+    combo: 'search your library for a card, put it into your hand, then shuffle.',
+    reanimator: 'return target creature card from your graveyard to the battlefield.',
+    landfall: 'whenever a land enters, put a +1/+1 counter on ~.',
+    artifacts: 'artifacts you control get +1/+1.',
+    enchantress: 'whenever you cast an enchantment spell, draw a card.',
+    counters: 'put a +1/+1 counter on target creature.',
+    lifegain: 'whenever you gain life, each opponent loses 1 life.',
+    blink: 'when ~ enters, draw a card.',
+    superfriends: 'planeswalkers you control enter with an additional loyalty counter.',
+  };
+
+  it('has an exemplar for every playstyle in the vocabulary', () => {
+    expect(Object.keys(EXEMPLARS).sort()).toEqual(PLAYSTYLES.map((p) => p.id).sort());
+  });
+
+  for (const p of PLAYSTYLES) {
+    it(`${p.id} matches at least one card`, () => {
+      const owned = {
+        name: `${p.id} exemplar`,
+        typeLine: 'Legendary Creature — Human Wizard',
+        oracleText: EXEMPLARS[p.id],
+        colorIdentity: ['C'],
+      } as EnrichedCard;
+      const matchIds = classifyOwnedCommanderPlaystyles(owned).map((m) => m.playstyle.id);
+      expect(matchIds).toContain(p.id);
+    });
+  }
 });

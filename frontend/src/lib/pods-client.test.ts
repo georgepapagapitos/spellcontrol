@@ -282,7 +282,7 @@ describe('fetchPodLeaderboard', () => {
     fetchMock.mockResolvedValue(jsonResponse({ standings: [] }));
     expect(await fetchPodLeaderboard('p1')).toEqual({
       standings: [],
-      records: { firstBlood: null, mostKos: null, archenemy: null },
+      records: { firstBlood: null, mostKos: null, onThePlay: null, archenemy: null },
     });
   });
 

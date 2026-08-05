@@ -341,6 +341,7 @@ describe('GET /api/pods/:id/leaderboard', () => {
         turns: 8,
         durationMs: 1000,
         firstBlood: { seat: 1, bySeat: 0, turn: 2, ts: 1, amount: 5 },
+        startingSeat: null,
         winnerSeat: 0,
         commanderDamage: [],
         seats: [
@@ -365,6 +366,54 @@ describe('GET /api/pods/:id/leaderboard', () => {
       (res.body.standings as { userId: string }[]).map((s) => [s.userId, s])
     );
     expect(byId[owner.id]).toMatchObject({ ratedGames: 1, avgPlacement: 1, firstBlood: 1, kos: 1 });
+    // That game recorded no first player, so the on-the-play superlative is
+    // unearned even though every other record landed.
+    expect(res.body.records.onThePlay).toBeNull();
+    expect(byId[owner.id]).toMatchObject({ onThePlayGames: 0, wentFirst: 0 });
+  });
+
+  it('names the on-the-play converter only past the small-sample floor', async () => {
+    const owner = await makeUser('ps-lb-otp-owner');
+    const bob = await makeUser('ps-lb-otp-bob');
+    await befriend(owner.cookie, 'ps-lb-otp-bob', bob.cookie, 'ps-lb-otp-owner');
+    const pod = await createPod(owner.cookie);
+    await addMember(owner.cookie, pod.id, bob.id, bob.cookie);
+
+    const withStart = async (winnerSeat: 0 | 1) =>
+      insertResult({
+        winnerUserId: winnerSeat === 0 ? owner.id : bob.id,
+        participants: [{ userId: owner.id }, { userId: bob.id }],
+        summary: {
+          turns: 4,
+          durationMs: 1000,
+          firstBlood: null,
+          startingSeat: 0, // owner always on the play
+          winnerSeat,
+          commanderDamage: [],
+          seats: [blankSeat(0), blankSeat(1)],
+        },
+      });
+
+    // Two starts is under the floor: a 2-for-2 is noise, not a title.
+    await withStart(0);
+    await withStart(0);
+    let res = await request(app).get(`/api/pods/${pod.id}/leaderboard`).set('Cookie', owner.cookie);
+    expect(res.body.records.onThePlay).toBeNull();
+
+    // Third start clears it.
+    await withStart(1);
+    res = await request(app).get(`/api/pods/${pod.id}/leaderboard`).set('Cookie', owner.cookie);
+    expect(res.body.records.onThePlay).toMatchObject({
+      userId: owner.id,
+      wins: 2,
+      starts: 3,
+    });
+    const byId2 = Object.fromEntries(
+      (res.body.standings as { userId: string }[]).map((s) => [s.userId, s])
+    );
+    // Bob sat in all three but started none — they count toward his
+    // onThePlayGames denominator without ever crediting him a start.
+    expect(byId2[bob.id]).toMatchObject({ onThePlayGames: 3, wentFirst: 0, wonGoingFirst: 0 });
   });
 
   it('leaves every record null when no game carries a summary', async () => {
@@ -382,10 +431,21 @@ describe('GET /api/pods/:id/leaderboard', () => {
       .get(`/api/pods/${pod.id}/leaderboard`)
       .set('Cookie', owner.cookie);
     expect(res.status).toBe(200);
-    expect(res.body.records).toEqual({ firstBlood: null, mostKos: null, archenemy: null });
-    // The game still counts as played — only the derived denominator is 0.
+    expect(res.body.records).toEqual({
+      firstBlood: null,
+      mostKos: null,
+      onThePlay: null,
+      archenemy: null,
+    });
+    // The game still counts as played — only the derived denominators are 0.
     const owned = (res.body.standings as { userId: string }[]).find((s) => s.userId === owner.id);
-    expect(owned).toMatchObject({ played: 1, ratedGames: 0, avgPlacement: null });
+    expect(owned).toMatchObject({
+      played: 1,
+      ratedGames: 0,
+      avgPlacement: null,
+      onThePlayGames: 0,
+      wentFirst: 0,
+    });
   });
 
   it('never names a non-member as the archenemy, even when one shared the table', async () => {
@@ -405,6 +465,7 @@ describe('GET /api/pods/:id/leaderboard', () => {
         turns: 6,
         durationMs: 1000,
         firstBlood: null,
+        startingSeat: null,
         winnerSeat: 2,
         commanderDamage: [],
         seats: [

@@ -244,6 +244,204 @@
   border-radius: var(--radius);
 }
 
+/* ── Partner seats: two commanders, two independent counters ───────────────
+   Rule 903.10a counts to 21 per COMMANDER, so a Partner seat's panel splits
+   into two self-contained halves. They must never read as two halves of one
+   total — each carries its own name, number, progress fill and ± zones. */
+.pp-cmd-split-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: 1.6rem 0.4rem 0.4rem;
+  pointer-events: none;
+}
+
+/* The shared "⚔ dealt to <name>" caption spans both halves, so it sits in
+   normal flow here rather than being centred on a numeral the way the
+   single-commander panel's version is. */
+.pp-cmd-split-wrap > .pp-cmd-caption {
+  position: static;
+  transform: none;
+  flex: 0 0 auto;
+}
+
+.pp-cmd-split-halves {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem;
+}
+
+.pp-cmd-half {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--pp-edge, #7d8aa3) 55%, transparent);
+  background: rgba(0, 0, 0, 0.22);
+  pointer-events: auto;
+}
+
+/* Progress-to-21 for THIS commander only. */
+.pp-cmd-half-fill {
+  position: absolute;
+  z-index: 0;
+  inset: auto 0 0 0;
+  height: calc(var(--fill, 0) * 100%);
+  background: linear-gradient(0deg, rgba(220, 38, 38, 0.6) 0%, rgba(220, 38, 38, 0.12) 100%);
+  pointer-events: none;
+  transition: height var(--motion-fast) ease;
+}
+
+/* Half-local ± zones. The panel-wide zones are suppressed on a split panel
+   (see GameBoard), so these are the only tap targets and a tap can never be
+   credited to the wrong commander. */
+.pp-cmd-half-zone {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  cursor: pointer;
+}
+
+.pp-cmd-half-zone.is-minus {
+  left: 0;
+}
+
+.pp-cmd-half-zone.is-plus {
+  right: 0;
+}
+
+.pp-cmd-half-zone:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.pp-cmd-half-name,
+.pp-cmd-half-row,
+.pp-cmd-half-hint {
+  position: relative;
+  z-index: 2;
+}
+
+.pp-cmd-half-name {
+  max-width: 96%;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: var(--text-xs, 0.72rem);
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+.pp-cmd-half-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.pp-cmd-half-value {
+  min-width: 1.6em;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl, 1.6rem);
+  font-weight: 800;
+  line-height: 1.05;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+.pp-cmd-half-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: var(--text-base);
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  pointer-events: auto;
+  transition: background var(--motion-fast) ease;
+}
+
+.pp-cmd-half-step:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pp-cmd-half-step:not(:disabled):hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+.pp-cmd-half-step:not(:disabled):active {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.pp-cmd-half-step:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .pp-cmd-half-step {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}
+
+.pp-cmd-half-hint {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: var(--text-xs, 0.72rem);
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+/* 21 from THIS commander is lethal on its own — never the pair's sum. */
+.pp-cmd-half.is-lethal {
+  border-color: rgba(255, 180, 180, 0.85);
+}
+
+.pp-cmd-half.is-lethal .pp-cmd-half-value {
+  animation: pp-counter-lethal 1.2s ease-in-out infinite;
+  border-radius: var(--radius);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pp-cmd-half-fill {
+    transition: none !important;
+  }
+  .pp-cmd-half.is-lethal .pp-cmd-half-value {
+    animation: none !important;
+  }
+}
+
 /* The source panel's own life, demoted to a readout so the board state isn't
    lost while logging. Shares the counters strip's position (bottom-left). */
 .pp-life-chip {

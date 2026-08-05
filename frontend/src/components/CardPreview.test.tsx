@@ -207,6 +207,21 @@ describe('CardPreview share', () => {
     renderPreview(mk({}));
     expect(screen.queryByRole('button', { name: 'Share card image' })).toBeNull();
   });
+
+  it('opens the share dialog instead of a silent download where the OS has no sheet', async () => {
+    Object.defineProperty(navigator, 'canShare', { value: () => false, configurable: true });
+    renderPreview(flipCard);
+    fireEvent.click(screen.getByRole('button', { name: 'Share card image' }));
+
+    // No art fetched yet, no system share — the user picks a destination first.
+    expect(await screen.findByText('Share Delver of Secrets')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Save image/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Copy image link/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Email/ })).toBeTruthy();
+    expect(
+      fetchMock.mock.calls.filter((c) => String(c[0]).startsWith('https://img/'))
+    ).toHaveLength(0);
+  });
 });
 
 describe('CardPreview turn (sideways layouts)', () => {
@@ -231,41 +246,6 @@ describe('CardPreview turn (sideways layouts)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Turn upright' }));
     expect(frame.getAttribute('data-turn')).toBe('0');
-  });
-
-  it('close button exits zoom instead of dismissing the preview', () => {
-    const onClose = vi.fn();
-    render(
-      <MemoryRouter>
-        <CardPreview
-          cards={[mk({ imageNormal: 'https://cards.example/front.jpg' })]}
-          index={0}
-          binderName=""
-          sectionLabels={['']}
-          pageNumbers={[0]}
-          totalPages={0}
-          onIndexChange={() => {}}
-          onClose={onClose}
-        />
-      </MemoryRouter>
-    );
-    const sheet = document.querySelector('.card-preview-sheet')!;
-    expect(sheet.getAttribute('data-zoomed')).toBe('false');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Zoom in on card' }));
-    expect(sheet.getAttribute('data-zoomed')).toBe('true');
-
-    // While zoomed the × is the visible way OUT OF THE ZOOM — one layer at a
-    // time, same as Escape. Dismissing the whole preview here would strand the
-    // user, since every other control is faded out.
-    fireEvent.click(screen.getByRole('button', { name: 'Exit zoom' }));
-    expect(sheet.getAttribute('data-zoomed')).toBe('false');
-    expect(onClose).not.toHaveBeenCalled();
-
-    // Back to being the preview's close button. (Actually firing onClose goes
-    // through useSheetExit's sheet-fall animationend, which happy-dom never
-    // dispatches — the reverted label is what proves the branch flipped.)
-    expect(screen.getByRole('button', { name: 'Close preview' })).toBeTruthy();
   });
 
   it('toggles a Kamigawa flip card 180°', () => {
