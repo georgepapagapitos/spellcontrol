@@ -162,6 +162,24 @@ describe('entering commander-damage focus mode', () => {
     expect(focusBar()).toBeTruthy();
   });
 
+  it('does NOT re-orient the board — every seat keeps its own rotation', () => {
+    renderPod();
+    const rotations = () =>
+      Array.from(document.querySelectorAll('.player-panel[data-seat]')).map((el) =>
+        (el as HTMLElement).style.getPropertyValue('--pp-rot')
+      );
+    // Default 3p layout: seat 0 rotated 180°, seats 1–2 upright.
+    const before = rotations();
+    expect(before).toEqual(['180deg', '0deg', '0deg']);
+
+    drag(tapZone(0), ALICE_UP);
+
+    // Turning the panels toward whoever opened the mode reads as the seats
+    // themselves moving, which looks broken. A mode changes what a panel
+    // says, never where it sits or which way it faces.
+    expect(rotations()).toEqual(before);
+  });
+
   it('ignores a drag that is short or predominantly horizontal', () => {
     renderPod();
     const zone = tapZone(0);
@@ -188,6 +206,7 @@ describe('logging damage in focus mode', () => {
       type: 'cmd-dmg',
       seat: 0,
       fromSeat: 1,
+      fromPartner: false,
       delta: 1,
       actorSeat: 0,
     });
@@ -203,6 +222,7 @@ describe('logging damage in focus mode', () => {
       type: 'cmd-dmg',
       seat: 0,
       fromSeat: 1,
+      fromPartner: false,
       delta: -1,
       actorSeat: 0,
     });
@@ -247,6 +267,94 @@ describe('logging damage in focus mode', () => {
       .getByLabelText('Atraxa: 21 commander damage dealt to Alice')
       .closest('.player-panel') as HTMLElement;
     expect(bobPanel.classList.contains('is-cmd-lethal')).toBe(true);
+  });
+});
+
+describe('partner seats split into two commanders', () => {
+  /** Bob plays a Partner pair; Alice is the one logging what hit her. */
+  function renderPartnerPod(dispatch = vi.fn(), alice: Partial<GamePlayer> = {}) {
+    const game = makeTestState([
+      makeTestPlayer(alice),
+      makeTestPlayer({
+        id: 'p1',
+        seat: 1,
+        name: 'Bob',
+        commander: 'Tymna',
+        partner: 'Thrasios',
+        colorIdentity: ['W', 'U', 'B', 'G'],
+      }),
+      makeTestPlayer({ id: 'p2', seat: 2, name: 'Carol', commander: null, colorIdentity: [] }),
+    ]);
+    render(<GameBoard game={game} dispatch={dispatch} canControlAll />);
+    return { dispatch };
+  }
+
+  it('shows a counter per commander, and leaves single-commander seats alone', () => {
+    renderPartnerPod();
+    drag(tapZone(0), ALICE_UP);
+
+    const bobPanel = document.querySelector('.player-panel.is-cmd-split') as HTMLElement;
+    expect(bobPanel).toBeTruthy();
+    const names = Array.from(bobPanel.querySelectorAll('.pp-cmd-half-name')).map(
+      (el) => el.textContent
+    );
+    expect(names).toEqual(['Tymna', 'Thrasios']);
+
+    // Carol has one commander, so her panel keeps the undivided counter.
+    expect(document.querySelectorAll('.player-panel.is-cmd-split')).toHaveLength(1);
+  });
+
+  it('attributes a tap to the right commander', () => {
+    const { dispatch } = renderPartnerPod();
+    drag(tapZone(0), ALICE_UP);
+
+    // The half's zone and its + button share the label, as on the
+    // single-commander panel. The button is a plain click target; the zone is
+    // the tap-and-hold one.
+    fireEvent.click(screen.getByRole('button', { name: '+1 commander damage from Thrasios' }));
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'cmd-dmg',
+      seat: 0,
+      fromSeat: 1,
+      fromPartner: true,
+      delta: 1,
+      actorSeat: 0,
+    });
+  });
+
+  it('reads each commander from its own key', () => {
+    // 11 from Tymna, 10 from Thrasios — 21 total, lethal from neither.
+    renderPartnerPod(vi.fn(), { commanderDamage: { '1': 11, '1#p': 10 } });
+    drag(tapZone(0), ALICE_UP);
+
+    const values = Array.from(document.querySelectorAll('.pp-cmd-half-value')).map(
+      (el) => el.textContent
+    );
+    expect(values).toEqual(['11', '10']);
+    // Neither half is lethal, and neither is the panel — 21 across a pair
+    // kills nobody.
+    expect(document.querySelectorAll('.pp-cmd-half.is-lethal')).toHaveLength(0);
+    expect(document.querySelector('.player-panel.is-cmd-lethal')).toBeNull();
+  });
+
+  it('marks lethal when ONE partner alone reaches 21', () => {
+    renderPartnerPod(vi.fn(), { commanderDamage: { '1#p': 21 } });
+    drag(tapZone(0), ALICE_UP);
+
+    expect(document.querySelectorAll('.pp-cmd-half.is-lethal')).toHaveLength(1);
+    expect(document.querySelector('.player-panel.is-cmd-lethal')).toBeTruthy();
+  });
+
+  it('reads a pre-partner bare-seat key as the primary commander', () => {
+    // What a game persisted before partners existed looks like.
+    renderPartnerPod(vi.fn(), { commanderDamage: { '1': 6 } });
+    drag(tapZone(0), ALICE_UP);
+
+    const values = Array.from(document.querySelectorAll('.pp-cmd-half-value')).map(
+      (el) => el.textContent
+    );
+    expect(values).toEqual(['6', '0']);
   });
 });
 

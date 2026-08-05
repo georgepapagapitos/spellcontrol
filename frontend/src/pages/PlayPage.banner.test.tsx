@@ -32,6 +32,7 @@ function makeOnlineGame(status: 'lobby' | 'active' | 'finished'): GameState {
     layout: 'pod',
     tapOrientation: 'horizontal',
     activeSeat: null,
+    startingSeat: null,
     designations: { monarch: null, initiative: null },
     players: [
       {
@@ -42,6 +43,7 @@ function makeOnlineGame(status: 'lobby' | 'active' | 'finished'): GameState {
         deckId: null,
         deckName: null,
         commander: null,
+        partner: null,
         colorIdentity: [],
         life: 40,
         commanderDamage: {},

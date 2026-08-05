@@ -61,6 +61,11 @@ export function GameTools({ game, dispatch }: Props) {
     if (!pick) return;
     reveal({ kind: 'first', name: pick.name });
     announce(`🎯 First player → ${pick.name}`);
+    // Record the pick as state, not just prose. The log note above is the
+    // human-readable moment; `startingSeat` is what the finished-game summary
+    // carries into the on-the-play win-rate rollup. Unlike coin/dice — genuinely
+    // ephemeral — who went first is a fact about the game worth aggregating.
+    dispatch({ type: 'settings', patch: { startingSeat: pick.seat } });
   };
 
   return (

@@ -94,7 +94,7 @@ type UpdatePlayerPatch = Extract<GameAction, { type: 'update-player' }>['patch']
  * enforce that.
  *
  * For `update-player`, the reducer spreads `patch` onto the player wholesale
- * (`{ ...p, ...patch }`), so we must **whitelist** it to exactly the seven
+ * (`{ ...p, ...patch }`), so we must **whitelist** it to exactly the eight
  * declared fields — otherwise a participant could smuggle `userId`, `isHost`,
  * `life`, or `eliminated` into their own seat, and those land verbatim in the
  * permanent `game_results` row. Never widen this without matching the
@@ -108,7 +108,7 @@ function sanitizeAction(action: GameAction): GameAction {
     if (typeof raw.name === 'string' && raw.name.trim().length > 0) {
       patch.name = raw.name.trim().slice(0, 40);
     }
-    for (const f of ['deckId', 'deckName', 'commander'] as const) {
+    for (const f of ['deckId', 'deckName', 'commander', 'partner'] as const) {
       if (f in raw) patch[f] = typeof raw[f] === 'string' ? (raw[f] as string) : null;
     }
     if ('colorIdentity' in raw) patch.colorIdentity = sanitizeColorIdentity(raw.colorIdentity);
@@ -176,6 +176,7 @@ gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Resp
     hostDeckId?: unknown;
     hostDeckName?: unknown;
     hostCommander?: unknown;
+    hostPartner?: unknown;
     hostColorIdentity?: unknown;
   };
 
@@ -212,6 +213,7 @@ gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Resp
     deckId: typeof body.hostDeckId === 'string' ? body.hostDeckId : null,
     deckName: typeof body.hostDeckName === 'string' ? body.hostDeckName : null,
     commander: typeof body.hostCommander === 'string' ? body.hostCommander : null,
+    partner: typeof body.hostPartner === 'string' ? body.hostPartner : null,
     colorIdentity: sanitizeColorIdentity(body.hostColorIdentity),
     startingLife,
     isHost: true,
@@ -314,6 +316,7 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
     deckId?: unknown;
     deckName?: unknown;
     commander?: unknown;
+    partner?: unknown;
     colorIdentity?: unknown;
   };
   const name =
@@ -341,6 +344,7 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
         deckId: typeof body.deckId === 'string' ? body.deckId : existing.deckId,
         deckName: typeof body.deckName === 'string' ? body.deckName : existing.deckName,
         commander: typeof body.commander === 'string' ? body.commander : existing.commander,
+        partner: typeof body.partner === 'string' ? body.partner : existing.partner,
         colorIdentity:
           body.colorIdentity !== undefined
             ? sanitizeColorIdentity(body.colorIdentity)
@@ -370,6 +374,7 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
     deckId: typeof body.deckId === 'string' ? body.deckId : null,
     deckName: typeof body.deckName === 'string' ? body.deckName : null,
     commander: typeof body.commander === 'string' ? body.commander : null,
+    partner: typeof body.partner === 'string' ? body.partner : null,
     colorIdentity: sanitizeColorIdentity(body.colorIdentity),
     startingLife: current.startingLife,
     isHost: false,

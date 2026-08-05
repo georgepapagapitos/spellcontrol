@@ -1,6 +1,7 @@
 import { MoreHorizontal, Undo2 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GameAction, GamePlayer, GameState } from '../../lib/game-state';
+import { cmdDamageKey } from '../../lib/game-state';
 import type { EmptyCell, SeatSlot } from '../../lib/board-layouts';
 import {
   homeSlotIndex,
@@ -108,11 +109,6 @@ export function GameBoard({
   // Resolve against live state so a seat that leaves mid-focus drops the mode
   // instead of stranding the board in a meaningless state.
   const cmdFocus = game.players.find((p) => p.seat === cmdFocusSeat) ?? null;
-  const cmdFocusIdx = cmdFocus ? game.players.indexOf(cmdFocus) : -1;
-  // In focus mode the numbers describe what the FOCUSED player has taken, so
-  // every panel is rotated to read upright for them — they're the reader.
-  const cmdFocusRot =
-    cmdFocusIdx >= 0 ? (board.seats[(cmdFocusIdx + slotShift) % total]?.rot ?? 0) : 0;
   // Focus is only enterable from a panel the viewer may edit, but permissions
   // can change under an online game — re-derive rather than trusting entry.
   const cmdFocusCanEdit =
@@ -215,9 +211,11 @@ export function GameBoard({
               slot={slot}
               // Rotation only applies in shared (local) mode — on online
               // games each device is in front of its owner, always upright.
-              // In commander-damage focus mode every panel turns to face the
-              // focused player, since the numbers are theirs to read.
-              rotation={isShared ? (cmdFocus ? cmdFocusRot : slot.rot) : 0}
+              // Seat rotation is FIXED: it never changes with board state,
+              // including commander-damage focus mode. Re-orienting the board
+              // under a mode reads as the seats moving, which is disorienting
+              // and looks broken — the panel stays where and how it sits.
+              rotation={isShared ? slot.rot : 0}
               canEdit={canControlAll || (viewerUserId != null && p.userId === viewerUserId)}
               canLayout={canControlAll}
               cmdFocus={cmdFocus}
@@ -394,13 +392,26 @@ function PlayerPanel({
   // panel becomes "commander damage THIS player has dealt to them".
   const isCmdSelf = cmdFocus != null && cmdFocus.seat === player.seat;
   const cmdTarget = cmdFocus != null && !isCmdSelf ? cmdFocus : null;
-  const cmdValue = cmdTarget ? (cmdTarget.commanderDamage[player.seat] ?? 0) : 0;
+  /**
+   * Rule 903.10a counts to 21 per *commander*, so a Partner seat carries two
+   * independent tallies and its panel splits in two. Each is read with the
+   * shared `cmdDamageKey` so the board and the reducer can't disagree on which
+   * counter a tap belongs to.
+   */
+  const cmdValue = cmdTarget ? (cmdTarget.commanderDamage[cmdDamageKey(player.seat)] ?? 0) : 0;
+  const cmdPartnerValue = cmdTarget
+    ? (cmdTarget.commanderDamage[cmdDamageKey(player.seat, true)] ?? 0)
+    : 0;
+  /** Split only when this seat actually has a second commander. */
+  const isCmdSplit = cmdTarget != null && !!player.partner;
   /** This panel's commander, for damage attribution — name is the fallback. */
   const cmdSourceLabel = player.commander ?? player.name;
   /** Every ±1 control reads as life or as commander damage, never ambiguously. */
-  const stepLabel = (delta: number) =>
+  const stepLabel = (delta: number, fromPartner = false) =>
     cmdTarget
-      ? `${delta > 0 ? '+1' : '-1'} commander damage from ${cmdSourceLabel}`
+      ? `${delta > 0 ? '+1' : '-1'} commander damage from ${
+          fromPartner ? (player.partner ?? cmdSourceLabel) : cmdSourceLabel
+        }`
       : `${delta > 0 ? '+1' : '-1'} life`;
   // Life taps are blocked while any panel overlay is open (seat menu /
   // counters drawer) — otherwise a stray tap on the panel underneath the
@@ -514,15 +525,17 @@ function PlayerPanel({
   }, [player.eliminated]);
 
   const adjust = useCallback(
-    (delta: number, skipTap = false) => {
+    (delta: number, skipTap = false, fromPartner = false) => {
       if (disabled) return;
       if (cmdTarget) {
         // Attributed to the focused player as actor: they're the one at the
-        // device logging what hit them.
+        // device logging what hit them. `fromPartner` picks which of this
+        // seat's two commanders the damage came from.
         dispatch({
           type: 'cmd-dmg',
           seat: cmdTarget.seat,
           fromSeat: player.seat,
+          fromPartner,
           delta,
           actorSeat: cmdTarget.seat,
         });
@@ -554,8 +567,21 @@ function PlayerPanel({
         : canOpenCounters && game.poisonEnabled
           ? () => setDrawerOpen(true)
           : undefined,
-    // Swiping back down anywhere on the board leaves focus mode — every panel
-    // is rotated to the focused player, so "down" is down for whoever opened it.
+    // Swiping back down leaves focus mode. Panel-local like every other board
+    // gesture, so on your own panel it's the exact reverse of the swipe that
+    // opened it; the button and Esc cover anyone reaching across the table.
+    onSwipeDown: cmdFocus ? onCmdFocusExit : undefined,
+    rotation,
+    disabled,
+  });
+  // A second, independent tap/hold instance for the partner half. Hooks can't
+  // be called conditionally, so this is always created and simply unused on
+  // the single-commander seats that are the overwhelming majority.
+  const partnerTapHandlers = useTapAndHold({
+    onTap: (delta: number) => adjust(delta, false, true),
+    onHoldTick: (delta: number, gearUp: boolean) => adjust(delta, gearUp, true),
+    onPointerStart: (e) => recordPointer(e.clientX, e.clientY),
+    onPointerMove: (e) => recordPointer(e.clientX, e.clientY),
     onSwipeDown: cmdFocus ? onCmdFocusExit : undefined,
     rotation,
     disabled,
@@ -586,8 +612,9 @@ function PlayerPanel({
         } ${isLowLife ? 'is-low-life' : ''} ${elimBeat ? 'is-elim-beat' : ''} ${
           isActiveTurn ? 'is-active-turn' : ''
         } ${cmdTarget ? 'is-cmd-source' : ''} ${isCmdSelf ? 'is-cmd-self' : ''} ${
-          cmdTarget && cmdValue >= 21 ? 'is-cmd-lethal' : ''
-        }`}
+          // Either commander independently reaching 21 is lethal — never the sum.
+          cmdTarget && (cmdValue >= 21 || cmdPartnerValue >= 21) ? 'is-cmd-lethal' : ''
+        } ${isCmdSplit ? 'is-cmd-split' : ''}`}
         // Rotation is set as a CSS variable consumed by the .player-panel
         // transform rule so it composes cleanly with any other transforms.
         // When no identity / no override applies, the inline palette vars
@@ -596,8 +623,11 @@ function PlayerPanel({
         // (see `.player-panel[data-sideways]`).
         style={{
           ['--pp-rot' as never]: `${rotation}deg`,
-          // Progress-to-21, consumed by the .pp-cmd-fill bar.
-          ...(cmdTarget ? { ['--fill' as never]: cmdDamageFillRatio(cmdValue) } : {}),
+          // Progress-to-21, consumed by the .pp-cmd-fill bar. On a split panel
+          // each half carries its own --fill instead.
+          ...(cmdTarget && !isCmdSplit
+            ? { ['--fill' as never]: cmdDamageFillRatio(cmdValue) }
+            : {}),
           ...(colorKey
             ? {}
             : {
@@ -609,14 +639,18 @@ function PlayerPanel({
         data-seat={player.seat}
         data-sideways={isSideways || undefined}
         aria-label={
-          cmdTarget
-            ? `${cmdSourceLabel}: ${cmdValue} commander damage dealt to ${cmdTarget.name}`
-            : `${player.name}: ${player.life} life`
+          isCmdSplit
+            ? `${player.name}: commander damage dealt to ${cmdTarget!.name} — ${cmdSourceLabel} ${cmdValue}, ${player.partner} ${cmdPartnerValue}`
+            : cmdTarget
+              ? `${cmdSourceLabel}: ${cmdValue} commander damage dealt to ${cmdTarget.name}`
+              : `${player.name}: ${player.life} life`
         }
       >
         <CommanderArt name={player.commander} />
-        {cmdTarget && <div className="pp-cmd-fill" aria-hidden="true" />}
-        {(game.tapOrientation ?? 'horizontal') === 'vertical' ? (
+        {cmdTarget && !isCmdSplit && <div className="pp-cmd-fill" aria-hidden="true" />}
+        {/* A split panel owns its zones per half, so the panel-wide ones would
+            sit on top of both halves and send every tap to the primary. */}
+        {isCmdSplit ? null : (game.tapOrientation ?? 'horizontal') === 'vertical' ? (
           <>
             <div
               className="player-panel-tapzone is-top"
@@ -693,77 +727,103 @@ function PlayerPanel({
             </button>
           )}
 
-          <div className="player-panel-life-wrap">
-            {cmdTarget && (
+          {isCmdSplit ? (
+            <div className="pp-cmd-split-wrap">
               <span className="pp-cmd-caption">
-                <span aria-hidden="true">⚔</span> dealt to {cmdTarget.name}
+                <span aria-hidden="true">⚔</span> dealt to {cmdTarget!.name}
               </span>
-            )}
-            <button
-              type="button"
-              className="player-panel-step-btn"
-              aria-label={stepLabel(-1)}
-              disabled={disabled}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                adjust(-1);
-              }}
-            >
-              <span className="player-panel-step-glyph">−</span>
-              {chips.length > 0 && chips[chips.length - 1].value < 0 && (
-                <span className="player-panel-step-count">
-                  {Math.abs(chips[chips.length - 1].value)}
+              <div className="pp-cmd-split-halves">
+                <CmdSplitHalf
+                  name={cmdSourceLabel}
+                  value={cmdValue}
+                  disabled={disabled}
+                  handlers={tapHandlers}
+                  stepLabel={(d) => stepLabel(d, false)}
+                  onStep={(d) => adjust(d, false, false)}
+                />
+                <CmdSplitHalf
+                  name={player.partner!}
+                  value={cmdPartnerValue}
+                  disabled={disabled}
+                  handlers={partnerTapHandlers}
+                  stepLabel={(d) => stepLabel(d, true)}
+                  onStep={(d) => adjust(d, false, true)}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="player-panel-life-wrap">
+              {cmdTarget && (
+                <span className="pp-cmd-caption">
+                  <span aria-hidden="true">⚔</span> dealt to {cmdTarget.name}
                 </span>
               )}
-            </button>
-            <button
-              type="button"
-              className="player-panel-life player-panel-life-btn"
-              aria-label={
-                cmdTarget
-                  ? `${cmdValue} commander damage from ${cmdSourceLabel}`
-                  : `Set life — currently ${player.life}`
-              }
-              aria-live="polite"
-              // No set-by-keypad for commander damage: the number isn't this
-              // panel's to set, and the keypad would edit the wrong player.
-              disabled={cmdTarget != null || !canEdit || game.status === 'finished'}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (cmdTarget || !canEdit || game.status === 'finished') return;
-                setKeypadOpen(true);
-              }}
-            >
-              <span key={popKey} className="player-panel-life-num is-pop">
-                {animatedLife}
-              </span>
-            </button>
-            {cmdTarget && cmdDamageToLethal(cmdValue) !== null && (
-              // The value itself is aria-live above, so this derived read is a
-              // sighted-only convenience — hidden so it isn't announced twice.
-              <span className="pp-cmd-hint" aria-hidden="true">
-                {cmdDamageToLethal(cmdValue)} to lethal
-              </span>
-            )}
-            <button
-              type="button"
-              className="player-panel-step-btn"
-              aria-label={stepLabel(1)}
-              disabled={disabled}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                adjust(1);
-              }}
-            >
-              <span className="player-panel-step-glyph">+</span>
-              {chips.length > 0 && chips[chips.length - 1].value > 0 && (
-                <span className="player-panel-step-count">{chips[chips.length - 1].value}</span>
+              <button
+                type="button"
+                className="player-panel-step-btn"
+                aria-label={stepLabel(-1)}
+                disabled={disabled}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  adjust(-1);
+                }}
+              >
+                <span className="player-panel-step-glyph">−</span>
+                {chips.length > 0 && chips[chips.length - 1].value < 0 && (
+                  <span className="player-panel-step-count">
+                    {Math.abs(chips[chips.length - 1].value)}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                className="player-panel-life player-panel-life-btn"
+                aria-label={
+                  cmdTarget
+                    ? `${cmdValue} commander damage from ${cmdSourceLabel}`
+                    : `Set life — currently ${player.life}`
+                }
+                aria-live="polite"
+                // No set-by-keypad for commander damage: the number isn't this
+                // panel's to set, and the keypad would edit the wrong player.
+                disabled={cmdTarget != null || !canEdit || game.status === 'finished'}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (cmdTarget || !canEdit || game.status === 'finished') return;
+                  setKeypadOpen(true);
+                }}
+              >
+                <span key={popKey} className="player-panel-life-num is-pop">
+                  {animatedLife}
+                </span>
+              </button>
+              {cmdTarget && cmdDamageToLethal(cmdValue) !== null && (
+                // The value itself is aria-live above, so this derived read is a
+                // sighted-only convenience — hidden so it isn't announced twice.
+                <span className="pp-cmd-hint" aria-hidden="true">
+                  {cmdDamageToLethal(cmdValue)} to lethal
+                </span>
               )}
-            </button>
-          </div>
+              <button
+                type="button"
+                className="player-panel-step-btn"
+                aria-label={stepLabel(1)}
+                disabled={disabled}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  adjust(1);
+                }}
+              >
+                <span className="player-panel-step-glyph">+</span>
+                {chips.length > 0 && chips[chips.length - 1].value > 0 && (
+                  <span className="player-panel-step-count">{chips[chips.length - 1].value}</span>
+                )}
+              </button>
+            </div>
+          )}
 
           {/* Focus mode: this panel's own life is no longer the headline, so
               keep it as a small readout — you shouldn't lose the board state
@@ -1171,6 +1231,84 @@ function CountersPopover({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * One commander's damage counter inside a split (Partner) panel. Each half is
+ * self-contained — its own name, number, ± zones and progress-to-21 fill —
+ * because rule 903.10a counts to 21 per commander, so the two must never look
+ * like halves of one total that could be added together.
+ */
+function CmdSplitHalf({
+  name,
+  value,
+  disabled,
+  handlers,
+  stepLabel,
+  onStep,
+}: {
+  name: string;
+  value: number;
+  disabled: boolean;
+  /** A tap-and-hold factory bound to THIS commander (primary or partner). */
+  handlers: (arg: number) => Record<string, unknown>;
+  stepLabel: (delta: number) => string;
+  onStep: (delta: number) => void;
+}) {
+  const toLethal = cmdDamageToLethal(value);
+  return (
+    <div
+      className={`pp-cmd-half ${value >= 21 ? 'is-lethal' : ''}`}
+      style={{ ['--fill' as never]: cmdDamageFillRatio(value) }}
+    >
+      <div className="pp-cmd-half-fill" aria-hidden="true" />
+      {/* Own zones, not the panel's: a panel-wide zone would swallow both
+          halves and send every tap to the primary commander. */}
+      <div className="pp-cmd-half-zone is-minus" {...handlers(-1)} aria-label={stepLabel(-1)} />
+      <div className="pp-cmd-half-zone is-plus" {...handlers(1)} aria-label={stepLabel(1)} />
+      <span className="pp-cmd-half-name" title={name}>
+        {name}
+      </span>
+      <div className="pp-cmd-half-row">
+        <button
+          type="button"
+          className="pp-cmd-half-step"
+          aria-label={stepLabel(-1)}
+          disabled={disabled}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onStep(-1);
+          }}
+        >
+          −
+        </button>
+        <span className="pp-cmd-half-value" aria-live="polite">
+          {value}
+        </span>
+        <button
+          type="button"
+          className="pp-cmd-half-step"
+          aria-label={stepLabel(1)}
+          disabled={disabled}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onStep(1);
+          }}
+        >
+          +
+        </button>
+      </div>
+      {toLethal !== null && (
+        // The value is aria-live above; this derived read is sighted-only so
+        // it isn't announced twice per tap.
+        <span className="pp-cmd-half-hint" aria-hidden="true">
+          {toLethal} to lethal
+        </span>
+      )}
     </div>
   );
 }

@@ -293,26 +293,34 @@ async function bulkGetCardByName(name: string): Promise<ScryfallCard | null> {
   }
 }
 
-async function liveGetCardByName(name: string, exact = true): Promise<ScryfallCard> {
+/**
+ * Resolve a card by its EXACT name. Every caller feeds this a name that is
+ * already canonical — EDHREC picks, combo references, existing deck entries,
+ * staple/basic-land constants — so there is deliberately no fuzzy mode.
+ *
+ * Scryfall's `?fuzzy=` does exist and used to be reachable here behind an
+ * `exact` flag that nothing ever set to false. It was removed because it fails
+ * *open*, not closed: `?fuzzy=sol rng` doesn't error, it confidently returns
+ * Oathsworn Giant. On a path whose whole job is resolving names we already
+ * trust, a silent wrong card is strictly worse than a miss. Freehand user input
+ * belongs on `/cards/search`, which is where tolerant matching lives.
+ */
+async function liveGetCardByName(name: string): Promise<ScryfallCard> {
   await primeFromDisk([name]);
   const cached = cardCache.get(name);
   if (cached) return freshCopy(cached);
 
   // The bulk dump already carries every printing, and it picks the cheapest
   // nonfoil directly — so a hit here also skips the foil-only follow-up below.
-  // Fuzzy matching is Scryfall's own algorithm, so it stays on the live path.
-  if (exact) {
-    const bulk = await bulkGetCardByName(name);
-    if (bulk) {
-      cardCache.set(name, bulk);
-      cardCache.set(bulk.name, bulk);
-      return freshCopy(bulk);
-    }
+  const bulk = await bulkGetCardByName(name);
+  if (bulk) {
+    cardCache.set(name, bulk);
+    cardCache.set(bulk.name, bulk);
+    return freshCopy(bulk);
   }
 
-  const param = exact ? 'exact' : 'fuzzy';
   const encodedName = encodeURIComponent(name);
-  const card = await scryfallFetch<ScryfallCard>(`/cards/named?${param}=${encodedName}`);
+  const card = await scryfallFetch<ScryfallCard>(`/cards/named?exact=${encodedName}`);
 
   // `/cards/named` returns Scryfall's DEFAULT printing, which can be foil-only
   // (e.g. a Secret Lair: usd:null, usd_foil:"89.28"). Callers treat this as the
@@ -348,8 +356,8 @@ async function offlineGetCardByNameImpl(name: string): Promise<ScryfallCard> {
   return freshCopy(card);
 }
 
-export async function getCardByName(name: string, exact = true): Promise<ScryfallCard> {
-  return getCardRepository().getCardByName(name, exact);
+export async function getCardByName(name: string): Promise<ScryfallCard> {
+  return getCardRepository().getCardByName(name);
 }
 
 /**
@@ -399,7 +407,7 @@ export async function getOwnedPrinting(scryfallId: string, name: string): Promis
       // Scryfall — stale collection data, withdrawn printing, etc.).
     }
   }
-  const card = await getCardByName(name, true);
+  const card = await getCardByName(name);
   return { ...card, id: scryfallId };
 }
 
@@ -1243,7 +1251,7 @@ export async function searchValidPartners(
       const partnerName = getPartnerWithName(commander);
       if (!partnerName) return [];
       try {
-        const partner = await getCardByName(partnerName, true);
+        const partner = await getCardByName(partnerName);
         return partner ? [partner] : [];
       } catch {
         return [];
@@ -1442,8 +1450,8 @@ export function withPlayableFilter(repo: CardRepository): CardRepository {
       const res = await repo.searchCards(query, colorIdentity, options);
       return { ...res, data: res.data.filter(isPlayableCard) };
     },
-    async getCardByName(name, exact) {
-      const card = await repo.getCardByName(name, exact);
+    async getCardByName(name) {
+      const card = await repo.getCardByName(name);
       if (!isPlayableCard(card)) {
         throw new Error(
           `Card "${name}" resolved to a non-playable ${card.layout ?? 'unknown'} printing.`
@@ -1532,19 +1540,18 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
  */
 export async function getCardByNameResilient(
   name: string,
-  exact = true,
   offlineTimeoutMs = OFFLINE_READ_TIMEOUT_MS
 ): Promise<ScryfallCard | null> {
   const offline = offlineActive();
   try {
-    const primary = getCardRepository().getCardByName(name, exact);
+    const primary = getCardRepository().getCardByName(name);
     return await (offline ? withTimeout(primary, offlineTimeoutMs) : primary);
   } catch {
     const online = typeof navigator === 'undefined' || navigator.onLine !== false;
     if (offline && online) {
       try {
         wrappedLive ??= withPlayableFilter(liveCardRepository);
-        return await wrappedLive.getCardByName(name, exact);
+        return await wrappedLive.getCardByName(name);
       } catch {
         return null;
       }

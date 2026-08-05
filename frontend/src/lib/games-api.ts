@@ -10,6 +10,7 @@ export interface CreateGameInput {
   hostDeckId?: string | null;
   hostDeckName?: string | null;
   hostCommander?: string | null;
+  hostPartner?: string | null;
   hostColorIdentity?: string[];
 }
 
@@ -43,6 +44,7 @@ export interface JoinGameInput {
   deckId?: string | null;
   deckName?: string | null;
   commander?: string | null;
+  partner?: string | null;
   colorIdentity?: string[];
 }
 
