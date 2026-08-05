@@ -79,16 +79,15 @@ export const PlaytestCardView = memo(function PlaytestCardView({
         // Keyboard route to the context menu (counters/stickers/move/attach) —
         // previously reachable only by right-click or long-press, with no
         // keyboard path at all. The physical Context Menu key, or Shift+Enter
-        // as the discoverable fallback on keyboards without one. Opens at the
-        // card's own on-screen position since there's no cursor to anchor to.
-        if (onContextMenu && (e.key === 'ContextMenu' || (e.key === 'Enter' && e.shiftKey))) {
+        // as the discoverable fallback on keyboards without one. Routed through
+        // `onLongPress` rather than `onContextMenu` because it already takes
+        // plain (id, x, y) coordinates and lands on the same handler, so there's
+        // no synthetic MouseEvent to fabricate. Anchored to the card's own box,
+        // since a keyboard has no cursor to open at.
+        if (onLongPress && (e.key === 'ContextMenu' || (e.key === 'Enter' && e.shiftKey))) {
           e.preventDefault();
           const rect = e.currentTarget.getBoundingClientRect();
-          onContextMenu(card.id, {
-            clientX: rect.left + rect.width / 2,
-            clientY: rect.top + rect.height / 2,
-            preventDefault: () => {},
-          } as React.MouseEvent);
+          onLongPress(card.id, rect.left + rect.width / 2, rect.top + rect.height / 2);
           return;
         }
         // Same activation as a click — overrides dnd-kit's own keyboard-sensor
