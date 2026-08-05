@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
-import type { Express } from 'express';
+import type { Server } from 'node:http';
 import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import {
@@ -9,7 +9,7 @@ import {
   plusWeek,
 } from './game-nights';
 
-let app: Express;
+let app: Server;
 let pool: Pool;
 let cleanup: () => Promise<void>;
 

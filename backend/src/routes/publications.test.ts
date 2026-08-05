@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
-import type { Express } from 'express';
+import type { Server } from 'node:http';
 import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie, setSnapshotViaSyncApi } from '../test-helpers';
 import { deckPublicationCache, publicUserCache } from '../publications/cache';
@@ -16,7 +16,7 @@ vi.mock('../publications/slug', async (importOriginal) => {
   return { ...actual, generateDeckSlug: mockGenerateDeckSlug };
 });
 
-let app: Express;
+let app: Server;
 let pool: Pool;
 let cleanup: () => Promise<void>;
 

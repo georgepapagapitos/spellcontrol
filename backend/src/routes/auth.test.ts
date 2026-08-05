@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
-import type { Express } from 'express';
+import type { Server } from 'node:http';
 import { createTestEnv, extractSessionCookie, setSnapshotViaSyncApi } from '../test-helpers';
 import { generateUsername } from '../auth';
 
-let app: Express;
+let app: Server;
 let cleanup: () => Promise<void>;
 
 beforeAll(async () => {
