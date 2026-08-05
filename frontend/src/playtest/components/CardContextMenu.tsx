@@ -3,6 +3,7 @@ import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { getSafeViewport } from '@/lib/popover-placement';
+import { usePressRepeat } from '@/lib/use-press-repeat';
 import type { Zone } from '@/lib/playtest';
 import { MOVE_DESTINATIONS, destinationKey } from '../lib/zones';
 
@@ -45,6 +46,25 @@ const COUNTER_KINDS = ['+1/+1', '-1/-1', 'loyalty', 'charge'];
 const MAX_COUNTER_NAME = 20;
 
 const MENU_MARGIN = 8;
+
+/** A ± counter step that repeats while held. Own component because the hook
+ *  can't be called inside the `.map` below. */
+function CounterStep({
+  label,
+  onAdjust,
+  children,
+}: {
+  label: string;
+  onAdjust(): void;
+  children: React.ReactNode;
+}) {
+  const press = usePressRepeat(onAdjust);
+  return (
+    <button type="button" aria-label={label} {...press}>
+      {children}
+    </button>
+  );
+}
 
 export function CardContextMenu({
   x,
@@ -141,20 +161,18 @@ export function CardContextMenu({
             <span className="playtest-ctx-counter__value" aria-hidden>
               {counters[k] ?? 0}
             </span>
-            <button
-              type="button"
-              onClick={() => onRemoveCounter(k)}
-              aria-label={`remove ${k}, currently ${counters[k] ?? 0}`}
+            <CounterStep
+              label={`remove ${k}, currently ${counters[k] ?? 0}`}
+              onAdjust={() => onRemoveCounter(k)}
             >
               −
-            </button>
-            <button
-              type="button"
-              onClick={() => onAddCounter(k)}
-              aria-label={`add ${k}, currently ${counters[k] ?? 0}`}
+            </CounterStep>
+            <CounterStep
+              label={`add ${k}, currently ${counters[k] ?? 0}`}
+              onAdjust={() => onAddCounter(k)}
             >
               +
-            </button>
+            </CounterStep>
           </div>
         ))}
         {/* The reducer already accepts any counter name — this input is the
