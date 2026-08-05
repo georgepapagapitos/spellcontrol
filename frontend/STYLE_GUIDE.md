@@ -2164,6 +2164,22 @@ gated, so the test is what holds the line — mirror of `radius-tokens.test.ts`)
 - **Filter/control strips wrap, never clip** — `.collection-toolbar-row` (and
   peers) carry `flex-wrap: wrap`; never force `nowrap` on a strip that can
   exceed the viewport (collapse to a `⋮` overflow menu at `≤600px` instead).
+- **A `SearchPill` dropped into a `flex-direction: column` parent must be
+  pinned `flex: 0 0 auto`** (or kept out of the flex context entirely). Its
+  `flex: 1 1 12rem` is a *width* basis for horizontal toolbars; on a column's
+  vertical main axis that 12rem becomes a **height** and the pill inflates into
+  a ~192px-tall ellipse. This has bitten four times — the deck builder's
+  Scryfall tab, the avatar picker, and the playtest zone viewer. The shared
+  sheet header (`.card-picker-header > .search-pill`) now pins it for every
+  sheet on that shell; new column hosts outside it still have to.
+
+- **Card rows size off their container, never off `vw`.** A row of N cards
+  inside a sheet must compute its card width as a share of the container
+  (`calc((100% - (n - 1) * gap) / n)`) — a `vw`-based `clamp()` is measuring
+  something the sheet isn't, so at any width where the two disagree the row
+  overflows and the cards past the edge are simply gone. `.playtest-opening-cards`
+  is the reference implementation; it wraps to rows of 4 below 600px rather than
+  shrink seven cards into slivers.
 
 ## Accessibility
 

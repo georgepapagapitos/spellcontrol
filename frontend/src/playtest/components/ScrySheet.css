@@ -296,7 +296,9 @@
   }
 
   .playtest-scry-card__move {
+    /* Only the width goes full-bleed — dropping the height to 36px put the
+       button under the 44px touch floor at exactly the width this targets. */
     width: 100%;
-    height: 36px;
+    height: 44px;
   }
 }

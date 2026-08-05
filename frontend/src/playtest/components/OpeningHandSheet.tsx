@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type CSSProperties } from 'react';
 import {
   DndContext,
   KeyboardSensor,
@@ -11,11 +11,11 @@ import {
 import {
   SortableContext,
   arrayMove,
-  horizontalListSortingStrategy,
+  rectSortingStrategy,
   sortableKeyboardCoordinates,
   useSortable,
 } from '@dnd-kit/sortable';
-import { restrictToHorizontalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
+import { restrictToParentElement } from '@dnd-kit/modifiers';
 import { CSS } from '@dnd-kit/utilities';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import type { PlaytestCard } from '@/lib/playtest';
@@ -252,11 +252,17 @@ export function OpeningHandSheet({
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
-          modifiers={[restrictToHorizontalAxis, restrictToParentElement]}
+          modifiers={[restrictToParentElement]}
         >
-          <SortableContext items={order} strategy={horizontalListSortingStrategy}>
+          {/* `rectSortingStrategy` (not the horizontal one) and no horizontal-
+              axis restriction: the hand wraps to two rows on phones, and a
+              horizontal-only drag can't move a card between rows. */}
+          <SortableContext items={order} strategy={rectSortingStrategy}>
             <div
               className="playtest-opening-cards"
+              // Card width is a share of this container (see playtest.css); the
+              // live count keeps that exact for a short hand too.
+              style={{ '--hand-n': orderedHand.length } as CSSProperties}
               aria-label={
                 isMulliganBottom
                   ? 'Hand — drag to reorder, tap to select, long-press to preview'
@@ -310,7 +316,7 @@ export function OpeningHandSheet({
             they live on the opening step and disappear once you're
             bottoming (mulligan-bottom) or the choice is already locked in. */}
         {!isMulliganBottom && (
-          <>
+          <div className="playtest-opening-variants">
             <label className="playtest-opening-variant">
               <input
                 type="checkbox"
@@ -337,7 +343,7 @@ export function OpeningHandSheet({
                 </span>
               </span>
             </label>
-          </>
+          </div>
         )}
 
         <div className="card-picker-footer playtest-opening-footer">
