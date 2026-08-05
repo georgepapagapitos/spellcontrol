@@ -1,7 +1,7 @@
 import './DiscoverCard.css';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Compass } from 'lucide-react';
+import { Compass, Layers } from 'lucide-react';
 import { HomeCard } from './HomeCard';
 import { ColorPip } from '../shared/ManaSymbol';
 import { useCardThumb } from '../../lib/card-thumbs';
@@ -16,12 +16,25 @@ function rowAriaLabel(deck: DiscoverDeck): string {
 
 /** A small landscape art-crop banner (never the portrait `.home-thumb` shape
  *  the other home cards use) — reads as a mini version of the full
- *  `DiscoverDeckTile`'s art band rather than another portrait card thumb. */
+ *  `DiscoverDeckTile`'s art band rather than another portrait card thumb.
+ *
+ *  A commanderless deck (pauper/standard/… — anything not Commander) has no
+ *  art to resolve, so it gets a **settled** deck glyph, never the shimmer:
+ *  shimmering a slot that will never fill reads as "stuck loading forever".
+ *  Only a deck that actually has a commander shimmers while it resolves. */
 function DiscoverArt({ commanderName }: { commanderName: string | null }) {
   const art = useCardThumb(commanderName ?? undefined, 'art_crop');
   return (
     <span className="discover-card-art card-thumb-tilt" aria-hidden="true">
-      {art ? <img src={art} alt="" loading="lazy" /> : <span className="discover-card-art-ph" />}
+      {art ? (
+        <img src={art} alt="" loading="lazy" />
+      ) : commanderName ? (
+        <span className="discover-card-art-ph" />
+      ) : (
+        <span className="discover-card-art-none">
+          <Layers size={14} />
+        </span>
+      )}
     </span>
   );
 }

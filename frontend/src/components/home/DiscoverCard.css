@@ -48,6 +48,18 @@
   background: var(--surface);
 }
 
+/* Settled "this deck has no commander art" state — a muted deck glyph rather
+   than the shimmer, which on a slot that will never fill reads as stuck. */
+.discover-card-art-none {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .discover-card-art-ph {
     background: linear-gradient(100deg, var(--surface) 30%, var(--border) 50%, var(--surface) 70%);
