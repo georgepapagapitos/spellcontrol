@@ -112,6 +112,13 @@ interface PlaytestStore {
   /** Free-mulligan variant: mulligans redraw a full seven and the
    *  bottom-N step is skipped. Device preference — see `loadFreeMulligan`. */
   freeMulligan: boolean;
+  /** On-the-draw choice (Wave 3): `createPlaytestState` deals a fresh seven
+   *  with `turn: 1` and no draw — that IS "on the play", the correct default
+   *  for solo goldfishing. This flag is the other half: draw one extra card
+   *  the moment play actually begins, via the normal DRAW action (so it's
+   *  logged and undoable like any other draw) rather than a reducer-level
+   *  branch. Per-game, not a device preference — reset on every init/hydrate. */
+  onDraw: boolean;
   /** "Resistance" mode — a simulated opponent that responds to plays.
    *  'off' disables it; the other three levels are difficulty presets (E142). */
   resistanceLevel: ResistanceLevel;
@@ -158,6 +165,8 @@ interface PlaytestStore {
   setResistanceLevel(level: ResistanceLevel): void;
   /** Turn the free-mulligan variant on/off; persists as a device preference. */
   setFreeMulligan(on: boolean): void;
+  /** Turn the on-the-draw choice on/off for this game. */
+  setOnDraw(on: boolean): void;
   /** Advance from opening → either playing (no mulligans taken, or the
    *  free-mulligan variant) or mulligan-bottom. */
   keepOpeningHand(): void;
@@ -182,6 +191,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
   phase: 'opening',
   mulliganCount: 0,
   freeMulligan: loadFreeMulligan(),
+  onDraw: false,
   resistanceLevel: 'off',
   resistanceState: null,
   resistancePast: [],
@@ -210,6 +220,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       state: createPlaytestState(init),
       phase: 'opening',
       mulliganCount: 0,
+      onDraw: false,
       resistanceLevel: 'off',
       resistanceState: null,
       resistancePast: [],
@@ -243,6 +254,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       },
       phase: snapshot.phase,
       mulliganCount: snapshot.mulliganCount,
+      onDraw: false,
       resistanceLevel: snapshot.resistanceLevel,
       resistanceState: snapshot.resistanceState,
       resistancePast: [],
@@ -273,6 +285,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
         state: next,
         phase: 'opening',
         mulliganCount: 0,
+        onDraw: false,
         resistanceState: resistanceLevel !== 'off' ? createResistanceState(next.rngSeed) : null,
         resistancePast: [],
         lastResistanceEvent: null,
@@ -424,9 +437,20 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
     const { phase } = get();
     set({ freeMulligan: on, ...(on && phase === 'mulligan-bottom' && { phase: 'playing' }) });
   },
+  setOnDraw(on) {
+    set({ onDraw: on });
+  },
   keepOpeningHand() {
-    const { mulliganCount, freeMulligan } = get();
-    set({ phase: mulliganCount > 0 && !freeMulligan ? 'mulligan-bottom' : 'playing' });
+    const { mulliganCount, freeMulligan, onDraw } = get();
+    if (mulliganCount > 0 && !freeMulligan) {
+      set({ phase: 'mulligan-bottom' });
+      return;
+    }
+    // Play actually starts here (no bottom-N step owed) — on the draw means
+    // one extra card the instant it does, via the normal DRAW action so it's
+    // logged/undoable like anything else.
+    if (onDraw) get().dispatch({ type: 'DRAW', n: 1 });
+    set({ phase: 'playing' });
   },
   mulliganOpeningHand() {
     const current = get().state;
@@ -460,7 +484,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
         toIndex: current.zones.library.length,
       });
     }
-    const { resistanceState, resistancePast } = get();
+    const { resistanceState, resistancePast, onDraw } = get();
     set({
       state: current,
       phase: 'playing',
@@ -471,6 +495,10 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
         ].slice(0, current.past.length),
       }),
     });
+    // Play starts here too (post-mulligan path) — same on-the-draw extra card
+    // as the no-mulligan path in keepOpeningHand, applied after phase flips
+    // so it dispatches against the just-committed bottomed state.
+    if (onDraw) get().dispatch({ type: 'DRAW', n: 1 });
   },
   teardown() {
     // Navigating away mid-game (no Reset, no table defeat) is the most common

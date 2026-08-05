@@ -8,6 +8,7 @@
  * analytics can aggregate over it without re-parsing prose.
  */
 
+import { MANA_COLOR_LABEL } from './types';
 import type { PlaytestAction, PlaytestCard, PlaytestState, Zone } from './types';
 
 export type LogEntryKind =
@@ -27,7 +28,9 @@ export type LogEntryKind =
   | 'life'
   | 'designation'
   | 'attach'
-  | 'counter';
+  | 'counter'
+  | 'phase'
+  | 'mana';
 
 export interface GameLogEntry {
   /** Monotonic within a session — always ascending in log order. */
@@ -260,6 +263,38 @@ export function buildLogEntries(
         },
       ];
     }
+
+    case 'TOGGLE_PHASED': {
+      const card = current.battlefield.find((b) => b.card.id === action.cardId)?.card;
+      if (!card) return [];
+      const nowPhased = next.battlefield.find((b) => b.card.id === action.cardId)?.phased ?? false;
+      return [
+        {
+          turn,
+          kind: 'phase',
+          text: `${card.name} ${nowPhased ? 'phased out' : 'phased in'}`,
+          cardName: card.name,
+        },
+      ];
+    }
+
+    case 'ADJUST_MANA': {
+      if (next === current) return []; // no-op (already at zero and delta went negative)
+      const pool = current.manaPool;
+      const before = pool?.[action.color] ?? 0;
+      const after = next.manaPool?.[action.color] ?? 0;
+      return [
+        {
+          turn,
+          kind: 'mana',
+          text: `${MANA_COLOR_LABEL[action.color]} mana: ${before} → ${after}`,
+        },
+      ];
+    }
+
+    case 'EMPTY_MANA_POOL':
+      if (next === current) return []; // no-op (already empty)
+      return [{ turn, kind: 'mana', text: 'Emptied mana pool' }];
 
     case 'SET_DESIGNATION': {
       if (next === current) return []; // no-op (already in that state)

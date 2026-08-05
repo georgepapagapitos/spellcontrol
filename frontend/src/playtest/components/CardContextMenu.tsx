@@ -25,6 +25,9 @@ interface Props {
   tax?: number;
   /** Only true two-faced cards (transform/MDFC) offer Transform. */
   canTransform?: boolean;
+  /** Current phased-out state — purely a "doesn't interact right now"
+   *  reminder flag, no rules enforcement. See `BattlefieldCard.phased`. */
+  phased?: boolean;
   variant?: 'floating' | 'sheet';
   onClose(): void;
   onTap(): void;
@@ -34,6 +37,7 @@ interface Props {
   onRemoveSticker(index: number): void;
   onFlip(): void;
   onTransform(): void;
+  onTogglePhased(): void;
   /** Token-copy this card. When a multi-card selection is active and includes
    *  this card, the whole selection is copied — `selectionSize` says so. */
   onDuplicate(): void;
@@ -77,6 +81,7 @@ export function CardContextMenu({
   onAttach,
   tax,
   canTransform = false,
+  phased = false,
   variant = 'floating',
   onClose,
   onTap,
@@ -86,11 +91,15 @@ export function CardContextMenu({
   onRemoveSticker,
   onFlip,
   onTransform,
+  onTogglePhased,
   onDuplicate,
   selectionSize = 1,
   onMoveTo,
 }: Props) {
   const menuRef = useRef<HTMLDivElement | null>(null);
+  // Sheet variant's items container — separate from menuRef (the floating
+  // variant's own outer element) since the two render entirely different DOM.
+  const itemsRef = useRef<HTMLDivElement | null>(null);
   const [clamped, setClamped] = useState<{ left: number; top: number } | null>(null);
   const [stickerText, setStickerText] = useState('');
   const [counterText, setCounterText] = useState('');
@@ -111,6 +120,21 @@ export function CardContextMenu({
     const top = Math.max(MENU_MARGIN, Math.min(y, vh - rect.height - MENU_MARGIN));
     setClamped({ left, top });
   }, [x, y, variant]);
+
+  // Keyboard-opened menus (no right-click, no long-press) land the menu with
+  // nothing focused unless something moves focus into it — a right-click/
+  // long-press open leaves focus wherever it already was, which is fine
+  // there since the pointer is right on top of the menu it just opened.
+  // `visibility: hidden` (floating, pre-clamp) can't receive focus, so this
+  // waits for `clamped` before trying on that variant.
+  useEffect(() => {
+    if (variant === 'floating' && !clamped) return;
+    const container = variant === 'floating' ? menuRef.current : itemsRef.current;
+    const first = container?.querySelector<HTMLElement>(
+      'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled)'
+    );
+    first?.focus();
+  }, [variant, clamped]);
 
   function submitSticker() {
     const text = stickerText.trim();
@@ -144,6 +168,14 @@ export function CardContextMenu({
       </button>
       <button type="button" className="playtest-ctx-action" onClick={onFlip}>
         Flip face
+      </button>
+      <button
+        type="button"
+        className="playtest-ctx-action"
+        onClick={onTogglePhased}
+        aria-pressed={phased}
+      >
+        {phased ? 'Phase in' : 'Phase out'}
       </button>
       <button type="button" className="playtest-ctx-action" onClick={onDuplicate}>
         {selectionSize > 1 ? `Duplicate ${selectionSize} selected` : 'Duplicate'}
@@ -308,7 +340,9 @@ export function CardContextMenu({
           <div className="card-picker-header">
             <h2 className="card-picker-title">{cardName}</h2>
           </div>
-          <div className="playtest-ctx-menu">{items}</div>
+          <div className="playtest-ctx-menu" ref={itemsRef}>
+            {items}
+          </div>
           <div className="card-picker-footer">
             <button type="button" className="btn" onClick={() => beginClose()}>
               Close

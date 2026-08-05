@@ -1,7 +1,9 @@
 import { mulberry32, nextSeed, shuffle } from './rng';
 import { isOpponentDefeated } from './life-config';
+import { MANA_COLORS } from './types';
 import type {
   BattlefieldCard,
+  ManaColor,
   OpponentLife,
   PlaytestAction,
   PlaytestCard,
@@ -25,6 +27,10 @@ const ZONES: Zone[] = ['library', 'hand', 'graveyard', 'exile', 'command'];
 
 function emptyZones(): Record<Zone, PlaytestCard[]> {
   return { library: [], hand: [], graveyard: [], exile: [], command: [] };
+}
+
+function emptyManaPool(): Record<ManaColor, number> {
+  return { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
 }
 
 export function createPlaytestState(init: PlaytestInit): PlaytestState {
@@ -61,6 +67,7 @@ export function createPlaytestState(init: PlaytestInit): PlaytestState {
     initiative: false,
     citysBlessing: false,
     playerCounters: {},
+    manaPool: emptyManaPool(),
     past: [],
   };
 }
@@ -93,6 +100,7 @@ function snapshot(state: PlaytestState): Omit<PlaytestState, 'past'> {
     initiative: state.initiative,
     citysBlessing: state.citysBlessing,
     playerCounters: { ...state.playerCounters },
+    manaPool: state.manaPool ? { ...state.manaPool } : undefined,
   };
 }
 
@@ -239,6 +247,8 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         citysBlessing: false,
         // A new game: poison/energy/experience don't carry over either.
         playerCounters: {},
+        // A new game: floating mana from the last one is long gone.
+        manaPool: emptyManaPool(),
         past: [],
       };
     }
@@ -538,6 +548,33 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       );
       return withHistory(state, next);
     }
+    case 'TOGGLE_PHASED': {
+      const idx = state.battlefield.findIndex((b) => b.card.id === action.cardId);
+      if (idx < 0) return state;
+      const next = snapshot(state);
+      next.battlefield = next.battlefield.map((b, i) =>
+        i === idx ? { ...b, phased: !b.phased } : b
+      );
+      return withHistory(state, next);
+    }
+    case 'ADJUST_MANA': {
+      const pool = state.manaPool ?? emptyManaPool();
+      const current = pool[action.color];
+      // Floating mana never goes negative — same "healing out means none, not
+      // a debt" rule as SET_PLAYER_COUNTER.
+      const updated = Math.max(0, current + action.delta);
+      if (updated === current) return state;
+      const next = snapshot(state);
+      next.manaPool = { ...pool, [action.color]: updated };
+      return withHistory(state, next);
+    }
+    case 'EMPTY_MANA_POOL': {
+      const pool = state.manaPool;
+      if (!pool || MANA_COLORS.every((c) => pool[c] === 0)) return state;
+      const next = snapshot(state);
+      next.manaPool = emptyManaPool();
+      return withHistory(state, next);
+    }
     case 'SET_CARD_IMAGE': {
       const loc = locate(state, action.cardId);
       if (!loc) return state;
@@ -559,6 +596,14 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       const next = snapshot(state);
       next.turn = state.turn + 1;
       next.battlefield = next.battlefield.map((b) => (b.tapped ? { ...b, tapped: false } : b));
+      // Mana empties as steps end (rule 500.4) — this app doesn't model steps,
+      // so NEXT_TURN is the coarsest-but-honest proxy: a boundary the player
+      // themself chooses to cross, same as the untap it already does above.
+      // EMPTY_MANA_POOL below is the finer-grained manual escape hatch for
+      // "I'm done with this phase" moments the reducer can't see on its own —
+      // together they mean floating mana only ever disappears on a moment the
+      // player caused, never as a surprise mid-sequence.
+      next.manaPool = emptyManaPool();
       if (state.zones.library.length > 0) {
         next.zones.library = next.zones.library.slice(1);
         next.zones.hand = next.zones.hand.concat(state.zones.library[0]);

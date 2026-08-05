@@ -42,6 +42,11 @@ interface Props {
    *  the bottom-N step never happens. */
   freeMulligan: boolean;
   onFreeMulliganChange(on: boolean): void;
+  /** On-the-draw choice (Wave 3): draw one extra card the moment play
+   *  actually begins. `createPlaytestState` already deals the on-the-play
+   *  default (no draw before turn 1) — this is the opt-in for the other seat. */
+  onDraw: boolean;
+  onOnDrawChange(on: boolean): void;
   /** Leave playtest and return to the deck. The sheet is otherwise
    *  non-dismissable (Keep / Mulligan), so this is the only way out. */
   onExit?(): void;
@@ -60,6 +65,8 @@ export function OpeningHandSheet({
   deckName,
   freeMulligan,
   onFreeMulliganChange,
+  onDraw,
+  onOnDrawChange,
   onExit,
   onKeep,
   onMulligan,
@@ -133,6 +140,24 @@ export function OpeningHandSheet({
     if (scry.length < hand.length) return null;
     return { lands: scry.filter(isLand).length, keepable: isKeepableHand(scry.map(toSimCard)) };
   }, [hand, cardLookup, isMulliganBottom]);
+
+  // Running "avg lands/hand" across this sheet's redeals (Wave 3) — a real
+  // denominator for the mulligan decision instead of judging each seven in
+  // isolation. This component stays mounted across Keep→mulligan-bottom→
+  // (mulligan again) cycles for one game — only the card set changes — so a
+  // plain ref/state list here naturally resets per fresh game (the sheet
+  // unmounts once play starts, and remounts on the next RESET/init). Render-
+  // phase state sync (not a useEffect) for the same reason `order` above
+  // does it: each *distinct* opening hand seen gets counted exactly once,
+  // never re-counted on an unrelated re-render of the same hand.
+  const [landHistory, setLandHistory] = useState<number[]>([]);
+  const [trackedLandSignature, setTrackedLandSignature] = useState<string | null>(null);
+  if (handStats && trackedLandSignature !== handSignature) {
+    setTrackedLandSignature(handSignature);
+    setLandHistory((prev) => [...prev, handStats.lands]);
+  }
+  const avgLands =
+    landHistory.length > 1 ? landHistory.reduce((sum, n) => sum + n, 0) / landHistory.length : null;
 
   function toggleSelect(cardId: string) {
     if (!isMulliganBottom) return;
@@ -272,25 +297,47 @@ export function OpeningHandSheet({
             >
               {handStats.keepable ? 'Keepable' : 'Mulligan?'}
             </span>
+            {avgLands !== null && (
+              <span className="playtest-opening-avg">
+                {' '}
+                · avg {avgLands.toFixed(1)} lands/hand over {landHistory.length} hands
+              </span>
+            )}
           </p>
         )}
 
-        {/* The variant is only meaningful while you can still mulligan, so it
-            lives on the opening step and disappears once you're bottoming. */}
+        {/* Both variants are only meaningful while play hasn't started, so
+            they live on the opening step and disappear once you're
+            bottoming (mulligan-bottom) or the choice is already locked in. */}
         {!isMulliganBottom && (
-          <label className="playtest-opening-variant">
-            <input
-              type="checkbox"
-              checked={freeMulligan}
-              onChange={(e) => onFreeMulliganChange(e.target.checked)}
-            />
-            <span className="playtest-opening-variant__text">
-              <span className="playtest-opening-variant__label">Free mulligans</span>
-              <span className="playtest-opening-variant__desc">
-                Redraw a full seven — nothing goes to the bottom.
+          <>
+            <label className="playtest-opening-variant">
+              <input
+                type="checkbox"
+                checked={freeMulligan}
+                onChange={(e) => onFreeMulliganChange(e.target.checked)}
+              />
+              <span className="playtest-opening-variant__text">
+                <span className="playtest-opening-variant__label">Free mulligans</span>
+                <span className="playtest-opening-variant__desc">
+                  Redraw a full seven — nothing goes to the bottom.
+                </span>
               </span>
-            </span>
-          </label>
+            </label>
+            <label className="playtest-opening-variant">
+              <input
+                type="checkbox"
+                checked={onDraw}
+                onChange={(e) => onOnDrawChange(e.target.checked)}
+              />
+              <span className="playtest-opening-variant__text">
+                <span className="playtest-opening-variant__label">On the draw</span>
+                <span className="playtest-opening-variant__desc">
+                  Draw an extra card the moment play starts.
+                </span>
+              </span>
+            </label>
+          </>
         )}
 
         <div className="card-picker-footer playtest-opening-footer">
