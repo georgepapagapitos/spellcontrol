@@ -39,6 +39,12 @@ export interface LocalGameSetup {
     deckId: string | null;
     deckName: string | null;
     commander: string | null;
+    /**
+     * Second commander for a Partner pair. Optional because this is an input
+     * draft, not stored state: a guest seat or a seat that never picked a deck
+     * just omits it, and `makePlayer` normalizes the absence to null.
+     */
+    partner?: string | null;
     colorIdentity: string[];
   }>;
 }
@@ -64,6 +70,7 @@ export function gameToRematch(game: GameState): RematchTemplate {
       deckId: p.deckId,
       deckName: p.deckName,
       commander: p.commander,
+      partner: p.partner,
       colorIdentity: p.colorIdentity,
     })),
   };
@@ -83,6 +90,9 @@ export function recordToRematch(rec: GameRecord): RematchTemplate {
       deckId: p.deckId,
       deckName: p.deckName,
       commander: p.commander,
+      // GameRecord doesn't persist the second commander, so a rematch from
+      // history starts partner-less; picking the deck again restores it.
+      partner: null,
       colorIdentity: [],
     })),
   };
@@ -288,6 +298,7 @@ export const usePlayStore = create<PlayState>()(
             deckId: p.deckId,
             deckName: p.deckName,
             commander: p.commander,
+            partner: p.partner,
             colorIdentity: p.colorIdentity,
             startingLife: setup.startingLife,
             isHost: i === 0,

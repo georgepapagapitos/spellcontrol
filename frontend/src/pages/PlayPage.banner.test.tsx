@@ -43,6 +43,7 @@ function makeOnlineGame(status: 'lobby' | 'active' | 'finished'): GameState {
         deckId: null,
         deckName: null,
         commander: null,
+        partner: null,
         colorIdentity: [],
         life: 40,
         commanderDamage: {},

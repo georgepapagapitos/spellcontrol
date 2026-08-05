@@ -495,6 +495,10 @@ function LocalSetup({
                     deckId: deck?.id ?? null,
                     deckName: deck?.name ?? null,
                     commander: deck?.commander?.name ?? null,
+                    // Decks already model the second commander, so a Partner
+                    // seat splits its damage counter with no setup step —
+                    // nobody stops mid-game to type in a commander name.
+                    partner: deck?.partnerCommander?.name ?? null,
                     colorIdentity: deck?.commander?.color_identity ?? [],
                   })
                 }
@@ -650,7 +654,7 @@ function SeatDeck({
 }
 
 function blankPlayer(name: string): LocalGameSetup['players'][number] {
-  return { name, deckId: null, deckName: null, commander: null, colorIdentity: [] };
+  return { name, deckId: null, deckName: null, commander: null, partner: null, colorIdentity: [] };
 }
 
 const DECK_PICKER_NONE = '__none__';
@@ -701,6 +705,7 @@ function OnlineSetup({
     hostDeckId: string | null;
     hostDeckName: string | null;
     hostCommander: string | null;
+    hostPartner: string | null;
     hostColorIdentity: string[];
   }) => void;
   onJoin: (
@@ -710,6 +715,7 @@ function OnlineSetup({
       deckId: string | null;
       deckName: string | null;
       commander: string | null;
+      partner: string | null;
       colorIdentity: string[];
     }
   ) => void;
@@ -760,6 +766,7 @@ function OnlineSetup({
               hostDeckId: deck?.id ?? null,
               hostDeckName: deck?.name ?? null,
               hostCommander: deck?.commander?.name ?? null,
+              hostPartner: deck?.partnerCommander?.name ?? null,
             });
           }}
         >
@@ -852,6 +859,7 @@ function OnlineSetup({
               deckId: deck?.id ?? null,
               deckName: deck?.name ?? null,
               commander: deck?.commander?.name ?? null,
+              partner: deck?.partnerCommander?.name ?? null,
               colorIdentity: deck?.commander?.color_identity ?? [],
             });
           }}

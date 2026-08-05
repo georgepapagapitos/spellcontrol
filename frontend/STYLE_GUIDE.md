@@ -983,6 +983,14 @@ reference.
 - **Seat admin is suppressed** (the `⋯` button and the counter chips) — the
   panel's controls now mean something else, and leaving stale affordances
   around is how a tap edits the wrong player.
+- **One panel, one number — unless the rules say otherwise, and then split it.**
+  A seat with two commanders (Partner / Friends Forever / Doctor's Companion)
+  gets `.is-cmd-split`: two `.pp-cmd-half` counters, each with its own name,
+  numeral, progress fill, and ± zones. This is a correctness requirement, not a
+  layout preference — rule 903.10a counts to 21 per *commander*, so two tallies
+  that could be read as halves of one total would invite exactly the wrong
+  arithmetic. When a panel splits, **suppress the panel-wide tap zones**: a
+  zone spanning both halves swallows every tap and credits it to the primary.
 
 ### Store-driven global overlays (E170)
 
