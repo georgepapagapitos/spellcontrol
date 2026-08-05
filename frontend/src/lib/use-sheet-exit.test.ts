@@ -2,6 +2,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useSheetExit } from './use-sheet-exit';
+import { useOverlayLayer } from './overlay-layer';
 
 /** Stub window.matchMedia so the reduced-motion branch is controllable. */
 function setReducedMotion(reduced: boolean) {
@@ -146,5 +147,75 @@ describe('useSheetExit', () => {
     // Guard still holds: a second request does not double-close.
     act(() => result.current.beginClose());
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  describe('focus trap (via use-focus-trap.ts, wired for every consumer)', () => {
+    function sheetPanel(html: string): HTMLElement {
+      const el = document.createElement('div');
+      el.tabIndex = -1;
+      el.setAttribute('role', 'dialog');
+      el.setAttribute('aria-modal', 'true');
+      el.innerHTML = html;
+      document.body.appendChild(el);
+      return el;
+    }
+
+    afterEach(() => {
+      document.body.innerHTML = '';
+    });
+
+    it('moves focus into the sheet on mount with no call-site ref needed', () => {
+      sheetPanel('<button id="a">a</button><button id="b">b</button>');
+      renderHook(() => useSheetExit(vi.fn()));
+      expect(document.activeElement?.id).toBe('a');
+    });
+
+    it('traps Tab inside the sheet and restores focus to the trigger on unmount', () => {
+      const trigger = document.createElement('button');
+      trigger.id = 'trigger';
+      document.body.appendChild(trigger);
+      trigger.focus();
+
+      const panel = sheetPanel('<button id="a">a</button><button id="b">b</button>');
+      const { unmount } = renderHook(() => useSheetExit(vi.fn()));
+
+      panel.querySelector<HTMLElement>('#b')!.focus();
+      const e = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true });
+      document.dispatchEvent(e);
+      expect(e.defaultPrevented).toBe(true);
+      expect(document.activeElement?.id).toBe('a');
+
+      panel.remove();
+      unmount();
+      expect(document.activeElement?.id).toBe('trigger');
+    });
+
+    it('yields the trap to a dialog stacked on top of it (e.g. a confirm Modal)', () => {
+      const outer = sheetPanel('<button id="a">a</button><button id="b">b</button>');
+      const outerHook = renderHook(() => useSheetExit(vi.fn()));
+      // A second layer (confirm dialog opened from the sheet) registers on
+      // the same shared overlay stack and becomes topmost.
+      const innerHook = renderHook(() => useOverlayLayer());
+      expect(innerHook.result.current.isTopmost()).toBe(true);
+
+      outer.querySelector<HTMLElement>('#b')!.focus();
+      const e = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true });
+      document.dispatchEvent(e);
+
+      // The outer sheet's trap must not fight the topmost layer for Tab.
+      expect(e.defaultPrevented).toBe(false);
+      expect(document.activeElement?.id).toBe('b');
+
+      innerHook.unmount();
+      outerHook.unmount();
+    });
+
+    it('does nothing when no dialog is mounted', () => {
+      const trigger = document.createElement('button');
+      document.body.appendChild(trigger);
+      trigger.focus();
+      renderHook(() => useSheetExit(vi.fn()));
+      expect(document.activeElement).toBe(trigger);
+    });
   });
 });

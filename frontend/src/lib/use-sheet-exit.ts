@@ -8,7 +8,8 @@ import {
 } from 'react';
 import { App as CapacitorApp } from '@capacitor/app';
 import { isNativePlatform } from './platform';
-import { focusInto, trapTab, useOverlayLayer } from './overlay-layer';
+import { useOverlayLayer } from './overlay-layer';
+import { useFocusTrap } from './use-focus-trap';
 
 /**
  * Symmetric slide-down dismissal for the full-screen drawer sheets
@@ -132,27 +133,15 @@ export function useSheetExit(
     };
   }, [beginClose, isTopmost]);
 
-  // Focus containment, opt-in by passing the sheet's panel ref. Without it a
-  // sheet opened while focus sat on the page behind it left Tab walking
-  // through the content underneath, and any `onKeyDown` the sheet declared on
-  // its own subtree never fired at all (nothing inside it had focus) — which
-  // is why BuildReportSheet's Escape handler did nothing.
-  useEffect(() => {
-    const panel = panelRef?.current;
-    if (!panel) return;
-    const prevFocused = document.activeElement as HTMLElement | null;
-    focusInto(panel);
-    const onKey = (e: KeyboardEvent) => {
-      if (isTopmost()) trapTab(panel, e);
-    };
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      // Return focus where it was, so closing a sheet doesn't drop keyboard
-      // and screen-reader users at the top of the page.
-      if (prevFocused?.isConnected) prevFocused.focus?.();
-    };
-  }, [panelRef, isTopmost]);
+  // Focus containment — wired here, not per sheet, so all ~40 useSheetExit
+  // consumers get it for free instead of each threading a panel ref through
+  // (see use-focus-trap.ts for how it finds "its" panel without one, and how
+  // stacking with a confirm Modal is arbitrated). Without it a sheet opened
+  // while focus sat on the page behind it left Tab walking through the
+  // content underneath, and any `onKeyDown` the sheet declared on its own
+  // subtree never fired at all (nothing inside it had focus) — which is why
+  // BuildReportSheet's Escape handler did nothing.
+  useFocusTrap(isTopmost, panelRef);
 
   // Spread onto the sheet element. While closing, pins sheet-fall's `from`
   // keyframe to the release offset so the exit continues from where the
