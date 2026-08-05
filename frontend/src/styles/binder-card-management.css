@@ -442,6 +442,16 @@
   border-bottom: 0.5px solid var(--border);
 }
 
+/* `.search-pill` declares `flex: 1 1 12rem` so it grows along a horizontal
+   toolbar. This header is a flex COLUMN, so that 12rem basis is a HEIGHT and
+   the pill inflates into a ~192px-tall ellipse. Pin it at the shell so every
+   sheet that drops a SearchPill into the header is fixed by construction —
+   the trap has now bitten the deck builder, the avatar picker and the
+   playtest zone viewer. See project_searchpill_flex_column_trap. */
+.card-picker-header > .search-pill {
+  flex: 0 0 auto;
+}
+
 .card-picker-title {
   font-size: var(--text-lg);
   font-weight: normal;

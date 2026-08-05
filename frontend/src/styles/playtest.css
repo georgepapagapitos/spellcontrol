@@ -607,6 +607,14 @@ body:has(.playtest-page) .modal-backdrop {
   }
 }
 
+/* a11y: this pill IS the touch multi-select mode's only action affordance —
+   32px was below the floor on exactly the pointer it exists for. */
+@media (pointer: coarse) {
+  .playtest-selection button {
+    min-height: 44px;
+  }
+}
+
 /* a11y: keyboard focus for the battlefield/hand card itself (role="button",
  * Enter/Space activates). The playtest board follows the app theme (unlike
  * the always-dark multiplayer board) — standard accent ring. */
@@ -906,6 +914,14 @@ body:has(.playtest-page) .modal-backdrop {
   }
 }
 
+/* a11y: the preset row is the fast path for making a token on a tablet — the
+   primary playtest device — and sat at ~28px. */
+@media (pointer: coarse) {
+  .playtest-token-presets button {
+    min-height: 44px;
+  }
+}
+
 .playtest-token-presets button:active {
   background: var(--accent-light);
   border-color: var(--accent);
@@ -1137,7 +1153,14 @@ body:has(.playtest-page) .modal-backdrop {
 
 @media (pointer: coarse) {
   .playtest-ctx-attach-select,
-  .playtest-ctx-attached button {
+  .playtest-ctx-attached button,
+  /* The sheet variant's counter/sticker controls were left out of this floor
+     when it was written — they're the touch presentation, so they need it
+     most. Padding alone left them at ~31px. */
+  .playtest-ctx-sheet .playtest-ctx-counter button,
+  .playtest-ctx-sheet .playtest-ctx-sticker button,
+  .playtest-ctx-sheet .playtest-ctx-counter-add button,
+  .playtest-ctx-sheet .playtest-ctx-sticker-add button {
     min-height: 44px;
   }
 }
@@ -1493,9 +1516,13 @@ body:has(.playtest-page) .modal-backdrop {
  */
 @media (min-width: 1024px) {
   .playtest-opening-sheet {
-    /* Wide enough for the full 7-card hand shown side-by-side (not overlapped)
-       at a legible size, capped so it never exceeds the viewport. */
-    width: min(94vw, 900px);
+    /* Wide enough that the full seven sit side-by-side at a size you can read
+       the card off — keep-or-mull is decided from mana costs and text, so the
+       cards ARE the interface here. Capped against the viewport. */
+    width: min(94vw, 1180px);
+    /* Taller than the shared 70vh: the hand row is the tallest content in the
+       sheet family, and 70vh forced it to scroll on a 13" laptop. */
+    max-height: min(86vh, 940px);
   }
 }
 
@@ -1580,12 +1607,26 @@ body:has(.playtest-page) .modal-backdrop {
 /* Free-mulligan variant toggle (E226). A quiet option row above the
    Keep/Mulligan footer — a native checkbox stretched over the whole label, so
    the hit target is the row and the semantics stay free. */
+/* Two option rows stacked ate ~130px of a phone sheet's height — the space the
+   cards want. Side-by-side as soon as there's room for both to read cleanly. */
+.playtest-opening-variants {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-3) var(--space-4);
+  flex: 0 0 auto;
+}
+
+@media (min-width: 600px) {
+  .playtest-opening-variants {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 .playtest-opening-variant {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   min-height: 44px;
-  margin: 0 var(--space-4);
   padding: var(--space-2) var(--space-3);
   background: var(--surface);
   border: 0.5px solid var(--border);
@@ -1635,17 +1676,46 @@ body:has(.playtest-page) .modal-backdrop {
   }
 }
 
+/* The hand fits BY CONSTRUCTION at every width: each card is sized as a
+   fraction of this container (`--row-n` per row), never off `vw`. The old
+   `clamp(72px, 12vw, 116px)` sizing was viewport-relative while the sheet is
+   not, so anywhere between ~480px and the 1024px desktop breakpoint the seven
+   cards were wider than the sheet and three of them sat off-screen behind a
+   horizontal scroll — on the one screen where you need to see all seven at
+   once to decide. `--hand-n` is the live card count, set by the component. */
 .playtest-opening-cards {
+  --row-n: var(--hand-n, 7);
+  /* One source for the gap: the card's width formula subtracts it, so the two
+     must agree or the row wraps a card early. */
+  --hand-gap: var(--space-2);
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
-  /* `safe center` centers when the row fits but falls back to start-alignment
-     when it overflows, so the end cards stay reachable by scroll instead of
-     being clipped past the container edge (the plain `center` + overflow trap). */
-  justify-content: safe center;
-  gap: var(--space-2);
-  padding: 1.25rem var(--space-3) var(--space-5);
-  overflow-x: auto;
+  align-content: flex-start;
+  justify-content: center;
+  gap: var(--hand-gap);
+  /* Top padding clears the -12px lift a selected card takes; the rest of the
+     old bottom padding went back to the cards. */
+  padding: 1.25rem var(--space-3) var(--space-3);
+  /* Vertical is the scarce axis (two option rows + footer sit below), so the
+     hand is the sheet's scroll region on a short viewport — never the page. */
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   scrollbar-width: thin;
+}
+
+/* Phones: seven across would be ~35px slivers. Wrap to rows of four instead —
+   all seven still visible at once, each roughly twice the size. */
+@media (max-width: 599px) {
+  .playtest-opening-cards {
+    --row-n: min(4, var(--hand-n, 7));
+    /* Tighter gutters here go straight into card width, which is the whole
+       point on a 320px screen. */
+    --hand-gap: var(--space-1);
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
+  }
 }
 
 .playtest-opening-card {
@@ -1653,10 +1723,12 @@ body:has(.playtest-page) .modal-backdrop {
   display: block;
   box-sizing: border-box;
   flex: 0 0 auto;
-  /* Fluid width so the full 7-card hand fits the sheet at every viewport:
-     comfortably legible on the desktop modal, shrinking on narrow phones
-     (with horizontal scroll as the final fallback). */
-  width: clamp(72px, 12vw, 116px);
+  /* An exact share of the row — `100%` resolves against the flex container's
+     content box, so this is "the sheet, minus the gaps, divided by --row-n"
+     and the row can never overflow. Capped so a very wide desktop shows a
+     card at about its physical size rather than a poster. */
+  width: calc((100% - (var(--row-n) - 1) * var(--hand-gap)) / var(--row-n));
+  max-width: 190px;
   aspect-ratio: 5 / 7;
   padding: 0;
   border: 1px solid var(--border);
@@ -1992,8 +2064,25 @@ body:has(.playtest-page) .modal-backdrop {
   }
 
   .playtest-mana-chip__step {
+    position: relative;
     width: 32px;
     height: 32px;
+  }
+
+  /* The comment above promises a hit box bigger than the glyph, but the
+     32px box WAS the hit box. Ghost the target out to 44px without growing
+     the strip (which would displace the board) — same technique as
+     .playtest-zone-tile__kebab. The ± centres sit 66px apart, so the two
+     ghosts in a chip never overlap, and 44px fits inside the chip's own
+     padded height, so neither one reaches over the battlefield. */
+  .playtest-mana-chip__step::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
   }
 
   .playtest-mana-pool__empty {
