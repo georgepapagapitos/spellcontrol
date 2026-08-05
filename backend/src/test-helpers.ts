@@ -60,17 +60,34 @@ export async function createTestEnv(): Promise<TestEnv> {
   process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-test-secret-test';
   const schemaName = `t_${crypto.randomBytes(6).toString('hex')}`;
   const url = testDatabaseUrl();
-  const pool = new Pool({ connectionString: url, max: 4 });
+  // The schema has to exist before any pooled connection can select into it,
+  // and this bootstrap pool is thrown away immediately afterwards.
+  const bootstrap = new Pool({ connectionString: url, max: 1 });
+  await bootstrap.query(`CREATE SCHEMA IF NOT EXISTS ${schemaName}`);
+  await bootstrap.end();
 
-  await pool.query(`CREATE SCHEMA IF NOT EXISTS ${schemaName}`);
-  // search_path applies per-connection; set it as a default so every pooled
-  // connection lands in our schema without us having to wrap each query.
-  pool.on('connect', (client) => {
-    client.query(`SET search_path TO ${schemaName}`).catch(() => {});
+  /**
+   * search_path is a **connection startup parameter**, not something we set
+   * afterwards.
+   *
+   * This used to be `pool.on('connect', (c) => c.query('SET search_path …'))`,
+   * which races: node-postgres emits `connect` and hands the client straight to
+   * whoever is waiting — it does not await the listener. Under full-suite load
+   * (parallel workers, `max: 4`, new connections opening while queries queue) a
+   * query could therefore run *before* the SET landed and fall through to the
+   * default `"$user", public` — i.e. against whatever real database the dev box
+   * has on 5432. The `.catch(() => {})` on that SET then swallowed any failure,
+   * so it surfaced only as an unrelated-looking flake much later (a register
+   * returning 400 in `friends.test.ts`, green on the next run).
+   *
+   * Passing `options` makes Postgres itself apply it as the connection opens,
+   * before a single query can be issued on it. No race, nothing to swallow.
+   */
+  const pool = new Pool({
+    connectionString: url,
+    max: 4,
+    options: `-c search_path=${schemaName}`,
   });
-  // Ensure the already-checked-out connection (used for the CREATE SCHEMA
-  // above) also picks up the path before we run the schema bootstrap.
-  await pool.query(`SET search_path TO ${schemaName}`);
   await pool.query(`
     CREATE TABLE users (
       id TEXT PRIMARY KEY,

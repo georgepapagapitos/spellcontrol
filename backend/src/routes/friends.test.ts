@@ -19,11 +19,15 @@ afterAll(async () => {
   if (cleanup) await cleanup();
 });
 
+// The status assertions below carry the response body: a bare
+// "expected 400 to be 201" from a registration helper is undiagnosable after
+// the fact, and this file hit exactly that as an intermittent failure. Whatever
+// the server objected to now travels with the failure.
 async function makeUser(username: string): Promise<string> {
   const reg = await request(app)
     .post('/api/auth/register')
     .send({ username, password: 'correct horse battery' });
-  expect(reg.status).toBe(201);
+  expect(reg.status, `register(${username}) → ${JSON.stringify(reg.body)}`).toBe(201);
   return extractSessionCookie(reg.headers['set-cookie'])!;
 }
 
@@ -547,7 +551,7 @@ async function makeUserFull(
   const reg = await request(app)
     .post('/api/auth/register')
     .send({ username, password: 'correct horse battery' });
-  expect(reg.status).toBe(201);
+  expect(reg.status, `register(${username}) → ${JSON.stringify(reg.body)}`).toBe(201);
   const cookie = extractSessionCookie(reg.headers['set-cookie'])!;
   // Get our own id via /api/friends (or auth me) — simpler: look ourselves up via users search
   // Actually use the pool directly for the id
