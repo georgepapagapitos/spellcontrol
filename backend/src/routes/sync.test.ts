@@ -8,7 +8,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
-import type { Express } from 'express';
+import type { Server } from 'node:http';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 
 // Only the fire-and-forget test below overrides this (via mockRejectedValueOnce);
@@ -22,7 +22,7 @@ vi.mock('../publications/sync-hook', async (importOriginal) => {
   return { ...actual, refreshDeckPublications: mockRefreshDeckPublications };
 });
 
-let app: Express;
+let app: Server;
 let cleanup: () => Promise<void>;
 
 beforeAll(async () => {

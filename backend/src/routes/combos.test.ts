@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { __resetMatchCacheForTesting, __expireDatasetVersionForTesting } from './combos';
 import request from 'supertest';
-import type { Express } from 'express';
+import type { Server } from 'node:http';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { getDb } from '../db';
 import { combos, comboCards, comboIngestRuns } from '../db/schema';
 
-let app: Express;
+let app: Server;
 let cleanup: () => Promise<void>;
 
 async function registerAndGetCookie(username: string): Promise<string> {

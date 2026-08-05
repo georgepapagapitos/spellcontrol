@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
-import type { Express } from 'express';
+import type { Server } from 'node:http';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { isUniqueViolation } from './games';
 
@@ -14,7 +14,7 @@ describe('isUniqueViolation (F20 join-code race guard)', () => {
   });
 });
 
-let app: Express;
+let app: Server;
 let cleanup: () => Promise<void>;
 
 beforeAll(async () => {

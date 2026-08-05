@@ -1,5 +1,6 @@
 import crypto from 'crypto';
-import express, { type Express } from 'express';
+import { createServer, type Server } from 'node:http';
+import express from 'express';
 import cookieParser from 'cookie-parser';
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
@@ -46,7 +47,11 @@ export function testDatabaseUrl(): string {
 }
 
 export interface TestEnv {
-  app: Express;
+  /**
+   * A **listening** `http.Server`, not the bare Express app — see the note in
+   * `createTestEnv` on why this must not be a function.
+   */
+  app: Server;
   pool: Pool;
   cleanup: () => Promise<void>;
 }
@@ -522,10 +527,48 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/discover', discoverRouter);
   app.use('/api/activity', activityRouter);
 
+  /**
+   * Hand tests a **listening server**, never the bare Express app.
+   *
+   * supertest's `Test` constructor wraps any *function* it is given in a fresh
+   * `http.createServer(app)` and then, in `serverAddress()`, calls
+   * `app.listen(0)` when the server has no address yet. An Express app is a
+   * function, so `request(app)` used to bind a brand-new ephemeral port on
+   * **every single request** — ~1100 binds per suite run.
+   *
+   * `listen(0)` with no host binds the **wildcard** address. The kernel will
+   * happily assign a port that some other process already holds on
+   * `127.0.0.1` specifically, because `(*, port)` and `(127.0.0.1, port)` are
+   * different tuples — no EADDRINUSE. supertest then connects to
+   * `127.0.0.1:<port>`, and BSD routes that to the **more specific** binding:
+   * the squatter, not us. The request never reaches Express, and whatever the
+   * squatter answers becomes the test's result.
+   *
+   * That is issue #1494: a Brother printer driver (`HttpToUsbBridge`) listens
+   * on `127.0.0.1:50000` — inside macOS's ephemeral range (49152–65535) — and
+   * replies `400 BadRequest` with an empty body to anything it doesn't
+   * understand. Roughly 3 runs in 8 drew port 50000 for some request, and that
+   * one assertion failed with an unexplained 400, in a different file each
+   * time, always green on re-run.
+   *
+   * Binding **127.0.0.1 explicitly** closes it: the kernel will not hand out a
+   * port already bound on the same address, so a collision is impossible.
+   * Passing the listening server (not the app) also means supertest reuses it
+   * via `serverAddress()`'s `if (!addr)` guard, so the whole file shares one
+   * port instead of burning one per request.
+   */
+  const server = createServer(app);
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+
   return {
-    app,
+    app: server,
     pool,
     cleanup: async () => {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
       await pool.query(`DROP SCHEMA ${schemaName} CASCADE`);
       await closeDb();
     },
