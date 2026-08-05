@@ -23,6 +23,7 @@ export const PlaytestCardFace = memo(
     const faceDown = bf?.faceDown ?? false;
     const counters = bf?.counters ?? {};
     const stickers = bf?.stickers ?? [];
+    const attached = bf?.attachedTo !== undefined;
     // Transform is independent of face-down: a transformed card can also be
     // turned face-down, in which case the back-of-card art still wins below.
     const src = bf?.showBackFace && card.backImageUrl ? card.backImageUrl : card.imageUrl;
@@ -37,10 +38,15 @@ export const PlaytestCardFace = memo(
       <div
         ref={ref}
         className={`playtest-card playtest-card--${size}${tapped ? ' playtest-card--tapped' : ''}${
-          className ? ` ${className}` : ''
-        }`}
+          attached ? ' playtest-card--attached' : ''
+        }${className ? ` ${className}` : ''}`}
         {...rest}
       >
+        {attached && (
+          <span className="playtest-card__attached" title="Attached" aria-hidden>
+            🔗
+          </span>
+        )}
         {faceDown ? (
           <div className="playtest-card__back" aria-label="Face-down card" />
         ) : src && !imgError ? (

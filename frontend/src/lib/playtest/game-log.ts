@@ -25,7 +25,9 @@ export type LogEntryKind =
   | 'undo'
   | 'reset'
   | 'life'
-  | 'designation';
+  | 'designation'
+  | 'attach'
+  | 'counter';
 
 export interface GameLogEntry {
   /** Monotonic within a session — always ascending in log order. */
@@ -219,6 +221,42 @@ export function buildLogEntries(
           turn,
           kind: 'life',
           text: `${label} commander damage: ${current.opponents[action.opponent].commanderDamage} → ${next.opponents[action.opponent].commanderDamage}`,
+        },
+      ];
+    }
+
+    case 'ATTACH': {
+      if (next === current) return []; // no-op (missing card, cycle, or already attached)
+      const card = current.battlefield.find((b) => b.card.id === action.cardId)?.card;
+      if (!card) return [];
+      if (action.targetId === null) {
+        return [{ turn, kind: 'attach', text: `${card.name} unattached`, cardName: card.name }];
+      }
+      const host = current.battlefield.find((b) => b.card.id === action.targetId)?.card;
+      if (!host) return [];
+      return [
+        {
+          turn,
+          kind: 'attach',
+          text: `${card.name} attached to ${host.name}`,
+          cardName: card.name,
+        },
+      ];
+    }
+
+    case 'SET_PLAYER_COUNTER': {
+      if (next === current) return []; // no-op (floored at zero, or bad index)
+      const read = (state: PlaytestState): number =>
+        action.player === 'self'
+          ? (state.playerCounters?.[action.counter] ?? 0)
+          : (state.opponents[action.player].counters?.[action.counter] ?? 0);
+      const label =
+        action.player === 'self' ? 'You' : opponentLabel(current.opponents.length, action.player);
+      return [
+        {
+          turn,
+          kind: 'counter',
+          text: `${label}: ${action.counter} ${read(current)} → ${read(next)}`,
         },
       ];
     }

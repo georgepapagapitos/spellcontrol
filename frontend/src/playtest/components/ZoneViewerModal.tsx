@@ -5,23 +5,29 @@ import { useSheetExit } from '@/lib/use-sheet-exit';
 import { normalizeForSearch } from '@/lib/normalize-search';
 import { SearchPill } from '@/components/SearchPill';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
-import { MOVE_DESTINATIONS } from '../lib/zones';
+import { MOVE_DESTINATIONS, destinationKey } from '../lib/zones';
 
 interface Props {
   zone: Zone;
   cards: PlaytestCard[];
   onClose(): void;
-  onMove(cardId: string, to: Zone | 'battlefield'): void;
+  onMove(cardId: string, to: Zone | 'battlefield', toIndex?: number): void;
   onShuffleAfter?(): void;
+}
+
+interface ViewerDestination {
+  key: Zone | 'battlefield';
+  label: string;
+  toIndex?: number;
 }
 
 // ZoneViewerModal's destination list extends the shared MOVE_DESTINATIONS with
 // 'battlefield' (between 'hand' and 'graveyard'), since cards in a zone can be
 // played directly onto the battlefield.
-const DESTINATIONS: Array<{ key: Zone | 'battlefield'; label: string }> = [
+const DESTINATIONS: ViewerDestination[] = [
   MOVE_DESTINATIONS[0], // hand
   { key: 'battlefield', label: 'Battlefield' },
-  ...MOVE_DESTINATIONS.slice(1), // graveyard, exile, library (bottom), command
+  ...MOVE_DESTINATIONS.slice(1), // graveyard, exile, library (top/bottom), command
 ];
 
 export function ZoneViewerModal({ zone, cards, onClose, onMove, onShuffleAfter }: Props) {
@@ -86,8 +92,8 @@ export function ZoneViewerModal({ zone, cards, onClose, onMove, onShuffleAfter }
 
 interface ZoneCardProps {
   card: PlaytestCard;
-  destinations: Array<{ key: Zone | 'battlefield'; label: string }>;
-  onMove(cardId: string, to: Zone | 'battlefield'): void;
+  destinations: ViewerDestination[];
+  onMove(cardId: string, to: Zone | 'battlefield', toIndex?: number): void;
 }
 
 /**
@@ -117,9 +123,9 @@ function ZoneCard({ card: c, destinations, onMove }: ZoneCardProps) {
       <div className="playtest-zone-card__actions">
         {destinations.map((d) => (
           <button
-            key={d.key}
+            key={destinationKey(d)}
             type="button"
-            onClick={() => onMove(c.id, d.key)}
+            onClick={() => onMove(c.id, d.key, d.toIndex)}
             className="playtest-zone-card__action"
           >
             → {d.label}

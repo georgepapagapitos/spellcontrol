@@ -38,6 +38,15 @@ export interface BattlefieldCard {
   /** Which face's art is showing for a two-faced card. Independent of
    *  `faceDown` — a transformed card can also be turned face-down. */
   showBackFace?: boolean;
+  /** Instance id of the battlefield permanent this card is attached to — an
+   *  aura, Equipment, or Fortification. Purely a bookkeeping relation: nothing
+   *  checks that the attachment is legal, and nothing decides what happens
+   *  when the host dies. The reducer only guarantees the reference is never
+   *  dangling (a host leaving the battlefield detaches everything on it) and
+   *  never cyclic, so the board can't point at a card that isn't there.
+   *  Optional by design — its absence IS "not attached", which is also what
+   *  makes it back-compatible with snapshots saved before it existed. */
+  attachedTo?: string;
 }
 
 /** One virtual opponent's damage bookkeeping. `commanderDamage` is damage
@@ -46,6 +55,10 @@ export interface BattlefieldCard {
 export interface OpponentLife {
   life: number;
   commanderDamage: number;
+  /** Player-scoped counters on this opponent — poison above all, the one
+   *  alternate kill condition the life/commander-damage pair can't express.
+   *  Optional so snapshots predating it load unchanged; absent === empty. */
+  counters?: Record<string, number>;
 }
 
 /** Table designations. Monarch/initiative are vocabulary-matched to
@@ -92,6 +105,11 @@ export interface PlaytestState {
   monarch: boolean;
   initiative: boolean;
   citysBlessing: boolean;
+  /** Your own player-scoped counters — energy, experience, and anything else
+   *  a deck tracks on the player rather than on a permanent. Opponents carry
+   *  their own bag on `OpponentLife`. Optional for snapshot back-compat;
+   *  absent === empty. */
+  playerCounters?: Record<string, number>;
   /** Snapshots of prior states (cap kept inside reducer). UNDO pops the head. */
   past: Omit<PlaytestState, 'past'>[];
 }
@@ -153,6 +171,18 @@ export type PlaytestAction =
       type: 'CLONE_BF_CARDS';
       clones: Array<{ sourceId: string; id: string }>;
     }
+  | {
+      /** Attach `cardId` to the battlefield permanent `targetId`, or detach it
+       *  entirely with `targetId: null`. Rejected (no-op) if either card isn't
+       *  on the battlefield, if a card is attached to itself, or if the link
+       *  would close a cycle — an unreachable pair of mutually-attached cards
+       *  is worse than no attachment at all. Legality is NOT checked: you can
+       *  attach anything to anything, exactly as you could physically lay one
+       *  card across another. */
+      type: 'ATTACH';
+      cardId: string;
+      targetId: string | null;
+    }
   | { type: 'FLIP_FACE'; cardId: string }
   | { type: 'TRANSFORM'; cardId: string }
   | {
@@ -169,6 +199,10 @@ export type PlaytestAction =
   /** `player: 'self'` adjusts your life; a number adjusts `opponents[n]`'s life. */
   | { type: 'ADJUST_LIFE'; player: 'self' | number; delta: number }
   | { type: 'ADJUST_COMMANDER_DAMAGE'; opponent: number; delta: number }
+  /** Adjust a player-scoped counter (poison/energy/experience/…). Mirrors
+   *  `SET_COUNTER`'s shape for permanents; floors at zero, and hitting zero
+   *  removes the key rather than storing a 0. */
+  | { type: 'SET_PLAYER_COUNTER'; player: 'self' | number; counter: string; delta: number }
   /** Claim/clear a table designation. City's Blessing is one-way in the UI
    *  (only ever dispatched with `held: true`) but the reducer itself doesn't
    *  enforce that — see `Designation`. */

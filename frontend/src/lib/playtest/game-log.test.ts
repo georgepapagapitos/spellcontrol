@@ -435,3 +435,69 @@ describe('formatLogForClipboard', () => {
     );
   });
 });
+
+describe('buildLogEntries — attachments and player counters', () => {
+  function board(): PlaytestState {
+    let s = init(20);
+    for (const xy of [100, 200]) {
+      s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: s.zones.hand[0].id, x: xy, y: xy });
+    }
+    return s;
+  }
+
+  it('names both cards when attaching, and only the one when detaching', () => {
+    const s = board();
+    const [aura, host] = [s.battlefield[0], s.battlefield[1]];
+    const attach = { type: 'ATTACH' as const, cardId: aura.card.id, targetId: host.card.id };
+    const attached = applyAction(s, attach);
+    expect(buildLogEntries(s, attach, attached)).toEqual([
+      {
+        turn: 1,
+        kind: 'attach',
+        text: `${aura.card.name} attached to ${host.card.name}`,
+        cardName: aura.card.name,
+      },
+    ]);
+
+    const detach = { type: 'ATTACH' as const, cardId: aura.card.id, targetId: null };
+    expect(buildLogEntries(attached, detach, applyAction(attached, detach))).toEqual([
+      { turn: 1, kind: 'attach', text: `${aura.card.name} unattached`, cardName: aura.card.name },
+    ]);
+  });
+
+  it('logs nothing for a rejected attach (self-attachment)', () => {
+    const s = board();
+    const id = s.battlefield[0].card.id;
+    const self = { type: 'ATTACH' as const, cardId: id, targetId: id };
+    expect(buildLogEntries(s, self, applyAction(s, self))).toEqual([]);
+  });
+
+  it('logs a player counter as a before → after transition', () => {
+    const s = createPlaytestState({ library: deck(20), seed: 1, life: 40, opponentCount: 2 });
+    const poison = { type: 'SET_PLAYER_COUNTER' as const, player: 0, counter: 'poison', delta: 3 };
+    expect(buildLogEntries(s, poison, applyAction(s, poison))).toEqual([
+      { turn: 1, kind: 'counter', text: 'Opponent 1: poison 0 → 3' },
+    ]);
+
+    const mine = {
+      type: 'SET_PLAYER_COUNTER' as const,
+      player: 'self' as const,
+      counter: 'energy',
+      delta: 1,
+    };
+    expect(buildLogEntries(s, mine, applyAction(s, mine))).toEqual([
+      { turn: 1, kind: 'counter', text: 'You: energy 0 → 1' },
+    ]);
+  });
+
+  it('logs nothing when a counter adjustment is floored away', () => {
+    const s = createPlaytestState({ library: deck(20), seed: 1, life: 40, opponentCount: 1 });
+    const under = {
+      type: 'SET_PLAYER_COUNTER' as const,
+      player: 'self' as const,
+      counter: 'poison',
+      delta: -1,
+    };
+    expect(buildLogEntries(s, under, applyAction(s, under))).toEqual([]);
+  });
+});

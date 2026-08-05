@@ -268,6 +268,16 @@ export function PlaytestBoard({ state }: Props) {
   }
 
   const ctxCard = ctx ? state.battlefield.find((b) => b.card.id === ctx.cardId) : null;
+  // Candidate hosts exclude the card itself and its current host (re-attaching
+  // to where it already is would be a no-op menu entry).
+  const attachTargets = ctxCard
+    ? state.battlefield
+        .filter((b) => b.card.id !== ctxCard.card.id && b.card.id !== ctxCard.attachedTo)
+        .map((b) => ({ id: b.card.id, name: b.card.name }))
+    : [];
+  const attachedHostName = ctxCard?.attachedTo
+    ? state.battlefield.find((b) => b.card.id === ctxCard.attachedTo)?.card.name
+    : undefined;
 
   const canUndo = state.past.length > 0;
   const anySheetOpen =
@@ -456,6 +466,7 @@ export function PlaytestBoard({ state }: Props) {
         monarch={state.monarch}
         initiative={state.initiative}
         citysBlessing={state.citysBlessing}
+        playerCounters={state.playerCounters ?? {}}
         onAdjustLife={(player, delta) => {
           haptics.tap();
           dispatch({ type: 'ADJUST_LIFE', player, delta });
@@ -463,6 +474,10 @@ export function PlaytestBoard({ state }: Props) {
         onAdjustCommanderDamage={(opponent, delta) => {
           haptics.tap();
           dispatch({ type: 'ADJUST_COMMANDER_DAMAGE', opponent, delta });
+        }}
+        onAdjustCounter={(player, kind, delta) => {
+          haptics.tap();
+          dispatch({ type: 'SET_PLAYER_COUNTER', player, counter: kind, delta });
         }}
         onOpenChange={setLifePanelOpen}
       />
@@ -610,13 +625,13 @@ export function PlaytestBoard({ state }: Props) {
           zone={viewer.zone}
           cards={state.zones[viewer.zone]}
           onClose={() => setViewer(null)}
-          onMove={(cardId, to) => {
+          onMove={(cardId, to, toIndex) => {
             if (to === 'battlefield') {
               const c = state.zones[viewer.zone].find((card) => card.id === cardId) ?? null;
               const pos = c ? placeOnBattlefield(c) : { x: 60, y: 60 };
               dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId, x: pos.x, y: pos.y });
             } else {
-              dispatch({ type: 'MOVE_TO_ZONE', cardId, to });
+              dispatch({ type: 'MOVE_TO_ZONE', cardId, to, toIndex });
             }
           }}
           onShuffleAfter={
@@ -636,6 +651,15 @@ export function PlaytestBoard({ state }: Props) {
           y={ctx.y}
           cardName={ctxCard.card.name}
           stickers={ctxCard.stickers}
+          counters={ctxCard.counters}
+          // Every other permanent is a candidate host; the reducer additionally
+          // rejects anything that would close an attachment cycle.
+          attachTargets={attachTargets}
+          attachedToName={attachedHostName}
+          onAttach={(targetId) => {
+            dispatch({ type: 'ATTACH', cardId: ctx.cardId, targetId });
+            setCtx(null);
+          }}
           tax={commanderTaxAmount(state.commanderTax, ctxCard.card.id)}
           canTransform={Boolean(ctxCard.card.backImageUrl)}
           variant={isNarrow ? 'sheet' : 'floating'}
@@ -669,8 +693,8 @@ export function PlaytestBoard({ state }: Props) {
           onRemoveSticker={(index) =>
             dispatch({ type: 'REMOVE_STICKER', cardId: ctx.cardId, index })
           }
-          onMoveTo={(zone) => {
-            dispatch({ type: 'MOVE_TO_ZONE', cardId: ctx.cardId, to: zone });
+          onMoveTo={(zone, toIndex) => {
+            dispatch({ type: 'MOVE_TO_ZONE', cardId: ctx.cardId, to: zone, toIndex });
             setCtx(null);
           }}
         />
