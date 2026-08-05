@@ -47,6 +47,13 @@ export interface BattlefieldCard {
    *  Optional by design — its absence IS "not attached", which is also what
    *  makes it back-compatible with snapshots saved before it existed. */
   attachedTo?: string;
+  /** Phased out (rule 702.26) — purely a "remember this doesn't interact
+   *  right now" flag for the player's own bookkeeping. Independent of
+   *  `faceDown`/`tapped`: nothing stops a phased-out card from also being
+   *  tapped, and nothing auto-untaps it when it phases back in — the reducer
+   *  enforces no rules here, same as everywhere else in this state. Optional
+   *  so it's absent (= not phased) on every snapshot saved before it existed. */
+  phased?: boolean;
 }
 
 /** One virtual opponent's damage bookkeeping. `commanderDamage` is damage
@@ -69,6 +76,21 @@ export interface OpponentLife {
  *  other side of a designation, so each collapses to a boolean: true = you
  *  currently hold it. */
 export type Designation = 'monarch' | 'initiative' | 'citysBlessing';
+
+/** WUBRG plus colorless — the six buckets a floating-mana tally tracks.
+ *  Deliberately no `X`/hybrid/phyrexian bucket: those are cost-side notation,
+ *  not a color a coin in your pool can actually be. */
+export const MANA_COLORS = ['W', 'U', 'B', 'R', 'G', 'C'] as const;
+export type ManaColor = (typeof MANA_COLORS)[number];
+
+export const MANA_COLOR_LABEL: Record<ManaColor, string> = {
+  W: 'White',
+  U: 'Blue',
+  B: 'Black',
+  R: 'Red',
+  G: 'Green',
+  C: 'Colorless',
+};
 
 export interface PlaytestState {
   zones: Record<Zone, PlaytestCard[]>;
@@ -110,6 +132,12 @@ export interface PlaytestState {
    *  their own bag on `OpponentLife`. Optional for snapshot back-compat;
    *  absent === empty. */
   playerCounters?: Record<string, number>;
+  /** Floating mana, by color (E-goldfish-wave-3) — display/tracking only, the
+   *  same bookkeeping-not-rules-engine model as everything else here: the
+   *  player increments/decrements it by hand, nothing here ever auto-taps a
+   *  land or spends it against a cost. See NEXT_TURN in reducer.ts for when
+   *  it empties. Optional for snapshot back-compat; absent === all-zero. */
+  manaPool?: Record<ManaColor, number>;
   /** Snapshots of prior states (cap kept inside reducer). UNDO pops the head. */
   past: Omit<PlaytestState, 'past'>[];
 }
@@ -185,6 +213,13 @@ export type PlaytestAction =
     }
   | { type: 'FLIP_FACE'; cardId: string }
   | { type: 'TRANSFORM'; cardId: string }
+  | { type: 'TOGGLE_PHASED'; cardId: string }
+  /** Adjust one color's floating mana by `delta`. Floors at zero — same
+   *  "healing out means none, not a debt" rule as SET_PLAYER_COUNTER. */
+  | { type: 'ADJUST_MANA'; color: ManaColor; delta: number }
+  /** Manual "spend it all down" — see the NEXT_TURN comment in reducer.ts for
+   *  why this exists alongside the automatic per-turn empty. */
+  | { type: 'EMPTY_MANA_POOL' }
   | {
       /** Cosmetic-only art arriving after the fact (async token-art
        *  resolution) — not a player action, so the reducer never pushes it

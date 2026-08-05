@@ -21,6 +21,7 @@ export const PlaytestCardFace = memo(
   ) {
     const tapped = bf?.tapped ?? false;
     const faceDown = bf?.faceDown ?? false;
+    const phased = bf?.phased ?? false;
     const counters = bf?.counters ?? {};
     const stickers = bf?.stickers ?? [];
     const attached = bf?.attachedTo !== undefined;
@@ -39,12 +40,17 @@ export const PlaytestCardFace = memo(
         ref={ref}
         className={`playtest-card playtest-card--${size}${tapped ? ' playtest-card--tapped' : ''}${
           attached ? ' playtest-card--attached' : ''
-        }${className ? ` ${className}` : ''}`}
+        }${phased ? ' playtest-card--phased' : ''}${className ? ` ${className}` : ''}`}
         {...rest}
       >
         {attached && (
           <span className="playtest-card__attached" title="Attached" aria-hidden>
             🔗
+          </span>
+        )}
+        {phased && (
+          <span className="playtest-card__phased-badge" title="Phased out" aria-hidden>
+            👻
           </span>
         )}
         {faceDown ? (

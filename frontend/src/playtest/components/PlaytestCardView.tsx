@@ -76,6 +76,21 @@ export const PlaytestCardView = memo(function PlaytestCardView({
       className={selected ? 'playtest-card--selected' : undefined}
       onClick={activate}
       onKeyDown={(e) => {
+        // Keyboard route to the context menu (counters/stickers/move/attach) —
+        // previously reachable only by right-click or long-press, with no
+        // keyboard path at all. The physical Context Menu key, or Shift+Enter
+        // as the discoverable fallback on keyboards without one. Opens at the
+        // card's own on-screen position since there's no cursor to anchor to.
+        if (onContextMenu && (e.key === 'ContextMenu' || (e.key === 'Enter' && e.shiftKey))) {
+          e.preventDefault();
+          const rect = e.currentTarget.getBoundingClientRect();
+          onContextMenu(card.id, {
+            clientX: rect.left + rect.width / 2,
+            clientY: rect.top + rect.height / 2,
+            preventDefault: () => {},
+          } as React.MouseEvent);
+          return;
+        }
         // Same activation as a click — overrides dnd-kit's own keyboard-sensor
         // onKeyDown (an undiscoverable, arrow-key drag with no visual
         // affordance) with the far more useful "tap/play this card" a11y path.
@@ -90,7 +105,7 @@ export const PlaytestCardView = memo(function PlaytestCardView({
       onTouchCancel={onLongPress ? longPress.onTouchCancel : undefined}
       role="button"
       tabIndex={0}
-      aria-label={card.name}
+      aria-label={bf?.phased ? `${card.name} (phased out)` : card.name}
       aria-pressed={selected || undefined}
     />
   );

@@ -11,7 +11,7 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { useNavigate } from 'react-router-dom';
-import type { Designation, PlaytestCard, PlaytestState, Zone } from '@/lib/playtest';
+import type { Designation, ManaColor, PlaytestCard, PlaytestState, Zone } from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useDecksStore } from '@/store/decks';
 import { usePlaytestStore } from '../store';
@@ -40,6 +40,7 @@ import { PlaytestSessionSummary } from './PlaytestSessionSummary';
 import { resolveTokenArt } from '../lib/token-art';
 import { commanderTaxAmount } from '../lib/zones';
 import { LifeStrip } from './LifeStrip';
+import { ManaPool } from './ManaPool';
 import { useSealMoment } from '@/components/shared/SealMoment';
 
 interface Props {
@@ -48,6 +49,10 @@ interface Props {
 
 type ViewerMode = { zone: Zone } | null;
 type ContextState = { cardId: string; x: number; y: number } | null;
+
+// Backfill for a session snapshot saved before the mana pool existed —
+// `state.manaPool` is optional for exactly that reason (see types.ts).
+const ZERO_MANA_POOL: Record<ManaColor, number> = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
 
 function parseDraggable(id: string): { source: 'bf' | 'hand' | 'zone'; cardId: string } | null {
   const m = /^(bf|hand|zone):(.+)$/.exec(id);
@@ -64,6 +69,8 @@ export function PlaytestBoard({ state }: Props) {
   const finalizeBottom = usePlaytestStore((s) => s.finalizeBottom);
   const freeMulligan = usePlaytestStore((s) => s.freeMulligan);
   const setFreeMulligan = usePlaytestStore((s) => s.setFreeMulligan);
+  const onDraw = usePlaytestStore((s) => s.onDraw);
+  const setOnDraw = usePlaytestStore((s) => s.setOnDraw);
   const resistanceLevel = usePlaytestStore((s) => s.resistanceLevel);
   const setResistanceLevel = usePlaytestStore((s) => s.setResistanceLevel);
   const lastResistanceEvent = usePlaytestStore((s) => s.lastResistanceEvent);
@@ -502,6 +509,17 @@ export function PlaytestBoard({ state }: Props) {
         }}
         onOpenChange={setLifePanelOpen}
       />
+      <ManaPool
+        pool={state.manaPool ?? ZERO_MANA_POOL}
+        onAdjust={(color, delta) => {
+          haptics.tap();
+          dispatch({ type: 'ADJUST_MANA', color, delta });
+        }}
+        onEmpty={() => {
+          haptics.tap();
+          dispatch({ type: 'EMPTY_MANA_POOL' });
+        }}
+      />
       {showTableDefeatedBanner && lastSessionRecord ? (
         // The richer E141 recap supersedes the plain "Table defeated" line —
         // it already names the kill turn plus mulligans/interaction survived.
@@ -683,6 +701,7 @@ export function PlaytestBoard({ state }: Props) {
           }}
           tax={commanderTaxAmount(state.commanderTax, ctxCard.card.id)}
           canTransform={Boolean(ctxCard.card.backImageUrl)}
+          phased={ctxCard.phased ?? false}
           variant={isNarrow ? 'sheet' : 'floating'}
           onClose={() => setCtx(null)}
           onTap={() => {
@@ -695,6 +714,11 @@ export function PlaytestBoard({ state }: Props) {
           }}
           onTransform={() => {
             dispatch({ type: 'TRANSFORM', cardId: ctx.cardId });
+            setCtx(null);
+          }}
+          onTogglePhased={() => {
+            haptics.tap();
+            dispatch({ type: 'TOGGLE_PHASED', cardId: ctx.cardId });
             setCtx(null);
           }}
           // Acting on a card that's part of the live selection copies the
@@ -780,6 +804,8 @@ export function PlaytestBoard({ state }: Props) {
           deckName={deck?.name}
           freeMulligan={freeMulligan}
           onFreeMulliganChange={setFreeMulligan}
+          onDraw={onDraw}
+          onOnDrawChange={setOnDraw}
           onExit={() => navigate(playtestDeckId ? `/decks/${playtestDeckId}` : '/decks')}
           onKeep={keepOpeningHand}
           onMulligan={mulliganOpeningHand}

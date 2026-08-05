@@ -1249,3 +1249,94 @@ describe('SET_PLAYER_COUNTER', () => {
     expect(applyAction(s, { type: 'RESET' }).playerCounters).toEqual({});
   });
 });
+
+describe('TOGGLE_PHASED', () => {
+  function withCardOnBattlefield() {
+    let s = init(10, 1, 3);
+    const id = s.zones.hand[0].id;
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: id, x: 0, y: 0 });
+    return { s, id };
+  }
+
+  it('toggles phased independently of tapped/faceDown', () => {
+    const { s, id } = withCardOnBattlefield();
+    const next = applyAction(s, { type: 'TOGGLE_PHASED', cardId: id });
+    expect(next.battlefield[0].phased).toBe(true);
+    expect(next.battlefield[0].tapped).toBe(false);
+    const back = applyAction(next, { type: 'TOGGLE_PHASED', cardId: id });
+    expect(back.battlefield[0].phased).toBe(false);
+  });
+
+  it('is a no-op for an unknown card id', () => {
+    const { s } = withCardOnBattlefield();
+    expect(applyAction(s, { type: 'TOGGLE_PHASED', cardId: 'nope' })).toBe(s);
+  });
+
+  it('is undoable', () => {
+    const { s, id } = withCardOnBattlefield();
+    const next = applyAction(s, { type: 'TOGGLE_PHASED', cardId: id });
+    expect(applyAction(next, { type: 'UNDO' }).battlefield[0].phased).toBeUndefined();
+  });
+});
+
+describe('ADJUST_MANA / EMPTY_MANA_POOL', () => {
+  it('starts every color at zero', () => {
+    const s = init();
+    expect(s.manaPool).toEqual({ W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 });
+  });
+
+  it('adds and floors at zero', () => {
+    let s = applyAction(init(), { type: 'ADJUST_MANA', color: 'G', delta: 3 });
+    expect(s.manaPool?.G).toBe(3);
+    s = applyAction(s, { type: 'ADJUST_MANA', color: 'G', delta: -5 });
+    expect(s.manaPool?.G).toBe(0);
+  });
+
+  it('no-ops when already at zero and delta is negative', () => {
+    const s = init();
+    expect(applyAction(s, { type: 'ADJUST_MANA', color: 'U', delta: -1 })).toBe(s);
+  });
+
+  it('tracks colors independently', () => {
+    let s = applyAction(init(), { type: 'ADJUST_MANA', color: 'W', delta: 2 });
+    s = applyAction(s, { type: 'ADJUST_MANA', color: 'B', delta: 1 });
+    expect(s.manaPool).toMatchObject({ W: 2, B: 1, U: 0 });
+  });
+
+  it('is undoable', () => {
+    const s = applyAction(init(), { type: 'ADJUST_MANA', color: 'R', delta: 4 });
+    expect(applyAction(s, { type: 'UNDO' }).manaPool?.R).toBe(0);
+  });
+
+  it('EMPTY_MANA_POOL clears every color and is undoable', () => {
+    let s = applyAction(init(), { type: 'ADJUST_MANA', color: 'W', delta: 2 });
+    s = applyAction(s, { type: 'ADJUST_MANA', color: 'U', delta: 1 });
+    const emptied = applyAction(s, { type: 'EMPTY_MANA_POOL' });
+    expect(emptied.manaPool).toEqual({ W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 });
+    const undone = applyAction(emptied, { type: 'UNDO' });
+    expect(undone.manaPool).toMatchObject({ W: 2, U: 1 });
+  });
+
+  it('EMPTY_MANA_POOL is a no-op when already empty', () => {
+    const s = init();
+    expect(applyAction(s, { type: 'EMPTY_MANA_POOL' })).toBe(s);
+  });
+
+  it('NEXT_TURN empties the pool automatically', () => {
+    let s = applyAction(init(), { type: 'ADJUST_MANA', color: 'C', delta: 5 });
+    s = applyAction(s, { type: 'NEXT_TURN' });
+    expect(s.manaPool).toEqual({ W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 });
+  });
+
+  it('cleared by RESET', () => {
+    const s = applyAction(init(), { type: 'ADJUST_MANA', color: 'G', delta: 3 });
+    expect(applyAction(s, { type: 'RESET' }).manaPool).toEqual({
+      W: 0,
+      U: 0,
+      B: 0,
+      R: 0,
+      G: 0,
+      C: 0,
+    });
+  });
+});
