@@ -3,6 +3,7 @@ import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { getSafeViewport } from '@/lib/popover-placement';
+import { usePressRepeat } from '@/lib/use-press-repeat';
 
 interface Props {
   variant: 'floating' | 'sheet';
@@ -30,6 +31,27 @@ const STEPS = [-5, -1, 1, 5] as const;
 const PLAYER_COUNTER_KINDS = ['poison', 'energy', 'experience'];
 const MAX_COUNTER_NAME = 20;
 
+/** A ± step that repeats while held — see `usePressRepeat`. Split into its own
+ *  component because the hook can't be called inside a `.map`. */
+function StepButton({
+  className = 'playtest-life-panel__step',
+  label,
+  onAdjust,
+  children,
+}: {
+  className?: string;
+  label: string;
+  onAdjust(): void;
+  children: React.ReactNode;
+}) {
+  const press = usePressRepeat(onAdjust);
+  return (
+    <button type="button" className={className} aria-label={label} {...press}>
+      {children}
+    </button>
+  );
+}
+
 function Stepper({
   label,
   value,
@@ -44,29 +66,17 @@ function Stepper({
       <span className="playtest-life-panel__stepper-label">{label}</span>
       <div className="playtest-life-panel__stepper-row">
         {STEPS.slice(0, 2).map((d) => (
-          <button
-            key={d}
-            type="button"
-            className="playtest-life-panel__step"
-            onClick={() => onAdjust(d)}
-            aria-label={`${label} ${d}`}
-          >
+          <StepButton key={d} label={`${label} ${d}`} onAdjust={() => onAdjust(d)}>
             {d}
-          </button>
+          </StepButton>
         ))}
         <span className="playtest-life-panel__value" aria-live="polite">
           {value}
         </span>
         {STEPS.slice(2).map((d) => (
-          <button
-            key={d}
-            type="button"
-            className="playtest-life-panel__step"
-            onClick={() => onAdjust(d)}
-            aria-label={`${label} +${d}`}
-          >
+          <StepButton key={d} label={`${label} +${d}`} onAdjust={() => onAdjust(d)}>
             +{d}
-          </button>
+          </StepButton>
         ))}
       </div>
     </div>
@@ -151,25 +161,21 @@ export function LifeAdjustPanel({
         {counterKinds.map((k) => (
           <div key={k} className="playtest-life-panel__counter">
             <span className="playtest-life-panel__counter-label">{k}</span>
-            <button
-              type="button"
-              className="playtest-life-panel__step"
-              onClick={() => onAdjustCounter(k, -1)}
-              aria-label={`${k} minus 1, currently ${counters[k] ?? 0}`}
+            <StepButton
+              label={`${k} minus 1, currently ${counters[k] ?? 0}`}
+              onAdjust={() => onAdjustCounter(k, -1)}
             >
               −
-            </button>
+            </StepButton>
             <span className="playtest-life-panel__value" aria-live="polite">
               {counters[k] ?? 0}
             </span>
-            <button
-              type="button"
-              className="playtest-life-panel__step"
-              onClick={() => onAdjustCounter(k, 1)}
-              aria-label={`${k} plus 1, currently ${counters[k] ?? 0}`}
+            <StepButton
+              label={`${k} plus 1, currently ${counters[k] ?? 0}`}
+              onAdjust={() => onAdjustCounter(k, 1)}
             >
               +
-            </button>
+            </StepButton>
           </div>
         ))}
         <div className="playtest-life-panel__counter-add">

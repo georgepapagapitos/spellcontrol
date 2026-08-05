@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useDecksStore } from '@/store/decks';
 import { useConfirm } from '@/lib/use-confirm';
@@ -33,6 +33,10 @@ export function PlaytestPage() {
   // prompt fires once per deck visit. A ref (not state) — it only gates
   // this effect and shouldn't itself trigger a render.
   const checkedDeckIdRef = useRef<string | null>(null);
+  // A deck whose cards can't be turned into a playable session (a malformed
+  // entry, a corrupt snapshot) used to leave the "Shuffling…" spinner up
+  // forever with no way out but the browser's back button.
+  const [initFailed, setInitFailed] = useState(false);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -45,6 +49,17 @@ export function PlaytestPage() {
     // without unmounting the page).
     flushPendingPlaytestSnapshot();
 
+    // Both entry points funnel through here so a throw anywhere in
+    // deck→session conversion surfaces as a real error state, not a spinner
+    // that never resolves.
+    function startSession(run: () => void) {
+      try {
+        run();
+      } catch {
+        setInitFailed(true);
+      }
+    }
+
     async function offerResume(forDeck: Deck, snap: PlaytestSnapshot) {
       const resume = await confirm({
         title: 'Resume game?',
@@ -53,7 +68,7 @@ export function PlaytestPage() {
         cancelLabel: 'Start fresh',
       });
       if (resume) {
-        hydrate(forDeck.id, snap);
+        startSession(() => hydrate(forDeck.id, snap));
       } else {
         // Declining a resume-worthy snapshot in favor of "Start fresh" is a
         // session boundary the live store never saw (it never loaded this
@@ -66,7 +81,7 @@ export function PlaytestPage() {
           snap.resistanceLevel !== 'off'
         );
         clearPlaytestSnapshot(forDeck.id);
-        init(forDeck.id, deckToPlaytestInit(forDeck));
+        startSession(() => init(forDeck.id, deckToPlaytestInit(forDeck)));
       }
     }
 
@@ -102,6 +117,54 @@ export function PlaytestPage() {
         <div className="empty-state-actions">
           <button type="button" className="btn btn-primary" onClick={() => navigate('/decks')}>
             Back to decks
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (deck.cards.length === 0) {
+    return (
+      <div className="empty-state">
+        <p className="empty-state-tagline">Nothing to playtest yet</p>
+        <p className="empty-state-hint">
+          This deck has no cards. Add some and the goldfish table will be waiting.
+        </p>
+        <div className="empty-state-actions">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => navigate(`/decks/${deck.id}`)}
+          >
+            Add cards
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (initFailed) {
+    return (
+      <div className="empty-state">
+        <p className="empty-state-tagline">Couldn't start this playtest</p>
+        <p className="empty-state-hint">
+          Something in this deck couldn't be dealt into a game. Try again, or open the deck to check
+          its cards.
+        </p>
+        <div className="empty-state-actions">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              // Clear any snapshot that might itself be the problem, and let
+              // the effect re-run from scratch for this deck.
+              clearPlaytestSnapshot(deck.id);
+              checkedDeckIdRef.current = null;
+              setInitFailed(false);
+            }}
+          >
+            Try again
+          </button>
+          <button type="button" className="btn" onClick={() => navigate(`/decks/${deck.id}`)}>
+            Back to deck
           </button>
         </div>
       </div>

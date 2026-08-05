@@ -112,6 +112,10 @@ export function PlaytestBoard({ state }: Props) {
   // reducer state: selecting a card isn't a game action and must never land
   // on the 50-deep undo stack.
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+  // Touch has no shift/⌘ modifier, so building a selection was desktop-only.
+  // Select mode makes a plain tap toggle selection instead of tapping the
+  // card — same selection state, reached without a keyboard.
+  const [selectMode, setSelectMode] = useState(false);
   const [clipboard, setClipboard] = useState<readonly string[]>([]);
   const [lifePanelOpen, setLifePanelOpen] = useState(false);
   // Banner dismissal is tracked by event id so a new opponent response (even
@@ -204,7 +208,7 @@ export function PlaytestBoard({ state }: Props) {
   // and drops any selection, so nothing lingers invisibly after you move on.
   const handleCardClick = useCallback(
     (cardId: string, e: React.MouseEvent | React.KeyboardEvent) => {
-      if (e.shiftKey || e.metaKey || e.ctrlKey) {
+      if (selectMode || e.shiftKey || e.metaKey || e.ctrlKey) {
         setSelected((prev) => {
           const next = new Set(prev);
           if (!next.delete(cardId)) next.add(cardId);
@@ -215,8 +219,18 @@ export function PlaytestBoard({ state }: Props) {
       setSelected((prev) => (prev.size === 0 ? prev : new Set()));
       dispatch({ type: 'TAP', cardId });
     },
-    [dispatch]
+    [dispatch, selectMode]
   );
+
+  // Leaving select mode drops the selection with it, so nothing lingers
+  // invisibly once taps go back to meaning "tap this card".
+  const toggleSelectMode = useCallback(() => {
+    setSelectMode((on) => {
+      if (on) setSelected((prev) => (prev.size === 0 ? prev : new Set()));
+      return !on;
+    });
+    haptics.tap();
+  }, []);
 
   const clearSelection = useCallback(
     () => setSelected((prev) => (prev.size === 0 ? prev : new Set())),
@@ -415,7 +429,11 @@ export function PlaytestBoard({ state }: Props) {
   ]);
 
   return (
-    <div className={`playtest-board${isNarrow ? ' playtest-board--narrow' : ''}`}>
+    <div
+      className={`playtest-board${isNarrow ? ' playtest-board--narrow' : ''}${
+        selectMode ? ' is-selecting' : ''
+      }`}
+    >
       <ActionBar
         turn={state.turn}
         libraryCount={state.zones.library.length}
@@ -456,6 +474,9 @@ export function PlaytestBoard({ state }: Props) {
         monarch={state.monarch}
         initiative={state.initiative}
         citysBlessing={state.citysBlessing}
+        selectMode={selectMode}
+        onToggleSelectMode={toggleSelectMode}
+        selectionSize={selected.size}
         hasUnreadLog={hasUnreadLog}
       />
       <LifeStrip

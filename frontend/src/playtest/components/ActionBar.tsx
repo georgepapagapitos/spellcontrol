@@ -31,6 +31,13 @@ interface Props {
   onOpenResistance(): void;
   /** Opens the Designations (Monarch/Initiative/City's Blessing) sheet. */
   onOpenDesignations(): void;
+  /** Select mode turns a plain tap on a battlefield card into a selection
+   *  toggle — the only way to build a multi-card selection without the
+   *  modifier keys a phone doesn't have. */
+  selectMode: boolean;
+  onToggleSelectMode(): void;
+  /** How many cards are selected right now (badges the Select button). */
+  selectionSize: number;
   canUndo: boolean;
   resistanceLevel: ResistanceLevel;
   monarch: boolean;
@@ -58,6 +65,9 @@ export function ActionBar({
   onOpenDice,
   onOpenResistance,
   onOpenDesignations,
+  selectMode,
+  onToggleSelectMode,
+  selectionSize,
   canUndo,
   resistanceLevel,
   monarch,
@@ -77,7 +87,12 @@ export function ActionBar({
   // Secondary actions, folded into a shared OverflowMenu on narrow viewports.
   // Resistance's current level (and any held designation) is encoded in its
   // label so it's visible at a glance without opening the picker.
+  const selectLabel = selectMode
+    ? `Done selecting${selectionSize > 0 ? ` (${selectionSize})` : ''}`
+    : 'Select cards';
+
   const overflowItems: OverflowMenuItem[] = [
+    { label: selectLabel, onClick: onToggleSelectMode },
     { label: 'Shuffle', onClick: onShuffle },
     { label: 'Mulligan', onClick: onMulligan },
     { label: 'Scry / surveil / mill', onClick: onScry, disabled: libraryCount === 0 },
@@ -117,6 +132,18 @@ export function ActionBar({
       </button>
       <button type="button" onClick={onUndo} disabled={!canUndo} title="Undo (Z)">
         Undo
+      </button>
+      <button
+        type="button"
+        onClick={onToggleSelectMode}
+        aria-pressed={selectMode}
+        className={`playtest-actionbar__select${selectMode ? ' is-active' : ''}`}
+        title="Tap cards to select several at once, then duplicate or move them together"
+      >
+        {selectMode ? 'Done' : 'Select'}
+        {selectMode && selectionSize > 0 && (
+          <span className="playtest-actionbar__select-badge">{selectionSize}</span>
+        )}
       </button>
       {isNarrow ? (
         <OverflowMenu
