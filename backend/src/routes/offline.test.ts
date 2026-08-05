@@ -3,14 +3,14 @@ import request from 'supertest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { Express } from 'express';
+import type { Server } from 'node:http';
 import { sql } from 'drizzle-orm';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { getDb } from '../db';
 import { __resetOracleBulkForTesting, refreshOracleBulk } from '../offline/bulk-cache';
 import { __resetCombosBulkForTesting } from '../offline/combos-export';
 
-let app: Express;
+let app: Server;
 let cleanup: () => Promise<void>;
 let tmpDir: string;
 const originalOfflineDir = process.env.OFFLINE_DATA_DIR;

@@ -8,7 +8,8 @@
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import express, { type Express } from 'express';
+import express from 'express';
+import { createServer, type Server } from 'node:http';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -23,7 +24,7 @@ import { lookupPublicDeckLandingMeta, lookupPublicUserLandingMeta } from '../rou
 import { shareCache } from './cache';
 import { createShareLandingHandler, lookupShareLandingMeta } from './og';
 
-let app: Express;
+let app: Server;
 let pool: Pool;
 let cleanup: () => Promise<void>;
 
@@ -647,12 +648,27 @@ describe('route registration order (server.ts contract)', () => {
     miniApp.get('/u/:token', createShareLandingHandler(spaDir, lookupPublicUserLandingMeta));
     miniApp.use(express.static(spaDir));
 
-    const deckRes = await request(miniApp).get('/d/no-such-slug-at-all');
-    expect(deckRes.status).toBe(200);
-    expect(deckRes.text).toContain('<meta name="robots" content="noindex,nofollow"');
+    // Listen on 127.0.0.1 and hand supertest the server, never the bare app —
+    // a wildcard `listen(0)` can draw a port another process holds on
+    // 127.0.0.1 and silently route the request there (issue #1494; the full
+    // mechanism is documented in `createTestEnv`).
+    const miniServer = createServer(miniApp);
+    await new Promise<void>((resolve, reject) => {
+      miniServer.once('error', reject);
+      miniServer.listen(0, '127.0.0.1', resolve);
+    });
 
-    const userRes = await request(miniApp).get('/u/no-such-user-at-all');
-    expect(userRes.status).toBe(200);
-    expect(userRes.text).toContain('<meta name="robots" content="noindex,nofollow"');
+    try {
+      const deckRes = await request(miniServer).get('/d/no-such-slug-at-all');
+      expect(deckRes.status).toBe(200);
+      expect(deckRes.text).toContain('<meta name="robots" content="noindex,nofollow"');
+
+      const userRes = await request(miniServer).get('/u/no-such-user-at-all');
+      expect(userRes.status).toBe(200);
+      expect(userRes.text).toContain('<meta name="robots" content="noindex,nofollow"');
+    } finally {
+      miniServer.closeAllConnections();
+      await new Promise<void>((resolve) => miniServer.close(() => resolve()));
+    }
   });
 });
