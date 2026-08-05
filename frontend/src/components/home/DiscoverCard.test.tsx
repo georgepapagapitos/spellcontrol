@@ -122,7 +122,7 @@ describe('DiscoverCard', () => {
     expect(img?.getAttribute('alt')).toBe('');
   });
 
-  it('shows the art skeleton placeholder (never a broken img) when nothing resolves', async () => {
+  it('shows a settled glyph (never the shimmer) for a commanderless deck', async () => {
     mockListDiscoverDecks.mockResolvedValue({
       decks: [makeDeck({ commanderName: null })],
       page: 1,
@@ -132,6 +132,16 @@ describe('DiscoverCard', () => {
     await screen.findByRole('link', { name: /Atraxa Superfriends/ });
     expect(mockUseCardThumb).toHaveBeenCalledWith(undefined, 'art_crop');
     expect(container.querySelector('.discover-card-art img')).toBeNull();
+    // Nothing will ever resolve here, so the skeleton must NOT be rendered —
+    // it shimmers forever and reads as a permanently-loading row.
+    expect(container.querySelector('.discover-card-art-ph')).toBeNull();
+    expect(container.querySelector('.discover-card-art-none')).toBeTruthy();
+  });
+
+  it('keeps the skeleton while a real commander is still resolving', async () => {
+    mockListDiscoverDecks.mockResolvedValue({ decks: [makeDeck()], page: 1, hasMore: false });
+    const { container } = renderCard();
+    await screen.findByRole('link', { name: /Atraxa Superfriends/ });
     expect(container.querySelector('.discover-card-art-ph')).toBeTruthy();
   });
 });
