@@ -66,14 +66,30 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  /* Peer of the format badge, not a glyph loose in the prose: same pill
+     shell so the two read as one badge pair and the meta line keeps a single
+     visual rhythm, instead of an icon jammed against the commander name. */
+  padding: 0.1rem 0.3rem;
+  border-radius: 999px;
+  border: 0.5px solid var(--border);
+  background: var(--surface);
   color: var(--text-secondary);
-  opacity: 0.85;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .decks-index-card-public-badge:hover {
-    opacity: 1;
+    color: var(--text-primary);
   }
+}
+
+/* The meta row sits on --surface-raised, where the format badge's own
+   --surface-raised fill vanishes and it reads as bare uppercase text with no
+   shape. A hairline + one tier down gives it an edge. Scoped to the deck-card
+   meta rows so the badge's other homes (deck hero, editor chrome) keep their
+   existing treatment. */
+.decks-index-card-meta .deck-format-badge {
+  border: 0.5px solid var(--border);
+  background: var(--surface);
 }
 
 /* ── Legality banner ──────────────────────────────────────────────── */

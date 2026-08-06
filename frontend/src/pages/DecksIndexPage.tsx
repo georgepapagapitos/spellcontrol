@@ -864,7 +864,7 @@ export function DecksIndexPage() {
                               <Globe width={14} height={14} strokeWidth={2} aria-hidden />
                             </span>
                           )}
-                          <span>
+                          <span className="decks-index-card-detail">
                             {deck.commander
                               ? `${deck.commander.name}${
                                   deck.partnerCommander ? ` + ${deck.partnerCommander.name}` : ''
@@ -872,6 +872,12 @@ export function DecksIndexPage() {
                               : ''}
                             {totalCards} cards ·{' '}
                             {deck.source === 'generated' ? 'Generated' : 'Manual'}
+                          </span>
+                          {/* Timestamp rides the meta row (not its own third
+                              line): one flex row keeps the row two lines tall
+                              and lets List push it to the trailing edge. */}
+                          <span className="decks-index-card-time">
+                            Edited {formatRelativeTime(deck.updatedAt)}
                           </span>
                         </div>
                         {view !== 'compact' && themes.length > 0 && (
@@ -883,9 +889,6 @@ export function DecksIndexPage() {
                             ))}
                           </div>
                         )}
-                        <div className="decks-index-card-time">
-                          Edited {formatRelativeTime(deck.updatedAt)}
-                        </div>
                       </div>
                     </Link>
                     <OverflowMenu

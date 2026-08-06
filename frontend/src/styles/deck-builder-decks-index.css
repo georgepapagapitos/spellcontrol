@@ -192,11 +192,40 @@
   gap: var(--space-2);
 }
 
+/* Landscape thumb, not a square: art_crop is a ~1.4:1 landscape source, so a
+   square crop threw away the sides AND made the row taller than its own two
+   lines of text needed. */
 .decks-index-list.is-list .decks-index-card-art {
-  width: 96px;
-  height: 96px;
-  aspect-ratio: 1 / 1;
+  width: 104px;
+  height: 72px;
   object-fit: cover;
+  object-position: center top;
+}
+
+/* Reserve the trailing gutter for the absolutely-positioned ⋮ so neither the
+   name nor the right-aligned timestamp can slide under it. */
+.decks-index-list.is-list .decks-index-card-link {
+  padding-right: 2.75rem;
+}
+
+/* Center the ⋮ against the row rather than pinning it to the top corner —
+   same reasoning as the compact row, now that a list row is only as tall as
+   its thumb. */
+.decks-index-list.is-list .decks-index-card-menu {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Wide enough for the meta to stay on one line: park "Edited 3d ago" at the
+   trailing edge (the convention every deck manager uses) instead of leaving
+   it stranded mid-row with acres of empty space to its right. Below this it
+   flows inline after the detail, because a right-aligned scrap on a wrapped
+   second line reads as a layout bug. */
+@media (min-width: 601px) {
+  .decks-index-list.is-list .decks-index-card-time {
+    margin-left: auto;
+    padding-left: var(--space-3);
+  }
 }
 
 /* Compact: single-row entries, no art, no time, no themes — name +
@@ -255,21 +284,16 @@
   color: var(--text-muted);
 }
 
-.decks-index-list.is-compact .decks-index-card-meta > span:last-child {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-
 /* Strip the non-essential meta in compact — themes chips, "edited
    N ago" subtext, and the long "Commander · N cards · Manual" detail
    span — so each row stays a single dense line of deck name + pips
    + format badge. Name and format are the two pieces of info a long
-   list is being skimmed for; anything else lives one click away. */
+   list is being skimmed for; anything else lives one click away.
+   (Targets the detail by class: `> span:last-child` used to mean the same
+   thing only because the detail happened to be last in the DOM.) */
 .decks-index-list.is-compact .decks-index-card-themes,
 .decks-index-list.is-compact .decks-index-card-time,
-.decks-index-list.is-compact .decks-index-card-meta > span:last-child {
+.decks-index-list.is-compact .decks-index-card-detail {
   display: none;
 }
 
@@ -363,23 +387,42 @@
   min-width: 0;
 }
 
+/* One flex row, one rhythm: pips / format badge / visibility / detail / time
+   all sit on a single line with a uniform gap. This used to be an inline
+   block, so adjacent JSX elements rendered with NO whitespace between them
+   (the Globe visibility badge butted straight into the commander name) and
+   the only spacing came from ad-hoc margins on individual children. */
 .decks-index-card-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.45rem;
   font-size: var(--text-xs);
   color: var(--text-secondary);
-  margin-top: 0.15rem;
+  margin-top: 0.2rem;
+  min-width: 0;
+}
+
+/* The long "Commander · N cards · Manual" tail — the one meta child allowed
+   to truncate, so a two-commander partner pair can't push the row wider than
+   its column. */
+.decks-index-card-detail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .decks-index-card-time {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  margin-top: 0.1rem;
+  white-space: nowrap;
 }
 
 .decks-index-card-pips {
   display: inline-flex;
   align-items: center;
   gap: 0.15rem;
-  margin-right: 0.4rem;
   vertical-align: -0.1em;
 }
 

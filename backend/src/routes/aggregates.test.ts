@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
-import type { Express } from 'express';
+import type { Server } from 'node:http';
 import { sql } from 'drizzle-orm';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { getDb } from '../db';
@@ -12,7 +12,7 @@ import {
   deckStatSnapshots,
 } from '../db/schema';
 
-let app: Express;
+let app: Server;
 let cleanup: () => Promise<void>;
 
 async function registerUser(username: string): Promise<string> {

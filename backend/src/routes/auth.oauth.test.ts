@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
-import type { Express } from 'express';
+import type { Server } from 'node:http';
 import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 
@@ -14,7 +14,7 @@ vi.mock('../oauth/google', async (importOriginal) => {
 
 import { signOAuthState } from '../auth';
 
-let app: Express;
+let app: Server;
 let pool: Pool;
 let cleanup: () => Promise<void>;
 
