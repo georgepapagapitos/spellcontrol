@@ -97,13 +97,9 @@ export function PlayPage() {
         <div className="play-page-hero-text">
           <div className="play-page-title-row">
             <h1 className="binder-hero-name">Play</h1>
-            <button
-              type="button"
-              className="overflow-menu-trigger play-page-rules-btn"
-              onClick={openRules}
-              aria-label="Rules reference"
-            >
-              <BookOpen width={18} height={18} strokeWidth={2} aria-hidden />
+            <button type="button" className="pill-btn play-page-rules-btn" onClick={openRules}>
+              <BookOpen width={16} height={16} strokeWidth={2} aria-hidden />
+              Rules
             </button>
           </div>
         </div>

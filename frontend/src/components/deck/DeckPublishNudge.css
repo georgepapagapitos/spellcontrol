@@ -1,8 +1,8 @@
 /* DeckPublishNudge.css — post-create visibility nudge (E150).
-   Layout mirrors NavMigrationTip.css (in-flow row, not sticky — this is
-   page-content, not global chrome); the action + dismiss cluster mirrors
-   .auto-link-banner-actions (modals-dialogs.css). Same --info tint as
-   NavMigrationTip: informational, not a warning or an identity-confirmation. */
+   In-flow row, not sticky — this is page-content, not global chrome; the
+   action + dismiss cluster mirrors .auto-link-banner-actions
+   (modals-dialogs.css). --info tint: informational, not a warning or an
+   identity-confirmation. */
 
 .deck-publish-nudge {
   display: flex;
@@ -67,7 +67,7 @@
 }
 
 /* 44px touch target without inflating the visible glyph — mirrors
-   .nav-migration-tip-dismiss / .set-filter-chip-x. */
+   .set-filter-chip-x. */
 @media (pointer: coarse) {
   .deck-publish-nudge-dismiss::after {
     content: '';

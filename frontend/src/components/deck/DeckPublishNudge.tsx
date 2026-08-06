@@ -22,8 +22,8 @@ interface Props {
  * again here would be redundant noise, not discoverability.
  *
  * "One-row, dismissible, non-displacing" per STYLE_GUIDE's insight-surface
- * ruling — shape mirrors NavMigrationTip (in-flow, not sticky) crossed with
- * AutoLinkBanner's action-button row. Local `dismissed` state only: this is
+ * ruling — in-flow, not sticky, crossed with AutoLinkBanner's action-button
+ * row. Local `dismissed` state only: this is
  * scoped to a single page visit (the one-shot flag never survives a fresh
  * navigation), so there's nothing to persist across sessions.
  */
