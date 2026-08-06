@@ -955,10 +955,10 @@ works for the bottom seat and is backwards for the top one.
 
 ### Board modes — per-player data belongs on that player's seat
 
-When a surface answers "what has each *other* player done to me?"
+When a surface answers "what has each _other_ player done to me?"
 (commander damage is the case in hand), it is a **board-level mode**, not a
 list inside one panel. Every seat keeps its position and color and changes
-what its number *means*; the physical table does the identifying, so nobody
+what its number _means_; the physical table does the identifying, so nobody
 has to re-find "Nathan" in a popup. `.game-board.is-cmd-focus` is the
 reference.
 
@@ -975,7 +975,7 @@ reference.
   keeps facing its own seat, always. Turning every panel toward whoever opened
   the mode was tried and reverted: it reads as the seats themselves moving, so
   the board looks broken at the moment the user most needs to trust it. A mode
-  changes what a panel *says*, never where it sits or which way it faces.
+  changes what a panel _says_, never where it sits or which way it faces.
 - **Three ways out, always:** an explicit labelled button
   (`.pp-cmd-focus-done`), a swipe back down on any panel, and `Esc`. The
   title and the button live on the anchor panel, which is already rotated
@@ -987,7 +987,7 @@ reference.
   A seat with two commanders (Partner / Friends Forever / Doctor's Companion)
   gets `.is-cmd-split`: two `.pp-cmd-half` counters, each with its own name,
   numeral, progress fill, and ± zones. This is a correctness requirement, not a
-  layout preference — rule 903.10a counts to 21 per *commander*, so two tallies
+  layout preference — rule 903.10a counts to 21 per _commander_, so two tallies
   that could be read as halves of one total would invite exactly the wrong
   arithmetic. When a panel splits, **suppress the panel-wide tap zones**: a
   zone spanning both halves swallows every tap and credits it to the primary.
@@ -1149,7 +1149,7 @@ What it costs instead is configuration — invisible, and easy to break:
   users have browser zoom; a button is a redundant control competing for space
   in the action row.
 
-Still true, and cheap to get wrong when adding *any* overlay animation:
+Still true, and cheap to get wrong when adding _any_ overlay animation:
 
 - **Never put an element that already declares `transition` into a blanket
   `transition: <prop>` rule.** `transition` is a shorthand: a later rule at
@@ -2166,7 +2166,7 @@ gated, so the test is what holds the line — mirror of `radius-tokens.test.ts`)
   exceed the viewport (collapse to a `⋮` overflow menu at `≤600px` instead).
 - **A `SearchPill` dropped into a `flex-direction: column` parent must be
   pinned `flex: 0 0 auto`** (or kept out of the flex context entirely). Its
-  `flex: 1 1 12rem` is a *width* basis for horizontal toolbars; on a column's
+  `flex: 1 1 12rem` is a _width_ basis for horizontal toolbars; on a column's
   vertical main axis that 12rem becomes a **height** and the pill inflates into
   a ~192px-tall ellipse. This has bitten four times — the deck builder's
   Scryfall tab, the avatar picker, and the playtest zone viewer. The shared
@@ -2854,6 +2854,38 @@ references. Rules:
   #843) and never hit `api.scryfall.com?format=image`.
 - Covers are **decorative**: `alt=""` + `aria-hidden`; the tile's name text is
   the accessible label.
+
+### The meta line under a tile/row name is ONE flex row
+
+`.decks-index-card-meta` (shared by the decks index, Discover tiles, and the
+public profile) is the reference. Rulings:
+
+- **Flex, never inline.** An inline meta line renders adjacent JSX elements
+  with **no whitespace between them** — that's how the Globe visibility badge
+  ended up welded to the commander name — and leaves spacing to ad-hoc
+  per-child margins that drift apart. One `display: flex` + one `gap`
+  (`0.15rem 0.45rem`) sets the whole row's rhythm; children carry no margins.
+- **Only the long tail truncates.** Pips and badges are `flex-shrink: 0`-ish
+  fixed content; the "Commander · N cards · Manual" tail
+  (`.decks-index-card-detail`) is the single ellipsis target. Target it by
+  **class, never `> span:last-child`** — that selector silently retargets the
+  moment anything is appended to the row.
+- **Badges on `--surface-raised` need a hairline.** The format badge's own
+  `--surface-raised` fill vanishes against a raised card and it degrades into
+  bare uppercase text; on card meta rows it takes
+  `border: 0.5px solid var(--border)` + `background: var(--surface)`. An
+  icon-only status badge (public/visibility) wears the **same pill shell** so
+  it reads as a peer of the format badge instead of a glyph loose in prose.
+- **The timestamp is metadata, not a third line.** "Edited 3d ago" rides the
+  meta row — muted, `white-space: nowrap`. In List at ≥601px it takes
+  `margin-left: auto` and parks at the trailing edge (the convention every
+  deck manager uses); below that it flows inline, because a right-aligned
+  scrap on a wrapped second line reads as a layout bug. A row is two lines:
+  name, then meta.
+- **A list row is as tall as its thumb.** Once the meta collapses to one line,
+  the row's height is the art's — so the thumb is a landscape crop of the
+  landscape source (`104×72`), not a square, and the ⋮ menu centers on the row
+  (`top: 50%`) instead of pinning to a corner it no longer has.
 
 ---
 
