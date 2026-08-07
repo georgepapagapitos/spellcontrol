@@ -307,8 +307,106 @@ const NICHE_RUNS: NicheSpec[] = [
   },
 ];
 
-/** LIVE_GEN_PANEL=niche swaps the standard panel for the E221 niche panel. */
-const PANEL = process.env.LIVE_GEN_PANEL === 'niche' ? NICHE_RUNS : RUNS;
+/**
+ * E228 — the POPULAR-commander-WITH-a-theme panel. The third instrument, and
+ * the one E221's default-on decision actually hinges on.
+ *
+ * NICHE_RUNS above proves the blend HELPS where the pool is thin. It cannot
+ * prove the blend DOESN'T HURT everywhere else, and the standard RUNS panel
+ * can't either — it passes `selectedThemes: []`, so the blend never fires and
+ * a flat result there is evidence of inapplicability, not of safety. That left
+ * the no-harm case with zero evidence.
+ *
+ * These are commanders whose theme page is far past the point where the blend
+ * weight floors at 0.35 — yet the blend STILL injects up to 15/category + 15
+ * synergy. That injection, into decks with no thin-data problem to solve, is
+ * exactly the risk default-on would take on.
+ *
+ * Ship condition (spec 4.5): NEUTRAL across the board is the no-harm evidence
+ * needed to flip. Movement here means the floor isn't low enough and default-on
+ * is wrong — even though NICHE_RUNS still improves.
+ *
+ * Counts MEASURED against live EDHREC (`/pages/commanders/{slug}.json`,
+ * `panels.taglinks[].count`) on 2026-08-07 — same method as NICHE_RUNS, so the
+ * selection stays auditable and re-checkable as the data shifts. They span
+ * 515 → 7030 decks: the whole floored band, against NICHE_RUNS' 7 → 159.
+ *
+ * NB the spec sketched "Atraxa x Superfriends"; EDHREC has no `superfriends`
+ * slug — the real tag for that page is `planeswalkers` (2519 decks).
+ */
+const POPULAR_THEMED_RUNS: NicheSpec[] = [
+  {
+    commanderName: 'Edgar Markov',
+    variant: 'vampires',
+    themeName: 'Vampires',
+    themeSlug: 'vampires',
+    measuredDecks: 7030,
+  },
+  {
+    commanderName: 'Krenko, Mob Boss',
+    variant: 'goblins',
+    themeName: 'Goblins',
+    themeSlug: 'goblins',
+    measuredDecks: 6213,
+  },
+  {
+    commanderName: 'Yuriko, the Tiger’s Shadow',
+    variant: 'ninjutsu',
+    themeName: 'Ninjutsu',
+    themeSlug: 'ninjutsu',
+    measuredDecks: 5324,
+  },
+  {
+    commanderName: 'Sythis, Harvest’s Hand',
+    variant: 'enchantress',
+    themeName: 'Enchantress',
+    themeSlug: 'enchantress',
+    measuredDecks: 2710,
+  },
+  {
+    commanderName: 'Meren of Clan Nel Toth',
+    variant: 'aristocrats',
+    themeName: 'Aristocrats',
+    themeSlug: 'aristocrats',
+    measuredDecks: 2591,
+  },
+  {
+    commanderName: 'Atraxa, Praetors’ Voice',
+    variant: 'planeswalkers',
+    themeName: 'Planeswalkers',
+    themeSlug: 'planeswalkers',
+    measuredDecks: 2519,
+  },
+  {
+    commanderName: 'Muldrotha, the Gravetide',
+    variant: 'reanimator',
+    themeName: 'Reanimator',
+    themeSlug: 'reanimator',
+    measuredDecks: 1398,
+  },
+  {
+    // The boundary control, mirroring NICHE_RUNS' 159-deck row at the opposite
+    // end: just past n>=500, so the weight is floored but the pool is the
+    // thinnest here. If any row is going to move, it is this one — and if ONLY
+    // this one moves, the floor is doing its job.
+    commanderName: 'Lathril, Blade of the Elves',
+    variant: 'plus-1-plus-1-counters',
+    themeName: '+1/+1 Counters',
+    themeSlug: 'plus-1-plus-1-counters',
+    measuredDecks: 515,
+  },
+];
+
+/**
+ * LIVE_GEN_PANEL swaps the panel: `niche` = E221's thin-pool panel,
+ * `popular` = E228's floored-weight no-harm panel, unset = the standard runs.
+ */
+const PANEL =
+  process.env.LIVE_GEN_PANEL === 'niche'
+    ? NICHE_RUNS
+    : process.env.LIVE_GEN_PANEL === 'popular'
+      ? POPULAR_THEMED_RUNS
+      : RUNS;
 
 function slugify(name: string, variant: string): string {
   const base = name
