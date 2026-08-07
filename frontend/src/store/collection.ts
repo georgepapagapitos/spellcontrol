@@ -44,7 +44,7 @@ import {
 } from '../lib/value-history';
 import { logBinderMoves } from '../lib/welcome-digest';
 import { bindersUseTags, decorateWithTags, ensureCardTags } from '../lib/card-tags';
-import { buildAllocationMap } from '../lib/allocations';
+import { buildAllocationMap } from '../lib/allocations-core';
 import { remapCubeAllocations } from '../lib/remap-cube-allocations';
 import { appNavigate } from '../lib/navigate-bridge';
 import { MAX_VISIBLE_TOASTS } from '../lib/toast-stack';

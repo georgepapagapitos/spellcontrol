@@ -14,18 +14,14 @@ import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 import type { CubeScore } from './objective';
 import { AXIS_LABEL } from './objective';
 import { refineCube } from './refine';
+import { COLORS, isLand, bucketOf, curveSlotOf, type CubeCard } from './core';
 
-export interface CubeCard {
-  name: string;
-  oracleId: string;
-  colors: string[]; // [] = colorless
-  cmc: number;
-  typeLine: string;
-  role: Role | null; // precomputed via the shared tagger
-  rank?: number; // edhrecRank — lower is more-played; undefined = unknown
-  synergyProducers?: AxisKey[]; // archetype axes this card enables (see synergy-tags)
-  synergyPayoffs?: AxisKey[]; // archetype axes this card pays off
-}
+// The card shape and the pure classifiers live in ./core so `objective` and
+// `refine` can reach them without importing back up into this module — that
+// was a value-level import cycle. Re-exported here so every existing
+// `from './cube/generate'` import site keeps working unchanged.
+export { COLORS, isLand, bucketOf, curveSlotOf } from './core';
+export type { CubeCard } from './core';
 
 /** One selected card plus the slot it was picked to fill (the "why"). */
 export interface Pick {
@@ -68,7 +64,6 @@ export interface CubeGenOptions {
   synergyLevel?: number;
 }
 
-export const COLORS = ['W', 'U', 'B', 'R', 'G'] as const;
 const BUCKETS: ColorBucket[] = ['W', 'U', 'B', 'R', 'G', 'multicolor', 'colorless', 'land'];
 const COLOR_NAME: Record<ColorBucket, string> = {
   W: 'White',
@@ -87,20 +82,7 @@ const ROLE_NAME: Record<Role, string> = {
   cardDraw: 'card draw',
 };
 
-export const isLand = (c: CubeCard) => /\bland\b/i.test(c.typeLine);
 const isBasic = (c: CubeCard) => /basic/i.test(c.typeLine) && isLand(c);
-
-export function bucketOf(c: CubeCard): ColorBucket {
-  if (isLand(c)) return 'land';
-  const colors = c.colors.filter((x) => COLORS.includes(x as (typeof COLORS)[number]));
-  if (colors.length === 0) return 'colorless';
-  if (colors.length > 1) return 'multicolor';
-  return colors[0] as ColorBucket;
-}
-
-export function curveSlotOf(cmc: number): CurveSlot {
-  return String(Math.min(7, Math.max(0, Math.round(cmc || 0)))) as CurveSlot;
-}
 
 /** quality: lower edhrecRank = better; unknown rank sorts last. oracleId breaks
  *  ties so every sort (and thus the whole cube) is deterministic regardless of

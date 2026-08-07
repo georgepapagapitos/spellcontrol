@@ -1,6 +1,6 @@
 import type { ScryfallCard, DeckFormatConfig } from '@/deck-builder/types';
 import type { DeckCard } from '@/store/decks';
-import { BASIC_LAND_NAMES } from './allocations';
+import { BASIC_LAND_NAMES } from './allocations-core';
 import { isPdhCommanderEligible } from './commanders';
 import { isLand } from './hand-classify';
 

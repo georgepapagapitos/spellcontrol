@@ -6,7 +6,7 @@ import {
   pickCollectionCopy,
   makeDeckAllocationInfo,
   type AllocationInfo,
-} from './allocations';
+} from './allocations-core';
 import { printingFinishKey } from './collection-mutations';
 
 /**

@@ -10,8 +10,8 @@
 // Design provenance: a multi-agent design pass (objective formulations → judge
 // panel → adversary). The adversary mitigations are inline-commented (M#).
 
-import type { CubeCard, Pick } from './generate';
-import { bucketOf, curveSlotOf, isLand, COLORS } from './generate';
+import type { Pick } from './generate';
+import { bucketOf, curveSlotOf, isLand, COLORS, type CubeCard } from './core';
 import type { BandTargets, ColorBucket, CurveSlot } from './targets';
 import { AXES, type AxisKey } from '@/deck-builder/services/synergy/axes';
 
