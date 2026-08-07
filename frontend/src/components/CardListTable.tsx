@@ -2481,6 +2481,7 @@ export function CardListTable({
             proxy: editingCard.proxy,
             misprint: editingCard.misprint,
             acquiredPrice: editingCard.acquiredPrice,
+            priceOverride: editingCard.priceOverride,
           }}
           mixedDetails={editingMixedDetails}
           onConfirm={handleEditConfirm}

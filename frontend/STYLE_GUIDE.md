@@ -902,6 +902,39 @@ panel's existing light-on-dark contract — never theme tokens there.
   uses — never grow the visible chip itself to 44px, that breaks the
   compact multi-chip flow.
 
+## Manual price-override badge (E204)
+
+`PriceOverrideBadge` (`components/shared/PriceOverrideBadge.tsx`) marks a copy
+whose `purchasePrice` came from the user, not Scryfall — a manual market-price
+correction for a printing Scryfall prices wrong or not at all (altered,
+signed, graded, misprint, an obscure foreign printing). Same shape family as
+`ProxyBadge`/`FoilBadge`: a small square "M" glyph chip, `--info`-toned (a
+deliberate correction reads differently from `ProxyBadge`'s warn-toned "this
+is $0, not real"), never color-only (the letter carries the meaning).
+
+- **Always visible, never hover-gated — this is the opposite case from tag
+  chips' "system hints hide behind hover, user content doesn't."** An
+  overridden price that looks identical to a live market number is a
+  data-integrity trap, not a nice-to-have detail, so the chip renders at rest
+  everywhere a price does.
+- **Lives next to the price, not the name-badge cluster.** `ProxyBadge`/
+  `FoilBadge` sit beside the card name because they're identity flags; a price
+  override is a price annotation, so it sits beside the number it explains
+  (`CardRow`'s `.collection-list-price`, `CardPreview`'s price line, the grid
+  tile's top-right corner cluster alongside `ProxyBadge`, `CardSlot`'s hover
+  tooltip).
+- **Grid tiles fold it into the existing `ProxyBadge` top-right cluster and
+  the tile's constructed `aria-label`** (`, manually priced`) rather than a
+  new prop — `CardGridCell` already reads `card.proxy` directly for the same
+  purpose, so `card.priceOverride` follows the identical path.
+- **One chip, two states, not two components.** A currency-mismatched
+  override (recorded in EUR, viewed in USD, or vice versa — this app has no
+  FX conversion, see `applyPrices` in `lib/card-prices.ts`) dims the same chip
+  to `.is-dormant` rather than hiding it: the override still exists, it's just
+  not the number currently on screen, and the dimmed chip + its `title` say
+  so. Losing the indicator entirely on a currency flip would look like the
+  override silently vanished.
+
 ## Symbol key / Legend
 
 The card-symbol key is **one shared component** (`components/Legend.tsx`), driven

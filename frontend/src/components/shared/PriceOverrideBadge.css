@@ -1,0 +1,45 @@
+/* Manual price-override chip (E204) — a small "M" glyph, info-toned (a
+   deliberate correction, not a warning like ProxyBadge's $0). Same shape
+   family as .proxy-badge/.foil-badge: glyph chip, not a token-governed
+   button/card surface, distinct color + letter so it's never color-only. */
+.price-override-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 4px;
+  vertical-align: middle;
+  font-size: var(--text-xs);
+  font-weight: 800;
+  line-height: 1;
+  background: color-mix(in srgb, var(--info) 22%, var(--surface-raised));
+  color: var(--info);
+  border: 1px solid var(--info);
+}
+
+.price-override-badge::before {
+  content: 'M';
+}
+
+/* Dormant: set but recorded in the other display currency, so it isn't the
+   number currently on screen (no FX conversion in this app). Dimmed rather
+   than hidden — the override still exists and the user should know it. */
+.price-override-badge.is-dormant {
+  opacity: 0.45;
+}
+
+/* Nudge off the preceding price/name text, matching .proxy-badge/.foil-badge. */
+.collection-list-price > .price-override-badge,
+.card-preview-meta > .price-override-badge,
+.tooltip-meta > .price-override-badge {
+  margin-left: 0.4rem;
+}
+
+/* Grid tile: sits in the top-right cluster beside ProxyBadge/RarityBadge. */
+.collection-grid-price-override {
+  width: 1.1rem;
+  height: 1.1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}

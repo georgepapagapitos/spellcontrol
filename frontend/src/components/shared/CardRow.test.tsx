@@ -103,4 +103,15 @@ describe('CardRow', () => {
     const normal = renderRow(1);
     expect(normal.container.querySelector('.proxy-badge')).toBeNull();
   });
+
+  it('shows the manual-price-override chip next to the price for an overridden copy, not a normal one (E204)', () => {
+    const overridden = renderRow(1, { priceOverride: 25 });
+    const badge = overridden.container.querySelector('.price-override-badge');
+    expect(badge).toBeTruthy();
+    expect(badge?.getAttribute('aria-label')).toBe('Manually priced');
+    overridden.unmount();
+
+    const normal = renderRow(1);
+    expect(normal.container.querySelector('.price-override-badge')).toBeNull();
+  });
 });

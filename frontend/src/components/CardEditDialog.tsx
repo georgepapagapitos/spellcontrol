@@ -47,6 +47,15 @@ export interface CardDetails {
    * The applier stamps which display currency it was entered in.
    */
   acquiredPrice?: number;
+  /**
+   * Manual market-price override for this copy (E204) — for a printing
+   * Scryfall prices wrong or not at all. Absent means "use market price", and
+   * so does 0 (`buildEditedCards` normalizes it away, same as `acquiredPrice`).
+   * Separate from `acquiredPrice`: this replaces market value everywhere it's
+   * read; cost basis never does. The applier stamps which display currency it
+   * was entered in.
+   */
+  priceOverride?: number;
 }
 
 type CardFlag = 'altered' | 'proxy' | 'misprint';
@@ -66,16 +75,17 @@ export interface PrintingSelection {
    * condition/language/flag keys mean the user cleared (or never set) that
    * field — appliers should overwrite, not merge.
    *
-   * `conditionTouched`/`languageTouched`/`acquiredPriceTouched` are only ever
-   * sent `false` — and only when the corresponding `mixedDetails` field was set
-   * — meaning the user left that field at its "Mixed" placeholder. Absent (or
-   * `true`) tells the applier to write the field across the whole stack, same as
-   * before mixed detection existed.
+   * `conditionTouched`/`languageTouched`/`acquiredPriceTouched`/`priceOverrideTouched`
+   * are only ever sent `false` — and only when the corresponding `mixedDetails`
+   * field was set — meaning the user left that field at its "Mixed" placeholder.
+   * Absent (or `true`) tells the applier to write the field across the whole
+   * stack, same as before mixed detection existed.
    */
   details?: CardDetails & {
     conditionTouched?: boolean;
     languageTouched?: boolean;
     acquiredPriceTouched?: boolean;
+    priceOverrideTouched?: boolean;
   };
 }
 
@@ -124,7 +134,12 @@ interface Props {
    * out) for a uniform stack or a single-copy edit; behavior there is
    * unchanged from before mixed detection existed.
    */
-  mixedDetails?: { condition?: string; language?: string; acquiredPrice?: string };
+  mixedDetails?: {
+    condition?: string;
+    language?: string;
+    acquiredPrice?: string;
+    priceOverride?: string;
+  };
   onConfirm: (selection: PrintingSelection) => void;
   onCancel: () => void;
 }
@@ -132,21 +147,22 @@ interface Props {
 /** Sentinel select value for a mixed field the user hasn't touched yet — never a real condition/language code, so it matches no option and the trigger falls back to the "Mixed (…)" placeholder. */
 const MIXED = '__mixed__';
 
-/** Ceiling for a typed cost basis — above any real single-card price, and stops a fat-fingered paste from poisoning the roll-up. */
-const MAX_PAID = 1_000_000;
+/** Ceiling for a typed money amount (cost basis or a price override) — above any real single-card price, and stops a fat-fingered paste from poisoning the roll-up/total. */
+const MAX_MONEY = 1_000_000;
 
 /**
- * Parse a typed cost basis into storable cents-rounded money. Blank, garbage
- * and non-positive input all read as "not recorded" (`undefined`) — matching
- * `EnrichedCard.acquiredPrice`, where zero is never a stored basis. Tolerates
- * pasted currency symbols and thousands separators.
+ * Parse a typed money amount into storable cents-rounded money. Shared by the
+ * cost-basis ("Paid") and market-override fields — both are "blank/garbage/
+ * non-positive reads as not recorded" (`undefined`), matching
+ * `EnrichedCard.acquiredPrice`/`priceOverride`, where zero is never a stored
+ * value. Tolerates pasted currency symbols and thousands separators.
  */
-function parsePaid(raw: string): number | undefined {
+function parseMoneyInput(raw: string): number | undefined {
   const cleaned = raw.replace(/[$€,\s]/g, '');
   if (!cleaned) return undefined;
   const n = Number(cleaned);
   if (!Number.isFinite(n) || n <= 0) return undefined;
-  return Math.min(Math.round(n * 100) / 100, MAX_PAID);
+  return Math.min(Math.round(n * 100) / 100, MAX_MONEY);
 }
 
 function frontImage(card: ScryfallCard): string | undefined {
@@ -241,6 +257,12 @@ export function CardEditDialog({
   const initialPaidText =
     acquiredMixed || !details?.acquiredPrice ? '' : String(details.acquiredPrice);
   const [paidText, setPaidText] = useState(initialPaidText);
+  // Market-price override (E204) — same text-mirror/commit-time-parse pattern
+  // as cost basis above, including mixed-stack handling.
+  const overrideMixed = !!mixedDetails?.priceOverride;
+  const initialOverrideText =
+    overrideMixed || !details?.priceOverride ? '' : String(details.priceOverride);
+  const [overrideText, setOverrideText] = useState(initialOverrideText);
   const [search, setSearch] = useState('');
   const [ownedOnly, setOwnedOnly] = useState(false);
   // Which currency a typed cost basis gets stamped in (the applier reads the
@@ -381,10 +403,14 @@ export function CardEditDialog({
   // stack any actual entry is the change (blank stays "leave each copy alone",
   // so a mixed stack can't be bulk-cleared from here — clear per copy in the
   // ungrouped view).
-  const paid = parsePaid(paidText);
+  const paid = parseMoneyInput(paidText);
   const acquiredChanged = acquiredMixed
     ? paidText.trim() !== ''
     : (paid ?? 0) !== (details?.acquiredPrice ?? 0);
+  const override = parseMoneyInput(overrideText);
+  const overrideChanged = overrideMixed
+    ? overrideText.trim() !== ''
+    : (override ?? 0) !== (details?.priceOverride ?? 0);
 
   const isDirty =
     selectedId !== currentScryfallId ||
@@ -394,6 +420,7 @@ export function CardEditDialog({
       (conditionChanged ||
         languageChanged ||
         acquiredChanged ||
+        overrideChanged ||
         FLAG_OPTIONS.some(({ key }) => flags[key] !== (details[key] ?? false))));
 
   const handleConfirm = () => {
@@ -411,12 +438,14 @@ export function CardEditDialog({
               ...(flags.proxy ? { proxy: true } : {}),
               ...(flags.misprint ? { misprint: true } : {}),
               ...(paid !== undefined ? { acquiredPrice: paid } : {}),
+              ...(override !== undefined ? { priceOverride: override } : {}),
               // Only ever sent when the field is mixed — a uniform field omits
               // these keys entirely, so buildEditedCards' `?? true` default
               // keeps its always-write behavior byte-identical to before.
               ...(conditionMixed ? { conditionTouched: conditionChanged } : {}),
               ...(languageMixed ? { languageTouched: languageChanged } : {}),
               ...(acquiredMixed ? { acquiredPriceTouched: acquiredChanged } : {}),
+              ...(overrideMixed ? { priceOverrideTouched: overrideChanged } : {}),
             },
           }
         : {}),
@@ -528,10 +557,10 @@ export function CardEditDialog({
                       placeholder={acquiredMixed ? `Mixed (${mixedDetails?.acquiredPrice})` : '—'}
                       onChange={(e) => setPaidText(e.target.value)}
                       // Normalize at commit, matching the quantity field: the
-                      // stored value is what parsePaid accepted, so the field
-                      // can't sit showing "12abc" as if it saved.
+                      // stored value is what parseMoneyInput accepted, so the
+                      // field can't sit showing "12abc" as if it saved.
                       onBlur={() => {
-                        const n = parsePaid(paidText);
+                        const n = parseMoneyInput(paidText);
                         setPaidText(n === undefined ? '' : String(n));
                       }}
                       onKeyDown={(e) => {
@@ -541,6 +570,36 @@ export function CardEditDialog({
                     />
                     <span id="card-edit-paid-hint" className="card-edit-paid-hint">
                       What you paid per copy, in {currency}. Blank if you'd rather not track it.
+                    </span>
+                  </div>
+                  <div className="card-edit-paid">
+                    <label className="card-edit-paid-label" htmlFor="card-edit-override-input">
+                      Market override ({currencySymbol(currency)})
+                    </label>
+                    <input
+                      id="card-edit-override-input"
+                      type="text"
+                      inputMode="decimal"
+                      className="card-edit-paid-input"
+                      value={overrideText}
+                      placeholder={overrideMixed ? `Mixed (${mixedDetails?.priceOverride})` : '—'}
+                      onChange={(e) => setOverrideText(e.target.value)}
+                      // Blank + Save clears it back to market price — same
+                      // convention as the Paid field above, whose hint already
+                      // establishes "blank means not set" in this dialog.
+                      onBlur={() => {
+                        const n = parseMoneyInput(overrideText);
+                        setOverrideText(n === undefined ? '' : String(n));
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') e.currentTarget.blur();
+                      }}
+                      aria-describedby="card-edit-override-hint"
+                    />
+                    <span id="card-edit-override-hint" className="card-edit-paid-hint">
+                      For a printing Scryfall prices wrong or not at all — replaces the market price
+                      everywhere it's used (collection total, binder rules, filters). Leave blank to
+                      use Scryfall's price.
                     </span>
                   </div>
                   <div className="card-edit-finishes" role="group" aria-label="Card flags">
