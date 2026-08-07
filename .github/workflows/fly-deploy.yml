@@ -20,6 +20,42 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # A gated-off deploy is INVISIBLE: when CI fails on main, `deploy` below is
+  # simply skipped and the whole run reports `completed skipped`, which reads
+  # identically to "nothing to do". That silence is the expensive part — main
+  # keeps serving the PREVIOUS build (this one Fly app serves the API *and*
+  # the SPA), and nobody finds out until someone goes looking for a feature
+  # that isn't there. It has happened: a fully-green suite can still exit 1 on
+  # the vitest teardown flake (`EnvironmentTeardownError: Closing rpc while
+  # "onUserConsoleLog" was pending`), which reds main CI and silently strands
+  # the merge undeployed.
+  #
+  # This job turns that silence into a red "Deploy to Fly" run naming the
+  # recovery command. It does NOT auto-rerun CI: when the failure is real,
+  # retrying just burns a cycle and fails again, and telling flake from real
+  # failure needs log-sniffing this doesn't want to own.
+  not-deployed:
+    if: |
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion != 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report that main is undeployed
+        # Passed via env rather than inlined into the script: these two are
+        # GitHub-controlled (an enum and a numeric id), but `run:` interpolation
+        # is the workflow-injection footgun, so keep the safe shape by default.
+        env:
+          CI_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          CI_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          echo "::error title=main is NOT deployed::CI concluded '${CI_CONCLUSION}' on main, so the Fly deploy was skipped. Production is still running the previous build."
+          echo "Recover by re-running the failed CI jobs — a green CI re-fires this deploy on its own:"
+          echo "  gh run rerun ${CI_RUN_ID} --failed"
+          echo ""
+          echo "If the CI failure is the vitest teardown flake (every test passes, job still exits 1"
+          echo "on a single unhandled rejection), the re-run is the whole fix."
+          exit 1
+
   deploy:
     # workflow_run fires on both success and failure; gate on success only.
     # The workflow_dispatch path has no workflow_run context, so allow it
