@@ -35,14 +35,24 @@ function capitalize(label: string): string {
  * scans the shipped deck plus the same batch-fetched EDHREC pool picking
  * actually drew from — deterministic, independent of comparator internals.
  *
- * `finalCount` uses commanderDeckAnalysis.ts's computeRoleCounts (front-face
- * role classification), matching deckGenerator.ts's own `finalRoleCounts`
+ * `finalCount` uses commanderDeckAnalysis.ts's computeRoleCounts (front-face,
+ * validateCardRole-gated role classification — the "single source for
+ * shipped roleCounts"), matching deckGenerator.ts's own `finalRoleCounts`
  * (the report's roleCounts/roleGaps) — NOT phaseRoleSurplusRebalance.ts's own
- * live, all-faces-via-getCardRole tally, which can disagree by ±1 on a DFC
- * whose two faces classify differently. That divergence is an accepted
- * standing looseness elsewhere in the report already; this note stays
- * consistent with the fields that already accept it rather than trying to
- * reconcile it here.
+ * live tally, which resolves role via the raw, ungated `getCardRole` tag
+ * lookup for everything it does (pick-time roleFilter, its running
+ * liveRoleCounts, destinationRoleOk). The gap is wider than a DFC face
+ * mismatch (though that's one instance, ±1 when a card's two faces classify
+ * differently): any tagger-mistagged card — tagged for a role the card's own
+ * oracle text doesn't corroborate — can get seated there believing it closed
+ * a gap while this recount never credits it (E166: Sun Titan seated under
+ * Ramp's banner on an Isshin deck via Phase 3 backfill; this note still
+ * correctly reported the deficit, because computeRoleCounts never counted
+ * it — see phaseRoleSurplusRebalance.ts's findReplacement doc for the full
+ * trace and why report-time can only ever under-count this pass's work,
+ * never over-count it). That divergence is an accepted standing looseness
+ * elsewhere in the report already; this note stays consistent with the
+ * fields that already accept it rather than trying to reconcile it here.
  *
  * Undefined when every reactive role met its target (the common case) or
  * roleTargets/pool never got computed at all.
