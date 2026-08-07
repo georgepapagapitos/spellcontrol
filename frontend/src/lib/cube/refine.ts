@@ -15,8 +15,8 @@
 // Bounded cost: the objective is O(size) and we evaluate a small fixed number of
 // candidates per pass, capped at MAX_ITER passes — sub-10ms for a 540 cube.
 
-import type { CubeCard, GeneratedCube, Pick } from './generate';
-import { bucketOf, curveSlotOf } from './generate';
+import type { GeneratedCube, Pick } from './generate';
+import { bucketOf, curveSlotOf, type CubeCard } from './core';
 import type { BandTargets, ColorBucket } from './targets';
 import {
   AXIS_LABEL,

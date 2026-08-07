@@ -28,7 +28,7 @@ import {
   compareCopyPreference,
   makeDeckAllocationInfo,
   type AllocationInfo,
-} from '../lib/allocations';
+} from '../lib/allocations-core';
 import { createIndexedDbStorage } from '../lib/idb-storage';
 import { withTagAdded, withTagRemoved } from '../lib/deck-tags';
 
