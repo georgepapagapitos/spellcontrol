@@ -10,7 +10,6 @@ import { ConflictPanel } from './ConflictPanel';
 import { KeyboardShortcutsOverlay } from './KeyboardShortcutsOverlay';
 import { RulesReferenceSheet } from './RulesReferenceSheet';
 import { ActivityLiveRegion } from './ActivityLiveRegion';
-import { NavMigrationTip } from './NavMigrationTip';
 import { ScrollContainerContext } from '../lib/scroll-container';
 import { isNativePlatform, isTouchDevice } from '../lib/platform';
 import { PullToRefresh } from './PullToRefresh';
@@ -105,7 +104,6 @@ function LayoutShell() {
         {isTouchDevice() && <PullToRefresh scrollEl={scrollEl} onRefresh={refreshNow} />}
         <ScrollContainerContext.Provider value={scrollEl}>
           <div className="container">
-            <NavMigrationTip />
             <Outlet />
             <BinderEditor />
             <Footer />

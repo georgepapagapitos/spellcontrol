@@ -54,7 +54,7 @@ describe('PlayPage rules button', () => {
   it('opens the rules reference sheet', () => {
     renderPage();
     expect(useRulesReferenceStore.getState().isOpen).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: 'Rules reference' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Rules' }));
     expect(useRulesReferenceStore.getState().isOpen).toBe(true);
   });
 });

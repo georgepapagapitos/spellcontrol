@@ -3,8 +3,8 @@
  * any proactive signal telling the user they exist (the "wedge" audit):
  * the binder-location badge (PR #1344) only appears once a Collection-tab
  * row actually routes to a binder, and deck re-sync (PR #1347) is one item
- * among a dozen in the ⋮ overflow menu. Mirrors `nav-migration-tip.ts`'s
- * bare-localStorage-flag pattern exactly: device-local (never synced, same
+ * among a dozen in the ⋮ overflow menu. Bare localStorage flag per hint:
+ * device-local (never synced, same
  * precedent as every other once-only tip in this codebase — see
  * `build-report-seen.ts`/`between-decks-dismissed.ts`), fail-safe to HIDDEN
  * on a storage error (an unwanted popup is worse than a missed one). No
