@@ -923,6 +923,73 @@ right-anchor it, make it the **last** flex child after the view-mode toggle so
 it rides the existing trailing auto-margins — don't add a competing
 `margin-left: auto` (multiple autos split the free space and break the grouping).
 
+## Blend controls — N axes that must always sum to 1 (E234)
+
+First instance: the deck-gen customizer's mana-philosophy wheel
+(`ManaPhilosophyGroup` in `DeckCustomizer.tsx`) — four weights
+(reliable/greedy/spelllands/budget) normalized with a per-axis floor so no
+axis ever reaches 0 (see `manaPhilosophy.ts`'s `WEIGHT_FLOOR`). Any future
+control shaped like this (a handful of weights that get normalized before
+use, never fewer than ~3-4 axes) follows the same rulings:
+
+- **Presets vs. continuous blend is an empirical question, not a taste
+  call — simulate the scoring function at the corners and at a few
+  two-axis blends before choosing.** A blend is only justified if a
+  plausible two-axis combination produces a materially different result
+  (a different rank order, a different pick) than either single-axis
+  preset alone. For the mana-philosophy wheel, a 50/50 greedy+budget blend
+  re-ranked candidate lands in an order neither the pure-greedy nor
+  pure-budget preset reached — a real "useful, but not pricey" intent —
+  so it shipped as four sliders. If the corners and center already cover
+  every intent a user would reach for, ship presets instead; a blend
+  control is more interaction cost than four buttons and isn't owed by
+  default.
+- **Reuse plain independent range inputs — don't build a sum-preserving
+  drag algorithm.** Each axis is its own `<input type="range">` storing
+  its own raw weight (the existing `.deck-customizer-slider` /
+  `.deck-customizer-range` pattern, unmodified). The _displayed_ share for
+  every axis is computed by calling the same normalize function the engine
+  calls (never a re-implementation), on every render, from all four raw
+  values at once. Moving one slider changes the sum, which changes every
+  other axis's _displayed_ share live — that live readout is what makes
+  the redistribution legible, not the other sliders' thumbs physically
+  moving. Don't invent a proportional-redistribution drag model to make
+  the thumbs move each other; the shared-denominator readout already
+  proves the redistribution honestly, with far less code, and doesn't
+  fight a user's own slider position with movement they didn't request.
+- **A floor that keeps "no axis reaches zero" true in the engine must also
+  stay visibly non-zero in the UI's own rounding.** If the display rounds
+  to fewer decimals than the floor produces at the raw scale's extreme
+  (e.g. a 0-100 raw slider against a 0.05 floor renders the idle axes as a
+  misleading "0.0%"), either show enough precision to keep it truthful or
+  — simpler — cap the raw slider's own max so the floored share never
+  rounds down to the "zero" you're trying to prove isn't possible. Pick
+  the cap by computing the floor share at the slider's own max and
+  checking it survives your display's rounding.
+- **Off and "every axis weighted equally" are different, both real,
+  settings — never conflate them.** Off is the field itself being
+  `undefined` (generation skips the pass entirely, byte-identical). A
+  freshly engaged control should seed the true equal-floor state (every
+  raw weight at its rest value, which normalizes to an even split) — not
+  copy the off state's absence. The engage/disengage affordance is a
+  single checkbox: checking it writes the equal-floor object, unchecking
+  it writes `undefined` back. Don't add a second "reset" control next to
+  it — for a binary on/off, the checkbox already is the explicit way back
+  to unset.
+- **Give the toggle checkbox its own `aria-label` when its row also
+  carries a description.** The `collection-group-row` pattern (checkbox +
+  title + sub-description in sibling `<span>`s, first shipped by
+  `CollectionGroup`) computes its checkbox's _implicit_ accessible name
+  from the label's entire text content — title **and** the description
+  below it concatenated into one run-on string. That's harmless when nobody
+  queries the control by name, but it's still the wrong accessible name: a
+  screen reader announces the whole blob as the control's name instead of a
+  concise label with the description as separate supporting content. Set
+  `aria-label` on the `<input>` to the title text alone; explicit
+  `aria-label` wins over the implicit `<label>` association, so the visible
+  description stays in the DOM (still readable) without polluting the
+  control's name.
+
 ## Page hero art — phones get the art, not a downgrade
 
 A hero that has real art available (`art_crop` for a commander, a binder's

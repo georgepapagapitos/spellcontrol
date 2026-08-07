@@ -5,15 +5,19 @@ import type {
   CollectionStrategy,
   Customization,
   GameChangerLimit,
+  ManaPhilosophy,
   MaxRarity,
   Pacing,
 } from '@/deck-builder/types';
 import { autocompleteCardName, getBanList } from '@/deck-builder/services/scryfall/client';
 import { constrainsToCollection } from '@/deck-builder/services/deckBuilder/deckFilters';
+import { normalizeManaPhilosophy } from '@/deck-builder/services/deckBuilder/manaPhilosophy';
 import { currencySymbol } from '@/lib/currency';
 import { isNativePlatform, openExternal } from '@/lib/platform';
 import { buildAvailableCollection } from '../../lib/collection-availability';
 import { SearchPill } from '../SearchPill';
+import { InfoTip } from '../InfoTip';
+import { StackedBar } from '../shared/MeterBar';
 import { useSearchCards } from '../../lib/use-search-cards';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { useCollectionStore } from '../../store/collection';
@@ -97,6 +101,7 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
       scryfallQuery: '',
       mustIncludeCards: [],
       bannedCards: [],
+      manaPhilosophy: undefined,
       ...(suggestion
         ? { landCount: suggestion.landCount, nonBasicLandCount: suggestion.nonBasicLandCount }
         : {}),
@@ -143,6 +148,14 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
             <SizeAndLandsGroup customization={customization} update={update} />
           </div>
         </div>
+
+        <CollapsibleGroup
+          title="Mana philosophy"
+          defaultOpen={false}
+          summary={manaPhilosophySummary(customization)}
+        >
+          <ManaPhilosophyGroup customization={customization} update={update} />
+        </CollapsibleGroup>
 
         <CollapsibleGroup title="Budget" defaultOpen={false} summary={budgetSummary(customization)}>
           <BudgetGroup customization={customization} update={update} />
@@ -321,6 +334,19 @@ function varietySummary(c: Customization): string {
 
 function tempoSummary(c: Customization): string {
   return c.tempoAutoDetect ? 'Auto-detect' : PACING_LABELS[c.tempoPacing];
+}
+
+function manaPhilosophySummary(c: Customization): string {
+  if (!c.manaPhilosophy) return 'Off';
+  const shares = normalizeManaPhilosophy(c.manaPhilosophy);
+  const ranked = MP_AXES.map((a) => [a.label, shares[a.key]] as const).sort((a, b) => b[1] - a[1]);
+  const spread = ranked[0][1] - ranked[3][1];
+  // A near-flat blend (every axis within a few points of the floor-driven
+  // 25% center) reads as "Equal blend" rather than naming whichever axis
+  // happens to round up first — the two are genuinely different settings
+  // (see ManaPhilosophyGroup) and the summary shouldn't blur them.
+  if (spread < 0.03) return 'Equal blend';
+  return `${ranked[0][0]}-leaning`;
 }
 
 function SaltGroup({ customization, update }: DeckCustomizerProps) {
@@ -681,6 +707,177 @@ function SizeAndLandsGroup({ customization, update }: DeckCustomizerProps) {
         suggested={suggestion ? nonBasic === suggestion.nonBasicLandCount : false}
       />
     </>
+  );
+}
+
+// ── Mana philosophy (E234) ───────────────────────────────────────────────
+//
+// Four blendable land-priority weights (manaPhilosophy.ts) that the generator
+// folds into its nonbasic-land ranking. `customization.manaPhilosophy` is
+// `undefined` until the user deliberately turns this on — that's the OFF
+// state generation stays byte-identical for (E231). Turning it on seeds every
+// axis at its floor-driven equal share (a real, distinct setting — "every
+// priority weighted the same" is not the same fact as "no preference set").
+//
+// Presets-vs-blend: tested by simulating computeManaPhilosophyBoosts at the
+// four single-axis corners and at two-axis blends (see PR description). A
+// 50/50 greedy+budget blend re-ranks candidate lands in an order neither the
+// pure-greedy nor pure-budget preset produces (it keeps the utility lean but
+// drops the expensive utility lands a pure-greedy preset would still put
+// first) — a real, reachable-only-by-blending intent ("useful, but not
+// pricey"). Presets alone would lose that combination, so this ships as four
+// sliders, not four preset buttons.
+//
+// Each slider stores its own 0-MP_SLIDER_MAX raw weight directly — no
+// bespoke sum-preserving redistribution math. The max is deliberately small
+// (not 100): at WEIGHT_FLOOR=0.05, a raw max of 100 floors an idle axis down
+// to a 0.05/100.2 ≈ 0.05% share, which rounds to a misleading "0.0%" at one
+// decimal — reading as zero even though the engine never treats it as zero.
+// 20 keeps every floored share's rounded display safely above 0.0% (≈0.2% at
+// the extreme) while still reaching a ~99% single-axis lean.
+// `normalizeManaPhilosophy` (imported, never re-implemented) is called on
+// every render to compute the live share shown next to each slider and in
+// the stacked bar, so what's on screen is always exactly what generation
+// will use: moving one slider visibly raises its own share and lowers the
+// other three's, live, because they're all deriving from the same
+// normalize() call over the four raw numbers.
+const MP_SLIDER_MAX = 20;
+
+const MP_AXES: {
+  key: keyof ManaPhilosophy;
+  label: string;
+  hint: string;
+  color: string;
+}[] = [
+  {
+    key: 'reliable',
+    label: 'Color fixing',
+    hint: 'Favors lands that tap more of your deck’s colors over off-color picks.',
+    color: 'var(--accent)',
+  },
+  {
+    key: 'greedy',
+    label: 'Utility',
+    hint: 'Favors lands with a real ability — draw, scry, damage — over plain fixing.',
+    color: 'var(--info)',
+  },
+  {
+    key: 'spelllands',
+    label: 'Spell-lands',
+    hint: 'Favors modal double-faced cards you can cast as a spell instead of playing as a land.',
+    color: 'var(--success)',
+  },
+  {
+    key: 'budget',
+    label: 'Budget',
+    hint: 'Favors cheaper lands. Capped, so it never fully overrules the other priorities.',
+    color: 'var(--warn-text)',
+  },
+];
+
+const MP_OFF: ManaPhilosophy = { reliable: 0, greedy: 0, spelllands: 0, budget: 0 };
+
+function ManaPhilosophyGroup({ customization, update }: DeckCustomizerProps) {
+  const active = !!customization.manaPhilosophy;
+  const weights = customization.manaPhilosophy ?? MP_OFF;
+  const shares = normalizeManaPhilosophy(weights);
+
+  return (
+    <div className="mana-philosophy-group">
+      <p className="deck-customizer-hint">
+        Blend four priorities for the nonbasic lands the generator picks: reliable color fixing,
+        useful abilities, modal spell-lands, and price. Off by default — every deck keeps today’s
+        land priority until you turn this on.
+      </p>
+      <label className="collection-group-row">
+        <input
+          type="checkbox"
+          className="collection-group-checkbox"
+          checked={active}
+          // Explicit aria-label: the implicit <label> wrapping would otherwise
+          // concatenate the sub-description text below into the accessible
+          // name too, which reads as a run-on to a screen reader.
+          aria-label="Blend land priorities"
+          onChange={(e) => update({ manaPhilosophy: e.target.checked ? MP_OFF : undefined })}
+        />
+        <span className="collection-group-text">
+          <span className="collection-group-title">Blend land priorities</span>
+          <span className="collection-group-sub">
+            {active
+              ? 'Blending the four priorities below into the nonbasic land picks.'
+              : 'Off — lands use the default priority order.'}
+          </span>
+        </span>
+      </label>
+
+      {active && (
+        <div className="mana-philosophy-controls">
+          <StackedBar
+            className="mana-philosophy-bar"
+            size="md"
+            title={MP_AXES.map((a) => `${a.label} ${(shares[a.key] * 100).toFixed(1)}%`).join(
+              ' · '
+            )}
+            segments={MP_AXES.map((a) => ({
+              key: a.key,
+              value: shares[a.key],
+              color: a.color,
+              title: `${a.label} ${(shares[a.key] * 100).toFixed(1)}%`,
+            }))}
+          />
+          <ul className="mana-philosophy-legend">
+            {MP_AXES.map((a) => (
+              <li key={a.key} className="mana-philosophy-legend-item">
+                <span
+                  className="mana-philosophy-swatch"
+                  style={{ background: a.color }}
+                  aria-hidden
+                />
+                {a.label}
+              </li>
+            ))}
+          </ul>
+
+          {MP_AXES.map((a) => {
+            const pct = shares[a.key] * 100;
+            const pctLabel = `${pct.toFixed(1)}%`;
+            return (
+              <div className="deck-customizer-slider" key={a.key}>
+                <div className="deck-customizer-slider-header">
+                  <span className="deck-customizer-slider-label">
+                    {a.label}
+                    <InfoTip label={a.label} text={a.hint} />
+                  </span>
+                  <span className="deck-customizer-slider-value">{pctLabel}</span>
+                </div>
+                <input
+                  type="range"
+                  className="deck-customizer-range"
+                  min={0}
+                  max={MP_SLIDER_MAX}
+                  step={2}
+                  value={weights[a.key]}
+                  aria-label={`${a.label} priority`}
+                  aria-valuetext={pctLabel}
+                  title={a.hint}
+                  onChange={(e) =>
+                    update({ manaPhilosophy: { ...weights, [a.key]: Number(e.target.value) } })
+                  }
+                  style={{
+                    ['--range-progress' as string]: `${(weights[a.key] / MP_SLIDER_MAX) * 100}%`,
+                  }}
+                />
+              </div>
+            );
+          })}
+
+          <p className="deck-customizer-slider-desc">
+            Every priority keeps a small floor — none ever drops to zero, so even a maxed-out slider
+            still leaves the others a little room.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 
