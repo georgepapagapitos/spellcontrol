@@ -95,6 +95,7 @@ describe('scoreCube — bounds & terms', () => {
         'curve',
         'interaction',
         'power',
+        'type',
         'total',
       ] as (keyof CubeScore)[]) {
         expect(s[k] as number).toBeGreaterThanOrEqual(0);
@@ -247,11 +248,12 @@ describe('scoreCube — other terms', () => {
     expect(s.fixingMultiplier).toBe(0.75);
     expect(s.total).toBeLessThan(
       0.4 * s.archetype +
-        0.15 * s.glue +
-        0.15 * s.color +
-        0.15 * s.curve +
-        0.1 * s.interaction +
-        0.05 * s.power
+        0.12 * s.glue +
+        0.13 * s.color +
+        0.13 * s.curve +
+        0.09 * s.interaction +
+        0.05 * s.power +
+        0.08 * s.type
     );
   });
 
@@ -265,6 +267,60 @@ describe('scoreCube — other terms', () => {
     expect(scoreCube(picksOf(strong), strong, band360, 360).power).toBeGreaterThan(
       scoreCube(picksOf(weakTail), weakTail, band360, 360).power
     );
+  });
+});
+
+describe('scoreCube — type shape (E209)', () => {
+  // band.type is mined into cube-targets.json but was consumed by nothing —
+  // neither the greedy shaper nor the objective — so refining a cube toward
+  // archetype/interaction gains was free to erode creature share with zero
+  // cost (measured: 44% -> 41% on a real pool). These pin term G actually
+  // gating that: it must respond to type composition, and it must never hit
+  // exactly 0 (the refiner's no-gradient rule — see `fit`).
+  const band = targetsForSize(360);
+
+  it('scores near-corpus creature density above a spell-heavy cube of the same size', () => {
+    const n = 200;
+    const onTarget: CubeCard[] = [];
+    const creatureCount = Math.round(band.type.creature.median * n);
+    for (let i = 0; i < creatureCount; i++)
+      onTarget.push(card({ typeLine: 'Creature — Human', colors: ['W'], rank: i }));
+    for (let i = creatureCount; i < n; i++)
+      onTarget.push(card({ typeLine: 'Instant', colors: ['U'], rank: i }));
+
+    const spellHeavy = Array.from({ length: n }, (_, i) =>
+      card({ typeLine: 'Instant', colors: ['U'], rank: i })
+    );
+
+    const onTargetScore = scoreCube(picksOf(onTarget), onTarget, band, n).type;
+    const spellHeavyScore = scoreCube(picksOf(spellHeavy), spellHeavy, band, n).type;
+    expect(onTargetScore).toBeGreaterThan(spellHeavyScore);
+  });
+
+  it('is included in the weighted total — changing only type composition moves the score', () => {
+    const n = 200;
+    const creatureCount = Math.round(band.type.creature.median * n);
+    const build = (typeLine: string): CubeCard[] => [
+      ...Array.from({ length: creatureCount }, (_, i) =>
+        card({ typeLine: 'Creature — Human', colors: ['W'], rank: i })
+      ),
+      ...Array.from({ length: n - creatureCount }, (_, i) =>
+        card({ typeLine, colors: ['U'], rank: i })
+      ),
+    ];
+    const onTarget = build('Instant');
+    const noCreatures = build('Sorcery').map((c) => ({ ...c, typeLine: 'Sorcery' }));
+    const a = scoreCube(picksOf(onTarget), onTarget, band, n);
+    const b = scoreCube(picksOf(noCreatures), noCreatures, band, n);
+    expect(a.type).not.toBe(b.type);
+    expect(a.total).not.toBe(b.total);
+  });
+
+  it('never reaches exactly 0, even with zero creatures in a creature-heavy target (no dead gradient)', () => {
+    const cards = Array.from({ length: 100 }, (_, i) =>
+      card({ typeLine: 'Instant', colors: ['U'], rank: i })
+    );
+    expect(scoreCube(picksOf(cards), cards, band, 100).type).toBeGreaterThan(0);
   });
 });
 

@@ -35,14 +35,37 @@ export const KEYWORD_GATED_AXES: ReadonlySet<AxisKey> = new Set<AxisKey>([
   'superfriends',
 ]);
 
+/**
+ * Card-type buckets scored by term G, in mining precedence order (a card counts
+ * toward its FIRST match, mirroring frontend/scripts/mine-cube-targets.mjs's
+ * `TYPES.find`) — `land`/`battle` excluded: land density is already the color
+ * term's job, and battle is ~0 in every real cube (mined p75 stays 0 at every
+ * band), so scoring it adds noise, not signal.
+ */
+const TYPE_SLOTS = [
+  'creature',
+  'instant',
+  'sorcery',
+  'artifact',
+  'enchantment',
+  'planeswalker',
+] as const;
+const TYPE_CLASSIFY_ORDER = [...TYPE_SLOTS, 'land', 'battle'] as const;
+
+function typeOf(c: CubeCard): string | null {
+  const t = c.typeLine.toLowerCase();
+  return TYPE_CLASSIFY_ORDER.find((x) => t.includes(x)) ?? null;
+}
+
 /** Term weights — sum to 1.0. Archetype is the lens the greedy ignores entirely. */
 const W = {
   archetype: 0.4,
-  glue: 0.15,
-  color: 0.15,
-  curve: 0.15,
-  interaction: 0.1,
+  glue: 0.12,
+  color: 0.13,
+  curve: 0.13,
+  interaction: 0.09,
   power: 0.05,
+  type: 0.08,
 } as const;
 
 /**
@@ -62,6 +85,7 @@ function weightsFor(synergyLevel: number): Record<keyof typeof W, number> {
     curve: W.curve * k,
     interaction: W.interaction * k,
     power: W.power * k,
+    type: W.type * k,
   };
 }
 
@@ -102,6 +126,8 @@ export interface CubeScore {
   curve: number;
   interaction: number;
   power: number;
+  /** Type-shape fit (creature/instant/sorcery/artifact/enchantment/planeswalker vs corpus). */
+  type: number;
   /** Hard multiplier (0.75 or 1) — a fixing-starved cube is capped, not nudged. */
   fixingMultiplier: number;
   total: number;
@@ -350,6 +376,24 @@ export function scoreCube(
   const iTol = Math.max(0.01, (iP75 - iP25) / 2);
   const interaction = fit(Math.abs(achieved - iTarget), iTol);
 
+  // ── Term G: type shape ──────────────────────────────────────────────────
+  // Same basis as color (term C): band.type is mined as a share of ALL cards,
+  // land included (see mine-cube-targets.mjs), so score against actual total
+  // picks — not nonland count (curve/interaction's basis) and not target size.
+  // This is what gives the refiner a reason to stop swapping creatures for
+  // archetype/interaction picks: without it, type has no gradient at all, so a
+  // swap that helps every other term is free to erode creature share with no
+  // cost — measured on a real pool, refinement alone drove it from 44% to 41%.
+  let typeSum = 0;
+  for (const t of TYPE_SLOTS) {
+    const count = cards.filter((c) => typeOf(c) === t).length;
+    const share = count / pickCount;
+    const tgt = band.type[t];
+    const tol = Math.max(0.01, (tgt.p75 - tgt.p25) / 2);
+    typeSum += fit(Math.abs(share - tgt.median), tol);
+  }
+  const type = typeSum / TYPE_SLOTS.length;
+
   // ── Term F: power consistency ───────────────────────────────────────────
   // M8 — penalize a weak bottom decile, not high variance (so a few legit
   // high-CMC bombs that widen the band aren't ejected).
@@ -368,11 +412,12 @@ export function scoreCube(
     w.color * color +
     w.curve * curve +
     w.interaction * interaction +
-    w.power * power;
+    w.power * power +
+    w.type * type;
   const total = fixingMultiplier * weighted;
 
   axes.sort((a, b) => b.score - a.score || a.axis.localeCompare(b.axis));
-  return { archetype, glue, color, curve, interaction, power, fixingMultiplier, total, axes };
+  return { archetype, glue, color, curve, interaction, power, type, fixingMultiplier, total, axes };
 }
 
 export { contributes };
