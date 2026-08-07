@@ -1,4 +1,4 @@
-import { EmptyStateMark } from './EmptyStateMark';
+import { EmptyStateMark } from '../shared/EmptyStateMark';
 
 interface Props {
   /** True for "nothing here at all" (a genuinely empty binder/collection/

@@ -17,7 +17,7 @@ import { gameFormatLabel } from '../lib/game-formats';
 import { mapsSearchUrl } from '../lib/place-search';
 import { isNativePlatform, openExternal } from '../lib/platform';
 import { useAuth } from '../store/auth';
-import { SharedShell } from '../components/shared/SharedShell';
+import { SharedShell } from '../components/share/SharedShell';
 import { BrandMark } from '../components/shared/BrandMark';
 import { NightPoll } from '../components/NightPoll';
 import { OverflowMenu } from '../components/OverflowMenu';

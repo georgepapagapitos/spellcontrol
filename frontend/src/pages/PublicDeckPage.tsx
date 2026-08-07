@@ -6,10 +6,10 @@ import {
   recordDeckView,
   type PublicDeckPage as PublicDeckPageData,
 } from '../lib/share-client';
-import { SharedShell } from '../components/shared/SharedShell';
-import { SharedDeckView } from '../components/shared/SharedDeckView';
+import { SharedShell } from '../components/share/SharedShell';
+import { SharedDeckView } from '../components/share/SharedDeckView';
 import { BrandMark } from '../components/shared/BrandMark';
-import { NotFoundView, ErrorView } from '../components/shared/SharedShell';
+import { NotFoundView, ErrorView } from '../components/share/SharedShell';
 import { useAuth } from '../store/auth';
 import { useDocumentTitle } from '../lib/use-document-title';
 import { useOwnershipLens } from '../lib/use-ownership-lens';

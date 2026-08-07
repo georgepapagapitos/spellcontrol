@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { SharedShell, NotFoundView, ErrorView } from '../components/shared/SharedShell';
+import { SharedShell, NotFoundView, ErrorView } from '../components/share/SharedShell';
 import { UserAvatar } from '../components/UserAvatar';
 import { ColorPip } from '../components/shared/ManaSymbol';
-import { ReportDialog } from '../components/shared/ReportDialog';
+import { ReportDialog } from '../components/share/ReportDialog';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { formatIdentity } from '../lib/display-name';
 import { formatSocialCount } from '../lib/social-proof';

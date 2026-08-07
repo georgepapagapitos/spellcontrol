@@ -4,17 +4,17 @@ import { Link } from 'react-router-dom';
 import { fetchPublicShare, ShareAuthRequiredError, ShareNotFoundError } from '../lib/share-client';
 import type { PublicShareResponse } from '../lib/shared-types';
 import { useDocumentTitle } from '../lib/use-document-title';
-import { SharedCollectionView } from '../components/shared/SharedCollectionView';
-import { SharedBinderView } from '../components/shared/SharedBinderView';
-import { SharedDeckView } from '../components/shared/SharedDeckView';
-import { SharedListView } from '../components/shared/SharedListView';
-import { SharedCubeView } from '../components/shared/SharedCubeView';
-import { SharedShell, NotFoundView, ErrorView } from '../components/shared/SharedShell';
-import { DeckFeedbackView } from '../components/shared/DeckFeedbackView';
-import { SharedGameSummaryView } from '../components/shared/SharedGameSummaryView';
+import { SharedCollectionView } from '../components/share/SharedCollectionView';
+import { SharedBinderView } from '../components/share/SharedBinderView';
+import { SharedDeckView } from '../components/share/SharedDeckView';
+import { SharedListView } from '../components/share/SharedListView';
+import { SharedCubeView } from '../components/share/SharedCubeView';
+import { SharedShell, NotFoundView, ErrorView } from '../components/share/SharedShell';
+import { DeckFeedbackView } from '../components/share/DeckFeedbackView';
+import { SharedGameSummaryView } from '../components/share/SharedGameSummaryView';
 import { BrandMark } from '../components/shared/BrandMark';
-import { CopyDeckButton } from '../components/shared/CopyDeckButton';
-import { CopyCubeButton } from '../components/shared/CopyCubeButton';
+import { CopyDeckButton } from '../components/share/CopyDeckButton';
+import { CopyCubeButton } from '../components/share/CopyCubeButton';
 
 /** Tab title per share kind — every kind but `collection` carries its own
  *  owner-given name; `collection` has none, so it falls back to the same
