@@ -23,6 +23,23 @@
   display: none;
 }
 
+/* Scopes role="tablist" to just the real per-binder tabs (BinderTabs.tsx) —
+   `display: contents` drops the wrapper from the box tree so its children
+   lay out as direct flex items of `.binder-tab-row`, exactly as if the
+   wrapper weren't there. The trailing "+ New binder"/Export/Delete all
+   toolbar buttons render as siblings after this element, outside the
+   tablist, since they're actions rather than views.
+   CAUTION: `display: contents` has a documented history of stripping an
+   element's role from the accessibility tree — only safe for an explicit
+   ARIA role in Chromium 89+/Firefox/Safari 16+/iOS 17+ (this app's target
+   set). jsdom/happy-dom tests cannot detect a regression here (no CSS-driven
+   a11y-tree exclusion modeling) — verify with a real browser's a11y
+   inspector, not the test suite, if you touch this. See STYLE_GUIDE.md
+   § "Tabs / view switchers". */
+.binder-tablist {
+  display: contents;
+}
+
 .binder-tab-group {
   display: flex;
   gap: 0;
