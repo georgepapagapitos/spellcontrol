@@ -17,6 +17,21 @@ import type { BuildReport } from '@/deck-builder/types';
 // (avoids the post-teardown fetch flake).
 vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
+// DeckEditorPage calls useEdhrecComboOverlay ITSELF (page line ~846) — mocking
+// DeckCombosPanel below does not cover it. Unstubbed, its effect fires two
+// EDHREC fetches per render whose retry timers outlive the test; the rejection
+// is logged inside edhrec/client.ts, and that console write races vitest's
+// worker teardown (`Closing rpc while "onUserConsoleLog" was pending`).
+//
+// Measured, not guessed: a 3x instrumented CI run attributed 50 of 100
+// post-afterAll console writes to this file, all EDHREC. It is also the file
+// CI named in all three teardown-flake failures (2026-07-16/08-04/08-07).
+// The hook has only two consumers, so stubbing it here is bounded.
+vi.mock('@/lib/edhrec-combo-overlay', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/edhrec-combo-overlay')>()),
+  useEdhrecComboOverlay: () => ({}),
+}));
+
 // ── Store stubs ─────────────────────────────────────────────────────────────
 const mockDeleteDeck = vi.fn();
 const mockDeck = {

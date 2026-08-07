@@ -30,6 +30,37 @@ export default defineConfig({
       happyDOM: { settings: { disableCSSFileLoading: true } },
     },
     globals: true,
+    // Suppress console output from PASSING tests — this is the fix for the
+    // long-running teardown flake, and it is structural rather than a mask.
+    //
+    // Every console.* call in a test is one worker->main RPC
+    // (`onUserConsoleLog`). If any such RPC is still in flight when the worker
+    // environment tears down, vitest raises
+    // `EnvironmentTeardownError: Closing rpc while "onUserConsoleLog" was
+    // pending` as an unhandled rejection — which fails the job even though
+    // every test passed. That has reddened main CI repeatedly since 2026-07-16,
+    // and a red main CI silently skips the Fly deploy.
+    //
+    // Earlier fixes all assumed a *late* logger (async work outliving its test)
+    // and stubbed network leaves file by file. Instrumentation disproved that:
+    // a full local run reproduced the failure with **zero** post-`afterAll`
+    // console writes, in a file nobody had touched
+    // (CardListTable.viewpopover.test.tsx). The trigger is console *volume*
+    // near teardown, not lateness — this suite emits hundreds of expected
+    // error-path lines (`[store] refreshPrices failed`, `[sync] push failed`,
+    // `[EDHREC] …`) that no test asserts on and no human reads.
+    //
+    // 'passed-only' keeps the diagnostics that matter: a FAILING test still
+    // prints its console output in full. It does not touch vitest's
+    // unhandled-error detection, so a genuine unhandled rejection still fails
+    // the run.
+    //
+    // LIVE_GEN is exempt, mirroring the fetch guard in src/test/setup.ts. The
+    // deck-gen ship gate reads its authoritative results from files
+    // (`summary.json`), so it would survive either way — but the panel also
+    // logs per-deck progress, and a silently empty panel already reads as a
+    // clean pass (see the LIVE_GEN harness notes). Keep that output visible.
+    silent: process.env.LIVE_GEN ? false : 'passed-only',
     // Vitest's defaults (5s per test, 10s per hook) are sized for an idle
     // machine. Several tests here are genuinely compute-heavy — the
     // substitute-weight eval and the commander-deck tagger analysis each burn
