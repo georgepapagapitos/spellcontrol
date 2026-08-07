@@ -125,6 +125,26 @@ jobs:
       - name: Run tests with coverage
         run: npm run test:coverage
 
+      # The production build was previously exercised ONLY inside
+      # backend/Dockerfile, so a build-only break could land on main unnoticed
+      # and surface later as a failed Fly deploy or a broken `cap sync` — with
+      # prod still serving the old bundle. That is not hypothetical: Vite 8's
+      # rolldown entry resolution broke it once, and js-yaml v5 dropping its
+      # default export broke it again (#1510) on a PR whose four required
+      # checks were all green.
+      #
+      # docker-image-build.yml can't cover this — it is path-filtered to
+      # package.json/package-lock.json/Dockerfile, so it does not run on an
+      # ordinary source change (and therefore must never be made a required
+      # check: a required check that doesn't report never passes).
+      #
+      # Cheap in the common case: `prebuild`'s four refresh scripts are
+      # age-gated against their committed snapshots, so they no-op without
+      # fetching — while still importing their dependencies, which is exactly
+      # what catches the js-yaml class of break.
+      - name: Production build
+        run: npm run build
+
   backend:
     name: Backend — typecheck & test
     runs-on: ubuntu-latest
