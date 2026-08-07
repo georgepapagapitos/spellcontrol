@@ -832,11 +832,14 @@ async function applyHyperFocus(state: GenerationState): Promise<void> {
     const themeInclusion = new Map(
       state.edhrecData.cardlists.allNonLand.map((c) => [c.name, c.inclusion])
     );
-    // Scored over the pool we will actually pick from. A base-only staple
-    // usually isn't in it at all (the theme merge doesn't backfill base
-    // staples), so the generic penalty is inert in the common case and only
-    // bites when such a card really is a candidate — which is the correct
-    // behaviour, not a dead tier.
+    // Scored over the theme page's own names, which makes HYPER_FOCUS_GENERIC_PENALTY
+    // a DEAD TIER, not merely a rare one: `theme` is non-null for every name we
+    // iterate, so the base-only branch is unreachable and measured 0 firings
+    // across all 10 E230 gate pairs. (An earlier comment here claimed it "only
+    // bites when such a card really is a candidate" — it cannot bite at all.)
+    // Widening this to the union with `baseInclusion.keys()` would activate the
+    // penalty, but that is a composition change and this whole flag is gated
+    // REJECTED — see hyperFocus.ts's E230 note before touching either.
     const boosts = computeHyperFocusBoosts({
       poolNames: themeInclusion.keys(),
       themeInclusion,

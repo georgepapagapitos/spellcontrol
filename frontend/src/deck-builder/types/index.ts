@@ -1007,23 +1007,28 @@ export interface Customization {
   priceSanity?: boolean;
   // E221: archetype tag-page blending — backfills a thin commander×theme pool
   // from the theme's own EDHREC tag page, weighted by how little local data
-  // there is. `undefined` = OFF; this ships behind the flag until a 0-regressed
-  // panel clears (see docs/e221-archetype-blend-spec.md §4). No UI toggle in
-  // v1 — the live-eval harness forces it via LIVE_GEN_ARCHETYPE_BLEND=1/0.
+  // there is. `undefined` = OFF, and it STAYS off: E228 gated default-on
+  // 2026-08-07 and rejected it (see archetypeBlend.ts). Correct for thin pools,
+  // so the flag remains. No UI toggle — the live-eval harness forces it via
+  // LIVE_GEN_ARCHETYPE_BLEND=1/0.
   archetypeBlend?: boolean;
   // Hyper Focus (Manafoundry ranked item 21): bias picks toward cards the
   // selected THEME distinguishes, by diffing the theme pool against the
-  // commander's own no-theme base pool. `undefined` = OFF; ships behind the
-  // flag until a 0-regressed panel clears. No UI toggle in v1 — the live-eval
-  // harness forces it via LIVE_GEN_HYPER_FOCUS=1/0, mirroring archetypeBlend.
+  // commander's own no-theme base pool. `undefined` = OFF, and it STAYS off:
+  // E230 gated default-on 2026-08-07 and rejected it — the theme-exclusive
+  // predicate measures EDHREC list truncation, not theme identity, so the
+  // biggest boost lands on the least-played cards (see hyperFocus.ts). No UI
+  // toggle and NO harness knob — there is no LIVE_GEN_HYPER_FOCUS (an earlier
+  // version of this comment claimed one); the gate forced the flag in-tree.
   hyperFocus?: boolean;
   // Mana-philosophy wheel (Manafoundry ranked item 22): four blendable weights
   // steering nonbasic land selection (reliable / greedy / spelllands / budget),
   // normalized to sum to 1 with a per-axis floor so no axis ever reaches 0.
   // `undefined` = OFF and the whole pass is skipped (byte-identical
-  // generation); ships behind the flag until a 0-regressed panel clears. No UI
-  // in v1 — the wheel control is its own design pass; the live-eval harness
-  // forces weights via LIVE_GEN_MANA_PHILOSOPHY="r,g,s,b". See manaPhilosophy.ts.
+  // generation). The wheel control shipped as E234 (#1518) and OFF is its
+  // documented default — E231 default-on was answered 2026-08-07 and declined
+  // (see manaPhilosophy.ts). The live-eval harness forces weights via
+  // LIVE_GEN_MANA_PHILOSOPHY="r,g,s,b".
   manaPhilosophy?: ManaPhilosophy;
   ignoreOwnedBudget: boolean; // When true, owned cards don't count against budget limits
   ignoreOwnedRarity: boolean; // When true, owned cards skip max-rarity restriction
