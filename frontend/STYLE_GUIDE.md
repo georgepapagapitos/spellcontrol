@@ -15,6 +15,73 @@ as real constraints anyway.
 
 ---
 
+## Primitives index
+
+The app's shared vocabulary, in one place. **Check here before building a new
+small thing** — most "I just need a little X" instincts already have an answer,
+and the ruling that governs each one is buried somewhere in the ~90 sections
+below. This table is the lookup; the cited section is the law.
+
+Paths are relative to `frontend/src/`. Two directories, one letter apart, mean
+different things: **`components/shared/` holds primitives**; `components/share/`
+is the public share-link feature (`/s/:token`, `/d/:slug`) and is not a
+primitives directory.
+
+### Card surfaces
+
+| Reach for | Instead of | Ruling |
+| --- | --- | --- |
+| `components/shared/CardGridCell` | a bespoke grid tile | § Card row information hierarchy · § Index tiles wear cover art |
+| `components/shared/CardRow` | a bespoke list row | § Card row information hierarchy |
+| `components/CardThumb` + `lib/card-thumbs` (`useCardThumb`) | a raw Scryfall image URL | § Card art peek |
+| `components/CardPreview` | a second card-detail view | § Card art peek — there is exactly one card view |
+| `components/shared/ManaSymbol` (`ColorPip`) | a bare `mana-font` class | § Symbol key / Legend |
+| `components/ManaCost` | mapping a mana string by hand | § Card-stat terminology |
+| `components/shared/SetSymbol` | a bare `keyrune` class | § Symbol key / Legend |
+
+### Controls & chrome
+
+| Reach for | Instead of | Ruling |
+| --- | --- | --- |
+| `.btn` / `.btn-primary` / `.btn-link` (CSS classes) | a new `*-btn` class | § Shape language — corners |
+| `components/SearchPill` | a bare `<input type="search">` | § Toolbars & action rows · § Responsive (keep `min-width: 0`) |
+| `components/SelectMenu` | a restyled `<select>` | § Toolbars & action rows |
+| `components/OverflowMenu` | a hand-rolled `⋮` popover | § Toolbars & action rows |
+| `components/shared/ToolbarPopover` | a second portal-popover impl | § Toolbars & action rows |
+| `components/shared/ViewPopoverPanel` | letting a phone toolbar wrap rows | § Toolbars & action rows |
+| `components/Tabs` | bespoke tab markup | § Tabs / view switchers |
+| `components/ViewModeToggle` | a bespoke layout switcher | § View-mode toggle option order |
+| `components/shared/FilterChipsRow` | a bespoke active-filter row | § Tag chips |
+
+### Overlays
+
+| Reach for | Instead of | Ruling |
+| --- | --- | --- |
+| `components/Modal` | a bespoke `position: fixed` layer | § Overlays — hand-rolled `.modal-backdrop` dialogs are the anti-pattern |
+| `lib/use-sheet-exit` + `lib/use-lock-body-scroll` | hand-rolled open/close + scroll lock | § Overlays |
+| `lib/use-escape-key` | a bare `keydown` listener | § Overlays |
+| `components/ConfirmDialog` / `lib/use-confirm` | `window.confirm` | § Overlays |
+
+### Feedback, state & identity
+
+| Reach for | Instead of | Ruling |
+| --- | --- | --- |
+| `components/shared/MeterBar` | a hand-rolled bar track | § Bars & meters — **never hand-roll a track** |
+| `components/InfoTip` | inline hand-holding prose | § Info tooltips |
+| `components/shared/EmptyStateMark` | a bare "nothing here" line | § Empty states |
+| `components/share/SharedEmptyState` | a bare `<p>` in a share/friend view | § Empty states |
+| `components/shared/ThinDataNote` | inventing a sample-size caveat | § Deck-analysis band words |
+| `components/deck/VerdictBadge` | a bespoke pass/fail pill | § Verdict badges · § One scoring vocabulary |
+| `components/shared/SealBurst` / `SealMoment` | confetti | § Completion moments (the seal) |
+| `components/shared/BrandMark` | an inline logo SVG | § Brand mark motion |
+| `components/UserAvatar` | a bespoke initials circle | § Icon scale |
+
+**Adding a primitive?** Add its row here *and* its ruling to the relevant section
+below. A primitive nobody can find gets re-implemented — that is what this table
+exists to prevent.
+
+---
+
 ## Voice & copy
 
 SpellControl talks to a Magic player who knows the game. Copy is **confident,
@@ -1444,7 +1511,9 @@ Archidekt, anywhere").
 
 ## Public shared views (/s/:token)
 
-Public shared views wrap their content in `components/shared/SharedShell.tsx` — **not** the app
+Public shared views live in `components/share/` (the whole `/s/:token` + `/d/:slug` cluster —
+distinct from `components/shared/`, which is primitives) and wrap their content in
+`components/share/SharedShell.tsx` — **not** the app
 `<Header>`/`<Footer>`, which couple to the auth/collection/play stores a logged-out visitor
 doesn't have. `SharedShell` is the SINGLE scroll root for any `/s/:token` page: when wrapping
 a full-height scroller in new chrome, the wrapper owns the scroll and the inner element's

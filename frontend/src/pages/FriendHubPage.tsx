@@ -17,7 +17,7 @@ import { H2HSummary } from '../components/play/H2HSummary';
 import { Tabs, type TabItem } from '../components/Tabs';
 import { SearchPill } from '../components/SearchPill';
 import { ColorPip } from '../components/shared/ManaSymbol';
-import { SharedEmptyState } from '../components/shared/SharedEmptyState';
+import { SharedEmptyState } from '../components/share/SharedEmptyState';
 import type { ShareKind } from '../lib/shared-types';
 
 /** How many collection cards render before "Show more" — the friend's real

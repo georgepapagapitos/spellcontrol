@@ -5,7 +5,7 @@ import {
   resolveGuestInvite,
   saveGuestInviteToken,
 } from '../lib/game-nights-api';
-import { SharedShell } from '../components/shared/SharedShell';
+import { SharedShell } from '../components/share/SharedShell';
 import { BrandMark } from '../components/shared/BrandMark';
 
 /**

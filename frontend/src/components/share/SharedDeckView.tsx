@@ -16,7 +16,7 @@ import { useSharedFilters } from './use-shared-filters';
 import { SearchPill } from '../SearchPill';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { CopyDeckButton } from './CopyDeckButton';
-import { DeckExportDialog } from './DeckExportDialog';
+import { DeckExportDialog } from '../shared/DeckExportDialog';
 import { ForkedFromBadge } from '../deck/ForkedFromBadge';
 import { ReportDialog } from './ReportDialog';
 import {

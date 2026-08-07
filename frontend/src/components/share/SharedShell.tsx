@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { BrandMark } from './BrandMark';
+import { BrandMark } from '../shared/BrandMark';
 import { isNativePlatform, openExternal } from '../../lib/platform';
 
 interface Props {
