@@ -424,6 +424,18 @@ a hero CTA.
     tablist wrapper rather than fake `role="tab"` elements — a `display:
     contents` wrapper (`.binder-tablist`) carries the role without adding a
     layout box, so `.binder-tab-row`'s flex/scroll behavior is unaffected.
+    `display: contents` has a documented history of dropping an element
+    (and its role) out of the accessibility tree entirely; it's safe here
+    only because role preservation for elements with an explicit ARIA role
+    is fixed in every engine this app targets — Chromium 89+, Firefox, and
+    WebKit (Safari 16 on macOS, iOS Safari 17). It stays a hazardous
+    property for role-bearing wrappers in general, and **jsdom/happy-dom
+    tests cannot catch a regression in it** — they don't model CSS-driven
+    accessibility-tree exclusion at all, so a browser regression here would
+    leave the whole suite green while the tablist silently lost its role.
+    Anyone reusing this trick for a role-bearing wrapper should confirm the
+    role survives in a real browser's accessibility inspector, not just in
+    tests.
   - **The `BinderOverflowMenu` trigger is a DOM sibling of the tab button,
     never a descendant.** Nesting an interactive control inside `role="tab"`
     is its own a11y bug — roving tabindex only manages the tab elements
