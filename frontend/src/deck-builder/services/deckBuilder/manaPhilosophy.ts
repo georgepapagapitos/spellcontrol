@@ -15,12 +15,35 @@ import { hasLandUpside, landColorCoverage } from './landPower';
  *   spelllands — MDFC spell/lands, i.e. land slots that aren't dead draws
  *   budget     — cheaper lands, penalized by price
  *
- * Ships behind `customization.manaPhilosophy`, default OFF (`undefined`) with
- * no UI in v1 — same posture as E221's archetype blend and E230's Hyper Focus.
- * Unset means the whole pass is skipped and generation is byte-identical. This
- * is a composition change to shipped generation, so the default must not flip
- * until a 0-regressed `deckgen-eval-gate` panel clears. The wheel control
- * itself is its own design pass (board row), not a tail-of-session widget.
+ * Ships behind `customization.manaPhilosophy`, default OFF (`undefined`). Unset
+ * means the whole pass is skipped and generation is byte-identical. The wheel
+ * control itself shipped separately as E234 (#1518, DeckCustomizer).
+ *
+ * ── E231 DEFAULT-ON: ASKED AND ANSWERED 2026-08-07 — OFF STAYS THE DEFAULT. ──
+ *
+ * Two independent reasons, one product and one measured.
+ *
+ * PRODUCT: E234 shipped this as an opt-in preference, and its on-screen copy
+ * says so — "Off by default — every deck keeps today's land priority until you
+ * turn this on." There is also no default vector to default TO: these four axes
+ * are user preferences, not correctness, and landGenerator already encodes the
+ * house philosophy (COLOR_DEMAND_BOOST_MAX 25 / LAND_POWER_BOOST_MAX 40 / MDFC
+ * 50 / channel 80 / tapland pacing). Turning the wheel on adds no judgement, it
+ * re-weights those same terms arbitrarily.
+ *
+ * MEASURED: A/B on the standard 15-deck panel with the wheel forced to exactly
+ * what DeckCustomizer's checkbox writes when ticked without moving a slider (all
+ * four raw weights 0 → WEIGHT_FLOOR normalizes to an equal 25% blend). Result:
+ * **31 cards changed across 15 of 15 decks**, 25 of them land swaps and 6
+ * non-land knock-on. The `budget` axis is the damage: at a 25% share it prices
+ * lands in decks that set NO budget, shedding $1,084 of manabase across the
+ * panel (12/15 decks got cheaper unasked) — Yuriko bracket-4 lost Underground
+ * Sea for Temple of Deceit, Kozilek lost Urza's Saga, Meren lost Phyrexian
+ * Tower, Krenko lost Command Tower. Note Phyrexian Tower is doubly exposed:
+ * `hasLandUpside` rejects its mana-only activation, so `greedy` never credits it
+ * while `budget` still penalizes its price.
+ *
+ * The wheel remains correct as a USER choice — this rejects default-on only.
  */
 
 /** Per identity color a land supplies, at full `reliable` weight. */

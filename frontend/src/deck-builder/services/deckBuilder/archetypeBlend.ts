@@ -30,10 +30,24 @@ export const MAX_INJECTED_PER_CATEGORY = 15;
 export const ARCHETYPE_BLEND_SOURCE = 'archetype-blend';
 
 /**
- * Unlike `resolvePriceSanity`, this has NO smart default: it's a composition
- * change that hasn't cleared a panel, so `undefined` means plainly OFF and the
- * default path stays byte-inert. Flipping the default is a separate change
- * with its own gate (spec §4.5).
+ * Unlike `resolvePriceSanity`, this has NO smart default: `undefined` means
+ * plainly OFF and the default path stays byte-inert.
+ *
+ * ── E228 DEFAULT-ON: GATED 2026-08-07 AND REJECTED. DO NOT RE-RUN. ──
+ *
+ * A/B on `LIVE_GEN_PANEL=popular` (the no-harm instrument built for exactly this
+ * question, #1524): 32 cards changed across 6 of 8 decks, against a ship
+ * condition of neutral-across-the-board. {@link BLEND_WEIGHT_MIN} 0.35 is too
+ * high — movement damps with popularity but does not reach zero until ~2500+
+ * decks, and at 1398 (Muldrotha) and 2710 (Sythis) decks, commanders with no
+ * thin pool to backfill, the blend still rewrote 7-9 cards. Two watchlist
+ * premiums were lost outright (Craterhoof on Lathril elves, Path to Exile on
+ * Sythis).
+ *
+ * The blend stays CORRECT for thin pools (NICHE_RUNS, 7-159 decks) — this
+ * rejects default-on, not the mechanism. Any re-attempt must first lower the
+ * floor or gate the blend on a deck-count threshold, then re-run the popular
+ * panel.
  */
 export function resolveArchetypeBlend(
   customization: Pick<Customization, 'archetypeBlend'>
