@@ -1,3 +1,7 @@
+// TEMP DIAGNOSTIC BRANCH — this import exists only for the instrumentation at
+// the bottom of this file and must go when that does.
+import { afterAll, expect } from 'vitest';
+
 /**
  * Vitest global setup.
  *
@@ -80,3 +84,43 @@ if (!process.env.LIVE_GEN) {
       )
     )) as typeof fetch;
 }
+
+/* eslint-disable no-console -- TEMP DIAGNOSTIC BRANCH (diag/teardown-instrument).
+   NOT FOR MAIN. Instruments the teardown flake:
+   `EnvironmentTeardownError: Closing rpc while "onUserConsoleLog" was pending`.
+
+   Every console.* write is one worker->main RPC. The error means such an RPC was
+   still in flight when the worker environment tore down. Two candidate mechanisms:
+     (A) a write lands AFTER the file's tests finish (fire-and-forget async logger)
+     (B) a write lands at the very END of the last test and its RPC hasn't
+         round-tripped yet — no "late" write at all, just volume + latency
+
+   This distinguishes them. It flags post-afterAll writes WITH a stack (mechanism A)
+   and reports each file's total write count (mechanism B). Locally the suite shows
+   zero late writes and never flakes, so this has to run in CI under real worker
+   pressure. */
+{
+  const rawLog = console.log.bind(console);
+  let done = false;
+  let writes = 0;
+  let late = 0;
+  (['warn', 'error', 'info', 'debug', 'log'] as const).forEach((name) => {
+    const orig = console[name].bind(console);
+    console[name] = (...args: unknown[]) => {
+      writes += 1;
+      if (done) {
+        late += 1;
+        orig(`[DIAG-LATE](${name})`, ...args, '\nSTACK:', new Error('late-console').stack);
+      } else {
+        orig(...args);
+      }
+    };
+  });
+  afterAll(() => {
+    rawLog(
+      `[DIAG-SUMMARY] writes=${writes} late=${late} file=${expect.getState().testPath ?? '?'}`
+    );
+    done = true;
+  });
+}
+/* eslint-enable no-console */

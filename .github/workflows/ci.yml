@@ -122,8 +122,21 @@ jobs:
       - name: Format check
         run: npm run format:check
 
+      # TEMP DIAGNOSTIC (diag/teardown-instrument) — NOT FOR MAIN.
+      # The teardown flake hits roughly 3 in 8 runs, so a single attempt proves
+      # nothing either way. Run the suite 3x and never fail the step, so every
+      # attempt's output (including any [DIAG-LATE] stacks) lands in one log.
       - name: Run tests with coverage
-        run: npm run test:coverage
+        run: |
+          for i in 1 2 3; do
+            echo "========= ATTEMPT $i ========="
+            if npm run test:coverage; then
+              echo "ATTEMPT $i: PASS"
+            else
+              echo "ATTEMPT $i: FAIL"
+            fi
+          done
+          echo "========= DIAGNOSTIC RUN COMPLETE ========="
 
       # The production build was previously exercised ONLY inside
       # backend/Dockerfile, so a build-only break could land on main unnoticed
