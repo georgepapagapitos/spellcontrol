@@ -20,8 +20,9 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
-// js-yaml v4: `load` is the safe loader (no arbitrary-type tags).
-import yaml from 'js-yaml';
+// `load` is the safe loader (no arbitrary-type tags). js-yaml v5 dropped the
+// default export, so this must be the named import.
+import { load as loadYaml } from 'js-yaml';
 
 const JSON_URL = process.env.SLD_JSON_URL ?? 'https://mtgjson.com/api/v5/SLD.json.gz';
 const YAML_URL =
@@ -79,7 +80,7 @@ const sldJson = JSON.parse(gunzipSync(Buffer.from(await jsonRes.arrayBuffer())).
 
 console.log(`[sld] Fetching ${YAML_URL}`);
 const yamlRes = await fetchOrKeep(YAML_URL);
-const contents = yaml.load(await yamlRes.text());
+const contents = loadYaml(await yamlRes.text());
 
 const data = sldJson.data ?? {};
 const decksByName = new Map((data.decks ?? []).map((d) => [d.name, d]));
