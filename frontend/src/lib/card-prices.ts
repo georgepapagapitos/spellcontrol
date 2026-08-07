@@ -119,6 +119,19 @@ export function _resetForTests(): void {
  * filters) reads `purchasePrice` off the cards this function returns, so
  * guarding here is the single chokepoint. This never touches `acquiredPrice`
  * (cost basis) — a proxy can genuinely have cost the user money to print.
+ *
+ * A `priceOverride` (E204 — a manual market-price correction for a copy
+ * Scryfall prices wrong or not at all: altered, signed, graded, misprint, an
+ * obscure foreign printing) wins over BOTH the live cache and the proxy
+ * default above — it's checked first. An explicit per-copy value is more
+ * specific than a blanket default; a proxy the user has explicitly priced
+ * (an alter someone paid real money for) should show what they said, not
+ * silently zero back out. The override only applies while
+ * `priceOverrideCurrency` (absent = USD) matches the active display
+ * currency — there's no FX conversion in this app, so a currency-mismatched
+ * override is left unapplied here (falls through to the real market price)
+ * rather than showing a wrong-currency number as if it were live;
+ * `PriceOverrideBadge` is what tells the user it's set but dormant.
  */
 export function applyPrices<
   T extends {
@@ -127,12 +140,20 @@ export function applyPrices<
     purchasePrice?: number;
     pricedAt?: number;
     proxy?: boolean;
+    priceOverride?: number;
+    priceOverrideCurrency?: string;
   },
 >(cards: T[]): T[] {
   loadPrices();
   const wantEur = getCurrency() === 'EUR';
+  const activeCurrency = wantEur ? 'EUR' : 'USD';
   let mutated = false;
   const out = cards.map((c) => {
+    if (c.priceOverride !== undefined && (c.priceOverrideCurrency ?? 'USD') === activeCurrency) {
+      if (c.purchasePrice === c.priceOverride && c.pricedAt === undefined) return c;
+      mutated = true;
+      return { ...c, purchasePrice: c.priceOverride, pricedAt: undefined };
+    }
     if (c.proxy) {
       if (c.purchasePrice === 0 && c.pricedAt === undefined) return c;
       mutated = true;

@@ -363,6 +363,160 @@ describe('DeckCustomizer — ban-list presets', () => {
   });
 });
 
+describe('DeckCustomizer — Mana philosophy (E234)', () => {
+  function openManaPhilosophy() {
+    fireEvent.click(screen.getByText('Mana philosophy'));
+  }
+
+  it('stays unset by default — Off, no sliders rendered', () => {
+    render(<DeckCustomizer customization={baseCustomization()} update={vi.fn()} />);
+    expect(screen.getByText('Off')).toBeTruthy();
+    openManaPhilosophy();
+    expect(screen.queryByLabelText('Color fixing priority')).toBeNull();
+    const checkbox = screen.getByLabelText('Blend land priorities') as HTMLInputElement;
+    expect(checkbox.checked).toBe(false);
+  });
+
+  it('turning the toggle on sets a real equal blend, never undefined', () => {
+    const update = vi.fn();
+    render(<DeckCustomizer customization={baseCustomization()} update={update} />);
+    openManaPhilosophy();
+    fireEvent.click(screen.getByLabelText('Blend land priorities'));
+    expect(update).toHaveBeenCalledWith({
+      manaPhilosophy: { reliable: 0, greedy: 0, spelllands: 0, budget: 0 },
+    });
+  });
+
+  it('turning the toggle back off returns to unset (undefined), not a fake all-equal blend', () => {
+    const update = vi.fn();
+    render(
+      <DeckCustomizer
+        customization={baseCustomization({
+          manaPhilosophy: { reliable: 20, greedy: 0, spelllands: 0, budget: 0 },
+        })}
+        update={update}
+      />
+    );
+    openManaPhilosophy();
+    const checkbox = screen.getByLabelText('Blend land priorities') as HTMLInputElement;
+    expect(checkbox.checked).toBe(true);
+    fireEvent.click(checkbox);
+    expect(update).toHaveBeenCalledWith({ manaPhilosophy: undefined });
+  });
+
+  it('Reset all also turns the wheel back off', () => {
+    const update = vi.fn();
+    render(
+      <DeckCustomizer
+        customization={baseCustomization({
+          manaPhilosophy: { reliable: 20, greedy: 4, spelllands: 0, budget: 0 },
+        })}
+        update={update}
+      />
+    );
+    fireEvent.click(screen.getByTitle('Reset all customization to defaults'));
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ manaPhilosophy: undefined }));
+  });
+
+  it('shows all four axes as keyboard-operable native sliders with the live normalized share', () => {
+    render(
+      <DeckCustomizer
+        customization={baseCustomization({
+          manaPhilosophy: { reliable: 20, greedy: 0, spelllands: 0, budget: 0 },
+        })}
+        update={vi.fn()}
+      />
+    );
+    openManaPhilosophy();
+    // Native range inputs are fully keyboard/SR operable for free — arrow
+    // keys, Home/End, and screen-reader announcement all come from the
+    // element itself, matching every other slider in this file (Salt,
+    // Staples<->Brew, land count).
+    const reliable = screen.getByLabelText('Color fixing priority') as HTMLInputElement;
+    expect(reliable.type).toBe('range');
+    expect(reliable.value).toBe('20');
+    // reliable=20 (max), others=0 raw -> normalize() floors each +0.05 and
+    // renormalizes: reliable ~99.3%, the rest split the remainder.
+    expect(reliable.getAttribute('aria-valuetext')).toBe('99.3%');
+  });
+
+  it('no axis ever displays 0% — the WEIGHT_FLOOR keeps a visible, non-zero share', () => {
+    render(
+      <DeckCustomizer
+        customization={baseCustomization({
+          manaPhilosophy: { reliable: 20, greedy: 0, spelllands: 0, budget: 0 },
+        })}
+        update={vi.fn()}
+      />
+    );
+    openManaPhilosophy();
+    const greedy = screen.getByLabelText('Utility priority') as HTMLInputElement;
+    // Raw 0 still floors to a non-zero share once normalized — the UI must
+    // never claim an axis reads 0% when the engine will never compute one.
+    expect(greedy.getAttribute('aria-valuetext')).not.toBe('0%');
+    expect(greedy.getAttribute('aria-valuetext')).not.toBe('0.0%');
+    expect(greedy.getAttribute('aria-valuetext')).toBe('0.2%');
+  });
+
+  it('moving one slider patches only that axis; the others recompute live from the same weights', () => {
+    const update = vi.fn();
+    const { rerender } = render(
+      <DeckCustomizer
+        customization={baseCustomization({
+          manaPhilosophy: { reliable: 0, greedy: 0, spelllands: 0, budget: 0 },
+        })}
+        update={update}
+      />
+    );
+    openManaPhilosophy();
+    fireEvent.change(screen.getByLabelText('Utility priority'), { target: { value: '20' } });
+    expect(update).toHaveBeenCalledWith({
+      manaPhilosophy: { reliable: 0, greedy: 20, spelllands: 0, budget: 0 },
+    });
+
+    // Re-render with the patched weights (as the real store round-trip
+    // would) — the untouched axes' displayed shares must visibly drop,
+    // making the redistribution legible without any bespoke sum-preserving
+    // slider math.
+    rerender(
+      <DeckCustomizer
+        customization={baseCustomization({
+          manaPhilosophy: { reliable: 0, greedy: 20, spelllands: 0, budget: 0 },
+        })}
+        update={update}
+      />
+    );
+    expect(screen.getByLabelText('Utility priority').getAttribute('aria-valuetext')).toBe('99.3%');
+    expect(screen.getByLabelText('Color fixing priority').getAttribute('aria-valuetext')).toBe(
+      '0.2%'
+    );
+  });
+
+  it('collapsed summary reads Equal blend for a true equal engagement, distinct from Off', () => {
+    render(
+      <DeckCustomizer
+        customization={baseCustomization({
+          manaPhilosophy: { reliable: 0, greedy: 0, spelllands: 0, budget: 0 },
+        })}
+        update={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Equal blend')).toBeTruthy();
+  });
+
+  it('collapsed summary names the leaning axis for a skewed blend', () => {
+    render(
+      <DeckCustomizer
+        customization={baseCustomization({
+          manaPhilosophy: { reliable: 0, greedy: 20, spelllands: 0, budget: 0 },
+        })}
+        update={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Utility-leaning')).toBeTruthy();
+  });
+});
+
 describe('DeckCustomizer — Target Bracket (Exhibition expectations)', () => {
   it('shows no bracket-1 helper text for any other bracket', () => {
     render(

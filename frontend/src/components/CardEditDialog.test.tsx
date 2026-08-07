@@ -260,3 +260,107 @@ describe('CardEditDialog cost basis (E203)', () => {
     expect(screen.queryByLabelText(/^Paid/)).toBeNull();
   });
 });
+
+describe('CardEditDialog price override (E204)', () => {
+  beforeEach(() => {
+    fetchPrintingsMock.mockReset();
+    fetchPrintingsMock.mockResolvedValue([current]);
+  });
+
+  function renderOverrideDialog(
+    props: Partial<React.ComponentProps<typeof CardEditDialog>> = {},
+    onConfirm = vi.fn()
+  ) {
+    render(
+      <CardEditDialog
+        cardName="Sol Ring"
+        currentScryfallId="sf-a"
+        currentFinish="nonfoil"
+        details={{ condition: 'nm' }}
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+        {...props}
+      />
+    );
+    return onConfirm;
+  }
+
+  const overrideField = () => screen.getByLabelText(/^Market override/) as HTMLInputElement;
+
+  it('pre-fills the recorded override, which alone is not a change', async () => {
+    renderOverrideDialog({ details: { condition: 'nm', priceOverride: 25 } });
+    await waitFor(() => expect(overrideField().value).toBe('25'));
+    expect(screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('parses a typed override at commit and sends it distinct from cost basis', async () => {
+    const onConfirm = renderOverrideDialog();
+    const input = await waitFor(overrideField);
+    fireEvent.change(input, { target: { value: '$150' } });
+    fireEvent.blur(input);
+    expect(input.value).toBe('150');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const { details } = onConfirm.mock.calls[0][0];
+    expect(details.priceOverride).toBe(150);
+    expect(details.acquiredPrice).toBeUndefined();
+  });
+
+  it('clearing the field (blank + Save) is how an override reverts to market price', async () => {
+    const onConfirm = renderOverrideDialog({
+      details: { condition: 'nm', priceOverride: 25 },
+    });
+    const input = await waitFor(overrideField);
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const { details } = onConfirm.mock.calls[0][0];
+    expect(details.priceOverride).toBeUndefined();
+  });
+
+  it('treats garbage and zero as "not set" rather than a $0 override', async () => {
+    const onConfirm = renderOverrideDialog({ details: { condition: 'nm', priceOverride: 25 } });
+    const input = await waitFor(overrideField);
+    fireEvent.change(input, { target: { value: 'nonsense' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const { details } = onConfirm.mock.calls[0][0];
+    expect(details.priceOverride).toBeUndefined();
+  });
+
+  it('shows a Mixed placeholder for a stack overridden at different prices, and leaves it alone', async () => {
+    const onConfirm = renderOverrideDialog({
+      quantity: 2,
+      details: { condition: 'nm', priceOverride: 25 },
+      mixedDetails: { priceOverride: '1 $25.00, 1 $50.00' },
+    });
+    const input = await waitFor(overrideField);
+    expect(input.value).toBe('');
+    expect(input.getAttribute('placeholder')).toBe('Mixed (1 $25.00, 1 $50.00)');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Increase quantity' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const { details } = onConfirm.mock.calls[0][0];
+    expect(details.priceOverrideTouched).toBe(false);
+    expect(details.priceOverride).toBeUndefined();
+  });
+
+  it('typing into a mixed override field marks it touched so the value applies to the stack', async () => {
+    const onConfirm = renderOverrideDialog({
+      quantity: 2,
+      details: { condition: 'nm', priceOverride: 25 },
+      mixedDetails: { priceOverride: '1 $25.00, 1 $50.00' },
+    });
+    const input = await waitFor(overrideField);
+    fireEvent.change(input, { target: { value: '40' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        details: expect.objectContaining({ priceOverride: 40, priceOverrideTouched: true }),
+      })
+    );
+  });
+
+  it('omits the field entirely for callers that run without inventory details', async () => {
+    renderOverrideDialog({ details: undefined });
+    await screen.findByText('#270');
+    expect(screen.queryByLabelText(/^Market override/)).toBeNull();
+  });
+});

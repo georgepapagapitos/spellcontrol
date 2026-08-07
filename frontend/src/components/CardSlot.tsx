@@ -10,6 +10,7 @@ import { CardPreviewContext } from './CardPreviewContext';
 import { getSetMap, type SetMap } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
 import { useAllocations } from '../lib/allocations';
+import { PriceOverrideBadge } from './shared/PriceOverrideBadge';
 
 interface Props {
   card: EnrichedCard | null;
@@ -264,6 +265,7 @@ export function CardSlot({ card, showImage }: Props) {
               {card.foil && <span className="tooltip-foil">foil</span>}
               {' · '}
               {formatMoney(card.purchasePrice)}
+              <PriceOverrideBadge card={card} />
             </div>
             {(card.setName || card.setCode) && (
               <div className="tooltip-set">

@@ -6,6 +6,7 @@ import { FoilBadge } from '../FoilBadge';
 import { DeckBadge } from '../DeckBadge';
 import { BinderBadge } from '../BinderBadge';
 import { ProxyBadge } from './ProxyBadge';
+import { PriceOverrideBadge } from './PriceOverrideBadge';
 import { RarityBadge } from './RarityBadge';
 import { ManaCost } from '../ManaCost';
 import { TypeIcon } from './ManaSymbol';
@@ -208,8 +209,11 @@ export function CardRow({
               —
             </span>
           ) : (
-            // Shared projections are server-stamped USD — pin the symbol.
-            formatMoney(card.purchasePrice * qty, { currency: 'USD' })
+            <>
+              {/* Shared projections are server-stamped USD — pin the symbol. */}
+              {formatMoney(card.purchasePrice * qty, { currency: 'USD' })}
+              <PriceOverrideBadge card={card} />
+            </>
           )}
         </div>
         {targetPriceSlot}

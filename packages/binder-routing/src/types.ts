@@ -63,6 +63,33 @@ export interface EnrichedCard {
    * Display currency `acquiredPrice` was recorded in. Absent = USD.
    */
   acquiredCurrency?: string;
+  /**
+   * User-entered market-price override for THIS PHYSICAL COPY (E204) — for a
+   * card Scryfall prices wrong or not at all (altered, signed, graded,
+   * misprint, an obscure foreign printing). Replaces `purchasePrice`
+   * everywhere market value is read: collection total, binder price rules,
+   * price filters/sorts, value history/movers. Separate from `acquiredPrice`
+   * (cost basis, what was paid) — neither field ever touches the other.
+   * `undefined` means "use market price"; absent is never $0, exactly like
+   * `acquiredPrice`. Applied at the single price-resolution chokepoint,
+   * frontend `lib/card-prices.ts:applyPrices`, which is what makes it survive
+   * every price refresh: the refresh writes fresh market data to the
+   * device-local cache, but `applyPrices` never re-stamps `purchasePrice`
+   * from that cache while an override is set. An explicit override also wins
+   * over the proxy-zeroing default (`proxy: true` → $0) — a user's stated
+   * value for a specific copy is more specific than a blanket default.
+   */
+  priceOverride?: number;
+  /**
+   * Display currency `priceOverride` was recorded in. Absent = USD (mirrors
+   * `acquiredCurrency`). `applyPrices` applies the override only while this
+   * matches the active display currency — there is no FX conversion in this
+   * app (EUR prices are Cardmarket's own quote, not a USD conversion), so a
+   * currency-mismatched override falls back to the real market price rather
+   * than showing a wrong-currency number as if it were live. The override is
+   * still shown as set-but-dormant rather than silently lost.
+   */
+  priceOverrideCurrency?: string;
   cmc?: number;
   typeLine?: string;
   colorIdentity?: string[];

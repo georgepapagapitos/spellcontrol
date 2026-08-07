@@ -110,6 +110,25 @@ describe('stackDetailMix', () => {
         .acquiredPrice
     ).toBeUndefined();
   });
+
+  it('summarizes a price override that disagrees across the stack, in each copy’s currency (E204)', () => {
+    const copies = [
+      enriched({ copyId: 'a', priceOverride: 12 }),
+      enriched({ copyId: 'b', priceOverride: 12 }),
+      enriched({ copyId: 'c', priceOverride: 30, priceOverrideCurrency: 'EUR' }),
+      enriched({ copyId: 'd' }),
+    ];
+    expect(stackDetailMix(copies).priceOverride).toBe('2 $12.00, 1 €30.00, 1 Not set');
+  });
+
+  it('reports a uniform price override as not mixed', () => {
+    expect(
+      stackDetailMix([
+        enriched({ copyId: 'a', priceOverride: 9 }),
+        enriched({ copyId: 'b', priceOverride: 9 }),
+      ]).priceOverride
+    ).toBeUndefined();
+  });
 });
 
 describe('stackCopies', () => {
@@ -288,6 +307,52 @@ describe('buildEditedCards', () => {
     expect(next.every((c) => c.acquiredPrice === 7)).toBe(true);
   });
 
+  it('writes a price override with the active currency stamped, and shows it immediately (E204)', () => {
+    const a = enriched({ copyId: 'a' });
+    const next = buildEditedCards(a, selection({ details: { priceOverride: 25 } }), [a]);
+    expect(next[0].priceOverride).toBe(25);
+    expect(next[0].priceOverrideCurrency).toBe('USD');
+    // Shown right away rather than waiting for the next applyPrices pass.
+    expect(next[0].purchasePrice).toBe(25);
+  });
+
+  it('clearing the override drops both the price and its currency, reverting to market', () => {
+    const a = enriched({ copyId: 'a', priceOverride: 25, priceOverrideCurrency: 'USD' });
+    const next = buildEditedCards(a, selection({ details: {} }), [a]);
+    expect(next[0].priceOverride).toBeUndefined();
+    expect(next[0].priceOverrideCurrency).toBeUndefined();
+    // Reverts to the fresh Scryfall price for the selected printing.
+    expect(next[0].purchasePrice).toBe(2);
+  });
+
+  it('leaves the override alone when printing-only editing (details absent)', () => {
+    const a = enriched({ copyId: 'a', priceOverride: 25, priceOverrideCurrency: 'USD' });
+    const next = buildEditedCards(a, selection({}), [a]);
+    expect(next[0].priceOverride).toBe(25);
+  });
+
+  it('an override never touches cost basis, and vice versa', () => {
+    const a = enriched({ copyId: 'a' });
+    const next = buildEditedCards(
+      a,
+      selection({ details: { priceOverride: 25, acquiredPrice: 3 } }),
+      [a]
+    );
+    expect(next[0].priceOverride).toBe(25);
+    expect(next[0].acquiredPrice).toBe(3);
+  });
+
+  it('mixed stack: an untouched override leaves every copy’s own price alone', () => {
+    const a = enriched({ copyId: 'a', priceOverride: 10 });
+    const b = enriched({ copyId: 'b', priceOverride: 20 });
+    const next = buildEditedCards(a, selection({ details: { priceOverrideTouched: false } }), [
+      a,
+      b,
+    ]);
+    expect(next.find((c) => c.copyId === 'a')?.priceOverride).toBe(10);
+    expect(next.find((c) => c.copyId === 'b')?.priceOverride).toBe(20);
+  });
+
   it('single-copy mode re-points only the given copy, splitting a printing stack', () => {
     // Two copies of the same printing; edit just one to a different printing.
     const a = enriched({ copyId: 'a', scryfallId: 'old' });
@@ -336,6 +401,13 @@ describe('isNoOpCardEdit', () => {
     const editing = enriched({ copyId: 'copy-a', scryfallId: 'sc1', finish: 'nonfoil' });
     expect(
       isNoOpCardEdit(editing, selection({ finish: 'nonfoil', details: { condition: 'lp' } }), 1)
+    ).toBe(false);
+  });
+
+  it('is false when only the price override changed', () => {
+    const editing = enriched({ copyId: 'copy-a', scryfallId: 'sc1', finish: 'nonfoil' });
+    expect(
+      isNoOpCardEdit(editing, selection({ finish: 'nonfoil', details: { priceOverride: 9 } }), 1)
     ).toBe(false);
   });
 

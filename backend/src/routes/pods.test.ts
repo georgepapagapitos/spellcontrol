@@ -3,7 +3,7 @@ import request from 'supertest';
 import crypto from 'crypto';
 import express from 'express';
 import { rateLimit } from 'express-rate-limit';
-import type { Server } from 'node:http';
+import { createServer, type Server } from 'node:http';
 import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 
@@ -410,25 +410,44 @@ describe('DELETE /api/pods/:id/members/:userId', () => {
 // podWriteLimiter 20/min) against a real rateLimit(), guarding against the
 // limiter silently regressing or being dropped.
 describe('rate limiter tiers (regression guard)', () => {
-  function limitedApp(max: number) {
+  // Listen on 127.0.0.1 and hand supertest the server, never the bare app —
+  // a wildcard `listen(0)` can draw a port another process holds on
+  // 127.0.0.1 and silently route the request there (issue #1494; the full
+  // mechanism is documented in `createTestEnv`).
+  async function limitedApp(max: number): Promise<Server> {
     const limited = express();
     limited.get('/x', rateLimit({ windowMs: 60_000, max }), (_req, res) => res.status(200).end());
-    return limited;
+    const server = createServer(limited);
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', resolve);
+    });
+    return server;
   }
 
   it('podReadLimiter tier (60/min) 429s past its window', async () => {
-    const limited = limitedApp(60);
-    for (let i = 0; i < 60; i++) {
-      await request(limited).get('/x').expect(200);
+    const limited = await limitedApp(60);
+    try {
+      for (let i = 0; i < 60; i++) {
+        await request(limited).get('/x').expect(200);
+      }
+      await request(limited).get('/x').expect(429);
+    } finally {
+      limited.closeAllConnections();
+      await new Promise<void>((resolve) => limited.close(() => resolve()));
     }
-    await request(limited).get('/x').expect(429);
   });
 
   it('podWriteLimiter tier (20/min) 429s past its window', async () => {
-    const limited = limitedApp(20);
-    for (let i = 0; i < 20; i++) {
-      await request(limited).get('/x').expect(200);
+    const limited = await limitedApp(20);
+    try {
+      for (let i = 0; i < 20; i++) {
+        await request(limited).get('/x').expect(200);
+      }
+      await request(limited).get('/x').expect(429);
+    } finally {
+      limited.closeAllConnections();
+      await new Promise<void>((resolve) => limited.close(() => resolve()));
     }
-    await request(limited).get('/x').expect(429);
   });
 });
