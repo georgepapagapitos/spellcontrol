@@ -128,6 +128,97 @@ describe('card-prices', () => {
     });
   });
 
+  describe('priceOverride (E204)', () => {
+    it('wins over the live cache, denominated in USD by default', () => {
+      setPrices({ s1: { usd: 42, pricedAt: 100 } });
+      const out = applyPrices<{
+        scryfallId: string;
+        purchasePrice: number;
+        pricedAt?: number;
+        priceOverride?: number;
+      }>([{ scryfallId: 's1', purchasePrice: 0, priceOverride: 12.5 }]);
+      expect(out[0].purchasePrice).toBe(12.5);
+      // No live fetch backs this number, so freshness is honestly unknown.
+      expect(out[0].pricedAt).toBeUndefined();
+    });
+
+    it('wins over the proxy-zeroing default — an explicit override is more specific', () => {
+      const out = applyPrices<{
+        scryfallId: string;
+        proxy?: boolean;
+        purchasePrice: number;
+        priceOverride?: number;
+      }>([{ scryfallId: 's1', proxy: true, purchasePrice: 0, priceOverride: 8 }]);
+      expect(out[0].purchasePrice).toBe(8);
+    });
+
+    it('survives a refresh that writes a fresh cache value for the same printing', () => {
+      const cards: Array<{
+        scryfallId: string;
+        purchasePrice: number;
+        pricedAt?: number;
+        priceOverride?: number;
+      }> = [{ scryfallId: 's1', purchasePrice: 0, priceOverride: 5 }];
+      const afterOverride = applyPrices(cards);
+      expect(afterOverride[0].purchasePrice).toBe(5);
+      // A price refresh writes new market data to the device-local cache…
+      setPrices({ s1: { usd: 99, pricedAt: 200 } });
+      // …but re-applying still shows the override, not the refreshed market price.
+      const afterRefresh = applyPrices(afterOverride);
+      expect(afterRefresh[0].purchasePrice).toBe(5);
+    });
+
+    it('is a no-op reference once purchasePrice already matches the override', () => {
+      const cards = [{ scryfallId: 's1', purchasePrice: 5, priceOverride: 5 }];
+      expect(applyPrices(cards)).toBe(cards);
+    });
+
+    it('falls back to the real market price when the override currency does not match the active display currency', () => {
+      setPrices({ s1: { usd: 9.99, eur: 8.4, pricedAt: 42 } });
+      useCurrencyStore.getState().setCurrency('EUR');
+      try {
+        const out = applyPrices<{
+          scryfallId: string;
+          purchasePrice: number;
+          priceOverride?: number;
+          priceOverrideCurrency?: string;
+        }>([
+          {
+            scryfallId: 's1',
+            purchasePrice: 0,
+            priceOverride: 12,
+            priceOverrideCurrency: 'USD',
+          },
+        ]);
+        // Override was recorded in USD but the viewer is in EUR — fall back to
+        // the real (EUR) market price rather than showing a wrong-currency number.
+        expect(out[0].purchasePrice).toBe(8.4);
+      } finally {
+        useCurrencyStore.getState().setCurrency('USD');
+      }
+    });
+
+    it('applies once the active currency matches priceOverrideCurrency', () => {
+      const out = applyPrices<{
+        scryfallId: string;
+        purchasePrice: number;
+        priceOverride?: number;
+        priceOverrideCurrency?: string;
+      }>([{ scryfallId: 's1', purchasePrice: 0, priceOverride: 12, priceOverrideCurrency: 'USD' }]);
+      expect(out[0].purchasePrice).toBe(12);
+    });
+
+    it('an absent override is never treated as $0 — falls through to real market resolution', () => {
+      setPrices({ s1: { usd: 7, pricedAt: 1 } });
+      const out = applyPrices<{
+        scryfallId: string;
+        purchasePrice: number;
+        priceOverride?: number;
+      }>([{ scryfallId: 's1', purchasePrice: 0 }]);
+      expect(out[0].purchasePrice).toBe(7);
+    });
+  });
+
   describe('finish-aware pricing', () => {
     it('priceKey: non-foil is the bare id; foil/etched get their own key', () => {
       expect(priceKey('s1')).toBe('s1');

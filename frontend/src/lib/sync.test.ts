@@ -820,6 +820,32 @@ describe('card price stripping (prices are device-local, never synced)', () => {
     expect('purchasePrice' in qData).toBe(false);
   });
 
+  it('persistCardsState rides priceOverride/priceOverrideCurrency through unstripped (E204) — it is per-copy user data, not device-local market reference data', async () => {
+    mockIsNative.mockReturnValue(true);
+    await persistCardsState([
+      {
+        copyId: 'c-1',
+        importId: 'imp-1',
+        scryfallId: 's-1',
+        purchasePrice: 12.5,
+        pricedAt: 123,
+        priceOverride: 40,
+        priceOverrideCurrency: 'USD',
+      },
+    ] as unknown as Array<{ copyId: string; importId?: string }>);
+    const stored = await estore.getById('card', 'c-1');
+    const data = stored?.data as Record<string, unknown>;
+    // Market price is still stripped (device-local, global reference data)…
+    expect('purchasePrice' in data).toBe(false);
+    // …but the user's own override survives, exactly like acquiredPrice/condition.
+    expect(data.priceOverride).toBe(40);
+    expect(data.priceOverrideCurrency).toBe('USD');
+    const upsert = (await queue.peekBatch(10)).find((b) => b.m.op === 'upsert');
+    const qData = (upsert?.m as { data: Record<string, unknown> }).data;
+    expect(qData.priceOverride).toBe(40);
+    expect(qData.priceOverrideCurrency).toBe('USD');
+  });
+
   it('persistCardsState seeds the device price cache (covers add/import/restore/move centrally)', async () => {
     await persistCardsState([
       { copyId: 'c-1', importId: '', scryfallId: 's-1', purchasePrice: 8.5, pricedAt: 111 },
@@ -849,6 +875,28 @@ describe('card price stripping (prices are device-local, never synced)', () => {
     await startSync('user-1');
     const card = useCollectionStore.getState().cards.find((c) => c.copyId === 'c-9');
     expect(card?.purchasePrice).toBe(7.25);
+  });
+
+  it('a pulled card row carrying priceOverride shows it after hydrate, not the device cache market price (E204)', async () => {
+    const { useCollectionStore } = await import('../store/collection');
+    cardPrices.setPrices({ 's-10': { usd: 7.25, pricedAt: 999 } });
+    mockPull.mockResolvedValueOnce({
+      rows: [
+        {
+          kind: 'card',
+          id: 'c-10',
+          data: { copyId: 'c-10', scryfallId: 's-10', priceOverride: 50 },
+          rev: 1,
+          deletedAt: null,
+          importId: '',
+        },
+      ],
+      cursor: 1,
+      hasMore: false,
+    });
+    await startSync('user-1');
+    const card = useCollectionStore.getState().cards.find((c) => c.copyId === 'c-10');
+    expect(card?.purchasePrice).toBe(50);
   });
 });
 

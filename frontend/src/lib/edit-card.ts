@@ -39,6 +39,7 @@ export function stackDetailMix(copies: EnrichedCard[]): {
   condition?: string;
   language?: string;
   acquiredPrice?: string;
+  priceOverride?: string;
 } {
   return {
     condition: mixedSummary(copies.map((c) => c.condition)),
@@ -51,6 +52,15 @@ export function stackDetailMix(copies: EnrichedCard[]): {
       copies.map((c) =>
         (c.acquiredPrice ?? 0) > 0
           ? formatMoney(c.acquiredPrice, { currency: c.acquiredCurrency ?? 'USD' })
+          : undefined
+      )
+    ),
+    // Same don't-homogenize treatment as cost basis: a stack can have one
+    // altered copy someone priced by hand and three untouched siblings.
+    priceOverride: mixedSummary(
+      copies.map((c) =>
+        c.priceOverride !== undefined
+          ? formatMoney(c.priceOverride, { currency: c.priceOverrideCurrency ?? 'USD' })
           : undefined
       )
     ),
@@ -158,6 +168,20 @@ export function buildEditedCards(
       cardFields.acquiredPrice = paid > 0 ? paid : undefined;
       cardFields.acquiredCurrency = paid > 0 ? getCurrency() : undefined;
     }
+    // Market-price override (E204), gated by *Touched like the fields above.
+    // Currency is stamped here for the same reason as acquiredCurrency: the
+    // dialog collects a number, the applier decides how it's persisted. A
+    // cleared (or 0) override drops both fields — undefined is never a stored
+    // override, matching EnrichedCard.priceOverride.
+    if (selection.details.priceOverrideTouched ?? true) {
+      const override = selection.details.priceOverride ?? 0;
+      cardFields.priceOverride = override > 0 ? override : undefined;
+      cardFields.priceOverrideCurrency = override > 0 ? getCurrency() : undefined;
+      // Show it immediately rather than waiting for the next applyPrices pass
+      // (rehydrate/refresh) — mirrors exactly what applyPrices would compute,
+      // since purchasePrice above was just stamped to the fresh Scryfall price.
+      if (override > 0) cardFields.purchasePrice = override;
+    }
   }
 
   // Single-copy split (ungrouped view): re-point just this one physical copy,
@@ -226,7 +250,8 @@ export function isNoOpCardEdit(
       (d.altered ?? false) !== (editingCard.altered ?? false) ||
       (d.proxy ?? false) !== (editingCard.proxy ?? false) ||
       (d.misprint ?? false) !== (editingCard.misprint ?? false) ||
-      (d.acquiredPrice ?? 0) !== (editingCard.acquiredPrice ?? 0)
+      (d.acquiredPrice ?? 0) !== (editingCard.acquiredPrice ?? 0) ||
+      (d.priceOverride ?? 0) !== (editingCard.priceOverride ?? 0)
     ) {
       return false;
     }

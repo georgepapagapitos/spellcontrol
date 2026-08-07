@@ -97,6 +97,21 @@ describe('CardGridCell captions', () => {
     render(<CardGridCell card={card} qty={1} size="1x" onActivate={() => {}} />);
     expect(document.querySelector('.proxy-badge')).toBeNull();
   });
+
+  it('shows the manual-price-override chip for an overridden card, with an accessible name (E204)', () => {
+    const overriddenCard = { ...card, priceOverride: 25 };
+    const { container, unmount } = render(
+      <CardGridCell card={overriddenCard} qty={1} size="1x" onActivate={() => {}} />
+    );
+    const badge = container.querySelector('.price-override-badge');
+    expect(badge).not.toBeNull();
+    expect(badge?.getAttribute('aria-label')).toBe('Manually priced');
+    expect(screen.getByRole('button').getAttribute('aria-label')).toContain('manually priced');
+    unmount();
+
+    render(<CardGridCell card={card} qty={1} size="1x" onActivate={() => {}} />);
+    expect(document.querySelector('.price-override-badge')).toBeNull();
+  });
 });
 
 const componentsDir = dirname(fileURLToPath(import.meta.url));

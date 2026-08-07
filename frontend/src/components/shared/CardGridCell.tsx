@@ -4,6 +4,7 @@ import type { EnrichedCard } from '../../types';
 import { classifyFoil } from '../../lib/foil-style';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { ProxyBadge } from './ProxyBadge';
+import { PriceOverrideBadge } from './PriceOverrideBadge';
 import { RarityBadge } from './RarityBadge';
 import { SetSymbol } from './SetSymbol';
 
@@ -178,9 +179,11 @@ export function CardGridCell({
         }}
         aria-label={`${card.name}, quantity ${qty}${card.foil ? ', foil' : ''}${
           card.proxy ? ', proxy' : ''
-        }${caption && caption !== '—' ? `, ${caption}` : ''}${setLabel ? `, ${setLabel}` : ''}${
-          ariaExtra ?? ''
-        }${selectMode ? (selected ? ', selected' : ', not selected') : ''}`}
+        }${card.priceOverride !== undefined ? ', manually priced' : ''}${
+          caption && caption !== '—' ? `, ${caption}` : ''
+        }${setLabel ? `, ${setLabel}` : ''}${ariaExtra ?? ''}${
+          selectMode ? (selected ? ', selected' : ', not selected') : ''
+        }`}
       >
         {selectMode && (
           <span className="collection-grid-check" data-checked={selected} aria-hidden>
@@ -203,9 +206,10 @@ export function CardGridCell({
             while it's shown. The proxy chip is independent of that toggle —
             it must stay legible regardless of caption prefs or select mode,
             so it lives in its own top-right cluster alongside rarity. */}
-        {(card.proxy || setLabel === null) && (
+        {(card.proxy || card.priceOverride !== undefined || setLabel === null) && (
           <div className="collection-grid-topright">
             <ProxyBadge card={card} className="collection-grid-proxy" />
+            <PriceOverrideBadge card={card} className="collection-grid-price-override" />
             {setLabel === null && (
               <RarityBadge rarity={card.rarity} className="collection-grid-rarity" />
             )}

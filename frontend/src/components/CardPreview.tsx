@@ -37,6 +37,7 @@ import { SLD_CODE, dropsForNumber, useSldDrops } from '../lib/sld-drops';
 import { formatMoney } from '../lib/format-money';
 import { formatPricedDate } from '../lib/price-freshness';
 import { CardImageFrame } from './CardImageFrame';
+import { PriceOverrideBadge } from './shared/PriceOverrideBadge';
 import { CardShareDialog } from './CardShareDialog';
 import { foilFinishLabel } from '../lib/foil-style';
 import { LANGUAGE_OPTIONS } from './PrintingPicker';
@@ -891,6 +892,7 @@ export function CardPreview({
               })()}
               {' · '}
               {formatMoney(current.purchasePrice)}
+              <PriceOverrideBadge card={current} />
               {(() => {
                 const qty = getStackQty?.(selected) ?? 1;
                 return qty > 1 ? (

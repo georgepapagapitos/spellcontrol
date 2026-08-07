@@ -422,6 +422,7 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
             proxy: editingCard.proxy,
             misprint: editingCard.misprint,
             acquiredPrice: editingCard.acquiredPrice,
+            priceOverride: editingCard.priceOverride,
           }}
           mixedDetails={editingMixedDetails}
           onConfirm={handleEditConfirm}
