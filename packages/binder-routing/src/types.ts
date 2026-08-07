@@ -1,11 +1,13 @@
 /**
  * Shared data types for the binder routing engine.
  *
- * These are a self-contained copy of the card/binder/sort interfaces the
- * SpellControl apps persist. The package is the source of truth for the
- * routing *logic*; the frontend keeps its own `types/index.ts` (a structural
- * superset) and the backend treats user_data as opaque JSONB — both stay
- * assignment-compatible with the shapes here by structural typing.
+ * `EnrichedCard` (and its `Finish`/`Condition` companions) is the single
+ * source of truth for the physical-card shape — frontend/src/types/index.ts
+ * and backend/src/types.ts both re-export it from here rather than hand-
+ * copying it (see CLAUDE.md's game-core precedent; this used to be three
+ * independently-maintained copies that drifted, see board E205). The other
+ * types here (BinderDef, BinderFilter, sort/section shapes) are specific to
+ * the routing engine itself.
  */
 
 /** The owned finish for a physical copy. */
@@ -48,6 +50,19 @@ export interface EnrichedCard {
   altered?: boolean;
   proxy?: boolean;
   misprint?: boolean;
+  /**
+   * What the user actually PAID for this copy — cost basis, NOT market value
+   * (`purchasePrice` above holds the current market price, restamped from a
+   * device-local cache on the frontend). Sourced from an import file's
+   * purchase-price column or typed in the edit dialog; never touched by a
+   * price refresh. Only ever positive: `0` and absent both mean "no recorded
+   * price" — see frontend `lib/cost-basis.ts` / backend `merge-card.ts`.
+   */
+  acquiredPrice?: number;
+  /**
+   * Display currency `acquiredPrice` was recorded in. Absent = USD.
+   */
+  acquiredCurrency?: string;
   cmc?: number;
   typeLine?: string;
   colorIdentity?: string[];

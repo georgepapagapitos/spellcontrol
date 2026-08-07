@@ -85,100 +85,17 @@ export interface ScryfallCard {
 }
 
 /**
- * What the frontend receives: one entry per physical card (rows already expanded by Quantity)
- * with Scryfall data merged in when available.
+ * One physical card copy the frontend receives, enriched with Scryfall data.
+ * Canonical shape lives in `@spellcontrol/binder-routing` (the routing
+ * engine's own card type) — re-exported here rather than hand-copied so this
+ * file and the frontend/routing-engine copies can't drift out of lockstep the
+ * way they did before (board E205; see that package's `src/types.ts` for the
+ * full field-by-field documentation). `mergeCard` below only ever sets a
+ * subset of the fields — the rest (updatedAt, importId, tags, ...) are
+ * optional and stamped client-side.
  */
-export interface EnrichedCard {
-  /**
-   * Unique identifier for this physical card copy. Two copies of the same
-   * printing (same scryfallId) get distinct copyIds so the allocation system
-   * can track each one independently.
-   */
-  copyId: string;
-  // From the import row
-  name: string;
-  /** Scryfall oracle_id — printing-agnostic identity, used as the join key for combo data. */
-  oracleId?: string;
-  setCode: string;
-  setName: string;
-  collectorNumber: string;
-  rarity: string;
-  scryfallId: string;
-  purchasePrice: number;
-  /**
-   * Epoch ms when purchasePrice was last sourced from Scryfall. Optional so cards
-   * persisted before this field existed don't break — treat missing as stale.
-   * Omitted when Scryfall returned no price (purchasePrice === 0).
-   */
-  pricedAt?: number;
-  /**
-   * Optional category label from the source export — ManaBox binder name, Moxfield tag, etc.
-   * Surfaced to users as a filterable hint via the rules engine.
-   */
-  sourceCategory: string;
-  /** Which import format this row came from. */
-  sourceFormat: string;
-  /** The owned finish for this physical copy. */
-  finish: 'nonfoil' | 'foil' | 'etched';
-  /** Derived from finish for backwards compat: true when finish is 'foil' or 'etched'. */
-  foil: boolean;
-  /** Normalized condition (nm/lp/mp/hp/damaged). Per-copy user data; Scryfall has no fallback. */
-  condition?: 'nm' | 'lp' | 'mp' | 'hp' | 'damaged';
-  /** Lowercased Scryfall language code (en, ja, de, es, fr, it, pt, ru, ko, zhs, zht, ...). */
-  language?: string;
-  /** True when the user flagged the physical card as altered (custom art, etc.). */
-  altered?: boolean;
-  /** True when the card is a proxy rather than a real printing. */
-  proxy?: boolean;
-  /** True when the user flagged the physical card as a misprint. */
-  misprint?: boolean;
-  /**
-   * What the user actually PAID for this copy — cost basis, NOT market value.
-   * (`purchasePrice` above is a legacy misnomer that holds the current market
-   * price.) Sourced from an import file's purchase-price column, or typed in the
-   * edit dialog. Per-copy user data with no Scryfall fallback, and never touched
-   * by a price refresh.
-   *
-   * Only ever positive: `0` and absent both mean "no recorded price". Import
-   * columns are full of placeholder zeroes, and counting those as free
-   * acquisitions would fabricate enormous gains — so zero is normalized away
-   * rather than stored.
-   */
-  acquiredPrice?: number;
-
-  // From Scryfall (optional — undefined if Scryfall lookup failed)
-  cmc?: number;
-  typeLine?: string;
-  colorIdentity?: string[];
-  colors?: string[];
-  edhrecRank?: number;
-  imageSmall?: string;
-  imageNormal?: string;
-  imageNormalBack?: string;
-  /** Hero-resolution front art (Scryfall `large`, 672×936); consumers fall back to imageNormal. */
-  imageLarge?: string;
-  /** Back-face hero-resolution image, paired with imageLarge for two-sided layouts. */
-  imageLargeBack?: string;
-  /** Cosmetic treatments — fullart, extendedart, showcase, etched, inverted, etc. */
-  frameEffects?: string[];
-  /** Convenience: true if either Scryfall's full_art flag OR frameEffects contains 'fullart'. */
-  fullArt?: boolean;
-  /** "black" | "white" | "borderless" | "silver" | "gold". */
-  borderColor?: string;
-  /** Card layout: normal, split, flip, transform, modal_dfc, adventure, saga, token, emblem, etc. */
-  layout?: string;
-  /** Mana cost string e.g. "{2}{G}{W}". For multi-face cards, faces joined with " // ". */
-  manaCost?: string;
-  /** Oracle (rules) text. For multi-face cards, faces joined with "\n//\n". */
-  oracleText?: string;
-  /** Per-format legality. Keys: standard, pioneer, modern, legacy, vintage, commander, pauper, etc. */
-  legalities?: Record<string, string>;
-  /** Available finishes for this printing — subset of ["nonfoil","foil","etched"]. */
-  finishes?: string[];
-  /** Promo treatments — specialty foil variants like "textured", "surgefoil", "halofoil",
-   *  "gilded", "oilslick", "neonink", "raisedfoil", "confettifoil", "stepandrepeat". */
-  promoTypes?: string[];
-}
+import type { EnrichedCard } from '@spellcontrol/binder-routing';
+export type { EnrichedCard };
 
 export interface DeckImportResponse {
   commander: ScryfallCard | null;
