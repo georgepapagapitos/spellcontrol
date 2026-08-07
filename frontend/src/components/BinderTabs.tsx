@@ -11,14 +11,21 @@ import { useSheetExit } from '../lib/use-sheet-exit';
 
 /**
  * Deliberately diverges from the shared `Tabs` component (board E164): plain
- * `<button className="tab">` elements, no `role="tablist"`/`role="tab"`/
- * `aria-selected`, and no roving-tabindex arrow/Home/End keyboard nav. Each
- * tab needs a per-tab reorder/edit/delete `BinderOverflowMenu` (rendered only
- * for the active tab), which `Tabs`'s flat `TabItem[]` shape has no slot for.
- * Accessibility cost, named honestly: binder tabs currently get no keyboard
- * arrow navigation and no tab semantics for assistive tech. Fixing this needs
- * `Tabs` to grow an optional per-tab trailing-affordance slot — not a quick
- * swap — so this is tracked, not silently accepted.
+ * `<button className="tab">` elements instead of the primitive's flat
+ * `TabItem[]` shape, because each tab needs a per-tab reorder/edit/delete
+ * `BinderOverflowMenu` (rendered only for the active tab) that `Tabs` has no
+ * slot for. E206 closed the resulting a11y gap directly on this component
+ * (no second consumer of the affordance set exists, so the STYLE_GUIDE
+ * revisit condition for extending `Tabs` wasn't met): the per-binder buttons
+ * carry `role="tab"`/`aria-selected` inside a `role="tablist"` wrapper, with
+ * roving tabindex and ←/→/Home/End navigation. The wrapper only spans the
+ * real tabs — "+ New binder" / "Export" / "Delete all" are toolbar actions,
+ * not views, so they stay outside it as plain buttons (`display: contents`
+ * keeps the wrapper invisible to the `.binder-tab-row` flex layout). The
+ * `BinderOverflowMenu` trigger is a DOM *sibling* of the tab button inside
+ * `.binder-tab-group`, never a descendant of it — nesting an interactive
+ * control inside `role="tab"` would make it unreachable via the roving
+ * tabindex, so this sibling shape is load-bearing, not incidental.
  *
  * Ruling (what to keep in lockstep, when to revisit): STYLE_GUIDE.md §
  * "Tabs / view switchers" — "`BinderTabs.tsx` is a deliberate, permanent
@@ -38,6 +45,50 @@ export function BinderTabs({ binders }: Props) {
   const deleteAllBinders = useCollectionStore((s) => s.deleteAllBinders);
   const [exportOpen, setExportOpen] = useState(false);
   const { confirm, dialog: confirmDialog } = useConfirm();
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  // Sort by position so reorder arrows produce a consistent display — hoisted
+  // above the handlers below so the roving-tabindex helpers can index into it.
+  const sorted = [...binders].sort((a, b) => a.def.position - b.def.position);
+
+  const selectTab = (id: string) => {
+    setActiveTab(id);
+    navigate(`/collection/binders/${id}`);
+  };
+
+  // Roving tabindex + arrow/Home/End navigation (WAI-ARIA tabs, "selection
+  // follows focus"). Horizontal-only — the strip never renders vertically —
+  // so only Left/Right are wired, matching `aria-orientation="horizontal"`
+  // on the tablist below.
+  const focusTab = (rawIdx: number) => {
+    if (sorted.length === 0) return;
+    const idx = ((rawIdx % sorted.length) + sorted.length) % sorted.length;
+    const target = sorted[idx];
+    if (!target) return;
+    selectTab(target.def.id);
+    tabRefs.current[idx]?.focus();
+  };
+
+  const onTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, idx: number) => {
+    switch (e.key) {
+      case 'ArrowRight':
+        e.preventDefault();
+        focusTab(idx + 1);
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        focusTab(idx - 1);
+        break;
+      case 'Home':
+        e.preventDefault();
+        focusTab(0);
+        break;
+      case 'End':
+        e.preventDefault();
+        focusTab(sorted.length - 1);
+        break;
+    }
+  };
 
   const handleDelete = async (id: string, name: string) => {
     const ok = await confirm({
@@ -59,60 +110,69 @@ export function BinderTabs({ binders }: Props) {
     if (ok) deleteAllBinders();
   };
 
-  // Sort by position so reorder arrows produce a consistent display
-  const sorted = [...binders].sort((a, b) => a.def.position - b.def.position);
-
   return (
     <div className="tab-row binder-tab-row">
-      {sorted.map((b, idx) => {
-        const isActive = activeTab === b.def.id;
-        return (
-          <div key={b.def.id} className={`binder-tab-group ${isActive ? 'active' : ''}`}>
-            <button
-              className={`tab ${isActive ? 'active' : ''}`}
-              onClick={() => {
-                setActiveTab(b.def.id);
-                navigate(`/collection/binders/${b.def.id}`);
-              }}
-              style={
-                isActive
-                  ? {
-                      background: b.def.color,
-                      borderColor: b.def.color,
-                      // Mobile underline-tab style picks this up via CSS var.
-                      ['--binder-color' as string]: b.def.color,
-                    }
-                  : {
-                      borderLeftColor: b.def.color,
-                      borderLeftWidth: 3,
-                      ['--binder-color' as string]: b.def.color,
-                    }
-              }
-            >
-              <span className="tab-color-dot" aria-hidden style={{ background: b.def.color }} />
-              <span className="tab-label">{b.def.name}</span>
-              {b.def.mode === 'manual' && (
-                <span className="tab-mode-badge" aria-label="Manual mode">
-                  Manual
-                </span>
-              )}
-              <span className="tab-count">{b.totalCards.toLocaleString()}</span>
-            </button>
+      <div
+        className="binder-tablist"
+        role="tablist"
+        aria-label="Binders"
+        aria-orientation="horizontal"
+      >
+        {sorted.map((b, idx) => {
+          const isActive = activeTab === b.def.id;
+          return (
+            <div key={b.def.id} className={`binder-tab-group ${isActive ? 'active' : ''}`}>
+              <button
+                ref={(el) => {
+                  tabRefs.current[idx] = el;
+                }}
+                role="tab"
+                id={`binder-tab-${b.def.id}`}
+                aria-selected={isActive}
+                tabIndex={isActive ? 0 : -1}
+                className={`tab ${isActive ? 'active' : ''}`}
+                onClick={() => selectTab(b.def.id)}
+                onKeyDown={(e) => onTabKeyDown(e, idx)}
+                style={
+                  isActive
+                    ? {
+                        background: b.def.color,
+                        borderColor: b.def.color,
+                        // Mobile underline-tab style picks this up via CSS var.
+                        ['--binder-color' as string]: b.def.color,
+                      }
+                    : {
+                        borderLeftColor: b.def.color,
+                        borderLeftWidth: 3,
+                        ['--binder-color' as string]: b.def.color,
+                      }
+                }
+              >
+                <span className="tab-color-dot" aria-hidden style={{ background: b.def.color }} />
+                <span className="tab-label">{b.def.name}</span>
+                {b.def.mode === 'manual' && (
+                  <span className="tab-mode-badge" aria-label="Manual mode">
+                    Manual
+                  </span>
+                )}
+                <span className="tab-count">{b.totalCards.toLocaleString()}</span>
+              </button>
 
-            {isActive && (
-              <BinderOverflowMenu
-                color={b.def.color}
-                canMoveUp={idx > 0}
-                canMoveDown={idx < sorted.length - 1}
-                onMoveUp={() => moveBinder(b.def.id, 'up')}
-                onMoveDown={() => moveBinder(b.def.id, 'down')}
-                onEdit={() => setEditingBinder(b.def.id)}
-                onDelete={() => handleDelete(b.def.id, b.def.name)}
-              />
-            )}
-          </div>
-        );
-      })}
+              {isActive && (
+                <BinderOverflowMenu
+                  color={b.def.color}
+                  canMoveUp={idx > 0}
+                  canMoveDown={idx < sorted.length - 1}
+                  onMoveUp={() => moveBinder(b.def.id, 'up')}
+                  onMoveDown={() => moveBinder(b.def.id, 'down')}
+                  onEdit={() => setEditingBinder(b.def.id)}
+                  onDelete={() => handleDelete(b.def.id, b.def.name)}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
 
       <button
         className="tab tab-new"

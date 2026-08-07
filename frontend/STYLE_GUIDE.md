@@ -410,11 +410,27 @@ a hero CTA.
   a conditional "Delete all" action. `Tabs`' `TabItem[]` is a flat
   label/count/icon shape with one `onChange` — it has nowhere to hang a
   per-tab trailing menu, and bolting one on for this single consumer would be
-  speculative (YAGNI) until a second tab strip needs the same thing. The
-  accessibility cost is real and named honestly in a comment at the top of
-  `BinderTabs.tsx`: no `role="tablist"`/`"tab"`/`aria-selected`, and no roving
-  tabindex or arrow-key/Home/End navigation — `Tabs.tsx` gives you both for
-  free and `BinderTabs` currently doesn't have them.
+  speculative (YAGNI) until a second tab strip needs the same thing.
+  **The a11y gap this used to leave open is closed (E206)** — hand-rolling the
+  markup doesn't mean hand-waving the semantics: `BinderTabs` carries its own
+  `role="tablist"`/`"tab"`/`aria-selected` and roving tabindex with
+  ←/→/Home/End navigation, built directly on the component rather than by
+  extending `Tabs.tsx` (no second consumer of the per-tab affordance set
+  existed at the time — see the revisit condition below). Two things about
+  the pattern are worth naming so they don't get re-derived or regressed:
+  - **The `role="tablist"` wrapper scopes to just the real tabs.** The
+    trailing "+ New binder"/"Export"/"Delete all" buttons are actions, not
+    views to switch to, so they render as plain buttons *outside* the
+    tablist wrapper rather than fake `role="tab"` elements — a `display:
+    contents` wrapper (`.binder-tablist`) carries the role without adding a
+    layout box, so `.binder-tab-row`'s flex/scroll behavior is unaffected.
+  - **The `BinderOverflowMenu` trigger is a DOM sibling of the tab button,
+    never a descendant.** Nesting an interactive control inside `role="tab"`
+    is its own a11y bug — roving tabindex only manages the tab elements
+    themselves, so a button nested inside one becomes unreachable by
+    keyboard. `.binder-tab-group` already rendered the trigger as a sibling
+    before E206; that shape is what made adding the roles safe without a
+    restructure, and it must stay that way if this component changes again.
   - **What must still stay in lockstep with `Tabs.tsx`** even though the
     implementations are separate: the pill's corner radius (`var(--radius)`,
     same token family `Tabs` uses for `.sc-tab`); the **active tab reading as
