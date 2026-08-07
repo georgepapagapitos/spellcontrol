@@ -90,6 +90,7 @@ const DATA = {
       'Cultivate',
       'Sol Ring',
       'Expropriate',
+      'Sun Titan',
       'Ramp DFC',
       'Wild Growth',
       'Utopia Sprawl',
@@ -160,6 +161,32 @@ describe('validateCardRole', () => {
     ).toBeNull();
     // The raw (unvalidated) tag still says ramp — this is what validateCardRole guards against.
     expect(getCardRole('Expropriate')).toBe('ramp');
+  });
+
+  it('drops a role mistagged onto a card with no supporting evidence (Sun Titan — board E166)', () => {
+    // Real Sun Titan text: a graveyard-recursion effect (can rebuy a mana
+    // rock, among other cheap permanents) with no add-mana/cost-reduction/
+    // land-fetch text of its own — tagged 'ramp' upstream for that
+    // synergistic utility, same shape of mistag as Expropriate above.
+    // Reproduces board E166 (gate3 session ec092c5a, Isshin deck): Phase 3
+    // of phaseRoleSurplusRebalance.ts backfills a role deficit using this
+    // raw tag (`getCardRole`) alone, so it can seat Sun Titan believing it
+    // closed the Ramp deficit — but commanderDeckAnalysis.ts's
+    // computeRoleCounts (the single validated source the shipped Build
+    // Report reads) never credits it, so the deficit note honestly
+    // survives. See phaseRoleSurplusRebalance.ts's findReplacement doc for
+    // the full trace of why that's structurally impossible to invert into
+    // an over-count.
+    expect(
+      validateCardRole({
+        name: 'Sun Titan',
+        oracle_text:
+          'Vigilance\nWhenever this creature enters or attacks, you may return target permanent card with mana value 3 or less from your graveyard to the battlefield.',
+      })
+    ).toBeNull();
+    // The raw (unvalidated) tag still says ramp — exactly the signal
+    // phaseRoleSurplusRebalance.ts's findReplacement/liveRoleCounts trust.
+    expect(getCardRole('Sun Titan')).toBe('ramp');
   });
 
   it('drops a role when the cached oracle text is corrupt/mismatched for the claimed role', () => {

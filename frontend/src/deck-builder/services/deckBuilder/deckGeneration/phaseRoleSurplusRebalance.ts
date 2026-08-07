@@ -578,6 +578,45 @@ export function applyRoleSurplusRebalance(
   // (phaseBudgetConverge.ts), ranked by calculateCardPriority blended with
   // the validated EDHREC lift clusterScore boost (packageBoost.ts's
   // computeLiftPickBoosts — reused untouched, not re-derived).
+  //
+  // E166 (board audit, traced against Isshin/Sun Titan gate3 evidence): the
+  // `roleFilter` check below, `addCard`'s liveRoleCounts bump, `removeCard`'s
+  // decrement, `destinationRoleOk`, and `roleAverageInclusion` all resolve a
+  // card's role via the raw tagger tag (`getCardRole`) — NOT
+  // `commanderDeckAnalysis.ts`'s `computeRoleCounts` (validateCardRole,
+  // "single source for shipped roleCounts" — see that describe block),
+  // which is what the Build Report, roleDeficitNotes.ts, and every OTHER
+  // pick-time phase (categorize.ts, cardPicking.ts, scryfallFill.ts,
+  // deckGenerator.ts's bumpRoleCapCount) treat as canonical. This is a real,
+  // still-open instance of the two-role-source pattern that cluster's
+  // single-source cleanup existed to prevent — this file just never got
+  // folded into it. Concretely: a card the tagger corpus tags for a role but
+  // whose own oracle text doesn't corroborate it (Sun Titan tagged 'ramp'
+  // for reanimating cheap permanents, incl. rocks, with no mana-producing
+  // text of its own — see tagger/client.test.ts's Sun Titan case) can seat
+  // here believing it closed a role gap, while the shipped report doesn't
+  // credit it (E166: Phase 3 backfilled Sun Titan under Ramp's banner,
+  // haveBefore=12/target=13; the Build Report still honestly said "Ramp
+  // shipped 12 of 13" because computeRoleCounts never counted it).
+  //
+  // This can ONLY ever under-report this pass's progress, never over-report
+  // it: `validateCardRole` is `getCardRole(name)` THEN require oracle-text
+  // corroboration — a strict narrowing that can never grant a role
+  // `getCardRole` didn't already assign. So the disclosed roleCounts/
+  // deficit notes can't overstate what this pass did; at worst an honest
+  // "still short" note survives a seat that looked like a fix internally.
+  // What's unverified is the INTERNAL cost: `liveRoleCounts` is seeded from
+  // a validated `computeRoleCounts` recount (see above) but then
+  // incremented/decremented via raw `getCardRole` for the rest of the pass,
+  // so across multiple conversions it can drift from what a fresh validated
+  // recount would say — e.g. Phase 3's `haveBefore >= target` loop guard or
+  // Phase 1/2's `isOverCap` could believe a deficit/surplus closed sooner
+  // than reality, under-spending the pass's own bounded repair budget on a
+  // seat that doesn't count. Switching these call sites to
+  // `validateCardRole` (which needs the full card, not just a name — the
+  // pool entries here are bare EDHREC rows) would fix that but changes which
+  // candidates clear this pass's gates on real decks — composition-
+  // affecting, so it needs the deckgen-eval-gate A/B, not a patch here.
   const findReplacement = (
     evictedScore: number,
     evictedPrice: number,
