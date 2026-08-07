@@ -1012,15 +1012,13 @@ export interface Customization {
   // so the flag remains. No UI toggle — the live-eval harness forces it via
   // LIVE_GEN_ARCHETYPE_BLEND=1/0.
   archetypeBlend?: boolean;
-  // Hyper Focus (Manafoundry ranked item 21): bias picks toward cards the
-  // selected THEME distinguishes, by diffing the theme pool against the
-  // commander's own no-theme base pool. `undefined` = OFF, and it STAYS off:
-  // E230 gated default-on 2026-08-07 and rejected it — the theme-exclusive
-  // predicate measures EDHREC list truncation, not theme identity, so the
-  // biggest boost lands on the least-played cards (see hyperFocus.ts). No UI
-  // toggle and NO harness knob — there is no LIVE_GEN_HYPER_FOCUS (an earlier
-  // version of this comment claimed one); the gate forced the flag in-tree.
-  hyperFocus?: boolean;
+  // (Hyper Focus / `hyperFocus` lived here. Removed — E230 gated it 2026-08-07
+  // and it failed: its theme-exclusive predicate measured EDHREC list
+  // truncation rather than theme identity, so its largest boost landed on the
+  // least-played cards. Second removal of this knob; #1081 deleted the first
+  // as dead-at-default before #1451 rebuilt it. Do not reintroduce it without
+  // a truncation-immune signal — a relative-inclusion comparison, not set
+  // membership. See project_e230_hyper_focus_rejected.)
   // Mana-philosophy wheel (Manafoundry ranked item 22): four blendable weights
   // steering nonbasic land selection (reliable / greedy / spelllands / budget),
   // normalized to sum to 1 with a per-axis floor so no axis ever reaches 0.
