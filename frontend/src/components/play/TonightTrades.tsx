@@ -4,7 +4,9 @@ import {
   rsvpGameNight,
   TonightTradesNotFoundError,
   type GameNight,
+  type TonightTradeAttendee,
 } from '../../lib/game-nights-api';
+import { TradeComposer } from '../trade/TradeComposer';
 import { buildTonightTrades } from '../../lib/tonight-trades';
 import type { TradeRadarMatch } from '../../lib/trade-radar';
 import { useAuth } from '../../store/auth';
@@ -48,6 +50,11 @@ export function TonightTrades({
   const [result, setResult] = useState<{ key: string; data: TonightTradesData | null } | null>(
     null
   );
+  // The trade sections group by username, but proposing needs a user id and
+  // the friend's cards. Both come from the SAME fetched payload, so they're
+  // kept here rather than widening buildTonightTrades' pure shape.
+  const [peers, setPeers] = useState<Map<string, TonightTradeAttendee>>(new Map());
+  const [composingWith, setComposingWith] = useState<TonightTradeAttendee | null>(null);
 
   async function toggleOptIn(next: boolean) {
     if (toggling) return;
@@ -78,6 +85,7 @@ export function TonightTrades({
       .then((attendees) => {
         if (cancelled) return;
         setResult({ key: dataKey, data: buildTonightTrades(myUserId ?? '', attendees) });
+        setPeers(new Map(attendees.map((a) => [a.username, a])));
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -147,6 +155,7 @@ export function TonightTrades({
               personKey="supplierUsername"
               emptyTagline="Nothing to get tonight."
               emptyHint="Nobody who's opted in has anything on your want lists — add cards to a list to show up here."
+              onPropose={(username) => setComposingWith(peers.get(username) ?? null)}
             />
             <TonightTradesSection
               title="Bring tonight"
@@ -154,6 +163,7 @@ export function TonightTrades({
               personKey="wanterUsername"
               emptyTagline="Nothing to bring tonight."
               emptyHint="Nobody who's opted in wants anything from your tradeable binders — mark a binder as tradeable in Collection to show up here."
+              onPropose={(username) => setComposingWith(peers.get(username) ?? null)}
             />
           </>
         )}
@@ -164,6 +174,19 @@ export function TonightTrades({
           </button>
         </div>
       </div>
+
+      {composingWith && (
+        <TradeComposer
+          friendId={composingWith.userId}
+          friendName={composingWith.displayName || `@${composingWith.username}`}
+          // Scoped to what they marked tradeable for TONIGHT — narrower than
+          // their whole collection, and exactly what's on the table.
+          friendCards={composingWith.tradeableCards}
+          friendCardsLoading={false}
+          onClose={() => setComposingWith(null)}
+          onSent={() => setComposingWith(null)}
+        />
+      )}
     </Modal>
   );
 }
@@ -180,12 +203,15 @@ function TonightTradesSection<K extends 'supplierUsername' | 'wanterUsername'>({
   personKey,
   emptyTagline,
   emptyHint,
+  onPropose,
 }: {
   title: string;
   matches: Array<TradeRadarMatch & Record<K, string>>;
   personKey: K;
   emptyTagline: string;
   emptyHint: string;
+  /** Opens the composer for this person — the verb at the end of the board. */
+  onPropose: (username: string) => void;
 }) {
   const headingId = useId();
   const byPerson = new Map<string, Array<TradeRadarMatch & Record<K, string>>>();
@@ -211,7 +237,16 @@ function TonightTradesSection<K extends 'supplierUsername' | 'wanterUsername'>({
       ) : (
         [...byPerson.entries()].map(([person, personMatches]) => (
           <div key={person} className="tonight-trades-person-group">
-            <h4 className="tonight-trades-person-title">{person}</h4>
+            <div className="tonight-trades-person-head">
+              <h4 className="tonight-trades-person-title">{person}</h4>
+              <button
+                type="button"
+                className="btn-link tonight-trades-propose"
+                onClick={() => onPropose(person)}
+              >
+                Propose a trade
+              </button>
+            </div>
             <ul className="friend-hub-radar-strip" aria-label={`${title} from ${person}`}>
               {personMatches.map((m) => (
                 <RadarCardTile key={m.name} match={m} />

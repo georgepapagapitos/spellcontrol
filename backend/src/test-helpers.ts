@@ -23,6 +23,7 @@ import { gameNightsRouter } from './routes/game-nights';
 import { podsRouter } from './routes/pods';
 import { podStatsRouter } from './routes/pod-stats';
 import { tonightTradesRouter } from './routes/tonight-trades';
+import { tradesRouter } from './routes/trades';
 import { publicationsRouter } from './routes/publications';
 import { publicRouter } from './routes/public';
 import { reportsRouter } from './routes/reports';
@@ -359,6 +360,22 @@ export async function createTestEnv(): Promise<TestEnv> {
     CREATE INDEX friendships_status_idx ON friendships(status);
     CREATE UNIQUE INDEX friendships_pair_idx
       ON friendships (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id));
+    CREATE TABLE trade_offers (
+      id TEXT PRIMARY KEY,
+      proposer_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      status TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      proposer_cards JSONB NOT NULL,
+      recipient_cards JSONB NOT NULL,
+      proposer_settled_at BIGINT,
+      recipient_settled_at BIGINT,
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL,
+      resolved_at BIGINT
+    );
+    CREATE INDEX trade_offers_recipient_idx ON trade_offers(recipient_id, status);
+    CREATE INDEX trade_offers_proposer_idx ON trade_offers(proposer_id, status);
     CREATE TABLE pods (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -521,6 +538,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/pods', podsRouter);
   app.use('/api/pods', podStatsRouter);
   app.use('/api/tonight-trades', tonightTradesRouter);
+  app.use('/api/trades', tradesRouter);
   app.use('/api/publications', publicationsRouter);
   app.use('/api/public', publicRouter);
   app.use('/api/reports', reportsRouter);

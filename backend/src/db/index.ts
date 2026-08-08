@@ -415,6 +415,41 @@ export async function ensureSchema(): Promise<void> {
     CREATE UNIQUE INDEX IF NOT EXISTS friendships_pair_idx
       ON friendships (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id));
 
+    -- Friend-to-friend trade offers. The FIRST genuinely two-party mutable
+    -- object in the app: every other synced entity is single-owner + LWW, so
+    -- this one is server-authoritative on purpose (see routes/trades.ts).
+    --
+    -- ⚠️ This table never mutates user_cards. An accepted trade is SETTLED by
+    -- each side's own client, which removes/adds its own collection rows
+    -- through the normal sync queue — local-first is not bypassed here.
+    -- The *_settled_at columns are bookkeeping so the UI can tell "accepted" from
+    -- "accepted and already in your collection"; the client-side settlement
+    -- is independently idempotent.
+    CREATE TABLE IF NOT EXISTS trade_offers (
+      id TEXT PRIMARY KEY,
+      proposer_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      status TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      -- TradeCard[]. Proposer's side carries full printing detail from the
+      -- moment it is sent (they picked real copies out of their own
+      -- collection); the recipient's side is oracle-level until they accept,
+      -- when their client stamps the printings it is actually giving.
+      proposer_cards JSONB NOT NULL,
+      recipient_cards JSONB NOT NULL,
+      proposer_settled_at BIGINT,
+      recipient_settled_at BIGINT,
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL,
+      resolved_at BIGINT
+    );
+    -- Both listing directions are hot (the badge counts incoming 'proposed';
+    -- the friend hub lists a whole thread), so both sides get an index.
+    CREATE INDEX IF NOT EXISTS trade_offers_recipient_idx
+      ON trade_offers(recipient_id, status);
+    CREATE INDEX IF NOT EXISTS trade_offers_proposer_idx
+      ON trade_offers(proposer_id, status);
+
     -- Private playgroups (pods): name + owner, owner auto-membered at creation.
     CREATE TABLE IF NOT EXISTS pods (
       id TEXT PRIMARY KEY,

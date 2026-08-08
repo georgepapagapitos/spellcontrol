@@ -377,4 +377,110 @@ describe('GET /api/activity', () => {
     // Newest first: like (base+1000), feedback (base+500), direct share (base).
     expect(types).toEqual(['deck_liked', 'feedback', 'direct_share']);
   });
+
+  // ─── Trade offers ───────────────────────────────────────────────────────
+
+  /** Sends a one-for-one offer and returns its id. */
+  async function proposeTrade(fromCookie: string, toId: string): Promise<string> {
+    const res = await request(app)
+      .post('/api/trades')
+      .set('Cookie', fromCookie)
+      .send({
+        recipientId: toId,
+        give: [
+          {
+            oracleId: 'oracle-sol-ring',
+            name: 'Sol Ring',
+            quantity: 1,
+            copies: [{ scryfallId: 'scry-sol-ring', finish: 'nonfoil' }],
+          },
+        ],
+        receive: [{ oracleId: 'oracle-rhystic', name: 'Rhystic Study', quantity: 1, copies: [] }],
+      });
+    expect(res.status).toBe(201);
+    return res.body.offer.id as string;
+  }
+
+  it('puts an incoming trade offer in actionRequired, not recent', async () => {
+    const senderName = uid('act-tr-sender');
+    const recipientName = uid('act-tr-recipient');
+    const sender = await makeUser(senderName);
+    const recipient = await makeUser(recipientName);
+    await befriend(sender, senderName, recipient, recipientName);
+    const recipientId = await userIdFromCookie(recipient);
+    await proposeTrade(sender, recipientId);
+
+    const res = await request(app).get('/api/activity').set('Cookie', recipient);
+    expect(res.status).toBe(200);
+    const item = (res.body.actionRequired as AnyActivityItem[]).find(
+      (i) => i.type === 'trade_offer'
+    );
+    expect(item).toBeDefined();
+    expect(item!.fromUsername).toBe(senderName);
+    // Counts are named from the RECIPIENT's side: they'd give 1, get 1.
+    expect(item!.giveCount).toBe(1);
+    expect(item!.receiveCount).toBe(1);
+    expect((res.body.recent as AnyActivityItem[]).some((i) => i.type === 'trade_offer')).toBe(
+      false
+    );
+  });
+
+  it('shows the sender nothing action-required for their own outgoing offer', async () => {
+    const senderName = uid('act-tr-out-sender');
+    const recipientName = uid('act-tr-out-recipient');
+    const sender = await makeUser(senderName);
+    const recipient = await makeUser(recipientName);
+    await befriend(sender, senderName, recipient, recipientName);
+    await proposeTrade(sender, await userIdFromCookie(recipient));
+
+    const res = await request(app).get('/api/activity').set('Cookie', sender);
+    expect(res.body.actionRequired).toHaveLength(0);
+  });
+
+  it('drops the offer from actionRequired once answered, and tells the sender', async () => {
+    const senderName = uid('act-tr-ans-sender');
+    const recipientName = uid('act-tr-ans-recipient');
+    const sender = await makeUser(senderName);
+    const recipient = await makeUser(recipientName);
+    await befriend(sender, senderName, recipient, recipientName);
+    const offerId = await proposeTrade(sender, await userIdFromCookie(recipient));
+
+    const declined = await request(app)
+      .patch(`/api/trades/${offerId}`)
+      .set('Cookie', recipient)
+      .send({ action: 'decline' });
+    expect(declined.status).toBe(200);
+
+    // Answered — no longer the recipient's problem.
+    const theirs = await request(app).get('/api/activity').set('Cookie', recipient);
+    expect((theirs.body.actionRequired as AnyActivityItem[]).length).toBe(0);
+
+    // But it IS news for the person who sent it.
+    const mine = await request(app).get('/api/activity').set('Cookie', sender);
+    const item = (mine.body.recent as AnyActivityItem[]).find((i) => i.type === 'trade_resolved');
+    expect(item).toBeDefined();
+    expect(item!.outcome).toBe('declined');
+    expect(item!.offerId).toBe(offerId);
+  });
+
+  it('never reports a withdrawn offer back to the person who withdrew it', async () => {
+    const senderName = uid('act-tr-wd-sender');
+    const recipientName = uid('act-tr-wd-recipient');
+    const sender = await makeUser(senderName);
+    const recipient = await makeUser(recipientName);
+    await befriend(sender, senderName, recipient, recipientName);
+    const offerId = await proposeTrade(sender, await userIdFromCookie(recipient));
+
+    await request(app)
+      .patch(`/api/trades/${offerId}`)
+      .set('Cookie', sender)
+      .send({ action: 'withdraw' });
+
+    const mine = await request(app).get('/api/activity').set('Cookie', sender);
+    expect((mine.body.recent as AnyActivityItem[]).some((i) => i.type === 'trade_resolved')).toBe(
+      false
+    );
+    const theirs = await request(app).get('/api/activity').set('Cookie', recipient);
+    expect((theirs.body.actionRequired as AnyActivityItem[]).length).toBe(0);
+  });
 });

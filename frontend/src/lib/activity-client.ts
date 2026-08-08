@@ -45,17 +45,48 @@ export interface DeckLikedActivityItem {
   occurredAt: number;
 }
 
+/** An incoming trade offer still waiting on the viewer to answer. */
+export interface TradeOfferActivityItem {
+  type: 'trade_offer';
+  id: string;
+  offerId: string;
+  fromUserId: string;
+  fromUsername: string;
+  fromDisplayName: string | null;
+  /** Card-line counts, named from the VIEWER's side: what they'd give / get. */
+  giveCount: number;
+  receiveCount: number;
+  occurredAt: number;
+}
+
+/** An offer the viewer SENT that the other side has now answered. */
+export interface TradeResolvedActivityItem {
+  type: 'trade_resolved';
+  id: string;
+  offerId: string;
+  withUserId: string;
+  withUsername: string;
+  withDisplayName: string | null;
+  outcome: 'accepted' | 'declined';
+  occurredAt: number;
+}
+
 export type RecentActivityItem =
   | DirectShareActivityItem
   | FeedbackActivityItem
-  | DeckLikedActivityItem;
+  | DeckLikedActivityItem
+  | TradeResolvedActivityItem;
 
-export type ActivityItem = FriendRequestActivityItem | RecentActivityItem;
+export type ActionRequiredItem = FriendRequestActivityItem | TradeOfferActivityItem;
+
+export type ActivityItem = ActionRequiredItem | RecentActivityItem;
 
 export interface ActivityResponse {
-  /** Incoming pending friend requests — always returned in full, no window. */
-  actionRequired: FriendRequestActivityItem[];
-  /** Direct shares, feedback, and grouped likes, merged and sorted newest-first. */
+  /** Pending friend requests + incoming trade offers — always returned in
+   *  full, no time window: an unanswered question doesn't stop being
+   *  unanswered because it got old. */
+  actionRequired: ActionRequiredItem[];
+  /** Shares, feedback, likes, and answered trades, merged newest-first. */
   recent: RecentActivityItem[];
 }
 

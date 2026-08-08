@@ -10,6 +10,9 @@ import { formatIdentity } from '../lib/display-name';
 import { fetchH2H, type H2HResponse } from '../lib/game-results-client';
 import { fetchFriendCollection, type FriendCard } from '../lib/cube/pool';
 import { buildTradeRadar, type TradeRadarMatch } from '../lib/trade-radar';
+import { listTrades, type TradeOffer } from '../lib/trades-client';
+import { TradeComposer } from '../components/trade/TradeComposer';
+import { TradeOfferList } from '../components/trade/TradeOfferList';
 import { isTrackingList } from '../lib/lists';
 import { useCardThumb } from '../lib/card-thumbs';
 import { filterFriendCollection } from '../lib/friend-collection-filter';
@@ -34,7 +37,7 @@ const COLOR_OPTIONS: Array<{ key: string; label: string }> = [
   { key: 'C', label: 'Colorless' },
 ];
 
-type HubTab = 'overview' | 'collection';
+type HubTab = 'overview' | 'collection' | 'trades';
 
 /** Display order + presentation for each shareable kind. */
 const KIND_META: Record<ShareKind, { label: string; plural: string; Icon: typeof Layers }> = {
@@ -122,6 +125,42 @@ export function FriendHubPage() {
     () => (friendCards ? buildTradeRadar(lists, friendCards) : null),
     [lists, friendCards]
   );
+
+  // ── Trades with this friend ─────────────────────────────────────────
+  // The radar answers "who has what I want"; this is the verb at the end of
+  // it. Offers are server-authoritative (two parties, no last-write-wins), so
+  // every transition re-fetches rather than patching local state.
+  const [offers, setOffers] = useState<TradeOffer[] | null>(null);
+  const [offersError, setOffersError] = useState(false);
+  const [tradeAttempt, setTradeAttempt] = useState(0);
+  const [composing, setComposing] = useState<{ want?: { oracleId: string; name: string } } | null>(
+    null
+  );
+  const refreshTrades = () => setTradeAttempt((n) => n + 1);
+
+  useEffect(() => {
+    if (status !== 'authed' || !friendId) return;
+    let cancelled = false;
+    listTrades({ withUserId: friendId })
+      .then((rows) => {
+        if (cancelled) return;
+        setOffers(rows);
+        setOffersError(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setOffers([]);
+        setOffersError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [friendId, status, tradeAttempt]);
+
+  const openTrades = (offers ?? []).filter((o) => o.status === 'proposed');
+  // Only offers awaiting THIS viewer count toward the tab badge — an offer
+  // they sent is waiting on the other person, not on them.
+  const awaitingMe = openTrades.filter((o) => !o.mine).length;
 
   // ── Collection browser filters ──────────────────────────────────────
   const [collectionQuery, setCollectionQuery] = useState('');
@@ -235,6 +274,11 @@ export function FriendHubPage() {
   const hubTabs: TabItem<HubTab>[] = [
     { id: 'overview', label: 'Overview', controls: 'friend-hub-panel-overview' },
     { id: 'collection', label: 'Collection', controls: 'friend-hub-panel-collection' },
+    {
+      id: 'trades',
+      label: awaitingMe > 0 ? `Trades (${awaitingMe})` : 'Trades',
+      controls: 'friend-hub-panel-trades',
+    },
   ];
 
   return (
@@ -316,6 +360,13 @@ export function FriendHubPage() {
                     <RadarCardTile key={m.name} match={m} />
                   ))}
                 </ul>
+                <button
+                  type="button"
+                  className="btn friend-hub-radar-propose"
+                  onClick={() => setComposing({})}
+                >
+                  Propose a trade
+                </button>
               </>
             )}
           </section>
@@ -453,6 +504,74 @@ export function FriendHubPage() {
           </>
         )}
       </div>
+
+      <div
+        role="tabpanel"
+        id="friend-hub-panel-trades"
+        aria-labelledby="sc-tab-trades"
+        hidden={tab !== 'trades'}
+      >
+        <div className="friend-hub-trades-head">
+          <p className="friend-hub-collection-contract">
+            Offers either way. Accepting settles both collections.
+          </p>
+          <button type="button" className="btn btn-primary" onClick={() => setComposing({})}>
+            Propose a trade
+          </button>
+        </div>
+
+        {offersError ? (
+          <p className="friend-hub-radar-note" role="alert">
+            Couldn’t load your trades with {who}.{' '}
+            <button
+              type="button"
+              className="btn-link friend-hub-radar-retry"
+              onClick={refreshTrades}
+            >
+              Try again
+            </button>
+          </p>
+        ) : offers === null ? (
+          <div
+            className="friend-hub-collection-skeleton"
+            aria-label={`Loading trades with ${who}`}
+            aria-busy="true"
+          />
+        ) : (
+          <TradeOfferList
+            offers={offers}
+            onChanged={refreshTrades}
+            onCounter={(offer) =>
+              // A counter is just a new offer the other way — prefill it with
+              // the first card they asked for so the composer opens with the
+              // conversation already in it.
+              setComposing({
+                want: offer.give[0]
+                  ? { oracleId: offer.give[0].oracleId, name: offer.give[0].name }
+                  : undefined,
+              })
+            }
+          />
+        )}
+      </div>
+
+      {composing && friendId && (
+        <TradeComposer
+          friendId={friendId}
+          friendName={who}
+          friendCards={friendCards}
+          friendCardsLoading={friendCards === null && !collectionError}
+          friendCardsError={collectionError}
+          onRetryFriendCards={retryCollection}
+          initialWant={composing.want}
+          onClose={() => setComposing(null)}
+          onSent={() => {
+            setComposing(null);
+            setTab('trades');
+            refreshTrades();
+          }}
+        />
+      )}
     </div>
   );
 }
