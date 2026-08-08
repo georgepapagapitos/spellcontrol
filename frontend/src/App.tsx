@@ -47,6 +47,7 @@ import { initDeepLinks } from './lib/deep-links';
 import { setAppNavigator } from './lib/navigate-bridge';
 import { AutoLinkBanner } from './components/AutoLinkBanner';
 import { useFirstRunGate } from './lib/use-first-run-gate';
+import { useTradeSettlement } from './lib/use-trade-settlement';
 import { hasEverVisited } from './lib/first-run';
 
 // Fallback for the OAuth App Link landing path. In the happy path Android
@@ -152,6 +153,12 @@ export default function App() {
   // manifest endpoint. Keeps a long-lived native session from drifting onto
   // stale data between cold starts.
   useEffect(() => registerOfflineSyncOnResume(), []);
+
+  // Apply any trade a friend accepted while this device wasn't looking. The
+  // accepting side settles inline when they click Accept, so this is really
+  // for the person who SENT the offer — their collection should already be
+  // right by the time they next open it.
+  useTradeSettlement();
 
   // Once the collection has hydrated, silently bring stale card prices up to
   // date. Scryfall refreshes prices at most once a day, so this self-gates to

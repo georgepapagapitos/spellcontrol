@@ -1,0 +1,249 @@
+/* Trade composer. Reuses .game-night-dialog(-title/-hint/-actions),
+   .game-night-count, .btn/.btn-primary/.btn-link, .empty-state, and
+   .friend-hub-radar-thumb from FriendHubPage.css — only what's unique to two
+   side-by-side baskets gets new rules here.
+
+   No sizing rule on .trade-composer itself: this <Modal> takes no className,
+   so it inherits .choice-dialog's `max-height: calc(var(--vh-safe) - 6rem -
+   var(--keyboard-inset)); overflow-y: auto`. Bounding the inner div would nest
+   a second scroll region (the same note TonightTrades.css carries). */
+
+.trade-composer-sides {
+  display: grid;
+  /* One basket per column once there's room for both to stay usable; stacked
+     below that. Container-relative so a narrow modal in a wide viewport still
+     stacks. */
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+@media (min-width: 40rem) {
+  .trade-composer-sides {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.trade-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.trade-side-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.trade-side-search {
+  /* SearchPill inside a flex column: give it a fixed basis so the pill's
+     `flex: 1 1 12rem` basis is never read as a HEIGHT. */
+  flex: 0 0 auto;
+}
+
+.trade-side-picked,
+.trade-side-results {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.trade-side-results {
+  max-height: 14rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-1);
+}
+
+.trade-picked-row,
+.trade-result-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  /* The row's own min-height sets the touch target — a control inside it must
+     not be the thing that establishes the height (dense-row ghost hit-area). */
+  min-height: 44px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  text-align: left;
+}
+
+.trade-picked-row {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+}
+
+.trade-result-row {
+  background: none;
+  border: 1px solid transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .trade-result-row:hover {
+    background: var(--surface-raised);
+    border-color: var(--border);
+  }
+}
+
+.trade-result-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.trade-thumb {
+  width: 28px;
+  flex: 0 0 auto;
+}
+
+.trade-picked-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.trade-picked-name {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-picked-detail {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-result-add {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+}
+
+.trade-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 0 0 auto;
+}
+
+.trade-stepper-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.trade-stepper-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.trade-stepper-value {
+  min-width: 1.5ch;
+  text-align: center;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.trade-picked-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .trade-picked-remove:hover {
+    color: var(--text-primary);
+  }
+}
+
+.trade-picked-remove:focus-visible,
+.trade-stepper-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.trade-side-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.trade-side-skeleton {
+  height: 6rem;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+
+.trade-composer-note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-4);
+}
+
+.trade-composer-note-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.trade-composer-optional {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.trade-composer-note-input {
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  /* 1rem minimum or iOS zooms the whole page on focus. */
+  font-size: var(--text-input);
+  font-family: inherit;
+  resize: vertical;
+}
+
+.trade-composer-gate {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-align: right;
+}

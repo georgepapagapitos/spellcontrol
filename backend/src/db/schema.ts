@@ -563,6 +563,70 @@ export const friendships = pgTable(
 );
 
 /**
+ * One card line on one side of a trade offer.
+ *
+ * `copies` carries the exact printings being handed over, one entry per
+ * physical copy, so `copies.length === quantity` once the side is resolved.
+ * The proposer's side is resolved from the moment the offer is sent (they
+ * picked real copies out of their own collection); the recipient's side is
+ * oracle-level — `copies: []` — until they accept and their client stamps
+ * what it is actually giving. That asymmetry is the whole reason a trade
+ * lands in both collections at the right printing instead of a default one.
+ *
+ * No copyId here on purpose: settlement matches owned copies by
+ * printing (scryfallId + finish), which stays correct even if the giver
+ * edited quantities between proposing and settling.
+ */
+export interface TradeCopy {
+  scryfallId: string;
+  finish: string;
+  condition?: string;
+  language?: string;
+}
+
+export interface TradeCard {
+  oracleId: string;
+  name: string;
+  quantity: number;
+  copies: TradeCopy[];
+}
+
+/**
+ * A friend-to-friend trade offer — see the table comment in db/index.ts for
+ * why this one object is server-authoritative while the rest of user data is
+ * local-first + LWW.
+ */
+export const tradeOffers = pgTable(
+  'trade_offers',
+  {
+    id: text('id').primaryKey(),
+    proposerId: text('proposer_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    recipientId: text('recipient_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** 'proposed' | 'accepted' | 'declined' | 'withdrawn' */
+    status: text('status').notNull(),
+    note: text('note').notNull(),
+    /** TradeCard[] — what the proposer hands over. */
+    proposerCards: jsonb('proposer_cards').notNull(),
+    /** TradeCard[] — what the recipient hands over. */
+    recipientCards: jsonb('recipient_cards').notNull(),
+    proposerSettledAt: bigint('proposer_settled_at', { mode: 'number' }),
+    recipientSettledAt: bigint('recipient_settled_at', { mode: 'number' }),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+    /** Set when status left 'proposed', whichever way it went. */
+    resolvedAt: bigint('resolved_at', { mode: 'number' }),
+  },
+  (t) => ({
+    recipientIdx: index('trade_offers_recipient_idx').on(t.recipientId, t.status),
+    proposerIdx: index('trade_offers_proposer_idx').on(t.proposerId, t.status),
+  })
+);
+
+/**
  * A private playgroup of friends who play together repeatedly. Minimal
  * identity — name + owner — with a self-membership row auto-created for the
  * owner at creation (mirrors game-night's "the host is going by definition").

@@ -66,12 +66,47 @@ export interface DeckLikedActivityItem {
   occurredAt: number;
 }
 
+/**
+ * An incoming trade offer still waiting on the caller. Action-required, not
+ * "recent": it is a question addressed to them that stays open until they
+ * answer it — the same reason a pending friend request lives in that bucket.
+ */
+export interface TradeOfferActivityItem {
+  type: 'trade_offer';
+  id: string;
+  offerId: string;
+  fromUserId: string;
+  fromUsername: string;
+  fromDisplayName: string | null;
+  /** Card-line counts, so a feed row can say "2 for 3" without shipping the
+   *  whole offer payload into the activity response. */
+  giveCount: number;
+  receiveCount: number;
+  occurredAt: number;
+}
+
+/** An offer the caller SENT that the other side has now answered. News, not a
+ *  task — any resulting collection change settles automatically. */
+export interface TradeResolvedActivityItem {
+  type: 'trade_resolved';
+  id: string;
+  offerId: string;
+  withUserId: string;
+  withUsername: string;
+  withDisplayName: string | null;
+  outcome: 'accepted' | 'declined';
+  occurredAt: number;
+}
+
 export type RecentActivityItem =
   | DirectShareActivityItem
   | FeedbackActivityItem
-  | DeckLikedActivityItem;
+  | DeckLikedActivityItem
+  | TradeResolvedActivityItem;
 
-export type ActivityItem = FriendRequestActivityItem | RecentActivityItem;
+export type ActionRequiredItem = FriendRequestActivityItem | TradeOfferActivityItem;
+
+export type ActivityItem = ActionRequiredItem | RecentActivityItem;
 
 /**
  * Incoming pending friend requests only — never outgoing, never accepted.
@@ -240,17 +275,101 @@ async function loadDeckLiked(callerId: string): Promise<DeckLikedActivityItem[]>
   return items;
 }
 
+/**
+ * Trade offers still sitting in the caller's court. Like friend requests these
+ * are returned in full with no time window — an unanswered offer does not stop
+ * being unanswered because it got old, and the other person is waiting.
+ */
+async function loadTradeOffers(callerId: string): Promise<TradeOfferActivityItem[]> {
+  const { rows } = await getPool().query<{
+    id: string;
+    proposer_id: string;
+    username: string;
+    display_name: string | null;
+    proposer_cards: unknown;
+    recipient_cards: unknown;
+    created_at: string;
+  }>(
+    `SELECT t.id, t.proposer_id, u.username, u.display_name,
+            t.proposer_cards, t.recipient_cards, t.created_at
+       FROM trade_offers t
+       JOIN users u ON u.id = t.proposer_id
+      WHERE t.recipient_id = $1 AND t.status = 'proposed'
+      ORDER BY t.created_at DESC`,
+    [callerId]
+  );
+  // Named from the RECIPIENT's side, matching TradeOfferView: what they'd give
+  // is the proposer's ask, and vice versa.
+  return rows.map((r) => ({
+    type: 'trade_offer',
+    id: `trade_offer:${r.id}`,
+    offerId: r.id,
+    fromUserId: r.proposer_id,
+    fromUsername: r.username,
+    fromDisplayName: r.display_name,
+    giveCount: Array.isArray(r.recipient_cards) ? r.recipient_cards.length : 0,
+    receiveCount: Array.isArray(r.proposer_cards) ? r.proposer_cards.length : 0,
+    occurredAt: Number(r.created_at),
+  }));
+}
+
+/**
+ * Offers the caller SENT that have since been accepted or declined. Withdrawn
+ * offers are absent on purpose: the caller withdrew them, so it is not news.
+ */
+async function loadTradeResolved(callerId: string): Promise<TradeResolvedActivityItem[]> {
+  const { rows } = await getPool().query<{
+    id: string;
+    recipient_id: string;
+    username: string;
+    display_name: string | null;
+    status: string;
+    resolved_at: string;
+  }>(
+    `SELECT t.id, t.recipient_id, u.username, u.display_name, t.status, t.resolved_at
+       FROM trade_offers t
+       JOIN users u ON u.id = t.recipient_id
+      WHERE t.proposer_id = $1 AND t.status IN ('accepted', 'declined')
+        AND t.resolved_at IS NOT NULL
+      ORDER BY t.resolved_at DESC
+      LIMIT $2`,
+    [callerId, RECENT_SOURCE_CAP]
+  );
+  return rows.map((r) => ({
+    type: 'trade_resolved',
+    id: `trade_resolved:${r.id}`,
+    offerId: r.id,
+    withUserId: r.recipient_id,
+    withUsername: r.username,
+    withDisplayName: r.display_name,
+    outcome: r.status === 'accepted' ? 'accepted' : 'declined',
+    occurredAt: Number(r.resolved_at),
+  }));
+}
+
 activityRouter.get('/', requireAuth, activityReadLimiter, async (req: Request, res: Response) => {
   const callerId = req.user!.id;
 
-  const [actionRequired, directShares, feedback, deckLiked] = await Promise.all([
-    loadActionRequired(callerId),
-    loadDirectShares(callerId),
-    loadFeedback(callerId),
-    loadDeckLiked(callerId),
-  ]);
+  const [friendRequests, tradeOffers, directShares, feedback, deckLiked, tradeResolved] =
+    await Promise.all([
+      loadActionRequired(callerId),
+      loadTradeOffers(callerId),
+      loadDirectShares(callerId),
+      loadFeedback(callerId),
+      loadDeckLiked(callerId),
+      loadTradeResolved(callerId),
+    ]);
 
-  const recent: RecentActivityItem[] = [...directShares, ...feedback, ...deckLiked]
+  const actionRequired: ActionRequiredItem[] = [...friendRequests, ...tradeOffers].sort(
+    (a, b) => b.occurredAt - a.occurredAt
+  );
+
+  const recent: RecentActivityItem[] = [
+    ...directShares,
+    ...feedback,
+    ...deckLiked,
+    ...tradeResolved,
+  ]
     .sort((a, b) => b.occurredAt - a.occurredAt)
     .slice(0, RECENT_TOTAL_CAP);
 

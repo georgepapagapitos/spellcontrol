@@ -1,7 +1,7 @@
 import './ActivityStripCard.css';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, Heart, MessageSquare, Share2, UserPlus } from 'lucide-react';
+import { ArrowLeftRight, Bell, Heart, MessageSquare, Share2, UserPlus } from 'lucide-react';
 import { HomeCard } from './HomeCard';
 import { useActivity } from '../../lib/use-activity';
 import { useAuth } from '../../store/auth';
@@ -83,6 +83,25 @@ function recentRow(item: RecentActivityItem): RecentRow {
         time,
       };
     }
+    case 'trade_resolved': {
+      const withName = formatIdentity({
+        username: item.withUsername,
+        displayName: item.withDisplayName,
+      }).primary;
+      const verb = item.outcome === 'accepted' ? 'accepted' : 'declined';
+      return {
+        id: item.id,
+        to: `/friends/${item.withUserId}`,
+        icon: <ArrowLeftRight {...ROW_ICON_PROPS} className="activity-strip-icon" />,
+        ariaLabel: `${withName} ${verb} your trade, ${time}`,
+        text: (
+          <>
+            <span className="activity-strip-name">{withName}</span> {verb} your trade
+          </>
+        ),
+        time,
+      };
+    }
   }
 }
 
@@ -98,8 +117,13 @@ export function ActivityStripCard() {
   const status = useAuth((s) => s.status);
   const { actionRequired, recent, loading } = useActivity();
   const rows = recent.slice(0, 3).map(recentRow);
-  const hasRequests = actionRequired.length > 0;
-  const empty = !hasRequests && rows.length === 0;
+  // Two different asks share the action-required bucket, and they go to
+  // different places — a friend request to /friends, a trade to that friend's
+  // hub — so they get a row each rather than one blurred count.
+  const friendRequests = actionRequired.filter((i) => i.type === 'friend_request');
+  const tradeOffers = actionRequired.filter((i) => i.type === 'trade_offer');
+  const hasRequests = friendRequests.length > 0;
+  const empty = !hasRequests && tradeOffers.length === 0 && rows.length === 0;
 
   return (
     <HomeCard
@@ -119,14 +143,36 @@ export function ActivityStripCard() {
             <Link
               to="/friends?tab=requests"
               className="activity-strip-link is-request"
-              aria-label={`${actionRequired.length} friend request${
-                actionRequired.length === 1 ? '' : 's'
+              aria-label={`${friendRequests.length} friend request${
+                friendRequests.length === 1 ? '' : 's'
               } waiting`}
             >
               <UserPlus {...ROW_ICON_PROPS} className="activity-strip-icon" />
               <span className="activity-strip-text">
-                {actionRequired.length} friend request{actionRequired.length === 1 ? '' : 's'}{' '}
+                {friendRequests.length} friend request{friendRequests.length === 1 ? '' : 's'}{' '}
                 waiting
+              </span>
+            </Link>
+          </li>
+        )}
+        {tradeOffers.length > 0 && (
+          <li className="activity-strip-item">
+            <Link
+              // One offer goes straight to that friend's trades; several go to
+              // the friends index, since there's no one place they all live.
+              to={
+                tradeOffers.length === 1
+                  ? `/friends/${tradeOffers[0].fromUserId}`
+                  : '/friends?tab=friends'
+              }
+              className="activity-strip-link is-request"
+              aria-label={`${tradeOffers.length} trade offer${
+                tradeOffers.length === 1 ? '' : 's'
+              } waiting on you`}
+            >
+              <ArrowLeftRight {...ROW_ICON_PROPS} className="activity-strip-icon" />
+              <span className="activity-strip-text">
+                {tradeOffers.length} trade offer{tradeOffers.length === 1 ? '' : 's'} waiting on you
               </span>
             </Link>
           </li>

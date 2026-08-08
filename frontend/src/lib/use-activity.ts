@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../store/auth';
 import {
   getActivity,
+  type ActionRequiredItem,
   type DirectShareActivityItem,
-  type FriendRequestActivityItem,
   type RecentActivityItem,
 } from './activity-client';
 import { countUnseen, INBOX_LAST_SEEN_KEY } from './use-inbox';
@@ -61,7 +61,7 @@ function toInboxRow(item: DirectShareActivityItem): InboxShareRow {
  * 30-item/7-day window.
  */
 export function computeActivityCount(
-  actionRequired: FriendRequestActivityItem[],
+  actionRequired: ActionRequiredItem[],
   recent: RecentActivityItem[],
   inboxLastSeen: number
 ): number {
@@ -85,7 +85,7 @@ export function computeActivityCount(
  */
 export function useActivity(): {
   count: number;
-  actionRequired: FriendRequestActivityItem[];
+  actionRequired: ActionRequiredItem[];
   recent: RecentActivityItem[];
   /** True until the first fetch settles (authed only — a guest never fetches,
    *  so this is false immediately). Home's ActivityStripCard is the one
@@ -94,7 +94,7 @@ export function useActivity(): {
   loading: boolean;
 } {
   const status = useAuth((s) => s.status);
-  const [actionRequired, setActionRequired] = useState<FriendRequestActivityItem[]>([]);
+  const [actionRequired, setActionRequired] = useState<ActionRequiredItem[]>([]);
   const [recent, setRecent] = useState<RecentActivityItem[]>([]);
   // Whether the (authed-only) fetch has settled at least once this session —
   // set only inside the promise's .finally(), never synchronously in the
