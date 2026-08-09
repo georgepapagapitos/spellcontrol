@@ -161,6 +161,8 @@ describe('coarse-pointer touch floor', () => {
     ['styles/deck-builder-card-list.css', '.deck-row-menu-trigger::after'],
     ['styles/auth.css', '.auth-reveal'],
     ['styles/tooltip-legend.css', '.banner-dismiss'],
+    ['components/trade/TradeComposer.css', '.trade-stepper-btn::after'],
+    ['components/trade/TradeComposer.css', '.trade-picked-remove::after'],
   ];
 
   for (const [file, selector] of CONTROLS) {

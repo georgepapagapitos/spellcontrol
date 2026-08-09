@@ -8,17 +8,29 @@
    var(--keyboard-inset)); overflow-y: auto`. Bounding the inner div would nest
    a second scroll region (the same note TonightTrades.css carries). */
 
+/* Two baskets need more room than a confirm dialog's 460px. Doubled selector
+   (0,2,0) beats `.choice-dialog`'s own max-width without depending on which
+   stylesheet loads last. */
+.trade-composer-panel.choice-dialog {
+  max-width: 720px;
+}
+
 .trade-composer-sides {
   display: grid;
   /* One basket per column once there's room for both to stay usable; stacked
-     below that. Container-relative so a narrow modal in a wide viewport still
-     stacks. */
+     below that. */
   grid-template-columns: 1fr;
   gap: var(--space-4);
   margin-top: var(--space-4);
 }
 
-@media (min-width: 40rem) {
+/* ⚠️ This breakpoint tracks the DIALOG's width, not the viewport's — it is
+   only correct because the panel above caps at 720px, which it reaches at
+   roughly this viewport (720 + the backdrop's 2×16px padding). Splitting at
+   40rem measured the viewport while the dialog was still capped at 460px, so
+   at 1024px each column was 198px and the card name got 24px — unreadable.
+   If the panel's max-width changes, change this with it. */
+@media (min-width: 48rem) {
   .trade-composer-sides {
     grid-template-columns: 1fr 1fr;
   }
@@ -41,9 +53,13 @@
   color: var(--text-secondary);
 }
 
-.trade-side-search {
-  /* SearchPill inside a flex column: give it a fixed basis so the pill's
-     `flex: 1 1 12rem` basis is never read as a HEIGHT. */
+/* SearchPill inside a flex COLUMN: `.search-pill`'s own `flex: 1 1 12rem` makes
+   12rem a *height* here, and grow:1 then stretches it — a 999px-radius pill
+   becomes a giant ellipse. Must be scoped under .trade-side (0,2,0) rather than
+   a bare `.trade-side-search` (0,1,0): equal specificity across two files means
+   whichever stylesheet loads last wins, and this one loses. See
+   [[project_searchpill_flex_column_trap]]. */
+.trade-side .trade-side-search {
   flex: 0 0 auto;
 }
 
@@ -104,9 +120,24 @@
   outline-offset: -2px;
 }
 
+/* Self-contained on purpose. This borrowed `.friend-hub-radar-thumb` (a PAGE
+   class) for the art treatment and set only `width: 28px` alongside it — but
+   that rule carries `width: 100%`, same specificity, different file, so
+   whichever stylesheet loaded last won and every thumb rendered full-width.
+   A component must not depend on a page's stylesheet order; the few duplicated
+   lines are the cheaper half of that trade. */
 .trade-thumb {
   width: 28px;
   flex: 0 0 auto;
+  aspect-ratio: 488 / 680;
+  object-fit: cover;
+  border-radius: 4.5% / 3.2%;
+  background: var(--surface-raised);
+  display: block;
+}
+
+.trade-thumb.is-placeholder {
+  border: 0.5px solid var(--border);
 }
 
 .trade-picked-info {
@@ -196,6 +227,56 @@
 .trade-stepper-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Coarse-pointer touch floor (STYLE_GUIDE § "44px touch targets").
+   These three controls are the composer's primary phone interaction and their
+   boxes are 28px, so each grows a GHOST rather than its own box — a 44px box
+   here would push the row past 44px and, at 320px, squeeze the card name to a
+   sliver (see [[project_dense_row_ghost_hit_area]]).
+
+   The crowded axis here is HORIZONTAL, not vertical (three controls side by
+   side in one row), which inverts the usual cap: the ghost keeps its full 44px
+   height — the row is exactly 44px tall, so vertically adjacent ghosts can
+   never overlap — and the SPACING is what has to give. `+` and `×` sit 36px
+   apart centre-to-centre by default, so two 44px ghosts would overlap by 8px
+   and the later sibling (`×`) would steal taps off the right edge of `+` —
+   i.e. "add one more" would silently remove the card. The extra margin below
+   pushes them to exactly 44px apart so the ghosts abut without overlapping.
+   `−`/`+` are already 56px apart and need no adjustment. */
+@media (pointer: coarse) {
+  .trade-stepper-btn,
+  .trade-picked-remove {
+    position: relative;
+  }
+
+  .trade-picked-remove {
+    margin-left: var(--space-2);
+  }
+
+  /* Kept as two rules, not one grouped selector: the CI guard in
+     styles/overlay-containment.test.ts matches `selector\s*{`, so a leading
+     selector in a comma group would not be seen and the floor would silently
+     stop being enforced. */
+  .trade-stepper-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+
+  .trade-picked-remove::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
 }
 
 .trade-side-note {

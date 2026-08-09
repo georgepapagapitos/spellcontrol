@@ -168,7 +168,15 @@ export function TradeComposer({
   }
 
   return (
-    <Modal onClose={onClose} labelledBy={titleId} dismissable={!sending}>
+    // Keeps .choice-dialog — its max-height / keyboard-inset / scroll
+    // behaviour is what this sheet relies on — and only widens it: two
+    // side-by-side baskets do not fit a 460px confirm-dialog.
+    <Modal
+      onClose={onClose}
+      labelledBy={titleId}
+      dismissable={!sending}
+      className="choice-dialog trade-composer-panel"
+    >
       <div className="game-night-dialog trade-composer">
         <h2 id={titleId} className="game-night-dialog-title">
           Propose a trade — {friendName}
@@ -434,15 +442,8 @@ function TradeSide({
 function TradeCardThumb({ name }: { name: string }) {
   const thumb = useCardThumb(name, 'small');
   return thumb ? (
-    <img
-      className="friend-hub-radar-thumb trade-thumb"
-      src={thumb}
-      alt=""
-      aria-hidden
-      loading="lazy"
-      draggable={false}
-    />
+    <img className="trade-thumb" src={thumb} alt="" aria-hidden loading="lazy" draggable={false} />
   ) : (
-    <span className="friend-hub-radar-thumb trade-thumb is-placeholder" aria-hidden />
+    <span className="trade-thumb is-placeholder" aria-hidden />
   );
 }

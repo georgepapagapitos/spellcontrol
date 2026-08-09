@@ -247,7 +247,7 @@ function OfferChipThumb({ name }: { name: string }) {
   const thumb = useCardThumb(name, 'small');
   return thumb ? (
     <img
-      className="friend-hub-radar-thumb trade-offer-chip-thumb"
+      className="trade-offer-chip-thumb"
       src={thumb}
       alt=""
       aria-hidden
@@ -255,6 +255,6 @@ function OfferChipThumb({ name }: { name: string }) {
       draggable={false}
     />
   ) : (
-    <span className="friend-hub-radar-thumb trade-offer-chip-thumb is-placeholder" aria-hidden />
+    <span className="trade-offer-chip-thumb is-placeholder" aria-hidden />
   );
 }
