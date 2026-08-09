@@ -1,0 +1,118 @@
+/* TradesPage — /trades: every offer the viewer is party to, grouped by what
+   they have to do about it. Reuses .binder-hero (page title), .empty-state
+   (+ EmptyStateMark) for the page-level empty, .friends-signin-prompt (guest
+   gate) and .friends-error(-retry) (load error) — the same shared families
+   PodsIndexPage.css leans on. The rows themselves are TradeOfferList, which
+   owns its own styles; this file only adds the page shell and the group
+   headings. */
+
+.trades-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  /* Capped like every sibling social page (.friends-page / .friend-hub-page
+     640px, .pod-hub-page 760px) rather than running full-bleed: the offer
+     card splits give/get into `1fr auto 1fr`, so at 1440px unconstrained each
+     side became a ~700px column holding one card chip. 760px is the existing
+     hub-class value, not a new one. `width: 100%` is load-bearing next to the
+     auto margins — without it the auto margin kills the stretch and the
+     column collapses to its content at narrow widths. */
+  max-width: 760px;
+  width: 100%;
+  margin-inline: auto;
+}
+
+.trades-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.trades-section-title {
+  /* Joins the .pods-index-section-title / .deck-combos-title family
+     (STYLE_GUIDE "Shape language" — section titles). */
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.trades-section-count {
+  /* Muted pill, not an accent badge — the count is informational, not an
+     alert. `--font-label` (Oswald) because it is a NUMERAL: the section title
+     above inherits Vollkorn, whose "1" is a slab-serif old-style figure that
+     reads as a Roman "I" next to uppercase text. Every other numeric badge in
+     the app (.friends-nav-link-badge, the nav counts) is on --font-label for
+     the same reason. */
+  font-family: var(--font-label);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0;
+  padding: 1px var(--space-2);
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  background: var(--surface);
+}
+
+.trades-group-empty {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+@media (pointer: coarse) {
+  /* The page-level empty CTA is a <Link>, i.e. an <a>, and `.btn` sets no
+     `display` — so it computes `display: inline`, where min-height is simply
+     ignored. Below 1024px `.empty-state` turns into a flex column
+     (tooltip-legend.css) which blockifies it and hides the problem; above
+     that the touch floor was measured dead at 29px. inline-flex makes the
+     floor real at every width. Own both properties rather than leaning on
+     PodsIndexPage.css's blanket `.empty-state .btn` — a page must not depend
+     on another page's stylesheet (see .trade-thumb's comment).
+     ⚠ The same floor is dead >1024px for every OTHER `.empty-state .btn` in
+     the app; that shared fix is deliberately out of this PR's scope. */
+  .trades-page .empty-state .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+  }
+}
+
+/* ── Loading skeleton — same shimmer keyframe as .friends-skeleton /
+   .pods-skeleton (footer-card-preview.css's shared `skeleton-shimmer`).
+   Its own class rather than reusing .pods-skeleton: sharing a page's class
+   across pages is the coupling .trade-thumb's comment warns about. ───────── */
+.trades-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.trades-skeleton-bar {
+  display: block;
+  height: 6rem;
+  width: 100%;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised) 25%,
+    var(--border) 50%,
+    var(--surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trades-skeleton-bar {
+    animation: none;
+  }
+}

@@ -663,6 +663,14 @@ Rakdos stays blood-black). Rulings:
   tape labels ONLY — always uppercase with letter-spacing (0.05–0.12em).
   Body/content text stays `--font-serif`; data stays `--font-mono`. Never set
   `--font-label` on prose, headings, or form controls.
+- **…plus bare numerals in a badge or count pill**, which is the one non-label
+  exception. `--font-sans` resolves to **Vollkorn** under the default grimoire
+  type set, whose old-style "1" is a slab-serif figure that reads as a Roman
+  **"I"** when it sits alone beside uppercase text — `/trades`' section counts
+  shipped that way before being caught on a screenshot (#1532). Every existing
+  numeric badge (`.friends-nav-link-badge`, the nav counts) is already on
+  `--font-label` via its chrome parent; match it, and set it **explicitly** if
+  the parent is a serif heading rather than chrome.
 - **Badges invert on accent fills.** An `--accent`-background badge sitting
   inside the active tab's accent fill swaps to `--on-accent` bg + `--accent`
   text (`.site-nav-link.active .friends-nav-link-badge`, mobile equivalent) —
@@ -2310,6 +2318,17 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
   centered `::after` ghost (`position: absolute; width/height: 44px;
 transform: translate(-50%, -50%)` on a `position: relative` parent) rather
   than inflating the visible control — reference `.set-filter-chip-x`.
+- **⚠️ `min-height` does nothing on `display: inline` — and `.btn` sets no
+  `display`.** On a real `<button>` it's `inline-block` and the floor works; on
+  the 25+ call sites that style a react-router `<Link>` (an `<a>`) it computes
+  `inline`, where the whole coarse-pointer block is silently inert. `/trades`'
+  empty-state CTA measured **29px** with `min-height: 44px` correctly applied
+  (#1532). Worse, it hides at the widths you check first: an ancestor that
+  blockifies the element masks it, and `.empty-state` only becomes a flex
+  column below 1024px — so the floor "worked" at 320–1024 and was dead above.
+  **Any `<a class="btn">` needing the floor must also declare
+  `display: inline-flex`** (with `align-items/justify-content: center`). When a
+  floor doesn't take, read the computed **`display`**, not just `min-height`.
 - **In a dense list row, NO control may take the 44px on its own box — every
   one of them ghosts.** A row is `display: flex; align-items: center`, so a
   child with `min-height: 44px` sets the **row's** height. One un-ghosted
