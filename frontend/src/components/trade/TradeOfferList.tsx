@@ -1,6 +1,8 @@
 import './TradeOfferList.css';
 import { useId, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import { UserAvatar } from '../UserAvatar';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { toast } from '../../store/toasts';
 import {
@@ -28,16 +30,26 @@ interface Props {
   onChanged: () => void;
   /** Opens the composer prefilled as a counter to this offer. */
   onCounter?: (offer: TradeOffer) => void;
+  /**
+   * Head each card with the counterparty's avatar + name, linked to their hub.
+   * Off inside a friend's own hub — the page already names who you're looking
+   * at, and a row of links back to the current page is noise. On in `/trades`,
+   * where consecutive rows can be different people.
+   */
+  linkCounterparty?: boolean;
+  /** Accessible name for the list. Defaults to the friend-hub wording. */
+  label?: string;
 }
 
 /**
- * The trade thread with one friend: every offer either way, newest first.
+ * A list of trade offers, newest first — the thread with one friend on their
+ * hub, or one status group of the `/trades` index.
  *
  * Accepting is the one action with real weight — it resolves which of the
  * viewer's physical copies are going, then settles both halves into their
  * collection immediately. Everything else is a status change.
  */
-export function TradeOfferList({ offers, onChanged, onCounter }: Props) {
+export function TradeOfferList({ offers, onChanged, onCounter, linkCounterparty, label }: Props) {
   if (offers.length === 0) {
     return (
       <div className="empty-state trade-offers-empty">
@@ -50,10 +62,15 @@ export function TradeOfferList({ offers, onChanged, onCounter }: Props) {
   }
 
   return (
-    <ul className="trade-offer-list" aria-label="Trade offers">
+    <ul className="trade-offer-list" aria-label={label ?? 'Trade offers'}>
       {offers.map((offer) => (
         <li key={offer.id}>
-          <TradeOfferCard offer={offer} onChanged={onChanged} onCounter={onCounter} />
+          <TradeOfferCard
+            offer={offer}
+            onChanged={onChanged}
+            onCounter={onCounter}
+            linkCounterparty={linkCounterparty}
+          />
         </li>
       ))}
     </ul>
@@ -64,10 +81,12 @@ function TradeOfferCard({
   offer,
   onChanged,
   onCounter,
+  linkCounterparty,
 }: {
   offer: TradeOffer;
   onChanged: () => void;
   onCounter?: (offer: TradeOffer) => void;
+  linkCounterparty?: boolean;
 }) {
   const cards = useCollectionStore((s) => s.cards);
   const [busy, setBusy] = useState(false);
@@ -137,8 +156,24 @@ function TradeOfferCard({
   return (
     <article className="trade-offer-card" aria-labelledby={headingId}>
       <header className="trade-offer-head">
-        <h4 className="trade-offer-title" id={headingId}>
-          {offer.mine ? `You offered ${who}` : `${who} offered you`}
+        <h4 className={`trade-offer-title${linkCounterparty ? ' has-link' : ''}`} id={headingId}>
+          {linkCounterparty ? (
+            // The person is the anchor, not the sentence — `/trades` mixes
+            // people, so the row's job is "who, and which way round".
+            <Link to={`/friends/${offer.counterpartyId}`} className="trade-offer-who">
+              <UserAvatar name={who} size={28} />
+              <span className="trade-offer-who-text">
+                <span className="trade-offer-who-name">{who}</span>
+                <span className="trade-offer-who-dir">
+                  {offer.mine ? 'You offered' : 'Offered you'}
+                </span>
+              </span>
+            </Link>
+          ) : offer.mine ? (
+            `You offered ${who}`
+          ) : (
+            `${who} offered you`
+          )}
         </h4>
         <span
           className={`trade-offer-status is-${offer.status}`}

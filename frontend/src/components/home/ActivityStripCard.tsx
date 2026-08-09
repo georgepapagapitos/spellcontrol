@@ -119,7 +119,7 @@ export function ActivityStripCard() {
   const rows = recent.slice(0, 3).map(recentRow);
   // Two different asks share the action-required bucket, and they go to
   // different places — a friend request to /friends, a trade to that friend's
-  // hub — so they get a row each rather than one blurred count.
+  // hub or /trades — so they get a row each rather than one blurred count.
   const friendRequests = actionRequired.filter((i) => i.type === 'friend_request');
   const tradeOffers = actionRequired.filter((i) => i.type === 'trade_offer');
   const hasRequests = friendRequests.length > 0;
@@ -158,13 +158,10 @@ export function ActivityStripCard() {
         {tradeOffers.length > 0 && (
           <li className="activity-strip-item">
             <Link
-              // One offer goes straight to that friend's trades; several go to
-              // the friends index, since there's no one place they all live.
-              to={
-                tradeOffers.length === 1
-                  ? `/friends/${tradeOffers[0].fromUserId}`
-                  : '/friends?tab=friends'
-              }
+              // One offer goes straight to that friend's hub — an unambiguous
+              // destination that also carries Counter and the trade radar.
+              // Several go to /trades, the index that exists for exactly this.
+              to={tradeOffers.length === 1 ? `/friends/${tradeOffers[0].fromUserId}` : '/trades'}
               className="activity-strip-link is-request"
               aria-label={`${tradeOffers.length} trade offer${
                 tradeOffers.length === 1 ? '' : 's'

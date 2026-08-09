@@ -163,6 +163,15 @@ describe('coarse-pointer touch floor', () => {
     ['styles/tooltip-legend.css', '.banner-dismiss'],
     ['components/trade/TradeComposer.css', '.trade-stepper-btn::after'],
     ['components/trade/TradeComposer.css', '.trade-picked-remove::after'],
+    // Card header, not a dense row — it grows its own box rather than a ghost
+    // (a ghost here would only overlap the non-interactive sides grid below).
+    ['components/trade/TradeOfferList.css', '.trade-offer-who'],
+    // The /friends page doors (Trades, Pods). `.site-nav-link` is 32.8px
+    // app-wide; these two are lifted in-place, scoped to that row.
+    ['components/FriendsManagement.css', '.friends-page-links .site-nav-link'],
+    // /trades' empty-state CTA — an <a>, so it also needs a non-inline
+    // display or the floor below is silently ignored (measured 29px).
+    ['pages/TradesPage.css', '.trades-page .empty-state .btn'],
   ];
 
   for (const [file, selector] of CONTROLS) {

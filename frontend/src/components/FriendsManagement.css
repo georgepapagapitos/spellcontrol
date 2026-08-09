@@ -14,14 +14,37 @@
   margin: 0;
 }
 
-/* Page heading + the "Pods" shortcut, side by side (moved here from
-   settings-sync.css's old .you-friends-header when Friends left /you). */
+/* Page heading + the "Trades"/"Pods" shortcuts, side by side (moved here from
+   settings-sync.css's old .you-friends-header when Friends left /you).
+   Wraps: two uppercase nav links plus the heading don't fit beside each other
+   at the 320px floor. */
 .friends-page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--space-2);
   margin-bottom: var(--space-5);
+}
+
+.friends-page-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+@media (pointer: coarse) {
+  /* `.site-nav-link` is 32.8px tall app-wide. Scoped to this row rather than
+     lifted on the shared primitive: these two are standalone page doors with
+     room to grow, where the site header's nav links sit in a fixed-height bar
+     that a global floor would resize. Grows the real box (not an ::after
+     ghost) — side by side, the crowded axis is horizontal, and the gap above
+     keeps the boxes from meeting. */
+  .friends-page-links .site-nav-link {
+    min-height: 44px;
+  }
 }
 
 /* ── Add Friend search ───────────────────────────────────────────────────── */
