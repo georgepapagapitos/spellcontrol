@@ -111,69 +111,77 @@ export function TonightTrades({
   const titleId = `tonight-trades-title-${night.id}`;
 
   return (
-    <Modal onClose={onClose} labelledBy={titleId}>
-      <div className="game-night-dialog tonight-trades-dialog">
-        <h2 id={titleId} className="game-night-dialog-title">
-          Tonight's trades — {night.title}
-        </h2>
+    // The composer is a SIBLING of this Modal, never one of its children:
+    // Modal renders in place (no portal), so nesting one inside another's
+    // scrolling panel puts a `position: fixed` backdrop inside an ancestor
+    // that can form a containing block for it. Two sibling overlays are what
+    // the shared overlay-layer stack already expects — it tracks them
+    // module-globally, so Escape / Android back still resolve to the topmost.
+    <>
+      <Modal onClose={onClose} labelledBy={titleId}>
+        <div className="game-night-dialog tonight-trades-dialog">
+          <h2 id={titleId} className="game-night-dialog-title">
+            Tonight's trades — {night.title}
+          </h2>
 
-        <label className="field-checkbox tonight-trades-optin">
-          <input
-            type="checkbox"
-            checked={optedIn}
-            disabled={toggling}
-            onChange={(e) => void toggleOptIn(e.target.checked)}
-          />
-          Join tonight's trades
-        </label>
+          <label className="field-checkbox tonight-trades-optin">
+            <input
+              type="checkbox"
+              checked={optedIn}
+              disabled={toggling}
+              onChange={(e) => void toggleOptIn(e.target.checked)}
+            />
+            Join tonight's trades
+          </label>
 
-        {!optedIn && (
-          <p className="game-night-dialog-hint">
-            Cross-references your want lists and tradeable binders against everyone else who's opted
-            in tonight.
-          </p>
-        )}
+          {!optedIn && (
+            <p className="game-night-dialog-hint">
+              Cross-references your want lists and tradeable binders against everyone else who's
+              opted in tonight.
+            </p>
+          )}
 
-        {optedIn && current === undefined && (
-          <div className="tonight-trades-loading" role="status" aria-live="polite">
-            <span className="spinner" aria-hidden="true" />
-            Loading tonight's trades…
+          {optedIn && current === undefined && (
+            <div className="tonight-trades-loading" role="status" aria-live="polite">
+              <span className="spinner" aria-hidden="true" />
+              Loading tonight's trades…
+            </div>
+          )}
+
+          {optedIn && current === null && (
+            <p className="game-night-dialog-hint" role="alert">
+              Couldn't load tonight's trades.
+            </p>
+          )}
+
+          {optedIn && current && (
+            <>
+              <TonightTradesSection
+                title="You can get tonight"
+                matches={current.incoming}
+                personKey="supplierUsername"
+                emptyTagline="Nothing to get tonight."
+                emptyHint="Nobody who's opted in has anything on your want lists — add cards to a list to show up here."
+                onPropose={(username) => setComposingWith(peers.get(username) ?? null)}
+              />
+              <TonightTradesSection
+                title="Bring tonight"
+                matches={current.outgoing}
+                personKey="wanterUsername"
+                emptyTagline="Nothing to bring tonight."
+                emptyHint="Nobody who's opted in wants anything from your tradeable binders — mark a binder as tradeable in Collection to show up here."
+                onPropose={(username) => setComposingWith(peers.get(username) ?? null)}
+              />
+            </>
+          )}
+
+          <div className="game-night-dialog-actions">
+            <button type="button" className="btn" onClick={onClose}>
+              Close
+            </button>
           </div>
-        )}
-
-        {optedIn && current === null && (
-          <p className="game-night-dialog-hint" role="alert">
-            Couldn't load tonight's trades.
-          </p>
-        )}
-
-        {optedIn && current && (
-          <>
-            <TonightTradesSection
-              title="You can get tonight"
-              matches={current.incoming}
-              personKey="supplierUsername"
-              emptyTagline="Nothing to get tonight."
-              emptyHint="Nobody who's opted in has anything on your want lists — add cards to a list to show up here."
-              onPropose={(username) => setComposingWith(peers.get(username) ?? null)}
-            />
-            <TonightTradesSection
-              title="Bring tonight"
-              matches={current.outgoing}
-              personKey="wanterUsername"
-              emptyTagline="Nothing to bring tonight."
-              emptyHint="Nobody who's opted in wants anything from your tradeable binders — mark a binder as tradeable in Collection to show up here."
-              onPropose={(username) => setComposingWith(peers.get(username) ?? null)}
-            />
-          </>
-        )}
-
-        <div className="game-night-dialog-actions">
-          <button type="button" className="btn" onClick={onClose}>
-            Close
-          </button>
         </div>
-      </div>
+      </Modal>
 
       {composingWith && (
         <TradeComposer
@@ -187,7 +195,7 @@ export function TonightTrades({
           onSent={() => setComposingWith(null)}
         />
       )}
-    </Modal>
+    </>
   );
 }
 

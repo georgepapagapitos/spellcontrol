@@ -128,9 +128,22 @@
   max-width: 100%;
 }
 
+/* Self-contained for the same reason as .trade-thumb — see TradeComposer.css.
+   Borrowing FriendHubPage's `.friend-hub-radar-thumb` (which sets
+   `width: 100%`) at equal specificity made the rendered size depend on which
+   stylesheet happened to load last. */
 .trade-offer-chip-thumb {
   width: 20px;
   flex: 0 0 auto;
+  aspect-ratio: 488 / 680;
+  object-fit: cover;
+  border-radius: 4.5% / 3.2%;
+  background: var(--surface-raised);
+  display: block;
+}
+
+.trade-offer-chip-thumb.is-placeholder {
+  border: 0.5px solid var(--border);
 }
 
 .trade-offer-chip-name {
