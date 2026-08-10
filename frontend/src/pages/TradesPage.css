@@ -99,24 +99,12 @@
   font-style: italic;
 }
 
-@media (pointer: coarse) {
-  /* The page-level empty CTA is a <Link>, i.e. an <a>, and `.btn` sets no
-     `display` — so it computes `display: inline`, where min-height is simply
-     ignored. Below 1024px `.empty-state` turns into a flex column
-     (tooltip-legend.css) which blockifies it and hides the problem; above
-     that the touch floor was measured dead at 29px. inline-flex makes the
-     floor real at every width. Own both properties rather than leaning on
-     PodsIndexPage.css's blanket `.empty-state .btn` — a page must not depend
-     on another page's stylesheet (see .trade-thumb's comment).
-     ⚠ The same floor is dead >1024px for every OTHER `.empty-state .btn` in
-     the app; that shared fix is deliberately out of this PR's scope. */
-  .trades-page .empty-state .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 44px;
-  }
-}
+/* The page-scoped `.trades-page .empty-state .btn` floor that used to live
+   here is GONE — it was #1532's local workaround for a bug that is now fixed
+   at the root: `.btn` is `display: inline-flex` (tabs.css) so the floor lands
+   on an anchor, and `.empty-state .btn` carries it app-wide from
+   tooltip-legend.css. Re-adding a page-scoped copy would just be a duplicate
+   of the shared rule. */
 
 /* ── Loading skeleton — same shimmer keyframe as .friends-skeleton /
    .pods-skeleton (footer-card-preview.css's shared `skeleton-shimmer`).

@@ -2335,17 +2335,33 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
   centered `::after` ghost (`position: absolute; width/height: 44px;
 transform: translate(-50%, -50%)` on a `position: relative` parent) rather
   than inflating the visible control — reference `.set-filter-chip-x`.
-- **⚠️ `min-height` does nothing on `display: inline` — and `.btn` sets no
-  `display`.** On a real `<button>` it's `inline-block` and the floor works; on
-  the 25+ call sites that style a react-router `<Link>` (an `<a>`) it computes
-  `inline`, where the whole coarse-pointer block is silently inert. `/trades`'
-  empty-state CTA measured **29px** with `min-height: 44px` correctly applied
-  (#1532). Worse, it hides at the widths you check first: an ancestor that
-  blockifies the element masks it, and `.empty-state` only becomes a flex
-  column below 1024px — so the floor "worked" at 320–1024 and was dead above.
-  **Any `<a class="btn">` needing the floor must also declare
-  `display: inline-flex`** (with `align-items/justify-content: center`). When a
-  floor doesn't take, read the computed **`display`**, not just `min-height`.
+- **⚠️ `min-height` does nothing on `display: inline`** — the trap that made
+  this floor silently inert on every `<a class="btn">`. **FIXED AT THE ROOT:
+  `.btn` now declares `display: inline-flex` (+ centering) in `tabs.css`**, so
+  a floor on an anchor lands like it does on a `<button>`. History, because the
+  diagnosis generalises: `.btn` used to set no `display`, so a real `<button>`
+  computed `inline-block` (floor worked) while the 34 call sites styling a
+  react-router `<Link>` computed `inline` (floor inert). `/trades`' empty-state
+  CTA measured **29px** with `min-height: 44px` correctly applied (#1532).
+  Worse, it hid at the widths you check first: an ancestor that blockifies the
+  element masks it, and `.empty-state` only becomes a flex column below 1024px
+  — so the floor "worked" at 320–1024 and was dead above. **When a floor
+  doesn't take, read the computed `display`, not just `min-height`** — and note
+  that a wrapper is the wrong box too: sizing `.search-pill` left its `input`
+  at 31px inside a 44px pill (#1538).
+- **RULING — mutating actions take the floor; `.btn` stays desktop-density
+  otherwise.** `.btn` measures **32px (≥768px) / 36px (≤600px)** on a coarse
+  pointer and that is deliberate; it is not a bug to be swept away app-wide.
+  But a row of buttons that **commits a state change** — settling a trade,
+  answering an invite, confirming a destructive dialog — takes an explicit
+  44px, because a mis-tap there costs real data rather than a wasted
+  navigation. Established selectors following this: `.choice-dialog-actions
+  .btn` (every `ConfirmDialog`), `.pods-invited-actions .btn`,
+  `.trade-offer-actions .btn` (Accept/Decline/Withdraw),
+  `.trade-accept-actions .btn`. Plus `.empty-state .btn` app-wide, on the
+  different grounds that an empty state's CTA is the only thing on the surface
+  to press. Flagged in three PRs without a decision before being settled here;
+  don't re-open it per-surface.
 - **In a dense list row, NO control may take the 44px on its own box — every
   one of them ghosts.** A row is `display: flex; align-items: center`, so a
   child with `min-height: 44px` sets the **row's** height. One un-ghosted

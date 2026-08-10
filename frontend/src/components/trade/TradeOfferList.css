@@ -276,3 +276,20 @@
 .trade-offer-counter {
   margin-left: auto;
 }
+
+/* Accept / Decline / Withdraw settle real cards into and out of a real
+   collection — Accept removes copies from this device's binder the moment it
+   resolves. `.btn` is desktop-density (measured 36px at 390px, 32px at 768px+)
+   with no ghost, so these were the smallest targets on a page whose only job
+   is answering them.
+   This is the "mutating actions take the floor" ruling (STYLE_GUIDE
+   § Responsive), and it is the pattern already used by
+   `.choice-dialog-actions .btn` — every ConfirmDialog in the app — and
+   `.pods-invited-actions .btn`. Trade's answer row was the outlier.
+   The real box, not a ghost: the row wraps and has no fixed height, so
+   growing the buttons costs nothing that a ghost would have saved. */
+@media (pointer: coarse) {
+  .trade-offer-actions .btn {
+    min-height: 44px;
+  }
+}
