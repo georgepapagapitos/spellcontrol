@@ -1,9 +1,11 @@
 import './TradeOfferList.css';
-import { useId, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { UserAvatar } from '../UserAvatar';
 import { useCardThumb } from '../../lib/card-thumbs';
+import { formatMoney } from '../../lib/format-money';
+import { splitSideValue, useFloorPrices } from '../../lib/trade-value';
 import { toast } from '../../store/toasts';
 import {
   acceptTrade,
@@ -250,12 +252,42 @@ function TradeOfferCard({
   );
 }
 
+/**
+ * What one side of an offer is worth.
+ *
+ * A side whose copies are pinned down (`scryfallId` + `finish`) is priced
+ * EXACTLY from the device-local price cache — and that keeps working after the
+ * cards have left the collection, because the cache is keyed by printing, not
+ * by ownership. A side still oracle-level (the ask, before it's accepted) has
+ * no printing to price, so it falls back to the cheapest-printing floor and is
+ * labelled "from". Never renders a bare 0 for "unknown": the whole point of
+ * putting a number here is that it can be trusted.
+ */
+function useSideValue(cards: TradeCard[]): string {
+  const { exact, needFloor } = useMemo(() => splitSideValue(cards), [cards]);
+  const names = useMemo(() => needFloor.map((c) => c.name), [needFloor]);
+  const { prices: floors, pending } = useFloorPrices(names);
+
+  if (names.length === 0) return formatMoney(exact);
+  if (pending) return '…';
+
+  const floor = needFloor.reduce((sum, c) => sum + (floors.get(c.name) ?? 0) * c.quantity, 0);
+  const anyUnknown = names.some((n) => (floors.get(n) ?? null) === null);
+  // "+?" when something could not be priced at all — better an admitted gap
+  // than a total that quietly omits a card.
+  return `from ${formatMoney(exact + floor)}${anyUnknown ? ' +?' : ''}`;
+}
+
 function TradeOfferSide({ label, cards }: { label: string; cards: TradeCard[] }) {
   const headingId = useId();
+  const value = useSideValue(cards);
   return (
     <div className="trade-offer-side">
-      <p className="trade-offer-side-label" id={headingId}>
-        {label}
+      {/* headingId stays on the label text alone — the value must not leak into
+          the card list's accessible name ("$40.00 You give"). */}
+      <p className="trade-offer-side-label">
+        <span id={headingId}>{label}</span>
+        <span className="trade-offer-side-value">{value}</span>
       </p>
       {cards.length === 0 ? (
         <p className="trade-offer-side-nothing">Nothing</p>

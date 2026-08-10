@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { groupOwnedForTrade, filterOwnedLines, toTradeCard, toRequestedCard } from './trade-picker';
+import {
+  groupOwnedForTrade,
+  filterOwnedLines,
+  toTradeCard,
+  toRequestedCard,
+  copiesByValue,
+  groupByPrinting,
+  toTradeCardFromCopies,
+  sumCopyValue,
+} from './trade-picker';
 import type { EnrichedCard } from '../types';
 
 function owned(over: Partial<EnrichedCard> & { copyId: string; name: string }): EnrichedCard {
@@ -112,5 +121,111 @@ describe('toRequestedCard', () => {
       quantity: 2,
       copies: [],
     });
+  });
+});
+
+describe('choosing WHICH copy leaves the binder', () => {
+  const beta = owned({
+    copyId: 'beta',
+    name: 'Sol Ring',
+    oracleId: 'o-sol',
+    scryfallId: 'scry-lea',
+    setCode: 'lea',
+    purchasePrice: 3200,
+  });
+  const reprint = owned({
+    copyId: 'reprint',
+    name: 'Sol Ring',
+    oracleId: 'o-sol',
+    scryfallId: 'scry-c21',
+    purchasePrice: 2,
+  });
+  const foil = owned({
+    copyId: 'foil',
+    name: 'Sol Ring',
+    oracleId: 'o-sol',
+    scryfallId: 'scry-c21',
+    finish: 'foil',
+    purchasePrice: 9,
+  });
+
+  it('orders copies cheapest-first regardless of collection order', () => {
+    // Collection order puts the Beta first — the order the old code sliced.
+    const [line] = groupOwnedForTrade([beta, reprint, foil]);
+    expect(copiesByValue(line).map((c) => c.copyId)).toEqual(['reprint', 'foil', 'beta']);
+  });
+
+  it('an automatic pick takes the CHEAPEST copy, not the first', () => {
+    // The regression this guards: offering "Sol Ring ×1" used to hand over
+    // copies[0] — here the $3200 Beta — purely because it sorted first.
+    const [line] = groupOwnedForTrade([beta, reprint, foil]);
+    expect(toTradeCard(line, 1).copies).toEqual([{ scryfallId: 'scry-c21', finish: 'nonfoil' }]);
+  });
+
+  it('ties keep collection order so identical printings stay stable', () => {
+    const a = owned({ copyId: 'a', name: 'Island', oracleId: 'o-is', purchasePrice: 1 });
+    const b = owned({ copyId: 'b', name: 'Island', oracleId: 'o-is', purchasePrice: 1 });
+    const [line] = groupOwnedForTrade([a, b]);
+    expect(copiesByValue(line).map((c) => c.copyId)).toEqual(['a', 'b']);
+  });
+
+  it('sends exactly the copies chosen, in the wire shape, with no copyId', () => {
+    const [line] = groupOwnedForTrade([beta, reprint, foil]);
+    const card = toTradeCardFromCopies(line, [beta, foil]);
+    expect(card.quantity).toBe(2);
+    expect(card.copies).toEqual([
+      { scryfallId: 'scry-lea', finish: 'nonfoil' },
+      { scryfallId: 'scry-c21', finish: 'foil' },
+    ]);
+    // copyId is device-local; letting it onto the wire would break settlement,
+    // which matches by printing.
+    expect(JSON.stringify(card)).not.toContain('copyId');
+  });
+
+  it('values a chosen set at the sum of THOSE copies, not the card', () => {
+    expect(sumCopyValue([reprint, foil])).toBe(11);
+    expect(sumCopyValue([beta])).toBe(3200);
+    expect(sumCopyValue([])).toBe(0);
+  });
+
+  it('collapses identical copies into ONE printing row, cheapest first', () => {
+    // Eight indistinguishable copies of one printing is not eight choices —
+    // it rendered as eight identical checkboxes and buried the real options.
+    const dupes = Array.from({ length: 8 }, (_, i) =>
+      owned({
+        copyId: `dupe-${i}`,
+        name: 'Sol Ring',
+        oracleId: 'o-sol',
+        scryfallId: 'scry-c21',
+        purchasePrice: 2,
+      })
+    );
+    const [line] = groupOwnedForTrade([beta, ...dupes, foil]);
+    const groups = groupByPrinting(line);
+
+    expect(groups).toHaveLength(3);
+    expect(groups.map((g) => g.copies.length)).toEqual([8, 1, 1]);
+    expect(groups.map((g) => g.price)).toEqual([2, 9, 3200]);
+  });
+
+  it('splits the same printing by finish AND condition — different objects', () => {
+    const nm = owned({
+      copyId: 'nm',
+      name: 'Bolt',
+      oracleId: 'o-b',
+      scryfallId: 'scry-x',
+      condition: 'nm',
+      purchasePrice: 5,
+    });
+    const played = owned({
+      copyId: 'mp',
+      name: 'Bolt',
+      oracleId: 'o-b',
+      scryfallId: 'scry-x',
+      condition: 'mp',
+      purchasePrice: 3,
+    });
+    const [line] = groupOwnedForTrade([nm, played]);
+    expect(groupByPrinting(line).map((g) => g.condition)).toEqual(['mp', 'nm']);
   });
 });
