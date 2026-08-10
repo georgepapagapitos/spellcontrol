@@ -16,6 +16,7 @@ import { TradeOfferList } from '../components/trade/TradeOfferList';
 import { isTrackingList } from '../lib/lists';
 import { useCardThumb } from '../lib/card-thumbs';
 import { filterFriendCollection } from '../lib/friend-collection-filter';
+import { getCardTags, useCardTagsReady } from '../lib/card-tags';
 import { H2HSummary } from '../components/play/H2HSummary';
 import { Tabs, type TabItem } from '../components/Tabs';
 import { SearchPill } from '../components/SearchPill';
@@ -167,16 +168,23 @@ export function FriendHubPage() {
   const [collectionColors, setCollectionColors] = useState<Set<string>>(new Set());
   const [collectionVisible, setCollectionVisible] = useState(COLLECTION_PAGE_SIZE);
 
-  const filteredFriendCards = useMemo(
+  // `otag:` needs the tag snapshot; load it only when the query asks for one
+  // (same gate as CardSearchPanel — the snapshot is a multi-MB artifact).
+  const collectionWantsTags = /\b(otag|oracletag|function)[:=]/i.test(collectionQuery);
+  const collectionTagsReady = useCardTagsReady(collectionWantsTags);
+
+  const friendSearchResult = useMemo(
     () =>
       friendCards
         ? filterFriendCollection(friendCards, {
             query: collectionQuery,
             colors: collectionColors,
+            tagsFor: collectionTagsReady ? getCardTags : undefined,
           })
-        : [],
-    [friendCards, collectionQuery, collectionColors]
+        : { cards: [], ignored: [] },
+    [friendCards, collectionQuery, collectionColors, collectionTagsReady]
   );
+  const filteredFriendCards = friendSearchResult.cards;
 
   // A friend switch, a retry, or a filter change all invalidate the current
   // "show more" depth — reset to the first page. Adjusted during render (the
@@ -462,6 +470,15 @@ export function FriendHubPage() {
                 })}
               </div>
             </div>
+
+            {friendSearchResult.ignored.length > 0 && (
+              <p className="friend-hub-search-note" role="status">
+                {friendSearchResult.ignored.join(', ')}{' '}
+                {friendSearchResult.ignored.length === 1 ? 'is' : 'are'} not searchable in a
+                friend’s collection — it only carries public card facts, not rules text. The rest of
+                your search still applied.
+              </p>
+            )}
 
             {filteredFriendCards.length === 0 ? (
               <div role="status">

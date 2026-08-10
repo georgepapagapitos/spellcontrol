@@ -717,6 +717,55 @@ describe('GET /api/friends/:friendId/collection', () => {
     expect(oracleIds).toContain('oracle-cmdtower');
   }, 15000);
 
+  it('200 — projects colorIdentity and rarity for client-side ci:/r: search', async () => {
+    // E237: without colorIdentity on the wire the client matcher reads the
+    // absent value as the EMPTY set, and an empty set is a subset of every
+    // needle — so `ci<=…` matched the entire collection. Both fields are a
+    // handful of bytes and are already public card facts.
+    const alice = await makeUserFull('fc-ci-alice');
+    const bob = await makeUserFull('fc-ci-bob');
+    await befriend(alice, bob);
+
+    await seedUserCards(bob.id, [
+      {
+        name: 'Llanowar Elves',
+        oracleId: 'oracle-llanowar',
+        scryfallId: 'sf-llanowar',
+        colors: ['G'],
+        colorIdentity: ['G'],
+        cmc: 1,
+        typeLine: 'Creature — Elf Druid',
+        rarity: 'common',
+      },
+    ]);
+
+    const res = await request(app)
+      .get(`/api/friends/${bob.id}/collection`)
+      .set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.cards).toHaveLength(1);
+    expect(res.body.cards[0].colorIdentity).toEqual(['G']);
+    expect(res.body.cards[0].rarity).toBe('common');
+  }, 15000);
+
+  it('200 — colorIdentity is [] (not missing) when the stored row lacks it', async () => {
+    // The client distinguishes absent (fall back to `colors`) from empty
+    // (genuinely colourless), so the wire shape must stay stable.
+    const alice = await makeUserFull('fc-ci2-alice');
+    const bob = await makeUserFull('fc-ci2-bob');
+    await befriend(alice, bob);
+
+    await seedUserCards(bob.id, [
+      { name: 'Sol Ring', oracleId: 'oracle-sol', colors: [], cmc: 1, typeLine: 'Artifact' },
+    ]);
+
+    const res = await request(app)
+      .get(`/api/friends/${bob.id}/collection`)
+      .set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.cards[0].colorIdentity).toEqual([]);
+  }, 15000);
+
   it('200 — response contains only public fields, no private fields', async () => {
     const alice = await makeUserFull('fc-priv-alice');
     const bob = await makeUserFull('fc-priv-bob');

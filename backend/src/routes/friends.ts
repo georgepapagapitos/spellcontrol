@@ -485,8 +485,18 @@ interface FriendCard {
   name: string;
   oracleId: string;
   colors: string[];
+  /**
+   * Colour IDENTITY (commander-legal colours), distinct from `colors` (the
+   * mana cost's colours). Load-bearing for `ci:` search on the friend browser:
+   * the client matcher treats an ABSENT identity as the empty set, and the
+   * empty set is a subset of every needle — so without this every card matched
+   * `ci<=…`. Five characters per card at worst.
+   */
+  colorIdentity: string[];
   cmc: number;
   typeLine: string;
+  /** One character; makes `r:` real instead of degrading to match-anything. */
+  rarity?: string;
   edhrecRank?: number;
 }
 
@@ -578,19 +588,38 @@ friendsRouter.get(
         : [];
       const cmc = typeof d.cmc === 'number' ? d.cmc : 0;
       const typeLine = typeof d.typeLine === 'string' ? d.typeLine : '';
+      const colorIdentity = Array.isArray(d.colorIdentity)
+        ? (d.colorIdentity as unknown[]).filter((c): c is string => typeof c === 'string')
+        : [];
 
-      // Prefer rank from stored JSONB; fall back to SQLite cache
+      // Prefer rank/identity/rarity from stored JSONB; fall back to SQLite cache
       let edhrecRank: number | undefined;
+      let rarity: string | undefined;
+      let identity = colorIdentity;
+      if (typeof d.rarity === 'string') rarity = d.rarity;
       if (typeof d.edhrecRank === 'number') {
         edhrecRank = d.edhrecRank;
-      } else if (scryfallId) {
+      }
+      if (
+        scryfallId &&
+        (edhrecRank === undefined || rarity === undefined || identity.length === 0)
+      ) {
         const cached = scryfallMap.get(scryfallId);
-        if (cached && typeof cached.edhrec_rank === 'number') {
-          edhrecRank = cached.edhrec_rank;
+        if (cached) {
+          if (edhrecRank === undefined && typeof cached.edhrec_rank === 'number') {
+            edhrecRank = cached.edhrec_rank;
+          }
+          if (rarity === undefined && typeof cached.rarity === 'string') rarity = cached.rarity;
+          if (identity.length === 0 && Array.isArray(cached.color_identity)) {
+            identity = (cached.color_identity as unknown[]).filter(
+              (c): c is string => typeof c === 'string'
+            );
+          }
         }
       }
 
-      const card: FriendCard = { name, oracleId, colors, cmc, typeLine };
+      const card: FriendCard = { name, oracleId, colors, colorIdentity: identity, cmc, typeLine };
+      if (rarity !== undefined) card.rarity = rarity;
       if (edhrecRank !== undefined) card.edhrecRank = edhrecRank;
       cards.push(card);
     }
