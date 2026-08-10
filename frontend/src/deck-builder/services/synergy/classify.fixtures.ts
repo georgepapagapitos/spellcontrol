@@ -2384,7 +2384,13 @@ export const CORPUS: CorpusCard[] = [
     type_line: 'Land',
     keywords: [],
     oracle_text: '{T}: Add {C}.\n{4}, {T}, Sacrifice this land: You become the monarch.',
-    expect: { producers: ['monarch', 'sacrifice'], payoffs: [] },
+    // 'sacrifice' removed 2026-08-10: "Sacrifice this land" can only ever eat
+    // ITSELF, so it feeds no sacrifice engine and is not fodder for one. Same
+    // ruling as the fetchlands, which share this exact templating and were
+    // fabricating "Aristocrats" win conditions out of four fetchlands (see
+    // text.sacrifice.test.ts). A land that eats OTHER permanents (High Market,
+    // Phyrexian Tower) still classifies as a sacrifice producer.
+    expect: { producers: ['monarch'], payoffs: [] },
   },
   {
     name: 'Toxic Deluge',
