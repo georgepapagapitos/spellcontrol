@@ -25,9 +25,13 @@ export function MobileTabBar() {
   const isAuthed = useAuth((s) => s.status === 'authed');
   const user = useAuth((s) => s.user);
   const profile = useAuth((s) => s.profile);
-  // One activity badge covers pending requests, unseen directed shares,
-  // feedback, and likes — relocated here from the old Friends tab (Friends
-  // now folds into You) since Home is the tab bar's landing destination.
+  // One activity badge covers pending requests, trade offers, unseen directed
+  // shares, feedback, and likes. It rides Home because Home is the tab bar's
+  // landing destination — and because a 6th co-equal cell does not fit: six
+  // 44px cells + the 44px search utility + the bar's own 12.8px padding is
+  // 320.8px, wider than the 320px floor, before a single label. So the
+  // phone's social door is on Home itself (QuickActionsRow), which is where
+  // this badge already sends you; desktop, which has room, gets a nav link.
   const { count } = useActivity();
   return (
     <nav className="mobile-tab-bar" aria-label="Primary mobile">

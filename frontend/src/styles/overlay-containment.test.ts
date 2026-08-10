@@ -172,6 +172,12 @@ describe('coarse-pointer touch floor', () => {
     // /trades' empty-state CTA — an <a>, so it also needs a non-inline
     // display or the floor below is silently ignored (measured 29px).
     ['pages/TradesPage.css', '.trades-page .empty-state .btn'],
+    // Home's Quick Actions, which now carry the phone's front door to the
+    // social cluster (the Friends pill). The floor was already applied here
+    // but nothing pinned it, so deleting the coarse block would have dropped
+    // the door below 44px silently — this allowlist is opt-in, so a control
+    // is unguarded until it is named. Measured 121.3×44 at 320-1440px.
+    ['components/home/QuickActionsRow.css', '.home-quick-action'],
   ];
 
   for (const [file, selector] of CONTROLS) {
@@ -179,7 +185,11 @@ describe('coarse-pointer touch floor', () => {
       const found = blocks(read(file), selector);
       expect(found, `no rule for ${selector} in ${file}`).not.toEqual([]);
       expect(
-        found.some((b) => /(?:min-)?(?:width|height):\s*44px/.test(b)),
+        // 2.75rem is the same 44px at the default root size, and is the
+        // better spelling (it scales with the user's font-size preference),
+        // so the floor must be expressible either way — otherwise the guard
+        // quietly pushes authors toward the px form to get a green tick.
+        found.some((b) => /(?:min-)?(?:width|height):\s*(?:44px|2\.75rem)/.test(b)),
         `${selector} (${file}) stays below the 44px coarse-pointer floor — ` +
           `add a @media (pointer: coarse) block sizing it to 44px`
       ).toBe(true);
