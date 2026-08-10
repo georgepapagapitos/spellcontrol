@@ -196,6 +196,18 @@ const SAC_ALT_COST_RE =
 // "unless" later in the same clause's effect text (Diversion Unit: "Sacrifice
 // this creature: Counter … unless its controller pays {3}").
 const SAC_CONDITIONAL_RE = /\bunless\b[^.]*\bsacrifice\b/;
+// "Sacrifice this land:" is Scryfall's CURRENT templating for every fetchland
+// (Arid Mesa, Marsh Flats, Evolving Wilds, Terramorphic Expanse…) — a
+// mana-fixing cost that can only ever eat itself, never fodder you feed it.
+// `this` is in SAC_OUTLET_COST_RE's determiner list on purpose (self-saccing
+// creatures/tokens ARE aristocrats fodder), so without this exclusion every
+// fetchland reads as a sacrifice outlet: a fetch-heavy deck then gets a bogus
+// "Aristocrats" win condition built out of four fetchlands, and the assembly
+// clock has to draw all four (measured turn 60 on a real Kaalia list, turn 46
+// on Sliver Overlord). Lands that eat OTHER permanents (High Market,
+// Phyrexian Tower: "Sacrifice a creature:") template differently and are
+// unaffected — this is per-clause, so their outlet clause still counts.
+const SAC_SELF_LAND_RE = /\bsacrifice this land\b/;
 // "Whenever you/a player/another … sacrifices" — a sacrifice payoff. Deliberately
 // NOT the bare "whenever an opponent sacrifices" (Tergrid), which is a punisher
 // keyed on opponents, not your aristocrats engine.
@@ -217,7 +229,12 @@ export function sacrificeSignals(oracle: string): SacrificeSignals {
       rewards = true;
       continue;
     }
-    if (SAC_ALT_COST_RE.test(clause) || SAC_CONDITIONAL_RE.test(clause)) continue;
+    if (
+      SAC_ALT_COST_RE.test(clause) ||
+      SAC_CONDITIONAL_RE.test(clause) ||
+      SAC_SELF_LAND_RE.test(clause)
+    )
+      continue;
     if (
       SAC_OUTLET_COST_RE.test(clause) ||
       SAC_OUTLET_SIMPLE_RE.test(clause) ||
