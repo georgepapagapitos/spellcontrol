@@ -171,6 +171,12 @@ describe('coarse-pointer touch floor', () => {
     ['components/trade/TradeComposer.css', '.trade-picked-choose::after'],
     // An expanded copy is its OWN row, so it takes the floor on its real box.
     ['components/trade/TradeComposer.css', '.trade-copy-row'],
+    // The accept-side picker — the mirror of the composer's, ghosted for the
+    // same reason (28px controls inside a padded printing row).
+    ['components/trade/TradeAcceptDialog.css', '.trade-accept-stepper-btn::after'],
+    // Its confirm/cancel pair settles a collection, so they take the floor on
+    // their real boxes rather than a ghost — `.btn` is 32-36px by default.
+    ['components/trade/TradeAcceptDialog.css', '.trade-accept-actions .btn'],
     // Card header, not a dense row — it grows its own box rather than a ghost
     // (a ghost here would only overlap the non-interactive sides grid below).
     ['components/trade/TradeOfferList.css', '.trade-offer-who'],
