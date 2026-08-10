@@ -270,9 +270,12 @@
 }
 
 @media (pointer: coarse) {
+  /* `.empty-state .btn` used to ride along here. It is an APP-WIDE selector
+     and had no business living in one page's stylesheet — every other page's
+     empty CTA silently depended on /pods' CSS being loaded. Moved to
+     tooltip-legend.css, which owns `.empty-state`. */
   .pods-invited-actions .btn,
-  .pods-dialog-actions .btn,
-  .empty-state .btn {
+  .pods-dialog-actions .btn {
     min-height: 44px;
   }
 }

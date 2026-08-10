@@ -183,9 +183,14 @@ describe('coarse-pointer touch floor', () => {
     // The /friends page doors (Trades, Pods). `.site-nav-link` is 32.8px
     // app-wide; these two are lifted in-place, scoped to that row.
     ['components/FriendsManagement.css', '.friends-page-links .site-nav-link'],
-    // /trades' empty-state CTA — an <a>, so it also needs a non-inline
-    // display or the floor below is silently ignored (measured 29px).
-    ['pages/TradesPage.css', '.trades-page .empty-state .btn'],
+    // EVERY empty-state CTA, app-wide — most of them anchors, which is why
+    // this floor was silently dead above 1024px until `.btn` stopped computing
+    // `display: inline` (measured 29px). Lives beside `.empty-state` itself,
+    // not in a page stylesheet.
+    ['styles/tooltip-legend.css', '.empty-state .btn'],
+    // Trade Accept / Decline / Withdraw — they settle real cards, so they take
+    // the floor per the mutating-actions ruling (STYLE_GUIDE § Responsive).
+    ['components/trade/TradeOfferList.css', '.trade-offer-actions .btn'],
     // /trades' filter, shown once history outgrows a screenful. `.search-pill`
     // is desktop-density (measured 31.6px); lifted page-scoped, because raising
     // the shared primitive is an app-wide sweep of its own.

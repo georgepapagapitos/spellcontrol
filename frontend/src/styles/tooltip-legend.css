@@ -243,6 +243,19 @@ hr {
   }
 }
 
+/* An empty state's CTA is the only thing on the surface to press, so it takes
+   the floor even though `.btn` is desktop-density elsewhere.
+   Lives here, beside `.empty-state`, rather than in PodsIndexPage.css where
+   this app-wide selector used to sit — every page's empty CTA was quietly
+   depending on one page's stylesheet being loaded. The floor only actually
+   applies because `.btn` is no longer `display: inline` (tabs.css); as an
+   anchor it ignored this rule entirely above 1024px. */
+@media (pointer: coarse) {
+  .empty-state .btn {
+    min-height: 44px;
+  }
+}
+
 .empty-state-tagline {
   font-family: var(--font-serif);
   font-style: italic;

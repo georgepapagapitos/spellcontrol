@@ -99,6 +99,22 @@
 
 .btn {
   font-size: var(--text-sm);
+  /* On a <button> this changes nothing (that element already computes
+     inline-block); on the 34 call sites that put `.btn` on a react-router
+     <Link> it is load-bearing. An <a> computes `display: inline`, and
+     `min-height` — the whole 44px touch floor — is SILENTLY IGNORED on an
+     inline box. Every such CTA measured 29px while declaring 44.
+
+     Worse, it hid at the widths anyone checks first: `.empty-state` becomes a
+     flex column only below 1024px (tooltip-legend.css), and a flex item is
+     blockified, so the floor worked on a phone and was dead on a tablet in
+     landscape. Setting it here rather than per-surface is the root fix — any
+     future floor on any `.btn` anchor now lands instead of failing quietly.
+     Centring comes with it: a min-height on an inline-block leaves the label
+     sitting at the top of the taller box. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 6px 14px;
   border-radius: var(--radius);
   /* Material buttons (T53 Phase 4): a firm 1px edge — the 0.5px hairline
