@@ -22,14 +22,14 @@ import {
   type AssemblyClockResult,
   type LandDropCurveResult,
 } from '@/lib/opening-hand-sim';
-import { toSimCard } from '@/lib/hand-classify';
+import { toClockCard, toSimCard } from '@/lib/hand-classify';
 import { loadSessionHistory } from '@/lib/playtest/session-history';
 import { computeSessionAggregates, MIN_SESSIONS_FOR_STATS } from '@/lib/playtest/session-record';
 import { MeterBar, StackedBar } from '@/components/shared/MeterBar';
 import { ColorPip, TypeIcon } from '@/components/shared/ManaSymbol';
 import { Tabs, type TabItem } from '@/components/Tabs';
 import { InfoTip } from '@/components/InfoTip';
-import { assemblyClockTip } from '@/components/deck/WinConditionPanel';
+import { assemblyClockTip, isKillClock } from '@/components/deck/WinConditionPanel';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -441,6 +441,8 @@ interface SimBatch {
   landHistogram: number[];
   curve: LandDropCurveResult;
   clock: AssemblyClockResult | null;
+  /** Whether the primary path's clock is a kill turn (see `isKillClock`). */
+  clockKills: boolean;
 }
 
 /** Run the full batch: opener odds (incl. mulligan-to-keep distribution),
@@ -453,10 +455,10 @@ function runSimBatch(deck: Deck, key: string): SimBatch {
   const curve = simulateLandDropCurve(simCards, { iterations: 1000, seed: 42 });
 
   const primary = deck.winConditions?.primary ?? null;
-  const libraryNames = deck.cards.map((c) => c.card.name);
+  const clockCards = deck.cards.map((slot) => toClockCard(slot.card));
   const clock =
-    primary?.assembly?.length && libraryNames.length > 0
-      ? simulateAssemblyClock(libraryNames, primary.assembly, {
+    primary?.assembly?.length && clockCards.length > 0
+      ? simulateAssemblyClock(clockCards, primary.assembly, {
           iterations: 1000,
           seed: 42,
           wildcards: deck.winConditions?.tutors,
@@ -475,6 +477,7 @@ function runSimBatch(deck: Deck, key: string): SimBatch {
     landHistogram: mull2.landHistogram,
     curve,
     clock,
+    clockKills: !!primary && isKillClock(primary.category),
   };
 }
 
@@ -640,19 +643,22 @@ function SimulateSection({ state, deck }: { state: PlaytestState; deck: Deck | u
           </p>
 
           <div className="playtest-stats-sim">
-            <p className="playtest-stats-sim-title">Assembly clock</p>
+            <p className="playtest-stats-sim-title">
+              {batch.clockKills ? 'Kill turn' : 'Assembly clock'}
+            </p>
             {batch.clock ? (
               <>
                 <p className="playtest-stats-row" style={{ flexWrap: 'wrap' }}>
                   <Hourglass width={13} height={13} aria-hidden />
                   <span>
-                    Predicted: win condition online ~turn <strong>{batch.clock.typicalTurn}</strong>{' '}
-                    (median) / <strong>{batch.clock.p90Turn}</strong> (p90)
+                    Predicted: win condition {batch.clockKills ? 'kills' : 'online'} ~turn{' '}
+                    <strong>{batch.clock.typicalTurn}</strong> (median) /{' '}
+                    <strong>{batch.clock.p90Turn}</strong> (p90)
                   </span>
                   <InfoTip
-                    label="the assembly clock"
+                    label={batch.clockKills ? 'the kill-turn estimate' : 'the assembly clock'}
                     className="playtest-stats-sim-tip"
-                    text={assemblyClockTip()}
+                    text={assemblyClockTip(batch.clockKills)}
                   />
                 </p>
                 {(state.tableDefeatedTurn !== null || actualMedianTurn !== null) && (
@@ -676,8 +682,8 @@ function SimulateSection({ state, deck }: { state: PlaytestState; deck: Deck | u
           </div>
 
           <p className="playtest-stats-sim-note">
-            These are draw simulations, not full games — no opponent plays, no interaction, no
-            combat. Real games usually move faster than the raw draw math.
+            These are goldfish simulations, not full games — the clock mulligans, draws, makes land
+            drops and spends mana, but no opponent plays and colors go unmodeled.
           </p>
         </>
       )}

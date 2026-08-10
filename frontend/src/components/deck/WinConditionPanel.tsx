@@ -2,21 +2,23 @@ import { useMemo, type JSX } from 'react';
 import './WinConditionPanel.css';
 import { AlertTriangle, Hourglass, Tag, Trophy } from 'lucide-react';
 import type {
+  WinConCategory,
   WinConditionAnalysis,
   WinCondition,
 } from '@/deck-builder/services/winConditions/types';
 import { tagOnlyWinCons } from '@/deck-builder/services/winConditions/winConTags';
-import { simulateAssemblyClock } from '@/lib/opening-hand-sim';
+import { simulateAssemblyClock, type ClockCard } from '@/lib/opening-hand-sim';
 import { InfoTip } from '../InfoTip';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 
 export interface WinConditionPanelProps {
   analysis: WinConditionAnalysis;
   /**
-   * Mainboard card names (one entry per physical copy, commanders excluded) —
-   * feeds the assembly clock on the primary path. Omit to hide the clock.
+   * Mainboard cards (one entry per physical copy, commanders excluded) — feeds
+   * the assembly clock on the primary path, which needs each card's mana value
+   * and land/ramp classification, not just its name. Omit to hide the clock.
    */
-  libraryNames?: readonly string[];
+  library?: readonly ClockCard[];
   /**
    * Card names the user has manually tagged as a win condition (E125) —
    * display-only cross-link with the engine's own evidence, never fed back
@@ -33,20 +35,37 @@ export interface WinConditionPanelProps {
 }
 
 /**
- * Shared methodology explainer for the assembly clock — one ⓘ per concept
- * (STYLE_GUIDE Info tooltips); also used by DeckTestHandPanel's clock line.
+ * A path whose assembly IS the kill — the pieces resolving ends the game, so
+ * the clock reads as a kill turn. Every other category (voltron's equipment
+ * mass, go-wide, mill) still has to connect after it comes online, so those
+ * keep the weaker "online by" reading.
  */
-export function assemblyClockTip(): JSX.Element {
+export function isKillClock(category: WinConCategory): boolean {
+  return category === 'infinite-combo' || category === 'alt-win';
+}
+
+/**
+ * Shared methodology explainer for the assembly clock — one ⓘ per concept
+ * (STYLE_GUIDE Info tooltips); also used by DeckTestHandPanel's and the
+ * playtest stats sheet's clock lines. `kill` matches {@link isKillClock} so the
+ * last line doesn't over- or under-claim what the number means.
+ */
+export function assemblyClockTip(kill: boolean): JSX.Element {
   return (
     <>
       <span className="info-tip-lead">
-        Across 1,000 simulated games: shuffle, draw an opening hand, then draw one card per turn
-        until the win path is in hand — every piece of one combo, any one alt-win card, or a
-        critical mass of a strategic plan. A drawn tutor counts as the missing piece it would fetch.
+        Across 1,000 simulated games: mulligan to a keepable seven, then each turn draw, make a land
+        drop, and spend that turn&apos;s mana — ramp, card draw, tutors and win-path pieces. The
+        clock stops when one path is fully cast: every piece of one combo, any one alt-win card, or
+        a critical mass of a strategic plan. A tutor costs its mana and fetches to hand, so what it
+        finds still has to be cast.
       </span>
       <span className="info-tip-lead">
-        Draw spells, ramp, and mulligans aren&apos;t modeled, so real games usually run a little
-        faster.
+        {kill
+          ? 'This path wins on resolution, so that turn is the kill turn.'
+          : 'Online isn’t the same as won — this path still has to connect afterwards.'}{' '}
+        Colors, rituals and opponents aren&apos;t modeled, and every draw spell counts as two cards:
+        it&apos;s a goldfish estimate, not a promise.
       </span>
     </>
   );
@@ -150,23 +169,24 @@ function WinConRow({
  */
 export function WinConditionPanel({
   analysis,
-  libraryNames,
+  library,
   winConTags,
   onToggleWinConTag,
 }: WinConditionPanelProps): JSX.Element {
   const carousel = useCardCarousel('Win conditions');
 
-  // "Typically online by turn N" for the primary path. Null (→ hidden) when
-  // the analysis predates the assembly field, the path has no discrete
+  // "Typically kills/online by turn N" for the primary path. Null (→ hidden)
+  // when the analysis predates the assembly field, the path has no discrete
   // assembly (generic combat), or the deck no longer holds the pieces.
   const clock = useMemo(() => {
     const assembly = analysis.primary?.assembly;
-    if (!assembly?.length || !libraryNames?.length) return null;
-    return simulateAssemblyClock(libraryNames, assembly, {
+    if (!assembly?.length || !library?.length) return null;
+    return simulateAssemblyClock(library, assembly, {
       iterations: 1000,
       wildcards: analysis.tutors,
     });
-  }, [analysis, libraryNames]);
+  }, [analysis, library]);
+  const kills = !!analysis.primary && isKillClock(analysis.primary.category);
 
   const taggedNames = useMemo(() => new Set(winConTags ?? []), [winConTags]);
   // Names the engine already lists as evidence get their mark on that row
@@ -233,16 +253,16 @@ export function WinConditionPanel({
         <p className="win-con-clock">
           <Hourglass className="win-con-clock-icon" width={13} height={13} aria-hidden />
           <span>
-            Typically online by turn <strong>{clock.typicalTurn}</strong>
+            Typically {kills ? 'kills' : 'online'} by turn <strong>{clock.typicalTurn}</strong>
             <span className="win-con-clock-sub">
               {' '}
-              · 90% of games by turn {clock.p90Turn}, across 1,000 simulated draws
+              · 90% of games by turn {clock.p90Turn}, across 1,000 simulated games
             </span>
           </span>
           <InfoTip
-            label="the assembly clock"
+            label={kills ? 'the kill-turn estimate' : 'the assembly clock'}
             className="win-con-clock-tip"
-            text={assemblyClockTip()}
+            text={assemblyClockTip(kills)}
           />
         </p>
       )}
