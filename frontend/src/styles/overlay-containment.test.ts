@@ -186,6 +186,10 @@ describe('coarse-pointer touch floor', () => {
     // /trades' empty-state CTA — an <a>, so it also needs a non-inline
     // display or the floor below is silently ignored (measured 29px).
     ['pages/TradesPage.css', '.trades-page .empty-state .btn'],
+    // /trades' filter, shown once history outgrows a screenful. `.search-pill`
+    // is desktop-density (measured 31.6px); lifted page-scoped, because raising
+    // the shared primitive is an app-wide sweep of its own.
+    ['pages/TradesPage.css', '.trades-page .trades-search > input'],
     // Home's Quick Actions, which now carry the phone's front door to the
     // social cluster (the Friends pill). The floor was already applied here
     // but nothing pinned it, so deleting the coarse block would have dropped

@@ -300,10 +300,16 @@ tradesRouter.get('/', requireAuth, tradeReadLimiter, async (req: Request, res: R
     params.push(status);
     sql += ` AND status = $${params.length}`;
   }
-  params.push(MAX_LISTED);
+  // Over-fetch by one so the cap can be REPORTED rather than silently applied.
+  // Without this the client cannot tell "you have exactly 100 trades" from
+  // "you have more and we quietly dropped the rest", and /trades' history group
+  // only ever grows — so the page would eventually start lying by omission.
+  params.push(MAX_LISTED + 1);
   sql += ` ORDER BY created_at DESC LIMIT $${params.length}`;
 
-  const { rows } = await getPool().query<TradeOfferRow>(sql, params);
+  const { rows: all } = await getPool().query<TradeOfferRow>(sql, params);
+  const truncated = all.length > MAX_LISTED;
+  const rows = truncated ? all.slice(0, MAX_LISTED) : all;
   const otherIds = [
     ...new Set(rows.map((r) => (r.proposer_id === callerId ? r.recipient_id : r.proposer_id))),
   ];
@@ -319,6 +325,8 @@ tradesRouter.get('/', requireAuth, tradeReadLimiter, async (req: Request, res: R
         }
       )
     ),
+    /** True when older offers exist beyond `MAX_LISTED` and were not returned. */
+    truncated,
   });
 });
 

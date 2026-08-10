@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import { SearchPill } from '../components/SearchPill';
 import { TradeOfferList } from '../components/trade/TradeOfferList';
 import { listTrades, type TradeOffer } from '../lib/trades-client';
 
@@ -42,6 +43,22 @@ const GROUPS = [
   },
 ] as const;
 
+/** Row count past which the page offers a filter. See `searchable` below. */
+const SEARCH_THRESHOLD = 12;
+
+/**
+ * What a person actually searches this page for: a PERSON ("that trade with
+ * Ruby") or a CARD ("where did my Sol Ring go"). Both sides are matched — the
+ * card you gave away is as findable as the one you got.
+ */
+function matchesQuery(offer: TradeOffer, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  if (offer.counterpartyDisplayName?.toLowerCase().includes(q)) return true;
+  if (offer.counterpartyUsername.toLowerCase().includes(q)) return true;
+  return [...offer.give, ...offer.receive].some((c) => c.name.toLowerCase().includes(q));
+}
+
 function TradesSkeleton() {
   return (
     <div className="trades-skeleton" aria-label="Loading your trades" aria-busy="true">
@@ -55,8 +72,10 @@ function TradesSkeleton() {
 export function TradesPage() {
   const status = useAuth((s) => s.status);
   const [offers, setOffers] = useState<TradeOffer[] | null>(null);
+  const [truncated, setTruncated] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [query, setQuery] = useState('');
   // Offers are server-authoritative (two parties, no last-write-wins), so
   // every transition re-fetches rather than patching local state — same
   // contract the friend hub's own thread view keeps.
@@ -66,9 +85,10 @@ export function TradesPage() {
     if (status !== 'authed') return;
     let cancelled = false;
     listTrades()
-      .then((rows) => {
+      .then((listing) => {
         if (cancelled) return;
-        setOffers(rows);
+        setOffers(listing.offers);
+        setTruncated(listing.truncated);
         setLoadError(null);
       })
       .catch((err: unknown) => {
@@ -80,6 +100,17 @@ export function TradesPage() {
       cancelled = true;
     };
   }, [status, attempt]);
+
+  // An offer arriving while this page is open never showed up — the page
+  // fetched once on mount and then sat there. `useActivity()`, which feeds the
+  // badge that sends people here, already refetches on window focus; matching
+  // that cadence is also what stops the two from disagreeing, where you return
+  // to the tab and the badge says 1 over a page still showing nothing.
+  useEffect(() => {
+    if (status !== 'authed') return;
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, [status, refresh]);
 
   if (status === 'guest') {
     return (
@@ -112,6 +143,16 @@ export function TradesPage() {
   // groups must not render either: their per-group empty lines ("Nothing
   // waiting on you") assert the same thing we don't actually know.
   const showGroups = !loading && all.length > 0;
+
+  // #1532 judged a search box "noise at 3 rows" and was right; that judgement
+  // was always going to expire, since history only accumulates. Re-made here
+  // deliberately with a threshold instead of a yes/no: past roughly a screenful
+  // the three groups stop being scannable and finding "that trade with Ruby"
+  // becomes a hunt, which is the exact failure this page exists to end. Below
+  // it, the box would be furniture.
+  const searchable = all.length > SEARCH_THRESHOLD;
+  const visible = searchable ? all.filter((o) => matchesQuery(o, query)) : all;
+  const noMatches = searchable && query.trim() !== '' && visible.length === 0;
 
   return (
     <div className="trades-page">
@@ -149,9 +190,26 @@ export function TradesPage() {
         </div>
       )}
 
+      {searchable && (
+        <SearchPill
+          value={query}
+          onChange={setQuery}
+          placeholder="Search by friend or card"
+          ariaLabel="Search your trades by friend or card"
+          className="trades-search"
+        />
+      )}
+
+      {noMatches && (
+        <p className="trades-group-empty trades-no-matches" role="status">
+          No trades match “{query.trim()}”.
+        </p>
+      )}
+
       {showGroups &&
+        !noMatches &&
         GROUPS.map((group) => {
-          const rows = all.filter(group.match);
+          const rows = visible.filter(group.match);
           return (
             <section className="trades-section" key={group.id} aria-labelledby={`${group.id}-head`}>
               <h2 className="trades-section-title" id={`${group.id}-head`}>
@@ -177,6 +235,17 @@ export function TradesPage() {
                   linkCounterparty
                   label={group.title}
                 />
+              )}
+              {/* The server returns at most 100 offers per caller. Only the
+                  history group can ever reach that — the other two are open
+                  offers — and it is the one that grows forever, so say so
+                  rather than letting the list quietly stop. Paging was the
+                  alternative and was not worth a control on three groups when
+                  two of them can never need it. */}
+              {group.id === 'past' && truncated && rows.length > 0 && (
+                <p className="trades-group-empty trades-cap-note">
+                  Showing your 100 most recent trades. Older ones aren’t listed here.
+                </p>
               )}
             </section>
           );

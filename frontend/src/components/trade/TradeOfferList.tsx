@@ -5,6 +5,7 @@ import { ArrowRight } from 'lucide-react';
 import { UserAvatar } from '../UserAvatar';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { formatMoney } from '../../lib/format-money';
+import { formatRelativeTime } from '../../lib/format-time';
 import { splitSideValue, useFloorPrices } from '../../lib/trade-value';
 import { toast } from '../../store/toasts';
 import {
@@ -223,11 +224,14 @@ function TradeOfferCard({
             `${who} offered you`
           )}
         </h4>
-        <span
-          className={`trade-offer-status is-${offer.status}`}
-          data-testid={`trade-status-${offer.id}`}
-        >
-          {STATUS_LABEL[offer.status]}
+        <span className="trade-offer-meta">
+          <span
+            className={`trade-offer-status is-${offer.status}`}
+            data-testid={`trade-status-${offer.id}`}
+          >
+            {STATUS_LABEL[offer.status]}
+          </span>
+          <TradeOfferAge offer={offer} />
         </span>
       </header>
 
@@ -308,6 +312,36 @@ function TradeOfferCard({
         />
       )}
     </article>
+  );
+}
+
+/**
+ * How old this offer is.
+ *
+ * An offer carried no time at all, so one sent an hour ago and one sent six
+ * weeks ago read identically — on a page whose whole premise is a queue that
+ * decays. Age is the difference between "they're waiting on me" and "this is
+ * stale, decline it".
+ *
+ * A still-open offer is dated from when it was SENT (how long someone has been
+ * waiting); a resolved one from when it was ANSWERED (`resolvedAt`, falling
+ * back to `updatedAt` for rows written before that column existed) — "declined
+ * 3 weeks ago" is the fact, not when the proposal happened to start.
+ */
+function TradeOfferAge({ offer }: { offer: TradeOffer }) {
+  const open = offer.status === 'proposed';
+  const stamp = open ? offer.createdAt : (offer.resolvedAt ?? offer.updatedAt);
+  if (!stamp) return null;
+  return (
+    <time
+      className="trade-offer-age"
+      dateTime={new Date(stamp).toISOString()}
+      // The exact moment on hover/long-press — the relative form is the
+      // scannable one, but "which Thursday" is sometimes the actual question.
+      title={new Date(stamp).toLocaleString()}
+    >
+      {formatRelativeTime(stamp)}
+    </time>
   );
 }
 

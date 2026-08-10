@@ -76,12 +76,26 @@ async function handle<T>(res: Response, fallback: string): Promise<T> {
   return (await res.json()) as T;
 }
 
+export interface TradeListing {
+  offers: TradeOffer[];
+  /**
+   * True when older offers exist that the server did NOT return (its cap is
+   * 100 per caller). Surfaced rather than swallowed: `/trades`' history group
+   * only grows, so a silent cut would turn the page into a quiet lie about
+   * what you have traded.
+   */
+  truncated: boolean;
+}
+
 /** Every offer the caller is a party to, newest first. */
-export async function listTrades(opts: { withUserId?: string } = {}): Promise<TradeOffer[]> {
+export async function listTrades(opts: { withUserId?: string } = {}): Promise<TradeListing> {
   const query = opts.withUserId ? `?withUserId=${encodeURIComponent(opts.withUserId)}` : '';
   const res = await fetch(apiUrl(`/api/trades${query}`), { credentials: 'include' });
-  const data = await handle<{ offers: TradeOffer[] }>(res, 'Failed to load trades.');
-  return data.offers;
+  const data = await handle<{ offers: TradeOffer[]; truncated?: boolean }>(
+    res,
+    'Failed to load trades.'
+  );
+  return { offers: data.offers, truncated: data.truncated ?? false };
 }
 
 /**
