@@ -17,7 +17,9 @@ import type { SlimCard } from './types';
  *   - `r:<rarity>` or `rarity:<rarity>` → rarity equals
  *   - `f:<format>` → legalities[format] === 'legal'
  *   - `banned:<format>` → legalities[format] === 'banned'
- *   - `id<=WUBRG` / `id=WUBRG` / `id:WUBRG` → color_identity subset / equals
+ *   - `ci<=WUBRG` / `id<=WUBRG` / `id=WUBRG` / `id:WUBRG` → color_identity
+ *     subset / equals (`ci` is the alias Scryfall users actually type; without
+ *     it the clause fell through to `unknown` and matched EVERYTHING)
  *   - `c<=WU` / `c:WU` → colors subset
  *   - `cmc<=N` `cmc>=N` `cmc<N` `cmc>N` `cmc=N` `cmc:N`
  *   - `is:commander` `is:mdfc` `is:gamechanger` `is:digital`
@@ -140,6 +142,7 @@ function classify(rawTok: string): Clause {
       return { kind: 'format', value: value.toLowerCase(), neg };
     case 'banned':
       return { kind: 'banned', value: value.toLowerCase(), neg };
+    case 'ci':
     case 'id':
     case 'identity':
       return {

@@ -96,6 +96,16 @@ describe('matchesQuery', () => {
     expect(matchesQuery(mkCard({ colorIdentity: ['U'] }), parseQuery('id=UB'))).toBe(false);
   });
 
+  it('accepts `ci` as an alias for identity', () => {
+    // `ci:` is what Scryfall users actually type. Before it was aliased the
+    // clause fell through to `unknown`, which degrades to match-anything — so
+    // `ci<=W` silently returned the ENTIRE pool instead of filtering it.
+    const card = mkCard({ colorIdentity: ['U'] });
+    expect(matchesQuery(card, parseQuery('ci<=WU'))).toBe(true);
+    expect(matchesQuery(card, parseQuery('ci<=W'))).toBe(false);
+    expect(matchesQuery(card, parseQuery('ci=U'))).toBe(true);
+  });
+
   it('cmc comparisons', () => {
     expect(matchesQuery(mkCard({ cmc: 2 }), parseQuery('cmc<=3'))).toBe(true);
     expect(matchesQuery(mkCard({ cmc: 5 }), parseQuery('cmc<=3'))).toBe(false);

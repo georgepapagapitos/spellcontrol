@@ -1,4 +1,5 @@
 import type { FriendCard } from './cube/pool';
+import { buildFriendSearch } from './friend-search';
 
 /** WUBRG identity codes plus 'C' for colorless. */
 export type FriendColorFilter = ReadonlySet<string>;
@@ -12,6 +13,14 @@ function colorMatches(card: FriendCard, colors: FriendColorFilter): boolean {
 export interface FriendCollectionFilters {
   query: string;
   colors: FriendColorFilter;
+  /** Oracle-tag lookup, so `otag:` clauses resolve (keyed by card NAME). */
+  tagsFor?: (name: string) => string[];
+}
+
+export interface FriendCollectionResult {
+  cards: FriendCard[];
+  /** Clause labels the friend payload can't answer — surface these (E237). */
+  ignored: string[];
 }
 
 /**
@@ -30,16 +39,19 @@ export interface FriendCollectionFilters {
 export function filterFriendCollection(
   cards: readonly FriendCard[],
   filters: FriendCollectionFilters
-): FriendCard[] {
-  const q = filters.query.trim().toLowerCase();
-  return cards
-    .filter(
-      (c) => (q === '' || c.name.toLowerCase().includes(q)) && colorMatches(c, filters.colors)
-    )
+): FriendCollectionResult {
+  // Plain text stays a name substring; operator syntax (t:, ci:, cmc<=, otag:…)
+  // routes through the shared Scryfall interpreter. `ignored` names any clause
+  // the thin friend payload can't answer, so the caller can say so rather than
+  // rendering an empty list as "they own none" (E237).
+  const search = buildFriendSearch(filters.query, filters.tagsFor);
+  const cardsOut = cards
+    .filter((c) => search.match(c) && colorMatches(c, filters.colors))
     .sort((a, b) => {
       const ar = a.edhrecRank ?? Number.POSITIVE_INFINITY;
       const br = b.edhrecRank ?? Number.POSITIVE_INFINITY;
       if (ar !== br) return ar - br;
       return a.name.localeCompare(b.name);
     });
+  return { cards: cardsOut, ignored: search.ignored };
 }

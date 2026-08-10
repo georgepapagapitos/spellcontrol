@@ -10,8 +10,13 @@ export interface FriendCard {
   name: string;
   oracleId: string;
   colors: string[];
+  /** Colour IDENTITY — optional because payloads cached before it shipped lack
+   *  it. `friend-search.ts` treats absent-vs-empty as the difference between
+   *  "unknown" and "colourless"; do NOT default it to [] at the boundary. */
+  colorIdentity?: string[];
   cmc: number;
   typeLine: string;
+  rarity?: string;
   edhrecRank?: number;
   // Populated during Scryfall enrichment (see CubePage), not by the API.
   synergyProducers?: CubeCard['synergyProducers'];

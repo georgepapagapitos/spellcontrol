@@ -3,6 +3,8 @@ import { useId, useMemo, useState } from 'react';
 import { ChevronDown, Minus, Plus, X } from 'lucide-react';
 import { Modal } from '../Modal';
 import { SearchPill } from '../SearchPill';
+import { buildFriendSearch } from '../../lib/friend-search';
+import { getCardTags, useCardTagsReady } from '../../lib/card-tags';
 import { useCollectionStore } from '../../store/collection';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { toast } from '../../store/toasts';
@@ -138,12 +140,22 @@ export function TradeComposer({
     [ownedLines, giveQuery]
   );
 
+  // E237: the want side used to be a bare name substring while the friend
+  // BROWSER beside it already had colour chips — the composer was the weaker
+  // of the two. Both now run the same Scryfall-syntax search.
+  const wantWantsTags = /\b(otag|oracletag|function)[:=]/i.test(wantQuery);
+  const wantTagsReady = useCardTagsReady(wantWantsTags);
+  const wantSearch = useMemo(
+    () => buildFriendSearch(wantQuery, wantTagsReady ? getCardTags : undefined),
+    [wantQuery, wantTagsReady]
+  );
   const wantResults = useMemo(() => {
-    const q = wantQuery.trim().toLowerCase();
     const all = friendCards ?? [];
-    const matched = q ? all.filter((c) => c.name.toLowerCase().includes(q)) : all;
-    return [...matched].sort((a, b) => a.name.localeCompare(b.name)).slice(0, PICKER_LIMIT);
-  }, [friendCards, wantQuery]);
+    return all
+      .filter((c) => wantSearch.match(c))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .slice(0, PICKER_LIMIT);
+  }, [friendCards, wantSearch]);
 
   /** Picking a card from the results adds its CHEAPEST unchosen copy — the
    *  same safe default `copiesByValue` documents. One tap still works for the
@@ -362,6 +374,11 @@ export function TradeComposer({
             query={wantQuery}
             onQuery={setWantQuery}
             searchLabel={`Search ${friendName}’s collection`}
+            searchNote={
+              wantSearch.ignored.length > 0
+                ? `${wantSearch.ignored.join(', ')} ${wantSearch.ignored.length === 1 ? 'is' : 'are'} not searchable in a friend’s collection — the rest of your search still applied.`
+                : undefined
+            }
             picked={wantCards.map((c) => ({
               key: keyOf(c),
               name: c.name,
@@ -464,6 +481,7 @@ function TradeSide({
   query,
   onQuery,
   searchLabel,
+  searchNote,
   picked,
   onBump,
   onSetPrinting,
@@ -481,6 +499,8 @@ function TradeSide({
   query: string;
   onQuery: (next: string) => void;
   searchLabel: string;
+  /** Honest degrade note under the pill — e.g. clauses this side can't answer. */
+  searchNote?: string;
   picked: SideRow[];
   onBump?: (key: string, delta: number, max: number) => void;
   onSetPrinting?: (key: string, printingKey: string, count: number) => void;
@@ -526,6 +546,12 @@ function TradeSide({
         ariaLabel={searchLabel}
         className="trade-side-search"
       />
+
+      {searchNote && (
+        <p className="trade-side-note" role="status">
+          {searchNote}
+        </p>
+      )}
 
       {error ? (
         <p className="trade-side-note" role="alert">

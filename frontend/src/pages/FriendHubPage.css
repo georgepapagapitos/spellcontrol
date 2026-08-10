@@ -211,6 +211,15 @@
   color: var(--text-secondary);
 }
 
+/* E237: names the search clauses a friend payload can't answer (o:, keyword:,
+   f:). Sits above the results so an empty list is never read as "they own
+   none of these" — the search degraded, and this says which part. */
+.friend-hub-search-note {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
 .friend-hub-row-name {
   flex: 1;
   min-width: 0;

@@ -20,32 +20,35 @@ describe('filterFriendCollection', () => {
   const cards = [sol, bolt, wrath, naya];
 
   it('matches names case-insensitively as a substring', () => {
-    const result = filterFriendCollection(cards, { query: 'bolt', colors: new Set() });
+    const { cards: result } = filterFriendCollection(cards, { query: 'bolt', colors: new Set() });
     expect(result.map((c) => c.name)).toEqual(['Lightning Bolt']);
   });
 
   it('trims whitespace and empty query returns everything', () => {
-    const result = filterFriendCollection(cards, { query: '  ', colors: new Set() });
+    const { cards: result } = filterFriendCollection(cards, { query: '  ', colors: new Set() });
     expect(result).toHaveLength(4);
   });
 
   it('filters by any-selected-color match', () => {
-    const result = filterFriendCollection(cards, { query: '', colors: new Set(['W']) });
+    const { cards: result } = filterFriendCollection(cards, { query: '', colors: new Set(['W']) });
     expect(result.map((c) => c.name).sort()).toEqual(['Naya Charm', 'Wrath of God']);
   });
 
   it('treats an empty colors array as colorless, matched by C', () => {
-    const result = filterFriendCollection(cards, { query: '', colors: new Set(['C']) });
+    const { cards: result } = filterFriendCollection(cards, { query: '', colors: new Set(['C']) });
     expect(result.map((c) => c.name)).toEqual(['Sol Ring']);
   });
 
   it('combines name and color filters', () => {
-    const result = filterFriendCollection(cards, { query: 'naya', colors: new Set(['G']) });
+    const { cards: result } = filterFriendCollection(cards, {
+      query: 'naya',
+      colors: new Set(['G']),
+    });
     expect(result.map((c) => c.name)).toEqual(['Naya Charm']);
   });
 
   it('sorts by edhrecRank ascending with undefined ranks last, then by name', () => {
-    const result = filterFriendCollection(cards, { query: '', colors: new Set() });
+    const { cards: result } = filterFriendCollection(cards, { query: '', colors: new Set() });
     // sol(1), wrath(20), bolt(50), naya(undefined)
     expect(result.map((c) => c.name)).toEqual([
       'Sol Ring',
@@ -59,5 +62,40 @@ describe('filterFriendCollection', () => {
     const copy = [...cards];
     filterFriendCollection(cards, { query: '', colors: new Set() });
     expect(cards).toEqual(copy);
+  });
+
+  // E237 — operator syntax now routes through the shared Scryfall engine.
+  it('supports operator syntax alongside the colour chips', () => {
+    const { cards: result } = filterFriendCollection(cards, {
+      query: 't:creature',
+      colors: new Set(),
+    });
+    expect(result).toHaveLength(4); // every fixture is typeLine 'Creature'
+    const none = filterFriendCollection(cards, { query: 't:instant', colors: new Set() });
+    expect(none.cards).toHaveLength(0);
+  });
+
+  it('reports clauses the friend payload cannot answer instead of zeroing silently', () => {
+    const { cards: result, ignored } = filterFriendCollection(cards, {
+      query: 'o:destroy',
+      colors: new Set(),
+    });
+    expect(ignored).toEqual(['o:']);
+    // Nothing matches, but `ignored` is what the UI shows so the empty list
+    // never reads as "they own none of these".
+    expect(result).toHaveLength(0);
+  });
+
+  it('keeps the answerable half of a mixed query, and still applies colour chips', () => {
+    const { cards: result, ignored } = filterFriendCollection(cards, {
+      query: 't:creature o:destroy',
+      colors: new Set(['W']),
+    });
+    expect(ignored).toEqual(['o:']);
+    expect(result.map((c) => c.name).sort()).toEqual(['Naya Charm', 'Wrath of God']);
+  });
+
+  it('reports nothing for a fully answerable query', () => {
+    expect(filterFriendCollection(cards, { query: 'bolt', colors: new Set() }).ignored).toEqual([]);
   });
 });
