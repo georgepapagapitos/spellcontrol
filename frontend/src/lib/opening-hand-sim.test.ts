@@ -4,6 +4,7 @@ import {
   simulateAssemblyClock,
   simulateLandDropCurve,
   simulateOpeningHands,
+  type ClockCard,
   type SimCard,
 } from './opening-hand-sim';
 
@@ -205,9 +206,35 @@ describe('simulateLandDropCurve', () => {
 });
 
 describe('simulateAssemblyClock', () => {
-  /** A 99-card library of `filler` names plus the given named cards. */
-  function namedLibrary(named: string[], size = 99): string[] {
-    return [...named, ...Array.from({ length: size - named.length }, (_, i) => `Filler ${i}`)];
+  const clockCard = (name: string, cmc = 2, role: SimCard['role'] = null): ClockCard => ({
+    name,
+    cmc,
+    isLand: false,
+    role,
+    colors: [],
+  });
+  const clockLand = (i: number): ClockCard => ({
+    name: `Land ${i}`,
+    cmc: 0,
+    isLand: true,
+    role: null,
+    colors: [],
+  });
+
+  /**
+   * A 99-card library: the given named cards (two-drops by default), 37 lands,
+   * and 3-drop filler. The land count is load-bearing now that the clock has to
+   * pay for what it draws — a landless pile never casts anything.
+   */
+  function namedLibrary(
+    named: ReadonlyArray<ClockCard | string>,
+    size = 99,
+    lands = 37
+  ): ClockCard[] {
+    const cards: ClockCard[] = named.map((n) => (typeof n === 'string' ? clockCard(n) : n));
+    for (let i = 0; i < lands; i++) cards.push(clockLand(i));
+    while (cards.length < size) cards.push(clockCard(`Filler ${cards.length}`, 3));
+    return cards.slice(0, size);
   }
 
   it('is deterministic for a fixed seed', () => {
@@ -220,13 +247,66 @@ describe('simulateAssemblyClock', () => {
   });
 
   it('assembles on turn 1 when every library card satisfies the option', () => {
-    // need 1 of a name that is every card — the opener always contains it.
-    const lib = Array.from({ length: 99 }, () => 'Lab Man');
+    // need 1 of a free spell that is every card — the opener always holds it,
+    // and at 0 mana the turn-1 land drop is enough to cast it.
+    const lib = Array.from({ length: 99 }, () => clockCard('Lab Man', 0));
     const r = simulateAssemblyClock(lib, [{ names: ['Lab Man'], need: 1 }], {
       iterations: 100,
       seed: 1,
     });
     expect(r).toEqual({ iterations: 100, typicalTurn: 1, p90Turn: 1 });
+  });
+
+  /** 8 copies each of A and B, so the pieces arrive early and MANA is what
+   *  binds the clock — with 1-of pieces the draw walk dominates and cost is
+   *  invisible (which is itself correct: you can't be mana-screwed on turn 60). */
+  const densePieces = (cmc: number) => [
+    ...Array.from({ length: 8 }, () => clockCard('A', cmc)),
+    ...Array.from({ length: 8 }, () => clockCard('B', cmc)),
+  ];
+
+  it('prices the pieces: an expensive combo clocks later than a cheap one', () => {
+    // Same shuffle sequence, same positions — only the mana values differ.
+    const spec = [{ names: ['A', 'B'], need: 2 }];
+    const cheap = simulateAssemblyClock(namedLibrary(densePieces(1)), spec, {
+      iterations: 300,
+      seed: 21,
+    })!;
+    const pricey = simulateAssemblyClock(namedLibrary(densePieces(8)), spec, {
+      iterations: 300,
+      seed: 21,
+    })!;
+    expect(cheap.typicalTurn).toBeLessThan(pricey.typicalTurn);
+  });
+
+  it('card draw accelerates the clock (same seed, same card positions)', () => {
+    // One-card-per-turn is what dominates a sparse plan's clock, so a draw
+    // package has to move the median — see the +2 cards note in the sim.
+    const withDraw = namedLibrary([
+      ...densePieces(2),
+      ...Array.from({ length: 12 }, (_, i) => clockCard(`Cantrip ${i}`, 2, 'cardDraw')),
+    ]);
+    const withoutDraw = withDraw.map((c) => (c.role === 'cardDraw' ? { ...c, role: null } : c));
+    const spec = [{ names: ['A', 'B'], need: 2 }];
+    const drawn = simulateAssemblyClock(withDraw, spec, { iterations: 300, seed: 6 })!;
+    const flat = simulateAssemblyClock(withoutDraw, spec, { iterations: 300, seed: 6 })!;
+    expect(drawn.typicalTurn).toBeLessThan(flat.typicalTurn);
+  });
+
+  it('ramp accelerates the clock (same seed, same card positions)', () => {
+    const withRamp = namedLibrary(
+      [
+        ...densePieces(6),
+        ...Array.from({ length: 12 }, (_, i) => clockCard(`Rock ${i}`, 2, 'ramp')),
+      ],
+      99,
+      35
+    );
+    const withoutRamp = withRamp.map((c) => (c.role === 'ramp' ? { ...c, role: null } : c));
+    const spec = [{ names: ['A', 'B'], need: 2 }];
+    const ramped = simulateAssemblyClock(withRamp, spec, { iterations: 300, seed: 8 })!;
+    const flat = simulateAssemblyClock(withoutRamp, spec, { iterations: 300, seed: 8 })!;
+    expect(ramped.typicalTurn).toBeLessThan(flat.typicalTurn);
   });
 
   it('reports turn 1 for a zero-need option (commander-only combo)', () => {
@@ -324,16 +404,20 @@ describe('simulateAssemblyClock', () => {
     expect(tutored.p90Turn).toBeLessThanOrEqual(raw.p90Turn);
   });
 
-  it('two wildcards alone complete a two-piece option', () => {
-    // Library of ONLY tutors: the opener holds ≥2, so the clock is turn 1.
-    const tutors = Array.from({ length: 30 }, (_, i) => `Tutor ${i}`);
-    const lib = [...tutors, ...tutors, ...tutors].slice(0, 60);
-    const r = simulateAssemblyClock(lib.concat(['A', 'B']), [{ names: ['A', 'B'], need: 2 }], {
-      iterations: 100,
+  it('a tutor fetches to hand, so what it finds still has to be cast', () => {
+    // Tutor-dense library: the opener nearly always holds two tutors, yet the
+    // clock is never turn 1 — casting tutor + piece twice costs real mana.
+    const tutors = Array.from({ length: 40 }, (_, i) => `Tutor ${i}`);
+    const lib = namedLibrary([...tutors.map((t) => clockCard(t, 2)), 'A', 'B']);
+    const r = simulateAssemblyClock(lib, [{ names: ['A', 'B'], need: 2 }], {
+      iterations: 300,
       seed: 4,
       wildcards: tutors,
-    });
-    expect(r!.typicalTurn).toBe(1);
+    })!;
+    expect(r.typicalTurn).toBeGreaterThan(1);
+    // …but a tutor wall still gets there fast — that's the point of pricing
+    // them rather than dropping them (raw draw math clocks this ~turn 30).
+    expect(r.typicalTurn).toBeLessThan(10);
   });
 
   it('a wildcard that is also an option piece counts once, as the piece', () => {
@@ -353,8 +437,8 @@ describe('simulateAssemblyClock', () => {
   });
 
   it('respects a custom hand size', () => {
-    // Whole library in hand from the start → always turn 1.
-    const lib = namedLibrary(['A', 'B'], 10);
+    // Whole library in hand from the start, and both pieces free → turn 1.
+    const lib = namedLibrary([clockCard('A', 0), clockCard('B', 0)], 10, 4);
     const r = simulateAssemblyClock(lib, [{ names: ['A', 'B'], need: 2 }], {
       iterations: 50,
       seed: 2,

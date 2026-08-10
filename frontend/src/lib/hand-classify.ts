@@ -10,7 +10,7 @@
 
 import { getCardRole } from '@/deck-builder/services/tagger/client';
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { SimCard } from './opening-hand-sim';
+import type { ClockCard, SimCard } from './opening-hand-sim';
 
 export function isLand(card: ScryfallCard): boolean {
   const tl = card.type_line ?? card.card_faces?.[0]?.type_line ?? '';
@@ -33,4 +33,9 @@ export function toSimCard(card: ScryfallCard): SimCard {
     role: getCardRole(card.name),
     colors: card.color_identity ?? [],
   };
+}
+
+/** `toSimCard` plus the name — the assembly clock matches win-path pieces by name. */
+export function toClockCard(card: ScryfallCard): ClockCard {
+  return { name: card.name, ...toSimCard(card) };
 }
