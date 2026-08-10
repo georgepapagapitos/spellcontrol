@@ -21,11 +21,13 @@ export function Header() {
   const profile = useAuth((s) => s.profile);
   const logout = useAuth((s) => s.logout);
   const navigate = useNavigate();
-  // One "Home" badge covers pending requests, unseen directed shares,
-  // feedback, and likes — one endpoint, one hook, no duplicated math. Home
-  // now carries the badge the (removed) Friends link used to, since Friends
-  // folds into the account menu / You.
-  const { count: socialCount } = useActivity();
+  // One hook, one endpoint, two badges cut from the same bucket so they can
+  // never disagree: Home carries the whole activity count (requests, trades,
+  // unseen directed shares, feedback, likes); Friends carries only the
+  // action-required subset — friend requests + trade offers, the two asks
+  // that are actually answered on a social page. Same split FriendsPage
+  // already uses for its own Trades door.
+  const { count: socialCount, actionRequired } = useActivity();
   return (
     <header className="site-header">
       <div className="site-header-inner">
@@ -82,6 +84,31 @@ export function Header() {
           >
             <span>Play</span>
             {hasActiveGame && <span className="site-nav-game-dot" aria-label="game in progress" />}
+          </NavLink>
+          {/* The social cluster's front door. /friends, /trades, /pods and
+              /friends/:id were a four-page cluster with no top-level entry —
+              nav v2 dropped the Friends link on the premise that friends
+              lived inside /you, and #1474 removed that premise without
+              revisiting nav. Desktop has the room the phone bar doesn't
+              (a 6th 44px tab-bar cell doesn't fit 320px), so the door lands
+              here and, for the phone, on Home's Quick Actions — the tab the
+              activity badge already points at. */}
+          <NavLink
+            viewTransition
+            to="/friends"
+            className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
+            aria-label={
+              actionRequired.length > 0
+                ? `Friends, ${actionRequired.length} waiting on you`
+                : undefined
+            }
+          >
+            <span>Friends</span>
+            {actionRequired.length > 0 && (
+              <span className="friends-nav-link-badge" aria-hidden="true">
+                {actionRequired.length}
+              </span>
+            )}
           </NavLink>
         </nav>
         <nav className="site-nav">

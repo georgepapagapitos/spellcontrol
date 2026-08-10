@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 /**
- * Header — desktop nav-links (Home/Collection/Decks/Play; Friends folded into
- * You), Search, and the right cluster's authed-only avatar account menu vs.
+ * Header — desktop nav-links (Home/Collection/Decks/Play/Friends), Search,
+ * and the right cluster's authed-only avatar account menu vs.
  * the guest "Sign in" link. Rules is removed entirely from this surface (see
  * w3-mobile-native-nav for its PlayPage relocation, out of this PR's scope).
  */
@@ -24,7 +24,10 @@ const { authState, activityState } = vi.hoisted(() => ({
     profile: null as { displayName: string | null; avatarImageUrl: string | null } | null,
     logout: vi.fn(),
   },
-  activityState: { count: 0 },
+  // `count` drives Home's badge (all activity); `actionRequired` drives
+  // Friends' (the answerable subset). Both come off the one useActivity()
+  // bucket, so a test can't set them into a state the app can't reach.
+  activityState: { count: 0, actionRequired: [] as { type: string }[] },
 }));
 vi.mock('../store/auth', () => ({
   useAuth: (selector: (s: typeof authState) => unknown) => selector(authState),
@@ -61,18 +64,40 @@ afterEach(() => {
   authState.user = null;
   authState.profile = null;
   activityState.count = 0;
+  activityState.actionRequired = [];
   navigateMock.mockClear();
   authState.logout.mockClear();
 });
 
 describe('Header — nav links', () => {
-  it('renders Home, Collection, Decks, Play and excludes Friends', () => {
+  // Friends is back in the primary nav, reversing nav v2's omission. That
+  // omission rested on "friends management lives inside /you", a premise
+  // #1474 deleted when it made /friends a real page again and dropped the
+  // /you redirect — leaving /friends, /trades, /pods and /friends/:id as the
+  // app's only page cluster with no top-level door. This assertion used to
+  // read `excludes Friends`; it is inverted deliberately, not by accident.
+  it('renders Home, Collection, Decks, Play and Friends', () => {
     renderHeader();
     expect(screen.getByRole('link', { name: /^home$/i })).toBeTruthy();
     expect(screen.getByRole('link', { name: /^collection$/i })).toBeTruthy();
     expect(screen.getByRole('link', { name: /^decks$/i })).toBeTruthy();
     expect(screen.getByRole('link', { name: /^play$/i })).toBeTruthy();
-    expect(screen.queryByRole('link', { name: /friends/i })).toBeNull();
+    expect(screen.getByRole('link', { name: /^friends$/i }).getAttribute('href')).toBe('/friends');
+  });
+
+  it('Friends has no waiting aria-label when nothing needs an answer', () => {
+    renderHeader();
+    expect(screen.getByRole('link', { name: /^friends$/i }).getAttribute('aria-label')).toBeNull();
+  });
+
+  it('Friends badges only the action-required subset, not the whole activity count', () => {
+    // 5 notifications total, but only 2 are answerable on a social page —
+    // the badge must show 2, or it sends users to /friends for a deck like.
+    activityState.count = 5;
+    activityState.actionRequired = [{ type: 'friend_request' }, { type: 'trade_offer' }];
+    renderHeader();
+    expect(screen.getByRole('link', { name: 'Friends, 2 waiting on you' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Home, 5 notifications' })).toBeTruthy();
   });
 
   it('Home has no notification aria-label when the activity count is zero', () => {

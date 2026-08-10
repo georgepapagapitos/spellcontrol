@@ -659,6 +659,23 @@ Rakdos stays blood-black). Rulings:
   `--text-secondary` on the paper hub strips); hover raises
   (`--chrome-surface` / `--surface-raised`). State is never color-only: the
   fill pairs with `aria-current`/`.active` and ≥4.5:1 on-accent text.
+- **The mobile tab bar is FULL at 5 destinations + the Search utility — a new
+  top-level surface gets its phone door on Home, not a 6th cell.** The bar is
+  five `flex: 1` cells plus a fixed 44px Search. Six cells would need
+  `6×44 + 44 + 12.8` px of padding = **320.8px**, wider than the 320px floor,
+  *before* a single label — and labels already needed a short-form swap
+  ("Collection" → "Cards") plus a tracking trim to fit five. The phone's
+  primary nav is closed. A cluster needing top-level reach takes the
+  form-factor pair the app already uses elsewhere (desktop has no "You" link;
+  the phone has no avatar menu): **a `.site-nav-link` in the header, where
+  ≥1024px has the room, plus a door on Home** — Home being where the tab
+  bar's activity badge already lands, so the rule stays inferrable. This is
+  how the social cluster (`/friends`, `/trades`, `/pods`, `/friends/:id`) got
+  its front door; before that it was the app's only page cluster reachable
+  solely through a button buried inside another page. **Any badge on such a
+  door reads off the shared `useActivity()` bucket** — the whole `count` on
+  Home, the `actionRequired` subset on a social door — so two doors can never
+  claim different numbers.
 - **`--font-label` scope.** The condensed label face is for chrome, tab, and
   tape labels ONLY — always uppercase with letter-spacing (0.05–0.12em).
   Body/content text stays `--font-serif`; data stays `--font-mono`. Never set
