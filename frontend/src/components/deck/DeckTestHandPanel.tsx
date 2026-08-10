@@ -201,7 +201,10 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
     const primaryWinCon = deck?.winConditions?.primary ?? null;
     const winConTutors = deck?.winConditions?.tutors;
     const assemblyClock = useMemo(() => {
-      if (!primaryWinCon?.assembly?.length || library.length === 0) return null;
+      // Kill categories only — see isKillClock: a strategic mass's "assembled"
+      // turn tracks its evidence-pool size, not the deck's speed.
+      if (!primaryWinCon || !isKillClock(primaryWinCon.category)) return null;
+      if (!primaryWinCon.assembly?.length || library.length === 0) return null;
       return simulateAssemblyClock(library.map(toClockCard), primaryWinCon.assembly, {
         iterations: 1000,
         wildcards: winConTutors,
@@ -209,7 +212,6 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
       // taggerReady: ramp classification decides how fast the sim's mana grows.
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [library, primaryWinCon, winConTutors, taggerReady]);
-    const clockKills = !!primaryWinCon && isKillClock(primaryWinCon.category);
 
     const [hand, setHand] = useState<HandSlot[]>([]);
     const [pile, setPile] = useState<ScryfallCard[]>([]);
@@ -573,14 +575,14 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                       <p className="deck-test-hand-assembly">
                         <Hourglass width={12} height={12} aria-hidden />
                         <span>
-                          {primaryWinCon.label} typically {clockKills ? 'kills' : 'online'} by turn{' '}
+                          {primaryWinCon.label} typically kills by turn{' '}
                           <strong>{assemblyClock.typicalTurn}</strong> · 90% of games by turn{' '}
                           {assemblyClock.p90Turn}
                         </span>
                         <InfoTip
-                          label={clockKills ? 'the kill-turn estimate' : 'the assembly clock'}
+                          label="the kill-turn estimate"
                           className="deck-test-hand-assembly-tip"
-                          text={assemblyClockTip(clockKills)}
+                          text={assemblyClockTip()}
                         />
                       </p>
                     )}
@@ -596,7 +598,7 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                       `${Math.round(sim.keepableWithinMulligansRate * 100)} percent after a mulligan. ` +
                       `Average ${sim.avgLands.toFixed(1)} lands.` +
                       (assemblyClock && primaryWinCon
-                        ? ` ${primaryWinCon.label} typically ${clockKills ? 'kills' : 'online'} by turn ${assemblyClock.typicalTurn}, 90 percent of games by turn ${assemblyClock.p90Turn}.`
+                        ? ` ${primaryWinCon.label} typically kills by turn ${assemblyClock.typicalTurn}, 90 percent of games by turn ${assemblyClock.p90Turn}.`
                         : '')
                     : ''}
                 </p>

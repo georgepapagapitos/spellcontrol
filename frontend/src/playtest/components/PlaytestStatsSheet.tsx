@@ -441,8 +441,8 @@ interface SimBatch {
   landHistogram: number[];
   curve: LandDropCurveResult;
   clock: AssemblyClockResult | null;
-  /** Whether the primary path's clock is a kill turn (see `isKillClock`). */
-  clockKills: boolean;
+  /** Primary path label, for the "no kill turn to predict" explanation. */
+  primaryLabel: string | null;
 }
 
 /** Run the full batch: opener odds (incl. mulligan-to-keep distribution),
@@ -456,8 +456,11 @@ function runSimBatch(deck: Deck, key: string): SimBatch {
 
   const primary = deck.winConditions?.primary ?? null;
   const clockCards = deck.cards.map((slot) => toClockCard(slot.card));
+  // Kill categories only — a strategic mass's "assembled" turn measures its
+  // evidence-pool size rather than the deck's speed (see isKillClock).
+  const kills = !!primary && isKillClock(primary.category);
   const clock =
-    primary?.assembly?.length && clockCards.length > 0
+    kills && primary?.assembly?.length && clockCards.length > 0
       ? simulateAssemblyClock(clockCards, primary.assembly, {
           iterations: 1000,
           seed: 42,
@@ -477,7 +480,7 @@ function runSimBatch(deck: Deck, key: string): SimBatch {
     landHistogram: mull2.landHistogram,
     curve,
     clock,
-    clockKills: !!primary && isKillClock(primary.category),
+    primaryLabel: primary?.label ?? null,
   };
 }
 
@@ -643,22 +646,19 @@ function SimulateSection({ state, deck }: { state: PlaytestState; deck: Deck | u
           </p>
 
           <div className="playtest-stats-sim">
-            <p className="playtest-stats-sim-title">
-              {batch.clockKills ? 'Kill turn' : 'Assembly clock'}
-            </p>
+            <p className="playtest-stats-sim-title">Kill turn</p>
             {batch.clock ? (
               <>
                 <p className="playtest-stats-row" style={{ flexWrap: 'wrap' }}>
                   <Hourglass width={13} height={13} aria-hidden />
                   <span>
-                    Predicted: win condition {batch.clockKills ? 'kills' : 'online'} ~turn{' '}
-                    <strong>{batch.clock.typicalTurn}</strong> (median) /{' '}
-                    <strong>{batch.clock.p90Turn}</strong> (p90)
+                    Predicted: win condition kills ~turn <strong>{batch.clock.typicalTurn}</strong>{' '}
+                    (median) / <strong>{batch.clock.p90Turn}</strong> (p90)
                   </span>
                   <InfoTip
-                    label={batch.clockKills ? 'the kill-turn estimate' : 'the assembly clock'}
+                    label="the kill-turn estimate"
                     className="playtest-stats-sim-tip"
-                    text={assemblyClockTip(batch.clockKills)}
+                    text={assemblyClockTip()}
                   />
                 </p>
                 {(state.tableDefeatedTurn !== null || actualMedianTurn !== null) && (
@@ -676,7 +676,9 @@ function SimulateSection({ state, deck }: { state: PlaytestState; deck: Deck | u
               </>
             ) : (
               <p className="playtest-stats-sim-note">
-                No win conditions detected — predictions unavailable.
+                {batch.primaryLabel
+                  ? `${batch.primaryLabel} doesn't win the moment it comes together, so there's no kill turn to predict — the estimate only applies to combos and alt-win cards.`
+                  : 'No win conditions detected — predictions unavailable.'}
               </p>
             )}
           </div>
