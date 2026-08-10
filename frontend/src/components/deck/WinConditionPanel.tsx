@@ -36,36 +36,53 @@ export interface WinConditionPanelProps {
 
 /**
  * A path whose assembly IS the kill — the pieces resolving ends the game, so
- * the clock reads as a kill turn. Every other category (voltron's equipment
- * mass, go-wide, mill) still has to connect after it comes online, so those
- * keep the weaker "online by" reading.
+ * the clock is a real kill turn. **This now gates whether the clock renders at
+ * all**, not just its wording.
+ *
+ * Why: for a strategic mass (aristocrats / go-wide / poison / voltron),
+ * "assembled" means `STRATEGIC_MIN_CARDS` of the evidence pool have been cast —
+ * a *detector qualification* bar, not a "your plan is working" bar. Measured
+ * over 19 real EDHREC average decks, the resulting turn is very nearly a pure
+ * function of pool SIZE rather than deck speed:
+ *
+ *   pool 19-20 cards → t4-t9    (Atraxa poison t4, Ghired t9, Meren t8)
+ *   pool 11-12 cards → t10-t24  (Muldrotha t10, Prosper t16, Winota t24)
+ *   pool 5-6 cards   → t36-t42  (Tergrid t37, Godo t36, Miirym t41)
+ *
+ * Miirym reading "go-wide online by turn 41" — a deck that copies dragon tokens
+ * every turn — is the tell: it has a 5-card go-wide evidence pool, and the
+ * number was reporting that, dressed as a turn. Kill-category clocks over the
+ * same corpus are coherent and track power (Najeela t3 · Kinnan/Urza t8 ·
+ * Kaalia t10 · Korvold t11 · Edgar t14 · Krenko t15 · Lathril t23), so those
+ * still show. Strategic paths keep their row and evidence, just no clock line.
+ *
+ * Restoring a number for strategic paths means defining a real per-category
+ * "online" bar (10 poison counters, a payoff plus N bodies) — a modelling job
+ * with no ground truth to validate against, deliberately not attempted here.
  */
 export function isKillClock(category: WinConCategory): boolean {
   return category === 'infinite-combo' || category === 'alt-win';
 }
 
 /**
- * Shared methodology explainer for the assembly clock — one ⓘ per concept
+ * Shared methodology explainer for the kill-turn clock — one ⓘ per concept
  * (STYLE_GUIDE Info tooltips); also used by DeckTestHandPanel's and the
- * playtest stats sheet's clock lines. `kill` matches {@link isKillClock} so the
- * last line doesn't over- or under-claim what the number means.
+ * playtest stats sheet's clock lines. Only ever rendered next to a kill-category
+ * clock (see {@link isKillClock}), so it can speak plainly about winning.
  */
-export function assemblyClockTip(kill: boolean): JSX.Element {
+export function assemblyClockTip(): JSX.Element {
   return (
     <>
       <span className="info-tip-lead">
         Across 1,000 simulated games: mulligan to a keepable seven, then each turn draw, make a land
         drop, and spend that turn&apos;s mana — ramp, card draw, tutors and win-path pieces. The
-        clock stops when one path is fully cast: every piece of one combo, any one alt-win card, or
-        a critical mass of a strategic plan. A tutor costs its mana and fetches to hand, so what it
-        finds still has to be cast.
+        clock stops when the path is fully cast: every piece of one combo, or an alt-win card. A
+        tutor costs its mana and fetches to hand, so what it finds still has to be cast.
       </span>
       <span className="info-tip-lead">
-        {kill
-          ? 'This path wins on resolution, so that turn is the kill turn.'
-          : 'Online isn’t the same as won — this path still has to connect afterwards.'}{' '}
-        Colors, rituals and opponents aren&apos;t modeled, and every draw spell counts as two cards:
-        it&apos;s a goldfish estimate, not a promise.
+        This path wins on resolution, so that turn is the kill turn. Colors, rituals and opponents
+        aren&apos;t modeled, and every draw spell counts as two cards: it&apos;s a goldfish
+        estimate, not a promise.
       </span>
     </>
   );
@@ -175,18 +192,21 @@ export function WinConditionPanel({
 }: WinConditionPanelProps): JSX.Element {
   const carousel = useCardCarousel('Win conditions');
 
-  // "Typically kills/online by turn N" for the primary path. Null (→ hidden)
-  // when the analysis predates the assembly field, the path has no discrete
-  // assembly (generic combat), or the deck no longer holds the pieces.
+  // "Typically kills by turn N" for the primary path. Null (→ hidden) when the
+  // path isn't a kill category, the analysis predates the assembly field, the
+  // path has no discrete assembly (generic combat), or the deck no longer
+  // holds the pieces.
   const clock = useMemo(() => {
-    const assembly = analysis.primary?.assembly;
-    if (!assembly?.length || !library?.length) return null;
-    return simulateAssemblyClock(library, assembly, {
+    const primary = analysis.primary;
+    // Kill categories only — a strategic mass's "assembled" turn measures its
+    // evidence-pool size, not its speed (see isKillClock).
+    if (!primary || !isKillClock(primary.category)) return null;
+    if (!primary.assembly?.length || !library?.length) return null;
+    return simulateAssemblyClock(library, primary.assembly, {
       iterations: 1000,
       wildcards: analysis.tutors,
     });
   }, [analysis, library]);
-  const kills = !!analysis.primary && isKillClock(analysis.primary.category);
 
   const taggedNames = useMemo(() => new Set(winConTags ?? []), [winConTags]);
   // Names the engine already lists as evidence get their mark on that row
@@ -253,16 +273,16 @@ export function WinConditionPanel({
         <p className="win-con-clock">
           <Hourglass className="win-con-clock-icon" width={13} height={13} aria-hidden />
           <span>
-            Typically {kills ? 'kills' : 'online'} by turn <strong>{clock.typicalTurn}</strong>
+            Typically kills by turn <strong>{clock.typicalTurn}</strong>
             <span className="win-con-clock-sub">
               {' '}
               · 90% of games by turn {clock.p90Turn}, across 1,000 simulated games
             </span>
           </span>
           <InfoTip
-            label={kills ? 'the kill-turn estimate' : 'the assembly clock'}
+            label="the kill-turn estimate"
             className="win-con-clock-tip"
-            text={assemblyClockTip(kills)}
+            text={assemblyClockTip()}
           />
         </p>
       )}

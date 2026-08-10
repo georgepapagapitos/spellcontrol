@@ -119,3 +119,58 @@ describe('WinConditionPanel — E125 tag cross-link', () => {
     ).toBeTruthy();
   });
 });
+
+describe('WinConditionPanel — the clock is kill-categories only', () => {
+  /** A minimal library the clock can actually run over: 20 lands + the piece. */
+  const library = [
+    ...Array.from({ length: 20 }, (_, i) => ({
+      name: `Land ${i}`,
+      cmc: 0,
+      isLand: true,
+      role: null,
+      colors: [],
+    })),
+    { name: 'Thassa’s Oracle', cmc: 2, isLand: false, role: null, colors: [] },
+  ];
+
+  it('shows a kill turn for an alt-win path', () => {
+    render(
+      <WinConditionPanel
+        analysis={analysis({
+          primary: wincon({
+            category: 'alt-win',
+            label: 'Alt-win',
+            evidence: ['Thassa’s Oracle'],
+            assembly: [{ names: ['Thassa’s Oracle'], need: 1 }],
+          }),
+          noClearWinCondition: false,
+        })}
+        library={library}
+      />
+    );
+    expect(screen.getByText(/Typically kills by turn/)).toBeTruthy();
+  });
+
+  it('hides the clock for a strategic mass, keeping the path and its evidence', () => {
+    // That number tracked evidence-pool SIZE, not deck speed — a real go-wide
+    // deck measured turn 41 off a 5-card pool. See isKillClock.
+    render(
+      <WinConditionPanel
+        analysis={analysis({
+          primary: wincon({
+            category: 'go-wide',
+            label: 'Go wide',
+            evidence: ['Thassa’s Oracle'],
+            assembly: [{ names: ['Thassa’s Oracle'], need: 1 }],
+          }),
+          noClearWinCondition: false,
+        })}
+        library={library}
+      />
+    );
+    expect(screen.queryByText(/by turn/)).toBeNull();
+    // The path itself still renders — only the misleading number is gone.
+    expect(screen.getByText('Go wide')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Preview Thassa’s Oracle' })).toBeTruthy();
+  });
+});
