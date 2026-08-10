@@ -8,6 +8,10 @@ import {
   groupByPrinting,
   toTradeCardFromCopies,
   sumCopyValue,
+  defaultPrintingCounts,
+  setPrintingCountBalanced,
+  copiesFromCounts,
+  countsTotal,
 } from './trade-picker';
 import type { EnrichedCard } from '../types';
 
@@ -227,5 +231,99 @@ describe('choosing WHICH copy leaves the binder', () => {
     });
     const [line] = groupOwnedForTrade([nm, played]);
     expect(groupByPrinting(line).map((g) => g.condition)).toEqual(['mp', 'nm']);
+  });
+});
+
+describe('answering an offer — the accept-side picker', () => {
+  const beta = owned({
+    copyId: 'beta',
+    name: 'Sol Ring',
+    oracleId: 'o-sol',
+    scryfallId: 'scry-lea',
+    setCode: 'lea',
+    purchasePrice: 3200,
+  });
+  const reprintA = owned({
+    copyId: 'reprint-a',
+    name: 'Sol Ring',
+    oracleId: 'o-sol',
+    scryfallId: 'scry-c21',
+    purchasePrice: 2,
+  });
+  const reprintB = owned({
+    copyId: 'reprint-b',
+    name: 'Sol Ring',
+    oracleId: 'o-sol',
+    scryfallId: 'scry-c21',
+    purchasePrice: 2,
+  });
+  const foil = owned({
+    copyId: 'foil',
+    name: 'Sol Ring',
+    oracleId: 'o-sol',
+    scryfallId: 'scry-c21',
+    finish: 'foil',
+    purchasePrice: 9,
+  });
+  const line = groupOwnedForTrade([beta, reprintA, reprintB, foil])[0];
+  const groups = groupByPrinting(line);
+  // Cheapest printing first: the 2x $2 reprint, then the $9 foil, then Beta.
+  const [cheap, foilGroup, betaGroup] = groups;
+
+  it('opens pre-filled with the same cheapest-first pick accept would have sent', () => {
+    const counts = defaultPrintingCounts(line, 1);
+    expect(counts).toEqual({ [cheap.key]: 1 });
+    // The dialog default and the unattended pick must not disagree — otherwise
+    // opening the picker silently changes the deal.
+    expect(toTradeCardFromCopies(line, copiesFromCounts(groups, counts))).toEqual(
+      toTradeCard(line, 1)
+    );
+  });
+
+  it('spills into the next-cheapest printing when one runs out', () => {
+    expect(defaultPrintingCounts(line, 3)).toEqual({ [cheap.key]: 2, [foilGroup.key]: 1 });
+  });
+
+  it('switching printings at quantity 1 is ONE tap — the old pick is trimmed', () => {
+    // The whole reason for the auto-balance: without it, choosing the Beta
+    // means decrementing the reprint first and every state in between is
+    // invalid.
+    const counts = setPrintingCountBalanced(
+      groups,
+      defaultPrintingCounts(line, 1),
+      betaGroup.key,
+      1,
+      1
+    );
+    expect(counts[betaGroup.key]).toBe(1);
+    expect(counts[cheap.key]).toBe(0);
+    expect(countsTotal(counts)).toBe(1);
+  });
+
+  it('trims the MOST-selected printing first so a multi-copy pick sheds evenly', () => {
+    const counts = setPrintingCountBalanced(groups, { [cheap.key]: 2 }, foilGroup.key, 1, 2);
+    expect(counts).toEqual({ [cheap.key]: 1, [foilGroup.key]: 1 });
+  });
+
+  it('never lets a printing exceed the copies actually owned', () => {
+    const counts = setPrintingCountBalanced(groups, {}, cheap.key, 99, 5);
+    expect(counts[cheap.key]).toBe(2);
+  });
+
+  it('leaves the total alone when there is still room under the target', () => {
+    const counts = setPrintingCountBalanced(groups, { [cheap.key]: 1 }, foilGroup.key, 1, 3);
+    expect(counts).toEqual({ [cheap.key]: 1, [foilGroup.key]: 1 });
+  });
+
+  it('resolves counts to real copies, cheapest printing first', () => {
+    const copies = copiesFromCounts(groups, { [cheap.key]: 2, [betaGroup.key]: 1 });
+    expect(copies.map((c) => c.copyId)).toEqual(['reprint-a', 'reprint-b', 'beta']);
+  });
+
+  it('a chosen set becomes the wire shape with the printings the owner picked', () => {
+    const copies = copiesFromCounts(groups, { [betaGroup.key]: 1 });
+    expect(toTradeCardFromCopies(line, copies).copies).toEqual([
+      { scryfallId: 'scry-lea', finish: 'nonfoil' },
+    ]);
   });
 });

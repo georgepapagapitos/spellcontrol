@@ -16,8 +16,14 @@ import {
   type TradeOffer,
 } from '../../lib/trades-client';
 import { useCollectionStore } from '../../store/collection';
-import { groupOwnedForTrade, toTradeCard } from '../../lib/trade-picker';
+import {
+  groupOwnedForTrade,
+  groupByPrinting,
+  toTradeCard,
+  type OwnedTradeLine,
+} from '../../lib/trade-picker';
 import { settleTrade } from '../../lib/use-trade-settlement';
+import { TradeAcceptDialog, type AcceptChoice } from './TradeAcceptDialog';
 
 const STATUS_LABEL: Record<TradeOffer['status'], string> = {
   proposed: 'Waiting',
@@ -52,6 +58,17 @@ interface Props {
  * collection immediately. Everything else is a status change.
  */
 export function TradeOfferList({ offers, onChanged, onCounter, linkCounterparty, label }: Props) {
+  // Grouped ONCE for the whole list rather than per card: a real collection is
+  // ~11.5k rows, and every offer in a group asks the same question of it.
+  const cards = useCollectionStore((s) => s.cards);
+  const ownedByKey = useMemo(() => {
+    const map = new Map<string, OwnedTradeLine>();
+    for (const line of groupOwnedForTrade(cards)) {
+      map.set(line.oracleId || `name:${line.name.toLowerCase()}`, line);
+    }
+    return map;
+  }, [cards]);
+
   if (offers.length === 0) {
     return (
       <div className="empty-state trade-offers-empty">
@@ -72,6 +89,7 @@ export function TradeOfferList({ offers, onChanged, onCounter, linkCounterparty,
             onChanged={onChanged}
             onCounter={onCounter}
             linkCounterparty={linkCounterparty}
+            ownedByKey={ownedByKey}
           />
         </li>
       ))}
@@ -84,14 +102,17 @@ function TradeOfferCard({
   onChanged,
   onCounter,
   linkCounterparty,
+  ownedByKey,
 }: {
   offer: TradeOffer;
   onChanged: () => void;
   onCounter?: (offer: TradeOffer) => void;
   linkCounterparty?: boolean;
+  ownedByKey: Map<string, OwnedTradeLine>;
 }) {
-  const cards = useCollectionStore((s) => s.cards);
   const [busy, setBusy] = useState(false);
+  // Non-null while the viewer is choosing which copies to hand over.
+  const [choosing, setChoosing] = useState<AcceptChoice[] | null>(null);
   const headingId = useId();
 
   const who = offer.counterpartyDisplayName || `@${offer.counterpartyUsername}`;
@@ -123,29 +144,36 @@ function TradeOfferCard({
    * this collection), so we resolve against what is actually owned right now —
    * and refuse rather than send a half-resolved deal if a card is gone.
    */
-  async function accept() {
-    const owned = groupOwnedForTrade(cards);
-    const byKey = new Map(owned.map((l) => [l.oracleId || `name:${l.name.toLowerCase()}`, l]));
-    const resolved: TradeCard[] = [];
+  function resolveAsk(): { choices: AcceptChoice[]; missing: string[] } {
+    const choices: AcceptChoice[] = [];
     const missing: string[] = [];
-
     for (const asked of offer.give) {
-      const line = byKey.get(asked.oracleId || `name:${asked.name.toLowerCase()}`);
+      const line = ownedByKey.get(asked.oracleId || `name:${asked.name.toLowerCase()}`);
       if (!line || line.copies.length < asked.quantity) {
         missing.push(asked.name);
         continue;
       }
-      resolved.push(toTradeCard(line, asked.quantity));
+      choices.push({ asked, line });
     }
+    return { choices, missing };
+  }
 
-    if (missing.length > 0) {
-      toast.show({
-        message: `You no longer have ${missing.join(', ')} to give. Decline and counter instead.`,
-        tone: 'warn',
-      });
-      return;
-    }
+  /**
+   * True when at least one asked card exists in more than one printing here —
+   * i.e. when accepting is a real decision rather than a formality. Most of a
+   * collection is a single printing, and making those cost an extra tap would
+   * be a worse feature, so the picker is opened only when it has something to
+   * ask.
+   */
+  const needsChoice = useMemo(() => {
+    if (!canAnswer) return false;
+    return offer.give.some((asked) => {
+      const line = ownedByKey.get(asked.oracleId || `name:${asked.name.toLowerCase()}`);
+      return !!line && groupByPrinting(line).length > 1;
+    });
+  }, [canAnswer, offer.give, ownedByKey]);
 
+  async function commit(resolved: TradeCard[]) {
     await run(async () => {
       const updated = await acceptTrade(offer.id, resolved);
       // Settle straight away: they just clicked accept, so the intent is
@@ -153,6 +181,24 @@ function TradeOfferCard({
       // collection visibly stale.
       await settleTrade(updated);
     }, 'Failed to accept the trade.');
+    setChoosing(null);
+  }
+
+  async function accept() {
+    const { choices, missing } = resolveAsk();
+    if (missing.length > 0) {
+      toast.show({
+        message: `You no longer have ${missing.join(', ')} to give. Decline and counter instead.`,
+        tone: 'warn',
+      });
+      return;
+    }
+    if (needsChoice) {
+      setChoosing(choices);
+      return;
+    }
+    // Nothing to choose — the cheapest-first pick IS the only pick.
+    await commit(choices.map((c) => toTradeCard(c.line, c.asked.quantity)));
   }
 
   return (
@@ -214,7 +260,10 @@ function TradeOfferCard({
                 disabled={busy}
                 onClick={() => void accept()}
               >
-                {busy ? 'Working…' : 'Accept'}
+                {/* The ellipsis is the standard promise that a further step
+                    follows — this button settles a collection either way, and
+                    it must not be ambiguous which of the two it is doing. */}
+                {busy ? 'Working…' : needsChoice ? 'Accept…' : 'Accept'}
               </button>
               <button
                 type="button"
@@ -247,6 +296,16 @@ function TradeOfferCard({
             </button>
           )}
         </div>
+      )}
+
+      {choosing && (
+        <TradeAcceptDialog
+          counterpartyName={who}
+          choices={choosing}
+          busy={busy}
+          onCancel={() => setChoosing(null)}
+          onConfirm={(resolved) => void commit(resolved)}
+        />
       )}
     </article>
   );

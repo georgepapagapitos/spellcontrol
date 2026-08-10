@@ -144,10 +144,14 @@ export interface PrintingGroup {
  * buried the eight printings that DO differ. Condition is part of the key
  * because a played copy of the same printing is a different thing to trade.
  */
+export function printingKeyOf(card: EnrichedCard): string {
+  return `${card.scryfallId}|${card.finish}|${card.condition ?? ''}`;
+}
+
 export function groupByPrinting(line: OwnedTradeLine): PrintingGroup[] {
   const byKey = new Map<string, PrintingGroup>();
   for (const card of copiesByValue(line)) {
-    const key = `${card.scryfallId}|${card.finish}|${card.condition ?? ''}`;
+    const key = printingKeyOf(card);
     const existing = byKey.get(key);
     if (existing) {
       existing.copies.push(card);
@@ -166,6 +170,81 @@ export function groupByPrinting(line: OwnedTradeLine): PrintingGroup[] {
   // copiesByValue already ordered the input, so insertion order is cheapest
   // printing first and each group's copies are stable.
   return [...byKey.values()];
+}
+
+/**
+ * How many copies of each printing (by {@link PrintingGroup.key}) are in the
+ * trade. The unit the accept dialog edits, and the composer's model expressed
+ * as counts rather than copyIds — accepting resolves against copies the viewer
+ * has never seen listed, so there is no stable copyId selection to carry.
+ */
+export type PrintingCounts = Record<string, number>;
+
+export function countsTotal(counts: PrintingCounts): number {
+  return Object.values(counts).reduce((n, v) => n + v, 0);
+}
+
+/**
+ * The cheapest-first pick, expressed as per-printing counts — i.e. exactly what
+ * {@link toTradeCard} would hand over unattended. The accept dialog opens
+ * pre-filled with this, so confirming is one more tap rather than data entry,
+ * and adjusting is a deliberate override of a safe default.
+ */
+export function defaultPrintingCounts(line: OwnedTradeLine, quantity: number): PrintingCounts {
+  const counts: PrintingCounts = {};
+  for (const card of copiesByValue(line).slice(0, Math.max(0, quantity))) {
+    const key = printingKeyOf(card);
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+  return counts;
+}
+
+/**
+ * Sets one printing's count, then trims OTHER printings until the total fits
+ * `target` again.
+ *
+ * The auto-balance is what keeps the common case one tap. An offer for a single
+ * Sol Ring is a choice between printings, not an arithmetic exercise: without
+ * the trim, switching from the default printing to another means decrementing
+ * one and incrementing the other, and every intermediate state is invalid. With
+ * it, tapping "+" on the printing you mean is the whole interaction. Trimming
+ * takes from the most-selected printing first so a multi-copy pick sheds evenly
+ * rather than wiping one printing out.
+ */
+export function setPrintingCountBalanced(
+  groups: PrintingGroup[],
+  counts: PrintingCounts,
+  printingKey: string,
+  next: number,
+  target: number
+): PrintingCounts {
+  const group = groups.find((g) => g.key === printingKey);
+  if (!group) return counts;
+  const out: PrintingCounts = {
+    ...counts,
+    [printingKey]: Math.max(0, Math.min(next, group.copies.length)),
+  };
+  let over = countsTotal(out) - target;
+  if (over <= 0) return out;
+  const others = groups
+    .filter((g) => g.key !== printingKey)
+    .sort((a, b) => (out[b.key] ?? 0) - (out[a.key] ?? 0));
+  for (const g of others) {
+    if (over <= 0) break;
+    const take = Math.min(over, out[g.key] ?? 0);
+    if (take > 0) {
+      out[g.key] = (out[g.key] ?? 0) - take;
+      over -= take;
+    }
+  }
+  return out;
+}
+
+/** The actual physical copies a set of counts names, cheapest printing first.
+ *  Copies within a printing are interchangeable, so taking the first N of each
+ *  group is not an arbitrary choice — it is the only one. */
+export function copiesFromCounts(groups: PrintingGroup[], counts: PrintingCounts): EnrichedCard[] {
+  return groups.flatMap((g) => g.copies.slice(0, counts[g.key] ?? 0));
 }
 
 /**
