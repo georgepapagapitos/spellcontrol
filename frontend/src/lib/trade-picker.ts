@@ -65,22 +65,107 @@ function toCopy(card: EnrichedCard): TradeCopy {
 }
 
 /**
- * Turns a picked line + quantity into the wire shape, naming the exact copies
- * being handed over.
+ * A line's copies ordered cheapest market price first — the order any automatic
+ * pick walks.
  *
- * Copies are taken in collection order, which is stable and predictable; the
- * owner can see the printing on each one in the composer before sending. Asking
- * for more copies than are owned is clamped rather than rejected — the picker's
- * stepper already caps at `copies.length`, so this is the belt to that braces.
+ * ⚠️ This used to be raw collection order, which is arbitrary from the owner's
+ * point of view: offering "Sol Ring ×1" handed over `copies[0]`, so whoever
+ * happened to sit first in the array left the binder. With seven printings of a
+ * card that can silently be the Beta rather than the Commander reprint.
+ * Cheapest-first makes the automatic choice the *least* costly mistake — an
+ * accidental cheap trade is annoying, an accidental Beta is not — and the
+ * composer lets the owner override it per copy. Ties keep collection order, so
+ * identical printings stay stable.
+ */
+export function copiesByValue(line: OwnedTradeLine): EnrichedCard[] {
+  return line.copies
+    .map((card, index) => ({ card, index }))
+    .sort((a, b) => a.card.purchasePrice - b.card.purchasePrice || a.index - b.index)
+    .map((entry) => entry.card);
+}
+
+/**
+ * Turns a picked line + quantity into the wire shape, naming the exact copies
+ * being handed over. Used where there is no explicit selection — the accept
+ * path, and the composer's initial pick — so it takes the CHEAPEST copies (see
+ * `copiesByValue`). Asking for more copies than are owned is clamped rather
+ * than rejected; the picker already caps at `copies.length`, so this is the
+ * belt to that braces.
  */
 export function toTradeCard(line: OwnedTradeLine, quantity: number): TradeCard {
   const take = Math.max(0, Math.min(quantity, line.copies.length));
+  return toTradeCardFromCopies(line, copiesByValue(line).slice(0, take));
+}
+
+/**
+ * Wire shape from an EXPLICIT set of copies the owner chose. This is the honest
+ * path: a physical trade is a decision about specific objects, not about a
+ * quantity of an abstract card.
+ *
+ * `copyId` deliberately does NOT travel — the wire shape identifies a copy by
+ * its printing (`scryfallId` + `finish`), which is what stays correct when the
+ * giver edits quantities between proposing and settling. See trade-settlement.
+ */
+export function toTradeCardFromCopies(line: OwnedTradeLine, chosen: EnrichedCard[]): TradeCard {
   return {
     oracleId: line.oracleId,
     name: line.name,
-    quantity: take,
-    copies: line.copies.slice(0, take).map(toCopy),
+    quantity: chosen.length,
+    copies: chosen.map(toCopy),
   };
+}
+
+/** Total market value of a set of copies, in the active display currency
+ *  (`purchasePrice` is already override- and proxy-resolved by applyPrices). */
+export function sumCopyValue(copies: EnrichedCard[]): number {
+  return copies.reduce((total, card) => total + (card.purchasePrice || 0), 0);
+}
+
+/** Every owned copy of ONE printing, at one price. */
+export interface PrintingGroup {
+  /** Stable within a line: printing + finish + condition. */
+  key: string;
+  setCode: string;
+  collectorNumber: string;
+  finish: string;
+  condition?: string;
+  /** Per-copy market price — identical across the group by construction. */
+  price: number;
+  copies: EnrichedCard[];
+}
+
+/**
+ * Collapses a line's copies into one row per PRINTING, cheapest first.
+ *
+ * This is the unit a person actually chooses. Listing raw copies looked
+ * thorough and was useless: 37 Evolving Wilds rendered as 37 checkboxes, eight
+ * of them the identical "AFR #256 nm" at $0.17 — asking which of eight
+ * indistinguishable objects to trade is a question with no answer, and it
+ * buried the eight printings that DO differ. Condition is part of the key
+ * because a played copy of the same printing is a different thing to trade.
+ */
+export function groupByPrinting(line: OwnedTradeLine): PrintingGroup[] {
+  const byKey = new Map<string, PrintingGroup>();
+  for (const card of copiesByValue(line)) {
+    const key = `${card.scryfallId}|${card.finish}|${card.condition ?? ''}`;
+    const existing = byKey.get(key);
+    if (existing) {
+      existing.copies.push(card);
+    } else {
+      byKey.set(key, {
+        key,
+        setCode: card.setCode,
+        collectorNumber: card.collectorNumber,
+        finish: card.finish,
+        condition: card.condition,
+        price: card.purchasePrice || 0,
+        copies: [card],
+      });
+    }
+  }
+  // copiesByValue already ordered the input, so insertion order is cheapest
+  // printing first and each group's copies are stable.
+  return [...byKey.values()];
 }
 
 /**

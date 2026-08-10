@@ -53,6 +53,9 @@ describe('overlay scroll containment', () => {
     ['styles/binder-card-management.css', '.add-card-sheet-body'],
     ['styles/play-layout-editor.css', '.cle'],
     ['components/AvatarPickerSheet.css', '.avatar-picker-body'],
+    // The trade composer's per-printing chooser — capped and scrolled because a
+    // real collection holds 59 printings of Mountain.
+    ['components/trade/TradeComposer.css', '.trade-copy-list'],
   ];
 
   for (const [file, selector] of SCROLLERS) {
@@ -163,6 +166,11 @@ describe('coarse-pointer touch floor', () => {
     ['styles/tooltip-legend.css', '.banner-dismiss'],
     ['components/trade/TradeComposer.css', '.trade-stepper-btn::after'],
     ['components/trade/TradeComposer.css', '.trade-picked-remove::after'],
+    // The "which of my copies is leaving" disclosure — ghosted like its row
+    // siblings, since the row's padding means a real 44px box would inflate it.
+    ['components/trade/TradeComposer.css', '.trade-picked-choose::after'],
+    // An expanded copy is its OWN row, so it takes the floor on its real box.
+    ['components/trade/TradeComposer.css', '.trade-copy-row'],
     // Card header, not a dense row — it grows its own box rather than a ghost
     // (a ghost here would only overlap the non-interactive sides grid below).
     ['components/trade/TradeOfferList.css', '.trade-offer-who'],
