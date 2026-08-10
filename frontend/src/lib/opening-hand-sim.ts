@@ -250,6 +250,11 @@ export function simulateLandDropCurve(
 
 // ── Assembly clock — "typically online by turn N" ───────────────────────────
 
+/** A library card the assembly clock needs: a `SimCard` plus its name. */
+export interface ClockCard extends SimCard {
+  name: string;
+}
+
 export interface AssemblyClockOptions {
   /** Runs to simulate. Default 1000, matching `simulateOpeningHands`. */
   iterations?: number;
@@ -258,10 +263,10 @@ export interface AssemblyClockOptions {
   /** Seed for the PRNG. Omit for a fresh random run; pass a fixed value in tests. */
   seed?: number;
   /**
-   * Wildcard card names (tutors): each drawn copy substitutes for one missing
-   * piece of whichever option is closest to done. Without these, tutor-reliant
-   * decks (combo especially) clock absurdly slow — the raw draw math, but not
-   * how the deck actually plays.
+   * Tutor card names. A cast tutor fetches the cheapest still-missing piece of
+   * whichever option is closest to done — into HAND, so it still has to be
+   * cast. Without these, tutor-reliant decks (combo especially) clock absurdly
+   * slow: the raw draw math, but not how the deck plays.
    */
   wildcards?: readonly string[];
 }
@@ -269,8 +274,8 @@ export interface AssemblyClockOptions {
 export interface AssemblyClockResult {
   iterations: number;
   /**
-   * Median 1-based turn on which the win path assembled — "typically online by
-   * turn N". Turn 1 = the opening hand plus the first draw.
+   * Median 1-based turn on which the win path came online — every piece drawn
+   * AND cast. Turn 1 = the opening hand plus the first draw.
    */
   typicalTurn: number;
   /** 90th-percentile turn — 90% of simulated games were online by this turn. */
@@ -278,31 +283,42 @@ export interface AssemblyClockResult {
 }
 
 /**
- * How many turns until the deck's win path is in hand, across many simulated
- * games: shuffle, draw an opening hand, then draw one card per turn until any
- * one `options` entry is satisfied (`need` distinct `names` drawn). Duplicate
- * copies of a name only count once toward `need`.
+ * How many turns until the deck's win path is assembled *and paid for*, across
+ * many simulated games: shuffle, draw an opening hand, then each turn draw a
+ * card, make a land drop, and spend that turn's mana until any one `options`
+ * entry is satisfied (`need` distinct `names` cast). Duplicate copies of a name
+ * only count once toward `need`.
  *
- * Deliberately a goldfish draw-clock: no tutors, cantrips, or mulligans are
- * modeled, so real games usually assemble sooner — surfaces state this. Options
- * naming cards the library no longer contains (stale persisted analysis after
- * an edit) are dropped; returns null when nothing viable remains.
+ * The mana model is what separates this from raw draw math: a piece in hand you
+ * can't cast is not online, so a four-piece combo of five-drops correctly clocks
+ * slower than two one-drops, and a tutor costs its mana plus a second cast for
+ * what it fetches. Cast `role: 'ramp'` adds a mana from the next turn and cast
+ * `role: 'cardDraw'` draws two (see the ponytail notes below); openers use the
+ * same two-mulligan keep policy as `simulateOpeningHands`.
+ *
+ * Still a goldfish: no colors, no rituals or free spells, no opponent and no
+ * interaction, so real games vary in both directions. Surfaces state this.
+ * Options naming cards the library no longer contains (stale persisted analysis
+ * after an edit) are dropped; returns null when nothing viable remains.
  *
  * The `options` shape matches `WinCondition.assembly` from the T16 detector,
  * kept structural here so this file stays decoupled from deck-builder types.
  */
 export function simulateAssemblyClock(
-  libraryNames: readonly string[],
+  library: readonly ClockCard[],
   options: ReadonlyArray<{ names: readonly string[]; need: number }>,
   opts: AssemblyClockOptions = {}
 ): AssemblyClockResult | null {
   const iterations = Math.max(1, Math.floor(opts.iterations ?? 1000));
   const handSize = Math.max(1, Math.floor(opts.handSize ?? 7));
 
-  const inLibrary = new Set(libraryNames);
+  // First copy of a name wins — every printing of a card costs the same.
+  const cmcByName = new Map<string, number>();
+  for (const c of library) if (!cmcByName.has(c.name)) cmcByName.set(c.name, c.cmc);
+
   const viable = options
     .map((o) => ({
-      names: Array.from(new Set(o.names)).filter((n) => inLibrary.has(n)),
+      names: Array.from(new Set(o.names)).filter((n) => cmcByName.has(n)),
       need: o.need,
     }))
     .filter((o) => o.need <= 0 || o.names.length >= o.need);
@@ -314,50 +330,138 @@ export function simulateAssemblyClock(
     return { iterations, typicalTurn: 1, p90Turn: 1 };
   }
 
-  // name → indices of the viable options it advances.
-  const optionsByName = new Map<string, number[]>();
-  viable.forEach((o, i) => {
-    for (const n of o.names) {
-      const hits = optionsByName.get(n);
-      if (hits) hits.push(i);
-      else optionsByName.set(n, [i]);
-    }
-  });
-
-  // Wildcards that are actual option pieces stay pieces — a card is one or the
+  const pieceNames = new Set(viable.flatMap((o) => o.names));
+  // A tutor that is itself a combo piece stays a piece — a card is one or the
   // other, and the piece reading is the more specific one.
-  const wildcardSet = new Set((opts.wildcards ?? []).filter((n) => !optionsByName.has(n)));
+  const tutorNames = new Set((opts.wildcards ?? []).filter((n) => !pieceNames.has(n)));
 
   const rand = mulberry32(opts.seed ?? (Math.random() * 0xffffffff) >>> 0);
   const turns: number[] = [];
 
   for (let i = 0; i < iterations; i++) {
-    const order = shuffle(libraryNames, rand);
-    const remaining = viable.map((o) => o.need);
-    const seen = new Set<string>();
-    let wildcardsHeld = 0;
-    // Every viable option's names are all present, so a full-library walk
-    // always completes — each run records exactly one turn.
-    for (let pos = 0; pos < order.length; pos++) {
-      const name = order[pos];
-      const hits = optionsByName.get(name);
-      if (hits && !seen.has(name)) {
-        seen.add(name);
-        for (const oi of hits) remaining[oi] -= 1;
-      } else if (wildcardSet.has(name)) {
-        // Each drawn copy is one substitution — all held wildcards go to the
-        // option closest to done (optimal, since only one option must finish).
-        wildcardsHeld += 1;
-      } else {
-        continue; // filler, or a duplicate copy of a piece — state unchanged
+    let order = shuffle(library, rand);
+    let hand = order.slice(0, handSize);
+    // Same keep policy as `simulateOpeningHands` (2 mulligans), then London:
+    // bottom one card per mulligan taken. Cards left in `order[0..handSize)`
+    // are never drawn again, so bottoming is just dropping them from hand.
+    let mulls = 0;
+    while (mulls < 2 && !isKeepableHand(hand)) {
+      order = shuffle(library, rand);
+      hand = order.slice(0, handSize);
+      mulls += 1;
+    }
+    for (let m = 0; m < mulls; m++) {
+      // Priciest card that isn't a land or part of the win path — what a real
+      // player bottoms first.
+      let worst = -1;
+      for (let h = 0; h < hand.length; h++) {
+        if (hand[h].isLand || pieceNames.has(hand[h].name)) continue;
+        if (worst < 0 || hand[h].cmc > hand[worst].cmc) worst = h;
       }
-      if (Math.min(...remaining) <= wildcardsHeld) {
-        // Cards seen by turn t = handSize + t (one draw per turn from turn 1),
-        // so the draw at 0-based position `pos` lands on turn pos + 1 - handSize.
-        turns.push(Math.max(1, pos + 1 - handSize));
+      if (worst >= 0) hand.splice(worst, 1);
+    }
+    let nextDraw = handSize;
+    let lands = 0;
+    let rampOnline = 0; // mana from ramp that has had a turn to untap
+    let rampPending = 0; // ramp cast this turn — online next turn
+    const cast = new Set<string>(); // distinct piece names actually paid for
+
+    const missing = (o: { names: string[]; need: number }) =>
+      o.need - o.names.reduce((n, nm) => n + (cast.has(nm) ? 1 : 0), 0);
+    const closest = () => Math.min(...viable.map(missing));
+
+    // Cast priority class: 0 ramp, 1 needed piece, 2 tutor, 3 card draw,
+    // -1 uncastable (filler, a land, or a duplicate of a piece already paid).
+    const classOf = (c: ClockCard): number =>
+      pieceNames.has(c.name)
+        ? cast.has(c.name)
+          ? -1
+          : 1
+        : tutorNames.has(c.name)
+          ? 2
+          : c.isLand
+            ? -1
+            : c.role === 'ramp'
+              ? 0
+              : c.role === 'cardDraw'
+                ? 3
+                : -1;
+
+    // Drawing the whole library always supplies every piece and enough lands,
+    // so this terminates; the bound is a guard, not the expected exit.
+    let onlineTurn = order.length;
+    for (let turn = 1; turn <= order.length; turn++) {
+      if (nextDraw < order.length) hand.push(order[nextDraw++]);
+
+      const landIdx = hand.findIndex((c) => c.isLand);
+      if (landIdx >= 0) {
+        hand.splice(landIdx, 1);
+        lands += 1;
+      }
+
+      rampOnline += rampPending;
+      rampPending = 0;
+      let budget = lands + rampOnline;
+
+      for (;;) {
+        // ponytail: greedy sequencing — ramp and draw before pieces unless the
+        // deck is one piece from done, then finishing beats developing. A real
+        // player plans the whole curve; add lookahead only if medians move.
+        const priority = closest() <= 1 ? [1, 2, 0, 3] : [0, 3, 1, 2];
+        let pick = -1;
+        for (const want of priority) {
+          for (let h = 0; h < hand.length; h++) {
+            if (classOf(hand[h]) !== want || hand[h].cmc > budget) continue;
+            if (pick < 0 || hand[h].cmc < hand[pick].cmc) pick = h;
+          }
+          if (pick >= 0) break;
+        }
+        if (pick < 0) break;
+
+        const card = hand[pick];
+        hand.splice(pick, 1);
+        budget -= card.cmc;
+
+        if (pieceNames.has(card.name)) {
+          cast.add(card.name);
+        } else if (tutorNames.has(card.name)) {
+          // Fetched to HAND, not the battlefield — it still costs a cast. This
+          // is the whole point of pricing tutors rather than treating a drawn
+          // one as the missing piece outright.
+          const target = viable
+            .filter((o) => missing(o) > 0)
+            .sort((a, b) => missing(a) - missing(b))[0];
+          const held = new Set(hand.map((c) => c.name));
+          const want = target?.names
+            .filter((n) => !cast.has(n) && !held.has(n))
+            .sort((a, b) => (cmcByName.get(a) ?? 0) - (cmcByName.get(b) ?? 0))[0];
+          if (want) {
+            hand.push({
+              name: want,
+              cmc: cmcByName.get(want) ?? 0,
+              isLand: false,
+              role: null,
+              colors: [],
+            });
+          }
+        } else if (card.role === 'cardDraw') {
+          // ponytail: every draw spell is +2 cards. Rhystic Study is an engine
+          // and Sign in Blood is exactly two; without ANY draw the clock is
+          // one-card-per-turn, which is what actually dominated the medians.
+          for (let d = 0; d < 2 && nextDraw < order.length; d++) hand.push(order[nextDraw++]);
+        } else {
+          rampPending += 1; // ponytail: every ramp spell is +1 mana. Sol Ring is
+          // +2 and a dork is summoning-sick; ramp COUNT drives the median, not
+          // which rock it was. Model individual output if the numbers demand it.
+        }
+      }
+
+      if (closest() <= 0) {
+        onlineTurn = turn;
         break;
       }
     }
+    turns.push(onlineTurn);
   }
 
   turns.sort((a, b) => a - b);

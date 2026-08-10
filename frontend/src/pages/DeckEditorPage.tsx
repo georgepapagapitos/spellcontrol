@@ -85,6 +85,7 @@ import {
 import { rankReplacementCuts } from '@/lib/intelligent-cuts';
 import { buildSwapAlternativeFactors, type WhyFactor } from '@/lib/why-factors';
 import { computeAddFit } from '@/lib/card-fit';
+import { toClockCard } from '@/lib/hand-classify';
 import { useEdhrecComboOverlay } from '@/lib/edhrec-combo-overlay';
 import { CardFitPanel } from '../components/deck/CardFitPanel';
 import { SwapThisCard } from '../components/deck/SwapThisCard';
@@ -634,8 +635,9 @@ export function DeckEditorPage() {
   // Flat card list for EnginePanel's tappable axis drill-through — mainboard only
   // (commanders don't form a typical synergy axis row).
   const deckCards = useMemo(() => (deck ? deck.cards.map((c) => c.card) : []), [deck]);
-  // Library names (one per physical copy) for WinConditionPanel's assembly clock.
-  const deckLibraryNames = useMemo(() => deckCards.map((c) => c.name), [deckCards]);
+  // Library (one entry per physical copy) for WinConditionPanel's assembly
+  // clock — it costs cards out, so it needs mana value + land/ramp, not names.
+  const deckLibrary = useMemo(() => deckCards.map(toClockCard), [deckCards]);
   // Full axis summaries (card names + reasons) for the EnginePanel annotation layer.
   const axisSummaries = useMemo(
     () => (deck?.synergyAnalysis ? analyzeDeckSynergy(deckCards).axes : undefined),
@@ -3007,7 +3009,7 @@ export function DeckEditorPage() {
               formatConfig?.hasCommander && deck.winConditions ? (
                 <WinConditionPanel
                   analysis={deck.winConditions}
-                  libraryNames={deckLibraryNames}
+                  library={deckLibrary}
                   winConTags={deck.winConTags}
                   onToggleWinConTag={(name) =>
                     updateDeck(deck.id, { winConTags: toggleWinConTag(deck.winConTags, name) })
