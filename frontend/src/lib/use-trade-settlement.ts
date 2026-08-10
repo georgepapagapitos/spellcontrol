@@ -136,7 +136,7 @@ export function useTradeSettlement(): void {
       if (running.current || cancelled) return;
       running.current = true;
       try {
-        const offers = await listTrades();
+        const { offers } = await listTrades();
         for (const offer of offers) {
           if (cancelled) break;
           if (offer.status === 'accepted' && !offer.settled) {

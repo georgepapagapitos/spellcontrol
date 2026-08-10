@@ -65,13 +65,18 @@ function group(name: string): HTMLElement {
   return screen.getByRole('region', { name });
 }
 
+/** The listing shape the client returns — offers plus the server's cap flag. */
+function listing(offers: unknown[], truncated = false) {
+  return { offers, truncated };
+}
+
 describe('TradesPage', () => {
   beforeEach(() => {
     listTrades.mockReset();
   });
 
   it('asks for every offer, not one friend’s thread', async () => {
-    listTrades.mockResolvedValue([]);
+    listTrades.mockResolvedValue(listing([]));
     renderPage();
     await screen.findByText(/no trades yet/i);
 
@@ -89,11 +94,13 @@ describe('TradesPage', () => {
   });
 
   it('buckets by what the viewer has to do, not by friend', async () => {
-    listTrades.mockResolvedValue([
-      makeOffer({ id: 'incoming', mine: false, status: 'proposed' }),
-      makeOffer({ id: 'outgoing', mine: true, status: 'proposed' }),
-      makeOffer({ id: 'done', status: 'accepted', settled: true }),
-    ]);
+    listTrades.mockResolvedValue(
+      listing([
+        makeOffer({ id: 'incoming', mine: false, status: 'proposed' }),
+        makeOffer({ id: 'outgoing', mine: true, status: 'proposed' }),
+        makeOffer({ id: 'done', status: 'accepted', settled: true }),
+      ])
+    );
     renderPage();
 
     await screen.findByText('Needs your answer');
@@ -103,14 +110,16 @@ describe('TradesPage', () => {
   });
 
   it('identifies the counterparty and links each row to their hub', async () => {
-    listTrades.mockResolvedValue([
-      makeOffer({
-        id: 'a',
-        counterpartyId: 'friend-9',
-        counterpartyUsername: 'tradepal',
-        counterpartyDisplayName: 'Trade Pal',
-      }),
-    ]);
+    listTrades.mockResolvedValue(
+      listing([
+        makeOffer({
+          id: 'a',
+          counterpartyId: 'friend-9',
+          counterpartyUsername: 'tradepal',
+          counterpartyDisplayName: 'Trade Pal',
+        }),
+      ])
+    );
     renderPage();
 
     const link = await screen.findByRole('link', { name: /Trade Pal/ });
@@ -120,7 +129,7 @@ describe('TradesPage', () => {
   });
 
   it('renders a per-group empty line while other groups have rows', async () => {
-    listTrades.mockResolvedValue([makeOffer({ id: 'incoming' })]);
+    listTrades.mockResolvedValue(listing([makeOffer({ id: 'incoming' })]));
     renderPage();
 
     await screen.findByText('Needs your answer');
@@ -130,7 +139,7 @@ describe('TradesPage', () => {
   });
 
   it('offers a whole-page empty state pointing at where trades start', async () => {
-    listTrades.mockResolvedValue([]);
+    listTrades.mockResolvedValue(listing([]));
     renderPage();
 
     expect(await screen.findByText(/no trades yet/i)).toBeTruthy();
@@ -159,10 +168,101 @@ describe('TradesPage', () => {
     expect(await screen.findByRole('alert')).toBeTruthy();
     expect(screen.getByText('Network is down.')).toBeTruthy();
 
-    listTrades.mockResolvedValueOnce([makeOffer({ id: 'incoming' })]);
+    listTrades.mockResolvedValueOnce(listing([makeOffer({ id: 'incoming' })]));
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
     expect(await screen.findByText('Needs your answer')).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('refetches on window focus, so an offer arriving while you look lands', async () => {
+    listTrades.mockResolvedValue(listing([makeOffer({ id: 'incoming' })]));
+    renderPage();
+    await screen.findByText('Needs your answer');
+    expect(listTrades).toHaveBeenCalledTimes(1);
+
+    // Matches useActivity()'s cadence — the badge that sends people here
+    // already refreshes this way, and the two must not disagree.
+    fireEvent.focus(window);
+    await screen.findByText('Needs your answer');
+    expect(listTrades).toHaveBeenCalledTimes(2);
+  });
+
+  it('says so when the server capped the list instead of stopping silently', async () => {
+    listTrades.mockResolvedValue(
+      listing([makeOffer({ id: 'done', status: 'accepted', settled: true })], true)
+    );
+    renderPage();
+
+    expect(await screen.findByText(/showing your 100 most recent trades/i)).toBeTruthy();
+  });
+
+  it('does not mention a cap when the whole history fits', async () => {
+    listTrades.mockResolvedValue(
+      listing([makeOffer({ id: 'done', status: 'accepted', settled: true })])
+    );
+    renderPage();
+
+    await screen.findByText('Settled & past');
+    expect(screen.queryByText(/showing your 100 most recent/i)).toBeNull();
+  });
+
+  it('offers no filter at a handful of rows — it would be furniture', async () => {
+    listTrades.mockResolvedValue(listing([makeOffer({ id: 'incoming' })]));
+    renderPage();
+
+    await screen.findByText('Needs your answer');
+    expect(screen.queryByLabelText(/search your trades/i)).toBeNull();
+  });
+
+  it('offers a filter once the list outgrows a screenful, and it matches friend or card', async () => {
+    const many = Array.from({ length: 14 }, (_, i) =>
+      makeOffer({
+        id: `o${i}`,
+        status: 'accepted',
+        settled: true,
+        counterpartyDisplayName: i === 0 ? 'Ruby' : `Pal ${i}`,
+      })
+    );
+    listTrades.mockResolvedValue(listing(many));
+    renderPage();
+
+    const search = await screen.findByLabelText(/search your trades/i);
+    fireEvent.change(search, { target: { value: 'ruby' } });
+    expect(screen.getAllByTestId(/^trade-status-/)).toHaveLength(1);
+
+    // Card names on EITHER side are findable — "where did my Sol Ring go".
+    fireEvent.change(search, { target: { value: 'sol ring' } });
+    expect(screen.getAllByTestId(/^trade-status-/)).toHaveLength(14);
+
+    // A query that matches nothing says so — it must not fall through to the
+    // "No trades yet." empty state, which asserts something different.
+    fireEvent.change(search, { target: { value: 'zzzz' } });
+    expect(screen.getByText(/no trades match/i)).toBeTruthy();
+    expect(screen.queryByText(/no trades yet/i)).toBeNull();
+  });
+
+  it('dates an open offer from when it was sent and a closed one from when it was answered', async () => {
+    const now = Date.now();
+    listTrades.mockResolvedValue(
+      listing([
+        makeOffer({ id: 'open', status: 'proposed', createdAt: now - 3 * 86_400_000 }),
+        makeOffer({
+          id: 'closed',
+          status: 'declined',
+          createdAt: now - 30 * 86_400_000,
+          resolvedAt: now - 2 * 86_400_000,
+        }),
+      ])
+    );
+    renderPage();
+
+    await screen.findByText('Needs your answer');
+    const stamps = screen.getAllByText(/ago$/).map((el) => el.textContent);
+    // "3d ago" from createdAt for the open one; "2d ago" from resolvedAt for
+    // the answered one — NOT the 30d-old proposal date.
+    expect(stamps).toContain('3d ago');
+    expect(stamps).toContain('2d ago');
+    expect(stamps).not.toContain('30d ago');
   });
 });

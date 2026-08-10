@@ -67,6 +67,38 @@
   color: var(--text-muted);
 }
 
+/* ── Filter (only rendered past SEARCH_THRESHOLD rows) ──────────────────────
+   ⚠ `.search-pill` carries `flex: 1 1 12rem`, and `.trades-page` is a flex
+   COLUMN — so that basis is a HEIGHT, and unscoped the pill renders ~192px
+   tall. Exactly the trap that bit the composer's own search in #1531. Scoped
+   under `.trades-page` rather than overriding `.search-pill` at equal
+   specificity, which would be a stylesheet-load-order coin flip. */
+.trades-page .trades-search {
+  flex: 0 0 auto;
+}
+
+@media (pointer: coarse) {
+  /* Measured 31.6px — `.search-pill` is desktop-density like `.btn`, and a
+     text field is a typing target that wants the floor. Scoped to this page
+     rather than lifted on the shared primitive: `.search-pill` is used on most
+     surfaces in the app, so raising it globally is a sweep of its own.
+
+     The floor goes on the INPUT, not the pill. Sizing the pill leaves the
+     input still ~31px inside it — the wrapper grows but the thing you tap
+     does not, which is the same class of miss as a `min-height` on a
+     `display: inline` element: the number is applied to the wrong box. */
+  .trades-page .trades-search > input {
+    min-height: 44px;
+  }
+}
+
+/* Both are informational tails, not group content, so they share the muted
+   group-empty type rather than inventing a third size. */
+.trades-no-matches,
+.trades-cap-note {
+  font-style: italic;
+}
+
 @media (pointer: coarse) {
   /* The page-level empty CTA is a <Link>, i.e. an <a>, and `.btn` sets no
      `display` — so it computes `display: inline`, where min-height is simply

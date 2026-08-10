@@ -142,7 +142,7 @@ export function FriendHubPage() {
     if (status !== 'authed' || !friendId) return;
     let cancelled = false;
     listTrades({ withUserId: friendId })
-      .then((rows) => {
+      .then(({ offers: rows }) => {
         if (cancelled) return;
         setOffers(rows);
         setOffersError(false);

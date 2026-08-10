@@ -217,6 +217,32 @@ describe('GET /api/trades', () => {
     expect(res.body.offers).toHaveLength(1);
     expect(res.body.offers[0].counterpartyId).toBe(bob.id);
   });
+
+  it('reports an un-truncated list honestly', async () => {
+    const alice = await makeUser('alice');
+    const bob = await makeUser('bob');
+    await befriend(alice, bob);
+    await propose(alice, bob);
+
+    const res = await request(app).get('/api/trades').set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.truncated).toBe(false);
+  });
+
+  it('flags truncation when more offers exist than the cap returns', async () => {
+    const alice = await makeUser('alice');
+    const bob = await makeUser('bob');
+    await befriend(alice, bob);
+    // MAX_LISTED is 100, so 101 offers is the first list that must admit it is
+    // cut. Without the flag the client cannot tell "exactly 100" from "more
+    // than 100, silently dropped" — and /trades' history only ever grows.
+    for (let i = 0; i < 101; i++) await propose(alice, bob);
+
+    const res = await request(app).get('/api/trades').set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.offers).toHaveLength(100);
+    expect(res.body.truncated).toBe(true);
+  });
 });
 
 describe('PATCH /api/trades/:id', () => {
