@@ -1380,6 +1380,52 @@ async function fetchAllCommandersForColor(colors: string[]): Promise<EDHRECTopCo
 }
 
 /**
+ * Pull `[name, quantity]` pairs out of an average-deck payload, or null when it
+ * matches no shape we know (so the caller can tell "no data" from "no
+ * multi-copy cards", which drive different fallbacks in `multiCopy.ts`).
+ *
+ * EDHREC serves the GROUPED shape as of 2026-08:
+ *   { deck: { commander: [...], cards: { "Artifact": [["Sol Ring", 1], …] } } }
+ * It previously served a flat `["1 Sol Ring", …]` array, which this still
+ * accepts — the flat branch is why the grouped switch went unnoticed: parsing
+ * returned null for every commander and the caller silently fell back to a
+ * blunt copy count for a year. Both branches are known-live shapes, not
+ * speculation; anything else returns null and gets logged.
+ */
+export function parseAverageDeckQuantities(data: unknown): Array<[string, number]> | null {
+  const deck = (data as { deck?: unknown })?.deck;
+
+  // Grouped shape: deck.cards is { <TypeLine>: [[name, qty], …] }.
+  const grouped = (deck as { cards?: Record<string, unknown> } | undefined)?.cards;
+  if (grouped && typeof grouped === 'object' && !Array.isArray(grouped)) {
+    const out: Array<[string, number]> = [];
+    for (const group of Object.values(grouped)) {
+      if (!Array.isArray(group)) continue;
+      for (const row of group) {
+        if (!Array.isArray(row)) continue;
+        const [name, qty] = row as [unknown, unknown];
+        if (typeof name === 'string' && typeof qty === 'number') out.push([name.trim(), qty]);
+      }
+    }
+    return out;
+  }
+
+  // Legacy flat shape: ["20 Slime Against Humanity", "1 Sol Ring", …].
+  const flat = deck ?? (data as { decklist?: unknown })?.decklist;
+  if (Array.isArray(flat)) {
+    const out: Array<[string, number]> = [];
+    for (const entry of flat) {
+      if (typeof entry !== 'string') continue;
+      const match = /^(\d+)\s+(.+)$/.exec(entry);
+      if (match) out.push([match[2].trim(), parseInt(match[1], 10)]);
+    }
+    return out;
+  }
+
+  return null;
+}
+
+/**
  * Fetch all multi-copy card quantities from an EDHREC average deck.
  * Returns a Map of cardName → quantity for cards with >1 copy, or null if the fetch failed entirely.
  * Returning null (fetch failed) vs empty Map (fetch succeeded, no multi-copy cards) is important
@@ -1410,10 +1456,10 @@ export async function fetchAverageDeckMultiCopies(
     }
 
     const data = await response.json();
-    const deckList: string[] = data?.deck || data?.decklist || [];
+    const quantities = parseAverageDeckQuantities(data);
 
-    if (!Array.isArray(deckList) || deckList.length === 0) {
-      logger.warn('[EDHREC] Average deck has no deck array');
+    if (quantities === null) {
+      logger.warn('[EDHREC] Average deck payload matched no known shape');
       return null;
     }
 
@@ -1421,20 +1467,14 @@ export async function fetchAverageDeckMultiCopies(
     const lookupSet = new Set(cardNamesToCheck.map((n) => n.toLowerCase()));
     const result = new Map<string, number>();
 
-    // Each entry is "N CardName" (e.g., "20 Slime Against Humanity", "1 Sol Ring")
-    for (const entry of deckList) {
-      const match = entry.match(/^(\d+)\s+(.+)$/);
-      if (match) {
-        const quantity = parseInt(match[1], 10);
-        const name = match[2].trim();
-        if (quantity > 1 && lookupSet.has(name.toLowerCase())) {
-          // Use the original casing from cardNamesToCheck
-          const originalName = cardNamesToCheck.find((n) => n.toLowerCase() === name.toLowerCase());
-          result.set(originalName ?? name, quantity);
-          logger.debug(
-            `[EDHREC] Found ${quantity} copies of "${originalName ?? name}" in average deck`
-          );
-        }
+    for (const [name, quantity] of quantities) {
+      if (quantity > 1 && lookupSet.has(name.toLowerCase())) {
+        // Use the original casing from cardNamesToCheck
+        const originalName = cardNamesToCheck.find((n) => n.toLowerCase() === name.toLowerCase());
+        result.set(originalName ?? name, quantity);
+        logger.debug(
+          `[EDHREC] Found ${quantity} copies of "${originalName ?? name}" in average deck`
+        );
       }
     }
 
