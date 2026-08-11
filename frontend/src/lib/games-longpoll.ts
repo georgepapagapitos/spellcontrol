@@ -2,6 +2,9 @@ import { API_BASE_URL } from './api-base';
 import { pollGame } from './games-api';
 import type { GameState } from './game-state';
 
+/** Minimum time between long-poll round-trips — see the floor in the loop below. */
+const MIN_CYCLE_MS = 250;
+
 export interface GameLongPollHandlers {
   onState: (state: GameState) => void;
   /** Fired after every successful round-trip, whether or not it carried a new state — signals the transport is alive. */
@@ -52,6 +55,7 @@ export function subscribeGameLongPoll(
 
   void (async function loop() {
     while (!stopped) {
+      const startedAt = Date.now();
       try {
         const state = await pollGame(code, getSince(), controller.signal);
         if (stopped) return;
@@ -61,6 +65,20 @@ export function subscribeGameLongPoll(
         if (stopped) return;
         handlers.onError?.();
         return;
+      }
+      // Floor the cycle time. A normal round-trip parks on the server for its
+      // full hold (~25s), so this is inert in the common case — but the server
+      // answers IMMEDIATELY whenever its version is ahead of `since`, and
+      // `since` stops advancing while the caller is mid-flush (store/play.ts's
+      // applyServerGameState skips adoption while a PATCH is in flight or
+      // actions are queued). Rapid life-tapping keeps that window open for a
+      // whole burst, so without a floor the loop re-issues instantly and
+      // burst-hammers the backend — enough to trip the 200/min read limiter
+      // and drop the transport to the 2.5s fallback exactly when the player is
+      // most active. Capping at ~4 req/s is imperceptible for real updates.
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < MIN_CYCLE_MS) {
+        await new Promise((resolve) => setTimeout(resolve, MIN_CYCLE_MS - elapsed));
       }
     }
   })();

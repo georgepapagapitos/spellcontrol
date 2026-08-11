@@ -30,15 +30,31 @@ describe('usesLongPoll', () => {
 
 describe('subscribeGameLongPoll', () => {
   afterEach(() => {
+    // Tear down any loop a test left running, so its calls can't land in the
+    // next test's counts.
+    for (const stop of running.splice(0)) stop();
+    vi.useRealTimers();
+    // `restoreAllMocks` restores implementations but does NOT clear
+    // `mock.calls`, so without this the counts accumulate across tests and a
+    // `toHaveBeenCalledTimes` assertion reads the whole file's history.
+    mockPoll.mockReset();
     vi.restoreAllMocks();
   });
+
+  /** Loops started by a test, torn down in afterEach. */
+  const running: Array<() => void> = [];
+  function startLoop(...args: Parameters<typeof subscribeGameLongPoll>): () => void {
+    const stop = subscribeGameLongPoll(...args);
+    running.push(stop);
+    return stop;
+  }
 
   it('polls with the code and the current getSince() value', async () => {
     mockPoll
       .mockImplementationOnce(async () => null)
       .mockImplementation(() => new Promise(() => {}));
     const since = 3;
-    subscribeGameLongPoll('ABCD', () => since, { onState: vi.fn() });
+    startLoop('ABCD', () => since, { onState: vi.fn() });
     await flush();
     expect(mockPoll.mock.calls[0][0]).toBe('ABCD');
     expect(mockPoll.mock.calls[0][1]).toBe(3);
@@ -51,7 +67,7 @@ describe('subscribeGameLongPoll', () => {
       .mockImplementation(() => new Promise(() => {}));
     const onState = vi.fn();
     const onHealthy = vi.fn();
-    subscribeGameLongPoll('ABCD', () => 1, { onState, onHealthy });
+    startLoop('ABCD', () => 1, { onState, onHealthy });
     await flush();
     expect(onState).toHaveBeenCalledWith(state);
     expect(onHealthy).toHaveBeenCalledOnce();
@@ -63,28 +79,58 @@ describe('subscribeGameLongPoll', () => {
       .mockImplementation(() => new Promise(() => {}));
     const onState = vi.fn();
     const onHealthy = vi.fn();
-    subscribeGameLongPoll('ABCD', () => 1, { onState, onHealthy });
+    startLoop('ABCD', () => 1, { onState, onHealthy });
     await flush();
     expect(onState).not.toHaveBeenCalled();
     expect(onHealthy).toHaveBeenCalledOnce();
   });
 
-  it('loops again immediately after a successful round-trip', async () => {
+  it('loops again after a successful round-trip', async () => {
     mockPoll
       .mockImplementationOnce(async () => null)
       .mockImplementationOnce(async () => null)
       .mockImplementation(() => new Promise(() => {}));
-    subscribeGameLongPoll('ABCD', () => 1, { onState: vi.fn() });
-    await flush();
+    startLoop('ABCD', () => 1, { onState: vi.fn() });
+    vi.useFakeTimers();
+    await vi.advanceTimersByTimeAsync(300);
+    vi.useRealTimers();
     await flush();
     expect(mockPoll.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  // Regression guard: the server answers /poll IMMEDIATELY whenever its version
+  // is ahead of `since`, and `since` stops advancing while the caller is
+  // mid-flush (store/play.ts skips adoption during an in-flight PATCH). Rapid
+  // life-tapping holds that window open for a whole burst, so an unfloored loop
+  // re-issues instantly and burst-hammers the backend into the 200/min limiter.
+  it('floors the cycle time so an always-immediate server cannot hot-loop', async () => {
+    vi.useFakeTimers();
+    // Every round-trip resolves at once — the pathological case.
+    mockPoll.mockImplementation(async () => null);
+    startLoop('ABCD', () => 1, { onState: vi.fn() });
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockPoll).toHaveBeenCalledTimes(1);
+
+    // Still just the one call before the floor elapses.
+    await vi.advanceTimersByTimeAsync(200);
+    expect(mockPoll).toHaveBeenCalledTimes(1);
+
+    // The next call lands only once the floor passes.
+    await vi.advanceTimersByTimeAsync(60);
+    expect(mockPoll).toHaveBeenCalledTimes(2);
+
+    // Over a full second the loop stays bounded (~4/s), not unbounded.
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(mockPoll.mock.calls.length).toBeLessThanOrEqual(7);
+    vi.useRealTimers();
   });
 
   it('a failed round-trip calls onError and stops the loop', async () => {
     mockPoll.mockRejectedValueOnce(new Error('network'));
     const onError = vi.fn();
     const onHealthy = vi.fn();
-    subscribeGameLongPoll('ABCD', () => 1, { onState: vi.fn(), onError, onHealthy });
+    startLoop('ABCD', () => 1, { onState: vi.fn(), onError, onHealthy });
     await flush();
     expect(onError).toHaveBeenCalledOnce();
     expect(onHealthy).not.toHaveBeenCalled();
@@ -105,11 +151,14 @@ describe('subscribeGameLongPoll', () => {
           })
       );
     const onState = vi.fn();
-    const teardown = subscribeGameLongPoll('ABCD', () => 1, { onState });
-    await flush();
+    vi.useFakeTimers();
+    const teardown = startLoop('ABCD', () => 1, { onState });
+    // The first round-trip resolves, then the loop waits out the cycle floor
+    // before issuing the second — advance past it so `resolveSecond` is bound.
+    await vi.advanceTimersByTimeAsync(300);
     teardown();
     resolveSecond(mockState(5));
-    await flush();
+    await vi.advanceTimersByTimeAsync(0);
     expect(onState).not.toHaveBeenCalled();
   });
 });
