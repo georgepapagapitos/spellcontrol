@@ -24,6 +24,7 @@ import {
   type JoinGameInput,
 } from '../lib/games-api';
 import { subscribeGameEvents } from '../lib/games-sse';
+import { subscribeGameLongPoll, usesLongPoll } from '../lib/games-longpoll';
 import { setHapticsEnabled } from '../lib/haptics';
 import { clearUndo } from '../lib/undo-stack';
 import { FORMAT_OPTIONS } from '../lib/game-formats';
@@ -191,13 +192,20 @@ let serverVersion = 0;
 let serverCode: string | null = null;
 
 /**
- * SSE is the primary transport once connected; the 2.5s poll (below) stays
+ * The push transport (SSE on web, long-poll on native — see
+ * `usesLongPoll`) is primary once connected; the 2.5s poll (below) stays
  * wired as the fallback and is what actually detects "game is gone" (404) —
- * see `tick` and `applyServerGameState`. `sse` is the teardown fn from
- * `subscribeGameEvents`, doubling as the "already subscribed" marker.
+ * see `tick` and `applyServerGameState`. `sse` / `longPoll` are the
+ * teardown fns from `subscribeGameEvents` / `subscribeGameLongPoll`,
+ * doubling as "already subscribed" markers. Exactly one of the two is ever
+ * active; both feed the same `realtimeHealthy` flag `tick` gates on.
  */
 let sse: (() => void) | null = null;
-let sseHealthy = false;
+let longPoll: (() => void) | null = null;
+let longPollRetryTimer: ReturnType<typeof setTimeout> | null = null;
+let realtimeHealthy = false;
+/** Backoff before retrying a failed long-poll — avoids hot-looping a flaky connection. */
+const LONGPOLL_RETRY_MS = 5000;
 
 /** Setter shape covering both call forms used below — `recordIfFinished` needs the updater-fn overload. */
 type PlaySet = (partial: Partial<PlayState> | ((s: PlayState) => Partial<PlayState>)) => void;
@@ -221,16 +229,16 @@ function applyServerGameState(fresh: GameState, set: PlaySet): void {
 
 function startSSE(set: PlaySet): void {
   // `EventSource` doesn't exist in Node (SSR / the test environment) — guard
-  // rather than crash; the poll loop (tick, gated on sseHealthy staying
+  // rather than crash; the poll loop (tick, gated on realtimeHealthy staying
   // false) carries the whole load exactly as it did before this feature.
   if (sse || !serverCode || typeof EventSource === 'undefined') return;
   sse = subscribeGameEvents(serverCode, {
     onState: (state) => applyServerGameState(state, set),
     onOpen: () => {
-      sseHealthy = true;
+      realtimeHealthy = true;
     },
     onError: () => {
-      sseHealthy = false;
+      realtimeHealthy = false;
     },
   });
 }
@@ -238,13 +246,56 @@ function startSSE(set: PlaySet): void {
 function stopSSE(): void {
   sse?.();
   sse = null;
-  sseHealthy = false;
+}
+
+/**
+ * Long-poll transport for native (see `usesLongPoll`). Self-heals: a failed
+ * round-trip stops the loop and marks unhealthy so `tick` picks the game up
+ * on its next 2.5s beat, then this schedules exactly one retry after
+ * `LONGPOLL_RETRY_MS` instead of hot-looping reconnects.
+ */
+function startLongPoll(set: PlaySet): void {
+  if (longPoll || !serverCode) return;
+  longPoll = subscribeGameLongPoll(serverCode, () => serverVersion, {
+    onState: (state) => applyServerGameState(state, set),
+    onHealthy: () => {
+      realtimeHealthy = true;
+    },
+    onError: () => {
+      realtimeHealthy = false;
+      longPoll = null;
+      longPollRetryTimer = setTimeout(() => {
+        longPollRetryTimer = null;
+        startLongPoll(set);
+      }, LONGPOLL_RETRY_MS);
+    },
+  });
+}
+
+function stopLongPoll(): void {
+  longPoll?.();
+  longPoll = null;
+  if (longPollRetryTimer) {
+    clearTimeout(longPollRetryTimer);
+    longPollRetryTimer = null;
+  }
+}
+
+function startRealtime(set: PlaySet): void {
+  if (usesLongPoll()) startLongPoll(set);
+  else startSSE(set);
+}
+
+function stopRealtime(): void {
+  stopSSE();
+  stopLongPoll();
+  realtimeHealthy = false;
 }
 
 /** Tear down and reopen — used to recover a connection a backgrounded WebView dropped silently. */
-function restartSSE(set: PlaySet): void {
-  stopSSE();
-  startSSE(set);
+function restartRealtime(set: PlaySet): void {
+  stopRealtime();
+  startRealtime(set);
 }
 
 /**
@@ -561,20 +612,20 @@ export const usePlayStore = create<PlayState>()(
         // subscription is still logically active.
         if (pollVisibilityHandler) return;
         set({ onlinePolling: true });
-        startSSE(set);
+        startRealtime(set);
 
-        // SSE is primary once connected: skip the redundant fetch on a tick
-        // that lands while the stream is healthy. The interval itself keeps
-        // running regardless — cheap, and it's what notices an SSE death
-        // (via `sseHealthy` going false in the stream's onError) within one
-        // tick without any extra wiring.
+        // The push transport is primary once connected: skip the redundant
+        // fetch on a tick that lands while it's healthy. The interval itself
+        // keeps running regardless — cheap, and it's what notices a dead
+        // transport (via `realtimeHealthy` going false) within one tick
+        // without any extra wiring.
         const tick = () => {
-          if (sseHealthy) return;
+          if (realtimeHealthy) return;
           void get().refreshOnline();
         };
         // Reconcile the interval with the current visibility state: run it
         // while visible, tear it down (and do nothing) while hidden. `catchUp`
-        // fires one immediate REAL refresh (bypassing the sseHealthy gate) when
+        // fires one immediate REAL refresh (bypassing the realtimeHealthy gate) when
         // an interval is (re)created — used on a hidden→visible transition so
         // a returning tab doesn't wait a full interval, but skipped on the
         // initial start (callers already hold fresh state, or do their own
@@ -592,15 +643,15 @@ export const usePlayStore = create<PlayState>()(
           }
         };
 
-        // A backgrounded Android WebView can drop the SSE connection without
+        // A backgrounded Android WebView can drop the connection without
         // ever firing its error event, so a plain visibility flip can't rely
-        // on `sseHealthy` alone — force-reconnect on every return to
-        // visible. `restartSSE` flips `sseHealthy` to false synchronously
-        // (before the new connection opens), so the `ensureInterval(true)`
-        // catch-up fetch below always runs for real too.
+        // on `realtimeHealthy` alone — force-reconnect on every return to
+        // visible. `restartRealtime` flips `realtimeHealthy` to false
+        // synchronously (before the new connection opens), so the
+        // `ensureInterval(true)` catch-up fetch below always runs for real too.
         const sync = () => {
           const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
-          if (!hidden) restartSSE(set);
+          if (!hidden) restartRealtime(set);
           ensureInterval(true);
         };
         pollVisibilityHandler = sync;
@@ -611,7 +662,7 @@ export const usePlayStore = create<PlayState>()(
       },
 
       stopPolling: () => {
-        stopSSE();
+        stopRealtime();
         if (pollTimer) {
           clearInterval(pollTimer);
           pollTimer = null;

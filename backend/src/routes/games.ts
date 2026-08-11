@@ -1,7 +1,7 @@
 import { logger } from '../logger';
 import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
-import { testAwareLimiter } from '../route-utils';
+import { testAwareLimiter, isTest } from '../route-utils';
 import { and, eq, lt } from 'drizzle-orm';
 import { requireAuth, resolveDisplayLabel } from '../auth';
 import { getDb, getPool } from '../db';
@@ -21,19 +21,26 @@ export const gamesRouter: Router = Router();
 
 // 200/min covers the 2.5s poll loop with room for several players and tabs
 // behind one NAT, while still throttling a scripted sweep of the code space.
-// Also covers /events (SSE): a legitimate client opens that stream once per
-// session and reconnects at most a handful of times an hour, so sharing this
-// budget still leaves headroom while keeping the same per-minute ceiling on
-// a scripted code sweep that the comment above GET /:code explains.
+// Also covers /events (SSE) and /poll (long-poll): a legitimate client opens
+// the SSE stream once per session and reconnects at most a handful of times
+// an hour; a long-poll client only re-issues when its held request resolves
+// (a broadcast — itself bounded by writeLimiter below — or the ~25s
+// timeout), so its steady-state rate is *lower* than the 2.5s poll this
+// budget was already sized for. Sharing the one budget still leaves headroom
+// while keeping the same per-minute ceiling on a scripted code sweep that
+// the comment above GET /:code explains.
 const readLimiter = testAwareLimiter({ windowMs: 60_000, max: 200 });
 const writeLimiter = testAwareLimiter({ windowMs: 60_000, max: 300 });
 const createLimiter = testAwareLimiter({ windowMs: 60_000, max: 20 });
 
 /**
- * SSE fanout — in-process only. Every open `/events` connection registers its
- * `Response` here, keyed by code; a mutating route calls `broadcastGameState`
- * / `broadcastGameDeleted` after it commits, and every subscriber for that
- * code gets the frame directly written to its socket.
+ * Real-time fanout — in-process only. `/events` (SSE) and `/poll`
+ * (long-poll, for native — see games-longpoll.ts on the client) both
+ * register a `Subscriber` here, keyed by code; a mutating route calls
+ * `broadcastGameState` / `broadcastGameDeleted` after it commits, and every
+ * subscriber for that code gets notified. An SSE subscriber writes the frame
+ * to its still-open stream; a long-poll subscriber resolves its held request
+ * once and is removed — see GET /:code/poll.
  *
  * ponytail: this only reaches subscribers on the SAME machine. Fine today —
  * fly.toml pins `min_machines_running = 1`, so there's exactly one process —
@@ -44,21 +51,40 @@ const createLimiter = testAwareLimiter({ windowMs: 60_000, max: 20 });
  * game_sessions, or Redis pub/sub, so every instance rebroadcasts to its own
  * local subscribers on notify instead of assuming they're all local.
  */
-const subscribers = new Map<string, Set<Response>>();
+interface Subscriber {
+  onState: (state: GameState) => void;
+  onDeleted: () => void;
+}
+const subscribers = new Map<string, Set<Subscriber>>();
 
 function broadcastGameState(code: string, state: GameState): void {
   const subs = subscribers.get(code);
   if (!subs || subs.size === 0) return;
-  const frame = `event: state\ndata: ${JSON.stringify(state)}\n\n`;
-  for (const res of subs) res.write(frame);
+  for (const sub of subs) sub.onState(state);
 }
 
-/** Ends every open stream for a deleted session so clients notice immediately. */
+/** Notifies every subscriber for a deleted session so clients notice immediately. */
 function broadcastGameDeleted(code: string): void {
   const subs = subscribers.get(code);
   if (!subs) return;
-  for (const res of subs) res.end();
+  for (const sub of subs) sub.onDeleted();
   subscribers.delete(code);
+}
+
+function addSubscriber(code: string, sub: Subscriber): void {
+  let subs = subscribers.get(code);
+  if (!subs) {
+    subs = new Set();
+    subscribers.set(code, subs);
+  }
+  subs.add(sub);
+}
+
+function removeSubscriber(code: string, sub: Subscriber): void {
+  const subs = subscribers.get(code);
+  if (!subs) return;
+  subs.delete(sub);
+  if (subs.size === 0) subscribers.delete(code);
 }
 
 const VALID_FORMATS: ReadonlyArray<GameFormat> = [
@@ -375,12 +401,11 @@ gamesRouter.get('/:code/events', readLimiter, requireAuth, async (req: Request, 
   res.flushHeaders();
   res.write(`event: state\ndata: ${JSON.stringify(state)}\n\n`);
 
-  let subs = subscribers.get(code);
-  if (!subs) {
-    subs = new Set();
-    subscribers.set(code, subs);
-  }
-  subs.add(res);
+  const sub: Subscriber = {
+    onState: (fresh) => res.write(`event: state\ndata: ${JSON.stringify(fresh)}\n\n`),
+    onDeleted: () => res.end(),
+  };
+  addSubscriber(code, sub);
 
   // Fly's proxy (and most others) kills an idle connection; a comment
   // frame every 25s keeps it open without the client parsing it as data.
@@ -388,10 +413,78 @@ gamesRouter.get('/:code/events', readLimiter, requireAuth, async (req: Request, 
 
   req.on('close', () => {
     clearInterval(heartbeat);
-    const set = subscribers.get(code);
-    set?.delete(res);
-    if (set && set.size === 0) subscribers.delete(code);
+    removeSubscriber(code, sub);
   });
+});
+
+// Under test this collapses to a couple hundred ms so the "held then
+// released by timeout" test doesn't stall the suite; in production it's
+// long enough to avoid hot-looping a native client while staying well under
+// Fly's proxy idle-connection timeout.
+const POLL_TIMEOUT_MS = isTest ? 200 : 25_000;
+
+/**
+ * GET /api/games/:code/poll?since=<version> — long-poll fallback for clients
+ * that can't use SSE (native/Capacitor — see games-longpoll.ts's client-side
+ * doc comment for why `EventSource` doesn't work there, even though it
+ * exists in that WebView). Shares the `subscribers` registry with `/events`:
+ * a poll request is just a subscriber that resolves once instead of
+ * streaming.
+ *
+ * Security mirrors GET /:code and /:code/events exactly, including the
+ * stealth 404 — see the long comment on GET /:code for why (4-char codes,
+ * ~1M of them, sweepable).
+ *
+ * Semantics: if `since` is already stale (the session's `version` is
+ * greater — also true when `since` is missing/invalid), respond
+ * immediately with the current state. Otherwise register as a subscriber
+ * and hold the request open until either a mutation broadcasts for this
+ * code or ~25s elapses, then answer `{ unchanged: true }` — the same shape
+ * GET /:code's `knownVersion` fast path uses, so the client's handling of
+ * both stays uniform.
+ *
+ * Every branch that can end the request (immediate reply, broadcast,
+ * deletion, timeout, client disconnect) funnels through `settle`, which is
+ * idempotent — guards a timeout and a broadcast racing to resolve the same
+ * request, which would otherwise attempt two responses and throw. The
+ * timeout and the subscriber registration are always torn down together so
+ * a resolved or abandoned request never lingers (load-bearing on a 2GB VM
+ * with many concurrently-held long-polls).
+ */
+gamesRouter.get('/:code/poll', readLimiter, requireAuth, async (req: Request, res: Response) => {
+  const code = String(req.params.code).toUpperCase();
+  const db = getDb();
+  const rows = await db.select().from(gameSessions).where(eq(gameSessions.code, code)).limit(1);
+  const row = rows[0];
+  if (!row) return res.status(404).json({ error: 'Game not found.' });
+  const state = row.state as GameState;
+  if (!isParticipant(state, req.user!.id)) {
+    return res.status(404).json({ error: 'Game not found.' });
+  }
+
+  const rawSince = Number(req.query.since);
+  const since = Number.isFinite(rawSince) ? rawSince : -1;
+  if (state.version > since) {
+    return res.json({ game: state });
+  }
+
+  let settled = false;
+  const timer = setTimeout(() => settle(() => res.json({ unchanged: true })), POLL_TIMEOUT_MS);
+  const sub: Subscriber = {
+    onState: (fresh) => settle(() => res.json({ game: fresh })),
+    onDeleted: () => settle(() => res.status(404).json({ error: 'Game not found.' })),
+  };
+
+  function settle(respond: () => void): void {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timer);
+    removeSubscriber(code, sub);
+    respond();
+  }
+
+  addSubscriber(code, sub);
+  req.on('close', () => settle(() => {}));
 });
 
 /** POST /api/games/:code/join — claim a seat. */

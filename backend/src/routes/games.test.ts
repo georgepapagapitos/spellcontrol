@@ -278,6 +278,90 @@ describe('GET /api/games/:code/events (SSE)', () => {
   });
 });
 
+describe('GET /api/games/:code/poll (long-poll)', () => {
+  // Same sweep risk as GET /:code and /events — see the comment on GET /:code.
+  it('404s for an authed non-participant, identically to GET /:code and /events', async () => {
+    const hostCookie = await registerAndGetCookie('games_poll_host1');
+    const strangerCookie = await registerAndGetCookie('games_poll_stranger1');
+    const created = await request(app).post('/api/games').set('Cookie', hostCookie).send({});
+    const code = created.body.game.code as string;
+
+    const polled = await request(app)
+      .get(`/api/games/${code}/poll?since=0`)
+      .set('Cookie', strangerCookie);
+    const plainGet = await request(app).get(`/api/games/${code}`).set('Cookie', strangerCookie);
+    const unknownGet = await request(app).get('/api/games/ZZZZ').set('Cookie', strangerCookie);
+
+    expect(polled.status).toBe(404);
+    expect(polled.body).toEqual(plainGet.body);
+    expect(polled.body).toEqual(unknownGet.body);
+  });
+
+  it('rejects unauthenticated requests', async () => {
+    const created = await request(app)
+      .post('/api/games')
+      .set('Cookie', await registerAndGetCookie('games_poll_host2'))
+      .send({});
+    const code = created.body.game.code as string;
+    const res = await request(app).get(`/api/games/${code}/poll?since=0`);
+    expect(res.status).toBe(401);
+  });
+
+  it('responds immediately with the full state when `since` is already stale', async () => {
+    const cookie = await registerAndGetCookie('games_poll_stale');
+    const created = await request(app).post('/api/games').set('Cookie', cookie).send({});
+    const code = created.body.game.code as string;
+    const res = await request(app).get(`/api/games/${code}/poll?since=-1`).set('Cookie', cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.game.code).toBe(code);
+  });
+
+  it('also responds immediately when `since` is missing or invalid', async () => {
+    const cookie = await registerAndGetCookie('games_poll_missing_since');
+    const created = await request(app).post('/api/games').set('Cookie', cookie).send({});
+    const code = created.body.game.code as string;
+    const res = await request(app).get(`/api/games/${code}/poll`).set('Cookie', cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.game.code).toBe(code);
+  });
+
+  it('a held request is released by a mutation broadcasting for that code', async () => {
+    const cookie = await registerAndGetCookie('games_poll_release');
+    const created = await request(app).post('/api/games').set('Cookie', cookie).send({});
+    const code = created.body.game.code as string;
+    const version = created.body.game.version as number;
+
+    const pollPromise = request(app)
+      .get(`/api/games/${code}/poll?since=${version}`)
+      .set('Cookie', cookie);
+    // Give the request a beat to register as a subscriber before mutating —
+    // otherwise the PATCH could win the race and broadcast to no one yet.
+    await new Promise((r) => setTimeout(r, 50));
+    await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', cookie)
+      .send({ baseVersion: version, actions: [{ type: 'start' }] });
+
+    const res = await pollPromise;
+    expect(res.status).toBe(200);
+    expect(res.body.game.status).toBe('active');
+    expect(res.body.game.version).toBeGreaterThan(version);
+  });
+
+  it('the timeout path answers { unchanged: true } when nothing happens', async () => {
+    const cookie = await registerAndGetCookie('games_poll_timeout');
+    const created = await request(app).post('/api/games').set('Cookie', cookie).send({});
+    const code = created.body.game.code as string;
+    const version = created.body.game.version as number;
+
+    const res = await request(app)
+      .get(`/api/games/${code}/poll?since=${version}`)
+      .set('Cookie', cookie);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ unchanged: true });
+  });
+});
+
 describe('POST /api/games/:code/join + PATCH /:code', () => {
   it('joins a game and applies a life action', async () => {
     const hostCookie = await registerAndGetCookie('games_host');
