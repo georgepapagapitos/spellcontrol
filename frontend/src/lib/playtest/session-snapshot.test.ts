@@ -284,6 +284,63 @@ describe('E138 life fields — backward compat with pre-E138 snapshots', () => {
   });
 });
 
+describe('battlefield coordinate migration — pre-fraction pixel snapshots', () => {
+  function pixelCard(x: number, y: number) {
+    return {
+      card: { id: 'c1', name: 'Sol Ring' },
+      tapped: false,
+      faceDown: false,
+      counters: {},
+      stickers: [],
+      x,
+      y,
+    };
+  }
+
+  it('converts legacy out-of-range pixel x/y into clamped 0..1 fractions', () => {
+    const legacy = baseState({ battlefield: [pixelCard(400, 300)] as never });
+    const migrated = migrateSnapshotState(legacy, { format: 'commander' });
+    const bf = migrated.battlefield[0] as { x: number; y: number };
+    expect(bf.x).toBeGreaterThanOrEqual(0);
+    expect(bf.x).toBeLessThanOrEqual(1);
+    expect(bf.y).toBeGreaterThanOrEqual(0);
+    expect(bf.y).toBeLessThanOrEqual(1);
+  });
+
+  it('clamps an extreme legacy pixel value (dragged off-board) to an edge rather than corrupting it', () => {
+    const legacy = baseState({ battlefield: [pixelCard(-50, 5000)] as never });
+    const migrated = migrateSnapshotState(legacy, { format: 'commander' });
+    const bf = migrated.battlefield[0] as { x: number; y: number };
+    expect(bf.x).toBe(0);
+    expect(bf.y).toBe(1);
+  });
+
+  it('leaves already-fraction battlefield coords (and the array reference) untouched', () => {
+    const state = baseState({ battlefield: [pixelCard(0.4, 0.6)] as never });
+    const migrated = migrateSnapshotState(state, { format: 'commander' });
+    expect(migrated.battlefield).toBe(state.battlefield);
+    expect((migrated.battlefield[0] as { x: number }).x).toBe(0.4);
+  });
+
+  it('a full save→load→resume of a pre-fraction snapshot lands the card inside the board, not corrupted', () => {
+    const legacy = baseSnapshot({
+      state: baseState({ battlefield: [pixelCard(650, 90)] as never }),
+    });
+    localStorage.setItem('spellcontrol:playtest:deck-1', JSON.stringify(legacy));
+    const loaded = loadPlaytestSnapshot('deck-1', '100:60');
+    expect(loaded).not.toBeNull();
+    // migrateSnapshotState is what usePlaytestStore.hydrate calls on load —
+    // exercise the same path a real resume takes.
+    const migrated = migrateSnapshotState(loaded!.state, { format: 'commander' });
+    const bf = migrated.battlefield[0] as { x: number; y: number };
+    expect(Number.isFinite(bf.x)).toBe(true);
+    expect(bf.x).toBeGreaterThanOrEqual(0);
+    expect(bf.x).toBeLessThanOrEqual(1);
+    expect(bf.y).toBeGreaterThanOrEqual(0);
+    expect(bf.y).toBeLessThanOrEqual(1);
+  });
+});
+
 describe('designation fields — backward compat with pre-designations snapshots', () => {
   it('loads a snapshot with no monarch/initiative/citysBlessing fields at all without crashing', () => {
     // Simulates a real localStorage blob written before designations shipped —

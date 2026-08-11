@@ -157,16 +157,25 @@ describe('MOVE_TO_BATTLEFIELD', () => {
     const next = applyAction(s, {
       type: 'MOVE_TO_BATTLEFIELD',
       cardId: target,
-      x: 100,
-      y: 200,
+      x: 0.4,
+      y: 0.6,
     });
     expect(next.zones.hand.find((c) => c.id === target)).toBeUndefined();
     const bf = next.battlefield.find((b) => b.card.id === target);
     expect(bf).toBeDefined();
-    expect(bf?.x).toBe(100);
-    expect(bf?.y).toBe(200);
+    expect(bf?.x).toBe(0.4);
+    expect(bf?.y).toBe(0.6);
     expect(bf?.tapped).toBe(false);
     expect(bf?.counters).toEqual({});
+  });
+
+  it('clamps x/y to [0, 1] — a card can never land outside the battlefield box', () => {
+    const s = init(10, 1, 3);
+    const target = s.zones.hand[0].id;
+    const next = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: target, x: 1.5, y: -0.3 });
+    const bf = next.battlefield.find((b) => b.card.id === target);
+    expect(bf?.x).toBe(1);
+    expect(bf?.y).toBe(0);
   });
 
   it('can enter tapped', () => {
@@ -187,10 +196,10 @@ describe('MOVE_TO_BATTLEFIELD', () => {
     const target = s.zones.hand[0].id;
     s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: target, x: 0, y: 0 });
     s = applyAction(s, { type: 'SET_COUNTER', cardId: target, counter: '+1/+1', delta: 2 });
-    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: target, x: 50, y: 50 });
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: target, x: 0.3, y: 0.3 });
     const bf = s.battlefield.find((b) => b.card.id === target);
     expect(bf?.counters).toEqual({ '+1/+1': 2 });
-    expect(bf?.x).toBe(50);
+    expect(bf?.x).toBe(0.3);
   });
 });
 
@@ -333,24 +342,32 @@ describe('MOVE_BF_POSITION / TAP / UNTAP_ALL / FLIP_FACE', () => {
 
   it('repositions on the battlefield', () => {
     const { s, id } = withCardOnBattlefield();
-    const next = applyAction(s, { type: 'MOVE_BF_POSITION', cardId: id, x: 300, y: 400 });
+    const next = applyAction(s, { type: 'MOVE_BF_POSITION', cardId: id, x: 0.7, y: 0.8 });
     const bf = next.battlefield.find((b) => b.card.id === id);
-    expect(bf?.x).toBe(300);
-    expect(bf?.y).toBe(400);
+    expect(bf?.x).toBe(0.7);
+    expect(bf?.y).toBe(0.8);
+  });
+
+  it('clamps x/y to [0, 1] on reposition', () => {
+    const { s, id } = withCardOnBattlefield();
+    const next = applyAction(s, { type: 'MOVE_BF_POSITION', cardId: id, x: 2, y: -1 });
+    const bf = next.battlefield.find((b) => b.card.id === id);
+    expect(bf?.x).toBe(1);
+    expect(bf?.y).toBe(0);
   });
 
   it('brings the dragged card to the end of the array (front of the stack)', () => {
     let s = init(10, 1, 4);
     const [a, b, c] = s.zones.hand.map((card) => card.id);
     s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: a, x: 0, y: 0 });
-    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: b, x: 10, y: 10 });
-    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: c, x: 20, y: 20 });
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: b, x: 0.1, y: 0.1 });
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: c, x: 0.2, y: 0.2 });
     expect(s.battlefield.map((bf) => bf.card.id)).toEqual([a, b, c]);
 
     // Dragging the bottom-most card (a) should move it to the end.
-    const next = applyAction(s, { type: 'MOVE_BF_POSITION', cardId: a, x: 5, y: 5 });
+    const next = applyAction(s, { type: 'MOVE_BF_POSITION', cardId: a, x: 0.05, y: 0.05 });
     expect(next.battlefield.map((bf) => bf.card.id)).toEqual([b, c, a]);
-    expect(next.battlefield.find((bf) => bf.card.id === a)).toMatchObject({ x: 5, y: 5 });
+    expect(next.battlefield.find((bf) => bf.card.id === a)).toMatchObject({ x: 0.05, y: 0.05 });
   });
 
   it('does not reorder the battlefield on TAP', () => {
@@ -965,7 +982,7 @@ describe('RESOLVE_TOP (scry / surveil / mill)', () => {
 
 describe('CLONE_BF_CARDS', () => {
   /** Puts `handIndex` onto the battlefield at (x, y) and returns the state. */
-  function play(s: PlaytestState, handIndex: number, x = 100, y = 100): PlaytestState {
+  function play(s: PlaytestState, handIndex: number, x = 0.3, y = 0.3): PlaytestState {
     return applyAction(s, {
       type: 'MOVE_TO_BATTLEFIELD',
       cardId: s.zones.hand[handIndex].id,
@@ -995,8 +1012,8 @@ describe('CLONE_BF_CARDS', () => {
   });
 
   it('cascades each clone in the batch off its own source', () => {
-    let s = play(init(20), 0, 10, 20);
-    s = play(s, 0, 200, 300); // hand[0] again — the first card shifted down
+    let s = play(init(20), 0, 0.1, 0.2);
+    s = play(s, 0, 0.4, 0.5); // hand[0] again — the first card shifted down
     const [a, b] = s.battlefield;
     const next = applyAction(s, {
       type: 'CLONE_BF_CARDS',
@@ -1070,7 +1087,7 @@ describe('ATTACH', () => {
   /** Three permanents on the battlefield at known, distinct positions. */
   function board(): PlaytestState {
     let s = init(20);
-    for (const xy of [100, 200, 300]) {
+    for (const xy of [0.1, 0.2, 0.3]) {
       s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: s.zones.hand[0].id, x: xy, y: xy });
     }
     return s;
@@ -1114,9 +1131,9 @@ describe('ATTACH', () => {
     s = applyAction(s, { type: 'ATTACH', cardId: aura, targetId: host });
     const auraBefore = { x: find(s, aura)!.x, y: find(s, aura)!.y };
     const hostBefore = { x: find(s, host)!.x, y: find(s, host)!.y };
-    const moved = applyAction(s, { type: 'MOVE_BF_POSITION', cardId: host, x: 500, y: 400 });
-    expect(find(moved, aura)!.x).toBe(auraBefore.x + (500 - hostBefore.x));
-    expect(find(moved, aura)!.y).toBe(auraBefore.y + (400 - hostBefore.y));
+    const moved = applyAction(s, { type: 'MOVE_BF_POSITION', cardId: host, x: 0.6, y: 0.5 });
+    expect(find(moved, aura)!.x).toBe(auraBefore.x + (0.6 - hostBefore.x));
+    expect(find(moved, aura)!.y).toBe(auraBefore.y + (0.5 - hostBefore.y));
   });
 
   it('detaches with a null target', () => {

@@ -103,12 +103,31 @@ describe('autoPlace', () => {
     expect(placed.y).not.toBe(first.y);
   });
 
-  it('clamps within battlefield bounds', () => {
+  it('returns a 0..1 fraction of the battlefield box, clamped within bounds', () => {
     const placed = autoPlace(card('l', { typeLine: 'Land' }), [], { width: 200, height: 200 });
     expect(placed.x).toBeGreaterThanOrEqual(0);
     expect(placed.y).toBeGreaterThanOrEqual(0);
-    expect(placed.x).toBeLessThanOrEqual(200);
-    expect(placed.y).toBeLessThanOrEqual(200);
+    expect(placed.x).toBeLessThanOrEqual(1);
+    expect(placed.y).toBeLessThanOrEqual(1);
+  });
+
+  it('uses the caller-supplied live card box when given, not the desktop default', () => {
+    // A tiny 200x200 rect with the default 90x126 desktop card would leave the
+    // land row nowhere to sit vertically; passing the real (smaller) mobile
+    // card box keeps the placement meaningfully inside the box either way.
+    const withDefaultCard = autoPlace(card('l', { typeLine: 'Land' }), [], {
+      width: 200,
+      height: 200,
+    });
+    const withSmallCard = autoPlace(card('l', { typeLine: 'Land' }), [], {
+      width: 200,
+      height: 200,
+      cardW: 40,
+      cardH: 56,
+    });
+    expect(withSmallCard.x).toBeGreaterThanOrEqual(0);
+    expect(withSmallCard.x).toBeLessThanOrEqual(1);
+    expect(withSmallCard).not.toEqual(withDefaultCard);
   });
 
   it('falls back to a sensible default when no rect is given', () => {

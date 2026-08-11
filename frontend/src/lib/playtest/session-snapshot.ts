@@ -15,7 +15,7 @@
  */
 
 import { playtestLifeConfig } from './life-config';
-import type { PlaytestState } from './types';
+import type { BattlefieldCard, PlaytestState } from './types';
 import type { GameLogEntry } from './game-log';
 import {
   RESISTANCE_LEVELS,
@@ -108,21 +108,60 @@ function isValidSnapshot(v: unknown): v is PlaytestSnapshot {
   return true;
 }
 
+/** ponytail: a snapshot saved before battlefield coordinates became 0..1
+ *  fractions (see BattlefieldCard.x/y) stored raw pixels with no fixed
+ *  container size recorded alongside them, so the original box can't be
+ *  recovered exactly. Assumes the same ~800×540 "reasonable default"
+ *  battlefield box `auto-place.ts`'s `FALLBACK_RECT` falls back to when it
+ *  can't measure the real one — close enough for a one-time resume, and a
+ *  wrong assumption just clamps a card to an edge rather than corrupting
+ *  anything. Ceiling: this is a single fixed guess, not per-device; upgrade
+ *  path is dropping it entirely once no pre-fraction snapshot can still be
+ *  sitting in a user's localStorage (this only ever fires once per legacy
+ *  snapshot — it re-saves in fraction space immediately after). */
+const LEGACY_BATTLEFIELD_W = 800;
+const LEGACY_BATTLEFIELD_H = 540;
+
+function clamp01(n: number): number {
+  return Math.max(0, Math.min(1, n));
+}
+
+/** A pre-fraction snapshot's x/y were unclamped pixels — any value outside
+ *  [0, 1] can only be that older shape, since every fraction-space writer
+ *  (the reducer) has clamped to [0, 1] from day one of this format. */
+function isLegacyPixelCoord(b: BattlefieldCard): boolean {
+  return b.x < 0 || b.x > 1 || b.y < 0 || b.y > 1;
+}
+
+function migrateBattlefieldCoords(battlefield: BattlefieldCard[]): BattlefieldCard[] {
+  if (!battlefield.some(isLegacyPixelCoord)) return battlefield;
+  return battlefield.map((b) => ({
+    ...b,
+    x: clamp01(b.x / LEGACY_BATTLEFIELD_W),
+    y: clamp01(b.y / LEGACY_BATTLEFIELD_H),
+  }));
+}
+
 /**
- * Backfills the life/opponents fields (E138) onto a snapshot's state that
- * predates them, using the same format-aware defaults a fresh game would get.
- * A snapshot that already has them (the common case) passes through
- * unchanged. Never throws — worst case a snapshot that's missing `deck`
- * context falls back to the generic 1v1/20-life config.
+ * Backfills fields older snapshot shapes predate: pre-fraction battlefield
+ * pixel coordinates (see `migrateBattlefieldCoords`), and the life/opponents
+ * fields (E138), using the same format-aware defaults a fresh game would get.
+ * Both checks are no-ops on an already-current snapshot (the common case).
+ * Never throws — worst case a snapshot that's missing `deck` context falls
+ * back to the generic 1v1/20-life config.
  */
 export function migrateSnapshotState(
   state: Omit<PlaytestState, 'past'>,
   deck: Pick<Deck, 'format'> | undefined
 ): Omit<PlaytestState, 'past'> {
-  if (typeof state.life === 'number' && Array.isArray(state.opponents)) return state;
+  const battlefield = migrateBattlefieldCoords(state.battlefield);
+  const withCoords = battlefield === state.battlefield ? state : { ...state, battlefield };
+  if (typeof withCoords.life === 'number' && Array.isArray(withCoords.opponents)) {
+    return withCoords;
+  }
   const cfg = playtestLifeConfig(deck?.format);
   return {
-    ...state,
+    ...withCoords,
     life: cfg.life,
     opponents: Array.from({ length: cfg.opponentCount }, () => ({
       life: cfg.opponentLife,

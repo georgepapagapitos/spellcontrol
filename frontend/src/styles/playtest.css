@@ -34,6 +34,18 @@ body:has(.playtest-page) .modal-backdrop {
   z-index: calc(var(--z-overlay) + 50);
 }
 
+/* Single density driver for the battlefield card box (multiplayer prereq).
+   Card size, the reducer's fraction→pixel position math, and any size-
+   derived chrome all read `--pt-card-w`/`--pt-card-h` off this instead of a
+   hardcoded per-breakpoint value, so a future container (e.g. an opponent
+   rail slot) can override them locally. Scoped to `body:has(...)` rather
+   than `.playtest-page` itself so dnd-kit's `<DragOverlay>` — portaled to
+   `document.body`, outside the page's own subtree — still inherits it. */
+body:has(.playtest-page) {
+  --pt-card-w: 90px;
+  --pt-card-h: 126px;
+}
+
 .playtest-page__header {
   display: flex;
   align-items: center;
@@ -476,8 +488,8 @@ body:has(.playtest-page) .modal-backdrop {
 
 .playtest-card {
   position: relative;
-  width: 90px;
-  height: 126px;
+  width: var(--pt-card-w);
+  height: var(--pt-card-h);
   border-radius: var(--radius);
   overflow: hidden;
   flex-shrink: 0;
@@ -1483,9 +1495,9 @@ body:has(.playtest-page) .modal-backdrop {
     height: 90px;
   }
 
-  .playtest-card {
-    width: 72px;
-    height: 100px;
+  body:has(.playtest-page) {
+    --pt-card-w: 72px;
+    --pt-card-h: 100px;
   }
 
   .playtest-card__counter {
