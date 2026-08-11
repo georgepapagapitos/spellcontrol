@@ -114,7 +114,11 @@ function customization(overrides: Partial<Customization> = {}): Customization {
     artThemeTag: '',
     historicalYear: 2005,
     permanentsOnly: false,
-    brewLevel: 0.5,
+    // Staples <-> Brew dial A/B knob: LIVE_GEN_BREW=0|0.25|0.5|0.75|1 forces a
+    // dial position; unset keeps the 0.5 Balanced product default (at which the
+    // dial's multipliers evaluate to 1x, so the panel stays byte-identical to
+    // every prior run). Measures how much of the 99 the dial actually moves.
+    brewLevel: process.env.LIVE_GEN_BREW ? Number(process.env.LIVE_GEN_BREW) : 0.5,
     // E80 A/B knob, two-way: LIVE_GEN_PRICE_SANITY=1 forces the flag ON,
     // =0 forces it OFF, unset leaves it undefined (the product default —
     // resolvePriceSanity's budgetOption inference — applies). Lets the
