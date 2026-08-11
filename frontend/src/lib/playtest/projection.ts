@@ -65,7 +65,24 @@ export function toProjectedCard(card: PlaytestCard): ProjectedCard {
  *  tapped, counters, stickers, the face-down flag itself, its attachment,
  *  whether it's phased — but reduce `card` to just its instance id. A
  *  face-up transformed card (`showBackFace: true`) is not redacted: which
- *  face a DFC is showing is public information, only `faceDown` hides it. */
+ *  face a DFC is showing is public information, only `faceDown` hides it.
+ *
+ *  ⚠️ INVARIANT this redaction rests on: `PlaytestCard.id` must be OPAQUE. It
+ *  is the one field a redacted card still carries (it has to — it's the render
+ *  key). Deck cards satisfy this: `deck-to-playtest.ts`'s `instanceId` builds
+ *  `${slotId}#${copy}` from `genId('slot')`, which is random.
+ *
+ *  Commanders are the exception and DO leak — they're built as
+ *  `cmd-${commander.id}`, embedding the Scryfall card id. This engine enforces
+ *  no rules, so any permanent can be turned face-down, and a face-down
+ *  commander projects an id an opponent can resolve straight back to the card.
+ *  Impact is small today (a commander's identity is public information in the
+ *  format), so this leaks only *which* face-down permanent is the commander,
+ *  not an unknown card. Left as-is rather than fixed because changing that id
+ *  format would rekey `commanderTax` and break resume for saved sessions.
+ *
+ *  If any other instance id ever becomes identity-derived, this redaction
+ *  silently stops working. Keep ids opaque. */
 function toPublicBattlefieldCard(bf: BattlefieldCard): PublicBattlefieldCard {
   return {
     card: bf.faceDown ? { id: bf.card.id } : toProjectedCard(bf.card),
