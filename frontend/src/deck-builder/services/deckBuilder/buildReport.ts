@@ -128,14 +128,14 @@ export function assembleBuildReport(input: {
     if (generated.generationRelaxedNote) report.generationNote = generated.generationRelaxedNote;
   }
 
-  // Staples <-> Brew dial disclosure — undefined at the 0.5 Balanced default.
+  // Staples <-> Theme dial disclosure — undefined at the 0.5 Balanced default.
   const brewLevel = customization.brewLevel ?? 0.5;
   if (brewLevel > 0.5) {
     report.brewDialNote =
-      'Brew dial leaned toward deep cuts — theme-synergy and hidden-synergy fit were weighted over raw EDHREC play-rate.';
+      'Dial leaned toward Theme — theme-synergy and hidden-synergy fit were weighted over raw EDHREC play-rate.';
   } else if (brewLevel < 0.5) {
     report.brewDialNote =
-      'Brew dial leaned toward staples — raw EDHREC play-rate was weighted over theme-synergy fit.';
+      'Dial leaned toward Staples — raw EDHREC play-rate was weighted over theme-synergy fit.';
   }
 
   // Variety reroll disclosure — undefined for the default signature build.

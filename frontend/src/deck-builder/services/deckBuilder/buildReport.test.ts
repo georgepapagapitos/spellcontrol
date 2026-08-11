@@ -661,13 +661,13 @@ describe('assembleBuildReport', () => {
       ).toBeUndefined();
     });
 
-    it('discloses a Brew-leaning note above 0.5', () => {
+    it('discloses a Theme-leaning note above 0.5', () => {
       const report = assembleBuildReport({
         generated: makeGenerated(),
         customization: makeCustomization({ brewLevel: 1 }),
         collectionNames: new Set(),
       });
-      expect(report.brewDialNote).toMatch(/deep cuts/i);
+      expect(report.brewDialNote).toMatch(/toward Theme/i);
     });
 
     it('discloses a Staples-leaning note below 0.5', () => {

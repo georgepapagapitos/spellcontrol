@@ -84,12 +84,12 @@ describe('buildGapAddFactors', () => {
     expect(f.some((x) => /fringe/.test(x.text))).toBe(true);
   });
 
-  it('adds the Brew-dial line only when brewFavored is true', () => {
+  it('adds the Theme-dial line only when brewFavored is true', () => {
     const notFavored = buildGapAddFactors({ inclusion: 10, owned: false });
-    expect(notFavored.some((x) => /dialed toward Brew/.test(x.text))).toBe(false);
+    expect(notFavored.some((x) => /dialed toward Theme/.test(x.text))).toBe(false);
 
     const favored = buildGapAddFactors({ inclusion: 10, owned: false, brewFavored: true });
-    expect(favored.some((x) => /dialed toward Brew/.test(x.text) && x.tone === 'neutral')).toBe(
+    expect(favored.some((x) => /dialed toward Theme/.test(x.text) && x.tone === 'neutral')).toBe(
       true
     );
   });

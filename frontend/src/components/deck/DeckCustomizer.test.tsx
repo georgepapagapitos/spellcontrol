@@ -148,10 +148,10 @@ describe('DeckCustomizer — collection controls', () => {
   });
 });
 
-describe('DeckCustomizer — Staples <-> Brew dial (always visible)', () => {
+describe('DeckCustomizer — Staples <-> Theme dial (always visible)', () => {
   it('shows Balanced with its description at the 0.5 default', () => {
     render(<DeckCustomizer customization={baseCustomization()} update={vi.fn()} />);
-    expect(screen.getByLabelText(/Staples to Brew dial/)).toBeTruthy();
+    expect(screen.getByLabelText(/Staples to Theme dial/)).toBeTruthy();
     expect(screen.getAllByText('Balanced').length).toBeGreaterThan(0);
     expect(screen.getByText(/even mix of proven staples/)).toBeTruthy();
   });
@@ -162,16 +162,16 @@ describe('DeckCustomizer — Staples <-> Brew dial (always visible)', () => {
     expect(screen.getByText(/EDHREC's most-played picks/)).toBeTruthy();
   });
 
-  it('shows the Brew label and description at 1', () => {
+  it('shows the Theme label and description at 1', () => {
     render(<DeckCustomizer customization={baseCustomization({ brewLevel: 1 })} update={vi.fn()} />);
-    expect(screen.getAllByText('Brew').length).toBeGreaterThan(0);
-    expect(screen.getByText(/theme's mechanics/)).toBeTruthy();
+    expect(screen.getAllByText('Theme').length).toBeGreaterThan(0);
+    expect(screen.getByText(/commander's mechanics/)).toBeTruthy();
   });
 
   it('patches brewLevel when the slider changes', () => {
     const update = vi.fn();
     render(<DeckCustomizer customization={baseCustomization()} update={update} />);
-    fireEvent.change(screen.getByLabelText(/Staples to Brew dial/), {
+    fireEvent.change(screen.getByLabelText(/Staples to Theme dial/), {
       target: { value: '0.75' },
     });
     expect(update).toHaveBeenCalledWith({ brewLevel: 0.75 });
@@ -431,7 +431,7 @@ describe('DeckCustomizer — Mana philosophy (E234)', () => {
     // Native range inputs are fully keyboard/SR operable for free — arrow
     // keys, Home/End, and screen-reader announcement all come from the
     // element itself, matching every other slider in this file (Salt,
-    // Staples<->Brew, land count).
+    // Staples<->Theme, land count).
     const reliable = screen.getByLabelText('Color fixing priority') as HTMLInputElement;
     expect(reliable.type).toBe('range');
     expect(reliable.value).toBe('20');
