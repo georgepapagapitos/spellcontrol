@@ -39,6 +39,26 @@ export async function getGame(code: string, knownVersion?: number): Promise<Game
   return data.unchanged ? null : (data.game ?? null);
 }
 
+/**
+ * One round-trip of `GET /api/games/:code/poll?since=<version>` (backend:
+ * routes/games.ts) — the native long-poll transport's single request (the
+ * loop built on top lives in lib/games-longpoll.ts). The server holds the
+ * request open until either a mutation lands or ~25s elapses; resolves the
+ * same way `getGame`'s `knownVersion` fast path does — null when nothing
+ * changed, the fresh state otherwise.
+ */
+export async function pollGame(
+  code: string,
+  since: number,
+  signal?: AbortSignal
+): Promise<GameState | null> {
+  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/poll?since=${since}`, {
+    signal,
+  });
+  const data = await handleResponse<{ game?: GameState; unchanged?: boolean }>(res);
+  return data.unchanged ? null : (data.game ?? null);
+}
+
 export interface JoinGameInput {
   name?: string;
   deckId?: string | null;
