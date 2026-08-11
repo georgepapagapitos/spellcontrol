@@ -1,0 +1,240 @@
+/* Opponent presence rail (see OpponentRail.tsx + STYLE_GUIDE.md "Opponent
+   rail"). Two densities, chosen in JS from device orientation (the rail's own
+   long-axis placement), never from a viewport width query inside a slot:
+   presence = a full-width top strip on portrait, glance = a side column on
+   landscape. Per-entry shrink under crowding is the one thing gated on
+   @container, since that's a property of the slot each entry actually gets,
+   not of the viewport. */
+
+.opponent-rail {
+  width: 100%;
+}
+
+.opponent-rail__list {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /* Never a scroller and never wraps into hidden rows — every opponent must
+     stay simultaneously visible, so the only valid response to crowding is
+     each entry shrinking (below), not the rail scrolling or clipping. */
+  overflow: visible;
+}
+
+.opponent-rail--presence .opponent-rail__list {
+  flex-direction: row;
+  /* Wraps rather than clipping/scrolling if an unusually large table can't
+     fit one row even at the smallest per-entry floor below — a taller strip
+     still keeps every opponent visible, which is the one non-negotiable. */
+  flex-wrap: wrap;
+}
+
+.opponent-rail--glance .opponent-rail__list {
+  flex-direction: column;
+}
+
+.opponent-entry {
+  container-type: inline-size;
+  container-name: opponent-entry;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  /* Floor big enough for the dot + a 2-digit life total to never overflow
+     their own box — the last content standing at the bottom of the presence
+     shrink ladder above. */
+  min-width: 2.75rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2);
+  transition:
+    border-color var(--motion-base),
+    box-shadow var(--motion-base);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opponent-entry {
+    transition: none;
+  }
+}
+
+.opponent-entry.is-active-turn {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.opponent-rail--presence .opponent-entry {
+  flex: 1 1 8rem;
+  min-height: 2.75rem;
+  justify-content: center;
+  padding: var(--space-1) var(--space-2);
+}
+
+.opponent-rail--glance .opponent-entry {
+  flex: 0 0 auto;
+  width: 100%;
+}
+
+.opponent-entry__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.opponent-entry__dot {
+  flex: 0 0 auto;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  background: var(--opp-base);
+  box-shadow: 0 0 0 1px var(--opp-edge);
+}
+
+.opponent-entry__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.opponent-entry__turn-chip {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--on-accent);
+  background: var(--accent);
+  border-radius: 999px;
+  padding: 1px var(--space-1);
+}
+
+.opponent-entry__life {
+  flex: 0 0 auto;
+  font-size: var(--text-base);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.opponent-entry__designations {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.opponent-entry__designation {
+  font-size: var(--text-xs);
+  line-height: 1;
+}
+
+.opponent-entry__permanents {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.opponent-entry__counts {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Presence-only shrink ladder: as N opponents divide a narrow top strip,
+   drop the least essential content first and keep color + life legible
+   down to the smallest slot — never hide the entry itself. */
+@container opponent-entry (max-width: 100px) {
+  .opponent-rail--presence .opponent-entry__permanents {
+    display: none;
+  }
+}
+
+@container opponent-entry (max-width: 72px) {
+  .opponent-rail--presence .opponent-entry__name {
+    display: none;
+  }
+
+  .opponent-rail--presence .opponent-entry__turn-chip {
+    display: none;
+  }
+}
+
+.opponent-entry__battlefield {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  min-width: 0;
+}
+
+.opponent-entry__battlefield-empty {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.opponent-mini-card {
+  position: relative;
+  flex: 0 0 auto;
+  width: 2.5rem;
+  height: 3.5rem;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--border);
+  transition: transform var(--motion-fast);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opponent-mini-card {
+    transition: none;
+  }
+}
+
+.opponent-mini-card.is-tapped {
+  transform: rotate(90deg);
+}
+
+.opponent-mini-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+/* Theme-invariant card-back treatment — mirrors .playtest-card__back
+   (styles/playtest.css): card backs read the same regardless of app theme,
+   same reasoning as the --art-scrim tokens. Not reused directly to avoid
+   coupling this rail to the full-board's --pt-card-w/h density var. */
+.opponent-mini-card__back {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #2b3340, #1a2030);
+}
+
+.opponent-mini-card__placeholder {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--surface);
+}
+
+.opponent-mini-card__more {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 3.5rem;
+  border-radius: 3px;
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
