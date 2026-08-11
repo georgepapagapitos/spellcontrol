@@ -32,6 +32,24 @@ const mockJoin = vi.mocked(joinGame);
 const mockLeave = vi.mocked(leaveGame);
 const mockPatch = vi.mocked(patchGame);
 
+// The long-poll transport wraps its own HTTP loop (see games-longpoll.test.ts
+// for that in isolation); here we mock the whole module so store tests can
+// drive its handlers directly, the same way the SSE tests below drive a
+// FakeEventSource.
+vi.mock('../lib/games-longpoll', () => ({
+  usesLongPoll: vi.fn(() => false),
+  subscribeGameLongPoll: vi.fn(),
+}));
+
+import {
+  usesLongPoll,
+  subscribeGameLongPoll,
+  type GameLongPollHandlers,
+} from '../lib/games-longpoll';
+
+const mockUsesLongPoll = vi.mocked(usesLongPoll);
+const mockSubscribeLongPoll = vi.mocked(subscribeGameLongPoll);
+
 function resetStore() {
   usePlayStore.setState({
     local: null,
@@ -680,6 +698,129 @@ describe('usePlayStore — SSE primary transport / poll fallback', () => {
     mockLeave.mockResolvedValue(undefined as never);
     await usePlayStore.getState().leaveOnline();
     expect(es.closed).toBe(true);
+  });
+});
+
+describe('usePlayStore — long-poll transport (native)', () => {
+  beforeEach(() => {
+    resetStore();
+    vi.clearAllMocks();
+    mockUsesLongPoll.mockReturnValue(true);
+    // Realistic default teardown fn — individual tests override with
+    // mockImplementation when they need to capture/drive the handlers.
+    mockSubscribeLongPoll.mockReturnValue(vi.fn());
+  });
+
+  afterEach(() => {
+    usePlayStore.getState().clearOnline();
+  });
+
+  async function hostOnline(version = 1) {
+    mockCreate.mockResolvedValue(makeOnlineGame(version));
+    await usePlayStore.getState().hostOnline({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+    });
+  }
+
+  it('startPolling subscribes via long-poll instead of opening SSE when usesLongPoll() is true', async () => {
+    await hostOnline();
+    expect(mockSubscribeLongPoll).toHaveBeenCalledTimes(1);
+    expect(mockSubscribeLongPoll.mock.calls[0][0]).toBe('ABCD');
+  });
+
+  it('a poll tick is skipped once the long-poll reports healthy', async () => {
+    let handlers: GameLongPollHandlers | undefined;
+    mockSubscribeLongPoll.mockImplementation((_c, _s, h) => {
+      handlers = h;
+      return vi.fn();
+    });
+    vi.useFakeTimers();
+    try {
+      await hostOnline();
+      handlers?.onHealthy?.();
+      mockGet.mockResolvedValue(makeOnlineGame(1));
+      vi.advanceTimersByTime(2500);
+      expect(mockGet).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('the 2.5s poll resumes immediately once the long-poll errors', async () => {
+    let handlers: GameLongPollHandlers | undefined;
+    mockSubscribeLongPoll.mockImplementation((_c, _s, h) => {
+      handlers = h;
+      return vi.fn();
+    });
+    vi.useFakeTimers();
+    try {
+      await hostOnline();
+      handlers?.onHealthy?.();
+      handlers?.onError?.();
+      mockGet.mockResolvedValue(makeOnlineGame(1));
+      vi.advanceTimersByTime(2500);
+      expect(mockGet).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('backs off before retrying a failed long-poll instead of hot-looping', async () => {
+    let handlers: GameLongPollHandlers | undefined;
+    mockSubscribeLongPoll.mockImplementation((_c, _s, h) => {
+      handlers = h;
+      return vi.fn();
+    });
+    vi.useFakeTimers();
+    try {
+      await hostOnline();
+      expect(mockSubscribeLongPoll).toHaveBeenCalledTimes(1);
+      handlers?.onError?.();
+      // Well short of the backoff — must not have reconnected yet.
+      vi.advanceTimersByTime(1000);
+      expect(mockSubscribeLongPoll).toHaveBeenCalledTimes(1);
+      // Past the backoff — exactly one retry.
+      vi.advanceTimersByTime(4500);
+      expect(mockSubscribeLongPoll).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a state pushed via the long-poll adopts a newer version through the same guard as SSE', async () => {
+    let handlers: GameLongPollHandlers | undefined;
+    mockSubscribeLongPoll.mockImplementation((_c, _s, h) => {
+      handlers = h;
+      return vi.fn();
+    });
+    await hostOnline(1);
+    const pushed = makeOnlineGame(9);
+    handlers?.onState(pushed);
+    expect(usePlayStore.getState().online).toEqual(pushed);
+  });
+
+  it('a state pushed via the long-poll with a stale version is ignored', async () => {
+    let handlers: GameLongPollHandlers | undefined;
+    mockSubscribeLongPoll.mockImplementation((_c, _s, h) => {
+      handlers = h;
+      return vi.fn();
+    });
+    await hostOnline(5);
+    const before = usePlayStore.getState().online;
+    handlers?.onState(makeOnlineGame(2));
+    expect(usePlayStore.getState().online).toBe(before);
+  });
+
+  it('stopPolling (leaveOnline) tears down the long-poll subscription', async () => {
+    const teardown = vi.fn();
+    mockSubscribeLongPoll.mockReturnValue(teardown);
+    await hostOnline();
+    mockLeave.mockResolvedValue(undefined as never);
+    await usePlayStore.getState().leaveOnline();
+    expect(teardown).toHaveBeenCalledOnce();
   });
 });
 

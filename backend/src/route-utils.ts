@@ -1,7 +1,7 @@
 import { rateLimit, type Options } from 'express-rate-limit';
 import type { Request, Response } from 'express';
 
-const isTest = process.env.NODE_ENV === 'test' || !!process.env.TEST_DATABASE_URL;
+export const isTest = process.env.NODE_ENV === 'test' || !!process.env.TEST_DATABASE_URL;
 
 /**
  * Returns a passthrough middleware in test environments and a real
