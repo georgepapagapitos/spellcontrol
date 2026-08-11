@@ -1,8 +1,11 @@
 import { apiUrl } from './api-base';
 import type { GameState } from './game-state';
+import type { PublicBoard } from './playtest/projection';
 
 export interface GameEventHandlers {
   onState: (state: GameState) => void;
+  /** A published board — either a catch-up frame sent right after connect, or a live update. */
+  onBoard?: (seat: number, board: PublicBoard) => void;
   onOpen?: () => void;
   onError?: () => void;
 }
@@ -40,6 +43,14 @@ export function subscribeGameEvents(code: string, handlers: GameEventHandlers): 
     } catch {
       // Malformed frame — ignore; the next state push or the poll fallback
       // will catch up.
+    }
+  });
+  es.addEventListener('board', (ev: MessageEvent<string>) => {
+    try {
+      const { seat, board } = JSON.parse(ev.data) as { seat: number; board: PublicBoard };
+      handlers.onBoard?.(seat, board);
+    } catch {
+      // Malformed frame — ignore; the next publish will catch up.
     }
   });
   return () => es.close();

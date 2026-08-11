@@ -54,8 +54,35 @@ const createLimiter = testAwareLimiter({ windowMs: 60_000, max: 20 });
 interface Subscriber {
   onState: (state: GameState) => void;
   onDeleted: () => void;
+  onBoard?: (seat: number, board: unknown) => void;
 }
 const subscribers = new Map<string, Set<Subscriber>>();
+
+/**
+ * Latest published `PublicBoard` per seat, per game code — see POST
+ * `/:code/board` below. In-memory only, same single-process ceiling as
+ * `subscribers` above (see its comment: fine today under `min_machines_running
+ * = 1`, would silently stop fanning out to a second Fly machine if
+ * `auto_start_machines` ever spins one up under load). Deliberately NOT part
+ * of `game_sessions.state` — that column is version-CAS'd and every card move
+ * would bump the game `version`, invalidating every client's `since`/
+ * `knownVersion` fast path for a routine drag. Boards are ephemeral and
+ * high-frequency; losing them on a restart is fine, since a client just
+ * republishes on its next debounced tick (see frontend `games-board.ts`).
+ *
+ * Bounded the same way `subscribers` is: entries only exist for codes with a
+ * live `game_sessions` row, and `broadcastGameDeleted` (called on host leave
+ * and now on `sweepStale`) evicts a code's boards the moment its session goes
+ * away — so this never accumulates beyond the live+recently-active session
+ * count.
+ */
+const boards = new Map<string, Map<number, unknown>>();
+
+function boardsSnapshot(code: string): Array<{ seat: number; board: unknown }> {
+  const codeBoards = boards.get(code);
+  if (!codeBoards || codeBoards.size === 0) return [];
+  return Array.from(codeBoards, ([seat, board]) => ({ seat, board }));
+}
 
 function broadcastGameState(code: string, state: GameState): void {
   const subs = subscribers.get(code);
@@ -63,12 +90,20 @@ function broadcastGameState(code: string, state: GameState): void {
   for (const sub of subs) sub.onState(state);
 }
 
+function broadcastBoard(code: string, seat: number, board: unknown): void {
+  const subs = subscribers.get(code);
+  if (!subs) return;
+  for (const sub of subs) sub.onBoard?.(seat, board);
+}
+
 /** Notifies every subscriber for a deleted session so clients notice immediately. */
 function broadcastGameDeleted(code: string): void {
   const subs = subscribers.get(code);
-  if (!subs) return;
-  for (const sub of subs) sub.onDeleted();
-  subscribers.delete(code);
+  if (subs) {
+    for (const sub of subs) sub.onDeleted();
+    subscribers.delete(code);
+  }
+  boards.delete(code);
 }
 
 function addSubscriber(code: string, sub: Subscriber): void {
@@ -220,11 +255,22 @@ function nextOpenSeat(state: GameState, max: number): number {
 /**
  * Sweep sessions older than 24h. Cheap to call inline on creates so we don't
  * need a separate worker.
+ *
+ * Must broadcast the deletion for every code it sweeps — an SSE stream is
+ * otherwise still "healthy" (its 25s heartbeat keeps writing to a genuinely
+ * open connection) with nothing left to ever tell it the session is gone, so
+ * a swept game would sit on screen looking live forever. `broadcastGameDeleted`
+ * is the same teardown host-leave already uses, so this also evicts the
+ * code's `boards` entry (see the comment above the `boards` map).
  */
 async function sweepStale(): Promise<void> {
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
   const db = getDb();
-  await db.delete(gameSessions).where(lt(gameSessions.updatedAt, cutoff));
+  const deleted = await db
+    .delete(gameSessions)
+    .where(lt(gameSessions.updatedAt, cutoff))
+    .returning({ code: gameSessions.code });
+  for (const { code } of deleted) broadcastGameDeleted(code);
 }
 
 /** POST /api/games — create a new session (host). */
@@ -400,6 +446,12 @@ gamesRouter.get('/:code/events', readLimiter, requireAuth, async (req: Request, 
   });
   res.flushHeaders();
   res.write(`event: state\ndata: ${JSON.stringify(state)}\n\n`);
+  // Catch up a fresh/reconnecting client on boards published before it
+  // subscribed — otherwise a joiner sees empty opponent panels until each of
+  // them happens to move. One frame per seat currently on file for this code.
+  for (const entry of boardsSnapshot(code)) {
+    res.write(`event: board\ndata: ${JSON.stringify(entry)}\n\n`);
+  }
 
   // A failed write on this response must never reach the process as an
   // unhandled 'error' event: `backend/src/` installs no `uncaughtException`
@@ -421,6 +473,15 @@ gamesRouter.get('/:code/events', readLimiter, requireAuth, async (req: Request, 
   const sub: Subscriber = {
     onState: (fresh) => res.write(`event: state\ndata: ${JSON.stringify(fresh)}\n\n`),
     onDeleted: () => res.end(),
+    // New write path into this subscriber — guarded the same way the
+    // heartbeat below is, for the same reason (see the long comment above
+    // it): a write landing in the `onDeleted` → `res.end()` window would
+    // otherwise throw ERR_STREAM_WRITE_AFTER_END with nothing to catch it.
+    onBoard: (seat, board) => {
+      if (!res.writableEnded) {
+        res.write(`event: board\ndata: ${JSON.stringify({ seat, board })}\n\n`);
+      }
+    },
   };
   addSubscriber(code, sub);
 
@@ -458,12 +519,26 @@ const POLL_TIMEOUT_MS = isTest ? 200 : 25_000;
  * ~1M of them, sweepable).
  *
  * Semantics: if `since` is already stale (the session's `version` is
- * greater — also true when `since` is missing/invalid), respond
- * immediately with the current state. Otherwise register as a subscriber
- * and hold the request open until either a mutation broadcasts for this
- * code or ~25s elapses, then answer `{ unchanged: true }` — the same shape
- * GET /:code's `knownVersion` fast path uses, so the client's handling of
- * both stays uniform.
+ * greater — also true when `since` is missing/invalid) or the caller passes
+ * `catchUp=1`, respond immediately with the current state. Otherwise
+ * register as a subscriber and hold the request open until either a
+ * mutation broadcasts for this code or ~25s elapses, then answer
+ * `{ unchanged: true }` — the same shape GET /:code's `knownVersion` fast
+ * path uses, so the client's handling of both stays uniform.
+ *
+ * `catchUp=1` (games-longpoll.ts sends it on a loop's very first request)
+ * forces the immediate branch even when `since` already matches: a
+ * freshly-joined player's own join just bumped the version they're polling
+ * with, so the ordinary staleness check alone would never fire for them and
+ * they'd otherwise sit in the held branch — up to ~25s — before ever seeing
+ * the current `boards` snapshot (see below).
+ *
+ * Every response that carries `game` (the immediate branch, and the
+ * broadcast-resolved held branch below) also carries the code's current
+ * `boards` snapshot, so a client catches up on opponents' published boards
+ * any time it receives fresh game state. A board published while a request
+ * is held resolves it early with just that one board (`{ board }`) — no
+ * `game` needed, cheaper than waiting for the next state broadcast or timeout.
  *
  * Every branch that can end the request (immediate reply, broadcast,
  * deletion, timeout, client disconnect) funnels through `settle`, which is
@@ -486,15 +561,17 @@ gamesRouter.get('/:code/poll', readLimiter, requireAuth, async (req: Request, re
 
   const rawSince = Number(req.query.since);
   const since = Number.isFinite(rawSince) ? rawSince : -1;
-  if (state.version > since) {
-    return res.json({ game: state });
+  const catchUp = req.query.catchUp === '1';
+  if (state.version > since || catchUp) {
+    return res.json({ game: state, boards: boardsSnapshot(code) });
   }
 
   let settled = false;
   const timer = setTimeout(() => settle(() => res.json({ unchanged: true })), POLL_TIMEOUT_MS);
   const sub: Subscriber = {
-    onState: (fresh) => settle(() => res.json({ game: fresh })),
+    onState: (fresh) => settle(() => res.json({ game: fresh, boards: boardsSnapshot(code) })),
     onDeleted: () => settle(() => res.status(404).json({ error: 'Game not found.' })),
+    onBoard: (seat, board) => settle(() => res.json({ board: { seat, board } })),
   };
 
   function settle(respond: () => void): void {
@@ -507,6 +584,78 @@ gamesRouter.get('/:code/poll', readLimiter, requireAuth, async (req: Request, re
 
   addSubscriber(code, sub);
   req.on('close', () => settle(() => {}));
+});
+
+// Board publishes are debounced client-side to ~150ms (see frontend
+// games-board.ts), so a single active participant posts at most ~7/s;
+// budget generously above that for several players behind one NAT while
+// still bounding a scripted flood. An order of magnitude above writeLimiter,
+// which is sized for occasional game-state mutations, not a per-move sync.
+const boardLimiter = testAwareLimiter({ windowMs: 60_000, max: 1200 });
+
+/** Board payloads are fanned out verbatim to every other participant's
+ *  client, so this bounds the total JSON size defensively — generous for a
+ *  real `PublicBoard` (a few KB even with a full battlefield), but far below
+ *  anything that could bloat the in-memory store or the wire. */
+const MAX_BOARD_BYTES = 64 * 1024;
+
+/**
+ * Minimal structural check on a claimed `PublicBoard` — enough to keep a
+ * malformed or hostile payload from wedging the in-memory `boards` store or
+ * crashing a peer's client that trusts the shape, without re-implementing
+ * the full projection contract (frontend-only, `lib/playtest/projection.ts`)
+ * on the backend.
+ */
+function isPlausibleBoard(body: unknown): body is Record<string, unknown> {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) return false;
+  const b = body as Record<string, unknown>;
+  if (!Number.isFinite(b.turn) || !Number.isFinite(b.life)) return false;
+  if (!Number.isFinite(b.handCount) || !Number.isFinite(b.libraryCount)) return false;
+  return (['battlefield', 'graveyard', 'exile', 'command'] as const).every((zone) =>
+    Array.isArray(b[zone])
+  );
+}
+
+/**
+ * POST /api/games/:code/board — publish the caller's `PublicBoard`
+ * projection (a redacted, opponent-safe view of one seat's board; see
+ * `frontend/src/lib/playtest/projection.ts`) so every other participant's
+ * client can render it. Stored per-seat in the `boards` map above and fanned
+ * out over the same SSE/long-poll subscribers real game-state mutations use.
+ *
+ * The seat is never trusted from the body — it's always the authenticated
+ * caller's own seat in this session, looked up server-side. That's the whole
+ * defense against seat spoofing: even a body explicitly claiming a different
+ * seat is silently overwritten, so a participant can never forge another
+ * seat's board.
+ */
+gamesRouter.post('/:code/board', boardLimiter, requireAuth, async (req: Request, res: Response) => {
+  const code = String(req.params.code).toUpperCase();
+  const db = getDb();
+  const rows = await db.select().from(gameSessions).where(eq(gameSessions.code, code)).limit(1);
+  const row = rows[0];
+  if (!row) return res.status(404).json({ error: 'Game not found.' });
+  const state = row.state as GameState;
+  const me = state.players.find((p) => p.userId === req.user!.id);
+  if (!me) return res.status(403).json({ error: 'Not a participant.' });
+
+  if (JSON.stringify(req.body ?? {}).length > MAX_BOARD_BYTES) {
+    return res.status(413).json({ error: 'Board payload too large.' });
+  }
+  if (!isPlausibleBoard(req.body)) {
+    return res.status(400).json({ error: 'Invalid board payload.' });
+  }
+
+  const board = { ...req.body, seat: me.seat };
+  let codeBoards = boards.get(code);
+  if (!codeBoards) {
+    codeBoards = new Map();
+    boards.set(code, codeBoards);
+  }
+  codeBoards.set(me.seat, board);
+
+  broadcastBoard(code, me.seat, board);
+  res.json({ ok: true });
 });
 
 /** POST /api/games/:code/join — claim a seat. */

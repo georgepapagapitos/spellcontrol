@@ -1,6 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { createGame, getGame, joinGame, leaveGame, patchGame } from './games-api';
+import {
+  createGame,
+  getGame,
+  joinGame,
+  leaveGame,
+  patchGame,
+  pollGame,
+  postBoard,
+} from './games-api';
 import type { GameState } from './game-state';
+import type { PublicBoard } from './playtest/projection';
 
 function mockState(overrides: Partial<GameState> = {}): GameState {
   return {
@@ -125,5 +134,48 @@ describe('games-api', () => {
     fetchSpy.mockResolvedValueOnce(json({ game: mockState() }));
     const r = await leaveGame('EFGH');
     expect(r.game?.code).toBe('ABCD');
+  });
+
+  it('pollGame builds the URL with since, and appends catchUp=1 only when requested', async () => {
+    fetchSpy.mockResolvedValueOnce(json({ unchanged: true }));
+    await pollGame('ABCD', 3);
+    expect(fetchSpy.mock.calls[0][0]).toBe('/api/games/ABCD/poll?since=3');
+
+    fetchSpy.mockResolvedValueOnce(json({ unchanged: true }));
+    await pollGame('ABCD', 3, undefined, true);
+    expect(fetchSpy.mock.calls[1][0]).toBe('/api/games/ABCD/poll?since=3&catchUp=1');
+  });
+
+  it('pollGame resolves game:null on { unchanged: true }', async () => {
+    fetchSpy.mockResolvedValueOnce(json({ unchanged: true }));
+    expect(await pollGame('ABCD', 3)).toEqual({ game: null, boards: undefined, board: undefined });
+  });
+
+  it('pollGame forwards the game and boards from a full response', async () => {
+    const game = mockState({ version: 5 });
+    const boards = [{ seat: 1, board: { seat: 1 } }];
+    fetchSpy.mockResolvedValueOnce(json({ game, boards }));
+    expect(await pollGame('ABCD', 3)).toEqual({ game, boards, board: undefined });
+  });
+
+  it('pollGame forwards a single resolved board', async () => {
+    const board = { seat: 2, board: { seat: 2 } };
+    fetchSpy.mockResolvedValueOnce(json({ board }));
+    expect(await pollGame('ABCD', 3)).toEqual({ game: null, boards: undefined, board });
+  });
+
+  it('postBoard POSTs the board to /board and resolves on success', async () => {
+    fetchSpy.mockResolvedValueOnce(json({ ok: true }));
+    const board = { seat: 0, turn: 1 } as unknown as PublicBoard;
+    await postBoard('ABCD', board);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe('/api/games/ABCD/board');
+    expect((init as RequestInit).method).toBe('POST');
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual(board);
+  });
+
+  it('postBoard throws on a non-2xx response', async () => {
+    fetchSpy.mockResolvedValueOnce(json({ error: 'Not a participant.' }, 403));
+    await expect(postBoard('ABCD', {} as PublicBoard)).rejects.toThrow(/Not a participant/);
   });
 });
