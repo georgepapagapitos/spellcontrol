@@ -181,7 +181,7 @@ export function buildGapAddFactors(s: GapAddSignals): WhyFactor[] {
   if (s.owned) out.push({ text: 'Already in your collection — no purchase', tone: 'pro' });
   if (s.brewFavored) {
     out.push({
-      text: 'You dialed toward Brew — deep cuts like this get weighted over play-rate',
+      text: 'You dialed toward Theme — commander-mechanics fit gets weighted over play-rate',
       tone: 'neutral',
     });
   }

@@ -419,22 +419,30 @@ function SaltGroup({ customization, update }: DeckCustomizerProps) {
   );
 }
 
-// 5 stops: 0 / 0.25 / 0.5 / 0.75 / 1 — endpoints "Staples" / "Brew", center
+// 5 stops: 0 / 0.25 / 0.5 / 0.75 / 1 — endpoints "Staples" / "Theme", center
 // "Balanced" (the default, a no-op — see cardPicking.ts's calculateCardPriority).
+//
+// Copy names the THEME-FIT axis, not a popularity axis. Measured 2026-08-11
+// (15-deck LIVE_GEN A/B at brewLevel 0 vs 1, board E238): mean EDHREC play-rate
+// moves 40.0% -> 39.7% and 22 of 95 swaps land on MORE-played cards, so the old
+// "deep cuts / over the popular picks" wording promised something the engine
+// does not do. What it actually does is prefer cards that fit the commander's
+// mechanics — which are often popular themselves (Sythis at full Brew ADDED
+// Utopia Sprawl at 75% play-rate and dropped Austere Command at 25%).
 type BrewStop = 0 | 0.25 | 0.5 | 0.75 | 1;
 const BREW_LABELS: Record<BrewStop, string> = {
   0: 'Staples',
   0.25: 'Leaning staples',
   0.5: 'Balanced',
-  0.75: 'Leaning brew',
-  1: 'Brew',
+  0.75: 'Leaning theme',
+  1: 'Theme',
 };
 const BREW_DESCRIPTIONS: Record<BrewStop, string> = {
   0: "The proven 99 — EDHREC's most-played picks.",
-  0.25: 'Mostly staples, with some room for cards that fit your theme.',
+  0.25: 'Mostly proven picks, with some room for cards that fit your commander.',
   0.5: 'An even mix of proven staples and theme-driven picks.',
-  1: "Deep cuts — cards that fit your theme's mechanics over the popular picks.",
-  0.75: 'Mostly deep cuts, keeping the strongest staples.',
+  1: "Leans into your commander's mechanics — cards that fit the plan over generic power.",
+  0.75: 'Mostly theme-driven, keeping the strongest staples.',
 };
 
 function BrewGroup({ customization, update }: DeckCustomizerProps) {
@@ -444,7 +452,7 @@ function BrewGroup({ customization, update }: DeckCustomizerProps) {
   return (
     <div className="deck-customizer-group">
       <div className="deck-customizer-group-header">
-        <h3 className="deck-customizer-group-title">Staples ↔ Brew</h3>
+        <h3 className="deck-customizer-group-title">Staples ↔ Theme</h3>
         <span className="deck-customizer-slider-value">{label}</span>
       </div>
       <div className="deck-customizer-group-body">
@@ -456,7 +464,7 @@ function BrewGroup({ customization, update }: DeckCustomizerProps) {
             max={1}
             step={0.25}
             value={value}
-            aria-label="Staples to Brew dial — how much to favor EDHREC's most-played cards over off-meta theme fits"
+            aria-label="Staples to Theme dial — how much to favor EDHREC's most-played cards over cards that fit your commander's mechanics"
             aria-valuetext={label}
             onChange={(e) => update({ brewLevel: Number(e.target.value) })}
             style={{
@@ -471,7 +479,7 @@ function BrewGroup({ customization, update }: DeckCustomizerProps) {
               <span className="deck-customizer-slider-anchor-label">Balanced</span>
             </span>
             <span className="deck-customizer-slider-anchor" data-align="end">
-              <span className="deck-customizer-slider-anchor-label">Brew</span>
+              <span className="deck-customizer-slider-anchor-label">Theme</span>
             </span>
           </div>
           <p className="deck-customizer-slider-desc">{description}</p>
