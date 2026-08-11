@@ -134,7 +134,11 @@ import {
 } from './deckGeneration/state';
 import { detectCombosPhase, refreshComboCompleteness } from './deckGeneration/phaseDetectCombos';
 import { gapAnalysisPhase } from './deckGeneration/phaseGapAnalysis';
-import { liftPicksPhase } from './deckGeneration/phaseLiftPicks';
+import {
+  liftPicksPhase,
+  liftSeatCandidates,
+  LIFT_SEATING_MIN_BREW,
+} from './deckGeneration/phaseLiftPicks';
 import { ensureLiftPools, getLiftIndex, MAX_LIFT_SEEDS } from './deckGeneration/liftPools';
 import { deckScorePhase } from './deckGeneration/phaseDeckScore';
 import { cardRelevancyPhase } from './deckGeneration/phaseCardRelevancy';
@@ -3771,7 +3775,68 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     collectionNames: context.collectionNames,
     ownedOnly: constrainsToCollection(collectionStrategy),
   });
-  const flagshipSeatings = flagshipResult.seated;
+  // ── Hidden-Synergy Seating (E238) ──
+  // The Staples<->Theme dial is a pure re-rank of the commander's own EDHREC
+  // cardlist, and a re-rank has a hard ceiling: measured across the 15-deck
+  // panel at brewLevel 0 vs 1, only 11% of nonlands move and mean play-rate
+  // barely shifts (40.0% -> 39.7%), because calculateCardPriority's
+  // theme-synergy tier carries an UN-dialed +100 floor and its no-synergy tier
+  // is a pure scalar (order-invariant by construction). Nothing the dial
+  // multiplies can surface a card the cardlist never contained.
+  //
+  // At the Theme end of the dial, this seats a bounded number of those: EDHREC
+  // card-page co-play candidates, confidence-weighted and sample-discounted
+  // (liftSynergy.ts), already used for the suggestion-only "package picks" that
+  // run at the very end of generation. Same displacement engine as flagship
+  // seating — same gates, same weakest-incumbent eviction, same seat cap, same
+  // position before Bracket/Budget Convergence so their safety nets still catch
+  // any overshoot. Only the candidate SOURCE differs (off-pool, so the caller
+  // supplies a pre-ranked set; see FlagshipSeatingContext.candidates).
+  //
+  // Structural no-op below the 0.75 dial stop, so the 0.5 default build is
+  // byte-identical. The late suggestion phase still runs and reuses these same
+  // cached lift pools — the extra call costs no extra EDHREC requests.
+  const liftSeats =
+    state.cfg.brewLevel >= LIFT_SEATING_MIN_BREW
+      ? await liftSeatCandidates(state, { effectiveScryfallQuery: scryfallQuery, isSaltBlocked })
+      : [];
+  const liftSeatByName = new Map(liftSeats.map((s) => [s.card.name, s]));
+  const liftSeatResult = applyFlagshipSeating(state, {
+    gateFires: liftSeats.length > 0,
+    candidates: liftSeats.map((s) => s.card),
+    reasonFor: (card) => {
+      const by = liftSeatByName.get(card.name)?.liftedBy ?? [];
+      const withWhat = by.length > 0 ? ` with ${by.slice(0, 2).join(' and ')}` : '';
+      return `${card.name} isn't on this commander's EDHREC list, but decks running it${withWhat} overperform — the Theme dial reserved a seat for it.`;
+    },
+    // Unused on the injected-candidate path; the predicate already ran upstream.
+    isFlagshipCandidate: () => true,
+    themeLabel: 'hidden synergy',
+    scryfallCardMap,
+    colorIdentity,
+    liftScoreOf,
+    roleTargets,
+    isSaltBlocked,
+    cardAllowed: isCardAllowedBySynergyDependencies,
+    bracketGuard,
+    gameChangerCount,
+    maxGameChangers,
+    budgetTracker,
+    maxCardPrice,
+    maxRarity,
+    maxCmc,
+    arenaOnly,
+    currency,
+    ignoreOwnedBudget,
+    ignoreOwnedRarity,
+    collectionNames: context.collectionNames,
+    ownedOnly: constrainsToCollection(collectionStrategy),
+  });
+
+  // One disclosure surface: a lift seat and a flagship seat are the same event
+  // (cut X, seat Y, here's why) and already the same CoherenceRepair shape —
+  // the per-seat `reason` is what distinguishes them, so no new report field.
+  const flagshipSeatings = [...flagshipResult.seated, ...liftSeatResult.seated];
 
   // ── Bracket Convergence ──
   // Close the loop on the target bracket: the pick-time guard caps hard-floor

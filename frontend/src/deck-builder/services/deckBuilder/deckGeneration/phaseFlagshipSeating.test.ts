@@ -388,3 +388,105 @@ describe('applyFlagshipSeating', () => {
     expect(result.seated).toHaveLength(FLAGSHIP_SEAT_MAX);
   });
 });
+
+// ── Injected off-pool candidates (E238 lift seating) ──
+//
+// The lift-seating caller supplies candidates that are NOT in this commander's
+// EDHREC cardlist — that absence is the entire point of the mechanism — so pool
+// derivation, the inclusion floor, and the calculateCardPriority ranking all
+// have to be bypassed while every gate stays enforced.
+describe('applyFlagshipSeating — injected candidates', () => {
+  function stateWithIncumbents() {
+    const state = makeState();
+    state.categories.synergy.push(scryfallCard('Weak Filler'), scryfallCard('Strong Staple'));
+    state.usedNames.add('Weak Filler');
+    state.usedNames.add('Strong Staple');
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [edhrecCard('Weak Filler', 5), edhrecCard('Strong Staple', 60)],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    return state;
+  }
+
+  it('seats an off-pool candidate — no pool entry, no inclusion floor', () => {
+    const state = stateWithIncumbents();
+
+    const result = applyFlagshipSeating(
+      state,
+      makeCtx({
+        candidates: [scryfallCard('Off Pool Card')],
+        // Would reject everything on the pool path — proves it is not consulted.
+        isFlagshipCandidate: () => false,
+      })
+    );
+
+    expect(result.seated).toHaveLength(1);
+    expect(result.seated[0].added).toBe('Off Pool Card');
+    // Displaced the weaker incumbent, not the staple.
+    expect(result.seated[0].cut).toBe('Weak Filler');
+    expect(state.usedNames.has('Off Pool Card')).toBe(true);
+    expect(state.usedNames.has('Weak Filler')).toBe(false);
+  });
+
+  it('uses reasonFor for the disclosure when supplied', () => {
+    const result = applyFlagshipSeating(
+      stateWithIncumbents(),
+      makeCtx({
+        candidates: [scryfallCard('Off Pool Card')],
+        reasonFor: (card) => `${card.name} was co-played`,
+      })
+    );
+    expect(result.seated[0].reason).toBe('Off Pool Card was co-played');
+  });
+
+  it('still enforces the gates on injected candidates', () => {
+    const state = stateWithIncumbents();
+    const result = applyFlagshipSeating(
+      state,
+      makeCtx({
+        candidates: [scryfallCard('Off Color', { color_identity: ['U'] })],
+        colorIdentity: [],
+      })
+    );
+    expect(result.seated).toEqual([]);
+    expect(state.usedNames.has('Off Color')).toBe(false);
+  });
+
+  it('skips injected candidates already in the deck or banned', () => {
+    const state = stateWithIncumbents();
+    state.bannedCards.add('Banned Card');
+    const result = applyFlagshipSeating(
+      state,
+      makeCtx({
+        candidates: [scryfallCard('Strong Staple'), scryfallCard('Banned Card')],
+      })
+    );
+    expect(result.seated).toEqual([]);
+  });
+
+  it('respects the seat cap on the injected path too', () => {
+    const state = makeState();
+    for (let i = 0; i < 6; i++) {
+      const filler = scryfallCard(`Filler_${i}`);
+      state.categories.synergy.push(filler);
+      state.usedNames.add(filler.name);
+    }
+    state.edhrecData = {
+      cardlists: { allNonLand: Array.from({ length: 6 }, (_, i) => edhrecCard(`Filler_${i}`, 5)) },
+    } as unknown as GenerationState['edhrecData'];
+
+    const result = applyFlagshipSeating(
+      state,
+      makeCtx({ candidates: Array.from({ length: 5 }, (_, i) => scryfallCard(`Lift_${i}`)) })
+    );
+    expect(result.seated).toHaveLength(FLAGSHIP_SEAT_MAX);
+  });
+
+  it('is inert when the gate does not fire', () => {
+    const state = stateWithIncumbents();
+    const result = applyFlagshipSeating(state, makeCtx({ gateFires: false, candidates: [] }));
+    expect(result.seated).toEqual([]);
+    expect(state.usedNames.has('Weak Filler')).toBe(true);
+  });
+});

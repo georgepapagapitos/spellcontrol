@@ -86,10 +86,31 @@ export const FLAGSHIP_INCLUSION_FLOOR = 8;
 export interface FlagshipSeatingContext {
   /** e.g. commanderWantsExtraCombat — false makes this pass fully inert. */
   gateFires: boolean;
-  /** e.g. isExtraCombatPiece (tagger/client.ts). */
+  /** e.g. isExtraCombatPiece (tagger/client.ts). Unused when `candidates` is
+   *  supplied (that caller has already selected its own candidate set). */
   isFlagshipCandidate: (card: ScryfallCard) => boolean;
   /** Short label for the disclosure reason, e.g. "extra combats". */
   themeLabel: string;
+  /**
+   * OFF-POOL candidate source, already ranked best-first by the caller.
+   *
+   * The default (pool) path derives candidates from `cardlists.allNonLand`,
+   * ranks them by `calculateCardPriority`, and floors them at
+   * FLAGSHIP_INCLUSION_FLOOR — all three of which assume the candidate HAS an
+   * EDHREC entry for this commander. The lift-seating caller's whole value is
+   * that its candidates do not (they come from EDHREC card-page co-play data,
+   * not the commander's cardlist), so it supplies them directly: no pool
+   * lookup, no inclusion floor, and the caller's own confidence-weighted
+   * ranking (liftSynergy's clusterScore) stands in for calculateCardPriority.
+   *
+   * Everything downstream — the gate gauntlet, survival scoring, victim
+   * selection, the seat cap, and the cut/seat bookkeeping — is identical on
+   * both paths. This is a second candidate SOURCE, not a second engine.
+   */
+  candidates?: readonly ScryfallCard[];
+  /** Per-card disclosure reason. Defaults to the flagship "top <themeLabel>
+   *  card" wording, which doesn't describe an off-pool co-play pick. */
+  reasonFor?: (card: ScryfallCard) => string;
   scryfallCardMap: ReadonlyMap<string, ScryfallCard>;
   colorIdentity: readonly string[];
   liftScoreOf: (name: string) => number;
@@ -122,6 +143,8 @@ export function applyFlagshipSeating(
 ): FlagshipSeatingResult {
   if (!ctx.gateFires) return { seated: [] };
   const pool = state.edhrecData?.cardlists.allNonLand;
+  // The pool is still required on BOTH paths — survivalScore prices incumbents
+  // off it, so an absent pool means no meaningful eviction ordering.
   if (!pool || pool.length === 0) return { seated: [] };
 
   const poolByName = new Map(pool.map((c) => [c.name, c]));
@@ -131,16 +154,23 @@ export function applyFlagshipSeating(
   // and not already seated somewhere in the deck — by the SAME
   // calculateCardPriority the pick phases already use, so "top candidate"
   // means what it means everywhere else in generation.
-  const candidates = pool
-    .filter((ec) => ec.inclusion >= FLAGSHIP_INCLUSION_FLOOR)
-    .filter((ec) => !state.usedNames.has(ec.name) && !state.bannedCards.has(ec.name))
-    .map((ec) => ctx.scryfallCardMap.get(ec.name))
-    .filter((c): c is ScryfallCard => !!c && ctx.isFlagshipCandidate(c))
-    .sort(
-      (a, b) =>
-        calculateCardPriority(poolByName.get(b.name)!, brewLevel) -
-        calculateCardPriority(poolByName.get(a.name)!, brewLevel)
-    );
+  //
+  // `ctx.candidates` short-circuits all of that: an off-pool caller has no
+  // inclusion to floor and no pool entry to price, so it ranks its own
+  // candidates and we take that order as given (still re-checking used/banned
+  // here, since the caller's set was assembled before this phase ran).
+  const candidates = ctx.candidates
+    ? ctx.candidates.filter((c) => !state.usedNames.has(c.name) && !state.bannedCards.has(c.name))
+    : pool
+        .filter((ec) => ec.inclusion >= FLAGSHIP_INCLUSION_FLOOR)
+        .filter((ec) => !state.usedNames.has(ec.name) && !state.bannedCards.has(ec.name))
+        .map((ec) => ctx.scryfallCardMap.get(ec.name))
+        .filter((c): c is ScryfallCard => !!c && ctx.isFlagshipCandidate(c))
+        .sort(
+          (a, b) =>
+            calculateCardPriority(poolByName.get(b.name)!, brewLevel) -
+            calculateCardPriority(poolByName.get(a.name)!, brewLevel)
+        );
   if (candidates.length === 0) return { seated: [] };
 
   const isRoleCapBlocked = (card: ScryfallCard): boolean => {
@@ -266,9 +296,10 @@ export function applyFlagshipSeating(
       cut: victim.card.name,
       added: candidate.name,
       reason:
+        ctx.reasonFor?.(candidate) ??
         `${candidate.name} is a top ${ctx.themeLabel} card` +
-        (typeof inclusion === 'number' ? ` (${inclusion.toFixed(1)}% of decks)` : '') +
-        ` that the visibility boost alone couldn't outrank — reserved a seat for it.`,
+          (typeof inclusion === 'number' ? ` (${inclusion.toFixed(1)}% of decks)` : '') +
+          ` that the visibility boost alone couldn't outrank — reserved a seat for it.`,
     });
   }
 
