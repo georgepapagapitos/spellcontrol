@@ -786,4 +786,73 @@ describe('POST /api/games/:code/leave', () => {
     expect(res.body.game).toBeDefined();
     expect(res.body.game.players).toHaveLength(1);
   });
+
+  /**
+   * Regression cover for the write-after-end process kill. `broadcastGameDeleted`
+   * → `onDeleted` → `res.end()` does not clear that stream's 25s heartbeat (only
+   * `req.on('close')` does), so a tick landing between the `end()` and socket
+   * teardown writes to an ended response and emits ERR_STREAM_WRITE_AFTER_END —
+   * fatal, since nothing installs an `uncaughtException` handler. Guarded in the
+   * route by a no-op 'error' listener plus a `writableEnded` check.
+   *
+   * The ~1ms race isn't reproducible against a 25s timer without plumbing the
+   * interval for tests, so this covers the deletion path end-to-end: the server
+   * must end an open stream on host leave and still be serving afterwards.
+   * Generous timeout because it waits on a real socket while the rest of this
+   * file's suite contends for the same test Postgres.
+   */
+  it('ends an open SSE stream on host leave, and keeps serving', async () => {
+    const host = await registerAndGetCookie('games_sse_teardown');
+    const created = await request(app).post('/api/games').set('Cookie', host).send({});
+    const code = created.body.game.code as string;
+
+    const addr = app.address();
+    if (!addr || typeof addr === 'string') throw new Error('test server has no address');
+
+    const trace: string[] = [];
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error(`stream never ended; trace=${trace.join(' -> ') || 'nothing'}`)),
+        15000
+      );
+      const req = http.request(
+        {
+          host: '127.0.0.1',
+          port: addr.port,
+          path: `/api/games/${code}/events`,
+          method: 'GET',
+          headers: { Cookie: host },
+        },
+        (res) => {
+          trace.push(`status=${res.statusCode}`);
+          let triggered = false;
+          res.on('data', (chunk: Buffer) => {
+            if (triggered || !chunk.toString('utf-8').includes('event: state')) return;
+            triggered = true;
+            trace.push('frame');
+            // Host leave = end + delete -> broadcastGameDeleted -> res.end().
+            request(app)
+              .post(`/api/games/${code}/leave`)
+              .set('Cookie', host)
+              .send({})
+              .then((r) => trace.push(`leave=${r.status}`))
+              .catch((e: Error) => trace.push(`leave-threw=${e.message}`));
+          });
+          res.on('end', () => {
+            clearTimeout(timer);
+            resolve();
+          });
+        }
+      );
+      req.on('error', (err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+      req.end();
+    });
+
+    // Still up and serving: ending that stream did not take the process with it.
+    const after = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    expect(after.status).toBe(404);
+  }, 20000);
 });
