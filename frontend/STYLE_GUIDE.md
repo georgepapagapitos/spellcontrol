@@ -75,6 +75,7 @@ primitives directory.
 | `components/shared/SealBurst` / `SealMoment` | confetti | § Completion moments (the seal) |
 | `components/shared/BrandMark` | an inline logo SVG | § Brand mark motion |
 | `components/UserAvatar` | a bespoke initials circle | § Icon scale |
+| `playtest/components/OpponentRail` | a bespoke multiplayer sidebar | § Opponent rail — never hide a seat |
 
 **Adding a primitive?** Add its row here *and* its ruling to the relevant section
 below. A primitive nobody can find gets re-implemented — that is what this table
@@ -1211,6 +1212,62 @@ reference.
   that could be read as halves of one total would invite exactly the wrong
   arithmetic. When a panel splits, **suppress the panel-wide tap zones**: a
   zone spanning both halves swallows every tap and credits it to the primary.
+
+### Opponent rail — never hide a seat
+
+The opponent presence rail (`playtest/components/OpponentRail.tsx`) is the
+"who else is at the table" strip for online multiplayer. It answers a
+different question than the board-modes panel above ("what does everyone
+else's board look like right now," not "what have they done to me"), so it's
+a separate, always-visible strip rather than a per-panel mode.
+
+**No opponent may ever be off-screen, scrolled out of the rail, or hidden
+behind a `⋮` overflow menu — full stop.** The usual "collapse a crowded strip
+to an overflow menu at ≤600px" answer (§ Toolbars & action rows) is correct
+for filters and controls and **wrong here**: a hidden opponent is a gameplay
+failure (you can't tell someone assembled lethal), not a layout compromise
+the way a hidden secondary button is. When a table is crowded, every entry
+**shrinks** instead — down to a color dot + life total with the name
+truncated to nothing — and only as an absolute last resort does the strip
+wrap to a second line. It never scrolls and never drops a seat.
+
+**Two densities, chosen by which axis has slack, not by taste:**
+
+- **Presence** (portrait — the rail is a top strip): color, name, life, and a
+  permanent count. Genuinely readable at ~130×44 per opponent, not a
+  squeezed-down "glance."
+- **Glance** (landscape — the rail is a side column): life, name, and a real
+  miniature battlefield (~40–56px card tiles) at ~300–360px per opponent.
+  Shape, tapped state, and count read at that size; text does not — reading
+  an opponent's actual cards is a future "promotion" interaction, not this
+  strip's job.
+
+**The rail follows the long axis** (portrait → top strip, landscape → side
+rail) because vertical is the scarce axis at every tier: a solo playtest
+board already spends its height budget on the header/actionbar/hand/zones
+chrome before the battlefield gets what's left, so three more boards at
+glance size would leave an unusable sliver. The rail eats from whichever axis
+currently has room.
+
+**Density is gated on `(orientation: landscape) and (min-width: 900px)` — a
+legitimate viewport read for a full-width/full-height chrome band (§
+Responsive's "Full-width panels may keep viewport gates" carve-out), never
+assumed from the entry's rendered width.** ⚠️ **Orientation alone is NOT the
+signal.** A phone held sideways (844×390) is landscape but has no slack, and
+the long-axis rule is premised on the long axis *having* slack — gating on
+orientation alone puts a side rail and N mounted miniature battlefields on a
+screen that cannot spare the width. The 900px floor separates
+tablet-landscape (~1024–1180, gets glance) from every phone landscape
+(568 / 736 / 844, stays on presence). But the **shrink ladder within presence density** — dropping the
+permanent count, then the name, as N opponents divide a narrowing top strip —
+is gated on `@container` on each `.opponent-entry` itself (`container-type:
+inline-size`), not on a viewport breakpoint (E61): a crowded rail can get
+narrow on any viewport, and a `@media (max-width: 600px)` rule would simply
+never fire for a cramped entry on a wide screen. The glance density's mini
+battlefield is mounted only when that density is actually active (not
+CSS-hidden while mounted) — its card art resolves through the shared
+`useCardThumb` CDN cache per entry, and gating the mount avoids firing that
+resolution for opponents a phone-portrait viewer will never see tiles for.
 
 ### Store-driven global overlays (E170)
 
