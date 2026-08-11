@@ -45,16 +45,29 @@ export const PlaytestCardView = memo(function PlaytestCardView({
   });
 
   const tapped = bf?.tapped ?? false;
-  const baseTransform = positioned && bf ? `translate(${bf.x}px, ${bf.y}px)` : '';
-  const tapTransform = tapped ? ' rotate(90deg)' : '';
 
-  // The drag *transform* is intentionally NOT applied here: the source card
-  // stays put (dimmed) while a top-level <DragOverlay> renders the moving
-  // copy. Translating the source instead would leave it clipped by the hand
-  // strip's / battlefield's `overflow` and stuck behind sibling surfaces.
+  // Position is percentage-based, not `transform: translate(px)` — x/y are
+  // 0..1 fractions of the battlefield box (see BattlefieldCard.x/y), and
+  // `--pt-card-w`/`--pt-card-h` (set once per density tier in playtest.css)
+  // are what makes `100% - cardWidth` resolve to "the card's far edge never
+  // passes the container edge" at any container size. The tap rotation stays
+  // a `transform` (kept separate from position so it can't fight the
+  // left/top math) — the drag *transform* is intentionally NOT applied here:
+  // the source card stays put (dimmed) while a top-level <DragOverlay>
+  // renders the moving copy. Translating the source instead would leave it
+  // clipped by the hand strip's / battlefield's `overflow` and stuck behind
+  // sibling surfaces.
   const style: React.CSSProperties = {
     position: positioned ? 'absolute' : 'relative',
-    transform: `${baseTransform}${tapTransform}` || undefined,
+    ...(positioned && bf
+      ? ({
+          '--pt-x': bf.x,
+          '--pt-y': bf.y,
+          left: 'calc(var(--pt-x) * (100% - var(--pt-card-w)))',
+          top: 'calc(var(--pt-y) * (100% - var(--pt-card-h)))',
+        } as React.CSSProperties)
+      : null),
+    transform: tapped ? 'rotate(90deg)' : undefined,
     transformOrigin: 'center center',
     opacity: isDragging ? 0.4 : 1,
   };

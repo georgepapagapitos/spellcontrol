@@ -54,6 +54,16 @@ type ContextState = { cardId: string; x: number; y: number } | null;
 // `state.manaPool` is optional for exactly that reason (see types.ts).
 const ZERO_MANA_POOL: Record<ManaColor, number> = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
 
+/** Desktop-density card box — matches playtest.css's base `--pt-card-w`/
+ *  `--pt-card-h`. Used only as a fallback when the battlefield hasn't
+ *  mounted yet (can't read the live custom property). */
+const FALLBACK_CARD_W = 90;
+const FALLBACK_CARD_H = 126;
+/** Near-top-left placement used when a drop lands on the battlefield but
+ *  dnd-kit couldn't report a translated rect (e.g. a keyboard-sensor drop) —
+ *  the fraction-space analogue of the old fixed `x: 40, y: 40` pixel default. */
+const FALLBACK_DROP_POS = { x: 0.05, y: 0.05 };
+
 function parseDraggable(id: string): { source: 'bf' | 'hand' | 'zone'; cardId: string } | null {
   const m = /^(bf|hand|zone):(.+)$/.exec(id);
   if (!m) return null;
@@ -170,8 +180,12 @@ export function PlaytestBoard({ state }: Props) {
       if (overId === 'battlefield' || overId === null) {
         const bf = state.battlefield.find((b) => b.card.id === parsed.cardId);
         if (!bf) return;
-        const x = bf.x + event.delta.x;
-        const y = bf.y + event.delta.y;
+        // event.delta is a pixel pointer delta; bf.x/y are fractions of the
+        // battlefield box, so convert through the same (container - card)
+        // denominator the renderer's `left: calc(x * (100% - cardW))` uses.
+        const { width, height, cardW, cardH } = getBattlefieldGeometry();
+        const x = bf.x + event.delta.x / Math.max(1, width - cardW);
+        const y = bf.y + event.delta.y / Math.max(1, height - cardH);
         dispatch({ type: 'MOVE_BF_POSITION', cardId: parsed.cardId, x, y });
         return;
       }
@@ -185,14 +199,15 @@ export function PlaytestBoard({ state }: Props) {
     }
 
     if (overId === 'battlefield') {
+      const { width, height, cardW, cardH } = getBattlefieldGeometry();
       const rect = battlefieldRef.current?.getBoundingClientRect();
       const translated = event.active.rect.current.translated;
       if (rect && translated) {
-        const x = translated.left - rect.left;
-        const y = translated.top - rect.top;
+        const x = (translated.left - rect.left) / Math.max(1, width - cardW);
+        const y = (translated.top - rect.top) / Math.max(1, height - cardH);
         dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: parsed.cardId, x, y });
       } else {
-        dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: parsed.cardId, x: 40, y: 40 });
+        dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: parsed.cardId, ...FALLBACK_DROP_POS });
       }
       return;
     }
@@ -273,8 +288,23 @@ export function PlaytestBoard({ state }: Props) {
     setCtx({ cardId, x, y });
   }, []);
 
+  // Single read of "how big is the board, how big is a card right now" —
+  // `--pt-card-w`/`--pt-card-h` are the density-driving custom properties
+  // (playtest.css), so this stays correct across the 320–1440px range without
+  // the caller needing to know which breakpoint is active. Falls back to the
+  // desktop density before the battlefield has mounted.
+  function getBattlefieldGeometry() {
+    const el = battlefieldRef.current;
+    const rect = el?.getBoundingClientRect();
+    const cs = el ? getComputedStyle(el) : null;
+    const cardW = parseFloat(cs?.getPropertyValue('--pt-card-w') ?? '') || FALLBACK_CARD_W;
+    const cardH = parseFloat(cs?.getPropertyValue('--pt-card-h') ?? '') || FALLBACK_CARD_H;
+    return { width: rect?.width ?? 0, height: rect?.height ?? 0, cardW, cardH };
+  }
+
   function getBattlefieldRect() {
-    return battlefieldRef.current?.getBoundingClientRect() ?? null;
+    const { width, height, cardW, cardH } = getBattlefieldGeometry();
+    return width > 0 && height > 0 ? { width, height, cardW, cardH } : null;
   }
 
   function placeOnBattlefield(card: PlaytestCard) {
@@ -667,7 +697,7 @@ export function PlaytestBoard({ state }: Props) {
           onMove={(cardId, to, toIndex) => {
             if (to === 'battlefield') {
               const c = state.zones[viewer.zone].find((card) => card.id === cardId) ?? null;
-              const pos = c ? placeOnBattlefield(c) : { x: 60, y: 60 };
+              const pos = c ? placeOnBattlefield(c) : FALLBACK_DROP_POS;
               dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId, x: pos.x, y: pos.y });
             } else {
               dispatch({ type: 'MOVE_TO_ZONE', cardId, to, toIndex });

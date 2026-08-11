@@ -16,14 +16,22 @@ const DEFAULT_OPENING_HAND = 7;
 const MAX_UNDO_STACK = 50;
 const MAX_STICKERS_PER_CARD = 8;
 const MAX_STICKER_LENGTH = 30;
-/** Unitless x/y step between a clone and its source — the same coordinate
- *  space `MOVE_TO_BATTLEFIELD` uses, which the UI maps to pixels 1:1. */
-const CLONE_OFFSET = 18;
-/** Unitless x/y step between an attached card and its host, so an aura or
- *  Equipment reads as tucked under the permanent it's on rather than hidden
- *  exactly behind it. */
-const ATTACH_OFFSET = 14;
+/** Battlefield x/y step (fraction of the battlefield box, see
+ *  `BattlefieldCard.x`) between a clone and its source. ponytail: sized
+ *  against the same ~800px "reasonable default" battlefield width
+ *  `auto-place.ts`'s `FALLBACK_RECT` uses (18px / 800px) rather than reading
+ *  the real container — the reducer is pure and has no DOM access, and a
+ *  cascade step just needs to read as "offset," not be pixel-exact. */
+const CLONE_OFFSET = 0.0225;
+/** Same idea as `CLONE_OFFSET`, sized off the pre-fraction 14px step. */
+const ATTACH_OFFSET = 0.0175;
 const ZONES: Zone[] = ['library', 'hand', 'graveyard', 'exile', 'command'];
+
+/** Battlefield coordinates are fractions of the battlefield box — never let a
+ *  card drift outside it. */
+function clampFraction(n: number): number {
+  return Math.max(0, Math.min(1, n));
+}
 
 function emptyZones(): Record<Zone, PlaytestCard[]> {
   return { library: [], hand: [], graveyard: [], exile: [], command: [] };
@@ -332,8 +340,8 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       const bfCard: BattlefieldCard = plucked.bf
         ? {
             ...plucked.bf,
-            x: action.x,
-            y: action.y,
+            x: clampFraction(action.x),
+            y: clampFraction(action.y),
             tapped: action.tapped ?? plucked.bf.tapped,
             faceDown: action.faceDown ?? plucked.bf.faceDown,
           }
@@ -344,8 +352,8 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
             showBackFace: false,
             counters: {},
             stickers: [],
-            x: action.x,
-            y: action.y,
+            x: clampFraction(action.x),
+            y: clampFraction(action.y),
           };
       next.battlefield = next.battlefield.concat(bfCard);
       if (fromCommand) {
@@ -360,15 +368,17 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       const idx = state.battlefield.findIndex((b) => b.card.id === action.cardId);
       if (idx < 0) return state;
       const prev = state.battlefield[idx];
-      const dx = action.x - prev.x;
-      const dy = action.y - prev.y;
+      const x = clampFraction(action.x);
+      const y = clampFraction(action.y);
+      const dx = x - prev.x;
+      const dy = y - prev.y;
       const next = snapshot(state);
       // Attachments ride along with their host, so dragging an equipped
       // creature never strands its Equipment across the board.
       next.battlefield = next.battlefield.map((b) => {
-        if (b.card.id === action.cardId) return { ...b, x: action.x, y: action.y };
+        if (b.card.id === action.cardId) return { ...b, x, y };
         if (b.attachedTo !== action.cardId) return b;
-        return { ...b, x: b.x + dx, y: b.y + dy };
+        return { ...b, x: clampFraction(b.x + dx), y: clampFraction(b.y + dy) };
       });
       // A drag is the intentional "bring to front" gesture: move the moved
       // card to the end of the array so render order (== stacking order)
@@ -439,8 +449,8 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         showBackFace: false,
         counters: {},
         stickers: [],
-        x: action.x,
-        y: action.y,
+        x: clampFraction(action.x),
+        y: clampFraction(action.y),
       });
       return withHistory(state, next);
     }
@@ -462,8 +472,8 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
           showBackFace: src.showBackFace,
           counters: {},
           stickers: [],
-          x: src.x + step,
-          y: src.y + step,
+          x: clampFraction(src.x + step),
+          y: clampFraction(src.y + step),
         });
       }
       if (added.length === 0) return state;
@@ -494,7 +504,14 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       const step = ATTACH_OFFSET * (alreadyOn + 1);
       const next = snapshot(state);
       next.battlefield = next.battlefield.map((b, i) =>
-        i === idx ? { ...b, attachedTo: targetId, x: host.x + step, y: host.y + step } : b
+        i === idx
+          ? {
+              ...b,
+              attachedTo: targetId,
+              x: clampFraction(host.x + step),
+              y: clampFraction(host.y + step),
+            }
+          : b
       );
       next.battlefield = restackWithAttachments(next.battlefield, targetId);
       return withHistory(state, next);

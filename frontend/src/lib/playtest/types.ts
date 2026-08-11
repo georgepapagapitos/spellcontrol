@@ -4,7 +4,9 @@
  * The reducer is intentionally decoupled from `ScryfallCard`/`DeckCard` — UI
  * layers convert their richer card shapes down to `PlaytestCard` (instance id +
  * minimal display fields) when initializing a session. Battlefield positions
- * are stored in unitless coordinates; the UI maps them to its own pixel space.
+ * are stored as 0–1 fractions of the battlefield box (see `BattlefieldCard.x`),
+ * not pixels — that's what lets the same board render into differently-sized
+ * containers (a full board, a rail slot, a phone strip) without translation.
  */
 
 export type Zone = 'library' | 'hand' | 'graveyard' | 'exile' | 'command';
@@ -32,7 +34,12 @@ export interface BattlefieldCard {
   counters: Record<string, number>;
   /** Free-text labels stuck on the card (e.g. "flying", "6/6"). */
   stickers: string[];
+  /** Fraction (0..1) of the battlefield box's width, from the left edge, at
+   *  which the card's own left edge sits — 0 = flush left, 1 = flush right
+   *  (i.e. the UI positions with `left: x * (100% - cardWidth)`, so the card
+   *  never renders partway off either edge). Always clamped to [0, 1]. */
   x: number;
+  /** Same contract as `x`, vertically (0 = flush top, 1 = flush bottom). */
   y: number;
   faceDown: boolean;
   /** Which face's art is showing for a two-faced card. Independent of
