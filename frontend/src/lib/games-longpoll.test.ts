@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { subscribeGameLongPoll, usesLongPoll } from './games-longpoll';
 import type { GameState } from './game-state';
+import type { PollResult } from './games-api';
+import type { PublicBoard } from './playtest/projection';
 
 // The loop's single round-trip is games-api's pollGame; mock it directly so
 // these tests exercise the loop/backoff logic without a real fetch.
@@ -11,6 +13,14 @@ const mockPoll = vi.mocked(pollGame);
 
 function mockState(version: number): GameState {
   return { code: 'ABCD', version } as unknown as GameState;
+}
+
+const unchanged: PollResult = { game: null };
+function withState(version: number): PollResult {
+  return { game: mockState(version) };
+}
+function mockBoard(seat: number): PublicBoard {
+  return { seat } as unknown as PublicBoard;
 }
 
 /** Let all pending microtasks (including chained ones inside the loop) drain. */
@@ -51,7 +61,7 @@ describe('subscribeGameLongPoll', () => {
 
   it('polls with the code and the current getSince() value', async () => {
     mockPoll
-      .mockImplementationOnce(async () => null)
+      .mockImplementationOnce(async () => unchanged)
       .mockImplementation(() => new Promise(() => {}));
     const since = 3;
     startLoop('ABCD', () => since, { onState: vi.fn() });
@@ -60,22 +70,36 @@ describe('subscribeGameLongPoll', () => {
     expect(mockPoll.mock.calls[0][1]).toBe(3);
   });
 
-  it('forwards a fresh state to onState and reports healthy', async () => {
-    const state = mockState(9);
+  it('passes catchUp=true on the loop’s first request only', async () => {
     mockPoll
-      .mockImplementationOnce(async () => state)
+      .mockImplementationOnce(async () => unchanged)
+      .mockImplementationOnce(async () => unchanged)
+      .mockImplementation(() => new Promise(() => {}));
+    startLoop('ABCD', () => 1, { onState: vi.fn() });
+    vi.useFakeTimers();
+    await vi.advanceTimersByTimeAsync(300);
+    vi.useRealTimers();
+    await flush();
+    expect(mockPoll.mock.calls[0][3]).toBe(true);
+    expect(mockPoll.mock.calls[1][3]).toBe(false);
+  });
+
+  it('forwards a fresh state to onState and reports healthy', async () => {
+    const result = withState(9);
+    mockPoll
+      .mockImplementationOnce(async () => result)
       .mockImplementation(() => new Promise(() => {}));
     const onState = vi.fn();
     const onHealthy = vi.fn();
     startLoop('ABCD', () => 1, { onState, onHealthy });
     await flush();
-    expect(onState).toHaveBeenCalledWith(state);
+    expect(onState).toHaveBeenCalledWith(result.game);
     expect(onHealthy).toHaveBeenCalledOnce();
   });
 
-  it('an unchanged round-trip (null) still reports healthy without calling onState', async () => {
+  it('an unchanged round-trip still reports healthy without calling onState', async () => {
     mockPoll
-      .mockImplementationOnce(async () => null)
+      .mockImplementationOnce(async () => unchanged)
       .mockImplementation(() => new Promise(() => {}));
     const onState = vi.fn();
     const onHealthy = vi.fn();
@@ -85,10 +109,38 @@ describe('subscribeGameLongPoll', () => {
     expect(onHealthy).toHaveBeenCalledOnce();
   });
 
+  it('forwards a boards catch-up snapshot to onBoard, one call per entry', async () => {
+    mockPoll
+      .mockImplementationOnce(async () => ({
+        game: mockState(1),
+        boards: [
+          { seat: 1, board: mockBoard(1) },
+          { seat: 2, board: mockBoard(2) },
+        ],
+      }))
+      .mockImplementation(() => new Promise(() => {}));
+    const onBoard = vi.fn();
+    startLoop('ABCD', () => 1, { onState: vi.fn(), onBoard });
+    await flush();
+    expect(onBoard).toHaveBeenCalledTimes(2);
+    expect(onBoard).toHaveBeenCalledWith(1, mockBoard(1));
+    expect(onBoard).toHaveBeenCalledWith(2, mockBoard(2));
+  });
+
+  it('forwards a single board that resolved a held request to onBoard', async () => {
+    mockPoll
+      .mockImplementationOnce(async () => ({ game: null, board: { seat: 3, board: mockBoard(3) } }))
+      .mockImplementation(() => new Promise(() => {}));
+    const onBoard = vi.fn();
+    startLoop('ABCD', () => 1, { onState: vi.fn(), onBoard });
+    await flush();
+    expect(onBoard).toHaveBeenCalledWith(3, mockBoard(3));
+  });
+
   it('loops again after a successful round-trip', async () => {
     mockPoll
-      .mockImplementationOnce(async () => null)
-      .mockImplementationOnce(async () => null)
+      .mockImplementationOnce(async () => unchanged)
+      .mockImplementationOnce(async () => unchanged)
       .mockImplementation(() => new Promise(() => {}));
     startLoop('ABCD', () => 1, { onState: vi.fn() });
     vi.useFakeTimers();
@@ -106,7 +158,7 @@ describe('subscribeGameLongPoll', () => {
   it('floors the cycle time so an always-immediate server cannot hot-loop', async () => {
     vi.useFakeTimers();
     // Every round-trip resolves at once — the pathological case.
-    mockPoll.mockImplementation(async () => null);
+    mockPoll.mockImplementation(async () => unchanged);
     startLoop('ABCD', () => 1, { onState: vi.fn() });
 
     await vi.advanceTimersByTimeAsync(0);
@@ -141,9 +193,9 @@ describe('subscribeGameLongPoll', () => {
   });
 
   it('the returned teardown aborts and stops further callbacks', async () => {
-    let resolveSecond!: (v: GameState | null) => void;
+    let resolveSecond!: (v: PollResult) => void;
     mockPoll
-      .mockImplementationOnce(async () => null)
+      .mockImplementationOnce(async () => unchanged)
       .mockImplementationOnce(
         () =>
           new Promise((resolve) => {
@@ -157,7 +209,7 @@ describe('subscribeGameLongPoll', () => {
     // before issuing the second — advance past it so `resolveSecond` is bound.
     await vi.advanceTimersByTimeAsync(300);
     teardown();
-    resolveSecond(mockState(5));
+    resolveSecond(withState(5));
     await vi.advanceTimersByTimeAsync(0);
     expect(onState).not.toHaveBeenCalled();
   });

@@ -1,12 +1,15 @@
 import { API_BASE_URL } from './api-base';
 import { pollGame } from './games-api';
 import type { GameState } from './game-state';
+import type { PublicBoard } from './playtest/projection';
 
 /** Minimum time between long-poll round-trips — see the floor in the loop below. */
 const MIN_CYCLE_MS = 250;
 
 export interface GameLongPollHandlers {
   onState: (state: GameState) => void;
+  /** A published board — either a catch-up snapshot entry or one that resolved a held request. */
+  onBoard?: (seat: number, board: PublicBoard) => void;
   /** Fired after every successful round-trip, whether or not it carried a new state — signals the transport is alive. */
   onHealthy?: () => void;
   onError?: () => void;
@@ -51,16 +54,30 @@ export function subscribeGameLongPoll(
   handlers: GameLongPollHandlers
 ): () => void {
   let stopped = false;
+  let first = true;
   const controller = new AbortController();
 
   void (async function loop() {
     while (!stopped) {
       const startedAt = Date.now();
       try {
-        const state = await pollGame(code, getSince(), controller.signal);
+        // `catchUp` on the loop's first request only — see pollGame's doc
+        // comment for why a fresh subscriber needs it (their own `since` is
+        // already caught up after a join/host, so the ordinary staleness
+        // check would leave them held for up to ~25s before seeing boards).
+        const result = await pollGame(code, getSince(), controller.signal, first);
+        first = false;
         if (stopped) return;
         handlers.onHealthy?.();
-        if (state) handlers.onState(state);
+        if (result.game) handlers.onState(result.game);
+        if (result.boards) {
+          for (const { seat, board } of result.boards) {
+            handlers.onBoard?.(seat, board as PublicBoard);
+          }
+        }
+        if (result.board) {
+          handlers.onBoard?.(result.board.seat, result.board.board as PublicBoard);
+        }
       } catch {
         if (stopped) return;
         handlers.onError?.();

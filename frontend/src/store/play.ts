@@ -25,9 +25,11 @@ import {
 } from '../lib/games-api';
 import { subscribeGameEvents } from '../lib/games-sse';
 import { subscribeGameLongPoll, usesLongPoll } from '../lib/games-longpoll';
+import { cancelBoardPublish } from '../lib/games-board';
 import { setHapticsEnabled } from '../lib/haptics';
 import { clearUndo } from '../lib/undo-stack';
 import { FORMAT_OPTIONS } from '../lib/game-formats';
+import type { PublicBoard } from '../lib/playtest/projection';
 
 const POLL_INTERVAL_MS = 2500;
 
@@ -105,6 +107,15 @@ interface PlayState {
   local: GameState | null;
   /** Active online game subscription (host or joined), if any. */
   online: GameState | null;
+  /**
+   * Latest published `PublicBoard` per opponent seat for the active online
+   * game, received over the real-time transport (SSE/long-poll) — see
+   * `applyServerBoard`. Ephemeral: never persisted, reset whenever the
+   * online game session starts or ends. Nothing renders this yet (the
+   * opponent rail UI is a separate, in-flight change); this only wires the
+   * receiving half so that UI has data to read once it lands.
+   */
+  onlineBoards: Record<number, PublicBoard>;
   /** Per-user game history (synced via the user-data sync). */
   history: GameRecord[];
   hydrated: boolean;
@@ -207,6 +218,19 @@ let realtimeHealthy = false;
 /** Backoff before retrying a failed long-poll — avoids hot-looping a flaky connection. */
 const LONGPOLL_RETRY_MS = 5000;
 
+/**
+ * When `tick` last actually re-checked the server, real or transport-skipped.
+ * Read by `tick`'s occasional liveness check (see `startPolling`) — see the
+ * doc comment there for why a "the transport reports healthy" flag alone
+ * can't be trusted to mean "the session still exists."
+ */
+let lastLivenessCheckAt = 0;
+/**
+ * How long a transport can report "healthy" before the interval poll
+ * force-rechecks anyway. See `startPolling`'s `tick`.
+ */
+const LIVENESS_CHECK_INTERVAL_MS = 30_000;
+
 /** Setter shape covering both call forms used below — `recordIfFinished` needs the updater-fn overload. */
 type PlaySet = (partial: Partial<PlayState> | ((s: PlayState) => Partial<PlayState>)) => void;
 
@@ -227,6 +251,16 @@ function applyServerGameState(fresh: GameState, set: PlaySet): void {
   }
 }
 
+/**
+ * Adopt a peer's published board — a catch-up frame or a live push, from
+ * either transport. Unlike game state there's no version to reconcile
+ * against: boards aren't ordered relative to each other, so the latest
+ * received for a seat always wins.
+ */
+function applyServerBoard(seat: number, board: PublicBoard, set: PlaySet): void {
+  set((s) => ({ onlineBoards: { ...s.onlineBoards, [seat]: board } }));
+}
+
 function startSSE(set: PlaySet): void {
   // `EventSource` doesn't exist in Node (SSR / the test environment) — guard
   // rather than crash; the poll loop (tick, gated on realtimeHealthy staying
@@ -234,6 +268,7 @@ function startSSE(set: PlaySet): void {
   if (sse || !serverCode || typeof EventSource === 'undefined') return;
   sse = subscribeGameEvents(serverCode, {
     onState: (state) => applyServerGameState(state, set),
+    onBoard: (seat, board) => applyServerBoard(seat, board, set),
     onOpen: () => {
       realtimeHealthy = true;
     },
@@ -258,6 +293,7 @@ function startLongPoll(set: PlaySet): void {
   if (longPoll || !serverCode) return;
   longPoll = subscribeGameLongPoll(serverCode, () => serverVersion, {
     onState: (state) => applyServerGameState(state, set),
+    onBoard: (seat, board) => applyServerBoard(seat, board, set),
     onHealthy: () => {
       realtimeHealthy = true;
     },
@@ -341,10 +377,11 @@ function resetOnlineState(
 ): void {
   clearUndo(game.id);
   stopPollingFn();
+  cancelBoardPublish();
   pendingActions = [];
   serverCode = null;
   serverVersion = 0;
-  set({ online: null, onlineError: null, boardVisible: true });
+  set({ online: null, onlineError: null, boardVisible: true, onlineBoards: {} });
 }
 
 function recordIfFinished(
@@ -364,6 +401,7 @@ export const usePlayStore = create<PlayState>()(
     (set, get) => ({
       local: null,
       online: null,
+      onlineBoards: {},
       history: [],
       hydrated: false,
       onlineError: null,
@@ -469,7 +507,7 @@ export const usePlayStore = create<PlayState>()(
         const game = await apiCreateGame(input);
         serverVersion = game.version;
         serverCode = game.code;
-        set({ online: game, onlineError: null, boardVisible: true });
+        set({ online: game, onlineError: null, boardVisible: true, onlineBoards: {} });
         get().startPolling();
         return game;
       },
@@ -478,7 +516,7 @@ export const usePlayStore = create<PlayState>()(
         const game = await apiJoinGame(code.toUpperCase(), input);
         serverVersion = game.version;
         serverCode = game.code;
-        set({ online: game, onlineError: null, boardVisible: true });
+        set({ online: game, onlineError: null, boardVisible: true, onlineBoards: {} });
         get().startPolling();
         return game;
       },
@@ -599,10 +637,11 @@ export const usePlayStore = create<PlayState>()(
         } else {
           // No active game but still clean up polling/queue in case they drifted.
           get().stopPolling();
+          cancelBoardPublish();
           pendingActions = [];
           serverCode = null;
           serverVersion = 0;
-          set({ online: null, onlineError: null, boardVisible: true });
+          set({ online: null, onlineError: null, boardVisible: true, onlineBoards: {} });
         }
       },
 
@@ -613,14 +652,33 @@ export const usePlayStore = create<PlayState>()(
         if (pollVisibilityHandler) return;
         set({ onlinePolling: true });
         startRealtime(set);
+        // Defer the first occasional liveness recheck a full interval out —
+        // the caller (hostOnline/joinOnline, or a catch-up refresh) already
+        // holds state as fresh as this instant.
+        lastLivenessCheckAt = Date.now();
 
         // The push transport is primary once connected: skip the redundant
-        // fetch on a tick that lands while it's healthy. The interval itself
-        // keeps running regardless — cheap, and it's what notices a dead
-        // transport (via `realtimeHealthy` going false) within one tick
-        // without any extra wiring.
+        // fetch on a tick that lands while it's healthy — EXCEPT
+        // occasionally. `realtimeHealthy` only reflects the transport's OWN
+        // error event, which a genuinely swept/deleted session may never
+        // fire: an SSE stream's 25s heartbeat keeps writing to a socket that
+        // is still open even though nobody will ever push to it again
+        // (server-side normally closes it via broadcastGameDeleted, but that
+        // relies on this client's subscriber having actually received the
+        // broadcast — cross-machine delivery isn't guaranteed, see the
+        // `subscribers` map's own ponytail comment in routes/games.ts). Left
+        // unchecked, `tick` would then skip forever and the board would sit
+        // on screen looking live. So: every tick still runs while unhealthy
+        // (as before), and even while healthy, force a real refreshOnline at
+        // least once per `LIVENESS_CHECK_INTERVAL_MS` — cheap, since a
+        // genuinely-alive game just answers the `knownVersion` fast path
+        // with `{ unchanged: true }`, and it's what actually detects "gone"
+        // (a 404 clears the game — see refreshOnline).
         const tick = () => {
-          if (realtimeHealthy) return;
+          const now = Date.now();
+          const overdue = now - lastLivenessCheckAt >= LIVENESS_CHECK_INTERVAL_MS;
+          if (realtimeHealthy && !overdue) return;
+          lastLivenessCheckAt = now;
           void get().refreshOnline();
         };
         // Reconcile the interval with the current visibility state: run it
@@ -671,6 +729,7 @@ export const usePlayStore = create<PlayState>()(
           document.removeEventListener('visibilitychange', pollVisibilityHandler);
         }
         pollVisibilityHandler = null;
+        lastLivenessCheckAt = 0;
         set({ onlinePolling: false });
       },
 

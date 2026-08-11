@@ -1,5 +1,6 @@
 import { authedFetch, handleResponse } from './fetch-utils';
 import type { GameAction, GameState } from './game-state';
+import type { PublicBoard } from './playtest/projection';
 
 export interface CreateGameInput {
   format: GameState['format'];
@@ -39,24 +40,70 @@ export async function getGame(code: string, knownVersion?: number): Promise<Game
   return data.unchanged ? null : (data.game ?? null);
 }
 
+/** One published board, as delivered by `pollGame` / `subscribeGameEvents`. */
+export interface BoardEntry {
+  seat: number;
+  board: unknown;
+}
+
+export interface PollResult {
+  /** Fresh state, or null when the server reported `{ unchanged: true }`. */
+  game: GameState | null;
+  /** Full boards catch-up — present whenever `game` is (see the route doc). */
+  boards?: BoardEntry[];
+  /** A single board that resolved a held request early. */
+  board?: BoardEntry;
+}
+
 /**
  * One round-trip of `GET /api/games/:code/poll?since=<version>` (backend:
  * routes/games.ts) — the native long-poll transport's single request (the
  * loop built on top lives in lib/games-longpoll.ts). The server holds the
- * request open until either a mutation lands or ~25s elapses; resolves the
- * same way `getGame`'s `knownVersion` fast path does — null when nothing
- * changed, the fresh state otherwise.
+ * request open until either a mutation/board publish lands or ~25s elapses.
+ *
+ * `catchUp` forces an immediate reply (with the current `boards` snapshot)
+ * even when `since` isn't stale — the long-poll loop passes it on its very
+ * first request only, since a freshly-joined player's own `since` already
+ * matches the version their join just produced (see the route doc for why
+ * the ordinary staleness check alone would miss that case).
  */
 export async function pollGame(
   code: string,
   since: number,
-  signal?: AbortSignal
-): Promise<GameState | null> {
-  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/poll?since=${since}`, {
-    signal,
+  signal?: AbortSignal,
+  catchUp?: boolean
+): Promise<PollResult> {
+  const qs = `since=${since}${catchUp ? '&catchUp=1' : ''}`;
+  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/poll?${qs}`, { signal });
+  const data = await handleResponse<{
+    game?: GameState;
+    unchanged?: boolean;
+    boards?: BoardEntry[];
+    board?: BoardEntry;
+  }>(res);
+  return {
+    game: data.unchanged ? null : (data.game ?? null),
+    boards: data.boards,
+    board: data.board,
+  };
+}
+
+/**
+ * Publish this seat's `PublicBoard` projection to the table (backend:
+ * `POST /api/games/:code/board` in routes/games.ts). The server derives the
+ * seat from the caller's own participant record — it ignores/overwrites
+ * anything this payload claims — so this can never forge another seat's
+ * board. Callers should go through the debounced wrapper in
+ * `lib/games-board.ts` rather than calling this directly on every state
+ * change.
+ */
+export async function postBoard(code: string, board: PublicBoard): Promise<void> {
+  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/board`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(board),
   });
-  const data = await handleResponse<{ game?: GameState; unchanged?: boolean }>(res);
-  return data.unchanged ? null : (data.game ?? null);
+  await handleResponse<{ ok: boolean }>(res);
 }
 
 export interface JoinGameInput {

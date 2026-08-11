@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import http, { type Server } from 'node:http';
+import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { isUniqueViolation } from './games';
 
@@ -15,11 +16,13 @@ describe('isUniqueViolation (F20 join-code race guard)', () => {
 });
 
 let app: Server;
+let pool: Pool;
 let cleanup: () => Promise<void>;
 
 beforeAll(async () => {
   const env = await createTestEnv();
   app = env.app;
+  pool = env.pool;
   cleanup = env.cleanup;
 });
 
@@ -99,6 +102,78 @@ function openGameEvents(
     req.end();
   });
 }
+
+/**
+ * Same connection mechanics as `openGameEvents`, but parses ANY `event: X`
+ * frame (not just `state`) and resolves once `count` total frames have
+ * arrived. Used by the board-relay tests below, which need to see both the
+ * initial `state` frame and any `board` frames.
+ */
+function openGameEventsAnyFrame(
+  cookie: string,
+  code: string,
+  count: number
+): Promise<{ status: number; frames: Array<{ type: string; data: unknown }> }> {
+  return new Promise((resolve, reject) => {
+    const addr = app.address();
+    if (!addr || typeof addr === 'string') {
+      reject(new Error('test server has no address'));
+      return;
+    }
+    const req = http.request(
+      {
+        host: '127.0.0.1',
+        port: addr.port,
+        path: `/api/games/${code}/events`,
+        method: 'GET',
+        headers: { Cookie: cookie },
+      },
+      (res) => {
+        let raw = '';
+        res.on('data', (chunk: Buffer) => {
+          raw += chunk.toString('utf-8');
+          if (res.statusCode !== 200) return;
+          const frames: Array<{ type: string; data: unknown }> = [];
+          const re = /event: (\w+)\ndata: (.+)\n\n/g;
+          for (const m of raw.matchAll(re)) {
+            try {
+              frames.push({ type: m[1], data: JSON.parse(m[2]) });
+            } catch {
+              /* partial frame — ignore */
+            }
+          }
+          if (frames.length >= count) {
+            req.destroy();
+            resolve({ status: res.statusCode!, frames });
+          }
+        });
+        res.on('end', () => {
+          if (res.statusCode !== 200) resolve({ status: res.statusCode!, frames: [] });
+        });
+      }
+    );
+    req.on('error', () => {
+      /* expected once we've resolved via req.destroy() */
+    });
+    req.end();
+  });
+}
+
+/** A minimally-valid `PublicBoard` body — enough to pass `isPlausibleBoard`. */
+const validBoard = {
+  turn: 1,
+  life: 40,
+  commanderTax: {},
+  monarch: false,
+  initiative: false,
+  citysBlessing: false,
+  battlefield: [],
+  graveyard: [],
+  exile: [],
+  command: [],
+  handCount: 7,
+  libraryCount: 92,
+};
 
 describe('POST /api/games', () => {
   it('rejects unauthenticated requests', async () => {
@@ -360,6 +435,230 @@ describe('GET /api/games/:code/poll (long-poll)', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ unchanged: true });
   });
+
+  it('catchUp=1 responds immediately with the current boards snapshot even when `since` is not stale', async () => {
+    const host = await registerAndGetCookie('games_poll_catchup_h');
+    const created = await request(app).post('/api/games').set('Cookie', host).send({});
+    const code = created.body.game.code as string;
+    const joiner = await registerAndGetCookie('games_poll_catchup_j');
+    await request(app).post(`/api/games/${code}/join`).set('Cookie', joiner).send({});
+    await request(app).post(`/api/games/${code}/board`).set('Cookie', joiner).send(validBoard);
+
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    const since = current.body.game.version as number;
+
+    // `since` exactly matches — without catchUp this would hold, not answer
+    // immediately (see the "since is already stale" test above for contrast).
+    const res = await request(app)
+      .get(`/api/games/${code}/poll?since=${since}&catchUp=1`)
+      .set('Cookie', host);
+    expect(res.status).toBe(200);
+    expect(res.body.game.code).toBe(code);
+    const entry = (res.body.boards as Array<{ seat: number }>).find((b) => b.seat === 1);
+    expect(entry).toBeTruthy();
+  });
+});
+
+describe('POST /api/games/:code/board (board relay)', () => {
+  it('rejects unauthenticated requests', async () => {
+    const created = await request(app)
+      .post('/api/games')
+      .set('Cookie', await registerAndGetCookie('games_board_auth'))
+      .send({});
+    const code = created.body.game.code as string;
+    const res = await request(app).post(`/api/games/${code}/board`).send(validBoard);
+    expect(res.status).toBe(401);
+  });
+
+  it('404s for an unknown code', async () => {
+    const cookie = await registerAndGetCookie('games_board_unknown');
+    const res = await request(app)
+      .post('/api/games/ZZZZ/board')
+      .set('Cookie', cookie)
+      .send(validBoard);
+    expect(res.status).toBe(404);
+  });
+
+  // Stealth 404: a non-participant on a REAL code must get the byte-identical
+  // response an unknown code gives, or this route becomes an oracle for
+  // enumerating live 4-char join codes — the sweep every read route here
+  // deliberately closes.
+  it('gives a non-participant the same 404 an unknown code gives', async () => {
+    const host = await registerAndGetCookie('games_board_np_h');
+    const stranger = await registerAndGetCookie('games_board_np_s');
+    const created = await request(app).post('/api/games').set('Cookie', host).send({});
+    const code = created.body.game.code as string;
+    const real = await request(app)
+      .post(`/api/games/${code}/board`)
+      .set('Cookie', stranger)
+      .send(validBoard);
+    const unknown = await request(app)
+      .post('/api/games/ZZZZ/board')
+      .set('Cookie', stranger)
+      .send(validBoard);
+    expect(real.status).toBe(404);
+    expect(real.status).toBe(unknown.status);
+    expect(real.body).toEqual(unknown.body);
+  });
+
+  it('rejects a malformed payload with 400', async () => {
+    const host = await registerAndGetCookie('games_board_malformed');
+    const created = await request(app).post('/api/games').set('Cookie', host).send({});
+    const code = created.body.game.code as string;
+    const res = await request(app)
+      .post(`/api/games/${code}/board`)
+      .set('Cookie', host)
+      .send({ turn: 'not a number' });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects an oversized payload with 413', async () => {
+    const host = await registerAndGetCookie('games_board_oversized');
+    const created = await request(app).post('/api/games').set('Cookie', host).send({});
+    const code = created.body.game.code as string;
+    const huge = {
+      ...validBoard,
+      battlefield: Array.from({ length: 5000 }, (_, i) => ({
+        card: { id: `slot_${i}`, name: 'x'.repeat(200) },
+        tapped: false,
+        counters: {},
+        stickers: [],
+        x: 0.1,
+        y: 0.1,
+        faceDown: false,
+      })),
+    };
+    const res = await request(app).post(`/api/games/${code}/board`).set('Cookie', host).send(huge);
+    expect(res.status).toBe(413);
+  });
+
+  it('a connected subscriber receives a published board as a `board` frame', async () => {
+    const host = await registerAndGetCookie('games_board_sse_h');
+    const created = await request(app).post('/api/games').set('Cookie', host).send({});
+    const code = created.body.game.code as string;
+    const joiner = await registerAndGetCookie('games_board_sse_j');
+    await request(app).post(`/api/games/${code}/join`).set('Cookie', joiner).send({});
+
+    // Host's own stream: initial `state` frame + the `board` frame the
+    // joiner's publish below triggers.
+    const streamPromise = openGameEventsAnyFrame(host, code, 2);
+    // Give the connection a beat to register as a subscriber before
+    // publishing — otherwise the publish could win the race and broadcast
+    // to no one yet.
+    await new Promise((r) => setTimeout(r, 50));
+    const posted = await request(app)
+      .post(`/api/games/${code}/board`)
+      .set('Cookie', joiner)
+      .send(validBoard);
+    expect(posted.status).toBe(200);
+
+    const { status, frames } = await streamPromise;
+    expect(status).toBe(200);
+    const boardFrame = frames.find((f) => f.type === 'board');
+    expect(boardFrame).toBeTruthy();
+    expect((boardFrame!.data as { seat: number }).seat).toBe(1);
+  });
+
+  it('ignores a spoofed seat in the body — always stores/broadcasts under the caller’s real seat', async () => {
+    const host = await registerAndGetCookie('games_board_spoof_h');
+    const created = await request(app).post('/api/games').set('Cookie', host).send({});
+    const code = created.body.game.code as string;
+    const joiner = await registerAndGetCookie('games_board_spoof_j');
+    await request(app).post(`/api/games/${code}/join`).set('Cookie', joiner).send({});
+
+    const streamPromise = openGameEventsAnyFrame(host, code, 2);
+    await new Promise((r) => setTimeout(r, 50));
+    // Joiner is seat 1; body claims to be seat 0 (the host's seat).
+    await request(app)
+      .post(`/api/games/${code}/board`)
+      .set('Cookie', joiner)
+      .send({ ...validBoard, seat: 0 });
+
+    const { frames } = await streamPromise;
+    const boardFrame = frames.find((f) => f.type === 'board');
+    expect(boardFrame).toBeTruthy();
+    expect((boardFrame!.data as { seat: number }).seat).toBe(1);
+  });
+
+  it('a late subscriber catches up on a board published before it connected', async () => {
+    const host = await registerAndGetCookie('games_board_late_h');
+    const created = await request(app).post('/api/games').set('Cookie', host).send({});
+    const code = created.body.game.code as string;
+    const joiner = await registerAndGetCookie('games_board_late_j');
+    await request(app).post(`/api/games/${code}/join`).set('Cookie', joiner).send({});
+
+    // Published BEFORE the host subscribes.
+    await request(app).post(`/api/games/${code}/board`).set('Cookie', joiner).send(validBoard);
+
+    // Connect after the fact — initial `state` frame + the catch-up `board` frame.
+    const { frames } = await openGameEventsAnyFrame(host, code, 2);
+    const boardFrame = frames.find((f) => f.type === 'board');
+    expect(boardFrame).toBeTruthy();
+    expect((boardFrame!.data as { seat: number }).seat).toBe(1);
+  });
+});
+
+describe('sweepStale broadcasts deletion (E-gap: an orphaned stream must not stay "healthy" forever)', () => {
+  it('ends an open SSE stream for a session swept as 24h+ stale, and keeps serving', async () => {
+    const host = await registerAndGetCookie('games_sweep_h');
+    const created = await request(app).post('/api/games').set('Cookie', host).send({});
+    const code = created.body.game.code as string;
+
+    // Backdate the session so the next sweep (triggered inline by ANY
+    // POST /api/games — see the route) treats it as stale.
+    await pool.query('UPDATE game_sessions SET updated_at = $1 WHERE code = $2', [
+      Date.now() - 25 * 60 * 60 * 1000,
+      code,
+    ]);
+
+    const addr = app.address();
+    if (!addr || typeof addr === 'string') throw new Error('test server has no address');
+
+    const trace: string[] = [];
+    const streamEnded = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error(`stream never ended; trace=${trace.join(' -> ') || 'nothing'}`)),
+        15000
+      );
+      const req = http.request(
+        {
+          host: '127.0.0.1',
+          port: addr.port,
+          path: `/api/games/${code}/events`,
+          method: 'GET',
+          headers: { Cookie: host },
+        },
+        (res) => {
+          trace.push(`status=${res.statusCode}`);
+          res.on('data', () => {});
+          res.on('end', () => {
+            clearTimeout(timer);
+            resolve();
+          });
+        }
+      );
+      req.on('error', (err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+      req.end();
+    });
+
+    // Give the stream a beat to register as a subscriber before the sweep —
+    // otherwise the sweep could win the race and broadcast to no one yet.
+    await new Promise((r) => setTimeout(r, 50));
+    // Any create triggers sweepStale() inline (see the route).
+    await request(app)
+      .post('/api/games')
+      .set('Cookie', await registerAndGetCookie('games_sweep_trigger'))
+      .send({});
+
+    await streamEnded;
+
+    // Still up and serving, and the swept code is genuinely gone.
+    const after = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    expect(after.status).toBe(404);
+  }, 20000);
 });
 
 describe('POST /api/games/:code/join + PATCH /:code', () => {
