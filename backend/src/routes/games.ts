@@ -401,6 +401,23 @@ gamesRouter.get('/:code/events', readLimiter, requireAuth, async (req: Request, 
   res.flushHeaders();
   res.write(`event: state\ndata: ${JSON.stringify(state)}\n\n`);
 
+  // A failed write on this response must never reach the process as an
+  // unhandled 'error' event: `backend/src/` installs no `uncaughtException`
+  // handler, so one would exit the process and take down every in-progress
+  // game for every user — not just this connection.
+  //
+  // The live path is `broadcastGameDeleted` → `onDeleted` → `res.end()`, which
+  // does NOT clear the heartbeat below (only `req.on('close')` does). A
+  // heartbeat tick landing in the window between `res.end()` and socket
+  // teardown emits ERR_STREAM_WRITE_AFTER_END. Rare (~1ms per 25,000ms per
+  // ended game) but the blast radius is the whole server.
+  //
+  // Writing to an already-DESTROYED socket is separately fine — Node's
+  // `OutgoingMessage._writeRaw` returns early on `conn.destroyed` — so this
+  // guard is about write-after-end specifically, and retires the whole
+  // uncaught-write class in one line.
+  res.on('error', () => {});
+
   const sub: Subscriber = {
     onState: (fresh) => res.write(`event: state\ndata: ${JSON.stringify(fresh)}\n\n`),
     onDeleted: () => res.end(),
