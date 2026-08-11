@@ -479,16 +479,26 @@ describe('POST /api/games/:code/board (board relay)', () => {
     expect(res.status).toBe(404);
   });
 
-  it('403s a non-participant', async () => {
+  // Stealth 404: a non-participant on a REAL code must get the byte-identical
+  // response an unknown code gives, or this route becomes an oracle for
+  // enumerating live 4-char join codes — the sweep every read route here
+  // deliberately closes.
+  it('gives a non-participant the same 404 an unknown code gives', async () => {
     const host = await registerAndGetCookie('games_board_np_h');
     const stranger = await registerAndGetCookie('games_board_np_s');
     const created = await request(app).post('/api/games').set('Cookie', host).send({});
     const code = created.body.game.code as string;
-    const res = await request(app)
+    const real = await request(app)
       .post(`/api/games/${code}/board`)
       .set('Cookie', stranger)
       .send(validBoard);
-    expect(res.status).toBe(403);
+    const unknown = await request(app)
+      .post('/api/games/ZZZZ/board')
+      .set('Cookie', stranger)
+      .send(validBoard);
+    expect(real.status).toBe(404);
+    expect(real.status).toBe(unknown.status);
+    expect(real.body).toEqual(unknown.body);
   });
 
   it('rejects a malformed payload with 400', async () => {

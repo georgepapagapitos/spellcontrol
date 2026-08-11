@@ -636,8 +636,14 @@ gamesRouter.post('/:code/board', boardLimiter, requireAuth, async (req: Request,
   const row = rows[0];
   if (!row) return res.status(404).json({ error: 'Game not found.' });
   const state = row.state as GameState;
+  // Stealth 404, byte-identical to an unknown code — deliberately NOT a 403.
+  // Join codes are 4 chars (~1M of them), so a route that distinguishes
+  // "exists but isn't yours" from "no such code" lets one account sweep the
+  // space and enumerate every live session. Every sibling route returns this
+  // same 404 for exactly that reason (see the long comment on GET /:code); a
+  // 403 here would reopen the hole they all close.
   const me = state.players.find((p) => p.userId === req.user!.id);
-  if (!me) return res.status(403).json({ error: 'Not a participant.' });
+  if (!me) return res.status(404).json({ error: 'Game not found.' });
 
   if (JSON.stringify(req.body ?? {}).length > MAX_BOARD_BYTES) {
     return res.status(413).json({ error: 'Board payload too large.' });
