@@ -23,6 +23,7 @@ import {
   type CreateGameInput,
   type JoinGameInput,
 } from '../lib/games-api';
+import { subscribeGameEvents } from '../lib/games-sse';
 import { setHapticsEnabled } from '../lib/haptics';
 import { clearUndo } from '../lib/undo-stack';
 import { FORMAT_OPTIONS } from '../lib/game-formats';
@@ -188,6 +189,63 @@ let pendingActions: GameAction[] = [];
 let flushPromise: Promise<void> | null = null;
 let serverVersion = 0;
 let serverCode: string | null = null;
+
+/**
+ * SSE is the primary transport once connected; the 2.5s poll (below) stays
+ * wired as the fallback and is what actually detects "game is gone" (404) —
+ * see `tick` and `applyServerGameState`. `sse` is the teardown fn from
+ * `subscribeGameEvents`, doubling as the "already subscribed" marker.
+ */
+let sse: (() => void) | null = null;
+let sseHealthy = false;
+
+/** Setter shape covering both call forms used below — `recordIfFinished` needs the updater-fn overload. */
+type PlaySet = (partial: Partial<PlayState> | ((s: PlayState) => Partial<PlayState>)) => void;
+
+/**
+ * Adopt a server-pushed (or freshly-fetched) GameState, shared by the poll
+ * path and the SSE path so both go through the same optimistic-dispatch
+ * guard: skip while a patch is in flight (the flusher will adopt the
+ * server's reply itself) and ignore anything not newer than what we have —
+ * a push racing an older poll response, or arriving out of order, must not
+ * roll the board backward.
+ */
+function applyServerGameState(fresh: GameState, set: PlaySet): void {
+  if (flushPromise) return;
+  if (pendingActions.length === 0 && fresh.version > serverVersion) {
+    serverVersion = fresh.version;
+    set({ online: fresh, onlineError: null });
+    recordIfFinished(fresh, set);
+  }
+}
+
+function startSSE(set: PlaySet): void {
+  // `EventSource` doesn't exist in Node (SSR / the test environment) — guard
+  // rather than crash; the poll loop (tick, gated on sseHealthy staying
+  // false) carries the whole load exactly as it did before this feature.
+  if (sse || !serverCode || typeof EventSource === 'undefined') return;
+  sse = subscribeGameEvents(serverCode, {
+    onState: (state) => applyServerGameState(state, set),
+    onOpen: () => {
+      sseHealthy = true;
+    },
+    onError: () => {
+      sseHealthy = false;
+    },
+  });
+}
+
+function stopSSE(): void {
+  sse?.();
+  sse = null;
+  sseHealthy = false;
+}
+
+/** Tear down and reopen — used to recover a connection a backgrounded WebView dropped silently. */
+function restartSSE(set: PlaySet): void {
+  stopSSE();
+  startSSE(set);
+}
 
 /**
  * Refetch server state after a patch conflict. Drains the pending queue,
@@ -382,17 +440,9 @@ export const usePlayStore = create<PlayState>()(
           // tiny `{ unchanged: true }` reply (resolves to null) instead of
           // re-shipping the whole GameState on every 2.5s poll.
           const fresh = await apiGetGame(code, serverVersion);
-          // Don't clobber an in-flight optimistic state: if we're flushing,
-          // skip this update — the flusher will adopt the server's reply.
-          if (flushPromise) return;
-          // Only adopt if it's newer than what we have. With no pending actions,
-          // server is authoritative. A null reply means the version matched —
-          // nothing to do.
-          if (fresh && pendingActions.length === 0 && fresh.version > serverVersion) {
-            serverVersion = fresh.version;
-            set({ online: fresh, onlineError: null });
-            recordIfFinished(fresh, set);
-          }
+          // A null reply means the version matched — nothing to do. Otherwise
+          // route through the same guard/adoption logic the SSE push uses.
+          if (fresh) applyServerGameState(fresh, set);
         } catch (err) {
           const e = err as Error & { status?: number };
           if (e.status === 404) {
@@ -511,14 +561,24 @@ export const usePlayStore = create<PlayState>()(
         // subscription is still logically active.
         if (pollVisibilityHandler) return;
         set({ onlinePolling: true });
+        startSSE(set);
 
-        const tick = () => void get().refreshOnline();
+        // SSE is primary once connected: skip the redundant fetch on a tick
+        // that lands while the stream is healthy. The interval itself keeps
+        // running regardless — cheap, and it's what notices an SSE death
+        // (via `sseHealthy` going false in the stream's onError) within one
+        // tick without any extra wiring.
+        const tick = () => {
+          if (sseHealthy) return;
+          void get().refreshOnline();
+        };
         // Reconcile the interval with the current visibility state: run it
         // while visible, tear it down (and do nothing) while hidden. `catchUp`
-        // fires one immediate poll when an interval is (re)created — used on a
-        // hidden→visible transition so a returning tab doesn't wait a full
-        // interval, but skipped on the initial start (callers already hold
-        // fresh state, or do their own first refresh).
+        // fires one immediate REAL refresh (bypassing the sseHealthy gate) when
+        // an interval is (re)created — used on a hidden→visible transition so
+        // a returning tab doesn't wait a full interval, but skipped on the
+        // initial start (callers already hold fresh state, or do their own
+        // first refresh).
         const ensureInterval = (catchUp: boolean) => {
           const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
           if (hidden) {
@@ -528,11 +588,21 @@ export const usePlayStore = create<PlayState>()(
             }
           } else if (!pollTimer) {
             pollTimer = setInterval(tick, POLL_INTERVAL_MS);
-            if (catchUp) tick();
+            if (catchUp) void get().refreshOnline();
           }
         };
 
-        const sync = () => ensureInterval(true);
+        // A backgrounded Android WebView can drop the SSE connection without
+        // ever firing its error event, so a plain visibility flip can't rely
+        // on `sseHealthy` alone — force-reconnect on every return to
+        // visible. `restartSSE` flips `sseHealthy` to false synchronously
+        // (before the new connection opens), so the `ensureInterval(true)`
+        // catch-up fetch below always runs for real too.
+        const sync = () => {
+          const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+          if (!hidden) restartSSE(set);
+          ensureInterval(true);
+        };
         pollVisibilityHandler = sync;
         if (typeof document !== 'undefined') {
           document.addEventListener('visibilitychange', sync);
@@ -541,6 +611,7 @@ export const usePlayStore = create<PlayState>()(
       },
 
       stopPolling: () => {
+        stopSSE();
         if (pollTimer) {
           clearInterval(pollTimer);
           pollTimer = null;

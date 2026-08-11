@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
-import type { Server } from 'node:http';
+import http, { type Server } from 'node:http';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { isUniqueViolation } from './games';
 
@@ -32,6 +32,72 @@ async function registerAndGetCookie(username: string): Promise<string> {
     .post('/api/auth/register')
     .send({ username, password: 'correct horse battery' });
   return extractSessionCookie(res.headers['set-cookie'])!;
+}
+
+/**
+ * Opens `GET /api/games/:code/events` with a raw `http.request` (supertest's
+ * `.end()` callback never fires for a stream that stays open) and resolves
+ * once either a non-200 status lands, or `count` `event: state` frames have
+ * been parsed out of the response body — whichever comes first. Always
+ * destroys the connection before resolving, so the test doesn't leak an open
+ * socket (and the server's `req.on('close')` teardown gets exercised too).
+ */
+function openGameEvents(
+  cookie: string,
+  code: string,
+  count: number
+): Promise<{ status: number; body?: unknown; events: unknown[] }> {
+  return new Promise((resolve, reject) => {
+    const addr = app.address();
+    if (!addr || typeof addr === 'string') {
+      reject(new Error('test server has no address'));
+      return;
+    }
+    const req = http.request(
+      {
+        host: '127.0.0.1',
+        port: addr.port,
+        path: `/api/games/${code}/events`,
+        method: 'GET',
+        headers: { Cookie: cookie },
+      },
+      (res) => {
+        let raw = '';
+        const events: unknown[] = [];
+        res.on('data', (chunk: Buffer) => {
+          raw += chunk.toString('utf-8');
+          if (res.statusCode !== 200) return;
+          // Frames are separated by a blank line; parse out any full
+          // `event: state\ndata: <json>` frames seen so far.
+          const matches = raw.matchAll(/event: state\ndata: (.+)\n\n/g);
+          events.length = 0;
+          for (const m of matches) events.push(JSON.parse(m[1]));
+          if (events.length >= count) {
+            req.destroy();
+            resolve({ status: res.statusCode!, events });
+          }
+        });
+        res.on('end', () => {
+          if (res.statusCode !== 200) {
+            let body: unknown;
+            try {
+              body = JSON.parse(raw);
+            } catch {
+              /* leave body undefined */
+            }
+            resolve({ status: res.statusCode!, body, events });
+          }
+        });
+      }
+    );
+    // req.destroy() above intentionally aborts the socket once we have what
+    // we need; that surfaces here as an ECONNRESET-ish error, which is the
+    // expected teardown path, not a test failure.
+    req.on('error', () => {
+      /* expected once we've resolved via req.destroy() */
+    });
+    req.end();
+  });
 }
 
 describe('POST /api/games', () => {
@@ -147,6 +213,68 @@ describe('GET /api/games/:code', () => {
     const after = await request(app).get(`/api/games/${code}`).set('Cookie', joinerCookie);
     expect(after.status).toBe(200);
     expect(after.body.game.code).toBe(code);
+  });
+});
+
+describe('GET /api/games/:code/events (SSE)', () => {
+  it('streams the current state to a participant on connect', async () => {
+    const hostCookie = await registerAndGetCookie('games_sse_host');
+    const created = await request(app).post('/api/games').set('Cookie', hostCookie).send({});
+    const code = created.body.game.code as string;
+
+    const { status, events } = await openGameEvents(hostCookie, code, 1);
+    expect(status).toBe(200);
+    expect((events[0] as { code: string }).code).toBe(code);
+    expect((events[0] as { players: unknown[] }).players).toHaveLength(1);
+  });
+
+  // Same sweep risk as GET /:code — see the comment on that handler. A
+  // non-participant must get an identical body to an unknown code, never a
+  // hint the code is live.
+  it('404s for an authed non-participant, identically to GET /:code and an unknown code', async () => {
+    const hostCookie = await registerAndGetCookie('games_sse_host2');
+    const strangerCookie = await registerAndGetCookie('games_sse_stranger');
+    const created = await request(app).post('/api/games').set('Cookie', hostCookie).send({});
+    const code = created.body.game.code as string;
+
+    const streamed = await openGameEvents(strangerCookie, code, 1);
+    const plainGet = await request(app).get(`/api/games/${code}`).set('Cookie', strangerCookie);
+    const unknownGet = await request(app).get('/api/games/ZZZZ').set('Cookie', strangerCookie);
+
+    expect(streamed.status).toBe(404);
+    expect(streamed.body).toEqual(plainGet.body);
+    expect(streamed.body).toEqual(unknownGet.body);
+  });
+
+  it('rejects unauthenticated requests', async () => {
+    const created = await request(app)
+      .post('/api/games')
+      .set('Cookie', await registerAndGetCookie('games_sse_host3'))
+      .send({});
+    const code = created.body.game.code as string;
+    const res = await request(app).get(`/api/games/${code}/events`);
+    expect(res.status).toBe(401);
+  });
+
+  it('broadcasts a mutation to a connected subscriber', async () => {
+    const hostCookie = await registerAndGetCookie('games_sse_bcast_h');
+    const created = await request(app).post('/api/games').set('Cookie', hostCookie).send({});
+    const code = created.body.game.code as string;
+
+    // Collect the initial connect frame + the frame the PATCH below triggers.
+    const streamPromise = openGameEvents(hostCookie, code, 2);
+    // Give the connection a beat to register as a subscriber before mutating —
+    // otherwise the PATCH could win the race and broadcast to no one yet.
+    await new Promise((r) => setTimeout(r, 50));
+    await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', hostCookie)
+      .send({ baseVersion: created.body.game.version, actions: [{ type: 'start' }] });
+
+    const { status, events } = await streamPromise;
+    expect(status).toBe(200);
+    expect((events[0] as { status: string }).status).toBe('lobby');
+    expect((events[1] as { status: string }).status).toBe('active');
   });
 });
 

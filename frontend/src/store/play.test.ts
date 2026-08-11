@@ -557,6 +557,132 @@ describe('usePlayStore — online flow', () => {
   });
 });
 
+/**
+ * Minimal `EventSource` stand-in — Node has no global `EventSource`, so
+ * `startSSE` (store/play.ts) no-ops outside a browser unless one is stubbed
+ * in. See lib/games-sse.test.ts for the client wrapper's own unit tests;
+ * these cover how the store reconciles pushes with the poll fallback.
+ */
+class FakeEventSource {
+  static instances: FakeEventSource[] = [];
+  closed = false;
+  private listeners: Record<string, Array<(ev: { data?: string }) => void>> = {};
+  constructor(_url: string) {
+    FakeEventSource.instances.push(this);
+  }
+  addEventListener(type: string, cb: (ev: { data?: string }) => void): void {
+    (this.listeners[type] ??= []).push(cb);
+  }
+  emit(type: string, ev: { data?: string } = {}): void {
+    for (const cb of this.listeners[type] ?? []) cb(ev);
+  }
+  close(): void {
+    this.closed = true;
+  }
+}
+
+describe('usePlayStore — SSE primary transport / poll fallback', () => {
+  beforeEach(() => {
+    resetStore();
+    vi.clearAllMocks();
+    FakeEventSource.instances = [];
+    vi.stubGlobal('EventSource', FakeEventSource as unknown as typeof EventSource);
+  });
+
+  afterEach(() => {
+    usePlayStore.getState().clearOnline();
+    vi.unstubAllGlobals();
+  });
+
+  async function hostAndGetStream(version = 1): Promise<FakeEventSource> {
+    mockCreate.mockResolvedValue(makeOnlineGame(version));
+    await usePlayStore.getState().hostOnline({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+    });
+    return FakeEventSource.instances[0];
+  }
+
+  it('startPolling opens an SSE stream for the joined game', async () => {
+    await hostAndGetStream();
+    expect(FakeEventSource.instances).toHaveLength(1);
+  });
+
+  it('a poll tick is skipped while the SSE stream is healthy', async () => {
+    vi.useFakeTimers();
+    try {
+      const es = await hostAndGetStream();
+      es.emit('open');
+      mockGet.mockResolvedValue(makeOnlineGame(1));
+      vi.advanceTimersByTime(2500);
+      expect(mockGet).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('the poll resumes on the very next tick once the stream errors', async () => {
+    vi.useFakeTimers();
+    try {
+      const es = await hostAndGetStream();
+      es.emit('open');
+      es.emit('error');
+      mockGet.mockResolvedValue(makeOnlineGame(1));
+      vi.advanceTimersByTime(2500);
+      expect(mockGet).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a pushed state event adopts a newer version through the same guard as a poll', async () => {
+    const es = await hostAndGetStream(1);
+    const pushed = makeOnlineGame(9);
+    es.emit('state', { data: JSON.stringify(pushed) });
+    expect(usePlayStore.getState().online).toEqual(pushed);
+  });
+
+  it('a pushed state event with a stale version is ignored', async () => {
+    const es = await hostAndGetStream(5);
+    const before = usePlayStore.getState().online;
+    const stale = makeOnlineGame(2);
+    es.emit('state', { data: JSON.stringify(stale) });
+    expect(usePlayStore.getState().online).toBe(before);
+  });
+
+  it('a pushed state event is skipped while a patch is in flight', async () => {
+    const es = await hostAndGetStream(1);
+    let resolvePatch!: (v: { game: GameState }) => void;
+    mockPatch.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePatch = resolve;
+      })
+    );
+    const dispatchPromise = usePlayStore
+      .getState()
+      .dispatchOnline({ type: 'life', seat: 0, delta: -1, actorSeat: 0 });
+
+    // A push arrives mid-flight — must not clobber the optimistic state or
+    // the in-flight flusher's eventual adoption of the server's own reply.
+    const pushed = makeOnlineGame(9);
+    es.emit('state', { data: JSON.stringify(pushed) });
+    expect(usePlayStore.getState().online).not.toEqual(pushed);
+
+    resolvePatch({ game: makeOnlineGame(2) });
+    await dispatchPromise;
+    expect(usePlayStore.getState().online?.version).toBe(2);
+  });
+
+  it('stopPolling (leaveOnline) closes the SSE connection', async () => {
+    const es = await hostAndGetStream();
+    mockLeave.mockResolvedValue(undefined as never);
+    await usePlayStore.getState().leaveOnline();
+    expect(es.closed).toBe(true);
+  });
+});
+
 describe('usePlayStore — rehydration', () => {
   beforeEach(() => resetStore());
 
