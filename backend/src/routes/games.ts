@@ -21,9 +21,45 @@ export const gamesRouter: Router = Router();
 
 // 200/min covers the 2.5s poll loop with room for several players and tabs
 // behind one NAT, while still throttling a scripted sweep of the code space.
+// Also covers /events (SSE): a legitimate client opens that stream once per
+// session and reconnects at most a handful of times an hour, so sharing this
+// budget still leaves headroom while keeping the same per-minute ceiling on
+// a scripted code sweep that the comment above GET /:code explains.
 const readLimiter = testAwareLimiter({ windowMs: 60_000, max: 200 });
 const writeLimiter = testAwareLimiter({ windowMs: 60_000, max: 300 });
 const createLimiter = testAwareLimiter({ windowMs: 60_000, max: 20 });
+
+/**
+ * SSE fanout — in-process only. Every open `/events` connection registers its
+ * `Response` here, keyed by code; a mutating route calls `broadcastGameState`
+ * / `broadcastGameDeleted` after it commits, and every subscriber for that
+ * code gets the frame directly written to its socket.
+ *
+ * ponytail: this only reaches subscribers on the SAME machine. Fine today —
+ * fly.toml pins `min_machines_running = 1`, so there's exactly one process —
+ * but `auto_start_machines = true` means Fly can spin up a second machine
+ * under load, and that instance's subscribers would silently stop getting
+ * pushes (they still fall back to the client's poll loop, just laggy).
+ * Upgrade path if that ever matters: Postgres LISTEN/NOTIFY on
+ * game_sessions, or Redis pub/sub, so every instance rebroadcasts to its own
+ * local subscribers on notify instead of assuming they're all local.
+ */
+const subscribers = new Map<string, Set<Response>>();
+
+function broadcastGameState(code: string, state: GameState): void {
+  const subs = subscribers.get(code);
+  if (!subs || subs.size === 0) return;
+  const frame = `event: state\ndata: ${JSON.stringify(state)}\n\n`;
+  for (const res of subs) res.write(frame);
+}
+
+/** Ends every open stream for a deleted session so clients notice immediately. */
+function broadcastGameDeleted(code: string): void {
+  const subs = subscribers.get(code);
+  if (!subs) return;
+  for (const res of subs) res.end();
+  subscribers.delete(code);
+}
 
 const VALID_FORMATS: ReadonlyArray<GameFormat> = [
   'commander',
@@ -308,6 +344,56 @@ gamesRouter.get('/:code', readLimiter, requireAuth, async (req: Request, res: Re
   res.json({ game: state });
 });
 
+/**
+ * GET /api/games/:code/events — Server-Sent Events stream of state changes.
+ *
+ * Security mirrors GET /:code exactly, including the stealth 404: this reads
+ * the full row (not the version-only fast path, since a stream has no
+ * `knownVersion` to short-circuit against) and checks `isParticipant` before
+ * a single byte of SSE framing is written, so a non-participant gets the
+ * identical 404 body an unknown code would — never a hint that the code is
+ * live. See the long comment on GET /:code for why that matters (4-char
+ * codes, ~1M of them).
+ */
+gamesRouter.get('/:code/events', readLimiter, requireAuth, async (req: Request, res: Response) => {
+  const code = String(req.params.code).toUpperCase();
+  const db = getDb();
+  const rows = await db.select().from(gameSessions).where(eq(gameSessions.code, code)).limit(1);
+  const row = rows[0];
+  if (!row) return res.status(404).json({ error: 'Game not found.' });
+  const state = row.state as GameState;
+  if (!isParticipant(state, req.user!.id)) {
+    return res.status(404).json({ error: 'Game not found.' });
+  }
+
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.flushHeaders();
+  res.write(`event: state\ndata: ${JSON.stringify(state)}\n\n`);
+
+  let subs = subscribers.get(code);
+  if (!subs) {
+    subs = new Set();
+    subscribers.set(code, subs);
+  }
+  subs.add(res);
+
+  // Fly's proxy (and most others) kills an idle connection; a comment
+  // frame every 25s keeps it open without the client parsing it as data.
+  const heartbeat = setInterval(() => res.write(': ping\n\n'), 25_000);
+
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    const set = subscribers.get(code);
+    set?.delete(res);
+    if (set && set.size === 0) subscribers.delete(code);
+  });
+});
+
 /** POST /api/games/:code/join — claim a seat. */
 gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, res: Response) => {
   const code = String(req.params.code).toUpperCase();
@@ -359,6 +445,7 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
     if (updated.length === 0) {
       return res.status(409).json({ error: 'Version conflict, please retry.' });
     }
+    broadcastGameState(code, next);
     return res.json({ game: next });
   }
 
@@ -388,6 +475,7 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
   if (updated.length === 0) {
     return res.status(409).json({ error: 'Version conflict, please retry.' });
   }
+  broadcastGameState(code, next);
   res.json({ game: next });
 });
 
@@ -479,6 +567,7 @@ gamesRouter.patch('/:code', writeLimiter, requireAuth, async (req: Request, res:
     void persistGameResult(next, getPool());
   }
 
+  broadcastGameState(code, next);
   res.json({ game: next });
 });
 
@@ -495,6 +584,7 @@ gamesRouter.post('/:code/leave', writeLimiter, requireAuth, async (req: Request,
   if (me.isHost) {
     // Host leave = end + delete.
     await db.delete(gameSessions).where(eq(gameSessions.code, code));
+    broadcastGameDeleted(code);
     return res.json({ deleted: true });
   }
   if (current.status === 'lobby') {
@@ -503,6 +593,7 @@ gamesRouter.post('/:code/leave', writeLimiter, requireAuth, async (req: Request,
       .update(gameSessions)
       .set({ state: next, status: next.status, version: next.version, updatedAt: next.updatedAt })
       .where(eq(gameSessions.code, code));
+    broadcastGameState(code, next);
     return res.json({ game: next });
   }
   // Mid-game: mark disconnected but keep the seat so life totals are intact.
@@ -515,5 +606,6 @@ gamesRouter.post('/:code/leave', writeLimiter, requireAuth, async (req: Request,
     .update(gameSessions)
     .set({ state: next, status: next.status, version: next.version, updatedAt: next.updatedAt })
     .where(eq(gameSessions.code, code));
+  broadcastGameState(code, next);
   res.json({ game: next });
 });
