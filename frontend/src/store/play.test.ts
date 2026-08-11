@@ -13,6 +13,7 @@ import {
   type GameRecord,
   type GameState,
 } from '../lib/game-state';
+import type { PublicBoard } from '../lib/playtest/projection';
 
 // The online flow talks to the games HTTP API; mock it so dispatch/refresh
 // branches can be exercised without a server.
@@ -54,6 +55,7 @@ function resetStore() {
   usePlayStore.setState({
     local: null,
     online: null,
+    onlineBoards: {},
     history: [],
     onlineError: null,
     onlinePolling: false,
@@ -699,6 +701,54 @@ describe('usePlayStore — SSE primary transport / poll fallback', () => {
     await usePlayStore.getState().leaveOnline();
     expect(es.closed).toBe(true);
   });
+
+  it('a pushed board event lands in onlineBoards under its seat', async () => {
+    const es = await hostAndGetStream();
+    const board = { seat: 1, turn: 3 } as unknown as PublicBoard;
+    es.emit('board', { data: JSON.stringify({ seat: 1, board }) });
+    expect(usePlayStore.getState().onlineBoards[1]).toEqual(board);
+  });
+
+  it('leaveOnline clears onlineBoards along with the rest of the online slice', async () => {
+    const es = await hostAndGetStream();
+    es.emit('board', { data: JSON.stringify({ seat: 1, board: { seat: 1 } }) });
+    expect(usePlayStore.getState().onlineBoards[1]).toBeDefined();
+    mockLeave.mockResolvedValue(undefined as never);
+    await usePlayStore.getState().leaveOnline();
+    expect(usePlayStore.getState().onlineBoards).toEqual({});
+  });
+
+  // Regression cover for the sweepStale gap (E-fix, client half): a swept
+  // session's SSE stream can look "healthy" forever if this client's
+  // subscriber never received the server's deletion broadcast (see the
+  // `subscribers` map's cross-machine caveat in routes/games.ts) — the old
+  // `if (realtimeHealthy) return` skipped every tick with no other way to
+  // ever notice. The fix makes the interval poll force an occasional real
+  // check regardless of `realtimeHealthy`.
+  it('an occasional liveness check runs even while the SSE stream reports healthy, and clears a game the transport never noticed was gone', async () => {
+    vi.useFakeTimers();
+    try {
+      const es = await hostAndGetStream();
+      es.emit('open');
+      const notFound = new Error('Game not found.') as Error & { status?: number };
+      notFound.status = 404;
+      mockGet.mockRejectedValue(notFound);
+
+      // Well under one liveness-check interval (30s): still skipped, exactly
+      // like the plain "skipped while healthy" test above.
+      await vi.advanceTimersByTimeAsync(27_500);
+      expect(mockGet).not.toHaveBeenCalled();
+
+      // Crossing the interval: the occasional recheck fires despite
+      // realtimeHealthy never having flipped false.
+      await vi.advanceTimersByTimeAsync(2_500);
+      expect(mockGet).toHaveBeenCalledTimes(1);
+      expect(usePlayStore.getState().online).toBeNull();
+      expect(usePlayStore.getState().onlineError).toBe('Game ended.');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('usePlayStore — long-poll transport (native)', () => {
@@ -821,6 +871,18 @@ describe('usePlayStore — long-poll transport (native)', () => {
     mockLeave.mockResolvedValue(undefined as never);
     await usePlayStore.getState().leaveOnline();
     expect(teardown).toHaveBeenCalledOnce();
+  });
+
+  it('a board pushed via the long-poll lands in onlineBoards under its seat', async () => {
+    let handlers: GameLongPollHandlers | undefined;
+    mockSubscribeLongPoll.mockImplementation((_c, _s, h) => {
+      handlers = h;
+      return vi.fn();
+    });
+    await hostOnline();
+    const board = { seat: 1, turn: 2 } as unknown as PublicBoard;
+    handlers?.onBoard?.(1, board);
+    expect(usePlayStore.getState().onlineBoards[1]).toEqual(board);
   });
 });
 

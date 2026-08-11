@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { subscribeGameEvents } from './games-sse';
 import type { GameState } from './game-state';
+import type { PublicBoard } from './playtest/projection';
 
 /**
  * Minimal `EventSource` stand-in — Node has no global `EventSource`
@@ -69,6 +70,32 @@ describe('subscribeGameEvents', () => {
     const es = FakeEventSource.instances[0];
     expect(() => es.emit('state', { data: 'not json' })).not.toThrow();
     expect(onState).not.toHaveBeenCalled();
+  });
+
+  it('parses a board event and forwards seat + board to onBoard', () => {
+    stub();
+    const onBoard = vi.fn();
+    subscribeGameEvents('ABCD', { onState: vi.fn(), onBoard });
+    const es = FakeEventSource.instances[0];
+    const board = { seat: 0 } as unknown as PublicBoard;
+    es.emit('board', { data: JSON.stringify({ seat: 1, board }) });
+    expect(onBoard).toHaveBeenCalledWith(1, board);
+  });
+
+  it('swallows a malformed board frame instead of throwing', () => {
+    stub();
+    const onBoard = vi.fn();
+    subscribeGameEvents('ABCD', { onState: vi.fn(), onBoard });
+    const es = FakeEventSource.instances[0];
+    expect(() => es.emit('board', { data: 'not json' })).not.toThrow();
+    expect(onBoard).not.toHaveBeenCalled();
+  });
+
+  it('onBoard is optional — no throw when omitted', () => {
+    stub();
+    subscribeGameEvents('ABCD', { onState: vi.fn() });
+    const es = FakeEventSource.instances[0];
+    expect(() => es.emit('board', { data: JSON.stringify({ seat: 1, board: {} }) })).not.toThrow();
   });
 
   it('forwards native open/error events to onOpen/onError', () => {
