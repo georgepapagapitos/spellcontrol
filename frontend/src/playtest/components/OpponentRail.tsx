@@ -44,14 +44,30 @@ const MAX_MINI_TILES = 12;
  * name, a real miniature battlefield). No opponent is ever hidden, scrolled
  * out, or folded into an overflow menu — see the STYLE_GUIDE ruling for why.
  */
+/*
+ * Glance density needs landscape AND enough width to actually spend on a side
+ * rail. Orientation alone is not the signal: a phone held sideways (844x390)
+ * is "landscape" but has no slack — a side rail there would eat width the
+ * board can't spare, and would mount miniature battlefields (firing
+ * `useCardThumb` per opponent card) at a size nothing is legible in. The whole
+ * long-axis rule is premised on the long axis having slack.
+ *
+ * 900px separates the two cleanly: tablet-landscape (iPad ~1024-1180) gets
+ * glance, every phone landscape (568 / 736 / 844) stays on presence.
+ */
+const GLANCE_QUERY = '(orientation: landscape) and (min-width: 900px)';
+
 export function OpponentRail({ opponents, activeSeat }: OpponentRailProps) {
   const [isGlance, setIsGlance] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(orientation: landscape)').matches
+    () => typeof window !== 'undefined' && window.matchMedia(GLANCE_QUERY).matches
   );
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const mql = window.matchMedia('(orientation: landscape)');
+    const mql = window.matchMedia(GLANCE_QUERY);
     const update = () => setIsGlance(mql.matches);
+    // Sync once on mount: the media state can change between the initial
+    // render and the listener attaching (rotation during hydration).
+    update();
     mql.addEventListener('change', update);
     return () => mql.removeEventListener('change', update);
   }, []);

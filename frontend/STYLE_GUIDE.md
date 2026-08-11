@@ -1249,10 +1249,16 @@ chrome before the battlefield gets what's left, so three more boards at
 glance size would leave an unusable sliver. The rail eats from whichever axis
 currently has room.
 
-**Density is gated on device orientation (a legitimate viewport read for a
-full-width/full-height chrome band — § Responsive's "Full-width panels may
-keep viewport gates" carve-out), never assumed from the entry's rendered
-width.** But the **shrink ladder within presence density** — dropping the
+**Density is gated on `(orientation: landscape) and (min-width: 900px)` — a
+legitimate viewport read for a full-width/full-height chrome band (§
+Responsive's "Full-width panels may keep viewport gates" carve-out), never
+assumed from the entry's rendered width.** ⚠️ **Orientation alone is NOT the
+signal.** A phone held sideways (844×390) is landscape but has no slack, and
+the long-axis rule is premised on the long axis *having* slack — gating on
+orientation alone puts a side rail and N mounted miniature battlefields on a
+screen that cannot spare the width. The 900px floor separates
+tablet-landscape (~1024–1180, gets glance) from every phone landscape
+(568 / 736 / 844, stays on presence). But the **shrink ladder within presence density** — dropping the
 permanent count, then the name, as N opponents divide a narrowing top strip —
 is gated on `@container` on each `.opponent-entry` itself (`container-type:
 inline-size`), not on a viewport breakpoint (E61): a crowded rail can get

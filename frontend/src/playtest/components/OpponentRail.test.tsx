@@ -44,19 +44,32 @@ function seat(n: number, overrides: Partial<PublicBoard> = {}): OpponentSeat {
   return { name: `Player ${n}`, board: board(n, overrides) };
 }
 
-/** Force a density: 'presence' (portrait) is the component's own default; pass
- *  `true` to simulate landscape via the matchMedia gate it reads. */
+/** Simulate a viewport by evaluating the component's real media query against
+ *  an orientation AND a width, so the `min-width: 900px` half of the glance
+ *  gate is actually exercised — a stub that only looks at `orientation` would
+ *  report glance for a sideways phone and hide the very regression the floor
+ *  exists to prevent. */
+function stubViewport(landscape: boolean, width = 1280) {
+  vi.stubGlobal('matchMedia', (query: string) => {
+    const wantsLandscape = /orientation:\s*landscape/.test(query);
+    const minWidth = /min-width:\s*(\d+)px/.exec(query);
+    const matches = (!wantsLandscape || landscape) && (!minWidth || width >= Number(minWidth[1]));
+    return {
+      matches,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    };
+  });
+}
+
+/** Back-compat alias for the existing cases: landscape at a desktop width. */
 function stubOrientation(landscape: boolean) {
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: landscape && /orientation:\s*landscape/.test(query),
-    media: query,
-    onchange: null,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    addListener: () => {},
-    removeListener: () => {},
-    dispatchEvent: () => false,
-  }));
+  stubViewport(landscape);
 }
 
 beforeEach(() => {
@@ -78,6 +91,23 @@ describe('OpponentRail', () => {
   it('uses real list semantics', () => {
     render(<OpponentRail opponents={[seat(0)]} />);
     expect(screen.getByRole('list', { name: 'Opponents' })).toBeTruthy();
+  });
+
+  // The long-axis rule assumes the long axis has SLACK. A phone held sideways
+  // is landscape but 844px wide — a side rail plus N mounted mini battlefields
+  // there eats width the board can't spare, at a size nothing is legible in.
+  it('stays on presence density in landscape when the viewport is too narrow', () => {
+    stubViewport(true, 844); // phone in landscape
+    const { container } = render(<OpponentRail opponents={[seat(0), seat(1), seat(2)]} />);
+    expect(container.querySelector('.opponent-rail--presence')).toBeTruthy();
+    expect(container.querySelector('.opponent-rail--glance')).toBeNull();
+  });
+
+  it('switches to glance density in landscape once there is room', () => {
+    stubViewport(true, 1024); // tablet in landscape
+    const { container } = render(<OpponentRail opponents={[seat(0), seat(1), seat(2)]} />);
+    expect(container.querySelector('.opponent-rail--glance')).toBeTruthy();
+    expect(container.querySelector('.opponent-rail--presence')).toBeNull();
   });
 
   it('renders a redacted face-down battlefield card as a card back, never a name', () => {
