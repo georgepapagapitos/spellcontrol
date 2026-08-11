@@ -426,7 +426,12 @@ gamesRouter.get('/:code/events', readLimiter, requireAuth, async (req: Request, 
 
   // Fly's proxy (and most others) kills an idle connection; a comment
   // frame every 25s keeps it open without the client parsing it as data.
-  const heartbeat = setInterval(() => res.write(': ping\n\n'), 25_000);
+  // `writableEnded` is what keeps the bad write from being attempted at all —
+  // the listener above only makes its fallout non-fatal — and it covers the
+  // same `onDeleted` → `res.end()` window described there.
+  const heartbeat = setInterval(() => {
+    if (!res.writableEnded) res.write(': ping\n\n');
+  }, 25_000);
 
   req.on('close', () => {
     clearInterval(heartbeat);
