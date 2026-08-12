@@ -71,6 +71,27 @@ export function useOnlineTable(state: PlaytestState): OnlineTable | null {
   const code = online?.code ?? null;
   const mySeat = mine?.seat ?? null;
 
+  // Make sure the realtime transport is actually running for this route.
+  //
+  // Without this the table is WRITE-ONLY here: `publishBoard` below posts
+  // directly, so this device's board reaches everyone, but nothing ever
+  // subscribes, so no opponent board ever arrives and the rail sits on
+  // "No board shared yet" forever. `startPolling()` was only ever called
+  // from PlayPage's mount effect and from hostOnline/joinOnline — and
+  // PlayPage is NOT mounted on `/decks/:id/playtest`, so a page load
+  // straight into playtest (or any reload while seated) started no
+  // transport at all. `onlineBoards` is deliberately not persisted, so a
+  // reload also drops whatever had already arrived.
+  //
+  // Safe to call on every change: `startPolling` early-returns when
+  // `pollVisibilityHandler` is already set. Deliberately NOT stopped on
+  // unmount — leaving playtest doesn't leave the game, and `leaveOnline`
+  // already owns teardown.
+  useEffect(() => {
+    if (code == null || mySeat == null) return;
+    usePlayStore.getState().startPolling();
+  }, [code, mySeat]);
+
   useEffect(() => {
     if (code == null || mySeat == null) return;
     publishBoard(code, toPublicBoard(state, mySeat));
