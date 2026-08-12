@@ -1,11 +1,14 @@
 import { apiUrl } from './api-base';
 import type { GameState } from './game-state';
 import type { PublicBoard } from './playtest/projection';
+import type { GameRequest } from './games-api';
 
 export interface GameEventHandlers {
   onState: (state: GameState) => void;
   /** A published board — either a catch-up frame sent right after connect, or a live update. */
   onBoard?: (seat: number, board: PublicBoard) => void;
+  /** A cross-seat request's create/respond/resolve — catch-up on connect, or live. */
+  onRequest?: (request: GameRequest) => void;
   onOpen?: () => void;
   onError?: () => void;
 }
@@ -51,6 +54,13 @@ export function subscribeGameEvents(code: string, handlers: GameEventHandlers): 
       handlers.onBoard?.(seat, board);
     } catch {
       // Malformed frame — ignore; the next publish will catch up.
+    }
+  });
+  es.addEventListener('request', (ev: MessageEvent<string>) => {
+    try {
+      handlers.onRequest?.(JSON.parse(ev.data) as GameRequest);
+    } catch {
+      // Malformed frame — ignore; the next create/respond/resolve will catch up.
     }
   });
   return () => es.close();

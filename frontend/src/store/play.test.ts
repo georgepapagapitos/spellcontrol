@@ -23,15 +23,28 @@ vi.mock('../lib/games-api', () => ({
   joinGame: vi.fn(),
   leaveGame: vi.fn(),
   patchGame: vi.fn(),
+  raiseGameRequest: vi.fn(),
+  respondGameRequest: vi.fn(),
 }));
 
-import { createGame, getGame, joinGame, leaveGame, patchGame } from '../lib/games-api';
+import {
+  createGame,
+  getGame,
+  joinGame,
+  leaveGame,
+  patchGame,
+  raiseGameRequest,
+  respondGameRequest,
+  type GameRequest,
+} from '../lib/games-api';
 
 const mockCreate = vi.mocked(createGame);
 const mockGet = vi.mocked(getGame);
 const mockJoin = vi.mocked(joinGame);
 const mockLeave = vi.mocked(leaveGame);
 const mockPatch = vi.mocked(patchGame);
+const mockRaiseRequest = vi.mocked(raiseGameRequest);
+const mockRespondRequest = vi.mocked(respondGameRequest);
 
 // The long-poll transport wraps its own HTTP loop (see games-longpoll.test.ts
 // for that in isolation); here we mock the whole module so store tests can
@@ -56,6 +69,7 @@ function resetStore() {
     local: null,
     online: null,
     onlineBoards: {},
+    onlineRequests: {},
     history: [],
     onlineError: null,
     onlinePolling: false,
@@ -87,6 +101,21 @@ function makeOnlineGame(version = 1): GameState {
 
 function httpError(message: string, status: number): Error {
   return Object.assign(new Error(message), { status });
+}
+
+function mockGameRequest(overrides: Partial<GameRequest> = {}): GameRequest {
+  return {
+    id: 'req1',
+    code: 'ABCD',
+    kind: 'rewind',
+    payload: { steps: 2, summary: 'undo two draws' },
+    requesterSeat: 0,
+    approvals: {},
+    status: 'pending',
+    createdAt: 0,
+    expiresAt: 60_000,
+    ...overrides,
+  };
 }
 
 describe('usePlayStore — local game flow', () => {
@@ -575,6 +604,55 @@ describe('usePlayStore — online flow', () => {
       vi.useRealTimers();
     }
   });
+
+  it('raiseGameRequest calls the API and stores the result under the requester seat', async () => {
+    mockCreate.mockResolvedValue(makeOnlineGame(1));
+    await usePlayStore.getState().hostOnline({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+    });
+    const created = mockGameRequest({ requesterSeat: 0 });
+    mockRaiseRequest.mockResolvedValue(created);
+    const result = await usePlayStore
+      .getState()
+      .raiseGameRequest('rewind', { steps: 2, summary: 'undo two draws' });
+    expect(result).toEqual(created);
+    expect(mockRaiseRequest).toHaveBeenCalledWith('ABCD', 'rewind', {
+      steps: 2,
+      summary: 'undo two draws',
+    });
+    expect(usePlayStore.getState().onlineRequests[0]).toEqual(created);
+  });
+
+  it('raiseGameRequest rejects with no active online game, without calling the API', async () => {
+    await expect(
+      usePlayStore.getState().raiseGameRequest('rewind', { steps: 1, summary: 'x' })
+    ).rejects.toThrow();
+    expect(mockRaiseRequest).not.toHaveBeenCalled();
+  });
+
+  it('respondGameRequest calls the API and stores the resolved request', async () => {
+    mockCreate.mockResolvedValue(makeOnlineGame(1));
+    await usePlayStore.getState().hostOnline({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+    });
+    const resolved = mockGameRequest({ requesterSeat: 1, status: 'approved' });
+    mockRespondRequest.mockResolvedValue(resolved);
+    const result = await usePlayStore.getState().respondGameRequest('req1', true);
+    expect(result).toEqual(resolved);
+    expect(mockRespondRequest).toHaveBeenCalledWith('ABCD', 'req1', true);
+    expect(usePlayStore.getState().onlineRequests[1]).toEqual(resolved);
+  });
+
+  it('respondGameRequest rejects with no active online game, without calling the API', async () => {
+    await expect(usePlayStore.getState().respondGameRequest('req1', true)).rejects.toThrow();
+    expect(mockRespondRequest).not.toHaveBeenCalled();
+  });
 });
 
 /**
@@ -716,6 +794,22 @@ describe('usePlayStore — SSE primary transport / poll fallback', () => {
     mockLeave.mockResolvedValue(undefined as never);
     await usePlayStore.getState().leaveOnline();
     expect(usePlayStore.getState().onlineBoards).toEqual({});
+  });
+
+  it('a pushed request event lands in onlineRequests under its requester seat', async () => {
+    const es = await hostAndGetStream();
+    const req = mockGameRequest({ requesterSeat: 1 });
+    es.emit('request', { data: JSON.stringify(req) });
+    expect(usePlayStore.getState().onlineRequests[1]).toEqual(req);
+  });
+
+  it('leaveOnline clears onlineRequests along with the rest of the online slice', async () => {
+    const es = await hostAndGetStream();
+    es.emit('request', { data: JSON.stringify(mockGameRequest({ requesterSeat: 1 })) });
+    expect(usePlayStore.getState().onlineRequests[1]).toBeDefined();
+    mockLeave.mockResolvedValue(undefined as never);
+    await usePlayStore.getState().leaveOnline();
+    expect(usePlayStore.getState().onlineRequests).toEqual({});
   });
 
   // Regression cover for the sweepStale gap (E-fix, client half): a swept
@@ -883,6 +977,18 @@ describe('usePlayStore — long-poll transport (native)', () => {
     const board = { seat: 1, turn: 2 } as unknown as PublicBoard;
     handlers?.onBoard?.(1, board);
     expect(usePlayStore.getState().onlineBoards[1]).toEqual(board);
+  });
+
+  it('a request pushed via the long-poll lands in onlineRequests under its requester seat', async () => {
+    let handlers: GameLongPollHandlers | undefined;
+    mockSubscribeLongPoll.mockImplementation((_c, _s, h) => {
+      handlers = h;
+      return vi.fn();
+    });
+    await hostOnline();
+    const req = mockGameRequest({ requesterSeat: 1 });
+    handlers?.onRequest?.(req);
+    expect(usePlayStore.getState().onlineRequests[1]).toEqual(req);
   });
 });
 

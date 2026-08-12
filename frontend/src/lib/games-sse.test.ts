@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { subscribeGameEvents } from './games-sse';
 import type { GameState } from './game-state';
 import type { PublicBoard } from './playtest/projection';
+import type { GameRequest } from './games-api';
 
 /**
  * Minimal `EventSource` stand-in — Node has no global `EventSource`
@@ -118,6 +119,44 @@ describe('subscribeGameEvents', () => {
       es.emit('open');
       es.emit('error');
     }).not.toThrow();
+  });
+
+  it('parses a request event and forwards it to onRequest', () => {
+    stub();
+    const onRequest = vi.fn();
+    subscribeGameEvents('ABCD', { onState: vi.fn(), onRequest });
+    const es = FakeEventSource.instances[0];
+    const req = {
+      id: 'r1',
+      code: 'ABCD',
+      kind: 'rewind',
+      payload: { steps: 1, summary: 'x' },
+      requesterSeat: 0,
+      approvals: {},
+      status: 'pending',
+      createdAt: 0,
+      expiresAt: 1000,
+    } as GameRequest;
+    es.emit('request', { data: JSON.stringify(req) });
+    expect(onRequest).toHaveBeenCalledWith(req);
+  });
+
+  it('swallows a malformed request frame instead of throwing', () => {
+    stub();
+    const onRequest = vi.fn();
+    subscribeGameEvents('ABCD', { onState: vi.fn(), onRequest });
+    const es = FakeEventSource.instances[0];
+    expect(() => es.emit('request', { data: 'not json' })).not.toThrow();
+    expect(onRequest).not.toHaveBeenCalled();
+  });
+
+  it('onRequest is optional — no throw when omitted', () => {
+    stub();
+    subscribeGameEvents('ABCD', { onState: vi.fn() });
+    const es = FakeEventSource.instances[0];
+    expect(() =>
+      es.emit('request', { data: JSON.stringify({ id: 'r1', status: 'pending' }) })
+    ).not.toThrow();
   });
 
   it('the returned teardown fn closes the underlying connection', () => {
