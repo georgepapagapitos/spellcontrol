@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { usePlayStore } from '@/store/play';
 import { applyAction, createGameState, makePlayer } from '@/lib/game-state';
 import type { GameRequest } from '@/lib/games-api';
@@ -57,6 +57,10 @@ beforeEach(() => {
   });
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe('TakebackConsentPrompt', () => {
   it('renders nothing with no incoming pending request', () => {
     const { container } = render(<TakebackConsentPrompt onlineTable={mySeat} />);
@@ -67,6 +71,26 @@ describe('TakebackConsentPrompt', () => {
     usePlayStore.setState({ onlineRequests: { 0: request({ requesterSeat: 0 }) } });
     const { container } = render(<TakebackConsentPrompt onlineTable={mySeat} />);
     expect(container.innerHTML).toBe('');
+  });
+
+  it('an already-expired pending request never renders (lost server frame)', () => {
+    usePlayStore.setState({ onlineRequests: { 1: request({ expiresAt: Date.now() - 5000 }) } });
+    render(<TakebackConsentPrompt onlineTable={mySeat} />);
+    expect(screen.queryByRole('region', { name: 'Takeback request' })).toBeNull();
+  });
+
+  it('a shown request dismisses itself when its expiresAt passes, with no server frame', () => {
+    vi.useFakeTimers();
+    usePlayStore.setState({ onlineRequests: { 1: request({ expiresAt: Date.now() + 1000 }) } });
+    render(<TakebackConsentPrompt onlineTable={mySeat} />);
+    expect(screen.getByRole('region', { name: 'Takeback request' })).toBeTruthy();
+
+    // 1000ms to the deadline + the 2000ms grace window.
+    act(() => {
+      vi.advanceTimersByTime(3001);
+    });
+
+    expect(screen.queryByRole('region', { name: 'Takeback request' })).toBeNull();
   });
 
   it('shows who is asking, how many steps, and the summary', () => {

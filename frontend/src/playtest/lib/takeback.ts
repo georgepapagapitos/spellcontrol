@@ -105,6 +105,14 @@ export function readTakeback(trail: readonly RewindTrailEntry[]): TakebackReadou
   };
 }
 
+/** Grace window before a still-`pending` cross-seat request past its
+ *  `expiresAt` is treated as locally expired even with no terminal frame
+ *  from the server — native long-poll can drop a frame outright, which
+ *  would otherwise strand the consent prompt or the requester's banner
+ *  forever. Shared by `use-takeback.ts` (requester side) and
+ *  `TakebackConsentPrompt.tsx` (approver side) so the two don't drift. */
+export const TAKEBACK_EXPIRY_GRACE_MS = 2000;
+
 export type TakebackPlan = 'apply' | 'request' | 'blocked';
 
 /**

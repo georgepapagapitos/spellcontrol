@@ -655,6 +655,7 @@ export function PlaytestBoard({ state }: Props) {
         <TakebackPendingBanner
           request={takeback.pendingRequest}
           onCancel={takeback.cancelPending}
+          message={takeback.pendingOutcomeMessage ?? undefined}
         />
       )}
       <DndContext

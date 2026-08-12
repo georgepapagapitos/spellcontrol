@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePlaytestStore } from '../store';
 import { usePlayStore } from '@/store/play';
 import { haptics } from '@/lib/haptics';
@@ -6,6 +6,8 @@ import {
   readTakeback,
   resolveTakebackPlan,
   takebackSummary,
+  TAKEBACK_EXPIRY_GRACE_MS,
+  type RewindTrailEntry,
   type TakebackMode,
   type TakebackPlan,
 } from '../lib/takeback';
@@ -25,8 +27,15 @@ export interface TakebackStatus {
   /** What `attempt()` would do right now. */
   plan: TakebackPlan;
   /** This seat's own outgoing request, only while it's live (pending, or a
-   *  just-resolved one still being shown before clearing). */
+   *  just-resolved one still being shown before clearing). `status` may be
+   *  displayed as `'expired'` locally even when the server never sent that
+   *  frame — see `TAKEBACK_EXPIRY_GRACE_MS`. */
   pendingRequest: GameRequest | null;
+  /** Overrides the per-status copy `TakebackPendingBanner` would otherwise
+   *  show for `pendingRequest` — populated only for the one outcome its
+   *  status can't express on its own: approved, but the board moved on
+   *  before the approval landed, so nothing was actually taken back. */
+  pendingOutcomeMessage: string | null;
   /** Human error surfaced when raising a request fails (409 already-pending,
    *  network, etc.) — the caller decides how to show it (toast, inline). */
   raiseError: string | null;
@@ -67,23 +76,75 @@ export function useTakeback(onlineTable: OnlineTable | null): TakebackStatus {
   // gets treated as live.
   const [myRequestId, setMyRequestId] = useState<string | null>(null);
   const [raiseError, setRaiseError] = useState<string | null>(null);
+  // True once this seat's own request has gone unanswered past its
+  // `expiresAt` + grace with no terminal frame from the server (FIX 2 —
+  // native long-poll can drop the frame outright). Reset whenever a new
+  // request is raised.
+  const [locallyExpired, setLocallyExpired] = useState(false);
+  // True once an 'approved' frame arrived but the undo target it was raised
+  // against is no longer the trail head (FIX 1). Reset whenever a new
+  // request is raised.
+  const [staleApproval, setStaleApproval] = useState(false);
   const appliedRef = useRef<string | null>(null);
+  // The rewindTrail entry `attempt()` intended to undo, captured at the
+  // moment the request was raised — keyed by request id so a late approval
+  // can be checked against what was actually asked for, not whatever the
+  // trail head happens to be by the time the approval lands.
+  const undoTargetRef = useRef<{ id: string; target: RewindTrailEntry | null } | null>(null);
 
   const liveRequest = mySeat != null ? (onlineRequests[mySeat] ?? null) : null;
-  const pendingRequest = liveRequest && liveRequest.id === myRequestId ? liveRequest : null;
+  const rawPending = liveRequest && liveRequest.id === myRequestId ? liveRequest : null;
+
+  // Display 'expired' locally once the deadline (plus grace) has passed,
+  // even if the server's own expiry frame never arrived. A genuine
+  // late-but-real frame supersedes this the moment it lands, since `status`
+  // then stops being 'pending' and this override no longer applies.
+  const isLocallyExpired = rawPending?.status === 'pending' && locallyExpired;
+  const pendingRequest = useMemo<GameRequest | null>(() => {
+    if (!rawPending) return null;
+    return isLocallyExpired ? { ...rawPending, status: 'expired' } : rawPending;
+  }, [rawPending, isLocallyExpired]);
+
+  const pendingOutcomeMessage =
+    pendingRequest?.status === 'approved' && staleApproval
+      ? 'Approved — but the board changed since you asked, so nothing was taken back.'
+      : null;
 
   const { verdict, stepsAvailable, boundary, next } = readTakeback(rewindTrail);
   const plan = resolveTakebackPlan(verdict, mode, online);
 
-  // Apply an approval exactly once; surface (without applying) a decline/
-  // expiry/cancellation, then return to idle after a beat.
+  // Schedule this seat's own pending request to flip to a locally-displayed
+  // 'expired' at its deadline (+ grace), independent of any server frame.
+  useEffect(() => {
+    if (!rawPending || rawPending.status !== 'pending') return;
+    const ms = rawPending.expiresAt + TAKEBACK_EXPIRY_GRACE_MS - Date.now();
+    const t = setTimeout(() => setLocallyExpired(true), Math.max(ms, 0));
+    return () => clearTimeout(t);
+  }, [rawPending]);
+
+  // Apply an approval exactly once — but only if the trail head is still the
+  // exact entry the request was raised against; otherwise the requester
+  // acted again while waiting, and undoing now would take back the wrong
+  // (possibly locked) thing instead. Surface (without applying) a decline/
+  // expiry/cancellation/stale-approval, then return to idle after a beat.
   useEffect(() => {
     if (!pendingRequest) return;
     if (pendingRequest.status === 'approved') {
       if (appliedRef.current === pendingRequest.id) return;
       appliedRef.current = pendingRequest.id;
-      dispatch({ type: 'UNDO' });
-      setMyRequestId(null);
+      const captured =
+        undoTargetRef.current?.id === pendingRequest.id ? undoTargetRef.current.target : null;
+      if (captured === rewindTrail[0]) {
+        dispatch({ type: 'UNDO' });
+        setMyRequestId(null);
+      } else {
+        // Clearing is owned by the dedicated staleApproval effect below — a
+        // timeout scheduled here would be cancelled by this effect's own
+        // cleanup on the user's next action (rewindTrail is a dependency),
+        // and the appliedRef guard above would then block rescheduling it,
+        // sticking the banner forever.
+        setStaleApproval(true);
+      }
       return;
     }
     if (
@@ -94,7 +155,19 @@ export function useTakeback(onlineTable: OnlineTable | null): TakebackStatus {
       const t = setTimeout(() => setMyRequestId(null), RESOLUTION_DISPLAY_MS);
       return () => clearTimeout(t);
     }
-  }, [pendingRequest, dispatch]);
+  }, [pendingRequest, dispatch, rewindTrail]);
+
+  // Return the stale-approval display to idle after a beat, on a timer that
+  // survives the user continuing to play (unlike the effect above, this one
+  // has no rewindTrail dependency to re-fire it).
+  useEffect(() => {
+    if (!staleApproval) return;
+    const t = setTimeout(() => {
+      setMyRequestId(null);
+      setStaleApproval(false);
+    }, RESOLUTION_DISPLAY_MS);
+    return () => clearTimeout(t);
+  }, [staleApproval]);
 
   const attempt = useCallback((): TakebackPlan => {
     if (pendingRequest?.status === 'pending') return 'request';
@@ -107,7 +180,12 @@ export function useTakeback(onlineTable: OnlineTable | null): TakebackStatus {
     // 'request'
     setRaiseError(null);
     void raiseGameRequest('rewind', { steps: 1, summary: takebackSummary(next) ?? 'a play' })
-      .then((req) => setMyRequestId(req.id))
+      .then((req) => {
+        undoTargetRef.current = { id: req.id, target: next };
+        setLocallyExpired(false);
+        setStaleApproval(false);
+        setMyRequestId(req.id);
+      })
       .catch((err: unknown) => {
         setRaiseError(err instanceof Error ? err.message : "Couldn't ask the table.");
       });
@@ -133,6 +211,7 @@ export function useTakeback(onlineTable: OnlineTable | null): TakebackStatus {
     nextSummary: takebackSummary(next),
     plan,
     pendingRequest,
+    pendingOutcomeMessage,
     raiseError,
     clearRaiseError,
     attempt,

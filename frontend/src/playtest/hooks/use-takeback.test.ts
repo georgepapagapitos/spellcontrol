@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { act, renderHook } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { PlaytestCard } from '@/lib/playtest';
 import { usePlaytestStore } from '../store';
 import { usePlayStore } from '@/store/play';
@@ -45,6 +45,10 @@ beforeEach(() => {
     cancelGameRequest: vi.fn(),
     respondGameRequest: vi.fn(),
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 /** Pushes a 'consent'-tier action (ADJUST_LIFE) onto the real undo stack, via
@@ -260,6 +264,150 @@ describe('useTakeback', () => {
     rerender();
 
     expect(cancel).toHaveBeenCalledWith('req1');
+    expect(result.current.pendingRequest).toBeNull();
+  });
+
+  it('an approval that arrives after the requester takes another action does NOT undo, and surfaces the changed outcome', async () => {
+    vi.useFakeTimers();
+    pushConsentStep();
+    const pastBefore = usePlaytestStore.getState().state!.past.length;
+    const raise = mockRaise();
+    usePlayStore.setState({ raiseGameRequest: raise });
+
+    const { result, rerender } = renderHook(() => useTakeback(seatedTable(0)));
+    await act(async () => {
+      result.current.attempt();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    rerender();
+    expect(result.current.pendingRequest?.status).toBe('pending');
+
+    // The requester is not blocked from acting while the ask is outstanding
+    // — they draw a card (a locked step) before the table responds.
+    pushLockedStep();
+    rerender();
+
+    await act(async () => {
+      usePlayStore.setState({ onlineRequests: { 0: request({ status: 'approved' }) } });
+    });
+    rerender();
+
+    // Nothing was undone — applying the approval now would take back the
+    // draw instead of the action the table actually approved.
+    expect(usePlaytestStore.getState().state!.past.length).toBe(pastBefore + 1);
+    expect(result.current.pendingRequest?.status).toBe('approved');
+    expect(result.current.pendingOutcomeMessage).toMatch(/board changed/i);
+
+    // And it clears back to idle after the usual resolution beat.
+    act(() => {
+      vi.advanceTimersByTime(4001);
+    });
+    rerender();
+    expect(result.current.pendingRequest).toBeNull();
+    expect(result.current.pendingOutcomeMessage).toBeNull();
+  });
+
+  it('the changed-outcome banner still clears when the requester keeps playing during the display beat', async () => {
+    vi.useFakeTimers();
+    pushConsentStep();
+    const raise = mockRaise();
+    usePlayStore.setState({ raiseGameRequest: raise });
+
+    const { result, rerender } = renderHook(() => useTakeback(seatedTable(0)));
+    await act(async () => {
+      result.current.attempt();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    rerender();
+
+    pushLockedStep();
+    rerender();
+    await act(async () => {
+      usePlayStore.setState({ onlineRequests: { 0: request({ status: 'approved' }) } });
+    });
+    rerender();
+    expect(result.current.pendingOutcomeMessage).toMatch(/board changed/i);
+
+    // The user keeps playing mid-beat — the clear timer must survive the
+    // rewindTrail change (a timer owned by the trail-dependent effect gets
+    // cancelled by that effect's own cleanup here, and the applied-once
+    // guard then blocks rescheduling it, sticking the banner forever).
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    pushFreeStep();
+    rerender();
+    act(() => {
+      vi.advanceTimersByTime(2001);
+    });
+    rerender();
+    expect(result.current.pendingRequest).toBeNull();
+    expect(result.current.pendingOutcomeMessage).toBeNull();
+  });
+
+  it('an approval still applies when the requester took a free action and undid it themselves while waiting', async () => {
+    pushConsentStep();
+    const pastBefore = usePlaytestStore.getState().state!.past.length;
+    const raise = mockRaise();
+    usePlayStore.setState({ raiseGameRequest: raise });
+
+    const { result, rerender } = renderHook(() => useTakeback(seatedTable(0)));
+    await act(async () => {
+      result.current.attempt();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    rerender();
+
+    pushFreeStep();
+    act(() => {
+      usePlaytestStore.getState().dispatch({ type: 'UNDO' });
+    });
+    rerender();
+
+    // Back to the same trail head that was captured when the request was
+    // raised — the approval should still apply.
+    await act(async () => {
+      usePlayStore.setState({ onlineRequests: { 0: request({ status: 'approved' }) } });
+    });
+    rerender();
+
+    expect(usePlaytestStore.getState().state!.past.length).toBe(pastBefore - 1);
+    expect(result.current.pendingOutcomeMessage).toBeNull();
+  });
+
+  it('a requester whose terminal frame was lost flips to expired locally at expiresAt, then clears', async () => {
+    vi.useFakeTimers();
+    pushConsentStep();
+    const pastBefore = usePlaytestStore.getState().state!.past.length;
+    const now = Date.now();
+    const raise = mockRaise(request({ expiresAt: now + 1000 }));
+    usePlayStore.setState({ raiseGameRequest: raise });
+
+    const { result, rerender } = renderHook(() => useTakeback(seatedTable(0)));
+    await act(async () => {
+      result.current.attempt();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    rerender();
+    expect(result.current.pendingRequest?.status).toBe('pending');
+
+    // Past the deadline plus the local grace window — no server frame ever
+    // arrived, so the requester's own banner must flip on its own.
+    act(() => {
+      vi.advanceTimersByTime(1000 + 2000 + 1);
+    });
+    rerender();
+    expect(result.current.pendingRequest?.status).toBe('expired');
+    expect(usePlaytestStore.getState().state!.past.length).toBe(pastBefore); // never applied
+
+    act(() => {
+      vi.advanceTimersByTime(4001);
+    });
+    rerender();
     expect(result.current.pendingRequest).toBeNull();
   });
 });

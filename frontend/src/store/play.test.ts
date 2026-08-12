@@ -14,6 +14,7 @@ import {
   type GameState,
 } from '../lib/game-state';
 import type { PublicBoard } from '../lib/playtest/projection';
+import * as gamesBoard from '../lib/games-board';
 
 // The online flow talks to the games HTTP API; mock it so dispatch/refresh
 // branches can be exercised without a server.
@@ -414,6 +415,36 @@ describe('usePlayStore — online flow', () => {
     expect(usePlayStore.getState().online).toBeNull();
     expect(usePlayStore.getState().onlineError).toBe('Game ended.');
     expect(usePlayStore.getState().onlinePolling).toBe(false);
+  });
+
+  it('refreshOnline’s 404 path is a full teardown: boards/requests cleared, publish cancelled', async () => {
+    const cancelSpy = vi.spyOn(gamesBoard, 'cancelBoardPublish');
+    try {
+      mockCreate.mockResolvedValue(makeOnlineGame(1));
+      await usePlayStore.getState().hostOnline({
+        format: 'commander',
+        startingLife: 40,
+        commanderDamageEnabled: true,
+        poisonEnabled: false,
+      });
+      // Seed the two records the old 404 handler left behind (see the bug
+      // this test guards: onlineBoards/onlineRequests survived a 404).
+      usePlayStore.setState({
+        onlineBoards: { 1: { seat: 1, turn: 3 } as unknown as PublicBoard },
+        onlineRequests: { 1: mockGameRequest({ requesterSeat: 1 }) },
+      });
+
+      mockGet.mockRejectedValue(httpError('gone', 404));
+      await usePlayStore.getState().refreshOnline();
+
+      expect(usePlayStore.getState().onlineBoards).toEqual({});
+      expect(usePlayStore.getState().onlineRequests).toEqual({});
+      expect(usePlayStore.getState().boardVisible).toBe(true);
+      expect(usePlayStore.getState().onlineError).toBe('Game ended.');
+      expect(cancelSpy).toHaveBeenCalled();
+    } finally {
+      cancelSpy.mockRestore();
+    }
   });
 
   it('dispatchOnline is a no-op with no active online game', async () => {

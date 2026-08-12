@@ -1,11 +1,34 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePlayStore } from '@/store/play';
+import { TAKEBACK_EXPIRY_GRACE_MS } from '../lib/takeback';
 import type { GameRequest } from '@/lib/games-api';
 import type { OnlineTable } from '../hooks/use-online-table';
 
 interface Props {
   onlineTable: OnlineTable;
+}
+
+/** The oldest still-live incoming ask for `mySeat` to respond to — never this
+ *  seat's own outgoing request, and never one past its deadline (+ grace)
+ *  even if the server's own expiry frame never arrived (see module doc).
+ *  `now` defaults to `Date.now()` here, not at the call site, so a render
+ *  body never calls the impure `Date.now()` directly (react-hooks/purity). */
+function pickIncomingRequest(
+  onlineRequests: Record<number, GameRequest>,
+  mySeat: number,
+  now = Date.now()
+): GameRequest | null {
+  return (
+    Object.values(onlineRequests)
+      .filter(
+        (r) =>
+          r.status === 'pending' &&
+          r.requesterSeat !== mySeat &&
+          now - r.expiresAt < TAKEBACK_EXPIRY_GRACE_MS
+      )
+      .sort((a, b) => a.createdAt - b.createdAt)[0] ?? null
+  );
 }
 
 /**
@@ -21,14 +44,26 @@ interface Props {
  * one is TakebackPendingBanner's job. Only one incoming ask is shown at a
  * time (oldest first); a second raised while this is up simply waits its
  * turn once the first resolves and disappears from `onlineRequests`.
+ *
+ * A `pending` request past its `expiresAt` (+ grace) is treated as expired
+ * locally and never shown — native long-poll can drop the server's own
+ * terminal frame outright, which would otherwise leave this prompt (and a
+ * "Request not found" error on response) stuck forever.
  */
 export function TakebackConsentPrompt({ onlineTable }: Props) {
   const onlineRequests = usePlayStore((s) => s.onlineRequests);
+  const incoming = pickIncomingRequest(onlineRequests, onlineTable.mySeat);
 
-  const incoming =
-    Object.values(onlineRequests)
-      .filter((r) => r.status === 'pending' && r.requesterSeat !== onlineTable.mySeat)
-      .sort((a, b) => a.createdAt - b.createdAt)[0] ?? null;
+  // Self-dismiss at the shown request's own deadline, even with no server
+  // frame ever arriving — one timeout, re-armed only when the shown request
+  // changes.
+  const [, forceExpiryCheck] = useState(0);
+  useEffect(() => {
+    if (!incoming) return;
+    const ms = incoming.expiresAt + TAKEBACK_EXPIRY_GRACE_MS - Date.now();
+    const t = setTimeout(() => forceExpiryCheck((n) => n + 1), Math.max(ms, 0));
+    return () => clearTimeout(t);
+  }, [incoming]);
 
   if (!incoming) return null;
   // Keyed by request id so a fresh ask (a new id, even from the same
