@@ -318,6 +318,11 @@
   transform: translateX(-50%);
   z-index: 6;
   pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: min(92vw, 34rem);
 }
 
 .game-board-error {
@@ -332,6 +337,138 @@
   border-radius: var(--radius);
   padding: 0.4rem var(--space-3);
   font-size: var(--text-sm);
+}
+
+/* ── Open-your-board door (UX-mp-door) ──────────────────────────────────
+   The link from the online life counter (this overlay) to the card-table
+   playtest view. Lives in .game-board-banner so it shows in the lobby and
+   mid-game alike. Same fixed dark palette as .play-code-banner above —
+   the board overlay is always dark regardless of app theme. */
+
+.play-board-door {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  background: rgba(20, 24, 31, 0.9);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius);
+  padding: var(--space-2) 0.8rem;
+  width: 100%;
+  font-size: var(--text-sm);
+  box-shadow: var(--shadow-modal);
+}
+
+.play-board-door.is-urgent {
+  border-color: var(--accent);
+}
+
+.play-board-door.is-receded {
+  padding: 0.4rem 0.7rem;
+  opacity: 0.85;
+}
+
+.play-board-door-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.play-board-door-count {
+  font-weight: 600;
+}
+
+.play-board-door-seats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.play-board-door-seat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem var(--space-2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--text-xs);
+}
+
+.play-board-door-seat.is-open {
+  background: rgba(92, 196, 136, 0.2);
+  color: #fff;
+}
+
+.play-board-door-seat-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  flex-shrink: 0;
+}
+
+.play-board-door-seat.is-open .play-board-door-seat-dot {
+  background: var(--success);
+}
+
+.play-board-door-hint {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.play-board-door-pick {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* SeatDeck's "+ Deck" / clear controls are styled for the light `--surface`
+   forms they were built for (`.play-setup-seat-deck-add` reads
+   `var(--text-secondary)` on transparent — ~2.7:1 on this always-dark panel
+   in the light theme). The reused component itself is untouched; only its
+   color on THIS dark background is overridden, matching the rest of the
+   door's hardcoded light-on-dark palette. The picked-deck dropdown
+   (SelectMenu's `.toolbar-pill`) needs no override — it carries its own
+   opaque `var(--surface)` background, so it's legible on any parent. */
+.play-board-door-pick .play-setup-seat-deck-add {
+  border-color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.play-board-door-pick .play-setup-seat-deck-add:focus-visible {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: #fff;
+  color: #fff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .play-board-door-pick .play-setup-seat-deck-add:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: #fff;
+    color: #fff;
+  }
+}
+
+.play-board-door-pick .play-setup-seat-deck-clear {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.play-board-door-cta {
+  white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+  .play-board-door-cta {
+    min-height: 44px;
+  }
 }
 
 .game-menu-backdrop {
