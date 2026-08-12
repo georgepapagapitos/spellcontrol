@@ -273,6 +273,13 @@
   color: var(--text-secondary);
 }
 
+/* The card name in "file X in Binder p.4" — the word you scan for while
+   holding the pile, so it lifts out of the otherwise muted line. */
+.trade-offer-filed-card {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
 .trade-offer-actions {
   display: flex;
   flex-wrap: wrap;

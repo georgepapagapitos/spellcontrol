@@ -24,6 +24,7 @@ import {
   type OwnedTradeLine,
 } from '../../lib/trade-picker';
 import { settleTrade } from '../../lib/use-trade-settlement';
+import { buildCardLocationIndex, type CardLocation } from '../../lib/card-locations';
 import { TradeAcceptDialog, type AcceptChoice } from './TradeAcceptDialog';
 
 const STATUS_LABEL: Record<TradeOffer['status'], string> = {
@@ -62,6 +63,7 @@ export function TradeOfferList({ offers, onChanged, onCounter, linkCounterparty,
   // Grouped ONCE for the whole list rather than per card: a real collection is
   // ~11.5k rows, and every offer in a group asks the same question of it.
   const cards = useCollectionStore((s) => s.cards);
+  const binderDefs = useCollectionStore((s) => s.binders);
   const ownedByKey = useMemo(() => {
     const map = new Map<string, OwnedTradeLine>();
     for (const line of groupOwnedForTrade(cards)) {
@@ -69,6 +71,24 @@ export function TradeOfferList({ offers, onChanged, onCounter, linkCounterparty,
     }
     return map;
   }, [cards]);
+
+  /**
+   * Where a settled trade's incoming cards ended up, so a row can say which
+   * binder and page to file them in.
+   *
+   * "Settled — your collection is up to date" was true and useless: this app's
+   * whole premise is PHYSICAL binders, and the thing you actually do after a
+   * trade is put a handful of cards away. Binder routing already placed them
+   * the moment settlement added them; this reads the answer back out.
+   *
+   * Built only when an offer in this list can use it — it materializes the
+   * whole collection, which a list of unsettled offers must not pay for.
+   */
+  const locations = useMemo(() => {
+    const needed = offers.some((o) => o.status === 'accepted' && o.settled && o.receive.length > 0);
+    // No binders defined → nothing to file into, and the note falls back.
+    return needed && binderDefs?.length ? buildCardLocationIndex(cards, binderDefs) : null;
+  }, [offers, cards, binderDefs]);
 
   if (offers.length === 0) {
     return (
@@ -91,6 +111,7 @@ export function TradeOfferList({ offers, onChanged, onCounter, linkCounterparty,
             onCounter={onCounter}
             linkCounterparty={linkCounterparty}
             ownedByKey={ownedByKey}
+            locations={locations}
           />
         </li>
       ))}
@@ -104,12 +125,15 @@ function TradeOfferCard({
   onCounter,
   linkCounterparty,
   ownedByKey,
+  locations,
 }: {
   offer: TradeOffer;
   onChanged: () => void;
   onCounter?: (offer: TradeOffer) => void;
   linkCounterparty?: boolean;
   ownedByKey: Map<string, OwnedTradeLine>;
+  /** Oracle id → binder + page, built once per list; null when no row needs it. */
+  locations: Map<string, CardLocation> | null;
 }) {
   const [busy, setBusy] = useState(false);
   // Non-null while the viewer is choosing which copies to hand over.
@@ -249,9 +273,7 @@ function TradeOfferCard({
         </p>
       )}
       {offer.status === 'accepted' && offer.settled && (
-        <p className="trade-offer-settled" role="status">
-          Settled — your collection is up to date.
-        </p>
+        <SettledNote cards={offer.receive} locations={locations} />
       )}
 
       {(canAnswer || canWithdraw) && (
@@ -312,6 +334,60 @@ function TradeOfferCard({
         />
       )}
     </article>
+  );
+}
+
+/**
+ * What a settled trade leaves you to do.
+ *
+ * The cards are already in the collection — the useful remaining fact is which
+ * binder and page each one goes in, which is the difference between "your data
+ * is updated" and "here is what to do with the pile in your hand". Binder
+ * routing placed them at settlement; this reads that back.
+ *
+ * Falls back to the plain confirmation whenever routing has no answer — no
+ * binders defined, or every incoming card landed uncategorized. Saying nothing
+ * would leave the row with no settled state at all.
+ */
+function SettledNote({
+  cards,
+  locations,
+}: {
+  cards: TradeCard[];
+  locations: Map<string, CardLocation> | null;
+}) {
+  const filed = locations
+    ? cards
+        .map((card) => ({ card, where: card.oracleId ? locations.get(card.oracleId) : undefined }))
+        .filter((row): row is { card: TradeCard; where: CardLocation } => row.where !== undefined)
+    : [];
+
+  if (filed.length === 0) {
+    return (
+      <p className="trade-offer-settled" role="status">
+        Settled — your collection is up to date.
+      </p>
+    );
+  }
+
+  // A trade is usually a handful of cards, but the wire shape allows 40 lines
+  // a side — named in full that is a paragraph, not a note.
+  const NAMED = 3;
+  const shown = filed.slice(0, NAMED);
+  const rest = filed.length - shown.length;
+
+  return (
+    <p className="trade-offer-settled" role="status">
+      Settled — file{' '}
+      {shown.map(({ card, where }, i) => (
+        <span key={card.oracleId || card.name}>
+          {i > 0 && ', '}
+          <strong className="trade-offer-filed-card">{card.name}</strong> in {where.binderName} p.
+          {where.pageNum}
+        </span>
+      ))}
+      {rest > 0 && `, and ${rest} more`}.
+    </p>
   );
 }
 

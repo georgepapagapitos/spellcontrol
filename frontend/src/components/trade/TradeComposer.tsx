@@ -1,5 +1,5 @@
 import './TradeComposer.css';
-import { useId, useMemo, useState } from 'react';
+import { useId, useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown, Minus, Plus, X } from 'lucide-react';
 import { Modal } from '../Modal';
 import { SearchPill } from '../SearchPill';
@@ -11,9 +11,11 @@ import { toast } from '../../store/toasts';
 import { formatMoney } from '../../lib/format-money';
 import { PrintingChoices, describePrinting } from './PrintingChoices';
 import { useBinderByCopyId, type BinderRef } from '../../lib/use-binder-by-copy';
+import { useAllocations, computeSurplusByName } from '../../lib/allocations';
 import {
   groupOwnedForTrade,
   filterOwnedLines,
+  filterToSurplus,
   copiesByValue,
   groupByPrinting,
   toTradeCardFromCopies,
@@ -92,6 +94,7 @@ export function TradeComposer({
   // Once for the whole composer — every expanded printing row asks the same
   // question of the same collection.
   const binderByCopyId = useBinderByCopyId();
+  const allocations = useAllocations();
 
   const ownedLines = useMemo(() => groupOwnedForTrade(cards), [cards]);
   const ownedByKey = useMemo(() => {
@@ -111,6 +114,7 @@ export function TradeComposer({
     initialWant ? { [keyOf(initialWant)]: 1 } : {}
   );
   const [giveQuery, setGiveQuery] = useState('');
+  const [spareOnly, setSpareOnly] = useState(false);
   const [wantQuery, setWantQuery] = useState('');
   const [note, setNote] = useState('');
   const [sending, setSending] = useState(false);
@@ -124,10 +128,25 @@ export function TradeComposer({
     return map;
   }, [initialWant]);
 
-  const giveResults = useMemo(
-    () => filterOwnedLines(ownedLines, giveQuery).slice(0, PICKER_LIMIT),
-    [ownedLines, giveQuery]
+  // Copies bound to no deck and no cube, beyond the one kept copy, basics
+  // excluded — the collection's own "Tradeable surplus" definition, which had
+  // never reached the one screen where "what can I safely offer?" is the
+  // whole question. Complements the per-printing deck/binder badges: those
+  // warn that a copy is committed, this narrows the list to ones that aren't.
+  const surplusByName = useMemo(
+    () => computeSurplusByName(cards, allocations),
+    [cards, allocations]
   );
+
+  const giveWantsTags = /\b(otag|oracletag|function)[:=]/i.test(giveQuery);
+  const giveTagsReady = useCardTagsReady(giveWantsTags);
+  const giveResults = useMemo(() => {
+    const pool = spareOnly ? filterToSurplus(ownedLines, surplusByName) : ownedLines;
+    return filterOwnedLines(pool, giveQuery, giveTagsReady ? getCardTags : undefined).slice(
+      0,
+      PICKER_LIMIT
+    );
+  }, [ownedLines, giveQuery, giveTagsReady, spareOnly, surplusByName]);
 
   // E237: the want side used to be a bare name substring while the friend
   // BROWSER beside it already had colour chips — the composer was the weaker
@@ -322,6 +341,19 @@ export function TradeComposer({
             })}
             onSetPrinting={setPrintingCount}
             binderByCopyId={binderByCopyId}
+            filterSlot={
+              surplusByName.size > 0 && (
+                <button
+                  type="button"
+                  className={spareOnly ? 'trade-spare-toggle is-on' : 'trade-spare-toggle'}
+                  aria-pressed={spareOnly}
+                  onClick={() => setSpareOnly((v) => !v)}
+                >
+                  Spare copies
+                  <span className="trade-spare-count">{surplusByName.size}</span>
+                </button>
+              )
+            }
             onRemove={removeGive}
             results={giveResults.map((line) => ({
               key: keyOf(line),
@@ -339,7 +371,9 @@ export function TradeComposer({
             emptyResults={
               ownedLines.length === 0
                 ? 'Your collection is empty — import or add cards first.'
-                : 'No cards match that search.'
+                : spareOnly
+                  ? 'No spare copies match that search. Turn off “Spare copies” to offer one that’s in a deck.'
+                  : 'No cards match that search.'
             }
           />
 
@@ -465,6 +499,7 @@ function TradeSide({
   onBump,
   onSetPrinting,
   binderByCopyId,
+  filterSlot,
   onRemove,
   onPick,
   results,
@@ -486,6 +521,10 @@ function TradeSide({
   onSetPrinting?: (key: string, printingKey: string, count: number) => void;
   /** Give side only — where each owned copy currently lives. */
   binderByCopyId?: Map<string, BinderRef[]>;
+  /** Optional control rendered beside the search pill — the give side's
+   *  "Spare copies" narrowing. Absent on the ask side, which has no notion of
+   *  what a friend can spare. */
+  filterSlot?: ReactNode;
   onRemove: (key: string) => void;
   onPick: (key: string) => void;
   results: SideRow[];
@@ -529,6 +568,8 @@ function TradeSide({
         ariaLabel={searchLabel}
         className="trade-side-search"
       />
+
+      {filterSlot && <div className="trade-side-filters">{filterSlot}</div>}
 
       {searchNote && (
         <p className="trade-side-note" role="status">
