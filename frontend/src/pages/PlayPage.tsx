@@ -22,7 +22,8 @@ import { FriendsLeaderboard } from '../components/play/FriendsLeaderboard';
 import { GameNightsTab, pendingInviteCount, useGameNights } from '../components/play/GameNights';
 import { aggregateMatchupRecords } from '../lib/matchup-records';
 import { FORMAT_OPTIONS, MAX_LOCAL_PLAYERS, MIN_LOCAL_PLAYERS } from '../lib/game-formats';
-import type { GameFormat, GamePlayer, GameRecord } from '../lib/game-state';
+import type { GameAction, GameFormat, GamePlayer, GameRecord, GameState } from '../lib/game-state';
+import type { PublicBoard } from '../lib/playtest/projection';
 
 type Tab = 'local' | 'online' | 'nights' | 'history';
 
@@ -35,6 +36,7 @@ export function PlayPage() {
 
   const local = usePlayStore((s) => s.local);
   const online = usePlayStore((s) => s.online);
+  const onlineBoards = usePlayStore((s) => s.onlineBoards);
   const history = usePlayStore((s) => s.history);
   const onlineError = usePlayStore((s) => s.onlineError);
   const boardVisible = usePlayStore((s) => s.boardVisible);
@@ -189,28 +191,37 @@ export function PlayPage() {
               }}
               errorMessage={onlineError}
               banner={
-                /* UX-323: only show the join-code banner while the game is still
-                   in lobby/waiting. Once the game is active or finished, the
-                   code has served its purpose and the banner occludes counter
-                   chips. The code remains visible inside the GameMenu sheet —
-                   which is also where it goes when the host dismisses it here. */
-                online.status === 'lobby' && codeHiddenFor !== online.code ? (
-                  <div className="play-code-banner">
-                    <span className="play-code-label">Join code</span>
-                    <span className="play-code-value">{online.code}</span>
-                    <span className="play-code-hint">
-                      Players go to Play → Online → Join, then enter this code.
-                    </span>
-                    <button
-                      type="button"
-                      className="play-code-dismiss"
-                      aria-label="Hide join code — it stays in the game menu"
-                      onClick={() => setCodeHiddenFor(online.code)}
-                    >
-                      <X width={16} height={16} strokeWidth={2} aria-hidden />
-                    </button>
-                  </div>
-                ) : undefined
+                <>
+                  {/* UX-323: only show the join-code banner while the game is still
+                      in lobby/waiting. Once the game is active or finished, the
+                      code has served its purpose and the banner occludes counter
+                      chips. The code remains visible inside the GameMenu sheet —
+                      which is also where it goes when the host dismisses it here. */}
+                  {online.status === 'lobby' && codeHiddenFor !== online.code && (
+                    <div className="play-code-banner">
+                      <span className="play-code-label">Join code</span>
+                      <span className="play-code-value">{online.code}</span>
+                      <span className="play-code-hint">
+                        Players go to Play → Online → Join, then enter this code.
+                      </span>
+                      <button
+                        type="button"
+                        className="play-code-dismiss"
+                        aria-label="Hide join code — it stays in the game menu"
+                        onClick={() => setCodeHiddenFor(online.code)}
+                      >
+                        <X width={16} height={16} strokeWidth={2} aria-hidden />
+                      </button>
+                    </div>
+                  )}
+                  <OnlineBoardDoor
+                    game={online}
+                    decks={decks}
+                    userId={user?.id ?? null}
+                    onlineBoards={onlineBoards}
+                    dispatchOnline={dispatchOnline}
+                  />
+                </>
               }
             />
           ) : isGuest ? (
@@ -920,6 +931,112 @@ function OnlineSetup({
         </form>
       )}
     </div>
+  );
+}
+
+// ── Open-your-board door ────────────────────────────────────────────────────
+
+/**
+ * The missing link between the online life-counter (this page) and the
+ * card-table playtest view (`/decks/:id/playtest`) — the two are otherwise
+ * connected only by `useOnlineTable`'s derived seam, with nothing on this
+ * page ever mentioning that a board exists. Renders inside `GameBoard`'s
+ * banner slot, so it's visible in the lobby (pre-start) and mid-game alike,
+ * and survives a tab close/reopen exactly like the board itself does.
+ *
+ * `onlineBoards` is keyed by seat and includes the VIEWER's own seat once
+ * their board has published — the server fans a published board out to
+ * every subscriber for the code, including the publisher's own connection
+ * (see `broadcastBoard` in backend/src/routes/games.ts). So counting "how
+ * many boards are open" is a single pass over `onlineBoards` with no
+ * separate +1 for "me" — adding one would double-count once this seat's
+ * board is open.
+ */
+function OnlineBoardDoor({
+  game,
+  decks,
+  userId,
+  onlineBoards,
+  dispatchOnline,
+}: {
+  game: GameState;
+  decks: Deck[];
+  userId: string | null;
+  onlineBoards: Record<number, PublicBoard>;
+  dispatchOnline: (action: GameAction) => Promise<void>;
+}) {
+  const mine = userId != null ? (game.players.find((p) => p.userId === userId) ?? null) : null;
+  // No seat (spectating, or this device's user doesn't hold one in this
+  // session) — there is no "your board" to open, so there is no door.
+  if (!mine) return null;
+
+  const total = game.players.length;
+  const openCount = game.players.filter((p) => onlineBoards[p.seat] != null).length;
+  const myBoardOpen = onlineBoards[mine.seat] != null;
+  // The moment the door matters most: the game is live and this seat is the
+  // one everyone else is waiting on. Once the board is open, recede — don't
+  // keep shouting at someone already playing.
+  const urgent = game.status === 'active' && !myBoardOpen;
+
+  return (
+    <section
+      className={`play-board-door ${urgent ? 'is-urgent' : ''} ${myBoardOpen ? 'is-receded' : ''}`}
+      aria-label="Your board"
+    >
+      <div className="play-board-door-summary">
+        <span className="play-board-door-count">
+          {openCount} of {total} board{total === 1 ? '' : 's'} open
+        </span>
+        <ul className="play-board-door-seats">
+          {game.players.map((p) => {
+            const open = onlineBoards[p.seat] != null;
+            const label = p.userId === userId ? 'You' : p.name;
+            return (
+              <li
+                key={p.seat}
+                className={`play-board-door-seat ${open ? 'is-open' : ''}`}
+                aria-label={`${label} — ${open ? 'board open' : 'no board yet'}`}
+              >
+                <span className="play-board-door-seat-dot" aria-hidden="true" />
+                <span aria-hidden="true">{label}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      {!mine.deckId ? (
+        <div className="play-board-door-pick">
+          <span className="play-board-door-hint">Pick a deck to open your board</span>
+          <SeatDeck
+            decks={decks}
+            value={mine.deckId}
+            deckName={mine.deckName}
+            onChange={(deck) => {
+              if (!deck) return;
+              void dispatchOnline({
+                type: 'update-player',
+                seat: mine.seat,
+                patch: {
+                  deckId: deck.id,
+                  deckName: deck.name,
+                  commander: deck.commander?.name ?? null,
+                  partner: deck.partnerCommander?.name ?? null,
+                  colorIdentity: deck.commander?.color_identity ?? [],
+                },
+              });
+            }}
+          />
+        </div>
+      ) : (
+        <Link
+          to={`/decks/${mine.deckId}/playtest`}
+          className={`btn play-board-door-cta ${urgent ? 'btn-primary' : ''}`}
+        >
+          {myBoardOpen ? 'Back to your board' : 'Open your board'}
+        </Link>
+      )}
+    </section>
   );
 }
 
