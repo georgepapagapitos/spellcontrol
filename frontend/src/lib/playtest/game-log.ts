@@ -10,6 +10,7 @@
 
 import { MANA_COLOR_LABEL } from './types';
 import type { PlaytestAction, PlaytestCard, PlaytestState, Zone } from './types';
+import { classifyAction, type RewindVerdict } from './rewind';
 
 export type LogEntryKind =
   | 'turn'
@@ -39,6 +40,13 @@ export interface GameLogEntry {
   kind: LogEntryKind;
   text: string;
   cardName?: string;
+  /** Rewind classification (see rewind.ts), computed from the action and the
+   *  state immediately before it at the moment this entry was built. Optional
+   *  for back-compat — same pattern as `BattlefieldCard.phased` and the
+   *  snapshot life fields: a log entry persisted before this field existed
+   *  loads with it simply absent, and `walkRewindable` treats a missing
+   *  verdict as a conservative `locked` wall rather than assuming it's safe. */
+  verdict?: RewindVerdict;
 }
 
 /** Oldest entries drop first once the log exceeds this many. */
@@ -81,6 +89,20 @@ function locate(
  * this undo actually pop anything") the reducer snapshots alone don't carry.
  */
 export function buildLogEntries(
+  current: PlaytestState,
+  action: PlaytestAction,
+  next: PlaytestState
+): Array<Omit<GameLogEntry, 'seq'>> {
+  const entries = buildRawLogEntries(current, action, next);
+  if (entries.length === 0) return entries;
+  // classifyAction only needs the action + the state right before it, which
+  // is exactly what's in scope here — the one place downstream code (the
+  // `past` undo stack stores states, not actions) can no longer recover it.
+  const { verdict } = classifyAction(current, action);
+  return entries.map((e) => ({ ...e, verdict }));
+}
+
+function buildRawLogEntries(
   current: PlaytestState,
   action: PlaytestAction,
   next: PlaytestState
