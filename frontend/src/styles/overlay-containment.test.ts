@@ -179,6 +179,13 @@ describe('coarse-pointer touch floor', () => {
     // is the VERTICAL axis only, and a 28px box stays a 28px target sideways.
     // Measured — without this a probe 18px right of `+` resolves to the row.
     ['components/trade/PrintingChoices.css', '.printing-choice-step::after'],
+    // The give side's "Spare copies" narrowing — alone on its own line, so it
+    // takes the floor on its real box rather than a ghost.
+    ['components/trade/TradeComposer.css', '.trade-spare-toggle'],
+    // Offer chips are buttons now (they open the card-preview carousel) and
+    // they WRAP in a flex row, so they take the floor on their real box — a
+    // ghost would overlap the neighbouring chip and open the wrong card.
+    ['components/trade/TradeOfferList.css', '.trade-offer-chip'],
     // Its confirm/cancel pair settles a collection, so they take the floor on
     // their real boxes rather than a ghost — `.btn` is 32-36px by default.
     ['components/trade/TradeAcceptDialog.css', '.trade-accept-actions .btn'],

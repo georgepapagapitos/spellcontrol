@@ -1,3 +1,4 @@
+import { buildCollectionSearch } from './deck-add-search';
 import type { EnrichedCard } from '../types';
 import type { TradeCard, TradeCopy } from './trades-client';
 
@@ -48,13 +49,60 @@ export function groupOwnedForTrade(cards: EnrichedCard[]): OwnedTradeLine[] {
   return [...byKey.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Filters grouped lines by a free-text name query. Case- and accent-naive on
- *  purpose — it matches the plain substring behaviour of the collection search
- *  the user just came from. */
-export function filterOwnedLines(lines: OwnedTradeLine[], query: string): OwnedTradeLine[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return lines;
-  return lines.filter((l) => l.name.toLowerCase().includes(q));
+/**
+ * Filters grouped lines by the SAME query engine the deck editor's add-cards
+ * panel uses — full Scryfall syntax (`t:`, `c:`, `cmc<=2`, `r:`, `otag:`, `-`,
+ * `OR`) plus plain-text name-and-oracle-text search.
+ *
+ * This was a bare `name.includes(q)` substring, which left the composer with
+ * the app's *weakest* search pointed at its *largest* haystack: a real
+ * collection is ~11.5k cards, and the ask side beside it already ran the full
+ * syntax against a friend's few hundred. Same engine both sides now.
+ *
+ * Name hits rank ahead of oracle-text hits (the add panel's `default` sort),
+ * which matters because the caller caps the list — without it, typing "sol"
+ * could fill the cap with cards whose rules text says "solve" before reaching
+ * Sol Ring. `tagsFor` is the oracle-tag lookup; without it `otag:` clauses
+ * degrade to match-anything rather than zeroing the results.
+ */
+export function filterOwnedLines(
+  lines: OwnedTradeLine[],
+  query: string,
+  tagsFor?: (name: string) => string[]
+): OwnedTradeLine[] {
+  const search = buildCollectionSearch(query, tagsFor);
+  if (search.kind === 'empty') return lines;
+
+  const hits: { line: OwnedTradeLine; nameHit: boolean }[] = [];
+  for (const line of lines) {
+    // Every copy on a line is the same oracle card, so any one of them answers
+    // the query; per-copy fields (finish, condition) are not searchable here.
+    const sample = line.copies[0];
+    if (!sample) continue;
+    const match = search.match(sample);
+    if (match.hit) hits.push({ line, nameHit: match.nameHit });
+  }
+  hits.sort(
+    (a, b) => Number(b.nameHit) - Number(a.nameHit) || a.line.name.localeCompare(b.line.name)
+  );
+  return hits.map((h) => h.line);
+}
+
+/**
+ * Lines the owner can part with without touching a deck or a cube — the
+ * "tradeable surplus" the collection filter already defines, applied to the
+ * give side.
+ *
+ * `surplusByName` comes from `computeSurplusByName`: unallocated copies beyond
+ * the one kept copy, basics excluded. It is the natural complement to the
+ * per-printing deck/binder badges — those warn that a copy is committed, this
+ * narrows the list to the ones that aren't.
+ */
+export function filterToSurplus(
+  lines: OwnedTradeLine[],
+  surplusByName: Map<string, number>
+): OwnedTradeLine[] {
+  return lines.filter((line) => surplusByName.has(line.name));
 }
 
 function toCopy(card: EnrichedCard): TradeCopy {

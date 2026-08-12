@@ -383,6 +383,66 @@
   }
 }
 
+/* ── Narrowing the give side ──────────────────────────────────────────────
+   "Spare copies" is the collection's own tradeable-surplus definition: copies
+   bound to no deck and no cube, past the one kept copy, basics excluded. An
+   aria-pressed RECT chip, not a pill — it ACTS on the list, and STYLE_GUIDE §
+   "Shape language — corners" reserves pills for non-actionable labels. */
+.trade-side-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.trade-spare-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 28px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.trade-spare-toggle.is-on {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.trade-spare-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.trade-spare-toggle.is-on .trade-spare-count {
+  color: var(--text-secondary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .trade-spare-toggle:hover {
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+  }
+}
+
+.trade-spare-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* It sits alone on its own line, so it takes the coarse floor on its REAL box
+   — nothing to crowd, and a ghost would overlap the results list below. */
+@media (pointer: coarse) {
+  .trade-spare-toggle {
+    min-height: 44px;
+  }
+}
+
 .trade-side-note {
   margin: 0;
   font-size: var(--text-sm);

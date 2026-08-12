@@ -24,6 +24,10 @@ import {
   type OwnedTradeLine,
 } from '../../lib/trade-picker';
 import { settleTrade } from '../../lib/use-trade-settlement';
+import { resolveTradePreview } from '../../lib/trade-preview';
+import { CardPreview } from '../CardPreview';
+import type { EnrichedCard } from '../../types';
+import { buildCardLocationIndex, type CardLocation } from '../../lib/card-locations';
 import { TradeAcceptDialog, type AcceptChoice } from './TradeAcceptDialog';
 
 const STATUS_LABEL: Record<TradeOffer['status'], string> = {
@@ -62,6 +66,7 @@ export function TradeOfferList({ offers, onChanged, onCounter, linkCounterparty,
   // Grouped ONCE for the whole list rather than per card: a real collection is
   // ~11.5k rows, and every offer in a group asks the same question of it.
   const cards = useCollectionStore((s) => s.cards);
+  const binderDefs = useCollectionStore((s) => s.binders);
   const ownedByKey = useMemo(() => {
     const map = new Map<string, OwnedTradeLine>();
     for (const line of groupOwnedForTrade(cards)) {
@@ -69,6 +74,24 @@ export function TradeOfferList({ offers, onChanged, onCounter, linkCounterparty,
     }
     return map;
   }, [cards]);
+
+  /**
+   * Where a settled trade's incoming cards ended up, so a row can say which
+   * binder and page to file them in.
+   *
+   * "Settled — your collection is up to date" was true and useless: this app's
+   * whole premise is PHYSICAL binders, and the thing you actually do after a
+   * trade is put a handful of cards away. Binder routing already placed them
+   * the moment settlement added them; this reads the answer back out.
+   *
+   * Built only when an offer in this list can use it — it materializes the
+   * whole collection, which a list of unsettled offers must not pay for.
+   */
+  const locations = useMemo(() => {
+    const needed = offers.some((o) => o.status === 'accepted' && o.settled && o.receive.length > 0);
+    // No binders defined → nothing to file into, and the note falls back.
+    return needed && binderDefs?.length ? buildCardLocationIndex(cards, binderDefs) : null;
+  }, [offers, cards, binderDefs]);
 
   if (offers.length === 0) {
     return (
@@ -91,6 +114,7 @@ export function TradeOfferList({ offers, onChanged, onCounter, linkCounterparty,
             onCounter={onCounter}
             linkCounterparty={linkCounterparty}
             ownedByKey={ownedByKey}
+            locations={locations}
           />
         </li>
       ))}
@@ -104,17 +128,42 @@ function TradeOfferCard({
   onCounter,
   linkCounterparty,
   ownedByKey,
+  locations,
 }: {
   offer: TradeOffer;
   onChanged: () => void;
   onCounter?: (offer: TradeOffer) => void;
   linkCounterparty?: boolean;
   ownedByKey: Map<string, OwnedTradeLine>;
+  /** Oracle id → binder + page, built once per list; null when no row needs it. */
+  locations: Map<string, CardLocation> | null;
 }) {
   const [busy, setBusy] = useState(false);
   // Non-null while the viewer is choosing which copies to hand over.
   const [choosing, setChoosing] = useState<AcceptChoice[] | null>(null);
+  // Non-null while the card-preview carousel is open over this offer.
+  const [preview, setPreview] = useState<{ cards: EnrichedCard[]; index: number } | null>(null);
   const headingId = useId();
+
+  /**
+   * Open the carousel on the tapped card, spanning the WHOLE offer — give side
+   * then get side, in reading order. A trade is one decision about a set of
+   * cards, so being able to swipe from what you're giving straight into what
+   * you're getting is the point; a per-chip single-card modal would make you
+   * close and re-open for every card in the deal.
+   */
+  async function inspect(card: TradeCard) {
+    const all = [...offer.give, ...offer.receive];
+    const { cards, indexOf } = await resolveTradePreview(all);
+    if (cards.length === 0) {
+      toast.show({ message: 'Couldn’t load these cards right now.', tone: 'warn' });
+      return;
+    }
+    // A card whose own lookup failed is not in the carousel; open at the
+    // nearest slide rather than refusing, so one bad card can't block the rest.
+    const at = indexOf(card);
+    setPreview({ cards, index: at >= 0 ? at : 0 });
+  }
 
   const who = offer.counterpartyDisplayName || `@${offer.counterpartyUsername}`;
   const canAnswer = offer.status === 'proposed' && !offer.mine;
@@ -236,9 +285,9 @@ function TradeOfferCard({
       </header>
 
       <div className="trade-offer-sides">
-        <TradeOfferSide label="You give" cards={offer.give} />
+        <TradeOfferSide label="You give" cards={offer.give} onInspect={inspect} />
         <ArrowRight className="trade-offer-arrow" width={18} height={18} aria-label="for" />
-        <TradeOfferSide label="You get" cards={offer.receive} />
+        <TradeOfferSide label="You get" cards={offer.receive} onInspect={inspect} />
       </div>
 
       {offer.note && <p className="trade-offer-note">“{offer.note}”</p>}
@@ -249,9 +298,7 @@ function TradeOfferCard({
         </p>
       )}
       {offer.status === 'accepted' && offer.settled && (
-        <p className="trade-offer-settled" role="status">
-          Settled — your collection is up to date.
-        </p>
+        <SettledNote cards={offer.receive} locations={locations} />
       )}
 
       {(canAnswer || canWithdraw) && (
@@ -302,6 +349,24 @@ function TradeOfferCard({
         </div>
       )}
 
+      {preview && (
+        // `source="search"` is the established shape for cards the viewer does
+        // not own a row for — no binder, no page, no section (see
+        // InlineCardSearch). An offer's cards are exactly that: the ask side
+        // isn't owned at all, and the give side is about to stop being.
+        <CardPreview
+          source="search"
+          cards={preview.cards}
+          index={preview.index}
+          binderName=""
+          sectionLabels={[]}
+          pageNumbers={[]}
+          totalPages={0}
+          onIndexChange={(i) => setPreview((p) => (p ? { ...p, index: i } : p))}
+          onClose={() => setPreview(null)}
+        />
+      )}
+
       {choosing && (
         <TradeAcceptDialog
           counterpartyName={who}
@@ -312,6 +377,60 @@ function TradeOfferCard({
         />
       )}
     </article>
+  );
+}
+
+/**
+ * What a settled trade leaves you to do.
+ *
+ * The cards are already in the collection — the useful remaining fact is which
+ * binder and page each one goes in, which is the difference between "your data
+ * is updated" and "here is what to do with the pile in your hand". Binder
+ * routing placed them at settlement; this reads that back.
+ *
+ * Falls back to the plain confirmation whenever routing has no answer — no
+ * binders defined, or every incoming card landed uncategorized. Saying nothing
+ * would leave the row with no settled state at all.
+ */
+function SettledNote({
+  cards,
+  locations,
+}: {
+  cards: TradeCard[];
+  locations: Map<string, CardLocation> | null;
+}) {
+  const filed = locations
+    ? cards
+        .map((card) => ({ card, where: card.oracleId ? locations.get(card.oracleId) : undefined }))
+        .filter((row): row is { card: TradeCard; where: CardLocation } => row.where !== undefined)
+    : [];
+
+  if (filed.length === 0) {
+    return (
+      <p className="trade-offer-settled" role="status">
+        Settled — your collection is up to date.
+      </p>
+    );
+  }
+
+  // A trade is usually a handful of cards, but the wire shape allows 40 lines
+  // a side — named in full that is a paragraph, not a note.
+  const NAMED = 3;
+  const shown = filed.slice(0, NAMED);
+  const rest = filed.length - shown.length;
+
+  return (
+    <p className="trade-offer-settled" role="status">
+      Settled — file{' '}
+      {shown.map(({ card, where }, i) => (
+        <span key={card.oracleId || card.name}>
+          {i > 0 && ', '}
+          <strong className="trade-offer-filed-card">{card.name}</strong> in {where.binderName} p.
+          {where.pageNum}
+        </span>
+      ))}
+      {rest > 0 && `, and ${rest} more`}.
+    </p>
   );
 }
 
@@ -371,7 +490,15 @@ function useSideValue(cards: TradeCard[]): string {
   return `from ${formatMoney(exact + floor)}${anyUnknown ? ' +?' : ''}`;
 }
 
-function TradeOfferSide({ label, cards }: { label: string; cards: TradeCard[] }) {
+function TradeOfferSide({
+  label,
+  cards,
+  onInspect,
+}: {
+  label: string;
+  cards: TradeCard[];
+  onInspect: (card: TradeCard) => void;
+}) {
   const headingId = useId();
   const value = useSideValue(cards);
   return (
@@ -387,14 +514,25 @@ function TradeOfferSide({ label, cards }: { label: string; cards: TradeCard[] })
       ) : (
         <ul className="trade-offer-side-cards" aria-labelledby={headingId}>
           {cards.map((card) => (
-            <li key={card.oracleId || card.name} className="trade-offer-chip">
-              <OfferChipThumb name={card.name} />
-              <span className="trade-offer-chip-name" title={card.name}>
-                {card.name}
-                {card.quantity > 1 && (
-                  <span className="trade-offer-chip-qty"> ×{card.quantity}</span>
-                )}
-              </span>
+            <li key={card.oracleId || card.name}>
+              {/* A chip is a card, and every other card in the app opens the
+                  preview carousel when you tap it. This was the one that
+                  didn't — you could read a name and a 20px thumbnail and had
+                  no way to actually LOOK at what you were being offered. */}
+              <button
+                type="button"
+                className="trade-offer-chip"
+                onClick={() => onInspect(card)}
+                aria-label={`Preview ${card.name}`}
+              >
+                <OfferChipThumb name={card.name} />
+                <span className="trade-offer-chip-name" title={card.name}>
+                  {card.name}
+                  {card.quantity > 1 && (
+                    <span className="trade-offer-chip-qty"> ×{card.quantity}</span>
+                  )}
+                </span>
+              </button>
             </li>
           ))}
         </ul>

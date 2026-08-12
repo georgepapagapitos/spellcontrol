@@ -218,6 +218,8 @@
    while the art's square top-left corner sits at ~3px — the corner poked
    visibly outside the border. Card art stays rect (line 369 of the guide), and
    so does anything shaped around it. */
+/* It is a <button> now: tapping it opens the card-preview carousel over the
+   whole offer, the same way every other card in the app opens. */
 .trade-offer-chip {
   display: inline-flex;
   align-items: center;
@@ -227,6 +229,33 @@
   border-radius: var(--radius);
   background: var(--surface);
   max-width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .trade-offer-chip:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-raised);
+  }
+}
+
+.trade-offer-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Coarse-pointer floor on its REAL box: chips wrap in a flex row, so a 44px
+   ghost would overlap the neighbouring chip and steal its taps — the exact
+   horizontal-crowding failure the composer's stepper row hit. The chip is
+   ~28px tall by its 20px thumb, so this grows the row a little; that is the
+   cheaper half of the trade against tapping the wrong card. */
+@media (pointer: coarse) {
+  .trade-offer-chip {
+    min-height: 44px;
+  }
 }
 
 /* Self-contained for the same reason as .trade-thumb — see TradeComposer.css.
@@ -271,6 +300,13 @@
   margin: 0;
   font-size: var(--text-sm);
   color: var(--text-secondary);
+}
+
+/* The card name in "file X in Binder p.4" — the word you scan for while
+   holding the pile, so it lifts out of the otherwise muted line. */
+.trade-offer-filed-card {
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 .trade-offer-actions {

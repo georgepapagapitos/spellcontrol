@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   groupOwnedForTrade,
   filterOwnedLines,
+  filterToSurplus,
   toTradeCard,
   toRequestedCard,
   copiesByValue,
@@ -79,6 +80,60 @@ describe('filterOwnedLines', () => {
 
   it('returns everything for a blank query', () => {
     expect(filterOwnedLines(lines, '   ')).toHaveLength(2);
+  });
+
+  // The give side runs the SAME engine as the deck editor's add panel. It used
+  // to be a bare name substring — the app's weakest search pointed at its
+  // largest haystack, while the ask side beside it already had full syntax.
+  it('answers Scryfall-style type clauses', () => {
+    const typed = groupOwnedForTrade([
+      owned({ copyId: 'a', name: 'Sol Ring', oracleId: 'o-sol', typeLine: 'Artifact' }),
+      owned({ copyId: 'b', name: 'Counterspell', oracleId: 'o-cs', typeLine: 'Instant' }),
+    ]);
+    expect(filterOwnedLines(typed, 't:instant').map((l) => l.name)).toEqual(['Counterspell']);
+  });
+
+  it('answers numeric and negation clauses', () => {
+    const curve = groupOwnedForTrade([
+      owned({ copyId: 'a', name: 'Cheap', oracleId: 'o-a', cmc: 1 }),
+      owned({ copyId: 'b', name: 'Pricey', oracleId: 'o-b', cmc: 6 }),
+    ]);
+    expect(filterOwnedLines(curve, 'cmc<=2').map((l) => l.name)).toEqual(['Cheap']);
+    expect(filterOwnedLines(curve, '-cmc<=2').map((l) => l.name)).toEqual(['Pricey']);
+  });
+
+  it('finds a card by its rules text, ranking name hits first', () => {
+    const texty = groupOwnedForTrade([
+      owned({ copyId: 'a', name: 'Divination', oracleId: 'o-div', oracleText: 'Draw two cards.' }),
+      owned({ copyId: 'b', name: 'Drawn from Dreams', oracleId: 'o-dfd', oracleText: 'Search…' }),
+    ]);
+    // Both match "draw" — one by name, one by rules text. The name hit leads,
+    // which matters because the caller caps the list at PICKER_LIMIT.
+    expect(filterOwnedLines(texty, 'draw').map((l) => l.name)).toEqual([
+      'Drawn from Dreams',
+      'Divination',
+    ]);
+  });
+
+  it('skips a line with no copies rather than throwing', () => {
+    expect(filterOwnedLines([{ oracleId: 'x', name: 'Ghost', copies: [] }], 'ghost')).toEqual([]);
+  });
+});
+
+describe('filterToSurplus', () => {
+  const lines = groupOwnedForTrade([
+    owned({ copyId: 'a', name: 'Sol Ring', oracleId: 'o-sol' }),
+    owned({ copyId: 'b', name: 'Arcane Signet', oracleId: 'o-sig' }),
+  ]);
+
+  it('keeps only lines the surplus map names', () => {
+    expect(filterToSurplus(lines, new Map([['Sol Ring', 2]])).map((l) => l.name)).toEqual([
+      'Sol Ring',
+    ]);
+  });
+
+  it('is empty when nothing is spare', () => {
+    expect(filterToSurplus(lines, new Map())).toEqual([]);
   });
 });
 
