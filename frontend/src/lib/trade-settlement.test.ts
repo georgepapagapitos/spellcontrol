@@ -205,6 +205,74 @@ describe('planSettlement', () => {
     expect(plan.remove).toEqual([{ copyId: 'legacy', name: 'Sol Ring' }]);
   });
 
+  it('spends the CHEAPEST copy when the exact printing is gone', () => {
+    // Degraded match: the pinned printing left the collection between propose
+    // and settle, so any copy of the card will do — and "any" must be the
+    // cheapest, not whichever sits first in collection order. Same ruling
+    // copiesByValue applies to every automatic pick (#1535).
+    const collection = [
+      owned({
+        copyId: 'beta',
+        name: 'Sol Ring',
+        oracleId: 'o-sol',
+        scryfallId: 'scry-beta',
+        purchasePrice: 500,
+      }),
+      owned({
+        copyId: 'cheap',
+        name: 'Sol Ring',
+        oracleId: 'o-sol',
+        scryfallId: 'scry-cmd',
+        purchasePrice: 2,
+      }),
+    ];
+    const plan = planSettlement(
+      [
+        line({
+          oracleId: 'o-sol',
+          name: 'Sol Ring',
+          copies: [{ scryfallId: 'scry-gone', finish: 'nonfoil' }],
+        }),
+      ],
+      [],
+      collection
+    );
+    expect(plan.remove).toEqual([{ copyId: 'cheap', name: 'Sol Ring' }]);
+  });
+
+  it('still prefers the exact printing over a cheaper different one', () => {
+    // The tie-break must never outrank the match itself: the copy that
+    // physically changed hands is the one that leaves, whatever it costs.
+    const collection = [
+      owned({
+        copyId: 'cheap-other',
+        name: 'Sol Ring',
+        oracleId: 'o-sol',
+        scryfallId: 'scry-cmd',
+        purchasePrice: 2,
+      }),
+      owned({
+        copyId: 'exact',
+        name: 'Sol Ring',
+        oracleId: 'o-sol',
+        scryfallId: 'scry-c21',
+        purchasePrice: 50,
+      }),
+    ];
+    const plan = planSettlement(
+      [
+        line({
+          oracleId: 'o-sol',
+          name: 'Sol Ring',
+          copies: [{ scryfallId: 'scry-c21', finish: 'nonfoil' }],
+        }),
+      ],
+      [],
+      collection
+    );
+    expect(plan.remove).toEqual([{ copyId: 'exact', name: 'Sol Ring' }]);
+  });
+
   it('handles an unresolved give line by spending any copy of the card', () => {
     const collection = [
       owned({ copyId: 'a', name: 'Sol Ring', oracleId: 'o-sol', scryfallId: 'scry-c21' }),

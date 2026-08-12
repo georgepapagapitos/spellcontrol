@@ -109,7 +109,18 @@ export function planSettlement(
       for (const candidate of owned) {
         if (claimed.has(candidate.copyId)) continue;
         const score = matchScore(candidate, card.oracleId, copy);
-        if (score > bestScore) {
+        if (score < 0) continue;
+        // Equal scores tie-break CHEAPEST first — the same ruling copiesByValue
+        // applies to every automatic pick. It only matters on a degraded match
+        // (the pinned printing is gone, any copy of the card will do), where
+        // collection order could silently hand over the most valuable printing;
+        // an exact match ties only with identical copies, where it's a no-op.
+        if (
+          score > bestScore ||
+          (score === bestScore &&
+            best !== null &&
+            (candidate.purchasePrice || 0) < (best.purchasePrice || 0))
+        ) {
           bestScore = score;
           best = candidate;
         }

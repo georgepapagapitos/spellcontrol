@@ -3,9 +3,11 @@ import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 import { toast } from '../store/toasts';
 import { getCardById } from './api';
+import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { logger } from './logger';
 import { planSettlement, describeSettlement } from './trade-settlement';
 import { listTrades, markTradeSettled, type TradeOffer } from './trades-client';
+import type { ScryfallCard } from '@/deck-builder/types';
 import type { Condition, Finish } from '../types';
 
 /**
@@ -37,6 +39,17 @@ function asCondition(raw: string | undefined): Condition | undefined {
 }
 
 /**
+ * Offers a settlement is currently being applied for, on this device.
+ *
+ * `settled` only guards the ADDITIVE half across *completed* runs — it is
+ * stamped after the local apply, so two overlapping calls for the same offer
+ * (the inline accept racing the focus sweep, or two sweeps) would both read
+ * "unsettled" and both add. The check-and-claim below is synchronous, so the
+ * second caller bails before its first await.
+ */
+const settling = new Set<string>();
+
+/**
  * Applies one accepted offer to the local collection, then records it.
  *
  * Returns false when nothing was applied because the offer was not in a
@@ -44,7 +57,16 @@ function asCondition(raw: string | undefined): Condition | undefined {
  */
 export async function settleTrade(offer: TradeOffer): Promise<boolean> {
   if (offer.status !== 'accepted' || offer.settled) return false;
+  if (settling.has(offer.id)) return false;
+  settling.add(offer.id);
+  try {
+    return await applySettlement(offer);
+  } finally {
+    settling.delete(offer.id);
+  }
+}
 
+async function applySettlement(offer: TradeOffer): Promise<boolean> {
   const store = useCollectionStore.getState();
   const plan = planSettlement(offer.give, offer.receive, store.cards);
 
@@ -59,20 +81,47 @@ export async function settleTrade(offer: TradeOffer): Promise<boolean> {
   // — the fat EnrichedCard row is what renders the collection offline and
   // preserves printing fidelity, so a thin placeholder is not an option.
   const unresolved: string[] = [];
+  const substituted: string[] = [];
+  const applied: typeof plan.add = [];
+  // Fetched lazily, once, only when a pinned printing fails to resolve.
+  let byName: Map<string, ScryfallCard> | null = null;
   for (const addition of plan.add) {
+    let card: ScryfallCard | null = null;
+    let exact = true;
     try {
-      const card = await getCardById(addition.copy.scryfallId);
-      if (!card) {
-        unresolved.push(addition.name);
-        continue;
+      card = await getCardById(addition.copy.scryfallId);
+    } catch (err) {
+      logger.warn('[trades] Could not resolve a traded printing:', err);
+    }
+    if (!card) {
+      // The pinned printing can stop resolving — a placeholder id, a printing
+      // Scryfall later merged away, a transient failure. A different printing
+      // of the right card beats losing the card from the collection entirely
+      // (the same ruling the preview carousel applies), so fall back by name
+      // and SAY so, rather than dropping a card the trade already promised.
+      if (byName === null) {
+        byName = await getCardsByNames(plan.add.map((a) => a.name)).catch((err) => {
+          logger.warn('[trades] By-name fallback failed:', err);
+          return new Map<string, ScryfallCard>();
+        });
       }
+      card = byName.get(addition.name) ?? null;
+      exact = false;
+    }
+    if (!card) {
+      unresolved.push(addition.name);
+      continue;
+    }
+    try {
       await useCollectionStore.getState().addCard(card, asFinish(addition.copy.finish), {
         quantity: 1,
         condition: asCondition(addition.copy.condition),
         language: addition.copy.language,
       });
+      applied.push(addition);
+      if (!exact) substituted.push(addition.name);
     } catch (err) {
-      logger.warn('[trades] Could not resolve a traded printing:', err);
+      logger.warn('[trades] Could not add a traded card:', err);
       unresolved.push(addition.name);
     }
   }
@@ -89,7 +138,9 @@ export async function settleTrade(offer: TradeOffer): Promise<boolean> {
 
   const who = offer.counterpartyDisplayName || `@${offer.counterpartyUsername}`;
   toast.show({
-    message: `Trade with ${who} settled — ${describeSettlement(plan)}`,
+    // Counts what actually landed, not what the plan hoped for — an unresolved
+    // card must not be announced as "in".
+    message: `Trade with ${who} settled — ${describeSettlement({ ...plan, add: applied })}`,
     tone: 'success',
   });
 
@@ -98,6 +149,12 @@ export async function settleTrade(offer: TradeOffer): Promise<boolean> {
       message: `You no longer had ${plan.short
         .map((s) => s.name)
         .join(', ')} — removed what was there.`,
+      tone: 'warn',
+    });
+  }
+  if (substituted.length > 0) {
+    toast.show({
+      message: `Added ${substituted.join(', ')} as a different printing — the exact one couldn’t be looked up.`,
       tone: 'warn',
     });
   }
@@ -136,12 +193,22 @@ export function useTradeSettlement(): void {
       if (running.current || cancelled) return;
       running.current = true;
       try {
-        const { offers } = await listTrades();
-        for (const offer of offers) {
+        // Re-list before EVERY settle rather than iterating one snapshot: a
+        // settle takes real time (one lookup per received copy), and another
+        // device can settle a later offer in that window — trusting the stale
+        // snapshot would re-apply its additive half. `attempted` bounds the
+        // loop when a settle couldn't be recorded server-side (that offer
+        // would otherwise list as unsettled forever).
+        const attempted = new Set<string>();
+        for (;;) {
           if (cancelled) break;
-          if (offer.status === 'accepted' && !offer.settled) {
-            await settleTrade(offer);
-          }
+          const { offers } = await listTrades();
+          const next = offers.find(
+            (o) => o.status === 'accepted' && !o.settled && !attempted.has(o.id)
+          );
+          if (!next) break;
+          attempted.add(next.id);
+          await settleTrade(next);
         }
       } catch (err) {
         // Offline or a transient failure — the next focus retries. Never
