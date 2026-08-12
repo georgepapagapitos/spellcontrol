@@ -3,6 +3,8 @@ import { joinClasses } from '@/lib/join-classes';
 import { useCardThumb } from '@/lib/card-thumbs';
 import { paletteForIndex } from '@/lib/seat-palette';
 import type { PublicBattlefieldCard, PublicBoard } from '@/lib/playtest/projection';
+import { DESIGNATIONS } from '../lib/designations';
+import { OpponentBoardModal } from './OpponentBoardModal';
 import './OpponentRail.css';
 
 export interface OpponentSeat {
@@ -26,12 +28,6 @@ interface OpponentRailProps {
   /** Seat currently holding the turn at the table, if known. */
   activeSeat?: number;
 }
-
-const DESIGNATIONS = [
-  { key: 'monarch', icon: '👑', label: 'Monarch' },
-  { key: 'initiative', icon: '🧭', label: 'Initiative' },
-  { key: 'citysBlessing', icon: '🏙️', label: "City's Blessing" },
-] as const;
 
 // A glance-density mini battlefield beyond this many permanents rolls the
 // rest into a "+N" chip — mirrors PlaytestCardFace's sticker-overflow cap.
@@ -81,6 +77,14 @@ export function OpponentRail({ opponents, activeSeat }: OpponentRailProps) {
     return () => mql.removeEventListener('change', update);
   }, []);
 
+  // Which seat's full board is open in the inspector, if any — the rail's
+  // "promotion" interaction (STYLE_GUIDE § Opponent rail). Kept by seat
+  // number, not a frozen board snapshot, so the modal re-renders with the
+  // opponent's live board as it changes (an opponent's board is exactly the
+  // thing you're inspecting *during* their turn).
+  const [inspecting, setInspecting] = useState<number | null>(null);
+  const inspectingOpp = opponents.find((o) => o.board.seat === inspecting) ?? null;
+
   if (opponents.length === 0) return null;
 
   return (
@@ -97,9 +101,17 @@ export function OpponentRail({ opponents, activeSeat }: OpponentRailProps) {
             opp={opp}
             glance={isGlance}
             active={opp.board.seat === activeSeat}
+            onOpen={() => setInspecting(opp.board.seat)}
           />
         ))}
       </ul>
+      {inspectingOpp && (
+        <OpponentBoardModal
+          opp={inspectingOpp}
+          active={inspectingOpp.board.seat === activeSeat}
+          onClose={() => setInspecting(null)}
+        />
+      )}
     </div>
   );
 }
@@ -108,10 +120,12 @@ function OpponentEntry({
   opp,
   glance,
   active,
+  onOpen,
 }: {
   opp: OpponentSeat;
   glance: boolean;
   active: boolean;
+  onOpen: () => void;
 }) {
   const { name, board, pending } = opp;
   const palette = paletteForIndex(board.seat);
@@ -137,52 +151,64 @@ function OpponentEntry({
   return (
     <li
       className={joinClasses('opponent-entry', active && 'is-active-turn')}
-      aria-current={active ? 'true' : undefined}
-      aria-label={ariaLabel}
       style={{
         ['--opp-base' as never]: palette.base,
         ['--opp-edge' as never]: palette.edge,
       }}
     >
-      <div className="opponent-entry__head">
-        <span className="opponent-entry__dot" aria-hidden="true" />
-        <span className="opponent-entry__name" aria-hidden="true">
-          {name}
-        </span>
-        {active && (
-          <span className="opponent-entry__turn-chip" aria-hidden="true">
-            Turn
+      {/* The whole entry is the tap target for the full-board inspector
+          (STYLE_GUIDE § Opponent rail's "promotion" interaction) — a real
+          button, not a div faking one, so it's keyboard-reachable and
+          announces as a dialog trigger. `aria-current` moves here too:
+          it's the interactive element that represents this list item. */}
+      <button
+        type="button"
+        className="opponent-entry__trigger"
+        aria-current={active ? 'true' : undefined}
+        aria-label={ariaLabel}
+        aria-haspopup="dialog"
+        onClick={onOpen}
+      >
+        <div className="opponent-entry__head">
+          <span className="opponent-entry__dot" aria-hidden="true" />
+          <span className="opponent-entry__name" aria-hidden="true">
+            {name}
+          </span>
+          {active && (
+            <span className="opponent-entry__turn-chip" aria-hidden="true">
+              Turn
+            </span>
+          )}
+          <span className="opponent-entry__life" aria-hidden="true">
+            {board.life}
+          </span>
+        </div>
+        {held.length > 0 && (
+          <span className="opponent-entry__designations" aria-hidden="true">
+            {held.map((d) => (
+              <span key={d.key} className="opponent-entry__designation" title={d.label}>
+                {d.icon}
+              </span>
+            ))}
           </span>
         )}
-        <span className="opponent-entry__life" aria-hidden="true">
-          {board.life}
-        </span>
-      </div>
-      {held.length > 0 && (
-        <span className="opponent-entry__designations" aria-hidden="true">
-          {held.map((d) => (
-            <span key={d.key} className="opponent-entry__designation" title={d.label}>
-              {d.icon}
-            </span>
-          ))}
-        </span>
-      )}
-      {pending ? (
-        <span className="opponent-entry__permanents" aria-hidden="true">
-          No board shared yet
-        </span>
-      ) : glance ? (
-        <>
-          <span className="opponent-entry__counts" aria-hidden="true">
-            Hand {board.handCount} · Library {board.libraryCount}
+        {pending ? (
+          <span className="opponent-entry__permanents" aria-hidden="true">
+            No board shared yet
           </span>
-          <MiniBattlefield cards={board.battlefield} />
-        </>
-      ) : (
-        <span className="opponent-entry__permanents" aria-hidden="true">
-          {permanentCount} permanent{permanentCount === 1 ? '' : 's'}
-        </span>
-      )}
+        ) : glance ? (
+          <>
+            <span className="opponent-entry__counts" aria-hidden="true">
+              Hand {board.handCount} · Library {board.libraryCount}
+            </span>
+            <MiniBattlefield cards={board.battlefield} />
+          </>
+        ) : (
+          <span className="opponent-entry__permanents" aria-hidden="true">
+            {permanentCount} permanent{permanentCount === 1 ? '' : 's'}
+          </span>
+        )}
+      </button>
     </li>
   );
 }

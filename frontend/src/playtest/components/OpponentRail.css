@@ -39,7 +39,6 @@
   container-name: opponent-entry;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
   /* Floor big enough for the dot + a 2-digit life total to never overflow
      their own box — the last content standing at the bottom of the presence
      shrink ladder above. */
@@ -47,7 +46,6 @@
   background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: var(--space-2);
   transition:
     border-color var(--motion-base),
     box-shadow var(--motion-base);
@@ -67,13 +65,39 @@
 .opponent-rail--presence .opponent-entry {
   flex: 1 1 8rem;
   min-height: 2.75rem;
-  justify-content: center;
-  padding: var(--space-1) var(--space-2);
 }
 
 .opponent-rail--glance .opponent-entry {
   flex: 0 0 auto;
   width: 100%;
+}
+
+/* The entry's whole surface is one tap target — opens the full-board
+   inspector (STYLE_GUIDE § Opponent rail's "promotion" interaction). Reset to
+   a plain button and host the padding/gap/vertical-centering here instead of
+   on `.opponent-entry`, so the button fills its parent `<li>` exactly and
+   every existing visual rule keeps working unchanged. */
+.opponent-entry__trigger {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
+  width: 100%;
+  height: 100%;
+  padding: var(--space-2);
+  cursor: pointer;
+}
+
+.opponent-entry__trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-lg);
+}
+
+.opponent-rail--presence .opponent-entry__trigger {
+  padding: var(--space-1) var(--space-2);
 }
 
 .opponent-entry__head {
