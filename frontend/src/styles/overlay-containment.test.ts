@@ -186,6 +186,16 @@ describe('coarse-pointer touch floor', () => {
     // they WRAP in a flex row, so they take the floor on their real box — a
     // ghost would overlap the neighbouring chip and open the wrong card.
     ['components/trade/TradeOfferList.css', '.trade-offer-chip'],
+    // The composer's result row is now TWO buttons — the thumb previews, the
+    // rest adds. Both take the floor on their real boxes: the crowded axis
+    // here is VERTICAL (rows stack at 44px), so a ghost on either would
+    // overlap the neighbouring ROW and add or preview the wrong card. Same
+    // class carries the accept dialog's card-head thumb.
+    ['components/trade/TradeComposer.css', '.trade-thumb-btn'],
+    ['components/trade/TradeComposer.css', '.trade-result-pick'],
+    // The accept dialog's own copy — each component owns its classes rather
+    // than borrowing across stylesheets (a load-order coin flip).
+    ['components/trade/TradeAcceptDialog.css', '.trade-accept-thumb-btn'],
     // Its confirm/cancel pair settles a collection, so they take the floor on
     // their real boxes rather than a ghost — `.btn` is 32-36px by default.
     ['components/trade/TradeAcceptDialog.css', '.trade-accept-actions .btn'],
