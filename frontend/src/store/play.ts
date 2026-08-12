@@ -591,9 +591,9 @@ export const usePlayStore = create<PlayState>()(
         } catch (err) {
           const e = err as Error & { status?: number };
           if (e.status === 404) {
-            get().stopPolling();
-            serverCode = null;
-            set({ online: null, onlineError: 'Game ended.' });
+            const cur = get().online;
+            if (cur) resetOnlineState(cur, set, () => get().stopPolling());
+            set({ onlineError: 'Game ended.' });
           }
         }
       },

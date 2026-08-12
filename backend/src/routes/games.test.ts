@@ -351,6 +351,81 @@ describe('GET /api/games/:code/events (SSE)', () => {
     expect((events[0] as { status: string }).status).toBe('lobby');
     expect((events[1] as { status: string }).status).toBe('active');
   });
+
+  /**
+   * F1 regression: `/events` only checked `isParticipant` at connect, so a
+   * player removed via the host-only `remove-player` action kept their
+   * still-open SSE stream and went on receiving every future frame.
+   * `broadcastGameState` now evicts (ends + removes) any subscriber the new
+   * state no longer counts as a participant, before fanning out — so the
+   * kicked stream ends right on the removal broadcast, and the removal's own
+   * state frame (with the seat gone) never reaches it.
+   */
+  it("ends a removed player's SSE stream on the remove-player PATCH, delivering no further state", async () => {
+    const host = await registerAndGetCookie('games_kick_h');
+    const created = await request(app).post('/api/games').set('Cookie', host).send({});
+    const code = created.body.game.code as string;
+    const joiner = await registerAndGetCookie('games_kick_j');
+    const joined = await request(app)
+      .post(`/api/games/${code}/join`)
+      .set('Cookie', joiner)
+      .send({});
+
+    const addr = app.address();
+    if (!addr || typeof addr === 'string') throw new Error('test server has no address');
+
+    const frames: unknown[] = [];
+    const streamEnded = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error(`stream never ended; frames=${frames.length}`)),
+        15000
+      );
+      const req = http.request(
+        {
+          host: '127.0.0.1',
+          port: addr.port,
+          path: `/api/games/${code}/events`,
+          method: 'GET',
+          headers: { Cookie: joiner },
+        },
+        (res) => {
+          let raw = '';
+          res.on('data', (chunk: Buffer) => {
+            raw += chunk.toString('utf-8');
+            const matches = raw.matchAll(/event: state\ndata: (.+)\n\n/g);
+            frames.length = 0;
+            for (const m of matches) frames.push(JSON.parse(m[1]));
+          });
+          res.on('end', () => {
+            clearTimeout(timer);
+            resolve();
+          });
+        }
+      );
+      req.on('error', () => {
+        /* expected once the server ends the stream */
+      });
+      req.end();
+    });
+
+    // Give the connection a beat to register as a subscriber before kicking —
+    // otherwise the PATCH could win the race and evict nobody.
+    await new Promise((r) => setTimeout(r, 50));
+    const kicked = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', host)
+      .send({
+        baseVersion: joined.body.game.version,
+        actions: [{ type: 'remove-player', seat: 1 }],
+      });
+    expect(kicked.status).toBe(200);
+
+    await streamEnded;
+    // Only the initial connect frame ever arrived — the removal's own state
+    // broadcast (players down to 1) was never delivered to this subscriber.
+    expect(frames).toHaveLength(1);
+    expect((frames[0] as { players: unknown[] }).players).toHaveLength(2);
+  }, 20000);
 });
 
 describe('GET /api/games/:code/poll (long-poll)', () => {
@@ -433,7 +508,10 @@ describe('GET /api/games/:code/poll (long-poll)', () => {
       .get(`/api/games/${code}/poll?since=${version}`)
       .set('Cookie', cookie);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ unchanged: true });
+    // The timeout branch now carries the same boards/requests snapshots
+    // every other /poll response does (F4) — empty here since nothing was
+    // published.
+    expect(res.body).toEqual({ unchanged: true, boards: [], requests: [] });
   });
 
   it('catchUp=1 responds immediately with the current boards snapshot even when `since` is not stale', async () => {
@@ -456,6 +534,69 @@ describe('GET /api/games/:code/poll (long-poll)', () => {
     expect(res.body.game.code).toBe(code);
     const entry = (res.body.boards as Array<{ seat: number }>).find((b) => b.seat === 1);
     expect(entry).toBeTruthy();
+  });
+
+  /**
+   * F4 regression: a held poll settles on the FIRST thing that resolves it
+   * and the subscriber is torn down — anything else broadcast in the same
+   * turnaround window was silently dropped (a board only self-healed on the
+   * client's *next* poll; a consent request had no re-delivery path at all).
+   * Every branch now carries the full `boards`/`requests` snapshots, not
+   * just the single item that resolved it.
+   */
+  it('a board-resolved held poll response carries the full boards + requests snapshots', async () => {
+    const host = await registerAndGetCookie('games_poll_boardres_h');
+    const created = await request(app).post('/api/games').set('Cookie', host).send({});
+    const code = created.body.game.code as string;
+    const joiner1 = await registerAndGetCookie('games_poll_boardres_j1');
+    const joiner2 = await registerAndGetCookie('games_poll_boardres_j2');
+    await request(app).post(`/api/games/${code}/join`).set('Cookie', joiner1).send({});
+    await request(app).post(`/api/games/${code}/join`).set('Cookie', joiner2).send({});
+
+    // Establish presence (F3) for host + joiner1 first, via the same GET a
+    // real client's poll-loop fallback issues, so each is a required
+    // approver and the request raised below stays 'pending' instead of
+    // auto-resolving the moment nobody's left to ask.
+    await request(app).get(`/api/games/${code}`).set('Cookie', joiner1);
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    const version = current.body.game.version as number;
+
+    // A pending request unrelated to the board publish below — proves the
+    // `requests` array on the board-resolved response is the FULL current
+    // snapshot, not just the thing that resolved this particular poll.
+    await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', joiner2)
+      .send(rewindRequestBody);
+
+    // supertest/superagent only actually dispatches a request once it's
+    // awaited (`.then()` triggers `.end()` internally) — a bare
+    // `request(app).get(...)` assigned to a variable sends nothing yet. Using
+    // `.end()` with a callback here forces the poll to go out over the wire
+    // immediately, so it's genuinely held (and registered as a subscriber)
+    // before the board publish below, rather than firing lazily afterward
+    // and missing the live broadcast.
+    const pollPromise = new Promise<{ status: number; body: Record<string, unknown> }>(
+      (resolve, reject) => {
+        request(app)
+          .get(`/api/games/${code}/poll?since=${version}`)
+          .set('Cookie', host)
+          .end((err, res) => (err ? reject(err) : resolve(res)));
+      }
+    );
+    // Give the poll a beat to register as a subscriber before publishing —
+    // otherwise the publish could win the race and resolve nobody.
+    await new Promise((r) => setTimeout(r, 50));
+    await request(app).post(`/api/games/${code}/board`).set('Cookie', joiner1).send(validBoard);
+
+    const res = await pollPromise;
+    expect(res.status).toBe(200);
+    expect((res.body.board as { seat: number }).seat).toBe(1);
+    const boardsSeats = (res.body.boards as Array<{ seat: number }>).map((b) => b.seat);
+    expect(boardsSeats).toEqual([1]);
+    const resolvedRequests = res.body.requests as Array<{ status: string }>;
+    expect(resolvedRequests).toHaveLength(1);
+    expect(resolvedRequests[0].status).toBe('pending');
   });
 });
 
@@ -601,11 +742,21 @@ describe('POST /api/games/:code/board (board relay)', () => {
 /** Minimal valid rewind-request creation body. */
 const rewindRequestBody = { kind: 'rewind', payload: { steps: 2, summary: 'undo two draws' } };
 
-/** Seats up a host + N joiners, returns their cookies and the code. */
+/**
+ * Seats up a host + N joiners, returns their cookies and the code. By
+ * default each joiner also issues one `GET /:code` right after joining —
+ * mirroring a real client, which opens its live transport (SSE/poll)
+ * immediately after join — so it registers presence (see `touchPresence`/
+ * `isSeatPresent` in the route) and reads as a normal connected-and-present
+ * seat to `requiredApprovers`. Pass `presence: false` for a joiner that must
+ * stay presence-less on purpose (F3's "seat that never showed up" case).
+ */
 async function setupTable(
   hostName: string,
-  joinerNames: string[]
+  joinerNames: string[],
+  opts: { presence?: boolean } = {}
 ): Promise<{ code: string; host: string; joiners: string[] }> {
+  const presence = opts.presence ?? true;
   const host = await registerAndGetCookie(hostName);
   const created = await request(app).post('/api/games').set('Cookie', host).send({});
   const code = created.body.game.code as string;
@@ -613,6 +764,7 @@ async function setupTable(
   for (const name of joinerNames) {
     const cookie = await registerAndGetCookie(name);
     await request(app).post(`/api/games/${code}/join`).set('Cookie', cookie).send({});
+    if (presence) await request(app).get(`/api/games/${code}`).set('Cookie', cookie);
     joiners.push(cookie);
   }
   return { code, host, joiners };
@@ -893,6 +1045,103 @@ describe('POST /api/games/:code/request/:id/respond (resolution policy)', () => 
       true
     );
   }, 10000);
+});
+
+/**
+ * F3 regression: `requiredApprovers` used to key entirely off `p.connected`,
+ * which only flips on an explicit leave/join — a locked phone or a dropped
+ * network never clears it, so a genuinely-gone seat still blocked every
+ * request for its full TTL and it always resolved denied. Presence is now
+ * derived from the transports the server actually sees (a live subscriber,
+ * or `lastSeen` within `PRESENCE_TTL_MS`), and a `userId: null` guest seat
+ * (which has no device to ever respond) is never a required approver at all,
+ * even though `makePlayer` defaults it to `connected: true`.
+ */
+describe('required-approver presence (F3)', () => {
+  it('resolves approved immediately when the only other seat has never shown presence', async () => {
+    // presence: false — the joiner joins but never issues the follow-up GET
+    // (or any SSE/poll) setupTable normally simulates, so it has no
+    // lastSeen entry and no live subscriber.
+    const { code, host } = await setupTable(
+      'games_presence_absent_h',
+      ['games_presence_absent_j'],
+      { presence: false }
+    );
+    const res = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(rewindRequestBody);
+    expect(res.status).toBe(201);
+    expect(res.body.request.status).toBe('approved');
+  });
+
+  it('still requires (and accepts) approval from a seat with recent presence', async () => {
+    // setupTable's default `presence: true` already issued a GET for this
+    // joiner right after it joined (a plain GET is the client's 2.5s
+    // poll-loop fallback, and is on its own enough to count as presence).
+    const { code, host, joiners } = await setupTable('games_presence_present_h', [
+      'games_presence_present_j',
+    ]);
+
+    const created = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(rewindRequestBody);
+    expect(created.status).toBe(201);
+    expect(created.body.request.status).toBe('pending');
+
+    const approved = await request(app)
+      .post(`/api/games/${code}/request/${created.body.request.id}/respond`)
+      .set('Cookie', joiners[0])
+      .send({ approve: true });
+    expect(approved.status).toBe(200);
+    expect(approved.body.request.status).toBe('approved');
+  });
+
+  it('a guest seat (userId: null) is never a required approver, even though it defaults connected:true', async () => {
+    const { code, host } = await setupTable('games_presence_guest_h', []);
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    const added = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', host)
+      .send({
+        baseVersion: current.body.game.version,
+        actions: [
+          {
+            type: 'add-player',
+            player: {
+              id: 'guest_local',
+              userId: null,
+              seat: 1,
+              name: 'Guest',
+              deckId: null,
+              deckName: null,
+              commander: null,
+              partner: null,
+              colorIdentity: [],
+              panelColorKey: null,
+              life: 40,
+              poison: 0,
+              commanderDamage: {},
+              eliminated: false,
+              isHost: false,
+              connected: true,
+            },
+          },
+        ],
+      });
+    expect(added.status).toBe(200);
+    const guest = added.body.game.players.find((p: { seat: number }) => p.seat === 1);
+    expect(guest.connected).toBe(true);
+    expect(guest.userId).toBeNull();
+
+    const res = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(rewindRequestBody);
+    expect(res.status).toBe(201);
+    expect(res.body.request.status).toBe('approved');
+  });
 });
 
 describe('POST /api/games/:code/request/:id/cancel', () => {
@@ -1387,6 +1636,139 @@ describe('miscellaneous', () => {
     const p = second.body.game.players.find((pl: { name: string }) => pl.name === 'B');
     expect(p).toBeTruthy();
     expect(p.deckName).toBe('D2');
+  });
+});
+
+/**
+ * F2 regression: `note` (open to any participant) carried an unbounded
+ * `message`, and `add-player` (host-only) stored its `player` object
+ * verbatim — no name cap, no color-identity scrub, no protection against a
+ * forged `isHost`/`connected`/`commanderDamage` — unlike the create/join
+ * paths, which normalize all of that. Both land in `game_sessions.state` and
+ * get re-broadcast on every subsequent push.
+ */
+describe('PATCH validates note / add-player payloads and bounds batch size (F2)', () => {
+  it('rejects a note whose message is not a string', async () => {
+    const cookie = await registerAndGetCookie('games_note_bad');
+    const created = await request(app).post('/api/games').set('Cookie', cookie).send({});
+    const code = created.body.game.code as string;
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', cookie)
+      .send({
+        baseVersion: created.body.game.version,
+        actions: [{ type: 'note', actorSeat: null, message: 12345 }],
+      });
+    expect(res.status).toBe(400);
+  });
+
+  it('caps an oversized note message rather than storing it verbatim', async () => {
+    const cookie = await registerAndGetCookie('games_note_cap');
+    const created = await request(app).post('/api/games').set('Cookie', cookie).send({});
+    const code = created.body.game.code as string;
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', cookie)
+      .send({
+        baseVersion: created.body.game.version,
+        actions: [{ type: 'note', actorSeat: null, message: 'x'.repeat(10_000) }],
+      });
+    expect(res.status).toBe(200);
+    const noteEvent = res.body.game.events.at(-1);
+    expect(noteEvent.kind).toBe('note');
+    expect(noteEvent.message).toHaveLength(500);
+  });
+
+  it('passes a legitimate short note through unchanged', async () => {
+    const cookie = await registerAndGetCookie('games_note_ok');
+    const created = await request(app).post('/api/games').set('Cookie', cookie).send({});
+    const code = created.body.game.code as string;
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', cookie)
+      .send({
+        baseVersion: created.body.game.version,
+        actions: [{ type: 'note', actorSeat: null, message: '🪙 Coin flip → Heads' }],
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.game.events.at(-1).message).toBe('🪙 Coin flip → Heads');
+  });
+
+  it('caps an add-player name and strips forged isHost/panelColorKey/colorIdentity', async () => {
+    const host = await registerAndGetCookie('games_addp_h');
+    const created = await request(app).post('/api/games').set('Cookie', host).send({});
+    const code = created.body.game.code as string;
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', host)
+      .send({
+        baseVersion: created.body.game.version,
+        actions: [
+          {
+            type: 'add-player',
+            player: {
+              id: 'guest_1',
+              userId: null,
+              seat: 1,
+              name: 'x'.repeat(80),
+              deckId: null,
+              deckName: null,
+              commander: null,
+              partner: null,
+              colorIdentity: ['w', 'X'],
+              panelColorKey: 'z',
+              life: 40,
+              poison: 0,
+              commanderDamage: { '0': 21 },
+              eliminated: false,
+              isHost: true,
+              connected: false,
+            },
+          },
+        ],
+      });
+    expect(res.status).toBe(200);
+    const added = res.body.game.players.find((p: { seat: number }) => p.seat === 1);
+    expect(added.name).toHaveLength(40);
+    expect(added.isHost).toBe(false);
+    expect(added.connected).toBe(true);
+    expect(added.commanderDamage).toEqual({});
+    expect(added.userId).toBeNull();
+    expect(added.colorIdentity).toEqual(['W']);
+    expect(added.panelColorKey).toBeNull();
+  });
+
+  it('rejects add-player with a non-numeric seat or life', async () => {
+    const host = await registerAndGetCookie('games_addp_bad');
+    const created = await request(app).post('/api/games').set('Cookie', host).send({});
+    const code = created.body.game.code as string;
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', host)
+      .send({
+        baseVersion: created.body.game.version,
+        actions: [
+          {
+            type: 'add-player',
+            player: { id: 'g', userId: null, seat: 'one', life: 40, name: 'x' },
+          },
+        ],
+      });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a PATCH action batch over 32KB with 413', async () => {
+    const cookie = await registerAndGetCookie('games_patch_big');
+    const created = await request(app).post('/api/games').set('Cookie', cookie).send({});
+    const code = created.body.game.code as string;
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', cookie)
+      .send({
+        baseVersion: created.body.game.version,
+        actions: [{ type: 'note', actorSeat: null, message: 'x'.repeat(40_000) }],
+      });
+    expect(res.status).toBe(413);
   });
 });
 

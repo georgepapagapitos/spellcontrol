@@ -52,6 +52,8 @@ const createLimiter = testAwareLimiter({ windowMs: 60_000, max: 20 });
  * local subscribers on notify instead of assuming they're all local.
  */
 interface Subscriber {
+  /** Authenticated caller this subscriber was opened by — see `broadcastGameState`'s eviction check and `isSeatPresent` below. */
+  userId: string;
   onState: (state: GameState) => void;
   onDeleted: () => void;
   onBoard?: (seat: number, board: unknown) => void;
@@ -128,24 +130,98 @@ function requestsSnapshot(code: string): StoredRequest[] {
 }
 
 /**
- * The set of seats whose approval a request needs: every other seated
- * player who currently holds a connected seat. A disconnected seat is
- * excluded so it can never block the table forever — and if it's the last
- * one excluded (everyone else has left), the required set is empty and the
- * request resolves approved by construction (nothing left to ask).
+ * Presence tracking, keyed by code then userId, last touched at (ms epoch).
+ * `connected` on a `GamePlayer` only flips on an explicit leave/join, so a
+ * locked phone or a dropped network never clears it — that made
+ * `requiredApprovers` (below) wait on seats that can never respond. This map
+ * is the actual liveness signal: touched every time we see traffic from that
+ * user for that code (subscriber registration on /events and /poll, /poll's
+ * immediate branch, and GET /:code reads), and read by `isSeatPresent`.
+ * Evicted with the rest of a code's in-memory state in
+ * `broadcastGameDeleted`.
  */
-function requiredApprovers(state: GameState, requesterSeat: number): number[] {
-  return state.players.filter((p) => p.seat !== requesterSeat && p.connected).map((p) => p.seat);
+const lastSeen = new Map<string, Map<string, number>>();
+
+// Covers a long-poll's turnaround window (client re-issues only after a
+// broadcast or the ~25s POLL_TIMEOUT_MS) plus a brief SSE reconnect, without
+// keeping a seat "present" long after it's genuinely gone. Deliberately NOT
+// test-aware (unlike POLL_TIMEOUT_MS/REQUEST_TTL_MS): no test waits out this
+// TTL — absence is constructed by never touching presence at all — and a
+// short test value turns slow full-suite runs into flakes (a fixture's
+// presence GET aging past the TTL mid-test silently empties the approver
+// set and auto-approves the request under load).
+const PRESENCE_TTL_MS = 45_000;
+
+function touchPresence(code: string, userId: string): void {
+  let codeSeen = lastSeen.get(code);
+  if (!codeSeen) {
+    codeSeen = new Map();
+    lastSeen.set(code, codeSeen);
+  }
+  codeSeen.set(userId, Date.now());
 }
 
-function isUnanimouslyApproved(state: GameState, req: StoredRequest): boolean {
-  return requiredApprovers(state, req.requesterSeat).every((seat) => req.approvals[seat] === true);
+/**
+ * A seat counts as "present" if it has a live subscriber right now, or was
+ * seen within `PRESENCE_TTL_MS`. A guest seat (`userId: null` — a host-added
+ * local player with no device of its own) is never present: `makePlayer`
+ * defaults `connected` to `true`, so without this a guest would otherwise
+ * silently become a required approver that can never respond, wedging every
+ * consent request for the whole table.
+ */
+function isSeatPresent(code: string, userId: string | null): boolean {
+  if (userId === null) return false;
+  const subs = subscribers.get(code);
+  if (subs) {
+    for (const sub of subs) {
+      if (sub.userId === userId) return true;
+    }
+  }
+  const seen = lastSeen.get(code)?.get(userId);
+  return seen !== undefined && Date.now() - seen < PRESENCE_TTL_MS;
 }
 
+/**
+ * The set of seats whose approval a request needs: every other seated
+ * player who currently holds a connected seat AND is actually present (see
+ * `isSeatPresent`). Excluding an absent seat means it can never block the
+ * table forever — and if it's the last one excluded (everyone else has left
+ * or gone quiet), the required set is empty and the request resolves
+ * approved by construction (nothing left to ask).
+ */
+function requiredApprovers(code: string, state: GameState, requesterSeat: number): number[] {
+  return state.players
+    .filter((p) => p.seat !== requesterSeat && p.connected && isSeatPresent(code, p.userId))
+    .map((p) => p.seat);
+}
+
+function isUnanimouslyApproved(code: string, state: GameState, req: StoredRequest): boolean {
+  return requiredApprovers(code, state, req.requesterSeat).every(
+    (seat) => req.approvals[seat] === true
+  );
+}
+
+/**
+ * Fans out fresh state to every subscriber for this code — except one whose
+ * `userId` the new state no longer counts as a participant. That's the
+ * host-only `remove-player` case: without this, a kicked player's still-open
+ * SSE stream kept receiving every future frame because `/events` only
+ * checks `isParticipant` once, at connect. Evicting here (rather than only
+ * at connect) ends that stream immediately — `onDeleted` — instead of
+ * quietly serving a removed player the game forever.
+ */
 function broadcastGameState(code: string, state: GameState): void {
   const subs = subscribers.get(code);
   if (!subs || subs.size === 0) return;
-  for (const sub of subs) sub.onState(state);
+  for (const sub of Array.from(subs)) {
+    if (!isParticipant(state, sub.userId)) {
+      subs.delete(sub);
+      sub.onDeleted();
+      continue;
+    }
+    sub.onState(state);
+  }
+  if (subs.size === 0) subscribers.delete(code);
 }
 
 function broadcastBoard(code: string, seat: number, board: unknown): void {
@@ -203,6 +279,7 @@ function broadcastGameDeleted(code: string): void {
     }
     requests.delete(code);
   }
+  lastSeen.delete(code);
 }
 
 function addSubscriber(code: string, sub: Subscriber): void {
@@ -284,6 +361,44 @@ function sanitizePanelColorKey(raw: unknown): string | null {
 
 type UpdatePlayerPatch = Extract<GameAction, { type: 'update-player' }>['patch'];
 
+/** Mirrors the create/join paths' name cap (40) for the free-text table note. */
+const MAX_NOTE_MESSAGE_LEN = 500;
+
+/**
+ * Rebuild an `add-player` action's `player` through the same normalization
+ * the join path (`POST /:code/join`) applies, rather than trusting the
+ * host's body verbatim — otherwise an unbounded `name`, a raw
+ * `colorIdentity`, or a forged `isHost`/`connected`/`commanderDamage` would
+ * land in `game_sessions.state` and get re-broadcast on every subsequent
+ * push. `seat`/`life` are validated numeric by `numericFieldError` before
+ * this runs, so they're trusted here. `userId` is passed through as-is
+ * (string or null) — a host-added guest legitimately has no `userId`.
+ */
+function sanitizeAddedPlayer(raw: GamePlayer): GamePlayer {
+  const r = raw as unknown as Record<string, unknown>;
+  const name =
+    typeof r.name === 'string' && r.name.trim().length > 0 ? r.name.trim().slice(0, 40) : 'Player';
+  return {
+    id:
+      typeof r.id === 'string' && r.id.trim().length > 0 ? r.id.slice(0, 100) : crypto.randomUUID(),
+    userId: typeof r.userId === 'string' ? r.userId : null,
+    seat: raw.seat,
+    name,
+    deckId: typeof r.deckId === 'string' ? r.deckId : null,
+    deckName: typeof r.deckName === 'string' ? r.deckName : null,
+    commander: typeof r.commander === 'string' ? r.commander : null,
+    partner: typeof r.partner === 'string' ? r.partner : null,
+    colorIdentity: sanitizeColorIdentity(r.colorIdentity),
+    panelColorKey: sanitizePanelColorKey(r.panelColorKey),
+    life: raw.life,
+    poison: 0,
+    commanderDamage: {},
+    eliminated: false,
+    isHost: false,
+    connected: true,
+  };
+}
+
 /**
  * Scrub user-controllable fields on actions before they hit the reducer.
  * The reducer is pure and trusts its inputs; the route is the place to
@@ -296,6 +411,11 @@ type UpdatePlayerPatch = Extract<GameAction, { type: 'update-player' }>['patch']
  * permanent `game_results` row. Never widen this without matching the
  * `GameAction` `update-player` type. Also caps `name` at 40 chars, matching
  * the create/join paths.
+ *
+ * `note` is open to any participant and carries a free-text `message`, so it
+ * gets the same length cap the rest of the file applies to free text
+ * (`MAX_SUMMARY_LEN` for a request summary). `add-player` is host-only but
+ * still untrusted input — see `sanitizeAddedPlayer`.
  */
 function sanitizeAction(action: GameAction): GameAction {
   if (action.type === 'update-player' && action.patch) {
@@ -311,6 +431,13 @@ function sanitizeAction(action: GameAction): GameAction {
     if ('panelColorKey' in raw) patch.panelColorKey = sanitizePanelColorKey(raw.panelColorKey);
     if ('connected' in raw) patch.connected = raw.connected === true;
     return { ...action, patch };
+  }
+  if (action.type === 'note') {
+    const message = typeof action.message === 'string' ? action.message : '';
+    return { ...action, message: message.trim().slice(0, MAX_NOTE_MESSAGE_LEN) };
+  }
+  if (action.type === 'add-player' && action.player) {
+    return { ...action, player: sanitizeAddedPlayer(action.player) };
   }
   return action;
 }
@@ -334,9 +461,21 @@ function numericFieldError(action: GameAction): string | null {
       return check(action.delta, 'delta') ?? check(action.fromSeat, 'fromSeat');
     case 'end':
       return action.winnerSeat === null ? null : check(action.winnerSeat, 'winnerSeat');
+    case 'add-player':
+      return check(action.player?.seat, 'player.seat') ?? check(action.player?.life, 'player.life');
     default:
       return null;
   }
+}
+
+/**
+ * Reject a `note` action whose `message` isn't a string, before it reaches
+ * `sanitizeAction` (which only caps a string's length — it can't coerce a
+ * missing/malformed one into something meaningful).
+ */
+function noteMessageError(action: GameAction): string | null {
+  if (action.type !== 'note') return null;
+  return typeof action.message === 'string' ? null : 'Invalid message.';
 }
 
 function isParticipant(state: GameState, userId: string): boolean {
@@ -493,6 +632,10 @@ gamesRouter.get('/:code', readLimiter, requireAuth, async (req: Request, res: Re
     .limit(1);
   const metaRow = meta[0];
   if (!metaRow) return res.status(404).json({ error: 'Game not found.' });
+  // Liveness signal for requiredApprovers (see PRESENCE_TTL_MS) — this is the
+  // client's 2.5s poll-loop fallback, so a live tab keeps touching this on
+  // every tick regardless of which branch below it takes.
+  touchPresence(code, req.user!.id);
 
   const knownVersion = Number(req.query.knownVersion);
   if (Number.isFinite(knownVersion) && metaRow.version === knownVersion) {
@@ -575,6 +718,7 @@ gamesRouter.get('/:code/events', readLimiter, requireAuth, async (req: Request, 
   res.on('error', () => {});
 
   const sub: Subscriber = {
+    userId: req.user!.id,
     onState: (fresh) => res.write(`event: state\ndata: ${JSON.stringify(fresh)}\n\n`),
     onDeleted: () => res.end(),
     // New write path into this subscriber — guarded the same way the
@@ -595,6 +739,7 @@ gamesRouter.get('/:code/events', readLimiter, requireAuth, async (req: Request, 
     },
   };
   addSubscriber(code, sub);
+  touchPresence(code, req.user!.id);
 
   // Fly's proxy (and most others) kills an idle connection; a comment
   // frame every 25s keeps it open without the client parsing it as data.
@@ -644,12 +789,18 @@ const POLL_TIMEOUT_MS = isTest ? 200 : 25_000;
  * they'd otherwise sit in the held branch — up to ~25s — before ever seeing
  * the current `boards` snapshot (see below).
  *
- * Every response that carries `game` (the immediate branch, and the
- * broadcast-resolved held branch below) also carries the code's current
- * `boards` snapshot, so a client catches up on opponents' published boards
- * any time it receives fresh game state. A board published while a request
- * is held resolves it early with just that one board (`{ board }`) — no
- * `game` needed, cheaper than waiting for the next state broadcast or timeout.
+ * Every branch of this route's response — immediate, state-broadcast,
+ * board-resolved, request-resolved, and the `{ unchanged: true }` timeout —
+ * carries the code's current `boards` and `requests` snapshots, not just
+ * whichever single item resolved the poll (`board`/`request` stay on the
+ * board/request branches too, for compatibility). A held poll only ever
+ * settles on the FIRST thing that happens to it, so without the full
+ * snapshots on every branch, anything else broadcast in the same window —
+ * a second board publish, or a consent request with no other re-delivery
+ * path at all — would be silently lost until the client's *next* poll
+ * happened to carry it. The frontend's long-poll loop already applies
+ * `boards`/`requests` unconditionally on every response, so this needed no
+ * client-side change.
  *
  * Every branch that can end the request (immediate reply, broadcast,
  * deletion, timeout, client disconnect) funnels through `settle`, which is
@@ -674,6 +825,9 @@ gamesRouter.get('/:code/poll', readLimiter, requireAuth, async (req: Request, re
   const since = Number.isFinite(rawSince) ? rawSince : -1;
   const catchUp = req.query.catchUp === '1';
   if (state.version > since || catchUp) {
+    // Immediate branch never registers a subscriber, so it's the one place
+    // this route must touch presence itself.
+    touchPresence(code, req.user!.id);
     return res.json({
       game: state,
       boards: boardsSnapshot(code),
@@ -682,15 +836,44 @@ gamesRouter.get('/:code/poll', readLimiter, requireAuth, async (req: Request, re
   }
 
   let settled = false;
-  const timer = setTimeout(() => settle(() => res.json({ unchanged: true })), POLL_TIMEOUT_MS);
+  // Every branch that can resolve a held poll carries the current
+  // boards/requests snapshots, not just the state-broadcast branch — a
+  // board or request published while the poll is held otherwise had no
+  // re-delivery path (the request case had none at all), so a native seat
+  // could miss an ask and let it expire denied. The single-item `board`/
+  // `request` fields stay for compatibility with the frontend's existing
+  // fast path; the arrays are what let the long-poll loop self-heal from
+  // any lost frame on its very next tick.
+  const timer = setTimeout(
+    () =>
+      settle(() =>
+        res.json({
+          unchanged: true,
+          boards: boardsSnapshot(code),
+          requests: requestsSnapshot(code),
+        })
+      ),
+    POLL_TIMEOUT_MS
+  );
   const sub: Subscriber = {
+    userId: req.user!.id,
     onState: (fresh) =>
       settle(() =>
         res.json({ game: fresh, boards: boardsSnapshot(code), requests: requestsSnapshot(code) })
       ),
     onDeleted: () => settle(() => res.status(404).json({ error: 'Game not found.' })),
-    onBoard: (seat, board) => settle(() => res.json({ board: { seat, board } })),
-    onRequest: (request) => settle(() => res.json({ request })),
+    onBoard: (seat, board) =>
+      settle(() =>
+        res.json({
+          board: { seat, board },
+          boards: boardsSnapshot(code),
+          requests: requestsSnapshot(code),
+        })
+      ),
+    onRequest: (request) =>
+      settle(() =>
+        res.json({ request, boards: boardsSnapshot(code), requests: requestsSnapshot(code) })
+      ),
   };
 
   function settle(respond: () => void): void {
@@ -702,6 +885,7 @@ gamesRouter.get('/:code/poll', readLimiter, requireAuth, async (req: Request, re
   }
 
   addSubscriber(code, sub);
+  touchPresence(code, req.user!.id);
   req.on('close', () => settle(() => {}));
 });
 
@@ -877,7 +1061,7 @@ gamesRouter.post(
       setTimeout(() => resolveRequest(code, storedRequest, 'expired'), REQUEST_TTL_MS)
     );
 
-    if (isUnanimouslyApproved(state, storedRequest)) {
+    if (isUnanimouslyApproved(code, state, storedRequest)) {
       resolveRequest(code, storedRequest, 'approved');
     } else {
       broadcastRequest(code, storedRequest);
@@ -936,7 +1120,7 @@ gamesRouter.post(
     found.approvals[me.seat] = body.approve;
     if (!body.approve) {
       resolveRequest(code, found, 'denied');
-    } else if (isUnanimouslyApproved(state, found)) {
+    } else if (isUnanimouslyApproved(code, state, found)) {
       resolveRequest(code, found, 'approved');
     } else {
       broadcastRequest(code, found);
@@ -1091,6 +1275,14 @@ function actionIsAllowed(action: GameAction, state: GameState, userId: string): 
   }
 }
 
+// The 50-action cap above bounds count, not size — a handful of actions can
+// still carry an unbounded string (e.g. `note.message` before sanitization,
+// or a forged `add-player.player.name`). Mirrors `MAX_BOARD_BYTES`'s
+// defense-in-depth role: generous for any legitimate batch, far below
+// anything that could bloat the JSONB row or the wire. Checked against the
+// raw body, before any per-action sanitization runs.
+const MAX_PATCH_BATCH_BYTES = 32 * 1024;
+
 /** PATCH /api/games/:code — apply a batch of actions atomically. */
 gamesRouter.patch('/:code', writeLimiter, requireAuth, async (req: Request, res: Response) => {
   const code = String(req.params.code).toUpperCase();
@@ -1103,6 +1295,9 @@ gamesRouter.patch('/:code', writeLimiter, requireAuth, async (req: Request, res:
   }
   if (body.actions.length > 50) {
     return res.status(400).json({ error: 'Too many actions in a single request.' });
+  }
+  if (JSON.stringify(body.actions).length > MAX_PATCH_BATCH_BYTES) {
+    return res.status(413).json({ error: 'Action batch payload too large.' });
   }
 
   const db = getDb();
@@ -1120,6 +1315,8 @@ gamesRouter.patch('/:code', writeLimiter, requireAuth, async (req: Request, res:
     if (denied) return res.status(403).json({ error: denied });
     const numErr = numericFieldError(raw);
     if (numErr) return res.status(400).json({ error: numErr });
+    const noteErr = noteMessageError(raw);
+    if (noteErr) return res.status(400).json({ error: noteErr });
     const action = sanitizeAction(raw);
     try {
       next = applyAction(next, action);
