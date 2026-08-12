@@ -24,6 +24,9 @@ import {
   type OwnedTradeLine,
 } from '../../lib/trade-picker';
 import { settleTrade } from '../../lib/use-trade-settlement';
+import { resolveTradePreview } from '../../lib/trade-preview';
+import { CardPreview } from '../CardPreview';
+import type { EnrichedCard } from '../../types';
 import { buildCardLocationIndex, type CardLocation } from '../../lib/card-locations';
 import { TradeAcceptDialog, type AcceptChoice } from './TradeAcceptDialog';
 
@@ -138,7 +141,29 @@ function TradeOfferCard({
   const [busy, setBusy] = useState(false);
   // Non-null while the viewer is choosing which copies to hand over.
   const [choosing, setChoosing] = useState<AcceptChoice[] | null>(null);
+  // Non-null while the card-preview carousel is open over this offer.
+  const [preview, setPreview] = useState<{ cards: EnrichedCard[]; index: number } | null>(null);
   const headingId = useId();
+
+  /**
+   * Open the carousel on the tapped card, spanning the WHOLE offer — give side
+   * then get side, in reading order. A trade is one decision about a set of
+   * cards, so being able to swipe from what you're giving straight into what
+   * you're getting is the point; a per-chip single-card modal would make you
+   * close and re-open for every card in the deal.
+   */
+  async function inspect(card: TradeCard) {
+    const all = [...offer.give, ...offer.receive];
+    const { cards, indexOf } = await resolveTradePreview(all);
+    if (cards.length === 0) {
+      toast.show({ message: 'Couldn’t load these cards right now.', tone: 'warn' });
+      return;
+    }
+    // A card whose own lookup failed is not in the carousel; open at the
+    // nearest slide rather than refusing, so one bad card can't block the rest.
+    const at = indexOf(card);
+    setPreview({ cards, index: at >= 0 ? at : 0 });
+  }
 
   const who = offer.counterpartyDisplayName || `@${offer.counterpartyUsername}`;
   const canAnswer = offer.status === 'proposed' && !offer.mine;
@@ -260,9 +285,9 @@ function TradeOfferCard({
       </header>
 
       <div className="trade-offer-sides">
-        <TradeOfferSide label="You give" cards={offer.give} />
+        <TradeOfferSide label="You give" cards={offer.give} onInspect={inspect} />
         <ArrowRight className="trade-offer-arrow" width={18} height={18} aria-label="for" />
-        <TradeOfferSide label="You get" cards={offer.receive} />
+        <TradeOfferSide label="You get" cards={offer.receive} onInspect={inspect} />
       </div>
 
       {offer.note && <p className="trade-offer-note">“{offer.note}”</p>}
@@ -322,6 +347,24 @@ function TradeOfferCard({
             </button>
           )}
         </div>
+      )}
+
+      {preview && (
+        // `source="search"` is the established shape for cards the viewer does
+        // not own a row for — no binder, no page, no section (see
+        // InlineCardSearch). An offer's cards are exactly that: the ask side
+        // isn't owned at all, and the give side is about to stop being.
+        <CardPreview
+          source="search"
+          cards={preview.cards}
+          index={preview.index}
+          binderName=""
+          sectionLabels={[]}
+          pageNumbers={[]}
+          totalPages={0}
+          onIndexChange={(i) => setPreview((p) => (p ? { ...p, index: i } : p))}
+          onClose={() => setPreview(null)}
+        />
       )}
 
       {choosing && (
@@ -447,7 +490,15 @@ function useSideValue(cards: TradeCard[]): string {
   return `from ${formatMoney(exact + floor)}${anyUnknown ? ' +?' : ''}`;
 }
 
-function TradeOfferSide({ label, cards }: { label: string; cards: TradeCard[] }) {
+function TradeOfferSide({
+  label,
+  cards,
+  onInspect,
+}: {
+  label: string;
+  cards: TradeCard[];
+  onInspect: (card: TradeCard) => void;
+}) {
   const headingId = useId();
   const value = useSideValue(cards);
   return (
@@ -463,14 +514,25 @@ function TradeOfferSide({ label, cards }: { label: string; cards: TradeCard[] })
       ) : (
         <ul className="trade-offer-side-cards" aria-labelledby={headingId}>
           {cards.map((card) => (
-            <li key={card.oracleId || card.name} className="trade-offer-chip">
-              <OfferChipThumb name={card.name} />
-              <span className="trade-offer-chip-name" title={card.name}>
-                {card.name}
-                {card.quantity > 1 && (
-                  <span className="trade-offer-chip-qty"> ×{card.quantity}</span>
-                )}
-              </span>
+            <li key={card.oracleId || card.name}>
+              {/* A chip is a card, and every other card in the app opens the
+                  preview carousel when you tap it. This was the one that
+                  didn't — you could read a name and a 20px thumbnail and had
+                  no way to actually LOOK at what you were being offered. */}
+              <button
+                type="button"
+                className="trade-offer-chip"
+                onClick={() => onInspect(card)}
+                aria-label={`Preview ${card.name}`}
+              >
+                <OfferChipThumb name={card.name} />
+                <span className="trade-offer-chip-name" title={card.name}>
+                  {card.name}
+                  {card.quantity > 1 && (
+                    <span className="trade-offer-chip-qty"> ×{card.quantity}</span>
+                  )}
+                </span>
+              </button>
             </li>
           ))}
         </ul>
