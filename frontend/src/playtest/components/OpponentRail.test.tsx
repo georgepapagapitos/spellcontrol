@@ -4,9 +4,22 @@
  * vitest/chai matchers, not `.toBeInTheDocument()`/`.toHaveAccessibleName()`.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { OpponentRail, type OpponentSeat } from './OpponentRail';
 import type { PublicBattlefieldCard, PublicBoard } from '@/lib/playtest/projection';
+
+// The full board inspector is exercised by its own OpponentBoardModal.test.tsx
+// (art/Scryfall resolution, tabs, preview wiring). Stubbed here so this file
+// stays focused on the rail's own rendering + the fact that a tap opens it.
+vi.mock('./OpponentBoardModal', () => ({
+  OpponentBoardModal: (props: { opp: OpponentSeat; onClose: () => void }) => (
+    <div data-testid="opponent-board-modal" data-opp-name={props.opp.name}>
+      <button type="button" onClick={props.onClose}>
+        stub close
+      </button>
+    </div>
+  ),
+}));
 
 function bfCard(id: string, overrides: Partial<PublicBattlefieldCard> = {}): PublicBattlefieldCard {
   return {
@@ -140,7 +153,7 @@ describe('OpponentRail', () => {
     stubOrientation(false);
     const opponents = [seat(0, { handCount: 4, libraryCount: 32 })];
     render(<OpponentRail opponents={opponents} />);
-    const label = screen.getByRole('listitem').getAttribute('aria-label') ?? '';
+    const label = screen.getByRole('button').getAttribute('aria-label') ?? '';
     expect(label).toMatch(/4 cards in hand/);
     expect(label).toMatch(/32 in library/);
   });
@@ -162,14 +175,14 @@ describe('OpponentRail', () => {
   it('names held designations in the accessible label', () => {
     const opponents = [seat(0, { monarch: true, initiative: true })];
     render(<OpponentRail opponents={opponents} />);
-    const label = screen.getByRole('listitem').getAttribute('aria-label') ?? '';
+    const label = screen.getByRole('button').getAttribute('aria-label') ?? '';
     expect(label).toMatch(/holds Monarch, Initiative/);
   });
 
   it('marks the active seat with aria-current and announces whose turn it is', () => {
     const opponents = [seat(0), seat(1)];
     render(<OpponentRail opponents={opponents} activeSeat={1} />);
-    const items = screen.getAllByRole('listitem');
+    const items = screen.getAllByRole('button');
     expect(items[0].getAttribute('aria-current')).toBeNull();
     expect(items[1].getAttribute('aria-current')).toBe('true');
     expect(items[1].getAttribute('aria-label') ?? '').toMatch(/this player's turn/);
@@ -178,7 +191,7 @@ describe('OpponentRail', () => {
   it('announces life as part of a sentence, not a bare number', () => {
     const opponents = [seat(0, { life: 34 })];
     render(<OpponentRail opponents={opponents} />);
-    const label = screen.getByRole('listitem').getAttribute('aria-label') ?? '';
+    const label = screen.getByRole('button').getAttribute('aria-label') ?? '';
     expect(label).toMatch(/34 life/);
   });
 
@@ -217,10 +230,42 @@ describe('OpponentRail', () => {
     const opponents = [{ ...seat(0, { life: 27 }), pending: true }];
     render(<OpponentRail opponents={opponents} />);
     expect(screen.getByText('27')).toBeTruthy();
-    const label = screen.getByRole('listitem').getAttribute('aria-label') ?? '';
+    const label = screen.getByRole('button').getAttribute('aria-label') ?? '';
     expect(label).toMatch(/27 life/);
     expect(label).toMatch(/no board shared yet/);
     expect(label).not.toMatch(/in hand/);
     expect(label).not.toMatch(/in library/);
+  });
+
+  describe('the full-board inspector', () => {
+    it('gives each entry real button semantics that announce a dialog trigger', () => {
+      const opponents = [seat(0)];
+      render(<OpponentRail opponents={opponents} />);
+      const btn = screen.getByRole('button');
+      expect(btn.getAttribute('aria-haspopup')).toBe('dialog');
+    });
+
+    it('does not render the inspector until an entry is opened', () => {
+      const opponents = [seat(0), seat(1)];
+      render(<OpponentRail opponents={opponents} />);
+      expect(screen.queryByTestId('opponent-board-modal')).toBeNull();
+    });
+
+    it('opens the tapped opponent’s board inspector', () => {
+      const opponents = [seat(0), seat(1, { life: 12 })];
+      render(<OpponentRail opponents={opponents} />);
+      fireEvent.click(screen.getAllByRole('button')[1]);
+      const modal = screen.getByTestId('opponent-board-modal');
+      expect(modal.getAttribute('data-opp-name')).toBe('Player 1');
+    });
+
+    it('closes the inspector and returns to the plain rail', () => {
+      const opponents = [seat(0)];
+      render(<OpponentRail opponents={opponents} />);
+      fireEvent.click(screen.getByRole('button', { name: /Player 0/ }));
+      expect(screen.getByTestId('opponent-board-modal')).toBeTruthy();
+      fireEvent.click(screen.getByText('stub close'));
+      expect(screen.queryByTestId('opponent-board-modal')).toBeNull();
+    });
   });
 });
