@@ -1,17 +1,29 @@
+// @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook } from '@testing-library/react';
 import type { EnrichedCard } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { TradeOffer } from './trades-client';
+import type { TradeListing, TradeOffer } from './trades-client';
 
 const getCardByIdMock = vi.fn<(id: string) => Promise<ScryfallCard | null>>();
 vi.mock('./api', () => ({
   getCardById: (id: string) => getCardByIdMock(id),
 }));
 
+const getCardsByNamesMock = vi.fn<(names: string[]) => Promise<Map<string, ScryfallCard>>>();
+vi.mock('@/deck-builder/services/scryfall/client', () => ({
+  getCardsByNames: (names: string[]) => getCardsByNamesMock(names),
+}));
+
 const markTradeSettledMock = vi.fn<(id: string) => Promise<TradeOffer>>();
+const listTradesMock = vi.fn<() => Promise<TradeListing>>();
 vi.mock('./trades-client', () => ({
   markTradeSettled: (id: string) => markTradeSettledMock(id),
-  listTrades: vi.fn(),
+  listTrades: () => listTradesMock(),
+}));
+
+vi.mock('../store/auth', () => ({
+  useAuth: (selector: (s: { status: string }) => unknown) => selector({ status: 'authed' }),
 }));
 
 const toastShowMock = vi.fn();
@@ -35,7 +47,7 @@ vi.mock('../store/collection', () => ({
   },
 }));
 
-import { settleTrade } from './use-trade-settlement';
+import { settleTrade, useTradeSettlement } from './use-trade-settlement';
 
 function owned(over: Partial<EnrichedCard> & { copyId: string; name: string }): EnrichedCard {
   return {
@@ -88,10 +100,13 @@ function offer(over: Partial<TradeOffer> = {}): TradeOffer {
 
 beforeEach(() => {
   getCardByIdMock.mockReset();
+  getCardsByNamesMock.mockReset();
   markTradeSettledMock.mockReset();
+  listTradesMock.mockReset();
   toastShowMock.mockReset();
   replaceAllCardsMock.mockReset();
   addCardMock.mockReset();
+  getCardsByNamesMock.mockResolvedValue(new Map());
   markTradeSettledMock.mockResolvedValue(offer({ settled: true }));
   replaceAllCardsMock.mockResolvedValue(undefined);
   addCardMock.mockResolvedValue(['new-copy']);
@@ -182,5 +197,90 @@ describe('settleTrade', () => {
     expect(await settleTrade(offer())).toBe(true);
     expect(replaceAllCardsMock).toHaveBeenCalled();
     expect(addCardMock).toHaveBeenCalled();
+  });
+
+  it('refuses to run twice concurrently for the same offer', async () => {
+    // The server's settled flag is stamped AFTER the local apply, so it cannot
+    // stop an overlap — the inline accept racing the focus sweep would both
+    // read "unsettled" and both ADD. The in-flight guard is the only thing
+    // between that and a double-added collection.
+    getCardByIdMock.mockResolvedValue({ id: 'scry-jud' } as ScryfallCard);
+
+    const [first, second] = await Promise.all([settleTrade(offer()), settleTrade(offer())]);
+
+    expect([first, second].sort()).toEqual([false, true]);
+    expect(addCardMock).toHaveBeenCalledTimes(1);
+    expect(replaceAllCardsMock).toHaveBeenCalledTimes(1);
+    expect(markTradeSettledMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to the card by NAME when the pinned printing cannot resolve', async () => {
+    // A different printing of the right card beats losing the card entirely —
+    // the same ruling the preview carousel applies. The substitution is said
+    // out loud, never silent.
+    getCardByIdMock.mockResolvedValue(null);
+    getCardsByNamesMock.mockResolvedValue(
+      new Map([['Rhystic Study', { id: 'scry-fallback', name: 'Rhystic Study' } as ScryfallCard]])
+    );
+
+    expect(await settleTrade(offer())).toBe(true);
+    expect(addCardMock).toHaveBeenCalledWith(
+      { id: 'scry-fallback', name: 'Rhystic Study' },
+      'foil',
+      { quantity: 1, condition: 'lp', language: undefined }
+    );
+    expect(markTradeSettledMock).toHaveBeenCalled();
+    const messages = toastShowMock.mock.calls.map((c) => (c[0] as { message: string }).message);
+    expect(messages.some((m) => m.includes('different printing'))).toBe(true);
+  });
+
+  it('announces only the cards that actually arrived', async () => {
+    // Two cards promised, one unresolvable: the success toast must say
+    // "1 card in", not announce the one that never landed.
+    getCardByIdMock.mockImplementation(async (id) =>
+      id === 'scry-jud' ? ({ id: 'scry-jud' } as ScryfallCard) : null
+    );
+    const twoIn = offer({
+      receive: [
+        {
+          oracleId: 'o-rhystic',
+          name: 'Rhystic Study',
+          quantity: 1,
+          copies: [{ scryfallId: 'scry-jud', finish: 'foil' }],
+        },
+        {
+          oracleId: 'o-vault',
+          name: 'Mana Vault',
+          quantity: 1,
+          copies: [{ scryfallId: 'scry-gone', finish: 'nonfoil' }],
+        },
+      ],
+    });
+
+    expect(await settleTrade(twoIn)).toBe(true);
+    const messages = toastShowMock.mock.calls.map((c) => (c[0] as { message: string }).message);
+    expect(messages.some((m) => m.includes('1 card in'))).toBe(true);
+    expect(messages.some((m) => m.includes('Mana Vault'))).toBe(true);
+  });
+});
+
+describe('useTradeSettlement', () => {
+  it('re-lists between settles and stops when a settle could not be recorded', async () => {
+    // The sweep re-fetches before EVERY settle so another device settling in
+    // the window is seen — and when recording fails (the offer keeps listing
+    // as unsettled), it must stop after one attempt rather than spin against
+    // the rate limiter.
+    getCardByIdMock.mockResolvedValue({ id: 'scry-jud' } as ScryfallCard);
+    markTradeSettledMock.mockRejectedValue(new Error('offline'));
+    listTradesMock.mockResolvedValue({ offers: [offer()], truncated: false });
+
+    renderHook(() => useTradeSettlement());
+
+    await vi.waitFor(() => expect(addCardMock).toHaveBeenCalledTimes(1));
+    // Re-listed once after the settle, saw the same offer still unsettled and
+    // already attempted, and stopped.
+    await vi.waitFor(() => expect(listTradesMock).toHaveBeenCalledTimes(2));
+    expect(addCardMock).toHaveBeenCalledTimes(1);
+    expect(markTradeSettledMock).toHaveBeenCalledTimes(1);
   });
 });
