@@ -9,7 +9,15 @@ import { getFriendShares, type FriendShareRow } from '../lib/share-client';
 import { formatIdentity } from '../lib/display-name';
 import { fetchH2H, type H2HResponse } from '../lib/game-results-client';
 import { fetchFriendCollection, type FriendCard } from '../lib/cube/pool';
-import { buildTradeRadar, type TradeRadarMatch } from '../lib/trade-radar';
+import { fetchFriendWants, type FriendWant } from '../lib/friends-client';
+import {
+  buildTradeRadar,
+  buildWantRadar,
+  type TradeRadarMatch,
+  type WantMatch,
+} from '../lib/trade-radar';
+import { groupOwnedForTrade } from '../lib/trade-picker';
+import { useAllocations, computeSurplusByName } from '../lib/allocations';
 import { listTrades, type TradeOffer } from '../lib/trades-client';
 import { TradeComposer } from '../components/trade/TradeComposer';
 import { TradeOfferList } from '../components/trade/TradeOfferList';
@@ -126,6 +134,65 @@ export function FriendHubPage() {
     () => (friendCards ? buildTradeRadar(lists, friendCards) : null),
     [lists, friendCards]
   );
+
+  // ── The other direction: what THEY are looking for ──────────────────
+  // The radar above answers "what do they have that I want". Without this
+  // half, picking what to offer is a guess. Ambient on friendship like the
+  // collection fetch, and one notch thinner: a want arrives as {name,
+  // oracleId} with no quantity, target price or list name — see the /wants
+  // route. Its own fetch (not folded into the collection one) so a friend
+  // with no want lists still gets a working Collection tab.
+  const [wantsAttempt, setWantsAttempt] = useState(0);
+  const [wantsResult, setWantsResult] = useState<{
+    key: string;
+    wants: FriendWant[] | null;
+    error: boolean;
+  } | null>(null);
+  const wantsKey = `${friendId ?? ''}:${wantsAttempt}`;
+
+  useEffect(() => {
+    if (status !== 'authed' || !friendId) return;
+    let cancelled = false;
+    const key = `${friendId}:${wantsAttempt}`;
+    fetchFriendWants(friendId)
+      .then((res) => {
+        if (!cancelled) setWantsResult({ key, wants: res.wants, error: false });
+      })
+      .catch(() => {
+        if (!cancelled) setWantsResult({ key, wants: null, error: true });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [friendId, status, wantsAttempt]);
+
+  const wantsCurrent = wantsResult && wantsResult.key === wantsKey ? wantsResult : null;
+  const wantsError = wantsCurrent?.error ?? false;
+  const theyWant = wantsCurrent?.wants ?? null;
+  const retryWants = () => setWantsAttempt((n) => n + 1);
+
+  // Which of the viewer's own cards are actually free to hand over — the
+  // collection's "tradeable surplus" definition, the same one the composer's
+  // Spare-copies filter narrows by. Grouping through `groupOwnedForTrade`
+  // keeps the tradeability rules (proxies excluded, printings stacked under
+  // one oracle identity) in one place.
+  const myCards = useCollectionStore((s) => s.cards);
+  const allocations = useAllocations();
+  const ownedLines = useMemo(() => groupOwnedForTrade(myCards), [myCards]);
+  const surplusByName = useMemo(
+    () => computeSurplusByName(myCards, allocations),
+    [myCards, allocations]
+  );
+
+  const wantRadar: WantMatch[] | null = useMemo(
+    () => (theyWant ? buildWantRadar(theyWant, ownedLines, surplusByName) : null),
+    [theyWant, ownedLines, surplusByName]
+  );
+  const spareMatches = wantRadar?.filter((m) => m.spare > 0).length ?? 0;
+  // Mirrors `wantsAnything` on the radar above: a friend with no want lists at
+  // all has a permanently dead section, so it doesn't render. Loading and
+  // error both still show — the section can't know yet.
+  const showWantRadar = wantsError || theyWant === null || theyWant.length > 0;
 
   // ── Trades with this friend ─────────────────────────────────────────
   // The radar answers "who has what I want"; this is the verb at the end of
@@ -380,6 +447,60 @@ export function FriendHubPage() {
           </section>
         )}
 
+        {showWantRadar && (
+          <section className="friend-hub-section" aria-label="What this friend is looking for">
+            <h2 className="friend-hub-section-head">They’re looking for</h2>
+            {wantsError ? (
+              <p className="friend-hub-radar-note" role="alert">
+                Couldn’t check your collection against {who}’s want lists.{' '}
+                <button
+                  type="button"
+                  className="btn-link friend-hub-radar-retry"
+                  onClick={retryWants}
+                >
+                  Try again
+                </button>
+              </p>
+            ) : wantRadar === null ? (
+              <div
+                className="friend-hub-radar-skeleton"
+                aria-label={`Checking ${who}’s want lists`}
+                aria-busy="true"
+              />
+            ) : wantRadar.length === 0 ? (
+              <p className="friend-hub-radar-note" role="status">
+                Nothing you own is on {who}’s want lists.
+              </p>
+            ) : (
+              <>
+                <p className="friend-hub-radar-lede">
+                  {wantRadar.length === 1
+                    ? `1 card you own is on ${who}’s want list`
+                    : `${wantRadar.length} cards you own are on ${who}’s want list`}
+                  {spareMatches > 0
+                    ? ` — ${spareMatches} you can spare`
+                    : ' — every copy is in a deck or cube'}
+                </p>
+                <ul
+                  className="friend-hub-radar-strip"
+                  aria-label={`Cards you own that ${who} wants`}
+                >
+                  {wantRadar.map((m) => (
+                    <WantCardTile key={m.oracleId || m.name} match={m} />
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  className="btn friend-hub-radar-propose"
+                  onClick={() => setComposing({})}
+                >
+                  Propose a trade
+                </button>
+              </>
+            )}
+          </section>
+        )}
+
         {error && (
           <p className="friends-error" role="alert">
             {error}
@@ -580,6 +701,7 @@ export function FriendHubPage() {
           friendCardsLoading={friendCards === null && !collectionError}
           friendCardsError={collectionError}
           onRetryFriendCards={retryCollection}
+          friendWants={theyWant}
           initialWant={composing.want}
           onClose={() => setComposing(null)}
           onSent={() => {
@@ -629,6 +751,46 @@ export function RadarCardTile({ match }: { match: TradeRadarMatch }) {
       <span className="friend-hub-radar-name" title={match.name}>
         {match.name}
         {match.quantity > 1 && <span className="friend-hub-radar-qty"> ×{match.quantity}</span>}
+      </span>
+      <span className="friend-hub-radar-sub" title={sub}>
+        {sub}
+      </span>
+    </li>
+  );
+}
+
+/**
+ * One card the viewer owns that this friend is looking for.
+ *
+ * The sub-line is the whole point: "2 spare" means copies bound to no deck and
+ * no cube, so offering it costs nothing — the same surplus definition the
+ * composer's Spare-copies filter narrows by. Everything else is honest about
+ * why it isn't free to give, rather than hiding the match.
+ */
+function WantCardTile({ match }: { match: WantMatch }) {
+  const thumb = useCardThumb(match.name, 'small');
+  const sub =
+    match.spare > 0
+      ? `${match.spare} spare`
+      : match.owned === 1
+        ? 'your only copy'
+        : `${match.owned} copies, none spare`;
+  return (
+    <li className={`friend-hub-radar-card${match.spare > 0 ? ' is-spare' : ''}`}>
+      {thumb ? (
+        <img
+          className="friend-hub-radar-thumb"
+          src={thumb}
+          alt=""
+          aria-hidden
+          loading="lazy"
+          draggable={false}
+        />
+      ) : (
+        <span className="friend-hub-radar-thumb is-placeholder" aria-hidden />
+      )}
+      <span className="friend-hub-radar-name" title={match.name}>
+        {match.name}
       </span>
       <span className="friend-hub-radar-sub" title={sub}>
         {sub}

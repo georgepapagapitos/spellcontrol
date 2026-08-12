@@ -191,6 +191,11 @@ export function TonightTrades({
           // their whole collection, and exactly what's on the table.
           friendCards={composingWith.tradeableCards}
           friendCardsLoading={false}
+          // Unmarked on purpose: the "Bring tonight" section this composer
+          // opens from already lists exactly what they want from you, on the
+          // same screen. Re-marking it inside the give side answers a question
+          // that was answered one tap ago.
+          friendWants={null}
           onClose={() => setComposingWith(null)}
           onSent={() => setComposingWith(null)}
         />

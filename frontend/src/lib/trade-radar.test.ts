@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { buildTradeRadar } from './trade-radar';
+import { buildTradeRadar, buildWantRadar } from './trade-radar';
+import { groupOwnedForTrade } from './trade-picker';
 import type { FriendCard } from './cube/pool';
-import type { ListDef, ListEntry } from '../types';
+import type { EnrichedCard, ListDef, ListEntry } from '../types';
 
 function friendCard(overrides: Partial<FriendCard> & { name: string }): FriendCard {
   return {
@@ -128,5 +129,104 @@ describe('buildTradeRadar', () => {
     // The same entries on a want list (explicit or default) still match.
     const want: ListDef = { ...tracking, kind: 'want' };
     expect(buildTradeRadar([want], friend)).toHaveLength(1);
+  });
+});
+
+function owned(over: Partial<EnrichedCard> & { copyId: string; name: string }): EnrichedCard {
+  return {
+    setCode: 'cmr',
+    setName: 'Commander Legends',
+    collectorNumber: '1',
+    rarity: 'rare',
+    scryfallId: 'scry-default',
+    purchasePrice: 0,
+    sourceCategory: 'manual',
+    sourceFormat: 'manual',
+    finish: 'nonfoil',
+    foil: false,
+    ...over,
+  } as EnrichedCard;
+}
+
+describe('buildWantRadar', () => {
+  it('matches by oracleId and reports owned + spare counts', () => {
+    const lines = groupOwnedForTrade([
+      owned({ copyId: 'a', name: 'Sol Ring', oracleId: 'o-sol' }),
+      owned({ copyId: 'b', name: 'Sol Ring', oracleId: 'o-sol' }),
+    ]);
+    const matches = buildWantRadar(
+      [{ name: 'sol ring (their casing)', oracleId: 'o-sol' }],
+      lines,
+      new Map([['Sol Ring', 1]])
+    );
+    expect(matches).toEqual([{ name: 'Sol Ring', oracleId: 'o-sol', owned: 2, spare: 1 }]);
+  });
+
+  it('still matches a card with every copy committed — spare 0, not dropped', () => {
+    const lines = groupOwnedForTrade([owned({ copyId: 'a', name: 'Sol Ring', oracleId: 'o-sol' })]);
+    const matches = buildWantRadar([{ name: 'Sol Ring', oracleId: 'o-sol' }], lines, new Map());
+    expect(matches).toEqual([{ name: 'Sol Ring', oracleId: 'o-sol', owned: 1, spare: 0 }]);
+  });
+
+  it('falls back to a case-insensitive name match when either side lacks an oracleId', () => {
+    const lines = groupOwnedForTrade([owned({ copyId: 'a', name: 'Sol Ring', oracleId: 'o-sol' })]);
+    expect(buildWantRadar([{ name: 'SOL RING', oracleId: '' }], lines, new Map())).toHaveLength(1);
+
+    const legacyLines = groupOwnedForTrade([owned({ copyId: 'a', name: 'Sol Ring' })]);
+    const matches = buildWantRadar(
+      [{ name: 'sol ring', oracleId: 'o-sol' }],
+      legacyLines,
+      new Map()
+    );
+    expect(matches).toEqual([{ name: 'Sol Ring', oracleId: '', owned: 1, spare: 0 }]);
+  });
+
+  it('never surfaces a proxy — groupOwnedForTrade drops them before we index', () => {
+    const lines = groupOwnedForTrade([
+      owned({ copyId: 'a', name: 'Black Lotus', oracleId: 'o-lotus', proxy: true }),
+    ]);
+    expect(
+      buildWantRadar([{ name: 'Black Lotus', oracleId: 'o-lotus' }], lines, new Map())
+    ).toEqual([]);
+  });
+
+  it('emits one row per card even when the friend wants it from several lists', () => {
+    const lines = groupOwnedForTrade([owned({ copyId: 'a', name: 'Sol Ring', oracleId: 'o-sol' })]);
+    const matches = buildWantRadar(
+      [
+        { name: 'Sol Ring', oracleId: 'o-sol' },
+        { name: 'Sol Ring', oracleId: 'o-sol' },
+      ],
+      lines,
+      new Map()
+    );
+    expect(matches).toHaveLength(1);
+  });
+
+  it('sorts spare-first, then by name — the cards you can hand over lead', () => {
+    const lines = groupOwnedForTrade([
+      owned({ copyId: 'a', name: 'Arcane Signet', oracleId: 'o-sig' }),
+      owned({ copyId: 'b', name: 'Sol Ring', oracleId: 'o-sol' }),
+      owned({ copyId: 'c', name: 'Zur the Enchanter', oracleId: 'o-zur' }),
+    ]);
+    const matches = buildWantRadar(
+      [
+        { name: 'Arcane Signet', oracleId: 'o-sig' },
+        { name: 'Sol Ring', oracleId: 'o-sol' },
+        { name: 'Zur the Enchanter', oracleId: 'o-zur' },
+      ],
+      lines,
+      new Map([
+        ['Sol Ring', 2],
+        ['Zur the Enchanter', 1],
+      ])
+    );
+    expect(matches.map((m) => m.name)).toEqual(['Sol Ring', 'Zur the Enchanter', 'Arcane Signet']);
+  });
+
+  it('handles empty inputs on either side', () => {
+    const lines = groupOwnedForTrade([owned({ copyId: 'a', name: 'Sol Ring', oracleId: 'o-sol' })]);
+    expect(buildWantRadar([], lines, new Map())).toEqual([]);
+    expect(buildWantRadar([{ name: 'Sol Ring', oracleId: 'o-sol' }], [], new Map())).toEqual([]);
   });
 });

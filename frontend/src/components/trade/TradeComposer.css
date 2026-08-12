@@ -423,6 +423,29 @@
   color: var(--text-secondary);
 }
 
+/* Name + "Wanted" badge. The name truncates (it has `overflow: hidden`, so its
+   automatic flex minimum is already 0); the badge never shrinks, so a long card
+   name can't ellipsis away the one signal this row exists to carry. */
+.trade-picked-name-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* "Wanted" — this card is on the friend's want list. */
+.trade-wanted-badge {
+  flex: 0 0 auto;
+  padding: 0 0.35em;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .trade-spare-toggle:hover {
     color: var(--text-primary);

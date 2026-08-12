@@ -156,6 +156,34 @@ export type FriendActivityItem =
       occurredAt: number;
     };
 
+/**
+ * One card a friend is looking for. `{name, oracleId}` and nothing else — the
+ * server strips quantity, target price, per-entry note and the owning list's
+ * own name before any of it reaches the wire (see the `/wants` route). The
+ * mirror of `FriendCard`'s contents-yes-value-no projection, one notch thinner
+ * because a want is only ever matched against your own collection.
+ */
+export interface FriendWant {
+  name: string;
+  oracleId: string;
+}
+
+export interface FriendWantsResponse {
+  ownerUsername: string;
+  ownerDisplayName: string | null;
+  wants: FriendWant[];
+}
+
+export async function fetchFriendWants(friendId: string): Promise<FriendWantsResponse> {
+  const res = await fetch(apiUrl(`/api/friends/${encodeURIComponent(friendId)}/wants`), {
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    throw new Error(await readError(res, 'Failed to load what this friend is looking for.'));
+  }
+  return (await res.json()) as FriendWantsResponse;
+}
+
 export async function getFriendsActivity(): Promise<FriendActivityItem[]> {
   const res = await fetch(apiUrl('/api/friends/activity'), { credentials: 'include' });
   if (!res.ok) {
