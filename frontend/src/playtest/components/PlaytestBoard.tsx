@@ -16,6 +16,8 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { useDecksStore } from '@/store/decks';
 import { usePlaytestStore } from '../store';
 import { useNarrowViewport } from '../hooks/use-narrow-viewport';
+import { useOnlineTable } from '../hooks/use-online-table';
+import { OpponentRail } from './OpponentRail';
 import { autoPlace } from '../lib/auto-place';
 import { haptics } from '@/lib/haptics';
 import { Battlefield } from './Battlefield';
@@ -143,6 +145,11 @@ export function PlaytestBoard({ state }: Props) {
   // one from a later game) re-shows.
   const [dismissedSessionRecordId, setDismissedSessionRecordId] = useState<string | null>(null);
   const isNarrow = useNarrowViewport();
+  // The conditional multiplayer seam (see use-online-table.ts): non-null only
+  // when there's an active online game AND this device holds a seat in it.
+  // Publishes `state` internally; solo playtest never touches it beyond this
+  // one hook call, and null here means the rail below never renders.
+  const onlineTable = useOnlineTable(state);
 
   // The card currently under the pointer, resolved to its data + display
   // size, so the top-level <DragOverlay> can render a moving copy that
@@ -597,6 +604,12 @@ export function PlaytestBoard({ state }: Props) {
         onDragCancel={() => setActiveId(null)}
       >
         <div className="playtest-main">
+          {onlineTable && (
+            <OpponentRail
+              opponents={onlineTable.opponents}
+              activeSeat={onlineTable.activeSeat ?? undefined}
+            />
+          )}
           <div ref={battlefieldRef} className="playtest-battlefield-wrap">
             <Battlefield
               cards={state.battlefield}

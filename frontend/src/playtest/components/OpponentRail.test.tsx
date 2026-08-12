@@ -189,4 +189,38 @@ describe('OpponentRail', () => {
     expect(dot?.getAttribute('aria-hidden')).toBe('true');
     expect(screen.getByText('Player 0')).toBeTruthy();
   });
+
+  // A seated player who hasn't published a board yet still gets a seat in
+  // the rail (never omitted — see "no opponent may ever be hidden"), but its
+  // placeholder board's zeroed handCount/libraryCount/battlefield are not
+  // real information, so `pending` swaps them for a distinct line rather
+  // than rendering a fabricated "0 permanents · empty hand".
+  it('shows a "no board shared yet" line for a pending seat, in presence density', () => {
+    stubOrientation(false);
+    const opponents = [{ ...seat(0, { life: 40 }), pending: true }];
+    render(<OpponentRail opponents={opponents} />);
+    expect(screen.getByText('No board shared yet')).toBeTruthy();
+    expect(screen.queryByText('0 permanents')).toBeNull();
+  });
+
+  it('shows the same pending line instead of the mini battlefield in glance density', () => {
+    stubOrientation(true);
+    const opponents = [{ ...seat(0, { life: 40 }), pending: true }];
+    const { container } = render(<OpponentRail opponents={opponents} />);
+    expect(screen.getByText('No board shared yet')).toBeTruthy();
+    expect(container.querySelector('.opponent-entry__battlefield')).toBeNull();
+    expect(screen.queryByText(/Hand \d+ · Library \d+/)).toBeNull();
+  });
+
+  it('still shows the pending seat’s real life total, and folds the pending state into the accessible label', () => {
+    stubOrientation(false);
+    const opponents = [{ ...seat(0, { life: 27 }), pending: true }];
+    render(<OpponentRail opponents={opponents} />);
+    expect(screen.getByText('27')).toBeTruthy();
+    const label = screen.getByRole('listitem').getAttribute('aria-label') ?? '';
+    expect(label).toMatch(/27 life/);
+    expect(label).toMatch(/no board shared yet/);
+    expect(label).not.toMatch(/in hand/);
+    expect(label).not.toMatch(/in library/);
+  });
 });
