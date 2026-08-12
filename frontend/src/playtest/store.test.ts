@@ -392,14 +392,16 @@ describe('game log (E140 + E142)', () => {
   it('records structured entries for reducer actions dispatched through the store', () => {
     store().init('deck-1', { library: threatLibrary(3), seed: 42 });
     store().dispatch({ type: 'NEXT_TURN' });
-    expect(store().gameLog).toEqual([{ seq: 1, turn: 2, kind: 'turn', text: 'Turn 2 begins' }]);
+    expect(store().gameLog).toEqual([
+      { seq: 1, turn: 2, kind: 'turn', text: 'Turn 2 begins', verdict: 'consent' },
+    ]);
   });
 
   it('records a designation change dispatched through the store', () => {
     store().init('deck-1', { library: threatLibrary(3), seed: 42 });
     store().dispatch({ type: 'SET_DESIGNATION', designation: 'monarch', held: true });
     expect(store().gameLog).toEqual([
-      { seq: 1, turn: 1, kind: 'designation', text: 'Took the Monarch' },
+      { seq: 1, turn: 1, kind: 'designation', text: 'Took the Monarch', verdict: 'consent' },
     ]);
     expect(store().state?.monarch).toBe(true);
   });
@@ -461,7 +463,7 @@ describe('game log (E140 + E142)', () => {
     const [a, b] = store().state!.zones.library;
     store().dispatch({ type: 'RESOLVE_TOP', mode: 'scry', top: [a.id], bottom: [b.id] });
     expect(store().gameLog).toEqual([
-      { seq: 1, turn: 1, kind: 'scry', text: 'Scried 2 — 1 to the bottom' },
+      { seq: 1, turn: 1, kind: 'scry', text: 'Scried 2 — 1 to the bottom', verdict: 'locked' },
     ]);
   });
 
@@ -474,6 +476,7 @@ describe('game log (E140 + E142)', () => {
         turn: 1,
         kind: 'mulligan',
         text: `Mulliganed to ${store().state!.zones.hand.length}`,
+        verdict: 'locked',
       },
     ]);
   });
@@ -633,7 +636,9 @@ describe('device-local session persistence (E137)', () => {
     flushPendingPlaytestSnapshot();
 
     const snap = loadPlaytestSnapshot('deck-1', '100:0');
-    expect(snap?.gameLog).toEqual([{ seq: 1, turn: 2, kind: 'turn', text: 'Turn 2 begins' }]);
+    expect(snap?.gameLog).toEqual([
+      { seq: 1, turn: 2, kind: 'turn', text: 'Turn 2 begins', verdict: 'consent' },
+    ]);
   });
 
   it('persists the resistance level alongside the rest of the snapshot', () => {

@@ -39,7 +39,9 @@ describe('buildLogEntries', () => {
       top: [a.id, b.id],
       ...('bottom' in away ? { bottom: [c.id] } : { graveyard: [c.id] }),
     };
-    expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([{ turn: 1, kind, text }]);
+    expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([
+      { turn: 1, kind, text, verdict: 'locked' },
+    ]);
   });
 
   it('logs a mill by the number that actually reached the graveyard', () => {
@@ -52,7 +54,7 @@ describe('buildLogEntries', () => {
       graveyard: [a.id, b.id, 'not-in-library'],
     };
     expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([
-      { turn: 1, kind: 'mill', text: 'Milled 2 cards' },
+      { turn: 1, kind: 'mill', text: 'Milled 2 cards', verdict: 'locked' },
     ]);
   });
 
@@ -79,7 +81,7 @@ describe('buildLogEntries', () => {
     };
     const name = s.battlefield[0].card.name;
     expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([
-      { turn: 1, kind: 'token', text: `Copied ${name}`, cardName: name },
+      { turn: 1, kind: 'token', text: `Copied ${name}`, cardName: name, verdict: 'consent' },
     ]);
   });
 
@@ -90,7 +92,7 @@ describe('buildLogEntries', () => {
       clones: s.battlefield.map((b, i) => ({ sourceId: b.card.id, id: `copy-${i}` })),
     };
     expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([
-      { turn: 1, kind: 'token', text: 'Copied 3 permanents' },
+      { turn: 1, kind: 'token', text: 'Copied 3 permanents', verdict: 'consent' },
     ]);
   });
 
@@ -104,7 +106,7 @@ describe('buildLogEntries', () => {
     const s = init(10, 1, 0);
     const next = applyAction(s, { type: 'NEXT_TURN' });
     expect(buildLogEntries(s, { type: 'NEXT_TURN' }, next)).toEqual([
-      { turn: 2, kind: 'turn', text: 'Turn 2 begins' },
+      { turn: 2, kind: 'turn', text: 'Turn 2 begins', verdict: 'consent' },
     ]);
   });
 
@@ -112,7 +114,7 @@ describe('buildLogEntries', () => {
     const s = init(10, 1, 0);
     const next = applyAction(s, { type: 'DRAW', n: 3 });
     expect(buildLogEntries(s, { type: 'DRAW', n: 3 }, next)).toEqual([
-      { turn: 1, kind: 'draw', text: 'Drew 3 cards' },
+      { turn: 1, kind: 'draw', text: 'Drew 3 cards', verdict: 'locked' },
     ]);
   });
 
@@ -126,7 +128,7 @@ describe('buildLogEntries', () => {
     const s = init(5, 1, 0);
     const next = applyAction(s, { type: 'SHUFFLE_LIBRARY' });
     expect(buildLogEntries(s, { type: 'SHUFFLE_LIBRARY' }, next)).toEqual([
-      { turn: 1, kind: 'shuffle', text: 'Shuffled the library' },
+      { turn: 1, kind: 'shuffle', text: 'Shuffled the library', verdict: 'locked' },
     ]);
   });
 
@@ -134,7 +136,7 @@ describe('buildLogEntries', () => {
     const s = init(10, 1, 7);
     const next = applyAction(s, { type: 'MULLIGAN', handSize: 6 });
     expect(buildLogEntries(s, { type: 'MULLIGAN', handSize: 6 }, next)).toEqual([
-      { turn: 1, kind: 'mulligan', text: 'Mulliganed to 6' },
+      { turn: 1, kind: 'mulligan', text: 'Mulliganed to 6', verdict: 'locked' },
     ]);
   });
 
@@ -242,7 +244,13 @@ describe('buildLogEntries', () => {
     const tok = card('tok1', { name: 'Squirrel', isToken: true });
     const next = applyAction(s, { type: 'CREATE_TOKEN', card: tok, x: 0, y: 0 });
     expect(buildLogEntries(s, { type: 'CREATE_TOKEN', card: tok, x: 0, y: 0 }, next)).toEqual([
-      { turn: 1, kind: 'token', text: 'Created token: Squirrel', cardName: 'Squirrel' },
+      {
+        turn: 1,
+        kind: 'token',
+        text: 'Created token: Squirrel',
+        cardName: 'Squirrel',
+        verdict: 'consent',
+      },
     ]);
   });
 
@@ -250,7 +258,7 @@ describe('buildLogEntries', () => {
     const s = init(5, 1, 0);
     const next = applyAction(s, { type: 'UNTAP_ALL' });
     expect(buildLogEntries(s, { type: 'UNTAP_ALL' }, next)).toEqual([
-      { turn: 1, kind: 'tap-all', text: 'Untapped all permanents' },
+      { turn: 1, kind: 'tap-all', text: 'Untapped all permanents', verdict: 'free' },
     ]);
   });
 
@@ -281,7 +289,7 @@ describe('buildLogEntries', () => {
       const action = { type: 'ADJUST_LIFE', player: 'self', delta: -5 } as const;
       const next = applyAction(s, action);
       expect(buildLogEntries(s, action, next)).toEqual([
-        { turn: 1, kind: 'life', text: 'Your life: 20 → 15' },
+        { turn: 1, kind: 'life', text: 'Your life: 20 → 15', verdict: 'consent' },
       ]);
     });
 
@@ -296,7 +304,7 @@ describe('buildLogEntries', () => {
       const action = { type: 'ADJUST_LIFE', player: 1, delta: -10 } as const;
       const next = applyAction(s, action);
       expect(buildLogEntries(s, action, next)).toEqual([
-        { turn: 1, kind: 'life', text: 'Opponent 2 life: 40 → 30' },
+        { turn: 1, kind: 'life', text: 'Opponent 2 life: 40 → 30', verdict: 'consent' },
       ]);
     });
 
@@ -312,7 +320,7 @@ describe('buildLogEntries', () => {
       const action = { type: 'ADJUST_COMMANDER_DAMAGE', opponent: 0, delta: 6 } as const;
       const next = applyAction(s, action);
       expect(buildLogEntries(s, action, next)).toEqual([
-        { turn: 1, kind: 'life', text: 'Opponent commander damage: 0 → 6' },
+        { turn: 1, kind: 'life', text: 'Opponent commander damage: 0 → 6', verdict: 'consent' },
       ]);
     });
 
@@ -330,7 +338,7 @@ describe('buildLogEntries', () => {
       const action = { type: 'SET_DESIGNATION', designation: 'monarch', held: true } as const;
       const next = applyAction(s, action);
       expect(buildLogEntries(s, action, next)).toEqual([
-        { turn: 1, kind: 'designation', text: 'Took the Monarch' },
+        { turn: 1, kind: 'designation', text: 'Took the Monarch', verdict: 'consent' },
       ]);
     });
 
@@ -340,7 +348,7 @@ describe('buildLogEntries', () => {
       const action = { type: 'SET_DESIGNATION', designation: 'initiative', held: false } as const;
       const next = applyAction(s, action);
       expect(buildLogEntries(s, action, next)).toEqual([
-        { turn: 1, kind: 'designation', text: 'Lost the Initiative' },
+        { turn: 1, kind: 'designation', text: 'Lost the Initiative', verdict: 'consent' },
       ]);
     });
 
@@ -349,7 +357,7 @@ describe('buildLogEntries', () => {
       const action = { type: 'SET_DESIGNATION', designation: 'citysBlessing', held: true } as const;
       const next = applyAction(s, action);
       expect(buildLogEntries(s, action, next)).toEqual([
-        { turn: 1, kind: 'designation', text: "Achieved the City's Blessing" },
+        { turn: 1, kind: 'designation', text: "Achieved the City's Blessing", verdict: 'consent' },
       ]);
     });
 
@@ -456,12 +464,19 @@ describe('buildLogEntries — attachments and player counters', () => {
         kind: 'attach',
         text: `${aura.card.name} attached to ${host.card.name}`,
         cardName: aura.card.name,
+        verdict: 'consent',
       },
     ]);
 
     const detach = { type: 'ATTACH' as const, cardId: aura.card.id, targetId: null };
     expect(buildLogEntries(attached, detach, applyAction(attached, detach))).toEqual([
-      { turn: 1, kind: 'attach', text: `${aura.card.name} unattached`, cardName: aura.card.name },
+      {
+        turn: 1,
+        kind: 'attach',
+        text: `${aura.card.name} unattached`,
+        cardName: aura.card.name,
+        verdict: 'consent',
+      },
     ]);
   });
 
@@ -476,7 +491,7 @@ describe('buildLogEntries — attachments and player counters', () => {
     const s = createPlaytestState({ library: deck(20), seed: 1, life: 40, opponentCount: 2 });
     const poison = { type: 'SET_PLAYER_COUNTER' as const, player: 0, counter: 'poison', delta: 3 };
     expect(buildLogEntries(s, poison, applyAction(s, poison))).toEqual([
-      { turn: 1, kind: 'counter', text: 'Opponent 1: poison 0 → 3' },
+      { turn: 1, kind: 'counter', text: 'Opponent 1: poison 0 → 3', verdict: 'free' },
     ]);
 
     const mine = {
@@ -486,7 +501,7 @@ describe('buildLogEntries — attachments and player counters', () => {
       delta: 1,
     };
     expect(buildLogEntries(s, mine, applyAction(s, mine))).toEqual([
-      { turn: 1, kind: 'counter', text: 'You: energy 0 → 1' },
+      { turn: 1, kind: 'counter', text: 'You: energy 0 → 1', verdict: 'free' },
     ]);
   });
 
