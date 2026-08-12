@@ -9,9 +9,9 @@
  *
  * No `@testing-library/jest-dom` in this repo — plain vitest matchers.
  */
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BinderDef, EnrichedCard } from '../../types';
 import type { TradeOffer } from '../../lib/trades-client';
 
@@ -32,6 +32,21 @@ vi.mock('../../store/decks', () => ({
 }));
 vi.mock('../../store/cube', () => ({
   useCubeStore: (sel: (s: unknown) => unknown) => sel({ saved: [] }),
+}));
+
+// The carousel itself is covered by CardPreview.test; here we only care that
+// the chip opens it, with the whole offer and on the right slide.
+const previewProps = vi.fn();
+vi.mock('../CardPreview', () => ({
+  CardPreview: (props: { cards: { name: string }[]; index: number }) => {
+    previewProps(props);
+    return <div data-testid="preview">{props.cards[props.index]?.name}</div>;
+  },
+}));
+
+const resolveTradePreview = vi.fn();
+vi.mock('../../lib/trade-preview', () => ({
+  resolveTradePreview: (cards: unknown[]) => resolveTradePreview(cards),
 }));
 
 import { TradeOfferList } from './TradeOfferList';
@@ -146,5 +161,63 @@ describe('settled note', () => {
     storeState = { cards: [card({ copyId: 'c1' })], binders: [binder()] };
     mount({ ...settled, settled: false });
     expect(screen.getByRole('status').textContent).toContain('Adding to your collection');
+  });
+});
+
+describe('card preview', () => {
+  const twoSided: TradeOffer = {
+    ...settled,
+    status: 'proposed',
+    settled: false,
+    give: [{ oracleId: 'o-sol', name: 'Sol Ring', quantity: 1, copies: [] }],
+    receive: [{ oracleId: 'o-rhystic', name: 'Rhystic Study', quantity: 1, copies: [] }],
+  };
+
+  beforeEach(() => {
+    previewProps.mockReset();
+    resolveTradePreview.mockReset();
+    storeState = { cards: [], binders: [] };
+    resolveTradePreview.mockResolvedValue({
+      cards: [{ name: 'Sol Ring' }, { name: 'Rhystic Study' }],
+      indexOf: (c: { name: string }) => (c.name === 'Sol Ring' ? 0 : 1),
+    });
+  });
+
+  it('opens the carousel on the card you tapped', async () => {
+    mount(twoSided);
+    fireEvent.click(screen.getByLabelText('Preview Rhystic Study'));
+    expect((await screen.findByTestId('preview')).textContent).toBe('Rhystic Study');
+  });
+
+  it('spans the WHOLE offer, give side then get side', async () => {
+    // A trade is one decision about a set of cards — you should be able to
+    // swipe from what you're giving straight into what you're getting.
+    mount(twoSided);
+    fireEvent.click(screen.getByLabelText('Preview Sol Ring'));
+    await screen.findByTestId('preview');
+    expect(resolveTradePreview).toHaveBeenCalledWith([...twoSided.give, ...twoSided.receive]);
+    expect(previewProps.mock.calls[0][0].cards.map((c: { name: string }) => c.name)).toEqual([
+      'Sol Ring',
+      'Rhystic Study',
+    ]);
+  });
+
+  it('opens at the first slide when the tapped card itself could not resolve', async () => {
+    // One dead lookup must not block looking at the rest of the deal.
+    resolveTradePreview.mockResolvedValue({
+      cards: [{ name: 'Sol Ring' }],
+      indexOf: () => -1,
+    });
+    mount(twoSided);
+    fireEvent.click(screen.getByLabelText('Preview Rhystic Study'));
+    expect((await screen.findByTestId('preview')).textContent).toBe('Sol Ring');
+  });
+
+  it('stays closed and warns when nothing resolves at all', async () => {
+    resolveTradePreview.mockResolvedValue({ cards: [], indexOf: () => -1 });
+    mount(twoSided);
+    fireEvent.click(screen.getByLabelText('Preview Sol Ring'));
+    await Promise.resolve();
+    expect(screen.queryByTestId('preview')).toBeNull();
   });
 });
