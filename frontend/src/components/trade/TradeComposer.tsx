@@ -25,7 +25,9 @@ import {
   type PrintingGroup,
 } from '../../lib/trade-picker';
 import { useFloorPrices } from '../../lib/trade-value';
-import { proposeTrade, type TradeOffer } from '../../lib/trades-client';
+import { resolveTradePreview } from '../../lib/trade-preview';
+import { TradePreviewCarousel, type TradePreviewState } from './TradePreviewCarousel';
+import { proposeTrade, type TradeOffer, type TradeCard } from '../../lib/trades-client';
 import type { EnrichedCard } from '../../types';
 import type { FriendCard } from '../../lib/cube/pool';
 import type { FriendWant } from '../../lib/friends-client';
@@ -201,6 +203,69 @@ export function TradeComposer({
       .slice(0, PICKER_LIMIT);
   }, [friendCards, wantSearch]);
 
+  // ── Card preview ────────────────────────────────────────────────────
+  // The carousel is the app's single card-inspect surface, and the composer
+  // was a place you picked cards you could not actually look at. Which SET it
+  // walks depends on which list you tapped, so swiping always continues the
+  // list you were reading:
+  //   · a RESULT row  → that side's results (you are comparing candidates)
+  //   · a PICKED row  → the whole deal, give then get (#1560's ruling: a trade
+  //                     is one decision about a set of cards)
+  const [preview, setPreview] = useState<TradePreviewState | null>(null);
+  // Slide → the row that produced it, for the preview's own Add button. Built
+  // from `indexOf`, never by position: `resolveTradePreview` DROPS a card it
+  // can't resolve, so a positional map would aim every later action at its
+  // neighbour.
+  const [previewActions, setPreviewActions] = useState<(() => void)[] | null>(null);
+
+  function closePreview() {
+    setPreview(null);
+    setPreviewActions(null);
+  }
+
+  /** The give side is the one place no lookup is needed: these are the
+   *  viewer's OWN copies, already enriched, so the carousel opens instantly
+   *  and shows the exact printing that would leave the binder. */
+  function inspectGiveResult(tapped: OwnedTradeLine) {
+    const slides = giveResults.map((line) => copiesByValue(line)[0]).filter(Boolean);
+    if (slides.length === 0) return;
+    const at = giveResults.findIndex((line) => keyOf(line) === keyOf(tapped));
+    setPreview({ cards: slides, index: Math.max(0, at) });
+    setPreviewActions(giveResults.map((line) => () => addGive(line)));
+  }
+
+  async function inspectWantResult(tapped: FriendCard) {
+    const rows = wantResults.map((card) => toRequestedCard(card, 1));
+    const { cards: slides, indexOf } = await resolveTradePreview(rows);
+    if (slides.length === 0) {
+      toast.show({ message: 'Couldn’t load these cards right now.', tone: 'warn' });
+      return;
+    }
+    const actions: (() => void)[] = [];
+    rows.forEach((row, i) => {
+      const at = indexOf(row);
+      if (at >= 0) actions[at] = () => bump(setWanting, keyOf(wantResults[i]), 1, 20);
+    });
+    const at = indexOf(toRequestedCard(tapped, 1));
+    setPreview({ cards: slides, index: at >= 0 ? at : 0 });
+    setPreviewActions(actions);
+  }
+
+  /** A picked row opens the DEAL. No action button here on purpose: the
+   *  carousel spans both baskets, so a control that removed the slide you were
+   *  looking at would be editing one card while you read a set. */
+  async function inspectPicked(tapped: TradeCard) {
+    const all = [...giveCards, ...wantCards];
+    const { cards: slides, indexOf } = await resolveTradePreview(all);
+    if (slides.length === 0) {
+      toast.show({ message: 'Couldn’t load these cards right now.', tone: 'warn' });
+      return;
+    }
+    const at = indexOf(tapped);
+    setPreview({ cards: slides, index: at >= 0 ? at : 0 });
+    setPreviewActions(null);
+  }
+
   /** Picking a card from the results adds its CHEAPEST unchosen copy — the
    *  same safe default `copiesByValue` documents. One tap still works for the
    *  single-printing case, which is most of a collection. */
@@ -334,198 +399,247 @@ export function TradeComposer({
     }
   }
 
+  // The carousel is a SIBLING of the Modal, never a child: `Modal` renders in
+  // place with no portal, so nesting one inside another's children stacks two
+  // scroll-locking layers. The overlay stack is module-global, so Escape and
+  // Android back still resolve to whichever is topmost.
   return (
-    // Keeps .choice-dialog — its max-height / keyboard-inset / scroll
-    // behaviour is what this sheet relies on — and only widens it: two
-    // side-by-side baskets do not fit a 460px confirm-dialog.
-    <Modal
-      onClose={onClose}
-      labelledBy={titleId}
-      dismissable={!sending}
-      className="choice-dialog trade-composer-panel"
-    >
-      <div className="game-night-dialog trade-composer">
-        <h2 id={titleId} className="game-night-dialog-title">
-          Propose a trade — {friendName}
-        </h2>
-        <p className="game-night-dialog-hint">
-          Pick what changes hands. {friendName} sees the exact printings you’re offering, and
-          confirms which of theirs they’re giving when they accept.
-        </p>
+    <>
+      {/* Keeps .choice-dialog — its max-height / keyboard-inset / scroll
+          behaviour is what this sheet relies on — and only widens it: two
+          side-by-side baskets do not fit a 460px confirm-dialog. */}
+      <Modal
+        onClose={onClose}
+        labelledBy={titleId}
+        dismissable={!sending}
+        className="choice-dialog trade-composer-panel"
+      >
+        <div className="game-night-dialog trade-composer">
+          <h2 id={titleId} className="game-night-dialog-title">
+            Propose a trade — {friendName}
+          </h2>
+          <p className="game-night-dialog-hint">
+            Pick what changes hands. {friendName} sees the exact printings you’re offering, and
+            confirms which of theirs they’re giving when they accept.
+          </p>
 
-        <div className="trade-composer-sides">
-          <TradeSide
-            title="You give"
-            count={totalGive}
-            value={formatMoney(giveValue)}
-            query={giveQuery}
-            onQuery={setGiveQuery}
-            searchLabel="Search your collection"
-            picked={giveCards.map((c) => {
-              const line = ownedByKey.get(keyOf(c));
-              return {
-                key: keyOf(c),
-                name: c.name,
-                quantity: c.quantity,
-                max: line?.copies.length ?? c.quantity,
-                wanted: wantedKeys.has(keyOf(c)),
-                value: formatMoney(sumCopyValue(chosenByKey.get(keyOf(c)) ?? [])),
-                give: {
-                  line,
-                  chosen: new Set(chosenByKey.get(keyOf(c))?.map((x) => x.copyId) ?? []),
-                },
-              };
-            })}
-            onSetPrinting={setPrintingCount}
-            binderByCopyId={binderByCopyId}
-            filterSlot={
-              <>
-                {surplusByName.size > 0 && (
-                  <button
-                    type="button"
-                    className={spareOnly ? 'trade-spare-toggle is-on' : 'trade-spare-toggle'}
-                    aria-pressed={spareOnly}
-                    onClick={() => setSpareOnly((v) => !v)}
-                  >
-                    Spare copies
-                    <span className="trade-spare-count">{surplusByName.size}</span>
-                  </button>
-                )}
-                {/* Pairs with "Spare copies": together they answer the only
+          <div className="trade-composer-sides">
+            <TradeSide
+              title="You give"
+              count={totalGive}
+              value={formatMoney(giveValue)}
+              query={giveQuery}
+              onQuery={setGiveQuery}
+              searchLabel="Search your collection"
+              picked={giveCards.map((c) => {
+                const line = ownedByKey.get(keyOf(c));
+                return {
+                  key: keyOf(c),
+                  name: c.name,
+                  quantity: c.quantity,
+                  max: line?.copies.length ?? c.quantity,
+                  wanted: wantedKeys.has(keyOf(c)),
+                  value: formatMoney(sumCopyValue(chosenByKey.get(keyOf(c)) ?? [])),
+                  give: {
+                    line,
+                    chosen: new Set(chosenByKey.get(keyOf(c))?.map((x) => x.copyId) ?? []),
+                  },
+                };
+              })}
+              onSetPrinting={setPrintingCount}
+              binderByCopyId={binderByCopyId}
+              filterSlot={
+                <>
+                  {surplusByName.size > 0 && (
+                    <button
+                      type="button"
+                      className={spareOnly ? 'trade-spare-toggle is-on' : 'trade-spare-toggle'}
+                      aria-pressed={spareOnly}
+                      onClick={() => setSpareOnly((v) => !v)}
+                    >
+                      Spare copies
+                      <span className="trade-spare-count">{surplusByName.size}</span>
+                    </button>
+                  )}
+                  {/* Pairs with "Spare copies": together they answer the only
                     question that matters on this side — what can I part with
                     that they'd actually want? Hidden when nothing they want is
                     in the collection, since a toggle that empties the list is
                     a dead end, not a filter. */}
-                {wantedKeys.size > 0 && (
-                  <button
-                    type="button"
-                    className={wantedOnly ? 'trade-spare-toggle is-on' : 'trade-spare-toggle'}
-                    aria-pressed={wantedOnly}
-                    onClick={() => setWantedOnly((v) => !v)}
-                  >
-                    {friendName} wants
-                    <span className="trade-spare-count">{wantedKeys.size}</span>
-                  </button>
-                )}
-              </>
-            }
-            onRemove={removeGive}
-            results={giveResults.map((line) => ({
-              key: keyOf(line),
-              name: line.name,
-              max: line.copies.length,
-              wanted: wantedKeys.has(keyOf(line)),
-              detail:
-                line.copies.length > 1
-                  ? `${line.copies.length} copies · from ${formatMoney(copiesByValue(line)[0]?.purchasePrice)}`
-                  : formatMoney(line.copies[0]?.purchasePrice),
-            }))}
-            onPick={(key) => {
-              const line = ownedByKey.get(key);
-              if (line) addGive(line);
-            }}
-            emptyResults={
-              ownedLines.length === 0
-                ? 'Your collection is empty — import or add cards first.'
-                : wantedOnly && spareOnly
-                  ? `Nothing spare that ${friendName} wants matches that search. Turn off a filter to widen it.`
-                  : wantedOnly
-                    ? `Nothing ${friendName} wants matches that search. Turn off “${friendName} wants” to offer something else.`
-                    : spareOnly
-                      ? 'No spare copies match that search. Turn off “Spare copies” to offer one that’s in a deck.'
-                      : 'No cards match that search.'
-            }
-          />
+                  {wantedKeys.size > 0 && (
+                    <button
+                      type="button"
+                      className={wantedOnly ? 'trade-spare-toggle is-on' : 'trade-spare-toggle'}
+                      aria-pressed={wantedOnly}
+                      onClick={() => setWantedOnly((v) => !v)}
+                    >
+                      {friendName} wants
+                      <span className="trade-spare-count">{wantedKeys.size}</span>
+                    </button>
+                  )}
+                </>
+              }
+              onRemove={removeGive}
+              results={giveResults.map((line) => ({
+                key: keyOf(line),
+                name: line.name,
+                max: line.copies.length,
+                wanted: wantedKeys.has(keyOf(line)),
+                detail:
+                  line.copies.length > 1
+                    ? `${line.copies.length} copies · from ${formatMoney(copiesByValue(line)[0]?.purchasePrice)}`
+                    : formatMoney(line.copies[0]?.purchasePrice),
+              }))}
+              onPick={(key) => {
+                const line = ownedByKey.get(key);
+                if (line) addGive(line);
+              }}
+              onInspect={(key, from) => {
+                if (from === 'picked') {
+                  const card = giveCards.find((c) => keyOf(c) === key);
+                  if (card) void inspectPicked(card);
+                  return;
+                }
+                const line = ownedByKey.get(key);
+                if (line) inspectGiveResult(line);
+              }}
+              emptyResults={
+                ownedLines.length === 0
+                  ? 'Your collection is empty — import or add cards first.'
+                  : wantedOnly && spareOnly
+                    ? `Nothing spare that ${friendName} wants matches that search. Turn off a filter to widen it.`
+                    : wantedOnly
+                      ? `Nothing ${friendName} wants matches that search. Turn off “${friendName} wants” to offer something else.`
+                      : spareOnly
+                        ? 'No spare copies match that search. Turn off “Spare copies” to offer one that’s in a deck.'
+                        : 'No cards match that search.'
+              }
+            />
 
-          <TradeSide
-            title="You get"
-            count={totalWant}
-            // "from" because it is the cheapest printing that exists, not the
-            // printing they'll actually hand over — which nobody knows until
-            // they accept. Overstating this as a price is the one thing a
-            // fairness number must not do.
-            value={
-              totalWant === 0
-                ? formatMoney(0)
-                : floorPending
-                  ? '…'
-                  : `from ${formatMoney(wantValue)}${wantUnpriced > 0 ? ' +?' : ''}`
-            }
-            query={wantQuery}
-            onQuery={setWantQuery}
-            searchLabel={`Search ${friendName}’s collection`}
-            searchNote={
-              wantSearch.ignored.length > 0
-                ? `${wantSearch.ignored.join(', ')} ${wantSearch.ignored.length === 1 ? 'is' : 'are'} not searchable in a friend’s collection — the rest of your search still applied.`
-                : undefined
-            }
-            picked={wantCards.map((c) => ({
-              key: keyOf(c),
-              name: c.name,
-              quantity: c.quantity,
-              // The friend's collection is oracle-level with no quantities, so
-              // there is no true ceiling to enforce here — they confirm what
-              // they can actually part with when they accept.
-              max: 20,
-              value: (() => {
-                const floor = floorPrices.get(c.name);
-                return floor == null ? '—' : `from ${formatMoney(floor * c.quantity)}`;
-              })(),
-            }))}
-            onBump={(key, delta, max) => bump(setWanting, key, delta, max)}
-            onRemove={(key) => bump(setWanting, key, -(wanting[key] ?? 0), 20)}
-            results={wantResults.map((card) => ({
-              key: keyOf(card),
-              name: card.name,
-              max: 20,
-            }))}
-            onPick={(key) => bump(setWanting, key, 1, 20)}
-            loading={friendCardsLoading}
-            error={friendCardsError ? `Couldn’t load ${friendName}’s collection.` : undefined}
-            onRetry={onRetryFriendCards}
-            emptyResults={
-              (friendCards?.length ?? 0) === 0
-                ? `${friendName} hasn’t added any cards yet.`
-                : 'No cards match that search.'
-            }
-          />
-        </div>
+            <TradeSide
+              title="You get"
+              count={totalWant}
+              // "from" because it is the cheapest printing that exists, not the
+              // printing they'll actually hand over — which nobody knows until
+              // they accept. Overstating this as a price is the one thing a
+              // fairness number must not do.
+              value={
+                totalWant === 0
+                  ? formatMoney(0)
+                  : floorPending
+                    ? '…'
+                    : `from ${formatMoney(wantValue)}${wantUnpriced > 0 ? ' +?' : ''}`
+              }
+              query={wantQuery}
+              onQuery={setWantQuery}
+              searchLabel={`Search ${friendName}’s collection`}
+              searchNote={
+                wantSearch.ignored.length > 0
+                  ? `${wantSearch.ignored.join(', ')} ${wantSearch.ignored.length === 1 ? 'is' : 'are'} not searchable in a friend’s collection — the rest of your search still applied.`
+                  : undefined
+              }
+              picked={wantCards.map((c) => ({
+                key: keyOf(c),
+                name: c.name,
+                quantity: c.quantity,
+                // The friend's collection is oracle-level with no quantities, so
+                // there is no true ceiling to enforce here — they confirm what
+                // they can actually part with when they accept.
+                max: 20,
+                value: (() => {
+                  const floor = floorPrices.get(c.name);
+                  return floor == null ? '—' : `from ${formatMoney(floor * c.quantity)}`;
+                })(),
+              }))}
+              onBump={(key, delta, max) => bump(setWanting, key, delta, max)}
+              onRemove={(key) => bump(setWanting, key, -(wanting[key] ?? 0), 20)}
+              results={wantResults.map((card) => ({
+                key: keyOf(card),
+                name: card.name,
+                max: 20,
+              }))}
+              onPick={(key) => bump(setWanting, key, 1, 20)}
+              onInspect={(key, from) => {
+                if (from === 'picked') {
+                  const card = wantCards.find((c) => keyOf(c) === key);
+                  if (card) void inspectPicked(card);
+                  return;
+                }
+                const card = friendByKey.get(key);
+                if (card) void inspectWantResult(card);
+              }}
+              loading={friendCardsLoading}
+              error={friendCardsError ? `Couldn’t load ${friendName}’s collection.` : undefined}
+              onRetry={onRetryFriendCards}
+              emptyResults={
+                (friendCards?.length ?? 0) === 0
+                  ? `${friendName} hasn’t added any cards yet.`
+                  : 'No cards match that search.'
+              }
+            />
+          </div>
 
-        <div className="trade-composer-note">
-          <label htmlFor={noteId} className="trade-composer-note-label">
-            Note <span className="trade-composer-optional">(optional)</span>
-          </label>
-          <textarea
-            id={noteId}
-            className="trade-composer-note-input"
-            value={note}
-            maxLength={500}
-            rows={2}
-            placeholder="Bring these Thursday?"
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </div>
+          <div className="trade-composer-note">
+            <label htmlFor={noteId} className="trade-composer-note-label">
+              Note <span className="trade-composer-optional">(optional)</span>
+            </label>
+            <textarea
+              id={noteId}
+              className="trade-composer-note-input"
+              value={note}
+              maxLength={500}
+              rows={2}
+              placeholder="Bring these Thursday?"
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </div>
 
-        <div className="game-night-dialog-actions">
-          <button type="button" className="btn" onClick={onClose} disabled={sending}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => void send()}
-            disabled={!canSend}
-          >
-            {sending ? 'Sending…' : 'Send offer'}
-          </button>
+          <div className="game-night-dialog-actions">
+            <button type="button" className="btn" onClick={onClose} disabled={sending}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => void send()}
+              disabled={!canSend}
+            >
+              {sending ? 'Sending…' : 'Send offer'}
+            </button>
+          </div>
+          {!canSend && !sending && (
+            <p className="trade-composer-gate" role="status">
+              Add at least one card to send.
+            </p>
+          )}
         </div>
-        {!canSend && !sending && (
-          <p className="trade-composer-gate" role="status">
-            Add at least one card to send.
-          </p>
-        )}
-      </div>
-    </Modal>
+      </Modal>
+
+      {preview && (
+        <TradePreviewCarousel
+          state={preview}
+          onIndexChange={(i) => setPreview((p) => (p ? { ...p, index: i } : p))}
+          onClose={closePreview}
+          getActions={
+            previewActions
+              ? (i) => {
+                  const run = previewActions[i];
+                  return run
+                    ? [
+                        {
+                          key: 'add',
+                          icon: <Plus width={18} height={18} strokeWidth={2.4} aria-hidden />,
+                          label: 'Add',
+                          onClick: run,
+                        },
+                      ]
+                    : [];
+                }
+              : undefined
+          }
+        />
+      )}
+    </>
   );
 }
 
@@ -564,6 +678,7 @@ function TradeSide({
   filterSlot,
   onRemove,
   onPick,
+  onInspect,
   results,
   emptyResults,
   loading = false,
@@ -589,6 +704,10 @@ function TradeSide({
   filterSlot?: ReactNode;
   onRemove: (key: string) => void;
   onPick: (key: string) => void;
+  /** Open the card-preview carousel from a row's thumbnail. The thumb is the
+   *  preview affordance everywhere a row's own click is already a verb — see
+   *  AddCardSearchPanel, which this mirrors. */
+  onInspect: (key: string, from: 'result' | 'picked') => void;
   results: SideRow[];
   emptyResults: string;
   loading?: boolean;
@@ -617,6 +736,7 @@ function TradeSide({
               onBump={onBump}
               onSetPrinting={onSetPrinting}
               binderByCopyId={binderByCopyId}
+              onInspect={() => onInspect(row.key, 'picked')}
               onRemove={onRemove}
             />
           ))}
@@ -657,9 +777,27 @@ function TradeSide({
       ) : (
         <ul className="trade-side-results" aria-label={`${title} — pick a card`}>
           {results.map((row) => (
-            <li key={row.key}>
-              <button type="button" className="trade-result-row" onClick={() => onPick(row.key)}>
+            // Two sibling buttons, not one row-wide button with a nested one
+            // (invalid HTML). The split is deliberately UNEVEN: this picker is
+            // tapped repeatedly over ~11.5k cards, so the add target keeps the
+            // name, detail and "+" — only the thumbnail is carved out for the
+            // preview.
+            <li key={row.key} className="trade-result-row">
+              <button
+                type="button"
+                className="trade-thumb-btn"
+                aria-label={`Preview ${row.name}`}
+                title="Preview card"
+                onClick={() => onInspect(row.key, 'result')}
+              >
                 <TradeCardThumb name={row.name} />
+              </button>
+              <button
+                type="button"
+                className="trade-result-pick"
+                aria-label={`Add ${row.name}`}
+                onClick={() => onPick(row.key)}
+              >
                 <span className="trade-picked-info">
                   <span className="trade-picked-name-row">
                     <span className="trade-picked-name" title={row.name}>
@@ -705,6 +843,7 @@ function PickedRow({
   onBump,
   onSetPrinting,
   binderByCopyId,
+  onInspect,
   onRemove,
 }: {
   row: SideRow;
@@ -712,6 +851,7 @@ function PickedRow({
   onSetPrinting?: (key: string, printingKey: string, count: number) => void;
   /** Give side only — where each owned copy currently lives. */
   binderByCopyId?: Map<string, BinderRef[]>;
+  onInspect: () => void;
   onRemove: (key: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -732,7 +872,18 @@ function PickedRow({
   return (
     <li className="trade-picked-row-wrap">
       <div className="trade-picked-row">
-        <TradeCardThumb name={row.name} />
+        {/* Nothing else on this row claimed the thumbnail — the chevron,
+            stepper and × are all to the right — so the preview is purely
+            additive here. */}
+        <button
+          type="button"
+          className="trade-thumb-btn"
+          aria-label={`Preview ${row.name}`}
+          title="Preview card"
+          onClick={onInspect}
+        >
+          <TradeCardThumb name={row.name} />
+        </button>
         <span className="trade-picked-info">
           <span className="trade-picked-name-row">
             <span className="trade-picked-name" title={row.name}>

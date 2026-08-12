@@ -59,6 +59,36 @@
   border: 1px solid var(--border);
 }
 
+/* The thumbnail opens the card-preview carousel. This dialog OWNS this rule:
+   the composer has an equivalent `.trade-thumb-btn`, but borrowing a class
+   defined in another component's stylesheet is a load-order coin flip and has
+   already caused two defects in this feature. Takes the coarse floor on its
+   REAL box — the card heads stack vertically, so a ghost would overlap the
+   next card's thumb and open the wrong preview. */
+.trade-accept-thumb-btn {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.trade-accept-thumb-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .trade-accept-thumb-btn:hover .trade-accept-thumb {
+    outline: 1px solid var(--accent);
+    outline-offset: 1px;
+  }
+}
+
 .trade-accept-card-info {
   display: flex;
   flex-direction: column;
