@@ -1,0 +1,84 @@
+/* ── Takeback table rule picker — co-located styles ───────────────────────
+ * Same shape as ResistancePicker.css (a fieldset of radio rows layered on
+ * the shared card-picker-root / card-picker-sheet primitive). */
+
+.playtest-takeback-picker__intro {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.playtest-takeback-picker__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4) var(--space-4);
+  margin: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.playtest-takeback-picker__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: var(--space-3);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.playtest-takeback-picker__row input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.playtest-takeback-picker__row.is-active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.playtest-takeback-picker__row:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playtest-takeback-picker__row:hover {
+    border-color: var(--accent);
+  }
+}
+
+.playtest-takeback-picker__row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.playtest-takeback-picker__row-label {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.playtest-takeback-picker__row-desc {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.playtest-takeback-picker__row-check {
+  flex-shrink: 0;
+  color: var(--accent);
+}
