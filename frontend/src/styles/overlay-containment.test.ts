@@ -53,9 +53,9 @@ describe('overlay scroll containment', () => {
     ['styles/binder-card-management.css', '.add-card-sheet-body'],
     ['styles/play-layout-editor.css', '.cle'],
     ['components/AvatarPickerSheet.css', '.avatar-picker-body'],
-    // The trade composer's per-printing chooser — capped and scrolled because a
-    // real collection holds 59 printings of Mountain.
-    ['components/trade/TradeComposer.css', '.trade-copy-list'],
+    // The shared trade printing chooser (composer + accept dialog) — capped and
+    // scrolled because a real collection holds 59 printings of Mountain.
+    ['components/trade/PrintingChoices.css', '.printing-choices'],
   ];
 
   for (const [file, selector] of SCROLLERS) {
@@ -169,11 +169,16 @@ describe('coarse-pointer touch floor', () => {
     // The "which of my copies is leaving" disclosure — ghosted like its row
     // siblings, since the row's padding means a real 44px box would inflate it.
     ['components/trade/TradeComposer.css', '.trade-picked-choose::after'],
-    // An expanded copy is its OWN row, so it takes the floor on its real box.
-    ['components/trade/TradeComposer.css', '.trade-copy-row'],
-    // The accept-side picker — the mirror of the composer's, ghosted for the
-    // same reason (28px controls inside a padded printing row).
-    ['components/trade/TradeAcceptDialog.css', '.trade-accept-stepper-btn::after'],
+    // An expanded printing is its OWN row, not a control crowded into a dense
+    // one, so it takes the floor on its real box — in the shared chooser both
+    // trade dialogs render, where a 10-14 row printing list makes the VERTICAL
+    // axis the crowded one and 44px ghosts would let each row steal the taps
+    // off the bottom of the one above it.
+    ['components/trade/PrintingChoices.css', '.printing-choice'],
+    // …and the steppers inside it still need their own ghost: the row's height
+    // is the VERTICAL axis only, and a 28px box stays a 28px target sideways.
+    // Measured — without this a probe 18px right of `+` resolves to the row.
+    ['components/trade/PrintingChoices.css', '.printing-choice-step::after'],
     // Its confirm/cancel pair settles a collection, so they take the floor on
     // their real boxes rather than a ghost — `.btn` is 32-36px by default.
     ['components/trade/TradeAcceptDialog.css', '.trade-accept-actions .btn'],

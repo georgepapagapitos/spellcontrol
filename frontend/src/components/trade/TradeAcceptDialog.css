@@ -96,91 +96,12 @@
   flex: 0 0 auto;
 }
 
-.trade-accept-printings {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.trade-accept-printing,
-.trade-accept-single {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: 0;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius);
-  background: var(--surface-raised);
-}
-
-.trade-accept-printing-label {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.trade-accept-printing-price {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  flex: 0 0 auto;
-}
-
-.trade-accept-stepper {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  flex: 0 0 auto;
-}
-
-.trade-accept-stepper-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text-primary);
-  cursor: pointer;
-}
-
-.trade-accept-stepper-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .trade-accept-stepper-btn:not(:disabled):hover {
-    background: var(--border);
-  }
-}
-
-.trade-accept-stepper-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.trade-accept-stepper-value {
-  min-width: 2.5ch;
-  text-align: center;
-  font-size: var(--text-sm);
-  font-variant-numeric: tabular-nums;
-}
-
-.trade-accept-owned {
-  color: var(--text-muted);
-}
+/* The printing rows themselves are `PrintingChoices` — the one chooser this
+   dialog now shares with the composer, which owns their layout, art, stepper
+   and coarse-pointer floor. What used to live here (`.trade-accept-printing*`,
+   its own stepper, the single-printing receipt line) was a second spelling of
+   that control, and the two had already drifted apart in label colour and
+   selection feedback. */
 
 .trade-accept-total {
   display: flex;
@@ -204,51 +125,10 @@
   text-align: right;
 }
 
-/* Coarse-pointer touch floor (STYLE_GUIDE § "44px touch targets").
-   The stepper buttons are 28px boxes inside a padded row, so they grow a GHOST
-   rather than their own box — a real 44px box would inflate every printing row
-   and, at 320px, squeeze the printing label to a sliver (see
-   [[project_dense_row_ghost_hit_area]]).
-
-   The crowded axis is HORIZONTAL, as it was in the composer: `−` and `+` sit
-   side by side with a value between them. They are 28 + 4 + ~24 + 4 = ~60px
-   apart centre-to-centre — wider than 44 — so two 44px ghosts abut without
-   overlapping and neither steals the other's taps. That is measured with
-   elementFromPoint, not inferred from this arithmetic. */
+/* Coarse-pointer touch floor (STYLE_GUIDE § "44px touch targets"). The printing
+   rows and their steppers take their own floor in PrintingChoices.css, which
+   owns them now. */
 @media (pointer: coarse) {
-  /* The VERTICAL axis is the crowded one here, which is what separates this
-     dialog from the composer's single expanded row. A printing list is 10-14
-     rows tall (dev holds Sol Ring in 14 printings), and at their natural ~34px
-     height with a 2px gap the pitch is 36px — so two 44px ghosts overlap by
-     8px and the row BELOW steals the bottom of every `−`/`+`. Measured: at all
-     seven widths, a probe 18px under each stepper's centre resolved to the
-     next row's stepper. "One fewer Sol Ring" would have decremented the wrong
-     printing.
-
-     So the row takes the floor on its REAL box — the same call the composer
-     makes for `.trade-copy-row`, and for the same reason: an expanded printing
-     is its own row, not a control crowded into a dense one. 44px + the 2px gap
-     puts the pitch at 46px, and the ghosts abut instead of overlapping. The
-     list is already capped and scrolled, so taller rows cost scroll, not
-     layout. */
-  .trade-accept-printing {
-    min-height: 44px;
-  }
-
-  .trade-accept-stepper-btn {
-    position: relative;
-  }
-
-  .trade-accept-stepper-btn::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
-
   /* The dialog's own actions commit a collection mutation, so they take the
      floor on their real boxes — `.btn` is 32-36px by default (see
      STYLE_GUIDE § Responsive). */

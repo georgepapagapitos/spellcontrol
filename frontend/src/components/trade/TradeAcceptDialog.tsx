@@ -1,9 +1,10 @@
 import './TradeAcceptDialog.css';
 import { useId, useMemo, useState } from 'react';
-import { Minus, Plus } from 'lucide-react';
 import { Modal } from '../Modal';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { formatMoney } from '../../lib/format-money';
+import { PrintingChoices } from './PrintingChoices';
+import { useBinderByCopyId } from '../../lib/use-binder-by-copy';
 import {
   groupByPrinting,
   defaultPrintingCounts,
@@ -23,20 +24,6 @@ export interface AcceptChoice {
   asked: TradeCard;
   /** Every copy the viewer holds of it, right now. */
   line: OwnedTradeLine;
-}
-
-/** "LEA · #233 · foil · NM" — the identity of one printing, compactly.
- *  Same shape the composer prints; kept local so neither file owns the other's
- *  formatting (the two dialogs are free to diverge). */
-function describePrinting(p: PrintingGroup): string {
-  return [
-    p.setCode?.toUpperCase(),
-    p.collectorNumber ? `#${p.collectorNumber}` : null,
-    p.finish !== 'nonfoil' ? p.finish : null,
-    p.condition,
-  ]
-    .filter(Boolean)
-    .join(' · ');
 }
 
 function keyOf(card: { oracleId: string; name: string }): string {
@@ -69,6 +56,9 @@ interface Props {
  */
 export function TradeAcceptDialog({ counterpartyName, choices, busy, onCancel, onConfirm }: Props) {
   const titleId = useId();
+  // Once for the dialog — an offer can name several cards, and each of their
+  // printing lists would otherwise re-materialize the whole collection.
+  const binderByCopyId = useBinderByCopyId();
 
   // Grouping is stable for the life of the dialog: it opens over a snapshot of
   // the collection, and re-grouping mid-choice (a background sync landing) would
@@ -153,61 +143,22 @@ export function TradeAcceptDialog({ counterpartyName, choices, busy, onCancel, o
                   </span>
                 </div>
 
-                {groups.length === 1 ? (
-                  // One printing owned: there is nothing to decide, so this is a
-                  // receipt line rather than a control. Still shown — the point
-                  // of the dialog is seeing exactly what leaves.
-                  <p className="trade-accept-single">
-                    <span className="trade-accept-printing-label">
-                      {describePrinting(groups[0])}
-                    </span>
-                    <span className="trade-accept-printing-price">
-                      {formatMoney(groups[0].price)}
-                    </span>
-                  </p>
-                ) : (
-                  <ul
-                    className="trade-accept-printings"
-                    aria-label={`${choice.asked.name} — your printings`}
-                  >
-                    {groups.map((group) => {
-                      const count = counts[cardKey]?.[group.key] ?? 0;
-                      const label = describePrinting(group);
-                      return (
-                        <li key={group.key} className="trade-accept-printing">
-                          <span className="trade-accept-printing-label">{label}</span>
-                          <span className="trade-accept-printing-price">
-                            {formatMoney(group.price)}
-                          </span>
-                          <span className="trade-accept-stepper">
-                            <button
-                              type="button"
-                              className="trade-accept-stepper-btn"
-                              onClick={() => setPrinting(cardKey, group.key, count - 1, asked)}
-                              disabled={count === 0 || busy}
-                              aria-label={`One fewer ${label} ${choice.asked.name}`}
-                            >
-                              <Minus width={14} height={14} aria-hidden />
-                            </button>
-                            <span className="trade-accept-stepper-value">
-                              {count}
-                              <span className="trade-accept-owned">/{group.copies.length}</span>
-                            </span>
-                            <button
-                              type="button"
-                              className="trade-accept-stepper-btn"
-                              onClick={() => setPrinting(cardKey, group.key, count + 1, asked)}
-                              disabled={count >= group.copies.length || busy}
-                              aria-label={`One more ${label} ${choice.asked.name}`}
-                            >
-                              <Plus width={14} height={14} aria-hidden />
-                            </button>
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+                {/* One printing owned: nothing to decide, so the list drops its
+                    steppers and reads as a receipt. Still shown — the point of
+                    the dialog is seeing exactly what leaves. */}
+                <PrintingChoices
+                  cardName={choice.asked.name}
+                  groups={groups}
+                  countOf={(group) => counts[cardKey]?.[group.key] ?? 0}
+                  onSet={
+                    groups.length === 1
+                      ? undefined
+                      : (printingKey, next) => setPrinting(cardKey, printingKey, next, asked)
+                  }
+                  disabled={busy}
+                  binderByCopyId={binderByCopyId}
+                  label={`${choice.asked.name} — your printings`}
+                />
               </li>
             );
           })}

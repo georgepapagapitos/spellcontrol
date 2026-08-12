@@ -9,6 +9,8 @@ import { useCollectionStore } from '../../store/collection';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { toast } from '../../store/toasts';
 import { formatMoney } from '../../lib/format-money';
+import { PrintingChoices, describePrinting } from './PrintingChoices';
+import { useBinderByCopyId, type BinderRef } from '../../lib/use-binder-by-copy';
 import {
   groupOwnedForTrade,
   filterOwnedLines,
@@ -18,6 +20,7 @@ import {
   toRequestedCard,
   sumCopyValue,
   type OwnedTradeLine,
+  type PrintingGroup,
 } from '../../lib/trade-picker';
 import { useFloorPrices } from '../../lib/trade-value';
 import { proposeTrade, type TradeOffer } from '../../lib/trades-client';
@@ -40,23 +43,6 @@ type Picked = Record<string, number>;
  * sorted first. `copyId` never reaches the wire (see toTradeCardFromCopies).
  */
 type PickedCopies = Record<string, string[]>;
-
-/** "LEA · #233 · foil · NM" — the identity of one printing, compactly. */
-function describePrinting(p: {
-  setCode: string;
-  collectorNumber: string;
-  finish: string;
-  condition?: string;
-}): string {
-  return [
-    p.setCode?.toUpperCase(),
-    p.collectorNumber ? `#${p.collectorNumber}` : null,
-    p.finish !== 'nonfoil' ? p.finish : null,
-    p.condition,
-  ]
-    .filter(Boolean)
-    .join(' · ');
-}
 
 function keyOf(card: { oracleId: string; name: string }): string {
   return card.oracleId || `name:${card.name.toLowerCase()}`;
@@ -103,6 +89,9 @@ export function TradeComposer({
   const cards = useCollectionStore((s) => s.cards);
   const titleId = useId();
   const noteId = useId();
+  // Once for the whole composer — every expanded printing row asks the same
+  // question of the same collection.
+  const binderByCopyId = useBinderByCopyId();
 
   const ownedLines = useMemo(() => groupOwnedForTrade(cards), [cards]);
   const ownedByKey = useMemo(() => {
@@ -319,23 +308,20 @@ export function TradeComposer({
             searchLabel="Search your collection"
             picked={giveCards.map((c) => {
               const line = ownedByKey.get(keyOf(c));
-              const chosen = new Set(chosenByKey.get(keyOf(c))?.map((x) => x.copyId) ?? []);
               return {
                 key: keyOf(c),
                 name: c.name,
                 quantity: c.quantity,
                 max: line?.copies.length ?? c.quantity,
                 value: formatMoney(sumCopyValue(chosenByKey.get(keyOf(c)) ?? [])),
-                printings: (line ? groupByPrinting(line) : []).map((group) => ({
-                  key: group.key,
-                  label: describePrinting(group),
-                  price: formatMoney(group.price),
-                  owned: group.copies.length,
-                  chosen: group.copies.filter((copy) => chosen.has(copy.copyId)).length,
-                })),
+                give: {
+                  line,
+                  chosen: new Set(chosenByKey.get(keyOf(c))?.map((x) => x.copyId) ?? []),
+                },
               };
             })}
             onSetPrinting={setPrintingCount}
+            binderByCopyId={binderByCopyId}
             onRemove={removeGive}
             results={giveResults.map((line) => ({
               key: keyOf(line),
@@ -449,16 +435,6 @@ export function TradeComposer({
   );
 }
 
-/** One printing the owner holds, and how many of it are in the trade. */
-interface PrintingChoice {
-  key: string;
-  /** "LEA · #233 · foil · NM" */
-  label: string;
-  price: string;
-  owned: number;
-  chosen: number;
-}
-
 interface SideRow {
   key: string;
   name: string;
@@ -467,10 +443,13 @@ interface SideRow {
   detail?: string;
   /** Row subtotal, pre-formatted (the side owns currency/estimate wording). */
   value?: string;
-  /** Give side only: every printing owned, cheapest first. Absent on the ask
-   *  side, where there is no printing to choose — that is the privacy
-   *  asymmetry, not an omission. */
-  printings?: PrintingChoice[];
+  /**
+   * Give side only: the owned line and which of its copies are in the trade.
+   * Absent on the ask side, where there is no printing to choose — that is the
+   * privacy asymmetry, not an omission. `line` itself can be undefined when a
+   * copy was edited away in another tab; the row then has nothing to expand.
+   */
+  give?: { line?: OwnedTradeLine; chosen: Set<string> };
 }
 
 /** One basket: a search, the cards already in it, and the pickable results. */
@@ -485,6 +464,7 @@ function TradeSide({
   picked,
   onBump,
   onSetPrinting,
+  binderByCopyId,
   onRemove,
   onPick,
   results,
@@ -504,6 +484,8 @@ function TradeSide({
   picked: SideRow[];
   onBump?: (key: string, delta: number, max: number) => void;
   onSetPrinting?: (key: string, printingKey: string, count: number) => void;
+  /** Give side only — where each owned copy currently lives. */
+  binderByCopyId?: Map<string, BinderRef[]>;
   onRemove: (key: string) => void;
   onPick: (key: string) => void;
   results: SideRow[];
@@ -533,6 +515,7 @@ function TradeSide({
               row={row}
               onBump={onBump}
               onSetPrinting={onSetPrinting}
+              binderByCopyId={binderByCopyId}
               onRemove={onRemove}
             />
           ))}
@@ -604,22 +587,30 @@ function PickedRow({
   row,
   onBump,
   onSetPrinting,
+  binderByCopyId,
   onRemove,
 }: {
   row: SideRow;
   onBump?: (key: string, delta: number, max: number) => void;
   onSetPrinting?: (key: string, printingKey: string, count: number) => void;
+  /** Give side only — where each owned copy currently lives. */
+  binderByCopyId?: Map<string, BinderRef[]>;
   onRemove: (key: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const listId = useId();
-  const printings = row.printings ?? [];
-  const inTrade = printings.filter((p) => p.chosen > 0);
-  const totalChosen = printings.reduce((n, p) => n + p.chosen, 0);
-  const totalOwned = printings.reduce((n, p) => n + p.owned, 0);
+  // Not memoized: this is one card's copies, and it only runs for a row the
+  // user actually put in the basket.
+  const groups = row.give?.line ? groupByPrinting(row.give.line) : [];
+  const chosen = row.give?.chosen;
+  const countIn = (group: PrintingGroup) =>
+    chosen ? group.copies.filter((copy) => chosen.has(copy.copyId)).length : 0;
+  const inTrade = groups.filter((g) => countIn(g) > 0);
+  const totalChosen = groups.reduce((n, g) => n + countIn(g), 0);
+  const totalOwned = groups.reduce((n, g) => n + g.copies.length, 0);
   // Nothing to choose between when there is only one printing — the control
   // would be a tap that changes nothing.
-  const canChoose = printings.length > 1 && !!onSetPrinting;
+  const canChoose = groups.length > 1 && !!onSetPrinting;
 
   return (
     <li className="trade-picked-row-wrap">
@@ -633,7 +624,12 @@ function PickedRow({
               say, and the reason this row exists. */}
           {inTrade.length > 0 && (
             <span className="trade-picked-detail">
-              {inTrade.map((p) => (p.chosen > 1 ? `${p.label} ×${p.chosen}` : p.label)).join(' + ')}
+              {inTrade
+                .map((g) => {
+                  const n = countIn(g);
+                  return n > 1 ? `${describePrinting(g)} ×${n}` : describePrinting(g);
+                })
+                .join(' + ')}
             </span>
           )}
           {row.detail && <span className="trade-picked-detail">{row.detail}</span>}
@@ -641,7 +637,7 @@ function PickedRow({
 
         {row.value && <span className="trade-picked-value">{row.value}</span>}
 
-        {row.printings ? (
+        {row.give ? (
           canChoose && (
             <button
               type="button"
@@ -698,38 +694,16 @@ function PickedRow({
       </div>
 
       {canChoose && open && (
-        <ul className="trade-copy-list" id={listId} aria-label={`${row.name} — your printings`}>
-          {printings.map((printing) => (
-            <li key={printing.key} className="trade-copy-row">
-              <span className="trade-copy-label">{printing.label}</span>
-              <span className="trade-copy-price">{printing.price}</span>
-              <span className="trade-stepper">
-                <button
-                  type="button"
-                  className="trade-stepper-btn"
-                  onClick={() => onSetPrinting?.(row.key, printing.key, printing.chosen - 1)}
-                  disabled={printing.chosen === 0}
-                  aria-label={`One fewer ${printing.label} ${row.name}`}
-                >
-                  <Minus width={14} height={14} aria-hidden />
-                </button>
-                <span className="trade-stepper-value" aria-live="polite">
-                  {printing.chosen}
-                  <span className="trade-copy-owned">/{printing.owned}</span>
-                </span>
-                <button
-                  type="button"
-                  className="trade-stepper-btn"
-                  onClick={() => onSetPrinting?.(row.key, printing.key, printing.chosen + 1)}
-                  disabled={printing.chosen >= printing.owned}
-                  aria-label={`One more ${printing.label} ${row.name}`}
-                >
-                  <Plus width={14} height={14} aria-hidden />
-                </button>
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="trade-picked-printings" id={listId}>
+          <PrintingChoices
+            cardName={row.name}
+            groups={groups}
+            countOf={countIn}
+            onSet={(printingKey, next) => onSetPrinting?.(row.key, printingKey, next)}
+            binderByCopyId={binderByCopyId}
+            label={`${row.name} — your printings`}
+          />
+        </div>
       )}
     </li>
   );
