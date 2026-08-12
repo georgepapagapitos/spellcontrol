@@ -29,55 +29,55 @@ primitives directory.
 
 ### Card surfaces
 
-| Reach for | Instead of | Ruling |
-| --- | --- | --- |
-| `components/shared/CardGridCell` | a bespoke grid tile | § Card row information hierarchy · § Index tiles wear cover art |
-| `components/shared/CardRow` | a bespoke list row | § Card row information hierarchy |
-| `components/CardThumb` + `lib/card-thumbs` (`useCardThumb`) | a raw Scryfall image URL | § Card art peek |
-| `components/CardPreview` | a second card-detail view | § Card art peek — there is exactly one card view |
-| `components/shared/ManaSymbol` (`ColorPip`) | a bare `mana-font` class | § Symbol key / Legend |
-| `components/ManaCost` | mapping a mana string by hand | § Card-stat terminology |
-| `components/shared/SetSymbol` | a bare `keyrune` class | § Symbol key / Legend |
+| Reach for                                                   | Instead of                    | Ruling                                                          |
+| ----------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------- |
+| `components/shared/CardGridCell`                            | a bespoke grid tile           | § Card row information hierarchy · § Index tiles wear cover art |
+| `components/shared/CardRow`                                 | a bespoke list row            | § Card row information hierarchy                                |
+| `components/CardThumb` + `lib/card-thumbs` (`useCardThumb`) | a raw Scryfall image URL      | § Card art peek                                                 |
+| `components/CardPreview`                                    | a second card-detail view     | § Card art peek — there is exactly one card view                |
+| `components/shared/ManaSymbol` (`ColorPip`)                 | a bare `mana-font` class      | § Symbol key / Legend                                           |
+| `components/ManaCost`                                       | mapping a mana string by hand | § Card-stat terminology                                         |
+| `components/shared/SetSymbol`                               | a bare `keyrune` class        | § Symbol key / Legend                                           |
 
 ### Controls & chrome
 
-| Reach for | Instead of | Ruling |
-| --- | --- | --- |
-| `.btn` / `.btn-primary` / `.btn-link` (CSS classes) | a new `*-btn` class | § Shape language — corners |
-| `components/SearchPill` | a bare `<input type="search">` | § Toolbars & action rows · § Responsive (keep `min-width: 0`) |
-| `components/SelectMenu` | a restyled `<select>` | § Toolbars & action rows |
-| `components/OverflowMenu` | a hand-rolled `⋮` popover | § Toolbars & action rows |
-| `components/shared/ToolbarPopover` | a second portal-popover impl | § Toolbars & action rows |
-| `components/shared/ViewPopoverPanel` | letting a phone toolbar wrap rows | § Toolbars & action rows |
-| `components/Tabs` | bespoke tab markup | § Tabs / view switchers |
-| `components/ViewModeToggle` | a bespoke layout switcher | § View-mode toggle option order |
-| `components/shared/FilterChipsRow` | a bespoke active-filter row | § Tag chips |
+| Reach for                                           | Instead of                        | Ruling                                                        |
+| --------------------------------------------------- | --------------------------------- | ------------------------------------------------------------- |
+| `.btn` / `.btn-primary` / `.btn-link` (CSS classes) | a new `*-btn` class               | § Shape language — corners                                    |
+| `components/SearchPill`                             | a bare `<input type="search">`    | § Toolbars & action rows · § Responsive (keep `min-width: 0`) |
+| `components/SelectMenu`                             | a restyled `<select>`             | § Toolbars & action rows                                      |
+| `components/OverflowMenu`                           | a hand-rolled `⋮` popover         | § Toolbars & action rows                                      |
+| `components/shared/ToolbarPopover`                  | a second portal-popover impl      | § Toolbars & action rows                                      |
+| `components/shared/ViewPopoverPanel`                | letting a phone toolbar wrap rows | § Toolbars & action rows                                      |
+| `components/Tabs`                                   | bespoke tab markup                | § Tabs / view switchers                                       |
+| `components/ViewModeToggle`                         | a bespoke layout switcher         | § View-mode toggle option order                               |
+| `components/shared/FilterChipsRow`                  | a bespoke active-filter row       | § Tag chips                                                   |
 
 ### Overlays
 
-| Reach for | Instead of | Ruling |
-| --- | --- | --- |
-| `components/Modal` | a bespoke `position: fixed` layer | § Overlays — hand-rolled `.modal-backdrop` dialogs are the anti-pattern |
-| `lib/use-sheet-exit` + `lib/use-lock-body-scroll` | hand-rolled open/close + scroll lock | § Overlays |
-| `lib/use-escape-key` | a bare `keydown` listener | § Overlays |
-| `components/ConfirmDialog` / `lib/use-confirm` | `window.confirm` | § Overlays |
+| Reach for                                         | Instead of                           | Ruling                                                                  |
+| ------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------- |
+| `components/Modal`                                | a bespoke `position: fixed` layer    | § Overlays — hand-rolled `.modal-backdrop` dialogs are the anti-pattern |
+| `lib/use-sheet-exit` + `lib/use-lock-body-scroll` | hand-rolled open/close + scroll lock | § Overlays                                                              |
+| `lib/use-escape-key`                              | a bare `keydown` listener            | § Overlays                                                              |
+| `components/ConfirmDialog` / `lib/use-confirm`    | `window.confirm`                     | § Overlays                                                              |
 
 ### Feedback, state & identity
 
-| Reach for | Instead of | Ruling |
-| --- | --- | --- |
-| `components/shared/MeterBar` | a hand-rolled bar track | § Bars & meters — **never hand-roll a track** |
-| `components/InfoTip` | inline hand-holding prose | § Info tooltips |
-| `components/shared/EmptyStateMark` | a bare "nothing here" line | § Empty states |
-| `components/share/SharedEmptyState` | a bare `<p>` in a share/friend view | § Empty states |
-| `components/shared/ThinDataNote` | inventing a sample-size caveat | § Deck-analysis band words |
-| `components/deck/VerdictBadge` | a bespoke pass/fail pill | § Verdict badges · § One scoring vocabulary |
-| `components/shared/SealBurst` / `SealMoment` | confetti | § Completion moments (the seal) |
-| `components/shared/BrandMark` | an inline logo SVG | § Brand mark motion |
-| `components/UserAvatar` | a bespoke initials circle | § Icon scale |
-| `playtest/components/OpponentRail` | a bespoke multiplayer sidebar | § Opponent rail — never hide a seat |
+| Reach for                                    | Instead of                          | Ruling                                        |
+| -------------------------------------------- | ----------------------------------- | --------------------------------------------- |
+| `components/shared/MeterBar`                 | a hand-rolled bar track             | § Bars & meters — **never hand-roll a track** |
+| `components/InfoTip`                         | inline hand-holding prose           | § Info tooltips                               |
+| `components/shared/EmptyStateMark`           | a bare "nothing here" line          | § Empty states                                |
+| `components/share/SharedEmptyState`          | a bare `<p>` in a share/friend view | § Empty states                                |
+| `components/shared/ThinDataNote`             | inventing a sample-size caveat      | § Deck-analysis band words                    |
+| `components/deck/VerdictBadge`               | a bespoke pass/fail pill            | § Verdict badges · § One scoring vocabulary   |
+| `components/shared/SealBurst` / `SealMoment` | confetti                            | § Completion moments (the seal)               |
+| `components/shared/BrandMark`                | an inline logo SVG                  | § Brand mark motion                           |
+| `components/UserAvatar`                      | a bespoke initials circle           | § Icon scale                                  |
+| `playtest/components/OpponentRail`           | a bespoke multiplayer sidebar       | § Opponent rail — never hide a seat           |
 
-**Adding a primitive?** Add its row here *and* its ruling to the relevant section
+**Adding a primitive?** Add its row here _and_ its ruling to the relevant section
 below. A primitive nobody can find gets re-implemented — that is what this table
 exists to prevent.
 
@@ -236,6 +236,17 @@ this register elsewhere, and don't flatten it here.
 | **Cards / panels / sheets** | `var(--radius-lg)` (10px)          | Container surfaces.                                                                                                       |
 | **Pills (labels)**          | `999px`                            | **Non-actionable** chips, badges, counts, tags, color swatches/dots — things that _label_ state.                          |
 | **Tape labels**             | `2px` (`.site-nav-count`)          | The Dymo-tape material label tier (T53): fixed dark tape + pale caps on **navigation chrome only** (nav/hub counts).      |
+
+**A label chip that carries card art is a rect, not a pill.** The pill rule is
+about _role_, and a chip holding a thumbnail is still a label — but a pill
+cannot physically contain one. A pill's cap radius is half the chip's height,
+so on a chip sized by a portrait card thumb (aspect 488/680) the cap's arc
+passes ~8px in from the left edge while the art's square corner sits at the
+padding, ~3px in: the corner renders _outside_ the border. `.trade-offer-chip`
+shipped that way and read as a rendering bug. Use `var(--radius)`, which the
+art's corner clears at any thumb size worth using, and which matches every
+other thumb-bearing row in the app. Art itself stays rect regardless (see the
+avatar exception below) — so does anything shaped around it.
 
 **Tape labels are a scoped second label tier, not a pill replacement.** A
 tape chip is still non-actionable (the pill rule's role logic is unchanged);
@@ -488,9 +499,9 @@ a hero CTA.
   the pattern are worth naming so they don't get re-derived or regressed:
   - **The `role="tablist"` wrapper scopes to just the real tabs.** The
     trailing "+ New binder"/"Export"/"Delete all" buttons are actions, not
-    views to switch to, so they render as plain buttons *outside* the
+    views to switch to, so they render as plain buttons _outside_ the
     tablist wrapper rather than fake `role="tab"` elements — a `display:
-    contents` wrapper (`.binder-tablist`) carries the role without adding a
+contents` wrapper (`.binder-tablist`) carries the role without adding a
     layout box, so `.binder-tab-row`'s flex/scroll behavior is unaffected.
     `display: contents` has a documented history of dropping an element
     (and its role) out of the accessibility tree entirely; it's safe here
@@ -664,7 +675,7 @@ Rakdos stays blood-black). Rulings:
   top-level surface gets its phone door on Home, not a 6th cell.** The bar is
   five `flex: 1` cells plus a fixed 44px Search. Six cells would need
   `6×44 + 44 + 12.8` px of padding = **320.8px**, wider than the 320px floor,
-  *before* a single label — and labels already needed a short-form swap
+  _before_ a single label — and labels already needed a short-form swap
   ("Collection" → "Cards") plus a tracking trim to fit five. The phone's
   primary nav is closed. A cluster needing top-level reach takes the
   form-factor pair the app already uses elsewhere (desktop has no "You" link;
@@ -1254,7 +1265,7 @@ legitimate viewport read for a full-width/full-height chrome band (§
 Responsive's "Full-width panels may keep viewport gates" carve-out), never
 assumed from the entry's rendered width.** ⚠️ **Orientation alone is NOT the
 signal.** A phone held sideways (844×390) is landscape but has no slack, and
-the long-axis rule is premised on the long axis *having* slack — gating on
+the long-axis rule is premised on the long axis _having_ slack — gating on
 orientation alone puts a side rail and N mounted miniature battlefields on a
 screen that cannot spare the width. The 900px floor separates
 tablet-landscape (~1024–1180, gets glance) from every phone landscape
@@ -2413,7 +2424,7 @@ transform: translate(-50%, -50%)` on a `position: relative` parent) rather
   answering an invite, confirming a destructive dialog — takes an explicit
   44px, because a mis-tap there costs real data rather than a wasted
   navigation. Established selectors following this: `.choice-dialog-actions
-  .btn` (every `ConfirmDialog`), `.pods-invited-actions .btn`,
+.btn` (every `ConfirmDialog`), `.pods-invited-actions .btn`,
   `.trade-offer-actions .btn` (Accept/Decline/Withdraw),
   `.trade-accept-actions .btn`. Plus `.empty-state .btn` app-wide, on the
   different grounds that an empty state's CTA is the only thing on the surface

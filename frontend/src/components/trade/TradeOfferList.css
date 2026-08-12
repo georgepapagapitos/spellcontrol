@@ -211,13 +211,20 @@
   gap: var(--space-1);
 }
 
+/* A RECT, not a pill, even though a non-actionable chip is otherwise a pill
+   (STYLE_GUIDE § "Shape language — corners"): this chip carries card art, and a
+   portrait thumbnail cannot fit inside a pill's cap. The cap radius is half the
+   chip's height (~16px here), so its arc passes ~8px in from the left edge
+   while the art's square top-left corner sits at ~3px — the corner poked
+   visibly outside the border. Card art stays rect (line 369 of the guide), and
+   so does anything shaped around it. */
 .trade-offer-chip {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
   padding: 2px var(--space-2) 2px 2px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: var(--surface);
   max-width: 100%;
 }

@@ -1,0 +1,178 @@
+/* The shared "which of my copies is leaving" chooser — one control for the
+   composer's expanded row and the accept dialog, replacing the two divergent
+   text-only lists (`.trade-copy-*` and `.trade-accept-printing*`) they each
+   used to own. Self-contained: it borrows no page's classes, only the global
+   badge classes DeckBadge/BinderBadge bring with them. */
+
+.printing-choices {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /* A real collection holds 59 printings of Mountain. Unbounded, the open list
+     pushes the dialog to several screens and buries its own actions. Capped and
+     scrolled — with overscroll contained, because this scroller lives inside a
+     Modal and would otherwise chain into the page behind it (the rule
+     styles/overlay-containment.test.ts enforces). */
+  max-height: 15rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* art · (label over meta) · stepper. A grid rather than a flex line because the
+   art sets the row height and the middle column is the only one that may
+   shrink. Three columns, not four: the price rides the meta line instead of
+   taking a column of its own, which is what keeps the printing's identity
+   readable at 320px. */
+.printing-choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+
+/* Chosen printings are the answer to the question this list asks, so they get
+   an accent keyline — a background tint alone is easy to miss next to art. */
+.printing-choice.is-chosen {
+  border-color: var(--accent);
+}
+
+/* E128 dense pick-list thumb: small enough to keep many printings on screen,
+   large enough to tell a retro frame from a borderless showcase — which is the
+   entire reason this row leads with art instead of a set code. */
+.printing-choice-art {
+  width: 1.8rem;
+  height: 2.5rem;
+  object-fit: cover;
+  border-radius: 2px;
+  background: var(--surface);
+  display: block;
+}
+
+.printing-choice-art.is-placeholder {
+  border: 1px solid var(--border);
+}
+
+.printing-choice-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  /* min-width: 0 is load-bearing — without it the label's ellipsis never
+     engages and the row pushes the dialog wider than the viewport. */
+  min-width: 0;
+}
+
+.printing-choice-label {
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Where this copy lives, and what it's worth. The badges lead because "this
+   one is holding a deck together" is the fact that should stop a trade. */
+.printing-choice-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.printing-choice-price {
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.printing-choice-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.printing-choice-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.printing-choice-step:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .printing-choice-step:not(:disabled):hover {
+    background: var(--border);
+  }
+}
+
+.printing-choice-step:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.printing-choice-count {
+  min-width: 2.5ch;
+  text-align: center;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/** "/3" — how many of this printing exist, next to how many are going. */
+.printing-choice-owned {
+  color: var(--text-muted);
+}
+
+/* Coarse-pointer touch floor (STYLE_GUIDE § "44px touch targets"). BOTH halves
+   below are load-bearing, and dropping either one is silent:
+
+   1. The ROW takes the floor on its real box. A printing list runs 10-14 rows
+      (dev holds Sol Ring in 14 printings) and at their natural ~34px height the
+      pitch is 36px, so 44px ghosts would overlap by 8px and each row would
+      steal the bottom of the one above — "one fewer Sol Ring" decrementing the
+      wrong printing. At 44px + the 2px gap the pitch is 46px and they abut. The
+      list is capped and scrolled, so taller rows cost scroll, not layout.
+   2. The STEPPERS still need their own 44px GHOST, because the row's height
+      only fixes the vertical axis — a 28px box is a 28px target horizontally no
+      matter how tall its row is. (Measured: without this, a probe 18px right of
+      `+`'s centre resolves to the row, not the button, at every width.) A real
+      44px box instead would inflate the row and, at 320px, squeeze the printing
+      label to a sliver — see [[project_dense_row_ghost_hit_area]]. `−` and `+`
+      sit ~60px apart centre-to-centre (28 + 4 + ~24 + 4), wider than 44, so the
+      two ghosts abut without either stealing the other's taps. */
+@media (pointer: coarse) {
+  .printing-choice {
+    min-height: 44px;
+  }
+
+  .printing-choice-step {
+    position: relative;
+  }
+
+  .printing-choice-step::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}

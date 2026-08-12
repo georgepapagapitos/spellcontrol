@@ -297,11 +297,8 @@
     transform: translate(-50%, -50%);
   }
 
-  /* An expanded copy is its OWN row, not a control crowded into a dense one, so
-     it takes the floor on its real box. */
-  .trade-copy-row {
-    min-height: 44px;
-  }
+  /* The expanded printing rows take their own 44px floor — in
+     PrintingChoices.css, which owns them now. */
 }
 
 /* ── Value ────────────────────────────────────────────────────────────────
@@ -371,50 +368,19 @@
   transform: rotate(180deg);
 }
 
-.trade-copy-list {
-  list-style: none;
-  margin: 0;
-  padding: 0 0 0 var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  /* A real collection holds 59 printings of Mountain. Unbounded, the open list
-     pushed the dialog to several screens and buried its own actions. Capped and
-     scrolled — with overscroll contained, because this scroller lives inside a
-     Modal and would otherwise chain into the page behind it (the rule
-     styles/overlay-containment.test.ts enforces). */
-  max-height: 15rem;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+/* The expanded chooser itself is `PrintingChoices` — its own component and
+   stylesheet, shared with the accept dialog, capped and overscroll-contained
+   there. All this owns is the indent that reads it as nested under its row; on
+   a narrow phone that indent costs a whole column of a list that now carries
+   art, so it goes. */
+.trade-picked-printings {
+  padding-left: var(--space-4);
 }
 
-.trade-copy-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius);
-  font-size: var(--text-xs);
-}
-
-.trade-copy-label {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-primary);
-}
-
-.trade-copy-price {
-  flex: 0 0 auto;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-secondary);
-}
-
-/** "/3" — how many of this printing exist, next to how many are going. */
-.trade-copy-owned {
-  color: var(--text-muted);
+@media (max-width: 480px) {
+  .trade-picked-printings {
+    padding-left: 0;
+  }
 }
 
 .trade-side-note {
