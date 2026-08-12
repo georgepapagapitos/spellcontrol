@@ -5,6 +5,9 @@ import { useCardThumb } from '../../lib/card-thumbs';
 import { formatMoney } from '../../lib/format-money';
 import { PrintingChoices } from './PrintingChoices';
 import { useBinderByCopyId } from '../../lib/use-binder-by-copy';
+import { resolveTradePreview } from '../../lib/trade-preview';
+import { TradePreviewCarousel, type TradePreviewState } from './TradePreviewCarousel';
+import { toast } from '../../store/toasts';
 import {
   groupByPrinting,
   defaultPrintingCounts,
@@ -104,95 +107,133 @@ export function TradeAcceptDialog({ counterpartyName, choices, busy, onCancel, o
     onConfirm(resolved.map((r) => toTradeCardFromCopies(r.choice.line, r.copies)));
   }
 
+  // Tapping any card head opens the carousel across every card being asked
+  // for, in order — this dialog IS one decision about a set of cards, the same
+  // reasoning that makes an offer's chips span the whole offer.
+  const [preview, setPreview] = useState<TradePreviewState | null>(null);
+
+  async function inspect(tapped: TradeCard) {
+    const asked = choices.map((c) => c.asked);
+    const { cards, indexOf } = await resolveTradePreview(asked);
+    if (cards.length === 0) {
+      toast.show({ message: 'Couldn’t load these cards right now.', tone: 'warn' });
+      return;
+    }
+    const at = indexOf(tapped);
+    setPreview({ cards, index: at >= 0 ? at : 0 });
+  }
+
   return (
-    <Modal onClose={onCancel} labelledBy={titleId} dismissable={!busy} className="choice-dialog">
-      <div className="trade-accept">
-        <h2 id={titleId} className="choice-dialog-title">
-          Which copies are you giving?
-        </h2>
-        <p className="choice-dialog-body">
-          {counterpartyName} gets the exact printings you pick here, and they leave your collection
-          as soon as you accept.
-        </p>
+    <>
+      <Modal onClose={onCancel} labelledBy={titleId} dismissable={!busy} className="choice-dialog">
+        <div className="trade-accept">
+          <h2 id={titleId} className="choice-dialog-title">
+            Which copies are you giving?
+          </h2>
+          <p className="choice-dialog-body">
+            {counterpartyName} gets the exact printings you pick here, and they leave your
+            collection as soon as you accept.
+          </p>
 
-        <ul className="trade-accept-list">
-          {resolved.map(({ choice, cardKey, groups, copies }) => {
-            const asked = choice.asked.quantity;
-            const chosen = copies.length;
-            return (
-              <li key={cardKey} className="trade-accept-card">
-                <div className="trade-accept-card-head">
-                  <AcceptThumb name={choice.asked.name} />
-                  <span className="trade-accept-card-info">
-                    <span className="trade-accept-card-name" title={choice.asked.name}>
-                      {choice.asked.name}
-                    </span>
-                    <span
-                      className={
-                        chosen === asked
-                          ? 'trade-accept-card-count'
-                          : 'trade-accept-card-count is-short'
-                      }
-                      role="status"
+          <ul className="trade-accept-list">
+            {resolved.map(({ choice, cardKey, groups, copies }) => {
+              const asked = choice.asked.quantity;
+              const chosen = copies.length;
+              return (
+                <li key={cardKey} className="trade-accept-card">
+                  <div className="trade-accept-card-head">
+                    {/* Nothing else on the head claims this click — the steppers
+                      live in the printing rows below — so the preview is
+                      purely additive. Read-only: this dialog confirms a deal,
+                      it doesn't pick new cards. */}
+                    <button
+                      type="button"
+                      className="trade-accept-thumb-btn"
+                      aria-label={`Preview ${choice.asked.name}`}
+                      title="Preview card"
+                      onClick={() => void inspect(choice.asked)}
                     >
-                      {chosen} of {asked} chosen
+                      <AcceptThumb name={choice.asked.name} />
+                    </button>
+                    <span className="trade-accept-card-info">
+                      <span className="trade-accept-card-name" title={choice.asked.name}>
+                        {choice.asked.name}
+                      </span>
+                      <span
+                        className={
+                          chosen === asked
+                            ? 'trade-accept-card-count'
+                            : 'trade-accept-card-count is-short'
+                        }
+                        role="status"
+                      >
+                        {chosen} of {asked} chosen
+                      </span>
                     </span>
-                  </span>
-                  <span className="trade-accept-card-value">
-                    {formatMoney(sumCopyValue(copies))}
-                  </span>
-                </div>
+                    <span className="trade-accept-card-value">
+                      {formatMoney(sumCopyValue(copies))}
+                    </span>
+                  </div>
 
-                {/* One printing owned: nothing to decide, so the list drops its
+                  {/* One printing owned: nothing to decide, so the list drops its
                     steppers and reads as a receipt. Still shown — the point of
                     the dialog is seeing exactly what leaves. */}
-                <PrintingChoices
-                  cardName={choice.asked.name}
-                  groups={groups}
-                  countOf={(group) => counts[cardKey]?.[group.key] ?? 0}
-                  onSet={
-                    groups.length === 1
-                      ? undefined
-                      : (printingKey, next) => setPrinting(cardKey, printingKey, next, asked)
-                  }
-                  disabled={busy}
-                  binderByCopyId={binderByCopyId}
-                  label={`${choice.asked.name} — your printings`}
-                />
-              </li>
-            );
-          })}
-        </ul>
+                  <PrintingChoices
+                    cardName={choice.asked.name}
+                    groups={groups}
+                    countOf={(group) => counts[cardKey]?.[group.key] ?? 0}
+                    onSet={
+                      groups.length === 1
+                        ? undefined
+                        : (printingKey, next) => setPrinting(cardKey, printingKey, next, asked)
+                    }
+                    disabled={busy}
+                    binderByCopyId={binderByCopyId}
+                    label={`${choice.asked.name} — your printings`}
+                  />
+                </li>
+              );
+            })}
+          </ul>
 
-        <p className="trade-accept-total">
-          <span>You’re giving</span>
-          <span className="trade-accept-total-value">{formatMoney(totalValue)}</span>
-        </p>
-
-        <div className="choice-dialog-actions trade-accept-actions">
-          <button type="button" className="btn" onClick={onCancel} disabled={busy}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={confirm}
-            disabled={short.length > 0 || busy}
-          >
-            {busy ? 'Accepting…' : 'Accept trade'}
-          </button>
-        </div>
-        {short.length > 0 && (
-          // Names the card rather than saying "fix the selection" — with several
-          // cards in one offer, "which one" is the only useful part.
-          <p className="trade-accept-gate" role="status">
-            Pick {short[0].choice.asked.quantity}{' '}
-            {short[0].choice.asked.quantity === 1 ? 'copy' : 'copies'} of{' '}
-            {short[0].choice.asked.name} to continue.
+          <p className="trade-accept-total">
+            <span>You’re giving</span>
+            <span className="trade-accept-total-value">{formatMoney(totalValue)}</span>
           </p>
-        )}
-      </div>
-    </Modal>
+
+          <div className="choice-dialog-actions trade-accept-actions">
+            <button type="button" className="btn" onClick={onCancel} disabled={busy}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={confirm}
+              disabled={short.length > 0 || busy}
+            >
+              {busy ? 'Accepting…' : 'Accept trade'}
+            </button>
+          </div>
+          {short.length > 0 && (
+            // Names the card rather than saying "fix the selection" — with several
+            // cards in one offer, "which one" is the only useful part.
+            <p className="trade-accept-gate" role="status">
+              Pick {short[0].choice.asked.quantity}{' '}
+              {short[0].choice.asked.quantity === 1 ? 'copy' : 'copies'} of{' '}
+              {short[0].choice.asked.name} to continue.
+            </p>
+          )}
+        </div>
+      </Modal>
+
+      {preview && (
+        <TradePreviewCarousel
+          state={preview}
+          onIndexChange={(i) => setPreview((p) => (p ? { ...p, index: i } : p))}
+          onClose={() => setPreview(null)}
+        />
+      )}
+    </>
   );
 }
 

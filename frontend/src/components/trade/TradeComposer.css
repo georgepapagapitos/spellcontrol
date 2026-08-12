@@ -100,12 +100,35 @@
   border: 1px solid var(--border);
 }
 
+/* The result row is now a LIST ITEM holding two sibling buttons (a nested
+   button is invalid HTML), so the hover/focus affordance moves to the add
+   button — the row-sized one. */
 .trade-result-row {
   background: none;
   border: 1px solid transparent;
+  list-style: none;
+}
+
+.trade-result-pick {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* Takes the rest of the row. The split is deliberately UNEVEN: this picker
+     is tapped repeatedly over ~11.5k cards, so the add target stays nearly
+     row-wide and only the thumbnail is carved out for the preview. */
+  flex: 1 1 auto;
+  min-width: 0;
+  /* The row's own min-height sets the touch target; matching it here makes the
+     pressable area the full row rather than just the text box. */
+  min-height: 44px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--radius);
   color: inherit;
   cursor: pointer;
   font: inherit;
+  text-align: left;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -115,9 +138,40 @@
   }
 }
 
-.trade-result-row:focus-visible {
+.trade-result-pick:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
+}
+
+/* The thumbnail is the preview affordance wherever a row's own click is
+   already a verb — the same split AddCardSearchPanel uses ("you should never
+   have to add a card you can't see"). Wraps the thumb tightly so the add
+   target loses as little width as possible. */
+.trade-thumb-btn {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  /* Takes the coarse floor on its REAL box, not a ghost: these rows are 44px
+     tall already, and a ghost here would overlap the neighbouring row's thumb
+     and open the wrong card. */
+  min-height: 44px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.trade-thumb-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .trade-thumb-btn:hover .trade-thumb {
+    outline: 1px solid var(--accent);
+    outline-offset: 1px;
+  }
 }
 
 /* Self-contained on purpose. This borrowed `.friend-hub-radar-thumb` (a PAGE

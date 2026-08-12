@@ -25,8 +25,7 @@ import {
 } from '../../lib/trade-picker';
 import { settleTrade } from '../../lib/use-trade-settlement';
 import { resolveTradePreview } from '../../lib/trade-preview';
-import { CardPreview } from '../CardPreview';
-import type { EnrichedCard } from '../../types';
+import { TradePreviewCarousel, type TradePreviewState } from './TradePreviewCarousel';
 import { buildCardLocationIndex, type CardLocation } from '../../lib/card-locations';
 import { TradeAcceptDialog, type AcceptChoice } from './TradeAcceptDialog';
 
@@ -142,7 +141,7 @@ function TradeOfferCard({
   // Non-null while the viewer is choosing which copies to hand over.
   const [choosing, setChoosing] = useState<AcceptChoice[] | null>(null);
   // Non-null while the card-preview carousel is open over this offer.
-  const [preview, setPreview] = useState<{ cards: EnrichedCard[]; index: number } | null>(null);
+  const [preview, setPreview] = useState<TradePreviewState | null>(null);
   const headingId = useId();
 
   /**
@@ -350,18 +349,8 @@ function TradeOfferCard({
       )}
 
       {preview && (
-        // `source="search"` is the established shape for cards the viewer does
-        // not own a row for — no binder, no page, no section (see
-        // InlineCardSearch). An offer's cards are exactly that: the ask side
-        // isn't owned at all, and the give side is about to stop being.
-        <CardPreview
-          source="search"
-          cards={preview.cards}
-          index={preview.index}
-          binderName=""
-          sectionLabels={[]}
-          pageNumbers={[]}
-          totalPages={0}
+        <TradePreviewCarousel
+          state={preview}
           onIndexChange={(i) => setPreview((p) => (p ? { ...p, index: i } : p))}
           onClose={() => setPreview(null)}
         />
