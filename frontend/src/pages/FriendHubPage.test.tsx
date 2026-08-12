@@ -12,14 +12,26 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FriendCard } from '../lib/cube/pool';
+import type { EnrichedCard } from '../types';
 
 vi.mock('../store/auth', () => ({
   useAuth: (sel: (s: { status: string }) => unknown) => sel({ status: 'authed' }),
 }));
 
+// `cards` feeds the "They're looking for" matcher; `lists` feeds the trade
+// radar. Per-test overrides go through `myCards`.
+let myCards: EnrichedCard[] = [];
 vi.mock('../store/collection', () => ({
-  useCollectionStore: (sel: (s: { lists: unknown[] }) => unknown) => sel({ lists: [] }),
+  useCollectionStore: (sel: (s: { lists: unknown[]; cards: EnrichedCard[] }) => unknown) =>
+    sel({ lists: [], cards: myCards }),
 }));
+
+// The real hook subscribes to the persisted decks/cube stores; nothing here
+// allocates a copy, so an empty claim map is the whole truth.
+vi.mock('../lib/allocations', async () => {
+  const actual = await vi.importActual<typeof import('../lib/allocations')>('../lib/allocations');
+  return { ...actual, useAllocations: () => new Map() };
+});
 
 vi.mock('../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
@@ -46,10 +58,33 @@ vi.mock('../lib/cube/pool', async () => {
   };
 });
 
+const fetchFriendWants = vi.fn();
+vi.mock('../lib/friends-client', async () => {
+  const actual =
+    await vi.importActual<typeof import('../lib/friends-client')>('../lib/friends-client');
+  return { ...actual, fetchFriendWants: (...args: unknown[]) => fetchFriendWants(...args) };
+});
+
 import { FriendHubPage } from './FriendHubPage';
 
 function makeCard(overrides: Partial<FriendCard> & { name: string; oracleId: string }): FriendCard {
   return { colors: [], cmc: 0, typeLine: 'Creature', ...overrides };
+}
+
+function makeOwned(over: Partial<EnrichedCard> & { copyId: string; name: string }): EnrichedCard {
+  return {
+    setCode: 'cmr',
+    setName: 'Commander Legends',
+    collectorNumber: '1',
+    rarity: 'rare',
+    scryfallId: 'scry-default',
+    purchasePrice: 0,
+    sourceCategory: 'manual',
+    sourceFormat: 'manual',
+    finish: 'nonfoil',
+    foil: false,
+    ...over,
+  } as EnrichedCard;
 }
 
 function renderPage() {
@@ -71,6 +106,9 @@ async function openCollectionTab() {
 describe('FriendHubPage — Collection browser', () => {
   beforeEach(() => {
     fetchFriendCollection.mockReset();
+    fetchFriendWants.mockReset();
+    fetchFriendWants.mockResolvedValue({ ownerUsername: 'friendo', wants: [] });
+    myCards = [];
   });
 
   it('renders card names but never a quantity or price anywhere in the panel', async () => {
@@ -159,5 +197,82 @@ describe('FriendHubPage — Collection browser', () => {
 
     expect(await screen.findByText('Card 60')).toBeTruthy();
     expect(fetchFriendCollection).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('FriendHubPage — "They’re looking for" (the reciprocal radar)', () => {
+  beforeEach(() => {
+    fetchFriendCollection.mockReset();
+    fetchFriendCollection.mockResolvedValue({ ownerUsername: 'friendo', cards: [] });
+    fetchFriendWants.mockReset();
+    myCards = [];
+  });
+
+  /** The overview panel, which is where this section lives. */
+  function overview() {
+    return document.getElementById('friend-hub-panel-overview')!;
+  }
+
+  it('marks a card with unallocated spare copies, and leads with it', async () => {
+    myCards = [
+      makeOwned({ copyId: 'c1', name: 'Sol Ring', oracleId: 'o-sol' }),
+      makeOwned({ copyId: 'c2', name: 'Sol Ring', oracleId: 'o-sol' }),
+      makeOwned({ copyId: 'c3', name: 'Arcane Signet', oracleId: 'o-sig' }),
+    ];
+    fetchFriendWants.mockResolvedValue({
+      ownerUsername: 'friendo',
+      wants: [
+        { name: 'Arcane Signet', oracleId: 'o-sig' },
+        { name: 'Sol Ring', oracleId: 'o-sol' },
+      ],
+    });
+    renderPage();
+
+    const strip = await screen.findByRole('list', { name: /cards you own that .* wants/i });
+    // Two Sol Rings, one kept → one spare. One Arcane Signet → none.
+    expect(within(strip).getByText('1 spare')).toBeTruthy();
+    expect(within(strip).getByText('your only copy')).toBeTruthy();
+    // Spare-first ordering, not alphabetical: Sol Ring leads Arcane Signet.
+    const names = [...strip.querySelectorAll('.friend-hub-radar-name')].map((n) => n.textContent);
+    expect(names).toEqual(['Sol Ring', 'Arcane Signet']);
+    expect(within(overview()).getByText(/1 you can spare/)).toBeTruthy();
+  });
+
+  it('says so when they want things and you own none of them', async () => {
+    myCards = [makeOwned({ copyId: 'c1', name: 'Llanowar Elves', oracleId: 'o-elves' })];
+    fetchFriendWants.mockResolvedValue({
+      ownerUsername: 'friendo',
+      wants: [{ name: 'Black Lotus', oracleId: 'o-lotus' }],
+    });
+    renderPage();
+
+    expect(await within(overview()).findByText(/nothing you own is on .*want lists/i)).toBeTruthy();
+  });
+
+  it('hides the section entirely when the friend has no want lists', async () => {
+    myCards = [makeOwned({ copyId: 'c1', name: 'Sol Ring', oracleId: 'o-sol' })];
+    fetchFriendWants.mockResolvedValue({ ownerUsername: 'friendo', wants: [] });
+    renderPage();
+
+    // The shares fetch settling is the signal that the page has finished its
+    // first pass — the section is absent, not merely late.
+    await screen.findByRole('tab', { name: 'Collection' });
+    expect(screen.queryByText(/They’re looking for/)).toBeNull();
+  });
+
+  it('offers a retry when the wants fetch fails', async () => {
+    fetchFriendWants.mockRejectedValueOnce(new Error('boom'));
+    fetchFriendWants.mockResolvedValueOnce({
+      ownerUsername: 'friendo',
+      wants: [{ name: 'Sol Ring', oracleId: 'o-sol' }],
+    });
+    myCards = [makeOwned({ copyId: 'c1', name: 'Sol Ring', oracleId: 'o-sol' })];
+    renderPage();
+
+    const alert = await within(overview()).findByRole('alert');
+    expect(alert.textContent).toMatch(/couldn.t check your collection/i);
+
+    fireEvent.click(within(alert).getByRole('button', { name: /try again/i }));
+    expect(await screen.findByRole('list', { name: /cards you own that .* wants/i })).toBeTruthy();
   });
 });
