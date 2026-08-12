@@ -18,6 +18,13 @@ interface Props {
    * every existing call site is unchanged.
    */
   onSelect?: (binder: BinderInfo) => void;
+  /**
+   * Render the single-binder badge as a plain labelled marker with no action at
+   * all — for surfaces that want the indicator but no way out, like the trade
+   * dialogs, where leaving mid-offer loses it. Takes precedence over
+   * `onSelect`; tooltip and accessible name are unchanged.
+   */
+  nonInteractive?: boolean;
 }
 
 /**
@@ -25,7 +32,7 @@ interface Props {
  * `onSelect`, if given). Multiple → unlinked badge with a tooltip listing
  * every binder name (mirrors DeckBadge).
  */
-export function BinderBadge({ binders, onSelect }: Props) {
+export function BinderBadge({ binders, onSelect, nonInteractive }: Props) {
   const navigate = useNavigate();
   if (binders.length === 0) return null;
 
@@ -39,6 +46,20 @@ export function BinderBadge({ binders, onSelect }: Props) {
     unique.length === 1
       ? `In binder: ${unique[0].name}`
       : `In ${unique.length} binders: ${summary}`;
+
+  if (unique.length === 1 && nonInteractive) {
+    const color = unique[0].color || 'var(--accent)';
+    return (
+      <span
+        className="card-list-binder-badge"
+        style={{ '--binder-color': color, color } as React.CSSProperties}
+        title={label}
+        aria-label={label}
+      >
+        <Notebook width={11} height={11} strokeWidth={2} aria-hidden />
+      </span>
+    );
+  }
 
   if (unique.length === 1) {
     const b = unique[0];
