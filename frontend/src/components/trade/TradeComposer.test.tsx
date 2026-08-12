@@ -25,6 +25,11 @@ vi.mock('../../lib/trade-value', async () => {
 vi.mock('../../lib/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
 vi.mock('../../lib/card-tags', () => ({ getCardTags: () => [], useCardTagsReady: () => false }));
 
+const toastShow = vi.fn();
+vi.mock('../../store/toasts', () => ({
+  toast: { show: (input: unknown) => toastShow(input) },
+}));
+
 let storeState: { cards: EnrichedCard[] } = { cards: [] };
 vi.mock('../../store/collection', () => ({
   useCollectionStore: (sel: (s: unknown) => unknown) => sel(storeState),
@@ -114,6 +119,7 @@ function giveResults() {
 beforeEach(() => {
   previewProps.mockClear();
   resolveTradePreview.mockReset();
+  toastShow.mockClear();
   storeState = {
     cards: [
       owned({ copyId: 'a', name: 'Arcane Signet', oracleId: 'o-signet' }),
@@ -209,5 +215,43 @@ describe('TradeComposer — a picked row opens the DEAL', () => {
     expect(await screen.findByTestId('preview')).toBeTruthy();
     expect(screen.getByTestId('preview-all').textContent).toBe('Rhystic Study');
     expect(screen.getByTestId('preview-slide').textContent).toBe('Rhystic Study');
+  });
+});
+
+describe('TradeComposer — the 40-line side cap', () => {
+  it('stops the 41st distinct card with a sentence, not a server error', () => {
+    // The server's parseSide rejects a >40-line side with a generic "could not
+    // read" 400 — the composer must stop the basket at the cap and say what to
+    // do instead. Same guard on both sides; exercised here on the ask side.
+    const many: FriendCard[] = Array.from({ length: 41 }, (_, i) => ({
+      name: `Wanted Card ${String(i + 1).padStart(2, '0')}`,
+      oracleId: `o-w${i + 1}`,
+      colors: [],
+      cmc: 1,
+      typeLine: 'Artifact',
+    }));
+    renderComposer({ friendCards: many });
+
+    const wantResults = () => screen.getByRole('list', { name: /You get — pick a card/i });
+    // The picker shows PICKER_LIMIT (40) results — add every one of them.
+    for (let i = 1; i <= 40; i++) {
+      const name = `Add Wanted Card ${String(i).padStart(2, '0')}`;
+      fireEvent.click(within(wantResults()).getByRole('button', { name }));
+    }
+
+    // The 41st is behind the search; surfacing it must not let it in.
+    fireEvent.change(screen.getByRole('textbox', { name: /Search Trade Pal’s collection/i }), {
+      target: { value: 'Wanted Card 41' },
+    });
+    fireEvent.click(within(wantResults()).getByRole('button', { name: 'Add Wanted Card 41' }));
+
+    const basket = screen.getByRole('list', { name: /You get — chosen cards/i });
+    expect(within(basket).getAllByRole('listitem')).toHaveLength(40);
+    expect(within(basket).queryByText('Wanted Card 41')).toBeNull();
+    expect(
+      toastShow.mock.calls.some((c) =>
+        (c[0] as { message: string }).message.includes('maxes out at 40')
+      )
+    ).toBe(true);
   });
 });

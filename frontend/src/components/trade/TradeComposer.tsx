@@ -27,7 +27,12 @@ import {
 import { useFloorPrices } from '../../lib/trade-value';
 import { resolveTradePreview } from '../../lib/trade-preview';
 import { TradePreviewCarousel, type TradePreviewState } from './TradePreviewCarousel';
-import { proposeTrade, type TradeOffer, type TradeCard } from '../../lib/trades-client';
+import {
+  proposeTrade,
+  MAX_TRADE_LINES_PER_SIDE,
+  type TradeOffer,
+  type TradeCard,
+} from '../../lib/trades-client';
 import type { EnrichedCard } from '../../types';
 import type { FriendCard } from '../../lib/cube/pool';
 import type { FriendWant } from '../../lib/friends-client';
@@ -51,6 +56,15 @@ type PickedCopies = Record<string, string[]>;
 
 function keyOf(card: { oracleId: string; name: string }): string {
   return card.oracleId || `name:${card.name.toLowerCase()}`;
+}
+
+/**
+ * Would adding `key` push a basket past the server's 40-lines-per-side cap?
+ * Bumping a card already in the basket is never capped — the cap is on
+ * distinct lines, not copies (copies have their own per-line ceiling of 20).
+ */
+function atLineCap(picked: Record<string, unknown>, key: string): boolean {
+  return !(key in picked) && Object.keys(picked).length >= MAX_TRADE_LINES_PER_SIDE;
 }
 
 interface Props {
@@ -244,7 +258,7 @@ export function TradeComposer({
     const actions: (() => void)[] = [];
     rows.forEach((row, i) => {
       const at = indexOf(row);
-      if (at >= 0) actions[at] = () => bump(setWanting, keyOf(wantResults[i]), 1, 20);
+      if (at >= 0) actions[at] = () => addWant(keyOf(wantResults[i]));
     });
     const at = indexOf(toRequestedCard(tapped, 1));
     setPreview({ cards: slides, index: at >= 0 ? at : 0 });
@@ -266,16 +280,39 @@ export function TradeComposer({
     setPreviewActions(null);
   }
 
+  /** The server rejects a 41st line with a generic "could not read" error —
+   *  say what actually happened, and what to do about it, before sending. */
+  function warnLineCap() {
+    toast.show({
+      message: `A trade side maxes out at ${MAX_TRADE_LINES_PER_SIDE} different cards — remove one to add another.`,
+      tone: 'warn',
+    });
+  }
+
   /** Picking a card from the results adds its CHEAPEST unchosen copy — the
    *  same safe default `copiesByValue` documents. One tap still works for the
    *  single-printing case, which is most of a collection. */
   function addGive(line: OwnedTradeLine) {
+    if (atLineCap(giving, keyOf(line))) {
+      warnLineCap();
+      return;
+    }
     setGiving((prev) => {
       const chosen = new Set(prev[keyOf(line)] ?? []);
       const next = copiesByValue(line).find((c) => !chosen.has(c.copyId));
       if (!next) return prev;
       return { ...prev, [keyOf(line)]: [...chosen, next.copyId] };
     });
+  }
+
+  /** The ask-side mirror of {@link addGive}: one more of `key`, unless it
+   *  would be a 41st distinct line. Bumps of an already-picked card pass. */
+  function addWant(key: string) {
+    if (atLineCap(wanting, key)) {
+      warnLineCap();
+      return;
+    }
+    bump(setWanting, key, 1, 20);
   }
 
   /**
@@ -558,7 +595,7 @@ export function TradeComposer({
                 name: card.name,
                 max: 20,
               }))}
-              onPick={(key) => bump(setWanting, key, 1, 20)}
+              onPick={addWant}
               onInspect={(key, from) => {
                 if (from === 'picked') {
                   const card = wantCards.find((c) => keyOf(c) === key);
