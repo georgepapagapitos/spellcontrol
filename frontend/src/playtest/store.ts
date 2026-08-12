@@ -7,6 +7,14 @@ import {
   type PlaytestState,
 } from '@/lib/playtest';
 import { appendLogEntries, buildLogEntries, type GameLogEntry } from '@/lib/playtest/game-log';
+import { classifyAction } from '@/lib/playtest/rewind';
+import {
+  loadTakebackMode,
+  saveTakebackMode,
+  trailEntry,
+  type RewindTrailEntry,
+  type TakebackMode,
+} from './lib/takeback';
 import {
   fingerprintDeck,
   migrateSnapshotState,
@@ -145,6 +153,17 @@ interface PlaytestStore {
    * since those start a genuinely different session.
    */
   gameLog: GameLogEntry[];
+  /**
+   * Rewind classification, one entry per `state.past` push, newest first —
+   * the same lifecycle as `resistancePast` (reset on RESET/init/hydrate/
+   * teardown, popped on UNDO). Unlike `gameLog`, this is a complete 1:1
+   * mirror of the undo stack — see lib/takeback.ts's module doc for why the
+   * journal alone isn't enough. Consumed by `useTakeback`.
+   */
+  rewindTrail: RewindTrailEntry[];
+  /** Table takeback rule: Ask (default) / Free / Off — device preference,
+   *  same pattern as `freeMulligan`. NOT reset by init/hydrate/teardown. */
+  takebackMode: TakebackMode;
   /** Whether the live session's table-defeat has already been captured into
    *  history (E141) — prevents a later RESET/teardown from double-recording
    *  the same completed game. Reset on init/hydrate/RESET. */
@@ -165,6 +184,8 @@ interface PlaytestStore {
   setResistanceLevel(level: ResistanceLevel): void;
   /** Turn the free-mulligan variant on/off; persists as a device preference. */
   setFreeMulligan(on: boolean): void;
+  /** Switch the table takeback rule; persists as a device preference. */
+  setTakebackMode(mode: TakebackMode): void;
   /** Turn the on-the-draw choice on/off for this game. */
   setOnDraw(on: boolean): void;
   /** Advance from opening → either playing (no mulligans taken, or the
@@ -198,6 +219,8 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
   lastResistanceEvent: null,
   resistanceEventSeq: 0,
   gameLog: [],
+  rewindTrail: [],
+  takebackMode: loadTakebackMode(),
   sessionRecordedForDefeat: false,
   lastSessionRecord: null,
   lastSessionAggregates: null,
@@ -227,6 +250,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       lastResistanceEvent: null,
       resistanceEventSeq: 0,
       gameLog: [],
+      rewindTrail: [],
       sessionRecordedForDefeat: false,
       lastSessionRecord: captured?.record ?? null,
       lastSessionAggregates: captured?.aggregates ?? null,
@@ -264,6 +288,9 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       lastSessionRecord: null,
       lastSessionAggregates: null,
       gameLog: snapshot.gameLog ?? [],
+      // The undo stack itself is wiped on resume (`past: []` above) — nothing
+      // survives to rewind past, so the trail starts fresh too.
+      rewindTrail: [],
     });
   },
   dispatch(action) {
@@ -297,6 +324,12 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
         gameLog: appendLogEntries(gameLog, [
           { turn: next.turn, kind: 'reset', text: 'Game reset' },
         ]),
+        // RESET clears the reducer's own undo stack outright (reducer.ts) —
+        // nothing survives to rewind past, so the trail resets alongside it.
+        // See rewind.ts's own RESET case: this IS the hard wall, enforced by
+        // construction (an empty trail reads as 'none', not a bypassable
+        // 'locked') rather than needing a marker entry.
+        rewindTrail: [],
       });
       return;
     }
@@ -304,11 +337,12 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       // Undo doesn't rewind the log — it's a journal of what happened,
       // undos included — it only appends a marker (when something was
       // actually popped; an empty `past` makes `next` === `current`).
-      const { resistanceLevel, resistanceState, resistancePast, gameLog } = get();
+      const { resistanceLevel, resistanceState, resistancePast, gameLog, rewindTrail } = get();
       const undid = next !== current;
       const nextLog = undid
         ? appendLogEntries(gameLog, [{ turn: next.turn, kind: 'undo', text: 'Undid last action' }])
         : gameLog;
+      const nextTrail = undid ? rewindTrail.slice(1) : rewindTrail;
       if (resistanceLevel !== 'off' && resistanceState) {
         // Rewind the opponent alongside the board: the popped entry's paired
         // snapshot (seed included) means replaying re-rolls the same response.
@@ -317,15 +351,23 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
           resistanceState: resistancePast[0] ?? resistanceState,
           resistancePast: resistancePast.slice(1),
           gameLog: nextLog,
+          rewindTrail: nextTrail,
         });
       } else {
-        set({ state: next, gameLog: nextLog });
+        set({ state: next, gameLog: nextLog, rewindTrail: nextTrail });
       }
       return;
     }
     const entries = buildLogEntries(current, action, next);
-    const { resistanceLevel, resistanceState, resistancePast, gameLog, deckId, mulliganCount } =
-      get();
+    const {
+      resistanceLevel,
+      resistanceState,
+      resistancePast,
+      gameLog,
+      deckId,
+      mulliganCount,
+      rewindTrail,
+    } = get();
     const resistanceOn = resistanceLevel !== 'off';
     // Table defeat (E138) transitioning null -> a turn number is a session
     // boundary in its own right (E141) — capture it the moment it happens
@@ -369,11 +411,33 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
           : entries;
       const newLog = appendLogEntries(gameLog, allEntries);
       const defeatCapture = captureDefeatTransition(result.state, newLog);
+      // Every push this dispatch made needs its own classification: the
+      // player's own action, plus one per Resistance response target (each
+      // is a MOVE_TO_ZONE off the battlefield — same shape regardless of
+      // which card, so classifying a placeholder cardId is exactly the real
+      // classification without needing the per-target intermediate states
+      // `applyResistance` doesn't expose). Newest-first, matching `pairs`.
+      const primary = trailEntry(classifyAction(current, action), entries[0]?.text ?? null);
+      const responseTrail =
+        pushed > 1
+          ? Array<RewindTrailEntry>(pushed - 1).fill(
+              trailEntry(
+                classifyAction(current, {
+                  type: 'MOVE_TO_ZONE',
+                  cardId: '__resistance-response__',
+                  to: 'graveyard',
+                }),
+                result.message
+              )
+            )
+          : [];
+      const newTrail = pushed > 0 ? [...responseTrail, primary] : [];
       set({
         state: result.state,
         resistanceState: result.resistanceState,
         resistancePast: [...pairs, ...resistancePast].slice(0, result.state.past.length),
         gameLog: newLog,
+        rewindTrail: [...newTrail, ...rewindTrail].slice(0, result.state.past.length),
         ...(defeatCapture && {
           sessionRecordedForDefeat: true,
           lastSessionRecord: defeatCapture.record,
@@ -388,9 +452,14 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
     }
     const newLog = appendLogEntries(gameLog, entries);
     const defeatCapture = captureDefeatTransition(next, newLog);
+    const newTrail =
+      next !== current
+        ? [trailEntry(classifyAction(current, action), entries[0]?.text ?? null)]
+        : [];
     set({
       state: next,
       gameLog: newLog,
+      rewindTrail: [...newTrail, ...rewindTrail].slice(0, next.past.length),
       ...(defeatCapture && {
         sessionRecordedForDefeat: true,
         lastSessionRecord: defeatCapture.record,
@@ -437,6 +506,10 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
     const { phase } = get();
     set({ freeMulligan: on, ...(on && phase === 'mulligan-bottom' && { phase: 'playing' }) });
   },
+  setTakebackMode(mode) {
+    saveTakebackMode(mode);
+    set({ takebackMode: mode });
+  },
   setOnDraw(on) {
     set({ onDraw: on });
   },
@@ -456,11 +529,16 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
     const current = get().state;
     if (!current) return;
     const next = applyAction(current, { type: 'MULLIGAN' });
-    const { resistanceState, resistancePast, gameLog } = get();
+    const mulliganEntries = buildLogEntries(current, { type: 'MULLIGAN' }, next);
+    const { resistanceState, resistancePast, gameLog, rewindTrail } = get();
     set({
       state: next,
       mulliganCount: get().mulliganCount + 1,
-      gameLog: appendLogEntries(gameLog, buildLogEntries(current, { type: 'MULLIGAN' }, next)),
+      gameLog: appendLogEntries(gameLog, mulliganEntries),
+      rewindTrail: [
+        trailEntry(classifyAction(current, { type: 'MULLIGAN' }), mulliganEntries[0]?.text ?? null),
+        ...rewindTrail,
+      ].slice(0, next.past.length),
       // Keep resistancePast aligned if Resistance was toggled on pre-play.
       ...(resistanceState && {
         resistancePast: [
@@ -474,20 +552,28 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
     let current = get().state;
     if (!current) return;
     const before = current;
+    // Newest-first as we go, matching rewindTrail's own convention — each
+    // card bottomed later is pushed onto `past` after the one before it.
+    const trailAdds: RewindTrailEntry[] = [];
     // Each card moves to the bottom of the library (toIndex = library length).
     // Recompute the index between actions so successive sends append correctly.
     for (const cardId of cardIds) {
-      current = applyAction(current, {
+      const move = {
         type: 'MOVE_TO_ZONE',
         cardId,
         to: 'library',
         toIndex: current.zones.library.length,
-      });
+      } as const;
+      // Not journaled (game-log.ts doesn't cover MOVE_TO_ZONE during the
+      // opening-hand bottom step either) — summary falls back generically.
+      trailAdds.unshift(trailEntry(classifyAction(current, move), null));
+      current = applyAction(current, move);
     }
-    const { resistanceState, resistancePast, onDraw } = get();
+    const { resistanceState, resistancePast, onDraw, rewindTrail } = get();
     set({
       state: current,
       phase: 'playing',
+      rewindTrail: [...trailAdds, ...rewindTrail].slice(0, current.past.length),
       ...(resistanceState && {
         resistancePast: [
           ...Array<ResistanceState>(pushedEntries(before.past, current.past)).fill(resistanceState),
@@ -525,6 +611,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       lastResistanceEvent: null,
       resistanceEventSeq: 0,
       gameLog: [],
+      rewindTrail: [],
       sessionRecordedForDefeat: false,
       lastSessionRecord: null,
       lastSessionAggregates: null,

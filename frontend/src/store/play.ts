@@ -22,6 +22,7 @@ import {
   patchGame as apiPatchGame,
   raiseGameRequest as apiRaiseGameRequest,
   respondGameRequest as apiRespondGameRequest,
+  cancelGameRequest as apiCancelGameRequest,
   type CreateGameInput,
   type GameRequest,
   type JoinGameInput,
@@ -196,6 +197,8 @@ interface PlayState {
   ): Promise<GameRequest>;
   /** Approve/decline a pending request raised by another seat. */
   respondGameRequest(id: string, approve: boolean): Promise<GameRequest>;
+  /** Withdraw a still-pending request this seat raised. */
+  cancelGameRequest(id: string): Promise<GameRequest>;
 
   // ── History ─────────────────────────────────────────────────────────────
   /** Replace history (used by sync hydration). */
@@ -695,6 +698,14 @@ export const usePlayStore = create<PlayState>()(
         const code = serverCode;
         if (!code) throw new Error('Not in an online game.');
         const request = await apiRespondGameRequest(code, id, approve);
+        applyServerRequest(request, set);
+        return request;
+      },
+
+      cancelGameRequest: async (id) => {
+        const code = serverCode;
+        if (!code) throw new Error('Not in an online game.');
+        const request = await apiCancelGameRequest(code, id);
         applyServerRequest(request, set);
         return request;
       },

@@ -11,6 +11,11 @@ export interface OnlineTable {
   activeSeat: number | null;
   /** Every OTHER seated player, ready for `<OpponentRail>`. */
   opponents: OpponentSeat[];
+  /** This device's own seat in the active online game — never null when
+   *  `OnlineTable` is non-null (that's exactly the condition that produces
+   *  one). Consumed by the takeback cross-seat request channel to key
+   *  `onlineRequests` (see store/play.ts), which is keyed by requester seat. */
+  mySeat: number;
 }
 
 /** A seated player who hasn't published a board yet this session (just
@@ -81,6 +86,6 @@ export function useOnlineTable(state: PlaytestState): OnlineTable | null {
           ? { name: p.name, board }
           : { name: p.name, board: pendingBoard(p.seat, p.life), pending: true };
       });
-    return { activeSeat: online.activeSeat, opponents };
+    return { activeSeat: online.activeSeat, opponents, mySeat: mine.seat };
   }, [online, mine, onlineBoards]);
 }

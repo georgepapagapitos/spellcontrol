@@ -1,6 +1,23 @@
+import { Lock, Settings } from 'lucide-react';
 import type { Designation } from '@/lib/playtest';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
 import { RESISTANCE_LEVEL_LABEL, type ResistanceLevel } from '../lib/resistance';
+import { TAKEBACK_MODE_LABEL, type TakebackMode } from '../lib/takeback';
+import type { RewindVerdict } from '@/lib/playtest/rewind';
+
+export interface TakebackBarProps {
+  stepsAvailable: number;
+  verdict: RewindVerdict | 'none';
+  mode: TakebackMode;
+  boundaryReason: string | null;
+  /** A live outgoing request from THIS seat, in any status — badges the
+   *  button so it stays glanceable even if the pending banner is missed. */
+  isPending: boolean;
+  /** Primary action — apply immediately, raise a request, or (when there's
+   *  nothing to do) surface why via the caller's own feedback. */
+  onClick(): void;
+  onOpenSettings(): void;
+}
 
 const DESIGNATION_SHORT_LABEL: Record<Designation, string> = {
   monarch: 'Monarch',
@@ -19,8 +36,10 @@ interface Props {
   onMulligan(): void;
   onUntapAll(): void;
   onNextTurn(): void;
-  onUndo(): void;
   onReset(): void;
+  /** Takeback control — replaces the old unconditional Undo button (see
+   *  hooks/use-takeback.ts). */
+  takeback: TakebackBarProps;
   /** Opens the scry/surveil/mill sheet for the top of the library. */
   onScry(): void;
   onCreateToken(): void;
@@ -38,7 +57,6 @@ interface Props {
   onToggleSelectMode(): void;
   /** How many cards are selected right now (badges the Select button). */
   selectionSize: number;
-  canUndo: boolean;
   resistanceLevel: ResistanceLevel;
   monarch: boolean;
   initiative: boolean;
@@ -56,8 +74,8 @@ export function ActionBar({
   onMulligan,
   onUntapAll,
   onNextTurn,
-  onUndo,
   onReset,
+  takeback,
   onScry,
   onCreateToken,
   onOpenStats,
@@ -68,7 +86,6 @@ export function ActionBar({
   selectMode,
   onToggleSelectMode,
   selectionSize,
-  canUndo,
   resistanceLevel,
   monarch,
   initiative,
@@ -83,6 +100,29 @@ export function ActionBar({
     citysBlessing && DESIGNATION_SHORT_LABEL.citysBlessing,
   ].filter((label): label is string => Boolean(label));
   const anyDesignationHeld = heldDesignations.length > 0;
+
+  // Takeback button copy — the "before they reach for it" info this whole
+  // control exists for. Badge is glanceable (a count, a lock, or "Off");
+  // `title` adds the reason on desktop hover. `locked` is deliberately NOT
+  // `disabled` — tapping it still gives an answer (via the caller's
+  // onClick, e.g. a toast naming the wall) instead of a dead control, per
+  // the "locked must never present as a failure" rule.
+  const takebackTitle =
+    takeback.mode === 'off'
+      ? 'Takebacks are off for this game.'
+      : takeback.verdict === 'locked'
+        ? (takeback.boundaryReason ?? undefined)
+        : takeback.verdict === 'none'
+          ? 'Nothing to take back yet.'
+          : `Take back (${takeback.stepsAvailable} available) (Z)`;
+  const takebackBadge =
+    takeback.mode === 'off' ? (
+      <span className="playtest-actionbar__takeback-badge">Off</span>
+    ) : takeback.verdict === 'locked' ? (
+      <Lock className="playtest-actionbar__takeback-lock" aria-hidden width={12} height={12} />
+    ) : takeback.stepsAvailable > 0 ? (
+      <span className="playtest-actionbar__takeback-badge">{takeback.stepsAvailable}</span>
+    ) : null;
 
   // Secondary actions, folded into a shared OverflowMenu on narrow viewports.
   // Resistance's current level (and any held designation) is encoded in its
@@ -103,6 +143,10 @@ export function ActionBar({
       onClick: onOpenDesignations,
     },
     { label: `Resistance: ${RESISTANCE_LEVEL_LABEL[resistanceLevel]}`, onClick: onOpenResistance },
+    {
+      label: `Takeback rule: ${TAKEBACK_MODE_LABEL[takeback.mode]}`,
+      onClick: takeback.onOpenSettings,
+    },
     { label: 'Reset', onClick: onReset, danger: true },
   ];
 
@@ -130,8 +174,16 @@ export function ActionBar({
       <button type="button" onClick={onNextTurn} title="Next turn (N)">
         Next turn
       </button>
-      <button type="button" onClick={onUndo} disabled={!canUndo} title="Undo (Z)">
-        Undo
+      <button
+        type="button"
+        onClick={takeback.onClick}
+        className={`playtest-actionbar__takeback${takeback.isPending ? ' is-pending' : ''}`}
+        aria-label={takeback.isPending ? 'Take back — waiting for approval' : undefined}
+        title={takebackTitle}
+      >
+        Take back
+        {takebackBadge}
+        {takeback.isPending && <span className="playtest-actionbar__takeback-dot" aria-hidden />}
       </button>
       <button
         type="button"
@@ -200,6 +252,16 @@ export function ActionBar({
                 {RESISTANCE_LEVEL_LABEL[resistanceLevel]}
               </span>
             )}
+          </button>
+          <button
+            type="button"
+            onClick={takeback.onOpenSettings}
+            aria-haspopup="dialog"
+            className="playtest-actionbar__takeback-settings"
+            title="Choose how takebacks that need the table's OK are handled"
+          >
+            <Settings aria-hidden width={13} height={13} />
+            Takeback: {TAKEBACK_MODE_LABEL[takeback.mode]}
           </button>
           <button type="button" onClick={onReset} className="playtest-actionbar__reset">
             Reset
