@@ -17,7 +17,12 @@ import { useDecksStore } from '@/store/decks';
 import { usePlaytestStore } from '../store';
 import { useNarrowViewport } from '../hooks/use-narrow-viewport';
 import { useOnlineTable } from '../hooks/use-online-table';
+import { useTakeback } from '../hooks/use-takeback';
 import { OpponentRail } from './OpponentRail';
+import { TakebackModePicker } from './TakebackModePicker';
+import { TakebackPendingBanner } from './TakebackPendingBanner';
+import { TakebackConsentPrompt } from './TakebackConsentPrompt';
+import { toast } from '@/store/toasts';
 import { autoPlace } from '../lib/auto-place';
 import { haptics } from '@/lib/haptics';
 import { Battlefield } from './Battlefield';
@@ -126,6 +131,7 @@ export function PlaytestBoard({ state }: Props) {
   const [showDice, setShowDice] = useState(false);
   const [showResistancePicker, setShowResistancePicker] = useState(false);
   const [showDesignations, setShowDesignations] = useState(false);
+  const [showTakebackSettings, setShowTakebackSettings] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   // Battlefield selection + copy buffer (E226). Deliberately UI state, not
   // reducer state: selecting a card isn't a game action and must never land
@@ -150,6 +156,7 @@ export function PlaytestBoard({ state }: Props) {
   // Publishes `state` internally; solo playtest never touches it beyond this
   // one hook call, and null here means the rail below never renders.
   const onlineTable = useOnlineTable(state);
+  const takeback = useTakeback(onlineTable);
 
   // The card currently under the pointer, resolved to its data + display
   // size, so the top-level <DragOverlay> can render a moving copy that
@@ -337,7 +344,6 @@ export function PlaytestBoard({ state }: Props) {
     ? state.battlefield.find((b) => b.card.id === ctxCard.attachedTo)?.card.name
     : undefined;
 
-  const canUndo = state.past.length > 0;
   const anySheetOpen =
     phase !== 'playing' ||
     viewer !== null ||
@@ -349,8 +355,49 @@ export function PlaytestBoard({ state }: Props) {
     showDice ||
     showResistancePicker ||
     showDesignations ||
+    showTakebackSettings ||
     lifePanelOpen ||
     Boolean(confirmDialog);
+
+  // Shared feedback path for the takeback control — same handler behind the
+  // ActionBar button click and the Z shortcut, so both give identical
+  // "before they reach for it" answers (off / nothing yet / the wall's
+  // reason) instead of the keyboard path silently doing nothing. useCallback
+  // so the keydown effect below (which calls it) has a stable dependency.
+  const handleTakebackClick = useCallback(() => {
+    if (takeback.pendingRequest?.status === 'pending') return; // Cancel lives on the pending banner
+    if (takeback.mode === 'off') {
+      toast.show({ message: 'Takebacks are off for this game.', tone: 'info' });
+      return;
+    }
+    if (takeback.verdict === 'none') {
+      toast.show({ message: 'Nothing to take back yet.', tone: 'info' });
+      return;
+    }
+    if (takeback.verdict === 'locked') {
+      toast.show({
+        message: takeback.boundaryReason ?? "That can't be taken back.",
+        tone: 'info',
+      });
+      return;
+    }
+    const result = takeback.attempt();
+    if (result === 'request') {
+      toast.show({
+        message: `Asked the table to take back: ${takeback.nextSummary ?? 'a play'}`,
+        tone: 'info',
+      });
+    }
+  }, [takeback]);
+
+  // A request failing to raise (network, a race with the server's 409) is
+  // the one takeback outcome the hook can't resolve into UI state on its
+  // own — surface it once and clear it so it doesn't repeat on re-render.
+  useEffect(() => {
+    if (!takeback.raiseError) return;
+    toast.show({ message: takeback.raiseError, tone: 'warn' });
+    takeback.clearRaiseError();
+  }, [takeback]);
 
   const hasUnreadLog = gameLog.some((e) => e.kind === 'resistance' && e.seq > lastSeenLogSeq);
   function handleOpenLog() {
@@ -443,7 +490,7 @@ export function PlaytestBoard({ state }: Props) {
       }
       if (key === 'z') {
         e.preventDefault();
-        if (canUndo) dispatch({ type: 'UNDO' });
+        handleTakebackClick();
         return;
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -463,7 +510,7 @@ export function PlaytestBoard({ state }: Props) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [
     anySheetOpen,
-    canUndo,
+    handleTakebackClick,
     dispatch,
     state.zones.library.length,
     selected,
@@ -482,7 +529,6 @@ export function PlaytestBoard({ state }: Props) {
         turn={state.turn}
         libraryCount={state.zones.library.length}
         isNarrow={isNarrow}
-        canUndo={canUndo}
         onDraw={() => {
           haptics.tap();
           dispatch({ type: 'DRAW', n: 1 });
@@ -494,9 +540,14 @@ export function PlaytestBoard({ state }: Props) {
         }}
         onUntapAll={() => dispatch({ type: 'UNTAP_ALL' })}
         onNextTurn={() => dispatch({ type: 'NEXT_TURN' })}
-        onUndo={() => {
-          haptics.tap();
-          dispatch({ type: 'UNDO' });
+        takeback={{
+          stepsAvailable: takeback.stepsAvailable,
+          verdict: takeback.verdict,
+          mode: takeback.mode,
+          boundaryReason: takeback.boundaryReason,
+          isPending: takeback.pendingRequest !== null,
+          onClick: handleTakebackClick,
+          onOpenSettings: () => setShowTakebackSettings(true),
         }}
         onReset={async () => {
           const ok = await confirm({
@@ -597,6 +648,15 @@ export function PlaytestBoard({ state }: Props) {
         )
       )}
       {sealMoment}
+      {/* Both portal to <body> (see their own doc comments) so placement here
+          only decides conditional gating, not layout. */}
+      {onlineTable && <TakebackConsentPrompt onlineTable={onlineTable} />}
+      {takeback.pendingRequest && (
+        <TakebackPendingBanner
+          request={takeback.pendingRequest}
+          onCancel={takeback.cancelPending}
+        />
+      )}
       <DndContext
         sensors={sensors}
         onDragStart={handleDragStart}
@@ -835,6 +895,14 @@ export function PlaytestBoard({ state }: Props) {
           citysBlessing={state.citysBlessing}
           onSet={handleSetDesignation}
           onClose={() => setShowDesignations(false)}
+        />
+      )}
+
+      {showTakebackSettings && (
+        <TakebackModePicker
+          mode={takeback.mode}
+          onSelect={takeback.setMode}
+          onClose={() => setShowTakebackSettings(false)}
         />
       )}
 

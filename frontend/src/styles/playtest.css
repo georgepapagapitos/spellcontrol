@@ -179,6 +179,52 @@ body:has(.playtest-page) {
   border: 1px solid var(--surface-raised);
 }
 
+/* ── Takeback control ──────────────────────────────────────────────────
+   Replaces the old unconditional Undo button. Badge/lock mirror the
+   Resistance/Designations badge idiom so depth — or the wall — is
+   glanceable without opening anything ("before they reach for it"). */
+.playtest-actionbar__takeback {
+  position: relative;
+}
+
+.playtest-actionbar__takeback.is-pending {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.playtest-actionbar__takeback-badge {
+  margin-left: var(--space-2);
+  padding: 1px var(--space-2);
+  border-radius: 999px;
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+
+.playtest-actionbar__takeback-lock {
+  margin-left: var(--space-2);
+  vertical-align: -2px;
+  color: var(--text-secondary);
+}
+
+.playtest-actionbar__takeback-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 1px solid var(--surface-raised);
+}
+
+.playtest-actionbar__takeback-settings {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
 /* ── Resistance event banner ─────────────────────────────────────────── */
 /*  Opponent announcement ("Opponent casts Counterspell — …"). Fixed near the
  *  top of the board, centered, non-blocking: it floats over the battlefield
@@ -236,6 +282,134 @@ body:has(.playtest-page) {
   .playtest-resistance-banner__dismiss {
     min-width: 44px;
     min-height: 44px;
+  }
+}
+
+/* ── Takeback: this seat's own outgoing request ──────────────────────────
+   Same visual language as the Resistance banner above, portaled to <body>
+   (see TakebackPendingBanner's doc comment). */
+.playtest-takeback-pending {
+  position: fixed;
+  top: calc(var(--safe-top) + 6rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 901;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: min(92vw, 34rem);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--accent);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-tooltip);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  animation: playtest-takeback-fade-in 200ms ease;
+}
+
+.playtest-takeback-pending__message {
+  min-width: 0;
+}
+
+.playtest-takeback-pending__cancel {
+  flex-shrink: 0;
+  background: transparent;
+  border: 0.5px solid var(--border-strong);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 3px var(--space-2);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.playtest-takeback-pending__cancel:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playtest-takeback-pending__cancel:hover {
+    color: var(--text-primary);
+    background: var(--accent-light);
+    border-color: var(--accent);
+  }
+}
+
+@media (pointer: coarse) {
+  .playtest-takeback-pending__cancel {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* ── Takeback: incoming consent ask (the OTHER seats' view) ──────────────
+   Deliberately non-blocking: no backdrop, no aria-modal, no focus trap —
+   dismissible only by responding, so a seat mid-play never gets locked out
+   of their own board while they decide. Sits above the pending banner
+   (different, more decision-worthy content) but below the session summary. */
+.playtest-takeback-consent {
+  position: fixed;
+  top: calc(var(--safe-top) + 6rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 950;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: min(92vw, 26rem);
+  padding: var(--space-3);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--accent);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-tooltip);
+  color: var(--text-primary);
+  animation: playtest-takeback-fade-in 200ms ease;
+}
+
+.playtest-takeback-consent__message {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.playtest-takeback-consent__error {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--err-text);
+}
+
+.playtest-takeback-consent__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.playtest-takeback-consent__actions .btn {
+  flex: 1;
+}
+
+@media (pointer: coarse) {
+  .playtest-takeback-consent__actions .btn {
+    min-height: 44px;
+  }
+}
+
+@keyframes playtest-takeback-fade-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playtest-takeback-pending,
+  .playtest-takeback-consent {
+    animation: none;
   }
 }
 
