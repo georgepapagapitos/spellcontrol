@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
+  cancelGameRequest,
   createGame,
   getGame,
   joinGame,
@@ -7,6 +8,9 @@ import {
   patchGame,
   pollGame,
   postBoard,
+  raiseGameRequest,
+  respondGameRequest,
+  type GameRequest,
 } from './games-api';
 import type { GameState } from './game-state';
 import type { PublicBoard } from './playtest/projection';
@@ -35,6 +39,21 @@ function mockState(overrides: Partial<GameState> = {}): GameState {
     startedAt: null,
     endedAt: null,
     version: 0,
+    ...overrides,
+  };
+}
+
+function mockRequest(overrides: Partial<GameRequest> = {}): GameRequest {
+  return {
+    id: 'req1',
+    code: 'ABCD',
+    kind: 'rewind',
+    payload: { steps: 2, summary: 'undo two draws' },
+    requesterSeat: 0,
+    approvals: {},
+    status: 'pending',
+    createdAt: 0,
+    expiresAt: 60_000,
     ...overrides,
   };
 }
@@ -148,20 +167,51 @@ describe('games-api', () => {
 
   it('pollGame resolves game:null on { unchanged: true }', async () => {
     fetchSpy.mockResolvedValueOnce(json({ unchanged: true }));
-    expect(await pollGame('ABCD', 3)).toEqual({ game: null, boards: undefined, board: undefined });
+    expect(await pollGame('ABCD', 3)).toEqual({
+      game: null,
+      boards: undefined,
+      board: undefined,
+      requests: undefined,
+      request: undefined,
+    });
   });
 
-  it('pollGame forwards the game and boards from a full response', async () => {
+  it('pollGame forwards the game, boards, and requests from a full response', async () => {
     const game = mockState({ version: 5 });
     const boards = [{ seat: 1, board: { seat: 1 } }];
-    fetchSpy.mockResolvedValueOnce(json({ game, boards }));
-    expect(await pollGame('ABCD', 3)).toEqual({ game, boards, board: undefined });
+    const requests = [mockRequest({ requesterSeat: 1 })];
+    fetchSpy.mockResolvedValueOnce(json({ game, boards, requests }));
+    expect(await pollGame('ABCD', 3)).toEqual({
+      game,
+      boards,
+      board: undefined,
+      requests,
+      request: undefined,
+    });
   });
 
   it('pollGame forwards a single resolved board', async () => {
     const board = { seat: 2, board: { seat: 2 } };
     fetchSpy.mockResolvedValueOnce(json({ board }));
-    expect(await pollGame('ABCD', 3)).toEqual({ game: null, boards: undefined, board });
+    expect(await pollGame('ABCD', 3)).toEqual({
+      game: null,
+      boards: undefined,
+      board,
+      requests: undefined,
+      request: undefined,
+    });
+  });
+
+  it('pollGame forwards a single resolved request', async () => {
+    const req = mockRequest({ status: 'approved' });
+    fetchSpy.mockResolvedValueOnce(json({ request: req }));
+    expect(await pollGame('ABCD', 3)).toEqual({
+      game: null,
+      boards: undefined,
+      board: undefined,
+      requests: undefined,
+      request: req,
+    });
   });
 
   it('postBoard POSTs the board to /board and resolves on success', async () => {
@@ -177,5 +227,54 @@ describe('games-api', () => {
   it('postBoard throws on a non-2xx response', async () => {
     fetchSpy.mockResolvedValueOnce(json({ error: 'Not a participant.' }, 403));
     await expect(postBoard('ABCD', {} as PublicBoard)).rejects.toThrow(/Not a participant/);
+  });
+
+  it('raiseGameRequest POSTs kind+payload to /request and returns the created request', async () => {
+    const req = mockRequest();
+    fetchSpy.mockResolvedValueOnce(json({ request: req }, 201));
+    const result = await raiseGameRequest('ABCD', 'rewind', {
+      steps: 2,
+      summary: 'undo two draws',
+    });
+    expect(result).toEqual(req);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe('/api/games/ABCD/request');
+    expect((init as RequestInit).method).toBe('POST');
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+      kind: 'rewind',
+      payload: { steps: 2, summary: 'undo two draws' },
+    });
+  });
+
+  it('raiseGameRequest throws on a 409 (already pending for this seat)', async () => {
+    fetchSpy.mockResolvedValueOnce(json({ error: 'A request is already pending.' }, 409));
+    await expect(
+      raiseGameRequest('ABCD', 'rewind', { steps: 1, summary: 'x' })
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('respondGameRequest POSTs { approve } to /request/:id/respond', async () => {
+    const req = mockRequest({ status: 'approved' });
+    fetchSpy.mockResolvedValueOnce(json({ request: req }));
+    const result = await respondGameRequest('ABCD', 'req1', true);
+    expect(result).toEqual(req);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe('/api/games/ABCD/request/req1/respond');
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({ approve: true });
+  });
+
+  it('respondGameRequest throws when the responder is the requester (self-approve)', async () => {
+    fetchSpy.mockResolvedValueOnce(json({ error: 'Cannot respond to your own request.' }, 403));
+    await expect(respondGameRequest('ABCD', 'req1', true)).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('cancelGameRequest POSTs to /request/:id/cancel with no body', async () => {
+    const req = mockRequest({ status: 'cancelled' });
+    fetchSpy.mockResolvedValueOnce(json({ request: req }));
+    const result = await cancelGameRequest('ABCD', 'req1');
+    expect(result).toEqual(req);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe('/api/games/ABCD/request/req1/cancel');
+    expect((init as RequestInit).method).toBe('POST');
   });
 });

@@ -55,6 +55,7 @@ interface Subscriber {
   onState: (state: GameState) => void;
   onDeleted: () => void;
   onBoard?: (seat: number, board: unknown) => void;
+  onRequest?: (request: StoredRequest) => void;
 }
 const subscribers = new Map<string, Set<Subscriber>>();
 
@@ -84,6 +85,63 @@ function boardsSnapshot(code: string): Array<{ seat: number; board: unknown }> {
   return Array.from(codeBoards, ([seat, board]) => ({ seat, board }));
 }
 
+/**
+ * Cross-seat request/response channel — the plumbing rewind consent is
+ * built on (see `frontend/src/lib/playtest/rewind.ts`, landing separately).
+ * A seat raises a request (`kind: 'rewind'` is the only one that exists),
+ * every other currently-connected seated player approves or declines it,
+ * and it resolves to approved/denied/expired.
+ *
+ * Storage mirrors `boards` exactly: in-memory, per code, one entry per
+ * *requester* seat (so "one pending request per seat" is the map's own
+ * shape rather than a separate check), evicted with the session by
+ * `broadcastGameDeleted`. Unlike `boards` — which keeps the latest value
+ * per seat forever — a resolved request is deleted from this map the
+ * instant it resolves (see `resolveRequest`), so this never accumulates
+ * history; only genuinely pending requests are ever held.
+ */
+interface StoredRequest {
+  id: string;
+  code: string;
+  kind: 'rewind';
+  payload: { steps: number; summary: string };
+  requesterSeat: number;
+  /** seat -> approved (true) / declined (false). */
+  approvals: Record<number, boolean>;
+  status: 'pending' | 'approved' | 'denied' | 'expired' | 'cancelled';
+  createdAt: number;
+  expiresAt: number;
+}
+const requests = new Map<string, Map<number, StoredRequest>>();
+/** Kept out of `StoredRequest` so a broadcast/response JSON.stringify never has to strip it. */
+const requestTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+// A hung request must never wedge the table — resolve it one way or another
+// within a bounded window. Shortened under test so the expiry test doesn't
+// sleep 60s; see POLL_TIMEOUT_MS above for the same pattern.
+const REQUEST_TTL_MS = isTest ? 200 : 60_000;
+
+function requestsSnapshot(code: string): StoredRequest[] {
+  const codeRequests = requests.get(code);
+  if (!codeRequests || codeRequests.size === 0) return [];
+  return Array.from(codeRequests.values());
+}
+
+/**
+ * The set of seats whose approval a request needs: every other seated
+ * player who currently holds a connected seat. A disconnected seat is
+ * excluded so it can never block the table forever — and if it's the last
+ * one excluded (everyone else has left), the required set is empty and the
+ * request resolves approved by construction (nothing left to ask).
+ */
+function requiredApprovers(state: GameState, requesterSeat: number): number[] {
+  return state.players.filter((p) => p.seat !== requesterSeat && p.connected).map((p) => p.seat);
+}
+
+function isUnanimouslyApproved(state: GameState, req: StoredRequest): boolean {
+  return requiredApprovers(state, req.requesterSeat).every((seat) => req.approvals[seat] === true);
+}
+
 function broadcastGameState(code: string, state: GameState): void {
   const subs = subscribers.get(code);
   if (!subs || subs.size === 0) return;
@@ -96,6 +154,36 @@ function broadcastBoard(code: string, seat: number, board: unknown): void {
   for (const sub of subs) sub.onBoard?.(seat, board);
 }
 
+function broadcastRequest(code: string, request: StoredRequest): void {
+  const subs = subscribers.get(code);
+  if (!subs) return;
+  for (const sub of subs) sub.onRequest?.(request);
+}
+
+/**
+ * Terminal transition for a request — status flip, timer teardown, removal
+ * from `requests` (so a resolved request is never served to a late
+ * subscriber — see `requestsSnapshot`), and a broadcast of the final state.
+ * Guarded against double-resolution: a response and the expiry timer can
+ * both fire for the same request (the response arriving right as the timer
+ * ticks), and only the first should count.
+ */
+function resolveRequest(code: string, req: StoredRequest, status: StoredRequest['status']): void {
+  if (req.status !== 'pending') return;
+  req.status = status;
+  const timer = requestTimers.get(req.id);
+  if (timer) {
+    clearTimeout(timer);
+    requestTimers.delete(req.id);
+  }
+  const codeRequests = requests.get(code);
+  if (codeRequests) {
+    codeRequests.delete(req.requesterSeat);
+    if (codeRequests.size === 0) requests.delete(code);
+  }
+  broadcastRequest(code, req);
+}
+
 /** Notifies every subscriber for a deleted session so clients notice immediately. */
 function broadcastGameDeleted(code: string): void {
   const subs = subscribers.get(code);
@@ -104,6 +192,17 @@ function broadcastGameDeleted(code: string): void {
     subscribers.delete(code);
   }
   boards.delete(code);
+  const codeRequests = requests.get(code);
+  if (codeRequests) {
+    for (const req of codeRequests.values()) {
+      const timer = requestTimers.get(req.id);
+      if (timer) {
+        clearTimeout(timer);
+        requestTimers.delete(req.id);
+      }
+    }
+    requests.delete(code);
+  }
 }
 
 function addSubscriber(code: string, sub: Subscriber): void {
@@ -452,6 +551,11 @@ gamesRouter.get('/:code/events', readLimiter, requireAuth, async (req: Request, 
   for (const entry of boardsSnapshot(code)) {
     res.write(`event: board\ndata: ${JSON.stringify(entry)}\n\n`);
   }
+  // Same catch-up for any pending request — a subscriber connecting mid-vote
+  // must see it, not just whoever was already there when it was raised.
+  for (const entry of requestsSnapshot(code)) {
+    res.write(`event: request\ndata: ${JSON.stringify(entry)}\n\n`);
+  }
 
   // A failed write on this response must never reach the process as an
   // unhandled 'error' event: `backend/src/` installs no `uncaughtException`
@@ -480,6 +584,13 @@ gamesRouter.get('/:code/events', readLimiter, requireAuth, async (req: Request, 
     onBoard: (seat, board) => {
       if (!res.writableEnded) {
         res.write(`event: board\ndata: ${JSON.stringify({ seat, board })}\n\n`);
+      }
+    },
+    // Same guard as onBoard above, same reason — a write landing in the
+    // onDeleted -> res.end() window must not throw write-after-end.
+    onRequest: (request) => {
+      if (!res.writableEnded) {
+        res.write(`event: request\ndata: ${JSON.stringify(request)}\n\n`);
       }
     },
   };
@@ -563,15 +674,23 @@ gamesRouter.get('/:code/poll', readLimiter, requireAuth, async (req: Request, re
   const since = Number.isFinite(rawSince) ? rawSince : -1;
   const catchUp = req.query.catchUp === '1';
   if (state.version > since || catchUp) {
-    return res.json({ game: state, boards: boardsSnapshot(code) });
+    return res.json({
+      game: state,
+      boards: boardsSnapshot(code),
+      requests: requestsSnapshot(code),
+    });
   }
 
   let settled = false;
   const timer = setTimeout(() => settle(() => res.json({ unchanged: true })), POLL_TIMEOUT_MS);
   const sub: Subscriber = {
-    onState: (fresh) => settle(() => res.json({ game: fresh, boards: boardsSnapshot(code) })),
+    onState: (fresh) =>
+      settle(() =>
+        res.json({ game: fresh, boards: boardsSnapshot(code), requests: requestsSnapshot(code) })
+      ),
     onDeleted: () => settle(() => res.status(404).json({ error: 'Game not found.' })),
     onBoard: (seat, board) => settle(() => res.json({ board: { seat, board } })),
+    onRequest: (request) => settle(() => res.json({ request })),
   };
 
   function settle(respond: () => void): void {
@@ -663,6 +782,202 @@ gamesRouter.post('/:code/board', boardLimiter, requireAuth, async (req: Request,
   broadcastBoard(code, me.seat, board);
   res.json({ ok: true });
 });
+
+// Raising/responding to a request is a rare, human-paced action (a handful
+// per game at most), nowhere near board's per-move cadence — sized well
+// below writeLimiter accordingly.
+const requestLimiter = testAwareLimiter({ windowMs: 60_000, max: 30 });
+
+/** A request payload is tiny (a step count + a one-line summary); this is generous but bounded. */
+const MAX_REQUEST_BYTES = 4 * 1024;
+const MAX_SUMMARY_LEN = 200;
+
+/** Only `kind: 'rewind'` exists today — see the module doc comment above `requests`. */
+function isPlausibleRewindPayload(body: unknown): body is { steps: number; summary: string } {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) return false;
+  const b = body as Record<string, unknown>;
+  if (!Number.isFinite(b.steps) || (b.steps as number) <= 0 || (b.steps as number) > 50)
+    return false;
+  if (typeof b.summary !== 'string' || b.summary.trim().length === 0) return false;
+  return true;
+}
+
+/**
+ * POST /api/games/:code/request — raise a cross-seat request; today the
+ * only caller is rewind consent (`kind: 'rewind'`, landing separately —
+ * see `frontend/src/lib/playtest/rewind.ts`). Security shape mirrors
+ * `/board` exactly: stealth 404 for a non-participant, seat derived
+ * server-side, payload capped and structurally validated.
+ *
+ * Only one pending request per requester seat: the `requests` map is keyed
+ * by requester seat (see its doc comment), so a second raise while one is
+ * still pending is rejected with 409 rather than silently replacing it —
+ * simpler than replacing, and it avoids the question of what happens to
+ * votes already cast against the request being displaced.
+ *
+ * If nobody else is currently a connected seated player, the request
+ * resolves approved immediately (see `requiredApprovers` — an empty
+ * required set is vacuously unanimous) rather than sitting pending for 60s
+ * with nothing that could ever approve it.
+ */
+gamesRouter.post(
+  '/:code/request',
+  requestLimiter,
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const code = String(req.params.code).toUpperCase();
+    const db = getDb();
+    const rows = await db.select().from(gameSessions).where(eq(gameSessions.code, code)).limit(1);
+    const row = rows[0];
+    if (!row) return res.status(404).json({ error: 'Game not found.' });
+    const state = row.state as GameState;
+    // Stealth 404, byte-identical to an unknown code — see the long comment on
+    // POST /:code/board / GET /:code for why (4-char codes, ~1M of them).
+    const me = state.players.find((p) => p.userId === req.user!.id);
+    if (!me) return res.status(404).json({ error: 'Game not found.' });
+
+    const body = req.body as { kind?: unknown; payload?: unknown };
+    if (body.kind !== 'rewind') {
+      return res.status(400).json({ error: 'Unsupported request kind.' });
+    }
+    if (JSON.stringify(body.payload ?? {}).length > MAX_REQUEST_BYTES) {
+      return res.status(413).json({ error: 'Request payload too large.' });
+    }
+    if (!isPlausibleRewindPayload(body.payload)) {
+      return res.status(400).json({ error: 'Invalid request payload.' });
+    }
+
+    let codeRequests = requests.get(code);
+    if (codeRequests?.has(me.seat)) {
+      return res.status(409).json({ error: 'A request is already pending for this seat.' });
+    }
+    if (!codeRequests) {
+      codeRequests = new Map();
+      requests.set(code, codeRequests);
+    }
+
+    const now = Date.now();
+    const storedRequest: StoredRequest = {
+      id: crypto.randomUUID(),
+      code,
+      kind: 'rewind',
+      payload: {
+        steps: Math.floor(body.payload.steps),
+        summary: body.payload.summary.trim().slice(0, MAX_SUMMARY_LEN),
+      },
+      requesterSeat: me.seat,
+      approvals: {},
+      status: 'pending',
+      createdAt: now,
+      expiresAt: now + REQUEST_TTL_MS,
+    };
+    codeRequests.set(me.seat, storedRequest);
+    requestTimers.set(
+      storedRequest.id,
+      setTimeout(() => resolveRequest(code, storedRequest, 'expired'), REQUEST_TTL_MS)
+    );
+
+    if (isUnanimouslyApproved(state, storedRequest)) {
+      resolveRequest(code, storedRequest, 'approved');
+    } else {
+      broadcastRequest(code, storedRequest);
+    }
+    res.status(201).json({ request: storedRequest });
+  }
+);
+
+/**
+ * POST /api/games/:code/request/:id/respond — approve or decline a pending
+ * request. Body: `{ approve: boolean }`. The responding seat is derived
+ * server-side from the authenticated caller's participant record, exactly
+ * like `/board` and `/request` — there's no seat field in the body for a
+ * caller to spoof, so "a seat cannot respond on another seat's behalf" holds
+ * by construction, not by a runtime check.
+ *
+ * One decline resolves the request denied immediately, without waiting on
+ * anyone else. Unanimous approval from `requiredApprovers` resolves it
+ * approved. Neither the requester approving their own request, nor
+ * responding twice / after resolution, is allowed.
+ */
+gamesRouter.post(
+  '/:code/request/:id/respond',
+  requestLimiter,
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const code = String(req.params.code).toUpperCase();
+    const db = getDb();
+    const rows = await db.select().from(gameSessions).where(eq(gameSessions.code, code)).limit(1);
+    const row = rows[0];
+    if (!row) return res.status(404).json({ error: 'Game not found.' });
+    const state = row.state as GameState;
+    const me = state.players.find((p) => p.userId === req.user!.id);
+    if (!me) return res.status(404).json({ error: 'Game not found.' });
+
+    const codeRequests = requests.get(code);
+    const found = Array.from(codeRequests?.values() ?? []).find((r) => r.id === req.params.id);
+    if (!found) return res.status(404).json({ error: 'Request not found.' });
+    if (found.requesterSeat === me.seat) {
+      return res.status(403).json({ error: 'Cannot respond to your own request.' });
+    }
+
+    const body = req.body as { approve?: unknown };
+    if (typeof body.approve !== 'boolean') {
+      return res.status(400).json({ error: 'approve must be a boolean.' });
+    }
+
+    // The expiry timer resolves this asynchronously; a response arriving in
+    // the same tick it fires (or just after) can still see 'pending' if it
+    // raced ahead of the timer callback, so re-check defensively.
+    if (found.status !== 'pending' || Date.now() >= found.expiresAt) {
+      resolveRequest(code, found, 'expired');
+      return res.status(409).json({ error: 'Request already resolved.', request: found });
+    }
+
+    found.approvals[me.seat] = body.approve;
+    if (!body.approve) {
+      resolveRequest(code, found, 'denied');
+    } else if (isUnanimouslyApproved(state, found)) {
+      resolveRequest(code, found, 'approved');
+    } else {
+      broadcastRequest(code, found);
+    }
+    res.json({ request: found });
+  }
+);
+
+/**
+ * POST /api/games/:code/request/:id/cancel — withdraw a still-pending
+ * request. Requester-only (the seat that raised it); anyone else gets 403,
+ * matching /respond's shape for an invalid-but-authenticated actor.
+ */
+gamesRouter.post(
+  '/:code/request/:id/cancel',
+  requestLimiter,
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const code = String(req.params.code).toUpperCase();
+    const db = getDb();
+    const rows = await db.select().from(gameSessions).where(eq(gameSessions.code, code)).limit(1);
+    const row = rows[0];
+    if (!row) return res.status(404).json({ error: 'Game not found.' });
+    const state = row.state as GameState;
+    const me = state.players.find((p) => p.userId === req.user!.id);
+    if (!me) return res.status(404).json({ error: 'Game not found.' });
+
+    const codeRequests = requests.get(code);
+    const found = Array.from(codeRequests?.values() ?? []).find((r) => r.id === req.params.id);
+    if (!found) return res.status(404).json({ error: 'Request not found.' });
+    if (found.requesterSeat !== me.seat) {
+      return res.status(403).json({ error: 'Can only cancel your own request.' });
+    }
+    if (found.status !== 'pending') {
+      return res.status(409).json({ error: 'Request already resolved.', request: found });
+    }
+
+    resolveRequest(code, found, 'cancelled');
+    res.json({ request: found });
+  }
+);
 
 /** POST /api/games/:code/join — claim a seat. */
 gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, res: Response) => {

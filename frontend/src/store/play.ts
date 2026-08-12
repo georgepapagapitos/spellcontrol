@@ -20,7 +20,10 @@ import {
   joinGame as apiJoinGame,
   leaveGame as apiLeaveGame,
   patchGame as apiPatchGame,
+  raiseGameRequest as apiRaiseGameRequest,
+  respondGameRequest as apiRespondGameRequest,
   type CreateGameInput,
+  type GameRequest,
   type JoinGameInput,
 } from '../lib/games-api';
 import { subscribeGameEvents } from '../lib/games-sse';
@@ -116,6 +119,18 @@ interface PlayState {
    * receiving half so that UI has data to read once it lands.
    */
   onlineBoards: Record<number, PublicBoard>;
+  /**
+   * Cross-seat requests for the active online game, keyed by requester seat
+   * — mirrors `onlineBoards`. Fed by the same real-time transport (SSE/
+   * long-poll onRequest — see `applyServerRequest`). A resolved request
+   * stays here (server sends its final state; nothing overwrites it) until
+   * the requester's seat raises another one, so a consumer can show its
+   * terminal status rather than have it vanish. Ephemeral, reset whenever
+   * the online session starts or ends — same lifecycle as `onlineBoards`.
+   * Nothing renders this yet; rewind consent (a separate, in-flight change)
+   * is the first consumer.
+   */
+  onlineRequests: Record<number, GameRequest>;
   /** Per-user game history (synced via the user-data sync). */
   history: GameRecord[];
   hydrated: boolean;
@@ -174,6 +189,13 @@ interface PlayState {
   clearOnline(): void;
   startPolling(): void;
   stopPolling(): void;
+  /** Raise a cross-seat request (today: rewind consent). Throws on failure — see `raiseGameRequest`'s doc comment for the 409 (already-pending) case. */
+  raiseGameRequest(
+    kind: 'rewind',
+    payload: { steps: number; summary: string }
+  ): Promise<GameRequest>;
+  /** Approve/decline a pending request raised by another seat. */
+  respondGameRequest(id: string, approve: boolean): Promise<GameRequest>;
 
   // ── History ─────────────────────────────────────────────────────────────
   /** Replace history (used by sync hydration). */
@@ -261,6 +283,16 @@ function applyServerBoard(seat: number, board: PublicBoard, set: PlaySet): void 
   set((s) => ({ onlineBoards: { ...s.onlineBoards, [seat]: board } }));
 }
 
+/**
+ * Adopt a cross-seat request's create/respond/resolve frame — a catch-up
+ * entry on (re)connect, or a live push. Keyed by requester seat like
+ * `applyServerBoard`; the server is the sole author of `status`/`approvals`,
+ * so this always just overwrites with whatever it sent, no reconciliation.
+ */
+function applyServerRequest(request: GameRequest, set: PlaySet): void {
+  set((s) => ({ onlineRequests: { ...s.onlineRequests, [request.requesterSeat]: request } }));
+}
+
 function startSSE(set: PlaySet): void {
   // `EventSource` doesn't exist in Node (SSR / the test environment) — guard
   // rather than crash; the poll loop (tick, gated on realtimeHealthy staying
@@ -269,6 +301,7 @@ function startSSE(set: PlaySet): void {
   sse = subscribeGameEvents(serverCode, {
     onState: (state) => applyServerGameState(state, set),
     onBoard: (seat, board) => applyServerBoard(seat, board, set),
+    onRequest: (request) => applyServerRequest(request, set),
     onOpen: () => {
       realtimeHealthy = true;
     },
@@ -294,6 +327,7 @@ function startLongPoll(set: PlaySet): void {
   longPoll = subscribeGameLongPoll(serverCode, () => serverVersion, {
     onState: (state) => applyServerGameState(state, set),
     onBoard: (seat, board) => applyServerBoard(seat, board, set),
+    onRequest: (request) => applyServerRequest(request, set),
     onHealthy: () => {
       realtimeHealthy = true;
     },
@@ -381,7 +415,13 @@ function resetOnlineState(
   pendingActions = [];
   serverCode = null;
   serverVersion = 0;
-  set({ online: null, onlineError: null, boardVisible: true, onlineBoards: {} });
+  set({
+    online: null,
+    onlineError: null,
+    boardVisible: true,
+    onlineBoards: {},
+    onlineRequests: {},
+  });
 }
 
 function recordIfFinished(
@@ -402,6 +442,7 @@ export const usePlayStore = create<PlayState>()(
       local: null,
       online: null,
       onlineBoards: {},
+      onlineRequests: {},
       history: [],
       hydrated: false,
       onlineError: null,
@@ -507,7 +548,13 @@ export const usePlayStore = create<PlayState>()(
         const game = await apiCreateGame(input);
         serverVersion = game.version;
         serverCode = game.code;
-        set({ online: game, onlineError: null, boardVisible: true, onlineBoards: {} });
+        set({
+          online: game,
+          onlineError: null,
+          boardVisible: true,
+          onlineBoards: {},
+          onlineRequests: {},
+        });
         get().startPolling();
         return game;
       },
@@ -516,7 +563,13 @@ export const usePlayStore = create<PlayState>()(
         const game = await apiJoinGame(code.toUpperCase(), input);
         serverVersion = game.version;
         serverCode = game.code;
-        set({ online: game, onlineError: null, boardVisible: true, onlineBoards: {} });
+        set({
+          online: game,
+          onlineError: null,
+          boardVisible: true,
+          onlineBoards: {},
+          onlineRequests: {},
+        });
         get().startPolling();
         return game;
       },
@@ -630,6 +683,22 @@ export const usePlayStore = create<PlayState>()(
         resetOnlineState(cur, set, () => get().stopPolling());
       },
 
+      raiseGameRequest: async (kind, payload) => {
+        const code = serverCode;
+        if (!code) throw new Error('Not in an online game.');
+        const request = await apiRaiseGameRequest(code, kind, payload);
+        applyServerRequest(request, set);
+        return request;
+      },
+
+      respondGameRequest: async (id, approve) => {
+        const code = serverCode;
+        if (!code) throw new Error('Not in an online game.');
+        const request = await apiRespondGameRequest(code, id, approve);
+        applyServerRequest(request, set);
+        return request;
+      },
+
       clearOnline: () => {
         const cur = get().online;
         if (cur) {
@@ -641,7 +710,13 @@ export const usePlayStore = create<PlayState>()(
           pendingActions = [];
           serverCode = null;
           serverVersion = 0;
-          set({ online: null, onlineError: null, boardVisible: true, onlineBoards: {} });
+          set({
+            online: null,
+            onlineError: null,
+            boardVisible: true,
+            onlineBoards: {},
+            onlineRequests: {},
+          });
         }
       },
 

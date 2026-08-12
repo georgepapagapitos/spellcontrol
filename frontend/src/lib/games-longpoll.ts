@@ -1,5 +1,5 @@
 import { API_BASE_URL } from './api-base';
-import { pollGame } from './games-api';
+import { pollGame, type GameRequest } from './games-api';
 import type { GameState } from './game-state';
 import type { PublicBoard } from './playtest/projection';
 
@@ -10,6 +10,8 @@ export interface GameLongPollHandlers {
   onState: (state: GameState) => void;
   /** A published board — either a catch-up snapshot entry or one that resolved a held request. */
   onBoard?: (seat: number, board: PublicBoard) => void;
+  /** A cross-seat request — either a catch-up snapshot entry or one that resolved a held poll. */
+  onRequest?: (request: GameRequest) => void;
   /** Fired after every successful round-trip, whether or not it carried a new state — signals the transport is alive. */
   onHealthy?: () => void;
   onError?: () => void;
@@ -77,6 +79,12 @@ export function subscribeGameLongPoll(
         }
         if (result.board) {
           handlers.onBoard?.(result.board.seat, result.board.board as PublicBoard);
+        }
+        if (result.requests) {
+          for (const req of result.requests) handlers.onRequest?.(req);
+        }
+        if (result.request) {
+          handlers.onRequest?.(result.request);
         }
       } catch {
         if (stopped) return;

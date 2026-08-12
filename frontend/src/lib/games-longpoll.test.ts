@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { subscribeGameLongPoll, usesLongPoll } from './games-longpoll';
 import type { GameState } from './game-state';
-import type { PollResult } from './games-api';
+import type { GameRequest, PollResult } from './games-api';
 import type { PublicBoard } from './playtest/projection';
+
+type GameRequestStatus = GameRequest['status'];
 
 // The loop's single round-trip is games-api's pollGame; mock it directly so
 // these tests exercise the loop/backoff logic without a real fetch.
@@ -21,6 +23,19 @@ function withState(version: number): PollResult {
 }
 function mockBoard(seat: number): PublicBoard {
   return { seat } as unknown as PublicBoard;
+}
+function mockRequest(seat: number, status: GameRequestStatus = 'pending'): GameRequest {
+  return {
+    id: `req${seat}`,
+    code: 'ABCD',
+    kind: 'rewind',
+    payload: { steps: 1, summary: 'x' },
+    requesterSeat: seat,
+    approvals: {},
+    status,
+    createdAt: 0,
+    expiresAt: 1000,
+  };
 }
 
 /** Let all pending microtasks (including chained ones inside the loop) drain. */
@@ -135,6 +150,32 @@ describe('subscribeGameLongPoll', () => {
     startLoop('ABCD', () => 1, { onState: vi.fn(), onBoard });
     await flush();
     expect(onBoard).toHaveBeenCalledWith(3, mockBoard(3));
+  });
+
+  it('forwards a requests catch-up snapshot to onRequest, one call per entry', async () => {
+    mockPoll
+      .mockImplementationOnce(async () => ({
+        game: mockState(1),
+        requests: [mockRequest(1), mockRequest(2)],
+      }))
+      .mockImplementation(() => new Promise(() => {}));
+    const onRequest = vi.fn();
+    startLoop('ABCD', () => 1, { onState: vi.fn(), onRequest });
+    await flush();
+    expect(onRequest).toHaveBeenCalledTimes(2);
+    expect(onRequest).toHaveBeenCalledWith(mockRequest(1));
+    expect(onRequest).toHaveBeenCalledWith(mockRequest(2));
+  });
+
+  it('forwards a single request that resolved a held poll to onRequest', async () => {
+    const resolved = mockRequest(1, 'approved');
+    mockPoll
+      .mockImplementationOnce(async () => ({ game: null, request: resolved }))
+      .mockImplementation(() => new Promise(() => {}));
+    const onRequest = vi.fn();
+    startLoop('ABCD', () => 1, { onState: vi.fn(), onRequest });
+    await flush();
+    expect(onRequest).toHaveBeenCalledWith(resolved);
   });
 
   it('loops again after a successful round-trip', async () => {

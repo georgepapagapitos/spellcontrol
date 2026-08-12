@@ -2,6 +2,26 @@ import { authedFetch, handleResponse } from './fetch-utils';
 import type { GameAction, GameState } from './game-state';
 import type { PublicBoard } from './playtest/projection';
 
+/**
+ * A cross-seat request/response — currently only `kind: 'rewind'` (see
+ * `POST /api/games/:code/request` in backend `routes/games.ts`). Approvals
+ * is a partial map: only seats that have responded appear in it. `status`
+ * starts `pending` and is terminal once it's anything else — the server
+ * deletes a resolved request from its store immediately, so a `pending`
+ * request is the only kind still open for a response.
+ */
+export interface GameRequest {
+  id: string;
+  code: string;
+  kind: 'rewind';
+  payload: { steps: number; summary: string };
+  requesterSeat: number;
+  approvals: Record<number, boolean>;
+  status: 'pending' | 'approved' | 'denied' | 'expired' | 'cancelled';
+  createdAt: number;
+  expiresAt: number;
+}
+
 export interface CreateGameInput {
   format: GameState['format'];
   startingLife: number;
@@ -53,6 +73,10 @@ export interface PollResult {
   boards?: BoardEntry[];
   /** A single board that resolved a held request early. */
   board?: BoardEntry;
+  /** Pending cross-seat requests catch-up — present whenever `game` is. */
+  requests?: GameRequest[];
+  /** A single request create/respond/resolve that resolved a held poll early. */
+  request?: GameRequest;
 }
 
 /**
@@ -80,11 +104,15 @@ export async function pollGame(
     unchanged?: boolean;
     boards?: BoardEntry[];
     board?: BoardEntry;
+    requests?: GameRequest[];
+    request?: GameRequest;
   }>(res);
   return {
     game: data.unchanged ? null : (data.game ?? null),
     boards: data.boards,
     board: data.board,
+    requests: data.requests,
+    request: data.request,
   };
 }
 
@@ -104,6 +132,61 @@ export async function postBoard(code: string, board: PublicBoard): Promise<void>
     body: JSON.stringify(board),
   });
   await handleResponse<{ ok: boolean }>(res);
+}
+
+/**
+ * Raise a cross-seat request (backend: `POST /api/games/:code/request`).
+ * Today `kind: 'rewind'` is the only caller — the rewind classifier decides
+ * *whether* a takeback needs consent; this is just the channel that carries
+ * the ask to the table and back. The server derives the requesting seat
+ * server-side and rejects a second raise while one is already pending for
+ * that seat (409) — see the route's doc comment.
+ */
+export async function raiseGameRequest(
+  code: string,
+  kind: 'rewind',
+  payload: { steps: number; summary: string }
+): Promise<GameRequest> {
+  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/request`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kind, payload }),
+  });
+  const data = await handleResponse<{ request: GameRequest }>(res);
+  return data.request;
+}
+
+/**
+ * Approve or decline a pending request (backend:
+ * `POST /api/games/:code/request/:id/respond`). The responding seat is
+ * derived server-side; there's no seat to pass here. Returns the request's
+ * new state — still `pending` if this response didn't resolve it (more
+ * approvals still needed), or a terminal status otherwise.
+ */
+export async function respondGameRequest(
+  code: string,
+  id: string,
+  approve: boolean
+): Promise<GameRequest> {
+  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/request/${id}/respond`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ approve }),
+  });
+  const data = await handleResponse<{ request: GameRequest }>(res);
+  return data.request;
+}
+
+/**
+ * Withdraw a still-pending request (backend:
+ * `POST /api/games/:code/request/:id/cancel`). Requester-only.
+ */
+export async function cancelGameRequest(code: string, id: string): Promise<GameRequest> {
+  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/request/${id}/cancel`, {
+    method: 'POST',
+  });
+  const data = await handleResponse<{ request: GameRequest }>(res);
+  return data.request;
 }
 
 export interface JoinGameInput {

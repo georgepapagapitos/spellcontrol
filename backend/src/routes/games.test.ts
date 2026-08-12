@@ -598,6 +598,373 @@ describe('POST /api/games/:code/board (board relay)', () => {
   });
 });
 
+/** Minimal valid rewind-request creation body. */
+const rewindRequestBody = { kind: 'rewind', payload: { steps: 2, summary: 'undo two draws' } };
+
+/** Seats up a host + N joiners, returns their cookies and the code. */
+async function setupTable(
+  hostName: string,
+  joinerNames: string[]
+): Promise<{ code: string; host: string; joiners: string[] }> {
+  const host = await registerAndGetCookie(hostName);
+  const created = await request(app).post('/api/games').set('Cookie', host).send({});
+  const code = created.body.game.code as string;
+  const joiners: string[] = [];
+  for (const name of joinerNames) {
+    const cookie = await registerAndGetCookie(name);
+    await request(app).post(`/api/games/${code}/join`).set('Cookie', cookie).send({});
+    joiners.push(cookie);
+  }
+  return { code, host, joiners };
+}
+
+describe('POST /api/games/:code/request (rewind consent channel)', () => {
+  it('rejects unauthenticated requests', async () => {
+    const { code } = await setupTable('games_req_auth', []);
+    const res = await request(app).post(`/api/games/${code}/request`).send(rewindRequestBody);
+    expect(res.status).toBe(401);
+  });
+
+  it('404s for a non-participant, byte-identical to an unknown code', async () => {
+    const { code } = await setupTable('games_req_np_h', []);
+    const stranger = await registerAndGetCookie('games_req_np_s');
+    const real = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', stranger)
+      .send(rewindRequestBody);
+    const unknown = await request(app)
+      .post('/api/games/ZZZZ/request')
+      .set('Cookie', stranger)
+      .send(rewindRequestBody);
+    expect(real.status).toBe(404);
+    expect(real.body).toEqual(unknown.body);
+  });
+
+  it('rejects an unsupported kind', async () => {
+    const { code, host } = await setupTable('games_req_kind', ['games_req_kind_j']);
+    const res = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send({ kind: 'mulligan', payload: { steps: 1, summary: 'x' } });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a malformed payload', async () => {
+    const { code, host } = await setupTable('games_req_bad', ['games_req_bad_j']);
+    const res = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send({ kind: 'rewind', payload: { steps: -1, summary: '' } });
+    expect(res.status).toBe(400);
+  });
+
+  it('creates a pending request with a server-generated id, and a second raise from the same seat is rejected', async () => {
+    const { code, host } = await setupTable('games_req_dup_h', ['games_req_dup_j']);
+    const first = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(rewindRequestBody);
+    expect(first.status).toBe(201);
+    expect(first.body.request.id).toBeTruthy();
+    expect(first.body.request.status).toBe('pending');
+    expect(first.body.request.requesterSeat).toBe(0);
+
+    const second = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(rewindRequestBody);
+    expect(second.status).toBe(409);
+  });
+
+  it('resolves approved immediately when no other seat is connected', async () => {
+    const { code, host } = await setupTable('games_req_solo', []);
+    const res = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(rewindRequestBody);
+    expect(res.status).toBe(201);
+    expect(res.body.request.status).toBe('approved');
+  });
+});
+
+describe('POST /api/games/:code/request/:id/respond (resolution policy)', () => {
+  it('one decline resolves the request denied immediately, without waiting on other seats', async () => {
+    const { code, host, joiners } = await setupTable('games_resp_deny_h', [
+      'games_resp_deny_j1',
+      'games_resp_deny_j2',
+    ]);
+    const created = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(rewindRequestBody);
+    const id = created.body.request.id as string;
+
+    const declined = await request(app)
+      .post(`/api/games/${code}/request/${id}/respond`)
+      .set('Cookie', joiners[0])
+      .send({ approve: false });
+    expect(declined.status).toBe(200);
+    expect(declined.body.request.status).toBe('denied');
+
+    // Second seat never got to weigh in — the request is already gone (a
+    // resolved request is removed, not kept around in a "denied" state), so
+    // this reads as an ordinary not-found rather than a conflict.
+    const secondResponse = await request(app)
+      .post(`/api/games/${code}/request/${id}/respond`)
+      .set('Cookie', joiners[1])
+      .send({ approve: true });
+    expect(secondResponse.status).toBe(404);
+  });
+
+  it('unanimous approval from every connected non-requester seat resolves approved', async () => {
+    const { code, host, joiners } = await setupTable('games_resp_appr_h', [
+      'games_resp_appr_j1',
+      'games_resp_appr_j2',
+    ]);
+    const created = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(rewindRequestBody);
+    const id = created.body.request.id as string;
+
+    const first = await request(app)
+      .post(`/api/games/${code}/request/${id}/respond`)
+      .set('Cookie', joiners[0])
+      .send({ approve: true });
+    expect(first.status).toBe(200);
+    expect(first.body.request.status).toBe('pending');
+
+    const second = await request(app)
+      .post(`/api/games/${code}/request/${id}/respond`)
+      .set('Cookie', joiners[1])
+      .send({ approve: true });
+    expect(second.status).toBe(200);
+    expect(second.body.request.status).toBe('approved');
+  });
+
+  it('a disconnected seat does not block approval — unanimity is over connected seats only', async () => {
+    const { code, host, joiners } = await setupTable('games_resp_disc_h', [
+      'games_resp_disc_j1',
+      'games_resp_disc_j2',
+    ]);
+    // Seat 2 (joiners[1]) leaves mid-game-lobby, so it's dropped entirely —
+    // use a mid-game disconnect instead so the seat (and its `connected`
+    // flag) stays on the roster but flips false.
+    const joinedState = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', host)
+      .send({ baseVersion: joinedState.body.game.version, actions: [{ type: 'start' }] });
+    await request(app).post(`/api/games/${code}/leave`).set('Cookie', joiners[1]).send({});
+
+    const created = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(rewindRequestBody);
+    const id = created.body.request.id as string;
+
+    // Only the still-connected joiner needs to approve.
+    const res = await request(app)
+      .post(`/api/games/${code}/request/${id}/respond`)
+      .set('Cookie', joiners[0])
+      .send({ approve: true });
+    expect(res.status).toBe(200);
+    expect(res.body.request.status).toBe('approved');
+  });
+
+  it('the requester cannot approve their own request', async () => {
+    const { code, host } = await setupTable('games_resp_self_h', ['games_resp_self_j']);
+    const created = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(rewindRequestBody);
+    const id = created.body.request.id as string;
+    const res = await request(app)
+      .post(`/api/games/${code}/request/${id}/respond`)
+      .set('Cookie', host)
+      .send({ approve: true });
+    expect(res.status).toBe(403);
+  });
+
+  it('a seat cannot respond on another seat’s behalf — the acting seat is always the caller’s own', async () => {
+    const { code, host, joiners } = await setupTable('games_resp_spoof_h', [
+      'games_resp_spoof_j1',
+      'games_resp_spoof_j2',
+    ]);
+    const created = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(rewindRequestBody);
+    const id = created.body.request.id as string;
+
+    // joiners[0] is seat 1; there is no seat field in the body to spoof
+    // seat 2 with — the route has none, so this can only ever record as
+    // seat 1's own response, and unanimity still needs seat 2's approval.
+    await request(app)
+      .post(`/api/games/${code}/request/${id}/respond`)
+      .set('Cookie', joiners[0])
+      .send({ approve: true, seat: 2 });
+
+    const still = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    expect(still.status).toBe(200);
+    const finalRespond = await request(app)
+      .post(`/api/games/${code}/request/${id}/respond`)
+      .set('Cookie', joiners[1])
+      .send({ approve: true });
+    expect(finalRespond.status).toBe(200);
+    expect(finalRespond.body.request.status).toBe('approved');
+  });
+
+  it('a non-participant gets the same 404 an unknown code gives', async () => {
+    const { code, host } = await setupTable('games_resp_np_h', ['games_resp_np_j']);
+    const stranger = await registerAndGetCookie('games_resp_np_s');
+    const created = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(rewindRequestBody);
+    const id = created.body.request.id as string;
+
+    const real = await request(app)
+      .post(`/api/games/${code}/request/${id}/respond`)
+      .set('Cookie', stranger)
+      .send({ approve: true });
+    const unknown = await request(app)
+      .post(`/api/games/ZZZZ/request/${id}/respond`)
+      .set('Cookie', stranger)
+      .send({ approve: true });
+    expect(real.status).toBe(404);
+    expect(real.body).toEqual(unknown.body);
+  });
+
+  it('rejects a non-boolean approve field', async () => {
+    const { code, host, joiners } = await setupTable('games_resp_badbody_h', [
+      'games_resp_badbody_j',
+    ]);
+    const created = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(rewindRequestBody);
+    const id = created.body.request.id as string;
+    const res = await request(app)
+      .post(`/api/games/${code}/request/${id}/respond`)
+      .set('Cookie', joiners[0])
+      .send({ approve: 'yes' });
+    expect(res.status).toBe(400);
+  });
+
+  it('a response after the request has already expired is a plain not-found, not a self-approve or a stale write', async () => {
+    const { code, host, joiners } = await setupTable('games_resp_expire_h', [
+      'games_resp_expire_j',
+    ]);
+    const created = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(rewindRequestBody);
+    expect(created.body.request.status).toBe('pending');
+    const id = created.body.request.id as string;
+
+    // REQUEST_TTL_MS collapses to 200ms under test (see the route file) — the
+    // expiry timer has already resolved and removed this request by now.
+    await new Promise((r) => setTimeout(r, 400));
+
+    const res = await request(app)
+      .post(`/api/games/${code}/request/${id}/respond`)
+      .set('Cookie', joiners[0])
+      .send({ approve: true });
+    expect(res.status).toBe(404);
+  });
+
+  it('expires after its TTL and broadcasts the resolution as not-approved (not a wedged table)', async () => {
+    const { code, host } = await setupTable('games_expire_sse_h', ['games_expire_sse_j']);
+    // Connect first so the expiry broadcast has a subscriber to land on.
+    // Initial `state` frame + the create's own `request` (pending) frame +
+    // the expiry's `request` (expired) frame.
+    const streamPromise = openGameEventsAnyFrame(host, code, 3);
+    await new Promise((r) => setTimeout(r, 50));
+    const created = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(rewindRequestBody);
+    expect(created.body.request.status).toBe('pending');
+
+    const { frames } = await streamPromise;
+    const requestFrames = frames.filter((f) => f.type === 'request');
+    expect(requestFrames.some((f) => (f.data as { status: string }).status === 'expired')).toBe(
+      true
+    );
+  }, 10000);
+});
+
+describe('POST /api/games/:code/request/:id/cancel', () => {
+  it('lets the requester withdraw their own pending request', async () => {
+    const { code, host } = await setupTable('games_cancel_h', ['games_cancel_j']);
+    const created = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(rewindRequestBody);
+    const id = created.body.request.id as string;
+    const res = await request(app)
+      .post(`/api/games/${code}/request/${id}/cancel`)
+      .set('Cookie', host)
+      .send({});
+    expect(res.status).toBe(200);
+    expect(res.body.request.status).toBe('cancelled');
+  });
+
+  it('rejects a non-requester trying to cancel', async () => {
+    const { code, host, joiners } = await setupTable('games_cancel_np_h', ['games_cancel_np_j']);
+    const created = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(rewindRequestBody);
+    const id = created.body.request.id as string;
+    const res = await request(app)
+      .post(`/api/games/${code}/request/${id}/cancel`)
+      .set('Cookie', joiners[0])
+      .send({});
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('cross-seat requests fan out over SSE (catch-up + live)', () => {
+  it('a late subscriber catches up on a pending request', async () => {
+    const { code, host } = await setupTable('games_req_sse_late_h', ['games_req_sse_late_j']);
+    await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(rewindRequestBody);
+
+    const { frames } = await openGameEventsAnyFrame(host, code, 2);
+    const requestFrame = frames.find((f) => f.type === 'request');
+    expect(requestFrame).toBeTruthy();
+    expect((requestFrame!.data as { status: string }).status).toBe('pending');
+  });
+
+  it('a connected subscriber sees the resolve frame when the request is approved', async () => {
+    const { code, host, joiners } = await setupTable('games_req_sse_live_h', [
+      'games_req_sse_live_j',
+    ]);
+    const created = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(rewindRequestBody);
+    const id = created.body.request.id as string;
+
+    // Initial state frame + the pending request's own create broadcast +
+    // the resolve broadcast the respond below triggers.
+    const streamPromise = openGameEventsAnyFrame(host, code, 3);
+    await new Promise((r) => setTimeout(r, 50));
+    await request(app)
+      .post(`/api/games/${code}/request/${id}/respond`)
+      .set('Cookie', joiners[0])
+      .send({ approve: true });
+
+    const { frames } = await streamPromise;
+    const resolved = frames.filter((f) => f.type === 'request');
+    expect(resolved.some((f) => (f.data as { status: string }).status === 'approved')).toBe(true);
+  });
+});
+
 describe('sweepStale broadcasts deletion (E-gap: an orphaned stream must not stay "healthy" forever)', () => {
   it('ends an open SSE stream for a session swept as 24h+ stale, and keeps serving', async () => {
     const host = await registerAndGetCookie('games_sweep_h');
