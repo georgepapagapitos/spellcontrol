@@ -75,6 +75,29 @@ describe('useOnlineTable', () => {
     expect(mockPublish).not.toHaveBeenCalled();
   });
 
+  // Regression: the table was WRITE-ONLY on the playtest route. `publishBoard`
+  // posts directly, so this device's board reached everyone — but the only
+  // callers of `startPolling` were PlayPage's mount effect and
+  // hostOnline/joinOnline, and PlayPage is NOT mounted at
+  // /decks/:id/playtest. A page load straight into playtest therefore
+  // subscribed to nothing, no opponent board ever arrived, and the rail sat on
+  // "No board shared yet" forever. Found by rendering the real app; no mocked
+  // test caught it, which is exactly why these two exist.
+  it('starts the realtime transport when seated, so opponent boards can arrive', () => {
+    const startPolling = vi.fn();
+    usePlayStore.setState({ online: onlineGame(), onlineBoards: {}, startPolling });
+    signIn('me-id');
+    renderHook(() => useOnlineTable(state()));
+    expect(startPolling).toHaveBeenCalled();
+  });
+
+  it('does not start the realtime transport in solo playtest', () => {
+    const startPolling = vi.fn();
+    usePlayStore.setState({ startPolling });
+    renderHook(() => useOnlineTable(state()));
+    expect(startPolling).not.toHaveBeenCalled();
+  });
+
   it('returns null and never publishes when the viewer holds no seat in the active online game', () => {
     usePlayStore.setState({ online: onlineGame(), onlineBoards: {} });
     signIn('stranger');
