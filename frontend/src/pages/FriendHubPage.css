@@ -186,6 +186,14 @@
   white-space: nowrap;
 }
 
+/* "They're looking for": a card with spare copies is the one you can hand over
+   without breaking a deck, so its count carries the accent. The label is never
+   colour-only — it reads "2 spare" vs "your only copy" either way. */
+.friend-hub-radar-card.is-spare .friend-hub-radar-sub {
+  color: var(--accent);
+  font-weight: 500;
+}
+
 .friend-hub-list {
   list-style: none;
   padding: 0;

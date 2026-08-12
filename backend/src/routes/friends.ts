@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { getScryfallCache } from '../scryfall-cache';
 import { areFriends } from '../friends/relations';
 import { resolveShareLabels } from '../shares/labels';
+import { asRecord } from '../shares/projections';
 import { testAwareLimiter } from '../route-utils';
 
 export const friendsRouter: Router = Router();
@@ -507,6 +508,23 @@ interface FriendCollectionResponse {
 }
 
 /**
+ * One card a friend is looking for. Two fields, and that is the whole shape —
+ * see the `/wants` route below for why everything else on a list entry is
+ * withheld. Deliberately narrower than {@link FriendCard}: a want carries no
+ * colour/type/rank because nothing renders it as a browsable card grid.
+ */
+interface FriendWant {
+  name: string;
+  oracleId: string;
+}
+
+interface FriendWantsResponse {
+  ownerUsername: string;
+  ownerDisplayName: string | null;
+  wants: FriendWant[];
+}
+
+/**
  * Confirms the caller is friends with friendId and returns the friend's
  * { id, username, displayName }. Returns null and writes a 403 if not friends
  * or user not found — callers must return immediately on null.
@@ -630,6 +648,89 @@ friendsRouter.get(
       cards,
     };
 
+    return res.json(response);
+  }
+);
+
+// ────────────────────────────────────────────────
+// GET /api/friends/:friendId/wants  (friend hub — what they're looking for)
+// ────────────────────────────────────────────────
+//
+// The mirror of /collection, and the half the trade radar was missing. The
+// radar has only ever answered "what do they have that I want"; without this,
+// the other direction — "what do I have that they want" — is a guess, so
+// proposing a trade means hoping the other person cares about what you picked.
+//
+// ⚠️ PROJECTION IS DELIBERATELY THINNER THAN THE LIST ITSELF. Ambient
+// friendship visibility is contents-yes-value-no (see the /collection endpoint
+// above and the friends-IA ruling), so a want travels as `{name, oracleId}`
+// and nothing else:
+//
+//   - `quantity` — a count is the privacy line on every other friend surface;
+//     "they want one" and "they want four" is not a distinction a friend needs
+//     before opening a conversation.
+//   - `targetPrice`/`currency` — the price someone will pay is their
+//     negotiating position. Handing that to the counterparty is strictly worse
+//     than showing a collection total, which we already refuse to show.
+//   - `note` and the list's own `name` — free text the owner wrote for
+//     themselves ("get this cheap off Dave"), never written to be read by the
+//     person it is about.
+//
+// `tonight-trades.ts` returns whole list objects instead, which is correct
+// THERE and wrong here: that board is gated on an explicit per-night opt-in
+// from both sides ("symmetric trust"), while this is ambient on friendship
+// alone. Don't copy its projection over.
+friendsRouter.get(
+  '/:friendId/wants',
+  requireAuth,
+  friendCollectionLimiter,
+  async (req: Request, res: Response) => {
+    const callerId = req.user!.id;
+    const friendId = String(req.params.friendId ?? '');
+
+    const target = await requireFriendship(res, callerId, friendId);
+    if (!target) return;
+
+    const listRows = await getPool().query<{ data: unknown }>(
+      `SELECT data FROM user_lists WHERE user_id = $1 AND deleted_at IS NULL`,
+      [friendId]
+    );
+
+    // Deduped across lists: one card wanted by three lists is one want.
+    const seen = new Set<string>();
+    const wants: FriendWant[] = [];
+
+    for (const row of listRows.rows) {
+      const list = asRecord(row.data);
+      if (!list) continue;
+      // Tracking lists catalogue cards the owner already HAS — same gate as
+      // the frontend's isTrackingList. `kind` absent means 'want'.
+      if (list.kind === 'tracking') continue;
+      // Dynamic lists (`rule` set) carry no entries — membership is computed
+      // live from the owner's own collection, so there is nothing to read here
+      // and nothing that would be a want if there were.
+      if (!Array.isArray(list.entries)) continue;
+
+      for (const raw of list.entries) {
+        const entry = asRecord(raw);
+        if (!entry) continue;
+        const name = typeof entry.name === 'string' ? entry.name : '';
+        const oracleId = typeof entry.oracleId === 'string' ? entry.oracleId : '';
+        if (!name) continue;
+        // Legacy entries predate oracleId; key on the name so they still
+        // match rather than silently dropping out of the radar.
+        const key = oracleId || `name:${name.toLowerCase()}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        wants.push({ name, oracleId });
+      }
+    }
+
+    const response: FriendWantsResponse = {
+      ownerUsername: target.username,
+      ownerDisplayName: target.displayName,
+      wants,
+    };
     return res.json(response);
   }
 );

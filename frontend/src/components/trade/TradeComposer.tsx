@@ -28,6 +28,7 @@ import { useFloorPrices } from '../../lib/trade-value';
 import { proposeTrade, type TradeOffer } from '../../lib/trades-client';
 import type { EnrichedCard } from '../../types';
 import type { FriendCard } from '../../lib/cube/pool';
+import type { FriendWant } from '../../lib/friends-client';
 
 /** How many picker results render before the list asks you to narrow down.
  *  A real collection is ~11.5k unique cards; the search filters the full set
@@ -62,6 +63,13 @@ interface Props {
    *  side can say so instead of pretending they own nothing. */
   friendCardsError?: boolean;
   onRetryFriendCards?: () => void;
+  /**
+   * What the friend is looking for, oracle-level. Marks the give side so
+   * "would they even want this?" stops being a guess made one card at a time.
+   * `null` while loading or on failure — the give side simply goes unmarked,
+   * which is what it did before this existed.
+   */
+  friendWants: FriendWant[] | null;
   /** Prefills the ask — used when opening from a trade-radar card. */
   initialWant?: { oracleId: string; name: string };
   onClose: () => void;
@@ -84,6 +92,7 @@ export function TradeComposer({
   friendCardsLoading,
   friendCardsError = false,
   onRetryFriendCards,
+  friendWants,
   initialWant,
   onClose,
   onSent,
@@ -115,6 +124,7 @@ export function TradeComposer({
   );
   const [giveQuery, setGiveQuery] = useState('');
   const [spareOnly, setSpareOnly] = useState(false);
+  const [wantedOnly, setWantedOnly] = useState(false);
   const [wantQuery, setWantQuery] = useState('');
   const [note, setNote] = useState('');
   const [sending, setSending] = useState(false);
@@ -138,15 +148,41 @@ export function TradeComposer({
     [cards, allocations]
   );
 
+  /**
+   * The viewer's OWN lines that this friend is looking for, as `keyOf` keys.
+   *
+   * Resolved to the give side's keyspace once, rather than carrying two lookup
+   * sets around: a want and an owned copy can each independently lack an
+   * oracleId, so the match falls back to a case-insensitive name — but only
+   * the owned line's key ever needs to come back out.
+   */
+  const wantedKeys = useMemo(() => {
+    if (!friendWants || friendWants.length === 0) return new Set<string>();
+    const byOracle = new Set<string>();
+    const byName = new Set<string>();
+    for (const want of friendWants) {
+      if (want.oracleId) byOracle.add(want.oracleId);
+      byName.add(want.name.toLowerCase());
+    }
+    const keys = new Set<string>();
+    for (const line of ownedLines) {
+      if ((line.oracleId && byOracle.has(line.oracleId)) || byName.has(line.name.toLowerCase())) {
+        keys.add(keyOf(line));
+      }
+    }
+    return keys;
+  }, [friendWants, ownedLines]);
+
   const giveWantsTags = /\b(otag|oracletag|function)[:=]/i.test(giveQuery);
   const giveTagsReady = useCardTagsReady(giveWantsTags);
   const giveResults = useMemo(() => {
-    const pool = spareOnly ? filterToSurplus(ownedLines, surplusByName) : ownedLines;
+    let pool = spareOnly ? filterToSurplus(ownedLines, surplusByName) : ownedLines;
+    if (wantedOnly) pool = pool.filter((line) => wantedKeys.has(keyOf(line)));
     return filterOwnedLines(pool, giveQuery, giveTagsReady ? getCardTags : undefined).slice(
       0,
       PICKER_LIMIT
     );
-  }, [ownedLines, giveQuery, giveTagsReady, spareOnly, surplusByName]);
+  }, [ownedLines, giveQuery, giveTagsReady, spareOnly, surplusByName, wantedOnly, wantedKeys]);
 
   // E237: the want side used to be a bare name substring while the friend
   // BROWSER beside it already had colour chips — the composer was the weaker
@@ -332,6 +368,7 @@ export function TradeComposer({
                 name: c.name,
                 quantity: c.quantity,
                 max: line?.copies.length ?? c.quantity,
+                wanted: wantedKeys.has(keyOf(c)),
                 value: formatMoney(sumCopyValue(chosenByKey.get(keyOf(c)) ?? [])),
                 give: {
                   line,
@@ -342,23 +379,42 @@ export function TradeComposer({
             onSetPrinting={setPrintingCount}
             binderByCopyId={binderByCopyId}
             filterSlot={
-              surplusByName.size > 0 && (
-                <button
-                  type="button"
-                  className={spareOnly ? 'trade-spare-toggle is-on' : 'trade-spare-toggle'}
-                  aria-pressed={spareOnly}
-                  onClick={() => setSpareOnly((v) => !v)}
-                >
-                  Spare copies
-                  <span className="trade-spare-count">{surplusByName.size}</span>
-                </button>
-              )
+              <>
+                {surplusByName.size > 0 && (
+                  <button
+                    type="button"
+                    className={spareOnly ? 'trade-spare-toggle is-on' : 'trade-spare-toggle'}
+                    aria-pressed={spareOnly}
+                    onClick={() => setSpareOnly((v) => !v)}
+                  >
+                    Spare copies
+                    <span className="trade-spare-count">{surplusByName.size}</span>
+                  </button>
+                )}
+                {/* Pairs with "Spare copies": together they answer the only
+                    question that matters on this side — what can I part with
+                    that they'd actually want? Hidden when nothing they want is
+                    in the collection, since a toggle that empties the list is
+                    a dead end, not a filter. */}
+                {wantedKeys.size > 0 && (
+                  <button
+                    type="button"
+                    className={wantedOnly ? 'trade-spare-toggle is-on' : 'trade-spare-toggle'}
+                    aria-pressed={wantedOnly}
+                    onClick={() => setWantedOnly((v) => !v)}
+                  >
+                    {friendName} wants
+                    <span className="trade-spare-count">{wantedKeys.size}</span>
+                  </button>
+                )}
+              </>
             }
             onRemove={removeGive}
             results={giveResults.map((line) => ({
               key: keyOf(line),
               name: line.name,
               max: line.copies.length,
+              wanted: wantedKeys.has(keyOf(line)),
               detail:
                 line.copies.length > 1
                   ? `${line.copies.length} copies · from ${formatMoney(copiesByValue(line)[0]?.purchasePrice)}`
@@ -371,9 +427,13 @@ export function TradeComposer({
             emptyResults={
               ownedLines.length === 0
                 ? 'Your collection is empty — import or add cards first.'
-                : spareOnly
-                  ? 'No spare copies match that search. Turn off “Spare copies” to offer one that’s in a deck.'
-                  : 'No cards match that search.'
+                : wantedOnly && spareOnly
+                  ? `Nothing spare that ${friendName} wants matches that search. Turn off a filter to widen it.`
+                  : wantedOnly
+                    ? `Nothing ${friendName} wants matches that search. Turn off “${friendName} wants” to offer something else.`
+                    : spareOnly
+                      ? 'No spare copies match that search. Turn off “Spare copies” to offer one that’s in a deck.'
+                      : 'No cards match that search.'
             }
           />
 
@@ -475,6 +535,8 @@ interface SideRow {
   quantity?: number;
   max: number;
   detail?: string;
+  /** Give side only: this card is on the friend's want list. */
+  wanted?: boolean;
   /** Row subtotal, pre-formatted (the side owns currency/estimate wording). */
   value?: string;
   /**
@@ -599,8 +661,11 @@ function TradeSide({
               <button type="button" className="trade-result-row" onClick={() => onPick(row.key)}>
                 <TradeCardThumb name={row.name} />
                 <span className="trade-picked-info">
-                  <span className="trade-picked-name" title={row.name}>
-                    {row.name}
+                  <span className="trade-picked-name-row">
+                    <span className="trade-picked-name" title={row.name}>
+                      {row.name}
+                    </span>
+                    {row.wanted && <WantedBadge />}
                   </span>
                   {row.detail && <span className="trade-picked-detail">{row.detail}</span>}
                 </span>
@@ -612,6 +677,17 @@ function TradeSide({
       )}
     </section>
   );
+}
+
+/**
+ * "Wanted" — this card is on the friend's want list.
+ *
+ * Never colour alone: the word carries the meaning, so it survives a
+ * colour-blind reader and a screen reader alike (`aria-hidden` would drop the
+ * one signal a give row can't otherwise express).
+ */
+function WantedBadge() {
+  return <span className="trade-wanted-badge">Wanted</span>;
 }
 
 /**
@@ -658,8 +734,11 @@ function PickedRow({
       <div className="trade-picked-row">
         <TradeCardThumb name={row.name} />
         <span className="trade-picked-info">
-          <span className="trade-picked-name" title={row.name}>
-            {row.name}
+          <span className="trade-picked-name-row">
+            <span className="trade-picked-name" title={row.name}>
+              {row.name}
+            </span>
+            {row.wanted && <WantedBadge />}
           </span>
           {/* WHICH printing is leaving — the thing a quantity alone can never
               say, and the reason this row exists. */}

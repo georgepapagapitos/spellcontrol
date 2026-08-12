@@ -846,6 +846,238 @@ describe('GET /api/friends/:friendId/collection', () => {
   }, 15000);
 });
 
+// ─── GET /api/friends/:friendId/wants ────────────────────────────────────────
+
+/** Seed a user_lists row directly via the pool. `data` is the ListDef JSONB the
+ *  sync layer stores verbatim, so these fixtures are the real client shape. */
+async function seedUserList(
+  userId: string,
+  id: string,
+  list: Record<string, unknown>
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO user_lists (user_id, id, data, rev, updated_at)
+     VALUES ($1, $2, $3, nextval('user_data_rev_seq'), $4)`,
+    [userId, id, JSON.stringify({ id, ...list }), Date.now()]
+  );
+}
+
+describe('GET /api/friends/:friendId/wants', () => {
+  it('401 — unauthenticated caller', async () => {
+    const res = await request(app).get('/api/friends/some-user-id/wants');
+    expect(res.status).toBe(401);
+  }, 15000);
+
+  it('403 — unknown friendId (indistinguishable from non-friend)', async () => {
+    const alice = await makeUserFull('fw-404-alice');
+    const res = await request(app)
+      .get('/api/friends/nonexistent-user-id/wants')
+      .set('Cookie', alice.cookie);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/not friends/i);
+  }, 15000);
+
+  it('403 — no friendship row (strangers), even with wants seeded', async () => {
+    const alice = await makeUserFull('fw-403-alice');
+    const bob = await makeUserFull('fw-403-bob');
+    await seedUserList(bob.id, 'l1', {
+      name: 'Wants',
+      entries: [{ name: 'Sol Ring', oracleId: 'oracle-solring', quantity: 1 }],
+    });
+    const res = await request(app).get(`/api/friends/${bob.id}/wants`).set('Cookie', alice.cookie);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/not friends/i);
+  }, 15000);
+
+  it('403 — only a pending request (not accepted)', async () => {
+    const alice = await makeUserFull('fw-pend-alice');
+    const bob = await makeUserFull('fw-pend-bob');
+    await request(app)
+      .post('/api/friends/requests')
+      .set('Cookie', alice.cookie)
+      .send({ username: bob.username });
+    const res = await request(app).get(`/api/friends/${bob.id}/wants`).set('Cookie', alice.cookie);
+    expect(res.status).toBe(403);
+  }, 15000);
+
+  it('200 — no lists returns { ownerUsername, wants: [] }', async () => {
+    const alice = await makeUserFull('fw-empty-alice');
+    const bob = await makeUserFull('fw-empty-bob');
+    await befriend(alice, bob);
+    const res = await request(app).get(`/api/friends/${bob.id}/wants`).set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.ownerUsername).toBe(bob.username);
+    expect(res.body.ownerDisplayName).toBeNull();
+    expect(res.body.wants).toEqual([]);
+  }, 15000);
+
+  it('200 — prefers the friend’s display name when set', async () => {
+    const alice = await makeUserFull('fw-dn-alice');
+    const bob = await makeUserFull('fw-dn-bob');
+    await befriend(alice, bob);
+    await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', bob.cookie)
+      .send({ displayName: 'Bobby' });
+    const res = await request(app).get(`/api/friends/${bob.id}/wants`).set('Cookie', alice.cookie);
+    expect(res.body.ownerDisplayName).toBe('Bobby');
+  }, 15000);
+
+  // ⚠️ THE PRIVACY CONTRACT. Ambient friendship visibility is
+  // contents-yes-value-no, so a want travels as {name, oracleId} and nothing
+  // else. A quantity is a count (the line every other friend surface holds), a
+  // target price is a negotiating position, and a note is text the owner wrote
+  // for themselves. Asserting the exact key SET — not merely that today's
+  // fields are absent — is what stops a future "just one more field" landing.
+  it('200 — projects to {name, oracleId} ONLY: no quantity, targetPrice, currency, note, or list name', async () => {
+    const alice = await makeUserFull('fw-proj-alice');
+    const bob = await makeUserFull('fw-proj-bob');
+    await befriend(alice, bob);
+    await seedUserList(bob.id, 'l1', {
+      name: 'Get this cheap off Dave',
+      entries: [
+        {
+          name: 'Sol Ring',
+          oracleId: 'oracle-solring',
+          quantity: 4,
+          targetPrice: 1.5,
+          currency: 'EUR',
+          note: 'lowball him',
+        },
+      ],
+    });
+
+    const res = await request(app).get(`/api/friends/${bob.id}/wants`).set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.wants).toEqual([{ name: 'Sol Ring', oracleId: 'oracle-solring' }]);
+    expect(Object.keys(res.body.wants[0]).sort()).toEqual(['name', 'oracleId']);
+    // The list's own name is the owner's private label for the group, and the
+    // per-entry note is a message to themselves — neither may appear anywhere.
+    expect(JSON.stringify(res.body)).not.toContain('Get this cheap off Dave');
+    expect(JSON.stringify(res.body)).not.toContain('lowball him');
+  }, 15000);
+
+  it('200 — skips tracking lists (a catalogue of what they OWN is not a want)', async () => {
+    const alice = await makeUserFull('fw-track-alice');
+    const bob = await makeUserFull('fw-track-bob');
+    await befriend(alice, bob);
+    await seedUserList(bob.id, 'want', {
+      name: 'Wants',
+      entries: [{ name: 'Sol Ring', oracleId: 'oracle-solring', quantity: 1 }],
+    });
+    await seedUserList(bob.id, 'track', {
+      name: 'My commanders',
+      kind: 'tracking',
+      entries: [{ name: 'Atraxa', oracleId: 'oracle-atraxa', quantity: 1 }],
+    });
+
+    const res = await request(app).get(`/api/friends/${bob.id}/wants`).set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.wants).toEqual([{ name: 'Sol Ring', oracleId: 'oracle-solring' }]);
+  }, 15000);
+
+  it('200 — an absent `kind` is a want list (the default)', async () => {
+    const alice = await makeUserFull('fw-kind-alice');
+    const bob = await makeUserFull('fw-kind-bob');
+    await befriend(alice, bob);
+    await seedUserList(bob.id, 'l1', {
+      name: 'Untyped',
+      entries: [{ name: 'Sol Ring', oracleId: 'oracle-solring', quantity: 1 }],
+    });
+    const res = await request(app).get(`/api/friends/${bob.id}/wants`).set('Cookie', alice.cookie);
+    expect(res.body.wants).toHaveLength(1);
+  }, 15000);
+
+  it('200 — dedupes one card wanted by three lists down to one want', async () => {
+    const alice = await makeUserFull('fw-dedup-alice');
+    const bob = await makeUserFull('fw-dedup-bob');
+    await befriend(alice, bob);
+    for (const id of ['l1', 'l2', 'l3']) {
+      await seedUserList(bob.id, id, {
+        name: `List ${id}`,
+        entries: [
+          { name: 'Sol Ring', oracleId: 'oracle-solring', quantity: 2 },
+          { name: `Only in ${id}`, oracleId: `oracle-${id}`, quantity: 1 },
+        ],
+      });
+    }
+
+    const res = await request(app).get(`/api/friends/${bob.id}/wants`).set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.wants.filter((w: { name: string }) => w.name === 'Sol Ring')).toHaveLength(1);
+    expect(res.body.wants).toHaveLength(4);
+  }, 15000);
+
+  it('200 — dedupes legacy entries with no oracleId by name (case-insensitively)', async () => {
+    const alice = await makeUserFull('fw-legacy-alice');
+    const bob = await makeUserFull('fw-legacy-bob');
+    await befriend(alice, bob);
+    await seedUserList(bob.id, 'l1', {
+      name: 'Old',
+      entries: [{ name: 'Sol Ring', quantity: 1 }],
+    });
+    await seedUserList(bob.id, 'l2', {
+      name: 'Older',
+      entries: [{ name: 'sol ring', quantity: 1 }],
+    });
+
+    const res = await request(app).get(`/api/friends/${bob.id}/wants`).set('Cookie', alice.cookie);
+    expect(res.body.wants).toEqual([{ name: 'Sol Ring', oracleId: '' }]);
+  }, 15000);
+
+  it('200 — skips deleted lists, dynamic lists, and malformed rows', async () => {
+    const alice = await makeUserFull('fw-skip-alice');
+    const bob = await makeUserFull('fw-skip-bob');
+    await befriend(alice, bob);
+    await seedUserList(bob.id, 'keep', {
+      name: 'Wants',
+      entries: [{ name: 'Sol Ring', oracleId: 'oracle-solring', quantity: 1 }],
+    });
+    // Dynamic list: membership is computed live from the owner's own
+    // collection, so `entries` is empty by construction — nothing here is a want.
+    await seedUserList(bob.id, 'dynamic', {
+      name: 'Dynamic',
+      rule: [{ conditions: [] }],
+      entries: [],
+    });
+    await seedUserList(bob.id, 'noentries', { name: 'Broken' });
+    await seedUserList(bob.id, 'nameless', {
+      name: 'Has a blank entry',
+      entries: [{ oracleId: 'oracle-nameless', quantity: 1 }, null, 'not-an-object'],
+    });
+    await pool.query(
+      `INSERT INTO user_lists (user_id, id, data, rev, deleted_at, updated_at)
+       VALUES ($1, 'gone', $2, nextval('user_data_rev_seq'), $3, $3)`,
+      [
+        bob.id,
+        JSON.stringify({
+          id: 'gone',
+          name: 'Deleted',
+          entries: [{ name: 'Black Lotus', oracleId: 'oracle-lotus', quantity: 1 }],
+        }),
+        Date.now(),
+      ]
+    );
+
+    const res = await request(app).get(`/api/friends/${bob.id}/wants`).set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.wants).toEqual([{ name: 'Sol Ring', oracleId: 'oracle-solring' }]);
+  }, 15000);
+
+  it('200 — the gate is symmetric: both friends can read the other’s wants', async () => {
+    const alice = await makeUserFull('fw-sym-alice');
+    const bob = await makeUserFull('fw-sym-bob');
+    await befriend(alice, bob);
+    await seedUserList(alice.id, 'l1', {
+      name: 'Alice wants',
+      entries: [{ name: 'Black Lotus', oracleId: 'oracle-lotus', quantity: 1 }],
+    });
+    const res = await request(app).get(`/api/friends/${alice.id}/wants`).set('Cookie', bob.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.wants).toEqual([{ name: 'Black Lotus', oracleId: 'oracle-lotus' }]);
+  }, 15000);
+});
+
 // ─── GET /api/friends/:friendId/shares (friend hub) ──────────────────────────
 
 async function seedUserDeck(userId: string, id: string, name: string): Promise<void> {
