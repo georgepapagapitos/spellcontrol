@@ -11,6 +11,14 @@ export interface OpponentSeat {
   name: string;
   /** This seat's board, already projected for opponents — see `toPublicBoard`. */
   board: PublicBoard;
+  /** True when this seat is at the table but hasn't published a board yet
+   *  (just joined, or hasn't touched their battlefield this session). The
+   *  seat is never omitted for this — see STYLE_GUIDE "no opponent may ever
+   *  be hidden" — but its board-shaped fields (`battlefield`/`handCount`/
+   *  `libraryCount`) are meaningless placeholders, not a real empty board,
+   *  so this flag swaps them for a "no board shared yet" line instead of
+   *  rendering fabricated zeros. `board.life` is still shown — it's real. */
+  pending?: boolean;
 }
 
 interface OpponentRailProps {
@@ -30,13 +38,14 @@ const DESIGNATIONS = [
 const MAX_MINI_TILES = 12;
 
 /**
- * Opponent presence rail — the compact "who else is at the table" strip for a
- * future online multiplayer Commander table. Presentational only: takes
+ * Opponent presence rail — the compact "who else is at the table" strip for
+ * an online multiplayer Commander table. Presentational only: takes
  * already-projected `PublicBoard`s as props and renders them; no networking,
- * no store wiring, no data fetching of session state (a follow-up PR wires
- * this to a real roster). Card art for the glance mini-battlefield still
- * resolves through the shared `useCardThumb` CDN cache, the same primitive
- * every other card-rendering surface in the app uses.
+ * no store wiring, no data fetching of session state — `playtest/hooks/
+ * use-online-table.ts` is what derives `opponents` from the live session and
+ * mounts this in `PlaytestBoard`. Card art for the glance mini-battlefield
+ * still resolves through the shared `useCardThumb` CDN cache, the same
+ * primitive every other card-rendering surface in the app uses.
  *
  * Follows the long axis (STYLE_GUIDE "Opponent rail"): a top strip in
  * portrait renders dense **presence** badges (color, name, life, permanent
@@ -104,7 +113,7 @@ function OpponentEntry({
   glance: boolean;
   active: boolean;
 }) {
-  const { name, board } = opp;
+  const { name, board, pending } = opp;
   const palette = paletteForIndex(board.seat);
   const held = DESIGNATIONS.filter((d) => board[d.key]);
   const permanentCount = board.battlefield.length;
@@ -115,9 +124,11 @@ function OpponentEntry({
     name,
     `${board.life} life`,
     active && "this player's turn",
-    `${permanentCount} permanent${permanentCount === 1 ? '' : 's'}`,
-    `${board.handCount} card${board.handCount === 1 ? '' : 's'} in hand`,
-    `${board.libraryCount} in library`,
+    pending
+      ? 'no board shared yet'
+      : `${permanentCount} permanent${permanentCount === 1 ? '' : 's'}`,
+    !pending && `${board.handCount} card${board.handCount === 1 ? '' : 's'} in hand`,
+    !pending && `${board.libraryCount} in library`,
     held.length > 0 && `holds ${held.map((d) => d.label).join(', ')}`,
   ]
     .filter(Boolean)
@@ -156,7 +167,11 @@ function OpponentEntry({
           ))}
         </span>
       )}
-      {glance ? (
+      {pending ? (
+        <span className="opponent-entry__permanents" aria-hidden="true">
+          No board shared yet
+        </span>
+      ) : glance ? (
         <>
           <span className="opponent-entry__counts" aria-hidden="true">
             Hand {board.handCount} · Library {board.libraryCount}
