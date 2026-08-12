@@ -368,6 +368,27 @@ body:has(.playtest-page) {
   min-width: 110px;
 }
 
+/* Multiplayer table seam (use-online-table.ts): a slot for <OpponentRail>
+   inside the same row `.playtest-main` already lays the battlefield/piles
+   out in. Absent (unmounted) for solo play, so it costs nothing there. This
+   default — desktop-tier, `.playtest-main` in row layout — gives it a fixed
+   side column matching OpponentRail's own "glance" density; the narrow
+   override below (same 1024px boundary the file already uses for
+   `.playtest-main`) turns it into a full-width top strip for "presence"
+   density instead. The two boundaries are deliberately reused rather than
+   introduced fresh: OpponentRail's own glance gate is `(orientation:
+   landscape) and (min-width: 900px)`, and no real device populates the
+   900–1023px landscape gap between that and this file's 1024px tier (phone
+   landscape tops out well under 900px; the next size up, iPad, starts
+   landscape at 1024px) — see STYLE_GUIDE "Opponent rail". */
+.playtest-main > .opponent-rail {
+  flex: 0 0 15rem;
+  width: 15rem;
+  padding: var(--space-2);
+  border-right: 0.5px solid var(--border);
+  overflow-y: auto;
+}
+
 .playtest-pile {
   display: flex;
   flex-direction: column;
@@ -1454,6 +1475,19 @@ body:has(.playtest-page) {
 
   .playtest-piles {
     display: none;
+  }
+
+  /* `.playtest-main` is now a column, so the rail's "glance" side-column
+     sizing (flex-basis as a width) would instead read as a HEIGHT — reset it
+     to a natural-height full-width top strip, matching OpponentRail's own
+     "presence" density which is what mounts below this same 1024px tier. */
+  .playtest-main > .opponent-rail {
+    flex: 0 0 auto;
+    width: 100%;
+    padding: var(--space-1) var(--space-3);
+    border-right: none;
+    border-bottom: 0.5px solid var(--border);
+    overflow-y: visible;
   }
 
   .playtest-zones-tab {
