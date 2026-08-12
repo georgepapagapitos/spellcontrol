@@ -57,6 +57,7 @@ export function DeckAnalysisView({
   winConditionSlot,
   powerHeroSlot,
   tableRecordSlot,
+  aiReviewSlot,
   analysisState = 'ready',
   onNavigateToTune,
   onRetryAnalysis,
@@ -105,6 +106,8 @@ export function DeckAnalysisView({
   winConditionSlot?: React.ReactNode;
   powerHeroSlot?: React.ReactNode;
   tableRecordSlot?: React.ReactNode;
+  /** Opt-in AI review (T96) — brings its own panel chrome + hidden states. */
+  aiReviewSlot?: React.ReactNode;
   /** The deck's legal color identity (commander union); drives the identity gate. */
   /** UX-310: 'pending' shows skeleton placeholders on Tune/Power while analysis loads.
    *  E162: 'error' shows a failure message + retry instead of skeletoning forever. */
@@ -268,6 +271,10 @@ export function DeckAnalysisView({
               />
             </Panel>
           )}
+          {/* AI review (T96) — additive, below everything the app computes
+              itself. The slot brings its own panel chrome and renders nothing
+              when the feature is unavailable, so no Panel wrapper here. */}
+          {aiReviewSlot}
         </div>
       )}
 

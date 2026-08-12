@@ -659,5 +659,28 @@ export async function ensureSchema(): Promise<void> {
       PRIMARY KEY (deck_id, day)
     );
     CREATE INDEX IF NOT EXISTS deck_stat_snapshots_day_idx ON deck_stat_snapshots(day);
+
+    -- Opt-in AI features (T96 "Read the deck"). Consent lives on the user
+    -- row, deliberately outside the sync layer; NULL ai_daily_limit means
+    -- the app default applies (per-user override = a data change, not a
+    -- refactor). ai_reviews is cache (unique per user+feature+input hash),
+    -- quota meter (count today's rows), and cost audit (token columns) in
+    -- one table. AI output never becomes a synced entity.
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_opt_in BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_daily_limit INTEGER;
+    CREATE TABLE IF NOT EXISTS ai_reviews (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      feature TEXT NOT NULL,
+      input_hash TEXT NOT NULL,
+      model TEXT NOT NULL,
+      content TEXT NOT NULL,
+      input_tokens INTEGER NOT NULL,
+      output_tokens INTEGER NOT NULL,
+      created_at BIGINT NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS ai_reviews_key_idx
+      ON ai_reviews(user_id, feature, input_hash);
+    CREATE INDEX IF NOT EXISTS ai_reviews_user_day_idx ON ai_reviews(user_id, created_at);
   `);
 }

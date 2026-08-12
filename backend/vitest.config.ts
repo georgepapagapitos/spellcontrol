@@ -34,6 +34,11 @@ export default defineConfig({
         'src/scanner/embedding-ingest.ts',
         // Thin CLI wrappers around the ingests above + the combos ingest.
         'src/scripts/**',
+        // Thin Anthropic API client — the single messages.create call site.
+        // Everything testable (prompt assembly, hashing, route guards, cache,
+        // quota) lives in ai/deck-review.ts and routes/ai.ts, which are
+        // covered; the route tests mock this module.
+        'src/ai/client.ts',
       ],
       thresholds: { statements: 80, branches: 80, functions: 80, lines: 80 },
     },
