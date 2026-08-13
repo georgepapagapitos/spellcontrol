@@ -13,7 +13,6 @@
 import 'fake-indexeddb/auto';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GameState } from '../lib/game-state';
 import type { Deck } from '../store/decks';
@@ -181,12 +180,16 @@ vi.mock('../store/decks', () => ({
 }));
 
 // GameBoard itself is heavy (rendering, timers, wake-lock…) and irrelevant
-// here — stub it down to just the banner slot, exactly like PlayPage's
-// existing UX-323 banner test does.
+// here (local-only since T99) — stub it down to a marker div.
 vi.mock('../components/play/GameBoard', () => ({
-  GameBoard: ({ banner }: { banner?: React.ReactNode }) => (
-    <div data-testid="game-board">{banner ?? null}</div>
-  ),
+  GameBoard: () => <div data-testid="game-board" />,
+}));
+
+// OnlineGameView (the online surface since T99) is equally heavy and not
+// under test here — the door + join-code banner now render as PlayPage
+// siblings, not nested inside it, so a bare stub is enough.
+vi.mock('../components/play/OnlineGameView', () => ({
+  OnlineGameView: () => <div data-testid="online-game-view" />,
 }));
 
 import { PlayPage } from './PlayPage';
@@ -231,8 +234,8 @@ describe('Open-your-board door — visibility', () => {
   });
 
   it('does not render for an active local (shared-device) game', () => {
-    // Local games never route through GameBoard's banner prop at all — the
-    // door only ever mounts for the online branch.
+    // The door is only rendered on PlayPage's online branch — a local game
+    // never reaches it.
     mockState.local = makeOnlineGame({ mode: 'local', hostUserId: null });
     render(
       <MemoryRouter initialEntries={['/play?tab=local']}>
