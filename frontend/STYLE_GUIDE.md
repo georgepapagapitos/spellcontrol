@@ -3822,22 +3822,46 @@ where the user owns some and lacks the rest — first used by the Sets tab
   `content-visibility: auto` + `contain-intrinsic-size` instead of a JS
   windowing dependency.
 
-## AI-written content (T96)
+## AI-written content (T96, extended T102)
 
 Model-written text always says so. The rulings:
 
 - **The marker is a pill on the surface's title** (`.deck-ai-marker`, reading
-  "AI-written") — outline style, `--text-muted` on `--border`, never the
-  accent. AI provenance is metadata, not a feature to celebrate; it must be
-  visible before the prose is read but never compete with it.
+  "AI-written", or "AI Beta" before consent) — outline style, `--text-muted` on
+  `--border`, never the accent. AI provenance is metadata, not a feature to
+  celebrate; it must be visible before the prose is read but never compete with
+  it.
 - **AI surfaces are additive and self-hiding.** An AI panel renders literally
   nothing (`null`) when the feature is unavailable or off — never a locked or
   greyed-out teaser. The page without AI is exactly today's page.
 - **Nothing is sent on render.** An AI surface may fetch its own cheap status,
   but model calls happen only on an explicit press of a clearly-AI button.
-- **Discoverability is a one-time dismissible invitation** occupying the spot
-  the surface would fill, with an "Open Settings" action and a "No thanks"
-  dismiss (localStorage). Dismissed or enabled, it never returns.
+- **Consent is granted in place, at the point of use (T102).** The first-use
+  card names exactly what leaves the device, the daily cap, and where the
+  master switch lives, then grants consent with its own Enable button — never a
+  link that sends the user off to a settings page to hunt for a toggle. It
+  keeps the "No thanks" dismiss (localStorage); dismissed or enabled, it never
+  returns. The settings page stays as the master off switch, and consent itself
+  is still enforced server-side (a rendered button is not consent).
+- **Granting consent never spends a call.** Enabling drops the surface into its
+  idle state with the AI button waiting — it does not auto-run the thing the
+  user just permitted.
+- **Long AI prose is sectioned, and the finding leads (T102).** Prose past a
+  couple of paragraphs gets client-side section titles derived from the
+  prompt's fixed order — the model writes headerless prose, the UI titles it —
+  and the section that earns the feature (the weakness/finding, not the
+  summary) renders **first**, wherever the model wrote it. The lead section
+  takes the quiet attention rail (`--warn-border` left rule, `--warn-text`
+  title) and one step up in body size; the plate stays unfilled, because a
+  finding is a finding, not an error. Prose too short to section honestly falls
+  back to plain paragraphs rather than mislabelling itself.
+- **Card names inside AI prose are tappable as text, not as pills**
+  (`.deck-ai-card-chip`): weight + underline on the running text, opening the
+  shared card carousel seeded with every card the reading named. A pill per
+  name shreds the paragraph — the "Card-name chips" primitive above is for
+  lists and grids, not for prose. Match against the actual decklist (basics
+  excluded — "your Swamps" is a turn of phrase), so a hallucinated name simply
+  gets no chip.
 - **Stale AI output stays readable, flagged, never silently regenerated**: a
   notice ("Your deck has changed since this was written") plus an explicit
   re-run button; the prose itself drops to `--text-secondary` while stale.

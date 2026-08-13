@@ -112,10 +112,78 @@
   margin-bottom: 0;
 }
 
+/* Three titled sections, not three chunky blocks of text. The weakness leads —
+   it's the part the statistics on the other tab can't give you. */
+.deck-ai-section + .deck-ai-section {
+  margin-top: var(--space-4);
+}
+
+.deck-ai-section-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* The lead section: a quiet attention rail (the app's warning idiom, minus the
+   filled plate — a structural finding is a finding, not an error). */
+.deck-ai-section--weakness {
+  padding-left: 0.7rem;
+  border-left: 3px solid var(--warn-border);
+}
+
+.deck-ai-section--weakness .deck-ai-section-title {
+  color: var(--warn-text);
+}
+
+.deck-ai-section--weakness p {
+  font-size: var(--text-base);
+}
+
+/* Card names the model referenced — tappable into the shared card carousel.
+   Inline in running prose, so this is a text-level affordance (weight +
+   underline), never a pill: a pill per name would shred the paragraph. */
+.deck-ai-card-chip {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--text-primary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deck-ai-card-chip:hover {
+    text-decoration-color: currentcolor;
+  }
+}
+
+.deck-ai-card-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
 /* Stale review stays readable — shown, flagged, never silently re-billed —
    but visibly recedes behind the staleness notice. */
-.deck-ai-prose--stale p {
+.deck-ai-prose--stale p,
+.deck-ai-prose--stale .deck-ai-card-chip {
   color: var(--text-secondary);
+}
+
+/* ── Inline consent (T102): the grant happens where the feature is, not in a
+   settings page the user has to be told about. ── */
+.deck-ai-consent-error {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--warn-text);
 }
 
 .deck-ai-stale {
