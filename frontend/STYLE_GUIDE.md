@@ -3807,3 +3807,23 @@ where the user owns some and lacks the rest — first used by the Sets tab
 - Big checklists (Secret Lair ~2600 tiles) stay un-virtualized: tiles carry
   `content-visibility: auto` + `contain-intrinsic-size` instead of a JS
   windowing dependency.
+
+## AI-written content (T96)
+
+Model-written text always says so. The rulings:
+
+- **The marker is a pill on the surface's title** (`.deck-ai-marker`, reading
+  "AI-written") — outline style, `--text-muted` on `--border`, never the
+  accent. AI provenance is metadata, not a feature to celebrate; it must be
+  visible before the prose is read but never compete with it.
+- **AI surfaces are additive and self-hiding.** An AI panel renders literally
+  nothing (`null`) when the feature is unavailable or off — never a locked or
+  greyed-out teaser. The page without AI is exactly today's page.
+- **Nothing is sent on render.** An AI surface may fetch its own cheap status,
+  but model calls happen only on an explicit press of a clearly-AI button.
+- **Discoverability is a one-time dismissible invitation** occupying the spot
+  the surface would fill, with an "Open Settings" action and a "No thanks"
+  dismiss (localStorage). Dismissed or enabled, it never returns.
+- **Stale AI output stays readable, flagged, never silently regenerated**: a
+  notice ("Your deck has changed since this was written") plus an explicit
+  re-run button; the prose itself drops to `--text-secondary` while stale.

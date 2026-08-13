@@ -324,6 +324,8 @@ export interface DeckDisplayProps {
   winConditionSlot?: React.ReactNode;
   /** Power-tab verdict hero (bracket + gameplan), rendered atop the Power view. */
   powerHeroSlot?: React.ReactNode;
+  /** Opt-in AI review (T96) — rendered at the end of the Stats tab. */
+  aiReviewSlot?: React.ReactNode;
   /** Table Record panel (real tracked W/L + head-to-head), rendered on the
    *  Stats tab. Built by the page (owns its own store reads). */
   tableRecordSlot?: React.ReactNode;
@@ -502,6 +504,7 @@ export function DeckDisplay({
   winConditionSlot,
   powerHeroSlot,
   tableRecordSlot,
+  aiReviewSlot,
   renderSwapSuggestions,
   renderSimilarCards,
   activeView = 'deck',
@@ -1895,6 +1898,7 @@ export function DeckDisplay({
             winConditionSlot={winConditionSlot}
             powerHeroSlot={powerHeroSlot}
             tableRecordSlot={tableRecordSlot}
+            aiReviewSlot={aiReviewSlot}
             derivedRoles={derivedRoles}
             validation={validation}
             analysisState={analysisState}

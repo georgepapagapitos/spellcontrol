@@ -27,6 +27,7 @@ import { OfflineModeSettings } from '../components/OfflineModeSettings';
 import { SharedLinksSettings } from '../components/SharedLinksSettings';
 import { resetAppCacheAndReload } from '../lib/reset-app-cache';
 import { AdminPanel } from '../components/AdminPanel';
+import { AiFeaturesSettings } from '../components/settings/AiFeaturesSettings';
 import { getPendingCount } from '../lib/sync';
 import { ProfileEditor } from '../components/ProfileEditor';
 import { TypeSetPicker } from '../components/TypeSetPicker';
@@ -49,6 +50,7 @@ const SECTION_HEADING_IDS: Record<string, string> = {
   collection: 'settings-collection-group-title',
   sharing: 'settings-sharing-group-title',
   data: 'settings-data-group-title',
+  ai: 'settings-ai-group-title',
   admin: 'settings-admin-group-title',
   danger: 'settings-danger-group-title',
 };
@@ -530,6 +532,10 @@ export function YouPage() {
           </fieldset>
         </SettingsSection>
       </div>
+
+      {/* AI features (T96) — renders nothing unless the backend has the
+          feature configured and the user is signed in. */}
+      <AiFeaturesSettings />
 
       {/* ═══ Your data — backup, sharing, storage ════════════════════════ */}
       <h2 className="settings-tier-header">Your data</h2>

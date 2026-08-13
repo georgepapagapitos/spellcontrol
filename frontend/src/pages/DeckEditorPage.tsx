@@ -45,6 +45,7 @@ import { WedgeHintStrip } from '../components/deck/WedgeHintStrip';
 import { dismissResyncHint, shouldShowResyncHint } from '../lib/wedge-hints';
 import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
 import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
+import { DeckAiReview } from '../components/deck/DeckAiReview';
 import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { DeckTokensSheet } from '../components/deck/DeckTokensSheet';
 import { DeckPrimerSheet } from '../components/deck/DeckPrimerSheet';
@@ -2920,6 +2921,17 @@ export function DeckEditorPage() {
               ) : undefined
             }
             tableRecordSlot={<TableRecordPanel deckId={deck.id} />}
+            aiReviewSlot={
+              formatConfig?.hasCommander && deck.commander ? (
+                <DeckAiReview
+                  deckId={deck.id}
+                  format={deck.format}
+                  commander={deck.commander}
+                  partnerCommander={deck.partnerCommander ?? null}
+                  mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
+                />
+              ) : undefined
+            }
             combosSlot={
               formatConfig?.hasCommander ? (
                 <DeckCombosPanel
