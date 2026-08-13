@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { analyzeDeck } from '../../lib/deck-analysis';
 import { useTaggerReady } from '@/lib/use-tagger-ready';
+import { isBasicLandName } from '../../lib/allocations-core';
 import {
   buildDeckReviewCards,
   deckContentKey,
   fetchAiStatus,
   requestDeckReview,
+  setAiOptIn,
+  splitReviewSections,
+  tokenizeCardNames,
   type AiStatus,
 } from '../../lib/ai-review';
+import { useCardCarousel } from './useCardCarousel';
 import './DeckAiReview.css';
 
 const INVITE_DISMISSED_KEY = 'sc-ai-invite-dismissed';
@@ -30,13 +34,13 @@ interface HeldReview {
 }
 
 /**
- * "Read the deck" — the opt-in AI panel (T96). Renders nothing at all unless
- * the backend has the feature configured AND the user is signed in; renders a
- * one-time dismissible invitation until the user opts in. Never auto-loads:
- * a page render never spends money — only the button does.
+ * "Read the deck" — the opt-in AI panel (T96, moved to the Tune tab in T102).
+ * Renders nothing at all unless the backend has the feature configured AND the
+ * user is signed in; until they opt in it renders a dismissible inline consent
+ * card that grants consent in place. Never auto-loads: a page render never
+ * spends money — only the button does.
  *
- * Additive insight surface: it sits below the existing analysis panels and
- * displaces nothing.
+ * Additive insight surface: it sits below the coach feed and displaces nothing.
  */
 export function DeckAiReview({
   deckId,
@@ -50,6 +54,8 @@ export function DeckAiReview({
   const [inviteDismissed, setInviteDismissed] = useState(
     () => localStorage.getItem(INVITE_DISMISSED_KEY) === '1'
   );
+  const [consentBusy, setConsentBusy] = useState(false);
+  const [consentError, setConsentError] = useState<string | null>(null);
   const [phase, setPhase] = useState<'idle' | 'reading' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [review, setReview] = useState<HeldReview | null>(null);
@@ -74,6 +80,17 @@ export function DeckAiReview({
 
   const cards = useMemo(() => buildDeckReviewCards(mainboard), [mainboard]);
   const currentKey = useMemo(() => deckContentKey(commanderName, cards), [commanderName, cards]);
+
+  /** Every card the prose may name, mapped to the printing this deck holds so
+   *  chips open the player's own copy. Basics are excluded: "your Swamps" is a
+   *  turn of phrase, not a card reference worth a chip. */
+  const chipCards = useMemo(() => {
+    const byName = new Map<string, ScryfallCard>();
+    for (const c of [commander, partnerCommander, ...mainboard.map((m) => m.card)]) {
+      if (c && !isBasicLandName(c.name)) byName.set(c.name, c);
+    }
+    return byName;
+  }, [commander, partnerCommander, mainboard]);
 
   if (status === 'loading' || status === null) return null;
 
@@ -102,21 +119,44 @@ export function DeckAiReview({
       });
   };
 
-  // ── Not opted in: a single dismissible invitation, then nothing ──
+  // ── Not opted in: consent granted in place, or dismissed for good ──
   if (!status.optIn) {
     if (inviteDismissed) return null;
+    const enable = () => {
+      setConsentBusy(true);
+      setConsentError(null);
+      setAiOptIn(true)
+        .then((optIn) => setStatus((s) => (s && s !== 'loading' ? { ...s, optIn } : s)))
+        .catch((err: Error) => setConsentError(err.message || 'Could not turn this on.'))
+        .finally(() => setConsentBusy(false));
+    };
     return (
       <section className="deck-stats-panel deck-stats-panel--wide deck-ai-review">
-        <h4 className="deck-stats-panel-title">Read the deck</h4>
+        <h4 className="deck-stats-panel-title">
+          Read the deck
+          <span className="deck-ai-marker">AI Beta</span>
+        </h4>
         <div className="deck-ai-invite">
           <p className="deck-ai-invite-text">
             AI can read this deck and write what it's trying to do — and the structural problems the
-            statistics can't show. Off until you turn it on in Settings.
+            statistics can't show. Turning this on sends this deck's card names and computed stats
+            to Anthropic. Nothing is sent until you press an AI button, {status.limit} readings a
+            day. Your collection is never sent, and you can turn it back off in Settings.
           </p>
+          {consentError && (
+            <p className="deck-ai-consent-error" role="alert">
+              {consentError}
+            </p>
+          )}
           <div className="deck-ai-invite-actions">
-            <Link to="/you?section=ai" className="btn">
-              Open Settings
-            </Link>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={enable}
+              disabled={consentBusy}
+            >
+              {consentBusy ? 'Turning on…' : 'Turn on AI Beta'}
+            </button>
             <button
               type="button"
               className="btn deck-ai-invite-dismiss"
@@ -152,11 +192,7 @@ export function DeckAiReview({
               </button>
             </div>
           )}
-          <div className={`deck-ai-prose${stale ? ' deck-ai-prose--stale' : ''}`}>
-            {review.content.split(/\n{2,}/).map((para, i) => (
-              <p key={i}>{para}</p>
-            ))}
-          </div>
+          <ReviewProse content={review.content} chipCards={chipCards} stale={stale} />
         </div>
       )}
 
@@ -206,5 +242,94 @@ export function DeckAiReview({
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * The review, read as three titled sections with the weakness led — that's the
+ * part statistics can't give you, so it doesn't wait at the bottom of three
+ * chunky blocks of text. Prose the prompt didn't shape into three paragraphs
+ * falls back to plain paragraphs rather than mislabelling itself.
+ *
+ * Card names in the prose become chips into the shared card carousel; every
+ * name mentioned anywhere in the review is a carousel slide, so a tap lands on
+ * the card tapped and swipes through the rest.
+ */
+function ReviewProse({
+  content,
+  chipCards,
+  stale,
+}: {
+  content: string;
+  chipCards: Map<string, ScryfallCard>;
+  stale: boolean;
+}) {
+  const carousel = useCardCarousel('Cards in the reading');
+  const sections = useMemo(() => splitReviewSections(content), [content]);
+  const names = useMemo(() => [...chipCards.keys()], [chipCards]);
+
+  const paragraphs = useMemo(
+    () =>
+      sections
+        ? sections.flatMap((s) => s.paragraphs)
+        : content
+            .split(/\n{2,}/)
+            .map((p) => p.trim())
+            .filter(Boolean),
+    [sections, content]
+  );
+
+  /** Carousel slides: every mentioned card, in first-appearance order. */
+  const entries = useMemo(() => {
+    const seen: string[] = [];
+    for (const para of paragraphs) {
+      for (const t of tokenizeCardNames(para, names)) {
+        if (t.card && !seen.includes(t.card)) seen.push(t.card);
+      }
+    }
+    return seen.map((name) => ({ name, label: 'Named in the reading', card: chipCards.get(name) }));
+  }, [paragraphs, names, chipCards]);
+
+  const renderParagraph = (text: string, key: string) => (
+    <p key={key}>
+      {tokenizeCardNames(text, names).map((t, i) => {
+        const named = t.card;
+        return named ? (
+          <button
+            key={i}
+            type="button"
+            className="deck-ai-card-chip"
+            onClick={() => void carousel.open(entries, named)}
+            aria-label={`Preview ${named}`}
+          >
+            {t.text}
+          </button>
+        ) : (
+          <span key={i}>{t.text}</span>
+        );
+      })}
+    </p>
+  );
+
+  return (
+    <>
+      <div className={`deck-ai-prose${stale ? ' deck-ai-prose--stale' : ''}`}>
+        {sections
+          ? sections.map((s) => (
+              <section
+                key={s.id}
+                className={`deck-ai-section deck-ai-section--${s.id}`}
+                aria-labelledby={`deck-ai-section-${s.id}`}
+              >
+                <h5 id={`deck-ai-section-${s.id}`} className="deck-ai-section-title">
+                  {s.title}
+                </h5>
+                {s.paragraphs.map((p, i) => renderParagraph(p, `${s.id}-${i}`))}
+              </section>
+            ))
+          : paragraphs.map((p, i) => renderParagraph(p, `p-${i}`))}
+      </div>
+      {carousel.preview}
+    </>
   );
 }

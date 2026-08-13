@@ -71,6 +71,78 @@ export function buildDeckReviewCards(
   return [...byName.values()].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 }
 
+export interface ReviewSection {
+  /** Stable id — also the CSS/test hook. */
+  id: 'weakness' | 'gameplan' | 'win';
+  title: string;
+  paragraphs: string[];
+}
+
+/**
+ * Split the review prose into its three titled sections, in DISPLAY order —
+ * weakness first, because that's the part statistics can't give you.
+ *
+ * The prompt fixes the writing order (gameplan → how it wins → the weakness)
+ * and asks for 3-4 paragraphs with no headers, so the mapping is positional:
+ * first paragraph is the gameplan, last is the weakness, anything between is
+ * the win path. Anything shorter than three paragraphs isn't the shape we can
+ * label honestly — returns null, and the caller renders plain prose.
+ */
+export function splitReviewSections(content: string): ReviewSection[] | null {
+  const paras = content
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (paras.length < 3) return null;
+  return [
+    { id: 'weakness', title: 'The weakness that matters', paragraphs: [paras[paras.length - 1]] },
+    { id: 'gameplan', title: 'The gameplan', paragraphs: [paras[0]] },
+    { id: 'win', title: 'How it wins', paragraphs: paras.slice(1, -1) },
+  ];
+}
+
+export interface ProseToken {
+  text: string;
+  /** Canonical deck card name when this run is a card mention. */
+  card?: string;
+}
+
+const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Split a paragraph into plain-text runs and card-name mentions, so the names
+ * can render as tappable chips. The model is instructed to reference only
+ * cards that appear in the decklist, so exact-name matching is reliable.
+ *
+ * Longest name first, so "Kaalia of the Vast" wins over a shorter list-mate it
+ * contains. A double-faced card also matches on its front face alone (the
+ * model writes "Delver of Secrets", not the `//` name) but always reports the
+ * canonical full name, which is what the deck is keyed by. Boundaries are
+ * non-word only, so a possessive ("Kaalia's trigger") still chips the name.
+ */
+export function tokenizeCardNames(text: string, deckCardNames: string[]): ProseToken[] {
+  const canonical = new Map<string, string>();
+  for (const name of deckCardNames) {
+    canonical.set(name.toLowerCase(), name);
+    const front = name.split(' // ')[0];
+    if (front !== name) canonical.set(front.toLowerCase(), name);
+  }
+  const matchable = [...canonical.keys()].sort((a, b) => b.length - a.length);
+  if (matchable.length === 0) return [{ text }];
+
+  const re = new RegExp(`(?<!\\w)(${matchable.map(escapeRegExp).join('|')})(?!\\w)`, 'gi');
+  const tokens: ProseToken[] = [];
+  let last = 0;
+  for (const m of text.matchAll(re)) {
+    const at = m.index ?? 0;
+    if (at > last) tokens.push({ text: text.slice(last, at) });
+    tokens.push({ text: m[0], card: canonical.get(m[0].toLowerCase()) });
+    last = at + m[0].length;
+  }
+  if (last < text.length) tokens.push({ text: text.slice(last) });
+  return tokens;
+}
+
 /**
  * Local staleness key: the review shown is stale exactly when the deck's
  * current content key differs from the key captured at request time. Content
