@@ -45,13 +45,7 @@ export type TapOrientation = 'horizontal' | 'vertical';
 export type GamePhase = 'beginning' | 'main1' | 'combat' | 'main2' | 'end';
 
 /** Canonical phase order, for UI that renders/advances the clock. */
-export const GAME_PHASES: readonly GamePhase[] = [
-  'beginning',
-  'main1',
-  'combat',
-  'main2',
-  'end',
-];
+export const GAME_PHASES: readonly GamePhase[] = ['beginning', 'main1', 'combat', 'main2', 'end'];
 
 export type GameFormat =
   | 'commander'
