@@ -80,12 +80,15 @@ export interface Change {
   /** Owning lane — decides which apply handler commits it. */
   lane: LaneId;
 
-  /** The card the row is about. For a swap this is the card being CUT. */
+  /** The card the row is about. For a swap this is the card coming **IN**.
+   *  (This comment used to say "the card being CUT", which is backwards from
+   *  what `fromSwap` builds and what `handleApplyCoachMove` applies — it looks
+   *  up the slot by `inName` and adds `name`. Trust the direction stated here.) */
   name: string;
   /** Full card, only when already resolved (in-deck/removal rows). Thin EDHREC rows omit it. */
   card?: ScryfallCard;
 
-  /** swap only — the replacement being added. */
+  /** swap only — the in-deck card being CUT to make room for `name`. */
   inName?: string;
   inCard?: ScryfallCard;
 

@@ -98,6 +98,22 @@ function reviewBody(overrides: Record<string, unknown> = {}): Record<string, unk
   };
 }
 
+function refineBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    ...reviewBody(),
+    pool: [
+      { name: 'Eternal Witness', oracleId: 'p-1', qty: 1 },
+      { name: 'Viscera Seer', oracleId: 'p-2', qty: 1 },
+    ],
+    ...overrides,
+  };
+}
+
+/** A model reply in the shape the refine prompt asks for. */
+function refineReply(prose: string, tweaks: unknown[]): string {
+  return `${prose}\n\n---TWEAKS---\n${JSON.stringify(tweaks)}`;
+}
+
 describe('feature flag', () => {
   it('404s every /api/ai route when the key is absent', async () => {
     const cookie = await makeUser('ai-flag-off');
@@ -274,6 +290,27 @@ describe('POST /api/ai/deck-review', () => {
     expect(status.body.used).toBe(0);
   });
 
+  it('streams only the prose half, never the machine-readable tail', async () => {
+    // Shared with deck-refine: makeProseGate must hold back the delimiter even
+    // when the model splits it across chunks.
+    const cookie = await makeUser('ai-review-prosegate');
+    await optIn(cookie);
+    mockState.generate.mockImplementation(
+      async (_s: string, _u: string, onDelta?: (t: string) => void) => {
+        onDelta?.('Prose here.\n\n---TWE');
+        onDelta?.('AKS---\n[]');
+        return { content: 'Prose here.\n\n---TWEAKS---\n[]', inputTokens: 1, outputTokens: 1 };
+      }
+    );
+    const res = await request(app)
+      .post('/api/ai/deck-refine')
+      .set('Cookie', cookie)
+      .send(refineBody());
+    const stream = parseStream(res.text);
+    expect(stream.streamed).not.toContain('TWEAKS');
+    expect(stream.streamed.trim()).toBe('Prose here.');
+  });
+
   it('reports a MID-stream failure in-band, stores nothing, spends nothing', async () => {
     const cookie = await makeUser('ai-review-midfail');
     await optIn(cookie);
@@ -300,5 +337,128 @@ describe('POST /api/ai/deck-review', () => {
     // Nothing stored ⇒ nothing charged, and the retry is a clean first attempt.
     const status = await request(app).get('/api/ai/status').set('Cookie', cookie);
     expect(status.body.used).toBe(0);
+  });
+});
+
+describe('POST /api/ai/deck-refine', () => {
+  const PROSE = 'Your deck grinds value out of the graveyard.';
+
+  beforeEach(() => {
+    mockState.generate.mockImplementation(
+      async (_s: string, _u: string, onDelta?: (t: string) => void) => {
+        const raw = refineReply(PROSE, [
+          { add: 'Eternal Witness', cut: 'Sol Ring', why: 'Recursion beats a rock here.' },
+        ]);
+        onDelta?.(raw);
+        return { content: raw, inputTokens: 500, outputTokens: 120 };
+      }
+    );
+  });
+
+  it('403s without server-side opt-in, exactly like the review', async () => {
+    const cookie = await makeUser('ai-refine-noconsent');
+    const res = await request(app)
+      .post('/api/ai/deck-refine')
+      .set('Cookie', cookie)
+      .send(refineBody());
+    expect(res.status).toBe(403);
+    expect(mockState.generate).not.toHaveBeenCalled();
+  });
+
+  it('rejects a body with no pool field (400)', async () => {
+    const cookie = await makeUser('ai-refine-nopool');
+    await optIn(cookie);
+    const body = refineBody();
+    delete body.pool;
+    const res = await request(app).post('/api/ai/deck-refine').set('Cookie', cookie).send(body);
+    expect(res.status).toBe(400);
+  });
+
+  it('returns verified tweaks and streams only the prose', async () => {
+    const cookie = await makeUser('ai-refine-happy');
+    await optIn(cookie);
+    const res = await request(app)
+      .post('/api/ai/deck-refine')
+      .set('Cookie', cookie)
+      .send(refineBody());
+
+    expect(res.status).toBe(200);
+    const stream = parseStream(res.text);
+    expect(stream.streamed).not.toContain('TWEAKS');
+    expect(stream.done).toMatchObject({
+      content: PROSE,
+      cached: false,
+      tweaks: [{ add: 'Eternal Witness', cut: 'Sol Ring', why: 'Recursion beats a rock here.' }],
+    });
+  });
+
+  it('DROPS a card the pool never offered — the server is the last gate', async () => {
+    // The prompt says don't invent; this asserts the route doesn't trust it.
+    const cookie = await makeUser('ai-refine-invented');
+    await optIn(cookie);
+    mockState.generate.mockImplementation(async () => {
+      const raw = refineReply(PROSE, [
+        { add: 'Mana Crypt', cut: 'Sol Ring', why: 'Fast mana is fast.' },
+        { add: 'Viscera Seer', cut: null, why: 'A free sac outlet this deck lacks.' },
+      ]);
+      return { content: raw, inputTokens: 1, outputTokens: 1 };
+    });
+    const res = await request(app)
+      .post('/api/ai/deck-refine')
+      .set('Cookie', cookie)
+      .send(refineBody());
+
+    const done = parseStream(res.text).done as { tweaks: { add: string }[] };
+    expect(done.tweaks.map((t) => t.add)).toEqual(['Viscera Seer']);
+  });
+
+  it('shares the daily quota pool with the review', async () => {
+    const cookie = await makeUser('ai-refine-quota');
+    await optIn(cookie);
+    const { getPool } = await import('../db');
+    await getPool().query('UPDATE users SET ai_daily_limit = 1 WHERE username = $1', [
+      'ai-refine-quota',
+    ]);
+    // Spend the single allowance on a REVIEW…
+    const first = await request(app)
+      .post('/api/ai/deck-review')
+      .set('Cookie', cookie)
+      .send(reviewBody());
+    expect(first.status).toBe(200);
+    // …and the refine is capped by it, not given its own budget.
+    const over = await request(app)
+      .post('/api/ai/deck-refine')
+      .set('Cookie', cookie)
+      .send(refineBody());
+    expect(over.status).toBe(429);
+  });
+
+  it('re-verifies a cache hit against the pool it is replayed for', async () => {
+    // The stored row holds the RAW reply, so replaying it under a pool that no
+    // longer offers the card must drop the tweak rather than resurrect it.
+    const cookie = await makeUser('ai-refine-cache');
+    await optIn(cookie);
+    const body = refineBody();
+    const first = await request(app).post('/api/ai/deck-refine').set('Cookie', cookie).send(body);
+    expect((parseStream(first.text).done as { tweaks: unknown[] }).tweaks).toHaveLength(1);
+
+    const second = await request(app).post('/api/ai/deck-refine').set('Cookie', cookie).send(body);
+    const done = parseStream(second.text).done as { cached: boolean; tweaks: { add: string }[] };
+    expect(done.cached).toBe(true);
+    expect(done.tweaks.map((t) => t.add)).toEqual(['Eternal Witness']);
+    expect(mockState.generate).toHaveBeenCalledTimes(1);
+  });
+
+  it('is stored under its own feature key, not the review’s', async () => {
+    const cookie = await makeUser('ai-refine-feature');
+    await optIn(cookie);
+    await request(app).post('/api/ai/deck-refine').set('Cookie', cookie).send(refineBody());
+    const { getPool } = await import('../db');
+    const rows = await getPool().query<{ feature: string }>(
+      `SELECT r.feature FROM ai_reviews r JOIN users u ON u.id = r.user_id
+        WHERE u.username = $1`,
+      ['ai-refine-feature']
+    );
+    expect(rows.rows.map((r) => r.feature)).toEqual(['deck-refine']);
   });
 });

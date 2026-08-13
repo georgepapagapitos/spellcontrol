@@ -14,6 +14,16 @@ import {
   parseDeckReviewRequest,
   type OracleEntry,
 } from '../ai/deck-review';
+import {
+  DECK_REFINE_FEATURE,
+  DECK_REFINE_SYSTEM_PROMPT,
+  TWEAKS_DELIMITER,
+  buildRefineMessage,
+  hashRefineInput,
+  parseRefineOutput,
+  parseRefineRequest,
+  type RefineTweak,
+} from '../ai/deck-refine';
 
 /**
  * Opt-in AI features (T96 "Read the deck"). Consent is enforced server-side —
@@ -245,6 +255,204 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
   send({
     done: {
       content: generation.content,
+      cached: false,
+      model: AI_MODEL,
+      usage: { inputTokens: generation.inputTokens, outputTokens: generation.outputTokens },
+    },
+  });
+  res.end();
+});
+
+/**
+ * Cache-only oracle hydration, shared by both features. A miss means the model
+ * reasons about that card without its text (the prompts say how) — never a live
+ * Scryfall call from the shared egress IP.
+ */
+function hydrateOracle(names: string[]): OracleEntry[] {
+  const cache = getScryfallCache();
+  const out: OracleEntry[] = [];
+  const seen = new Set<string>();
+  for (const name of names) {
+    if (seen.has(name)) continue;
+    seen.add(name);
+    const hit = cache.getCheapestByName(name);
+    if (hit) {
+      out.push({
+        name: hit.name,
+        manaCost: hit.mana_cost ?? undefined,
+        typeLine: hit.type_line ?? undefined,
+        oracleText: hit.oracle_text ?? undefined,
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Emit only the prose half of a refine reply as it streams.
+ *
+ * The model writes prose, then a delimiter, then JSON. The JSON is machine
+ * output and must never flicker across the user's screen, so this forwards
+ * everything up to the delimiter and then goes quiet. Deltas split wherever the
+ * model happens to chunk, so it holds back a delimiter-length tail rather than
+ * risk emitting half of `---TWEAKS---` as if it were prose.
+ */
+function makeProseGate(emit: (text: string) => void): (delta: string) => void {
+  let acc = '';
+  let sent = 0;
+  let done = false;
+  return (delta: string) => {
+    if (done) return;
+    acc += delta;
+    const at = acc.indexOf(TWEAKS_DELIMITER);
+    if (at !== -1) {
+      if (at > sent) emit(acc.slice(sent, at));
+      done = true;
+      return;
+    }
+    const safe = acc.length - TWEAKS_DELIMITER.length;
+    if (safe > sent) {
+      emit(acc.slice(sent, safe));
+      sent = safe;
+    }
+  };
+}
+
+interface RefineDone {
+  /** The strategy prose only — the tweaks tail is parsed out. */
+  content: string;
+  /** Verified against the submitted pool; a hallucinated name never appears. */
+  tweaks: RefineTweak[];
+  cached: boolean;
+  model: string;
+  usage: { inputTokens: number; outputTokens: number };
+}
+type RefineLine = { delta: string } | { done: RefineDone } | { error: string };
+
+// ────────────────────────────────────────────────
+// POST /api/ai/deck-refine — the post-generation second pass (T102 slice 4).
+// Same consent, same `ai_reviews` table, same daily quota pool as the review;
+// only the feature key, the prompt, and the verified tweak list differ.
+//
+// The stored row holds the RAW model reply, tail and all, so a cache hit
+// re-verifies the tweaks against the pool it is being replayed for rather than
+// trusting a parse from an earlier request.
+// ────────────────────────────────────────────────
+aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, res: Response) => {
+  const parsed = parseRefineRequest(req.body);
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+  const request = parsed.value;
+  const userId = req.user!.id;
+
+  const user = await loadAiUser(userId);
+  if (!user.ai_opt_in) {
+    return res.status(403).json({ error: 'AI features are not enabled for this account.' });
+  }
+
+  const inputHash = hashRefineInput(request);
+  const pool = getPool();
+
+  res.on('error', () => {});
+  let streaming = false;
+  const send = (line: RefineLine) => {
+    if (!streaming) {
+      streaming = true;
+      res.status(200);
+      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('X-Accel-Buffering', 'no');
+    }
+    if (!res.writableEnded) res.write(`${JSON.stringify(line)}\n`);
+  };
+
+  const cached = await pool.query<{
+    content: string;
+    model: string;
+    input_tokens: number;
+    output_tokens: number;
+  }>(
+    `SELECT content, model, input_tokens, output_tokens
+       FROM ai_reviews
+      WHERE user_id = $1 AND feature = $2 AND input_hash = $3`,
+    [userId, DECK_REFINE_FEATURE, inputHash]
+  );
+  if (cached.rows.length > 0) {
+    const row = cached.rows[0];
+    const out = parseRefineOutput(row.content, request);
+    send({ delta: out.strategy });
+    send({
+      done: {
+        content: out.strategy,
+        tweaks: out.tweaks,
+        cached: true,
+        model: row.model,
+        usage: { inputTokens: row.input_tokens, outputTokens: row.output_tokens },
+      },
+    });
+    return res.end();
+  }
+
+  const limit = user.ai_daily_limit ?? DEFAULT_DAILY_LIMIT;
+  const used = await usedToday(userId);
+  if (used >= limit) {
+    return res.status(429).json({
+      error: `Daily limit reached (${limit} per day). It resets at midnight UTC.`,
+    });
+  }
+
+  // The pool needs hydrating too — the model can't judge a candidate it only
+  // knows the name of.
+  const oracle = hydrateOracle([
+    request.commander,
+    ...request.cards.map((c) => c.name),
+    ...request.pool.map((c) => c.name),
+  ]);
+
+  let generation;
+  try {
+    generation = await generateReview(
+      DECK_REFINE_SYSTEM_PROMPT,
+      buildRefineMessage(request, oracle),
+      makeProseGate((text) => send({ delta: text }))
+    );
+  } catch (err) {
+    logger.error('[ai] deck refine generation failed', err);
+    if (streaming) {
+      send({ error: 'The refine pass could not be generated. Try again.' });
+      return res.end();
+    }
+    return res.status(502).json({ error: 'The refine pass could not be generated. Try again.' });
+  }
+
+  const out = parseRefineOutput(generation.content, request);
+  // Rejected names mean the prompt's grounding rule slipped. They never reach
+  // the user, but they're the signal that the prompt needs another eval run.
+  if (out.rejected.length > 0) {
+    logger.warn(`[ai] deck refine proposed ${out.rejected.length} off-pool card(s)`, out.rejected);
+  }
+
+  await pool.query(
+    `INSERT INTO ai_reviews
+       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     ON CONFLICT (user_id, feature, input_hash) DO NOTHING`,
+    [
+      crypto.randomUUID(),
+      userId,
+      DECK_REFINE_FEATURE,
+      inputHash,
+      AI_MODEL,
+      generation.content,
+      generation.inputTokens,
+      generation.outputTokens,
+      Date.now(),
+    ]
+  );
+
+  send({
+    done: {
+      content: out.strategy,
+      tweaks: out.tweaks,
       cached: false,
       model: AI_MODEL,
       usage: { inputTokens: generation.inputTokens, outputTokens: generation.outputTokens },
