@@ -36,6 +36,17 @@ import { summarizeGame, type GameSummary } from './summary';
 
 export type TapOrientation = 'horizontal' | 'vertical';
 
+/**
+ * Coarse turn-structure phase for the advisory phase clock. Deliberately
+ * coarse — this is a life pad, not a rules engine, so untap/upkeep/draw all
+ * collapse into `beginning`. Advisory only: the reducer never validates that
+ * phases advance in order, and nothing here ever blocks an action.
+ */
+export type GamePhase = 'beginning' | 'main1' | 'combat' | 'main2' | 'end';
+
+/** Canonical phase order, for UI that renders/advances the clock. */
+export const GAME_PHASES: readonly GamePhase[] = ['beginning', 'main1', 'combat', 'main2', 'end'];
+
 export type GameFormat =
   | 'commander'
   | 'standard'
@@ -109,7 +120,8 @@ export interface GameEvent {
     | 'reset'
     | 'settings'
     | 'turn'
-    | 'designation';
+    | 'designation'
+    | 'phase';
   actorSeat: number | null;
   targetSeat: number | null;
   delta?: number;
@@ -183,6 +195,14 @@ export interface GameState {
    * Persisted per game; legacy states default to both null via the resolver.
    */
   designations: GameDesignations;
+  /**
+   * Advisory phase clock. OPTIONAL: persisted JSONB rows predate this field,
+   * and absent means "the clock hasn't been started" — the UI shows nothing
+   * rather than defaulting to `beginning`. Once set, `pass-turn` resets it to
+   * `beginning` on every turn advance; it never reverts to absent on its own.
+   * Purely advisory — never validated, never blocks an action.
+   */
+  phase?: GamePhase;
   players: GamePlayer[];
   events: GameEvent[];
   winnerSeat: number | null;
@@ -272,7 +292,13 @@ export type GameAction =
       seat: number | null;
       actorSeat: number | null;
       ts?: number;
-    };
+    }
+  /**
+   * Set the advisory phase clock verbatim. No "must advance in order"
+   * validation — a table correcting itself (combat back to main1) is a
+   * normal use, and advisory means the reducer never says no.
+   */
+  | { type: 'phase'; phase: GamePhase; actorSeat: number | null; ts?: number };
 
 const MAX_EVENTS = 500;
 
@@ -763,6 +789,10 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       next = {
         ...next,
         activeSeat: newActive,
+        // Reset the phase clock to 'beginning' on every turn advance — but
+        // only if it's already running. Absent stays absent: a table that
+        // never started the clock shouldn't have pass-turn start it for them.
+        ...(prev.phase !== undefined ? { phase: 'beginning' as GamePhase } : {}),
         events: pushEvent(next, {
           kind: 'turn',
           actorSeat: action.actorSeat,
@@ -789,6 +819,20 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
           // fromSeat = previous holder (null if unclaimed)
           fromSeat: next.designations[action.designation] ?? undefined,
           message: action.designation,
+          ts,
+        }),
+      };
+      break;
+    }
+    case 'phase': {
+      next = {
+        ...next,
+        phase: action.phase,
+        events: pushEvent(next, {
+          kind: 'phase',
+          actorSeat: action.actorSeat,
+          targetSeat: null,
+          message: action.phase,
           ts,
         }),
       };

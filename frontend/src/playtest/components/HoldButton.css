@@ -1,0 +1,18 @@
+/* ── Hold button — co-located styles ──────────────────────────────────────
+ * Mounted inside `.playtest-actionbar` (see HoldButton.tsx), so the base
+ * look already comes from `.playtest-actionbar button` in
+ * styles/playtest.css via the DOM — this only adds the pending state (same
+ * accent treatment as `.playtest-actionbar__takeback.is-pending`) and the
+ * 44px touch floor the dense toolbar row otherwise skips. */
+
+.playtest-hold-button.is-pending {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+@media (pointer: coarse) {
+  .playtest-hold-button {
+    min-height: 44px;
+  }
+}

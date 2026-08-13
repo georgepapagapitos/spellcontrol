@@ -563,6 +563,48 @@ describe('pass-turn', () => {
   });
 });
 
+describe('phase', () => {
+  it('is absent until set', () => {
+    const s = applyAction(lobby(2), { type: 'start' });
+    expect(s.phase).toBeUndefined();
+  });
+
+  it('sets the phase verbatim and pushes a phase event', () => {
+    let s = applyAction(lobby(2), { type: 'start' });
+    s = applyAction(s, { type: 'phase', phase: 'combat', actorSeat: 0, ts: 2000 });
+    expect(s.phase).toBe('combat');
+    expect(s.events.at(-1)).toMatchObject({
+      kind: 'phase',
+      actorSeat: 0,
+      targetSeat: null,
+      message: 'combat',
+    });
+  });
+
+  it('allows jumping to any phase — no order validation', () => {
+    let s = applyAction(lobby(2), { type: 'start' });
+    s = applyAction(s, { type: 'phase', phase: 'end', actorSeat: 0 });
+    expect(s.phase).toBe('end');
+    // A table correcting itself: jump backward is allowed too.
+    s = applyAction(s, { type: 'phase', phase: 'main1', actorSeat: 1 });
+    expect(s.phase).toBe('main1');
+  });
+
+  it('pass-turn resets an already-running clock to beginning', () => {
+    let s = applyAction(lobby(2), { type: 'start' });
+    s = applyAction(s, { type: 'phase', phase: 'combat', actorSeat: 0 });
+    s = applyAction(s, { type: 'pass-turn', actorSeat: 0 });
+    expect(s.phase).toBe('beginning');
+  });
+
+  it('pass-turn leaves an unstarted clock absent', () => {
+    let s = applyAction(lobby(2), { type: 'start' });
+    expect(s.phase).toBeUndefined();
+    s = applyAction(s, { type: 'pass-turn', actorSeat: null });
+    expect(s.phase).toBeUndefined();
+  });
+});
+
 describe('set-designation', () => {
   it('claims monarch — single holder', () => {
     let s = applyAction(lobby(3), { type: 'start' });

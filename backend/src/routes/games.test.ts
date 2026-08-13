@@ -1175,6 +1175,113 @@ describe('POST /api/games/:code/request/:id/cancel', () => {
   });
 });
 
+/** Minimal valid hold-request creation body — T101 "Hold — anyone respond?". */
+const holdRequestBody = { kind: 'hold', payload: { summary: 'responding to the wipe' } };
+
+describe('POST /api/games/:code/request — hold channel (T101)', () => {
+  it('raises a hold, and it appears in the requests snapshot for other seats', async () => {
+    const { code, host, joiners } = await setupTable('games_hold_raise_h', ['games_hold_raise_j']);
+    const res = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(holdRequestBody);
+    expect(res.status).toBe(201);
+    expect(res.body.request.kind).toBe('hold');
+    expect(res.body.request.status).toBe('pending');
+    expect(res.body.request.payload.summary).toBe('responding to the wipe');
+
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', joiners[0]);
+    const poll = await request(app)
+      .get(`/api/games/${code}/poll?since=${current.body.game.version}&catchUp=1`)
+      .set('Cookie', joiners[0]);
+    const requests = poll.body.requests as Array<{ id: string; kind: string }>;
+    expect(requests.some((r) => r.id === res.body.request.id && r.kind === 'hold')).toBe(true);
+  });
+
+  it('an empty summary defaults to a stock announcement rather than 400ing', async () => {
+    const { code, host } = await setupTable('games_hold_default_h', []);
+    const res = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send({ kind: 'hold', payload: {} });
+    expect(res.status).toBe(201);
+    expect(res.body.request.payload.summary).toBe('wants to respond');
+  });
+
+  it('stays pending even when nobody else is at the table — no vacuous auto-approve like rewind', async () => {
+    const { code, host } = await setupTable('games_hold_solo_h', []);
+    const res = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(holdRequestBody);
+    expect(res.status).toBe(201);
+    expect(res.body.request.status).toBe('pending');
+  });
+
+  it('/respond on a hold is rejected — holds have no approval machinery', async () => {
+    const { code, host, joiners } = await setupTable('games_hold_respond_h', [
+      'games_hold_respond_j',
+    ]);
+    const created = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(holdRequestBody);
+    const id = created.body.request.id as string;
+    const res = await request(app)
+      .post(`/api/games/${code}/request/${id}/respond`)
+      .set('Cookie', joiners[0])
+      .send({ approve: true });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Holds are not approved or declined.');
+  });
+
+  it('the requester can cancel their own hold, resolving it (reads as released on the wire as "cancelled")', async () => {
+    const { code, host } = await setupTable('games_hold_cancel_h', ['games_hold_cancel_j']);
+    const created = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(holdRequestBody);
+    const id = created.body.request.id as string;
+    const res = await request(app)
+      .post(`/api/games/${code}/request/${id}/cancel`)
+      .set('Cookie', host)
+      .send({});
+    expect(res.status).toBe(200);
+    expect(res.body.request.status).toBe('cancelled');
+  });
+
+  it('expires after its own TTL and broadcasts the resolution, independent of REQUEST_TTL_MS', async () => {
+    const { code, host } = await setupTable('games_hold_expire_sse_h', ['games_hold_expire_sse_j']);
+    const streamPromise = openGameEventsAnyFrame(host, code, 3);
+    await new Promise((r) => setTimeout(r, 50));
+    const created = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(holdRequestBody);
+    expect(created.body.request.status).toBe('pending');
+
+    const { frames } = await streamPromise;
+    const requestFrames = frames.filter((f) => f.type === 'request');
+    expect(requestFrames.some((f) => (f.data as { status: string }).status === 'expired')).toBe(
+      true
+    );
+  }, 10000);
+
+  it('a second hold from the same seat while one is pending is rejected, same as rewind', async () => {
+    const { code, host } = await setupTable('games_hold_dup_h', ['games_hold_dup_j']);
+    const first = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(holdRequestBody);
+    expect(first.status).toBe(201);
+    const second = await request(app)
+      .post(`/api/games/${code}/request`)
+      .set('Cookie', host)
+      .send(holdRequestBody);
+    expect(second.status).toBe(409);
+  });
+});
+
 describe('cross-seat requests fan out over SSE (catch-up + live)', () => {
   it('a late subscriber catches up on a pending request', async () => {
     const { code, host } = await setupTable('games_req_sse_late_h', ['games_req_sse_late_j']);
@@ -1502,6 +1609,53 @@ describe('actionIsAllowed: own-seat-only life/poison/cmd-dmg (T99)', () => {
         actions: [{ type: 'cmd-dmg', seat: 1, fromSeat: 0, delta: 2, actorSeat: 1 }],
       });
     expect(res.status).toBe(200);
+  });
+});
+
+describe('phase action (T101 advisory clock)', () => {
+  it('accepts a valid phase from the host', async () => {
+    const { code, host } = await setupTable('games_phase_host', []);
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', host)
+      .send({
+        baseVersion: current.body.game.version,
+        actions: [{ type: 'phase', phase: 'combat', actorSeat: 0 }],
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.game.phase).toBe('combat');
+  });
+
+  it('any participant — not just the host — may set the phase', async () => {
+    const { code, joiners } = await setupTable('games_phase_participant', [
+      'games_phase_participant_j',
+    ]);
+    const joiner = joiners[0]; // seat 1
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', joiner);
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiner)
+      .send({
+        baseVersion: current.body.game.version,
+        actions: [{ type: 'phase', phase: 'main1', actorSeat: 1 }],
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.game.phase).toBe('main1');
+  });
+
+  it('rejects a value outside the exported GamePhase list', async () => {
+    const { code, host } = await setupTable('games_phase_bad', []);
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', host)
+      .send({
+        baseVersion: current.body.game.version,
+        actions: [{ type: 'phase', phase: 'upkeep', actorSeat: 0 }],
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Invalid phase.');
   });
 });
 

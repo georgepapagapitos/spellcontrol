@@ -204,8 +204,8 @@ interface PlayState {
   stopPolling(): void;
   /** Raise a cross-seat request (today: rewind consent). Throws on failure — see `raiseGameRequest`'s doc comment for the 409 (already-pending) case. */
   raiseGameRequest(
-    kind: 'rewind',
-    payload: { steps: number; summary: string }
+    kind: GameRequest['kind'],
+    payload: GameRequest['payload']
   ): Promise<GameRequest>;
   /** Approve/decline a pending request raised by another seat. */
   respondGameRequest(id: string, approve: boolean): Promise<GameRequest>;
