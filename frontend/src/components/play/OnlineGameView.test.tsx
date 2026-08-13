@@ -9,7 +9,7 @@
  */
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GamePhase, GamePlayer, GameState } from '../../lib/game-state';
+import type { GameAction, GamePhase, GamePlayer, GameState } from '../../lib/game-state';
 import { createGameState, makePlayer } from '../../lib/game-state';
 import type { GameRequest } from '../../lib/games-api';
 
@@ -45,7 +45,20 @@ vi.mock('../../lib/haptics', () => ({
   haptics: { tap: vi.fn(), lethal: vi.fn(), warning: vi.fn(), success: vi.fn(), bump: vi.fn() },
 }));
 
+// Undo wiring — mocked like GameBoard.ux321.test.tsx so each undo test
+// controls capture/peekLabel/popRestore directly instead of depending on the
+// real module-level stack (which is keyed by game id and would otherwise
+// leak state between tests since every test here reuses id 'game-test').
+vi.mock('../../lib/undo-stack', () => ({
+  capture: vi.fn(),
+  clearUndo: vi.fn(),
+  peekLabel: vi.fn(() => null),
+  popRestore: vi.fn(() => []),
+  runSuppressed: vi.fn((fn: () => void) => fn()),
+}));
+
 import { OnlineGameView } from './OnlineGameView';
+import { capture, clearUndo, peekLabel, popRestore } from '../../lib/undo-stack';
 
 function makeTestPlayer(overrides: Partial<GamePlayer> = {}): GamePlayer {
   return {
@@ -112,6 +125,10 @@ beforeEach(() => {
   cancelGameRequest.mockReset();
   mockOnlineRequests = {};
   mockAuthUserId.current = 'user_1';
+  vi.mocked(capture).mockClear();
+  vi.mocked(clearUndo).mockClear();
+  vi.mocked(popRestore).mockClear().mockReturnValue([]);
+  vi.mocked(peekLabel).mockClear().mockReturnValue(null);
 });
 
 afterEach(() => {
@@ -237,6 +254,85 @@ describe('Finished state', () => {
     render(<OnlineGameView game={game} />);
 
     expect(screen.getByText('Game over — no winner')).toBeTruthy();
+  });
+});
+
+describe('Undo (T100)', () => {
+  const soloGame = () =>
+    makeTestGame([
+      makeTestPlayer({ id: 'p0', userId: 'user_1', seat: 0, name: 'Alice' }),
+      makeTestPlayer({ id: 'p1', userId: 'user_2', seat: 1, name: 'Bob' }),
+    ]);
+  const compensation: GameAction[] = [{ type: 'set-life', seat: 0, value: 40, actorSeat: 0 }];
+
+  it('dispatches the exact compensating action batch as one call, and captures the tap that preceded it', () => {
+    vi.mocked(peekLabel).mockReturnValue('Alice life');
+    vi.mocked(popRestore).mockReturnValue(compensation);
+    const game = soloGame();
+    render(<OnlineGameView game={game} />);
+
+    const you = screen.getByRole('region', { name: 'Your seat' });
+    tap(within(you).getByRole('button', { name: '+1 life' }));
+    expect(capture).toHaveBeenCalledWith(
+      game.id,
+      game,
+      expect.objectContaining({ type: 'life', seat: 0 })
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Undo Alice life/ }));
+    expect(dispatchOnline).toHaveBeenLastCalledWith(compensation);
+    // Exactly one dispatchOnline call for the whole restore, not one per action.
+    expect(dispatchOnline).toHaveBeenCalledTimes(2); // the tap + the batched undo
+  });
+
+  it('the button is absent with an empty stack and labeled when armed', () => {
+    vi.mocked(peekLabel).mockReturnValue(null);
+    const { rerender } = render(<OnlineGameView game={soloGame()} />);
+    expect(screen.queryByRole('button', { name: /Undo/ })).toBeNull();
+
+    vi.mocked(peekLabel).mockReturnValue('Alice life');
+    rerender(<OnlineGameView game={soloGame()} />);
+    expect(screen.getByRole('button', { name: 'Undo Alice life' })).toBeTruthy();
+  });
+
+  it('Cmd/Ctrl+Z fires the same undo path, guarded while a text input has focus', () => {
+    vi.mocked(peekLabel).mockReturnValue('Alice life');
+    vi.mocked(popRestore).mockReturnValue(compensation);
+    render(<OnlineGameView game={soloGame()} />);
+
+    fireEvent.keyDown(window, { key: 'z', metaKey: true });
+    expect(dispatchOnline).toHaveBeenLastCalledWith(compensation);
+
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    input.focus();
+    dispatchOnline.mockClear();
+    fireEvent.keyDown(input, { key: 'z', metaKey: true });
+    expect(dispatchOnline).not.toHaveBeenCalled();
+    document.body.removeChild(input);
+  });
+
+  it('undone actions are not re-captured — a second undo with an empty stack is a no-op', () => {
+    vi.mocked(peekLabel).mockReturnValue('Alice life');
+    vi.mocked(popRestore).mockReturnValueOnce(compensation).mockReturnValue([]);
+    render(<OnlineGameView game={soloGame()} />);
+
+    const undoBtn = screen.getByRole('button', { name: 'Undo Alice life' });
+    fireEvent.click(undoBtn);
+    expect(dispatchOnline).toHaveBeenCalledTimes(1);
+    expect(dispatchOnline).toHaveBeenLastCalledWith(compensation);
+
+    fireEvent.click(undoBtn);
+    // popRestore returned [] the second time, so onUndo bailed before dispatching.
+    expect(dispatchOnline).toHaveBeenCalledTimes(1);
+    // Neither undo click ever routed through dispatchTracked, so capture never fired.
+    expect(capture).not.toHaveBeenCalled();
+  });
+
+  it('clears the undo stack when the server rejects a batch and the view reports an error', () => {
+    const game = soloGame();
+    render(<OnlineGameView game={game} errorMessage="Action lost a race — refreshed." />);
+    expect(clearUndo).toHaveBeenCalledWith(game.id);
   });
 });
 
