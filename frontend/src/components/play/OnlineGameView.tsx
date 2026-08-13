@@ -1,11 +1,12 @@
-import { Clock } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Clock, Undo2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DesignationKind, GameAction, GamePlayer, GameState } from '../../lib/game-state';
 import { cmdDamageKey } from '../../lib/game-state';
 import { paletteForIndex } from '../../lib/seat-palette';
 import { useAnimatedNumber } from '../../lib/use-animated-number';
 import { useFloatingDelta } from '../../lib/use-floating-delta';
 import { haptics } from '../../lib/haptics';
+import { capture, clearUndo, peekLabel, popRestore, runSuppressed } from '../../lib/undo-stack';
 import { cmdDamageFillRatio, cmdDamageToLethal } from '../../lib/cmd-damage';
 import { useTapAndHold } from '../../lib/tap-and-hold';
 import { useAuth } from '../../store/auth';
@@ -35,7 +36,66 @@ interface Props {
 export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }: Props) {
   const user = useAuth((s) => s.user);
   const dispatchOnline = usePlayStore((s) => s.dispatchOnline);
-  const dispatch = (action: GameAction) => void dispatchOnline(action);
+
+  // Wrap dispatch so undoable actions (life/poison/cmd-dmg — see isUndoable)
+  // snapshot the pre-action state first; `game` is the live pre-action state
+  // on every render, so capture sees the right baseline. Unlike GameBoard
+  // there's no `reset`-clears-the-stack branch here — this view never emits
+  // a `reset` action, and the leave/end paths already clearUndo via
+  // resetOnlineState (store/play.ts).
+  const dispatchTracked = useCallback(
+    (action: GameAction) => {
+      capture(game.id, game, action);
+      void dispatchOnline(action);
+    },
+    [game, dispatchOnline]
+  );
+
+  // Undo = compensating actions back to the last snapshot, sent as ONE
+  // dispatchOnline batch (not N sequential calls) so the optimistic UI and
+  // version handling stay atomic — these are server round-trips, unlike
+  // GameBoard's local dispatch. Suppressed so the restore itself isn't
+  // captured. `undoNonce` tells LifeControls to drop its floating-delta
+  // chip the instant a burst is undone, mirroring GameBoard.
+  const [undoNonce, setUndoNonce] = useState(0);
+  const undoLabel = game.status !== 'finished' ? peekLabel(game.id) : null;
+  const onUndo = useCallback(() => {
+    const actions = popRestore(game.id, game);
+    if (actions.length === 0) return;
+    runSuppressed(() => {
+      void dispatchOnline(actions);
+    });
+    setUndoNonce((n) => n + 1);
+    haptics.tap();
+  }, [game, dispatchOnline]);
+
+  // Keyboard undo (Cmd/Ctrl+Z) — mirrors GameBoard: skipped while typing in
+  // a text-entry surface, only fires when undo is actually available.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.key.toLowerCase() !== 'z') return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || target?.isContentEditable) return;
+      if (!undoLabel) return;
+      e.preventDefault();
+      onUndo();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onUndo, undoLabel]);
+
+  // dispatchOnline's failure path (409 version conflict, 403 own-seat
+  // rejection, or a thrown-reducer validation error) refetches authoritative
+  // server state or otherwise invalidates the optimistic view it was built
+  // on. A local undo stack captured against the pre-refetch state could then
+  // emit compensations for state the server never actually had, so any
+  // reported online error wipes this device's stack rather than risk a wrong
+  // restore — the misclick just stops being undoable; the player can still
+  // fix it by hand.
+  useEffect(() => {
+    if (errorMessage) clearUndo(game.id);
+  }, [errorMessage, game.id]);
 
   const mySeat = game.players.find((p) => p.userId === user?.id) ?? null;
   const viewerSeated = mySeat != null;
@@ -100,9 +160,10 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
                 key={p.id}
                 player={p}
                 game={game}
-                dispatch={dispatch}
+                dispatch={dispatchTracked}
                 editable={canEditPlayer(p)}
                 isActiveTurn={game.activeSeat === p.seat}
+                undoNonce={undoNonce}
               />
             ))}
           </ul>
@@ -112,8 +173,11 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
               player={mySeat}
               game={game}
               opponents={opponents}
-              dispatch={dispatch}
+              dispatch={dispatchTracked}
               isActiveTurn={game.activeSeat === mySeat.seat}
+              undoNonce={undoNonce}
+              onUndo={onUndo}
+              undoLabel={undoLabel}
             />
           ) : (
             <div className="ogv-spectator">You&rsquo;re viewing this game without a seat.</div>
@@ -131,15 +195,23 @@ function LifeControls({
   dispatch,
   disabled,
   compact = false,
+  undoNonce,
 }: {
   player: GamePlayer;
   dispatch: (a: GameAction) => void;
   disabled: boolean;
   compact?: boolean;
+  /** Bumped on every undo — drops this panel's running-burst chip immediately
+   *  instead of leaving it to its normal 1.5s lifetime (mirrors GameBoard). */
+  undoNonce?: number;
 }) {
   const { display, popKey } = useAnimatedNumber(player.life);
-  const { chips, push } = useFloatingDelta();
+  const { chips, push, clear } = useFloatingDelta();
   const lastChip = chips[chips.length - 1];
+
+  useEffect(() => {
+    clear();
+  }, [undoNonce, clear]);
 
   const adjust = (delta: number, skipTap = false) => {
     if (disabled) return;
@@ -239,12 +311,14 @@ function OpponentTile({
   dispatch,
   editable,
   isActiveTurn,
+  undoNonce,
 }: {
   player: GamePlayer;
   game: GameState;
   dispatch: (a: GameAction) => void;
   editable: boolean;
   isActiveTurn: boolean;
+  undoNonce?: number;
 }) {
   const palette = paletteForIndex(player.seat);
   const isGuest = player.userId === null;
@@ -299,6 +373,7 @@ function OpponentTile({
           dispatch={dispatch}
           disabled={game.status === 'finished'}
           compact
+          undoNonce={undoNonce}
         />
       ) : (
         <LifeReadout player={player} lethal={lethal} />
@@ -343,12 +418,18 @@ function YourPanel({
   opponents,
   dispatch,
   isActiveTurn,
+  undoNonce,
+  onUndo,
+  undoLabel,
 }: {
   player: GamePlayer;
   game: GameState;
   opponents: GamePlayer[];
   dispatch: (a: GameAction) => void;
   isActiveTurn: boolean;
+  undoNonce?: number;
+  onUndo: () => void;
+  undoLabel: string | null;
 }) {
   const [cmdOpen, setCmdOpen] = useState(false);
   const disabled = game.status === 'finished' || player.eliminated;
@@ -386,9 +467,21 @@ function YourPanel({
           </span>
         )}
         {player.eliminated && <span className="ogv-opp-tag ogv-opp-tag-out">Out</span>}
+        {undoLabel && (
+          <button
+            type="button"
+            className="ogv-chip-btn ogv-undo-btn"
+            aria-label={`Undo ${undoLabel}`}
+            title={`Undo ${undoLabel}`}
+            onClick={onUndo}
+          >
+            <Undo2 width={16} height={16} strokeWidth={2.2} aria-hidden />
+            Undo
+          </button>
+        )}
       </div>
 
-      <LifeControls player={player} dispatch={dispatch} disabled={disabled} />
+      <LifeControls player={player} dispatch={dispatch} disabled={disabled} undoNonce={undoNonce} />
 
       <div className="ogv-you-tools">
         {game.commanderDamageEnabled && (

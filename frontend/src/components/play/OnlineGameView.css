@@ -393,6 +393,14 @@
   color: var(--text-primary);
 }
 
+/* Header row is horizontal (unlike the .ogv-tool column .ogv-chip-btn was
+   designed for) — undo the flex-start self-alignment and push the button to
+   the row's far end regardless of what other badges/tags precede it. */
+.ogv-undo-btn {
+  align-self: auto;
+  margin-left: auto;
+}
+
 .ogv-you-tools {
   display: flex;
   flex-direction: column;
