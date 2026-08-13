@@ -65,7 +65,6 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
   const raiseGameRequest = usePlayStore((s) => s.raiseGameRequest);
   const cancelGameRequest = usePlayStore((s) => s.cancelGameRequest);
 
-
   // Wrap dispatch so undoable actions (life/poison/cmd-dmg — see isUndoable)
   // snapshot the pre-action state first; `game` is the live pre-action state
   // on every render, so capture sees the right baseline. Unlike GameBoard
