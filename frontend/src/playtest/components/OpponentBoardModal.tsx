@@ -13,7 +13,8 @@ import type { BattlefieldCard, PlaytestCard } from '@/lib/playtest';
 import type { ProjectedCard, PublicBattlefieldCard } from '@/lib/playtest/projection';
 import { commanderTaxAmount } from '../lib/zones';
 import { DESIGNATIONS } from '../lib/designations';
-import type { OpponentSeat } from './OpponentRail';
+import { type OpponentSeat } from './OpponentRail';
+import { useNewCardIds } from '../hooks/use-new-card-ids';
 import { PlaytestCardFace } from './PlaytestCardFace';
 import './OpponentBoardModal.css';
 
@@ -81,6 +82,12 @@ export function OpponentBoardModal({ opp, active, onClose }: Props) {
     () => board.battlefield.filter((bf) => !bf.faceDown),
     [board.battlefield]
   );
+
+  // Card-enter moment: same per-seat "seen ids" baseline as the glance
+  // rail's mini tiles (`useNewCardIds`, OpponentRail.tsx) — this modal
+  // mounts fresh each time it's opened, so its own baseline starts empty and
+  // the whole battlefield here never floods-animates on open.
+  const newBattlefieldIds = useNewCardIds(board.battlefield.map((bf) => bf.card.id));
 
   // Every resolvable card across the whole board, batch-resolved once. Face-
   // down permanents never enter this list (see doc comment above).
@@ -229,6 +236,7 @@ export function OpponentBoardModal({ opp, active, onClose }: Props) {
                       <BattlefieldTile
                         key={bf.card.id}
                         bf={bf}
+                        isNew={newBattlefieldIds.has(bf.card.id)}
                         onInspect={(id) => inspect('battlefield', id)}
                       />
                     ))}
@@ -275,9 +283,11 @@ export function OpponentBoardModal({ opp, active, onClose }: Props) {
  *  since `PublicBoard` never carries `imageUrl` (see projection.ts). */
 function BattlefieldTile({
   bf,
+  isNew,
   onInspect,
 }: {
   bf: PublicBattlefieldCard;
+  isNew: boolean;
   onInspect: (cardId: string) => void;
 }) {
   const art = useCardThumb(bf.faceDown ? undefined : bf.card.name, 'normal');
@@ -309,7 +319,7 @@ function BattlefieldTile({
       card={card}
       bf={adaptedBf}
       size="lg"
-      className="opponent-board-card"
+      className={`opponent-board-card${isNew ? ' is-entering' : ''}`}
       style={{ transform: bf.tapped ? 'rotate(90deg)' : undefined }}
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}

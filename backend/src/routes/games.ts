@@ -58,6 +58,7 @@ interface Subscriber {
   onDeleted: () => void;
   onBoard?: (seat: number, board: unknown) => void;
   onRequest?: (request: StoredRequest) => void;
+  onSignal?: (signal: GameSignal) => void;
 }
 const subscribers = new Map<string, Set<Subscriber>>();
 
@@ -78,6 +79,12 @@ const subscribers = new Map<string, Set<Subscriber>>();
  * and now on `sweepStale`) evicts a code's boards the moment its session goes
  * away — so this never accumulates beyond the live+recently-active session
  * count.
+ *
+ * Contrast with table signals (`GameSignal`, see POST `/:code/signal` below):
+ * those are NOT stored at all, not even like this. A board is worth catching
+ * a late subscriber up on; a reaction emote or dice roll is a moment, not a
+ * state — so signals skip this whole map/snapshot/catch-up machinery
+ * entirely and just broadcast to whoever's connected right now.
  */
 const boards = new Map<string, Map<number, unknown>>();
 
@@ -127,6 +134,33 @@ function requestsSnapshot(code: string): StoredRequest[] {
   const codeRequests = requests.get(code);
   if (!codeRequests || codeRequests.size === 0) return [];
   return Array.from(codeRequests.values());
+}
+
+/** Reaction emote set — the frontend UI lane pins this same fixed six; keep them in sync. */
+export const SIGNAL_EMOTES = ['👏', '😬', '🤔', '🔥', '😂', '🫡'] as const;
+const SIGNAL_DICE = ['d6', 'd20', 'coin', 'first'] as const;
+
+/**
+ * An ephemeral table signal — a reaction emote or a server-rolled die/coin —
+ * see POST `/:code/signal` below. Unlike `boards`/`requests` this is
+ * deliberately NEVER stored: no map, no snapshot, no catch-up for a late or
+ * reconnecting subscriber. A missed emote or roll is a missed moment, not a
+ * state to recover — broadcasting to whoever's currently connected is the
+ * entire feature.
+ */
+interface GameSignal {
+  kind: 'reaction' | 'roll';
+  seat: number;
+  ts: number;
+  emote?: string;
+  die?: (typeof SIGNAL_DICE)[number];
+  value?: number;
+}
+
+function broadcastSignal(code: string, signal: GameSignal): void {
+  const subs = subscribers.get(code);
+  if (!subs) return;
+  for (const sub of subs) sub.onSignal?.(signal);
 }
 
 /**
@@ -737,6 +771,14 @@ gamesRouter.get('/:code/events', readLimiter, requireAuth, async (req: Request, 
         res.write(`event: request\ndata: ${JSON.stringify(request)}\n\n`);
       }
     },
+    // Same guard, same reason — and no catch-up loop to pair with it (unlike
+    // onBoard/onRequest above): signals are ephemeral by design, see the
+    // `GameSignal` doc comment.
+    onSignal: (signal) => {
+      if (!res.writableEnded) {
+        res.write(`event: signal\ndata: ${JSON.stringify(signal)}\n\n`);
+      }
+    },
   };
   addSubscriber(code, sub);
   touchPresence(code, req.user!.id);
@@ -874,6 +916,14 @@ gamesRouter.get('/:code/poll', readLimiter, requireAuth, async (req: Request, re
       settle(() =>
         res.json({ request, boards: boardsSnapshot(code), requests: requestsSnapshot(code) })
       ),
+    // Same snapshots-on-every-branch convention as onBoard/onRequest above —
+    // see the long comment on this route for why. No signal history/replay
+    // exists to catch up on (see the `GameSignal` doc comment); this only
+    // carries the ONE signal that resolved this particular held poll.
+    onSignal: (signal) =>
+      settle(() =>
+        res.json({ signal, boards: boardsSnapshot(code), requests: requestsSnapshot(code) })
+      ),
   };
 
   function settle(respond: () => void): void {
@@ -966,6 +1016,83 @@ gamesRouter.post('/:code/board', boardLimiter, requireAuth, async (req: Request,
   broadcastBoard(code, me.seat, board);
   res.json({ ok: true });
 });
+
+// Emotes/rolls are bursty (a flurry after a big play) but still human-paced —
+// generous above real usage, well below writeLimiter's per-move budget.
+const signalLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 });
+
+/**
+ * POST /api/games/:code/signal — broadcast an ephemeral table signal: a
+ * reaction emote, or a server-rolled die/coin/seat. Security shape mirrors
+ * `/board` and `/request` exactly: stealth 404 for a non-participant, seat
+ * always derived server-side (there is no seat field in the body to spoof).
+ *
+ * Body is strictly whitelisted by `kind`: `'reaction'` requires `emote` to be
+ * one of the fixed `SIGNAL_EMOTES`; `'roll'` requires `die` to be one of
+ * `SIGNAL_DICE`. Anything else (including a well-formed body for the other
+ * kind) is a 400. The response signal is built field-by-field from known
+ * values — never a spread of the request body — so a stray extra field can
+ * never ride along into the broadcast.
+ *
+ * A roll's `value` is generated here, server-side, so every seat sees the
+ * same result: 1-6 for d6, 1-20 for d20, 0|1 for a coin, and for `'first'` —
+ * "who goes first" — a uniformly random SEAT NUMBER drawn from the game's
+ * current players (clients resolve the seat to a name).
+ */
+gamesRouter.post(
+  '/:code/signal',
+  signalLimiter,
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const code = String(req.params.code).toUpperCase();
+    const db = getDb();
+    const rows = await db.select().from(gameSessions).where(eq(gameSessions.code, code)).limit(1);
+    const row = rows[0];
+    if (!row) return res.status(404).json({ error: 'Game not found.' });
+    const state = row.state as GameState;
+    // Stealth 404, byte-identical to an unknown code — see the long comment on
+    // POST /:code/board / GET /:code for why (4-char codes, ~1M of them).
+    const me = state.players.find((p) => p.userId === req.user!.id);
+    if (!me) return res.status(404).json({ error: 'Game not found.' });
+
+    const body = req.body as { kind?: unknown; emote?: unknown; die?: unknown };
+    let signal: GameSignal;
+    if (body.kind === 'reaction') {
+      const emote = body.emote;
+      if (typeof emote !== 'string' || !(SIGNAL_EMOTES as readonly string[]).includes(emote)) {
+        return res.status(400).json({ error: 'Invalid emote.' });
+      }
+      signal = { kind: 'reaction', seat: me.seat, ts: Date.now(), emote };
+    } else if (body.kind === 'roll') {
+      const die = body.die;
+      if (typeof die !== 'string' || !(SIGNAL_DICE as readonly string[]).includes(die)) {
+        return res.status(400).json({ error: 'Invalid die.' });
+      }
+      const value =
+        die === 'd6'
+          ? crypto.randomInt(1, 7)
+          : die === 'd20'
+            ? crypto.randomInt(1, 21)
+            : die === 'coin'
+              ? crypto.randomInt(0, 2)
+              : state.players[crypto.randomInt(state.players.length)].seat;
+      signal = {
+        kind: 'roll',
+        seat: me.seat,
+        ts: Date.now(),
+        die: die as GameSignal['die'],
+        value,
+      };
+    } else {
+      return res.status(400).json({ error: 'Unsupported signal kind.' });
+    }
+
+    // Sending a signal is proof of presence, same as /board and the poll GETs.
+    touchPresence(code, req.user!.id);
+    broadcastSignal(code, signal);
+    res.json({ signal });
+  }
+);
 
 // Raising/responding to a request is a rare, human-paced action (a handful
 // per game at most), nowhere near board's per-move cadence — sized well

@@ -132,6 +132,42 @@ describe('OpponentBoardModal', () => {
     expect(document.body.querySelectorAll('.opponent-board-card').length).toBe(15);
   });
 
+  it('animates only a genuinely new permanent — never the first-ever board, never a republish of unchanged cards', async () => {
+    resolveAll([scryCard('bf0', 'Card 0'), scryCard('bf1', 'Card 1')]);
+    const { rerender } = render(
+      <OpponentBoardModal
+        opp={opp({}, { battlefield: [bfCard('bf0', 'Card 0')] })}
+        active={false}
+        onClose={() => {}}
+      />
+    );
+    // First-ever board: every tile is a fresh mount, but none of them animate.
+    expect(document.body.querySelector('.opponent-board-card.is-entering')).toBeNull();
+
+    // A whole-snapshot republish of the SAME permanent (fresh array/object
+    // identity, same card id) — still no animation.
+    rerender(
+      <OpponentBoardModal
+        opp={opp({}, { battlefield: [bfCard('bf0', 'Card 0')] })}
+        active={false}
+        onClose={() => {}}
+      />
+    );
+    expect(document.body.querySelector('.opponent-board-card.is-entering')).toBeNull();
+
+    // A genuinely new permanent joins — only its tile animates.
+    rerender(
+      <OpponentBoardModal
+        opp={opp({}, { battlefield: [bfCard('bf0', 'Card 0'), bfCard('bf1', 'Card 1')] })}
+        active={false}
+        onClose={() => {}}
+      />
+    );
+    const entering = document.body.querySelectorAll('.opponent-board-card.is-entering');
+    expect(entering.length).toBe(1);
+    expect(entering[0].getAttribute('aria-label')).toBe('Card 1');
+  });
+
   it('renders graveyard, exile, and command zone cards, browsable via tabs', async () => {
     resolveAll([
       scryCard('g1', 'Grave One'),

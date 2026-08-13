@@ -26,6 +26,7 @@ vi.mock('../lib/games-api', () => ({
   patchGame: vi.fn(),
   raiseGameRequest: vi.fn(),
   respondGameRequest: vi.fn(),
+  sendGameSignal: vi.fn(),
 }));
 
 import {
@@ -36,7 +37,9 @@ import {
   patchGame,
   raiseGameRequest,
   respondGameRequest,
+  sendGameSignal,
   type GameRequest,
+  type GameSignal,
 } from '../lib/games-api';
 
 const mockCreate = vi.mocked(createGame);
@@ -46,6 +49,7 @@ const mockLeave = vi.mocked(leaveGame);
 const mockPatch = vi.mocked(patchGame);
 const mockRaiseRequest = vi.mocked(raiseGameRequest);
 const mockRespondRequest = vi.mocked(respondGameRequest);
+const mockSendSignal = vi.mocked(sendGameSignal);
 
 // The long-poll transport wraps its own HTTP loop (see games-longpoll.test.ts
 // for that in isolation); here we mock the whole module so store tests can
@@ -71,6 +75,7 @@ function resetStore() {
     online: null,
     onlineBoards: {},
     onlineRequests: {},
+    onlineSignal: null,
     history: [],
     onlineError: null,
     onlinePolling: false,
@@ -117,6 +122,10 @@ function mockGameRequest(overrides: Partial<GameRequest> = {}): GameRequest {
     expiresAt: 60_000,
     ...overrides,
   };
+}
+
+function mockSignal(overrides: Partial<GameSignal> = {}): GameSignal {
+  return { kind: 'reaction', seat: 1, ts: 1000, emote: '🔥', ...overrides };
 }
 
 describe('usePlayStore — local game flow', () => {
@@ -427,11 +436,12 @@ describe('usePlayStore — online flow', () => {
         commanderDamageEnabled: true,
         poisonEnabled: false,
       });
-      // Seed the two records the old 404 handler left behind (see the bug
-      // this test guards: onlineBoards/onlineRequests survived a 404).
+      // Seed the records the old 404 handler left behind (see the bug this
+      // test guards: onlineBoards/onlineRequests/onlineSignal survived a 404).
       usePlayStore.setState({
         onlineBoards: { 1: { seat: 1, turn: 3 } as unknown as PublicBoard },
         onlineRequests: { 1: mockGameRequest({ requesterSeat: 1 }) },
+        onlineSignal: { seq: 1, signal: mockSignal() },
       });
 
       mockGet.mockRejectedValue(httpError('gone', 404));
@@ -439,6 +449,7 @@ describe('usePlayStore — online flow', () => {
 
       expect(usePlayStore.getState().onlineBoards).toEqual({});
       expect(usePlayStore.getState().onlineRequests).toEqual({});
+      expect(usePlayStore.getState().onlineSignal).toBeNull();
       expect(usePlayStore.getState().boardVisible).toBe(true);
       expect(usePlayStore.getState().onlineError).toBe('Game ended.');
       expect(cancelSpy).toHaveBeenCalled();
@@ -684,6 +695,98 @@ describe('usePlayStore — online flow', () => {
     await expect(usePlayStore.getState().respondGameRequest('req1', true)).rejects.toThrow();
     expect(mockRespondRequest).not.toHaveBeenCalled();
   });
+
+  it('sendSignal posts to the API and echoes the server-stamped result into onlineSignal at seq 1', async () => {
+    mockCreate.mockResolvedValue(makeOnlineGame(1));
+    await usePlayStore.getState().hostOnline({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+    });
+    const signal = mockSignal({ seat: 0, ts: 500 });
+    mockSendSignal.mockResolvedValue(signal);
+    await usePlayStore.getState().sendSignal({ kind: 'reaction', emote: '🔥' });
+    expect(mockSendSignal).toHaveBeenCalledWith('ABCD', { kind: 'reaction', emote: '🔥' });
+    expect(usePlayStore.getState().onlineSignal).toEqual({ seq: 1, signal });
+  });
+
+  it('sendSignal is a no-op with no active online game, without calling the API', async () => {
+    await usePlayStore.getState().sendSignal({ kind: 'reaction', emote: '🔥' });
+    expect(mockSendSignal).not.toHaveBeenCalled();
+    expect(usePlayStore.getState().onlineSignal).toBeNull();
+  });
+
+  it('sendSignal swallows an API failure — ephemeral and best-effort, nothing thrown or surfaced', async () => {
+    mockCreate.mockResolvedValue(makeOnlineGame(1));
+    await usePlayStore.getState().hostOnline({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+    });
+    mockSendSignal.mockRejectedValue(new Error('network'));
+    await expect(
+      usePlayStore.getState().sendSignal({ kind: 'roll', die: 'd6' })
+    ).resolves.toBeUndefined();
+    expect(usePlayStore.getState().onlineSignal).toBeNull();
+    expect(usePlayStore.getState().onlineError).toBeNull();
+  });
+
+  it('leaveOnline clears onlineSignal along with the rest of the online slice', async () => {
+    mockCreate.mockResolvedValue(makeOnlineGame(1));
+    await usePlayStore.getState().hostOnline({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+    });
+    mockSendSignal.mockResolvedValue(mockSignal());
+    await usePlayStore.getState().sendSignal({ kind: 'reaction', emote: '🔥' });
+    expect(usePlayStore.getState().onlineSignal).not.toBeNull();
+    mockLeave.mockResolvedValue(undefined as never);
+    await usePlayStore.getState().leaveOnline();
+    expect(usePlayStore.getState().onlineSignal).toBeNull();
+  });
+
+  it('clearOnline resets onlineSignal, whether or not there is an active online game', async () => {
+    // Branch 1: an active game — resetOnlineState's path.
+    mockCreate.mockResolvedValue(makeOnlineGame(1));
+    await usePlayStore.getState().hostOnline({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+    });
+    mockSendSignal.mockResolvedValue(mockSignal());
+    await usePlayStore.getState().sendSignal({ kind: 'reaction', emote: '🔥' });
+    expect(usePlayStore.getState().onlineSignal).not.toBeNull();
+    usePlayStore.getState().clearOnline();
+    expect(usePlayStore.getState().onlineSignal).toBeNull();
+
+    // Branch 2: no active game (a stale value some other path left behind) —
+    // clearOnline's own else branch.
+    usePlayStore.setState({ onlineSignal: { seq: 1, signal: mockSignal() } });
+    usePlayStore.getState().clearOnline();
+    expect(usePlayStore.getState().onlineSignal).toBeNull();
+  });
+
+  it('hostOnline/joinOnline start a fresh session with onlineSignal cleared, even if a stale one was left over', async () => {
+    usePlayStore.setState({ onlineSignal: { seq: 3, signal: mockSignal() } });
+    mockCreate.mockResolvedValue(makeOnlineGame(1));
+    await usePlayStore.getState().hostOnline({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+    });
+    expect(usePlayStore.getState().onlineSignal).toBeNull();
+
+    usePlayStore.setState({ onlineSignal: { seq: 3, signal: mockSignal() } });
+    mockJoin.mockResolvedValue(makeOnlineGame(2));
+    await usePlayStore.getState().joinOnline('ABCD', {});
+    expect(usePlayStore.getState().onlineSignal).toBeNull();
+  });
 });
 
 /**
@@ -841,6 +944,45 @@ describe('usePlayStore — SSE primary transport / poll fallback', () => {
     mockLeave.mockResolvedValue(undefined as never);
     await usePlayStore.getState().leaveOnline();
     expect(usePlayStore.getState().onlineRequests).toEqual({});
+  });
+
+  it('a pushed signal event lands in onlineSignal at seq 1', async () => {
+    const es = await hostAndGetStream();
+    const signal = mockSignal({ seat: 1, ts: 10 });
+    es.emit('signal', { data: JSON.stringify(signal) });
+    expect(usePlayStore.getState().onlineSignal).toEqual({ seq: 1, signal });
+  });
+
+  it('a distinct signal increments seq', async () => {
+    const es = await hostAndGetStream();
+    es.emit('signal', { data: JSON.stringify(mockSignal({ seat: 1, ts: 10 })) });
+    const second = mockSignal({ seat: 1, ts: 20 });
+    es.emit('signal', { data: JSON.stringify(second) });
+    expect(usePlayStore.getState().onlineSignal).toEqual({ seq: 2, signal: second });
+  });
+
+  // The sender sees this same frame twice — once as the POST response's
+  // instant local echo (sendSignal), once as the transport's re-delivery of
+  // the broadcast — and both must collapse into a single moment, not two.
+  it('the SSE re-delivery of a signal this client already echoed is deduped by (seat, ts) — applies once, seq increments once', async () => {
+    await hostAndGetStream();
+    const signal = mockSignal({ seat: 0, ts: 500 });
+    mockSendSignal.mockResolvedValue(signal);
+    await usePlayStore.getState().sendSignal({ kind: 'reaction', emote: '🔥' });
+    expect(usePlayStore.getState().onlineSignal).toEqual({ seq: 1, signal });
+
+    const es = FakeEventSource.instances[0];
+    es.emit('signal', { data: JSON.stringify(signal) });
+    expect(usePlayStore.getState().onlineSignal).toEqual({ seq: 1, signal });
+  });
+
+  it('leaveOnline clears onlineSignal along with the rest of the online slice', async () => {
+    const es = await hostAndGetStream();
+    es.emit('signal', { data: JSON.stringify(mockSignal()) });
+    expect(usePlayStore.getState().onlineSignal).not.toBeNull();
+    mockLeave.mockResolvedValue(undefined as never);
+    await usePlayStore.getState().leaveOnline();
+    expect(usePlayStore.getState().onlineSignal).toBeNull();
   });
 
   // Regression cover for the sweepStale gap (E-fix, client half): a swept
@@ -1020,6 +1162,37 @@ describe('usePlayStore — long-poll transport (native)', () => {
     const req = mockGameRequest({ requesterSeat: 1 });
     handlers?.onRequest?.(req);
     expect(usePlayStore.getState().onlineRequests[1]).toEqual(req);
+  });
+
+  it('a signal pushed via the long-poll lands in onlineSignal at seq 1', async () => {
+    let handlers: GameLongPollHandlers | undefined;
+    mockSubscribeLongPoll.mockImplementation((_c, _s, h) => {
+      handlers = h;
+      return vi.fn();
+    });
+    await hostOnline();
+    const signal = mockSignal({ seat: 1, ts: 10 });
+    handlers?.onSignal?.(signal);
+    expect(usePlayStore.getState().onlineSignal).toEqual({ seq: 1, signal });
+  });
+
+  // Same dedupe contract as the SSE transport — the sender's own echo
+  // (sendSignal) and the long-poll's re-delivery of the same (seat, ts) frame
+  // must collapse into one moment.
+  it('the long-poll re-delivery of a signal this client already echoed is deduped — applies once, seq increments once', async () => {
+    let handlers: GameLongPollHandlers | undefined;
+    mockSubscribeLongPoll.mockImplementation((_c, _s, h) => {
+      handlers = h;
+      return vi.fn();
+    });
+    await hostOnline();
+    const signal = mockSignal({ seat: 0, ts: 500 });
+    mockSendSignal.mockResolvedValue(signal);
+    await usePlayStore.getState().sendSignal({ kind: 'reaction', emote: '🔥' });
+    expect(usePlayStore.getState().onlineSignal).toEqual({ seq: 1, signal });
+
+    handlers?.onSignal?.(signal);
+    expect(usePlayStore.getState().onlineSignal).toEqual({ seq: 1, signal });
   });
 });
 

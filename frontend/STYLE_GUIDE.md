@@ -1806,6 +1806,9 @@ per-theme token): **on-art overlays are always dark, in both themes** — the
 same reasoning as the always-dark card-preview panel (`CardDetails.css`) —
 because legibility over unpredictable art/fallback-color can't follow the
 app's light/dark swap. Pair the text color with `var(--art-scrim-text)`.
+`.win-celebration-card` and its `GameRecap` insert are further instances of
+this always-dark ruling: a dramatic full-board celebration surface commits to
+one dark look in both themes rather than branching on `data-theme`.
 
 **Segmented color-identity bar**: one flat `flex: 1` segment per color in
 `colorIdentity`, directly under the banner, `aria-hidden` (the aria-label
@@ -2068,6 +2071,17 @@ it just as much as a named sheet component. Hand-rolled confirm/destructive
 dialogs must route through the shared `<Modal>` (it owns the `is-closing` exit,
 scroll-lock, focus-trap, Escape, and a `dismissable={!busy}` prop to lock
 dismissal while work is in flight) rather than re-implementing the backdrop.
+
+**Transient table/game moments skip `useSheetExit` — deliberately.** A
+non-blocking notification overlay (a "Your turn" beat, a win ceremony, a
+floating reaction — anything `role="status"` that the player may want to keep
+playing THROUGH) must not trap focus, and `useSheetExit`'s focus-trap is
+unconditional. These hand-roll a minimal `is-closing` + `animationend` exit
+instead, and MUST include a `prefers-reduced-motion` branch that closes
+synchronously (mirroring `useSheetExit`'s own carve-out): a disabled CSS
+animation never fires `animationend`, so an animation-gated dismiss becomes a
+stuck-open overlay under reduced motion. See `playtest/components/
+TableMoments.tsx` / `TableSignals.tsx` for the reference shape.
 
 ### Tokens (styles/tokens.css)
 

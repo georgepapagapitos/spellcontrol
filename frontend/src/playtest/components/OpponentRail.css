@@ -62,6 +62,34 @@
   box-shadow: 0 0 0 2px var(--accent-light);
 }
 
+/* Turn-pass moment (opponent half — OpponentRail.tsx's sweep edge-detection):
+   a brief highlight sweep in the seat's own color when it just became
+   active. Box-shadow only (paint, not layout) — mirrors the transition
+   already declared on `.opponent-entry` above. The persistent
+   `.is-active-turn` ring is untouched by this and keeps marking whose turn
+   it is with zero motion once the sweep settles. */
+.opponent-entry--turn-sweep {
+  animation: opponent-turn-sweep 600ms var(--ease-out-soft);
+}
+
+@keyframes opponent-turn-sweep {
+  0% {
+    box-shadow: 0 0 0 0 var(--opp-edge);
+  }
+  35% {
+    box-shadow: 0 0 0 5px var(--opp-edge);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opponent-entry--turn-sweep {
+    animation: none;
+  }
+}
+
 .opponent-rail--presence .opponent-entry {
   flex: 1 1 8rem;
   min-height: 2.75rem;
@@ -222,6 +250,31 @@
 
 .opponent-mini-card.is-tapped {
   transform: rotate(90deg);
+}
+
+/* Card-enter moment (OpponentRail.tsx's `useNewCardIds`) — fades in a
+   permanent's tile the first time it's seen for this seat, never on a
+   whole-board republish of cards already there. Opacity only, not scale:
+   `.is-tapped` above already owns this element's `transform` for the
+   rotate, and an entrance `transform` here would fight it for a permanent
+   that arrives already tapped. */
+.opponent-mini-card.is-entering {
+  animation: opponent-card-enter 200ms var(--ease-out-soft);
+}
+
+@keyframes opponent-card-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opponent-mini-card.is-entering {
+    animation: none;
+  }
 }
 
 .opponent-mini-card img {

@@ -4,7 +4,7 @@
  * vitest/chai matchers, not `.toBeInTheDocument()`/`.toHaveAccessibleName()`.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { OpponentRail, type OpponentSeat } from './OpponentRail';
 import type { PublicBattlefieldCard, PublicBoard } from '@/lib/playtest/projection';
 
@@ -266,6 +266,71 @@ describe('OpponentRail', () => {
       expect(screen.getByTestId('opponent-board-modal')).toBeTruthy();
       fireEvent.click(screen.getByText('stub close'));
       expect(screen.queryByTestId('opponent-board-modal')).toBeNull();
+    });
+  });
+
+  describe('turn-pass moment (opponent sweep)', () => {
+    it('does not sweep on mount, even when a seat is already active', () => {
+      const opponents = [seat(0), seat(1)];
+      const { container } = render(<OpponentRail opponents={opponents} activeSeat={1} />);
+      expect(container.querySelector('.opponent-entry--turn-sweep')).toBeNull();
+    });
+
+    it('sweeps only the seat whose turn just started, on a genuine activeSeat change', () => {
+      const opponents = [seat(0), seat(1)];
+      const { container, rerender } = render(<OpponentRail opponents={opponents} activeSeat={0} />);
+      expect(container.querySelector('.opponent-entry--turn-sweep')).toBeNull();
+
+      rerender(<OpponentRail opponents={opponents} activeSeat={1} />);
+      const items = container.querySelectorAll('.opponent-entry');
+      expect(items[0].classList.contains('opponent-entry--turn-sweep')).toBe(false);
+      expect(items[1].classList.contains('opponent-entry--turn-sweep')).toBe(true);
+    });
+
+    it('clears the sweep after it plays, and never re-fires for a repeated identical activeSeat', () => {
+      vi.useFakeTimers();
+      try {
+        const opponents = [seat(0), seat(1)];
+        const { container, rerender } = render(
+          <OpponentRail opponents={opponents} activeSeat={0} />
+        );
+        rerender(<OpponentRail opponents={opponents} activeSeat={1} />);
+        expect(container.querySelector('.opponent-entry--turn-sweep')).not.toBeNull();
+
+        act(() => {
+          vi.advanceTimersByTime(600);
+        });
+        expect(container.querySelector('.opponent-entry--turn-sweep')).toBeNull();
+
+        // Re-rendering with the SAME activeSeat value must not restart it.
+        rerender(<OpponentRail opponents={opponents} activeSeat={1} />);
+        expect(container.querySelector('.opponent-entry--turn-sweep')).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  describe('card-enter moment (glance mini battlefield)', () => {
+    it('animates only a genuinely new permanent, never the first-ever board', () => {
+      stubOrientation(true); // glance density renders the mini battlefield
+      const opponents = [seat(0, { battlefield: [bfCard('bf0')] })];
+      const { container, rerender } = render(<OpponentRail opponents={opponents} />);
+      // First-ever board: nothing animates, even though every tile just mounted.
+      expect(container.querySelector('.opponent-mini-card.is-entering')).toBeNull();
+
+      // A whole-snapshot republish of the SAME permanent (fresh array/object
+      // identity, same card id) — still no animation.
+      rerender(<OpponentRail opponents={[seat(0, { battlefield: [bfCard('bf0')] })]} />);
+      expect(container.querySelector('.opponent-mini-card.is-entering')).toBeNull();
+
+      // A genuinely new permanent joins — only its tile animates.
+      rerender(
+        <OpponentRail opponents={[seat(0, { battlefield: [bfCard('bf0'), bfCard('bf1')] })]} />
+      );
+      const entering = container.querySelectorAll('.opponent-mini-card.is-entering');
+      expect(entering.length).toBe(1);
+      expect(entering[0].getAttribute('title')).toBe('Card bf1');
     });
   });
 });

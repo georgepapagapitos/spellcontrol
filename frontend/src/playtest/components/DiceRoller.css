@@ -46,6 +46,17 @@
   color: var(--accent);
 }
 
+.playtest-dice-grid button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* "Who goes first?" — table-only, spans the row so it reads as a distinct
+   ask rather than a seventh die. */
+.playtest-dice-grid button.playtest-dice-first {
+  grid-column: 1 / -1;
+}
+
 .playtest-dice-result {
   margin: 0 var(--space-4) var(--space-2);
   padding: var(--space-3);

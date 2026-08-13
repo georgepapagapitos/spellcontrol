@@ -159,6 +159,34 @@ describe('subscribeGameEvents', () => {
     ).not.toThrow();
   });
 
+  it('parses a signal event and forwards it to onSignal', () => {
+    stub();
+    const onSignal = vi.fn();
+    subscribeGameEvents('ABCD', { onState: vi.fn(), onSignal });
+    const es = FakeEventSource.instances[0];
+    const signal = { kind: 'reaction', seat: 1, ts: 123, emote: '🔥' };
+    es.emit('signal', { data: JSON.stringify(signal) });
+    expect(onSignal).toHaveBeenCalledWith(signal);
+  });
+
+  it('swallows a malformed signal frame instead of throwing', () => {
+    stub();
+    const onSignal = vi.fn();
+    subscribeGameEvents('ABCD', { onState: vi.fn(), onSignal });
+    const es = FakeEventSource.instances[0];
+    expect(() => es.emit('signal', { data: 'not json' })).not.toThrow();
+    expect(onSignal).not.toHaveBeenCalled();
+  });
+
+  it('onSignal is optional — no throw when omitted', () => {
+    stub();
+    subscribeGameEvents('ABCD', { onState: vi.fn() });
+    const es = FakeEventSource.instances[0];
+    expect(() =>
+      es.emit('signal', { data: JSON.stringify({ kind: 'roll', seat: 0, ts: 1, die: 'd6' }) })
+    ).not.toThrow();
+  });
+
   it('the returned teardown fn closes the underlying connection', () => {
     stub();
     const teardown = subscribeGameEvents('ABCD', { onState: vi.fn() });

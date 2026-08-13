@@ -10,6 +10,7 @@ import {
   postBoard,
   raiseGameRequest,
   respondGameRequest,
+  sendGameSignal,
   type GameRequest,
 } from './games-api';
 import type { GameState } from './game-state';
@@ -212,6 +213,51 @@ describe('games-api', () => {
       requests: undefined,
       request: req,
     });
+  });
+
+  it('pollGame forwards a signal that resolved a held poll', async () => {
+    const signal = { kind: 'roll', seat: 1, ts: 42, die: 'd6', value: 4 };
+    fetchSpy.mockResolvedValueOnce(json({ signal }));
+    expect(await pollGame('ABCD', 3)).toEqual({
+      game: null,
+      boards: undefined,
+      board: undefined,
+      requests: undefined,
+      request: undefined,
+      signal,
+    });
+  });
+
+  it('sendGameSignal POSTs a reaction and returns the server-stamped signal', async () => {
+    const signal = { kind: 'reaction', seat: 0, ts: 100, emote: '🔥' };
+    fetchSpy.mockResolvedValueOnce(json({ signal }));
+    const result = await sendGameSignal('ABCD', { kind: 'reaction', emote: '🔥' });
+    expect(result).toEqual(signal);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe('/api/games/ABCD/signal');
+    expect((init as RequestInit).method).toBe('POST');
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+      kind: 'reaction',
+      emote: '🔥',
+    });
+  });
+
+  it('sendGameSignal POSTs a roll and returns the server-rolled value', async () => {
+    const signal = { kind: 'roll', seat: 1, ts: 200, die: 'd20', value: 17 };
+    fetchSpy.mockResolvedValueOnce(json({ signal }));
+    const result = await sendGameSignal('ABCD', { kind: 'roll', die: 'd20' });
+    expect(result).toEqual(signal);
+    expect(JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string)).toEqual({
+      kind: 'roll',
+      die: 'd20',
+    });
+  });
+
+  it('sendGameSignal throws on a non-2xx response', async () => {
+    fetchSpy.mockResolvedValueOnce(json({ error: 'Invalid emote.' }, 400));
+    await expect(sendGameSignal('ABCD', { kind: 'reaction', emote: '💀' })).rejects.toThrow(
+      /Invalid emote/
+    );
   });
 
   it('postBoard POSTs the board to /board and resolves on success', async () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { subscribeGameLongPoll, usesLongPoll } from './games-longpoll';
 import type { GameState } from './game-state';
-import type { GameRequest, PollResult } from './games-api';
+import type { GameRequest, GameSignal, PollResult } from './games-api';
 import type { PublicBoard } from './playtest/projection';
 
 type GameRequestStatus = GameRequest['status'];
@@ -36,6 +36,9 @@ function mockRequest(seat: number, status: GameRequestStatus = 'pending'): GameR
     createdAt: 0,
     expiresAt: 1000,
   };
+}
+function mockSignal(seat: number): GameSignal {
+  return { kind: 'roll', seat, ts: 42, die: 'd6', value: 4 };
 }
 
 /** Let all pending microtasks (including chained ones inside the loop) drain. */
@@ -176,6 +179,25 @@ describe('subscribeGameLongPoll', () => {
     startLoop('ABCD', () => 1, { onState: vi.fn(), onRequest });
     await flush();
     expect(onRequest).toHaveBeenCalledWith(resolved);
+  });
+
+  it('forwards a signal that resolved a held poll to onSignal', async () => {
+    const signal = mockSignal(1);
+    mockPoll
+      .mockImplementationOnce(async () => ({ game: null, signal }))
+      .mockImplementation(() => new Promise(() => {}));
+    const onSignal = vi.fn();
+    startLoop('ABCD', () => 1, { onState: vi.fn(), onSignal });
+    await flush();
+    expect(onSignal).toHaveBeenCalledWith(signal);
+  });
+
+  it('onSignal is optional — no throw when a signal arrives with no handler wired', async () => {
+    mockPoll
+      .mockImplementationOnce(async () => ({ game: null, signal: mockSignal(1) }))
+      .mockImplementation(() => new Promise(() => {}));
+    expect(() => startLoop('ABCD', () => 1, { onState: vi.fn() })).not.toThrow();
+    await flush();
   });
 
   it('loops again after a successful round-trip', async () => {
