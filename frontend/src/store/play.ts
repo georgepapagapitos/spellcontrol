@@ -23,8 +23,11 @@ import {
   raiseGameRequest as apiRaiseGameRequest,
   respondGameRequest as apiRespondGameRequest,
   cancelGameRequest as apiCancelGameRequest,
+  sendGameSignal as apiSendGameSignal,
   type CreateGameInput,
   type GameRequest,
+  type GameSignal,
+  type GameSignalInput,
   type JoinGameInput,
 } from '../lib/games-api';
 import { subscribeGameEvents } from '../lib/games-sse';
@@ -132,6 +135,15 @@ interface PlayState {
    * is the first consumer.
    */
   onlineRequests: Record<number, GameRequest>;
+  /**
+   * Most recent ephemeral table signal (reaction emote / dice roll) for the
+   * active online game — see `applyServerSignal`. Unlike boards/requests
+   * there is no per-seat history: signals are fire-and-forget moments, so
+   * consumers key off `seq` (monotonic, so an identical signal re-fires —
+   * same pattern as `lastResistanceEvent` in the playtest store) and render
+   * transiently. Reset whenever the online session starts or ends.
+   */
+  onlineSignal: { seq: number; signal: GameSignal } | null;
   /** Per-user game history (synced via the user-data sync). */
   history: GameRecord[];
   hydrated: boolean;
@@ -199,6 +211,10 @@ interface PlayState {
   respondGameRequest(id: string, approve: boolean): Promise<GameRequest>;
   /** Withdraw a still-pending request this seat raised. */
   cancelGameRequest(id: string): Promise<GameRequest>;
+  /** Send an ephemeral table signal (reaction emote / dice roll). Best-effort
+   *  — failures are swallowed; the sender's own copy is echoed locally from
+   *  the POST response (the transport re-delivery is deduped by seat+ts). */
+  sendSignal(input: GameSignalInput): Promise<void>;
 
   // ── History ─────────────────────────────────────────────────────────────
   /** Replace history (used by sync hydration). */
@@ -296,6 +312,22 @@ function applyServerRequest(request: GameRequest, set: PlaySet): void {
   set((s) => ({ onlineRequests: { ...s.onlineRequests, [request.requesterSeat]: request } }));
 }
 
+/**
+ * Adopt an ephemeral table signal from either delivery path — the sender's
+ * own POST-response echo (see `sendSignal`) or the transport broadcast. The
+ * same frame arrives on both for the sender, so dedupe by (seat, ts): the
+ * server stamps `ts` once, making the pair a stable identity for one signal.
+ * `seq` increments per adopted signal so consumers re-fire on repeats (two
+ * identical emotes in a row are two moments, not one).
+ */
+function applyServerSignal(signal: GameSignal, set: PlaySet): void {
+  set((s) => {
+    const last = s.onlineSignal;
+    if (last && last.signal.seat === signal.seat && last.signal.ts === signal.ts) return {};
+    return { onlineSignal: { seq: (last?.seq ?? 0) + 1, signal } };
+  });
+}
+
 function startSSE(set: PlaySet): void {
   // `EventSource` doesn't exist in Node (SSR / the test environment) — guard
   // rather than crash; the poll loop (tick, gated on realtimeHealthy staying
@@ -305,6 +337,7 @@ function startSSE(set: PlaySet): void {
     onState: (state) => applyServerGameState(state, set),
     onBoard: (seat, board) => applyServerBoard(seat, board, set),
     onRequest: (request) => applyServerRequest(request, set),
+    onSignal: (signal) => applyServerSignal(signal, set),
     onOpen: () => {
       realtimeHealthy = true;
     },
@@ -331,6 +364,7 @@ function startLongPoll(set: PlaySet): void {
     onState: (state) => applyServerGameState(state, set),
     onBoard: (seat, board) => applyServerBoard(seat, board, set),
     onRequest: (request) => applyServerRequest(request, set),
+    onSignal: (signal) => applyServerSignal(signal, set),
     onHealthy: () => {
       realtimeHealthy = true;
     },
@@ -424,6 +458,7 @@ function resetOnlineState(
     boardVisible: true,
     onlineBoards: {},
     onlineRequests: {},
+    onlineSignal: null,
   });
 }
 
@@ -446,6 +481,7 @@ export const usePlayStore = create<PlayState>()(
       online: null,
       onlineBoards: {},
       onlineRequests: {},
+      onlineSignal: null,
       history: [],
       hydrated: false,
       onlineError: null,
@@ -557,6 +593,7 @@ export const usePlayStore = create<PlayState>()(
           boardVisible: true,
           onlineBoards: {},
           onlineRequests: {},
+          onlineSignal: null,
         });
         get().startPolling();
         return game;
@@ -572,6 +609,7 @@ export const usePlayStore = create<PlayState>()(
           boardVisible: true,
           onlineBoards: {},
           onlineRequests: {},
+          onlineSignal: null,
         });
         get().startPolling();
         return game;
@@ -710,6 +748,19 @@ export const usePlayStore = create<PlayState>()(
         return request;
       },
 
+      sendSignal: async (input) => {
+        const code = serverCode;
+        if (!code) return;
+        try {
+          const signal = await apiSendGameSignal(code, input);
+          // Instant local echo — the transport's re-delivery of this same
+          // frame is deduped by (seat, ts) in applyServerSignal.
+          applyServerSignal(signal, set);
+        } catch {
+          /* ephemeral, best-effort — nothing to surface or retry */
+        }
+      },
+
       clearOnline: () => {
         const cur = get().online;
         if (cur) {
@@ -727,6 +778,7 @@ export const usePlayStore = create<PlayState>()(
             boardVisible: true,
             onlineBoards: {},
             onlineRequests: {},
+            onlineSignal: null,
           });
         }
       },

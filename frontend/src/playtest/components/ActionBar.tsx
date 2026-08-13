@@ -4,6 +4,8 @@ import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
 import { RESISTANCE_LEVEL_LABEL, type ResistanceLevel } from '../lib/resistance';
 import { TAKEBACK_MODE_LABEL, type TakebackMode } from '../lib/takeback';
 import type { RewindVerdict } from '@/lib/playtest/rewind';
+import { ReactionPicker } from './ReactionPicker';
+import { TableSignals } from './TableSignals';
 
 export interface TakebackBarProps {
   stepsAvailable: number;
@@ -197,6 +199,7 @@ export function ActionBar({
           <span className="playtest-actionbar__select-badge">{selectionSize}</span>
         )}
       </button>
+      <ReactionPicker />
       {isNarrow ? (
         <OverflowMenu
           items={overflowItems}
@@ -268,6 +271,7 @@ export function ActionBar({
           </button>
         </>
       )}
+      <TableSignals />
     </div>
   );
 }

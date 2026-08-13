@@ -1,0 +1,144 @@
+/* ── Incoming table signals — co-located styles ──────────────────────────
+ * Portaled to <body> (see TableSignals.tsx doc comment). Pure ambient
+ * moments: the whole layer is pointer-events: none (nothing here is
+ * dismissible or focusable), and it anchors top-right so it never overlaps
+ * the takeback banner/consent strips, which are centered (see
+ * styles/playtest.css `.playtest-takeback-pending`/`-consent`). */
+
+.playtest-table-signals {
+  position: fixed;
+  top: calc(var(--safe-top) + var(--space-8));
+  right: max(var(--safe-right), var(--space-3));
+  z-index: 900;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  gap: var(--space-2);
+  pointer-events: none;
+  max-width: min(80vw, 20rem);
+}
+
+.playtest-table-signal {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-tooltip);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.playtest-table-signal--reaction {
+  animation: playtest-signal-rise 2.5s var(--ease-out-soft) forwards;
+}
+
+.playtest-table-signal--roll {
+  animation: playtest-signal-hold 4s var(--ease-out-soft) forwards;
+  font-weight: 600;
+}
+
+.playtest-table-signal__dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.playtest-table-signal__emote {
+  font-size: var(--text-lg);
+  line-height: 1;
+}
+
+.playtest-table-signal__name {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playtest-table-signal .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes playtest-signal-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-32px);
+  }
+}
+
+@keyframes playtest-signal-hold {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  8% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  85% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Opacity-only under reduced motion — no rise, no translate. */
+@media (prefers-reduced-motion: reduce) {
+  .playtest-table-signal--reaction {
+    animation-name: playtest-signal-fade;
+  }
+
+  .playtest-table-signal--roll {
+    animation-name: playtest-signal-fade-hold;
+  }
+
+  @keyframes playtest-signal-fade {
+    0% {
+      opacity: 0;
+    }
+    15% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes playtest-signal-fade-hold {
+    0% {
+      opacity: 0;
+    }
+    8% {
+      opacity: 1;
+    }
+    85% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+}

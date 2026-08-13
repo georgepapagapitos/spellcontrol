@@ -77,6 +77,8 @@ export interface PollResult {
   requests?: GameRequest[];
   /** A single request create/respond/resolve that resolved a held poll early. */
   request?: GameRequest;
+  /** A signal that resolved a held poll early. No catch-up equivalent — signals aren't stored server-side. */
+  signal?: GameSignal;
 }
 
 /**
@@ -106,6 +108,7 @@ export async function pollGame(
     board?: BoardEntry;
     requests?: GameRequest[];
     request?: GameRequest;
+    signal?: GameSignal;
   }>(res);
   return {
     game: data.unchanged ? null : (data.game ?? null),
@@ -113,6 +116,7 @@ export async function pollGame(
     board: data.board,
     requests: data.requests,
     request: data.request,
+    signal: data.signal,
   };
 }
 
@@ -132,6 +136,42 @@ export async function postBoard(code: string, board: PublicBoard): Promise<void>
     body: JSON.stringify(board),
   });
   await handleResponse<{ ok: boolean }>(res);
+}
+
+/**
+ * An ephemeral table signal — a reaction emote or a server-rolled die/coin —
+ * broadcast to every subscriber and stored nowhere (backend:
+ * `POST /api/games/:code/signal` in routes/games.ts). `seat`, `value`, and
+ * `ts` are server-authoritative: the seat is the caller's own participant
+ * record and a roll's value is generated server-side so every seat sees the
+ * same result. The sender's own copy comes back in the POST response for
+ * instant local echo (see store/play.ts `sendSignal`); the transport
+ * delivery of the same frame is deduped there by (seat, ts).
+ */
+export interface GameSignal {
+  kind: 'reaction' | 'roll';
+  seat: number;
+  ts: number;
+  /** reaction only — one of the fixed emote set (validated server-side). */
+  emote?: string;
+  /** roll only. */
+  die?: 'd6' | 'd20' | 'coin' | 'first';
+  /** roll only: the die face, 0|1 for coin, or the chosen seat for 'first'. */
+  value?: number;
+}
+
+export type GameSignalInput =
+  | { kind: 'reaction'; emote: string }
+  | { kind: 'roll'; die: NonNullable<GameSignal['die']> };
+
+export async function sendGameSignal(code: string, input: GameSignalInput): Promise<GameSignal> {
+  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/signal`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  const data = await handleResponse<{ signal: GameSignal }>(res);
+  return data.signal;
 }
 
 /**

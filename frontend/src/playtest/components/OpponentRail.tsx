@@ -1,11 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { joinClasses } from '@/lib/join-classes';
 import { useCardThumb } from '@/lib/card-thumbs';
 import { paletteForIndex } from '@/lib/seat-palette';
 import type { PublicBattlefieldCard, PublicBoard } from '@/lib/playtest/projection';
 import { DESIGNATIONS } from '../lib/designations';
+import { useNewCardIds } from '../hooks/use-new-card-ids';
 import { OpponentBoardModal } from './OpponentBoardModal';
 import './OpponentRail.css';
+
+/** Turn-sweep highlight duration — the opponent-rail half of the turn-pass
+ *  moment (the stronger "Your turn" beat for the local seat lives in
+ *  `TableMoments.tsx`, which isn't in this roster at all — a seat's own turn
+ *  never appears in `opponents`). */
+const SWEEP_MS = 600;
 
 export interface OpponentSeat {
   /** Display name for this seat — `PublicBoard` carries no identity beyond a
@@ -85,6 +92,23 @@ export function OpponentRail({ opponents, activeSeat }: OpponentRailProps) {
   const [inspecting, setInspecting] = useState<number | null>(null);
   const inspectingOpp = opponents.find((o) => o.board.seat === inspecting) ?? null;
 
+  // Turn-pass moment (opponent half): a brief highlight sweep on whichever
+  // seat's chip just became active, in that seat's own color. Edge-triggered
+  // off `activeSeat` CHANGING — never on mount, never re-firing while it
+  // holds the same value — mirroring PlaytestBoard's `tableDefeatedTurn`
+  // transition guard. `activeSeat` becoming the local seat (not present in
+  // `opponents` at all) is simply a no-op here since no entry matches it.
+  const [sweepSeat, setSweepSeat] = useState<number | null>(null);
+  const prevActiveSeatRef = useRef(activeSeat);
+  useEffect(() => {
+    const prev = prevActiveSeatRef.current;
+    prevActiveSeatRef.current = activeSeat;
+    if (activeSeat === undefined || activeSeat === prev) return;
+    setSweepSeat(activeSeat);
+    const t = setTimeout(() => setSweepSeat(null), SWEEP_MS);
+    return () => clearTimeout(t);
+  }, [activeSeat]);
+
   if (opponents.length === 0) return null;
 
   return (
@@ -101,6 +125,7 @@ export function OpponentRail({ opponents, activeSeat }: OpponentRailProps) {
             opp={opp}
             glance={isGlance}
             active={opp.board.seat === activeSeat}
+            sweeping={opp.board.seat === sweepSeat}
             onOpen={() => setInspecting(opp.board.seat)}
           />
         ))}
@@ -120,11 +145,13 @@ function OpponentEntry({
   opp,
   glance,
   active,
+  sweeping,
   onOpen,
 }: {
   opp: OpponentSeat;
   glance: boolean;
   active: boolean;
+  sweeping: boolean;
   onOpen: () => void;
 }) {
   const { name, board, pending } = opp;
@@ -150,7 +177,11 @@ function OpponentEntry({
 
   return (
     <li
-      className={joinClasses('opponent-entry', active && 'is-active-turn')}
+      className={joinClasses(
+        'opponent-entry',
+        active && 'is-active-turn',
+        sweeping && 'opponent-entry--turn-sweep'
+      )}
       style={{
         ['--opp-base' as never]: palette.base,
         ['--opp-edge' as never]: palette.edge,
@@ -216,6 +247,9 @@ function OpponentEntry({
 function MiniBattlefield({ cards }: { cards: PublicBattlefieldCard[] }) {
   const visible = cards.slice(0, MAX_MINI_TILES);
   const overflow = cards.length - visible.length;
+  // Card-enter moment: only the tiles actually rendered (post-overflow-cap)
+  // need a baseline — a card folded into the "+N" chip has no tile to animate.
+  const newIds = useNewCardIds(visible.map((bf) => bf.card.id));
   return (
     <div className="opponent-entry__battlefield" aria-hidden="true">
       {cards.length === 0 ? (
@@ -223,7 +257,7 @@ function MiniBattlefield({ cards }: { cards: PublicBattlefieldCard[] }) {
       ) : (
         <>
           {visible.map((bf) => (
-            <MiniCard key={bf.card.id} bf={bf} />
+            <MiniCard key={bf.card.id} bf={bf} isNew={newIds.has(bf.card.id)} />
           ))}
           {overflow > 0 && <span className="opponent-mini-card__more">+{overflow}</span>}
         </>
@@ -232,13 +266,17 @@ function MiniBattlefield({ cards }: { cards: PublicBattlefieldCard[] }) {
   );
 }
 
-function MiniCard({ bf }: { bf: PublicBattlefieldCard }) {
+function MiniCard({ bf, isNew }: { bf: PublicBattlefieldCard; isNew: boolean }) {
   // A redacted face-down card carries no name — useCardThumb no-ops on
   // undefined, so this never risks resolving (or leaking) its identity.
   const art = useCardThumb(bf.faceDown ? undefined : bf.card.name, 'art_crop');
   return (
     <span
-      className={joinClasses('opponent-mini-card', bf.tapped && 'is-tapped')}
+      className={joinClasses(
+        'opponent-mini-card',
+        bf.tapped && 'is-tapped',
+        isNew && 'is-entering'
+      )}
       title={bf.faceDown ? 'Face-down card' : bf.card.name}
     >
       {bf.faceDown ? (

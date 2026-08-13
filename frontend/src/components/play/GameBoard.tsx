@@ -23,6 +23,7 @@ import { LifeKeypad } from './LifeKeypad';
 import { ShareDialog } from '../ShareDialog';
 import { SeatMenu } from './SeatMenu';
 import { GameMenu } from './GameMenu';
+import { GameRecap } from './GameRecap';
 
 interface Props {
   game: GameState;
@@ -295,9 +296,13 @@ export function GameBoard({
       </div>
 
       {game.status === 'finished' &&
-        game.winnerSeat != null &&
         (() => {
-          const winnerSeatIdx = game.players.findIndex((p) => p.seat === game.winnerSeat);
+          // A draw (winnerSeat null) still gets the overlay — no seat to
+          // rotate toward, so it renders unrotated.
+          const winnerSeatIdx =
+            game.winnerSeat != null
+              ? game.players.findIndex((p) => p.seat === game.winnerSeat)
+              : -1;
           const winnerSlot = winnerSeatIdx >= 0 ? board.seats[winnerSeatIdx] : null;
           const winnerRot = isShared && winnerSlot ? winnerSlot.rot : 0;
           return <WinCelebration game={game} rotation={winnerRot} />;
@@ -1402,15 +1407,17 @@ function seatColorKey(p: GamePlayer): string | null {
 const CONFETTI_COUNT = 28;
 
 /**
- * Full-board winner moment: a confetti burst plus the winner's name in their
- * own seat color. Dismissable (the game menu / history are still reachable
- * underneath). Resets when a new game's winner is decided because the parent
- * only mounts it while `status === 'finished'` with a winner, and the keyed
- * remount on game id clears the dismissed state.
+ * Full-board finished-game moment: a confetti burst plus the winner's name in
+ * their own seat color, or (for a draw) a plain "no winner" notice — either
+ * way followed by the game's recap. Dismissable (the game menu / history are
+ * still reachable underneath). Resets when a new game finishes because the
+ * parent only mounts it while `status === 'finished'`, and the keyed remount
+ * on game id clears the dismissed state.
  */
 function WinCelebration({ game, rotation = 0 }: { game: GameState; rotation?: number }) {
   const [dismissed, setDismissed] = useState(false);
-  const winner = game.players.find((p) => p.seat === game.winnerSeat);
+  const isDraw = game.winnerSeat == null;
+  const winner = isDraw ? undefined : game.players.find((p) => p.seat === game.winnerSeat);
   const palette = useMemo(
     () => (game.winnerSeat != null ? paletteForSeat(game.id, game.winnerSeat) : null),
     [game.id, game.winnerSeat]
@@ -1428,29 +1435,33 @@ function WinCelebration({ game, rotation = 0 }: { game: GameState; rotation?: nu
     []
   );
 
-  if (!winner || dismissed) return null;
+  // A non-draw game with no matching player is a data-integrity edge case
+  // (e.g. the winning seat left) — same as before, just skip the overlay.
+  if (dismissed || (!isDraw && !winner)) return null;
   return (
     <div
       className="win-celebration"
       role="dialog"
-      aria-label={`${winner.name} wins`}
+      aria-label={winner ? `${winner.name} wins` : 'Game over — no winner'}
       onClick={() => setDismissed(true)}
     >
-      <div className="win-celebration-confetti" aria-hidden="true">
-        {pieces.map((p, i) => (
-          <span
-            key={i}
-            className="win-confetti-piece"
-            style={{
-              left: `${p.left}%`,
-              background: `hsl(${p.hue} 85% 60%)`,
-              animationDelay: `${p.delay}s`,
-              animationDuration: `${p.duration}s`,
-              ['--confetti-rot' as never]: `${p.rot}deg`,
-            }}
-          />
-        ))}
-      </div>
+      {winner && (
+        <div className="win-celebration-confetti" aria-hidden="true">
+          {pieces.map((p, i) => (
+            <span
+              key={i}
+              className="win-confetti-piece"
+              style={{
+                left: `${p.left}%`,
+                background: `hsl(${p.hue} 85% 60%)`,
+                animationDelay: `${p.delay}s`,
+                animationDuration: `${p.duration}s`,
+                ['--confetti-rot' as never]: `${p.rot}deg`,
+              }}
+            />
+          ))}
+        </div>
+      )}
       <div
         className="win-celebration-card"
         style={{
@@ -1459,11 +1470,18 @@ function WinCelebration({ game, rotation = 0 }: { game: GameState; rotation?: nu
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <span className="win-celebration-trophy" aria-hidden="true">
-          🏆
-        </span>
-        <span className="win-celebration-name">{winner.name}</span>
-        <span className="win-celebration-sub">wins the game</span>
+        {winner ? (
+          <>
+            <span className="win-celebration-trophy" aria-hidden="true">
+              🏆
+            </span>
+            <span className="win-celebration-name">{winner.name}</span>
+            <span className="win-celebration-sub">wins the game</span>
+          </>
+        ) : (
+          <span className="win-celebration-sub">Game over — no winner</span>
+        )}
+        <GameRecap game={game} />
         <button
           type="button"
           className="win-celebration-dismiss"

@@ -3,7 +3,7 @@ import request from 'supertest';
 import http, { type Server } from 'node:http';
 import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
-import { isUniqueViolation } from './games';
+import { isUniqueViolation, SIGNAL_EMOTES } from './games';
 
 describe('isUniqueViolation (F20 join-code race guard)', () => {
   it('matches only a Postgres 23505 error', () => {
@@ -1903,4 +1903,177 @@ describe('POST /api/games/:code/leave', () => {
     const after = await request(app).get(`/api/games/${code}`).set('Cookie', host);
     expect(after.status).toBe(404);
   }, 20000);
+});
+
+describe('POST /api/games/:code/signal (ephemeral table signals)', () => {
+  it('rejects unauthenticated requests', async () => {
+    const { code } = await setupTable('games_sig_auth', []);
+    const res = await request(app)
+      .post(`/api/games/${code}/signal`)
+      .send({ kind: 'reaction', emote: SIGNAL_EMOTES[0] });
+    expect(res.status).toBe(401);
+  });
+
+  it('404s for an unknown code', async () => {
+    const cookie = await registerAndGetCookie('games_sig_unknown');
+    const res = await request(app)
+      .post('/api/games/ZZZZ/signal')
+      .set('Cookie', cookie)
+      .send({ kind: 'reaction', emote: SIGNAL_EMOTES[0] });
+    expect(res.status).toBe(404);
+  });
+
+  // Stealth 404, byte-identical to an unknown code — same reason every other
+  // route in this file closes the join-code enumeration hole.
+  it('gives a non-participant the same 404 an unknown code gives', async () => {
+    const { code } = await setupTable('games_sig_np_h', []);
+    const stranger = await registerAndGetCookie('games_sig_np_s');
+    const real = await request(app)
+      .post(`/api/games/${code}/signal`)
+      .set('Cookie', stranger)
+      .send({ kind: 'reaction', emote: SIGNAL_EMOTES[0] });
+    const unknown = await request(app)
+      .post('/api/games/ZZZZ/signal')
+      .set('Cookie', stranger)
+      .send({ kind: 'reaction', emote: SIGNAL_EMOTES[0] });
+    expect(real.status).toBe(404);
+    expect(real.body).toEqual(unknown.body);
+  });
+
+  it('rejects an unsupported kind', async () => {
+    const { code, host } = await setupTable('games_sig_kind', []);
+    const res = await request(app)
+      .post(`/api/games/${code}/signal`)
+      .set('Cookie', host)
+      .send({ kind: 'taunt' });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a reaction with an emote outside the fixed set', async () => {
+    const { code, host } = await setupTable('games_sig_emote', []);
+    const res = await request(app)
+      .post(`/api/games/${code}/signal`)
+      .set('Cookie', host)
+      .send({ kind: 'reaction', emote: '💀' });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a roll with a die outside the fixed set', async () => {
+    const { code, host } = await setupTable('games_sig_die', []);
+    const res = await request(app)
+      .post(`/api/games/${code}/signal`)
+      .set('Cookie', host)
+      .send({ kind: 'roll', die: 'd100' });
+    expect(res.status).toBe(400);
+  });
+
+  it('echoes a reaction signal with the server-stamped seat, ignoring a spoofed seat in the body', async () => {
+    const { code, joiners } = await setupTable('games_sig_echo_h', ['games_sig_echo_j']);
+    const res = await request(app)
+      .post(`/api/games/${code}/signal`)
+      .set('Cookie', joiners[0])
+      .send({ kind: 'reaction', emote: SIGNAL_EMOTES[2], seat: 0 });
+    expect(res.status).toBe(200);
+    expect(res.body.signal.kind).toBe('reaction');
+    expect(res.body.signal.emote).toBe(SIGNAL_EMOTES[2]);
+    // Joiner is seat 1; the body's claimed seat 0 (the host's) is ignored —
+    // there is no seat field this route reads from the body at all.
+    expect(res.body.signal.seat).toBe(1);
+    expect(typeof res.body.signal.ts).toBe('number');
+  });
+
+  it('a d6 roll is always 1-6, a d20 roll is always 1-20, a coin is always 0 or 1', async () => {
+    const { code, host } = await setupTable('games_sig_roll_range', []);
+    for (let i = 0; i < 30; i++) {
+      const res = await request(app)
+        .post(`/api/games/${code}/signal`)
+        .set('Cookie', host)
+        .send({ kind: 'roll', die: 'd6' });
+      expect(res.body.signal.value).toBeGreaterThanOrEqual(1);
+      expect(res.body.signal.value).toBeLessThanOrEqual(6);
+    }
+    for (let i = 0; i < 30; i++) {
+      const res = await request(app)
+        .post(`/api/games/${code}/signal`)
+        .set('Cookie', host)
+        .send({ kind: 'roll', die: 'd20' });
+      expect(res.body.signal.value).toBeGreaterThanOrEqual(1);
+      expect(res.body.signal.value).toBeLessThanOrEqual(20);
+    }
+    for (let i = 0; i < 30; i++) {
+      const res = await request(app)
+        .post(`/api/games/${code}/signal`)
+        .set('Cookie', host)
+        .send({ kind: 'roll', die: 'coin' });
+      expect([0, 1]).toContain(res.body.signal.value);
+    }
+  });
+
+  it("a 'first' roll returns a seat that actually exists in the game", async () => {
+    const { code, host } = await setupTable('games_sig_first_h', [
+      'games_sig_first_j1',
+      'games_sig_first_j2',
+    ]);
+    for (let i = 0; i < 15; i++) {
+      const res = await request(app)
+        .post(`/api/games/${code}/signal`)
+        .set('Cookie', host)
+        .send({ kind: 'roll', die: 'first' });
+      expect(res.status).toBe(200);
+      expect([0, 1, 2]).toContain(res.body.signal.value);
+    }
+  });
+
+  it('a connected SSE subscriber receives a broadcast signal frame', async () => {
+    const { code, host, joiners } = await setupTable('games_sig_sse_h', ['games_sig_sse_j']);
+    // Host's own stream: initial `state` frame + the `signal` frame the
+    // joiner's send below triggers.
+    const streamPromise = openGameEventsAnyFrame(host, code, 2);
+    await new Promise((r) => setTimeout(r, 50));
+    const posted = await request(app)
+      .post(`/api/games/${code}/signal`)
+      .set('Cookie', joiners[0])
+      .send({ kind: 'reaction', emote: SIGNAL_EMOTES[4] });
+    expect(posted.status).toBe(200);
+
+    const { frames } = await streamPromise;
+    const signalFrame = frames.find((f) => f.type === 'signal');
+    expect(signalFrame).toBeTruthy();
+    expect((signalFrame!.data as { seat: number; emote: string }).seat).toBe(1);
+    expect((signalFrame!.data as { seat: number; emote: string }).emote).toBe(SIGNAL_EMOTES[4]);
+  });
+
+  it('a held long-poll resolves early on a signal, carrying the boards/requests snapshots', async () => {
+    const { code, host, joiners } = await setupTable('games_sig_poll_h', ['games_sig_poll_j']);
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    const version = current.body.game.version as number;
+
+    const pollPromise = new Promise<{ status: number; body: Record<string, unknown> }>(
+      (resolve, reject) => {
+        request(app)
+          .get(`/api/games/${code}/poll?since=${version}`)
+          .set('Cookie', host)
+          .end((err, res) => (err ? reject(err) : resolve(res)));
+      }
+    );
+    // Give the poll a beat to register as a subscriber before sending —
+    // otherwise the signal could win the race and resolve nobody.
+    await new Promise((r) => setTimeout(r, 50));
+    await request(app)
+      .post(`/api/games/${code}/signal`)
+      .set('Cookie', joiners[0])
+      .send({ kind: 'roll', die: 'd6' });
+
+    const res = await pollPromise;
+    expect(res.status).toBe(200);
+    const signal = res.body.signal as { kind: string; seat: number; die: string };
+    expect(signal.kind).toBe('roll');
+    expect(signal.seat).toBe(1);
+    expect(signal.die).toBe('d6');
+    // Every branch of /poll carries the full snapshots, not just the item
+    // that resolved it (F4 convention) — empty here since nothing else was
+    // published, but the keys must be present.
+    expect(res.body.boards).toEqual([]);
+    expect(res.body.requests).toEqual([]);
+  });
 });

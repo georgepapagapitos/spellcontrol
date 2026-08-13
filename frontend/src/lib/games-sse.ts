@@ -1,7 +1,7 @@
 import { apiUrl } from './api-base';
 import type { GameState } from './game-state';
 import type { PublicBoard } from './playtest/projection';
-import type { GameRequest } from './games-api';
+import type { GameRequest, GameSignal } from './games-api';
 
 export interface GameEventHandlers {
   onState: (state: GameState) => void;
@@ -9,6 +9,8 @@ export interface GameEventHandlers {
   onBoard?: (seat: number, board: PublicBoard) => void;
   /** A cross-seat request's create/respond/resolve — catch-up on connect, or live. */
   onRequest?: (request: GameRequest) => void;
+  /** An ephemeral table signal (reaction/roll). No catch-up frame — see `GameSignal`'s doc comment. */
+  onSignal?: (signal: GameSignal) => void;
   onOpen?: () => void;
   onError?: () => void;
 }
@@ -61,6 +63,14 @@ export function subscribeGameEvents(code: string, handlers: GameEventHandlers): 
       handlers.onRequest?.(JSON.parse(ev.data) as GameRequest);
     } catch {
       // Malformed frame — ignore; the next create/respond/resolve will catch up.
+    }
+  });
+  es.addEventListener('signal', (ev: MessageEvent<string>) => {
+    try {
+      handlers.onSignal?.(JSON.parse(ev.data) as GameSignal);
+    } catch {
+      // Malformed frame — ignore; signals aren't stored server-side, so
+      // there's nothing to catch up on, just wait for the next one.
     }
   });
   return () => es.close();

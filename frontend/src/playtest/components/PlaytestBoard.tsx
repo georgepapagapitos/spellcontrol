@@ -19,6 +19,7 @@ import { useNarrowViewport } from '../hooks/use-narrow-viewport';
 import { useOnlineTable } from '../hooks/use-online-table';
 import { useTakeback } from '../hooks/use-takeback';
 import { OpponentRail } from './OpponentRail';
+import { TableMoments } from './TableMoments';
 import { TakebackModePicker } from './TakebackModePicker';
 import { TakebackPendingBanner } from './TakebackPendingBanner';
 import { TakebackConsentPrompt } from './TakebackConsentPrompt';
@@ -648,9 +649,10 @@ export function PlaytestBoard({ state }: Props) {
         )
       )}
       {sealMoment}
-      {/* Both portal to <body> (see their own doc comments) so placement here
-          only decides conditional gating, not layout. */}
+      {/* All three portal to <body> (see their own doc comments) so placement
+          here only decides conditional gating, not layout. */}
       {onlineTable && <TakebackConsentPrompt onlineTable={onlineTable} />}
+      {onlineTable && <TableMoments onlineTable={onlineTable} />}
       {takeback.pendingRequest && (
         <TakebackPendingBanner
           request={takeback.pendingRequest}

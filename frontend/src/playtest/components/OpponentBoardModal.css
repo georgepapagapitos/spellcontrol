@@ -230,6 +230,31 @@
   cursor: pointer;
 }
 
+/* Card-enter moment (OpponentRail.tsx's `useNewCardIds`, shared with the
+   glance rail's mini tiles) — fades in a permanent's tile the first time
+   it's seen for this seat. Opacity only: the tapped rotate above (inline
+   `style.transform` on `PlaytestCardFace`) already owns this element's
+   `transform`, and an entrance `transform` here would fight it for a
+   permanent that arrives already tapped. */
+.opponent-board-card.is-entering {
+  animation: opponent-board-card-enter 200ms var(--ease-out-soft);
+}
+
+@keyframes opponent-board-card-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opponent-board-card.is-entering {
+    animation: none;
+  }
+}
+
 /* Zone tiles (graveyard/exile/command) sit inside the shared
    `.playtest-zone-card` (playtest.css) — this is just the inspect button
    wrapping its art, since ZoneViewerModal's own tile has no such trigger

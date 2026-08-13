@@ -1,5 +1,5 @@
 import { API_BASE_URL } from './api-base';
-import { pollGame, type GameRequest } from './games-api';
+import { pollGame, type GameRequest, type GameSignal } from './games-api';
 import type { GameState } from './game-state';
 import type { PublicBoard } from './playtest/projection';
 
@@ -12,6 +12,8 @@ export interface GameLongPollHandlers {
   onBoard?: (seat: number, board: PublicBoard) => void;
   /** A cross-seat request — either a catch-up snapshot entry or one that resolved a held poll. */
   onRequest?: (request: GameRequest) => void;
+  /** A signal that resolved a held poll. No catch-up snapshot equivalent — see `GameSignal`'s doc comment. */
+  onSignal?: (signal: GameSignal) => void;
   /** Fired after every successful round-trip, whether or not it carried a new state — signals the transport is alive. */
   onHealthy?: () => void;
   onError?: () => void;
@@ -85,6 +87,9 @@ export function subscribeGameLongPoll(
         }
         if (result.request) {
           handlers.onRequest?.(result.request);
+        }
+        if (result.signal) {
+          handlers.onSignal?.(result.signal);
         }
       } catch {
         if (stopped) return;
