@@ -173,33 +173,72 @@ describe('setAiOptIn', () => {
 });
 
 describe('requestDeckReview', () => {
-  it('posts the payload and returns the review', async () => {
-    const mock = stubFetch(200, {
-      content: 'Prose.',
-      cached: false,
-      model: 'm',
-      usage: { inputTokens: 1, outputTokens: 2 },
-    });
-    const result = await requestDeckReview({
-      deckId: 'd1',
-      commander: 'Meren',
-      cards: [{ name: 'Swamp', oracleId: 'o', qty: 1 }],
-      analysis: {} as never,
-    });
-    expect(result.content).toBe('Prose.');
-    const [url] = mock.mock.calls[0] as [string];
-    expect(url).toBe('/api/ai/deck-review');
+  const payload = {
+    deckId: 'd1',
+    commander: 'Meren',
+    cards: [{ name: 'Swamp', oracleId: 'o', qty: 1 }],
+    analysis: {} as never,
+  };
+
+  const DONE = {
+    content: 'One. Two.',
+    cached: false,
+    model: 'm',
+    usage: { inputTokens: 1, outputTokens: 2 },
+  };
+
+  /** Stub the NDJSON stream the route emits, one object per line. */
+  function stubStream(lines: unknown[], status = 200): ReturnType<typeof vi.fn> {
+    const body = lines.map((l) => `${JSON.stringify(l)}\n`).join('');
+    const mock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(body, { status, headers: { 'Content-Type': 'application/x-ndjson' } })
+      );
+    vi.stubGlobal('fetch', mock);
+    return mock;
+  }
+
+  it('assembles the deltas and reports the text as it arrives', async () => {
+    const mock = stubStream([{ delta: 'One. ' }, { delta: 'Two.' }, { done: DONE }]);
+    const seen: string[] = [];
+    const result = await requestDeckReview(payload, (t) => seen.push(t));
+
+    // onText gets the running total, so a caller can render it directly.
+    expect(seen).toEqual(['One. ', 'One. Two.']);
+    expect(result).toEqual(DONE);
+    expect((mock.mock.calls[0] as [string])[0]).toBe('/api/ai/deck-review');
   });
 
-  it('surfaces the server error message with its status', async () => {
+  it('returns the terminator text, not the deltas glued back together', async () => {
+    // If the two ever disagree, the stored review is the one that counts.
+    stubStream([{ delta: 'partial' }, { done: { ...DONE, content: 'the whole thing' } }]);
+    expect((await requestDeckReview(payload)).content).toBe('the whole thing');
+  });
+
+  it('treats a stream that never terminates as a failure, not a short review', async () => {
+    stubStream([{ delta: 'Half a find' }]);
+    await expect(requestDeckReview(payload)).rejects.toThrow(/ended early/);
+  });
+
+  it('throws the in-band error a mid-stream failure reports', async () => {
+    stubStream([{ delta: 'Your deck ' }, { error: 'The review could not be generated.' }]);
+    await expect(requestDeckReview(payload)).rejects.toThrow('The review could not be generated.');
+  });
+
+  it('turns a mangled frame into readable copy, not a JSON parse error', async () => {
+    const mock = vi
+      .fn()
+      .mockResolvedValue(new Response('{"delta":"ok"}\n{not json}\n', { status: 200 }));
+    vi.stubGlobal('fetch', mock);
+    await expect(requestDeckReview(payload)).rejects.toThrow(/garbled/);
+  });
+
+  it('surfaces a pre-stream server error with its status', async () => {
     stubFetch(429, { error: 'Daily limit reached (10 per day). It resets at midnight UTC.' });
-    await expect(
-      requestDeckReview({
-        deckId: 'd1',
-        commander: 'Meren',
-        cards: [{ name: 'Swamp', oracleId: 'o', qty: 1 }],
-        analysis: {} as never,
-      })
-    ).rejects.toMatchObject({ message: expect.stringContaining('Daily limit'), status: 429 });
+    await expect(requestDeckReview(payload)).rejects.toMatchObject({
+      message: expect.stringContaining('Daily limit'),
+      status: 429,
+    });
   });
 });

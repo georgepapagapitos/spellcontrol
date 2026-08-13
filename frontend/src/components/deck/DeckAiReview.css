@@ -112,6 +112,36 @@
   margin-bottom: 0;
 }
 
+/* ── Streaming (T102): the prose lands as it's written ── */
+.deck-ai-writing {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* A caret on the tail of the last paragraph, so the text visibly has more
+   coming. Purely decorative — the "Writing…" label is the announced signal. */
+.deck-ai-prose--streaming p:last-child::after {
+  content: '▍';
+  margin-left: 0.1em;
+  color: var(--text-muted);
+  animation: deck-ai-caret 1s steps(2, start) infinite;
+}
+
+@keyframes deck-ai-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-ai-prose--streaming p:last-child::after {
+    animation: none;
+  }
+}
+
 /* Three titled sections, not three chunky blocks of text. The weakness leads —
    it's the part the statistics on the other tab can't give you. */
 .deck-ai-section + .deck-ai-section {

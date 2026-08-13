@@ -23,14 +23,27 @@ export interface AiGeneration {
   outputTokens: number;
 }
 
-export async function generateReview(system: string, user: string): Promise<AiGeneration> {
+/**
+ * One generation, streamed. `onDelta` fires per text chunk so the route can
+ * forward it to the client while the model is still writing (T102 — measured
+ * 7-9s typical, well past the spec's 8s streaming line); the resolved value is
+ * still the FULL text plus token usage, so the caller stores and audits exactly
+ * what it did before. Callers that don't want the chunks pass no `onDelta`.
+ */
+export async function generateReview(
+  system: string,
+  user: string,
+  onDelta?: (text: string) => void
+): Promise<AiGeneration> {
   if (!client) client = new Anthropic();
-  const res = await client.messages.create({
+  const stream = client.messages.stream({
     model: AI_MODEL,
     max_tokens: 2000,
     system,
     messages: [{ role: 'user', content: user }],
   });
+  if (onDelta) stream.on('text', onDelta);
+  const res = await stream.finalMessage();
   if (res.stop_reason === 'refusal') {
     throw new Error('The model declined to review this deck.');
   }

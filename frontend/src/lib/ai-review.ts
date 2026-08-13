@@ -46,13 +46,81 @@ export async function setAiOptIn(enabled: boolean): Promise<boolean> {
   return data.optIn;
 }
 
-export async function requestDeckReview(payload: DeckReviewPayload): Promise<DeckReviewResult> {
+/**
+ * Ask for the review and read it as it is written.
+ *
+ * The wire is NDJSON (see `backend/src/routes/ai.ts`): `{delta}` lines carry
+ * prose in order for live display, one `{done}` line terminates and carries the
+ * authoritative full text, and `{error}` reports a failure that happened after
+ * the 200 already went out. `onText` receives the text accumulated so far, so a
+ * caller can drop it straight into state.
+ *
+ * The returned `content` is the one from `{done}`, never the deltas glued back
+ * together — what's displayed is then exactly what the server stored. A stream
+ * that ends without `{done}` was truncated: a failure, not half a review to
+ * present as finished.
+ */
+export async function requestDeckReview(
+  payload: DeckReviewPayload,
+  onText?: (textSoFar: string) => void
+): Promise<DeckReviewResult> {
   const res = await authedFetch('/api/ai/deck-review', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  return handleResponse<DeckReviewResult>(res);
+  // Anything that fails before the first byte still answers with a status code
+  // and a JSON body; handleResponse always throws for those.
+  if (!res.ok) await handleResponse<never>(res);
+
+  let content = '';
+  let done: DeckReviewResult | undefined;
+  let failure: string | undefined;
+
+  const readLine = (line: string) => {
+    if (!line.trim()) return;
+    let msg: { delta?: unknown; done?: unknown; error?: unknown };
+    try {
+      msg = JSON.parse(line) as typeof msg;
+    } catch {
+      // A mangled frame means the rest of the stream can't be trusted either.
+      throw new Error('The review came back garbled. Try again.');
+    }
+    if (typeof msg.delta === 'string') {
+      content += msg.delta;
+      onText?.(content);
+    } else if (typeof msg.error === 'string') {
+      failure = msg.error;
+    } else if (msg.done && typeof msg.done === 'object') {
+      done = msg.done as DeckReviewResult;
+    }
+  };
+
+  if (res.body) {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    for (;;) {
+      const { value, done: streamDone } = await reader.read();
+      if (streamDone) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nl = buffer.indexOf('\n');
+      while (nl >= 0) {
+        readLine(buffer.slice(0, nl));
+        buffer = buffer.slice(nl + 1);
+        nl = buffer.indexOf('\n');
+      }
+    }
+    readLine(buffer);
+  } else {
+    // No readable stream (a test double, or a runtime without one): the body is
+    // the same NDJSON, it just arrives all at once.
+    for (const line of (await res.text()).split('\n')) readLine(line);
+  }
+
+  if (failure) throw new Error(failure);
+  if (!done) throw new Error('The review ended early. Try again.');
+  return done;
 }
 
 /** Aggregate per-slot deck rows into the name/oracleId/qty list the API takes. */
