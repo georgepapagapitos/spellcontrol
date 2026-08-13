@@ -1,7 +1,14 @@
 import { Clock, Undo2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { DesignationKind, GameAction, GamePlayer, GameState } from '../../lib/game-state';
-import { cmdDamageKey } from '../../lib/game-state';
+import type {
+  DesignationKind,
+  GameAction,
+  GamePhase,
+  GamePlayer,
+  GameState,
+} from '../../lib/game-state';
+import { cmdDamageKey, GAME_PHASES } from '../../lib/game-state';
+import type { GameRequest } from '../../lib/games-api';
 import { paletteForIndex } from '../../lib/seat-palette';
 import { useAnimatedNumber } from '../../lib/use-animated-number';
 import { useFloatingDelta } from '../../lib/use-floating-delta';
@@ -13,6 +20,20 @@ import { useAuth } from '../../store/auth';
 import { usePlayStore } from '../../store/play';
 import { GameRecap } from './GameRecap';
 import './OnlineGameView.css';
+
+const PHASE_LABELS: Record<GamePhase, string> = {
+  beginning: 'Beginning',
+  main1: 'Main 1',
+  combat: 'Combat',
+  main2: 'Main 2',
+  end: 'End',
+};
+
+// Mirrors playtest's TakebackConsentPrompt grace window (see its module doc):
+// native long-poll can drop a request's own terminal frame, so the banner
+// self-dismisses off the request's own `expiresAt` rather than waiting for a
+// server frame that might never arrive.
+const HOLD_EXPIRY_GRACE_MS = 2000;
 
 interface Props {
   game: GameState;
@@ -36,6 +57,13 @@ interface Props {
 export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }: Props) {
   const user = useAuth((s) => s.user);
   const dispatchOnline = usePlayStore((s) => s.dispatchOnline);
+  // Plain dispatch for non-undoable bookkeeping (the phase clock) — phase
+  // changes are advisory table state, not a misclick to compensate, so they
+  // deliberately skip the undo capture below.
+  const dispatch = (action: GameAction) => void dispatchOnline(action);
+  const onlineRequests = usePlayStore((s) => s.onlineRequests);
+  const raiseGameRequest = usePlayStore((s) => s.raiseGameRequest);
+  const cancelGameRequest = usePlayStore((s) => s.cancelGameRequest);
 
   // Wrap dispatch so undoable actions (life/poison/cmd-dmg — see isUndoable)
   // snapshot the pre-action state first; `game` is the live pre-action state
@@ -133,6 +161,9 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
               {turnLabel}
             </span>
           )}
+          {game.status === 'active' && (
+            <PhaseChip game={game} mySeat={mySeat} dispatch={dispatch} />
+          )}
         </div>
         {game.status !== 'finished' && (
           <div className="ogv-header-actions">
@@ -149,6 +180,13 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
           </div>
         )}
       </header>
+
+      <HoldBanners
+        onlineRequests={onlineRequests}
+        game={game}
+        mySeat={mySeat}
+        cancelGameRequest={cancelGameRequest}
+      />
 
       {game.status === 'finished' ? (
         <FinishedPanel game={game} onRematch={onRematch} onLeave={onLeave} />
@@ -175,6 +213,9 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
               opponents={opponents}
               dispatch={dispatchTracked}
               isActiveTurn={game.activeSeat === mySeat.seat}
+              myRequest={onlineRequests[mySeat.seat]}
+              raiseGameRequest={raiseGameRequest}
+              cancelGameRequest={cancelGameRequest}
               undoNonce={undoNonce}
               onUndo={onUndo}
               undoLabel={undoLabel}
@@ -303,6 +344,203 @@ function useLethalFlash(player: GamePlayer, game: GameState): boolean {
   return flashing;
 }
 
+// ── Phase clock (advisory, T101) ───────────────────────────────────────────
+
+/**
+ * Advisory turn-structure clock — a life pad, not a rules engine, so it
+ * never blocks anything: it's a chip plus a tap. `game.phase` absent means
+ * the clock hasn't been started, and only the active seat's own device gets
+ * the (subtle, opt-in) start affordance; every other seat sees nothing at
+ * all until it's running. Once running, the phase name is visible to every
+ * seat, but only the active seat's own device can advance it — 'end' can't
+ * advance further from here, since turn-passing is what resets the clock
+ * server-side, not another wrap of this chip.
+ */
+function PhaseChip({
+  game,
+  mySeat,
+  dispatch,
+}: {
+  game: GameState;
+  mySeat: GamePlayer | null;
+  dispatch: (a: GameAction) => void;
+}) {
+  const phase = game.phase;
+  const isActiveOwner = (seat: GamePlayer | null): seat is GamePlayer =>
+    seat != null && game.activeSeat === seat.seat;
+
+  if (phase === undefined) {
+    if (!isActiveOwner(mySeat)) return null;
+    return (
+      <button
+        type="button"
+        className="ogv-phase-start"
+        onClick={() => dispatch({ type: 'phase', phase: 'beginning', actorSeat: mySeat.seat })}
+      >
+        Start the phase clock
+      </button>
+    );
+  }
+
+  const label = PHASE_LABELS[phase];
+
+  if (!isActiveOwner(mySeat)) {
+    return (
+      <span className="ogv-phase-chip" aria-label={`Phase: ${label}`}>
+        <span role="status">{label}</span>
+      </span>
+    );
+  }
+
+  const canAdvance = phase !== 'end';
+  const advance = () => {
+    const next = GAME_PHASES[GAME_PHASES.indexOf(phase) + 1];
+    if (!next) return;
+    dispatch({ type: 'phase', phase: next, actorSeat: mySeat.seat });
+    haptics.tap();
+  };
+
+  return (
+    <button
+      type="button"
+      className="ogv-phase-chip ogv-phase-chip--tappable"
+      aria-label={canAdvance ? `Phase: ${label}. Tap to advance.` : `Phase: ${label}`}
+      disabled={!canAdvance}
+      onClick={advance}
+    >
+      <span role="status">{label}</span>
+    </button>
+  );
+}
+
+// ── Hold (T101 priority ask) ────────────────────────────────────────────────
+
+/** Every still-live pending hold, any seat, oldest first — mirrors
+ *  playtest's TakebackConsentPrompt `pickIncomingRequest`: a `pending` hold
+ *  past its `expiresAt` (+ grace) is treated as locally expired so a dropped
+ *  terminal frame (native long-poll) can't strand the banner forever. `now`
+ *  defaults here rather than at the call site so a render body never calls
+ *  the impure `Date.now()` directly. */
+function pickPendingHolds(
+  onlineRequests: Record<number, GameRequest>,
+  now = Date.now()
+): GameRequest[] {
+  return Object.values(onlineRequests)
+    .filter(
+      (r) => r.kind === 'hold' && r.status === 'pending' && now - r.expiresAt < HOLD_EXPIRY_GRACE_MS
+    )
+    .sort((a, b) => a.createdAt - b.createdAt);
+}
+
+/** Prominent, non-blocking strip for any seat's pending hold — never an
+ *  accept/decline surface (holds have no approval machinery at all, see
+ *  `GameRequest`'s doc comment), just an announcement plus the holder's own
+ *  release control. */
+function HoldBanners({
+  onlineRequests,
+  game,
+  mySeat,
+  cancelGameRequest,
+}: {
+  onlineRequests: Record<number, GameRequest>;
+  game: GameState;
+  mySeat: GamePlayer | null;
+  cancelGameRequest: (id: string) => Promise<GameRequest>;
+}) {
+  const holds = pickPendingHolds(onlineRequests);
+  const idsKey = holds.map((h) => h.id).join(',');
+
+  // Self-dismiss at each shown hold's own deadline even with no server frame
+  // ever arriving — re-armed only when the shown set of holds changes.
+  const [, forceExpiryCheck] = useState(0);
+  useEffect(() => {
+    if (holds.length === 0) return;
+    const soonest = Math.min(...holds.map((h) => h.expiresAt + HOLD_EXPIRY_GRACE_MS - Date.now()));
+    const t = setTimeout(() => forceExpiryCheck((n) => n + 1), Math.max(soonest, 0));
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idsKey]);
+
+  // Haptic tap when a hold newly lands this session — not for one already
+  // pending on first mount, which is a catch-up snapshot, not a landing.
+  const seenRef = useRef<Set<string>>(new Set());
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    if (mountedRef.current) {
+      for (const h of holds) {
+        if (!seenRef.current.has(h.id)) haptics.tap();
+      }
+    }
+    for (const h of holds) seenRef.current.add(h.id);
+    mountedRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idsKey]);
+
+  if (holds.length === 0) return null;
+
+  return (
+    <div className="ogv-holds">
+      {holds.map((h) => (
+        <HoldBanner
+          key={h.id}
+          request={h}
+          game={game}
+          mine={mySeat != null && h.requesterSeat === mySeat.seat}
+          onRelease={() => cancelGameRequest(h.id)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function HoldBanner({
+  request,
+  game,
+  mine,
+  onRelease,
+}: {
+  request: GameRequest;
+  game: GameState;
+  mine: boolean;
+  onRelease: () => Promise<GameRequest>;
+}) {
+  const holder = game.players.find((p) => p.seat === request.requesterSeat);
+  const palette = paletteForIndex(request.requesterSeat);
+  const [releasing, setReleasing] = useState(false);
+
+  const release = async () => {
+    setReleasing(true);
+    try {
+      await onRelease();
+    } catch {
+      setReleasing(false);
+    }
+  };
+
+  return (
+    <div
+      className="ogv-hold"
+      role="status"
+      style={{ ['--ogv-base' as never]: palette.base, ['--ogv-edge' as never]: palette.edge }}
+    >
+      <span className="ogv-hold-dot" aria-hidden="true" />
+      <span className="ogv-hold-text">
+        <strong>{holder?.name ?? 'A player'}</strong> holds — responding…
+      </span>
+      {mine && (
+        <button
+          type="button"
+          className="ogv-hold-release"
+          disabled={releasing}
+          onClick={() => void release()}
+        >
+          {releasing ? 'Releasing…' : 'Release'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── Opponent tile ───────────────────────────────────────────────────────────
 
 function OpponentTile({
@@ -418,6 +656,9 @@ function YourPanel({
   opponents,
   dispatch,
   isActiveTurn,
+  myRequest,
+  raiseGameRequest,
+  cancelGameRequest,
   undoNonce,
   onUndo,
   undoLabel,
@@ -427,6 +668,12 @@ function YourPanel({
   opponents: GamePlayer[];
   dispatch: (a: GameAction) => void;
   isActiveTurn: boolean;
+  myRequest?: GameRequest;
+  raiseGameRequest: (
+    kind: GameRequest['kind'],
+    payload: GameRequest['payload']
+  ) => Promise<GameRequest>;
+  cancelGameRequest: (id: string) => Promise<GameRequest>;
   undoNonce?: number;
   onUndo: () => void;
   undoLabel: string | null;
@@ -484,6 +731,13 @@ function YourPanel({
       <LifeControls player={player} dispatch={dispatch} disabled={disabled} undoNonce={undoNonce} />
 
       <div className="ogv-you-tools">
+        <HoldControl
+          disabled={disabled}
+          myRequest={myRequest}
+          raiseGameRequest={raiseGameRequest}
+          cancelGameRequest={cancelGameRequest}
+        />
+
         {game.commanderDamageEnabled && (
           <div className="ogv-tool">
             <button
@@ -574,6 +828,67 @@ function YourPanel({
         )}
       </div>
     </section>
+  );
+}
+
+/** The "Hold" priority ask (T101) — raises or cancels this seat's own hold.
+ *  Flips in place to the release control while pending. The server 409s a
+ *  second raise while ANY request is already pending for this seat — a
+ *  pending takeback ask included, not just a pending hold — so the error is
+ *  surfaced inline rather than pre-blocked, and its copy (from the server)
+ *  already says a request is pending without claiming which kind. */
+function HoldControl({
+  disabled,
+  myRequest,
+  raiseGameRequest,
+  cancelGameRequest,
+}: {
+  disabled: boolean;
+  myRequest?: GameRequest;
+  raiseGameRequest: (
+    kind: GameRequest['kind'],
+    payload: GameRequest['payload']
+  ) => Promise<GameRequest>;
+  cancelGameRequest: (id: string) => Promise<GameRequest>;
+}) {
+  const pendingHold =
+    myRequest?.status === 'pending' && myRequest.kind === 'hold' ? myRequest : null;
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const toggle = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      if (pendingHold) {
+        await cancelGameRequest(pendingHold.id);
+      } else {
+        await raiseGameRequest('hold', { summary: '' });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't reach the table — try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="ogv-tool">
+      <button
+        type="button"
+        className={`ogv-chip-btn ${pendingHold ? 'is-active' : ''}`}
+        aria-pressed={!!pendingHold}
+        disabled={disabled || busy}
+        onClick={() => void toggle()}
+      >
+        <span aria-hidden="true">✋</span> {pendingHold ? 'Release hold' : 'Hold'}
+      </button>
+      {error && (
+        <p className="ogv-hold-error" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 

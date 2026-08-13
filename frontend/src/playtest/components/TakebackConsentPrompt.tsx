@@ -10,10 +10,13 @@ interface Props {
 }
 
 /** The oldest still-live incoming ask for `mySeat` to respond to — never this
- *  seat's own outgoing request, and never one past its deadline (+ grace)
- *  even if the server's own expiry frame never arrived (see module doc).
- *  `now` defaults to `Date.now()` here, not at the call site, so a render
- *  body never calls the impure `Date.now()` directly (react-hooks/purity). */
+ *  seat's own outgoing request, never a `kind: 'hold'` (a hold has no
+ *  approval machinery at all — see games-api.ts's doc comment; it must
+ *  never render as a consent card asking to approve/decline it), and never
+ *  one past its deadline (+ grace) even if the server's own expiry frame
+ *  never arrived (see module doc). `now` defaults to `Date.now()` here, not
+ *  at the call site, so a render body never calls the impure `Date.now()`
+ *  directly (react-hooks/purity). */
 function pickIncomingRequest(
   onlineRequests: Record<number, GameRequest>,
   mySeat: number,
@@ -23,6 +26,7 @@ function pickIncomingRequest(
     Object.values(onlineRequests)
       .filter(
         (r) =>
+          r.kind === 'rewind' &&
           r.status === 'pending' &&
           r.requesterSeat !== mySeat &&
           now - r.expiresAt < TAKEBACK_EXPIRY_GRACE_MS

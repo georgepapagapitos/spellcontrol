@@ -3,18 +3,23 @@ import type { GameAction, GameState } from './game-state';
 import type { PublicBoard } from './playtest/projection';
 
 /**
- * A cross-seat request/response — currently only `kind: 'rewind'` (see
- * `POST /api/games/:code/request` in backend `routes/games.ts`). Approvals
- * is a partial map: only seats that have responded appear in it. `status`
- * starts `pending` and is terminal once it's anything else — the server
- * deletes a resolved request from its store immediately, so a `pending`
- * request is the only kind still open for a response.
+ * A cross-seat request/response (see `POST /api/games/:code/request` in
+ * backend `routes/games.ts`) — `kind: 'rewind'` (takeback consent) or
+ * `kind: 'hold'` (T101 "Hold — anyone respond?" priority ask). Approvals
+ * is a partial map: only seats that have responded appear in it — and for
+ * a hold it's always empty, since a hold has **no approval machinery at
+ * all**: nobody approves or declines it (the server 400s `/respond` for
+ * one). A hold resolves only via the requester's own cancel or its TTL.
+ * `status` starts `pending` and is terminal once it's anything else — the
+ * server deletes a resolved request from its store immediately, so a
+ * `pending` request is the only kind still open for a response.
  */
 export interface GameRequest {
   id: string;
   code: string;
-  kind: 'rewind';
-  payload: { steps: number; summary: string };
+  kind: 'rewind' | 'hold';
+  /** rewind: `{ steps, summary }`. hold: `{ summary }` only — `steps` stays absent. */
+  payload: { steps?: number; summary: string };
   requesterSeat: number;
   approvals: Record<number, boolean>;
   status: 'pending' | 'approved' | 'denied' | 'expired' | 'cancelled';
@@ -184,8 +189,8 @@ export async function sendGameSignal(code: string, input: GameSignalInput): Prom
  */
 export async function raiseGameRequest(
   code: string,
-  kind: 'rewind',
-  payload: { steps: number; summary: string }
+  kind: GameRequest['kind'],
+  payload: GameRequest['payload']
 ): Promise<GameRequest> {
   const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/request`, {
     method: 'POST',

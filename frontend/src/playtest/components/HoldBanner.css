@@ -1,0 +1,100 @@
+/* ── Hold banner — co-located styles ──────────────────────────────────────
+ * Table-wide "someone's holding" strip (see HoldBanner.tsx doc comment).
+ * Portaled to <body>, sits just under the action bar — closer to the
+ * toolbar than the ephemeral event banners (Resistance/session summary,
+ * offset +6rem in styles/playtest.css) since this is a standing table
+ * state, not a one-off announcement, and the two must never visually
+ * collide when both are live at once. */
+
+.playtest-hold-banner {
+  position: fixed;
+  top: calc(var(--safe-top) + 3.25rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 899;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: min(92vw, 30rem);
+  pointer-events: none;
+}
+
+.playtest-hold-banner__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-raised);
+  border: 0.5px solid currentColor;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-tooltip);
+  font-size: var(--text-sm);
+  pointer-events: auto;
+  animation: playtest-hold-fade-in 200ms ease;
+}
+
+.playtest-hold-banner__icon {
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.playtest-hold-banner__message {
+  min-width: 0;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.playtest-hold-banner__message strong {
+  color: inherit;
+  font-weight: 700;
+}
+
+.playtest-hold-banner__release {
+  flex-shrink: 0;
+  background: transparent;
+  border: 0.5px solid var(--border-strong);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 3px var(--space-2);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.playtest-hold-banner__release:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playtest-hold-banner__release:hover {
+    color: var(--text-primary);
+    background: var(--accent-light);
+    border-color: var(--accent);
+  }
+}
+
+@media (pointer: coarse) {
+  .playtest-hold-banner__release {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@keyframes playtest-hold-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playtest-hold-banner__row {
+    animation: none;
+  }
+}
