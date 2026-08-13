@@ -29,6 +29,7 @@ import { publicRouter } from './routes/public';
 import { reportsRouter } from './routes/reports';
 import { discoverRouter } from './routes/discover';
 import { activityRouter } from './routes/activity';
+import { aiRouter } from './routes/ai';
 
 /**
  * Returns the Postgres connection string for tests. vitest.global-setup.ts
@@ -109,9 +110,24 @@ export async function createTestEnv(): Promise<TestEnv> {
       avatar_card_id TEXT,
       avatar_card_name TEXT,
       avatar_image_url TEXT,
-      profile_hidden_at BIGINT
+      profile_hidden_at BIGINT,
+      ai_opt_in BOOLEAN NOT NULL DEFAULT false,
+      ai_daily_limit INTEGER
     );
     CREATE UNIQUE INDEX users_email_idx ON users(email);
+    CREATE TABLE ai_reviews (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      feature TEXT NOT NULL,
+      input_hash TEXT NOT NULL,
+      model TEXT NOT NULL,
+      content TEXT NOT NULL,
+      input_tokens INTEGER NOT NULL,
+      output_tokens INTEGER NOT NULL,
+      created_at BIGINT NOT NULL
+    );
+    CREATE UNIQUE INDEX ai_reviews_key_idx ON ai_reviews(user_id, feature, input_hash);
+    CREATE INDEX ai_reviews_user_day_idx ON ai_reviews(user_id, created_at);
     CREATE TABLE auth_identities (
       provider TEXT NOT NULL,
       provider_subject TEXT NOT NULL,
@@ -544,6 +560,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/reports', reportsRouter);
   app.use('/api/discover', discoverRouter);
   app.use('/api/activity', activityRouter);
+  app.use('/api/ai', aiRouter);
 
   /**
    * Hand tests a **listening server**, never the bare Express app.

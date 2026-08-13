@@ -59,7 +59,37 @@ export const users = pgTable('users', {
    * with w1-public-profile-page.
    */
   profileHiddenAt: bigint('profile_hidden_at', { mode: 'number' }),
+  /**
+   * Opt-in AI features (T96). Consent, default off, enforced server-side in
+   * routes/ai.ts — deliberately NOT a synced setting. `aiDailyLimit` NULL
+   * means the app default applies; a per-user override is a data change.
+   */
+  aiOptIn: boolean('ai_opt_in').notNull().default(false),
+  aiDailyLimit: integer('ai_daily_limit'),
 });
+
+/**
+ * AI review cache / quota meter / cost audit (T96 "Read the deck"). One row
+ * per generated review, unique per (user, feature, input hash) — a re-request
+ * of an unedited deck is a cache hit and spends nothing. Never synced.
+ */
+export const aiReviews = pgTable(
+  'ai_reviews',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    feature: text('feature').notNull(),
+    inputHash: text('input_hash').notNull(),
+    model: text('model').notNull(),
+    content: text('content').notNull(),
+    inputTokens: integer('input_tokens').notNull(),
+    outputTokens: integer('output_tokens').notNull(),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (t) => [uniqueIndex('ai_reviews_key_idx').on(t.userId, t.feature, t.inputHash)]
+);
 
 /**
  * External login providers linked to a user (Google today; the shape is

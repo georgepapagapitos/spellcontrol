@@ -36,6 +36,14 @@ export interface TradeCard {
   copies: TradeCopy[];
 }
 
+/**
+ * Mirrors the backend's MAX_LINES_PER_SIDE (routes/trades.ts). parseSide
+ * rejects a longer side outright — with an error that reads like a bad card,
+ * not a full basket — so the composer enforces the cap client-side with a
+ * sentence that says what to actually do.
+ */
+export const MAX_TRADE_LINES_PER_SIDE = 40;
+
 export interface TradeOffer {
   id: string;
   /** True when the caller sent this offer. */
