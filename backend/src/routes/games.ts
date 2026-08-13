@@ -11,6 +11,7 @@ import {
   applyAction,
   createGameState,
   makePlayer,
+  GAME_PHASES,
   type GameAction,
   type GameFormat,
   type GamePlayer,
@@ -96,26 +97,34 @@ function boardsSnapshot(code: string): Array<{ seat: number; board: unknown }> {
 
 /**
  * Cross-seat request/response channel — the plumbing rewind consent is
- * built on (see `frontend/src/lib/playtest/rewind.ts`, landing separately).
- * A seat raises a request (`kind: 'rewind'` is the only one that exists),
- * every other currently-connected seated player approves or declines it,
- * and it resolves to approved/denied/expired.
+ * built on (see `frontend/src/lib/playtest/rewind.ts`), now shared with the
+ * "Hold — anyone respond?" priority ask (T101). A seat raises a request;
+ * for `kind: 'rewind'` every other currently-connected seated player
+ * approves or declines it and it resolves to approved/denied/expired. A
+ * `kind: 'hold'` is different in kind, not degree: it's an announcement
+ * that pauses the table socially, with **no approval machinery at all** —
+ * nobody approves or declines it (see `/respond`, which 400s for a hold).
+ * It resolves only by the requester's own cancel or its TTL backstop (see
+ * `HOLD_TTL_MS`) — never by `isUnanimouslyApproved`, so an empty approver
+ * set (nobody else at the table right now) must NOT instantly resolve it
+ * the way a vacuous rewind approval would.
  *
  * Storage mirrors `boards` exactly: in-memory, per code, one entry per
  * *requester* seat (so "one pending request per seat" is the map's own
- * shape rather than a separate check), evicted with the session by
- * `broadcastGameDeleted`. Unlike `boards` — which keeps the latest value
- * per seat forever — a resolved request is deleted from this map the
- * instant it resolves (see `resolveRequest`), so this never accumulates
- * history; only genuinely pending requests are ever held.
+ * shape rather than a separate check, shared by both kinds), evicted with
+ * the session by `broadcastGameDeleted`. Unlike `boards` — which keeps the
+ * latest value per seat forever — a resolved request is deleted from this
+ * map the instant it resolves (see `resolveRequest`), so this never
+ * accumulates history; only genuinely pending requests are ever held.
  */
 interface StoredRequest {
   id: string;
   code: string;
-  kind: 'rewind';
-  payload: { steps: number; summary: string };
+  kind: 'rewind' | 'hold';
+  /** rewind: `{ steps, summary }`. hold: `{ summary }` only — `steps` stays absent. */
+  payload: { steps?: number; summary: string };
   requesterSeat: number;
-  /** seat -> approved (true) / declined (false). */
+  /** seat -> approved (true) / declined (false). Never populated for a hold. */
   approvals: Record<number, boolean>;
   status: 'pending' | 'approved' | 'denied' | 'expired' | 'cancelled';
   createdAt: number;
@@ -129,6 +138,10 @@ const requestTimers = new Map<string, ReturnType<typeof setTimeout>>();
 // within a bounded window. Shortened under test so the expiry test doesn't
 // sleep 60s; see POLL_TIMEOUT_MS above for the same pattern.
 const REQUEST_TTL_MS = isTest ? 200 : 60_000;
+// A hold outlasts a rewind ask on purpose: "wait, I want to respond" is a
+// real in-the-moment pause, not a quick consent check, so it gets a longer
+// backstop than REQUEST_TTL_MS's 60s.
+const HOLD_TTL_MS = isTest ? 200 : 90_000;
 
 function requestsSnapshot(code: string): StoredRequest[] {
   const codeRequests = requests.get(code);
@@ -510,6 +523,16 @@ function numericFieldError(action: GameAction): string | null {
 function noteMessageError(action: GameAction): string | null {
   if (action.type !== 'note') return null;
   return typeof action.message === 'string' ? null : 'Invalid message.';
+}
+
+/**
+ * Reject a `phase` action whose value isn't one of the exported `GamePhase`
+ * list — the reducer sets it verbatim with no validation of its own (see
+ * `packages/game-core`), so the route is the only place this is checked.
+ */
+function invalidPhaseError(action: GameAction): string | null {
+  if (action.type !== 'phase') return null;
+  return (GAME_PHASES as readonly string[]).includes(action.phase) ? null : 'Invalid phase.';
 }
 
 function isParticipant(state: GameState, userId: string): boolean {
@@ -1103,7 +1126,7 @@ const requestLimiter = testAwareLimiter({ windowMs: 60_000, max: 30 });
 const MAX_REQUEST_BYTES = 4 * 1024;
 const MAX_SUMMARY_LEN = 200;
 
-/** Only `kind: 'rewind'` exists today — see the module doc comment above `requests`. */
+/** `kind: 'rewind'` payload shape — see the module doc comment above `requests`. */
 function isPlausibleRewindPayload(body: unknown): body is { steps: number; summary: string } {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) return false;
   const b = body as Record<string, unknown>;
@@ -1113,23 +1136,41 @@ function isPlausibleRewindPayload(body: unknown): body is { steps: number; summa
   return true;
 }
 
+/** `kind: 'hold'` payload shape — just an object; `summary` is optional (see `holdSummary`). */
+function isPlausibleHoldPayload(body: unknown): body is { summary?: unknown } {
+  return typeof body === 'object' && body !== null && !Array.isArray(body);
+}
+
 /**
- * POST /api/games/:code/request — raise a cross-seat request; today the
- * only caller is rewind consent (`kind: 'rewind'`, landing separately —
- * see `frontend/src/lib/playtest/rewind.ts`). Security shape mirrors
- * `/board` exactly: stealth 404 for a non-participant, seat derived
- * server-side, payload capped and structurally validated.
+ * A hold's summary defaults to a stock announcement rather than 400ing on
+ * empty — this is a one-tap "wait, I respond" social nudge, not a form, so
+ * requiring text would add friction to the exact moment it's least wanted.
+ */
+function holdSummary(raw: unknown): string {
+  const trimmed = typeof raw === 'string' ? raw.trim().slice(0, MAX_SUMMARY_LEN) : '';
+  return trimmed.length > 0 ? trimmed : 'wants to respond';
+}
+
+/**
+ * POST /api/games/:code/request — raise a cross-seat request: rewind
+ * consent (`kind: 'rewind'`, see `frontend/src/lib/playtest/rewind.ts`) or
+ * a "Hold — anyone respond?" priority ask (`kind: 'hold'`, T101). Security
+ * shape mirrors `/board` exactly: stealth 404 for a non-participant, seat
+ * derived server-side, payload capped and structurally validated.
  *
- * Only one pending request per requester seat: the `requests` map is keyed
- * by requester seat (see its doc comment), so a second raise while one is
- * still pending is rejected with 409 rather than silently replacing it —
- * simpler than replacing, and it avoids the question of what happens to
- * votes already cast against the request being displaced.
+ * Only one pending request per requester seat, for either kind: the
+ * `requests` map is keyed by requester seat (see its doc comment), so a
+ * second raise while one is still pending is rejected with 409 rather than
+ * silently replacing it — simpler than replacing, and it avoids the
+ * question of what happens to votes already cast against the request being
+ * displaced.
  *
- * If nobody else is currently a connected seated player, the request
- * resolves approved immediately (see `requiredApprovers` — an empty
- * required set is vacuously unanimous) rather than sitting pending for 60s
- * with nothing that could ever approve it.
+ * A rewind with nobody else currently a connected seated player resolves
+ * approved immediately (see `requiredApprovers` — an empty required set is
+ * vacuously unanimous) rather than sitting pending for 60s with nothing
+ * that could ever approve it. A hold NEVER takes this path, even with an
+ * empty approver set — see the module doc comment on `StoredRequest` for
+ * why a hold has no approval machinery at all.
  */
 gamesRouter.post(
   '/:code/request',
@@ -1148,14 +1189,11 @@ gamesRouter.post(
     if (!me) return res.status(404).json({ error: 'Game not found.' });
 
     const body = req.body as { kind?: unknown; payload?: unknown };
-    if (body.kind !== 'rewind') {
+    if (body.kind !== 'rewind' && body.kind !== 'hold') {
       return res.status(400).json({ error: 'Unsupported request kind.' });
     }
     if (JSON.stringify(body.payload ?? {}).length > MAX_REQUEST_BYTES) {
       return res.status(413).json({ error: 'Request payload too large.' });
-    }
-    if (!isPlausibleRewindPayload(body.payload)) {
-      return res.status(400).json({ error: 'Invalid request payload.' });
     }
 
     let codeRequests = requests.get(code);
@@ -1168,27 +1206,54 @@ gamesRouter.post(
     }
 
     const now = Date.now();
-    const storedRequest: StoredRequest = {
-      id: crypto.randomUUID(),
-      code,
-      kind: 'rewind',
-      payload: {
-        steps: Math.floor(body.payload.steps),
-        summary: body.payload.summary.trim().slice(0, MAX_SUMMARY_LEN),
-      },
-      requesterSeat: me.seat,
-      approvals: {},
-      status: 'pending',
-      createdAt: now,
-      expiresAt: now + REQUEST_TTL_MS,
-    };
+    let storedRequest: StoredRequest;
+    if (body.kind === 'rewind') {
+      if (!isPlausibleRewindPayload(body.payload)) {
+        return res.status(400).json({ error: 'Invalid request payload.' });
+      }
+      storedRequest = {
+        id: crypto.randomUUID(),
+        code,
+        kind: 'rewind',
+        payload: {
+          steps: Math.floor(body.payload.steps),
+          summary: body.payload.summary.trim().slice(0, MAX_SUMMARY_LEN),
+        },
+        requesterSeat: me.seat,
+        approvals: {},
+        status: 'pending',
+        createdAt: now,
+        expiresAt: now + REQUEST_TTL_MS,
+      };
+    } else {
+      if (!isPlausibleHoldPayload(body.payload)) {
+        return res.status(400).json({ error: 'Invalid request payload.' });
+      }
+      storedRequest = {
+        id: crypto.randomUUID(),
+        code,
+        kind: 'hold',
+        payload: { summary: holdSummary(body.payload.summary) },
+        requesterSeat: me.seat,
+        approvals: {},
+        status: 'pending',
+        createdAt: now,
+        expiresAt: now + HOLD_TTL_MS,
+      };
+    }
     codeRequests.set(me.seat, storedRequest);
     requestTimers.set(
       storedRequest.id,
-      setTimeout(() => resolveRequest(code, storedRequest, 'expired'), REQUEST_TTL_MS)
+      setTimeout(
+        () => resolveRequest(code, storedRequest, 'expired'),
+        storedRequest.kind === 'hold' ? HOLD_TTL_MS : REQUEST_TTL_MS
+      )
     );
 
-    if (isUnanimouslyApproved(code, state, storedRequest)) {
+    // A hold NEVER auto-approves — even with an empty required-approver set,
+    // which would otherwise read as vacuously unanimous the way a rewind
+    // does. See the module doc comment on `StoredRequest`.
+    if (storedRequest.kind === 'rewind' && isUnanimouslyApproved(code, state, storedRequest)) {
       resolveRequest(code, storedRequest, 'approved');
     } else {
       broadcastRequest(code, storedRequest);
@@ -1199,11 +1264,15 @@ gamesRouter.post(
 
 /**
  * POST /api/games/:code/request/:id/respond — approve or decline a pending
- * request. Body: `{ approve: boolean }`. The responding seat is derived
- * server-side from the authenticated caller's participant record, exactly
- * like `/board` and `/request` — there's no seat field in the body for a
- * caller to spoof, so "a seat cannot respond on another seat's behalf" holds
- * by construction, not by a runtime check.
+ * `kind: 'rewind'` request. Body: `{ approve: boolean }`. The responding
+ * seat is derived server-side from the authenticated caller's participant
+ * record, exactly like `/board` and `/request` — there's no seat field in
+ * the body for a caller to spoof, so "a seat cannot respond on another
+ * seat's behalf" holds by construction, not by a runtime check.
+ *
+ * `kind: 'hold'` requests 400 here — a hold has no approval machinery (see
+ * the module doc comment on `StoredRequest`); it resolves only via cancel
+ * or its TTL.
  *
  * One decline resolves the request denied immediately, without waiting on
  * anyone else. Unanimous approval from `requiredApprovers` resolves it
@@ -1229,6 +1298,12 @@ gamesRouter.post(
     if (!found) return res.status(404).json({ error: 'Request not found.' });
     if (found.requesterSeat === me.seat) {
       return res.status(403).json({ error: 'Cannot respond to your own request.' });
+    }
+    // A hold has no approval machinery at all — see the module doc comment
+    // on `StoredRequest`. It resolves only by the requester's own cancel or
+    // its TTL, never by another seat's response.
+    if (found.kind === 'hold') {
+      return res.status(400).json({ error: 'Holds are not approved or declined.' });
     }
 
     const body = req.body as { approve?: unknown };
@@ -1258,8 +1333,11 @@ gamesRouter.post(
 
 /**
  * POST /api/games/:code/request/:id/cancel — withdraw a still-pending
- * request. Requester-only (the seat that raised it); anyone else gets 403,
- * matching /respond's shape for an invalid-but-authenticated actor.
+ * request, either kind. Requester-only (the seat that raised it); anyone
+ * else gets 403, matching /respond's shape for an invalid-but-authenticated
+ * actor. This is a hold's ONLY requester-driven resolution path (the other
+ * being its TTL) — the wire status is `'cancelled'` for both kinds; a
+ * cancelled hold just reads as "released" in the UI.
  */
 gamesRouter.post(
   '/:code/request/:id/cancel',
@@ -1466,6 +1544,8 @@ gamesRouter.patch('/:code', writeLimiter, requireAuth, async (req: Request, res:
     if (numErr) return res.status(400).json({ error: numErr });
     const noteErr = noteMessageError(raw);
     if (noteErr) return res.status(400).json({ error: noteErr });
+    const phaseErr = invalidPhaseError(raw);
+    if (phaseErr) return res.status(400).json({ error: phaseErr });
     const action = sanitizeAction(raw);
     try {
       next = applyAction(next, action);

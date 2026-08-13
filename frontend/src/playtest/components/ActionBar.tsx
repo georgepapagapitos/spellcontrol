@@ -5,6 +5,8 @@ import { RESISTANCE_LEVEL_LABEL, type ResistanceLevel } from '../lib/resistance'
 import { TAKEBACK_MODE_LABEL, type TakebackMode } from '../lib/takeback';
 import type { RewindVerdict } from '@/lib/playtest/rewind';
 import { ReactionPicker } from './ReactionPicker';
+import { HoldButton } from './HoldButton';
+import { HoldBanner } from './HoldBanner';
 import { TableSignals } from './TableSignals';
 
 export interface TakebackBarProps {
@@ -200,6 +202,8 @@ export function ActionBar({
         )}
       </button>
       <ReactionPicker />
+      <HoldButton />
+      <HoldBanner />
       {isNarrow ? (
         <OverflowMenu
           items={overflowItems}

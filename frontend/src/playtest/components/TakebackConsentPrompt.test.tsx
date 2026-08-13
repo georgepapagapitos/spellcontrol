@@ -73,6 +73,16 @@ describe('TakebackConsentPrompt', () => {
     expect(container.innerHTML).toBe('');
   });
 
+  it('a pending hold from another seat renders no consent prompt (holds have no approval)', () => {
+    usePlayStore.setState({
+      onlineRequests: {
+        1: request({ kind: 'hold', payload: { summary: 'wants to respond' } }),
+      },
+    });
+    const { container } = render(<TakebackConsentPrompt onlineTable={mySeat} />);
+    expect(container.innerHTML).toBe('');
+  });
+
   it('an already-expired pending request never renders (lost server frame)', () => {
     usePlayStore.setState({ onlineRequests: { 1: request({ expiresAt: Date.now() - 5000 }) } });
     render(<TakebackConsentPrompt onlineTable={mySeat} />);

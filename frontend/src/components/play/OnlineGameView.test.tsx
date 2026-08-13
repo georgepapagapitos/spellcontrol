@@ -7,16 +7,32 @@
  * since this component reads `usePlayStore`/`useAuth` directly rather than
  * taking them as props.
  */
-import { fireEvent, render, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GamePlayer, GameState } from '../../lib/game-state';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { GamePhase, GamePlayer, GameState } from '../../lib/game-state';
 import { createGameState, makePlayer } from '../../lib/game-state';
+import type { GameRequest } from '../../lib/games-api';
 
 const dispatchOnline = vi.fn(async () => {});
+const raiseGameRequest = vi.fn();
+const cancelGameRequest = vi.fn();
+let mockOnlineRequests: Record<number, GameRequest> = {};
 
 vi.mock('../../store/play', () => ({
-  usePlayStore: <T,>(selector: (s: { dispatchOnline: typeof dispatchOnline }) => T): T =>
-    selector({ dispatchOnline }),
+  usePlayStore: <T,>(
+    selector: (s: {
+      dispatchOnline: typeof dispatchOnline;
+      onlineRequests: Record<number, GameRequest>;
+      raiseGameRequest: typeof raiseGameRequest;
+      cancelGameRequest: typeof cancelGameRequest;
+    }) => T
+  ): T =>
+    selector({
+      dispatchOnline,
+      onlineRequests: mockOnlineRequests,
+      raiseGameRequest,
+      cancelGameRequest,
+    }),
 }));
 
 const mockAuthUserId: { current: string | null } = { current: 'user_1' };
@@ -52,6 +68,7 @@ function makeTestGame(
     activeSeat?: number | null;
     commanderDamageEnabled?: boolean;
     poisonEnabled?: boolean;
+    phase?: GamePhase;
   } = {}
 ): GameState {
   const state = createGameState({
@@ -70,12 +87,35 @@ function makeTestGame(
     status: opts.status ?? 'active',
     winnerSeat: opts.winnerSeat ?? null,
     activeSeat: opts.activeSeat ?? null,
+    ...(opts.phase !== undefined ? { phase: opts.phase } : {}),
+  };
+}
+
+function makeRequest(overrides: Partial<GameRequest> = {}): GameRequest {
+  return {
+    id: 'req_1',
+    code: 'ABCD',
+    kind: 'hold',
+    payload: { summary: '' },
+    requesterSeat: 1,
+    approvals: {},
+    status: 'pending',
+    createdAt: Date.now(),
+    expiresAt: Date.now() + 90_000,
+    ...overrides,
   };
 }
 
 beforeEach(() => {
   dispatchOnline.mockClear();
+  raiseGameRequest.mockReset();
+  cancelGameRequest.mockReset();
+  mockOnlineRequests = {};
   mockAuthUserId.current = 'user_1';
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 /** The life ± controls carry the shared `useTapAndHold` gesture (pointer
@@ -238,5 +278,116 @@ describe('Presence + status render states', () => {
     expect(screen.getByText('Waiting to start')).toBeTruthy();
     // No active-turn label yet — activeSeat is null until the game starts.
     expect(screen.queryByText(/'s turn/)).toBeNull();
+  });
+});
+
+describe('Phase clock (T101)', () => {
+  const twoPlayers = () => [
+    makeTestPlayer({ id: 'p0', userId: 'user_1', seat: 0, name: 'Alice' }),
+    makeTestPlayer({ id: 'p1', userId: 'user_2', seat: 1, name: 'Bob' }),
+  ];
+
+  it('shows the start affordance only for the active seat’s own owner', () => {
+    const game = makeTestGame(twoPlayers(), { activeSeat: 0 });
+    render(<OnlineGameView game={game} />);
+    expect(screen.getByRole('button', { name: 'Start the phase clock' })).toBeTruthy();
+  });
+
+  it('renders nothing phase-related when phase is absent and the viewer is not the active seat', () => {
+    const game = makeTestGame(twoPlayers(), { activeSeat: 1 });
+    render(<OnlineGameView game={game} />);
+    expect(screen.queryByRole('button', { name: 'Start the phase clock' })).toBeNull();
+    expect(screen.queryByLabelText(/^Phase:/)).toBeNull();
+  });
+
+  it('renders the phase chip for every seat once the clock is running', () => {
+    const game = makeTestGame(twoPlayers(), { activeSeat: 1, phase: 'combat' });
+    render(<OnlineGameView game={game} />);
+    expect(screen.getByLabelText('Phase: Combat')).toBeTruthy();
+    // Not the active seat's own device — display only, not a tap target.
+    expect(screen.queryByRole('button', { name: /^Phase:/ })).toBeNull();
+  });
+
+  it('advance dispatches the next phase and only renders for the active owner', () => {
+    const game = makeTestGame(twoPlayers(), { activeSeat: 0, phase: 'beginning' });
+    render(<OnlineGameView game={game} />);
+    const advance = screen.getByRole('button', { name: 'Phase: Beginning. Tap to advance.' });
+    fireEvent.click(advance);
+    expect(dispatchOnline).toHaveBeenCalledWith({ type: 'phase', phase: 'main1', actorSeat: 0 });
+  });
+
+  it('disables the advance affordance at the end phase — turn-passing resets it, not another tap', () => {
+    const game = makeTestGame(twoPlayers(), { activeSeat: 0, phase: 'end' });
+    render(<OnlineGameView game={game} />);
+    expect(screen.getByRole('button', { name: 'Phase: End' }).hasAttribute('disabled')).toBe(true);
+  });
+});
+
+describe('Hold (T101)', () => {
+  const twoPlayers = () => [
+    makeTestPlayer({ id: 'p0', userId: 'user_1', seat: 0, name: 'Alice' }),
+    makeTestPlayer({ id: 'p1', userId: 'user_2', seat: 1, name: 'Bob' }),
+  ];
+
+  it('raises a hold and flips to the release control', async () => {
+    const pendingHold = makeRequest({ id: 'req_hold', kind: 'hold', requesterSeat: 0 });
+    raiseGameRequest.mockImplementation(async () => {
+      mockOnlineRequests = { 0: pendingHold };
+      return pendingHold;
+    });
+    const game = makeTestGame(twoPlayers());
+    const { rerender } = render(<OnlineGameView game={game} />);
+
+    const you = screen.getByRole('region', { name: 'Your seat' });
+    fireEvent.click(within(you).getByRole('button', { name: 'Hold' }));
+    expect(raiseGameRequest).toHaveBeenCalledWith('hold', { summary: '' });
+
+    await act(() => Promise.resolve());
+    rerender(<OnlineGameView game={game} />);
+
+    expect(
+      within(screen.getByRole('region', { name: 'Your seat' })).getByRole('button', {
+        name: 'Release hold',
+      })
+    ).toBeTruthy();
+  });
+
+  it('surfaces the already-pending 409 inline', async () => {
+    raiseGameRequest.mockRejectedValue(new Error('A request is already pending for this seat.'));
+    const game = makeTestGame(twoPlayers());
+    render(<OnlineGameView game={game} />);
+
+    const you = screen.getByRole('region', { name: 'Your seat' });
+    fireEvent.click(within(you).getByRole('button', { name: 'Hold' }));
+
+    const alert = await within(you).findByRole('alert');
+    expect(alert.textContent).toBe('A request is already pending for this seat.');
+  });
+
+  it('renders another seat’s hold as a banner with no release control', () => {
+    mockOnlineRequests = { 1: makeRequest({ id: 'req_bob', requesterSeat: 1 }) };
+    const game = makeTestGame(twoPlayers());
+    render(<OnlineGameView game={game} />);
+
+    const banner = screen.getByText(/holds — responding/).closest('div')!;
+    expect(within(banner).getByText('Bob')).toBeTruthy();
+    expect(within(banner).queryByRole('button')).toBeNull();
+  });
+
+  it('self-dismisses the banner at expiresAt, with no server frame ever arriving', () => {
+    vi.useFakeTimers();
+    mockOnlineRequests = {
+      1: makeRequest({ id: 'req_bob', requesterSeat: 1, expiresAt: Date.now() + 1000 }),
+    };
+    const game = makeTestGame(twoPlayers());
+    render(<OnlineGameView game={game} />);
+    expect(screen.getByText(/holds — responding/)).toBeTruthy();
+
+    // 1000ms to the deadline + the 2000ms grace window.
+    act(() => {
+      vi.advanceTimersByTime(3001);
+    });
+
+    expect(screen.queryByText(/holds — responding/)).toBeNull();
   });
 });
