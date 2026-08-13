@@ -31,17 +31,26 @@ const REVIEW = [
   "Your mana cannot support it — Sol Ring's colorless does not fix colors.",
 ].join('\n\n');
 
-/** Route each endpoint the panel touches; `optIn` drives the consent state. */
-function stubApi(optIn: boolean) {
+/**
+ * Route each endpoint the panel touches; `optIn` drives the consent state.
+ * deck-review answers in the route's NDJSON wire format — `reviewLines` lets a
+ * test replace the happy stream with a truncated or failing one.
+ */
+function stubApi(optIn: boolean, reviewLines?: unknown[]) {
   const calls: string[] = [];
+  const lines = reviewLines ?? [
+    { delta: REVIEW },
+    { done: { content: REVIEW, cached: false, model: 'm', usage: {} } },
+  ];
   const mock = vi.fn(async (url: string) => {
     calls.push(url);
-    const body =
-      url === '/api/ai/status'
-        ? { optIn, used: 0, limit: 10 }
-        : url === '/api/ai/opt-in'
-          ? { optIn: true }
-          : { content: REVIEW, cached: false, model: 'm', usage: {} };
+    if (url === '/api/ai/deck-review') {
+      return new Response(lines.map((l) => `${JSON.stringify(l)}\n`).join(''), {
+        status: 200,
+        headers: { 'Content-Type': 'application/x-ndjson' },
+      });
+    }
+    const body = url === '/api/ai/status' ? { optIn, used: 0, limit: 10 } : { optIn: true };
     return new Response(JSON.stringify(body), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -126,5 +135,32 @@ describe('the reading', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Preview Sol Ring' })[0]);
     expect(opened[0].tapped).toBe('Sol Ring');
     expect(opened[0].entries.map((e) => e.name)).toEqual(['Sol Ring', 'Kaalia of the Vast']);
+  });
+
+  it('shows nothing but the error when the stream dies mid-write', async () => {
+    // Half a finding reads as a finding, and the server stored nothing — so the
+    // partial must not survive into the panel.
+    stubApi(true, [
+      { delta: 'Your deck ramps into Sol Ring' },
+      { error: 'The review could not be generated. Try again.' },
+    ]);
+    const { container } = renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Read the deck' }));
+
+    await screen.findByRole('alert');
+    expect(container.textContent).toContain('The review could not be generated.');
+    expect(container.textContent).not.toContain('ramps into');
+    expect(container.querySelector('.deck-ai-prose')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+  });
+
+  it('rejects a truncated stream rather than presenting it as finished', async () => {
+    stubApi(true, [{ delta: REVIEW }]); // deltas, no terminator
+    const { container } = renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Read the deck' }));
+
+    await screen.findByRole('alert');
+    expect(container.textContent).toContain('ended early');
+    expect(container.querySelector('.deck-ai-section--weakness')).toBeNull();
   });
 });

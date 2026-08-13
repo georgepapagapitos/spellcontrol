@@ -85,10 +85,41 @@ aiRouter.post('/opt-in', optInLimiter, requireAuth, async (req: Request, res: Re
   res.json({ optIn: enabled });
 });
 
+/**
+ * The deck-review wire format (T102): **NDJSON**, one JSON object per line.
+ *
+ * - `{"delta":"…"}` — a chunk of prose, in order. For live display only.
+ * - `{"done":{content,cached,model,usage}}` — the terminator, and the
+ *   AUTHORITATIVE full text. Its ABSENCE is how the client detects a truncated
+ *   stream, so it is the only success signal. Repeating the text costs ~2KB and
+ *   buys the guarantee that what gets displayed and what got stored are the
+ *   same string — no dependence on the deltas reconstructing exactly.
+ * - `{"error":"…"}` — the generation failed *after* headers went out, so the
+ *   status code is already 200 and can't carry it.
+ *
+ * Everything that can fail BEFORE the first byte (validation, consent, quota)
+ * still answers with a normal status code and a plain JSON body — the client
+ * checks `res.ok` first and never parses those as a stream.
+ *
+ * Cache hits stream too, as a single delta plus the terminator. They're
+ * instant either way, and one wire format means one client code path instead
+ * of a content-type branch that only the cached case exercises.
+ *
+ * Never SSE: the native `EventSource` block (see the online-table work) and the
+ * write-after-end crash class both live there. This is plain chunked HTTP.
+ */
+interface ReviewDone {
+  content: string;
+  cached: boolean;
+  model: string;
+  usage: { inputTokens: number; outputTokens: number };
+}
+type ReviewLine = { delta: string } | { done: ReviewDone } | { error: string };
+
 // ────────────────────────────────────────────────
 // POST /api/ai/deck-review — the review itself. Flow: consent → hash →
 // cache hit (free, no quota) → quota → hydrate oracle text (cache-only,
-// never a live Scryfall fetch) → one model call → store + return.
+// never a live Scryfall fetch) → one streamed model call → store + terminate.
 // ────────────────────────────────────────────────
 aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, res: Response) => {
   const parsed = parseDeckReviewRequest(req.body);
@@ -104,6 +135,23 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
   const inputHash = hashDeckReviewInput(request);
   const pool = getPool();
 
+  // A client that navigates away mid-stream destroys its socket. Writing to a
+  // destroyed socket is harmless, but an unhandled 'error' on the response
+  // would take the whole process down — one listener retires that class.
+  res.on('error', () => {});
+  let streaming = false;
+  const send = (line: ReviewLine) => {
+    if (!streaming) {
+      streaming = true;
+      res.status(200);
+      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-store');
+      // Proxies that buffer would defeat the point of streaming at all.
+      res.setHeader('X-Accel-Buffering', 'no');
+    }
+    if (!res.writableEnded) res.write(`${JSON.stringify(line)}\n`);
+  };
+
   const cached = await pool.query<{
     content: string;
     model: string;
@@ -117,12 +165,16 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
   );
   if (cached.rows.length > 0) {
     const row = cached.rows[0];
-    return res.json({
-      content: row.content,
-      cached: true,
-      model: row.model,
-      usage: { inputTokens: row.input_tokens, outputTokens: row.output_tokens },
+    send({ delta: row.content });
+    send({
+      done: {
+        content: row.content,
+        cached: true,
+        model: row.model,
+        usage: { inputTokens: row.input_tokens, outputTokens: row.output_tokens },
+      },
     });
+    return res.end();
   }
 
   const limit = user.ai_daily_limit ?? DEFAULT_DAILY_LIMIT;
@@ -155,9 +207,20 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
 
   let generation;
   try {
-    generation = await generateReview(DECK_REVIEW_SYSTEM_PROMPT, buildUserMessage(request, oracle));
+    generation = await generateReview(
+      DECK_REVIEW_SYSTEM_PROMPT,
+      buildUserMessage(request, oracle),
+      (delta) => send({ delta })
+    );
   } catch (err) {
     logger.error('[ai] deck review generation failed', err);
+    // Once a delta is out the status line is spent, so the failure has to ride
+    // the stream. Nothing is stored, so nothing is charged against the quota
+    // and the client's retry is a clean first attempt.
+    if (streaming) {
+      send({ error: 'The review could not be generated. Try again.' });
+      return res.end();
+    }
     return res.status(502).json({ error: 'The review could not be generated. Try again.' });
   }
 
@@ -179,10 +242,13 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
     ]
   );
 
-  res.json({
-    content: generation.content,
-    cached: false,
-    model: AI_MODEL,
-    usage: { inputTokens: generation.inputTokens, outputTokens: generation.outputTokens },
+  send({
+    done: {
+      content: generation.content,
+      cached: false,
+      model: AI_MODEL,
+      usage: { inputTokens: generation.inputTokens, outputTokens: generation.outputTokens },
+    },
   });
+  res.end();
 });

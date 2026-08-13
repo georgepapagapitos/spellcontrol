@@ -59,6 +59,8 @@ export function DeckAiReview({
   const [phase, setPhase] = useState<'idle' | 'reading' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [review, setReview] = useState<HeldReview | null>(null);
+  /** Prose received so far while the model is still writing (T102 streaming). */
+  const [streamed, setStreamed] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -101,10 +103,13 @@ export function DeckAiReview({
     const requestKey = currentKey;
     setPhase('reading');
     setError(null);
+    setStreamed('');
+    setReview(null);
     const analysis = analyzeDeck({ format, commander, partnerCommander, mainboard }, taggerReady);
-    requestDeckReview({ deckId, commander: commanderName, cards, analysis })
+    requestDeckReview({ deckId, commander: commanderName, cards, analysis }, setStreamed)
       .then((result) => {
         setReview({ content: result.content, key: requestKey });
+        setStreamed('');
         setPhase('idle');
         if (!result.cached) {
           setStatus((s) => (s && s !== 'loading' ? { ...s, used: s.used + 1 } : s));
@@ -114,6 +119,9 @@ export function DeckAiReview({
         if (err.status === 429) {
           setStatus((s) => (s && s !== 'loading' ? { ...s, used: s.limit } : s));
         }
+        // A partial reading is worth nothing — it was never stored, and half a
+        // finding reads as a finding. Drop it and offer the retry.
+        setStreamed('');
         setError(err.message || 'The review could not be generated. Try again.');
         setPhase('error');
       });
@@ -196,18 +204,33 @@ export function DeckAiReview({
         </div>
       )}
 
-      {phase === 'reading' && (
-        <div
-          className="deck-ai-skeleton"
-          role="status"
-          aria-live="polite"
-          aria-label="Reading the deck"
-        >
-          <span className="deck-ai-skeleton-line" />
-          <span className="deck-ai-skeleton-line" />
-          <span className="deck-ai-skeleton-line deck-ai-skeleton-line--short" />
-        </div>
-      )}
+      {/* Streaming: the skeleton only covers the wait before the first word.
+          Once prose is arriving it renders as it lands — plain paragraphs, no
+          section titles and no chips yet, because the sections are decided by
+          where the LAST paragraph falls and chips on half a name would
+          flicker. The titled, weakness-first view settles in on completion. */}
+      {phase === 'reading' &&
+        (streamed ? (
+          <div className="deck-ai-prose deck-ai-prose--streaming" aria-busy="true">
+            <p className="deck-ai-writing" role="status">
+              Writing…
+            </p>
+            {streamed.split(/\n{2,}/).map((para, i) => (
+              <p key={i}>{para}</p>
+            ))}
+          </div>
+        ) : (
+          <div
+            className="deck-ai-skeleton"
+            role="status"
+            aria-live="polite"
+            aria-label="Reading the deck"
+          >
+            <span className="deck-ai-skeleton-line" />
+            <span className="deck-ai-skeleton-line" />
+            <span className="deck-ai-skeleton-line deck-ai-skeleton-line--short" />
+          </div>
+        ))}
 
       {phase === 'error' && error && (
         <div className="deck-ai-error" role="alert">

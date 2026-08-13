@@ -11,7 +11,8 @@ const mockState = {
 vi.mock('../ai/client', () => ({
   AI_MODEL: 'test-model',
   aiEnabled: () => mockState.enabled,
-  generateReview: (system: string, user: string) => mockState.generate(system, user),
+  generateReview: (system: string, user: string, onDelta?: (t: string) => void) =>
+    mockState.generate(system, user, onDelta),
 }));
 
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
@@ -29,15 +30,44 @@ afterAll(async () => {
   if (cleanup) await cleanup();
 });
 
+const REVIEW_TEXT = 'Your deck is a fine deck.';
+
 beforeEach(() => {
   mockState.enabled = true;
   mockState.generate.mockReset();
-  mockState.generate.mockResolvedValue({
-    content: 'Your deck is a fine deck.',
-    inputTokens: 1000,
-    outputTokens: 200,
-  });
+  // Emit the text in two chunks, the way a real stream arrives, so the route's
+  // delta forwarding is exercised rather than assumed.
+  mockState.generate.mockImplementation(
+    async (_system: string, _user: string, onDelta?: (t: string) => void) => {
+      onDelta?.('Your deck is ');
+      onDelta?.('a fine deck.');
+      return { content: REVIEW_TEXT, inputTokens: 1000, outputTokens: 200 };
+    }
+  );
 });
+
+/**
+ * The deck-review response is NDJSON, so supertest leaves it in `res.text`.
+ * Collapse it back into the pieces a test cares about.
+ */
+function parseStream(text: string): {
+  deltas: string[];
+  streamed: string;
+  done?: Record<string, unknown>;
+  error?: string;
+} {
+  const deltas: string[] = [];
+  let done: Record<string, unknown> | undefined;
+  let error: string | undefined;
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue;
+    const msg = JSON.parse(line) as Record<string, unknown>;
+    if (typeof msg.delta === 'string') deltas.push(msg.delta);
+    else if (typeof msg.error === 'string') error = msg.error;
+    else if (msg.done) done = msg.done as Record<string, unknown>;
+  }
+  return { deltas, streamed: deltas.join(''), done, error };
+}
 
 async function makeUser(username: string): Promise<string> {
   const reg = await request(app)
@@ -156,8 +186,13 @@ describe('POST /api/ai/deck-review', () => {
       .set('Cookie', cookie)
       .send(reviewBody());
     expect(first.status).toBe(200);
-    expect(first.body).toEqual({
-      content: 'Your deck is a fine deck.',
+    expect(first.headers['content-type']).toContain('application/x-ndjson');
+    const firstStream = parseStream(first.text);
+    // Prose arrives in chunks, and the terminator repeats it in full.
+    expect(firstStream.deltas).toEqual(['Your deck is ', 'a fine deck.']);
+    expect(firstStream.streamed).toBe(REVIEW_TEXT);
+    expect(firstStream.done).toEqual({
+      content: REVIEW_TEXT,
       cached: false,
       model: 'test-model',
       usage: { inputTokens: 1000, outputTokens: 200 },
@@ -168,8 +203,10 @@ describe('POST /api/ai/deck-review', () => {
       .set('Cookie', cookie)
       .send(reviewBody());
     expect(second.status).toBe(200);
-    expect(second.body.cached).toBe(true);
-    expect(second.body.content).toBe('Your deck is a fine deck.');
+    const secondStream = parseStream(second.text);
+    // A cache hit uses the same wire format — one delta plus the terminator.
+    expect(secondStream.deltas).toEqual([REVIEW_TEXT]);
+    expect(secondStream.done).toMatchObject({ cached: true, content: REVIEW_TEXT });
     // The cache hit never touched the model.
     expect(mockState.generate).toHaveBeenCalledTimes(1);
 
@@ -190,7 +227,7 @@ describe('POST /api/ai/deck-review', () => {
     });
     const res = await request(app).post('/api/ai/deck-review').set('Cookie', cookie).send(edited);
     expect(res.status).toBe(200);
-    expect(res.body.cached).toBe(false);
+    expect(parseStream(res.text).done).toMatchObject({ cached: false });
     expect(mockState.generate).toHaveBeenCalledTimes(2);
   });
 
@@ -221,10 +258,10 @@ describe('POST /api/ai/deck-review', () => {
       .set('Cookie', cookie)
       .send(reviewBody());
     expect(rehit.status).toBe(200);
-    expect(rehit.body.cached).toBe(true);
+    expect(parseStream(rehit.text).done).toMatchObject({ cached: true });
   });
 
-  it('502s when generation fails, without spending quota', async () => {
+  it('502s when generation fails before a single byte is streamed', async () => {
     const cookie = await makeUser('ai-review-fail');
     await optIn(cookie);
     mockState.generate.mockRejectedValue(new Error('boom'));
@@ -233,6 +270,34 @@ describe('POST /api/ai/deck-review', () => {
       .set('Cookie', cookie)
       .send(reviewBody());
     expect(res.status).toBe(502);
+    const status = await request(app).get('/api/ai/status').set('Cookie', cookie);
+    expect(status.body.used).toBe(0);
+  });
+
+  it('reports a MID-stream failure in-band, stores nothing, spends nothing', async () => {
+    const cookie = await makeUser('ai-review-midfail');
+    await optIn(cookie);
+    // Deltas go out, then the model dies — the 200 status is already spent, so
+    // the failure has to ride the stream itself.
+    mockState.generate.mockImplementation(
+      async (_system: string, _user: string, onDelta?: (t: string) => void) => {
+        onDelta?.('Your deck is ');
+        throw new Error('boom');
+      }
+    );
+    const res = await request(app)
+      .post('/api/ai/deck-review')
+      .set('Cookie', cookie)
+      .send(reviewBody());
+
+    expect(res.status).toBe(200);
+    const stream = parseStream(res.text);
+    expect(stream.streamed).toBe('Your deck is ');
+    expect(stream.error).toBe('The review could not be generated. Try again.');
+    // No terminator — that absence is what tells the client it was truncated.
+    expect(stream.done).toBeUndefined();
+
+    // Nothing stored ⇒ nothing charged, and the retry is a clean first attempt.
     const status = await request(app).get('/api/ai/status').set('Cookie', cookie);
     expect(status.body.used).toBe(0);
   });
