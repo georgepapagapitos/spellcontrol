@@ -271,10 +271,6 @@ export function DeckAnalysisView({
               />
             </Panel>
           )}
-          {/* AI review (T96) — additive, below everything the app computes
-              itself. The slot brings its own panel chrome and renders nothing
-              when the feature is unavailable, so no Panel wrapper here. */}
-          {aiReviewSlot}
         </div>
       )}
 
@@ -387,6 +383,11 @@ export function DeckAnalysisView({
             <DeckAnalysisSkeleton status={analysisState} onRetry={onRetryAnalysis} />
           )}
           {coachFeedSlot}
+          {/* AI review (T96 → T102) — the reading belongs with the coach, not
+              the statistics. Additive: the slot brings its own panel chrome and
+              renders nothing when the feature is unavailable, so no Panel
+              wrapper here, and it sits below the coach's own suggestions. */}
+          {aiReviewSlot}
         </div>
       )}
     </div>

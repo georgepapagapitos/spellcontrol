@@ -5,6 +5,8 @@ import {
   fetchAiStatus,
   requestDeckReview,
   setAiOptIn,
+  splitReviewSections,
+  tokenizeCardNames,
 } from './ai-review';
 import type { ScryfallCard } from '@/deck-builder/types';
 
@@ -69,6 +71,80 @@ describe('deckContentKey', () => {
     const before = deckContentKey('Meren', [{ name: 'Sol Ring', qty: 1 }]);
     const after = deckContentKey('Meren', [{ name: 'Sol Ring', qty: 1 }]);
     expect(before).toBe(after);
+  });
+});
+
+describe('splitReviewSections', () => {
+  const paras = (...p: string[]) => p.join('\n\n');
+
+  it('leads with the weakness — the last paragraph the model wrote', () => {
+    const sections = splitReviewSections(paras('Gameplan.', 'Win path.', 'The weakness.'));
+    expect(sections?.map((s) => s.id)).toEqual(['weakness', 'gameplan', 'win']);
+    expect(sections?.[0].paragraphs).toEqual(['The weakness.']);
+    expect(sections?.[1].paragraphs).toEqual(['Gameplan.']);
+    expect(sections?.[2].paragraphs).toEqual(['Win path.']);
+  });
+
+  it('gives a fourth paragraph to the win path, never to the weakness', () => {
+    const sections = splitReviewSections(paras('Gameplan.', 'Win A.', 'Win B.', 'The weakness.'));
+    expect(sections?.[0].paragraphs).toEqual(['The weakness.']);
+    expect(sections?.[2].paragraphs).toEqual(['Win A.', 'Win B.']);
+  });
+
+  it('returns null below three paragraphs rather than mislabelling prose', () => {
+    expect(splitReviewSections('One block.')).toBeNull();
+    expect(splitReviewSections(paras('One.', 'Two.'))).toBeNull();
+  });
+
+  it('ignores blank paragraphs and stray whitespace', () => {
+    const sections = splitReviewSections('  A.  \n\n\n\n  B.  \n\n C. \n\n');
+    expect(sections?.map((s) => s.paragraphs)).toEqual([['C.'], ['A.'], ['B.']]);
+  });
+});
+
+describe('tokenizeCardNames', () => {
+  const text = (tokens: ReturnType<typeof tokenizeCardNames>) => tokens.map((t) => t.text).join('');
+  const chipped = (tokens: ReturnType<typeof tokenizeCardNames>) =>
+    tokens.filter((t) => t.card).map((t) => t.card);
+
+  it('chips in-deck names and leaves the prose byte-identical', () => {
+    const tokens = tokenizeCardNames('Cast Sol Ring early, then Demonic Tutor.', [
+      'Sol Ring',
+      'Demonic Tutor',
+    ]);
+    expect(text(tokens)).toBe('Cast Sol Ring early, then Demonic Tutor.');
+    expect(chipped(tokens)).toEqual(['Sol Ring', 'Demonic Tutor']);
+  });
+
+  it('prefers the longest name, so a list-mate prefix does not win', () => {
+    const tokens = tokenizeCardNames('Kaalia of the Vast attacks.', [
+      'Kaalia',
+      'Kaalia of the Vast',
+    ]);
+    expect(chipped(tokens)).toEqual(['Kaalia of the Vast']);
+    expect(tokens.find((t) => t.card)?.text).toBe('Kaalia of the Vast');
+  });
+
+  it('matches a double-faced front face but reports the canonical name', () => {
+    const tokens = tokenizeCardNames('Delver of Secrets flips.', [
+      'Delver of Secrets // Insectile Aberration',
+    ]);
+    expect(chipped(tokens)).toEqual(['Delver of Secrets // Insectile Aberration']);
+    expect(tokens.find((t) => t.card)?.text).toBe('Delver of Secrets');
+  });
+
+  it('chips the name out of a possessive but never out of a longer word', () => {
+    expect(chipped(tokenizeCardNames("Kaalia's trigger.", ['Kaalia']))).toEqual(['Kaalia']);
+    expect(chipped(tokenizeCardNames('Foggy weather.', ['Fog']))).toEqual([]);
+  });
+
+  it('is case-insensitive and handles regex-special characters in names', () => {
+    expect(chipped(tokenizeCardNames('play sol ring', ['Sol Ring']))).toEqual(['Sol Ring']);
+    expect(chipped(tokenizeCardNames('Equip +2 Mace.', ['+2 Mace']))).toEqual(['+2 Mace']);
+  });
+
+  it('returns the text untouched when the deck has no names to match', () => {
+    expect(tokenizeCardNames('Nothing to chip.', [])).toEqual([{ text: 'Nothing to chip.' }]);
   });
 });
 
