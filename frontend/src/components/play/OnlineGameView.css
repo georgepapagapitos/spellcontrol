@@ -1,0 +1,618 @@
+/* OnlineGameView — per-device online-game surface (T99). Unlike GameBoard
+   this is a normal in-page section (no fullscreen overlay, no rotation, no
+   layouts): it renders inside the Play page's Online tab and scrolls with
+   the rest of the page. "Your panel" pins to the bottom on phones so the
+   controls you reach for most stay thumb-reachable while the opponent tiles
+   scroll above it. */
+
+.ogv {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.ogv-error {
+  background: var(--err-bg);
+  border: 1px solid var(--err-border);
+  color: var(--err-text);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+.ogv-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.ogv-header-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.ogv-code {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.ogv-turn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border-strong);
+  border-radius: 999px;
+  padding: var(--space-1) var(--space-3);
+}
+
+.ogv-turn-waiting {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.ogv-header-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.ogv-header-btn {
+  min-height: 2.75rem;
+  padding: 0 var(--space-3);
+}
+
+/* ── Opponent tiles ─────────────────────────────────────────────────────── */
+
+.ogv-opponents {
+  display: grid;
+  /* Wraps to a grid from the 320px floor up — every opponent stays
+     simultaneously visible, never scrolled or collapsed into a menu. */
+  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ogv-opp {
+  --ogv-base: var(--border-strong);
+  --ogv-edge: var(--border);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-height: 2.75rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2);
+  transition:
+    filter var(--motion-base) ease,
+    opacity var(--motion-base) ease;
+}
+
+.ogv-opp.is-active-turn {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.ogv-opp.is-eliminated {
+  filter: grayscale(0.6);
+  opacity: 0.55;
+}
+
+.ogv-opp.is-winner {
+  box-shadow: inset 0 0 0 2px var(--brand-seal-gold);
+}
+
+.ogv-opp.is-lethal-flash::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(220, 38, 38, 0.4);
+  pointer-events: none;
+  animation: ogv-lethal-flash var(--motion-gentle) ease-out forwards;
+}
+
+@keyframes ogv-lethal-flash {
+  0% {
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ogv-opp.is-lethal-flash::after {
+    animation: none;
+  }
+}
+
+.ogv-opp-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.ogv-opp-dot {
+  flex: 0 0 auto;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  background: var(--ogv-base);
+  box-shadow: 0 0 0 1px var(--ogv-edge);
+}
+
+.ogv-opp-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ogv-badge {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 1px var(--space-1);
+}
+
+.ogv-badge-offline {
+  color: var(--err-text);
+  border-color: var(--err-border);
+}
+
+.ogv-opp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.ogv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 1px var(--space-2);
+}
+
+.ogv-chip.is-lethal {
+  color: var(--err-text);
+  background: var(--err-bg);
+}
+
+.ogv-opp-tag {
+  align-self: flex-start;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--on-accent);
+  background: var(--accent);
+  border-radius: 999px;
+  padding: 1px var(--space-2);
+}
+
+.ogv-opp-tag-out {
+  background: var(--text-muted);
+}
+
+/* ── Life numeral + step controls (shared by your panel and guest tiles) ── */
+
+.ogv-life {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.ogv-life--compact {
+  gap: var(--space-2);
+}
+
+.ogv-life-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  color: var(--text-primary);
+  min-width: 2.4ch;
+  text-align: center;
+}
+
+.ogv-life--primary .ogv-life-num {
+  font-size: var(--text-3xl);
+}
+
+.ogv-life--compact .ogv-life-num {
+  font-size: var(--text-2xl);
+}
+
+.ogv-life-num.is-pop {
+  animation: ogv-pop 180ms ease-out;
+}
+
+@keyframes ogv-pop {
+  0% {
+    scale: 1;
+  }
+  40% {
+    scale: 1.12;
+  }
+  100% {
+    scale: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ogv-life-num.is-pop {
+    animation: none;
+  }
+}
+
+.ogv-life-num.is-readonly {
+  color: var(--text-secondary);
+}
+
+.ogv-life-num.is-lethal {
+  color: var(--err-text);
+}
+
+.ogv-life-step {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.04em;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.ogv-life--compact .ogv-life-step {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  font-size: var(--text-lg);
+}
+
+.ogv-life-step:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ogv-life-step:active:not(:disabled) {
+  background: var(--accent-light);
+}
+
+.ogv-life-step-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+/* ── Your panel ─────────────────────────────────────────────────────────── */
+
+.ogv-you {
+  position: sticky;
+  bottom: var(--mobile-tabbar-h);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sheet);
+  padding: var(--space-4);
+  padding-bottom: calc(var(--space-4) + var(--safe-bottom));
+}
+
+.ogv-you.is-active-turn {
+  border-color: var(--accent);
+}
+
+.ogv-you.is-eliminated {
+  opacity: 0.6;
+}
+
+.ogv-you.is-lethal-flash::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(220, 38, 38, 0.35);
+  pointer-events: none;
+  animation: ogv-lethal-flash var(--motion-gentle) ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ogv-you.is-lethal-flash::after {
+    animation: none;
+  }
+}
+
+.ogv-you-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ogv-you-label {
+  font-family: var(--font-label);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
+.ogv-you-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ogv-you-tools {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ogv-tool {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ogv-tool-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.ogv-poison-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ogv-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 2.75rem;
+  padding: 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.ogv-chip-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ogv-chip-btn.is-lethal {
+  color: var(--err-text);
+  border-color: var(--err-border);
+}
+
+.ogv-chip-btn.is-active {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.ogv-designations {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.ogv-cmd-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+}
+
+.ogv-cmd-row-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.ogv-cmd-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-raised);
+}
+
+.ogv-cmd-row.is-lethal {
+  color: var(--err-text);
+}
+
+.ogv-cmd-row-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left;
+  transform: scaleX(var(--fill, 0));
+  background: var(--accent-light);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ogv-cmd-row-name,
+.ogv-cmd-row-hint,
+.ogv-stepper {
+  position: relative;
+  z-index: 1;
+}
+
+.ogv-cmd-row-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+}
+
+.ogv-cmd-row-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.ogv-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.ogv-stepper-btn {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.ogv-stepper-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ogv-stepper-value {
+  min-width: 2ch;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.ogv-stepper-value.is-lethal {
+  color: var(--err-text);
+}
+
+/* ── Finished ───────────────────────────────────────────────────────────── */
+
+.ogv-finished {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: center;
+  text-align: center;
+  padding: var(--space-5) var(--space-4);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.ogv-finished-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.ogv-finished-trophy {
+  font-size: var(--text-3xl);
+  line-height: 1;
+}
+
+.ogv-finished-name {
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.ogv-finished-sub {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+
+.ogv-finished-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.ogv-spectator {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+  padding: var(--space-4);
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  .ogv-opponents {
+    grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
+  }
+
+  .ogv-life--primary .ogv-life-num {
+    font-size: var(--text-2xl);
+  }
+}

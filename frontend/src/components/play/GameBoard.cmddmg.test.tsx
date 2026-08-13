@@ -78,7 +78,8 @@ vi.mock('@dnd-kit/core', () => ({
 
 vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
-import { GameBoard, cmdDamageFillRatio, cmdDamageToLethal } from './GameBoard';
+import { GameBoard } from './GameBoard';
+import { cmdDamageFillRatio, cmdDamageToLethal } from '../../lib/cmd-damage';
 
 /** Alice (seat 0) plus two opponents, one with a color identity, one without. */
 function renderPod(dispatch = vi.fn(), alice: Partial<GamePlayer> = {}) {

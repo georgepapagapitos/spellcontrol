@@ -1301,16 +1301,16 @@ describe('POST /api/games/:code/join + PATCH /:code', () => {
     expect(started.status).toBe(200);
     expect(started.body.game.status).toBe('active');
 
-    // Non-host participant can adjust life.
+    // Non-host participant can adjust their own seat's life.
     const lifed = await request(app)
       .patch(`/api/games/${code}`)
       .set('Cookie', joinerCookie)
       .send({
         baseVersion: started.body.game.version,
-        actions: [{ type: 'life', seat: 0, delta: -5, actorSeat: 1 }],
+        actions: [{ type: 'life', seat: 1, delta: -5, actorSeat: 1 }],
       });
     expect(lifed.status).toBe(200);
-    expect(lifed.body.game.players[0].life).toBe(35);
+    expect(lifed.body.game.players[1].life).toBe(35);
   });
 
   it('defaults a joiner’s name to their display name (falls back to username) when no name is sent', async () => {
@@ -1384,6 +1384,124 @@ describe('POST /api/games/:code/join + PATCH /:code', () => {
       .set('Cookie', joiner)
       .send({ baseVersion: joined.body.game.version, actions: [{ type: 'start' }] });
     expect(res.status).toBe(403);
+  });
+});
+
+/**
+ * T99: per-device online surface — each player adjusts only their own seat's
+ * life/poison/commander-damage, including the host (who otherwise keeps an
+ * admin monopoly on start/reset/settings/add-player/remove-player). One
+ * carve-out: a host-added guest seat (`userId: null`) has no device of its
+ * own, so anyone seated may adjust it.
+ */
+describe('actionIsAllowed: own-seat-only life/poison/cmd-dmg (T99)', () => {
+  it('own-seat life, set-life, poison, and cmd-dmg all succeed for a non-host participant', async () => {
+    const { code, joiners } = await setupTable('games_ownseat_ok', ['games_ownseat_ok_j']);
+    const joiner = joiners[0]; // seat 1
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', joiner);
+    let baseVersion = current.body.game.version as number;
+    for (const action of [
+      { type: 'life', seat: 1, delta: -1, actorSeat: 1 },
+      { type: 'set-life', seat: 1, value: 30, actorSeat: 1 },
+      { type: 'poison', seat: 1, delta: 1, actorSeat: 1 },
+      { type: 'cmd-dmg', seat: 1, fromSeat: 0, delta: 1, actorSeat: 1 },
+    ]) {
+      const res = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', joiner)
+        .send({ baseVersion, actions: [action] });
+      expect(res.status).toBe(200);
+      baseVersion = res.body.game.version;
+    }
+  });
+
+  it('a non-host is blocked (403) from adjusting another participant’s seat', async () => {
+    const { code, joiners } = await setupTable('games_ownseat_nh403', ['games_ownseat_nh403_j']);
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', joiners[0]);
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiners[0])
+      .send({
+        baseVersion: current.body.game.version,
+        actions: [{ type: 'life', seat: 0, delta: -1, actorSeat: 1 }],
+      });
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('Can only adjust your own seat.');
+  });
+
+  it('the host is also blocked (403) from adjusting another participant’s seat', async () => {
+    const { code, host } = await setupTable('games_ownseat_host403', ['games_ownseat_host403_j']);
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', host)
+      .send({
+        baseVersion: current.body.game.version,
+        actions: [{ type: 'life', seat: 1, delta: -1, actorSeat: 0 }],
+      });
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('Can only adjust your own seat.');
+  });
+
+  it('a guest seat (userId: null) can have its life adjusted by any seated participant, host or not', async () => {
+    const { code, host, joiners } = await setupTable('games_ownseat_guest', [
+      'games_ownseat_guest_j',
+    ]);
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    const added = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', host)
+      .send({
+        baseVersion: current.body.game.version,
+        actions: [
+          {
+            type: 'add-player',
+            player: {
+              id: 'guest_local',
+              userId: null,
+              seat: 2,
+              name: 'Guest',
+              deckId: null,
+              deckName: null,
+              commander: null,
+              partner: null,
+              colorIdentity: [],
+              panelColorKey: null,
+              life: 40,
+              poison: 0,
+              commanderDamage: {},
+              eliminated: false,
+              isHost: false,
+              connected: true,
+            },
+          },
+        ],
+      });
+    expect(added.status).toBe(200);
+
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiners[0])
+      .send({
+        baseVersion: added.body.game.version,
+        actions: [{ type: 'life', seat: 2, delta: -3, actorSeat: 1 }],
+      });
+    expect(res.status).toBe(200);
+    const guest = res.body.game.players.find((p: { seat: number }) => p.seat === 2);
+    expect(guest.life).toBe(37);
+  });
+
+  it('cmd-dmg: naming another attacker via fromSeat is fine as long as seat (the receiver) is the caller’s own', async () => {
+    const { code, joiners } = await setupTable('games_ownseat_cmddmg', ['games_ownseat_cmddmg_j']);
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', joiners[0]);
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiners[0])
+      .send({
+        baseVersion: current.body.game.version,
+        actions: [{ type: 'cmd-dmg', seat: 1, fromSeat: 0, delta: 2, actorSeat: 1 }],
+      });
+    expect(res.status).toBe(200);
   });
 });
 

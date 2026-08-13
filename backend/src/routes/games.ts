@@ -1377,10 +1377,32 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
 
 function actionIsAllowed(action: GameAction, state: GameState, userId: string): string | null {
   const isHost = state.hostUserId === userId;
-  // Host can do anything. Other authed participants can do gameplay actions
-  // (life, poison, cmd-dmg, eliminate, note, update-player for their own seat,
-  // and end). They can't add/remove other players, change settings, reset, or
-  // start the game — those are host-only.
+
+  // Per-device online surface: each player adjusts only their own seat's
+  // life/poison/commander-damage — even the host, who otherwise has an
+  // admin monopoly on start/reset/settings/add-player/remove-player. Runs
+  // before the isHost bypass below so it also constrains the host. Carve-out:
+  // a host-added guest seat (no userId) has no device of its own, so anyone
+  // seated may adjust it rather than bricking it.
+  switch (action.type) {
+    case 'life':
+    case 'set-life':
+    case 'poison':
+    case 'cmd-dmg': {
+      const target = state.players.find((p) => p.seat === action.seat);
+      if (target && target.userId !== userId && target.userId !== null) {
+        return 'Can only adjust your own seat.';
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  // Host can do anything else. Other authed participants can do gameplay
+  // actions (life, poison, cmd-dmg, eliminate, note, update-player for their
+  // own seat, and end). They can't add/remove other players, change
+  // settings, reset, or start the game — those are host-only.
   if (isHost) return null;
   if (!isParticipant(state, userId)) return 'Not a participant.';
 

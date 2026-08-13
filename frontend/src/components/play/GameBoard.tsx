@@ -3,22 +3,18 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GameAction, GamePlayer, GameState } from '../../lib/game-state';
 import { cmdDamageKey } from '../../lib/game-state';
 import type { EmptyCell, SeatSlot } from '../../lib/board-layouts';
-import {
-  homeSlotIndex,
-  isCustomLayout,
-  resolveLayout,
-  undoButtonParams,
-} from '../../lib/board-layouts';
+import { isCustomLayout, resolveLayout, undoButtonParams } from '../../lib/board-layouts';
 import { paletteForSeat } from '../../lib/seat-palette';
 import { useAnimatedNumber } from '../../lib/use-animated-number';
 import { useFloatingDelta } from '../../lib/use-floating-delta';
 import { haptics } from '../../lib/haptics';
-import { HOLD_DWELL_MS, HOLD_REPEAT_MS, holdStepFor } from '../../lib/hold-ramp';
 import { useWakeLock } from '../../lib/use-wake-lock';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
 import { capture, clearUndo, peekLabel, popRestore, runSuppressed } from '../../lib/undo-stack';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { scryfallArtCrop } from '../../lib/offline/slim-to-scryfall';
+import { cmdDamageFillRatio, cmdDamageToLethal } from '../../lib/cmd-damage';
+import { useTapAndHold } from '../../lib/tap-and-hold';
 import { LifeKeypad } from './LifeKeypad';
 import { ShareDialog } from '../ShareDialog';
 import { SeatMenu } from './SeatMenu';
@@ -29,17 +25,11 @@ interface Props {
   game: GameState;
   /** Apply an action to the underlying store. */
   dispatch: (action: GameAction) => void;
-  /** True when the viewer controls every seat (local) or is the host (online). */
+  /** True when the viewer controls every seat — always true for shared-device local play. */
   canControlAll: boolean;
-  /** Authed user id, for online games. */
-  viewerUserId?: string | null;
-  /** Banner shown at the bottom of the overlay (e.g. join code). */
-  banner?: React.ReactNode;
-  /** Error to show inline. */
-  errorMessage?: string | null;
   /** Hide the board overlay while keeping the game intact (resumable). */
   onMinimize?: () => void;
-  /** Destroy the game (local discard / online leave-and-end). */
+  /** Destroy the game (local discard). */
   onLeave?: () => void;
   /** Confirm-end-game flow trigger. */
   onEnd?: () => void;
@@ -48,14 +38,12 @@ interface Props {
 }
 
 /**
- * Fullscreen MTG life-counter board. Each player gets a panel sized to fill
- * the viewport (so a 4-player game = 2×2 grid, 2-player = stacked halves,
- * 3-player = top pair + bottom full-width). Local (shared-device) games
- * rotate top-row panels 180° so each player reads upright when the phone is
- * passed across the table. Online games never rotate — each device is in
- * front of one player at a time — and instead re-anchor the seat→slot
- * mapping per device so the viewer's own panel sits in the layout's home
- * slot (see `homeSlotIndex`).
+ * Fullscreen MTG life-counter board for **local (shared-device) pass-and-play
+ * only** — online games render their own per-device `OnlineGameView` instead
+ * (T99). Each player gets a panel sized to fill the viewport (so a 4-player
+ * game = 2×2 grid, 2-player = stacked halves, 3-player = top pair + bottom
+ * full-width), and top-row panels rotate 180° so each player reads upright
+ * when the phone is passed across the table.
  *
  * Interaction model is touch-first: tap the left half of a panel to decrement
  * life, the right half to increment (top/bottom when tapOrientation is
@@ -75,9 +63,6 @@ export function GameBoard({
   game,
   dispatch,
   canControlAll,
-  viewerUserId,
-  banner,
-  errorMessage,
   onMinimize,
   onLeave,
   onEnd,
@@ -88,19 +73,6 @@ export function GameBoard({
   // Resolve to a concrete layout (grid + per-seat slots). Unknown / legacy
   // layout ids fall back to the count's default.
   const board = resolveLayout(total, game.layout);
-  // Online, each device re-anchors the seat→slot mapping so the viewer's own
-  // panel lands in the layout's "home" slot (bottom-most upright seat) — your
-  // life total sits nearest you, like a seat at a real table. The shift is
-  // cyclic, so the relative turn-order arrangement matches on every screen.
-  // Spectators (no seat) see the canonical seat-order board.
-  const viewerIdx =
-    !isShared && viewerUserId != null
-      ? game.players.findIndex((p) => p.userId === viewerUserId)
-      : -1;
-  const slotShift =
-    viewerIdx >= 0 && board.seats.length === total
-      ? (homeSlotIndex(board) - viewerIdx + total) % total
-      : 0;
   const [menuOpen, setMenuOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   // Commander-damage focus mode: the seat currently asking "how much has each
@@ -110,11 +82,8 @@ export function GameBoard({
   // Resolve against live state so a seat that leaves mid-focus drops the mode
   // instead of stranding the board in a meaningless state.
   const cmdFocus = game.players.find((p) => p.seat === cmdFocusSeat) ?? null;
-  // Focus is only enterable from a panel the viewer may edit, but permissions
-  // can change under an online game — re-derive rather than trusting entry.
-  const cmdFocusCanEdit =
-    cmdFocus != null &&
-    (canControlAll || (viewerUserId != null && cmdFocus.userId === viewerUserId));
+  // Focus is only enterable from a panel the viewer may edit.
+  const cmdFocusCanEdit = cmdFocus != null && canControlAll;
   const exitCmdFocus = useCallback(() => setCmdFocusSeat(null), []);
 
   // Keep the screen awake while a game is in progress (real-table use: the
@@ -198,7 +167,7 @@ export function GameBoard({
         }}
       >
         {game.players.map((p, i) => {
-          const slot = board.seats[(i + slotShift) % total] ?? board.seats[board.seats.length - 1];
+          const slot = board.seats[i] ?? board.seats[board.seats.length - 1];
           // Resolve legacy states: activeSeat / designations may be absent on
           // old persisted games loaded before UX-324.
           const activeSeat = game.activeSeat ?? null;
@@ -210,14 +179,12 @@ export function GameBoard({
               game={game}
               dispatch={dispatchTracked}
               slot={slot}
-              // Rotation only applies in shared (local) mode — on online
-              // games each device is in front of its owner, always upright.
               // Seat rotation is FIXED: it never changes with board state,
               // including commander-damage focus mode. Re-orienting the board
               // under a mode reads as the seats moving, which is disorienting
               // and looks broken — the panel stays where and how it sits.
               rotation={isShared ? slot.rot : 0}
-              canEdit={canControlAll || (viewerUserId != null && p.userId === viewerUserId)}
+              canEdit={canControlAll}
               canLayout={canControlAll}
               cmdFocus={cmdFocus}
               cmdFocusCanEdit={cmdFocusCanEdit}
@@ -307,9 +274,6 @@ export function GameBoard({
           const winnerRot = isShared && winnerSlot ? winnerSlot.rot : 0;
           return <WinCelebration game={game} rotation={winnerRot} />;
         })()}
-
-      {errorMessage && <div className="game-board-error">{errorMessage}</div>}
-      {banner && <div className="game-board-banner">{banner}</div>}
 
       {menuOpen && (
         <GameMenu
@@ -1020,140 +984,6 @@ const CommanderArt = memo(function CommanderArt({ name }: { name: string | null 
   );
 });
 
-// ── Tap & hold ─────────────────────────────────────────────────────────────
-
-interface TapAndHoldOpts {
-  onTap: (arg: number) => void;
-  onHoldTick: (arg: number, gearUp: boolean) => void;
-  onPointerStart?: (e: React.PointerEvent) => void;
-  onPointerMove?: (e: React.PointerEvent) => void;
-  onSwipeUp?: () => void;
-  onSwipeDown?: () => void;
-  /** Panel rotation in degrees; affects swipe direction interpretation. */
-  rotation?: number;
-  disabled: boolean;
-}
-
-const SWIPE_THRESHOLD_PX = 40;
-const SWIPE_AXIS_RATIO = 1.5;
-
-/**
- * Hook that returns a getHandlers(arg) factory which produces the pointer
- * event handlers for a tap-and-hold zone. A single click fires `onTap(arg)`;
- * a long press (>=HOLD_DWELL_MS) starts a repeater that fires
- * `onHoldTick(delta, gearUp)` every HOLD_REPEAT_MS, where `delta` ramps up
- * over time via `holdStepFor`: ×1 initially, ×5 after 1.5 s from repeater
- * start, ×10 after 3.5 s from repeater start (i.e. after the dwell, not from
- * pointer-down). A haptic bump fires — before the tick — each time the step
- * size increases; `gearUp` is true on that tick so the caller can skip the
- * redundant light tap.
- *
- * Also detects vertical swipes: if the pointer moves >40px vertically (and
- * predominantly vertically) before lift, the hold timer is cancelled and
- * onSwipeUp/onSwipeDown fires instead of a tap or repeater. For 180°-rotated
- * panels, screen-space "down" is panel-local "up", so we invert.
- *
- * Using pointer events (not touch/mouse separately) lets the same handler
- * cover mouse, touch, and pen with no synthetic-click double-fire.
- */
-function useTapAndHold({
-  onTap,
-  onHoldTick,
-  onPointerStart,
-  onPointerMove,
-  onSwipeUp,
-  onSwipeDown,
-  rotation = 0,
-  disabled,
-}: TapAndHoldOpts) {
-  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const repeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const heldRef = useRef(false);
-  const startRef = useRef<{ x: number; y: number } | null>(null);
-  const swipedRef = useRef(false);
-  const holdStartRef = useRef<number>(0);
-  const prevStepRef = useRef<number>(1);
-
-  const clear = () => {
-    if (holdTimer.current) clearTimeout(holdTimer.current);
-    if (repeatTimer.current) clearInterval(repeatTimer.current);
-    holdTimer.current = null;
-    repeatTimer.current = null;
-  };
-
-  useEffect(() => () => clear(), []);
-
-  return (arg: number) => ({
-    onPointerDown: (e: React.PointerEvent) => {
-      if (disabled) {
-        // Still record start so a swipe-up (e.g. open seat menu while
-        // eliminated) can fire. But don't arm tap/hold.
-        startRef.current = { x: e.clientX, y: e.clientY };
-        swipedRef.current = false;
-        onPointerStart?.(e);
-        return;
-      }
-      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-      heldRef.current = false;
-      swipedRef.current = false;
-      startRef.current = { x: e.clientX, y: e.clientY };
-      onPointerStart?.(e);
-      clear();
-      holdTimer.current = setTimeout(() => {
-        heldRef.current = true;
-        holdStartRef.current = performance.now();
-        prevStepRef.current = 1;
-        // First tick at step 1 (elapsed ≈ 0) — never a gear-up.
-        onHoldTick(Math.sign(arg) * holdStepFor(0), false);
-        repeatTimer.current = setInterval(() => {
-          const elapsed = performance.now() - holdStartRef.current;
-          const step = holdStepFor(elapsed);
-          const gearUp = step > prevStepRef.current;
-          if (gearUp) {
-            haptics.bump();
-            prevStepRef.current = step;
-          }
-          onHoldTick(Math.sign(arg) * step, gearUp);
-        }, HOLD_REPEAT_MS);
-      }, HOLD_DWELL_MS);
-    },
-    onPointerMove: (e: React.PointerEvent) => {
-      onPointerMove?.(e);
-      const s = startRef.current;
-      if (!s || swipedRef.current) return;
-      const dx = e.clientX - s.x;
-      const dy = e.clientY - s.y;
-      if (Math.abs(dy) >= SWIPE_THRESHOLD_PX && Math.abs(dy) > Math.abs(dx) * SWIPE_AXIS_RATIO) {
-        // Crossed the swipe threshold — cancel any pending tap/hold.
-        swipedRef.current = true;
-        clear();
-        const isScreenDown = dy > 0;
-        // Panel rotated 180° → screen-down is panel-up.
-        const isPanelUp = rotation === 180 ? isScreenDown : !isScreenDown;
-        if (isPanelUp) onSwipeUp?.();
-        else onSwipeDown?.();
-      }
-    },
-    onPointerUp: (e: React.PointerEvent) => {
-      (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
-      const wasHeld = heldRef.current;
-      const wasSwipe = swipedRef.current;
-      clear();
-      startRef.current = null;
-      if (disabled) return;
-      if (!wasHeld && !wasSwipe) onTap(arg);
-    },
-    onPointerCancel: () => {
-      clear();
-      startRef.current = null;
-    },
-    onPointerLeave: () => {
-      clear();
-      startRef.current = null;
-    },
-  });
-}
-
 // ── Counters popover (poison) ──────────────────────────────────────────────
 
 /**
@@ -1316,16 +1146,6 @@ function CmdSplitHalf({
       )}
     </div>
   );
-}
-
-/** Progress toward 21 commander damage, clamped to [0, 1] for the panel's --fill bar. */
-export function cmdDamageFillRatio(value: number): number {
-  return Math.max(0, Math.min(value, 21)) / 21;
-}
-
-/** "N to lethal" hint text, or null when there's nothing worth showing (0, or already lethal). */
-export function cmdDamageToLethal(value: number): number | null {
-  return value > 0 && value < 21 ? 21 - value : null;
 }
 
 function CounterRow({

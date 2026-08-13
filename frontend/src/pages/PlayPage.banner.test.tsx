@@ -12,7 +12,6 @@
 import 'fake-indexeddb/auto';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GameState } from '../lib/game-state';
 
@@ -126,11 +125,16 @@ vi.mock('../store/decks', () => ({
   useDecksStore: <T,>(selector: (s: object) => T): T => selector({ decks: [] }),
 }));
 
-// Stub GameBoard: render its banner prop (if any) so we can inspect it.
+// GameBoard is local-only since T99 — never reached by these online-tab
+// tests, but PlayPage still imports it for the Local tab, so stub it down.
 vi.mock('../components/play/GameBoard', () => ({
-  GameBoard: ({ banner }: { banner?: React.ReactNode }) => (
-    <div data-testid="game-board">{banner ?? null}</div>
-  ),
+  GameBoard: () => <div data-testid="game-board" />,
+}));
+
+// The join-code banner now renders as a PlayPage sibling (not nested inside
+// the board component) — OnlineGameView itself isn't under test here.
+vi.mock('../components/play/OnlineGameView', () => ({
+  OnlineGameView: () => <div data-testid="online-game-view" />,
 }));
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

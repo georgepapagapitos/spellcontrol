@@ -13,6 +13,7 @@ import {
 import { useRulesReferenceStore } from '../store/rules-reference';
 import { toast } from '../store/toasts';
 import { GameBoard } from '../components/play/GameBoard';
+import { OnlineGameView } from '../components/play/OnlineGameView';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Modal } from '../components/Modal';
 import { SelectMenu } from '../components/SelectMenu';
@@ -176,54 +177,49 @@ export function PlayPage() {
 
       {tab === 'online' && (
         <>
-          {online && boardVisible ? (
-            <GameBoard
-              game={online}
-              dispatch={(action) => void dispatchOnline(action)}
-              canControlAll={user?.id === online.hostUserId}
-              viewerUserId={user?.id ?? null}
-              onMinimize={hideBoard}
-              onEnd={() => setPendingEnd('online')}
-              onLeave={() => void leaveOnline()}
-              onRematch={() => {
-                rematchLocal(gameToRematch(online));
-                setTab('local');
-              }}
-              errorMessage={onlineError}
-              banner={
-                <>
-                  {/* UX-323: only show the join-code banner while the game is still
-                      in lobby/waiting. Once the game is active or finished, the
-                      code has served its purpose and the banner occludes counter
-                      chips. The code remains visible inside the GameMenu sheet —
-                      which is also where it goes when the host dismisses it here. */}
-                  {online.status === 'lobby' && codeHiddenFor !== online.code && (
-                    <div className="play-code-banner">
-                      <span className="play-code-label">Join code</span>
-                      <span className="play-code-value">{online.code}</span>
-                      <span className="play-code-hint">
-                        Players go to Play → Online → Join, then enter this code.
-                      </span>
-                      <button
-                        type="button"
-                        className="play-code-dismiss"
-                        aria-label="Hide join code — it stays in the game menu"
-                        onClick={() => setCodeHiddenFor(online.code)}
-                      >
-                        <X width={16} height={16} strokeWidth={2} aria-hidden />
-                      </button>
-                    </div>
-                  )}
-                  <OnlineBoardDoor
-                    game={online}
-                    decks={decks}
-                    userId={user?.id ?? null}
-                    onlineBoards={onlineBoards}
-                    dispatchOnline={dispatchOnline}
-                  />
-                </>
-              }
-            />
+          {online ? (
+            <>
+              {/* UX-323: only show the join-code banner while the game is still
+                  in lobby/waiting. Once the game is active or finished, the
+                  code has served its purpose. */}
+              {online.status === 'lobby' && codeHiddenFor !== online.code && (
+                <div className="play-code-banner">
+                  <span className="play-code-label">Join code</span>
+                  <span className="play-code-value">{online.code}</span>
+                  <span className="play-code-hint">
+                    Players go to Play → Online → Join, then enter this code.
+                  </span>
+                  <button
+                    type="button"
+                    className="play-code-dismiss"
+                    aria-label="Hide join code"
+                    onClick={() => setCodeHiddenFor(online.code)}
+                  >
+                    <X width={16} height={16} strokeWidth={2} aria-hidden />
+                  </button>
+                </div>
+              )}
+              <OnlineBoardDoor
+                game={online}
+                decks={decks}
+                userId={user?.id ?? null}
+                onlineBoards={onlineBoards}
+                dispatchOnline={dispatchOnline}
+              />
+              {/* No boardVisible gating here — minimize/show-board is a
+                  local-game concept; navigating away from Online is just
+                  switching tabs (T99). */}
+              <OnlineGameView
+                game={online}
+                errorMessage={onlineError}
+                onEnd={() => setPendingEnd('online')}
+                onLeave={() => void leaveOnline()}
+                onRematch={() => {
+                  rematchLocal(gameToRematch(online));
+                  setTab('local');
+                }}
+              />
+            </>
           ) : isGuest ? (
             <div className="empty-state">
               <p className="empty-state-tagline">Online games need an account</p>
@@ -239,13 +235,6 @@ export function PlayPage() {
             </div>
           ) : (
             <>
-              {online && (
-                <ResumeBanner
-                  game={online}
-                  onResume={showBoard}
-                  onDiscard={() => void leaveOnline()}
-                />
-              )}
               <OnlineSetup
                 decks={decks}
                 onHost={(opts) =>
