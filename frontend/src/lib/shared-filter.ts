@@ -16,7 +16,7 @@
 import type { PublicCard } from './shared-types';
 import type { BinderFilter, ChipExpression, EnrichedCard } from '../types';
 import { getCardTags } from './card-tags';
-import { getColorKey } from './colors';
+import { colorSelectionMatches, getColorKey, type ColorMatchMode } from './colors';
 import { cardMatchesCompiled, compileFilter, isExpressionEmpty } from './rules';
 
 /** Committed filter state the shared views hold and the dialog edits. */
@@ -26,6 +26,8 @@ export interface SharedFilterState {
   subtypeExpr: ChipExpression;
   /** Color-identity codes W/U/B/R/G + C (colorless). */
   colorFilter: ReadonlySet<string>;
+  /** How multiple selected colors combine — OR ('any', default) or AND ('all'). */
+  colorMode: ColorMatchMode;
   rarityExpr: ChipExpression;
   oracleExpr: ChipExpression;
   oracleTagExpr: ChipExpression;
@@ -109,15 +111,13 @@ export function buildSharedBinderFilter(s: SharedFilterState): BinderFilter {
  * collection uses the same "any selected color in identity (C = colorless)"
  * semantics rather than the engine's color-key rule (mirrors CardListTable).
  */
-export function colorMatches(card: EnrichedCard, colorFilter: ReadonlySet<string>): boolean {
+export function colorMatches(
+  card: EnrichedCard,
+  colorFilter: ReadonlySet<string>,
+  mode: ColorMatchMode = 'any'
+): boolean {
   if (colorFilter.size === 0) return true;
-  const k = getColorKey(card);
-  const ci = card.colorIdentity ?? [];
-  return (
-    (k === 'C' && colorFilter.has('C')) ||
-    ci.some((c) => colorFilter.has(c)) ||
-    (k !== 'C' && colorFilter.has(k))
-  );
+  return colorSelectionMatches(getColorKey(card), card.colorIdentity ?? [], colorFilter, mode);
 }
 
 /**
@@ -129,7 +129,7 @@ export function makeSharedMatcher(state: SharedFilterState): (pc: PublicCard) =>
   const compiled = compileFilter(buildSharedBinderFilter(state));
   return (pc) => {
     const card = publicCardToEnriched(pc);
-    if (!colorMatches(card, state.colorFilter)) return false;
+    if (!colorMatches(card, state.colorFilter, state.colorMode)) return false;
     return cardMatchesCompiled(card, compiled);
   };
 }

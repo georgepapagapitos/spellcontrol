@@ -245,6 +245,14 @@
   color: var(--text-muted);
 }
 
+/* Label row that also carries a trailing control (the color AND/OR chip). */
+.deck-filters-section-label--split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
 .deck-filters-chips {
   display: flex;
   flex-wrap: wrap;

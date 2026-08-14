@@ -85,7 +85,7 @@ import {
   type ListLayoutRow,
 } from '../lib/group-sections';
 import { readLocalStorage } from '../lib/local-storage';
-import { getColorKey } from '../lib/colors';
+import { colorSelectionMatches, getColorKey, type ColorMatchMode } from '../lib/colors';
 import { useCollectionStore } from '../store/collection';
 import {
   collectionFiltersToFilterGroup,
@@ -448,6 +448,7 @@ export function CardListTable({
   const [surplusOnly, setSurplusOnly] = useState(false);
   const [proxyOnly, setProxyOnly] = useState(false);
   const [colorFilter, setColorFilter] = useState<Set<string>>(new Set());
+  const [colorMode, setColorMode] = useState<ColorMatchMode>('any');
   const [supertypeExpr, setSupertypeExpr] = useState<ChipExpression>({
     chips: [],
     joiners: [],
@@ -789,11 +790,7 @@ export function CardListTable({
         if (colorFilter.size > 0) {
           const k = getColorKey(r.card);
           const ci = r.card.colorIdentity || [];
-          const matches =
-            (k === 'C' && colorFilter.has('C')) ||
-            ci.some((c) => colorFilter.has(c)) ||
-            (k !== 'C' && colorFilter.has(k));
-          if (!matches) return false;
+          if (!colorSelectionMatches(k, ci, colorFilter, colorMode)) return false;
         }
         // Post-check 3: condition (collection-only, physical copy field)
         if (compiledCondition && !exactMatchesExpression(r.card.condition, compiledCondition))
@@ -814,6 +811,7 @@ export function CardListTable({
       rows,
       compiledBinder,
       colorFilter,
+      colorMode,
       compiledCondition,
       compiledLanguage,
       surplusOnly,
@@ -1565,6 +1563,7 @@ export function CardListTable({
   const clearAllFilters = useCallback(() => {
     setSearch('');
     setColorFilter(new Set());
+    setColorMode('any');
     setSupertypeExpr(EMPTY_EXPR);
     setTypesExpr(EMPTY_EXPR);
     setSubtypeExpr(EMPTY_EXPR);
@@ -1613,7 +1612,10 @@ export function CardListTable({
         G: 'Green',
         C: 'Colorless',
       };
-      const labels = [...colorFilter].map((k) => colorMap[k] ?? k).join(', ');
+      // AND mode reads as an intersection — "White + Red" — vs OR's list.
+      const labels = [...colorFilter]
+        .map((k) => colorMap[k] ?? k)
+        .join(colorMode === 'all' ? ' + ' : ', ');
       chips.push({
         id: 'color',
         label: `Color: ${labels}`,
@@ -1846,6 +1848,7 @@ export function CardListTable({
   }, [
     search,
     colorFilter,
+    colorMode,
     rarityExpr,
     supertypeExpr,
     typesExpr,
@@ -1902,6 +1905,8 @@ export function CardListTable({
               subtypeSuggestions={subtypeSuggestions}
               colorFilter={colorFilter}
               setColorFilter={setColorFilter}
+              colorMode={colorMode}
+              setColorMode={setColorMode}
               colorOptions={COLOR_FILTERS}
               rarityExpr={rarityExpr}
               setRarityExpr={setRarityExpr}

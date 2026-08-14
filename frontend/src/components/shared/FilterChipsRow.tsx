@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
+import type { ColorMatchMode } from '../../lib/colors';
 
 export interface FilterChipDescriptor {
   id: string;
@@ -22,9 +23,13 @@ const FILTER_COLOR_LABELS: Record<string, string> = {
   C: 'Colorless',
 };
 
-/** "White, Blue" for a set of WUBRG(C) filter keys. */
-export function colorChipLabel(keys: Iterable<string>): string {
-  return [...keys].map((k) => FILTER_COLOR_LABELS[k] ?? k).join(', ');
+/**
+ * "White, Blue" for a set of WUBRG(C) filter keys. In 'all' (AND) mode the
+ * chip reads as an intersection — "White + Blue" — so the label itself says
+ * which combine semantics are active.
+ */
+export function colorChipLabel(keys: Iterable<string>, mode: ColorMatchMode = 'any'): string {
+  return [...keys].map((k) => FILTER_COLOR_LABELS[k] ?? k).join(mode === 'all' ? ' + ' : ', ');
 }
 
 /**

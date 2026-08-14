@@ -22,6 +22,7 @@ import { useToastsStore } from '../../store/toasts';
 import { useSetMap } from '../../lib/api';
 import { fetchTypeSuggestions } from '../../lib/scryfall-catalog';
 import { parseTypeLine, SUPERTYPES, TYPES } from '../../lib/card-types';
+import { colorSelectionMatches, type ColorMatchMode } from '../../lib/colors';
 import {
   compileExpression,
   effectiveTreatments,
@@ -322,6 +323,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   const [typesExpr, setTypesExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [subtypeExpr, setSubtypeExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [colorFilter, setColorFilter] = useState<Set<string>>(new Set());
+  const [colorMode, setColorMode] = useState<ColorMatchMode>('any');
   const [rarityExpr, setRarityExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [oracleExpr, setOracleExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [legalityExpr, setLegalityExpr] = useState<ChipExpression>(EMPTY_EXPR);
@@ -559,6 +561,8 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
               subtypeSuggestions={subtypeSuggestions}
               colorFilter={colorFilter}
               setColorFilter={setColorFilter}
+              colorMode={colorMode}
+              setColorMode={setColorMode}
               colorOptions={COLOR_FILTERS}
               rarityExpr={rarityExpr}
               setRarityExpr={setRarityExpr}
@@ -645,6 +649,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             compiledTreatment={compiledTreatment}
             compiledBorder={compiledBorder}
             colorFilter={colorFilter}
+            colorMatchMode={colorMode}
             setFilter={setFilter}
             gapByName={gapByName}
             comboProducesByName={comboProducesByName}
@@ -760,6 +765,7 @@ interface CollectionResultsProps extends ResultsProps, FitProps {
   compiledTreatment: ReturnType<typeof compileExpression>;
   compiledBorder: ReturnType<typeof compileExpression>;
   colorFilter: Set<string>;
+  colorMatchMode: ColorMatchMode;
   setFilter: Set<string>;
   binderByCardName?: Map<string, BinderInfo[]>;
 }
@@ -786,6 +792,7 @@ function CollectionResults({
   compiledTreatment,
   compiledBorder,
   colorFilter,
+  colorMatchMode,
   setFilter,
   gapByName,
   comboProducesByName,
@@ -830,12 +837,8 @@ function CollectionResults({
       // set; e.g. a Naya commander + "blue" chip yields zero matches
       // (correct — Naya can't run blue cards anyway).
       if (colorFilter.size > 0) {
-        const k = (ci.length === 0 ? 'C' : ci[0]) as string;
-        const matches =
-          (k === 'C' && colorFilter.has('C')) ||
-          ci.some((kk) => colorFilter.has(kk)) ||
-          (k !== 'C' && colorFilter.has(k));
-        if (!matches) continue;
+        const k = ci.length === 0 ? 'C' : ci[0];
+        if (!colorSelectionMatches(k, ci, colorFilter, colorMatchMode)) continue;
       }
       if (compiledSupertype || compiledTypes || compiledSubtype) {
         const parsed = parseTypeLine(c.typeLine);
@@ -890,6 +893,7 @@ function CollectionResults({
     compiledTreatment,
     compiledBorder,
     colorFilter,
+    colorMatchMode,
     setFilter,
   ]);
 

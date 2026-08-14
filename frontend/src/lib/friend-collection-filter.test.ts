@@ -34,6 +34,15 @@ describe('filterFriendCollection', () => {
     expect(result.map((c) => c.name).sort()).toEqual(['Naya Charm', 'Wrath of God']);
   });
 
+  it("'all' mode requires every selected color", () => {
+    const { cards: result } = filterFriendCollection(cards, {
+      query: '',
+      colors: new Set(['R', 'W']),
+      colorMode: 'all',
+    });
+    expect(result.map((c) => c.name)).toEqual(['Naya Charm']);
+  });
+
   it('treats an empty colors array as colorless, matched by C', () => {
     const { cards: result } = filterFriendCollection(cards, { query: '', colors: new Set(['C']) });
     expect(result.map((c) => c.name)).toEqual(['Sol Ring']);

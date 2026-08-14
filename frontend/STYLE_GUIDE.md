@@ -898,6 +898,33 @@ The full card name must remain reachable: expose it with `title` on the name
 element for desktop hover, and keep any existing tap-to-preview/card carousel
 affordance for touch. `title` is never the sole path to the full name.
 
+## Color pip rows — AND/OR match-mode chip
+
+Every WUBRG+C color pip row that filters _cards or decks by their own colors_
+(collection dialog, lists, deck add-cards, shared views, decks index, friend
+collection) carries `ColorMatchModeToggle`
+(`components/shared/ColorMatchModeToggle.tsx`): a `chip-joiner`-styled AND/OR
+pill plus a plain-language hint ("any selected color" / "all selected
+colors"). One combine-operator language app-wide — the pill is the same one
+`ChipExpressionBuilder` renders between chips, so AND is always the
+accent-filled variant and OR the muted one.
+
+- **Placement:** dialog/popover sections put it right-aligned in the section
+  label row (`*-section-label--split`); inline pip rows (friend hub) append
+  it after the pips.
+- **The hint is mandatory.** Between two value chips the operator explains
+  itself; standing alone it doesn't — never render the bare pill without the
+  hint text.
+- **Semantics:** OR = card shows any selected color (`colorSelectionMatches`
+  in `lib/colors.ts`, the single predicate); AND = every selected color
+  (R + W = Boros). Card surfaces default to OR; the decks index defaults to
+  AND (its pre-existing behavior). Filter chips echo the mode: "White, Red"
+  (OR) vs "White + Red" (AND) via `colorChipLabel`.
+- **Deliberate exceptions — no toggle:** combos ("fits inside these colors",
+  subset), Discover decks (identity-subset, server-side), and CommanderSearch
+  (exact-identity EDHREC pages). Their color rows mean something else; don't
+  "unify" them onto this chip.
+
 ## Tag chips (E171)
 
 User-defined card tags (deck list/grid + card-preview panel) are **neutral
@@ -3933,7 +3960,7 @@ Model-written text always says so. The rulings:
 - **Streaming shows the prose, never the plumbing (T102).** A skeleton covers
   only the wait before the first word; after that the text renders as it lands,
   with a caret and an announced "Writing…" status. Structure that depends on
-  the *whole* answer — section titles, card chips — waits for completion rather
+  the _whole_ answer — section titles, card chips — waits for completion rather
   than reflowing mid-write. Any machine-readable tail the model emits is
   withheld server-side so it can never flicker on screen as prose. A stream
   that ends without its terminator is a failure, not a short answer: drop the

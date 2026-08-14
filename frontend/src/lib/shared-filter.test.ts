@@ -22,6 +22,7 @@ function state(overrides: Partial<SharedFilterState> = {}): SharedFilterState {
     typesExpr: EMPTY,
     subtypeExpr: EMPTY,
     colorFilter: new Set(),
+    colorMode: 'any',
     rarityExpr: EMPTY,
     oracleExpr: EMPTY,
     oracleTagExpr: EMPTY,
@@ -119,6 +120,14 @@ describe('colorMatches', () => {
     const solRing = publicCardToEnriched(card({ colorIdentity: [] }));
     expect(colorMatches(solRing, new Set(['C']))).toBe(true);
     expect(colorMatches(solRing, new Set(['U']))).toBe(false);
+  });
+
+  it("'all' mode requires every selected color", () => {
+    const boros = publicCardToEnriched(card({ colorIdentity: ['R', 'W'] }));
+    const bolt = publicCardToEnriched(card({ colorIdentity: ['R'] }));
+    expect(colorMatches(boros, new Set(['R', 'W']), 'all')).toBe(true);
+    expect(colorMatches(bolt, new Set(['R', 'W']), 'all')).toBe(false);
+    expect(colorMatches(bolt, new Set(['R', 'W']), 'any')).toBe(true);
   });
 });
 

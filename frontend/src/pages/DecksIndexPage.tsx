@@ -31,6 +31,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { SortDirArrow } from '../components/SortDirArrow';
 import { ColorPip } from '../components/shared/ManaSymbol';
+import { colorSelectionMatches, type ColorMatchMode } from '../lib/colors';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
@@ -121,6 +122,7 @@ type StoredFilters = {
   formats: DeckFormat[];
   sources: DeckSource[];
   colors: string[];
+  colorMode: ColorMatchMode;
 };
 
 function loadFilters(): StoredFilters {
@@ -132,15 +134,23 @@ function loadFilters(): StoredFilters {
         formats: Array.isArray(parsed.formats) ? (parsed.formats as DeckFormat[]) : [],
         sources: Array.isArray(parsed.sources) ? (parsed.sources as DeckSource[]) : [],
         colors: Array.isArray(parsed.colors) ? parsed.colors : [],
+        // Decks default to AND — picking R + G means Gruul decks, and that
+        // was this page's behavior before the mode became a choice.
+        colorMode: parsed.colorMode === 'any' ? 'any' : 'all',
       };
     }
   } catch {
     /* ignore */
   }
-  return { formats: [], sources: [], colors: [] };
+  return { formats: [], sources: [], colors: [], colorMode: 'all' };
 }
 
-function persistFilters(formats: Set<DeckFormat>, sources: Set<DeckSource>, colors: Set<string>) {
+function persistFilters(
+  formats: Set<DeckFormat>,
+  sources: Set<DeckSource>,
+  colors: Set<string>,
+  colorMode: ColorMatchMode
+) {
   try {
     localStorage.setItem(
       FILTERS_KEY,
@@ -148,6 +158,7 @@ function persistFilters(formats: Set<DeckFormat>, sources: Set<DeckSource>, colo
         formats: Array.from(formats),
         sources: Array.from(sources),
         colors: Array.from(colors),
+        colorMode,
       } satisfies StoredFilters)
     );
   } catch {
@@ -240,17 +251,22 @@ export function DecksIndexPage() {
   const [colorFilter, setColorFilterRaw] = useState<Set<string>>(
     () => new Set(loadFilters().colors)
   );
+  const [colorMode, setColorModeRaw] = useState<ColorMatchMode>(() => loadFilters().colorMode);
   const setFormatFilter = (next: Set<DeckFormat>) => {
     setFormatFilterRaw(next);
-    persistFilters(next, sourceFilter, colorFilter);
+    persistFilters(next, sourceFilter, colorFilter, colorMode);
   };
   const setSourceFilter = (next: Set<DeckSource>) => {
     setSourceFilterRaw(next);
-    persistFilters(formatFilter, next, colorFilter);
+    persistFilters(formatFilter, next, colorFilter, colorMode);
   };
   const setColorFilter = (next: Set<string>) => {
     setColorFilterRaw(next);
-    persistFilters(formatFilter, sourceFilter, next);
+    persistFilters(formatFilter, sourceFilter, next, colorMode);
+  };
+  const setColorMode = (next: ColorMatchMode) => {
+    setColorModeRaw(next);
+    persistFilters(formatFilter, sourceFilter, colorFilter, next);
   };
   // Active-filter chips — same affordance the collection and lists carry, so a
   // filtered deck list says what's filtering it and each × clears one slice.
@@ -273,7 +289,7 @@ export function DecksIndexPage() {
     if (colorFilter.size > 0)
       chips.push({
         id: 'color',
-        label: `Color: ${colorChipLabel(colorFilter)}`,
+        label: `Color: ${colorChipLabel(colorFilter, colorMode)}`,
         onClear: () => setColorFilter(new Set()),
       });
     return chips;
@@ -281,13 +297,14 @@ export function DecksIndexPage() {
     // state to persist all three together) — depending on them would rebuild
     // the chips every render for nothing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, formatFilter, sourceFilter, colorFilter]);
+  }, [search, formatFilter, sourceFilter, colorFilter, colorMode]);
   const clearAllFilters = () => {
     setSearch('');
     setFormatFilterRaw(new Set());
     setSourceFilterRaw(new Set());
     setColorFilterRaw(new Set());
-    persistFilters(new Set(), new Set(), new Set());
+    setColorModeRaw('all');
+    persistFilters(new Set(), new Set(), new Set(), 'all');
   };
   // Combined sort pill: clicking the active field flips direction;
   // clicking a different field switches to it with its default direction.
@@ -314,17 +331,12 @@ export function DecksIndexPage() {
       if (hasFormatFilter && !formatFilter.has(d.format)) return false;
       if (hasSourceFilter && !sourceFilter.has(d.source)) return false;
       if (hasColorFilter) {
-        const deckColors = effectiveDeckColors(d);
         // "C" means colorless — match decks whose effective identity is empty.
-        // Any selected color must be present (intersection semantics: picking
-        // R + G shows red AND green decks, matching collection-page behavior).
-        for (const c of colorFilter) {
-          if (c === 'C') {
-            if (deckColors.size !== 0) return false;
-          } else if (!deckColors.has(c)) {
-            return false;
-          }
-        }
+        // colorMode picks AND (every selected color in the identity, the
+        // long-standing default here) vs OR (any selected color).
+        const deckColors = effectiveDeckColors(d);
+        const key = deckColors.size === 0 ? 'C' : '';
+        if (!colorSelectionMatches(key, [...deckColors], colorFilter, colorMode)) return false;
       }
       return true;
     });
@@ -335,7 +347,16 @@ export function DecksIndexPage() {
       if (va > vb) return sortDir === 'desc' ? -1 : 1;
       return 0;
     });
-  }, [decks, sortField, sortDir, debouncedSearch, formatFilter, sourceFilter, colorFilter]);
+  }, [
+    decks,
+    sortField,
+    sortDir,
+    debouncedSearch,
+    formatFilter,
+    sourceFilter,
+    colorFilter,
+    colorMode,
+  ]);
 
   // One-shot entrance cascade for the deck cards — same primitive (and
   // once-per-session consumed registry) as the analysis bento panels. Keyed
@@ -552,6 +573,8 @@ export function DecksIndexPage() {
                   setSources={setSourceFilter}
                   colors={colorFilter}
                   setColors={setColorFilter}
+                  colorMode={colorMode}
+                  setColorMode={setColorMode}
                 />
               }
             />
