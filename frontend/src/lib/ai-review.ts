@@ -115,29 +115,70 @@ export interface ReviewSection {
   id: 'weakness' | 'gameplan' | 'win';
   title: string;
   paragraphs: string[];
+  /** False while this section is still being streamed into. */
+  complete: boolean;
 }
 
+/** The three labels prompt v4 emits, in emission order (also display order). */
+export const WEAKNESS_MARK = '---WEAKNESS---';
+export const GAMEPLAN_MARK = '---GAMEPLAN---';
+export const WINS_MARK = '---WINS---';
+
+const SECTION_SPECS = [
+  { id: 'weakness', mark: WEAKNESS_MARK, title: 'The weakness that matters' },
+  { id: 'gameplan', mark: GAMEPLAN_MARK, title: 'The gameplan' },
+  { id: 'win', mark: WINS_MARK, title: 'How it wins' },
+] as const;
+
 /**
- * Split the review prose into its three titled sections, in DISPLAY order —
- * weakness first, because that's the part statistics can't give you.
+ * Split the review prose into its three titled sections.
  *
- * The prompt fixes the writing order (gameplan → how it wins → the weakness)
- * and asks for 3-4 paragraphs with no headers, so the mapping is positional:
- * first paragraph is the gameplan, last is the weakness, anything between is
- * the win path. Anything shorter than three paragraphs isn't the shape we can
- * label honestly — returns null, and the caller renders plain prose.
+ * **Works on a partial stream**, which is the whole point: the panel renders
+ * all three titled blocks from the first byte and each one fills in place, so
+ * nothing ever reflows when the stream ends. Prompt v4 emits the labels and
+ * puts the weakness first, so emission order and display order agree and no
+ * block waits on a later one.
+ *
+ * `complete` marks a section whose text is finished — a later label has been
+ * seen, or the stream is done. Callers use it to decide when card-name chips
+ * are safe to apply, since chipping a half-typed name would jitter the line.
+ *
+ * Returns null when no label has appeared at all (an older cached review from
+ * prompt v3, or a model that ignored the format) — the caller falls back to
+ * plain paragraphs, which is exactly the pre-v4 rendering.
  */
-export function splitReviewSections(content: string): ReviewSection[] | null {
-  const paras = content
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean);
-  if (paras.length < 3) return null;
-  return [
-    { id: 'weakness', title: 'The weakness that matters', paragraphs: [paras[paras.length - 1]] },
-    { id: 'gameplan', title: 'The gameplan', paragraphs: [paras[0]] },
-    { id: 'win', title: 'How it wins', paragraphs: paras.slice(1, -1) },
-  ];
+export function splitReviewSections(content: string, streaming = false): ReviewSection[] | null {
+  const found = SECTION_SPECS.map((spec) => ({ spec, at: content.indexOf(spec.mark) })).filter(
+    (f) => f.at !== -1
+  );
+  if (found.length === 0) return null;
+  found.sort((a, b) => a.at - b.at);
+
+  const sections: ReviewSection[] = [];
+  for (const spec of SECTION_SPECS) {
+    const hit = found.find((f) => f.spec.id === spec.id);
+    const idx = found.findIndex((f) => f.spec.id === spec.id);
+    const body =
+      hit === undefined
+        ? ''
+        : content
+            .slice(
+              hit.at + spec.mark.length,
+              idx < found.length - 1 ? found[idx + 1].at : undefined
+            )
+            .trim();
+    sections.push({
+      id: spec.id,
+      title: spec.title,
+      paragraphs: body
+        .split(/\n{2,}/)
+        .map((para) => para.trim())
+        .filter(Boolean),
+      // The last label seen is still being written while the stream is open.
+      complete: !streaming || (hit !== undefined && idx < found.length - 1),
+    });
+  }
+  return sections;
 }
 
 export interface ProseToken {

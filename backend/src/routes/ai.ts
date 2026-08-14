@@ -9,6 +9,7 @@ import { aiEnabled, generateReview, AI_MODEL } from '../ai/client';
 import {
   DECK_REVIEW_FEATURE,
   DECK_REVIEW_SYSTEM_PROMPT,
+  WEAKNESS_MARK,
   buildUserMessage,
   hashDeckReviewInput,
   parseDeckReviewRequest,
@@ -220,7 +221,11 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
     generation = await generateReview(
       DECK_REVIEW_SYSTEM_PROMPT,
       buildUserMessage(request, oracle),
-      (delta) => send({ delta })
+      (delta) => send({ delta }),
+      // Seed the first section label rather than asking for it — see the
+      // prefill note in ai/client.ts. NO trailing newline: the API rejects a
+      // final assistant message ending in whitespace.
+      WEAKNESS_MARK
     );
   } catch (err) {
     logger.error('[ai] deck review generation failed', err);

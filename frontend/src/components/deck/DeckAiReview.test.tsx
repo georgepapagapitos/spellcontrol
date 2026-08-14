@@ -26,10 +26,18 @@ function card(name: string): ScryfallCard {
   return { id: name, oracle_id: `o-${name}`, name } as ScryfallCard;
 }
 
+// Prompt v4 shape: labelled sections, weakness emitted first.
 const REVIEW = [
-  'Your deck ramps into Sol Ring and casts Kaalia of the Vast.',
-  'It wins by connecting with Kaalia of the Vast.',
-  "Your mana cannot support it — Sol Ring's colorless does not fix colors.",
+  "---WEAKNESS---\nYour mana cannot support it — Sol Ring's colorless does not fix colors.",
+  '---GAMEPLAN---\nYour deck ramps into Sol Ring and casts Kaalia of the Vast.',
+  '---WINS---\nIt wins by connecting with Kaalia of the Vast.',
+].join('\n\n');
+
+/** A review cached from prompt v3 — no labels at all. */
+const LEGACY_REVIEW = [
+  'Your deck ramps into Sol Ring.',
+  'It wins by connecting.',
+  'Your mana cannot support it.',
 ].join('\n\n');
 
 /**
@@ -156,6 +164,19 @@ describe('the reading', () => {
     expect(container.textContent).not.toContain('ramps into');
     expect(container.querySelector('.deck-ai-prose')).toBeNull();
     expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+  });
+
+  it('renders a label-less v3 review as plain prose instead of mislabelling it', async () => {
+    stubApi(true, [
+      { delta: LEGACY_REVIEW },
+      { done: { content: LEGACY_REVIEW, cached: true, model: 'm', usage: {} } },
+    ]);
+    const { container } = renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Read the deck' }));
+
+    await waitFor(() => expect(container.querySelector('.deck-ai-prose')).toBeTruthy());
+    expect(container.querySelector('.deck-ai-section-title')).toBeNull();
+    expect(container.textContent).toContain('Your mana cannot support it.');
   });
 
   it('rejects a truncated stream rather than presenting it as finished', async () => {

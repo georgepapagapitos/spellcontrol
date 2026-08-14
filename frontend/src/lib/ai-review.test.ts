@@ -75,30 +75,61 @@ describe('deckContentKey', () => {
 });
 
 describe('splitReviewSections', () => {
-  const paras = (...p: string[]) => p.join('\n\n');
+  const W = '---WEAKNESS---';
+  const G = '---GAMEPLAN---';
+  const N = '---WINS---';
+  const full = `${W}\nThe mana is wrong.\n\n${G}\nGoblins, wide.\n\n${N}\nCombat damage.`;
 
-  it('leads with the weakness — the last paragraph the model wrote', () => {
-    const sections = splitReviewSections(paras('Gameplan.', 'Win path.', 'The weakness.'));
-    expect(sections?.map((s) => s.id)).toEqual(['weakness', 'gameplan', 'win']);
-    expect(sections?.[0].paragraphs).toEqual(['The weakness.']);
-    expect(sections?.[1].paragraphs).toEqual(['Gameplan.']);
-    expect(sections?.[2].paragraphs).toEqual(['Win path.']);
+  it('reads the labels and keeps display order', () => {
+    const secs = splitReviewSections(full);
+    expect(secs?.map((s) => s.id)).toEqual(['weakness', 'gameplan', 'win']);
+    expect(secs?.[0].paragraphs).toEqual(['The mana is wrong.']);
+    expect(secs?.[1].paragraphs).toEqual(['Goblins, wide.']);
+    expect(secs?.[2].paragraphs).toEqual(['Combat damage.']);
+    expect(secs?.every((s) => s.complete)).toBe(true);
   });
 
-  it('gives a fourth paragraph to the win path, never to the weakness', () => {
-    const sections = splitReviewSections(paras('Gameplan.', 'Win A.', 'Win B.', 'The weakness.'));
-    expect(sections?.[0].paragraphs).toEqual(['The weakness.']);
-    expect(sections?.[2].paragraphs).toEqual(['Win A.', 'Win B.']);
+  it('keeps multi-paragraph sections together', () => {
+    const secs = splitReviewSections(`${W}\nOne.\n\nTwo.\n\n${G}\nPlan.\n\n${N}\nWin.`);
+    expect(secs?.[0].paragraphs).toEqual(['One.', 'Two.']);
   });
 
-  it('returns null below three paragraphs rather than mislabelling prose', () => {
-    expect(splitReviewSections('One block.')).toBeNull();
-    expect(splitReviewSections(paras('One.', 'Two.'))).toBeNull();
+  // The streaming contract: every block exists from the first label, so the
+  // layout is final before the text is.
+  it('returns all three sections from the very first label', () => {
+    const secs = splitReviewSections(`${W}\nThe mana is w`, true);
+    expect(secs?.map((s) => s.id)).toEqual(['weakness', 'gameplan', 'win']);
+    expect(secs?.[1].paragraphs).toEqual([]);
+    expect(secs?.[2].paragraphs).toEqual([]);
   });
 
-  it('ignores blank paragraphs and stray whitespace', () => {
-    const sections = splitReviewSections('  A.  \n\n\n\n  B.  \n\n C. \n\n');
-    expect(sections?.map((s) => s.paragraphs)).toEqual([['C.'], ['A.'], ['B.']]);
+  it('marks the section being written as incomplete, earlier ones as done', () => {
+    const secs = splitReviewSections(`${W}\nMana.\n\n${G}\nGoblins, wi`, true);
+    expect(secs?.[0].complete).toBe(true); // a later label appeared
+    expect(secs?.[1].complete).toBe(false); // still being typed
+  });
+
+  it('treats everything as complete once the stream is done', () => {
+    expect(splitReviewSections(full, false)?.every((s) => s.complete)).toBe(true);
+  });
+
+  it('falls back to null for label-less prose (a review cached from v3)', () => {
+    expect(splitReviewSections('Three\n\nplain\n\nparagraphs.')).toBeNull();
+    expect(splitReviewSections('')).toBeNull();
+  });
+
+  it('survives the model emitting the labels out of order', () => {
+    // Display order is ours, not the model's — the ids stay in our order and
+    // each body still follows its own label.
+    const secs = splitReviewSections(`${G}\nPlan.\n\n${W}\nFlaw.\n\n${N}\nWin.`);
+    expect(secs?.map((s) => s.id)).toEqual(['weakness', 'gameplan', 'win']);
+    expect(secs?.[0].paragraphs).toEqual(['Flaw.']);
+    expect(secs?.[1].paragraphs).toEqual(['Plan.']);
+  });
+
+  it('tolerates a missing section rather than dropping the rest', () => {
+    const secs = splitReviewSections(`${W}\nFlaw.\n\n${N}\nWin.`);
+    expect(secs?.map((s) => s.paragraphs.length)).toEqual([1, 0, 1]);
   });
 });
 

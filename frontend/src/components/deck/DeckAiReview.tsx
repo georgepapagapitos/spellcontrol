@@ -169,7 +169,12 @@ export function DeckAiReview({
         <span className="deck-ai-marker">AI-written</span>
       </h4>
 
-      {review && (
+      {/* One render path for the streaming text and the settled review, so the
+          reading never reflows: all three titled blocks exist from the first
+          byte and each fills in place. Prompt v4 emits the labels in display
+          order, so no block waits on a later one. The skeleton covers only the
+          gap before the first label arrives. */}
+      {(review || streamed) && (
         <div aria-live="polite">
           {stale && (
             <div className="deck-ai-stale" role="status">
@@ -179,37 +184,34 @@ export function DeckAiReview({
               </button>
             </div>
           )}
-          <ReviewProse content={review.content} chipCards={chipCards} stale={stale} />
+          {/* Announced, but visually hidden — a "Writing…" line that later
+              disappears would itself shift the reading. */}
+          {!review && (
+            <span className="sr-only" role="status">
+              Writing the reading…
+            </span>
+          )}
+          <ReviewProse
+            content={review ? review.content : streamed}
+            chipCards={chipCards}
+            stale={stale}
+            streaming={!review}
+          />
         </div>
       )}
 
-      {/* Streaming: the skeleton only covers the wait before the first word.
-          Once prose is arriving it renders as it lands — plain paragraphs, no
-          section titles and no chips yet, because the sections are decided by
-          where the LAST paragraph falls and chips on half a name would
-          flicker. The titled, weakness-first view settles in on completion. */}
-      {phase === 'reading' &&
-        (streamed ? (
-          <div className="deck-ai-prose deck-ai-prose--streaming" aria-busy="true">
-            <p className="deck-ai-writing" role="status">
-              Writing…
-            </p>
-            {streamed.split(/\n{2,}/).map((para, i) => (
-              <p key={i}>{para}</p>
-            ))}
-          </div>
-        ) : (
-          <div
-            className="deck-ai-skeleton"
-            role="status"
-            aria-live="polite"
-            aria-label="Reading the deck"
-          >
-            <span className="deck-ai-skeleton-line" />
-            <span className="deck-ai-skeleton-line" />
-            <span className="deck-ai-skeleton-line deck-ai-skeleton-line--short" />
-          </div>
-        ))}
+      {phase === 'reading' && !streamed && (
+        <div
+          className="deck-ai-skeleton"
+          role="status"
+          aria-live="polite"
+          aria-label="Reading the deck"
+        >
+          <span className="deck-ai-skeleton-line" />
+          <span className="deck-ai-skeleton-line" />
+          <span className="deck-ai-skeleton-line deck-ai-skeleton-line--short" />
+        </div>
+      )}
 
       {phase === 'error' && error && (
         <div className="deck-ai-error" role="alert">
@@ -248,26 +250,36 @@ export function DeckAiReview({
 }
 
 /**
- * The review, read as three titled sections with the weakness led — that's the
- * part statistics can't give you, so it doesn't wait at the bottom of three
- * chunky blocks of text. Prose the prompt didn't shape into three paragraphs
- * falls back to plain paragraphs rather than mislabelling itself.
+ * The review, rendered as three titled sections with the weakness led — that's
+ * the part statistics can't give you, so it doesn't wait at the bottom of three
+ * chunky blocks of text.
  *
- * Card names in the prose become chips into the shared card carousel; every
- * name mentioned anywhere in the review is a carousel slide, so a tap lands on
- * the card tapped and swipes through the rest.
+ * The SAME component draws the live stream and the finished review, which is
+ * what stops the reading reflowing when it settles: all three titled blocks are
+ * present from the first label, and each fills in place with its final
+ * typography. A section still being written shows a caret; sections not reached
+ * yet sit quiet.
+ *
+ * Card names become chips into the shared card carousel, but only once their
+ * section is COMPLETE — chipping a half-typed name would change its width and
+ * jitter the line under the cursor.
+ *
+ * Prose with no labels at all (a review cached from prompt v3) falls back to
+ * plain paragraphs, exactly as it rendered before.
  */
 function ReviewProse({
   content,
   chipCards,
   stale,
+  streaming = false,
 }: {
   content: string;
   chipCards: Map<string, ScryfallCard>;
   stale: boolean;
+  streaming?: boolean;
 }) {
   const carousel = useCardCarousel('Cards in the reading');
-  const sections = useMemo(() => splitReviewSections(content), [content]);
+  const sections = useMemo(() => splitReviewSections(content, streaming), [content, streaming]);
   const names = useMemo(() => [...chipCards.keys()], [chipCards]);
 
   const paragraphs = useMemo(
@@ -292,44 +304,56 @@ function ReviewProse({
     return seen.map((name) => ({ name, label: 'Named in the reading', card: chipCards.get(name) }));
   }, [paragraphs, names, chipCards]);
 
-  const renderParagraph = (text: string, key: string) => (
+  const renderParagraph = (text: string, key: string, chipped: boolean) => (
     <p key={key}>
-      {tokenizeCardNames(text, names).map((t, i) => {
-        const named = t.card;
-        return named ? (
-          <button
-            key={i}
-            type="button"
-            className="deck-ai-card-chip"
-            onClick={() => void carousel.open(entries, named)}
-            aria-label={`Preview ${named}`}
-          >
-            {t.text}
-          </button>
-        ) : (
-          <span key={i}>{t.text}</span>
-        );
-      })}
+      {chipped ? (
+        tokenizeCardNames(text, names).map((t, i) => {
+          const named = t.card;
+          return named ? (
+            <button
+              key={i}
+              type="button"
+              className="deck-ai-card-chip"
+              onClick={() => void carousel.open(entries, named)}
+              aria-label={`Preview ${named}`}
+            >
+              {t.text}
+            </button>
+          ) : (
+            <span key={i}>{t.text}</span>
+          );
+        })
+      ) : (
+        <span>{text}</span>
+      )}
     </p>
   );
 
+  const proseClass = `deck-ai-prose${stale ? ' deck-ai-prose--stale' : ''}${
+    streaming ? ' deck-ai-prose--streaming' : ''
+  }`;
+
   return (
     <>
-      <div className={`deck-ai-prose${stale ? ' deck-ai-prose--stale' : ''}`}>
+      <div className={proseClass} aria-busy={streaming || undefined}>
         {sections
-          ? sections.map((s) => (
+          ? sections.map((sec) => (
               <section
-                key={s.id}
-                className={`deck-ai-section deck-ai-section--${s.id}`}
-                aria-labelledby={`deck-ai-section-${s.id}`}
+                key={sec.id}
+                className={`deck-ai-section deck-ai-section--${sec.id}${
+                  sec.paragraphs.length === 0 ? ' deck-ai-section--pending' : ''
+                }${!sec.complete && sec.paragraphs.length > 0 ? ' deck-ai-section--writing' : ''}`}
+                aria-labelledby={`deck-ai-section-${sec.id}`}
               >
-                <h5 id={`deck-ai-section-${s.id}`} className="deck-ai-section-title">
-                  {s.title}
+                <h5 id={`deck-ai-section-${sec.id}`} className="deck-ai-section-title">
+                  {sec.title}
                 </h5>
-                {s.paragraphs.map((p, i) => renderParagraph(p, `${s.id}-${i}`))}
+                {sec.paragraphs.map((para, i) =>
+                  renderParagraph(para, `${sec.id}-${i}`, sec.complete)
+                )}
               </section>
             ))
-          : paragraphs.map((p, i) => renderParagraph(p, `p-${i}`))}
+          : paragraphs.map((p, i) => renderParagraph(p, `p-${i}`, !streaming))}
       </div>
       {carousel.preview}
     </>
