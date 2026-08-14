@@ -131,7 +131,13 @@
   }
 
   .deck-toolbar-search {
-    flex: 1;
+    /* Keep the 12rem flex-basis from the base .search-pill — the `flex: 1`
+       shorthand zeroed it, so the pill never wrapped and instead soaked up
+       only the row's leftover space, collapsing to a bare icon with a 0px
+       input on 601–1024 viewports (typed text was invisible). With a real
+       basis it shares the row when there's room and wraps to a full-width
+       line when there isn't. */
+    flex: 1 1 12rem;
     min-width: 0;
     max-width: none;
   }
@@ -151,10 +157,7 @@
    phone rule written up there is silently dead. Until the file is reordered
    wide → narrow, phone overrides belong here, after it. */
 @media (max-width: 600px) {
-  /* The 1024px rule (`flex: 1; min-width: 0`) lets the search pill shrink
-     below its own placeholder — at 360px it rendered a clipped "Searc",
-     which STYLE_GUIDE § control rows forbids outright ("strips wrap, never
-     clip"). Sharing the row is right for a 601–1024 tablet and wrong for a
+  /* Sharing the row is right for a 601–1024 tablet and wrong for a
      phone, so give it its own full-width line. The 100% basis is what makes
      that deterministic — the container's `flex-wrap` alone leaves Search
      stranded mid-line — and `order: -1` puts it first, since search is the

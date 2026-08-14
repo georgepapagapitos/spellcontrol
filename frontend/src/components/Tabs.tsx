@@ -128,12 +128,15 @@ export function Tabs<T extends string>({
     hasPositionedRef.current = true;
 
     // Container resize, label/count width changes, late font loads: re-measure
-    // and jump (resizes shouldn't slide). Guarded for DOM-less test envs.
+    // and jump (resizes shouldn't slide). Observe EVERY tab, not just the
+    // active one — a sibling growing (async health badges popping in, a font
+    // swap) shifts the active tab's offsetLeft without resizing it or the
+    // full-width strip, which stranded the underline off-center on refresh.
+    // Guarded for DOM-less test envs.
     if (typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(() => position(false));
     ro.observe(list);
-    const activeBtn = list.querySelector<HTMLButtonElement>('[role="tab"][aria-selected="true"]');
-    if (activeBtn) ro.observe(activeBtn);
+    list.querySelectorAll<HTMLButtonElement>('[role="tab"]').forEach((btn) => ro.observe(btn));
     return () => ro.disconnect();
   }, [isUnderline, value, tabKey]);
 
