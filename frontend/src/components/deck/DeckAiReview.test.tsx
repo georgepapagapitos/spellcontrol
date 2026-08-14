@@ -93,10 +93,33 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+/** The panel starts as a collapsed insight strip (E244) — the only button
+ *  carrying aria-expanded. Expanding reveals the consent card or the panel. */
+async function expandStrip() {
+  fireEvent.click(await screen.findByRole('button', { expanded: false }));
+}
+
+describe('insight-strip posture (E244)', () => {
+  it('starts as a compact strip and expands in place without spending anything', async () => {
+    const calls = stubApi(true);
+    renderPanel();
+
+    const strip = await screen.findByRole('button', { expanded: false });
+    expect(strip.textContent).toContain('Read the deck');
+    expect(calls).toEqual(['/api/ai/status']);
+
+    fireEvent.click(strip);
+    // Expanded to the idle panel — the CTA waits; nothing was sent.
+    expect(await screen.findByRole('button', { name: 'Read the deck' })).toBeTruthy();
+    expect(calls).not.toContain('/api/ai/deck-review');
+  });
+});
+
 describe('inline consent', () => {
   it('grants consent in place and sends nothing before the press', async () => {
     const calls = stubApi(false);
     renderPanel();
+    await expandStrip();
 
     const enable = await screen.findByRole('button', { name: 'Turn on AI Beta' });
     expect(calls).toEqual(['/api/ai/status']);
@@ -112,11 +135,14 @@ describe('inline consent', () => {
   it('stays dismissed once "No thanks" is pressed', async () => {
     stubApi(false);
     const { unmount } = renderPanel();
+    await expandStrip();
     fireEvent.click(await screen.findByRole('button', { name: /No thanks/ }));
     unmount();
 
+    // Dismissed without consent: no panel, and no strip either.
     const { container } = renderPanel();
     await waitFor(() => expect(container.querySelector('.deck-ai-review')).toBeNull());
+    expect(container.querySelector('.deck-ai-strip')).toBeNull();
   });
 });
 
@@ -124,6 +150,7 @@ describe('the reading', () => {
   it('leads with the weakness and chips the cards the model named', async () => {
     stubApi(true);
     const { container } = renderPanel();
+    await expandStrip();
     fireEvent.click(await screen.findByRole('button', { name: 'Read the deck' }));
 
     const weakness = await waitFor(() => {
@@ -157,6 +184,7 @@ describe('the reading', () => {
       { error: 'The review could not be generated. Try again.' },
     ]);
     const { container } = renderPanel();
+    await expandStrip();
     fireEvent.click(await screen.findByRole('button', { name: 'Read the deck' }));
 
     await screen.findByRole('alert');
@@ -172,6 +200,7 @@ describe('the reading', () => {
       { done: { content: LEGACY_REVIEW, cached: true, model: 'm', usage: {} } },
     ]);
     const { container } = renderPanel();
+    await expandStrip();
     fireEvent.click(await screen.findByRole('button', { name: 'Read the deck' }));
 
     await waitFor(() => expect(container.querySelector('.deck-ai-prose')).toBeTruthy());
@@ -182,6 +211,7 @@ describe('the reading', () => {
   it('rejects a truncated stream rather than presenting it as finished', async () => {
     stubApi(true, [{ delta: REVIEW }]); // deltas, no terminator
     const { container } = renderPanel();
+    await expandStrip();
     fireEvent.click(await screen.findByRole('button', { name: 'Read the deck' }));
 
     await screen.findByRole('alert');

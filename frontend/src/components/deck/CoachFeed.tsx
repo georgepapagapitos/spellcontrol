@@ -83,6 +83,10 @@ function isOffMetaChange(change: Change): boolean {
   return change.lane !== 'combos' && classifyInclusion(change.inclusion).kind === 'offmeta';
 }
 
+/** First page of the feed — enough to fill a laptop viewport below the hero
+ *  without walling off the browse catalog and AI strips underneath. */
+const ROW_CAP = 8;
+
 /** tuneFocusLane → feed filter chip mapping. */
 const FOCUS_TO_FILTER: Record<string, FilterId> = {
   'fill-gaps': 'fill-gaps',
@@ -262,6 +266,20 @@ export function CoachFeed({
   // filter (unlike `ownedOnly`, it feeds no analysis context upstream), so it
   // doesn't need the parent-lifted state that prop gets.
   const [offMetaOnly, setOffMetaOnly] = useState(false);
+
+  // Progressive disclosure: the feed shows one bounded page and the user asks
+  // for the rest ("Show all N"). An unbounded "All" lane rendered 30–60 rows
+  // and buried everything below it (the browse catalog, the AI panels). Reset
+  // whenever the visible slice changes meaning — each lane/toggle starts back
+  // at its first page. Render-phase adjustment (react.dev "storing information
+  // from previous renders"), same pattern as departedIds below.
+  const [showAllRows, setShowAllRows] = useState(false);
+  const sliceKey = `${activeFilter}|${ownedOnly}|${offMetaOnly}`;
+  const [prevSliceKey, setPrevSliceKey] = useState(sliceKey);
+  if (prevSliceKey !== sliceKey) {
+    setPrevSliceKey(sliceKey);
+    if (showAllRows) setShowAllRows(false);
+  }
 
   const ackedFilterRef = useRef<string | undefined>(undefined);
   useEffect(() => {
@@ -705,262 +723,288 @@ export function CoachFeed({
         />
       )}
 
-      {!isPending && allChanges.length === 0 ? (
-        <div className="empty-state">
-          <p className="empty-state-tagline">Nothing to coach — this deck looks tuned.</p>
-          <p className="empty-state-hint">
-            Your deck is well-covered. Try adjusting your bracket target or browsing themes below.
-          </p>
-        </div>
-      ) : (
-        <>
-          {/* Filter chips */}
-          <div className="coach-feed-header">
-            <div className="coach-feed-filters" role="group" aria-label="Filter suggestions">
-              {(Object.keys(FILTER_LABELS) as FilterId[]).map((f) => {
-                const shown = shownCounts[f];
-                const total = totalCounts[f];
-                // Visible when the lane has any match at all (owned or not), so a
-                // lane `ownedOnly` has emptied stays reachable — clicking it lands
-                // on the "all N are unowned" empty state rather than disappearing.
-                if (f !== 'all' && total === 0) return null;
-                const ownedEmpty = f !== 'all' && shown === 0 && total > 0;
-                return (
-                  <button
-                    key={f}
-                    type="button"
-                    className={
-                      'coach-feed-filter-chip' +
-                      (ownedEmpty ? ' coach-feed-filter-chip--owned-empty' : '')
-                    }
-                    aria-pressed={activeFilter === f}
-                    onClick={() => setActiveFilter(f)}
-                  >
-                    {FILTER_LABELS[f]}
-                    {shown > 0 && f !== 'all' && (
-                      <span className="coach-feed-chip-count">{shown}</span>
-                    )}
-                  </button>
-                );
-              })}
-              {/* E64: spicy-pick discoverability. A cross-lane toggle, not
+      {/* The suggestions zone wears the same panel chrome + title vocabulary as
+          every other analysis panel (NBM above, the AI panels below) — bare
+          chips-and-rows on the bento read as an unstructured wall and left the
+          tab's core content its only unlabeled region. */}
+      <section
+        className="deck-stats-panel deck-stats-panel--wide coach-feed-panel"
+        aria-labelledby="coach-feed-panel-title"
+      >
+        <h4 id="coach-feed-panel-title" className="deck-stats-panel-title">
+          Suggestions
+        </h4>
+        {!isPending && allChanges.length === 0 ? (
+          <div className="empty-state">
+            <p className="empty-state-tagline">Nothing to coach — this deck looks tuned.</p>
+            <p className="empty-state-hint">
+              Your deck is well-covered. Try adjusting your bracket target or browsing themes below.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Filter chips */}
+            <div className="coach-feed-header">
+              <div className="coach-feed-filters" role="group" aria-label="Filter suggestions">
+                {(Object.keys(FILTER_LABELS) as FilterId[]).map((f) => {
+                  const shown = shownCounts[f];
+                  const total = totalCounts[f];
+                  // Visible when the lane has any match at all (owned or not), so a
+                  // lane `ownedOnly` has emptied stays reachable — clicking it lands
+                  // on the "all N are unowned" empty state rather than disappearing.
+                  if (f !== 'all' && total === 0) return null;
+                  const ownedEmpty = f !== 'all' && shown === 0 && total > 0;
+                  return (
+                    <button
+                      key={f}
+                      type="button"
+                      className={
+                        'coach-feed-filter-chip' +
+                        (ownedEmpty ? ' coach-feed-filter-chip--owned-empty' : '')
+                      }
+                      aria-pressed={activeFilter === f}
+                      onClick={() => setActiveFilter(f)}
+                    >
+                      {FILTER_LABELS[f]}
+                      {shown > 0 && f !== 'all' && (
+                        <span className="coach-feed-chip-count">{shown}</span>
+                      )}
+                    </button>
+                  );
+                })}
+                {/* E64: spicy-pick discoverability. A cross-lane toggle, not
                   another lane — off-meta rows can land in any lane above, so
                   this narrows whichever lane is active rather than competing
                   with it. Renders nothing when the deck has no off-meta
                   picks at all (insight-surface "zero visible → render
                   nothing" rule), same as every other zero-count chip here. */}
-              {offMetaCount > 0 && (
+                {offMetaCount > 0 && (
+                  <button
+                    type="button"
+                    className="coach-feed-filter-chip"
+                    aria-pressed={offMetaOnly}
+                    aria-label={`Off-meta picks — ${offMetaCount}. This deck's off-the-beaten-path suggestions, low or no EDHREC play rate.`}
+                    onClick={() => setOffMetaOnly((v) => !v)}
+                  >
+                    Off-meta
+                    <span className="coach-feed-chip-count">{offMetaCount}</span>
+                  </button>
+                )}
+                <label className="coach-feed-owned-toggle">
+                  <input
+                    type="checkbox"
+                    className="field-checkbox"
+                    checked={ownedOnly}
+                    onChange={(e) => onOwnedOnlyChange(e.target.checked)}
+                  />
+                  Owned only
+                </label>
+              </div>
+
+              {/* Apply all drop-ins — budget filter only */}
+              {activeFilter === 'budget' && dropInChanges.length > 0 && (
                 <button
                   type="button"
-                  className="coach-feed-filter-chip"
-                  aria-pressed={offMetaOnly}
-                  aria-label={`Off-meta picks — ${offMetaCount}. This deck's off-the-beaten-path suggestions, low or no EDHREC play rate.`}
-                  onClick={() => setOffMetaOnly((v) => !v)}
+                  className="coach-feed-apply-all"
+                  onClick={() =>
+                    void onApplyAllDropIns(
+                      dropInChanges
+                        .filter((r) => r.change.inName)
+                        .map((r) => ({
+                          removeName: r.change.inName!,
+                          addName: r.change.name,
+                        }))
+                    )
+                  }
                 >
-                  Off-meta
-                  <span className="coach-feed-chip-count">{offMetaCount}</span>
+                  <Check width={14} height={14} aria-hidden />
+                  Apply all {dropInChanges.length} drop-in{dropInChanges.length > 1 ? 's' : ''}
                 </button>
               )}
-              <label className="coach-feed-owned-toggle">
-                <input
-                  type="checkbox"
-                  className="field-checkbox"
-                  checked={ownedOnly}
-                  onChange={(e) => onOwnedOnlyChange(e.target.checked)}
-                />
-                Owned only
-              </label>
-            </div>
 
-            {/* Apply all drop-ins — budget filter only */}
-            {activeFilter === 'budget' && dropInChanges.length > 0 && (
-              <button
-                type="button"
-                className="coach-feed-apply-all"
-                onClick={() =>
-                  void onApplyAllDropIns(
-                    dropInChanges
-                      .filter((r) => r.change.inName)
-                      .map((r) => ({
+              {/* Converge to target — bracket-fit filter, swap moves only */}
+              {activeFilter === 'bracket-fit' && bracketSwaps.length > 0 && (
+                <button
+                  type="button"
+                  className="coach-feed-apply-all"
+                  onClick={() =>
+                    void onConvergeBracket(
+                      bracketSwaps.map((r) => ({
                         removeName: r.change.inName!,
                         addName: r.change.name,
                       }))
-                  )
-                }
-              >
-                <Check width={14} height={14} aria-hidden />
-                Apply all {dropInChanges.length} drop-in{dropInChanges.length > 1 ? 's' : ''}
-              </button>
-            )}
-
-            {/* Converge to target — bracket-fit filter, swap moves only */}
-            {activeFilter === 'bracket-fit' && bracketSwaps.length > 0 && (
-              <button
-                type="button"
-                className="coach-feed-apply-all"
-                onClick={() =>
-                  void onConvergeBracket(
-                    bracketSwaps.map((r) => ({
-                      removeName: r.change.inName!,
-                      addName: r.change.name,
-                    }))
-                  )
-                }
-              >
-                <Check width={14} height={14} aria-hidden />
-                Apply all {bracketSwaps.length} swap{bracketSwaps.length > 1 ? 's' : ''}
-              </button>
-            )}
-          </div>
-
-          {browserSection}
-
-          {/* Budget confidence legend — budget filter only */}
-          {activeFilter === 'budget' && filteredRows.length > 0 && (
-            <div className="coach-feed-budget-strip">
-              <span className="coach-feed-budget-summary">
-                Badges rate how close each cheaper pick is to the card it replaces
-              </span>
-              <InfoTip
-                label="budget confidence"
-                text={
-                  <>
-                    <p className="info-tip-lead">
-                      How close each cheaper pick is to the card it replaces:
-                    </p>
-                    <ul className="info-tip-list">
-                      <li>
-                        <strong>Drop-in</strong> — near-identical; swap freely.
-                      </li>
-                      <li>
-                        <strong>Sidegrade</strong> — a lateral trade, a bit less played.
-                      </li>
-                      <li>
-                        <strong>Budget</strong> — a real downgrade for the savings.
-                      </li>
-                    </ul>
-                  </>
-                }
-              />
-            </div>
-          )}
-
-          {/* Bracket strip — bracket-fit filter only */}
-          {activeFilter === 'bracket-fit' && bracketFit && bracketFit.direction !== 'aligned' && (
-            <div className="coach-feed-bracket-strip">
-              <span className="coach-feed-bracket-summary">{bracketFit.summary}</span>
-              {bracketFit.note && (
-                <span className="coach-feed-bracket-note">{bracketFit.note}</span>
+                    )
+                  }
+                >
+                  <Check width={14} height={14} aria-hidden />
+                  Apply all {bracketSwaps.length} swap{bracketSwaps.length > 1 ? 's' : ''}
+                </button>
               )}
             </div>
-          )}
 
-          {/* Stand-ins strip — collection filter only */}
-          {activeFilter === 'collection' && filteredRows.length > 0 && (
-            <div className="coach-feed-collection-strip">
-              <span className="coach-feed-collection-summary">
-                Cards you already own that cover staples this deck is missing.
-              </span>
-            </div>
-          )}
+            {/* Budget confidence legend — budget filter only */}
+            {activeFilter === 'budget' && filteredRows.length > 0 && (
+              <div className="coach-feed-budget-strip">
+                <span className="coach-feed-budget-summary">
+                  Badges rate how close each cheaper pick is to the card it replaces
+                </span>
+                <InfoTip
+                  label="budget confidence"
+                  text={
+                    <>
+                      <p className="info-tip-lead">
+                        How close each cheaper pick is to the card it replaces:
+                      </p>
+                      <ul className="info-tip-list">
+                        <li>
+                          <strong>Drop-in</strong> — near-identical; swap freely.
+                        </li>
+                        <li>
+                          <strong>Sidegrade</strong> — a lateral trade, a bit less played.
+                        </li>
+                        <li>
+                          <strong>Budget</strong> — a real downgrade for the savings.
+                        </li>
+                      </ul>
+                    </>
+                  }
+                />
+              </div>
+            )}
 
-          {/* Feed rows */}
-          {filteredRows.length > 0 ? (
-            <ul className="coach-feed-rows">
-              {filteredRows.map(({ change }) => {
-                const isLeaving = leavingIds.has(change.id);
-                const showFit = onPreviewFit && change.type !== 'cut';
-                return (
-                  <li
-                    key={change.id}
-                    className={isLeaving ? 'coach-feed-row-leaving' : undefined}
-                    onAnimationEnd={
-                      isLeaving ? (e) => handleLeavingAnimationEnd(change.id, e) : undefined
-                    }
-                  >
-                    <DeckCardRow
-                      change={change}
-                      commanderName={commanderName}
-                      peekName={change.name}
-                      onPreview={() => carousel.open(previewEntries, change.name)}
-                      onAct={(c) => handleApplyWithLeave(c)}
-                      acting={
-                        busy.has(change.name) || (change.inName ? busy.has(change.inName) : false)
+            {/* Bracket strip — bracket-fit filter only */}
+            {activeFilter === 'bracket-fit' && bracketFit && bracketFit.direction !== 'aligned' && (
+              <div className="coach-feed-bracket-strip">
+                <span className="coach-feed-bracket-summary">{bracketFit.summary}</span>
+                {bracketFit.note && (
+                  <span className="coach-feed-bracket-note">{bracketFit.note}</span>
+                )}
+              </div>
+            )}
+
+            {/* Stand-ins strip — collection filter only */}
+            {activeFilter === 'collection' && filteredRows.length > 0 && (
+              <div className="coach-feed-collection-strip">
+                <span className="coach-feed-collection-summary">
+                  Cards you already own that cover staples this deck is missing.
+                </span>
+              </div>
+            )}
+
+            {/* Feed rows — first page only until "Show all" is pressed. */}
+            {filteredRows.length > 0 && (
+              <ul className="coach-feed-rows" aria-label="Deck suggestions">
+                {(showAllRows ? filteredRows : filteredRows.slice(0, ROW_CAP)).map(({ change }) => {
+                  const isLeaving = leavingIds.has(change.id);
+                  const showFit = onPreviewFit && change.type !== 'cut';
+                  return (
+                    <li
+                      key={change.id}
+                      className={isLeaving ? 'coach-feed-row-leaving' : undefined}
+                      onAnimationEnd={
+                        isLeaving ? (e) => handleLeavingAnimationEnd(change.id, e) : undefined
                       }
-                      secondaryAction={
-                        showFit
-                          ? {
-                              label: 'Fit?',
-                              ariaLabel: `Will ${change.name} fit this deck?`,
-                              onClick: () => onPreviewFit(change),
-                            }
-                          : undefined
-                      }
-                    />
-                    {change.alternatives && change.alternatives.length > 0 && (
-                      <SubstituteOptions
-                        alternatives={change.alternatives}
+                    >
+                      <DeckCardRow
+                        change={change}
                         commanderName={commanderName}
-                        onPreview={(name) => carousel.open(previewEntries, name)}
+                        peekName={change.name}
+                        onPreview={() => carousel.open(previewEntries, change.name)}
                         onAct={(c) => handleApplyWithLeave(c)}
-                        acting={(name) => busy.has(name)}
+                        acting={
+                          busy.has(change.name) || (change.inName ? busy.has(change.inName) : false)
+                        }
+                        secondaryAction={
+                          showFit
+                            ? {
+                                label: 'Fit?',
+                                ariaLabel: `Will ${change.name} fit this deck?`,
+                                onClick: () => onPreviewFit(change),
+                              }
+                            : undefined
+                        }
                       />
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            !isPending &&
-            (isOwnedEmpty ? (
-              <div className="coach-feed-empty-filter coach-feed-empty-owned">
-                <p>
-                  {hiddenByOwned === 1 ? 'The only' : `All ${hiddenByOwned}`}{' '}
-                  {activeFilter === 'all' ? '' : FILTER_LABELS[activeFilter] + ' '}
-                  suggestion{hiddenByOwned === 1 ? ' is a card' : 's are cards'} you don't own yet.
+                      {change.alternatives && change.alternatives.length > 0 && (
+                        <SubstituteOptions
+                          alternatives={change.alternatives}
+                          commanderName={commanderName}
+                          onPreview={(name) => carousel.open(previewEntries, name)}
+                          onAct={(c) => handleApplyWithLeave(c)}
+                          acting={(name) => busy.has(name)}
+                        />
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {filteredRows.length > ROW_CAP && (
+              <button
+                type="button"
+                className="coach-feed-show-all"
+                aria-expanded={showAllRows}
+                onClick={() => setShowAllRows((v) => !v)}
+              >
+                <ChevronDown width={14} height={14} aria-hidden />
+                {showAllRows
+                  ? 'Show fewer'
+                  : `Show all ${filteredRows.length} suggestion${filteredRows.length === 1 ? '' : 's'}`}
+              </button>
+            )}
+            {filteredRows.length === 0 &&
+              !isPending &&
+              (isOwnedEmpty ? (
+                <div className="coach-feed-empty-filter coach-feed-empty-owned">
+                  <p>
+                    {hiddenByOwned === 1 ? 'The only' : `All ${hiddenByOwned}`}{' '}
+                    {activeFilter === 'all' ? '' : FILTER_LABELS[activeFilter] + ' '}
+                    suggestion{hiddenByOwned === 1 ? ' is a card' : 's are cards'} you don't own
+                    yet.
+                  </p>
+                  <button
+                    type="button"
+                    className="coach-feed-show-unowned"
+                    onClick={() => onOwnedOnlyChange(false)}
+                  >
+                    Show unowned too
+                  </button>
+                </div>
+              ) : isOffMetaEmpty ? (
+                <div className="coach-feed-empty-filter coach-feed-empty-owned">
+                  <p>
+                    No off-meta {activeFilter === 'all' ? '' : FILTER_LABELS[activeFilter] + ' '}
+                    picks right now — this lane's suggestions are all played staples.
+                  </p>
+                  <button
+                    type="button"
+                    className="coach-feed-show-unowned"
+                    onClick={() => setOffMetaOnly(false)}
+                  >
+                    Show all suggestions
+                  </button>
+                </div>
+              ) : (
+                <p className="coach-feed-empty-filter">
+                  No {activeFilter === 'all' ? '' : FILTER_LABELS[activeFilter] + ' '}suggestions
+                  right now.
                 </p>
-                <button
-                  type="button"
-                  className="coach-feed-show-unowned"
-                  onClick={() => onOwnedOnlyChange(false)}
-                >
-                  Show unowned too
-                </button>
-              </div>
-            ) : isOffMetaEmpty ? (
-              <div className="coach-feed-empty-filter coach-feed-empty-owned">
-                <p>
-                  No off-meta {activeFilter === 'all' ? '' : FILTER_LABELS[activeFilter] + ' '}
-                  picks right now — this lane's suggestions are all played staples.
-                </p>
-                <button
-                  type="button"
-                  className="coach-feed-show-unowned"
-                  onClick={() => setOffMetaOnly(false)}
-                >
-                  Show all suggestions
-                </button>
-              </div>
-            ) : (
-              <p className="coach-feed-empty-filter">
-                No {activeFilter === 'all' ? '' : FILTER_LABELS[activeFilter] + ' '}suggestions
-                right now.
-              </p>
-            ))
-          )}
+              ))}
 
-          {/* Aligned bracket state */}
-          {activeFilter === 'bracket-fit' && bracketFit?.direction === 'aligned' && (
-            <div className="coach-feed-bracket-aligned">
-              <VerdictBadge tone="success" label="Aligned" />
-            </div>
-          )}
-        </>
-      )}
+            {/* Aligned bracket state */}
+            {activeFilter === 'bracket-fit' && bracketFit?.direction === 'aligned' && (
+              <div className="coach-feed-bracket-aligned">
+                <VerdictBadge tone="success" label="Aligned" />
+              </div>
+            )}
+          </>
+        )}
+      </section>
 
-      {/* EDHREC theme browser — after the empty state only; the non-empty
-          branch renders it under the header instead. */}
-      {!isPending && allChanges.length === 0 && browserSection}
+      {/* EDHREC theme browser — the catalog sits AFTER the curated feed. It
+          used to sit between the filter chips and the rows they filter, where
+          its all-caps summary read as a heading for the feed below it. The
+          bounded first page above keeps it discoverable near the fold. */}
+      {browserSection}
 
       {/* Desktop hover-peek — portaled to <body> so it escapes any
           container-type ancestor (e.g. .deck-bento--tune) that would

@@ -203,6 +203,31 @@ describe('DeckAiRefine', () => {
     expect(await screen.findByRole('button', { name: 'Weigh the suggestions' })).toBeTruthy();
   });
 
+  it('takes the same strip posture on the Coach tab, keeping the build framing', async () => {
+    stubApi(true, []);
+    render(
+      <DeckAiRefine
+        deckId="d1"
+        format="commander"
+        commander={card('Meren of Clan Nel Toth')}
+        partnerCommander={null}
+        mainboard={[{ slotId: 's1', card: card('Swamp') }]}
+        pool={[{ name: "Hell's Caretaker", oracleId: 'p1', qty: 1 }]}
+        ownedOnly={false}
+        onApplyMove={() => {}}
+        variant="coach"
+      />
+    );
+    // Collapsed strip with the build title + candidate-count teaser.
+    const strip = await screen.findByRole('button', { name: /Refine this build/ });
+    expect(strip.getAttribute('aria-expanded')).toBe('false');
+    expect(strip.textContent).toContain('1 candidate');
+
+    fireEvent.click(strip);
+    // Expanded to the full panel — the run CTA waits, nothing auto-runs.
+    expect(await screen.findByRole('button', { name: 'Refine this build' })).toBeTruthy();
+  });
+
   it('expanding the strip without consent shows the consent card, in place', async () => {
     stubApi(false, []);
     render(
