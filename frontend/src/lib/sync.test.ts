@@ -145,11 +145,10 @@ describe('lifecycle', () => {
     expect(getSyncState()).toBe('idle');
   });
 
-  // Both digest keys are account-agnostic (no user id in the key), so leaving
-  // them behind showed the NEXT account on a shared device a "since your last
-  // visit" delta measured against the PREVIOUS user's collection value, with
-  // that user's card name rendered in the strip teaser.
-  it('clears the value-digest baseline and binder-move log on a cross-user sign-in', async () => {
+  // The retired welcome-digest feature's keys are account-agnostic (no user id
+  // in the key) and may still hold the previous user's collection value and
+  // card names on existing devices — the cross-user sweep stays.
+  it('clears the leftover value-digest baseline and binder-move log on a cross-user sign-in', async () => {
     localStorage.setItem(
       'spellcontrol:value-digest-seen',
       JSON.stringify({ at: 1, day: '2026-07-28', value: 5000 })
