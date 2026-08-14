@@ -4,6 +4,7 @@ import type { DeckAnalysisResult } from './deck-analysis';
 import type { GapAnalysisCard } from '@/deck-builder/types';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
 import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
+import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUpgrades';
 
 /**
  * Client for the post-generation refine pass (T102 slice 4). The server is the
@@ -93,6 +94,9 @@ export interface RefinePoolSources {
   synergy?: SynergySuggestion[];
   /** Owned-collection stand-ins the substitute finder already matched. */
   substitutes?: SubstituteRow[];
+  /** Merit-scored land upgrades. ⚠️ `LandUpgradeMove.inName` is the card being
+   *  ADDED — the opposite polarity to `Change.inName`, which is the card cut. */
+  landUpgrades?: LandUpgradeMove[];
   /** Names already in the deck — never proposable. */
   deckNames: ReadonlySet<string>;
   /** When set, only cards from this set survive (owned-only generation). */
@@ -102,19 +106,32 @@ export interface RefinePoolSources {
 /**
  * Assemble the candidate pool from what the coach has ALREADY computed.
  *
- * Deliberately no new engine calls: `gapAnalysis`, the synergy suggestions and
- * the substitution plan are the same three lanes CoachFeed renders, so the
- * model curates exactly the cards the app was already willing to recommend.
- * That keeps the deterministic generator untouched and means the pool inherits
- * the colour-identity and format filtering those lanes already applied.
+ * Deliberately no new engine calls: these are the same lanes CoachFeed renders,
+ * so the model curates exactly the cards the app was already willing to
+ * recommend. That keeps the deterministic generator untouched and means the
+ * pool inherits the colour-identity and format filtering those lanes applied.
  *
- * Ordering is gaps → off-meta → owned substitutes, so if the cap bites it
- * trims the most speculative end rather than the staples.
+ * **Land upgrades are in the pool because on a real deck they are frequently
+ * the ONLY populated lane.** The first cut of this function took gaps, synergy
+ * and substitutes; driving the actual app found every generated deck in the dev
+ * account had all three empty while the coach was happily showing "Lands 6",
+ * which left the panel permanently disabled. Note also that "Off-meta" in the
+ * coach is a cross-lane FILTER over these same rows, not a source of its own —
+ * there is nothing extra to read from it.
+ *
+ * One-away combo pieces are deliberately NOT pooled: completing a two-card
+ * combo moves the deck's bracket via a hard floor in the estimator, which is a
+ * consequence the model is in no position to weigh, and that lane has its own
+ * surface with a "Fit?" check.
+ *
+ * Ordering is gaps → off-meta → owned substitutes → lands, so if the cap bites
+ * it trims the most situational end rather than the staples.
  */
 export function buildRefinePool({
   gaps = [],
   synergy = [],
   substitutes = [],
+  landUpgrades = [],
   deckNames,
   ownedNames,
 }: RefinePoolSources): RefineCard[] {
@@ -135,6 +152,7 @@ export function buildRefinePool({
   for (const g of gaps) push(g.name);
   for (const s of synergy) push(s.cardName);
   for (const s of substitutes) push(s.usedName);
+  for (const m of landUpgrades) push(m.inName);
 
   return out.slice(0, MAX_POOL);
 }

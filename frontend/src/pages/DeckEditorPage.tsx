@@ -1049,34 +1049,6 @@ export function DeckEditorPage() {
   // you own). Gated to 2+ color decks (minLength 2) — mono-color decks have no
   // duals to fetch; the owned-swap path still works for them. Cached 10min by
   // the search client, so re-opens are cheap. Failure is silent → owned-only.
-  /**
-   * The AI refine pass's candidate pool (T102 slice 4). Assembled from the
-   * three lanes the coach ALREADY computed — EDHREC gaps, off-meta synergy
-   * hits, owned substitutes — so the model curates cards the app was already
-   * willing to recommend, with no new engine call and the deterministic
-   * generator untouched. Owned-only builds keep the pool inside the collection
-   * via the same `constrainsToCollection` predicate generation itself used
-   * (the fine-grained strategy survives on `buildReport`, not
-   * `generationContext`, which only persists the boolean).
-   */
-  const refineOwnedOnly = useMemo(
-    () => constrainsToCollection(deck?.buildReport?.collectionStrategy ?? 'prefer'),
-    [deck?.buildReport?.collectionStrategy]
-  );
-  const refinePool = useMemo(
-    () =>
-      deck
-        ? buildRefinePool({
-            gaps: deck.gapAnalysis ?? [],
-            synergy: deck.synergyAnalysis?.suggestions ?? [],
-            substitutes: substitutionPlan?.rows ?? [],
-            deckNames: deckCardNames,
-            ownedNames: refineOwnedOnly ? ownedNames : undefined,
-          })
-        : [],
-    [deck, substitutionPlan, deckCardNames, refineOwnedOnly, ownedNames]
-  );
-
   const identityKey = useMemo(
     () => [...commanderColorIdentity].sort().join(''),
     [commanderColorIdentity]
@@ -1122,6 +1094,35 @@ export function DeckEditorPage() {
     }
     return computeLandUpgrades(deckCards, identity, candidateLands, ownedNames);
   }, [deck, commanderColorIdentity, collectionCards, deckCards, fetchedFixingLands, ownedNames]);
+
+  /**
+   * The AI refine pass's candidate pool (T102 slice 4). Assembled from the
+   * three lanes the coach ALREADY computed — EDHREC gaps, off-meta synergy
+   * hits, owned substitutes — so the model curates cards the app was already
+   * willing to recommend, with no new engine call and the deterministic
+   * generator untouched. Owned-only builds keep the pool inside the collection
+   * via the same `constrainsToCollection` predicate generation itself used
+   * (the fine-grained strategy survives on `buildReport`, not
+   * `generationContext`, which only persists the boolean).
+   */
+  const refineOwnedOnly = useMemo(
+    () => constrainsToCollection(deck?.buildReport?.collectionStrategy ?? 'prefer'),
+    [deck?.buildReport?.collectionStrategy]
+  );
+  const refinePool = useMemo(
+    () =>
+      deck
+        ? buildRefinePool({
+            gaps: deck.gapAnalysis ?? [],
+            synergy: deck.synergyAnalysis?.suggestions ?? [],
+            substitutes: substitutionPlan?.rows ?? [],
+            landUpgrades,
+            deckNames: deckCardNames,
+            ownedNames: refineOwnedOnly ? ownedNames : undefined,
+          })
+        : [],
+    [deck, substitutionPlan, landUpgrades, deckCardNames, refineOwnedOnly, ownedNames]
+  );
 
   // `/` opens the search panel; `c` jumps to the Power tab and reveals the
   // combos panel; `a` opens the Coach tab (suggestions). Skipped while the user
