@@ -128,6 +128,57 @@ describe('DeckAiRefine', () => {
     expect(await screen.findByText(/already holds together/)).toBeTruthy();
   });
 
+  it('replace posture: strip → "Weigh this add" → an upgrade verdict applies as a swap', async () => {
+    const applied: Change[] = [];
+    stubApi(true, [
+      { add: 'Karumonix, the Rat King', cut: 'Necrogen Mists', why: 'A rat lord beats a tax.' },
+    ]);
+    render(
+      <DeckAiRefine
+        deckId="d1"
+        format="commander"
+        commander={card('Meren of Clan Nel Toth')}
+        partnerCommander={null}
+        mainboard={[{ slotId: 's1', card: card('Necrogen Mists') }]}
+        pool={[{ name: 'Karumonix, the Rat King', oracleId: 'p1', qty: 1 }]}
+        ownedOnly={false}
+        onApplyMove={(c) => applied.push(c)}
+        variant="replace"
+      />
+    );
+    const strip = await screen.findByRole('button', { name: /Is it an upgrade\?/ });
+    // The candidate-count teaser is meaningless for a pool of one.
+    expect(strip.textContent).not.toContain('candidate');
+    fireEvent.click(strip);
+    fireEvent.click(await screen.findByRole('button', { name: 'Weigh this add' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Swap Necrogen Mists/ }));
+    expect(applied[0]).toMatchObject({
+      type: 'swap',
+      name: 'Karumonix, the Rat King',
+      inName: 'Necrogen Mists',
+    });
+  });
+
+  it('replace posture: a cut-less tweak is dropped — a full deck cannot take a pure add', async () => {
+    stubApi(true, [{ add: 'Karumonix, the Rat King', cut: null, why: 'More rats.' }]);
+    render(
+      <DeckAiRefine
+        deckId="d1"
+        format="commander"
+        commander={card('Meren of Clan Nel Toth')}
+        partnerCommander={null}
+        mainboard={[{ slotId: 's1', card: card('Swamp') }]}
+        pool={[{ name: 'Karumonix, the Rat King', oracleId: 'p1', qty: 1 }]}
+        ownedOnly={false}
+        onApplyMove={() => {}}
+        variant="replace"
+      />
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /Is it an upgrade\?/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Weigh this add' }));
+    expect(await screen.findByText(/wouldn't cut a card for Karumonix/)).toBeTruthy();
+  });
+
   it('starts as a compact strip on the Suggestions tab and expands in place (E244)', async () => {
     stubApi(true, []);
     render(

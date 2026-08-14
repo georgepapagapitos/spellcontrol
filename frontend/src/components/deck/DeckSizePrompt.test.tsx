@@ -3,6 +3,14 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { DeckSizePrompt, type SizePromptOption } from './DeckSizePrompt';
 
+// Sentinel carousel: the prompt must MOUNT `carousel.preview`, not just call
+// `open` — it shipped once with the open() calls wired to an unrendered
+// element, so every preview tap silently did nothing.
+const { openSpy } = vi.hoisted(() => ({ openSpy: vi.fn() }));
+vi.mock('./useCardCarousel', () => ({
+  useCardCarousel: () => ({ open: openSpy, preview: <div data-testid="carousel-preview" /> }),
+}));
+
 function opt(name: string, onPick = vi.fn()): SizePromptOption {
   return { key: name, name, roleLabel: 'Ramp', hint: 'same role', onPick };
 }
@@ -83,5 +91,22 @@ describe('DeckSizePrompt', () => {
     const chip = screen.getByRole('button', { name: 'Preview Smothering Tithe' });
     expect(chip).toBeTruthy();
     expect(screen.getByText("The card you're adding")).toBeTruthy();
+  });
+
+  it('MOUNTS the preview carousel and opens it from a row tap', () => {
+    renderPrompt();
+    // The mount is the regression: open() into an unrendered preview is a
+    // silent no-op the click test alone would not catch.
+    expect(screen.getByTestId('carousel-preview')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Preview Mind Stone' }));
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ name: 'Mind Stone' })]),
+      'Mind Stone'
+    );
+  });
+
+  it('renders the aiSlot between the header and the option rows', () => {
+    renderPrompt({ aiSlot: <div data-testid="ai-slot" /> });
+    expect(screen.getByTestId('ai-slot')).toBeTruthy();
   });
 });

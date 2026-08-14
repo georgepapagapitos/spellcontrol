@@ -1,5 +1,5 @@
 import './DeckSizePrompt.css';
-import { type JSX, useCallback, useMemo, useState } from 'react';
+import { type JSX, type ReactNode, useCallback, useMemo, useState } from 'react';
 import { ArrowLeftRight, Plus } from 'lucide-react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
@@ -52,6 +52,13 @@ export interface DeckSizePromptProps {
   footer: SizePromptFooterAction[];
   /** An action is in flight — disable the row buttons. */
   busy?: boolean;
+  /**
+   * AI affordance (the replace-when-full verdict) — the deck page mounts
+   * `<DeckAiRefine variant="replace">` here, same slot pattern as the
+   * Suggestions tab. Renders between the header and the ranked cuts, bounded
+   * so an expanded reading scrolls internally instead of past the sheet.
+   */
+  aiSlot?: ReactNode;
   onClose: () => void;
 }
 
@@ -132,6 +139,7 @@ export function DeckSizePrompt({
   moreOptions,
   footer,
   busy,
+  aiSlot,
   onClose,
 }: DeckSizePromptProps): JSX.Element {
   const [showAll, setShowAll] = useState(false);
@@ -238,6 +246,8 @@ export function DeckSizePrompt({
           )}
         </div>
 
+        {aiSlot && <div className="deck-size-prompt-ai">{aiSlot}</div>}
+
         {options.length > 0 ? (
           <ul className="deck-size-prompt-list" role="list">
             {options.map((o) => (
@@ -293,6 +303,10 @@ export function DeckSizePrompt({
             </button>
           ))}
         </div>
+        {/* The preview portals to <body>, but it must be MOUNTED here — the
+            open() calls above were firing into an unrendered element, which is
+            exactly the bug this line retires. */}
+        {carousel.preview}
       </div>
     </div>
   );

@@ -27,6 +27,18 @@
   overflow-y: auto;
 }
 
+/* The AI slot (replace-when-full verdict). Same bounding contract as the
+   Suggestions tab's .card-search-ai: the sheet is a capped flex column, so an
+   expanded reading scrolls internally rather than past the sheet, and the
+   ranked cuts keep their share. */
+.deck-size-prompt-ai {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 50%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .deck-size-prompt-row {
   display: flex;
   align-items: center;
