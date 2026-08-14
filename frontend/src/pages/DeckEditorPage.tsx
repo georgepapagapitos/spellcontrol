@@ -41,6 +41,7 @@ import type { BinderInfo } from '../components/BinderBadge';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
 import { BuildTimeCoachStrip } from '../components/deck/BuildTimeCoachStrip';
 import { useBuildTimeNudge } from '../lib/use-build-time-nudge';
+import { useMediaQuery } from '../lib/use-media-query';
 import { WedgeHintStrip } from '../components/deck/WedgeHintStrip';
 import { dismissResyncHint, shouldShowResyncHint } from '../lib/wedge-hints';
 import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
@@ -355,6 +356,10 @@ export function DeckEditorPage() {
   } | null>(null);
   const [showPartnerPicker, setShowPartnerPicker] = useState(false);
   const [showAddPanel, setShowAddPanel] = useState(false);
+  // Workbench rail (≥1280px): the add-cards panel docks beside the deck
+  // instead of covering it as a sheet/modal. Below 1280px behavior is
+  // unchanged (bottom sheet <1024px, centered modal 1024-1279px).
+  const isRailViewport = useMediaQuery('(min-width: 1280px)');
   const [confirmDelete, setConfirmDelete] = useState(false);
   // Coach "Owned only" filter — shared by the feed and the Next-best-move hero.
   const [ownedOnly, setOwnedOnly] = useState<boolean>(readOwnedOnly);
@@ -1256,6 +1261,153 @@ export function DeckEditorPage() {
       window.requestAnimationFrame(() => searchPanelRef.current?.focusInput());
     }
   };
+
+  // The add-cards panel's contents (zone toggle + coach strip + search),
+  // shared verbatim by the sheet/modal (<1280px) and the workbench rail
+  // (≥1280px) so the two presentations can never drift apart. `close` is
+  // each host's own dismissal — the sheet's animated `dismiss`, or a plain
+  // state flip for the rail (which has no exit animation).
+  const renderAddPanelContent = (close: () => void) => (
+    <>
+      <div className="card-picker-handle" aria-hidden />
+      {/* Unconditional (unlike the old sideboard-only gate): Considering
+          applies to every format, so the toggle always offers it even
+          when this format has no real sideboard. Native radio semantics
+          (STYLE_GUIDE "exclusive-value picker" ruling — a hidden radio
+          input stretched over a styled label, mirroring
+          .settings-currency-toggle) rather than aria-pressed buttons, so
+          exclusivity + arrow-key group nav come from the browser. */}
+      <fieldset className="deck-editor-zone-toggle" aria-label="Add cards to">
+        <label className="deck-editor-zone-toggle-option">
+          <input
+            type="radio"
+            name="deck-editor-add-zone"
+            value="main"
+            checked={addZone === 'main'}
+            onChange={() => setAddZone('main')}
+          />
+          <span className={`btn btn-sm${addZone === 'main' ? ' btn-primary' : ''}`}>Mainboard</span>
+        </label>
+        {formatConfig && formatConfig.sideboardSize > 0 && (
+          <label className="deck-editor-zone-toggle-option">
+            <input
+              type="radio"
+              name="deck-editor-add-zone"
+              value="side"
+              checked={addZone === 'side'}
+              onChange={() => setAddZone('side')}
+            />
+            <span className={`btn btn-sm${addZone === 'side' ? ' btn-primary' : ''}`}>
+              Sideboard
+            </span>
+          </label>
+        )}
+        <label className="deck-editor-zone-toggle-option">
+          <input
+            type="radio"
+            name="deck-editor-add-zone"
+            value="considering"
+            checked={addZone === 'considering'}
+            onChange={() => setAddZone('considering')}
+          />
+          <span className={`btn btn-sm${addZone === 'considering' ? ' btn-primary' : ''}`}>
+            Considering
+          </span>
+        </label>
+      </fieldset>
+      {/* Build-time coach nudge (E169 Half B) — strictly mainboard-only:
+          an add to sideboard/considering doesn't touch the mainboard
+          signature the combo/bracket/win-condition engines analyze, so
+          it can never produce a nudge, and switching zone tabs away
+          from Mainboard hides any nudge already showing. */}
+      {addZone === 'main' && (
+        <BuildTimeCoachStrip
+          nudge={buildTimeNudge.nudge}
+          onView={(kind) => {
+            // A navigating strip (STYLE_GUIDE "Build-time coach
+            // strip"), unlike the tap-opens-sheet insight strips: the
+            // detail lives one tab over in the Power bento, not in a
+            // local sheet, so leaving the add flow is unavoidable —
+            // make it a deliberate close (dismiss the sheet) rather
+            // than an accidental one.
+            buildTimeNudge.dismiss();
+            close();
+            openAnalysisTab('power');
+            window.requestAnimationFrame(() => {
+              if (kind === 'combo') handleViewCombos();
+              else if (kind === 'wincon') handleViewWinConditions();
+              else handleViewBracket();
+            });
+          }}
+          onDismiss={buildTimeNudge.dismiss}
+        />
+      )}
+      <CardSearchPanel
+        ref={searchPanelRef}
+        deckId={deck.id}
+        commanderColorIdentity={commanderColorIdentity}
+        existingCardCounts={existingCardCounts}
+        binderByCardName={binderByCardName}
+        onAdd={({ card }) => {
+          if (addZone === 'side' || addZone === 'considering') {
+            // allocateAndAdd resolves the copy itself (free / auto-move /
+            // proxy) — the panel's own pick only ever sees free copies, so
+            // routing through it is what makes "add an owned card whose copy
+            // is in another deck" Just Work instead of silently proxying.
+            allocateAndAdd(card, addZone === 'side' ? 'sideboard' : 'considering', false);
+            return;
+          }
+          // A full Commander deck would overfill — open the intelligent
+          // replace-when-full prompt instead of silently going to 101.
+          if (deckIsFull) {
+            // Overlay-only: the rail stays open behind DeckSizePrompt so the
+            // search context (query/tab/scroll) survives the swap decision.
+            if (!isRailViewport) setShowAddPanel(false);
+            setPendingAdd(card.name);
+            return;
+          }
+          // Arm the build-time nudge BEFORE the mutation lands, so its
+          // baseline token snapshot is genuinely "before" — see
+          // notifyMainboardAdd's own doc for why the order matters.
+          buildTimeNudge.notifyMainboardAdd(card.name);
+          allocateAndAdd(card, 'main', false);
+        }}
+        onPreviewFit={(card) => setAuditionCard(card)}
+        onClose={close}
+        suggestions={deck.gapAnalysis}
+        oneAwayCombos={comboData.data?.oneAway}
+        hiddenGems={deck.hiddenGems}
+        ownershipFor={ownershipFor}
+        enableSuggestions={!!formatConfig?.hasCommander}
+        suggestionsPending={analysisState === 'pending'}
+        commanderKey={commanderKey}
+        aiSlot={
+          formatConfig?.hasCommander && deck.commander ? (
+            <DeckAiRefine
+              variant="suggestions"
+              deckId={deck.id}
+              format={deck.format}
+              commander={deck.commander}
+              partnerCommander={deck.partnerCommander ?? null}
+              mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
+              pool={refinePool}
+              ownedOnly={refineOwnedOnly}
+              onApplyMove={(change) => {
+                // Mirror the panel's own onAdd: a pure add on a full deck
+                // opens the replace-when-full prompt, so the sheet gets
+                // out of its way first (swaps stay in place).
+                if (change.type === 'add' && deckIsFull) {
+                  // Overlay-only — see the onAdd comment above.
+                  if (!isRailViewport) setShowAddPanel(false);
+                }
+                void handleApplyCoachMove(change);
+              }}
+            />
+          ) : undefined
+        }
+      />
+    </>
+  );
 
   // Capture the slot before removing so Undo can re-add the same card with
   // the same allocated printing. (`addCard` mints a fresh slotId, but the
@@ -3081,6 +3233,14 @@ export function DeckEditorPage() {
             }
           />
         </main>
+        {isRailViewport && showAddPanel && (formatConfig?.hasCommander ? deck.commander : true) && (
+          <aside className="deck-add-sheet deck-add-rail" aria-label="Add cards">
+            {renderAddPanelContent(() => {
+              setShowAddPanel(false);
+              buildTimeNudge.dismiss();
+            })}
+          </aside>
+        )}
       </div>
 
       {/* Test hand — a breakpoint-aware overlay (bottom sheet on mobile,
@@ -3155,10 +3315,12 @@ export function DeckEditorPage() {
         </DeckEditorCardPickerSheet>
       )}
 
-      {/* Add cards — a breakpoint-aware overlay (bottom sheet on
-          mobile, centered modal ≥1024px) via the shared card-picker
-          sheet, instead of an inline rail. */}
-      {showAddPanel && (formatConfig?.hasCommander ? deck.commander : true) && (
+      {/* Add cards — below 1280px, a breakpoint-aware overlay (bottom sheet on
+          mobile, centered modal 1024-1279px) via the shared card-picker
+          sheet. At ≥1280px it docks as a workbench rail instead (mounted as
+          a sibling of `.deck-editor-main`, below) — same disclosure state,
+          same panel content (`renderAddPanelContent`), no dialog chrome. */}
+      {!isRailViewport && showAddPanel && (formatConfig?.hasCommander ? deck.commander : true) && (
         <DeckEditorCardPickerSheet
           label="Add cards"
           className="deck-add-sheet"
@@ -3167,144 +3329,7 @@ export function DeckEditorPage() {
             buildTimeNudge.dismiss();
           }}
         >
-          {(dismiss) => (
-            <>
-              <div className="card-picker-handle" aria-hidden />
-              {/* Unconditional (unlike the old sideboard-only gate): Considering
-                  applies to every format, so the toggle always offers it even
-                  when this format has no real sideboard. Native radio semantics
-                  (STYLE_GUIDE "exclusive-value picker" ruling — a hidden radio
-                  input stretched over a styled label, mirroring
-                  .settings-currency-toggle) rather than aria-pressed buttons, so
-                  exclusivity + arrow-key group nav come from the browser. */}
-              <fieldset className="deck-editor-zone-toggle" aria-label="Add cards to">
-                <label className="deck-editor-zone-toggle-option">
-                  <input
-                    type="radio"
-                    name="deck-editor-add-zone"
-                    value="main"
-                    checked={addZone === 'main'}
-                    onChange={() => setAddZone('main')}
-                  />
-                  <span className={`btn btn-sm${addZone === 'main' ? ' btn-primary' : ''}`}>
-                    Mainboard
-                  </span>
-                </label>
-                {formatConfig && formatConfig.sideboardSize > 0 && (
-                  <label className="deck-editor-zone-toggle-option">
-                    <input
-                      type="radio"
-                      name="deck-editor-add-zone"
-                      value="side"
-                      checked={addZone === 'side'}
-                      onChange={() => setAddZone('side')}
-                    />
-                    <span className={`btn btn-sm${addZone === 'side' ? ' btn-primary' : ''}`}>
-                      Sideboard
-                    </span>
-                  </label>
-                )}
-                <label className="deck-editor-zone-toggle-option">
-                  <input
-                    type="radio"
-                    name="deck-editor-add-zone"
-                    value="considering"
-                    checked={addZone === 'considering'}
-                    onChange={() => setAddZone('considering')}
-                  />
-                  <span className={`btn btn-sm${addZone === 'considering' ? ' btn-primary' : ''}`}>
-                    Considering
-                  </span>
-                </label>
-              </fieldset>
-              {/* Build-time coach nudge (E169 Half B) — strictly mainboard-only:
-                  an add to sideboard/considering doesn't touch the mainboard
-                  signature the combo/bracket/win-condition engines analyze, so
-                  it can never produce a nudge, and switching zone tabs away
-                  from Mainboard hides any nudge already showing. */}
-              {addZone === 'main' && (
-                <BuildTimeCoachStrip
-                  nudge={buildTimeNudge.nudge}
-                  onView={(kind) => {
-                    // A navigating strip (STYLE_GUIDE "Build-time coach
-                    // strip"), unlike the tap-opens-sheet insight strips: the
-                    // detail lives one tab over in the Power bento, not in a
-                    // local sheet, so leaving the add flow is unavoidable —
-                    // make it a deliberate close (dismiss the sheet) rather
-                    // than an accidental one.
-                    buildTimeNudge.dismiss();
-                    dismiss();
-                    openAnalysisTab('power');
-                    window.requestAnimationFrame(() => {
-                      if (kind === 'combo') handleViewCombos();
-                      else if (kind === 'wincon') handleViewWinConditions();
-                      else handleViewBracket();
-                    });
-                  }}
-                  onDismiss={buildTimeNudge.dismiss}
-                />
-              )}
-              <CardSearchPanel
-                ref={searchPanelRef}
-                deckId={deck.id}
-                commanderColorIdentity={commanderColorIdentity}
-                existingCardCounts={existingCardCounts}
-                binderByCardName={binderByCardName}
-                onAdd={({ card }) => {
-                  if (addZone === 'side' || addZone === 'considering') {
-                    // allocateAndAdd resolves the copy itself (free / auto-move /
-                    // proxy) — the panel's own pick only ever sees free copies, so
-                    // routing through it is what makes "add an owned card whose copy
-                    // is in another deck" Just Work instead of silently proxying.
-                    allocateAndAdd(card, addZone === 'side' ? 'sideboard' : 'considering', false);
-                    return;
-                  }
-                  // A full Commander deck would overfill — open the intelligent
-                  // replace-when-full prompt instead of silently going to 101.
-                  if (deckIsFull) {
-                    setShowAddPanel(false);
-                    setPendingAdd(card.name);
-                    return;
-                  }
-                  // Arm the build-time nudge BEFORE the mutation lands, so its
-                  // baseline token snapshot is genuinely "before" — see
-                  // notifyMainboardAdd's own doc for why the order matters.
-                  buildTimeNudge.notifyMainboardAdd(card.name);
-                  allocateAndAdd(card, 'main', false);
-                }}
-                onPreviewFit={(card) => setAuditionCard(card)}
-                onClose={dismiss}
-                suggestions={deck.gapAnalysis}
-                oneAwayCombos={comboData.data?.oneAway}
-                hiddenGems={deck.hiddenGems}
-                ownershipFor={ownershipFor}
-                enableSuggestions={!!formatConfig?.hasCommander}
-                suggestionsPending={analysisState === 'pending'}
-                commanderKey={commanderKey}
-                aiSlot={
-                  formatConfig?.hasCommander && deck.commander ? (
-                    <DeckAiRefine
-                      variant="suggestions"
-                      deckId={deck.id}
-                      format={deck.format}
-                      commander={deck.commander}
-                      partnerCommander={deck.partnerCommander ?? null}
-                      mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
-                      pool={refinePool}
-                      ownedOnly={refineOwnedOnly}
-                      onApplyMove={(change) => {
-                        // Mirror the panel's own onAdd: a pure add on a full deck
-                        // opens the replace-when-full prompt, so the sheet gets
-                        // out of its way first (swaps stay in place).
-                        if (change.type === 'add' && deckIsFull) setShowAddPanel(false);
-                        void handleApplyCoachMove(change);
-                      }}
-                    />
-                  ) : undefined
-                }
-              />
-            </>
-          )}
+          {(dismiss) => renderAddPanelContent(dismiss)}
         </DeckEditorCardPickerSheet>
       )}
 
