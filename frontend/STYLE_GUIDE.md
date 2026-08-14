@@ -3556,6 +3556,33 @@ The Coach tab (`?view=tune`) is the one prescriptive surface: a ranked,
 filterable list of moves the user can apply to improve their deck. The
 design rulings below are binding for any future work on the feed.
 
+### Tab posture (UX-402)
+
+The tab reads top-to-bottom as **verdict → work surface → catalog → extras**,
+and every zone wears the panel vocabulary the other analysis tabs already use:
+
+1. **Next best move** hero — the verdict. Always expanded, max 3 moves.
+2. **"Suggestions" panel** — the feed (chips + strips + rows) sits inside the
+   shared `.deck-stats-panel--wide` chrome with a `.deck-stats-panel-title`
+   header. A bare chips-and-rows zone on the bento reads as an unstructured
+   wall; the panel chrome is what gives the tab the same scannable hierarchy
+   as the Stats/Power bentos.
+3. **Browse catalog** (`Browse all EDHREC suggestions` disclosure) — sits
+   **after** the Suggestions panel, never between the filter chips and the
+   rows they filter (there its all-caps summary read as a heading for the
+   feed below it).
+4. **AI strips** — both Coach-tab AI panels take the E244 insight-strip
+   posture (see "AI-written content"); a list surface never mounts a full AI
+   panel uninvited.
+
+**The feed shows one bounded page.** `ROW_CAP` (8) rows render, then a
+full-width quiet **"Show all N suggestions"** expander (chevron flips,
+`aria-expanded`, 44px coarse target) reveals the rest; it re-collapses
+whenever the lane or a cross-cutting toggle changes. An unbounded "All" lane
+rendered 30–60 rows and buried the catalog and the AI surfaces — progressive
+disclosure is the overflow-ladder rung for a ranked feed: the ranking already
+promises the best rows are the first ones.
+
 ### Row anatomy
 
 Every suggestion row is a `DeckCardRow` instance and contains, from left to
@@ -3668,11 +3695,14 @@ lane-chip one.
 
 ### Cuts are separated
 
-Cut suggestions **never interleave** with add/swap rows. They live in a
-collapsed `<details>` disclosure at the feed's end ("Cuts (N)"), closed by
-default. Opening it does not expand the feed inline — it appends beneath the
-last add/swap row. Mixing cuts into an adds feed reads as noise and makes it
-unclear whether a row is an opportunity or a warning.
+Cut suggestions **never interleave** with add/swap rows. They live behind the
+**"Cuts" filter chip** — a pseudo-lane keyed on `change.type`, deliberately
+excluded from "All" (trimming is a different intent than improving), and
+`ownedOnly` never applies to it (every cut is a card already in the deck).
+Mixing cuts into an adds feed reads as noise and makes it unclear whether a
+row is an opportunity or a warning. (An earlier revision described a
+`<details>` disclosure at the feed's end; the shipped design has always been
+the chip lane — this section was stale until the UX-402 posture pass.)
 
 ### Collection lane — owned alternatives
 
@@ -3921,4 +3951,10 @@ Model-written text always says so. The rulings:
   outranks the build-report precedent of mounting the full panel directly —
   that sheet is a report, not a list. The replace-when-full prompt takes the
   same posture: its ranked cuts are the primary content, so the AI verdict
-  ("Is it an upgrade?") is a strip there too.
+  ("Is it an upgrade?") is a strip there too. **The Coach tab is a list
+  surface** (UX-402): both its AI mounts — "Read the deck" and the
+  `variant="coach"` refine pass — start as strips below the browse catalog;
+  the review strip omits the candidate-count teaser (it has no pool) and,
+  since it never depends on a pool, is the one strip that may render
+  pre-consent (expanding shows the in-place consent card). Only the
+  build-report sheet still mounts the full refine panel.

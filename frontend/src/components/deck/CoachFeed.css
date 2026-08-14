@@ -19,6 +19,16 @@
   min-width: 0;
 }
 
+/* Panel chrome for the suggestions zone (chips + strips + rows + empty
+   states) — the shared .deck-stats-panel surface carries background/border/
+   padding; this only restores the internal column rhythm .coach-feed used to
+   provide when the zone was bare. */
+.coach-feed-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
 /* ── Header (filter chips row + apply-all) ──────────────────────────────── */
 
 .coach-feed-header {
@@ -232,6 +242,61 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* "Show all N suggestions" — the feed's progressive-disclosure expander.
+   Full-width quiet button so it reads as the list's own boundary, not another
+   suggestion row. Chevron flips when open; same disclosure vocabulary as the
+   Why/browse toggles (sentence case, focus ring, 44px coarse target). */
+.coach-feed-show-all {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: var(--space-2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .coach-feed-show-all:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+}
+
+.coach-feed-show-all:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .coach-feed-show-all {
+    min-height: 44px;
+  }
+}
+
+.coach-feed-show-all > svg {
+  transition: transform var(--motion-fast) ease;
+}
+
+.coach-feed-show-all[aria-expanded='true'] > svg {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coach-feed-show-all > svg {
+    transition: none;
+  }
 }
 
 /* ── Empty states ───────────────────────────────────────────────────────── */

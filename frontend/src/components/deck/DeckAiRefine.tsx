@@ -38,7 +38,7 @@ interface DeckAiRefineProps {
    *   Cut-less tweaks are dropped — a pure add can't apply to a full deck.
    *   Same strip posture (the ranked cuts are the prompt's primary content).
    */
-  variant?: 'build' | 'suggestions' | 'replace';
+  variant?: 'build' | 'suggestions' | 'replace' | 'coach';
 }
 
 /**
@@ -145,9 +145,13 @@ export function DeckAiRefine({
 
   const isSuggestions = variant === 'suggestions';
   const isReplace = variant === 'replace';
-  // Strip posture for both slot mounts: their hosts' primary content is a list
-  // (suggestion rows / ranked cuts) that the panel must not displace.
-  const strip = isSuggestions || isReplace;
+  // `coach` = the Coach-tab mount: same build framing, but the tab's primary
+  // content is the suggestion feed, so it takes the strip posture too. Only
+  // the build-report sheet (a report, not a list) mounts the full panel.
+  const isCoach = variant === 'coach';
+  // Strip posture for the list-surface mounts: their hosts' primary content is
+  // a list (suggestion rows / ranked cuts) that the panel must not displace.
+  const strip = isSuggestions || isReplace || isCoach;
   const incoming = pool[0]?.name ?? 'this card';
   const title = isReplace
     ? 'Is it an upgrade?'
@@ -177,7 +181,7 @@ export function DeckAiRefine({
       >
         <AiMarker />
         <span className="deck-ai-strip-title">{title}</span>
-        {isSuggestions && (
+        {(isSuggestions || isCoach) && (
           <span className="deck-ai-strip-teaser">
             {pool.length} candidate{pool.length === 1 ? '' : 's'}
           </span>

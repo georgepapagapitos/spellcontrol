@@ -498,4 +498,44 @@ describe('CoachFeed', () => {
       expect(screen.queryByText(/Couldn.t analyze this deck/)).toBeNull();
     });
   });
+
+  describe('bounded first page ("Show all")', () => {
+    const manyGaps = Array.from(
+      { length: 10 },
+      (_, i) =>
+        ({
+          name: `Gap Card ${i + 1}`,
+          role: 'ramp',
+          roleLabel: 'Ramp',
+          inclusion: 90 - i,
+        }) as GapAnalysisCard
+    );
+    const manyProps = () =>
+      makeProps({ gaps: manyGaps, costPlan: undefined, oneAwayCombos: undefined });
+
+    it('caps the feed at the first page and expands on "Show all"', () => {
+      render(<CoachFeed {...manyProps()} />);
+      const list = screen.getByRole('list', { name: 'Deck suggestions' });
+      expect(list.querySelectorAll(':scope > li').length).toBe(8);
+      const toggle = screen.getByRole('button', { name: 'Show all 10 suggestions' });
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
+      fireEvent.click(toggle);
+      expect(list.querySelectorAll(':scope > li').length).toBe(10);
+      expect(screen.getByRole('button', { name: 'Show fewer' })).toBeTruthy();
+    });
+
+    it('re-collapses to the first page when the lane changes', () => {
+      render(<CoachFeed {...manyProps()} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Show all 10 suggestions' }));
+      fireEvent.click(screen.getByRole('button', { name: /Fix gaps/ }));
+      const list = screen.getByRole('list', { name: 'Deck suggestions' });
+      expect(list.querySelectorAll(':scope > li').length).toBe(8);
+      expect(screen.getByRole('button', { name: 'Show all 10 suggestions' })).toBeTruthy();
+    });
+
+    it('shows no expander when the feed fits one page', () => {
+      render(<CoachFeed {...makeProps()} />);
+      expect(screen.queryByRole('button', { name: /Show all/ })).toBeNull();
+    });
+  });
 });

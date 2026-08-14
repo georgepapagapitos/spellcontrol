@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { analyzeDeck } from '../../lib/deck-analysis';
 import { useTaggerReady } from '@/lib/use-tagger-ready';
@@ -48,6 +49,11 @@ export function DeckAiReview({
   const taggerReady = useTaggerReady();
   const status = useAiStatus();
   const [inviteDismissed, setInviteDismissed] = useState(isAiInviteDismissed);
+  // Insight-strip posture (E244): the Coach tab's primary content is the
+  // suggestion feed, so this panel starts as one compact strip and expands in
+  // place. One-way disclosure — a tab switch unmounts and re-collapses it; the
+  // review itself is hash-cached server-side, so re-expanding stays free.
+  const [expanded, setExpanded] = useState(false);
   const [phase, setPhase] = useState<'idle' | 'reading' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [review, setReview] = useState<HeldReview | null>(null);
@@ -101,9 +107,27 @@ export function DeckAiReview({
       });
   };
 
+  // Dismissed for good without consent: nothing at all (self-hiding rule).
+  if (!status.optIn && inviteDismissed) return null;
+
+  // Collapsed strip — expanding reveals the consent card or the panel itself.
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        className="deck-ai-strip"
+        aria-expanded={false}
+        onClick={() => setExpanded(true)}
+      >
+        <AiMarker label={status.optIn ? 'AI-written' : undefined} />
+        <span className="deck-ai-strip-title">Read the deck</span>
+        <ChevronDown width={16} height={16} aria-hidden />
+      </button>
+    );
+  }
+
   // ── Not opted in: consent granted in place, or dismissed for good ──
   if (!status.optIn) {
-    if (inviteDismissed) return null;
     return (
       <DeckAiConsent
         title="Read the deck"

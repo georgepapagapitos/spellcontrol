@@ -2969,6 +2969,7 @@ export function DeckEditorPage() {
                       generator decision to second-guess. */}
                   {deck.source === 'generated' && (
                     <DeckAiRefine
+                      variant="coach"
                       deckId={deck.id}
                       format={deck.format}
                       commander={deck.commander}
