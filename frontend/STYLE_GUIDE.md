@@ -3911,3 +3911,12 @@ Model-written text always says so. The rulings:
   the same quota store, so they can never show two different "N left today"
   numbers; a spend updates every meter at once. Each panel still self-hides on
   its own when the feature is unavailable or consent is absent.
+- **On a list/browse surface, an AI panel takes the insight-strip posture
+  (E244).** Where the surface's primary job is browsing rows (the add-cards
+  sheet's Suggestions tab), the AI affordance starts as ONE compact strip —
+  AI-Beta pill, title, candidate count, chevron, 44px coarse target — and
+  expands the full panel in place only when tapped. It renders nothing at all
+  when its candidate pool is empty: an advisor with nothing to say shows no
+  chrome. This is the "Index-page insight strips" ruling applied to AI, and it
+  outranks the build-report precedent of mounting the full panel directly —
+  that sheet is a report, not a list.

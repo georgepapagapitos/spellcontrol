@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import type { Change } from '@/lib/deck-change';
 import { analyzeDeck } from '../../lib/deck-analysis';
@@ -22,6 +22,18 @@ interface DeckAiRefineProps {
   ownedOnly: boolean;
   /** The existing coach apply path — never a parallel one. */
   onApplyMove: (change: Change) => void;
+  /**
+   * Where the panel lives, which decides its posture and copy.
+   *
+   * - `'build'` (default): the post-generation pass — full panel, generated
+   *   decks, "second-guess the generator" framing.
+   * - `'suggestions'`: the add-cards sheet's Suggestions tab (E244). The tab's
+   *   primary job is browsing candidates, so per the STYLE_GUIDE insight-strip
+   *   ruling the panel starts as ONE compact 44px strip and expands in place —
+   *   it never pushes the suggestion rows down uninvited. Renders nothing at
+   *   all with an empty pool (an advisor with nothing to say shows no chrome).
+   */
+  variant?: 'build' | 'suggestions';
 }
 
 /**
@@ -45,6 +57,7 @@ export function DeckAiRefine({
   pool,
   ownedOnly,
   onApplyMove,
+  variant = 'build',
 }: DeckAiRefineProps) {
   const taggerReady = useTaggerReady();
   const status = useAiStatus();
@@ -55,6 +68,7 @@ export function DeckAiRefine({
   const [tweaks, setTweaks] = useState<RefineTweak[]>([]);
   const [applied, setApplied] = useState<Set<string>>(new Set());
   const [inviteDismissed, setInviteDismissed] = useState(isAiInviteDismissed);
+  const [expanded, setExpanded] = useState(false);
 
   const commanderName = partnerCommander
     ? `${commander.name} // ${partnerCommander.name}`
@@ -122,17 +136,48 @@ export function DeckAiRefine({
     setApplied((prev) => new Set(prev).add(tweak.add));
   };
 
+  const isSuggestions = variant === 'suggestions';
+  const title = isSuggestions ? 'Weigh these suggestions' : 'Refine this build';
+
   // Nothing without the feature configured. Without CONSENT, offer it here
   // rather than rendering nothing: on the post-generation build report this is
   // the user's first point of use, and staying silent would hide the feature
   // exactly where it was meant to appear.
   if (!status) return null;
+  if (!status.optIn && inviteDismissed) return null;
+  // An advisor with nothing to say shows no chrome (insight-strip ruling).
+  if (isSuggestions && pool.length === 0) return null;
+
+  // The Suggestions tab's rows are the primary content — start as one compact
+  // strip and let the user choose the expansion. Sheet state resets on close,
+  // so a one-way disclosure is enough (the build report has no collapse either).
+  if (isSuggestions && !expanded) {
+    return (
+      <button
+        type="button"
+        className="deck-ai-strip"
+        aria-expanded={false}
+        onClick={() => setExpanded(true)}
+      >
+        <span className="deck-ai-marker">AI Beta</span>
+        <span className="deck-ai-strip-title">{title}</span>
+        <span className="deck-ai-strip-teaser">
+          {pool.length} candidate{pool.length === 1 ? '' : 's'}
+        </span>
+        <ChevronDown width={16} height={16} aria-hidden />
+      </button>
+    );
+  }
+
   if (!status.optIn) {
-    if (inviteDismissed) return null;
     return (
       <DeckAiConsent
-        title="Refine this build"
-        blurb={`AI can weigh the candidates the coach already found and suggest a few swaps. Turning this on sends this deck's card names, its computed stats and those candidates to Anthropic. Nothing is sent until you press an AI button, ${status.limit} a day. Your collection is never sent, and you can turn it back off in Settings.`}
+        title={title}
+        blurb={
+          isSuggestions
+            ? `AI can weigh the suggestions on this tab against the deck and pick the few worth making. Turning this on sends this deck's card names, its computed stats and those candidates to Anthropic. Nothing is sent until you press an AI button, ${status.limit} a day. Your collection is never sent, and you can turn it back off in Settings.`
+            : `AI can weigh the candidates the coach already found and suggest a few swaps. Turning this on sends this deck's card names, its computed stats and those candidates to Anthropic. Nothing is sent until you press an AI button, ${status.limit} a day. Your collection is never sent, and you can turn it back off in Settings.`
+        }
         onDismiss={() => setInviteDismissed(true)}
       />
     );
@@ -141,7 +186,7 @@ export function DeckAiRefine({
   return (
     <section className="deck-stats-panel deck-stats-panel--wide deck-ai-review">
       <h4 className="deck-stats-panel-title">
-        Refine this build
+        {title}
         <span className="deck-ai-marker">AI Beta</span>
       </h4>
 
@@ -229,11 +274,15 @@ export function DeckAiRefine({
       {phase === 'idle' && !strategy && (
         <div className="deck-ai-idle">
           <p className="deck-ai-idle-text">
-            {pool.length === 0
-              ? 'Once the coach has candidates for this deck, AI can weigh them and suggest a few swaps.'
-              : `AI can read what the generator built and suggest a few changes${
-                  ownedOnly ? ' from cards you own' : ''
-                } — chosen from the ${pool.length} candidates the coach already found, never invented.`}
+            {isSuggestions
+              ? `AI can read the deck and pick the few of these ${pool.length} suggestions worth making — what to add, and what to cut to make room${
+                  ownedOnly ? ', from cards you own' : ''
+                }. It only chooses cards the app already found, never invented ones.`
+              : pool.length === 0
+                ? 'Once the coach has candidates for this deck, AI can weigh them and suggest a few swaps.'
+                : `AI can read what the generator built and suggest a few changes${
+                    ownedOnly ? ' from cards you own' : ''
+                  } — chosen from the ${pool.length} candidates the coach already found, never invented.`}
           </p>
           <div className="deck-ai-idle-actions">
             <button
@@ -242,7 +291,7 @@ export function DeckAiRefine({
               onClick={run}
               disabled={remaining === 0 || pool.length === 0}
             >
-              Refine this build
+              {isSuggestions ? 'Weigh the suggestions' : 'Refine this build'}
             </button>
             <span className="deck-ai-remaining">
               {remaining === 0
