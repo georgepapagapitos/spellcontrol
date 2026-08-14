@@ -7,7 +7,7 @@ import { useTaggerReady } from '@/lib/use-tagger-ready';
 import { buildDeckReviewCards, splitReviewSections, tokenizeCardNames } from '../../lib/ai-review';
 import { requestDeckRefine, type RefineCard, type RefineTweak } from '../../lib/ai-refine';
 import { noteAiExhausted, noteAiSpend, useAiStatus } from '../../lib/use-ai-status';
-import { DeckAiConsent, isAiInviteDismissed } from './DeckAiConsent';
+import { AiMarker, DeckAiConsent, isAiInviteDismissed } from './DeckAiConsent';
 import { useCardCarousel } from './useCardCarousel';
 import './DeckAiReview.css';
 
@@ -159,7 +159,7 @@ export function DeckAiRefine({
         aria-expanded={false}
         onClick={() => setExpanded(true)}
       >
-        <span className="deck-ai-marker">AI Beta</span>
+        <AiMarker />
         <span className="deck-ai-strip-title">{title}</span>
         <span className="deck-ai-strip-teaser">
           {pool.length} candidate{pool.length === 1 ? '' : 's'}
@@ -187,7 +187,7 @@ export function DeckAiRefine({
     <section className="deck-stats-panel deck-stats-panel--wide deck-ai-review">
       <h4 className="deck-stats-panel-title">
         {title}
-        <span className="deck-ai-marker">AI Beta</span>
+        <AiMarker />
       </h4>
 
       {strategy && (

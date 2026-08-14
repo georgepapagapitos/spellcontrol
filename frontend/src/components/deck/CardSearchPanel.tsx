@@ -656,7 +656,10 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
           />
         ) : activeMode === 'suggestions' ? (
           <>
-            {aiSlot}
+            {/* Bounded + internally scrollable: the tabpanel is a fixed-height
+                flex column where only the results list scrolls, so an expanded
+                AI panel must cap itself instead of painting past the sheet. */}
+            {aiSlot && <div className="card-search-ai">{aiSlot}</div>}
             <SuggestionsResults
               deckId={deckId}
               colorIdentity={commanderColorIdentity}

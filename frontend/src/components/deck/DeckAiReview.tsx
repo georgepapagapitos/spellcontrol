@@ -11,7 +11,7 @@ import {
   tokenizeCardNames,
 } from '../../lib/ai-review';
 import { noteAiExhausted, noteAiSpend, useAiStatus } from '../../lib/use-ai-status';
-import { DeckAiConsent, isAiInviteDismissed } from './DeckAiConsent';
+import { AiMarker, DeckAiConsent, isAiInviteDismissed } from './DeckAiConsent';
 import { useCardCarousel } from './useCardCarousel';
 import './DeckAiReview.css';
 
@@ -118,7 +118,7 @@ export function DeckAiReview({
     <section className="deck-stats-panel deck-stats-panel--wide deck-ai-review">
       <h4 className="deck-stats-panel-title">
         Read the deck
-        <span className="deck-ai-marker">AI-written</span>
+        <AiMarker label="AI-written" />
       </h4>
 
       {/* One render path for the streaming text and the settled review, so the
