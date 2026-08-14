@@ -2995,6 +2995,23 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     bracketGuard,
   });
 
+  // Land top-up/backfill (E68 phase 4 split — see deckGeneration/landTopUp.ts
+  // for addBasicLands + the two call sites' shared rationale). `landTopUpCtx`
+  // is a thin view over the same `colorIdentity`/`categories` this function
+  // already mutates by reference, so both call sites below stay in sync with
+  // everything else in generateDeckInner.
+  //
+  // MUST run BEFORE Smart Trim: the top-up is gated purely on land count, so
+  // when generateLands under-delivers (e.g. the owned-basics cap in
+  // "Available only" collection mode) while the nonland passes overshot,
+  // running it after the trim added basics onto an exactly-at-target deck and
+  // shipped an over-size deck the generation gate then rejected ("2 cards
+  // over the Commander limit"). Topping up first lets the trim reconcile the
+  // surplus — its land budget (max(0, lands - landTarget)) still protects the
+  // freshly added basics.
+  const landTopUpCtx: LandTopUpContext = { colorIdentity, categories };
+  await runLandDeficitTopUp(landTopUpCtx, targets.lands);
+
   // ── Smart Trim: priority-aware, role-aware, combo-aware ──
   // Resistance formula lives in computeTrimResistance (deckGeneration/phaseSmartTrim.ts,
   // unit-tested independently of this orchestration).
@@ -3012,14 +3029,6 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // "Wanted X → used your Y" rows for owned cards substituted in to complete an
   // owned-only deck (the smart relaxation below). Surfaced in the build report.
   const substitutionRows: SubstituteRow[] = [];
-
-  // Land top-up/backfill (E68 phase 4 split — see deckGeneration/landTopUp.ts
-  // for addBasicLands + the two call sites' shared rationale). `landTopUpCtx`
-  // is a thin view over the same `colorIdentity`/`categories` this function
-  // already mutates by reference, so both call sites below stay in sync with
-  // everything else in generateDeckInner.
-  const landTopUpCtx: LandTopUpContext = { colorIdentity, categories };
-  await runLandDeficitTopUp(landTopUpCtx, targets.lands);
 
   // If we have too few cards, fill shortage — budget is best-effort here,
   // deck size and structure are non-negotiable
