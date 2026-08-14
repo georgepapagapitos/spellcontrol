@@ -6,6 +6,11 @@
   display: flex;
   flex-direction: column;
   width: min(560px, calc(100vw - var(--space-4) * 2));
+  /* `.modal-backdrop` is a row flex container that stretches its items on the
+     cross (vertical) axis at some breakpoints. Without this the panel is pulled
+     to its own max-height and a four-result palette renders 169px of dead space
+     under the last row (measured at 320px). Sizing to content is the point. */
+  align-self: center;
   max-height: min(60vh, 30rem);
   padding: 0;
   overflow: hidden;
