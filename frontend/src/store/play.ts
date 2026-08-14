@@ -36,7 +36,7 @@ import { cancelBoardPublish } from '../lib/games-board';
 import { setHapticsEnabled } from '../lib/haptics';
 import { clearUndo } from '../lib/undo-stack';
 import { FORMAT_OPTIONS } from '../lib/game-formats';
-import type { PublicBoard } from '../lib/playtest/projection';
+import type { PublicBoard, TickerEntry } from '../lib/playtest/projection';
 
 const POLL_INTERVAL_MS = 2500;
 
@@ -109,6 +109,16 @@ export function recordToRematch(rec: GameRecord): RematchTemplate {
   };
 }
 
+/** One line of the play-ticker feed (see `PlayState.onlineTicker`). `id` is
+ *  feed-unique (a per-adoption counter, never reused even across a seat's
+ *  log restarting), so it's safe as a render key and as an edge-trigger for
+ *  "a new line arrived". */
+export interface TickerItem {
+  id: number;
+  seat: number;
+  entry: TickerEntry;
+}
+
 interface PlayState {
   /** Active local (shared-device) game, if any. */
   local: GameState | null;
@@ -144,6 +154,18 @@ interface PlayState {
    * transiently. Reset whenever the online session starts or ends.
    */
   onlineSignal: { seq: number; signal: GameSignal } | null;
+  /**
+   * The play ticker: a merged, arrival-ordered feed of every seat's public
+   * log lines for the active online game — "Maya played Sol Ring" narrative
+   * instead of board-diffing. Fed by `ingestTicker` from two symmetric
+   * sources: opponents' lines via `applyServerBoard` (each `PublicBoard`
+   * carries its seat's trailing lines — see `toPublicTicker`), and this
+   * device's own lines from the publish path (use-online-table.ts), so the
+   * feed shows exactly what each seat's opponents can see, own seat
+   * included. Ephemeral, reset with the session — same lifecycle as
+   * `onlineBoards`.
+   */
+  onlineTicker: TickerItem[];
   /** Per-user game history (synced via the user-data sync). */
   history: GameRecord[];
   hydrated: boolean;
@@ -215,6 +237,11 @@ interface PlayState {
    *  — failures are swallowed; the sender's own copy is echoed locally from
    *  the POST response (the transport re-delivery is deduped by seat+ts). */
   sendSignal(input: GameSignalInput): Promise<void>;
+  /** Merge one seat's published ticker window into `onlineTicker` — new
+   *  lines only (per-seat `seq` diffing, so the constant re-delivery of
+   *  whole windows is idempotent). The publish path calls this for the own
+   *  seat; `applyServerBoard` calls the same logic for peers. */
+  ingestTicker(seat: number, ticker: TickerEntry[] | undefined): void;
 
   // ── History ─────────────────────────────────────────────────────────────
   /** Replace history (used by sync hydration). */
@@ -300,6 +327,31 @@ function applyServerGameState(fresh: GameState, set: PlaySet): void {
  */
 function applyServerBoard(seat: number, board: PublicBoard, set: PlaySet): void {
   set((s) => ({ onlineBoards: { ...s.onlineBoards, [seat]: board } }));
+  ingestTickerLines(seat, board.ticker, set);
+}
+
+/** Feed cap — old lines fall off; the point is recent narrative, not a
+ *  replayable history (each seat's own full log is its own device's). */
+const TICKER_FEED_LIMIT = 60;
+/** Highest ticker `seq` adopted per seat — the diff cursor that makes
+ *  re-delivered windows (boards arrive constantly: publishes, poll
+ *  snapshots, reconnect catch-ups) idempotent. Module-level like
+ *  `serverVersion`; cleared wherever the online slice resets. */
+const tickerSeen = new Map<number, number>();
+let nextTickerItemId = 1;
+
+function ingestTickerLines(seat: number, ticker: TickerEntry[] | undefined, set: PlaySet): void {
+  if (!ticker || ticker.length === 0) return;
+  const seen = tickerSeen.get(seat) ?? 0;
+  const maxSeq = ticker[ticker.length - 1].seq;
+  // A seat's max seq moving BACKWARD means its log restarted (a fresh
+  // playtest session reseeds `gameLog` at seq 1) — adopt the whole window
+  // rather than filtering against a cursor from the previous game.
+  const fresh = maxSeq < seen ? ticker : ticker.filter((e) => e.seq > seen);
+  if (fresh.length === 0) return;
+  tickerSeen.set(seat, maxSeq);
+  const items = fresh.map((entry) => ({ id: nextTickerItemId++, seat, entry }));
+  set((s) => ({ onlineTicker: [...s.onlineTicker, ...items].slice(-TICKER_FEED_LIMIT) }));
 }
 
 /**
@@ -452,6 +504,7 @@ function resetOnlineState(
   pendingActions = [];
   serverCode = null;
   serverVersion = 0;
+  tickerSeen.clear();
   set({
     online: null,
     onlineError: null,
@@ -459,6 +512,7 @@ function resetOnlineState(
     onlineBoards: {},
     onlineRequests: {},
     onlineSignal: null,
+    onlineTicker: [],
   });
 }
 
@@ -482,6 +536,7 @@ export const usePlayStore = create<PlayState>()(
       onlineBoards: {},
       onlineRequests: {},
       onlineSignal: null,
+      onlineTicker: [],
       history: [],
       hydrated: false,
       onlineError: null,
@@ -587,6 +642,7 @@ export const usePlayStore = create<PlayState>()(
         const game = await apiCreateGame(input);
         serverVersion = game.version;
         serverCode = game.code;
+        tickerSeen.clear();
         set({
           online: game,
           onlineError: null,
@@ -594,6 +650,7 @@ export const usePlayStore = create<PlayState>()(
           onlineBoards: {},
           onlineRequests: {},
           onlineSignal: null,
+          onlineTicker: [],
         });
         get().startPolling();
         return game;
@@ -603,6 +660,7 @@ export const usePlayStore = create<PlayState>()(
         const game = await apiJoinGame(code.toUpperCase(), input);
         serverVersion = game.version;
         serverCode = game.code;
+        tickerSeen.clear();
         set({
           online: game,
           onlineError: null,
@@ -610,6 +668,7 @@ export const usePlayStore = create<PlayState>()(
           onlineBoards: {},
           onlineRequests: {},
           onlineSignal: null,
+          onlineTicker: [],
         });
         get().startPolling();
         return game;
@@ -761,6 +820,8 @@ export const usePlayStore = create<PlayState>()(
         }
       },
 
+      ingestTicker: (seat, ticker) => ingestTickerLines(seat, ticker, set),
+
       clearOnline: () => {
         const cur = get().online;
         if (cur) {
@@ -772,6 +833,7 @@ export const usePlayStore = create<PlayState>()(
           pendingActions = [];
           serverCode = null;
           serverVersion = 0;
+          tickerSeen.clear();
           set({
             online: null,
             onlineError: null,
@@ -779,6 +841,7 @@ export const usePlayStore = create<PlayState>()(
             onlineBoards: {},
             onlineRequests: {},
             onlineSignal: null,
+            onlineTicker: [],
           });
         }
       },

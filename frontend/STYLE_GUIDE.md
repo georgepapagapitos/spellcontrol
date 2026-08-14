@@ -1280,6 +1280,34 @@ CSS-hidden while mounted) — its card art resolves through the shared
 `useCardThumb` CDN cache per entry, and gating the mount avoids firing that
 resolution for opponents a phone-portrait viewer will never see tiles for.
 
+### Play ticker — narrative is public-only, ambient, and never displaces the board (E242)
+
+The play ticker (`playtest/components/TableTicker.tsx`) projects each seat's
+game-log lines to the table ("Maya played Sol Ring") so opponents get
+narrative instead of board-diffing. Three rulings:
+
+- **Public information only, decided at projection time, never at render
+  time.** The lines a board publishes are filtered by
+  `projection.ts:toPublicTicker` before they leave the device — a
+  kind-whitelist plus the zone-endpoint check (a `zone-move` whose card never
+  touched a public zone, e.g. a tutor `library → hand`, is dropped entirely
+  rather than rephrased). UI code must never receive a private line and be
+  trusted to hide it. The feed shows your own lines through the same filter,
+  so what you see under "You" is exactly what the table sees.
+- **The ticker follows the rail's density, on the rail's own gate
+  (`GLANCE_QUERY`), and never displaces gameplay.** Glance (side rail):
+  a persistent scrolling feed under the opponent list — the column has
+  vertical slack. Presence (top strip): a **transient one-line flash**,
+  portaled and `pointer-events: none` like `.table-moment`, auto-dismissing
+  on a timer whose CSS lifecycle animation matches it exactly — a phone has
+  no axis to spend on a persistent feed, and a reserved-but-usually-empty
+  line would displace the battlefield (§ "insight surfaces never displace
+  content"). Own-seat lines never flash — you just did the thing.
+- **A transient surface needs a reviewable twin.** The presence flash is
+  glanceable, not a history; the reviewable feed lives in the Log sheet's
+  "You / Table" tab strip (a real view switcher → `Tabs` `fitted`, per
+  § Tabs). Don't add a second bespoke history surface.
+
 ### Store-driven global overlays (E170)
 
 A non-component caller (a background sync push, or anything else that fires

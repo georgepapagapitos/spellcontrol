@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { joinClasses } from '@/lib/join-classes';
 import { useCardThumb } from '@/lib/card-thumbs';
 import { paletteForIndex } from '@/lib/seat-palette';
 import type { PublicBattlefieldCard, PublicBoard } from '@/lib/playtest/projection';
 import { DESIGNATIONS } from '../lib/designations';
 import { useNewCardIds } from '../hooks/use-new-card-ids';
+import { useMediaQuery } from '../hooks/use-media-query';
 import { OpponentBoardModal } from './OpponentBoardModal';
 import './OpponentRail.css';
 
@@ -34,6 +35,11 @@ interface OpponentRailProps {
   opponents: OpponentSeat[];
   /** Seat currently holding the turn at the table, if known. */
   activeSeat?: number;
+  /** The play-ticker slot (TableTicker.tsx), rendered after the opponent
+   *  list inside the rail so its glance-density panel shares the rail's
+   *  side column. In presence density the ticker renders only a portaled
+   *  transient line, so this slot adds no in-flow content to the strip. */
+  children?: ReactNode;
 }
 
 // A glance-density mini battlefield beyond this many permanents rolls the
@@ -67,22 +73,10 @@ const MAX_MINI_TILES = 12;
  * 900px separates the two cleanly: tablet-landscape (iPad ~1024-1180) gets
  * glance, every phone landscape (568 / 736 / 844) stays on presence.
  */
-const GLANCE_QUERY = '(orientation: landscape) and (min-width: 900px)';
+export const GLANCE_QUERY = '(orientation: landscape) and (min-width: 900px)';
 
-export function OpponentRail({ opponents, activeSeat }: OpponentRailProps) {
-  const [isGlance, setIsGlance] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia(GLANCE_QUERY).matches
-  );
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mql = window.matchMedia(GLANCE_QUERY);
-    const update = () => setIsGlance(mql.matches);
-    // Sync once on mount: the media state can change between the initial
-    // render and the listener attaching (rotation during hydration).
-    update();
-    mql.addEventListener('change', update);
-    return () => mql.removeEventListener('change', update);
-  }, []);
+export function OpponentRail({ opponents, activeSeat, children }: OpponentRailProps) {
+  const isGlance = useMediaQuery(GLANCE_QUERY);
 
   // Which seat's full board is open in the inspector, if any — the rail's
   // "promotion" interaction (STYLE_GUIDE § Opponent rail). Kept by seat
@@ -130,6 +124,7 @@ export function OpponentRail({ opponents, activeSeat }: OpponentRailProps) {
           />
         ))}
       </ul>
+      {children}
       {inspectingOpp && (
         <OpponentBoardModal
           opp={inspectingOpp}

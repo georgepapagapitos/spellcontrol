@@ -183,6 +183,21 @@ describe('buildLogEntries', () => {
     expect(entries[0].text).toBe(`${s.zones.hand[0].name}: hand → graveyard`);
   });
 
+  it('stamps zone endpoints on zone-move entries (the ticker visibility check needs them)', () => {
+    const s = init(10, 1, 1);
+    const cardId = s.zones.hand[0].id;
+    const toGrave = applyAction(s, { type: 'MOVE_TO_ZONE', cardId, to: 'graveyard' });
+    expect(
+      buildLogEntries(s, { type: 'MOVE_TO_ZONE', cardId, to: 'graveyard' }, toGrave)[0]
+    ).toMatchObject({ from: 'hand', to: 'graveyard' });
+
+    const onBoard = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId, x: 0, y: 0 });
+    const offBoard = applyAction(onBoard, { type: 'MOVE_TO_ZONE', cardId, to: 'exile' });
+    expect(
+      buildLogEntries(onBoard, { type: 'MOVE_TO_ZONE', cardId, to: 'exile' }, offBoard)[0]
+    ).toMatchObject({ from: 'battlefield', to: 'exile' });
+  });
+
   it('skips a no-op move to the same zone', () => {
     const s = init(10, 1, 1);
     const cardId = s.zones.hand[0].id;

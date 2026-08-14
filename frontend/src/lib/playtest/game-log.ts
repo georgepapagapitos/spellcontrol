@@ -47,6 +47,14 @@ export interface GameLogEntry {
    *  loads with it simply absent, and `walkRewindable` treats a missing
    *  verdict as a conservative `locked` wall rather than assuming it's safe. */
   verdict?: RewindVerdict;
+  /** Zone endpoints, set only on `zone-move` entries. `text` bakes the zones
+   *  into prose, so downstream visibility decisions (the play ticker's
+   *  "was this card's name ever public?" check — see projection.ts's
+   *  `toPublicTicker`) need the structured form. Optional for back-compat:
+   *  entries persisted before these fields existed load without them, and the
+   *  ticker treats that as "can't prove it was public" and drops the line. */
+  from?: Zone | 'battlefield';
+  to?: Zone;
 }
 
 /** Oldest entries drop first once the log exceeds this many. */
@@ -172,6 +180,8 @@ function buildRawLogEntries(
               kind: 'zone-move',
               text: `${loc.card.name} left the battlefield (ceased to exist)`,
               cardName: loc.card.name,
+              from: loc.from,
+              to: action.to,
             },
           ];
         }
@@ -181,6 +191,8 @@ function buildRawLogEntries(
             kind: 'zone-move',
             text: `${loc.card.name}: battlefield → ${ZONE_LABEL[action.to]}`,
             cardName: loc.card.name,
+            from: loc.from,
+            to: action.to,
           },
         ];
       }
@@ -190,6 +202,8 @@ function buildRawLogEntries(
           kind: 'zone-move',
           text: `${loc.card.name}: ${ZONE_LABEL[loc.from]} → ${ZONE_LABEL[action.to]}`,
           cardName: loc.card.name,
+          from: loc.from,
+          to: action.to,
         },
       ];
     }
