@@ -1,4 +1,5 @@
 import type { BattlefieldCard, ManaColor, PlaytestCard, PlaytestState } from './types';
+import type { GameLogEntry, LogEntryKind } from './game-log';
 
 /** A `PlaytestCard` stripped to what's safe to show an opponent: never an
  *  image URL (peers re-resolve art from `scryfallId` via the app's existing
@@ -30,6 +31,81 @@ export interface PublicBattlefieldCard {
   phased?: boolean;
 }
 
+/** One public-safe game-log line, ready to project to the table — see
+ *  `toPublicTicker`. `seq` is the source `GameLogEntry.seq`: per-seat
+ *  monotonic, which is what lets receivers diff re-delivered tickers (every
+ *  board re-publish and long-poll snapshot carries the whole window). */
+export interface TickerEntry {
+  seq: number;
+  kind: LogEntryKind;
+  text: string;
+  cardName?: string;
+}
+
+/** How many trailing public log lines a published board carries. Enough for
+ *  a late joiner to get real backstory; small enough to be payload noise
+ *  next to the battlefield itself. */
+export const TICKER_LIMIT = 25;
+
+/** Log kinds whose `text` is public by construction — no hand/library
+ *  contents, no card identity an opponent hasn't already seen. Everything
+ *  else (`life`/`counter`/`mana` reference solo-mode virtual opponents or
+ *  duplicate state the board already carries live; `resistance` is
+ *  solo-only) stays local. `zone-move` is conditionally public — see
+ *  `toPublicTicker`. */
+const TICKER_KINDS: ReadonlySet<LogEntryKind> = new Set([
+  'turn',
+  'draw',
+  'play',
+  'zone-move',
+  'mulligan',
+  'shuffle',
+  'scry',
+  'mill',
+  'token',
+  'tap-all',
+  'attach',
+  'phase',
+  'designation',
+  'undo',
+  'reset',
+]);
+
+/**
+ * Filter a seat's game log down to the lines its opponents are allowed to
+ * read — the play-ticker half of this module's projection contract.
+ *
+ * The one non-obvious case: a `zone-move` whose card never touched a public
+ * zone. `library → hand` is a tutor and `hand → library` is a bottoming —
+ * in both, the card's name is hidden information even though the *move*
+ * itself is table-visible, and the entry `text` bakes the name in. Rather
+ * than rewrite prose, those lines are dropped entirely (the board's
+ * `handCount`/`libraryCount` still move, and a tutor's shuffle line still
+ * shows). Every other endpoint pair passes: touching battlefield /
+ * graveyard / exile / command reveals the card on arrival, and a card
+ * *leaving* one was already public. Entries persisted before `from`/`to`
+ * existed can't prove any of that, so they drop too.
+ */
+export function toPublicTicker(log: readonly GameLogEntry[]): TickerEntry[] {
+  const out: TickerEntry[] = [];
+  for (const e of log) {
+    if (!TICKER_KINDS.has(e.kind)) continue;
+    if (e.kind === 'zone-move') {
+      if (!e.from || !e.to) continue;
+      const hiddenFrom = e.from === 'hand' || e.from === 'library';
+      const hiddenTo = e.to === 'hand' || e.to === 'library';
+      if (hiddenFrom && hiddenTo) continue;
+    }
+    out.push({
+      seq: e.seq,
+      kind: e.kind,
+      text: e.text,
+      ...(e.cardName !== undefined && { cardName: e.cardName }),
+    });
+  }
+  return out.slice(-TICKER_LIMIT);
+}
+
 /** One player's board as their opponents are allowed to see it: the public
  *  zones (battlefield, graveyard, exile, command) in full, plus counts —
  *  never contents — for the two zones MTG keeps private (library, hand). */
@@ -49,6 +125,12 @@ export interface PublicBoard {
   command: ProjectedCard[];
   handCount: number;
   libraryCount: number;
+  /** Trailing public log lines (see `toPublicTicker`) — the play ticker.
+   *  Optional: boards published by clients predating the ticker arrive
+   *  without it, and `toPublicBoard` itself doesn't attach one (the log
+   *  lives at the store layer, not in `PlaytestState` — the publisher
+   *  spreads it in; see use-online-table.ts). */
+  ticker?: TickerEntry[];
 }
 
 /** Slim a `PlaytestCard` down to its projected shape — the one place that

@@ -3,11 +3,13 @@ import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createPlaytestState, type PlaytestCard, type PlaytestState } from '@/lib/playtest';
 import { toPublicBoard } from '@/lib/playtest/projection';
+import type { GameLogEntry } from '@/lib/playtest/game-log';
 import { usePlayStore } from '@/store/play';
+import { usePlaytestStore } from '../store';
 import { useAuth } from '@/store/auth';
 import { applyAction, createGameState, makePlayer, type GameState } from '@/lib/game-state';
 
-vi.mock('@/lib/games-board', () => ({ publishBoard: vi.fn() }));
+vi.mock('@/lib/games-board', () => ({ publishBoard: vi.fn(), cancelBoardPublish: vi.fn() }));
 import { publishBoard } from '@/lib/games-board';
 import { useOnlineTable } from './use-online-table';
 
@@ -59,7 +61,12 @@ function signIn(id: string) {
 }
 
 function resetStores() {
-  usePlayStore.setState({ online: null, onlineBoards: {} });
+  // Real store action: clears the module-level per-seat ticker cursors too,
+  // which plain setState can't reach — without it a previous test's cursor
+  // suppresses this test's own-line ingestion.
+  usePlayStore.getState().clearOnline();
+  usePlayStore.setState({ online: null, onlineBoards: {}, onlineTicker: [] });
+  usePlaytestStore.setState({ gameLog: [] });
   useAuth.setState({ user: null, status: 'unknown' });
 }
 
@@ -145,7 +152,10 @@ describe('useOnlineTable', () => {
     const s1 = state();
     renderHook(({ st }) => useOnlineTable(st), { initialProps: { st: s1 } });
 
-    expect(mockPublish).toHaveBeenCalledExactlyOnceWith('ABCD', toPublicBoard(s1, 0));
+    expect(mockPublish).toHaveBeenCalledExactlyOnceWith('ABCD', {
+      ...toPublicBoard(s1, 0),
+      ticker: [],
+    });
   });
 
   it('re-publishes on a subsequent local board change, and never leaks hand/library contents', () => {
@@ -167,7 +177,10 @@ describe('useOnlineTable', () => {
     rerender({ st: s2 });
 
     expect(mockPublish).toHaveBeenCalledTimes(2);
-    expect(mockPublish).toHaveBeenLastCalledWith('ABCD', toPublicBoard(s2, 0));
+    expect(mockPublish).toHaveBeenLastCalledWith('ABCD', {
+      ...toPublicBoard(s2, 0),
+      ticker: [],
+    });
     // The publish payload is the redacted projection, never the raw state —
     // a hand card's name/id must not be reachable from what got sent.
     const lastPayload = mockPublish.mock.calls[mockPublish.mock.calls.length - 1][1];
@@ -175,6 +188,41 @@ describe('useOnlineTable', () => {
     expect(serialized).not.toContain('Secret Hand Card');
     expect(serialized).not.toContain('secrethand');
     expect(lastPayload.handCount).toBe(1);
+  });
+
+  it('publishes only PUBLIC log lines as the board ticker, and feeds them to the local table feed', () => {
+    usePlayStore.setState({ online: onlineGame(), onlineBoards: {} });
+    signIn('me-id');
+    const gameLog: GameLogEntry[] = [
+      { seq: 1, turn: 1, kind: 'play', text: 'Sol Ring played from hand', cardName: 'Sol Ring' },
+      { seq: 2, turn: 1, kind: 'life', text: 'Your life: 40 → 37' },
+      {
+        seq: 3,
+        turn: 1,
+        kind: 'zone-move',
+        text: 'Tutor Target: library → hand',
+        cardName: 'Tutor Target',
+        from: 'library',
+        to: 'hand',
+      },
+    ];
+    usePlaytestStore.setState({ gameLog });
+    renderHook(() => useOnlineTable(state()));
+
+    const payload = mockPublish.mock.calls[0][1];
+    expect(payload.ticker).toEqual([
+      { seq: 1, kind: 'play', text: 'Sol Ring played from hand', cardName: 'Sol Ring' },
+    ]);
+    // The private lines must not be reachable from what got sent.
+    const serialized = JSON.stringify(payload);
+    expect(serialized).not.toContain('Tutor Target');
+    expect(serialized).not.toContain('Your life');
+
+    // Own lines join the local feed under the own seat — what opponents see
+    // of me is exactly what the table feed shows me too.
+    expect(usePlayStore.getState().onlineTicker.map((it) => `${it.seat}:${it.entry.seq}`)).toEqual([
+      '0:1',
+    ]);
   });
 
   it('does not publish at all when solo (no projection performed)', () => {

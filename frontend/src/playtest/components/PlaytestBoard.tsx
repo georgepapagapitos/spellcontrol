@@ -17,9 +17,11 @@ import { useDecksStore } from '@/store/decks';
 import { usePlaytestStore } from '../store';
 import { useNarrowViewport } from '../hooks/use-narrow-viewport';
 import { useOnlineTable } from '../hooks/use-online-table';
+import { usePlayStore } from '@/store/play';
 import { useTakeback } from '../hooks/use-takeback';
 import { OpponentRail } from './OpponentRail';
 import { TableMoments } from './TableMoments';
+import { TableTicker, tickerSeatName } from './TableTicker';
 import { TakebackModePicker } from './TakebackModePicker';
 import { TakebackPendingBanner } from './TakebackPendingBanner';
 import { TakebackConsentPrompt } from './TakebackConsentPrompt';
@@ -158,6 +160,10 @@ export function PlaytestBoard({ state }: Props) {
   // one hook call, and null here means the rail below never renders.
   const onlineTable = useOnlineTable(state);
   const takeback = useTakeback(onlineTable);
+  // The merged play-ticker feed, for the Log sheet's Table tab. Costs no
+  // extra renders in practice: ticker lines ride the same board frames the
+  // `useOnlineTable` subscription above already re-renders on.
+  const onlineTicker = usePlayStore((s) => s.onlineTicker);
 
   // The card currently under the pointer, resolved to its data + display
   // size, so the top-level <DragOverlay> can render a moving copy that
@@ -671,7 +677,9 @@ export function PlaytestBoard({ state }: Props) {
             <OpponentRail
               opponents={onlineTable.opponents}
               activeSeat={onlineTable.activeSeat ?? undefined}
-            />
+            >
+              <TableTicker onlineTable={onlineTable} />
+            </OpponentRail>
           )}
           <div ref={battlefieldRef} className="playtest-battlefield-wrap">
             <Battlefield
@@ -937,7 +945,20 @@ export function PlaytestBoard({ state }: Props) {
         />
       )}
 
-      {showLog && <PlaytestLogSheet log={gameLog} onClose={() => setShowLog(false)} />}
+      {showLog && (
+        <PlaytestLogSheet
+          log={gameLog}
+          table={
+            onlineTable
+              ? {
+                  items: onlineTicker,
+                  nameFor: (seat) => tickerSeatName(onlineTable, seat),
+                }
+              : undefined
+          }
+          onClose={() => setShowLog(false)}
+        />
+      )}
 
       {confirmDialog}
     </div>

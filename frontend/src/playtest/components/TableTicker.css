@@ -1,0 +1,139 @@
+/* TableTicker — the play ticker's two densities (see TableTicker.tsx).
+   The glance panel lives inside the opponent rail's side column; the
+   presence flash portals to <body>, same tier + non-blocking contract as
+   .table-moment (TableMoments.css). */
+
+/* ── Glance: persistent feed panel in the rail column ─────────────────── */
+
+.table-ticker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 0.5px solid var(--border);
+}
+
+.table-ticker__heading {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.table-ticker__empty {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.table-ticker__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  /* The rail column itself scrolls; capping the feed keeps the opponent
+     entries above it reachable without scrolling past a long game's log. */
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.table-ticker__line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.table-ticker__dot {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--opp-base);
+  box-shadow: 0 0 0 1px var(--opp-edge);
+}
+
+.table-ticker__name {
+  flex: 0 0 auto;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.table-ticker__text {
+  min-width: 0;
+}
+
+/* ── Presence: transient one-line flash ───────────────────────────────── */
+
+.table-ticker-flash {
+  position: fixed;
+  /* Below .table-moment's slot so a turn beat and a ticker line never
+     overlap if they co-fire. */
+  top: calc(max(var(--space-6), var(--safe-top)) + 3.25rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-overlay);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: min(88vw, 26rem);
+  padding: var(--space-2) var(--space-4);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  border: 1px solid var(--opp-edge);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--opp-base) 25%, transparent),
+    var(--shadow-tooltip);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  /* Duration matches FLASH_MS exactly — the JS unmounts at 5000ms, so the
+     fade-out below must land on that mark (STYLE_GUIDE Motion: every entry
+     needs a symmetric exit). Change both together. */
+  animation: table-ticker-flash-lifecycle 5000ms var(--ease-out-soft);
+}
+
+.table-ticker-flash__name {
+  flex: 0 0 auto;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.table-ticker-flash__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes table-ticker-flash-lifecycle {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px);
+  }
+  6% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .table-ticker-flash {
+    animation: none;
+  }
+}

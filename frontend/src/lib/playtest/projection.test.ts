@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createPlaytestState } from './reducer';
-import { toPublicBoard, toProjectedCard } from './projection';
+import { toPublicBoard, toProjectedCard, toPublicTicker, TICKER_LIMIT } from './projection';
+import type { GameLogEntry } from './game-log';
 import type { PlaytestCard, PlaytestState } from './types';
 
 function card(id: string, overrides: Partial<PlaytestCard> = {}): PlaytestCard {
@@ -223,6 +224,100 @@ describe('toPublicBoard', () => {
     const b = toPublicBoard(s, 1);
     expect(a).toEqual(b);
     expect(a).not.toBe(b);
+  });
+});
+
+function logEntry(overrides: Partial<GameLogEntry> = {}): GameLogEntry {
+  return { seq: 1, turn: 1, kind: 'play', text: 'Grizzly Bears played from hand', ...overrides };
+}
+
+describe('toPublicTicker', () => {
+  it('keeps public kinds and projects seq/kind/text/cardName only', () => {
+    const ticker = toPublicTicker([
+      logEntry({ seq: 1, kind: 'turn', text: 'Turn 2 begins', verdict: 'consent' }),
+      logEntry({ seq: 2, kind: 'play', text: 'Sol Ring played from hand', cardName: 'Sol Ring' }),
+      logEntry({ seq: 3, kind: 'draw', text: 'Drew 1 card' }),
+    ]);
+    expect(ticker).toEqual([
+      { seq: 1, kind: 'turn', text: 'Turn 2 begins' },
+      { seq: 2, kind: 'play', text: 'Sol Ring played from hand', cardName: 'Sol Ring' },
+      { seq: 3, kind: 'draw', text: 'Drew 1 card' },
+    ]);
+  });
+
+  it('drops private kinds (life/counter/mana/resistance)', () => {
+    const ticker = toPublicTicker([
+      logEntry({ seq: 1, kind: 'life', text: 'Your life: 40 → 37' }),
+      logEntry({ seq: 2, kind: 'counter', text: 'You: poison 0 → 1' }),
+      logEntry({ seq: 3, kind: 'mana', text: 'White mana: 0 → 1' }),
+      logEntry({ seq: 4, kind: 'resistance', text: 'Opponent attacks for 6' }),
+    ]);
+    expect(ticker).toEqual([]);
+  });
+
+  it('drops a zone move whose card never touched a public zone (tutor/bottoming)', () => {
+    const ticker = toPublicTicker([
+      logEntry({
+        seq: 1,
+        kind: 'zone-move',
+        text: 'Demonic Tutor Target: library → hand',
+        cardName: 'Demonic Tutor Target',
+        from: 'library',
+        to: 'hand',
+      }),
+      logEntry({
+        seq: 2,
+        kind: 'zone-move',
+        text: 'Bottomed Card: hand → library',
+        cardName: 'Bottomed Card',
+        from: 'hand',
+        to: 'library',
+      }),
+    ]);
+    expect(ticker).toEqual([]);
+  });
+
+  it('keeps a zone move with a public endpoint on either side', () => {
+    const entries: GameLogEntry[] = [
+      logEntry({
+        seq: 1,
+        kind: 'zone-move',
+        text: 'A: hand → graveyard',
+        from: 'hand',
+        to: 'graveyard',
+      }),
+      logEntry({
+        seq: 2,
+        kind: 'zone-move',
+        text: 'B: battlefield → hand',
+        from: 'battlefield',
+        to: 'hand',
+      }),
+      logEntry({
+        seq: 3,
+        kind: 'zone-move',
+        text: 'C: graveyard → library',
+        from: 'graveyard',
+        to: 'library',
+      }),
+    ];
+    expect(toPublicTicker(entries).map((e) => e.seq)).toEqual([1, 2, 3]);
+  });
+
+  it('drops a zone move missing endpoints (pre-field persisted entry — cannot prove it was public)', () => {
+    expect(
+      toPublicTicker([logEntry({ seq: 1, kind: 'zone-move', text: 'Old Entry: hand → graveyard' })])
+    ).toEqual([]);
+  });
+
+  it('caps to the trailing TICKER_LIMIT lines', () => {
+    const entries = Array.from({ length: TICKER_LIMIT + 10 }, (_, i) =>
+      logEntry({ seq: i + 1, kind: 'draw', text: `Drew ${i + 1}` })
+    );
+    const ticker = toPublicTicker(entries);
+    expect(ticker).toHaveLength(TICKER_LIMIT);
+    expect(ticker[0].seq).toBe(11);
+    expect(ticker[ticker.length - 1].seq).toBe(TICKER_LIMIT + 10);
   });
 });
 
