@@ -335,26 +335,14 @@
   }
 }
 
-.card-search-hint {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  margin: 0;
-  padding: 0 0.1rem;
-}
-
-/* Toolbar row under the search pill: keyboard hint · syntax ⓘ · sort. */
+/* Toolbar row under the search pill: syntax/keyboard ⓘ · sort, right-aligned.
+   (The old always-on "↑ ↓ to navigate…" text row moved into the ⓘ tip — it
+   was a permanent line of chrome burying the content below it.) */
 .card-search-toolbar {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-2);
-}
-
-.card-search-toolbar .card-search-hint {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .card-search-sort {
@@ -681,10 +669,14 @@
   .deck-add-rail {
     flex: 0 0 400px;
     width: 400px;
-    height: auto;
+    /* DEFINITE height, not auto+max-height: with an indefinite height chain
+       the inner percentage caps can't resolve (.card-search-ai's
+       max-height: 60% collapsed the AI strip to an 8px sliver). Also keeps
+       the rail a stable frame across tabs — the same rationale as the
+       sheet's pinned 74vh. */
+    height: calc(100dvh - 7.5rem);
     position: sticky;
     top: var(--space-3);
-    max-height: calc(100dvh - 7.5rem);
     display: flex;
     flex-direction: column;
     min-height: 0;
