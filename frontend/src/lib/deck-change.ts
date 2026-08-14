@@ -72,6 +72,22 @@ export type LaneId =
  */
 export type ChangeOwnership = 'owned' | 'in-other-deck' | 'in-cube' | 'unowned' | undefined;
 
+/**
+ * Availability badge copy/tone per ownership state — the Suggestions tab's
+ * vocabulary (#688), shared so every surface answering "can I field this
+ * tonight?" words it the same way. The class names are global
+ * (`styles/deck-builder-card-search.css`, imported from `main.tsx`).
+ */
+export const OWNERSHIP_BADGE: Record<
+  Exclude<ChangeOwnership, undefined>,
+  { label: string; className: string }
+> = {
+  owned: { label: 'Available', className: 'card-search-avail' },
+  'in-other-deck': { label: 'In a deck', className: 'card-search-claimed' },
+  'in-cube': { label: 'In a cube', className: 'card-search-claimed' },
+  unowned: { label: 'Unowned', className: 'card-search-unowned' },
+};
+
 export interface Change {
   /** Stable key, survives re-sorts. cut → slotId; add → `lane:name`; swap → currentName. */
   id: string;
