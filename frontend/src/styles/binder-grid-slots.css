@@ -123,6 +123,11 @@
   color: var(--text-muted);
   font-family: var(--font-mono);
   margin-left: auto;
+  /* The wrapping chip list beside it has min-width: 0 and absorbs the
+     squeeze; without this, a chip-heavy header wraps "24 cards · 2 pages"
+     into a broken two-line column. */
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* Pages */
@@ -145,16 +150,21 @@
   font-family: var(--font-mono);
 }
 
-/* Which groups sit on THIS page — shown under each page of a merged
-   (packed/continuous) section that spans several pages, where the header
-   chips alone can't say which drop landed where. Same chip family as
-   .section-title-chip, one size down. */
+/* Which groups sit on THIS page — shown between the page number and the
+   grid of a merged (packed/continuous) section that spans several pages,
+   where the header chips alone can't say which drop landed where. Same chip
+   family as .section-title-chip, one size down. */
 .page-chips {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--space-1);
-  max-width: 100%;
+  /* width: 0 + min-width: 100% keeps this row OUT of the column's intrinsic
+     width: .page-wrap sizes to the page grid alone and the chips wrap inside
+     that width. Without it, a long chip row inflates .page-wrap to the full
+     container width and every page lands on its own row. */
+  width: 0;
+  min-width: 100%;
 }
 
 .page-chip {
