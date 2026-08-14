@@ -320,7 +320,13 @@ function BattlefieldTile({
       bf={adaptedBf}
       size="lg"
       className={`opponent-board-card${isNew ? ' is-entering' : ''}`}
-      style={{ transform: bf.tapped ? 'rotate(90deg)' : undefined }}
+      // Rotate-AND-scale, not a bare rotate: the tile sits in a wrapping flex
+      // grid, so a 90° rotation alone swings the card's long edge outside its
+      // own box — an edge-column tapped card then clips off the modal's
+      // scroll container (~30% of the leftmost card gone at 390px). Scaling
+      // by the card aspect (488/680 ≈ 0.71) keeps the rotated bounding box
+      // inside the cell: still unmistakably sideways, never cropped.
+      style={{ transform: bf.tapped ? 'rotate(90deg) scale(0.71)' : undefined }}
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
       aria-label={interactive ? card.name : 'Face-down card'}

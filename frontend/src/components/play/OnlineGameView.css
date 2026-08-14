@@ -464,7 +464,15 @@ button.ogv-phase-chip--tappable:disabled {
 
 .ogv-you {
   position: sticky;
-  bottom: var(--mobile-tabbar-h);
+  /* bottom: 0, NOT var(--mobile-tabbar-h): the scroller (.app-main) ends AT
+     the tab bar's top — the bar is a flex sibling below it, never overlaid
+     (responsive-nav.css) — so the sticky rect already stops above the bar.
+     A tab-bar offset here double-counts: the constraint line lands 56px+
+     inside the scroller, and on a page too short to scroll, sticky-bottom
+     LIFTS the panel above its flow position and over the opponent tiles
+     (measured 12–28px of real border-box overlap at 390×844 with one
+     opponent; also a phantom 56px float gap above the bar while scrolling). */
+  bottom: 0;
   z-index: 1;
   display: flex;
   flex-direction: column;
@@ -681,6 +689,29 @@ button.ogv-phase-chip--tappable:disabled {
 .ogv-stepper-btn:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+/* Coarse-pointer touch floor (STYLE_GUIDE § "44px touch targets"). The
+   stepper's real box is 36px — right for the poison/commander-damage rows'
+   density — so it grows a centred GHOST rather than its own box (the
+   TradeComposer stepper treatment; see project_dense_row_ghost_hit_area).
+   Neighbouring ghosts can't collide: the `−`/`+` centres sit ≥60px apart
+   (36px button + 4px gaps + the ≥2ch value between them), and the rows
+   above/below are themselves ≥44px of rhythm. */
+@media (pointer: coarse) {
+  .ogv-stepper-btn {
+    position: relative;
+  }
+
+  .ogv-stepper-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
 }
 
 .ogv-stepper-value {
