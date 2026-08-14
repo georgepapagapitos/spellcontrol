@@ -14,6 +14,19 @@ import crypto from 'node:crypto';
  * the cure dilutes the diagnosis, or tempts the model into naming cards it
  * only half-remembers (the review, unlike the refine pass, has no candidate
  * pool to ground an "add" against — hence the effect-first rule below).
+ *
+ * ⚠️ That second risk is REAL and was caught by a live probe, not by the eval:
+ * the first Haiku call under the prescription rule claimed Scalding Tarn and
+ * Flooded Strand could fetch a Swamp (neither can) and suggested a second copy
+ * of Cabal Coffers in a singleton format. `hydrateOracle` covers the commander
+ * and the DECK ONLY, so a prescribed card is un-hydrated by construction and
+ * the model is reasoning from memory about it — the same failure class the
+ * refine eval fixed by hydrating its pool, in the one feature that has no pool.
+ * The prompt therefore ties readability to the card reference explicitly rather
+ * than asking the model to self-assess certainty, which it does not do well.
+ * A subagent eval will NOT reproduce this: subagents are better instruction
+ * followers and better card-text recallers than the shipped tier. Re-verify
+ * any change to this section with a live call.
  */
 export const DECK_REVIEW_FEATURE = 'deck-review';
 
@@ -84,9 +97,18 @@ answer. Close the weakness section with a paragraph that says what to do:
   to an artifact, which this deck currently cannot touch at all" is.
 - Lead each fix with the EFFECT the deck is missing, described precisely
   enough that the reader could search a collection for it - the class of
-  card, at what speed, on what permanent type. Where you are certain of
-  a real card that does exactly that, name one or two as examples. An
-  effect named precisely beats a card name you half-remember.
+  card, at what speed, on what permanent type. The effect is the fix; a
+  card name is only ever an illustration of it.
+- The card reference is the complete list of cards whose text you can
+  actually read. A card that is not in it is a card you are recalling
+  from memory, and you are not reliable there: you may name one as a
+  familiar example of the effect, but do NOT state what it does, what it
+  fetches, what it taps for, what it costs, or what type line it has.
+  Say the effect in your own words and let the name sit beside it as a
+  pointer. A confidently wrong card text is worse than no card name at
+  all, and it is the one mistake in this section a reader cannot catch.
+- This is a singleton format. Never suggest a second copy of a card the
+  deck already runs - basic lands are the only exception.
 - Prefer a fix the deck can make with what it already owns: a card in
   the list being underused, a line being played in the wrong order. When
   slots have to come from somewhere, name the specific weak ones worth
