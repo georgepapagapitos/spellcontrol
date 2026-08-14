@@ -1316,4 +1316,67 @@ describe('sldDrop sections + packSections', () => {
     expect(loose.totalPages).toBe(28);
     expect(packed.totalPages).toBe(20);
   });
+
+  it("packSections: 'continuous' closes sections only at exact page boundaries", () => {
+    const cards = [
+      ...drop('A', 5, '2026-05-01'),
+      ...drop('B', 7, '2026-04-01'),
+      ...drop('C', 4, '2026-03-01'),
+      ...drop('D', 4, '2026-02-01'),
+      ...drop('E', 8, '2026-01-01'),
+    ];
+    const { binders } = materializeBinders(
+      cards,
+      [sldBinder({ packSections: 'continuous' })],
+      twelve
+    );
+    const sections = binders[0].sections;
+    // A(5)+B(7) land exactly on the 12-slot boundary → the section closes.
+    // C+D+E (16) run on together; only the binder's final page has empties.
+    expect(sections.map((s) => s.labels ?? [s.label])).toEqual([
+      ['A', 'B'],
+      ['C', 'D', 'E'],
+    ]);
+    expect(binders[0].totalPages).toBe(3);
+  });
+
+  it("'continuous' lets a drop span a page boundary and stamps per-page labels", () => {
+    const cards = [
+      ...drop('A', 5, '2026-04-01'),
+      ...drop('B', 10, '2026-03-01'),
+      ...drop('C', 9, '2026-02-01'),
+    ];
+    const { binders } = materializeBinders(
+      cards,
+      [sldBinder({ packSections: 'continuous' })],
+      twelve
+    );
+    const sections = binders[0].sections;
+    expect(sections).toHaveLength(1);
+    expect(sections[0].labels).toEqual(['A', 'B', 'C']);
+    // B straddles the boundary: page 1 holds A + 7×B, page 2 holds 3×B + C.
+    expect(sections[0].pages.map((p) => p.labels)).toEqual([
+      ['A', 'B'],
+      ['B', 'C'],
+    ]);
+    expect(binders[0].totalPages).toBe(2);
+  });
+
+  it("'continuous' leaves no empty pocket anywhere but the binder's final page", () => {
+    const sizes = [38, 11, 7, 7, 7, 7, 7, 6, 6, 6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 17];
+    const cards = sizes.flatMap((n, i) =>
+      drop(`Drop${i}`, n, `2026-01-${String(sizes.length - i).padStart(2, '0')}`)
+    );
+    const { binders } = materializeBinders(
+      cards,
+      [sldBinder({ packSections: 'continuous' })],
+      twelve
+    );
+    const total = sizes.reduce((a, b) => a + b, 0);
+    expect(binders[0].totalPages).toBe(Math.ceil(total / 12)); // the true minimum
+    const pages = binders[0].sections.flatMap((s) => s.pages);
+    for (const page of pages.slice(0, -1)) {
+      expect(page.slots.every((c) => c !== null)).toBe(true);
+    }
+  });
 });

@@ -431,8 +431,18 @@ export interface BinderDef {
    * Merged sections keep every original label (see `BinderSection.labels`) so
    * the header still names each drop on the page. Ignored for manual-ordered
    * binders and when there's no grouping (a single section can't be packed).
+   *
+   * `'continuous'` goes further: cards flow edge-to-edge with **no empty
+   * pockets at all** (except the binder's final page) — a section may start
+   * mid-page and spill onto the next. Sections then close only where the
+   * running card count lands exactly on a page boundary, preserving the
+   * sections-own-whole-pages invariant the render depends on. Built for
+   * closed, finite groupings (Secret Lair drops) where reserving pockets for
+   * growth is pure waste; the trade-off is that a later insertion shifts
+   * every card after it. Older clients treat the unknown truthy value as
+   * plain packing, so the field degrades gracefully.
    */
-  packSections?: boolean;
+  packSections?: boolean | 'continuous';
   /** Captured each time the user clicks "Mark reviewed" on this binder. The
    *  next view diffs current membership against this snapshot and surfaces
    *  added/removed cards — so volatile fields (price, EDHREC rank) silently
@@ -462,6 +472,13 @@ export type Page = (EnrichedCard | null)[];
 export interface BinderPage {
   slots: Page;
   pageNum: number;
+  /**
+   * Distinct group labels physically present on this page, in slot order.
+   * Set only for merged sections (`BinderDef.packSections`) covering more
+   * than one group — where the section header alone can't say which of its
+   * groups sits on which page. Absent everywhere else.
+   */
+  labels?: string[];
 }
 
 export interface BinderSection {

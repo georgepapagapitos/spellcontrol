@@ -130,8 +130,10 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
       ),
     [binder.sections]
   );
+  // Merged (packed/continuous) sections stamp each page with its own group
+  // labels; prefer those over the section-wide join, matching BinderView.
   const flatPageLabels = useMemo(
-    () => binder.sections.flatMap((s) => s.pages.map(() => s.label)),
+    () => binder.sections.flatMap((s) => s.pages.map((p) => p.labels?.join(' · ') ?? s.label)),
     [binder.sections]
   );
 
