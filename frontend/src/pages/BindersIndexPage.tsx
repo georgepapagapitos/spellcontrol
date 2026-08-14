@@ -22,6 +22,7 @@ import { diffMembershipByDefs } from '../lib/binder-moves';
 import { computeDrift } from '../lib/binder-drift';
 import { binderCoverArt } from '../lib/binder-cover';
 import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
+import { useCardsWithSldDrops, bindersUseSldDrops } from '../lib/sld-drops';
 import { formatMoney } from '../lib/format-money';
 import { useSetMap } from '../lib/api';
 import { useConfirm } from '../lib/use-confirm';
@@ -70,7 +71,10 @@ export function BindersIndexPage() {
   const binders = useCollectionStore((s) => s.binders);
   const importHistory = useCollectionStore((s) => s.importHistory);
   // Decorate with Scryfall oracle tags (no-op unless a binder uses a tag rule).
-  const cards = useCardsWithTags(rawCards, bindersUseTags(binders));
+  const taggedCards = useCardsWithTags(rawCards, bindersUseTags(binders));
+  // Secret Lair drop decoration, same as BinderPage — without it a drop-sectioned
+  // binder's page count here would disagree with the detail page's.
+  const cards = useCardsWithSldDrops(taggedCards, bindersUseSldDrops(binders));
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const deleteBinder = useCollectionStore((s) => s.deleteBinder);
   const deleteBinders = useCollectionStore((s) => s.deleteBinders);

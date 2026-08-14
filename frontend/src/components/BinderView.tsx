@@ -571,7 +571,20 @@ const SectionBlock = memo(function SectionBlock({
           ▾
         </span>
         {section.pip && <ColorPip color={section.key} pip="lg" />}
-        <span className="section-title">{section.label}</span>
+        {section.labels ? (
+          // A packed section covers several groups sharing these pages. Chip each
+          // one so the header still names every drop, rather than running them
+          // together into one long unreadable string.
+          <span className="section-title section-title-multi">
+            {section.labels.map((l) => (
+              <span key={l} className="section-title-chip">
+                {l}
+              </span>
+            ))}
+          </span>
+        ) : (
+          <span className="section-title">{section.label}</span>
+        )}
         <span className="section-meta">
           {section.cards.length} cards · {section.pages.length} page
           {section.pages.length !== 1 ? 's' : ''}
