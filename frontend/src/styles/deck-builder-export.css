@@ -158,9 +158,11 @@
 }
 
 /* Single stacked column: deck composition, then Combos / Analysis /
-   Test hand. Adding cards is a breakpoint-aware sheet overlay
-   (`.deck-add-sheet`), not an inline rail — so no grid/column logic
-   here. */
+   Test hand. Below 1280px, adding cards is a breakpoint-aware sheet
+   overlay (`.deck-add-sheet`) — no grid/column logic here. At ≥1280px
+   the add panel docks as a workbench rail (`.deck-add-rail`) beside
+   this column instead; that row layout lives in
+   deck-builder-card-search.css next to the rail's own rules. */
 .deck-editor-layout,
 .deck-editor-main {
   display: flex;

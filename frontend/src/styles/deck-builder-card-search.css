@@ -664,3 +664,35 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Workbench rail (≥1280px): the add panel docks beside the deck instead of
+   covering it — the decklist stays visible and live while adding. Reuses
+   .deck-add-sheet's inner layout rules; this block only reshapes the outer
+   box from a floating sheet into a docked sticky column. */
+@media (min-width: 1280px) {
+  .deck-editor-layout {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  .deck-editor-main {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .deck-add-rail {
+    flex: 0 0 400px;
+    width: 400px;
+    height: auto;
+    position: sticky;
+    top: var(--space-3);
+    max-height: calc(100dvh - 7.5rem);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card, none);
+    overflow: hidden;
+    padding-bottom: var(--space-3);
+  }
+}
