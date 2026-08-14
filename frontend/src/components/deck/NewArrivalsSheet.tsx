@@ -4,6 +4,7 @@ import { Check, Plus, X } from 'lucide-react';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { useCardThumb } from '@/lib/card-thumbs';
 import type { ArrivalRow } from '@/lib/new-arrivals';
+import { OWNERSHIP_BADGE, type ChangeOwnership } from '@/lib/deck-change';
 import { TYPE_GROUP_PLURAL, type TypeGroup } from '@/lib/build-mana-data';
 import { ManaCost } from '../ManaCost';
 import './NewArrivalsSheet.css';
@@ -21,6 +22,12 @@ interface Props {
   /** Exact-case in-deck names (mainboard + sideboard) — live, so a row flips
    *  to "Added" the moment its add lands without the list itself reordering. */
   existingCardCounts?: ReadonlyMap<string, number>;
+  /** Allocation-aware ownership per card name (E246). Arrivals are owned by
+   *  definition, but a copy already claimed by another deck or a physical cube
+   *  cannot be fielded here tonight — `planCardAdd` only ever binds a FREE copy,
+   *  so without this the row silently adds unbound. Same tri-state the
+   *  Suggestions tab shows (#688); omit it and rows carry no badge. */
+  ownershipFor?: (name: string) => ChangeOwnership;
 }
 
 /**
@@ -37,6 +44,7 @@ export function NewArrivalsSheet({
   onAddCard,
   addingCardNames,
   existingCardCounts,
+  ownershipFor,
 }: Props): JSX.Element {
   // Frozen at mount: the parent recomputes its live arrivals map the moment
   // onMarkReviewed lands (the window start moves), which would otherwise
@@ -120,6 +128,7 @@ export function NewArrivalsSheet({
               row={row}
               adding={addingCardNames?.has(row.name) ?? false}
               added={(existingCardCounts?.get(row.name) ?? 0) > 0}
+              ownership={ownershipFor?.(row.name)}
               onAdd={onAddCard ? () => onAddCard(row.name) : undefined}
             />
           ))}
@@ -134,14 +143,21 @@ function ArrivalRowItem({
   row,
   adding,
   added,
+  ownership,
   onAdd,
 }: {
   row: ArrivalRow;
   adding: boolean;
   added: boolean;
+  ownership?: ChangeOwnership;
   onAdd?: () => void;
 }): JSX.Element {
   const thumb = useCardThumb(row.name, 'small');
+  // 'unowned' is suppressed rather than rendered: every arrival is a card you
+  // own (that is what puts it on this list), so an unowned verdict here means
+  // the ownership map disagrees with the arrivals input — better to show no
+  // claim than a false one.
+  const badge = ownership && ownership !== 'unowned' ? OWNERSHIP_BADGE[ownership] : null;
   return (
     <li className="new-arrivals-row">
       <span className="new-arrivals-row-thumb-wrap" aria-hidden>
@@ -156,6 +172,7 @@ function ArrivalRowItem({
         <span className="new-arrivals-row-sub">
           <ManaCost cost={row.card.manaCost} />
           {row.qty > 1 && <span className="new-arrivals-row-qty">×{row.qty} owned</span>}
+          {badge && <span className={badge.className}>{badge.label}</span>}
         </span>
       </span>
       <button
