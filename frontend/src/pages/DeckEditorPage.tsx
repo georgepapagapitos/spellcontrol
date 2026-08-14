@@ -3475,6 +3475,26 @@ export function DeckEditorPage() {
           }
           actionVerb="Replace"
           subject={{ name: pendingAdd, label: "The card you're adding" }}
+          aiSlot={
+            formatConfig?.hasCommander && deck.commander ? (
+              <DeckAiRefine
+                variant="replace"
+                deckId={deck.id}
+                format={deck.format}
+                commander={deck.commander}
+                partnerCommander={deck.partnerCommander ?? null}
+                mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
+                pool={[{ name: pendingAdd, oracleId: '', qty: 1 }]}
+                ownedOnly={false}
+                onApplyMove={(change) => {
+                  // A verdict swap resolves the whole prompt: apply through the
+                  // coach path (atomic swap + undo) and close.
+                  void handleApplyCoachMove(change);
+                  setPendingAdd(null);
+                }}
+              />
+            ) : undefined
+          }
           options={replaceOptions.suggested}
           moreOptions={replaceOptions.all}
           footer={[

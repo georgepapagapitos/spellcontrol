@@ -32,8 +32,13 @@ interface DeckAiRefineProps {
    *   ruling the panel starts as ONE compact 44px strip and expands in place —
    *   it never pushes the suggestion rows down uninvited. Renders nothing at
    *   all with an empty pool (an advisor with nothing to say shows no chrome).
+   * - `'replace'`: the replace-when-full prompt. The pool is exactly the ONE
+   *   card being added, so the model's answer is a verdict: a swap tweak means
+   *   "it's an upgrade, cut this", zero tweaks means it isn't worth a slot.
+   *   Cut-less tweaks are dropped — a pure add can't apply to a full deck.
+   *   Same strip posture (the ranked cuts are the prompt's primary content).
    */
-  variant?: 'build' | 'suggestions';
+  variant?: 'build' | 'suggestions' | 'replace';
 }
 
 /**
@@ -99,7 +104,9 @@ export function DeckAiRefine({
     )
       .then((result) => {
         setStrategy(result.content);
-        setTweaks(result.tweaks);
+        // A full deck can't take a pure add — in the replace posture a
+        // cut-less tweak has no apply path, so it never renders as one.
+        setTweaks(variant === 'replace' ? result.tweaks.filter((t) => t.cut) : result.tweaks);
         setStreamed('');
         setPhase('idle');
         if (!result.cached) noteAiSpend();
@@ -137,7 +144,16 @@ export function DeckAiRefine({
   };
 
   const isSuggestions = variant === 'suggestions';
-  const title = isSuggestions ? 'Weigh these suggestions' : 'Refine this build';
+  const isReplace = variant === 'replace';
+  // Strip posture for both slot mounts: their hosts' primary content is a list
+  // (suggestion rows / ranked cuts) that the panel must not displace.
+  const strip = isSuggestions || isReplace;
+  const incoming = pool[0]?.name ?? 'this card';
+  const title = isReplace
+    ? 'Is it an upgrade?'
+    : isSuggestions
+      ? 'Weigh these suggestions'
+      : 'Refine this build';
 
   // Nothing without the feature configured. Without CONSENT, offer it here
   // rather than rendering nothing: on the post-generation build report this is
@@ -146,12 +162,12 @@ export function DeckAiRefine({
   if (!status) return null;
   if (!status.optIn && inviteDismissed) return null;
   // An advisor with nothing to say shows no chrome (insight-strip ruling).
-  if (isSuggestions && pool.length === 0) return null;
+  if (strip && pool.length === 0) return null;
 
-  // The Suggestions tab's rows are the primary content — start as one compact
-  // strip and let the user choose the expansion. Sheet state resets on close,
-  // so a one-way disclosure is enough (the build report has no collapse either).
-  if (isSuggestions && !expanded) {
+  // The host's rows are the primary content — start as one compact strip and
+  // let the user choose the expansion. Sheet state resets on close, so a
+  // one-way disclosure is enough (the build report has no collapse either).
+  if (strip && !expanded) {
     return (
       <button
         type="button"
@@ -161,9 +177,11 @@ export function DeckAiRefine({
       >
         <AiMarker />
         <span className="deck-ai-strip-title">{title}</span>
-        <span className="deck-ai-strip-teaser">
-          {pool.length} candidate{pool.length === 1 ? '' : 's'}
-        </span>
+        {isSuggestions && (
+          <span className="deck-ai-strip-teaser">
+            {pool.length} candidate{pool.length === 1 ? '' : 's'}
+          </span>
+        )}
         <ChevronDown width={16} height={16} aria-hidden />
       </button>
     );
@@ -174,9 +192,11 @@ export function DeckAiRefine({
       <DeckAiConsent
         title={title}
         blurb={
-          isSuggestions
-            ? `AI can weigh the suggestions on this tab against the deck and pick the few worth making. Turning this on sends this deck's card names, its computed stats and those candidates to Anthropic. Nothing is sent until you press an AI button, ${status.limit} a day. Your collection is never sent, and you can turn it back off in Settings.`
-            : `AI can weigh the candidates the coach already found and suggest a few swaps. Turning this on sends this deck's card names, its computed stats and those candidates to Anthropic. Nothing is sent until you press an AI button, ${status.limit} a day. Your collection is never sent, and you can turn it back off in Settings.`
+          isReplace
+            ? `AI can judge whether the card you're adding earns a slot, and which card to cut for it. Turning this on sends this deck's card names, its computed stats and the card you're adding to Anthropic. Nothing is sent until you press an AI button, ${status.limit} a day. Your collection is never sent, and you can turn it back off in Settings.`
+            : isSuggestions
+              ? `AI can weigh the suggestions on this tab against the deck and pick the few worth making. Turning this on sends this deck's card names, its computed stats and those candidates to Anthropic. Nothing is sent until you press an AI button, ${status.limit} a day. Your collection is never sent, and you can turn it back off in Settings.`
+              : `AI can weigh the candidates the coach already found and suggest a few swaps. Turning this on sends this deck's card names, its computed stats and those candidates to Anthropic. Nothing is sent until you press an AI button, ${status.limit} a day. Your collection is never sent, and you can turn it back off in Settings.`
         }
         onDismiss={() => setInviteDismissed(true)}
       />
@@ -230,7 +250,9 @@ export function DeckAiRefine({
             /* An empty list is a real answer, not a failure — say so plainly
                rather than leaving the panel looking broken. */
             <p className="deck-ai-tweak-none">
-              No changes worth making — the build already holds together.
+              {isReplace
+                ? `AI wouldn't cut a card for ${incoming} — the deck holds together as it stands.`
+                : 'No changes worth making — the build already holds together.'}
             </p>
           )}
         </div>
@@ -274,15 +296,17 @@ export function DeckAiRefine({
       {phase === 'idle' && !strategy && (
         <div className="deck-ai-idle">
           <p className="deck-ai-idle-text">
-            {isSuggestions
-              ? `AI can read the deck and pick the few of these ${pool.length} suggestions worth making — what to add, and what to cut to make room${
-                  ownedOnly ? ', from cards you own' : ''
-                }. It only chooses cards the app already found, never invented ones.`
-              : pool.length === 0
-                ? 'Once the coach has candidates for this deck, AI can weigh them and suggest a few swaps.'
-                : `AI can read what the generator built and suggest a few changes${
-                    ownedOnly ? ' from cards you own' : ''
-                  } — chosen from the ${pool.length} candidates the coach already found, never invented.`}
+            {isReplace
+              ? `AI can judge whether ${incoming} earns a slot in this deck — and if it does, which card to cut for it. It only ever names cards already in the deck.`
+              : isSuggestions
+                ? `AI can read the deck and pick the few of these ${pool.length} suggestions worth making — what to add, and what to cut to make room${
+                    ownedOnly ? ', from cards you own' : ''
+                  }. It only chooses cards the app already found, never invented ones.`
+                : pool.length === 0
+                  ? 'Once the coach has candidates for this deck, AI can weigh them and suggest a few swaps.'
+                  : `AI can read what the generator built and suggest a few changes${
+                      ownedOnly ? ' from cards you own' : ''
+                    } — chosen from the ${pool.length} candidates the coach already found, never invented.`}
           </p>
           <div className="deck-ai-idle-actions">
             <button
@@ -291,7 +315,11 @@ export function DeckAiRefine({
               onClick={run}
               disabled={remaining === 0 || pool.length === 0}
             >
-              {isSuggestions ? 'Weigh the suggestions' : 'Refine this build'}
+              {isReplace
+                ? 'Weigh this add'
+                : isSuggestions
+                  ? 'Weigh the suggestions'
+                  : 'Refine this build'}
             </button>
             <span className="deck-ai-remaining">
               {remaining === 0

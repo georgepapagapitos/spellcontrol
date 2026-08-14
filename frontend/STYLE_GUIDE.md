@@ -3919,4 +3919,6 @@ Model-written text always says so. The rulings:
   when its candidate pool is empty: an advisor with nothing to say shows no
   chrome. This is the "Index-page insight strips" ruling applied to AI, and it
   outranks the build-report precedent of mounting the full panel directly —
-  that sheet is a report, not a list.
+  that sheet is a report, not a list. The replace-when-full prompt takes the
+  same posture: its ranked cuts are the primary content, so the AI verdict
+  ("Is it an upgrade?") is a strip there too.
