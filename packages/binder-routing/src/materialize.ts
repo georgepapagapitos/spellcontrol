@@ -348,13 +348,24 @@ interface SectionGroup {
  *
  * A group bigger than a page always starts its own section, then the leftover
  * slots on its final page are offered to whatever comes next.
+ *
+ * `continuous` (`packSections: 'continuous'`) drops the fits-entirely check:
+ * every group merges into the running section, which closes only when its
+ * card count lands exactly on a page boundary. Cards flow edge-to-edge with
+ * zero empty pockets (a group may span pages), and sections still own whole
+ * pages — the boundary-closure is what keeps the binder from collapsing into
+ * one giant merged section.
  */
-function packGroups(ordered: SectionGroup[], slotSize: number): SectionGroup[] {
+function packGroups(
+  ordered: SectionGroup[],
+  slotSize: number,
+  continuous: boolean
+): SectionGroup[] {
   const packed: SectionGroup[] = [];
   for (const group of ordered) {
     const current = packed[packed.length - 1];
     const fill = current ? current.cards.length % slotSize : 0;
-    if (current && fill > 0 && fill + group.cards.length <= slotSize) {
+    if (current && fill > 0 && (continuous || fill + group.cards.length <= slotSize)) {
       current.cards.push(...group.cards);
       current.labels!.push(group.meta.label);
     } else {
@@ -381,7 +392,7 @@ function buildSections(
   // "1 CMC" that repeats per parent) and carry a unique key per parent group.
   labelPrefix = '',
   keyPrefix = '',
-  packSections = false
+  packSections: boolean | 'continuous' = false
 ): BinderSection[] {
   const primary = sorts[0];
   const useGrouping = !!primary && primary.field !== 'none';
@@ -392,8 +403,26 @@ function buildSections(
     labels?: string[]
   ): BinderSection | null => {
     const sectionPageCount = countPages(sectionCards.length, slotSize);
-    const pages = chunkIntoPages(sectionCards, slotSize, isMatch, pageOffsetRef.value);
+    const startPage = pageOffsetRef.value;
+    const pages = chunkIntoPages(sectionCards, slotSize, isMatch, startPage);
     pageOffsetRef.value += sectionPageCount;
+    // A merged section spans several groups, so the header alone can't say
+    // which group sits on which page — stamp each surviving page with the
+    // distinct labels of the cards physically on it. Recomputed from each
+    // card (not from pre-merge group sizes) because the leaf re-sorts the
+    // merged cards by the full chain, which can reorder across groups.
+    if (labels && labels.length > 1 && primary) {
+      const effSlot = slotSize > 0 ? slotSize : 9;
+      for (const page of pages) {
+        const idx = page.pageNum - 1 - startPage;
+        const distinct: string[] = [];
+        for (const c of sectionCards.slice(idx * effSlot, (idx + 1) * effSlot)) {
+          const l = getSectionMeta(c, primary.field, ctx).label;
+          if (!distinct.includes(l)) distinct.push(l);
+        }
+        page.labels = distinct;
+      }
+    }
     const matchingCards = sectionCards.filter(isMatch);
     if (matchingCards.length === 0) return null;
     const label = labels?.length ? labels.join(' · ') : meta.label;
@@ -435,7 +464,10 @@ function buildSections(
   const subSorts = sorts.slice(1);
   const recursing = pageBreakDepth > 1 && subSorts.length > 0;
   // Packing only makes sense at the leaf, where groups actually become pages.
-  const groupsToBuild = packSections && !recursing ? packGroups(ordered, slotSize) : ordered;
+  const groupsToBuild =
+    packSections && !recursing
+      ? packGroups(ordered, slotSize, packSections === 'continuous')
+      : ordered;
   const sections: BinderSection[] = [];
   for (const { meta, cards: gCards, labels } of groupsToBuild) {
     if (recursing) {

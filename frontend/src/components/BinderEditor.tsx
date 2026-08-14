@@ -105,7 +105,8 @@ export function BinderEditor() {
   const sectionModeGroup = useId();
   const binderModeGroup = useId();
   const [pageBreakDepth, setPageBreakDepth] = useState<number>(1);
-  const [packSections, setPackSections] = useState(false);
+  const [packSections, setPackSections] = useState<false | true | 'continuous'>(false);
+  const packSectionsGroup = useId();
   const [groups, setGroups] = useState<BinderFilterGroup[]>([newGroup()]);
   const [routingMode, setRoutingMode] = useState<'rules' | 'manual'>('rules');
   const [sorts, setSorts] = useState<SortEntry[]>([...NEW_BINDER_DEFAULT_SORTS]);
@@ -241,7 +242,9 @@ export function BinderEditor() {
         setKeepPrintingsTogether(!!existing.keepPrintingsTogether);
         setSectionMode(existing.sectionMode ?? 'sort');
         setPageBreakDepth(existing.pageBreakDepth ?? 1);
-        setPackSections(!!existing.packSections);
+        setPackSections(
+          existing.packSections === 'continuous' ? 'continuous' : !!existing.packSections
+        );
         const existingGroups = existing.filterGroups?.length
           ? existing.filterGroups.map((g) => ({
               name: g.name,
@@ -951,25 +954,42 @@ export function BinderEditor() {
                     <div className="editor-row" style={{ marginTop: '0.75rem' }}>
                       <div className="field" style={{ flex: 1 }}>
                         <label>Page filling</label>
-                        <label
-                          className="field-checkbox"
-                          style={{ margin: 0 }}
-                          title="Off, every section starts its own page — clean, but many small sections leave most pockets empty. On, consecutive sections share a page whenever they both fit, and a section is still never split across a page boundary. Built for Secret Lair drops, where 35 drops of 1–7 cards would otherwise burn 39 pages to hold 199 cards."
+                        <fieldset
+                          aria-label="Page filling"
+                          className="binder-mode-toggle"
+                          style={{ display: 'inline-flex' }}
                         >
-                          <input
-                            type="checkbox"
-                            checked={packSections}
-                            onChange={(e) => setPackSections(e.target.checked)}
-                          />
-                          Fit several sections per page
-                        </label>
+                          {(
+                            [
+                              { v: false, label: 'New page per section' },
+                              { v: true, label: 'Fit whole sections' },
+                              { v: 'continuous', label: 'No gaps' },
+                            ] as const
+                          ).map(({ v, label }) => (
+                            <label
+                              key={String(v)}
+                              className={`binder-mode-pill${packSections === v ? ' active' : ''}`}
+                            >
+                              <input
+                                type="radio"
+                                name={packSectionsGroup}
+                                value={String(v)}
+                                checked={packSections === v}
+                                onChange={() => setPackSections(v)}
+                              />
+                              <span>{label}</span>
+                            </label>
+                          ))}
+                        </fieldset>
                         <span
                           className="sort-page-break-hint"
                           style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)' }}
                         >
-                          {packSections
-                            ? 'Sections share a page when they fit — but none is ever split across two pages.'
-                            : 'Every section starts a new page, leaving the rest of it empty.'}
+                          {packSections === 'continuous'
+                            ? 'Cards flow with no empty pockets — a section can continue onto the next page. Best for closed sets like Secret Lair drops, but slotting a new card in later shifts everything after it.'
+                            : packSections
+                              ? 'Sections share a page when they fit whole — none is ever split across two pages.'
+                              : 'Every section starts a new page, leaving the rest of it empty.'}
                         </span>
                       </div>
                     </div>

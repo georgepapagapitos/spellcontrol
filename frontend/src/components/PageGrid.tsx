@@ -9,6 +9,8 @@ interface Props {
   pageIndex: number;
   pocketSize: PocketSize;
   showImages?: boolean;
+  /** Group labels physically on this page (merged sections only). */
+  labels?: string[];
 }
 
 // Memoized: when SectionBlock re-renders for the deferred isPreviewOpen flip,
@@ -21,6 +23,7 @@ export const PageGrid = memo(function PageGrid({
   pageIndex,
   pocketSize,
   showImages,
+  labels,
 }: Props) {
   const gridClass = pocketSize === 4 ? 'grid-4' : pocketSize === 12 ? 'grid-12' : 'grid-9';
   return (
@@ -31,6 +34,15 @@ export const PageGrid = memo(function PageGrid({
           <CardSlot key={i} card={card} showImage={showImages} />
         ))}
       </div>
+      {labels && labels.length > 0 && (
+        <div className="page-chips">
+          {labels.map((l) => (
+            <span key={l} className="page-chip">
+              {l}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 });

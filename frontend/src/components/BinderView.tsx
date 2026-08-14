@@ -262,9 +262,11 @@ function SectionList({
   const expandAll = () => setCollapsed(new Set());
 
   // Binder-wide page list + per-page section labels (parallel arrays).
+  // A merged (packed/continuous) section's pages carry their own labels —
+  // the groups physically on that page — which beat the section-wide join.
   const flatPages = useMemo(() => sections.flatMap((s) => s.pages), [sections]);
   const flatPageLabels = useMemo(
-    () => sections.flatMap((s) => s.pages.map(() => s.label)),
+    () => sections.flatMap((s) => s.pages.map((p) => p.labels?.join(' · ') ?? s.label)),
     [sections]
   );
 
@@ -601,6 +603,10 @@ const SectionBlock = memo(function SectionBlock({
                 pageIndex={idx}
                 pocketSize={pocketSize}
                 showImages={showImages}
+                // Which groups sit on THIS page — only worth chipping when the
+                // merged section spans several pages; a single-page section is
+                // already fully described by its header chips.
+                labels={section.pages.length > 1 ? page.labels : undefined}
               />
             ))}
           </div>
