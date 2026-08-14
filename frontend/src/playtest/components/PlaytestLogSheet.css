@@ -6,6 +6,16 @@
   }
 }
 
+.playtest-log-tabs {
+  margin: 0 var(--space-4);
+}
+
+/* Table view — TickerLine's rail-density styles (TableTicker.css) read too
+   small in a full sheet; bump to the sheet's own line size. */
+.playtest-log-table .table-ticker__line {
+  font-size: var(--text-sm);
+}
+
 .playtest-log-body {
   flex: 1;
   overflow-y: auto;

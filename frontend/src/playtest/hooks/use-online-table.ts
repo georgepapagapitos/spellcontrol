@@ -2,8 +2,9 @@ import { useEffect, useMemo } from 'react';
 import { usePlayStore } from '@/store/play';
 import { useAuth } from '@/store/auth';
 import { publishBoard } from '@/lib/games-board';
-import { toPublicBoard, type PublicBoard } from '@/lib/playtest/projection';
+import { toPublicBoard, toPublicTicker, type PublicBoard } from '@/lib/playtest/projection';
 import type { PlaytestState } from '@/lib/playtest';
+import { usePlaytestStore } from '../store';
 import type { OpponentSeat } from '../components/OpponentRail';
 
 export interface OnlineTable {
@@ -92,10 +93,18 @@ export function useOnlineTable(state: PlaytestState): OnlineTable | null {
     usePlayStore.getState().startPolling();
   }, [code, mySeat]);
 
+  // The published board carries the seat's trailing PUBLIC log lines (the
+  // play ticker — see toPublicTicker's visibility contract). The same lines
+  // feed the local `onlineTicker` too, so this device's own actions appear
+  // in the table feed exactly as its opponents see them — one projection,
+  // two destinations.
+  const gameLog = usePlaytestStore((s) => s.gameLog);
   useEffect(() => {
     if (code == null || mySeat == null) return;
-    publishBoard(code, toPublicBoard(state, mySeat));
-  }, [code, mySeat, state]);
+    const ticker = toPublicTicker(gameLog);
+    publishBoard(code, { ...toPublicBoard(state, mySeat), ticker });
+    usePlayStore.getState().ingestTicker(mySeat, ticker);
+  }, [code, mySeat, state, gameLog]);
 
   return useMemo(() => {
     if (!online || !mine) return null;

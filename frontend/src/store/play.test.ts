@@ -13,7 +13,7 @@ import {
   type GameRecord,
   type GameState,
 } from '../lib/game-state';
-import type { PublicBoard } from '../lib/playtest/projection';
+import type { PublicBoard, TickerEntry } from '../lib/playtest/projection';
 import * as gamesBoard from '../lib/games-board';
 
 // The online flow talks to the games HTTP API; mock it so dispatch/refresh
@@ -76,6 +76,7 @@ function resetStore() {
     onlineBoards: {},
     onlineRequests: {},
     onlineSignal: null,
+    onlineTicker: [],
     history: [],
     onlineError: null,
     onlinePolling: false,
@@ -1014,6 +1015,111 @@ describe('usePlayStore — SSE primary transport / poll fallback', () => {
       expect(usePlayStore.getState().onlineError).toBe('Game ended.');
     } finally {
       vi.useRealTimers();
+    }
+  });
+});
+
+describe('usePlayStore — play-ticker feed (ingestTicker)', () => {
+  beforeEach(() => {
+    // clearOnline (no active game branch) resets the module-level per-seat
+    // seq cursors alongside the store slice — without it the cursor map
+    // leaks across tests in this file and every window reads as stale.
+    usePlayStore.getState().clearOnline();
+    resetStore();
+    vi.clearAllMocks();
+  });
+
+  function tickerWindow(seqs: number[], seat = 1): TickerEntry[] {
+    return seqs.map((seq) => ({ seq, kind: 'play' as const, text: `line ${seat}:${seq}` }));
+  }
+
+  it('appends a seat window as feed items, in order', () => {
+    usePlayStore.getState().ingestTicker(1, tickerWindow([1, 2, 3]));
+    const feed = usePlayStore.getState().onlineTicker;
+    expect(feed.map((it) => it.entry.seq)).toEqual([1, 2, 3]);
+    expect(feed.every((it) => it.seat === 1)).toBe(true);
+    expect(new Set(feed.map((it) => it.id)).size).toBe(3);
+  });
+
+  it('re-delivering the same window is a no-op (poll snapshots re-ship boards constantly)', () => {
+    usePlayStore.getState().ingestTicker(1, tickerWindow([1, 2, 3]));
+    const before = usePlayStore.getState().onlineTicker;
+    usePlayStore.getState().ingestTicker(1, tickerWindow([1, 2, 3]));
+    expect(usePlayStore.getState().onlineTicker).toBe(before);
+  });
+
+  it('an overlapping window ingests only lines past the seat cursor', () => {
+    usePlayStore.getState().ingestTicker(1, tickerWindow([1, 2, 3]));
+    usePlayStore.getState().ingestTicker(1, tickerWindow([2, 3, 4, 5]));
+    expect(usePlayStore.getState().onlineTicker.map((it) => it.entry.seq)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('seat cursors are independent — two seats interleave by arrival', () => {
+    usePlayStore.getState().ingestTicker(1, tickerWindow([1, 2], 1));
+    usePlayStore.getState().ingestTicker(2, tickerWindow([1], 2));
+    usePlayStore.getState().ingestTicker(1, tickerWindow([1, 2, 3], 1));
+    expect(usePlayStore.getState().onlineTicker.map((it) => `${it.seat}:${it.entry.seq}`)).toEqual([
+      '1:1',
+      '1:2',
+      '2:1',
+      '1:3',
+    ]);
+  });
+
+  it('a seat max-seq moving backward (log restarted) adopts the whole new window', () => {
+    usePlayStore.getState().ingestTicker(1, tickerWindow([40, 41, 42]));
+    usePlayStore.getState().ingestTicker(1, tickerWindow([1, 2]));
+    const seqs = usePlayStore.getState().onlineTicker.map((it) => it.entry.seq);
+    expect(seqs).toEqual([40, 41, 42, 1, 2]);
+  });
+
+  it('the feed caps at 60 items, oldest dropped', () => {
+    usePlayStore
+      .getState()
+      .ingestTicker(1, tickerWindow(Array.from({ length: 50 }, (_, i) => i + 1)));
+    usePlayStore.getState().ingestTicker(
+      2,
+      tickerWindow(
+        Array.from({ length: 20 }, (_, i) => i + 1),
+        2
+      )
+    );
+    const feed = usePlayStore.getState().onlineTicker;
+    expect(feed).toHaveLength(60);
+    expect(feed[0]).toMatchObject({ seat: 1, entry: expect.objectContaining({ seq: 11 }) });
+  });
+
+  it('an absent or empty ticker is a no-op (boards from pre-ticker clients)', () => {
+    usePlayStore.getState().ingestTicker(1, undefined);
+    usePlayStore.getState().ingestTicker(1, []);
+    expect(usePlayStore.getState().onlineTicker).toEqual([]);
+  });
+
+  it('a pushed board event feeds the ticker, and leaveOnline clears feed + cursors', async () => {
+    FakeEventSource.instances = [];
+    vi.stubGlobal('EventSource', FakeEventSource as unknown as typeof EventSource);
+    try {
+      mockCreate.mockResolvedValue(makeOnlineGame(1));
+      await usePlayStore.getState().hostOnline({
+        format: 'commander',
+        startingLife: 40,
+        commanderDamageEnabled: true,
+        poisonEnabled: false,
+      });
+      const es = FakeEventSource.instances[0];
+      const board = { seat: 1, ticker: tickerWindow([1, 2]) } as unknown as PublicBoard;
+      es.emit('board', { data: JSON.stringify({ seat: 1, board }) });
+      expect(usePlayStore.getState().onlineTicker.map((it) => it.entry.seq)).toEqual([1, 2]);
+
+      mockLeave.mockResolvedValue(undefined as never);
+      await usePlayStore.getState().leaveOnline();
+      expect(usePlayStore.getState().onlineTicker).toEqual([]);
+
+      // Cursor cleared too: the same window re-adopts in the next session.
+      usePlayStore.getState().ingestTicker(1, tickerWindow([1, 2]));
+      expect(usePlayStore.getState().onlineTicker.map((it) => it.entry.seq)).toEqual([1, 2]);
+    } finally {
+      vi.unstubAllGlobals();
     }
   });
 });
