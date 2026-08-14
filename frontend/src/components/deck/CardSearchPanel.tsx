@@ -163,6 +163,7 @@ const SYNTAX_TIP = (
       <li>
         <code>-t:land</code> excludes · <code>OR</code> combines
       </li>
+      <li>↑ ↓ navigate · Enter adds · Esc closes</li>
     </ul>
   </>
 );
@@ -478,16 +479,24 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
       }
       return;
     }
+    // Keyboard moves scroll the highlight into view (block: nearest, so the
+    // list only moves when the cursor leaves it). Mouse-hover activation
+    // deliberately doesn't — scrolling would yank the list under the cursor.
+    const moveActive = (delta: number) => {
+      const next = Math.min(max - 1, Math.max(0, activeIndex + delta));
+      setActiveIndex(next);
+      document.getElementById(`card-search-result-${next}`)?.scrollIntoView({ block: 'nearest' });
+    };
     if (e.key === 'ArrowDown') {
       if (max === 0) return;
       e.preventDefault();
-      setActiveIndex((i) => Math.min(max - 1, i + 1));
+      moveActive(1);
       return;
     }
     if (e.key === 'ArrowUp') {
       if (max === 0) return;
       e.preventDefault();
-      setActiveIndex((i) => Math.max(0, i - 1));
+      moveActive(-1);
       return;
     }
     if (e.key === 'Enter') {
@@ -514,6 +523,13 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   // commander) while it's selected, fall back to Collection — derived rather
   // than stored so we never render against a now-hidden tab.
   const activeMode: Mode = !enableSuggestions && mode === 'suggestions' ? 'collection' : mode;
+
+  // The reset above re-labels row 0 as the active one, but the list keeps its
+  // old scroll offset — a new query/tab/sort would highlight a row parked
+  // above the fold. Snap the list back to the top alongside the reset.
+  useEffect(() => {
+    document.getElementById('card-search-results')?.scrollTo({ top: 0 });
+  }, [query, activeMode, sort]);
 
   return (
     <div className="card-search-panel">
@@ -585,12 +601,13 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
           ) : undefined
         }
       />
-      <div className="card-search-toolbar">
-        <p className="card-search-hint" aria-hidden>
-          ↑ ↓ to navigate · Enter to add · Esc to close
-        </p>
-        <InfoTip label="search syntax" text={SYNTAX_TIP} wide />
-        {activeMode !== 'suggestions' && (
+      {/* Syntax ⓘ (which also carries the keyboard hints) + Sort. Only the
+          Collection/Scryfall tabs get this row: Suggestions' filter box is a
+          plain substring match with no sort, so the row would be pure chrome
+          there — and it was burying the AI strip below it. */}
+      {activeMode !== 'suggestions' && (
+        <div className="card-search-toolbar">
+          <InfoTip label="search syntax and keyboard shortcuts" text={SYNTAX_TIP} wide />
           <label className="card-search-sort">
             Sort
             <select value={sort} onChange={(e) => setSort(e.target.value as AddSort)}>
@@ -601,8 +618,8 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
               <option value="price">Price</option>
             </select>
           </label>
-        )}
-      </div>
+        </div>
+      )}
 
       <div
         className="card-search-tabpanel"
