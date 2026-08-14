@@ -286,6 +286,33 @@ describe('materializeBinders', () => {
     expect(binders[0].sections[2].label).toBe('CMC 7+');
   });
 
+  it('honors a primary sort that has no section grouping, in both directions', () => {
+    // Regression: fields with no section bucket (collectorNumber, quantity,
+    // treatment, finish, date*) all land in the single "All cards" group, and
+    // the leaf sort used to drop the primary entry — so asc and desc produced
+    // byte-identical orders.
+    const cards = ['10', '2', '33'].map((collectorNumber) =>
+      makeCard({ name: `Card ${collectorNumber}`, collectorNumber })
+    );
+    const numbersFor = (dir: 'asc' | 'desc') => {
+      const binder = makeBinder({ filter: {}, sorts: [{ field: 'collectorNumber', dir }] });
+      const { binders } = materializeBinders(cards, [binder], defaultOpts);
+      return binders[0].sections.flatMap((s) => s.cards.map((c) => c.collectorNumber));
+    };
+
+    expect(numbersFor('asc')).toEqual(['2', '10', '33']);
+    expect(numbersFor('desc')).toEqual(['33', '10', '2']);
+  });
+
+  it('sorts within a bucketed section by the primary field (cmc 7+)', () => {
+    const cards = [9, 7, 12].map((cmc) => makeCard({ name: `C${cmc}`, cmc, typeLine: 'Sorcery' }));
+    const binder = makeBinder({ filter: {}, sorts: [{ field: 'cmc', dir: 'asc' }] });
+
+    const { binders } = materializeBinders(cards, [binder], defaultOpts);
+    const bucket = binders[0].sections.find((s) => s.key === 'cmc-7+')!;
+    expect(bucket.cards.map((c) => c.cmc)).toEqual([7, 9, 12]);
+  });
+
   it('produces one "ALL" section when primary sort is "none"', () => {
     const cards = [makeCard({ colorIdentity: ['R'] }), makeCard({ colorIdentity: ['U'] })];
     const binder = makeBinder({ filter: {}, sorts: [{ field: 'none', dir: 'asc' }] });
