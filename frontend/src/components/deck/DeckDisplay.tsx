@@ -58,7 +58,7 @@ import { useCubeStore } from '../../store/cube';
 import { useRarityCorrections } from '../../lib/use-rarity-corrections';
 import type { EnrichedCard } from '../../types';
 import { type BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import type { LaneId } from '@/lib/deck-change';
+import type { LaneId, ChangeOwnership } from '@/lib/deck-change';
 import { useCardCarousel, tallyToEntries, type CarouselEntry } from './useCardCarousel';
 import { NewArrivalsSheet } from './NewArrivalsSheet';
 import type { ArrivalsByType } from '@/lib/new-arrivals';
@@ -410,6 +410,9 @@ export interface DeckDisplayProps {
   /** Exact-case in-deck names → count (mainboard + sideboard) — feeds the
    *  open sheet's live "Added" row state. */
   existingCardCounts?: ReadonlyMap<string, number>;
+  /** Allocation-aware ownership per card name — badges the arrivals sheet's rows
+   *  (E246). Omitted (read-only/shared views) → no badges. */
+  ownershipFor?: (name: string) => ChangeOwnership;
   /** Stamp deck.lastArrivalReviewAt (silent) — fired once the sheet closes. */
   onMarkArrivalsReviewed?: () => void;
   /**
@@ -522,6 +525,7 @@ export function DeckDisplay({
   landUpgradeCount,
   arrivalsByType,
   existingCardCounts,
+  ownershipFor,
   onMarkArrivalsReviewed,
   onSetCardTags,
   onRenameDeckTag,
@@ -2103,6 +2107,7 @@ export function DeckDisplay({
             onAddCard={onAddSuggestedCard}
             addingCardNames={addingSuggestedCardNames}
             existingCardCounts={existingCardCounts}
+            ownershipFor={ownershipFor}
           />
         )}
         {exportOpen && (

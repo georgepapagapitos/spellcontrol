@@ -3034,6 +3034,7 @@ export function DeckEditorPage() {
             landUpgradeCount={landUpgrades.length}
             arrivalsByType={arrivalsByType}
             existingCardCounts={existingCardCounts}
+            ownershipFor={ownershipFor}
             onMarkArrivalsReviewed={() => markArrivalsReviewed(deck.id)}
             cardInclusionMap={deck.cardInclusionMap}
             combosByOracle={combosByOracle}

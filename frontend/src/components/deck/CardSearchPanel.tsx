@@ -41,7 +41,7 @@ import type { ChipExpression, EnrichedCard } from '../../types';
 import type { GapAnalysisCard, HiddenGemRow } from '@/deck-builder/types';
 import { hiddenGemReason } from '@/deck-builder/services/deckBuilder/hiddenGems';
 import type { ComboMatch } from '@/types/combos';
-import type { ChangeOwnership } from '../../lib/deck-change';
+import { OWNERSHIP_BADGE, type ChangeOwnership } from '../../lib/deck-change';
 import {
   buildSuggestionRows,
   type SuggestionRow,
@@ -1074,20 +1074,6 @@ interface SuggestionsResultsProps extends ResultsProps {
   onSearchCollection: () => void;
   onSearchScryfall: () => void;
 }
-
-// Availability badge copy/tone per ownership state. "owned" = a free copy you
-// can field tonight; "in-other-deck" = owned but every copy is in another deck
-// (adding triggers the cross-deck resolver); "in-cube" = owned but every copy is
-// committed to a physical cube; "unowned" = you'd have to buy it.
-const OWNERSHIP_BADGE: Record<
-  'owned' | 'in-other-deck' | 'in-cube' | 'unowned',
-  { label: string; className: string }
-> = {
-  owned: { label: 'Available', className: 'card-search-avail' },
-  'in-other-deck': { label: 'In a deck', className: 'card-search-claimed' },
-  'in-cube': { label: 'In a cube', className: 'card-search-claimed' },
-  unowned: { label: 'Unowned', className: 'card-search-unowned' },
-};
 
 function SuggestionsResults({
   existingCardCounts,
