@@ -121,13 +121,26 @@
   color: var(--text-muted);
 }
 
-/* A caret on the tail of the last paragraph, so the text visibly has more
-   coming. Purely decorative — the "Writing…" label is the announced signal. */
-.deck-ai-prose--streaming p:last-child::after {
+/* The caret rides the section currently being written, not the last paragraph
+   on screen — with the weakness led, the block being typed is usually not the
+   bottom one. Purely decorative; the aria-busy region is the announced signal. */
+.deck-ai-section--writing p:last-child::after {
   content: '▍';
   margin-left: 0.1em;
   color: var(--text-muted);
   animation: deck-ai-caret 1s steps(2, start) infinite;
+}
+
+/* A section the stream hasn't reached keeps its title and its space, so its
+   text lands without pushing anything. Titles stay legible — this is "not yet",
+   not "disabled". */
+.deck-ai-section--pending {
+  opacity: 0.55;
+}
+
+.deck-ai-section--pending .deck-ai-section-title::after {
+  content: '…';
+  margin-left: 0.15em;
 }
 
 @keyframes deck-ai-caret {
