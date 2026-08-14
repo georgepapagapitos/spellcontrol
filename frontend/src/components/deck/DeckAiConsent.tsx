@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { Sparkles, X } from 'lucide-react';
 import { grantAiConsent } from '../../lib/use-ai-status';
 
 /** Shared across every AI surface — dismissing anywhere dismisses everywhere. */
@@ -7,6 +7,20 @@ const INVITE_DISMISSED_KEY = 'sc-ai-invite-dismissed';
 
 export function isAiInviteDismissed(): boolean {
   return localStorage.getItem('sc-ai-invite-dismissed') === '1';
+}
+
+/**
+ * The AI provenance pill (STYLE_GUIDE "AI-written content"). One component so
+ * every surface carries the same sparkle + outline treatment — still muted,
+ * never the accent: provenance is metadata, not a feature to celebrate.
+ */
+export function AiMarker({ label = 'AI Beta' }: { label?: string }) {
+  return (
+    <span className="deck-ai-marker">
+      <Sparkles width={11} height={11} aria-hidden />
+      {label}
+    </span>
+  );
 }
 
 /**
@@ -48,7 +62,7 @@ export function DeckAiConsent({
     <section className="deck-stats-panel deck-stats-panel--wide deck-ai-review">
       <h4 className="deck-stats-panel-title">
         {title}
-        <span className="deck-ai-marker">AI Beta</span>
+        <AiMarker />
       </h4>
       <div className="deck-ai-invite">
         <p className="deck-ai-invite-text">{blurb}</p>

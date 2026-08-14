@@ -78,6 +78,18 @@
   max-height: none;
 }
 
+/* The Suggestions tab's AI slot (E244). The tabpanel is a fixed-height flex
+   column where only the results list scrolls, so the expanded AI panel must
+   bound itself: cap it and scroll its prose internally, leaving the
+   suggestion rows their own share of the sheet. */
+.deck-add-sheet .card-search-ai {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 60%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 /* "Pick a commander first" interstitial — shown when Add cards is opened on a
    Commander deck that has no commander yet. Sizes to its content (not the tall
    search sheet). */
