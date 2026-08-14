@@ -175,28 +175,31 @@ export function DeckAiRefine({
         </div>
       )}
 
-      {phase === 'working' &&
-        (streamed ? (
-          <div className="deck-ai-prose deck-ai-prose--streaming" aria-busy="true">
-            <p className="deck-ai-writing" role="status">
-              Reading the build…
-            </p>
-            {streamed.split(/\n{2,}/).map((para, i) => (
-              <p key={i}>{para}</p>
-            ))}
-          </div>
-        ) : (
-          <div
-            className="deck-ai-skeleton"
-            role="status"
-            aria-live="polite"
-            aria-label="Refining the build"
-          >
-            <span className="deck-ai-skeleton-line" />
-            <span className="deck-ai-skeleton-line" />
-            <span className="deck-ai-skeleton-line deck-ai-skeleton-line--short" />
-          </div>
-        ))}
+      {/* Same rule as the review panel: the streaming text and the settled
+          text render through ONE path in final typography, so nothing reflows
+          when it lands. Chips wait for a paragraph to finish — chipping a
+          half-typed name would change its width under the cursor. */}
+      {phase === 'working' && streamed && (
+        <div aria-live="polite">
+          <span className="sr-only" role="status">
+            Reading the build…
+          </span>
+          <RefineProse content={streamed} cardsByName={cardsByName} streaming />
+        </div>
+      )}
+
+      {phase === 'working' && !streamed && (
+        <div
+          className="deck-ai-skeleton"
+          role="status"
+          aria-live="polite"
+          aria-label="Refining the build"
+        >
+          <span className="deck-ai-skeleton-line" />
+          <span className="deck-ai-skeleton-line" />
+          <span className="deck-ai-skeleton-line deck-ai-skeleton-line--short" />
+        </div>
+      )}
 
       {phase === 'error' && error && (
         <div className="deck-ai-error" role="alert">
@@ -241,9 +244,11 @@ export function DeckAiRefine({
 function RefineProse({
   content,
   cardsByName,
+  streaming = false,
 }: {
   content: string;
   cardsByName: Map<string, ScryfallCard>;
+  streaming?: boolean;
 }) {
   const carousel = useCardCarousel('Cards in the reading');
   const sections = useMemo(() => splitReviewSections(content), [content]);
@@ -275,25 +280,30 @@ function RefineProse({
 
   return (
     <>
-      <div className="deck-ai-prose">
+      <div className={`deck-ai-prose${streaming ? ' deck-ai-prose--streaming' : ''}`}>
         {paragraphs.map((para, i) => (
           <p key={i}>
-            {tokenizeCardNames(para, names).map((t, j) => {
-              const named = t.card;
-              return named ? (
-                <button
-                  key={j}
-                  type="button"
-                  className="deck-ai-card-chip"
-                  onClick={() => void carousel.open(entries, named)}
-                  aria-label={`Preview ${named}`}
-                >
-                  {t.text}
-                </button>
-              ) : (
-                <span key={j}>{t.text}</span>
-              );
-            })}
+            {/* The final paragraph is the one still being typed. */}
+            {streaming && i === paragraphs.length - 1 ? (
+              <span>{para}</span>
+            ) : (
+              tokenizeCardNames(para, names).map((t, j) => {
+                const named = t.card;
+                return named ? (
+                  <button
+                    key={j}
+                    type="button"
+                    className="deck-ai-card-chip"
+                    onClick={() => void carousel.open(entries, named)}
+                    aria-label={`Preview ${named}`}
+                  >
+                    {t.text}
+                  </button>
+                ) : (
+                  <span key={j}>{t.text}</span>
+                );
+              })
+            )}
           </p>
         ))}
       </div>

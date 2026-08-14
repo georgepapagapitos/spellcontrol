@@ -29,32 +29,56 @@ export interface AiGeneration {
  * 7-9s typical, well past the spec's 8s streaming line); the resolved value is
  * still the FULL text plus token usage, so the caller stores and audits exactly
  * what it did before. Callers that don't want the chunks pass no `onDelta`.
+ *
+ * `prefill` seeds the assistant turn. Use it for structure the caller REQUIRES
+ * rather than merely requests: the review's section labels are load-bearing —
+ * the panel streams into a titled layout keyed off them — and asking Haiku
+ * nicely for them in the system prompt does not work. It complied 4/4 when the
+ * prompt was replayed through Claude Code subagents and 0/1 against the real
+ * API, which is exactly the kind of gap a prompt eval cannot see. Prefilling
+ * the first label makes it a fact instead of a request, and having emitted one
+ * label the model reliably emits the rest.
+ *
+ * The API does not echo the prefill, so it is prepended to the returned content
+ * AND pushed through `onDelta` first — otherwise the client's stream would be
+ * missing its opening label while the stored row had it.
+ *
+ * ⚠️ A prefill must NOT end with whitespace — the API rejects the request with
+ * "final assistant content cannot end with trailing whitespace". Trimmed here
+ * so no caller has to remember.
  */
 export async function generateReview(
   system: string,
   user: string,
-  onDelta?: (text: string) => void
+  onDelta?: (text: string) => void,
+  prefill?: string
 ): Promise<AiGeneration> {
   if (!client) client = new Anthropic();
+  const messages: Anthropic.MessageParam[] = [{ role: 'user', content: user }];
+  const seed = prefill?.replace(/\s+$/, '');
+  if (seed) messages.push({ role: 'assistant', content: seed });
   const stream = client.messages.stream({
     model: AI_MODEL,
     max_tokens: 2000,
     system,
-    messages: [{ role: 'user', content: user }],
+    messages,
   });
-  if (onDelta) stream.on('text', onDelta);
+  if (onDelta) {
+    if (seed) onDelta(seed);
+    stream.on('text', onDelta);
+  }
   const res = await stream.finalMessage();
   if (res.stop_reason === 'refusal') {
     throw new Error('The model declined to review this deck.');
   }
-  const content = res.content
+  const generated = res.content
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
     .join('\n')
     .trim();
-  if (!content) throw new Error('The model returned an empty review.');
+  if (!generated) throw new Error('The model returned an empty review.');
   return {
-    content,
+    content: seed ? `${seed}${generated}` : generated,
     inputTokens: res.usage.input_tokens,
     outputTokens: res.usage.output_tokens,
   };
