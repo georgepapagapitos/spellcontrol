@@ -7,6 +7,7 @@ import { useTaggerReady } from '@/lib/use-tagger-ready';
 import { buildDeckReviewCards, splitReviewSections, tokenizeCardNames } from '../../lib/ai-review';
 import { requestDeckRefine, type RefineCard, type RefineTweak } from '../../lib/ai-refine';
 import { noteAiExhausted, noteAiSpend, useAiStatus } from '../../lib/use-ai-status';
+import { DeckAiConsent, isAiInviteDismissed } from './DeckAiConsent';
 import { useCardCarousel } from './useCardCarousel';
 import './DeckAiReview.css';
 
@@ -53,6 +54,7 @@ export function DeckAiRefine({
   const [strategy, setStrategy] = useState<string | null>(null);
   const [tweaks, setTweaks] = useState<RefineTweak[]>([]);
   const [applied, setApplied] = useState<Set<string>>(new Set());
+  const [inviteDismissed, setInviteDismissed] = useState(isAiInviteDismissed);
 
   const commanderName = partnerCommander
     ? `${commander.name} // ${partnerCommander.name}`
@@ -120,7 +122,21 @@ export function DeckAiRefine({
     setApplied((prev) => new Set(prev).add(tweak.add));
   };
 
-  if (!status || !status.optIn) return null;
+  // Nothing without the feature configured. Without CONSENT, offer it here
+  // rather than rendering nothing: on the post-generation build report this is
+  // the user's first point of use, and staying silent would hide the feature
+  // exactly where it was meant to appear.
+  if (!status) return null;
+  if (!status.optIn) {
+    if (inviteDismissed) return null;
+    return (
+      <DeckAiConsent
+        title="Refine this build"
+        blurb={`AI can weigh the candidates the coach already found and suggest a few swaps. Turning this on sends this deck's card names, its computed stats and those candidates to Anthropic. Nothing is sent until you press an AI button, ${status.limit} a day. Your collection is never sent, and you can turn it back off in Settings.`}
+        onDismiss={() => setInviteDismissed(true)}
+      />
+    );
+  }
 
   return (
     <section className="deck-stats-panel deck-stats-panel--wide deck-ai-review">

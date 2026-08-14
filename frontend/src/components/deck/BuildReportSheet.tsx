@@ -18,6 +18,10 @@ interface Props {
   onClose: () => void;
   /** Open the Shared-copies review (shown only when the deck has owned-but-elsewhere cards). */
   onReviewConflicts?: () => void;
+  /** Optional post-generation AI refine surface, rendered under the report.
+   *  A slot rather than a direct import so this sheet stays unaware of AI and
+   *  renders nothing extra when the feature is off. */
+  refineSlot?: React.ReactNode;
   /** Live Spellbook one-away combos for the generated deck (E78-P4). */
   oneAwayCombos?: ComboMatch[];
   /** Owned oracle ids — ranks owned-missing-piece combos first. */
@@ -44,6 +48,7 @@ export function BuildReportSheet({
   report,
   onClose,
   onReviewConflicts,
+  refineSlot,
   oneAwayCombos,
   ownedOracleIds,
   comboSeedContext,
@@ -120,6 +125,7 @@ export function BuildReportSheet({
             ownedOracleIds={ownedOracleIds}
             comboSeedContext={comboSeedContext}
           />
+          {refineSlot}
         </div>
         <div className="build-report-sheet-footer">
           {onReviewConflicts && (report.claimedConflicts ?? 0) > 0 && (

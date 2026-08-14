@@ -105,4 +105,21 @@ describe('BuildReportSheet', () => {
     expect(dialog).toBeTruthy();
     expect(dialog?.getAttribute('aria-modal')).toBe('true');
   });
+
+  it('renders the refine slot under the report — the post-generation AI moment', () => {
+    render(
+      <BuildReportSheet
+        deckId="d6"
+        report={makeReport()}
+        onClose={vi.fn()}
+        refineSlot={<div data-testid="refine-slot">refine</div>}
+      />
+    );
+    expect(document.body.querySelector('[data-testid="refine-slot"]')).toBeTruthy();
+  });
+
+  it('renders nothing extra when no refine slot is given (feature off)', () => {
+    render(<BuildReportSheet deckId="d7" report={makeReport()} onClose={vi.fn()} />);
+    expect(document.body.querySelector('[data-testid="refine-slot"]')).toBeNull();
+  });
 });

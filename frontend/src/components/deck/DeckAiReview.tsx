@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { X } from 'lucide-react';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { analyzeDeck } from '../../lib/deck-analysis';
 import { useTaggerReady } from '@/lib/use-tagger-ready';
@@ -11,11 +10,10 @@ import {
   splitReviewSections,
   tokenizeCardNames,
 } from '../../lib/ai-review';
-import { grantAiConsent, noteAiExhausted, noteAiSpend, useAiStatus } from '../../lib/use-ai-status';
+import { noteAiExhausted, noteAiSpend, useAiStatus } from '../../lib/use-ai-status';
+import { DeckAiConsent, isAiInviteDismissed } from './DeckAiConsent';
 import { useCardCarousel } from './useCardCarousel';
 import './DeckAiReview.css';
-
-const INVITE_DISMISSED_KEY = 'sc-ai-invite-dismissed';
 
 interface DeckAiReviewProps {
   deckId: string;
@@ -49,11 +47,7 @@ export function DeckAiReview({
 }: DeckAiReviewProps) {
   const taggerReady = useTaggerReady();
   const status = useAiStatus();
-  const [inviteDismissed, setInviteDismissed] = useState(
-    () => localStorage.getItem(INVITE_DISMISSED_KEY) === '1'
-  );
-  const [consentBusy, setConsentBusy] = useState(false);
-  const [consentError, setConsentError] = useState<string | null>(null);
+  const [inviteDismissed, setInviteDismissed] = useState(isAiInviteDismissed);
   const [phase, setPhase] = useState<'idle' | 'reading' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [review, setReview] = useState<HeldReview | null>(null);
@@ -110,54 +104,12 @@ export function DeckAiReview({
   // ── Not opted in: consent granted in place, or dismissed for good ──
   if (!status.optIn) {
     if (inviteDismissed) return null;
-    const enable = () => {
-      setConsentBusy(true);
-      setConsentError(null);
-      grantAiConsent()
-        .catch((err: Error) => setConsentError(err.message || 'Could not turn this on.'))
-        .finally(() => setConsentBusy(false));
-    };
     return (
-      <section className="deck-stats-panel deck-stats-panel--wide deck-ai-review">
-        <h4 className="deck-stats-panel-title">
-          Read the deck
-          <span className="deck-ai-marker">AI Beta</span>
-        </h4>
-        <div className="deck-ai-invite">
-          <p className="deck-ai-invite-text">
-            AI can read this deck and write what it's trying to do — and the structural problems the
-            statistics can't show. Turning this on sends this deck's card names and computed stats
-            to Anthropic. Nothing is sent until you press an AI button, {status.limit} readings a
-            day. Your collection is never sent, and you can turn it back off in Settings.
-          </p>
-          {consentError && (
-            <p className="deck-ai-consent-error" role="alert">
-              {consentError}
-            </p>
-          )}
-          <div className="deck-ai-invite-actions">
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={enable}
-              disabled={consentBusy}
-            >
-              {consentBusy ? 'Turning on…' : 'Turn on AI Beta'}
-            </button>
-            <button
-              type="button"
-              className="btn deck-ai-invite-dismiss"
-              onClick={() => {
-                localStorage.setItem(INVITE_DISMISSED_KEY, '1');
-                setInviteDismissed(true);
-              }}
-            >
-              <X width={16} height={16} strokeWidth={2} aria-hidden />
-              No thanks
-            </button>
-          </div>
-        </div>
-      </section>
+      <DeckAiConsent
+        title="Read the deck"
+        blurb={`AI can read this deck and write what it's trying to do — and the structural problems the statistics can't show. Turning this on sends this deck's card names and computed stats to Anthropic. Nothing is sent until you press an AI button, ${status.limit} readings a day. Your collection is never sent, and you can turn it back off in Settings.`}
+        onDismiss={() => setInviteDismissed(true)}
+      />
     );
   }
 

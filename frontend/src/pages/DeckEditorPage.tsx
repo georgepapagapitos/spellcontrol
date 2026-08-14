@@ -3535,6 +3535,24 @@ export function DeckEditorPage() {
             setShowBuildReport(false);
             setShowSharedCopies(true);
           }}
+          /* The post-generation moment (T102 slice 4). Same panel as the Coach
+             tab, so the offer meets the user while they're judging the fresh
+             deck instead of waiting to be found. It self-hides when the feature
+             is off and never auto-runs — the press is still the user's. */
+          refineSlot={
+            deck.commander ? (
+              <DeckAiRefine
+                deckId={deck.id}
+                format={deck.format}
+                commander={deck.commander}
+                partnerCommander={deck.partnerCommander ?? null}
+                mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
+                pool={refinePool}
+                ownedOnly={refineOwnedOnly}
+                onApplyMove={handleApplyCoachMove}
+              />
+            ) : undefined
+          }
         />
       )}
 

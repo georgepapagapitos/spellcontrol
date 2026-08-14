@@ -67,11 +67,24 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('DeckAiRefine', () => {
-  it('renders nothing at all until consent is granted', async () => {
+  it('offers consent rather than hiding, since this may be the first AI surface seen', async () => {
+    // On the post-generation build report this panel IS the introduction —
+    // rendering nothing would hide the feature exactly where it should appear.
     stubApi(false, []);
+    renderPanel(() => {});
+    expect(await screen.findByRole('button', { name: 'Turn on AI Beta' })).toBeTruthy();
+    // The working surface stays behind consent: no run button yet.
+    expect(screen.queryByRole('button', { name: 'Refine this build' })).toBeNull();
+  });
+
+  it('renders nothing once the invite is dismissed', async () => {
+    stubApi(false, []);
+    const { unmount } = renderPanel(() => {});
+    fireEvent.click(await screen.findByRole('button', { name: /No thanks/ }));
+    unmount();
+
     const { container } = renderPanel(() => {});
-    await waitFor(() => expect(container.querySelector('.deck-ai-marker')).toBeNull());
-    expect(container.textContent).not.toContain('Refine this build');
+    await waitFor(() => expect(container.querySelector('.deck-ai-review')).toBeNull());
   });
 
   it('applies an accepted swap as a Change on the existing coach path', async () => {
