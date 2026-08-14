@@ -117,6 +117,18 @@ export interface EnrichedCard {
    * nothing for this card rather than erroring.
    */
   tags?: string[];
+  /**
+   * Which Secret Lair *drop* this printing came from, e.g. 'Goblin Storm'.
+   * Scryfall lumps every Secret Lair into the single flat `SLD` set with no
+   * drop metadata, so this can't be derived from set fields — it comes from the
+   * MTGJSON-built drop map. Like `tags`, this is reference data: NOT persisted
+   * or synced, decorated onto cards by the caller just before materializing
+   * (frontend `lib/sld-drops.ts`). Absent on non-SLD cards, and on the handful
+   * of SLD numbers MTGJSON doesn't cover — both fall into one trailing section.
+   */
+  sldDrop?: string;
+  /** YYYY-MM-DD release date of `sldDrop`, used to order drop sections. */
+  sldDropReleasedAt?: string;
 }
 
 export type SortField =
@@ -134,6 +146,10 @@ export type SortField =
   | 'quantity'
   | 'treatment'
   | 'finish'
+  // Secret Lair drop (see EnrichedCard.sldDrop). Binder-only in practice: it
+  // needs the caller-supplied drop decoration, and every card without one
+  // collapses into a single "Other printings" section.
+  | 'sldDrop'
   // Collection-only: import date, derived at sort-time from a card's importId via
   // SortContext.addedAtByImportId. Intentionally NOT in SORT_FIELDS — it has no
   // value in binder views (which don't supply that context), so it stays out of
@@ -289,6 +305,22 @@ export interface BinderDef {
    * Ignored for manual-ordered binders.
    */
   pageBreakDepth?: number;
+  /**
+   * Flow sections onto shared pages instead of giving each its own.
+   *
+   * By default every section starts a fresh page, which is right for a dozen
+   * big colour/type sections but ruinous for many small ones: 35 Secret Lair
+   * drops of 1–7 cards burn 39 twelve-pocket pages to hold 199 cards. With
+   * this on, consecutive sections are merged while their cards still fit the
+   * same page, so a page can carry several drops — but a section is never
+   * split across a page boundary, which is the property that actually matters
+   * physically. Same binder: 19 pages instead of 39.
+   *
+   * Merged sections keep every original label (see `BinderSection.labels`) so
+   * the header still names each drop on the page. Ignored for manual-ordered
+   * binders and when there's no grouping (a single section can't be packed).
+   */
+  packSections?: boolean;
   lastReviewedSnapshot?: BinderReviewSnapshot;
   /** Scryfall printing id of the user-chosen cover card. Undefined = automatic
    *  cover (most valuable card). Routing/materialize never read it — it's
@@ -313,6 +345,13 @@ export interface BinderPage {
 export interface BinderSection {
   key: string;
   label: string;
+  /**
+   * The individual group labels this section covers. Length > 1 only when
+   * `BinderDef.packSections` merged several groups onto shared pages; `label`
+   * is then their joined form. Renderers that want to chip each group
+   * separately read this; everything else can keep using `label`.
+   */
+  labels?: string[];
   /** Optional color-pip styling — populated only when grouping by color. */
   pip?: { background: string; border: string };
   cards: EnrichedCard[];
