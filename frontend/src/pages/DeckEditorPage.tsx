@@ -46,6 +46,9 @@ import { dismissResyncHint, shouldShowResyncHint } from '../lib/wedge-hints';
 import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
 import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckAiReview } from '../components/deck/DeckAiReview';
+import { DeckAiRefine } from '../components/deck/DeckAiRefine';
+import { buildRefinePool } from '../lib/ai-refine';
+import { constrainsToCollection } from '@/deck-builder/services/deckBuilder/deckFilters';
 import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { DeckTokensSheet } from '../components/deck/DeckTokensSheet';
 import { DeckPrimerSheet } from '../components/deck/DeckPrimerSheet';
@@ -1046,6 +1049,34 @@ export function DeckEditorPage() {
   // you own). Gated to 2+ color decks (minLength 2) — mono-color decks have no
   // duals to fetch; the owned-swap path still works for them. Cached 10min by
   // the search client, so re-opens are cheap. Failure is silent → owned-only.
+  /**
+   * The AI refine pass's candidate pool (T102 slice 4). Assembled from the
+   * three lanes the coach ALREADY computed — EDHREC gaps, off-meta synergy
+   * hits, owned substitutes — so the model curates cards the app was already
+   * willing to recommend, with no new engine call and the deterministic
+   * generator untouched. Owned-only builds keep the pool inside the collection
+   * via the same `constrainsToCollection` predicate generation itself used
+   * (the fine-grained strategy survives on `buildReport`, not
+   * `generationContext`, which only persists the boolean).
+   */
+  const refineOwnedOnly = useMemo(
+    () => constrainsToCollection(deck?.buildReport?.collectionStrategy ?? 'prefer'),
+    [deck?.buildReport?.collectionStrategy]
+  );
+  const refinePool = useMemo(
+    () =>
+      deck
+        ? buildRefinePool({
+            gaps: deck.gapAnalysis ?? [],
+            synergy: deck.synergyAnalysis?.suggestions ?? [],
+            substitutes: substitutionPlan?.rows ?? [],
+            deckNames: deckCardNames,
+            ownedNames: refineOwnedOnly ? ownedNames : undefined,
+          })
+        : [],
+    [deck, substitutionPlan, deckCardNames, refineOwnedOnly, ownedNames]
+  );
+
   const identityKey = useMemo(
     () => [...commanderColorIdentity].sort().join(''),
     [commanderColorIdentity]
@@ -2923,13 +2954,30 @@ export function DeckEditorPage() {
             tableRecordSlot={<TableRecordPanel deckId={deck.id} />}
             aiReviewSlot={
               formatConfig?.hasCommander && deck.commander ? (
-                <DeckAiReview
-                  deckId={deck.id}
-                  format={deck.format}
-                  commander={deck.commander}
-                  partnerCommander={deck.partnerCommander ?? null}
-                  mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
-                />
+                <>
+                  <DeckAiReview
+                    deckId={deck.id}
+                    format={deck.format}
+                    commander={deck.commander}
+                    partnerCommander={deck.partnerCommander ?? null}
+                    mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
+                  />
+                  {/* The refine pass is generated-deck only: it exists to
+                      second-guess the generator, and a hand-built deck has no
+                      generator decision to second-guess. */}
+                  {deck.source === 'generated' && (
+                    <DeckAiRefine
+                      deckId={deck.id}
+                      format={deck.format}
+                      commander={deck.commander}
+                      partnerCommander={deck.partnerCommander ?? null}
+                      mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
+                      pool={refinePool}
+                      ownedOnly={refineOwnedOnly}
+                      onApplyMove={handleApplyCoachMove}
+                    />
+                  )}
+                </>
               ) : undefined
             }
             combosSlot={

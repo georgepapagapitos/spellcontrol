@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { analyzeDeck } from '../../lib/deck-analysis';
@@ -7,13 +7,11 @@ import { isBasicLandName } from '../../lib/allocations-core';
 import {
   buildDeckReviewCards,
   deckContentKey,
-  fetchAiStatus,
   requestDeckReview,
-  setAiOptIn,
   splitReviewSections,
   tokenizeCardNames,
-  type AiStatus,
 } from '../../lib/ai-review';
+import { grantAiConsent, noteAiExhausted, noteAiSpend, useAiStatus } from '../../lib/use-ai-status';
 import { useCardCarousel } from './useCardCarousel';
 import './DeckAiReview.css';
 
@@ -50,7 +48,7 @@ export function DeckAiReview({
   mainboard,
 }: DeckAiReviewProps) {
   const taggerReady = useTaggerReady();
-  const [status, setStatus] = useState<AiStatus | null | 'loading'>('loading');
+  const status = useAiStatus();
   const [inviteDismissed, setInviteDismissed] = useState(
     () => localStorage.getItem(INVITE_DISMISSED_KEY) === '1'
   );
@@ -61,20 +59,6 @@ export function DeckAiReview({
   const [review, setReview] = useState<HeldReview | null>(null);
   /** Prose received so far while the model is still writing (T102 streaming). */
   const [streamed, setStreamed] = useState('');
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchAiStatus()
-      .then((s) => {
-        if (!cancelled) setStatus(s);
-      })
-      .catch(() => {
-        if (!cancelled) setStatus(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const commanderName = partnerCommander
     ? `${commander.name} // ${partnerCommander.name}`
@@ -94,7 +78,7 @@ export function DeckAiReview({
     return byName;
   }, [commander, partnerCommander, mainboard]);
 
-  if (status === 'loading' || status === null) return null;
+  if (!status) return null;
 
   const remaining = Math.max(0, status.limit - status.used);
   const stale = review !== null && review.key !== currentKey;
@@ -111,14 +95,10 @@ export function DeckAiReview({
         setReview({ content: result.content, key: requestKey });
         setStreamed('');
         setPhase('idle');
-        if (!result.cached) {
-          setStatus((s) => (s && s !== 'loading' ? { ...s, used: s.used + 1 } : s));
-        }
+        if (!result.cached) noteAiSpend();
       })
       .catch((err: Error & { status?: number }) => {
-        if (err.status === 429) {
-          setStatus((s) => (s && s !== 'loading' ? { ...s, used: s.limit } : s));
-        }
+        if (err.status === 429) noteAiExhausted();
         // A partial reading is worth nothing — it was never stored, and half a
         // finding reads as a finding. Drop it and offer the retry.
         setStreamed('');
@@ -133,8 +113,7 @@ export function DeckAiReview({
     const enable = () => {
       setConsentBusy(true);
       setConsentError(null);
-      setAiOptIn(true)
-        .then((optIn) => setStatus((s) => (s && s !== 'loading' ? { ...s, optIn } : s)))
+      grantAiConsent()
         .catch((err: Error) => setConsentError(err.message || 'Could not turn this on.'))
         .finally(() => setConsentBusy(false));
     };
