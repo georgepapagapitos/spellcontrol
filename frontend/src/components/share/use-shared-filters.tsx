@@ -4,6 +4,7 @@ import type { ChipExpression } from '../../types';
 import type { SetMap } from '../../lib/api';
 import { CollectionFiltersDialog } from '../CollectionFiltersDialog';
 import { useCardTagsReady } from '../../lib/card-tags';
+import type { ColorMatchMode } from '../../lib/colors';
 import { isExpressionEmpty } from '../../lib/rules';
 import {
   countActiveSharedFilters,
@@ -73,6 +74,7 @@ export function useSharedFilters(
   const [typesExpr, setTypesExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [subtypeExpr, setSubtypeExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [colorFilter, setColorFilter] = useState<Set<string>>(new Set());
+  const [colorMode, setColorMode] = useState<ColorMatchMode>('any');
   const [rarityExpr, setRarityExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [oracleExpr, setOracleExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [oracleTagExpr, setOracleTagExpr] = useState<ChipExpression>(EMPTY_EXPR);
@@ -99,6 +101,7 @@ export function useSharedFilters(
     typesExpr,
     subtypeExpr,
     colorFilter,
+    colorMode,
     rarityExpr,
     oracleExpr,
     oracleTagExpr,
@@ -122,6 +125,7 @@ export function useSharedFilters(
       typesExpr,
       subtypeExpr,
       colorFilter,
+      colorMode,
       rarityExpr,
       oracleExpr,
       oracleTagExpr,
@@ -153,6 +157,8 @@ export function useSharedFilters(
       subtypeSuggestions={subtypeSuggestions}
       colorFilter={colorFilter}
       setColorFilter={setColorFilter}
+      colorMode={colorMode}
+      setColorMode={setColorMode}
       colorOptions={COLOR_OPTIONS}
       rarityExpr={rarityExpr}
       setRarityExpr={setRarityExpr}

@@ -6,6 +6,8 @@ import type { SetMap } from '../lib/api';
 import { Modal } from './Modal';
 import { SetFilterPicker } from './SetFilterPicker';
 import { ColorPip } from './shared/ManaSymbol';
+import { ColorMatchModeToggle } from './shared/ColorMatchModeToggle';
+import type { ColorMatchMode } from '../lib/colors';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { TypeLineExpressionBuilder } from './TypeLineExpressionBuilder';
 import { FilterFieldEditor, NumberRangeInput } from './FilterFieldEditor';
@@ -31,6 +33,9 @@ interface Props {
 
   colorFilter: Set<string>;
   setColorFilter: (next: Set<string>) => void;
+  /** OR ('any', default) vs AND ('all') across the selected color pips. */
+  colorMode: ColorMatchMode;
+  setColorMode: (next: ColorMatchMode) => void;
   colorOptions: Array<{ key: string; label: string }>;
 
   rarityExpr: ChipExpression;
@@ -222,6 +227,8 @@ function DialogBody({
   subtypeSuggestions,
   colorFilter,
   setColorFilter,
+  colorMode,
+  setColorMode,
   colorOptions,
   rarityExpr,
   setRarityExpr,
@@ -280,6 +287,7 @@ function DialogBody({
   const [draftTypes, setDraftTypes] = useState<ChipExpression>(typesExpr);
   const [draftSubtype, setDraftSubtype] = useState<ChipExpression>(subtypeExpr);
   const [draftColor, setDraftColor] = useState<Set<string>>(() => new Set(colorFilter));
+  const [draftColorMode, setDraftColorMode] = useState<ColorMatchMode>(colorMode);
   const [draftRarity, setDraftRarity] = useState<ChipExpression>(rarityExpr);
   const [draftOracle, setDraftOracle] = useState<ChipExpression>(oracleExpr);
   const [draftOracleTag, setDraftOracleTag] = useState<ChipExpression>(oracleTagExpr ?? EMPTY_EXPR);
@@ -382,6 +390,7 @@ function DialogBody({
     setTypesExpr(draftTypes);
     setSubtypeExpr(draftSubtype);
     setColorFilter(draftColor);
+    setColorMode(draftColorMode);
     setRarityExpr(draftRarity);
     setOracleExpr(draftOracle);
     if (showOracleTags) setOracleTagExpr?.(draftOracleTag);
@@ -414,6 +423,7 @@ function DialogBody({
     setDraftTypes(EMPTY_EXPR);
     setDraftSubtype(EMPTY_EXPR);
     setDraftColor(new Set());
+    setDraftColorMode('any');
     setDraftRarity(EMPTY_EXPR);
     setDraftOracle(EMPTY_EXPR);
     setDraftOracleTag(EMPTY_EXPR);
@@ -479,7 +489,10 @@ function DialogBody({
         </section>
 
         <section className="collection-filters-section">
-          <div className="collection-filters-section-label">Color</div>
+          <div className="collection-filters-section-label collection-filters-section-label--split">
+            Color
+            <ColorMatchModeToggle mode={draftColorMode} onChange={setDraftColorMode} />
+          </div>
           <div className="color-filter-row" role="group" aria-label="Filter by color">
             {colorOptions.map((c) => {
               const active = draftColor.has(c.key);
