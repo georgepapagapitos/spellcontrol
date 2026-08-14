@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { DeckAiReview } from './DeckAiReview';
+import { __resetAiStatus } from '../../lib/use-ai-status';
 
 // The carousel pulls in the Scryfall client + CardPreview; the panel only needs
 // to prove it hands the tapped name over.
@@ -78,6 +79,9 @@ function renderPanel() {
 beforeEach(() => {
   opened.length = 0;
   localStorage.clear();
+  // AI status is a module-level store shared by the review and refine panels,
+  // so consent granted by one test would otherwise leak into the next.
+  __resetAiStatus();
 });
 afterEach(() => vi.unstubAllGlobals());
 

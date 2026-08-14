@@ -216,6 +216,76 @@
   color: var(--warn-text);
 }
 
+/* ── Proposed tweaks (T102 slice 4) ──
+   Each row is one accept/leave decision, so the move reads off the row alone:
+   what comes in, what goes out, and why — never "apply" against a bare name. */
+.deck-ai-tweaks {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.deck-ai-tweak {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-2) 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-raised);
+}
+
+.deck-ai-tweak-move {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.deck-ai-tweak-arrow,
+.deck-ai-tweak-cut {
+  color: var(--text-muted);
+}
+
+.deck-ai-tweak-cut {
+  text-decoration: line-through;
+}
+
+.deck-ai-tweak-why {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.deck-ai-tweak-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* "Nothing to change" is a result, not an empty state. */
+.deck-ai-tweak-none {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* The tweak row's own control sets the row height (dense-row 44px rule). */
+.deck-ai-tweak .btn {
+  min-height: 44px;
+}
+
 .deck-ai-stale {
   display: flex;
   flex-wrap: wrap;

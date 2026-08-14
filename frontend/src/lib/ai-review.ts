@@ -1,4 +1,5 @@
 import { authedFetch, handleResponse } from './fetch-utils';
+import { readNdjson } from './ndjson';
 import type { DeckAnalysisResult } from './deck-analysis';
 import type { ScryfallCard } from '@/deck-builder/types';
 
@@ -77,15 +78,7 @@ export async function requestDeckReview(
   let done: DeckReviewResult | undefined;
   let failure: string | undefined;
 
-  const readLine = (line: string) => {
-    if (!line.trim()) return;
-    let msg: { delta?: unknown; done?: unknown; error?: unknown };
-    try {
-      msg = JSON.parse(line) as typeof msg;
-    } catch {
-      // A mangled frame means the rest of the stream can't be trusted either.
-      throw new Error('The review came back garbled. Try again.');
-    }
+  await readNdjson(res, (msg) => {
     if (typeof msg.delta === 'string') {
       content += msg.delta;
       onText?.(content);
@@ -94,29 +87,7 @@ export async function requestDeckReview(
     } else if (msg.done && typeof msg.done === 'object') {
       done = msg.done as DeckReviewResult;
     }
-  };
-
-  if (res.body) {
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    for (;;) {
-      const { value, done: streamDone } = await reader.read();
-      if (streamDone) break;
-      buffer += decoder.decode(value, { stream: true });
-      let nl = buffer.indexOf('\n');
-      while (nl >= 0) {
-        readLine(buffer.slice(0, nl));
-        buffer = buffer.slice(nl + 1);
-        nl = buffer.indexOf('\n');
-      }
-    }
-    readLine(buffer);
-  } else {
-    // No readable stream (a test double, or a runtime without one): the body is
-    // the same NDJSON, it just arrives all at once.
-    for (const line of (await res.text()).split('\n')) readLine(line);
-  }
+  });
 
   if (failure) throw new Error(failure);
   if (!done) throw new Error('The review ended early. Try again.');

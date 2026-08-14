@@ -3865,3 +3865,21 @@ Model-written text always says so. The rulings:
 - **Stale AI output stays readable, flagged, never silently regenerated**: a
   notice ("Your deck has changed since this was written") plus an explicit
   re-run button; the prose itself drops to `--text-secondary` while stale.
+- **Streaming shows the prose, never the plumbing (T102).** A skeleton covers
+  only the wait before the first word; after that the text renders as it lands,
+  with a caret and an announced "Writing…" status. Structure that depends on
+  the *whole* answer — section titles, card chips — waits for completion rather
+  than reflowing mid-write. Any machine-readable tail the model emits is
+  withheld server-side so it can never flicker on screen as prose. A stream
+  that ends without its terminator is a failure, not a short answer: drop the
+  partial and offer the retry, because half a finding still reads as a finding.
+- **An AI surface that proposes actions shows the whole move on the row**
+  (T102): what comes in, what goes out, and why, so the move can be judged
+  without expanding anything. Accepting routes through the app's existing apply
+  path — the same `Change` the coach feed uses — never a parallel mutation. And
+  **"nothing to change" is a result, not an empty state**: say so in a sentence
+  rather than rendering a blank panel that reads as broken.
+- **One shared AI status per page** (`useAiStatus`). Multiple AI panels read
+  the same quota store, so they can never show two different "N left today"
+  numbers; a spend updates every meter at once. Each panel still self-hides on
+  its own when the feature is unavailable or consent is absent.
