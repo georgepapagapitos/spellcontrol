@@ -258,12 +258,29 @@
   text-decoration: line-through;
 }
 
+/* Explicit placement, all three cells. Without it the `why` row (which spans
+   both columns) pushes the action into a THIRD row, where the 1fr column
+   stretches it into a full-width bar — the move and its control have to share
+   the top line for the row to read as one decision. */
+.deck-ai-tweak-move {
+  grid-column: 1;
+  grid-row: 1;
+}
+
 .deck-ai-tweak-why {
   grid-column: 1 / -1;
+  grid-row: 2;
   margin: 0;
   font-size: var(--text-xs);
   color: var(--text-secondary);
   line-height: 1.45;
+}
+
+.deck-ai-tweak > .btn,
+.deck-ai-tweak-done {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
 }
 
 .deck-ai-tweak-done {

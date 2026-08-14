@@ -3,24 +3,51 @@ import { MAX_POOL, buildRefinePool, requestDeckRefine } from './ai-refine';
 import type { GapAnalysisCard } from '@/deck-builder/types';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
 import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
+import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUpgrades';
 
 afterEach(() => vi.unstubAllGlobals());
 
 const gap = (name: string) => ({ name }) as GapAnalysisCard;
 const syn = (cardName: string) => ({ cardName }) as SynergySuggestion;
 const sub = (usedName: string) => ({ usedName }) as SubstituteRow;
+// ⚠️ LandUpgradeMove.inName is the card ADDED (outName is the one cut) — the
+// opposite polarity to Change.inName.
+const land = (inName: string) => ({ inName, outName: 'Old Land' }) as LandUpgradeMove;
 
 describe('buildRefinePool', () => {
   const empty = new Set<string>();
 
-  it('unions the three coach lanes, staples first', () => {
+  it('unions the coach lanes, staples first and lands last', () => {
     const pool = buildRefinePool({
       gaps: [gap('Sol Ring')],
       synergy: [syn('Blood Artist')],
       substitutes: [sub('Viscera Seer')],
+      landUpgrades: [land('Command Tower')],
       deckNames: empty,
     });
-    expect(pool.map((c) => c.name)).toEqual(['Sol Ring', 'Blood Artist', 'Viscera Seer']);
+    expect(pool.map((c) => c.name)).toEqual([
+      'Sol Ring',
+      'Blood Artist',
+      'Viscera Seer',
+      'Command Tower',
+    ]);
+  });
+
+  it('pools land upgrades — often the only lane with anything in it', () => {
+    // Regression: the first cut omitted this, and every generated deck in the
+    // dev account had gaps/synergy/substitutes empty while the coach showed
+    // "Lands 6" — so the refine button sat permanently disabled.
+    const pool = buildRefinePool({
+      landUpgrades: [land('Command Tower'), land('Exotic Orchard')],
+      deckNames: empty,
+    });
+    expect(pool.map((c) => c.name)).toEqual(['Command Tower', 'Exotic Orchard']);
+  });
+
+  it('takes the INCOMING land, never the one being cut', () => {
+    const pool = buildRefinePool({ landUpgrades: [land('Command Tower')], deckNames: empty });
+    expect(pool.map((c) => c.name)).toEqual(['Command Tower']);
+    expect(pool.some((c) => c.name === 'Old Land')).toBe(false);
   });
 
   it('never offers a card the deck already runs', () => {
