@@ -128,6 +128,68 @@ describe('DeckAiRefine', () => {
     expect(await screen.findByText(/already holds together/)).toBeTruthy();
   });
 
+  it('starts as a compact strip on the Suggestions tab and expands in place (E244)', async () => {
+    stubApi(true, []);
+    render(
+      <DeckAiRefine
+        deckId="d1"
+        format="commander"
+        commander={card('Meren of Clan Nel Toth')}
+        partnerCommander={null}
+        mainboard={[{ slotId: 's1', card: card('Swamp') }]}
+        pool={[{ name: "Hell's Caretaker", oracleId: 'p1', qty: 1 }]}
+        ownedOnly={false}
+        onApplyMove={() => {}}
+        variant="suggestions"
+      />
+    );
+    // Collapsed: one row, the tab's suggestion list keeps its space.
+    const strip = await screen.findByRole('button', { name: /Weigh these suggestions/ });
+    expect(strip.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('button', { name: 'Weigh the suggestions' })).toBeNull();
+
+    fireEvent.click(strip);
+    expect(await screen.findByRole('button', { name: 'Weigh the suggestions' })).toBeTruthy();
+  });
+
+  it('expanding the strip without consent shows the consent card, in place', async () => {
+    stubApi(false, []);
+    render(
+      <DeckAiRefine
+        deckId="d1"
+        format="commander"
+        commander={card('Meren of Clan Nel Toth')}
+        partnerCommander={null}
+        mainboard={[{ slotId: 's1', card: card('Swamp') }]}
+        pool={[{ name: "Hell's Caretaker", oracleId: 'p1', qty: 1 }]}
+        ownedOnly={false}
+        onApplyMove={() => {}}
+        variant="suggestions"
+      />
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /Weigh these suggestions/ }));
+    expect(await screen.findByRole('button', { name: 'Turn on AI Beta' })).toBeTruthy();
+  });
+
+  it('shows no strip at all with an empty pool — an advisor with nothing to say', async () => {
+    stubApi(true, []);
+    const { container } = render(
+      <DeckAiRefine
+        deckId="d1"
+        format="commander"
+        commander={card('Meren of Clan Nel Toth')}
+        partnerCommander={null}
+        mainboard={[{ slotId: 's1', card: card('Swamp') }]}
+        pool={[]}
+        ownedOnly={false}
+        onApplyMove={() => {}}
+        variant="suggestions"
+      />
+    );
+    // Let the status fetch settle, then confirm nothing rendered.
+    await waitFor(() => expect(container.firstChild).toBeNull());
+  });
+
   it('will not run with an empty pool — there would be nothing to curate', async () => {
     stubApi(true, []);
     render(

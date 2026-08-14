@@ -1116,6 +1116,7 @@ export function DeckEditorPage() {
             gaps: deck.gapAnalysis ?? [],
             synergy: deck.synergyAnalysis?.suggestions ?? [],
             substitutes: substitutionPlan?.rows ?? [],
+            hiddenGems: deck.hiddenGems ?? [],
             landUpgrades,
             deckNames: deckCardNames,
             ownedNames: refineOwnedOnly ? ownedNames : undefined,
@@ -3280,6 +3281,27 @@ export function DeckEditorPage() {
                 enableSuggestions={!!formatConfig?.hasCommander}
                 suggestionsPending={analysisState === 'pending'}
                 commanderKey={commanderKey}
+                aiSlot={
+                  formatConfig?.hasCommander && deck.commander ? (
+                    <DeckAiRefine
+                      variant="suggestions"
+                      deckId={deck.id}
+                      format={deck.format}
+                      commander={deck.commander}
+                      partnerCommander={deck.partnerCommander ?? null}
+                      mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
+                      pool={refinePool}
+                      ownedOnly={refineOwnedOnly}
+                      onApplyMove={(change) => {
+                        // Mirror the panel's own onAdd: a pure add on a full deck
+                        // opens the replace-when-full prompt, so the sheet gets
+                        // out of its way first (swaps stay in place).
+                        if (change.type === 'add' && deckIsFull) setShowAddPanel(false);
+                        void handleApplyCoachMove(change);
+                      }}
+                    />
+                  ) : undefined
+                }
               />
             </>
           )}
