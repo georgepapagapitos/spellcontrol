@@ -27,6 +27,10 @@
   align-items: center;
   gap: var(--space-2);
   width: 100%;
+  /* The Coach-tab mounts sit directly on the tune bento's multi-column grid —
+     an unspanned child lands in column 1 at half width (same trap .coach-feed
+     documents). Span the full row; inert in the non-grid mounts. */
+  grid-column: 1 / -1;
   margin-bottom: var(--space-3);
   padding: var(--space-2) var(--space-3);
   background: var(--surface-raised);
