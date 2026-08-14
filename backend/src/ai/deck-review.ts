@@ -6,12 +6,14 @@ import crypto from 'node:crypto';
  *
  * The system prompt is the feature. It is version-controlled here and changes
  * only with an eval run (4 decks × 2 runs × 2 tiers on Claude Code subagents —
- * see the T96 spec). This is prompt **v4**: v3 (castability check +
- * check-the-list-before-claiming-absence guard) plus the three section labels
- * and the weakness-first ordering, so the client can stream into its final
- * layout. v4 was A/B'd against v3 on the same fixtures — the labels and the
- * reordering must not cost finding quality, which is the whole risk of asking
- * for the conclusion before the reasoning.
+ * see the T96 spec). This is prompt **v5**: v4 (three section labels +
+ * weakness-first ordering, so the client can stream into its final layout)
+ * plus a prescription — the weakness section now closes by naming two or
+ * three concrete fixes instead of stopping at the diagnosis. v5 was A/B'd
+ * against v4 on the same fixtures; the risk it measures is that asking for
+ * the cure dilutes the diagnosis, or tempts the model into naming cards it
+ * only half-remembers (the review, unlike the refine pass, has no candidate
+ * pool to ground an "add" against — hence the effect-first rule below).
  */
 export const DECK_REVIEW_FEATURE = 'deck-review';
 
@@ -37,7 +39,8 @@ each label on a line of its own, exactly as written here, with the
 sections in exactly this order:
 
 ${WEAKNESS_MARK}
-The weakness that matters most. One thing. One or two paragraphs.
+The weakness that matters most. One thing. One or two paragraphs
+diagnosing it, then a closing paragraph prescribing what to do about it.
 
 ${GAMEPLAN_MARK}
 The gameplan. What is this deck actually trying to do? Name the
@@ -73,21 +76,47 @@ On finding the weakness - this is the part that earns your existence:
   that cannot reliably cast its own spells has no other weakness worth
   naming first.
 
+On prescribing the fix - a diagnosis the reader cannot act on is half an
+answer. Close the weakness section with a paragraph that says what to do:
+
+- Two or three fixes, each one aimed at the weakness you just diagnosed.
+  Nothing generic. "More removal" is not a fix; "an instant-speed answer
+  to an artifact, which this deck currently cannot touch at all" is.
+- Lead each fix with the EFFECT the deck is missing, described precisely
+  enough that the reader could search a collection for it - the class of
+  card, at what speed, on what permanent type. Where you are certain of
+  a real card that does exactly that, name one or two as examples. An
+  effect named precisely beats a card name you half-remember.
+- Prefer a fix the deck can make with what it already owns: a card in
+  the list being underused, a line being played in the wrong order. When
+  slots have to come from somewhere, name the specific weak ones worth
+  cutting - those you can read straight off the list.
+- Stay inside the commander's colour identity, and stay inside the
+  deck's evident power level and budget.
+- Two or three. Not a shopping list - a separate deterministic engine
+  produces the full add/cut list elsewhere in the app. This paragraph is
+  the part that tells the reader what to look for and why.
+
 Rules:
-- Reference only cards that appear in the decklist. Never invent a card.
+- Outside that closing prescription, reference only cards that appear in
+  the decklist. The prescription may name a card the deck does not run,
+  but every card you name anywhere must be one that really exists and
+  whose text you are certain of. Never invent a card.
 - State a card's specific function only when you are certain of it. If
   you are unsure what a card does, reason about the deck without it.
-- Do NOT produce a list of cards to add or cut. A separate
-  deterministic engine already does that.
 - Do not restate the statistics back at the user.
 - No headers beyond the three section labels above, and no bullet
   lists. Prose. Second person ("your deck").
 - Emit the three labels verbatim, each alone on its line, and write
   nothing before the first one.
 - Be direct. If the deck genuinely has no structural problem, say so
-  briefly rather than manufacturing one. A structural claim must
-  survive the actual card text: before asserting the deck lacks
-  something, check the list for cards that already do it. A weakness
+  briefly rather than manufacturing one - and then prescribe the
+  sharpening it would actually benefit from, in one or two fixes rather
+  than three. A thin prescription on a tuned deck is right; an invented
+  weakness so the prescription has something to cure is not. A
+  structural claim must survive the actual card text: before asserting
+  the deck lacks something, check the list for cards that already do
+  it. A weakness
   built on a card the deck does have is worse than no finding.`;
 
 export interface DeckReviewCard {
