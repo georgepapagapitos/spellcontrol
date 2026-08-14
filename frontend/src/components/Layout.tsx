@@ -8,6 +8,7 @@ import { BinderEditor } from './BinderEditor';
 import { ToastViewport } from './ToastViewport';
 import { ConflictPanel } from './ConflictPanel';
 import { KeyboardShortcutsOverlay } from './KeyboardShortcutsOverlay';
+import { CommandPalette } from './CommandPalette';
 import { RulesReferenceSheet } from './RulesReferenceSheet';
 import { ActivityLiveRegion } from './ActivityLiveRegion';
 import { ScrollContainerContext } from '../lib/scroll-container';
@@ -25,6 +26,7 @@ import {
 
 /** The app-wide shortcuts that appear in every context. */
 const GLOBAL_SHORTCUTS = [
+  { keys: ['⌘K', 'Ctrl+K'], description: 'Open the command palette' },
   { keys: ['?'], description: 'Show keyboard shortcuts' },
   { keys: ['Esc'], description: 'Close overlays / dialogs' },
 ];
@@ -39,6 +41,7 @@ function LayoutShell() {
   useRegisterShortcuts('Global', GLOBAL_SHORTCUTS);
 
   const { sections, open, toggle, hide } = useShortcutRegistry();
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   // App-shell layout: the shell is a fixed-height non-scrolling flex column
   // and <main> is the single scroll container. Nothing is position:fixed and
@@ -87,6 +90,22 @@ function LayoutShell() {
     return () => document.removeEventListener('keydown', onKey);
   }, [toggle]);
 
+  // ⌘K / Ctrl+K — the command palette. Separate from the `?` listener above,
+  // which bails on any modifier by design. Deliberately NOT gated on
+  // `isTypingTarget`: a palette you cannot reach from a search box is a
+  // palette you reach for and miss. The browser's own ⌘K (address bar) is
+  // preventDefault'd, which is the platform convention for this shortcut.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
+      if (e.key !== 'k' && e.key !== 'K') return;
+      e.preventDefault();
+      setPaletteOpen((v) => !v);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
   // Build the groups prop for the overlay from registered sections.
   const overlayGroups = useMemo(
     () =>
@@ -119,6 +138,7 @@ function LayoutShell() {
       <RulesReferenceSheet />
       <ActivityLiveRegion />
       {open && <KeyboardShortcutsOverlay groups={overlayGroups} onClose={hide} />}
+      {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
     </div>
   );
 }
