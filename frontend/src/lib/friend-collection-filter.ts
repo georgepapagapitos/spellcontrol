@@ -1,18 +1,19 @@
 import type { FriendCard } from './cube/pool';
+import { colorSelectionMatches, type ColorMatchMode } from './colors';
 import { buildFriendSearch } from './friend-search';
 
 /** WUBRG identity codes plus 'C' for colorless. */
 export type FriendColorFilter = ReadonlySet<string>;
 
-function colorMatches(card: FriendCard, colors: FriendColorFilter): boolean {
-  if (colors.size === 0) return true;
-  if (card.colors.length === 0) return colors.has('C');
-  return card.colors.some((c) => colors.has(c));
+function colorMatches(card: FriendCard, colors: FriendColorFilter, mode: ColorMatchMode): boolean {
+  return colorSelectionMatches(card.colors.length === 0 ? 'C' : '', card.colors, colors, mode);
 }
 
 export interface FriendCollectionFilters {
   query: string;
   colors: FriendColorFilter;
+  /** OR ('any', default) vs AND ('all') across the selected colors. */
+  colorMode?: ColorMatchMode;
   /** Oracle-tag lookup, so `otag:` clauses resolve (keyed by card NAME). */
   tagsFor?: (name: string) => string[];
 }
@@ -46,7 +47,7 @@ export function filterFriendCollection(
   // rendering an empty list as "they own none" (E237).
   const search = buildFriendSearch(filters.query, filters.tagsFor);
   const cardsOut = cards
-    .filter((c) => search.match(c) && colorMatches(c, filters.colors))
+    .filter((c) => search.match(c) && colorMatches(c, filters.colors, filters.colorMode ?? 'any'))
     .sort((a, b) => {
       const ar = a.edhrecRank ?? Number.POSITIVE_INFINITY;
       const br = b.edhrecRank ?? Number.POSITIVE_INFINITY;

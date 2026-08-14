@@ -14,7 +14,7 @@ import type {
 import type { SortContext } from '../lib/sorting';
 import { compileFilter, cardMatchesCompiled, isExpressionEmpty } from '../lib/rules';
 import { sortCards, printingKey } from '../lib/sorting';
-import { getColorKey } from '../lib/colors';
+import { colorSelectionMatches, getColorKey, type ColorMatchMode } from '../lib/colors';
 import { cardTagLabel } from '../lib/card-tags';
 import { useCardsWithTags } from '../lib/card-tags';
 import type { EnrichedListRow } from '../lib/use-enriched-list-entries';
@@ -191,6 +191,7 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
   const [typesExpr, setTypesExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [subtypeExpr, setSubtypeExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [colorFilter, setColorFilter] = useState<Set<string>>(new Set());
+  const [colorMode, setColorMode] = useState<ColorMatchMode>('any');
   const [rarityExpr, setRarityExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [oracleExpr, setOracleExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [oracleTagExpr, setOracleTagExpr] = useState<ChipExpression>(EMPTY_EXPR);
@@ -302,19 +303,15 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
   const filtered = useMemo(
     () =>
       rows.filter(({ card }) => {
-        // Color identity (any-of), same semantics as the collection.
+        // Color identity (OR/AND per colorMode), same semantics as the collection.
         if (colorFilter.size > 0) {
           const k = getColorKey(card);
           const ci = card.colorIdentity || [];
-          const matches =
-            (k === 'C' && colorFilter.has('C')) ||
-            ci.some((c) => colorFilter.has(c)) ||
-            (k !== 'C' && colorFilter.has(k));
-          if (!matches) return false;
+          if (!colorSelectionMatches(k, ci, colorFilter, colorMode)) return false;
         }
         return cardMatchesCompiled(card, compiledMatchFilter);
       }),
-    [rows, colorFilter, compiledMatchFilter]
+    [rows, colorFilter, colorMode, compiledMatchFilter]
   );
 
   const sorted = useMemo(() => {
@@ -356,7 +353,9 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
       };
       chips.push({
         id: 'color',
-        label: `Color: ${[...colorFilter].map((k) => map[k] ?? k).join(', ')}`,
+        label: `Color: ${[...colorFilter]
+          .map((k) => map[k] ?? k)
+          .join(colorMode === 'all' ? ' + ' : ', ')}`,
         onClear: () => setColorFilter(new Set()),
       });
     }
@@ -413,6 +412,7 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
   }, [
     search,
     colorFilter,
+    colorMode,
     rarityExpr,
     supertypeExpr,
     typesExpr,
@@ -435,6 +435,7 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
     setTypesExpr(EMPTY_EXPR);
     setSubtypeExpr(EMPTY_EXPR);
     setColorFilter(new Set());
+    setColorMode('any');
     setRarityExpr(EMPTY_EXPR);
     setOracleExpr(EMPTY_EXPR);
     setOracleTagExpr(EMPTY_EXPR);
@@ -571,6 +572,8 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
               subtypeSuggestions={[]}
               colorFilter={colorFilter}
               setColorFilter={setColorFilter}
+              colorMode={colorMode}
+              setColorMode={setColorMode}
               colorOptions={COLOR_FILTERS}
               rarityExpr={rarityExpr}
               setRarityExpr={setRarityExpr}

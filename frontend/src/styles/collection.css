@@ -281,6 +281,14 @@
   color: var(--text-muted);
 }
 
+/* Label row that also carries a trailing control (the color AND/OR chip). */
+.collection-filters-section-label--split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
 /* Inside the dialog, type chips wrap freely — the dialog sets its own
    width so the mobile horizontal-scroll override is irrelevant here. */
 .collection-filters-section .collection-type-chips {

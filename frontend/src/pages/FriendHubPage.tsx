@@ -29,6 +29,8 @@ import { H2HSummary } from '../components/play/H2HSummary';
 import { Tabs, type TabItem } from '../components/Tabs';
 import { SearchPill } from '../components/SearchPill';
 import { ColorPip } from '../components/shared/ManaSymbol';
+import { ColorMatchModeToggle } from '../components/shared/ColorMatchModeToggle';
+import type { ColorMatchMode } from '../lib/colors';
 import { SharedEmptyState } from '../components/share/SharedEmptyState';
 import type { ShareKind } from '../lib/shared-types';
 
@@ -233,6 +235,7 @@ export function FriendHubPage() {
   // ── Collection browser filters ──────────────────────────────────────
   const [collectionQuery, setCollectionQuery] = useState('');
   const [collectionColors, setCollectionColors] = useState<Set<string>>(new Set());
+  const [collectionColorMode, setCollectionColorMode] = useState<ColorMatchMode>('any');
   const [collectionVisible, setCollectionVisible] = useState(COLLECTION_PAGE_SIZE);
 
   // `otag:` needs the tag snapshot; load it only when the query asks for one
@@ -246,10 +249,11 @@ export function FriendHubPage() {
         ? filterFriendCollection(friendCards, {
             query: collectionQuery,
             colors: collectionColors,
+            colorMode: collectionColorMode,
             tagsFor: collectionTagsReady ? getCardTags : undefined,
           })
         : { cards: [], ignored: [] },
-    [friendCards, collectionQuery, collectionColors, collectionTagsReady]
+    [friendCards, collectionQuery, collectionColors, collectionColorMode, collectionTagsReady]
   );
   const filteredFriendCards = friendSearchResult.cards;
 
@@ -257,7 +261,7 @@ export function FriendHubPage() {
   // "show more" depth — reset to the first page. Adjusted during render (the
   // React-documented pattern for resetting state on a prop/derived-value
   // change) rather than in an effect, which would cascade an extra render.
-  const collectionResetKey = `${friendId ?? ''}:${collectionAttempt}:${collectionQuery}:${[...collectionColors].sort().join(',')}`;
+  const collectionResetKey = `${friendId ?? ''}:${collectionAttempt}:${collectionQuery}:${[...collectionColors].sort().join(',')}:${collectionColorMode}`;
   const [lastResetKey, setLastResetKey] = useState(collectionResetKey);
   if (collectionResetKey !== lastResetKey) {
     setLastResetKey(collectionResetKey);
@@ -589,6 +593,10 @@ export function FriendHubPage() {
                     </button>
                   );
                 })}
+                <ColorMatchModeToggle
+                  mode={collectionColorMode}
+                  onChange={setCollectionColorMode}
+                />
               </div>
             </div>
 
@@ -613,6 +621,7 @@ export function FriendHubPage() {
                       ? () => {
                           setCollectionQuery('');
                           setCollectionColors(new Set());
+                          setCollectionColorMode('any');
                         }
                       : undefined
                   }

@@ -5,6 +5,8 @@ import type { DeckFormat } from '@/deck-builder/types';
 import type { DeckSource } from '../store/decks';
 import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
 import { ColorPip } from './shared/ManaSymbol';
+import { ColorMatchModeToggle } from './shared/ColorMatchModeToggle';
+import type { ColorMatchMode } from '@/lib/colors';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
 import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
 
@@ -29,6 +31,9 @@ interface Props {
   setSources: (next: Set<DeckSource>) => void;
   colors: Set<string>;
   setColors: (next: Set<string>) => void;
+  /** OR ('any') vs AND ('all') across the selected colors. Decks default to 'all'. */
+  colorMode: ColorMatchMode;
+  setColorMode: (next: ColorMatchMode) => void;
 }
 
 type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
@@ -50,6 +55,8 @@ export function DeckFiltersPopover({
   setSources,
   colors,
   setColors,
+  colorMode,
+  setColorMode,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
@@ -205,7 +212,10 @@ export function DeckFiltersPopover({
             </section>
 
             <section className="deck-filters-section">
-              <div className="deck-filters-section-label">Color</div>
+              <div className="deck-filters-section-label deck-filters-section-label--split">
+                Color
+                <ColorMatchModeToggle mode={colorMode} onChange={setColorMode} />
+              </div>
               <div className="color-filter-row" role="group" aria-label="Filter by color">
                 {COLOR_OPTIONS.map((c) => {
                   const active = colors.has(c.key);
