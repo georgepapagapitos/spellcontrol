@@ -29,11 +29,9 @@ export const PageGrid = memo(function PageGrid({
   return (
     <div className="page-wrap">
       <PageNum pageNum={pageNum} pageIndex={pageIndex} />
-      <div className={`page ${gridClass}`}>
-        {page.map((card, i) => (
-          <CardSlot key={i} card={card} showImage={showImages} />
-        ))}
-      </div>
+      {/* Above the grid, under the page number, so the chips read as THIS
+          page's contents — below the grid they visually attach to the next
+          page's heading. */}
       {labels && labels.length > 0 && (
         <div className="page-chips">
           {labels.map((l) => (
@@ -43,6 +41,11 @@ export const PageGrid = memo(function PageGrid({
           ))}
         </div>
       )}
+      <div className={`page ${gridClass}`}>
+        {page.map((card, i) => (
+          <CardSlot key={i} card={card} showImage={showImages} />
+        ))}
+      </div>
     </div>
   );
 });
