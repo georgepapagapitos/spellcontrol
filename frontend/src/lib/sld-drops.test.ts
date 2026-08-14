@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { baseCollectorNumber, dropsForNumber, parseSldDrops } from './sld-drops';
+import {
+  baseCollectorNumber,
+  bindersUseSldDrops,
+  decorateSldDrops,
+  dropsForNumber,
+  parseSldDrops,
+} from './sld-drops';
 
 const VALID = {
   generatedAt: '2026-07-16T00:00:00.000Z',
@@ -56,6 +62,65 @@ describe('dropsForNumber', () => {
 
   it('returns [] for unmapped numbers', () => {
     expect(dropsForNumber(index, '9999')).toEqual([]);
+  });
+});
+
+describe('decorateSldDrops', () => {
+  const index = parseSldDrops(VALID)!;
+  const card = (setCode: string, collectorNumber: string) => ({ setCode, collectorNumber });
+
+  it('stamps the drop name and release date onto SLD cards', () => {
+    const [c] = decorateSldDrops([card('SLD', '92')], index);
+    expect(c).toMatchObject({ sldDrop: 'OMG KITTIES', sldDropReleasedAt: '2019-12-02' });
+  });
+
+  it('matches SLD case-insensitively and through variant suffixes', () => {
+    expect(decorateSldDrops([card('sld', '92★')], index)[0]).toMatchObject({
+      sldDrop: 'OMG KITTIES',
+    });
+  });
+
+  it('takes the first drop when a number was sold in several', () => {
+    // A physical card can only sit in one binder section.
+    expect(decorateSldDrops([card('SLD', '708')], index)[0]).toMatchObject({
+      sldDrop: 'Allied Talismans',
+    });
+  });
+
+  it('leaves non-SLD cards and unmapped SLD numbers undecorated', () => {
+    const cards = [card('MH3', '92'), card('SLD', '9999')];
+    const out = decorateSldDrops(cards, index);
+    expect(out.every((c) => !('sldDrop' in c))).toBe(true);
+  });
+
+  it('returns the input array by identity when nothing can be decorated', () => {
+    // Keeps a downstream useMemo from invalidating for collections this can't affect.
+    const cards = [card('MH3', '92')];
+    expect(decorateSldDrops(cards, index)).toBe(cards);
+    expect(decorateSldDrops(cards, null)).toBe(cards);
+    expect(decorateSldDrops(cards, undefined)).toBe(cards);
+  });
+
+  it('does not mutate the cards it decorates', () => {
+    const original = card('SLD', '92');
+    decorateSldDrops([original], index);
+    expect(original).not.toHaveProperty('sldDrop');
+  });
+});
+
+describe('bindersUseSldDrops', () => {
+  it('is true only when a binder sorts by drop', () => {
+    expect(bindersUseSldDrops([{ sorts: [{ field: 'color', dir: 'asc' }] }])).toBe(false);
+    expect(
+      bindersUseSldDrops([
+        { sorts: [{ field: 'color', dir: 'asc' }] },
+        { sorts: [{ field: 'sldDrop', dir: 'asc' }] },
+      ])
+    ).toBe(true);
+  });
+
+  it('tolerates a binder with no sorts', () => {
+    expect(bindersUseSldDrops([{ sorts: undefined as never }])).toBe(false);
   });
 });
 

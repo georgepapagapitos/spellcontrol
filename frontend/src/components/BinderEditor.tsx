@@ -105,6 +105,7 @@ export function BinderEditor() {
   const sectionModeGroup = useId();
   const binderModeGroup = useId();
   const [pageBreakDepth, setPageBreakDepth] = useState<number>(1);
+  const [packSections, setPackSections] = useState(false);
   const [groups, setGroups] = useState<BinderFilterGroup[]>([newGroup()]);
   const [routingMode, setRoutingMode] = useState<'rules' | 'manual'>('rules');
   const [sorts, setSorts] = useState<SortEntry[]>([...NEW_BINDER_DEFAULT_SORTS]);
@@ -240,6 +241,7 @@ export function BinderEditor() {
         setKeepPrintingsTogether(!!existing.keepPrintingsTogether);
         setSectionMode(existing.sectionMode ?? 'sort');
         setPageBreakDepth(existing.pageBreakDepth ?? 1);
+        setPackSections(!!existing.packSections);
         const existingGroups = existing.filterGroups?.length
           ? existing.filterGroups.map((g) => ({
               name: g.name,
@@ -505,6 +507,7 @@ export function BinderEditor() {
       tradeable: tradeable || undefined,
       sectionMode: sectionMode !== 'sort' ? sectionMode : undefined,
       pageBreakDepth: pageBreakDepth > 1 ? pageBreakDepth : undefined,
+      packSections: packSections || undefined,
     };
 
     // Rules binder (or editing an existing one): synchronous create/update.
@@ -941,6 +944,33 @@ export function BinderEditor() {
                             </label>
                           ))}
                         </fieldset>
+                      </div>
+                    </div>
+                  )}
+                  {sectionMode !== 'group' && (
+                    <div className="editor-row" style={{ marginTop: '0.75rem' }}>
+                      <div className="field" style={{ flex: 1 }}>
+                        <label>Page filling</label>
+                        <label
+                          className="field-checkbox"
+                          style={{ margin: 0 }}
+                          title="Off, every section starts its own page — clean, but many small sections leave most pockets empty. On, consecutive sections share a page whenever they both fit, and a section is still never split across a page boundary. Built for Secret Lair drops, where 35 drops of 1–7 cards would otherwise burn 39 pages to hold 199 cards."
+                        >
+                          <input
+                            type="checkbox"
+                            checked={packSections}
+                            onChange={(e) => setPackSections(e.target.checked)}
+                          />
+                          Fit several sections per page
+                        </label>
+                        <span
+                          className="sort-page-break-hint"
+                          style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)' }}
+                        >
+                          {packSections
+                            ? 'Sections share a page when they fit — but none is ever split across two pages.'
+                            : 'Every section starts a new page, leaving the rest of it empty.'}
+                        </span>
                       </div>
                     </div>
                   )}

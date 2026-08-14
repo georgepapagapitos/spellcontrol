@@ -92,6 +92,32 @@
   color: var(--text-primary);
 }
 
+/* A packed section shares its pages between several groups (Secret Lair drops),
+   so the header names each one as its own chip rather than one long run-on
+   string. Wraps on narrow viewports instead of pushing `.section-meta` off. */
+.section-title-multi {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* Mirrors the `.chip` treatment in binder-rules-editor.css so the two read as
+   one family — same radius, hairline border and serif face. */
+.section-title-chip {
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  padding: var(--space-1) 10px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .section-meta {
   font-size: var(--text-sm);
   color: var(--text-muted);

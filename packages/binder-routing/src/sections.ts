@@ -1,6 +1,7 @@
 import type { EnrichedCard, SetMap, SortField } from './types.js';
 import { COLOR_INFO, COLOR_ORDER, getColorKey } from './colors.js';
 import { TYPE_ORDER, getCardType } from './card-types.js';
+import { sldDropRank } from './sorting.js';
 
 export interface SectionContext {
   setMap?: SetMap;
@@ -116,6 +117,15 @@ export function getSectionMeta(
       return priceBucket(card.purchasePrice);
     case 'edhrec':
       return edhrecBucket(card.edhrecRank);
+    case 'sldDrop':
+      // Newest drop first, matching how the Sets page lists them. Cards with no
+      // known drop — non-SLD, or one of the SLD numbers MTGJSON doesn't cover —
+      // collect in one trailing section rather than each becoming its own.
+      // `order` comes from the same helper the comparator uses, so the section
+      // order and the within-section sort can't drift apart.
+      return card.sldDrop
+        ? { key: `sld-${card.sldDrop}`, label: card.sldDrop, order: sldDropRank(card) }
+        : { key: 'sld-none', label: 'Other printings', order: sldDropRank(card) };
     case 'collectorNumber':
     case 'quantity':
     default:
