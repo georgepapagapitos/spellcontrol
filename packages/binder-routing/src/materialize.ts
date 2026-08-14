@@ -404,7 +404,12 @@ function buildSections(
       sections.push(...subSections);
     } else {
       // Leaf behavior (depth=1 or no more sorts): sort cards flat, pack into pages.
-      const sorted = sortCards(gCards, subSorts, ctx);
+      // Sort by the FULL chain, primary included — grouping is coarser than the
+      // sort for every bucketed field (all of collectorNumber/quantity/treatment/
+      // finish/date* land in one "All cards" group, and cmc 7+/price/name-letter/
+      // edhrec buckets each span a range), so dropping the primary here left the
+      // user's first sort field — and its direction — with no effect at all.
+      const sorted = sortCards(gCards, sorts, ctx);
       const section = buildSection(meta, sorted);
       if (section) sections.push(section);
     }
