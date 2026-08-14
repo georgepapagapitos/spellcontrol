@@ -938,6 +938,32 @@ describe('pageBreakDepth', () => {
     }
   });
 
+  it('clamps a stored depth deeper than the user sort chain — never recurses into implicit tiebreakers', () => {
+    // The user-visible failure this pins: a binder left with pageBreakDepth: 2
+    // after its sort chain shrank to just [price]. effectiveSorts appends the
+    // implicit tiebreakers (treatment/finish/name), so subSorts was non-empty
+    // and materialize recursed into them — every price band grew a bogus
+    // " · All cards" sub-level and packSections was silently ignored.
+    const cards = [
+      ...Array.from({ length: 3 }, (_, i) => makeCard({ name: 'Cheap' + i, purchasePrice: 0.5 })),
+      ...Array.from({ length: 7 }, (_, i) => makeCard({ name: 'Mid' + i, purchasePrice: 3 })),
+    ];
+    const binder = makeBinder({
+      filter: {},
+      sorts: [{ field: 'price', dir: 'asc' }],
+      pocketSize: 9,
+      pageBreakDepth: 2, // stale — deeper than the 1-entry user chain
+      packSections: 'continuous',
+    });
+    const { binders } = materializeBinders(cards, [binder], defaultOpts);
+    const result = binders[0];
+    // Clean merged band labels, no " · All cards" recursion suffix…
+    expect(result.sections.map((s) => s.label)).toEqual(['< $1 · $1 – $5']);
+    // …and page filling applies again: the first page is completely full.
+    expect(result.sections[0].pages[0].slots.every((c) => c !== null)).toBe(true);
+    expect(totalPagesOf(result)).toBe(2);
+  });
+
   it('N=2: secondary sort groups each start their own page', () => {
     // 9-pocket. Red CMC-1 = 5 cards, Red CMC-2 = 5 cards.
     // depth=1: 1 section (red), 10 cards → 2 pages packed together.

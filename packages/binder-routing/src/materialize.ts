@@ -222,7 +222,14 @@ export function materializeBinders(
             effectivePocketSize,
             isMatch,
             sortCtx,
-            def.pageBreakDepth ?? 1,
+            // Clamp to the USER's sort count: effectiveSorts carries appended
+            // implicit tiebreakers (treatment/finish/name), and a stored depth
+            // deeper than the user's chain would recurse into those — every
+            // section gains a bogus " · All cards" sub-level and packing is
+            // silently disabled (recursion skips packGroups). A stale depth
+            // outlives its sorts because the editor hides the Page-breaks
+            // control at sorts.length <= 1, leaving no way to reset it.
+            Math.min(def.pageBreakDepth ?? 1, Math.max(def.sorts.length, 1)),
             { value: 0 },
             '',
             '',
