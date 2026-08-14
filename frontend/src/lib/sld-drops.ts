@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { SortEntry } from '@spellcontrol/binder-routing';
 
 /**
  * Secret Lair drop identification (E140). Scryfall lumps every Secret Lair
@@ -72,6 +73,35 @@ export function dropsForNumber(index: SldDropsIndex, collectorNumber: string): S
   return (base !== collectorNumber && index.byNumber.get(base)) || [];
 }
 
+/**
+ * Stamp `sldDrop`/`sldDropReleasedAt` onto every SLD card so the binder engine
+ * can section by drop. Reference decoration, exactly like the otag `tags`
+ * field: never persisted or synced, applied just before materializing.
+ *
+ * Returns the input array by identity when the drop map is unavailable or the
+ * collection holds no mappable Secret Lair cards — so an unloaded snapshot
+ * degrades to today's flat-SLD behavior, and a `useMemo` over the result
+ * doesn't invalidate for collections this can't affect.
+ *
+ * A number sold in more than one drop (the Dan Frazier Talisman pairs) takes
+ * the first: a physical card can only sit in one binder section.
+ */
+export function decorateSldDrops<T extends { setCode: string; collectorNumber: string }>(
+  cards: T[],
+  index: SldDropsIndex | null | undefined
+): T[] {
+  if (!index) return cards;
+  let touched = false;
+  const out = cards.map((card) => {
+    if (card.setCode?.toUpperCase() !== SLD_CODE) return card;
+    const drop = dropsForNumber(index, card.collectorNumber)[0];
+    if (!drop) return card;
+    touched = true;
+    return { ...card, sldDrop: drop.name, sldDropReleasedAt: drop.releasedAt };
+  });
+  return touched ? out : cards;
+}
+
 let sldDropsPromise: Promise<SldDropsIndex | null> | null = null;
 
 /**
@@ -90,6 +120,27 @@ export function getSldDrops(): Promise<SldDropsIndex | null> {
       });
   }
   return sldDropsPromise;
+}
+
+/** True when any binder sections by Secret Lair drop — the gate for decorating. */
+export function bindersUseSldDrops(binders: { sorts: SortEntry[] }[]): boolean {
+  return binders.some((b) => b.sorts?.some((s) => s?.field === 'sldDrop'));
+}
+
+/**
+ * Cards decorated with their Secret Lair drop, recomputed when the snapshot
+ * loads. When `usesDrops` is false, returns `cards` by reference — zero cost.
+ * Mirrors `useCardsWithTags`; pass `bindersUseSldDrops(binders)`.
+ */
+export function useCardsWithSldDrops<T extends { setCode: string; collectorNumber: string }>(
+  cards: T[],
+  usesDrops: boolean
+): T[] {
+  const index = useSldDrops();
+  return useMemo(
+    () => (usesDrops ? decorateSldDrops(cards, index) : cards),
+    [cards, usesDrops, index]
+  );
 }
 
 /** React hook for the drop map: undefined while loading, null if unavailable. */

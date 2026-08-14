@@ -222,7 +222,11 @@ export function materializeBinders(
             effectivePocketSize,
             isMatch,
             sortCtx,
-            def.pageBreakDepth ?? 1
+            def.pageBreakDepth ?? 1,
+            { value: 0 },
+            '',
+            '',
+            def.packSections ?? false
           );
     return {
       def,
@@ -323,6 +327,43 @@ function withImplicitTiebreaker(sorts: SortEntry[]): SortEntry[] {
   return extras.length ? [...sorts, ...extras] : sorts;
 }
 
+/** A primary-sort group, before it becomes a section. */
+interface SectionGroup {
+  meta: SectionMeta;
+  cards: EnrichedCard[];
+  /** Labels of every group merged in, in order. Only set by `packGroups`. */
+  labels?: string[];
+}
+
+/**
+ * Flow consecutive groups onto shared pages (`BinderDef.packSections`).
+ *
+ * A group joins the section being built only while it fits *entirely* in the
+ * space left on that section's last page — so a group is never split across a
+ * page boundary, which is the property that matters when you're physically
+ * sleeving cards. Once a section lands exactly on a page boundary the next
+ * group starts a fresh section, which is what keeps every section owning whole
+ * pages (the invariant the whole section→page render depends on) instead of
+ * collapsing the binder into one giant merged section.
+ *
+ * A group bigger than a page always starts its own section, then the leftover
+ * slots on its final page are offered to whatever comes next.
+ */
+function packGroups(ordered: SectionGroup[], slotSize: number): SectionGroup[] {
+  const packed: SectionGroup[] = [];
+  for (const group of ordered) {
+    const current = packed[packed.length - 1];
+    const fill = current ? current.cards.length % slotSize : 0;
+    if (current && fill > 0 && fill + group.cards.length <= slotSize) {
+      current.cards.push(...group.cards);
+      current.labels!.push(group.meta.label);
+    } else {
+      packed.push({ meta: group.meta, cards: [...group.cards], labels: [group.meta.label] });
+    }
+  }
+  return packed;
+}
+
 function buildSections(
   cards: EnrichedCard[],
   sorts: SortEntry[],
@@ -339,20 +380,27 @@ function buildSections(
   // threaded down so nested sub-sections read as "Red · 1 CMC" (not a bare
   // "1 CMC" that repeats per parent) and carry a unique key per parent group.
   labelPrefix = '',
-  keyPrefix = ''
+  keyPrefix = '',
+  packSections = false
 ): BinderSection[] {
   const primary = sorts[0];
   const useGrouping = !!primary && primary.field !== 'none';
 
-  const buildSection = (meta: SectionMeta, sectionCards: EnrichedCard[]): BinderSection | null => {
+  const buildSection = (
+    meta: SectionMeta,
+    sectionCards: EnrichedCard[],
+    labels?: string[]
+  ): BinderSection | null => {
     const sectionPageCount = countPages(sectionCards.length, slotSize);
     const pages = chunkIntoPages(sectionCards, slotSize, isMatch, pageOffsetRef.value);
     pageOffsetRef.value += sectionPageCount;
     const matchingCards = sectionCards.filter(isMatch);
     if (matchingCards.length === 0) return null;
+    const label = labels?.length ? labels.join(' · ') : meta.label;
     return {
       key: keyPrefix ? `${keyPrefix}/${meta.key}` : meta.key,
-      label: labelPrefix ? `${labelPrefix} · ${meta.label}` : meta.label,
+      label: labelPrefix ? `${labelPrefix} · ${label}` : label,
+      ...(labels && labels.length > 1 ? { labels } : {}),
       pip: meta.pip,
       cards: matchingCards,
       pages,
@@ -367,7 +415,7 @@ function buildSections(
 
   // Group by primary sort. Preserve first-seen meta so set-name/label is captured
   // from a real card (avoids needing a second lookup table).
-  const groups = new Map<string, { meta: SectionMeta; cards: EnrichedCard[] }>();
+  const groups = new Map<string, SectionGroup>();
   for (const card of cards) {
     const meta = getSectionMeta(card, primary.field, ctx);
     const entry = groups.get(meta.key);
@@ -385,9 +433,12 @@ function buildSections(
   });
 
   const subSorts = sorts.slice(1);
+  const recursing = pageBreakDepth > 1 && subSorts.length > 0;
+  // Packing only makes sense at the leaf, where groups actually become pages.
+  const groupsToBuild = packSections && !recursing ? packGroups(ordered, slotSize) : ordered;
   const sections: BinderSection[] = [];
-  for (const { meta, cards: gCards } of ordered) {
-    if (pageBreakDepth > 1 && subSorts.length > 0) {
+  for (const { meta, cards: gCards, labels } of groupsToBuild) {
+    if (recursing) {
       // Recurse: sub-sorts also break pages. Each sub-group starts fresh.
       // pageOffsetRef is threaded through so page numbers stay globally monotonic.
       const subSections = buildSections(
@@ -404,8 +455,13 @@ function buildSections(
       sections.push(...subSections);
     } else {
       // Leaf behavior (depth=1 or no more sorts): sort cards flat, pack into pages.
-      const sorted = sortCards(gCards, subSorts, ctx);
-      const section = buildSection(meta, sorted);
+      // Sort by the FULL chain, primary included — grouping is coarser than the
+      // sort for every bucketed field (all of collectorNumber/quantity/treatment/
+      // finish/date* land in one "All cards" group, and cmc 7+/price/name-letter/
+      // edhrec buckets each span a range), so dropping the primary here left the
+      // user's first sort field — and its direction — with no effect at all.
+      const sorted = sortCards(gCards, sorts, ctx);
+      const section = buildSection(meta, sorted, labels);
       if (section) sections.push(section);
     }
   }

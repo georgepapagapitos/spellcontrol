@@ -1,7 +1,7 @@
 import { authedFetch, handleResponse } from './fetch-utils';
 import { readNdjson } from './ndjson';
 import type { DeckAnalysisResult } from './deck-analysis';
-import type { GapAnalysisCard } from '@/deck-builder/types';
+import type { GapAnalysisCard, HiddenGemRow } from '@/deck-builder/types';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
 import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUpgrades';
@@ -94,6 +94,9 @@ export interface RefinePoolSources {
   synergy?: SynergySuggestion[];
   /** Owned-collection stand-ins the substitute finder already matched. */
   substitutes?: SubstituteRow[];
+  /** Underrated evidence-backed picks (E146) — the Suggestions tab's third
+   *  lane, and more of what stops the deck being pure EDHREC. */
+  hiddenGems?: HiddenGemRow[];
   /** Merit-scored land upgrades. ⚠️ `LandUpgradeMove.inName` is the card being
    *  ADDED — the opposite polarity to `Change.inName`, which is the card cut. */
   landUpgrades?: LandUpgradeMove[];
@@ -124,13 +127,14 @@ export interface RefinePoolSources {
  * consequence the model is in no position to weigh, and that lane has its own
  * surface with a "Fit?" check.
  *
- * Ordering is gaps → off-meta → owned substitutes → lands, so if the cap bites
- * it trims the most situational end rather than the staples.
+ * Ordering is gaps → off-meta → owned substitutes → gems → lands, so if the
+ * cap bites it trims the most situational end rather than the staples.
  */
 export function buildRefinePool({
   gaps = [],
   synergy = [],
   substitutes = [],
+  hiddenGems = [],
   landUpgrades = [],
   deckNames,
   ownedNames,
@@ -152,6 +156,7 @@ export function buildRefinePool({
   for (const g of gaps) push(g.name);
   for (const s of synergy) push(s.cardName);
   for (const s of substitutes) push(s.usedName);
+  for (const g of hiddenGems) push(g.name);
   for (const m of landUpgrades) push(m.inName);
 
   return out.slice(0, MAX_POOL);

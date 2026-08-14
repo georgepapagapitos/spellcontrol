@@ -286,6 +286,33 @@ describe('materializeBinders', () => {
     expect(binders[0].sections[2].label).toBe('CMC 7+');
   });
 
+  it('honors a primary sort that has no section grouping, in both directions', () => {
+    // Regression: fields with no section bucket (collectorNumber, quantity,
+    // treatment, finish, date*) all land in the single "All cards" group, and
+    // the leaf sort used to drop the primary entry — so asc and desc produced
+    // byte-identical orders.
+    const cards = ['10', '2', '33'].map((collectorNumber) =>
+      makeCard({ name: `Card ${collectorNumber}`, collectorNumber })
+    );
+    const numbersFor = (dir: 'asc' | 'desc') => {
+      const binder = makeBinder({ filter: {}, sorts: [{ field: 'collectorNumber', dir }] });
+      const { binders } = materializeBinders(cards, [binder], defaultOpts);
+      return binders[0].sections.flatMap((s) => s.cards.map((c) => c.collectorNumber));
+    };
+
+    expect(numbersFor('asc')).toEqual(['2', '10', '33']);
+    expect(numbersFor('desc')).toEqual(['33', '10', '2']);
+  });
+
+  it('sorts within a bucketed section by the primary field (cmc 7+)', () => {
+    const cards = [9, 7, 12].map((cmc) => makeCard({ name: `C${cmc}`, cmc, typeLine: 'Sorcery' }));
+    const binder = makeBinder({ filter: {}, sorts: [{ field: 'cmc', dir: 'asc' }] });
+
+    const { binders } = materializeBinders(cards, [binder], defaultOpts);
+    const bucket = binders[0].sections.find((s) => s.key === 'cmc-7+')!;
+    expect(bucket.cards.map((c) => c.cmc)).toEqual([7, 9, 12]);
+  });
+
   it('produces one "ALL" section when primary sort is "none"', () => {
     const cards = [makeCard({ colorIdentity: ['R'] }), makeCard({ colorIdentity: ['U'] })];
     const binder = makeBinder({ filter: {}, sorts: [{ field: 'none', dir: 'asc' }] });
@@ -1180,5 +1207,113 @@ describe('sticky price retention', () => {
     });
     expect(binders[0].totalCards).toBe(0);
     expect(uncategorized.totalCards).toBe(0); // swallowed, not uncategorized
+  });
+});
+
+describe('sldDrop sections + packSections', () => {
+  /** `n` cards from one Secret Lair drop, released on `releasedAt`. */
+  const drop = (name: string, n: number, releasedAt: string) =>
+    Array.from({ length: n }, (_, i) =>
+      makeCard({
+        name: `${name} ${i}`,
+        setCode: 'SLD',
+        setName: 'Secret Lair Drop',
+        sldDrop: name,
+        sldDropReleasedAt: releasedAt,
+      })
+    );
+
+  const sldBinder = (overrides: Partial<BinderDef> = {}) =>
+    makeBinder({ filter: {}, sorts: [{ field: 'sldDrop', dir: 'asc' }], ...overrides });
+
+  const twelve = { globalPocketSize: 12 as const, search: '' };
+
+  it('makes one section per drop, newest drop first', () => {
+    const cards = [
+      ...drop('Cats of Chaos', 5, '2026-06-16'),
+      ...drop('Bitterblossom Dreams', 7, '2019-12-03'),
+      ...drop('Goblin Storm', 4, '2026-05-18'),
+    ];
+    const { binders } = materializeBinders(cards, [sldBinder()], defaultOpts);
+    expect(binders[0].sections.map((s) => s.label)).toEqual([
+      'Cats of Chaos',
+      'Goblin Storm',
+      'Bitterblossom Dreams',
+    ]);
+  });
+
+  it('collects cards with no known drop into one trailing "Other printings" section', () => {
+    const cards = [
+      ...drop('Cats of Chaos', 3, '2026-06-16'),
+      makeCard({ name: 'Unmapped SLD number', setCode: 'SLD' }),
+      makeCard({ name: 'Not a Secret Lair', setCode: 'MH3' }),
+    ];
+    const { binders } = materializeBinders(cards, [sldBinder()], defaultOpts);
+    const sections = binders[0].sections;
+    expect(sections.map((s) => s.label)).toEqual(['Cats of Chaos', 'Other printings']);
+    expect(sections[1].cards).toHaveLength(2);
+  });
+
+  it('gives every drop its own page by default — the wasteful mode', () => {
+    const cards = [
+      ...drop('A', 5, '2026-03-03'),
+      ...drop('B', 6, '2026-02-02'),
+      ...drop('C', 5, '2026-01-01'),
+    ];
+    const { binders } = materializeBinders(cards, [sldBinder()], twelve);
+    expect(binders[0].sections).toHaveLength(3);
+    expect(binders[0].totalPages).toBe(3); // 16 cards, 20 empty slots
+  });
+
+  it('packSections flows drops onto shared pages without splitting one', () => {
+    const cards = [
+      ...drop('A', 5, '2026-03-03'),
+      ...drop('B', 6, '2026-02-02'),
+      ...drop('C', 5, '2026-01-01'),
+    ];
+    const { binders } = materializeBinders(cards, [sldBinder({ packSections: true })], twelve);
+    const sections = binders[0].sections;
+    // A(5)+B(6)=11 fits one 12-slot page; C(5) would overflow it, so C starts a
+    // fresh page rather than being cut in half.
+    expect(sections).toHaveLength(2);
+    expect(sections[0].label).toBe('A · B');
+    expect(sections[0].labels).toEqual(['A', 'B']);
+    expect(sections[1].label).toBe('C');
+    expect(sections[1].labels).toBeUndefined();
+    expect(binders[0].totalPages).toBe(2);
+  });
+
+  it('never splits a drop across a page boundary', () => {
+    const sizes = [38, 11, 7, 7, 6, 6, 5, 5, 5, 1, 1];
+    const cards = sizes.flatMap((n, i) =>
+      drop(`Drop${String(i).padStart(2, '0')}`, n, `2026-${String(12 - i).padStart(2, '0')}-01`)
+    );
+    const { binders } = materializeBinders(cards, [sldBinder({ packSections: true })], twelve);
+
+    for (const page of binders[0].sections.flatMap((s) => s.pages)) {
+      const filled = page.slots.filter((c): c is EnrichedCard => c !== null);
+      for (const name of new Set(filled.map((c) => c.sldDrop!))) {
+        const onThisPage = filled.filter((c) => c.sldDrop === name).length;
+        const total = sizes[Number(name.slice(4))];
+        // A drop either sits wholly on this page, or is bigger than a page and
+        // legitimately spans several. It may never merely straddle a boundary.
+        expect(onThisPage === total || total > 12).toBe(true);
+      }
+    }
+  });
+
+  it('packs a real-shaped Secret Lair binder into far fewer pages', () => {
+    // The drop sizes of an actual 199-card SLD collection, "Other printings" last.
+    const sizes = [38, 11, 7, 7, 7, 7, 7, 6, 6, 6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 17];
+    const cards = sizes.flatMap((n, i) =>
+      drop(`Drop${i}`, n, `2026-01-${String(sizes.length - i).padStart(2, '0')}`)
+    );
+    const loose = materializeBinders(cards, [sldBinder()], twelve).binders[0];
+    const packed = materializeBinders(cards, [sldBinder({ packSections: true })], twelve)
+      .binders[0];
+
+    expect(packed.totalCards).toBe(loose.totalCards);
+    expect(loose.totalPages).toBe(28);
+    expect(packed.totalPages).toBe(20);
   });
 });

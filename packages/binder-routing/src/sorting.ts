@@ -30,6 +30,7 @@ export const SORT_FIELDS: { value: SortField; label: string; defaultDir: SortDir
   { value: 'edhrec', label: 'EDHREC rank', defaultDir: 'asc' },
   { value: 'treatment', label: 'Treatment', defaultDir: 'asc' },
   { value: 'finish', label: 'Finish', defaultDir: 'asc' },
+  { value: 'sldDrop', label: 'Secret Lair drop', defaultDir: 'asc' },
 ];
 
 /**
@@ -151,6 +152,17 @@ export function buildQtyByPrintingKey(cards: EnrichedCard[]): Map<string, number
   return m;
 }
 
+/**
+ * Sort rank for a card's Secret Lair drop: newest drop first, drops with no
+ * known release date after those, and cards with no drop at all dead last.
+ * All three bands are finite so section ordering can subtract them safely.
+ */
+export function sldDropRank(card: EnrichedCard): number {
+  if (!card.sldDrop) return Number.MAX_SAFE_INTEGER;
+  const t = card.sldDropReleasedAt ? new Date(card.sldDropReleasedAt).getTime() : NaN;
+  return Number.isFinite(t) ? -t : Number.MAX_SAFE_INTEGER - 1;
+}
+
 export const RARITY_ORDER: Record<string, number> = {
   mythic: 0,
   rare: 1,
@@ -250,6 +262,12 @@ export function cardSortValue(
       const n = parseInt(card.collectorNumber, 10);
       return isNaN(n) ? 99999 : n;
     }
+    case 'sldDrop':
+      // Same rank `getSectionMeta` assigns, so the sort and the section order
+      // agree. Two drops released the same day tie here and fall through to the
+      // section label / implicit name tiebreaker, which is what we want — every
+      // card in a drop section already shares the drop.
+      return sldDropRank(card);
     case 'quantity':
       return ctx?.qtyByPrintingKey?.get(printingKey(card)) ?? 1;
     case 'treatment':

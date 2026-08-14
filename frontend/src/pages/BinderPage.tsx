@@ -21,6 +21,7 @@ import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
 import { findRedundantPins } from '../lib/binder-pin-dissolve';
 import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
+import { useCardsWithSldDrops, bindersUseSldDrops } from '../lib/sld-drops';
 import { useAllocations } from '../lib/allocations';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { BinderTabs } from '../components/BinderTabs';
@@ -44,7 +45,10 @@ export function BinderPage() {
   const binders = useCollectionStore((s) => s.binders);
   // Decorate with Scryfall oracle tags so "tag IS mana-rock" rules resolve.
   // No-op (returns rawCards by reference) unless a binder uses a tag rule.
-  const cards = useCardsWithTags(rawCards, bindersUseTags(binders));
+  const taggedCards = useCardsWithTags(rawCards, bindersUseTags(binders));
+  // Decorate with the Secret Lair drop each printing came from, so a binder can
+  // section by drop. Same deal: no-op unless a binder sorts by `sldDrop`.
+  const cards = useCardsWithSldDrops(taggedCards, bindersUseSldDrops(binders));
   const hydrating = useCollectionStore((s) => s.hydrating);
   const search = useCollectionStore((s) => s.search);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);

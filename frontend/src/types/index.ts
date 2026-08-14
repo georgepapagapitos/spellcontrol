@@ -5,7 +5,7 @@
  * can't drift out of lockstep the way they did before (board E205). See that
  * package's `src/types.ts` for the full field-by-field documentation.
  */
-import type { EnrichedCard } from '@spellcontrol/binder-routing';
+import type { EnrichedCard, SortDir, SortEntry, SortField } from '@spellcontrol/binder-routing';
 export type { EnrichedCard };
 
 /**
@@ -153,33 +153,12 @@ export interface ProductResolveResponse {
   physicalCardCount: number;
 }
 
-export type SortField =
-  | 'none'
-  | 'color'
-  | 'type'
-  | 'rarity'
-  | 'cmc'
-  | 'name'
-  | 'setReleaseDate'
-  | 'setName'
-  | 'price'
-  | 'edhrec'
-  | 'collectorNumber'
-  | 'quantity'
-  | 'treatment'
-  | 'finish'
-  // Collection-only import-date sort (see binder-routing SortField); kept in sync
-  // with the canonical union in `@spellcontrol/binder-routing`.
-  | 'dateAdded'
-  // Collection-only last-edit sort (see binder-routing SortField); kept in sync.
-  | 'dateEdited';
-
-export type SortDir = 'asc' | 'desc';
-
-export interface SortEntry {
-  field: SortField;
-  dir: SortDir;
-}
+// Re-exported, not re-declared. These were hand-mirrored copies carrying
+// "kept in sync" comments, which is exactly the drift the EnrichedCard
+// re-export above already fixed: adding a sort field meant editing two unions,
+// and forgetting the second surfaced as an opaque "MaterializedBinder is not
+// assignable to MaterializedBinder" error rather than a missing-case one.
+export type { SortField, SortDir, SortEntry };
 
 /**
  * Pockets per *page* (one side of a physical sheet). A double-sided binder
@@ -470,6 +449,11 @@ export interface BinderDef {
    *  card. The override only holds while a matching copy is still in the
    *  binder — see `lib/binder-cover.ts`. */
   coverScryfallId?: string;
+  /** Flow sections onto shared pages instead of giving each its own, without
+   *  ever splitting one across a page boundary. See the field's full
+   *  documentation on the canonical `BinderDef` in `@spellcontrol/binder-routing`;
+   *  mirrored here so the two definitions stay in lockstep. */
+  packSections?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -523,6 +507,11 @@ export interface BinderSection {
   key: string;
   /** Display label for the section header (e.g. "White", "Creature", "CMC 3"). */
   label: string;
+  /** The individual group labels this section covers — set only when
+   *  `BinderDef.packSections` merged several groups onto shared pages, in which
+   *  case `label` is their joined form. Mirrors the canonical `BinderSection`
+   *  in `@spellcontrol/binder-routing`. */
+  labels?: string[];
   /** Optional color-pip styling — populated only when grouping by color. */
   pip?: { background: string; border: string };
   cards: EnrichedCard[];
