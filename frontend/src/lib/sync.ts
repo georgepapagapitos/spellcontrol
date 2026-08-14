@@ -20,7 +20,6 @@ import { remapCubeAllocations } from './remap-cube-allocations';
 import { toast } from '../store/toasts';
 import { conflictQueue, type DeckConflict } from '../store/conflicts';
 import { recordDeckConflict } from './conflict-metrics';
-import { clearWelcomeDigest } from './welcome-digest';
 import type { EnrichedCard } from '../types';
 import type { Deck } from '../store/decks';
 
@@ -1509,10 +1508,10 @@ async function resetInMemoryStores(): Promise<void> {
   const { useCubeStore } = await import('../store/cube');
   useCubeStore.getState().reset();
   localStorage.removeItem('spellcontrol-cube');
-  // Same reasoning as the cube store above: the value-digest baseline and the
-  // binder-move log are account-agnostic localStorage keys, so without this the
-  // next account to sign in on a shared device gets a "since your last visit"
-  // delta measured against the PREVIOUS user's collection value, with that
-  // user's card name rendered in the strip.
-  clearWelcomeDigest();
+  // The retired welcome-digest feature left account-agnostic localStorage keys
+  // (value baseline + binder-move log) on existing devices — keep sweeping them
+  // on cross-user sign-in so a shared device doesn't carry the previous user's
+  // collection value and card names around forever.
+  localStorage.removeItem('spellcontrol:value-digest-seen');
+  localStorage.removeItem('spellcontrol:binder-move-log');
 }
