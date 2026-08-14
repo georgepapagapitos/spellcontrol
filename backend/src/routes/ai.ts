@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { Router, type Request, type Response } from 'express';
 import { logger } from '../logger';
-import { requireAuth } from '../auth';
+import { loadAuthedUser, readSessionCookie, requireAuth } from '../auth';
 import { getPool } from '../db';
 import { testAwareLimiter } from '../route-utils';
 import { getScryfallCache } from '../scryfall-cache';
@@ -42,8 +42,23 @@ export const DEFAULT_DAILY_LIMIT = 10;
 const reviewLimiter = testAwareLimiter({ windowMs: 60_000, max: 10 });
 const optInLimiter = testAwareLimiter({ windowMs: 60_000, max: 20 });
 
-aiRouter.use((_req: Request, res: Response, next) => {
+/**
+ * Feature flag: while the AI features are experimental they are admin-only,
+ * so they can't be abused before the quota/prompt story is proven out. Set
+ * `AI_PUBLIC=1` to open them to every account. Read fresh per request (like
+ * `ADMIN_USERNAMES`) so flipping the env var needs no rebuild.
+ */
+const aiPublic = (): boolean => process.env.AI_PUBLIC === '1';
+
+aiRouter.use(async (req: Request, res: Response, next) => {
   if (!aiEnabled()) return res.status(404).json({ error: 'Not found.' });
+  if (aiPublic()) return next();
+  // Non-admins get the same 404 as an unconfigured backend: the client treats
+  // 404 as "feature unavailable" and renders nothing, so the UI hides itself
+  // and the endpoints aren't advertised.
+  const token = readSessionCookie(req);
+  const user = token ? await loadAuthedUser(token) : null;
+  if (user?.role !== 'admin') return res.status(404).json({ error: 'Not found.' });
   next();
 });
 
