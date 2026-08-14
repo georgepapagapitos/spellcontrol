@@ -27,6 +27,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  delete process.env.AI_PUBLIC;
   if (cleanup) await cleanup();
 });
 
@@ -34,6 +35,10 @@ const REVIEW_TEXT = 'Your deck is a fine deck.';
 
 beforeEach(() => {
   mockState.enabled = true;
+  // The suite below exercises consent/quota/streaming, which apply to every
+  // account once the feature is public — run it with the admin-only flag off.
+  // The 'admin-only flag' describe covers the gate itself.
+  process.env.AI_PUBLIC = '1';
   mockState.generate.mockReset();
   // Emit the text in two chunks, the way a real stream arrives, so the route's
   // delta forwarding is exercised rather than assumed.
@@ -125,6 +130,50 @@ describe('feature flag', () => {
       .set('Cookie', cookie)
       .send(reviewBody());
     expect(review.status).toBe(404);
+  });
+});
+
+describe('admin-only flag', () => {
+  beforeEach(() => {
+    delete process.env.AI_PUBLIC;
+  });
+
+  it('404s every /api/ai route for non-admins, opted in or not', async () => {
+    const cookie = await makeUser('ai-gate-regular');
+    const status = await request(app).get('/api/ai/status').set('Cookie', cookie);
+    expect(status.status).toBe(404);
+    const review = await request(app)
+      .post('/api/ai/deck-review')
+      .set('Cookie', cookie)
+      .send(reviewBody());
+    expect(review.status).toBe(404);
+    const optInRes = await request(app)
+      .post('/api/ai/opt-in')
+      .set('Cookie', cookie)
+      .send({ enabled: true });
+    expect(optInRes.status).toBe(404);
+    expect(mockState.generate).not.toHaveBeenCalled();
+  });
+
+  it('404s unauthenticated callers instead of 401 — the gate does not advertise', async () => {
+    const res = await request(app).get('/api/ai/status');
+    expect(res.status).toBe(404);
+  });
+
+  it('lets an admin through end to end', async () => {
+    process.env.ADMIN_USERNAMES = 'ai-gate-admin';
+    try {
+      const cookie = await makeUser('ai-gate-admin');
+      await optIn(cookie);
+      const res = await request(app)
+        .post('/api/ai/deck-review')
+        .set('Cookie', cookie)
+        .send(reviewBody());
+      expect(res.status).toBe(200);
+      expect(parseStream(res.text).done).toMatchObject({ content: REVIEW_TEXT });
+    } finally {
+      delete process.env.ADMIN_USERNAMES;
+    }
   });
 });
 
