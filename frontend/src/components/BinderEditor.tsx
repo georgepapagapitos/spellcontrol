@@ -509,7 +509,10 @@ export function BinderEditor() {
       keepPrintingsTogether: keepPrintingsTogether || undefined,
       tradeable: tradeable || undefined,
       sectionMode: sectionMode !== 'sort' ? sectionMode : undefined,
-      pageBreakDepth: pageBreakDepth > 1 ? pageBreakDepth : undefined,
+      // Drop a stale depth when the sort chain no longer supports it — the
+      // Page-breaks control is hidden at sorts.length <= 1, so a leftover
+      // depth would persist invisibly (materialize also clamps defensively).
+      pageBreakDepth: sorts.length > 1 && pageBreakDepth > 1 ? pageBreakDepth : undefined,
       packSections: packSections || undefined,
     };
 
