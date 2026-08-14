@@ -1120,6 +1120,13 @@ Any future line/trend chart follows the same specs (horizontal bars stay on
   shared **card-picker** pattern: `.card-picker-root` + `.card-picker-sheet` —
   a **bottom sheet on mobile, centered modal ≥1024px**. Dismiss via backdrop
   tap, a close button, and `Esc`.
+- **Exception — the deck editor's workbench rail.** At ≥1280px, "Add cards"
+  stops being an overlay: it docks beside the live decklist as a persistent
+  `.deck-add-rail` column instead of covering it. It takes no dialog
+  semantics (no `role="dialog"`/`aria-modal`, no focus trap, no backdrop, no
+  slide animation) — it's a normal in-flow sibling, toggled by the same
+  disclosure state as the sheet. Below 1280px the sheet/modal presentation
+  above is unchanged.
 - **Every card-picker sheet dims the page behind it — by construction.** The
   scrim lives on the shell itself: `:where(.card-picker-root) { background:
 var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
