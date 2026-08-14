@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { MAX_POOL, buildRefinePool, requestDeckRefine } from './ai-refine';
-import type { GapAnalysisCard } from '@/deck-builder/types';
+import type { GapAnalysisCard, HiddenGemRow } from '@/deck-builder/types';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
 import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUpgrades';
@@ -13,6 +13,7 @@ const sub = (usedName: string) => ({ usedName }) as SubstituteRow;
 // ⚠️ LandUpgradeMove.inName is the card ADDED (outName is the one cut) — the
 // opposite polarity to Change.inName.
 const land = (inName: string) => ({ inName, outName: 'Old Land' }) as LandUpgradeMove;
+const gem = (name: string) => ({ name }) as HiddenGemRow;
 
 describe('buildRefinePool', () => {
   const empty = new Set<string>();
@@ -31,6 +32,17 @@ describe('buildRefinePool', () => {
       'Viscera Seer',
       'Command Tower',
     ]);
+  });
+
+  it('pools hidden gems between the substitutes and the lands (E244)', () => {
+    const pool = buildRefinePool({
+      substitutes: [sub('Viscera Seer')],
+      hiddenGems: [gem('Carrion Feeder'), gem('Viscera Seer')],
+      landUpgrades: [land('Command Tower')],
+      deckNames: empty,
+    });
+    // Deduped against earlier lanes; still ahead of the lands.
+    expect(pool.map((c) => c.name)).toEqual(['Viscera Seer', 'Carrion Feeder', 'Command Tower']);
   });
 
   it('pools land upgrades — often the only lane with anything in it', () => {

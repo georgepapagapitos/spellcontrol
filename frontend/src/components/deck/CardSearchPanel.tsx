@@ -103,6 +103,14 @@ interface Props {
   enableSuggestions?: boolean;
   suggestionsPending?: boolean;
   /**
+   * AI affordance for the Suggestions tab (E244) — the deck page mounts
+   * `<DeckAiRefine variant="suggestions">` here, same slot pattern as the
+   * build report's `refineSlot`. Renders above the suggestion rows; the
+   * component itself is a compact strip until asked, and self-hides entirely
+   * when the AI feature is unavailable.
+   */
+  aiSlot?: React.ReactNode;
+  /**
    * Commander (+partner) key for the per-row "N on SpellControl" badge
    * (social W4) — `buildCommanderKey(commander.oracle_id, partnerCommander?.oracle_id)`.
    * Undefined for a no-commander deck; the badge never fetches or renders.
@@ -284,6 +292,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     suggestionsPending,
     commanderKey,
     binderByCardName,
+    aiSlot,
   },
   ref
 ) {
@@ -646,29 +655,32 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             onSearchScryfall={() => setMode('scryfall')}
           />
         ) : activeMode === 'suggestions' ? (
-          <SuggestionsResults
-            deckId={deckId}
-            colorIdentity={commanderColorIdentity}
-            existingCardCounts={existingCardCounts}
-            query={query}
-            activeIndex={activeIndex}
-            onActiveChange={setActiveIndex}
-            onAdd={onAdd}
-            onPreviewFit={onPreviewFit}
-            onAnnounce={handleAnnounce}
-            publishVisible={(cards, addAt) => {
-              visibleResultsRef.current = cards;
-              addCurrentRef.current = addAt;
-              setVisibleCount(cards.length);
-            }}
-            suggestions={suggestions}
-            oneAwayCombos={oneAwayCombos}
-            hiddenGems={hiddenGems}
-            ownershipFor={ownershipFor ?? ALL_UNOWNED}
-            pending={suggestionsPending}
-            onSearchCollection={() => setMode('collection')}
-            onSearchScryfall={() => setMode('scryfall')}
-          />
+          <>
+            {aiSlot}
+            <SuggestionsResults
+              deckId={deckId}
+              colorIdentity={commanderColorIdentity}
+              existingCardCounts={existingCardCounts}
+              query={query}
+              activeIndex={activeIndex}
+              onActiveChange={setActiveIndex}
+              onAdd={onAdd}
+              onPreviewFit={onPreviewFit}
+              onAnnounce={handleAnnounce}
+              publishVisible={(cards, addAt) => {
+                visibleResultsRef.current = cards;
+                addCurrentRef.current = addAt;
+                setVisibleCount(cards.length);
+              }}
+              suggestions={suggestions}
+              oneAwayCombos={oneAwayCombos}
+              hiddenGems={hiddenGems}
+              ownershipFor={ownershipFor ?? ALL_UNOWNED}
+              pending={suggestionsPending}
+              onSearchCollection={() => setMode('collection')}
+              onSearchScryfall={() => setMode('scryfall')}
+            />
+          </>
         ) : (
           <ScryfallResults
             deckId={deckId}
