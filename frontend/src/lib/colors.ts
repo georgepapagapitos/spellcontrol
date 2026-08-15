@@ -19,6 +19,22 @@ export {
 export type ColorMatchMode = 'any' | 'all';
 
 /**
+ * The WUBRG+C pip row every color filter renders, in canonical Magic order.
+ *
+ * One list, because three popovers (decks, discover, combos) each carried a
+ * byte-identical private copy — and a private copy is how a fourth surface ends
+ * up spelling "Colorless" differently or dropping a color.
+ */
+export const FILTER_COLOR_OPTIONS: ReadonlyArray<{ key: string; label: string }> = [
+  { key: 'W', label: 'White' },
+  { key: 'U', label: 'Blue' },
+  { key: 'B', label: 'Black' },
+  { key: 'R', label: 'Red' },
+  { key: 'G', label: 'Green' },
+  { key: 'C', label: 'Colorless' },
+];
+
+/**
  * The single color-filter predicate behind every WUBRG+C pip row (collection,
  * lists, deck add-cards, shared views, friend collections). `key` is the
  * card's grouping key (`getColorKey`): 'C' for colorless, a color letter for

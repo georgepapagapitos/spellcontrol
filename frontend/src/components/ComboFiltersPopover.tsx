@@ -1,9 +1,8 @@
-import { ListFilter } from 'lucide-react';
-import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ColorPip } from './shared/ManaSymbol';
-import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
-import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
+import { FilterTrigger } from './shared/FilterTrigger';
+import { FILTER_COLOR_OPTIONS } from '@/lib/colors';
+import { useAnchoredPanel } from '@/lib/use-anchored-panel';
 import {
   COMBO_RESULT_LABELS,
   countActiveFilters,
@@ -12,15 +11,6 @@ import {
   type ComboPieceCount,
   type ComboResultKind,
 } from '../lib/combo-filters';
-
-const COLOR_OPTIONS: Array<{ key: string; label: string }> = [
-  { key: 'W', label: 'White' },
-  { key: 'U', label: 'Blue' },
-  { key: 'B', label: 'Black' },
-  { key: 'R', label: 'Red' },
-  { key: 'G', label: 'Green' },
-  { key: 'C', label: 'Colorless' },
-];
 
 const RESULT_OPTIONS = (
   Object.entries(COMBO_RESULT_LABELS) as Array<[ComboResultKind, string]>
@@ -39,56 +29,17 @@ interface Props {
   hasCommanders: boolean;
 }
 
-type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
-
 /**
  * Filters anchored to the combos search pill's trailing slot. Mirrors
  * DeckFiltersPopover's structure and reuses its classes wholesale, so the
  * search-pill affordance looks identical across pages — colour row, chip
- * sections, live toggling (no Apply staging), portal + safe-viewport placement.
+ * sections, live toggling (no Apply staging).
  */
 export function ComboFiltersPopover({ filters, setFilters, hasCommanders }: Props) {
-  const [open, setOpen] = useState(false);
-  const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const { open, toggle, triggerRef, panelRef, panelStyle } = useAnchoredPanel();
 
   const activeCount = countActiveFilters(filters);
   const hasActive = activeCount > 0;
-
-  useLayoutEffect(() => {
-    if (!open || !panelRef.current || !buttonRef.current) return;
-    const anchorRect = buttonRef.current.getBoundingClientRect();
-    const panelRect = panelRef.current.getBoundingClientRect();
-    const placement = computePopoverPlacement(
-      anchorRect,
-      { width: panelRect.width, height: panelRect.height },
-      getSafeViewport(),
-      'right'
-    );
-    setPanelPos({
-      top: placement.top,
-      bottom: placement.bottom,
-      left: placement.left,
-      right: placement.right,
-    });
-  }, [open]);
-
-  useMenuKeyboard({
-    open,
-    onClose: () => setOpen(false),
-    panelRef,
-    triggerRef: buttonRef,
-    dialog: true,
-  });
-
-  const handleToggle = () => {
-    if (!open && buttonRef.current) {
-      const r = buttonRef.current.getBoundingClientRect();
-      setPanelPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) });
-    }
-    setOpen((v) => !v);
-  };
 
   /** Toggle membership of `value` in one of the Set-valued filter fields. */
   const toggleIn = <K extends 'colors' | 'results' | 'pieceCounts'>(
@@ -103,45 +54,29 @@ export function ComboFiltersPopover({ filters, setFilters, hasCommanders }: Prop
 
   return (
     <div className="filter-popover deck-filters-popover">
-      <button
-        ref={buttonRef}
-        type="button"
-        className="filter-popover-btn"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label={hasActive ? `Filters (${activeCount} active)` : 'Filters'}
-        title="Filters"
-        onClick={handleToggle}
-      >
-        <ListFilter width={16} height={16} strokeWidth={2} aria-hidden />
-        {hasActive && (
-          <span className="collection-filters-badge" aria-hidden>
-            {activeCount}
-          </span>
-        )}
-      </button>
+      <FilterTrigger
+        ref={triggerRef}
+        open={open}
+        onClick={toggle}
+        activeCount={activeCount}
+        label="Filters"
+      />
       {open &&
-        panelPos &&
+        panelStyle &&
         createPortal(
           <div
             ref={panelRef}
             className="filter-popover-panel deck-filters-panel"
             role="dialog"
             aria-label="Filters"
-            style={{
-              position: 'fixed',
-              top: panelPos.top,
-              bottom: panelPos.bottom,
-              left: panelPos.left,
-              right: panelPos.right,
-            }}
+            style={panelStyle}
           >
             <section className="deck-filters-section">
               {/* "Fits in" not "has" — selecting U+B shows combos you could run
                   in a UB deck, i.e. identity ⊆ selection. */}
               <div className="deck-filters-section-label">Fits in colors</div>
               <div className="color-filter-row" role="group" aria-label="Filter by color identity">
-                {COLOR_OPTIONS.map((c) => {
+                {FILTER_COLOR_OPTIONS.map((c) => {
                   const active = filters.colors.has(c.key);
                   return (
                     <button

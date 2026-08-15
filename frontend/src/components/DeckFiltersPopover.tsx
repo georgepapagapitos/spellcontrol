@@ -1,23 +1,12 @@
-import { ListFilter } from 'lucide-react';
-import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { DeckFormat } from '@/deck-builder/types';
 import type { DeckSource } from '../store/decks';
 import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
 import { ColorPip } from './shared/ManaSymbol';
 import { ColorMatchModeToggle } from './shared/ColorMatchModeToggle';
-import type { ColorMatchMode } from '@/lib/colors';
-import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
-import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
-
-const COLOR_OPTIONS: Array<{ key: string; label: string }> = [
-  { key: 'W', label: 'White' },
-  { key: 'U', label: 'Blue' },
-  { key: 'B', label: 'Black' },
-  { key: 'R', label: 'Red' },
-  { key: 'G', label: 'Green' },
-  { key: 'C', label: 'Colorless' },
-];
+import { FilterTrigger } from './shared/FilterTrigger';
+import { FILTER_COLOR_OPTIONS, type ColorMatchMode } from '@/lib/colors';
+import { useAnchoredPanel } from '@/lib/use-anchored-panel';
 
 const SOURCE_OPTIONS: Array<{ key: DeckSource; label: string }> = [
   { key: 'generated', label: 'Generated' },
@@ -36,17 +25,13 @@ interface Props {
   setColorMode: (next: ColorMatchMode) => void;
 }
 
-type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
-
 /**
  * Inline filters anchored to the decks index search pill's trailing slot.
  * Three multi-select sections — Format, Source, Color — with live toggling
- * (no Apply staging). Trigger styling matches CollectionFiltersDialog so the
- * search-pill affordance looks identical across pages.
+ * (no Apply staging), because these only change what you're looking at.
  *
- * Portals the panel to `<body>` and uses `computePopoverPlacement` so it
- * flips/clamps against the safe viewport (accounting for sticky header,
- * mobile bottom nav, and keyboard inset).
+ * Portal, placement and dismiss all come from `useAnchoredPanel`; the trigger
+ * from `FilterTrigger`. Both are shared with every other filter popover.
  */
 export function DeckFiltersPopover({
   formats,
@@ -58,52 +43,10 @@ export function DeckFiltersPopover({
   colorMode,
   setColorMode,
 }: Props) {
-  const [open, setOpen] = useState(false);
-  const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const { open, toggle, triggerRef, panelRef, panelStyle } = useAnchoredPanel();
 
   const activeCount = formats.size + sources.size + colors.size;
   const hasActive = activeCount > 0;
-
-  // After the panel renders in the portal, measure and clamp/flip into the safe
-  // viewport. useLayoutEffect fires before paint so there is no visible flash.
-  useLayoutEffect(() => {
-    if (!open || !panelRef.current || !buttonRef.current) return;
-    const anchorRect = buttonRef.current.getBoundingClientRect();
-    const panelRect = panelRef.current.getBoundingClientRect();
-    const safe = getSafeViewport();
-    const placement = computePopoverPlacement(
-      anchorRect,
-      { width: panelRect.width, height: panelRect.height },
-      safe,
-      'right'
-    );
-    setPanelPos({
-      top: placement.top,
-      bottom: placement.bottom,
-      left: placement.left,
-      right: placement.right,
-    });
-  }, [open]);
-
-  // Dismiss/focus/back semantics, including dismissing when the page scrolls
-  // out from under this fixed-position panel.
-  useMenuKeyboard({
-    open,
-    onClose: () => setOpen(false),
-    panelRef,
-    triggerRef: buttonRef,
-    dialog: true,
-  });
-
-  const handleToggle = () => {
-    if (!open && buttonRef.current) {
-      const r = buttonRef.current.getBoundingClientRect();
-      setPanelPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) });
-    }
-    setOpen((v) => !v);
-  };
 
   const toggleFormat = (f: DeckFormat) => {
     const next = new Set(formats);
@@ -138,38 +81,22 @@ export function DeckFiltersPopover({
 
   return (
     <div className="filter-popover deck-filters-popover">
-      <button
-        ref={buttonRef}
-        type="button"
-        className="filter-popover-btn"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label={hasActive ? `Filters (${activeCount} active)` : 'Filters'}
-        title="Filters"
-        onClick={handleToggle}
-      >
-        <ListFilter width={16} height={16} strokeWidth={2} aria-hidden />
-        {hasActive && (
-          <span className="collection-filters-badge" aria-hidden>
-            {activeCount}
-          </span>
-        )}
-      </button>
+      <FilterTrigger
+        ref={triggerRef}
+        open={open}
+        onClick={toggle}
+        activeCount={activeCount}
+        label="Filters"
+      />
       {open &&
-        panelPos &&
+        panelStyle &&
         createPortal(
           <div
             ref={panelRef}
             className="filter-popover-panel deck-filters-panel"
             role="dialog"
             aria-label="Filters"
-            style={{
-              position: 'fixed',
-              top: panelPos.top,
-              bottom: panelPos.bottom,
-              left: panelPos.left,
-              right: panelPos.right,
-            }}
+            style={panelStyle}
           >
             <section className="deck-filters-section">
               <div className="deck-filters-section-label">Format</div>
@@ -217,7 +144,7 @@ export function DeckFiltersPopover({
                 <ColorMatchModeToggle mode={colorMode} onChange={setColorMode} />
               </div>
               <div className="color-filter-row" role="group" aria-label="Filter by color">
-                {COLOR_OPTIONS.map((c) => {
+                {FILTER_COLOR_OPTIONS.map((c) => {
                   const active = colors.has(c.key);
                   return (
                     <button

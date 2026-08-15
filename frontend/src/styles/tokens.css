@@ -228,6 +228,12 @@
   /* Keyboard-docked tray (mobile commander search) — portaled to <body>, so it
      must clear modal content/overlay it may be opened from inside. */
   --z-keyboard-tray: 1200;
+  /* Popovers portaled to <body> from a trigger that may itself sit inside a
+     modal or sheet (SelectMenu, ToolbarPopover). --z-popover (60) is for
+     panels that stay within app chrome; these have to clear --z-overlay or
+     they paint behind the very dialog that opened them. Both call sites
+     carried this as a bare `zIndex: 1200` literal before it had a name. */
+  --z-portal-popover: 1200;
   --z-tooltip: 9999;
 
   /* ── Safe-area insets ─────────────────────────────────────────────────────

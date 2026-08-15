@@ -1,11 +1,9 @@
 import './DiscoverFiltersPopover.css';
-import { ListFilter } from 'lucide-react';
-import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { BRACKET_LABELS } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
-import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
+import { FILTER_COLOR_OPTIONS } from '@/lib/colors';
+import { useAnchoredPanel } from '@/lib/use-anchored-panel';
 import {
   DISCOVER_BUDGET_LABELS,
   DISCOVER_COLOR_ORDER,
@@ -14,15 +12,7 @@ import {
 } from '@/lib/discover-filters';
 import type { DeckFormat } from '@/deck-builder/types';
 import { ColorPip } from './shared/ManaSymbol';
-
-const COLOR_OPTIONS: Array<{ key: string; label: string }> = [
-  { key: 'W', label: 'White' },
-  { key: 'U', label: 'Blue' },
-  { key: 'B', label: 'Black' },
-  { key: 'R', label: 'Red' },
-  { key: 'G', label: 'Green' },
-  { key: 'C', label: 'Colorless' },
-];
+import { FilterTrigger } from './shared/FilterTrigger';
 
 const BRACKET_OPTIONS = [1, 2, 3, 4, 5];
 
@@ -35,29 +25,22 @@ interface Props {
   onChange: (next: DiscoverFilters) => void;
 }
 
-type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
-
 /**
- * Colors/Format/Bracket/Budget filters for the Discover browse. Structurally
- * mirrors the real `DeckFiltersPopover.tsx` exactly (verified source, not a
- * misremembered summary): portaled to `document.body`,
- * `computePopoverPlacement`/`getSafeViewport` for flip/clamp, live-toggle
- * with no separate Apply step, and the shared `useMenuKeyboard` contract
- * (focus in on open, Tab trapped, Escape / outside pointerdown / outside
- * scroll / Android back all dismiss).
+ * Colors/Format/Bracket/Budget filters for the Discover browse. Portal,
+ * placement and dismiss come from `useAnchoredPanel`; live-toggle with no
+ * separate Apply step, because these only change what you're looking at.
  *
  * Unlike DeckFiltersPopover's button/aria-pressed chips, every option here is
  * a real `<input type="radio"|"checkbox">` inside a `<fieldset><legend>` (the
  * visually-hidden-input-stretched-over-a-styled-label pattern the Settings
- * currency toggle already uses) — Format/Budget are single-select radios that
- * close the popover on pick, Colors/Bracket are multi-select checkboxes that
- * stay open.
+ * currency toggle already uses). Format/Budget are single-select radios,
+ * Colors/Bracket multi-select checkboxes — but every one of them now leaves
+ * the panel OPEN. Closing on a radio pick made this the only popover in the
+ * family that vanished mid-edit, and it punished the common case: narrowing by
+ * format and budget together meant reopening the panel to set the second one.
  */
 export function DiscoverFiltersPopover({ filters, onChange }: Props) {
-  const [open, setOpen] = useState(false);
-  const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const { open, toggle, triggerRef, panelRef, panelStyle } = useAnchoredPanel();
 
   const activeCount =
     (filters.format ? 1 : 0) +
@@ -66,54 +49,8 @@ export function DiscoverFiltersPopover({ filters, onChange }: Props) {
     (filters.budget ? 1 : 0);
   const hasActive = activeCount > 0;
 
-  useLayoutEffect(() => {
-    if (!open || !panelRef.current || !buttonRef.current) return;
-    const anchorRect = buttonRef.current.getBoundingClientRect();
-    const panelRect = panelRef.current.getBoundingClientRect();
-    const safe = getSafeViewport();
-    const placement = computePopoverPlacement(
-      anchorRect,
-      { width: panelRect.width, height: panelRect.height },
-      safe,
-      'right'
-    );
-    setPanelPos({
-      top: placement.top,
-      bottom: placement.bottom,
-      left: placement.left,
-      right: placement.right,
-    });
-  }, [open]);
-
-  // Dismiss/focus/back semantics, including dismissing when the page scrolls
-  // out from under this fixed-position panel.
-  const { closeAndReturnFocus } = useMenuKeyboard({
-    open,
-    onClose: () => setOpen(false),
-    panelRef,
-    triggerRef: buttonRef,
-    dialog: true,
-  });
-
-  const handleToggle = () => {
-    if (!open && buttonRef.current) {
-      const r = buttonRef.current.getBoundingClientRect();
-      setPanelPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) });
-    }
-    setOpen((v) => !v);
-  };
-
-  // Format/Budget: single-value radios close the popover on pick, parking focus
-  // back on the trigger rather than dropping it to the page.
-  const setFormat = (format: DeckFormat | null) => {
-    onChange({ ...filters, format });
-    closeAndReturnFocus();
-  };
-  const setBudget = (budget: DiscoverBudgetKey | null) => {
-    onChange({ ...filters, budget });
-    closeAndReturnFocus();
-  };
-  // Colors/Bracket: multi-value checkboxes stay open.
+  const setFormat = (format: DeckFormat | null) => onChange({ ...filters, format });
+  const setBudget = (budget: DiscoverBudgetKey | null) => onChange({ ...filters, budget });
   const toggleColor = (c: string) => {
     const set = new Set(filters.colors);
     if (set.has(c)) set.delete(c);
@@ -135,38 +72,22 @@ export function DiscoverFiltersPopover({ filters, onChange }: Props) {
 
   return (
     <div className="filter-popover discover-filters-popover">
-      <button
-        ref={buttonRef}
-        type="button"
-        className="filter-popover-btn"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label={hasActive ? `Filters, ${activeCount} active` : 'Filters'}
-        title="Filters"
-        onClick={handleToggle}
-      >
-        <ListFilter width={16} height={16} strokeWidth={2} aria-hidden />
-        {hasActive && (
-          <span className="collection-filters-badge" aria-hidden>
-            {activeCount}
-          </span>
-        )}
-      </button>
+      <FilterTrigger
+        ref={triggerRef}
+        open={open}
+        onClick={toggle}
+        activeCount={activeCount}
+        label="Filters"
+      />
       {open &&
-        panelPos &&
+        panelStyle &&
         createPortal(
           <div
             ref={panelRef}
             className="filter-popover-panel discover-filters-panel"
             role="dialog"
             aria-label="Filters"
-            style={{
-              position: 'fixed',
-              top: panelPos.top,
-              bottom: panelPos.bottom,
-              left: panelPos.left,
-              right: panelPos.right,
-            }}
+            style={panelStyle}
           >
             <fieldset className="discover-filters-section">
               <legend className="discover-filters-legend">Format</legend>
@@ -197,7 +118,7 @@ export function DiscoverFiltersPopover({ filters, onChange }: Props) {
             <fieldset className="discover-filters-section">
               <legend className="discover-filters-legend">Colors</legend>
               <div className="discover-filters-chips" aria-label="Filter by color">
-                {COLOR_OPTIONS.map((c) => (
+                {FILTER_COLOR_OPTIONS.map((c) => (
                   <label
                     key={c.key}
                     className="discover-filter-chip discover-filter-chip--color"

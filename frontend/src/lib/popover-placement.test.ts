@@ -117,6 +117,80 @@ describe('computePopoverPlacement — horizontal', () => {
       expect(result.left).toBeGreaterThanOrEqual(8);
     }
   });
+
+  // Regression: a wide panel whose trigger sits well right of centre fits
+  // NEITHER alignment. The flip used to fire unconditionally, so right-aligning
+  // put the panel's left edge off-screen. Measured on the binder sort popover:
+  // left:-16px @360w and left:-43px @414w before the fix.
+  describe('when the panel fits neither alignment', () => {
+    /** Resolve a placement down to the panel's real left/right edges. */
+    const edges = (
+      placement: { left?: number; right?: number },
+      panel: PopoverSize,
+      viewportWidth: number
+    ) => {
+      const left =
+        placement.left ??
+        (placement.right !== undefined ? viewportWidth - placement.right - panel.width : NaN);
+      return { left, right: left + panel.width };
+    };
+
+    it.each([
+      { vw: 360, panel: { width: 336, height: 238 } },
+      { vw: 414, panel: { width: 363, height: 238 } },
+    ])('keeps a $panel.width px panel on-screen at $vw px (align=left)', ({ vw, panel }) => {
+      const safe: SafeViewport = { top: 0, bottom: 844, left: 0, right: vw };
+      const result = computePopoverPlacement(
+        { top: 400, bottom: 440, left: 232, right: 320 },
+        panel,
+        safe,
+        'left',
+        6,
+        900,
+        vw
+      );
+      const { left, right } = edges(result, panel, vw);
+      expect(left).toBeGreaterThanOrEqual(8);
+      expect(right).toBeLessThanOrEqual(vw);
+    });
+
+    it('clamps rather than flipping when the panel is wider than the viewport', () => {
+      const vw = 320;
+      const safe: SafeViewport = { top: 0, bottom: 800, left: 0, right: vw };
+      const wide: PopoverSize = { width: 400, height: 200 };
+      const result = computePopoverPlacement(
+        { top: 100, bottom: 140, left: 200, right: 300 },
+        wide,
+        safe,
+        'left',
+        6,
+        800,
+        vw
+      );
+      // Nothing can keep both edges in view; pin the LEFT edge, where the
+      // panel's labels live, rather than stranding it off-screen.
+      expect(result.left).toBe(8);
+      expect(result.right).toBeUndefined();
+    });
+
+    it('does not strand a right-aligned wide panel off the left edge either', () => {
+      const vw = 360;
+      const safe: SafeViewport = { top: 0, bottom: 800, left: 0, right: vw };
+      const panel: PopoverSize = { width: 340, height: 200 };
+      const result = computePopoverPlacement(
+        { top: 100, bottom: 140, left: 300, right: 352 },
+        panel,
+        safe,
+        'right',
+        6,
+        800,
+        vw
+      );
+      const { left, right } = edges(result, panel, vw);
+      expect(left).toBeGreaterThanOrEqual(8);
+      expect(right).toBeLessThanOrEqual(vw);
+    });
+  });
 });
 
 describe('computePopoverPlacement — sticky chrome insets', () => {

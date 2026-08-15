@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
+import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
 
 /**
  * Toolbar popover — portal-positioned disclosure (same mechanism as
@@ -49,7 +50,6 @@ export function ToolbarPopover({
 }) {
   const [open, setOpen] = useState(false);
   const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -71,40 +71,25 @@ export function ToolbarPopover({
     });
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(e.target as Node) &&
-        panelRef.current &&
-        !panelRef.current.contains(e.target as Node)
-      )
-        setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    const onScroll = (e: Event) => {
-      // The panel scrolls internally (max-height + overflow) — only
-      // outside scrolls dismiss it, same guard as Legend.
-      if (panelRef.current && e.target instanceof Node && panelRef.current.contains(e.target))
-        return;
-      setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', onKey);
-    let scrollRaf = 0;
-    scrollRaf = requestAnimationFrame(() => {
-      document.addEventListener('scroll', onScroll, { capture: true, passive: true });
-    });
-    return () => {
-      cancelAnimationFrame(scrollRaf);
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', onKey);
-      document.removeEventListener('scroll', onScroll, { capture: true });
-    };
-  }, [open]);
+  // Dismiss/focus/back semantics come from the shared hook every other popover
+  // in the app already uses. This component used to hand-roll them and was the
+  // only one missing the contract: it listened on `mousedown` (so a touch tap
+  // outside never dismissed it), never moved focus into the panel, never
+  // trapped Tab, never returned focus to the trigger on Escape, and never
+  // registered with the overlay-layer stack — so a SelectMenu opened inside it
+  // and the panel underneath both answered the same Escape.
+  //
+  // `dialog` mirrors the panel's own role: menu panels keep arrow-key roving
+  // and close-on-Tab (WAI-ARIA menu button), dialog panels trap Tab so a panel
+  // of twenty checkboxes stays reachable.
+  const isMenu = (haspopup ?? (triggerClassName ? 'dialog' : 'menu')) === 'menu';
+  const { closeAndReturnFocus } = useMenuKeyboard({
+    open,
+    onClose: () => setOpen(false),
+    panelRef,
+    triggerRef: buttonRef,
+    dialog: !isMenu,
+  });
 
   const handleToggle = (e: React.MouseEvent) => {
     // Keep the tap on the trigger — don't let it reach an ancestor
@@ -139,7 +124,7 @@ export function ToolbarPopover({
           right: panelPos.right,
           top: panelPos.top,
           bottom: panelPos.bottom,
-          zIndex: 1200,
+          zIndex: 'var(--z-portal-popover)',
           // Scale the enter animation from the trigger corner: anchored-side
           // top/bottom + left/right mirror how the panel was placed.
           transformOrigin: `${panelPos.top !== undefined ? 'top' : 'bottom'} ${
@@ -147,13 +132,16 @@ export function ToolbarPopover({
           }`,
         }}
       >
-        {children(() => setOpen(false))}
+        {/* Children close via `closeAndReturnFocus` so a keyboard user who
+            activates an item lands back on the trigger, not at the top of the
+            document. */}
+        {children(closeAndReturnFocus)}
       </div>,
       document.body
     );
 
   return (
-    <div className={wrapperClassName ?? 'toolbar-popover'} ref={wrapperRef}>
+    <div className={wrapperClassName ?? 'toolbar-popover'}>
       <button
         ref={buttonRef}
         type="button"

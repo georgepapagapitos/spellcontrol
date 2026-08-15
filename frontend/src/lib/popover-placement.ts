@@ -137,24 +137,37 @@ export function computePopoverPlacement(
   // safe-area inset (notch in landscape) plus the edge pad.
   const minRight = viewportWidth - safe.right + EDGE_PAD;
 
+  // The window of left-edge positions that keeps the WHOLE panel inside the
+  // safe box. `maxLeft` goes below `minLeft` when the panel is wider than the
+  // box, which is the case both flips have to handle rather than assume away.
+  const minLeft = safe.left + EDGE_PAD;
+  const maxLeft = vw - EDGE_PAD - panel.width;
+  const fits = (edge: number) => edge >= minLeft && edge <= maxLeft;
+  const clampLeft = (edge: number) => Math.min(Math.max(edge, minLeft), Math.max(minLeft, maxLeft));
+
   if (align === 'right') {
     // Right-align: panel's right edge at trigger's right edge.
-    right = Math.max(minRight, viewportWidth - anchor.right);
-    // Verify it won't clip the left safe edge.
-    const computedLeft = anchor.right - panel.width;
-    if (computedLeft < safe.left + EDGE_PAD) {
-      // Flip to left-align instead.
-      right = undefined;
-      left = Math.max(safe.left + EDGE_PAD, anchor.left);
+    if (fits(anchor.right - panel.width)) {
+      right = Math.max(minRight, viewportWidth - anchor.right);
+    } else {
+      // Flip to left-align, clamped — when the panel is too wide for either
+      // alignment, an unclamped flip pushes the opposite edge off-screen.
+      left = clampLeft(anchor.left);
     }
   } else {
     // Left-align: panel's left edge at trigger's left edge.
-    left = Math.max(safe.left + EDGE_PAD, anchor.left);
-    // Verify it won't clip the right safe edge.
-    if (left + panel.width > vw - EDGE_PAD) {
-      // Flip to right-align instead.
-      left = undefined;
+    if (fits(anchor.left)) {
+      left = anchor.left;
+    } else if (fits(anchor.right - panel.width)) {
+      // Flip to right-align: verified to clear BOTH safe edges, not just the
+      // one this branch was worried about.
       right = Math.max(minRight, viewportWidth - anchor.right);
+    } else {
+      // Neither alignment fits. Flipping unconditionally here is what used to
+      // strand wide panels off the LEFT edge (the binder sort popover measured
+      // at left:-16px @360w, left:-43px @414w) because the right-align
+      // fallback never re-checked the left edge. Clamp into the safe box.
+      left = clampLeft(anchor.left);
     }
   }
 

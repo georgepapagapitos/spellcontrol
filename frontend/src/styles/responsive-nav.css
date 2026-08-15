@@ -733,7 +733,12 @@
   opacity: 0.65;
 }
 
-@media (max-width: 600px) and (pointer: coarse) {
+/* Was gated on `(max-width: 600px)` too, which stranded every coarse device
+   WIDER than 600px — a tablet in landscape, a touchscreen laptop — on the
+   un-sized base rule. Measured 33x31 for the sort editor's reorder/remove
+   buttons at 768-1440px with touch emulation. A coarse pointer is a coarse
+   pointer at any width, so the floor no longer asks how wide the screen is. */
+@media (pointer: coarse) {
   .tab-action {
     min-width: 44px;
     min-height: 44px;
