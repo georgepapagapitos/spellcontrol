@@ -26,6 +26,7 @@ export {
   MAX_SORTS,
   IMPLICIT_TIEBREAKER_FIELDS,
   describeSortOrder,
+  sortDirectionLabel,
   isValueOrderCustomized,
   getDisplaySorts,
   getImplicitTiebreakers,
