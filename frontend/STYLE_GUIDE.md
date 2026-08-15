@@ -1578,6 +1578,70 @@ Still true, and cheap to get wrong when adding _any_ overlay animation:
   listener on a sheet must bail on `closest('button, a, input, select,
 textarea')` — the same guard the long-press peek uses above.
 
+## Rule & filter editors (#1626–#1630)
+
+The binder rule editor, the dynamic-list rule sheet and the collection Filters
+dialog all edit card predicates. These rulings apply to every one of them, and
+to anything new that edits a predicate.
+
+- **A field's row exists because the field is SET**, not because the field
+  exists. The binder/list editor renders only fields with a value (plus ones
+  the user just added); the rest live behind a searchable, grouped
+  `+ Add rule` picker. The old fixed form rendered 22 rows for a binder with
+  two rules. The vocabulary is data — `lib/filter-fields.ts`; a field absent
+  from that registry is unreachable in the editor.
+  (The collection Filters dialog stays a flat always-visible form: it is a
+  narrow-then-apply surface, not an authoring one. `RuleFieldContext` is null
+  there, which is what keeps the shared rows unconditional.)
+- **Every row that can be set can be un-set from the row itself** — a trailing
+  `×` that clears the value and takes the row with it. "Clear everything" is
+  not a substitute for clearing one field.
+- **Related booleans get ONE heading**, not one heading per checkbox. Four
+  consecutive uppercase section labels each gating a single checkbox is how
+  the binder editor spent its first screen on rarely-touched options and
+  pushed the rules below the fold.
+- **A predicate has one name across surfaces.** It was "Legalities" in the
+  binder editor and "Format" in the collection dialog for the same field.
+- **An editing surface shows a live match count.** You should never have to
+  commit a filter to find out it matches nothing. Amber at zero.
+- **A control that can only ever produce the empty set is a bug, not a
+  freedom.** Rarity's joiner is locked to `OR` because a card has exactly one
+  rarity, so "rare AND mythic" matches nothing by construction.
+
+### Sort chains
+
+- **Direction is its own visible control.** Never a hidden gesture — the old
+  editor flipped asc/desc by re-selecting the field you already had, with
+  nothing on screen suggesting that did anything, while the ▲/▼ buttons sitting
+  where a direction control belongs did reordering.
+- **Label a direction with its EFFECT, not `asc`/`desc`.** Ascending release
+  date is newest-*last*; ascending EDHREC rank is most-popular-*first*;
+  ascending price is cheapest-first. One word, three mental models. Each field
+  carries both phrasings in `SORT_FIELDS.dirLabels` ("Newest first", "A → Z",
+  "Most played") — resolve with `sortDirectionLabel()`.
+- **The field picker hides fields another row already uses.** A second pass on
+  the same field has no ties left to break.
+- **Reorder/remove buttons name their row** ("Move Color earlier in the sort
+  order"), not "Move sort up" three times.
+- Put the grid on the LIST and let rows `display: contents`, so pickers,
+  direction chips and action clusters line up down the panel. Per-row grids
+  size their own columns and the control column reads as stacked one-offs.
+
+### Anchored panels
+
+- Portal + placement + dismiss come from `useAnchoredPanel`; the funnel trigger
+  with its count badge is `<FilterTrigger>`. Don't hand-roll the
+  measure-and-clamp effect — five popovers each carried a copy and they drifted
+  (the active-count string differed between pages).
+- **Live-apply for what you're LOOKING at; explicit Save for what you're
+  EDITING.** Sort, view toggles and quick filters apply immediately with no
+  button. Binder and list rules keep a Save. No popover in the family
+  auto-closes on a pick — Discover's radios used to, and it was the only one
+  that vanished mid-edit.
+- An `InfoTip` beside a checkbox goes **outside** the `<label>`. A button
+  inside a label is part of the label: tapping the tip would toggle the box,
+  and its text lands in the checkbox's accessible name.
+
 ## Index-page insight strips (UX-334)
 
 An insight/advisor engine surfaced on an index page (readiness, coaching,
