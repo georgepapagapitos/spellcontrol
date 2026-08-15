@@ -1,14 +1,22 @@
 import { defineConfig } from 'vitest/config';
 
 // Postgres-backed tests are always available — globalSetup resolves a URL via
-// (explicit env → dev container → throwaway testcontainer), so coverage
-// thresholds are unconditional. See vitest.global-setup.ts.
+// (explicit env → throwaway testcontainer), so coverage thresholds are
+// unconditional. See vitest.global-setup.ts.
 export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
     include: ['src/**/*.test.ts'],
     globalSetup: ['./vitest.global-setup.ts'],
+    // Every test here talks to a real Postgres and many register users through
+    // bcrypt. Vitest's 5s default is comfortable for a single file and too
+    // tight for the full suite across parallel workers on a loaded machine —
+    // that combination is the other half of E239, where a few `Test timed out
+    // in 5000ms` errors landed in different files each run and read as a
+    // regression in whatever diff was in flight. These are not latency
+    // assertions; a slow test should still pass.
+    testTimeout: 20_000,
     coverage: {
       provider: 'v8',
       include: ['src/**'],

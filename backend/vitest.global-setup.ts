@@ -6,11 +6,30 @@
  *
  *   1. `TEST_DATABASE_URL` (or `DATABASE_URL`) explicitly set — used as-is. CI
  *      provides one via its postgres service.
- *   2. The local dev container at the default URL, if reachable. Lets devs who
- *      already run `npm run db:up` reuse it.
- *   3. A throwaway Postgres container started via @testcontainers/postgresql.
+ *   2. A throwaway Postgres container started via @testcontainers/postgresql.
  *      Means a clean `npm test` works without any prerequisites beyond a
  *      running Docker daemon, and behaves identically to CI.
+ *
+ * ⚠️ A step used to sit between those two: adopt whatever answers on the dev
+ * URL (`localhost:5432`), saving the container's ~2s startup for anyone who had
+ * already run `npm run db:up`. That was the cause of E239's "wandering 5s
+ * timeout flakes," and it was worse than a flake — two problems, both from the
+ * suite silently sharing a long-lived database it did not own:
+ *
+ *   - **Schema crossfire.** Every run sweeps `t_*` schemas (see below) and each
+ *     test file drops its own on cleanup. With two suites running at once — two
+ *     sessions, or a worktree beside the main checkout — one run drops the
+ *     OTHER's *live* schemas mid-flight. It surfaces as `schema "t_xxxx" does
+ *     not exist` and mass 500s, which reads exactly like the diff under test
+ *     broke authentication, and it nearly got blamed on an unrelated PR.
+ *   - **It was often not the dev container at all.** Where a host-native
+ *     Postgres owns :5432 it shadows the container and gets adopted instead, so
+ *     the suite ran its DDL inside a real populated dev database rather than a
+ *     disposable one.
+ *
+ * A dedicated container per run costs ~2s and makes both impossible. Reusing a
+ * database is still supported — point `TEST_DATABASE_URL` at one deliberately;
+ * the suite just won't adopt one by accident any more.
  *
  * Env vars set here propagate to forked workers because vitest forks AFTER
  * globalSetup returns. `test-helpers.ts` reads `TEST_DATABASE_URL` for its
@@ -18,32 +37,18 @@
  *
  * Schema sweep: each createTestEnv() call builds its own `t_*` schema and
  * drops it in cleanup(); a hard kill (Ctrl-C, crash) can leak them. We sweep
- * before and after the run, but only against the shared dev DB — a throwaway
- * container is fresh on start and discarded on stop, so there's nothing to
- * clean.
+ * before and after the run, but only for an explicitly-supplied database — a
+ * throwaway container is fresh on start and discarded on stop, so there's
+ * nothing to clean.
  */
 import { Pool } from 'pg';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-
-const DEV_DB_URL = 'postgres://mtguser:mtgpassword@localhost:5432/spellcontrol';
 
 // Pin to match CI (.github/workflows/ci.yml uses postgres:16-alpine).
 const CONTAINER_IMAGE = 'postgres:16-alpine';
 
 function redact(url: string): string {
   return url.replace(/(:\/\/[^:]+):[^@]+@/, '$1:****@');
-}
-
-async function probeDb(url: string, timeoutMs = 1500): Promise<boolean> {
-  const pool = new Pool({ connectionString: url, connectionTimeoutMillis: timeoutMs, max: 1 });
-  try {
-    await pool.query('SELECT 1');
-    return true;
-  } catch {
-    return false;
-  } finally {
-    await pool.end().catch(() => {});
-  }
 }
 
 async function dropLeakedSchemas(url: string): Promise<string[]> {
@@ -88,21 +93,17 @@ export default async function setup(): Promise<() => Promise<void>> {
 
   let url: string;
   let container: StartedPostgreSqlContainer | undefined;
-  let usingSharedDb: boolean;
+  // Only an explicitly-supplied database can outlive the run, so only that one
+  // needs sweeping — and only that one can be shared with another suite.
+  const usingSharedDb = Boolean(explicit);
 
   if (explicit) {
     url = explicit;
-    usingSharedDb = true;
     console.log(`[vitest] using explicit TEST_DATABASE_URL ${redact(url)}`);
-  } else if (await probeDb(DEV_DB_URL)) {
-    url = DEV_DB_URL;
-    usingSharedDb = true;
-    console.log(`[vitest] using dev Postgres at ${redact(url)}`);
   } else {
     const started = await startThrowawayContainer();
     url = started.url;
     container = started.container;
-    usingSharedDb = false;
   }
 
   process.env.TEST_DATABASE_URL = url;
