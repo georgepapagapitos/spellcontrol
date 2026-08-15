@@ -77,6 +77,47 @@ describe('buildCommands', () => {
     expect(commands.some((c) => c.group === 'Navigate')).toBe(true);
     expect(commands.some((c) => c.group === 'Actions')).toBe(true);
   });
+
+  it('self-hides the AI group entirely when the feature is unavailable', () => {
+    const commands = buildCommands({ decks: [], go: vi.fn() });
+    expect(commands.some((c) => c.group === 'AI')).toBe(false);
+    const gated = buildCommands({
+      decks: [],
+      go: vi.fn(),
+      aiAvailable: false,
+      deckPage: { id: 'd1', name: 'Sac Value' },
+    });
+    expect(gated.some((c) => c.group === 'AI')).toBe(false);
+  });
+
+  it('offers AI settings when available, and Read the deck only on a deck page', () => {
+    const go = vi.fn();
+    const global = buildCommands({ decks: [], go, aiAvailable: true });
+    expect(global.find((c) => c.id === 'ai:settings')).toBeTruthy();
+    expect(global.find((c) => c.id === 'ai:read-deck')).toBeUndefined();
+
+    const onDeck = buildCommands({
+      decks: [],
+      go,
+      aiAvailable: true,
+      deckPage: { id: 'd1', name: 'Sac Value' },
+    });
+    const read = onDeck.find((c) => c.id === 'ai:read-deck');
+    expect(read?.hint).toBe('Sac Value');
+    read?.run();
+    // Lands on the Coach tab with the review strip asked to arrive expanded.
+    expect(go).toHaveBeenCalledWith('/decks/d1?view=tune', { openAiReview: true });
+  });
+
+  it('never emits the Cards group — that lane is async and palette-owned', () => {
+    const commands = buildCommands({
+      decks: [deck('d1', 'Cards')],
+      go: vi.fn(),
+      aiAvailable: true,
+      deckPage: { id: 'd1', name: 'Cards' },
+    });
+    expect(commands.some((c) => c.group === 'Cards')).toBe(false);
+  });
 });
 
 describe('scoreCommand', () => {
