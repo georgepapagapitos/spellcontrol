@@ -412,7 +412,12 @@ function PlayerPanel({
   const colorKey = seatColorKey(player);
   const seatPalette = useMemo(() => paletteForSeat(game.id, player.seat), [game.id, player.seat]);
 
-  const { display: animatedLife, popKey } = useAnimatedNumber(cmdTarget ? cmdValue : player.life);
+  // Duration 0 → the big number snaps in the same paint as the delta chip;
+  // a tween here made the total visibly trail the tap.
+  const { display: animatedLife, popKey } = useAnimatedNumber(
+    cmdTarget ? cmdValue : player.life,
+    0
+  );
   const { chips, push: pushDelta, clear: clearDelta } = useFloatingDelta();
   // An undo just reverted the life — drop the running-burst chip immediately
   // so the "+6" badge doesn't hang around for its normal 1.5s lifetime.

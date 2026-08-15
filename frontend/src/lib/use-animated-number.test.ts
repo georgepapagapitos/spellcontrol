@@ -117,6 +117,20 @@ describe('legacy path (number second arg)', () => {
     });
     expect(result.current.popKey).toBe(before);
   });
+
+  it('duration 0 = instant: display tracks target in the same render, popKey still bumps', () => {
+    const { result, rerender } = renderHook(({ v }) => useAnimatedNumber(v, 0), {
+      initialProps: { v: 40 },
+    });
+    const before = result.current.popKey;
+    act(() => {
+      rerender({ v: 39 });
+    });
+    // No tween frame needed — the number is already the new target.
+    expect(result.current.display).toBe(39);
+    expect(result.current.popKey).toBe(before + 1);
+    expect(rafCallbacks.size).toBe(0);
+  });
 });
 
 describe('legacy path (no opts)', () => {

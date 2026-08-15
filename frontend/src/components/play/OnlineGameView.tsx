@@ -246,7 +246,9 @@ function LifeControls({
    *  instead of leaving it to its normal 1.5s lifetime (mirrors GameBoard). */
   undoNonce?: number;
 }) {
-  const { display, popKey } = useAnimatedNumber(player.life);
+  // Duration 0 → your own total snaps in the same paint as the tap (optimistic
+  // dispatch is local); LifeReadout below keeps the tween for REMOTE seats.
+  const { display, popKey } = useAnimatedNumber(player.life, 0);
   const { chips, push, clear } = useFloatingDelta();
   const lastChip = chips[chips.length - 1];
 
