@@ -40,6 +40,8 @@ function isReducedMotion(): boolean {
  * Legacy signature (back-compat with GameBoard):
  *   useAnimatedNumber(target, 200) — no reveal, snaps on |Δ|>5
  *   useAnimatedNumber(target)      — same, default 200ms
+ *   useAnimatedNumber(target, 0)   — instant: display IS target (same paint,
+ *     no tween), popKey still bumps per change so the pop CSS restarts
  *
  * New signature (score surfaces):
  *   useAnimatedNumber(target, { revealKey: 'deck-id:sig:hero' })
@@ -177,7 +179,7 @@ export function useAnimatedNumber(
 
     setPopKey((k) => k + 1);
 
-    if (reducedMotion) {
+    if (reducedMotion || durationMs === 0) {
       if (rafRef.current != null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
@@ -231,5 +233,8 @@ export function useAnimatedNumber(
     []
   );
 
-  return { display, popKey };
+  // durationMs 0 = instant mode: the rendered number tracks the target in the
+  // SAME commit (life counters must not trail the tap); the effect above still
+  // bumps popKey and keeps display/displayRef coherent one commit later.
+  return { display: durationMs === 0 ? target : display, popKey };
 }
