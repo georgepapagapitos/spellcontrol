@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { LayoutGrid, List as ListIcon } from 'lucide-react';
-import type { PublicBinder } from '../../lib/shared-types';
+import type { PublicBinder, PublicCard } from '../../lib/shared-types';
 import { normalizeForSearch } from '../../lib/normalize-search';
 import { formatMoney } from '../../lib/format-money';
 import { formatIdentity } from '../../lib/display-name';
@@ -61,10 +61,16 @@ export function SharedBinderView({ data }: Props) {
     () => sections.flatMap((s) => s.groups.map((g) => publicCardToEnriched(g.card))),
     [sections]
   );
-  const previewLabels = useMemo(
-    () => sections.flatMap((s) => s.groups.map(() => s.label)),
-    [sections]
-  );
+  // A merged section's label is a joined run of every group sharing its pages,
+  // so each card carries its own group label — keyed by card identity, since
+  // filtering and grouping both break index alignment with `cardLabels`.
+  const previewLabels = useMemo(() => {
+    const byCard = new Map<PublicCard, string>();
+    for (const s of data.sections) {
+      if (s.cardLabels) s.cards.forEach((c, i) => byCard.set(c, s.cardLabels![i] ?? s.label));
+    }
+    return sections.flatMap((s) => s.groups.map((g) => byCard.get(g.card) ?? s.label));
+  }, [sections, data.sections]);
   const previewQty = useMemo(
     () => sections.flatMap((s) => s.groups.map((g) => g.quantity)),
     [sections]

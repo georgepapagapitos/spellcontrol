@@ -438,7 +438,18 @@ function buildSections(
     return {
       key: keyPrefix ? `${keyPrefix}/${meta.key}` : meta.key,
       label: labelPrefix ? `${labelPrefix} · ${label}` : label,
-      ...(labels && labels.length > 1 ? { labels } : {}),
+      ...(labels && labels.length > 1
+        ? {
+            labels,
+            // Per-card group label so a single card's context line names its
+            // own group, not the whole joined run.
+            ...(primary
+              ? {
+                  cardLabels: matchingCards.map((c) => getSectionMeta(c, primary.field, ctx).label),
+                }
+              : {}),
+          }
+        : {}),
       pip: meta.pip,
       cards: matchingCards,
       pages,

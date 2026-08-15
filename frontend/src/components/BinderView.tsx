@@ -323,7 +323,7 @@ function SectionList({
       section.cards.forEach((card, i) => {
         cardIndex.set(card, cards.length);
         cards.push(card);
-        sectionLabels.push(section.label);
+        sectionLabels.push(section.cardLabels?.[i] ?? section.label);
         pageNumbers.push(sectionPageNumbers[i] ?? 0);
       });
     }

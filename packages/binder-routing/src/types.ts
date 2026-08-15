@@ -502,6 +502,13 @@ export interface BinderSection {
    * separately read this; everything else can keep using `label`.
    */
   labels?: string[];
+  /**
+   * Per-card group label, parallel to `cards`. Present only for merged
+   * sections, so a single card can name the group it came from instead of
+   * inheriting the whole joined run (a 40-drop Secret Lair section is
+   * unreadable as one card's context line).
+   */
+  cardLabels?: string[];
   /** Optional color-pip styling — populated only when grouping by color. */
   pip?: { background: string; border: string };
   cards: EnrichedCard[];

@@ -144,6 +144,12 @@ export interface PublicBinderSection {
   /** Color-pip styling — present only when the binder groups by color. */
   pip?: { background: string; border: string };
   cards: PublicCard[];
+  /**
+   * Per-card group label, parallel to `cards`. Present only for merged
+   * sections, where `label` is a joined run of every group on the shared
+   * pages and so says nothing useful about one card.
+   */
+  cardLabels?: string[];
 }
 
 export interface PublicBinder {
@@ -576,11 +582,20 @@ export function projectBinder(
   const sections: PublicBinderSection[] = [];
   for (const sec of materialized.sections) {
     const cards: PublicCard[] = [];
-    for (const raw of sec.cards) {
+    const cardLabels: string[] = [];
+    sec.cards.forEach((raw, i) => {
       const p = projectCard(raw);
-      if (p) cards.push(p);
-    }
-    sections.push({ key: sec.key, label: sec.label, pip: sec.pip, cards });
+      if (!p) return;
+      cards.push(p);
+      if (sec.cardLabels) cardLabels.push(sec.cardLabels[i] ?? sec.label);
+    });
+    sections.push({
+      key: sec.key,
+      label: sec.label,
+      pip: sec.pip,
+      cards,
+      ...(cardLabels.length ? { cardLabels } : {}),
+    });
   }
 
   return {
