@@ -73,10 +73,10 @@
                        browser synthesizes a smeared faux-bold otherwise
        --font-label    chrome/tab/tape labels, uppercase + letter-spaced only
        --font-mono     data: prices, qty, set codes, tabular numerals */
-  --font-serif: 'Vollkorn', 'Georgia', serif;
-  --font-mono: 'Space Mono', 'Menlo', 'Consolas', monospace;
-  --font-label: 'Oswald', 'Avenir Next Condensed', 'Arial Narrow', sans-serif;
-  --font-display: 'Germania One', 'Vollkorn', 'Georgia', serif;
+  --font-serif: 'Eczar', 'Georgia', serif;
+  --font-mono: 'IBM Plex Mono', 'Menlo', 'Consolas', monospace;
+  --font-label: 'Archivo Narrow', 'Avenir Next Condensed', 'Arial Narrow', sans-serif;
+  --font-display: 'Marcellus', 'Georgia', serif;
 
   /* Type scale — 8 steps. Use these instead of raw rem values so adjacent
      sizes don't drift apart by a single pixel and look like accidents. */

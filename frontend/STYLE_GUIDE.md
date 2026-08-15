@@ -560,10 +560,22 @@ user choice — see § Type sets.
 | Label   | `--font-label`   | Chrome/tab/tape labels, uppercase + tracked — see § App chrome                                       | prose, headings, form controls                        |
 | Data    | `--font-mono`    | Data: prices, qty, set codes, tabular numerals                                                       | —                                                     |
 
-In the default set (**Grimoire**) those roles are Vollkorn / Germania One /
-Oswald / Space Mono respectively. Older examples in this section were written
-against **Folio** (Eczar / Sorts Mill Goudy / Archivo Narrow / IBM Plex Mono),
-which is still a selectable set — where one names a face, read the role.
+In the default set (**Codex**) those roles are Eczar / Marcellus / Archivo
+Narrow / IBM Plex Mono respectively. Older examples in this section were written
+against **Folio** or **Grimoire**, both still selectable sets — where one names
+a face, read the role.
+
+**The default set is chosen for legibility, not for taste.** A default is what
+every reader gets *before they know a picker exists*, so it is the one set that
+has to work for someone who did not choose it. Grimoire — whose own registry
+hint reads "Gothic and heavy. Loud on purpose" — is the least legible set we
+ship, so it is an opt-in a click away in Settings → Appearance rather than the
+thing a first-time visitor is handed. Codex keeps a distinctive inscriptional
+display face without a decorative gothic one. Expressive sets stay fully
+available; they are simply never the default. Flipping `DEFAULT_TYPESET` is four
+coordinated edits plus a test fixture — see the comment on the constant, and
+note the label face sets every mobile tab-bar cell's width, so a new default
+must be checked at 360px.
 
 ### Type sets — the user-selectable typeface axis
 
@@ -640,6 +652,37 @@ Rulings for `--font-display` (restyle Phase 6):
   (`.welcome-hero-wordmark`, `--text-sm`) and the deck-identity card's
   attribution line (`--text-xs`) function as labels, and an oldstyle display
   face dies in tiny tracked caps — don't "unify" those.
+
+## System preferences — honour them, don't reinvent them
+
+The OS already carries the reader's accessibility choices. Respond to those
+signals rather than shipping an in-app duplicate of each one.
+
+- **`prefers-color-scheme`** picks the first-run theme (light → Azorius,
+  dark → Dimir). Read once, synchronously, pre-paint; a stored choice always
+  wins afterwards and we never live-switch under the user.
+- **`prefers-reduced-motion`** is a required branch on any non-trivial
+  animation — see the motion rules later in this guide.
+- **`prefers-contrast: more`** retires the two tokens that trade contrast for
+  tone: `--text-muted` becomes `--text-secondary`, and `--border` becomes
+  `--border-strong`. Every palette already clears AA (and AAA on primary text),
+  so this is not a rescue — it honours a reader who asked for less subtlety.
+
+  Three rules for that block, all load-bearing:
+
+  1. **Re-point at stronger siblings; never declare new colours.** Each theme
+     defines its own `--text-secondary` / `--border-strong`, so one block covers
+     all ten with correct hues, and a new theme is covered the day it lands.
+  2. **A token can never reference itself.**
+     `--text-muted: color-mix(…, var(--text-muted), …)` is a cycle, which makes
+     the property invalid at computed-value time and silently drops it.
+  3. **It must stay last in `themes.css`.** `:root`, `[data-theme='…']` and
+     `[data-scheme='…']` all carry equal specificity, so source order is the
+     only reason it wins. A media query adds no specificity.
+
+  `themes-contrast.test.ts` pins that secondary is at least as strong as muted
+  in every theme — otherwise "more contrast" could mean *less* in some theme,
+  and nothing else would catch it, since the block declares no colour of its own.
 
 ## App chrome — leather & divider tabs (T53)
 

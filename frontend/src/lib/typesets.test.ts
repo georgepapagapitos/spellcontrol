@@ -90,3 +90,51 @@ describe('typesets ↔ index.html', () => {
     }
   });
 });
+
+/**
+ * The fourth coordination point, and the only one that had no test. tokens.css's
+ * `--font-*` values are what renders before any [data-typeset] rule matches, so
+ * a default flip that leaves them on the old set names faces the page never
+ * downloads: the first frame paints in Georgia and then snaps. Nothing errors —
+ * the app just flashes — which is exactly why it needs pinning.
+ */
+describe('typesets ↔ tokens.css fallbacks', () => {
+  const fontBlock = (): string => {
+    const css = readFileSync(
+      fileURLToPath(new URL('../styles/tokens.css', import.meta.url)),
+      'utf8'
+    );
+    // Only the four --font-* declarations, not the whole stylesheet.
+    return css.match(/--font-(?:serif|mono|label|display):[^;]*;/g)?.join('\n') ?? '';
+  };
+  const familiesOf = (href: string): string[] =>
+    new URL(href).searchParams.getAll('family').map((f) => f.split(':')[0].replace(/\+/g, ' '));
+
+  const defaultHref = TYPESETS.find((t) => t.id === DEFAULT_TYPESET)?.href;
+
+  it('names every family of the default set', () => {
+    const block = fontBlock();
+    expect(block.length).toBeGreaterThan(0);
+    // `plain` ships no webfont — its fallbacks are the system stack.
+    if (!defaultHref) return;
+    for (const name of familiesOf(defaultHref)) {
+      expect(block, `tokens.css --font-* fallbacks are missing ${name}`).toContain(name);
+    }
+  });
+
+  it('carries no leftover face that only a non-default set uses', () => {
+    const block = fontBlock();
+    const defaultFamilies = new Set(defaultHref ? familiesOf(defaultHref) : []);
+    for (const t of TYPESETS) {
+      if (t.id === DEFAULT_TYPESET || !t.href) continue;
+      for (const name of familiesOf(t.href)) {
+        // Sets share faces on purpose (Eczar, Archivo Narrow and Plex Mono are
+        // in several), so only a face the default does NOT use is a leftover.
+        if (defaultFamilies.has(name)) continue;
+        expect(block, `tokens.css still names ${name}, which only '${t.id}' uses`).not.toContain(
+          name
+        );
+      }
+    }
+  });
+});

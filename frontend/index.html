@@ -49,13 +49,13 @@
     <meta name="twitter:image" content="https://spellcontrol.com/og-image.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Faces for the DEFAULT type set only (grimoire: Germania One / Vollkorn
-         / Oswald / Space Mono). Every other set's stylesheet is injected at
-         runtime by store/typeset.ts, so a user on a non-default set never pays
-         for these. Keep in lockstep with DEFAULT_TYPESET in lib/typesets.ts and
-         the `--font-*` fallbacks in styles/tokens.css. -->
+    <!-- Faces for the DEFAULT type set only (codex: Marcellus / Eczar /
+         Archivo Narrow / IBM Plex Mono). Every other set's stylesheet is
+         injected at runtime by store/typeset.ts, so a user on a non-default set
+         never pays for these. Keep in lockstep with DEFAULT_TYPESET in
+         lib/typesets.ts and the `--font-*` fallbacks in styles/tokens.css. -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Germania+One&family=Oswald:wght@400;500;600&family=Space+Mono:wght@400;700&family=Vollkorn:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Eczar:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Marcellus&display=swap"
       rel="stylesheet"
     />
     <script>
@@ -112,7 +112,7 @@
           'broadsheet',
           'plain',
         ];
-        var DEFAULT_TYPESET = 'grimoire';
+        var DEFAULT_TYPESET = 'codex';
         var ts = DEFAULT_TYPESET;
         try {
           var traw = localStorage.getItem('spellcontrol-typeset');

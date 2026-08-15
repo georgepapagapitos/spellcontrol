@@ -7,7 +7,7 @@ import { DEFAULT_TYPESET, TYPESETS } from '../lib/typesets';
 // injects a font <link>, and the default deliberately injects none (its faces
 // are already in index.html). Asserted below so flipping the default can't
 // silently turn those into vacuous tests.
-const VALID = 'codex';
+const VALID = 'grimoire';
 const OTHER = 'broadsheet';
 const INVALID = 'not-a-real-typeset';
 const KEY = 'spellcontrol-typeset';

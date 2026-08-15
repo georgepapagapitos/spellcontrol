@@ -251,3 +251,39 @@
   /* Match native form controls to the dark surface. */
   color-scheme: dark;
 }
+
+/* ── prefers-contrast: more ───────────────────────────────────────────────
+   The OS "increase contrast" setting. Every palette already clears AA (and
+   AAA on primary text), so this is not a rescue — it honours a reader who has
+   asked for less subtlety by retiring the two tokens that trade contrast for
+   tone.
+
+   It re-points tokens at STRONGER SIBLINGS rather than declaring new colours,
+   which is what lets one block cover all ten themes: each theme defines its
+   own --text-secondary and --border-strong, so each gets correctly hued
+   high-contrast values for free, and a new theme is covered the day it lands
+   without another block here.
+
+   ⚠️ This cannot be written as a self-referential mix — `--text-muted:
+   color-mix(…, var(--text-muted), …)` is a cycle, which makes the property
+   invalid at computed-value time and silently drops it. Point at a different
+   token, never at yourself.
+
+   Must stay LAST in this file: `:root`, `[data-theme='…']` and
+   `[data-scheme='…']` all carry the same specificity, so source order is what
+   makes this win over a theme's own values. A media query adds no specificity.
+
+   ponytail: retires two tone levels (muted→secondary, border→border-strong).
+   If that proves insufficient the next step is a dedicated high-contrast
+   palette per scheme, not further flattening of the tone ramp. */
+@media (prefers-contrast: more) {
+  :root {
+    /* Muted is the weakest text we ship (4.8:1 on the thinnest themes);
+       secondary runs 6.1–8.6:1 everywhere. themes-contrast.test.ts pins that
+       this swap is an improvement in EVERY theme, never a regression. */
+    --text-muted: var(--text-secondary);
+
+    /* Hairline dividers and control outlines become unambiguous edges. */
+    --border: var(--border-strong);
+  }
+}

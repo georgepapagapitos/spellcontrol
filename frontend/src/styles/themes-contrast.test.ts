@@ -48,6 +48,8 @@ interface Palette {
   surface: string;
   surfaceRaised: string;
   textMuted: string;
+  /** Where --text-muted is remapped under prefers-contrast: more. */
+  textSecondary: string | null;
 }
 
 function collectThemes(): Palette[] {
@@ -60,9 +62,10 @@ function collectThemes(): Palette[] {
     const surface = tokenIn(block, 'surface');
     const surfaceRaised = tokenIn(block, 'surface-raised');
     const textMuted = tokenIn(block, 'text-muted');
+    const textSecondary = tokenIn(block, 'text-secondary');
     // Only the colour-definition blocks carry all four; status-only blocks don't.
     if (bg && surface && surfaceRaised && textMuted) {
-      palettes.push({ name, bg, surface, surfaceRaised, textMuted });
+      palettes.push({ name, bg, surface, surfaceRaised, textMuted, textSecondary });
     }
   }
   return palettes;
@@ -115,4 +118,43 @@ describe('theme contrast (UX-103)', () => {
       expect(contrast(textMuted!, ground)).toBeGreaterThanOrEqual(AA);
     }
   });
+});
+
+/**
+ * `@media (prefers-contrast: more)` remaps --text-muted to --text-secondary
+ * (see the block at the end of themes.css). That is only sound if secondary is
+ * genuinely stronger than muted in EVERY theme — otherwise a reader who asked
+ * the OS for more contrast would get LESS of it in whichever theme inverted,
+ * and nothing else would catch it: the media block declares no colour of its
+ * own, so it can never fail a palette check directly.
+ */
+describe('prefers-contrast: more remap is an improvement everywhere', () => {
+  it('themes.css actually declares the high-contrast block, last', () => {
+    const at = themesCss.indexOf('@media (prefers-contrast: more)');
+    expect(at, 'the prefers-contrast block is missing from themes.css').toBeGreaterThan(-1);
+    // Source order is what makes it beat the equal-specificity theme blocks.
+    expect(
+      themesCss.indexOf("[data-theme='", at),
+      'a [data-theme] block follows the prefers-contrast block and would override it'
+    ).toBe(-1);
+    expect(themesCss.slice(at)).toContain('--text-muted: var(--text-secondary)');
+  });
+
+  for (const t of collectThemes()) {
+    it(`${t.name}: --text-secondary is at least as strong as --text-muted`, () => {
+      expect(t.textSecondary, `${t.name} declares no --text-secondary`).toBeTruthy();
+      for (const [where, ground] of Object.entries({
+        bg: t.bg,
+        surface: t.surface,
+        'surface-raised': t.surfaceRaised,
+      })) {
+        const muted = contrast(t.textMuted, ground);
+        const secondary = contrast(t.textSecondary!, ground);
+        expect(
+          secondary,
+          `${t.name} on --${where}: secondary ${secondary.toFixed(2)} < muted ${muted.toFixed(2)} — the high-contrast remap would REDUCE contrast here`
+        ).toBeGreaterThanOrEqual(muted);
+      }
+    });
+  }
 });
