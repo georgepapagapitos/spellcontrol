@@ -46,8 +46,8 @@ export function BinderPage() {
   // Decorate with Scryfall oracle tags so "tag IS mana-rock" rules resolve.
   // No-op (returns rawCards by reference) unless a binder uses a tag rule.
   const taggedCards = useCardsWithTags(rawCards, bindersUseTags(binders));
-  // Decorate with the Secret Lair drop each printing came from, so a binder can
-  // section by drop. Same deal: no-op unless a binder sorts by `sldDrop`.
+  // Decorate with the Secret Lair drop each printing came from, so the set sorts
+  // can section by drop. Same deal: no-op unless a binder sorts by set.
   const cards = useCardsWithSldDrops(taggedCards, bindersUseSldDrops(binders));
   const hydrating = useCollectionStore((s) => s.hydrating);
   const search = useCollectionStore((s) => s.search);

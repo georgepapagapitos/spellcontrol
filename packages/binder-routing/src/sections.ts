@@ -1,7 +1,6 @@
 import type { EnrichedCard, SetMap, SortField } from './types.js';
 import { COLOR_INFO, COLOR_ORDER, getColorKey } from './colors.js';
 import { TYPE_ORDER, getCardType } from './card-types.js';
-import { sldDropRank } from './sorting.js';
 
 export interface SectionContext {
   setMap?: SetMap;
@@ -20,6 +19,14 @@ export interface SectionMeta {
   pip?: { background: string; border: string };
 }
 
+/**
+ * `order` for a group whose sort value is unknown (a set with no release date,
+ * a Secret Lair number MTGJSON hasn't mapped). Section ordering keeps these
+ * last whatever the direction — "newest drop first" leading with the cards
+ * whose date we don't know is never what was asked for.
+ */
+export const UNKNOWN_ORDER = Number.MAX_SAFE_INTEGER;
+
 const RARITY_INFO: Record<string, { label: string; order: number }> = {
   mythic: { label: 'Mythic', order: 0 },
   rare: { label: 'Rare', order: 1 },
@@ -28,6 +35,21 @@ const RARITY_INFO: Record<string, { label: string; order: number }> = {
   special: { label: 'Special', order: 4 },
   bonus: { label: 'Bonus', order: 5 },
 };
+
+/**
+ * Set identity for the two set-driven groupings. A Secret Lair printing reports
+ * its *drop* — Scryfall files all ~2,300 of them under one flat `SLD` set, so
+ * grouping by the set code alone gives one useless "Secret Lair Drop" bucket
+ * while the drop is the thing you actually bought and sleeve together. Numbers
+ * MTGJSON doesn't cover keep the flat set name (see EnrichedCard.sldDrop).
+ */
+function setMeta(card: EnrichedCard): { key: string; label: string } {
+  if (card.sldDrop) return { key: `sld-${card.sldDrop}`, label: card.sldDrop };
+  return {
+    key: card.setCode || 'unknown',
+    label: card.setName || card.setCode || 'Unknown set',
+  };
+}
 
 function capitalize(s: string): string {
   if (!s) return s;
@@ -97,35 +119,21 @@ export function getSectionMeta(
       return cmcBucket(card.cmc);
     case 'setReleaseDate': {
       const code = (card.setCode || '').toUpperCase();
-      const released = ctx?.setMap?.[code]?.releasedAt;
+      const released = card.sldDrop ? card.sldDropReleasedAt : ctx?.setMap?.[code]?.releasedAt;
       return {
-        key: card.setCode || 'unknown',
-        label: card.setName || card.setCode || 'Unknown set',
-        // Unknown release dates sort last (Infinity).
-        order: released ? new Date(released).getTime() : Number.MAX_SAFE_INTEGER,
+        ...setMeta(card),
+        // Unknown release dates sort last — in BOTH directions, see UNKNOWN_ORDER.
+        order: released ? new Date(released).getTime() : UNKNOWN_ORDER,
       };
     }
     case 'setName':
-      return {
-        key: card.setCode || 'unknown',
-        label: card.setName || card.setCode || 'Unknown set',
-        order: 0,
-      };
+      return { ...setMeta(card), order: 0 };
     case 'name':
       return nameBucket(card.name);
     case 'price':
       return priceBucket(card.purchasePrice);
     case 'edhrec':
       return edhrecBucket(card.edhrecRank);
-    case 'sldDrop':
-      // Newest drop first, matching how the Sets page lists them. Cards with no
-      // known drop — non-SLD, or one of the SLD numbers MTGJSON doesn't cover —
-      // collect in one trailing section rather than each becoming its own.
-      // `order` comes from the same helper the comparator uses, so the section
-      // order and the within-section sort can't drift apart.
-      return card.sldDrop
-        ? { key: `sld-${card.sldDrop}`, label: card.sldDrop, order: sldDropRank(card) }
-        : { key: 'sld-none', label: 'Other printings', order: sldDropRank(card) };
     case 'collectorNumber':
     case 'quantity':
     default:

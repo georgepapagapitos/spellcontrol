@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { materializeBinders } from './materialize.js';
 import { printingFinishKey } from './sorting.js';
-import type { EnrichedCard, BinderDef, BinderFilter, BinderFilterGroup } from './types.js';
+import type {
+  EnrichedCard,
+  BinderDef,
+  BinderFilter,
+  BinderFilterGroup,
+  SortField,
+} from './types.js';
 
 function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
   return {
@@ -1236,7 +1242,7 @@ describe('sticky price retention', () => {
   });
 });
 
-describe('sldDrop sections + packSections', () => {
+describe('Secret Lair drop sections + packSections', () => {
   /** `n` cards from one Secret Lair drop, released on `releasedAt`. */
   const drop = (name: string, n: number, releasedAt: string) =>
     Array.from({ length: n }, (_, i) =>
@@ -1249,8 +1255,10 @@ describe('sldDrop sections + packSections', () => {
       })
     );
 
+  // The drop IS the set, so the plain set sorts section by drop — newest first
+  // is `setReleaseDate` descending, which reads each drop's own release date.
   const sldBinder = (overrides: Partial<BinderDef> = {}) =>
-    makeBinder({ filter: {}, sorts: [{ field: 'sldDrop', dir: 'asc' }], ...overrides });
+    makeBinder({ filter: {}, sorts: [{ field: 'setReleaseDate', dir: 'desc' }], ...overrides });
 
   const twelve = { globalPocketSize: 12 as const, search: '' };
 
@@ -1268,16 +1276,42 @@ describe('sldDrop sections + packSections', () => {
     ]);
   });
 
-  it('collects cards with no known drop into one trailing "Other printings" section', () => {
+  it('leaves cards with no known drop under their real set, always trailing', () => {
     const cards = [
       ...drop('Cats of Chaos', 3, '2026-06-16'),
-      makeCard({ name: 'Unmapped SLD number', setCode: 'SLD' }),
-      makeCard({ name: 'Not a Secret Lair', setCode: 'MH3' }),
+      makeCard({ name: 'Unmapped SLD number', setCode: 'SLD', setName: 'Secret Lair Drop' }),
     ];
     const { binders } = materializeBinders(cards, [sldBinder()], defaultOpts);
     const sections = binders[0].sections;
-    expect(sections.map((s) => s.label)).toEqual(['Cats of Chaos', 'Other printings']);
-    expect(sections[1].cards).toHaveLength(2);
+    // No release date for the flat SLD set (no setMap here) — so it sorts last
+    // even though the sort is descending, rather than leading the binder.
+    expect(sections.map((s) => s.label)).toEqual(['Cats of Chaos', 'Secret Lair Drop']);
+    expect(sections[1].cards).toHaveLength(1);
+  });
+
+  it('sorting by set name puts each drop under its own name, not one SLD lump', () => {
+    const cards = [
+      ...drop('Goblin Storm', 2, '2026-05-18'),
+      ...drop('Cats of Chaos', 2, '2026-06-16'),
+    ];
+    const { binders } = materializeBinders(
+      cards,
+      [sldBinder({ sorts: [{ field: 'setName', dir: 'asc' }] })],
+      defaultOpts
+    );
+    expect(binders[0].sections.map((s) => s.label)).toEqual(['Cats of Chaos', 'Goblin Storm']);
+  });
+
+  it('migrates a binder saved with the retired sldDrop sort field', () => {
+    const cards = [
+      ...drop('Cats of Chaos', 2, '2026-06-16'),
+      ...drop('Goblin Storm', 2, '2026-05-18'),
+    ];
+    const legacy = sldBinder({ sorts: [{ field: 'sldDrop' as SortField, dir: 'asc' }] });
+    const { binders } = materializeBinders(cards, [legacy], defaultOpts);
+    // Reads as the set sort it became — NOT one dead "All cards" section.
+    expect(binders[0].sections.map((s) => s.label)).toEqual(['Cats of Chaos', 'Goblin Storm']);
+    expect(binders[0].displaySorts).toEqual([{ field: 'setName', dir: 'asc' }]);
   });
 
   it('gives every drop its own page by default — the wasteful mode', () => {

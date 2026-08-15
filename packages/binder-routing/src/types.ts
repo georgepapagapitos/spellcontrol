@@ -124,8 +124,10 @@ export interface EnrichedCard {
    * drop metadata, so this can't be derived from set fields — it comes from the
    * MTGJSON-built drop map. Like `tags`, this is reference data: NOT persisted
    * or synced, decorated onto cards by the caller just before materializing
-   * (frontend `lib/sld-drops.ts`). Absent on non-SLD cards, and on the handful
-   * of SLD numbers MTGJSON doesn't cover — both fall into one trailing section.
+   * (frontend `lib/sld-drops.ts`). When present it stands in for the card's set
+   * everywhere the `setName` / `setReleaseDate` sorts look — the drop IS the set
+   * for a Secret Lair. Absent on non-SLD cards, and on the handful of SLD
+   * numbers MTGJSON doesn't cover; those keep the flat "Secret Lair Drop" set.
    */
   sldDrop?: string;
   /** YYYY-MM-DD release date of `sldDrop`, used to order drop sections. */
@@ -147,10 +149,6 @@ export type SortField =
   | 'quantity'
   | 'treatment'
   | 'finish'
-  // Secret Lair drop (see EnrichedCard.sldDrop). Binder-only in practice: it
-  // needs the caller-supplied drop decoration, and every card without one
-  // collapses into a single "Other printings" section.
-  | 'sldDrop'
   // Collection-only: import date, derived at sort-time from a card's importId via
   // SortContext.addedAtByImportId. Intentionally NOT in SORT_FIELDS — it has no
   // value in binder views (which don't supply that context), so it stays out of

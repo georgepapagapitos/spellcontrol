@@ -122,9 +122,21 @@ export function getSldDrops(): Promise<SldDropsIndex | null> {
   return sldDropsPromise;
 }
 
-/** True when any binder sections by Secret Lair drop — the gate for decorating. */
+/**
+ * True when any binder sorts by set — the gate for decorating. Either set sort
+ * resolves a Secret Lair to its drop (binder-routing `setMeta`), so both need
+ * the decoration; `sldDrop` is the retired field name, still stored on binders
+ * saved before the fold (see `normalizeSorts`).
+ */
 export function bindersUseSldDrops(binders: { sorts: SortEntry[] }[]): boolean {
-  return binders.some((b) => b.sorts?.some((s) => s?.field === 'sldDrop'));
+  return binders.some((b) =>
+    b.sorts?.some(
+      (s) =>
+        s?.field === 'setName' ||
+        s?.field === 'setReleaseDate' ||
+        (s?.field as string) === 'sldDrop'
+    )
+  );
 }
 
 /**

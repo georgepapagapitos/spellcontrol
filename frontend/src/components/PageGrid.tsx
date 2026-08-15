@@ -9,8 +9,8 @@ interface Props {
   pageIndex: number;
   pocketSize: PocketSize;
   showImages?: boolean;
-  /** Group labels physically on this page (merged sections only). */
-  labels?: string[];
+  /** What's physically on this page, when the page is its own heading. */
+  label?: string;
 }
 
 // Memoized: when SectionBlock re-renders for the deferred isPreviewOpen flip,
@@ -23,22 +23,19 @@ export const PageGrid = memo(function PageGrid({
   pageIndex,
   pocketSize,
   showImages,
-  labels,
+  label,
 }: Props) {
   const gridClass = pocketSize === 4 ? 'grid-4' : pocketSize === 12 ? 'grid-12' : 'grid-9';
   return (
     <div className="page-wrap">
       <PageNum pageNum={pageNum} pageIndex={pageIndex} />
-      {/* Above the grid, under the page number, so the chips read as THIS
-          page's contents — below the grid they visually attach to the next
-          page's heading. */}
-      {labels && labels.length > 0 && (
-        <div className="page-chips">
-          {labels.map((l) => (
-            <span key={l} className="page-chip">
-              {l}
-            </span>
-          ))}
+      {/* Above the grid, under the page number, so it reads as THIS page's
+          contents — below the grid it visually attaches to the next page's
+          heading. Rendered even when empty so every page's grid starts at the
+          same height and the row of pages stays on one baseline. */}
+      {label !== undefined && (
+        <div className="page-label" title={label}>
+          {label}
         </div>
       )}
       <div className={`page ${gridClass}`}>

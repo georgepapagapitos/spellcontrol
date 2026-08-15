@@ -146,7 +146,9 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
         (acc, s) => ({
           tabs: [
             ...acc.tabs,
-            { key: s.key, label: s.label, pip: s.pip, firstPageIndex: acc.offset },
+            // A merged section's `label` joins every group it swallowed — too
+            // long for an edge tab, so name it the first (matches BinderView).
+            { key: s.key, label: s.labels?.[0] ?? s.label, pip: s.pip, firstPageIndex: acc.offset },
           ],
           offset: acc.offset + s.pages.length,
         }),

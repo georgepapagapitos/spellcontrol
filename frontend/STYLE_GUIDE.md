@@ -898,6 +898,29 @@ The full card name must remain reachable: expose it with `title` on the name
 element for desktop hover, and keep any existing tap-to-preview/card carousel
 affordance for touch. `title` is never the sole path to the full name.
 
+## Binder pages — a page labels itself; a header never repeats it
+
+When binder page-filling (`packSections`) merges several groups onto shared
+pages, the section stops being a thing the user can point at — its boundary is
+wherever the fill happened to land on a page edge. Those binders render as **one
+continuous run of pages with no section headers at all** (`PageRun` in
+`BinderView`), each page carrying its own heading naming what is physically in
+it. Never label the same content twice: a header listing every merged group,
+above pages that each re-list their own, is the pattern this replaced.
+
+- **The heading is one clamped block, not a chip list.** `.page-label` clamps to
+  two lines and reserves that height **unconditionally**, so a page naming three
+  drops and a page naming one still start their grids on the same baseline.
+  Variable-height headings above a row of page grids read as broken layout —
+  that ragged top edge is exactly how the chip version failed.
+- **Full text stays reachable:** `title` on the heading, and the page number
+  opens the spread view, which repeats the label untruncated.
+- **Suppress a heading that says nothing.** When every page in the run would
+  carry identical text (an ungrouped binder: "All cards"), render none.
+- **Edge tabs name the first group, never the join.** A merged section's `label`
+  is every group it swallowed joined with " · "; a spread index tab takes
+  `section.labels[0]` instead.
+
 ## Color pip rows — AND/OR match-mode chip
 
 Every WUBRG+C color pip row that filters _cards or decks by their own colors_
