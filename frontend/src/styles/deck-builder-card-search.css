@@ -673,10 +673,18 @@
        the inner percentage caps can't resolve (.card-search-ai's
        max-height: 60% collapsed the AI strip to an 8px sliver). Also keeps
        the rail a stable frame across tabs — the same rationale as the
-       sheet's pinned 74vh. */
-    height: calc(100dvh - 7.5rem);
+       sheet's pinned 74vh. Shrunk by --deck-view-tabs-sticky-h to match the
+       `top` offset below, so the bottom edge lands in the same place. */
+    height: calc(100dvh - 7.5rem - var(--deck-view-tabs-sticky-h));
     position: sticky;
-    top: var(--space-3);
+    /* Pins BENEATH the page's own sticky Deck/Stats/Power/Coach strip
+       (.deck-editor-view-tabs, also --z-popover, always present above this
+       row) instead of `var(--space-3)` alone — that used to stick the rail
+       12px from the viewport top, which is UNDER the tabs strip's ~40px
+       sticky box. Same z-index + earlier in the stacking order meant the
+       strip painted over the rail's own top content (the Mainboard/
+       Sideboard/Considering zone toggle), hiding it to a sliver on scroll. */
+    top: calc(var(--deck-view-tabs-sticky-h) + var(--space-3));
     display: flex;
     flex-direction: column;
     min-height: 0;
