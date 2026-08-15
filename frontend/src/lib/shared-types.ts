@@ -149,6 +149,11 @@ export interface PublicBinderSection {
   /** Color-pip styling — present only when the binder groups by color. */
   pip?: { background: string; border: string };
   cards: PublicCard[];
+  /**
+   * Per-card group label, parallel to `cards`. Present only for merged
+   * sections, where `label` is a joined run of every group sharing the pages.
+   */
+  cardLabels?: string[];
 }
 
 export interface PublicBinder {

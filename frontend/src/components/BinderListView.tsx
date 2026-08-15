@@ -182,11 +182,11 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
         pageNum: cardToPage.get(card) ?? 0,
       }));
       sectionRows.push({ sectionKey: section.key, rows });
-      for (const r of rows) {
+      rows.forEach((r, i) => {
         cards.push(r.card);
-        sectionLabels.push(section.label);
+        sectionLabels.push(section.cardLabels?.[i] ?? section.label);
         pageNumbers.push(r.pageNum);
-      }
+      });
     }
     return { cards, sectionLabels, pageNumbers, sectionRows };
   }, [binder, qtyByCopyId]);

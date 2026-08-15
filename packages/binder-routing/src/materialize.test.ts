@@ -1338,8 +1338,12 @@ describe('Secret Lair drop sections + packSections', () => {
     expect(sections).toHaveLength(2);
     expect(sections[0].label).toBe('A · B');
     expect(sections[0].labels).toEqual(['A', 'B']);
+    // Each card names its own drop, not the joined run — a card's context line
+    // in the preview carousel reads "A", never "A · B · …".
+    expect(sections[0].cardLabels).toEqual([...Array(5).fill('A'), ...Array(6).fill('B')]);
     expect(sections[1].label).toBe('C');
     expect(sections[1].labels).toBeUndefined();
+    expect(sections[1].cardLabels).toBeUndefined();
     expect(binders[0].totalPages).toBe(2);
   });
 
