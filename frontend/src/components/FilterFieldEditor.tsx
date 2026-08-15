@@ -14,7 +14,10 @@ import { SUPERTYPES, TYPES } from '../lib/card-types';
 import { cardTagLabel, listCardTags, useCardTagsReady } from '../lib/card-tags';
 import { searchCardsLive } from '@/deck-builder/services/scryfall/client';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
+import { X } from 'lucide-react';
 import { InfoTip } from './InfoTip';
+import { useRuleFieldVisibility } from './RuleFieldContext';
+import { filterFieldSpec, type FilterFieldId } from '../lib/filter-fields';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
 
@@ -185,18 +188,55 @@ export interface FilterFieldEditorProps {
  *
  * No expand/collapse logic — callers control their own visibility.
  */
-/** Row wrapper for BinderEditor variant (inline label at 180 px). */
-function BinderRow({ label, children }: { label: ReactNode; children: ReactNode }) {
+/**
+ * Row wrapper for the BinderEditor variant (inline label at 180 px).
+ *
+ * Inside the rule editor a row renders only when its field is in play, and
+ * carries a × that clears the value and takes the row away with it. Outside it
+ * — the collection Filters dialog — `RuleFieldContext` is null and every row
+ * renders unconditionally, exactly as before.
+ */
+export function BinderRow({
+  label,
+  fieldId,
+  rowRef,
+  children,
+}: {
+  label: ReactNode;
+  fieldId?: FilterFieldId;
+  rowRef?: React.Ref<HTMLDivElement>;
+  children: ReactNode;
+}) {
+  const visibility = useRuleFieldVisibility();
+  if (visibility && fieldId && !visibility.isVisible(fieldId)) return null;
   return (
-    <div className="rule-row">
+    <div className="rule-row" ref={rowRef}>
       <span className="rule-label">{label}</span>
       {children}
+      {visibility && fieldId && (
+        <button
+          type="button"
+          className="rule-row-clear"
+          aria-label={`Remove the ${filterFieldSpec(fieldId)?.label ?? 'rule'} rule`}
+          title="Remove this rule"
+          onClick={() => visibility.clearField(fieldId)}
+        >
+          <X width={13} height={13} strokeWidth={2.2} aria-hidden />
+        </button>
+      )}
     </div>
   );
 }
 
 /** Row wrapper for CollectionFiltersDialog variant (label stacks above). */
-function DialogRow({ label, children }: { label: ReactNode; children: ReactNode }) {
+function DialogRow({
+  label,
+  children,
+}: {
+  label: ReactNode;
+  fieldId?: FilterFieldId;
+  children: ReactNode;
+}) {
   return (
     <section className="collection-filters-section">
       <div className="collection-filters-section-label">{label}</div>
@@ -349,7 +389,7 @@ export function FilterFieldEditor({
     <>
       {/* Oracle text */}
       {showOracleText && (
-        <Row label="Oracle text">
+        <Row label="Oracle text" fieldId="oracleChips">
           <ChipExpressionBuilder
             value={value.oracleChips ?? EMPTY_EXPR}
             onChange={(next) => onPatch({ oracleChips: next })}
@@ -373,6 +413,7 @@ export function FilterFieldEditor({
               />
             </>
           }
+          fieldId="oracleTagChips"
         >
           <ChipExpressionBuilder
             options={tagOptions}
@@ -396,6 +437,7 @@ export function FilterFieldEditor({
               />
             </>
           }
+          fieldId="scryfallQuery"
         >
           <ScryfallQueryRow
             key={value.scryfallQuery?.query ?? ''}
@@ -407,7 +449,7 @@ export function FilterFieldEditor({
 
       {/* Format/Legality */}
       {showLegality && (
-        <Row label={isBinder ? 'Legalities' : 'Format'}>
+        <Row label={isBinder ? 'Format legality' : 'Format'} fieldId="legalities">
           <ChipExpressionBuilder
             options={SHARED_FORMAT_OPTIONS}
             value={value.legalities ?? EMPTY_EXPR}
@@ -419,7 +461,7 @@ export function FilterFieldEditor({
       )}
 
       {/* Layout */}
-      <Row label="Layout">
+      <Row label="Layout" fieldId="layouts">
         <ChipExpressionBuilder
           options={SHARED_LAYOUT_OPTIONS}
           value={value.layouts ?? EMPTY_EXPR}
@@ -432,7 +474,7 @@ export function FilterFieldEditor({
 
       {/* Treatment */}
       {showTreatment && (
-        <Row label="Treatment">
+        <Row label="Treatment" fieldId="treatments">
           <ChipExpressionBuilder
             options={SHARED_TREATMENT_OPTIONS}
             value={value.treatments ?? EMPTY_EXPR}
@@ -445,7 +487,7 @@ export function FilterFieldEditor({
 
       {/* Border */}
       {showBorder && (
-        <Row label="Border">
+        <Row label="Border" fieldId="borderColors">
           <ChipExpressionBuilder
             options={SHARED_BORDER_OPTIONS}
             value={value.borderColors ?? EMPTY_EXPR}
@@ -459,7 +501,7 @@ export function FilterFieldEditor({
 
       {/* Finish — collection-page only (physical copy field) */}
       {showFinish && (
-        <Row label="Finish">
+        <Row label="Finish" fieldId="finishes">
           <ChipExpressionBuilder
             options={SHARED_FINISH_OPTIONS}
             value={value.finishes ?? EMPTY_EXPR}
@@ -476,7 +518,7 @@ export function FilterFieldEditor({
       {showTypeRows && (
         <>
           {/* Supertype */}
-          <Row label="Supertype">
+          <Row label="Supertype" fieldId="supertypeChips">
             <ChipExpressionBuilder
               options={SUPERTYPES.map((s) => ({
                 value: s,
@@ -490,7 +532,7 @@ export function FilterFieldEditor({
           </Row>
 
           {/* Type (exact primary type) */}
-          <Row label="Type">
+          <Row label="Card type" fieldId="typeTokenChips">
             <ChipExpressionBuilder
               options={TYPES.map((t) => ({
                 value: t,
@@ -504,7 +546,7 @@ export function FilterFieldEditor({
           </Row>
 
           {/* Subtype */}
-          <Row label="Subtype">
+          <Row label="Subtype" fieldId="subtypeChips">
             <ChipExpressionBuilder
               value={value.subtypeChips ?? EMPTY_EXPR}
               onChange={(next) => onPatch({ subtypeChips: next })}

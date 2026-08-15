@@ -6,7 +6,10 @@ import { cardTagLabel } from '../lib/card-tags';
 import { STARTER_TEMPLATES, type StarterTemplate } from '../lib/binder-templates';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { InfoTip } from './InfoTip';
-import { FilterFieldEditor, NumberRangeInput } from './FilterFieldEditor';
+import { BinderRow as RuleRow, FilterFieldEditor, NumberRangeInput } from './FilterFieldEditor';
+import { RuleFieldContext } from './RuleFieldContext';
+import { RuleFieldPicker } from './RuleFieldPicker';
+import { filterFieldSpec, setFilterFields, type FilterFieldId } from '../lib/filter-fields';
 import type {
   BinderFilter,
   BinderFilterGroup,
@@ -41,27 +44,6 @@ const DEFAULT_EDHREC_TOP_N = 100;
 // Auto-open rule: if any collapsed field carries a value, the expander must
 // start open so the user can see their active rules when editing.
 
-/** Returns true when the filter has a value in any collapsed (below-fold) field. */
-function hasCollapsedFieldValue(f: BinderFilter): boolean {
-  if (f.nameContains?.trim()) return true;
-  if (f.manaCost?.trim()) return true;
-  if (f.commanderEligible !== undefined) return true;
-  if (f.proxy !== undefined) return true;
-  if (f.setCodes && f.setCodes.length > 0) return true;
-  if (f.edhrecRankMax !== undefined) return true;
-  if (f.finishes && f.finishes.chips.length > 0) return true;
-  if (f.layouts && f.layouts.chips.length > 0) return true;
-  if (f.treatments && f.treatments.chips.length > 0) return true;
-  if (f.borderColors && f.borderColors.chips.length > 0) return true;
-  if (f.legalities && f.legalities.chips.length > 0) return true;
-  if (f.oracleChips && f.oracleChips.chips.length > 0) return true;
-  if (f.oracleTagChips && f.oracleTagChips.chips.length > 0) return true;
-  if (f.scryfallQuery) return true;
-  if (f.typeTokenChips && f.typeTokenChips.chips.length > 0) return true;
-  if (f.supertypeChips && f.supertypeChips.chips.length > 0) return true;
-  if (f.subtypeChips && f.subtypeChips.chips.length > 0) return true;
-  return false;
-}
 /* ─────────────────────────── filter-group UI ─────────────────────────── */
 
 /**
@@ -354,29 +336,42 @@ function FilterGroupFields({
   const edhrecEnabled = filter.edhrecRankMax !== undefined;
   const setsRowRef = useRef<HTMLDivElement>(null);
 
-  // Auto-open the expander when a collapsed field already has a value.
-  const [moreOpen, setMoreOpen] = useState(() => hasCollapsedFieldValue(filter));
+  // Fields the user added that don't hold a value yet. A field with a value is
+  // visible on its own account (`setFilterFields`), so this only has to carry
+  // the gap between "I picked Rarity" and "I typed a rarity into it".
+  const [added, setAdded] = useState<Set<FilterFieldId>>(() => new Set());
+  const withValues = setFilterFields(filter);
+  const visibleFields = useMemo(() => {
+    const next = new Set(withValues);
+    for (const id of added) next.add(id);
+    return next;
+  }, [withValues, added]);
 
-  // Auto-open only when a collapsed field GAINS a value (e.g. a template
-  // pre-fills Sets) — the rising edge, not every render, so the user can
-  // still collapse manually and rely on the ● badge for hidden active rules.
-  // Canonical adjust-state-during-render pattern (prev-value compare).
-  const collapsedHasValue = hasCollapsedFieldValue(filter);
-  const [prevCollapsedHasValue, setPrevCollapsedHasValue] = useState(collapsedHasValue);
-  if (collapsedHasValue !== prevCollapsedHasValue) {
-    setPrevCollapsedHasValue(collapsedHasValue);
-    if (collapsedHasValue && !moreOpen) setMoreOpen(true);
-  }
+  const visibility = useMemo(
+    () => ({
+      isVisible: (id: FilterFieldId) => visibleFields.has(id),
+      clearField: (id: FilterFieldId) => {
+        const spec = filterFieldSpec(id);
+        if (spec) patch(spec.clear());
+        setAdded((prev) => {
+          if (!prev.has(id)) return prev;
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      },
+    }),
+    [visibleFields, patch]
+  );
 
-  // "A set binder" template: open the section (render-phase rising-edge, same
-  // pattern as collapsedHasValue above) so the lint-discouraged setState-in-
-  // effect isn't needed. The DOM scroll stays in an effect (it needs the
-  // committed layout). Signal 0 = initial mount → no auto-open/scroll, so
-  // editing an existing binder is unaffected.
+  // "A set binder" template: reveal + scroll to the Sets row. Render-phase
+  // rising-edge compare, so the lint-discouraged setState-in-effect isn't
+  // needed. Signal 0 = initial mount → no reveal, so editing an existing
+  // binder is unaffected.
   const [prevRevealSignal, setPrevRevealSignal] = useState(revealSetsSignal);
   if (revealSetsSignal !== prevRevealSignal) {
     setPrevRevealSignal(revealSetsSignal);
-    if (!moreOpen) setMoreOpen(true);
+    setAdded((prev) => new Set(prev).add('setCodes'));
   }
   useEffect(() => {
     if (revealSetsSignal === 0) return;
@@ -387,18 +382,22 @@ function FilterGroupFields({
   }, [revealSetsSignal]);
 
   return (
-    <>
+    <RuleFieldContext.Provider value={visibility}>
       {/* ── Above the fold: Type line, Color identity, Rarity, CMC, Price ── */}
 
       {/* Type chips */}
-      <div className="rule-row">
-        <span className="rule-label">
-          Type line{' '}
-          <InfoTip
-            label="type line filter"
-            text="Substring match against the type line. Each chip can be toggled between IS and IS NOT. Example: IS Creature + IS NOT Legendary excludes legendary creatures."
-          />
-        </span>
+      <RuleRow
+        fieldId="typeChips"
+        label={
+          <>
+            Type line{' '}
+            <InfoTip
+              label="type line filter"
+              text="Substring match against the WHOLE type line, so 'Legendary Creature' works. Each chip toggles between IS and IS NOT: IS Creature + IS NOT Legendary excludes legendary creatures. For one part of the line on its own, use Supertype, Card type or Subtype."
+            />
+          </>
+        }
+      >
         <ChipExpressionBuilder
           value={filter.typeChips ?? EMPTY_EXPR}
           onChange={(next) => patch({ typeChips: next })}
@@ -406,11 +405,10 @@ function FilterGroupFields({
           defaultJoiner="OR"
           placeholder="e.g. creature, angel, legendary"
         />
-      </div>
+      </RuleRow>
 
       {/* Colors */}
-      <div className="rule-row">
-        <span className="rule-label">Color identity</span>
+      <RuleRow fieldId="colors" label="Color identity">
         <ChipExpressionBuilder
           options={COLORS.map((c) => ({ value: c.key, label: c.label }))}
           value={filter.colors ?? EMPTY_EXPR}
@@ -418,11 +416,10 @@ function FilterGroupFields({
           defaultJoiner="OR"
           placeholder="Add color..."
         />
-      </div>
+      </RuleRow>
 
       {/* Rarity */}
-      <div className="rule-row">
-        <span className="rule-label">Rarity</span>
+      <RuleRow fieldId="rarities" label="Rarity">
         <ChipExpressionBuilder
           options={RARITIES.map((r) => ({ value: r, label: r }))}
           value={filter.rarities ?? EMPTY_EXPR}
@@ -430,11 +427,10 @@ function FilterGroupFields({
           defaultJoiner="OR"
           placeholder="Add rarity..."
         />
-      </div>
+      </RuleRow>
 
       {/* Mana value */}
-      <div className="rule-row">
-        <span className="rule-label">Mana value</span>
+      <RuleRow fieldId="cmc" label="Mana value">
         <NumberRangeInput
           min={filter.cmcMin}
           max={filter.cmcMax}
@@ -442,11 +438,10 @@ function FilterGroupFields({
           onMinChange={(v) => patch({ cmcMin: v })}
           onMaxChange={(v) => patch({ cmcMax: v })}
         />
-      </div>
+      </RuleRow>
 
       {/* Price */}
-      <div className="rule-row">
-        <span className="rule-label">Price ($)</span>
+      <RuleRow fieldId="price" label="Price ($)">
         <NumberRangeInput
           min={filter.priceMin}
           max={filter.priceMax}
@@ -454,194 +449,195 @@ function FilterGroupFields({
           onMinChange={(v) => patch({ priceMin: v })}
           onMaxChange={(v) => patch({ priceMax: v })}
         />
-      </div>
+      </RuleRow>
 
-      {/* ── More rules expander ───────────────────────────────────────────── */}
-      <div className="rule-expander">
-        <button
-          type="button"
-          className="rule-expander-toggle"
-          aria-expanded={moreOpen}
-          onClick={() => setMoreOpen((v) => !v)}
-        >
-          <span className="rule-expander-chevron" aria-hidden="true">
-            {moreOpen ? '▾' : '▸'}
-          </span>
-          {moreOpen ? 'Fewer rules' : 'More rules'}
-          {!moreOpen && collapsedHasValue && (
-            <span className="rule-expander-active-badge" aria-label="some rules active">
-              ●
-            </span>
-          )}
-        </button>
-      </div>
+      {/* Name contains */}
+      <RuleRow fieldId="nameContains" label="Name contains">
+        <input
+          type="text"
+          value={filter.nameContains || ''}
+          onChange={(e) => patch({ nameContains: e.target.value })}
+          placeholder="e.g. dragon, sword..."
+        />
+      </RuleRow>
 
-      {/* ── Below the fold ───────────────────────────────────────────────── */}
-      {moreOpen && (
-        <>
-          {/* Name contains */}
-          <div className="rule-row">
-            <span className="rule-label">Name contains</span>
-            <input
-              type="text"
-              value={filter.nameContains || ''}
-              onChange={(e) => patch({ nameContains: e.target.value })}
-              placeholder="e.g. dragon, sword..."
+      {/* Mana cost */}
+      <RuleRow
+        fieldId="manaCost"
+        label={
+          <>
+            Mana cost{' '}
+            <InfoTip
+              label="mana cost filter"
+              text="Exact mana cost match. Use Scryfall syntax with curly braces, e.g. {2}{G}{W} or {1}{R/W}. Leave blank to ignore."
             />
-          </div>
+          </>
+        }
+      >
+        <input
+          type="text"
+          value={filter.manaCost || ''}
+          onChange={(e) => patch({ manaCost: e.target.value })}
+          placeholder="{2}{G}{W}"
+        />
+      </RuleRow>
 
-          {/* Mana cost */}
-          <div className="rule-row">
-            <span className="rule-label">
-              Mana cost{' '}
-              <InfoTip
-                label="mana cost filter"
-                text="Exact mana cost match. Use Scryfall syntax with curly braces, e.g. {2}{G}{W} or {1}{R/W}. Leave blank to ignore."
-              />
-            </span>
-            <input
-              type="text"
-              value={filter.manaCost || ''}
-              onChange={(e) => patch({ manaCost: e.target.value })}
-              placeholder="{2}{G}{W}"
+      {/* Commander eligibility */}
+      <RuleRow
+        fieldId="commanderEligible"
+        label={
+          <>
+            Commander{' '}
+            <InfoTip
+              label="commander eligibility"
+              text="Matches legal commanders: legendary creatures and cards that say 'can be your commander' (e.g. planeswalker-commanders), legal in the Commander format."
             />
-          </div>
-
-          {/* Commander eligibility */}
-          <div className="rule-row">
-            <span className="rule-label">
-              Commander{' '}
-              <InfoTip
-                label="commander eligibility"
-                text="Matches legal commanders: legendary creatures and cards that say 'can be your commander' (e.g. planeswalker-commanders), legal in the Commander format."
-              />
-            </span>
-            <fieldset className="rule-segmented" aria-label="Commander eligibility">
-              {(
-                [
-                  { v: undefined, label: 'Any' },
-                  { v: true, label: 'Is' },
-                  { v: false, label: 'Is not' },
-                ] as const
-              ).map(({ v, label }) => (
-                <label
-                  key={label}
-                  className={`rule-segmented-pill${filter.commanderEligible === v ? ' active' : ''}`}
-                >
-                  <input
-                    type="radio"
-                    name={commanderEligibleGroup}
-                    checked={filter.commanderEligible === v}
-                    onChange={() => patch({ commanderEligible: v })}
-                  />
-                  <span>{label}</span>
-                </label>
-              ))}
-            </fieldset>
-          </div>
-
-          {/* Proxy */}
-          <div className="rule-row">
-            <span className="rule-label">
-              Proxy{' '}
-              <InfoTip
-                label="proxy filter"
-                text="Matches cards flagged as proxies — stand-in copies with no market value. Use this to keep proxies out of binders meant for real cards, or to route them into a dedicated proxy binder."
-              />
-            </span>
-            <fieldset className="rule-segmented" aria-label="Proxy">
-              {(
-                [
-                  { v: undefined, label: 'Any' },
-                  { v: true, label: 'Is' },
-                  { v: false, label: 'Is not' },
-                ] as const
-              ).map(({ v, label }) => (
-                <label
-                  key={label}
-                  className={`rule-segmented-pill${filter.proxy === v ? ' active' : ''}`}
-                >
-                  <input
-                    type="radio"
-                    name={proxyGroup}
-                    checked={filter.proxy === v}
-                    onChange={() => patch({ proxy: v })}
-                  />
-                  <span>{label}</span>
-                </label>
-              ))}
-            </fieldset>
-          </div>
-
-          {/* Sets */}
-          <div className="rule-row" ref={setsRowRef}>
-            <span className="rule-label">Sets</span>
-            <SetMultiSelect
-              options={ownedSets}
-              selected={filter.setCodes || []}
-              onChange={(next) => patch({ setCodes: next })}
-            />
-          </div>
-
-          {/* EDHREC */}
-          <div className="rule-row">
-            <span className="rule-label">
-              EDHREC popularity{' '}
-              <InfoTip
-                label="EDHREC popularity"
-                text="EDHREC tracks how often each card appears in EDH/Commander decks. Lower rank = more popular. Top 100 = roughly the most-played 100 cards across the format."
-              />
-            </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <label className="field-checkbox">
-                <input
-                  type="checkbox"
-                  checked={edhrecEnabled}
-                  onChange={(e) =>
-                    patch({
-                      edhrecRankMax: e.target.checked ? DEFAULT_EDHREC_TOP_N : undefined,
-                    })
-                  }
-                />
-                Top
-              </label>
+          </>
+        }
+      >
+        <fieldset className="rule-segmented" aria-label="Commander eligibility">
+          {(
+            [
+              { v: undefined, label: 'Any' },
+              { v: true, label: 'Is' },
+              { v: false, label: 'Is not' },
+            ] as const
+          ).map(({ v, label }) => (
+            <label
+              key={label}
+              className={`rule-segmented-pill${filter.commanderEligible === v ? ' active' : ''}`}
+            >
               <input
-                type="number"
-                value={filter.edhrecRankMax ?? ''}
-                min={1}
-                max={50000}
-                step={50}
-                disabled={!edhrecEnabled}
-                placeholder={String(DEFAULT_EDHREC_TOP_N)}
-                onChange={(e) =>
-                  patch({
-                    edhrecRankMax: e.target.value === '' ? undefined : parseInt(e.target.value),
-                  })
-                }
-                style={{ width: 90 }}
+                type="radio"
+                name={commanderEligibleGroup}
+                checked={filter.commanderEligible === v}
+                onChange={() => patch({ commanderEligible: v })}
               />
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                most popular EDH cards
-              </span>
-            </div>
-          </div>
+              <span>{label}</span>
+            </label>
+          ))}
+        </fieldset>
+      </RuleRow>
 
-          {/* Oracle · Legality · Layout · Treatment · Border · Finish
-              Supertype · Type · Subtype — shared rows via FilterFieldEditor */}
-          <FilterFieldEditor
-            value={filter}
-            onPatch={patch}
-            subtypeSuggestions={typeSuggestions}
-            oracleSuggestions={oracleSuggestions}
-            showTypeRows
-            showOracleTags
-            showScryfallQuery
-            showFinish
-            variant="binder"
+      {/* Proxy */}
+      <RuleRow
+        fieldId="proxy"
+        label={
+          <>
+            Proxy{' '}
+            <InfoTip
+              label="proxy filter"
+              text="Matches cards flagged as proxies — stand-in copies with no market value. Use this to keep proxies out of binders meant for real cards, or to route them into a dedicated proxy binder."
+            />
+          </>
+        }
+      >
+        <fieldset className="rule-segmented" aria-label="Proxy">
+          {(
+            [
+              { v: undefined, label: 'Any' },
+              { v: true, label: 'Is' },
+              { v: false, label: 'Is not' },
+            ] as const
+          ).map(({ v, label }) => (
+            <label
+              key={label}
+              className={`rule-segmented-pill${filter.proxy === v ? ' active' : ''}`}
+            >
+              <input
+                type="radio"
+                name={proxyGroup}
+                checked={filter.proxy === v}
+                onChange={() => patch({ proxy: v })}
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </fieldset>
+      </RuleRow>
+
+      {/* Sets */}
+      <RuleRow fieldId="setCodes" label="Sets" rowRef={setsRowRef}>
+        <SetMultiSelect
+          options={ownedSets}
+          selected={filter.setCodes || []}
+          onChange={(next) => patch({ setCodes: next })}
+        />
+      </RuleRow>
+
+      {/* EDHREC */}
+      <RuleRow
+        fieldId="edhrecRankMax"
+        label={
+          <>
+            EDHREC popularity{' '}
+            <InfoTip
+              label="EDHREC popularity"
+              text="EDHREC tracks how often each card appears in EDH/Commander decks. Lower rank = more popular. Top 100 = roughly the most-played 100 cards across the format."
+            />
+          </>
+        }
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <label className="field-checkbox">
+            <input
+              type="checkbox"
+              checked={edhrecEnabled}
+              onChange={(e) =>
+                patch({
+                  edhrecRankMax: e.target.checked ? DEFAULT_EDHREC_TOP_N : undefined,
+                })
+              }
+            />
+            Top
+          </label>
+          <input
+            type="number"
+            value={filter.edhrecRankMax ?? ''}
+            min={1}
+            max={50000}
+            step={50}
+            disabled={!edhrecEnabled}
+            placeholder={String(DEFAULT_EDHREC_TOP_N)}
+            onChange={(e) =>
+              patch({
+                edhrecRankMax: e.target.value === '' ? undefined : parseInt(e.target.value),
+              })
+            }
+            style={{ width: 90 }}
           />
-        </>
-      )}
-    </>
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            most popular EDH cards
+          </span>
+        </div>
+      </RuleRow>
+
+      {/* Oracle · Legality · Layout · Treatment · Border · Finish
+              Supertype · Type · Subtype — shared rows via FilterFieldEditor */}
+      <FilterFieldEditor
+        value={filter}
+        onPatch={patch}
+        subtypeSuggestions={typeSuggestions}
+        oracleSuggestions={oracleSuggestions}
+        showTypeRows
+        showOracleTags
+        showScryfallQuery
+        showFinish
+        variant="binder"
+      />
+
+      <div className="rule-add-row">
+        <RuleFieldPicker
+          inUse={visibleFields}
+          onPick={(id) => setAdded((prev) => new Set(prev).add(id))}
+        />
+        {visibleFields.size === 0 && (
+          <span className="rule-add-hint">
+            No rules yet — this group matches every card left over from the binders above it.
+          </span>
+        )}
+      </div>
+    </RuleFieldContext.Provider>
   );
 }
 
