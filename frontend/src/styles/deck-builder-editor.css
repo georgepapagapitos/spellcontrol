@@ -516,6 +516,11 @@
      instead of dropping behind it. Sheets and modals still win. */
   z-index: var(--z-popover);
   background: var(--bg);
+  /* FIXED height (--deck-view-tabs-sticky-h), not content-derived: the
+     docked add-cards rail (.deck-add-rail, ≥1280px) pins its own sticky
+     `top` beneath this exact value so the two stacked sticky elements
+     never overlap — see the token's own comment in tokens.css. */
+  height: var(--deck-view-tabs-sticky-h);
   padding-top: var(--space-1);
   /* No margin-bottom — the parent `.deck-editor-page` already supplies a 1rem
      flex `gap` between the tab strip and the view below. Adding a margin here
