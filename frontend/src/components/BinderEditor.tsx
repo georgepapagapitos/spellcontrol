@@ -701,55 +701,59 @@ export function BinderEditor() {
                 still display, just flagged as over-capacity.
               </div>
             )}
+            {/* One "Behaviour" group, not three consecutive section headings
+                each gating a single checkbox. That layout spent most of the
+                editor's first screen on three rarely-touched booleans and
+                pushed the rules — the entire point of a binder — below the
+                fold. Their explanations were `title=` tooltips, which never
+                reach touch or assistive tech; they are InfoTips now. */}
             <div className="editor-row">
               <div className="field" style={{ flex: 1 }}>
-                <label>Deck / cube cards</label>
-                <label
-                  className="field-checkbox"
-                  style={{ margin: 0 }}
-                  title="When off, cards currently allocated to any deck or cube are hidden from this binder until they are released. Pins and manual order are preserved."
-                >
-                  <input
-                    type="checkbox"
-                    checked={showDeckAllocated}
-                    onChange={(e) => setShowDeckAllocated(e.target.checked)}
-                  />
-                  Show cards that are in a deck or cube
-                </label>
-              </div>
-            </div>
-            <div className="editor-row">
-              <div className="field" style={{ flex: 1 }}>
-                <label>Printings</label>
-                <label
-                  className="field-checkbox"
-                  style={{ margin: 0 }}
-                  title="When on, if any printing you own of a card matches this binder's rules, all your copies of that card join the binder — not just the printings that matched (e.g. a pricey commander brings its cheap copies along). Only reclaims cards not already in another binder. Ignored for manual binders."
-                >
-                  <input
-                    type="checkbox"
-                    checked={keepPrintingsTogether}
-                    onChange={(e) => setKeepPrintingsTogether(e.target.checked)}
-                  />
-                  Keep all printings together
-                </label>
-              </div>
-            </div>
-            <div className="editor-row">
-              <div className="field" style={{ flex: 1 }}>
-                <label>Trading</label>
-                <label
-                  className="field-checkbox"
-                  style={{ margin: 0 }}
-                  title="Cards in this binder can show up in a game night's trade board when you opt in."
-                >
-                  <input
-                    type="checkbox"
-                    checked={tradeable}
-                    onChange={(e) => setTradeable(e.target.checked)}
-                  />
-                  Available to trade
-                </label>
+                <label>Behaviour</label>
+                <div className="binder-behaviour-options">
+                  <div className="binder-behaviour-option">
+                    <label className="field-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={showDeckAllocated}
+                        onChange={(e) => setShowDeckAllocated(e.target.checked)}
+                      />
+                      Show cards that are in a deck or cube
+                    </label>
+                    <InfoTip
+                      label="deck and cube cards"
+                      text="When off, cards currently allocated to any deck or cube are hidden from this binder until they are released. Pins and manual order are preserved."
+                    />
+                  </div>
+                  <div className="binder-behaviour-option">
+                    <label className="field-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={keepPrintingsTogether}
+                        onChange={(e) => setKeepPrintingsTogether(e.target.checked)}
+                      />
+                      Keep all printings together
+                    </label>
+                    <InfoTip
+                      label="keeping printings together"
+                      text="When on, if any printing you own of a card matches this binder's rules, all your copies of that card join the binder — not just the printings that matched (e.g. a pricey commander brings its cheap copies along). Only reclaims cards not already in another binder. Ignored for manual binders."
+                    />
+                  </div>
+                  <div className="binder-behaviour-option">
+                    <label className="field-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={tradeable}
+                        onChange={(e) => setTradeable(e.target.checked)}
+                      />
+                      Available to trade
+                    </label>
+                    <InfoTip
+                      label="trade availability"
+                      text="Cards in this binder can show up in a game night's trade board when you opt in."
+                    />
+                  </div>
+                </div>
               </div>
             </div>
             <div className="editor-row">
