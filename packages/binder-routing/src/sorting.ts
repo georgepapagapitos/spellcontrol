@@ -229,11 +229,40 @@ export function colorSortRank(card: EnrichedCard): number {
   return 5 + pos / (CANONICAL_MULTICOLOR.length + 1);
 }
 
+/**
+ * Returned by `cardSortValue` when the card simply has no value for the field —
+ * no known release date, no mana value, no EDHREC rank. Distinct from a low
+ * value: `sortCards` keeps these LAST in **both** directions, because "newest
+ * first" leading with the cards whose date nobody knows is never what was asked
+ * for. The section-side twin is `UNKNOWN_ORDER` in sections.ts; the two must
+ * agree or a section's header order and its contents disagree.
+ */
+export const UNKNOWN_VALUE = Symbol('unknown');
+
+/** Scryfall files every Secret Lair under this one flat set. */
+const SLD_CODE = 'SLD';
+
+/**
+ * The release date that actually describes this printing.
+ *
+ * A Secret Lair dates from its **drop**, never from the `SLD` set: that set's
+ * date is the day the first drop ever shipped (2019-12-02), which is a lie for
+ * all ~2,300 cards filed under it. A drop MTGJSON hasn't mapped therefore has
+ * *no* date rather than a wrong one — otherwise a handful of unattributed bonus
+ * cards anchor themselves to 2019 and lead a chronological binder. Other sets
+ * (including `SLC` / `SLP`, which are real sets with real dates) are unaffected.
+ */
+export function releaseDateOf(card: EnrichedCard, setMap?: SetMap): string | undefined {
+  const code = (card.setCode || '').toUpperCase();
+  if (code === SLD_CODE) return card.sldDropReleasedAt || undefined;
+  return setMap?.[code]?.releasedAt;
+}
+
 export function cardSortValue(
   card: EnrichedCard,
   field: SortField,
   ctx?: SortContext
-): number | string {
+): number | string | typeof UNKNOWN_VALUE {
   switch (field) {
     case 'color':
       return colorSortRank(card);
@@ -244,23 +273,17 @@ export function cardSortValue(
     case 'rarity':
       return RARITY_ORDER[card.rarity.toLowerCase()] ?? 9;
     case 'cmc':
-      return card.cmc ?? 999;
+      return card.cmc ?? UNKNOWN_VALUE;
     case 'name':
       return card.name.toLowerCase();
-    case 'setReleaseDate': {
-      const code = (card.setCode || '').toUpperCase();
-      // A Secret Lair dates from its own drop, not from the flat SLD set —
-      // otherwise every drop ever printed shares one release date. See setMeta.
-      const released = card.sldDrop ? card.sldDropReleasedAt : ctx?.setMap?.[code]?.releasedAt;
-      // Sets without a known release date sort to the end (largest string).
-      return released || '￿';
-    }
+    case 'setReleaseDate':
+      return releaseDateOf(card, ctx?.setMap) ?? UNKNOWN_VALUE;
     case 'setName':
       return (card.sldDrop || card.setName || card.setCode).toLowerCase();
     case 'price':
       return card.purchasePrice;
     case 'edhrec':
-      return card.edhrecRank ?? Number.MAX_SAFE_INTEGER;
+      return card.edhrecRank ?? UNKNOWN_VALUE;
     case 'collectorNumber': {
       const n = parseInt(card.collectorNumber, 10);
       return isNaN(n) ? 99999 : n;
@@ -297,6 +320,14 @@ export function sortCards(
     for (const { field, dir } of active) {
       const va = cardSortValue(a, field, ctx);
       const vb = cardSortValue(b, field, ctx);
+      // A card with NO value for this field trails, whichever way the field is
+      // pointed — reversing the direction must not promote "we don't know" to
+      // the top of the list. Two unknowns are equal, so the chain moves on to
+      // the next sort field rather than freezing them in input order.
+      if (va === UNKNOWN_VALUE || vb === UNKNOWN_VALUE) {
+        if (va === vb) continue;
+        return va === UNKNOWN_VALUE ? 1 : -1;
+      }
       if (va < vb) return dir === 'desc' ? 1 : -1;
       if (va > vb) return dir === 'desc' ? -1 : 1;
     }

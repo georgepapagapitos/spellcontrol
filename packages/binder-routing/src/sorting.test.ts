@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { sortCards, cardSortValue, colorSortRank, CANONICAL_MULTICOLOR } from './sorting.js';
+import {
+  sortCards,
+  cardSortValue,
+  colorSortRank,
+  releaseDateOf,
+  CANONICAL_MULTICOLOR,
+  UNKNOWN_VALUE,
+} from './sorting.js';
 import type { EnrichedCard } from './types.js';
 
 function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
@@ -93,9 +100,9 @@ describe('cardSortValue', () => {
     expect(cardSortValue(multiCreature, 'cmc')).toBe(4);
   });
 
-  it('cmc: returns 999 for missing cmc', () => {
+  it('cmc: reports a missing cmc as unknown, not as a huge number', () => {
     const noCmc = makeCard({ cmc: undefined });
-    expect(cardSortValue(noCmc, 'cmc')).toBe(999);
+    expect(cardSortValue(noCmc, 'cmc')).toBe(UNKNOWN_VALUE);
   });
 
   it('name: returns lowercase name string', () => {
@@ -204,8 +211,8 @@ describe('cardSortValue', () => {
     expect(cardSortValue(multiCreature, 'edhrec')).toBe(50);
   });
 
-  it('edhrec: returns MAX_SAFE_INTEGER for cards without a rank', () => {
-    expect(cardSortValue(redInstant, 'edhrec')).toBe(Number.MAX_SAFE_INTEGER);
+  it('edhrec: reports a card without a rank as unknown', () => {
+    expect(cardSortValue(redInstant, 'edhrec')).toBe(UNKNOWN_VALUE);
   });
 
   it('none: returns 0', () => {
@@ -283,6 +290,83 @@ describe('sortCards', () => {
     const copy = [...original];
     sortCards(original, [{ field: 'name', dir: 'asc' }]);
     expect(original).toEqual(copy);
+  });
+});
+
+// A card with no value for the sort field must never be promoted to the top by
+// flipping the direction — "newest first" / "highest mana value first" leading
+// with the cards nobody has data for is the bug this whole block pins shut.
+describe('sortCards: unknown values trail in BOTH directions', () => {
+  const ctx = {
+    setMap: {
+      CMM: { code: 'CMM', name: 'Commander Masters', iconSvgUri: '', releasedAt: '2023-08-04' },
+      BLB: { code: 'BLB', name: 'Bloomburrow', iconSvgUri: '', releasedAt: '2024-08-02' },
+    },
+  };
+
+  it.each(['asc', 'desc'] as const)('release date (%s) keeps undated sets last', (dir) => {
+    const undated = makeCard({ name: 'Undated', setCode: 'ZZZ', setName: 'Mystery Set' });
+    const old = makeCard({ name: 'Old', setCode: 'CMM', setName: 'Commander Masters' });
+    const recent = makeCard({ name: 'Recent', setCode: 'BLB', setName: 'Bloomburrow' });
+    const sorted = sortCards([undated, recent, old], [{ field: 'setReleaseDate', dir }], ctx);
+    expect(sorted[sorted.length - 1].name).toBe('Undated');
+  });
+
+  it.each(['asc', 'desc'] as const)('mana value (%s) keeps unknown cmc last', (dir) => {
+    const unknown = makeCard({ name: 'Unknown', cmc: undefined });
+    const cheap = makeCard({ name: 'Cheap', cmc: 1 });
+    const pricey = makeCard({ name: 'Pricey', cmc: 8 });
+    const sorted = sortCards([unknown, pricey, cheap], [{ field: 'cmc', dir }]);
+    expect(sorted[sorted.length - 1].name).toBe('Unknown');
+  });
+
+  it.each(['asc', 'desc'] as const)('edhrec (%s) keeps unranked cards last', (dir) => {
+    const unranked = makeCard({ name: 'Unranked', edhrecRank: undefined });
+    const top = makeCard({ name: 'Top', edhrecRank: 5 });
+    const deep = makeCard({ name: 'Deep', edhrecRank: 20000 });
+    const sorted = sortCards([unranked, deep, top], [{ field: 'edhrec', dir }]);
+    expect(sorted[sorted.length - 1].name).toBe('Unranked');
+  });
+
+  it('two unknowns fall through to the next sort field instead of freezing', () => {
+    const zed = makeCard({ name: 'Zed', cmc: undefined });
+    const abe = makeCard({ name: 'Abe', cmc: undefined });
+    const sorted = sortCards(
+      [zed, abe],
+      [
+        { field: 'cmc', dir: 'desc' },
+        { field: 'name', dir: 'asc' },
+      ]
+    );
+    expect(sorted.map((c) => c.name)).toEqual(['Abe', 'Zed']);
+  });
+});
+
+describe('releaseDateOf — a Secret Lair dates from its drop, never the flat set', () => {
+  const ctx = {
+    SLD: { code: 'SLD', name: 'Secret Lair Drop', iconSvgUri: '', releasedAt: '2019-12-02' },
+    CMM: { code: 'CMM', name: 'Commander Masters', iconSvgUri: '', releasedAt: '2023-08-04' },
+  };
+
+  it('uses the drop date for a mapped Secret Lair', () => {
+    const card = makeCard({
+      setCode: 'SLD',
+      sldDrop: 'Goblin Storm',
+      sldDropReleasedAt: '2026-05-22',
+    });
+    expect(releaseDateOf(card, ctx)).toBe('2026-05-22');
+  });
+
+  it('reports NO date for an unmapped Secret Lair rather than the 2019 set date', () => {
+    // The SLD set's own date is the day the first drop ever shipped; inheriting
+    // it anchors unattributed bonus cards to 2019 and floats them to the front
+    // of a chronological binder.
+    const card = makeCard({ setCode: 'SLD', setName: 'Secret Lair Drop' });
+    expect(releaseDateOf(card, ctx)).toBeUndefined();
+  });
+
+  it('leaves ordinary sets — including SLC/SLP — on their own set date', () => {
+    expect(releaseDateOf(makeCard({ setCode: 'CMM' }), ctx)).toBe('2023-08-04');
   });
 });
 
