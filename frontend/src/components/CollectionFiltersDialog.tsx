@@ -1,5 +1,5 @@
 import { ListFilter, X } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import type { ChipExpression, Condition, MaterializedBinder, ScryfallQueryRule } from '../types';
 import type { SetMap } from '../lib/api';
@@ -7,6 +7,8 @@ import { Modal } from './Modal';
 import { SetFilterPicker } from './SetFilterPicker';
 import { ColorPip } from './shared/ManaSymbol';
 import { ColorMatchModeToggle } from './shared/ColorMatchModeToggle';
+import { countMatchingRows, type FilterableRow } from '../lib/collection-filter';
+import { compileExpression, compileFilter, isExpressionEmpty } from '../lib/rules';
 import type { ColorMatchMode } from '../lib/colors';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { TypeLineExpressionBuilder } from './TypeLineExpressionBuilder';
@@ -165,6 +167,14 @@ interface Props {
   proxyOnly?: boolean;
   setProxyOnly?: (next: boolean) => void;
 
+  /**
+   * The rows the page is filtering. Optional so callers that don't have them
+   * (or don't want the cost) simply get no count, as before.
+   */
+  rows?: readonly FilterableRow[];
+  surplusByName?: ReadonlySet<string> | Map<string, unknown>;
+  /** The page's search box — outside this dialog, but narrows the same list. */
+  searchTerm?: string;
   activeCount: number;
 }
 
@@ -279,6 +289,9 @@ function DialogBody({
   setSurplusOnly,
   proxyOnly,
   setProxyOnly,
+  rows,
+  surplusByName,
+  searchTerm,
   onClose,
 }: Props & { onClose: () => void }) {
   // Draft state — seeded once from props on mount; this component is
@@ -364,6 +377,68 @@ function DialogBody({
     borderColors: draftBorder,
     ...(showFinish ? { finishes: draftFinish } : {}),
   };
+
+  // Live match count over the DRAFT, using the same predicate the page runs.
+  // Without it you set filters against 11,500 cards and pressed Apply blind,
+  // then read the result behind you — and if it came back zero, reopened the
+  // dialog to work out which field did it.
+  const draftMatchCount = useMemo(() => {
+    if (!rows) return null;
+    const f: import('../types').BinderFilter = { ...draftAsFilter };
+    if (!isExpressionEmpty(draftSuper)) f.supertypeChips = draftSuper;
+    if (!isExpressionEmpty(draftTypes)) f.typeTokenChips = draftTypes;
+    if (!isExpressionEmpty(draftSubtype)) f.subtypeChips = draftSubtype;
+    if (!isExpressionEmpty(draftRarity)) f.rarities = draftRarity;
+    if (draftSet.size > 0) f.setCodes = [...draftSet].map((c) => c.toUpperCase());
+    if (draftPriceMin !== undefined) f.priceMin = draftPriceMin;
+    if (draftPriceMax !== undefined) f.priceMax = draftPriceMax;
+    if (draftCmcMin !== undefined) f.cmcMin = draftCmcMin;
+    if (draftCmcMax !== undefined) f.cmcMax = draftCmcMax;
+    // The page's search box is outside this dialog but narrows the same list,
+    // so the count has to honour it or it won't match what Apply produces.
+    const trimmed = searchTerm?.trim();
+    if (trimmed) f.nameContains = trimmed;
+    return countMatchingRows(rows, {
+      matchFilter: compileFilter(f),
+      binder: isExpressionEmpty(draftBinder) ? null : compileExpression(draftBinder),
+      colors: draftColor,
+      colorMode: draftColorMode,
+      condition: isExpressionEmpty(draftCondition) ? null : compileExpression(draftCondition),
+      language: isExpressionEmpty(draftLanguage) ? null : compileExpression(draftLanguage),
+      surplusOnly: draftSurplusOnly,
+      surplusByName,
+      proxyOnly: draftProxyOnly,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    rows,
+    surplusByName,
+    searchTerm,
+    draftOracle,
+    draftOracleTag,
+    draftScryfallQuery,
+    draftLegality,
+    draftLayout,
+    draftTreatment,
+    draftBorder,
+    draftFinish,
+    draftSuper,
+    draftTypes,
+    draftSubtype,
+    draftRarity,
+    draftSet,
+    draftPriceMin,
+    draftPriceMax,
+    draftCmcMin,
+    draftCmcMax,
+    draftBinder,
+    draftColor,
+    draftColorMode,
+    draftCondition,
+    draftLanguage,
+    draftSurplusOnly,
+    draftProxyOnly,
+  ]);
 
   const handleFilterPatch = (p: Partial<import('../types').BinderFilter>) => {
     if (p.oracleChips !== undefined) setDraftOracle(p.oracleChips);
@@ -680,6 +755,16 @@ function DialogBody({
         >
           Clear
         </button>
+        {draftMatchCount !== null && (
+          <span
+            className={`collection-filters-dialog-count${draftMatchCount === 0 ? ' is-empty' : ''}`}
+            aria-live="polite"
+          >
+            {draftMatchCount === 0
+              ? 'No cards match'
+              : `${draftMatchCount.toLocaleString()} ${draftMatchCount === 1 ? 'card' : 'cards'}`}
+          </span>
+        )}
         <button type="button" className="collection-filters-dialog-done" onClick={apply}>
           Apply
         </button>
