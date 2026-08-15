@@ -16,3 +16,10 @@
 .list-rule-editor-count {
   margin-right: auto;
 }
+
+/* Takes the match count's slot — a range error means the count is meaningless
+   anyway, and it puts the reason Save is disabled right next to Save. */
+.list-rule-editor-error {
+  margin-right: auto;
+  color: var(--err-text);
+}

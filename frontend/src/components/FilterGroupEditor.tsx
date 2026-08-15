@@ -1,5 +1,6 @@
 import { useState, useEffect, useId, useMemo, useRef } from 'react';
 import { currencySymbol } from '../lib/currency';
+import { isFilterEmpty } from '../lib/rules';
 import { countBinderMatches } from '../lib/binder-counts';
 import { cardTagLabel } from '../lib/card-tags';
 import { STARTER_TEMPLATES, type StarterTemplate } from '../lib/binder-templates';
@@ -28,37 +29,6 @@ const COLORS: { key: ColorChoice; label: string }[] = [
   { key: 'C', label: 'Colorless' },
 ];
 const DEFAULT_EDHREC_TOP_N = 100;
-
-/** True when the filter has at least one active rule field. */
-function isFilterEmpty(f: BinderFilter): boolean {
-  if (f.priceMin !== undefined || f.priceMax !== undefined) return false;
-  if (f.cmcMin !== undefined || f.cmcMax !== undefined) return false;
-  if (f.manaCost?.trim()) return false;
-  if (f.nameContains?.trim()) return false;
-  if (f.commanderEligible !== undefined) return false;
-  if (f.proxy !== undefined) return false;
-  if (f.edhrecRankMax !== undefined) return false;
-  if (f.setCodes && f.setCodes.length > 0) return false;
-  const chipFields = [
-    f.legalities,
-    f.colors,
-    f.rarities,
-    f.typeChips,
-    f.typeTokenChips,
-    f.supertypeChips,
-    f.subtypeChips,
-    f.oracleChips,
-    f.oracleTagChips,
-    f.finishes,
-    f.layouts,
-    f.treatments,
-    f.borderColors,
-  ] as const;
-  for (const expr of chipFields) {
-    if (expr && expr.chips.length > 0) return false;
-  }
-  return true;
-}
 
 // ── Progressive-disclosure field split ────────────────────────────────────
 // ABOVE the fold (always visible, most-reached-for fields):
@@ -261,7 +231,15 @@ function FilterGroupCard({
           placeholder={summary || fallback}
           aria-label={`Rule group ${index + 1} name`}
         />
-        <span className="filter-group-count" aria-label={`${matchCount} cards match`}>
+        {/* `aria-live` because this is the feedback loop of the whole editor:
+            you change a rule to watch this number move. The aggregate total
+            below already announced; the per-group count — the one that responds
+            to the field you are actually touching — did not. */}
+        <span
+          className="filter-group-count"
+          aria-live="polite"
+          aria-label={`Rule group ${index + 1} matches ${matchCount} ${matchCount === 1 ? 'card' : 'cards'}`}
+        >
           {matchCount.toLocaleString()} {matchCount === 1 ? 'card' : 'cards'}
         </span>
         <span className="filter-group-actions">
@@ -853,16 +831,51 @@ function SetMultiSelect({
 }
 
 export function validateRanges(f: BinderFilter): string | null {
+  // NaN first, and before anything else. `parseFloat('')` / `parseInt('e')` in
+  // the number inputs can put NaN on the filter, and EVERY comparison below is
+  // `false` against NaN — so a NaN sailed through untouched, compiled into the
+  // matcher as a live constraint nothing can fail, and silently read as "no
+  // minimum". The live match count then disagreed with what actually saved,
+  // because `cleanFilter` strips NaN on the way out but this gate didn't.
+  const numeric: Array<[number | undefined, string]> = [
+    [f.priceMin, 'Price minimum'],
+    [f.priceMax, 'Price maximum'],
+    [f.cmcMin, 'Mana value minimum'],
+    [f.cmcMax, 'Mana value maximum'],
+    [f.edhrecRankMax, 'EDHREC top N'],
+  ];
+  for (const [value, label] of numeric) {
+    if (value !== undefined && Number.isNaN(value)) return `${label} isn't a number`;
+  }
+
   if (f.priceMin !== undefined && f.priceMax !== undefined && f.priceMin > f.priceMax) {
     return "Price minimum can't exceed maximum";
   }
   if (f.cmcMin !== undefined && f.cmcMax !== undefined && f.cmcMin > f.cmcMax) {
     return "Mana value minimum can't exceed maximum";
   }
+  // Both ends, not only the minimum. A lone negative MAX ("nothing over -5")
+  // matches zero cards, which is exactly the mistake worth catching.
   if (f.priceMin !== undefined && f.priceMin < 0) return "Price can't be negative";
+  if (f.priceMax !== undefined && f.priceMax < 0) return "Price can't be negative";
   if (f.cmcMin !== undefined && f.cmcMin < 0) return "Mana value can't be negative";
+  if (f.cmcMax !== undefined && f.cmcMax < 0) return "Mana value can't be negative";
   if (f.edhrecRankMax !== undefined && f.edhrecRankMax < 1) {
     return 'EDHREC top N must be at least 1';
+  }
+  return null;
+}
+
+/**
+ * First validation error across a whole OR-chain of groups, tagged with which
+ * group it came from. Both editors call this now — the binder modal validated
+ * its groups at save time while the dynamic-list sheet, mounting the identical
+ * controls, validated nothing at all.
+ */
+export function validateGroups(groups: BinderFilterGroup[]): string | null {
+  for (let i = 0; i < groups.length; i++) {
+    const err = validateRanges(groups[i].filter);
+    if (err) return groups.length > 1 ? `Rule group ${i + 1}: ${err}` : err;
   }
   return null;
 }

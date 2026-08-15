@@ -8,7 +8,7 @@ import { useCardsWithTags, groupsUseTags } from '../lib/card-tags';
 import { fetchTypeSuggestions, fetchOracleSuggestions } from '../lib/scryfall-catalog';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
-import { FilterGroupList } from './FilterGroupEditor';
+import { FilterGroupList, cloneChips, validateGroups } from './FilterGroupEditor';
 import './ListRuleEditor.css';
 
 interface Props {
@@ -94,7 +94,11 @@ export function ListRuleEditor({ list, onClose }: Props) {
 
   const taggedCards = useCardsWithTags(cards, groupsUseTags(groups));
   const matchCount = useMemo(() => dynamicListCount(taggedCards, groups), [taggedCards, groups]);
-  const canSave = !areAllGroupsEmpty(groups);
+  // This sheet mounts the same NumberRangeInputs as the binder modal but never
+  // ran the modal's range validation, so a min > max or a NaN saved silently
+  // here and was refused two clicks away in the other editor.
+  const rangeError = useMemo(() => validateGroups(groups), [groups]);
+  const canSave = !areAllGroupsEmpty(groups) && rangeError === null;
 
   const updateGroup = (idx: number, patch: (g: BinderFilterGroup) => BinderFilterGroup) =>
     setGroups((prev) => prev.map((g, i) => (i === idx ? patch(g) : g)));
@@ -159,7 +163,11 @@ export function ListRuleEditor({ list, onClose }: Props) {
                 const src = prev[idx];
                 const copy: BinderFilterGroup = {
                   name: src.name ? `${src.name} (copy)` : undefined,
-                  filter: { ...src.filter },
+                  // `cloneChips` exists so a duplicate doesn't share mutable
+                  // chip/array refs with its original. The binder editor used
+                  // it; this one shallow-spread, leaving every ChipExpression
+                  // and setCodes array shared between the two groups.
+                  filter: { ...src.filter, ...cloneChips(src.filter) },
                 };
                 setAutofocusIdx(idx + 1);
                 return [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)];
@@ -175,10 +183,18 @@ export function ListRuleEditor({ list, onClose }: Props) {
         </div>
 
         <div className="card-picker-footer list-rule-editor-footer">
-          <span className="filter-group-total list-rule-editor-count" aria-live="polite">
-            Matches <strong>{matchCount.toLocaleString()}</strong>{' '}
-            {matchCount === 1 ? 'card' : 'cards'} in your collection
-          </span>
+          {/* Say WHY Save is off. A disabled button with no reason beside it is
+              the same dead end as no validation at all. */}
+          {rangeError ? (
+            <span className="filter-group-total list-rule-editor-error" role="alert">
+              {rangeError}
+            </span>
+          ) : (
+            <span className="filter-group-total list-rule-editor-count" aria-live="polite">
+              Matches <strong>{matchCount.toLocaleString()}</strong>{' '}
+              {matchCount === 1 ? 'card' : 'cards'} in your collection
+            </span>
+          )}
           <button type="button" className="btn" onClick={() => dismiss()}>
             Cancel
           </button>
