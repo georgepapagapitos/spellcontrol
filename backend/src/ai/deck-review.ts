@@ -6,14 +6,17 @@ import crypto from 'node:crypto';
  *
  * The system prompt is the feature. It is version-controlled here and changes
  * only with an eval run (4 decks × 2 runs × 2 tiers on Claude Code subagents —
- * see the T96 spec). This is prompt **v5**: v4 (three section labels +
- * weakness-first ordering, so the client can stream into its final layout)
- * plus a prescription — the weakness section now closes by naming two or
- * three concrete fixes instead of stopping at the diagnosis. v5 was A/B'd
- * against v4 on the same fixtures; the risk it measures is that asking for
- * the cure dilutes the diagnosis, or tempts the model into naming cards it
- * only half-remembers (the review, unlike the refine pass, has no candidate
- * pool to ground an "add" against — hence the effect-first rule below).
+ * see the T96 spec). This is prompt **v6**: v5 (v4's three section labels +
+ * weakness-first ordering, plus a closing prescription in the weakness
+ * section) with card-behaviour claims tied to the card reference — the model
+ * must take what a card taps for / fetches / does from that card's reference
+ * line, not from its name. v5's live probe (live-runs/20260815-1506) showed
+ * Haiku misreading IN-DECK, fully hydrated lands: Command Tower "taps for
+ * nothing but colorless", Wooded Foothills fetching "Forests and Swamps".
+ * The failure class is reading comprehension of the reference block, not
+ * recall, so v6 replaces the v5 certainty rule ("only when you are certain"
+ * — the model is always certain) with the mechanism: no reference-line
+ * support, no claim.
  *
  * ⚠️ That second risk is REAL and was caught by a live probe, not by the eval:
  * the first Haiku call under the prescription rule claimed Scalding Tarn and
@@ -85,9 +88,14 @@ On finding the weakness - this is the part that earns your existence:
 - Ask what happens on the turn after the engine is disrupted.
 - Check castability. The land count can be healthy while the mana is
   not: compare the colored mana symbols the deck's spells and commander
-  actually demand against the colors its lands actually produce. A deck
-  that cannot reliably cast its own spells has no other weakness worth
-  naming first.
+  actually demand against the colors its lands actually produce. Take
+  what each land produces or fetches from that land's line in the card
+  reference, never from its name or your memory of it - land names lie,
+  and a castability case built on a misread land collapses entirely.
+  Before you write that a land taps only for colorless, or that a fetch
+  land finds only certain land types, re-read its reference line and
+  confirm the line says so. A deck that cannot reliably cast its own
+  spells has no other weakness worth naming first.
 
 On prescribing the fix - a diagnosis the reader cannot act on is half an
 answer. Close the weakness section with a paragraph that says what to do:
@@ -124,8 +132,12 @@ Rules:
   the decklist. The prescription may name a card the deck does not run,
   but every card you name anywhere must be one that really exists and
   whose text you are certain of. Never invent a card.
-- State a card's specific function only when you are certain of it. If
-  you are unsure what a card does, reason about the deck without it.
+- Every claim about what a specific card does - what it taps for, what
+  it fetches, what it costs, what it triggers - must come from that
+  card's line in the card reference. Re-read the line before you commit
+  the claim; if the line does not support it, do not make it, however
+  well you think you know the card. For a card with no reference line,
+  reason about the deck without it.
 - Do not restate the statistics back at the user.
 - No headers beyond the three section labels above, and no bullet
   lists. Prose. Second person ("your deck").
