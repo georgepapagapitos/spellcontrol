@@ -43,28 +43,105 @@
   align-items: center;
 }
 
+/* The GRID lives on the list, not on each row, so every row shares one set of
+   column tracks and the field pickers, direction toggles and action clusters
+   line up down the panel. Per-row grids let each row size its own columns, so
+   a "WUBRG" direction chip and an "A → Z" one sat at different x positions —
+   a ragged edge on a control column that reads as three stacked one-offs. */
 .sort-editor-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1.1rem;
-}
-
-/* Grid layout so the num + dropdown + reorder/remove actions always
-   sit on a single row at every breakpoint — the prior flex-wrap row
-   pushed the action cluster onto its own line under the SelectMenu
-   on phones. The optional 4th child (SortValueOrderEditor or the
-   text-only order hint) spans all three columns on the next row. */
-.sort-editor-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   column-gap: var(--space-2);
-  row-gap: 0.3rem;
+  row-gap: 0.7rem;
 }
 
-.sort-editor-row > .sort-editor-order-hint,
-.sort-editor-row > .sort-value-order-editor {
+/* Rows dissolve so their children become items of the list grid above. */
+.sort-editor-row {
+  display: contents;
+}
+
+/* Full-width children: the value-order editor, and the add button. */
+.sort-editor-row > .sort-value-order-editor,
+.sort-editor-list > .btn-add-group {
   grid-column: 1 / -1;
+}
+
+/* The direction toggle. Reads as a control rather than a status glyph — it
+   is the one thing on this row that used to have no affordance at all. */
+.sort-editor-dir {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: var(--space-1) 0.6rem;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast),
+    color var(--motion-fast),
+    border-color var(--motion-fast),
+    transform var(--motion-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .sort-editor-dir:hover {
+    background: var(--accent-light);
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+}
+
+/* Press feedback (STYLE_GUIDE § Motion pattern 6). */
+.sort-editor-dir:active {
+  transform: scale(0.97);
+}
+
+.sort-editor-dir:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.sort-editor-dir > svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+/* Below 600px the row is already tight with four columns; the arrow alone
+   carries the direction and the words would force a wrap. The button keeps
+   its aria-label, so nothing is lost to assistive tech. */
+@media (max-width: 600px) {
+  .sort-editor-dir-label {
+    display: none;
+  }
+
+  .sort-editor-dir {
+    padding-inline: var(--space-2);
+  }
+}
+
+@media (pointer: coarse) {
+  .sort-editor-dir {
+    min-height: 44px;
+  }
+}
+
+/* Were inline style={{}} objects on the elements themselves, with invented
+   rem values that stylelint cannot see because they lived in JS. */
+.sort-editor-intro {
+  margin-bottom: var(--space-2);
+}
+
+.sort-editor-tiebreakers {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
 }
 
 /* The field picker is the row's PRIMARY control — it's what you came here to

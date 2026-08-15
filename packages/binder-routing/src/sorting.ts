@@ -16,21 +16,72 @@ export interface SortContext {
   addedAtByImportId?: Map<string, number>;
 }
 
-export const SORT_FIELDS: { value: SortField; label: string; defaultDir: SortDir }[] = [
-  { value: 'color', label: 'Color', defaultDir: 'asc' },
-  { value: 'name', label: 'Name', defaultDir: 'asc' },
-  { value: 'collectorNumber', label: 'Number', defaultDir: 'asc' },
-  { value: 'price', label: 'Price', defaultDir: 'desc' },
-  { value: 'quantity', label: 'Quantity', defaultDir: 'desc' },
-  { value: 'cmc', label: 'Mana value', defaultDir: 'asc' },
-  { value: 'setReleaseDate', label: 'Release date', defaultDir: 'desc' },
-  { value: 'setName', label: 'Set', defaultDir: 'asc' },
-  { value: 'type', label: 'Type', defaultDir: 'asc' },
-  { value: 'rarity', label: 'Rarity', defaultDir: 'asc' },
-  { value: 'edhrec', label: 'EDHREC rank', defaultDir: 'asc' },
-  { value: 'treatment', label: 'Treatment', defaultDir: 'asc' },
-  { value: 'finish', label: 'Finish', defaultDir: 'asc' },
+/**
+ * `asc` / `desc` say which way the comparator runs; they say nothing about what
+ * the user will SEE. "Ascending release date" is newest-last, "ascending EDHREC
+ * rank" is most-popular-first, and "ascending price" is cheapest-first — three
+ * different mental models behind one word. Each field therefore carries the
+ * concrete phrasing for both directions, so a direction control can be labelled
+ * with its effect ("Newest first") instead of its implementation ("desc").
+ */
+export const SORT_FIELDS: {
+  value: SortField;
+  label: string;
+  defaultDir: SortDir;
+  /** [what ascending looks like, what descending looks like] */
+  dirLabels: [string, string];
+}[] = [
+  { value: 'color', label: 'Color', defaultDir: 'asc', dirLabels: ['WUBRG', 'GRBUW'] },
+  { value: 'name', label: 'Name', defaultDir: 'asc', dirLabels: ['A → Z', 'Z → A'] },
+  {
+    value: 'collectorNumber',
+    label: 'Number',
+    defaultDir: 'asc',
+    dirLabels: ['Low → high', 'High → low'],
+  },
+  { value: 'price', label: 'Price', defaultDir: 'desc', dirLabels: ['Cheapest', 'Priciest'] },
+  { value: 'quantity', label: 'Quantity', defaultDir: 'desc', dirLabels: ['Fewest', 'Most'] },
+  { value: 'cmc', label: 'Mana value', defaultDir: 'asc', dirLabels: ['Low → high', 'High → low'] },
+  {
+    value: 'setReleaseDate',
+    label: 'Release date',
+    defaultDir: 'desc',
+    dirLabels: ['Oldest first', 'Newest first'],
+  },
+  { value: 'setName', label: 'Set', defaultDir: 'asc', dirLabels: ['A → Z', 'Z → A'] },
+  { value: 'type', label: 'Type', defaultDir: 'asc', dirLabels: ['A → Z', 'Z → A'] },
+  {
+    value: 'rarity',
+    label: 'Rarity',
+    defaultDir: 'asc',
+    dirLabels: ['Common first', 'Mythic first'],
+  },
+  // Rank 1 is the most-played card, so ascending rank is the popular end.
+  {
+    value: 'edhrec',
+    label: 'EDHREC rank',
+    defaultDir: 'asc',
+    dirLabels: ['Most played', 'Least played'],
+  },
+  {
+    value: 'treatment',
+    label: 'Treatment',
+    defaultDir: 'asc',
+    dirLabels: ['Listed order', 'Reversed'],
+  },
+  { value: 'finish', label: 'Finish', defaultDir: 'asc', dirLabels: ['Listed order', 'Reversed'] },
 ];
+
+/**
+ * What this field's cards look like in this direction, e.g. "Newest first".
+ * Falls back to the raw direction for a field with no entry (there is none
+ * today; the fallback exists so adding a SortField can't crash a label).
+ */
+export function sortDirectionLabel(field: SortField, dir: SortDir): string {
+  const spec = SORT_FIELDS.find((f) => f.value === field);
+  if (!spec) return dir === 'asc' ? 'Ascending' : 'Descending';
+  return spec.dirLabels[dir === 'asc' ? 0 : 1];
+}
 
 /**
  * `sldDrop` was its own sort field until the drop was folded into `setName` /
