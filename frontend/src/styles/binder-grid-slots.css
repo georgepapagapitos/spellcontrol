@@ -92,32 +92,6 @@
   color: var(--text-primary);
 }
 
-/* A packed section shares its pages between several groups (Secret Lair drops),
-   so the header names each one as its own chip rather than one long run-on
-   string. Wraps on narrow viewports instead of pushing `.section-meta` off. */
-.section-title-multi {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
-/* Mirrors the `.chip` treatment in binder-rules-editor.css so the two read as
-   one family — same radius, hairline border and serif face. */
-.section-title-chip {
-  font-family: var(--font-serif);
-  font-size: var(--text-sm);
-  padding: var(--space-1) 10px;
-  border: 0.5px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  background: var(--surface-raised);
-  white-space: nowrap;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .section-meta {
   font-size: var(--text-sm);
   color: var(--text-muted);
@@ -150,35 +124,30 @@
   font-family: var(--font-mono);
 }
 
-/* Which groups sit on THIS page — shown between the page number and the
-   grid of a merged (packed/continuous) section that spans several pages,
-   where the header chips alone can't say which drop landed where. Same chip
-   family as .section-title-chip, one size down. */
-.page-chips {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--space-1);
-  /* width: 0 + min-width: 100% keeps this row OUT of the column's intrinsic
-     width: .page-wrap sizes to the page grid alone and the chips wrap inside
-     that width. Without it, a long chip row inflates .page-wrap to the full
+/* What sits on THIS page — between the page number and the grid, in the
+   header-less continuous run where the page is its own heading. Clamped to two
+   lines and given that height unconditionally, so a page naming three drops and
+   a page naming one still start their grids on the same baseline; a ragged row
+   of page tops was the thing that read as broken. Full text is in `title`, and
+   the spread view (which the page number opens) repeats it untruncated. */
+.page-label {
+  font-family: var(--font-serif);
+  font-size: var(--text-xs);
+  line-height: 1.3;
+  color: var(--text-secondary);
+  text-align: center;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  height: calc(2 * 1.3em);
+  /* width: 0 + min-width: 100% keeps this line OUT of the column's intrinsic
+     width: .page-wrap sizes to the page grid alone and the text wraps inside
+     that width. Without it, a long label inflates .page-wrap to the full
      container width and every page lands on its own row. */
   width: 0;
   min-width: 100%;
-}
-
-.page-chip {
-  font-family: var(--font-serif);
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  padding: 1px var(--space-2);
-  border: 0.5px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  background: var(--surface-raised);
-  white-space: nowrap;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .page-num-link {

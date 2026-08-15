@@ -8,6 +8,7 @@ import {
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import type {
+  BinderPage,
   BinderSection,
   EnrichedCard,
   MaterializedBinder,
@@ -31,6 +32,10 @@ import { useToastsStore } from '../store/toasts';
 
 /** Maximum pages rendered inline per section before the "+N more" expander. */
 export const SECTION_PAGE_CAP = 3;
+
+/** Same, for the header-less continuous run — it IS the whole binder, so it
+ *  gets a screenful rather than a section's teaser. */
+const PAGE_RUN_CAP = 12;
 
 interface Props {
   binders: MaterializedBinder[];
@@ -261,6 +266,13 @@ function SectionList({
   const collapseAll = () => setCollapsed(new Set(sections.map((s) => s.key)));
   const expandAll = () => setCollapsed(new Set());
 
+  // Page filling (`packSections`) merges several groups onto shared pages, so a
+  // section stops being a thing you can point at — its boundary is just wherever
+  // the fill happened to land on a page edge. Render those binders as ONE run of
+  // pages with each page labelled by what's physically in it, instead of section
+  // blocks whose headers would re-list every drop the page labels already name.
+  const merged = useMemo(() => sections.some((s) => (s.labels?.length ?? 0) > 1), [sections]);
+
   // Binder-wide page list + per-page section labels (parallel arrays).
   // A merged (packed/continuous) section's pages carry their own labels —
   // the groups physically on that page — which beat the section-wide join.
@@ -289,7 +301,10 @@ function SectionList({
     () =>
       sections.map((s, i) => ({
         key: s.key,
-        label: s.label,
+        // A merged section's `label` is every group it swallowed, joined — far
+        // too long for a binder edge tab. The first group is the one the tab
+        // actually points at, so name it that.
+        label: s.labels?.[0] ?? s.label,
         pip: s.pip,
         firstPageIndex: sectionPageOffsets[i] ?? 0,
       })),
@@ -391,7 +406,7 @@ function SectionList({
             onValueOrdersChange={onValueOrdersChange}
           />
         )}
-        {sections.length > 1 && (
+        {sections.length > 1 && !merged && (
           <button
             type="button"
             className="toolbar-pill binder-summary-collapse"
@@ -408,28 +423,41 @@ function SectionList({
         {viewToggle && <div className="binder-summary-viewmode">{viewToggle}</div>}
         <Legend context="binder" variant="pill" align="right" />
       </div>
-      {sections.map((section, sectionIdx) => {
-        const isCollapsed = collapsed.has(section.key);
-        const headerId = `section-header-${viewKey}-${section.key}`;
-        const panelId = `section-panel-${viewKey}-${section.key}`;
-        return (
-          <SectionBlock
-            key={section.key}
-            section={section}
-            sectionIdx={sectionIdx}
-            isCollapsed={isCollapsed}
-            headerId={headerId}
-            panelId={panelId}
-            pocketSize={pocketSize}
-            isPreviewOpen={gridPreviewOpen}
-            qtyByCopyId={qtyByCopyId}
-            showImages={showImages}
-            onToggle={toggle}
-            onOpenCard={handleOpenCard}
-            onOpenPages={handleOpenPages}
-          />
-        );
-      })}
+      {merged && (
+        <PageRun
+          pages={flatPages}
+          labels={flatPageLabels}
+          pocketSize={pocketSize}
+          isPreviewOpen={gridPreviewOpen}
+          qtyByCopyId={qtyByCopyId}
+          showImages={showImages}
+          onOpenCard={handleOpenCard}
+          onOpenPage={setPagesStartIndex}
+        />
+      )}
+      {!merged &&
+        sections.map((section, sectionIdx) => {
+          const isCollapsed = collapsed.has(section.key);
+          const headerId = `section-header-${viewKey}-${section.key}`;
+          const panelId = `section-panel-${viewKey}-${section.key}`;
+          return (
+            <SectionBlock
+              key={section.key}
+              section={section}
+              sectionIdx={sectionIdx}
+              isCollapsed={isCollapsed}
+              headerId={headerId}
+              panelId={panelId}
+              pocketSize={pocketSize}
+              isPreviewOpen={gridPreviewOpen}
+              qtyByCopyId={qtyByCopyId}
+              showImages={showImages}
+              onToggle={toggle}
+              onOpenCard={handleOpenCard}
+              onOpenPages={handleOpenPages}
+            />
+          );
+        })}
       {preview && (
         <CardPreview
           source="binder"
@@ -513,6 +541,72 @@ function pageNumbersForSection(section: BinderSection): number[] {
   return section.cards.map((c) => cardToPage.get(c) ?? 0);
 }
 
+/**
+ * Every page of a page-filled binder, in one continuous run — no section
+ * headers, because filling merged the groups and a section boundary no longer
+ * marks anything you could point at in the physical binder. Each page names its
+ * own contents instead, which is the label that actually helps you find a card.
+ */
+const PageRun = memo(function PageRun({
+  pages,
+  labels,
+  pocketSize,
+  isPreviewOpen,
+  qtyByCopyId,
+  showImages,
+  onOpenCard,
+  onOpenPage,
+}: {
+  pages: BinderPage[];
+  /** Parallel to `pages`: what sits on each one. */
+  labels: string[];
+  pocketSize: PocketSize;
+  isPreviewOpen: boolean;
+  qtyByCopyId?: Map<string, number>;
+  showImages?: boolean;
+  onOpenCard: (card: EnrichedCard) => void;
+  onOpenPage: (globalPageIndex: number) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const ctxValue = useMemo(
+    () => ({ openCard: onOpenCard, openPages: onOpenPage, isPreviewOpen, qtyByCopyId }),
+    [onOpenCard, onOpenPage, isPreviewOpen, qtyByCopyId]
+  );
+
+  // When every page would carry the same heading (an ungrouped binder, where
+  // each page reads "All cards"), the label is noise — drop it entirely.
+  const labelled = useMemo(() => new Set(labels).size > 1, [labels]);
+  const visible = expanded ? pages : pages.slice(0, PAGE_RUN_CAP);
+  const hiddenCount = pages.length - visible.length;
+
+  return (
+    <CardPreviewContext.Provider value={ctxValue}>
+      <div className="page-row">
+        {visible.map((page, i) => (
+          <PageGrid
+            key={page.pageNum}
+            page={page.slots}
+            pageNum={page.pageNum}
+            pageIndex={i}
+            pocketSize={pocketSize}
+            showImages={showImages}
+            label={labelled ? labels[i] : undefined}
+          />
+        ))}
+      </div>
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          className="binder-section-show-more"
+          onClick={() => setExpanded(true)}
+        >
+          +{hiddenCount} more page{hiddenCount !== 1 ? 's' : ''}
+        </button>
+      )}
+    </CardPreviewContext.Provider>
+  );
+});
+
 const SectionBlock = memo(function SectionBlock({
   section,
   sectionIdx,
@@ -573,20 +667,7 @@ const SectionBlock = memo(function SectionBlock({
           ▾
         </span>
         {section.pip && <ColorPip color={section.key} pip="lg" />}
-        {section.labels ? (
-          // A packed section covers several groups sharing these pages. Chip each
-          // one so the header still names every drop, rather than running them
-          // together into one long unreadable string.
-          <span className="section-title section-title-multi">
-            {section.labels.map((l) => (
-              <span key={l} className="section-title-chip">
-                {l}
-              </span>
-            ))}
-          </span>
-        ) : (
-          <span className="section-title">{section.label}</span>
-        )}
+        <span className="section-title">{section.label}</span>
         <span className="section-meta">
           {section.cards.length} cards · {section.pages.length} page
           {section.pages.length !== 1 ? 's' : ''}
@@ -603,10 +684,6 @@ const SectionBlock = memo(function SectionBlock({
                 pageIndex={idx}
                 pocketSize={pocketSize}
                 showImages={showImages}
-                // Which groups sit on THIS page — only worth chipping when the
-                // merged section spans several pages; a single-page section is
-                // already fully described by its header chips.
-                labels={section.pages.length > 1 ? page.labels : undefined}
               />
             ))}
           </div>

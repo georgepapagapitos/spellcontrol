@@ -109,14 +109,17 @@ describe('decorateSldDrops', () => {
 });
 
 describe('bindersUseSldDrops', () => {
-  it('is true only when a binder sorts by drop', () => {
+  it('is true only when a binder sorts by set — either set sort resolves the drop', () => {
     expect(bindersUseSldDrops([{ sorts: [{ field: 'color', dir: 'asc' }] }])).toBe(false);
     expect(
       bindersUseSldDrops([
         { sorts: [{ field: 'color', dir: 'asc' }] },
-        { sorts: [{ field: 'sldDrop', dir: 'asc' }] },
+        { sorts: [{ field: 'setName', dir: 'asc' }] },
       ])
     ).toBe(true);
+    expect(bindersUseSldDrops([{ sorts: [{ field: 'setReleaseDate', dir: 'desc' }] }])).toBe(true);
+    // Binders saved before the fold still carry the retired field name.
+    expect(bindersUseSldDrops([{ sorts: [{ field: 'sldDrop' as never, dir: 'asc' }] }])).toBe(true);
   });
 
   it('tolerates a binder with no sorts', () => {

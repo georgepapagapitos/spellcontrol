@@ -17,12 +17,13 @@ import {
   cardMatchesCompiled,
   PRICE_STICKINESS_MARGIN,
 } from './rules.js';
-import { ALL_SECTION, getSectionMeta, type SectionMeta } from './sections.js';
+import { ALL_SECTION, UNKNOWN_ORDER, getSectionMeta, type SectionMeta } from './sections.js';
 import {
   sortCards,
   buildQtyByPrintingKey,
   getImplicitTiebreakers,
   getDisplaySorts,
+  normalizeSorts,
   printingFinishKey,
 } from './sorting.js';
 
@@ -206,7 +207,8 @@ export function materializeBinders(
       opts.globalPocketSize ??
       DEFAULT_POCKET_SIZE) as PocketSize;
     const useManualOrder = !!def.manualOrder?.length;
-    const effectiveSorts = useManualOrder ? [] : withImplicitTiebreaker(def.sorts);
+    const defSorts = normalizeSorts(def.sorts);
+    const effectiveSorts = useManualOrder ? [] : withImplicitTiebreaker(defSorts);
     const sortCtx = {
       setMap: opts.setMap,
       qtyByPrintingKey: buildQtyByPrintingKey(rawCards),
@@ -229,7 +231,7 @@ export function materializeBinders(
             // silently disabled (recursion skips packGroups). A stale depth
             // outlives its sorts because the editor hides the Page-breaks
             // control at sorts.length <= 1, leaving no way to reset it.
-            Math.min(def.pageBreakDepth ?? 1, Math.max(def.sorts.length, 1)),
+            Math.min(def.pageBreakDepth ?? 1, Math.max(defSorts.length, 1)),
             { value: 0 },
             '',
             '',
@@ -239,7 +241,7 @@ export function materializeBinders(
       def,
       effectivePocketSize,
       effectiveSorts,
-      displaySorts: getDisplaySorts(effectiveSorts, def.sorts, def.sortValueOrders),
+      displaySorts: getDisplaySorts(effectiveSorts, defSorts, def.sortValueOrders),
       sections,
       totalCards: sections.reduce((s, sec) => s + sec.cards.length, 0),
       totalPages: sections.reduce((s, sec) => s + sec.pages.length, 0),
@@ -464,7 +466,13 @@ function buildSections(
   // When the primary sort is descending, both layers are reversed.
   const dirMult = primary.dir === 'desc' ? -1 : 1;
   const ordered = [...groups.values()].sort((a, b) => {
-    if (a.meta.order !== b.meta.order) return (a.meta.order - b.meta.order) * dirMult;
+    if (a.meta.order !== b.meta.order) {
+      // Unknown-valued groups trail in both directions — a descending "newest
+      // first" binder must not lead with the cards whose date we never knew.
+      if (a.meta.order === UNKNOWN_ORDER) return 1;
+      if (b.meta.order === UNKNOWN_ORDER) return -1;
+      return (a.meta.order - b.meta.order) * dirMult;
+    }
     return a.meta.label.localeCompare(b.meta.label) * dirMult;
   });
 

@@ -30,8 +30,20 @@ export const SORT_FIELDS: { value: SortField; label: string; defaultDir: SortDir
   { value: 'edhrec', label: 'EDHREC rank', defaultDir: 'asc' },
   { value: 'treatment', label: 'Treatment', defaultDir: 'asc' },
   { value: 'finish', label: 'Finish', defaultDir: 'asc' },
-  { value: 'sldDrop', label: 'Secret Lair drop', defaultDir: 'asc' },
 ];
+
+/**
+ * `sldDrop` was its own sort field until the drop was folded into `setName` /
+ * `setReleaseDate` (a Secret Lair's drop IS its set — see `setMeta`). Binders
+ * saved with the old field would group into one dead "All cards" section and
+ * label their sort pill `undefined`, so rewrite it on read. Returns the same
+ * array reference when there is nothing to migrate.
+ */
+export function normalizeSorts(sorts: SortEntry[]): SortEntry[] {
+  const legacy = (s: SortEntry) => (s?.field as string) === 'sldDrop';
+  if (!sorts.some(legacy)) return sorts;
+  return sorts.map((s) => (legacy(s) ? { ...s, field: 'setName' as const } : s));
+}
 
 /**
  * Treatment + finish are categorical sorts whose value-to-rank mapping is
@@ -152,17 +164,6 @@ export function buildQtyByPrintingKey(cards: EnrichedCard[]): Map<string, number
   return m;
 }
 
-/**
- * Sort rank for a card's Secret Lair drop: newest drop first, drops with no
- * known release date after those, and cards with no drop at all dead last.
- * All three bands are finite so section ordering can subtract them safely.
- */
-export function sldDropRank(card: EnrichedCard): number {
-  if (!card.sldDrop) return Number.MAX_SAFE_INTEGER;
-  const t = card.sldDropReleasedAt ? new Date(card.sldDropReleasedAt).getTime() : NaN;
-  return Number.isFinite(t) ? -t : Number.MAX_SAFE_INTEGER - 1;
-}
-
 export const RARITY_ORDER: Record<string, number> = {
   mythic: 0,
   rare: 1,
@@ -248,12 +249,14 @@ export function cardSortValue(
       return card.name.toLowerCase();
     case 'setReleaseDate': {
       const code = (card.setCode || '').toUpperCase();
-      const released = ctx?.setMap?.[code]?.releasedAt;
+      // A Secret Lair dates from its own drop, not from the flat SLD set —
+      // otherwise every drop ever printed shares one release date. See setMeta.
+      const released = card.sldDrop ? card.sldDropReleasedAt : ctx?.setMap?.[code]?.releasedAt;
       // Sets without a known release date sort to the end (largest string).
       return released || '￿';
     }
     case 'setName':
-      return (card.setName || card.setCode).toLowerCase();
+      return (card.sldDrop || card.setName || card.setCode).toLowerCase();
     case 'price':
       return card.purchasePrice;
     case 'edhrec':
@@ -262,12 +265,6 @@ export function cardSortValue(
       const n = parseInt(card.collectorNumber, 10);
       return isNaN(n) ? 99999 : n;
     }
-    case 'sldDrop':
-      // Same rank `getSectionMeta` assigns, so the sort and the section order
-      // agree. Two drops released the same day tie here and fall through to the
-      // section label / implicit name tiebreaker, which is what we want — every
-      // card in a drop section already shares the drop.
-      return sldDropRank(card);
     case 'quantity':
       return ctx?.qtyByPrintingKey?.get(printingKey(card)) ?? 1;
     case 'treatment':
