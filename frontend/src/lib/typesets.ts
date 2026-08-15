@@ -36,8 +36,17 @@ export interface TypeSetDef {
  *   2. the `--font-*` fallbacks in styles/tokens.css (what renders before any
  *      [data-typeset] rule matches),
  *   3. the DEFAULT_TYPESET literal in index.html's pre-paint script.
+ *
+ * A fourth, easy to miss: `store/typeset.test.ts`'s VALID/OTHER fixtures must
+ * stay non-default (a guard test enforces it), since the default deliberately
+ * injects no font link and would make those cases vacuous.
+ *
+ * Codex is the default because a default is not a taste choice — it is what
+ * every reader gets before they know a picker exists. Its display face carries
+ * character without the decorative gothic of Grimoire, which is the least
+ * legible option we ship and is still one click away for anyone who wants it.
  */
-export const DEFAULT_TYPESET = 'grimoire';
+export const DEFAULT_TYPESET = 'codex';
 
 const GF = 'https://fonts.googleapis.com/css2?';
 
