@@ -10,8 +10,10 @@
  */
 import type { Deck } from '../store/decks';
 
-/** Groups render in this order, and only when they have matches. */
-export const COMMAND_GROUPS = ['Navigate', 'Your decks', 'Actions'] as const;
+/** Groups render in this order, and only when they have matches. 'Cards' is
+ *  the async Scryfall lane (E247): `buildCommands` never emits it — the
+ *  palette appends those rows as search results arrive. */
+export const COMMAND_GROUPS = ['Navigate', 'Your decks', 'Actions', 'AI', 'Cards'] as const;
 export type CommandGroup = (typeof COMMAND_GROUPS)[number];
 
 export interface Command {
@@ -69,6 +71,13 @@ export interface BuildCommandsCtx {
   decks: readonly Deck[];
   /** Navigate to a path; `state` mirrors react-router's location state. */
   go: (path: string, state?: Record<string, unknown>) => void;
+  /**
+   * AI feature reachable for this account (`useAiStatus()` non-null). The AI
+   * group self-hides like every AI surface — absent, not greyed out (E247).
+   */
+  aiAvailable?: boolean;
+  /** The deck page currently open, when there is one — enables deck-scoped AI. */
+  deckPage?: { id: string; name: string } | null;
 }
 
 /**
@@ -78,7 +87,7 @@ export interface BuildCommandsCtx {
  * the decks index. Only real destinations and real handlers are listed — a
  * command that cannot fire is worse than an absent one.
  */
-export function buildCommands({ decks, go }: BuildCommandsCtx): Command[] {
+export function buildCommands({ decks, go, aiAvailable, deckPage }: BuildCommandsCtx): Command[] {
   const out: Command[] = ROUTES.map((r) => ({
     id: `nav:${r.path}`,
     label: r.label,
@@ -126,6 +135,31 @@ export function buildCommands({ decks, go }: BuildCommandsCtx): Command[] {
       run: () => go('/decks', { openImport: true }),
     }
   );
+
+  // AI commands exist only while the feature is reachable — same self-hiding
+  // rule as every AI surface (unavailable ⇒ absent, never greyed out).
+  if (aiAvailable) {
+    if (deckPage) {
+      out.push({
+        id: 'ai:read-deck',
+        label: 'Read the deck',
+        group: 'AI',
+        hint: deckPage.name,
+        keywords: ['ai', 'review', 'reading', 'coach'],
+        // The Coach tab hosts the review panel; `openAiReview` asks it to
+        // arrive expanded — the same location-state channel Import deck uses.
+        run: () => go(`/decks/${deckPage.id}?view=tune`, { openAiReview: true }),
+      });
+    }
+    out.push({
+      id: 'ai:settings',
+      label: 'AI settings',
+      group: 'AI',
+      hint: 'You',
+      keywords: ['beta', 'opt in', 'readings', 'quota'],
+      run: () => go('/you?section=ai'),
+    });
+  }
 
   return out;
 }

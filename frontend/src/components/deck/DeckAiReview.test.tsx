@@ -5,6 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { DeckAiReview } from './DeckAiReview';
 import { __resetAiStatus } from '../../lib/use-ai-status';
@@ -73,18 +74,22 @@ function stubApi(optIn: boolean, reviewLines?: unknown[], readings: unknown[] = 
   return calls;
 }
 
-function renderPanel() {
+/** The panel reads location state (⌘K deep-open, E247), so it needs a router.
+ *  `state` mirrors what the palette's "Read the deck" command navigates with. */
+function renderPanel(state?: Record<string, unknown>) {
   return render(
-    <DeckAiReview
-      deckId="d1"
-      format="commander"
-      commander={card('Kaalia of the Vast')}
-      partnerCommander={null}
-      mainboard={[
-        { slotId: 's1', card: card('Sol Ring') },
-        { slotId: 's2', card: card('Swamp') },
-      ]}
-    />
+    <MemoryRouter initialEntries={[{ pathname: '/decks/d1', state }]}>
+      <DeckAiReview
+        deckId="d1"
+        format="commander"
+        commander={card('Kaalia of the Vast')}
+        partnerCommander={null}
+        mainboard={[
+          { slotId: 's1', card: card('Sol Ring') },
+          { slotId: 's2', card: card('Swamp') },
+        ]}
+      />
+    </MemoryRouter>
   );
 }
 
@@ -115,6 +120,15 @@ describe('insight-strip posture (E244)', () => {
     fireEvent.click(strip);
     // Expanded to the idle panel — the CTA waits; nothing was sent.
     expect(await screen.findByRole('button', { name: 'Read the deck' })).toBeTruthy();
+    expect(calls).not.toContain('/api/ai/deck-review');
+  });
+
+  it('arrives expanded when the ⌘K palette asked via location state (E247)', async () => {
+    const calls = stubApi(true);
+    renderPanel({ openAiReview: true });
+    // Straight past the strip to the idle panel — and still nothing spent.
+    expect(await screen.findByRole('button', { name: 'Read the deck' })).toBeTruthy();
+    expect(screen.queryByRole('button', { expanded: false })).toBeNull();
     expect(calls).not.toContain('/api/ai/deck-review');
   });
 });

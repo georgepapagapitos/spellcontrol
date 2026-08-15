@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { analyzeDeck } from '../../lib/deck-analysis';
@@ -58,11 +59,17 @@ export function DeckAiReview({
   const taggerReady = useTaggerReady();
   const status = useAiStatus();
   const [inviteDismissed, setInviteDismissed] = useState(isAiInviteDismissed);
+  const location = useLocation();
   // Insight-strip posture (E244): the Coach tab's primary content is the
   // suggestion feed, so this panel starts as one compact strip and expands in
   // place. One-way disclosure — a tab switch unmounts and re-collapses it; the
   // review itself is hash-cached server-side, so re-expanding stays free.
-  const [expanded, setExpanded] = useState(false);
+  // The ⌘K palette's "Read the deck" (E247) asks to arrive expanded through
+  // location state — an initializer, so it opens the strip without ever
+  // spending anything (the never-auto-spend rule holds; the button still waits).
+  const [expanded, setExpanded] = useState(
+    () => !!(location.state as { openAiReview?: boolean } | null)?.openAiReview
+  );
   const [phase, setPhase] = useState<'idle' | 'reading' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [review, setReview] = useState<HeldReview | null>(null);
