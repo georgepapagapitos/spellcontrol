@@ -87,6 +87,8 @@ export const aiReviews = pgTable(
     inputTokens: integer('input_tokens').notNull(),
     outputTokens: integer('output_tokens').notNull(),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    /** Deck the reading was written for; NULL on rows predating history. */
+    deckId: text('deck_id'),
   },
   (t) => [uniqueIndex('ai_reviews_key_idx').on(t.userId, t.feature, t.inputHash)]
 );

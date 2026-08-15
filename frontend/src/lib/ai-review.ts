@@ -37,6 +37,28 @@ export async function fetchAiStatus(): Promise<AiStatus | null> {
   return handleResponse<AiStatus>(res);
 }
 
+export interface ReviewReading {
+  id: string;
+  content: string;
+  model: string;
+  createdAt: number;
+}
+
+/**
+ * Past readings for one deck, newest first. A DB read of the user's own
+ * generated content — free, spends no quota, never touches the model. Rows
+ * written before the server learned deck ids aren't listed, so history starts
+ * from that deploy forward. Unavailable (404/401) degrades to "no history".
+ */
+export async function fetchReviewHistory(deckId: string): Promise<ReviewReading[]> {
+  const res = await authedFetch(`/api/ai/history?deckId=${encodeURIComponent(deckId)}`, {
+    method: 'GET',
+  });
+  if (res.status === 404 || res.status === 401) return [];
+  const data = await handleResponse<{ readings: ReviewReading[] }>(res);
+  return data.readings ?? [];
+}
+
 export async function setAiOptIn(enabled: boolean): Promise<boolean> {
   const res = await authedFetch('/api/ai/opt-in', {
     method: 'POST',

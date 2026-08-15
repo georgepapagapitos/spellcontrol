@@ -45,7 +45,7 @@ const LEGACY_REVIEW = [
  * deck-review answers in the route's NDJSON wire format — `reviewLines` lets a
  * test replace the happy stream with a truncated or failing one.
  */
-function stubApi(optIn: boolean, reviewLines?: unknown[]) {
+function stubApi(optIn: boolean, reviewLines?: unknown[], readings: unknown[] = []) {
   const calls: string[] = [];
   const lines = reviewLines ?? [
     { delta: REVIEW },
@@ -59,7 +59,11 @@ function stubApi(optIn: boolean, reviewLines?: unknown[]) {
         headers: { 'Content-Type': 'application/x-ndjson' },
       });
     }
-    const body = url === '/api/ai/status' ? { optIn, used: 0, limit: 10 } : { optIn: true };
+    const body = url.startsWith('/api/ai/history')
+      ? { readings }
+      : url === '/api/ai/status'
+        ? { optIn, used: 0, limit: 10 }
+        : { optIn: true };
     return new Response(JSON.stringify(body), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -112,6 +116,45 @@ describe('insight-strip posture (E244)', () => {
     // Expanded to the idle panel — the CTA waits; nothing was sent.
     expect(await screen.findByRole('button', { name: 'Read the deck' })).toBeTruthy();
     expect(calls).not.toContain('/api/ai/deck-review');
+  });
+});
+
+describe('review history', () => {
+  const READINGS = [
+    { id: 'r2', content: REVIEW, model: 'm', createdAt: Date.now() - 60 * 60 * 1000 },
+    { id: 'r1', content: LEGACY_REVIEW, model: 'm', createdAt: Date.now() - 3 * 86400 * 1000 },
+  ];
+
+  it('restores the newest past reading on expand — a local swap, never a model call', async () => {
+    const calls = stubApi(true, undefined, READINGS);
+    const { container } = renderPanel();
+    await expandStrip();
+
+    // The newest reading is displayed with its as-of date, nothing was spent.
+    await waitFor(() => expect(container.querySelector('.deck-ai-section--weakness')).toBeTruthy());
+    expect(container.textContent).toContain('Written 1 hour ago');
+    expect(calls).not.toContain('/api/ai/deck-review');
+
+    // Both readings are on the rail; the displayed one is marked current.
+    const rail = screen.getByRole('navigation', { name: 'Previous readings' });
+    const items = [...rail.querySelectorAll('.deck-ai-history-item')];
+    expect(items.map((i) => i.textContent)).toEqual(['1 hour ago', '3 days ago']);
+    expect(items[0].getAttribute('aria-current')).toBe('true');
+
+    // Reopening the older one swaps the prose locally.
+    fireEvent.click(items[1]);
+    expect(container.textContent).toContain('Written 3 days ago');
+    // The older reading predates the section labels — plain-prose fallback.
+    expect(container.querySelector('.deck-ai-section--weakness')).toBeNull();
+    expect(container.textContent).toContain('Your mana cannot support it.');
+    expect(calls).not.toContain('/api/ai/deck-review');
+  });
+
+  it('shows the idle pitch when the deck has no history yet', async () => {
+    stubApi(true);
+    renderPanel();
+    await expandStrip();
+    expect(await screen.findByRole('button', { name: 'Read the deck' })).toBeTruthy();
   });
 });
 

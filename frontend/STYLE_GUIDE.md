@@ -3957,6 +3957,15 @@ Model-written text always says so. The rulings:
 - **Stale AI output stays readable, flagged, never silently regenerated**: a
   notice ("Your deck has changed since this was written") plus an explicit
   re-run button; the prose itself drops to `--text-secondary` while stale.
+- **Generated AI prose persists — reopening a surface restores its last
+  output, and past outputs stay reachable.** The review panel restores the
+  newest stored reading on expand (a DB read, never a model call) and lists
+  every kept reading on a quiet date rail (`.deck-ai-history`: uppercase
+  micro-label + outline date pills, `aria-current` on the shown one) under the
+  prose; reopening one is a local swap. A restored reading is dated, not
+  flagged stale — whether the deck changed since isn't knowable client-side,
+  so it gets "Written N ago" with the same re-run affordance instead of a
+  staleness claim the UI can't back.
 - **Streaming shows the prose, never the plumbing (T102).** A skeleton covers
   only the wait before the first word; after that the text renders as it lands,
   with a caret and an announced "Writing…" status. Structure that depends on

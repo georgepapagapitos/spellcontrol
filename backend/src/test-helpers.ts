@@ -124,7 +124,8 @@ export async function createTestEnv(): Promise<TestEnv> {
       content TEXT NOT NULL,
       input_tokens INTEGER NOT NULL,
       output_tokens INTEGER NOT NULL,
-      created_at BIGINT NOT NULL
+      created_at BIGINT NOT NULL,
+      deck_id TEXT
     );
     CREATE UNIQUE INDEX ai_reviews_key_idx ON ai_reviews(user_id, feature, input_hash);
     CREATE INDEX ai_reviews_user_day_idx ON ai_reviews(user_id, created_at);

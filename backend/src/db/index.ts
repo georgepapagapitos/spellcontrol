@@ -682,5 +682,9 @@ export async function ensureSchema(): Promise<void> {
     CREATE UNIQUE INDEX IF NOT EXISTS ai_reviews_key_idx
       ON ai_reviews(user_id, feature, input_hash);
     CREATE INDEX IF NOT EXISTS ai_reviews_user_day_idx ON ai_reviews(user_id, created_at);
+    -- Which deck a reading was written for, so past readings list per deck
+    -- (review history). Nullable: rows predating the column stay unlisted
+    -- rather than backfilled — history accrues from the change forward.
+    ALTER TABLE ai_reviews ADD COLUMN IF NOT EXISTS deck_id TEXT;
   `);
 }

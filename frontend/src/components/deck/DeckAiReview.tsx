@@ -1,15 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { analyzeDeck } from '../../lib/deck-analysis';
 import { useTaggerReady } from '@/lib/use-tagger-ready';
 import { isBasicLandName } from '../../lib/allocations-core';
+import { formatRelativeTime } from '../../lib/format-time';
 import {
   buildDeckReviewCards,
   deckContentKey,
+  fetchReviewHistory,
   requestDeckReview,
   splitReviewSections,
   tokenizeCardNames,
+  type ReviewReading,
 } from '../../lib/ai-review';
 import { noteAiExhausted, noteAiSpend, useAiStatus } from '../../lib/use-ai-status';
 import { AiMarker, DeckAiConsent, isAiInviteDismissed } from './DeckAiConsent';
@@ -26,8 +29,14 @@ interface DeckAiReviewProps {
 
 interface HeldReview {
   content: string;
-  /** Content key of the deck the review was written for — staleness signal. */
-  key: string;
+  /**
+   * Content key of the deck the review was written for — staleness signal.
+   * Null for a reading restored from history: the deck it was written against
+   * isn't known client-side, so it carries an as-of date instead.
+   */
+  key: string | null;
+  /** Server timestamp, present only on history-restored readings. */
+  writtenAt?: number;
 }
 
 /**
@@ -59,6 +68,36 @@ export function DeckAiReview({
   const [review, setReview] = useState<HeldReview | null>(null);
   /** Prose received so far while the model is still writing (T102 streaming). */
   const [streamed, setStreamed] = useState('');
+  /** Past readings for this deck, newest first. Null until fetched. */
+  const [history, setHistory] = useState<ReviewReading[] | null>(null);
+
+  // Restoring past readings is a DB read of the user's own content — free,
+  // never a model call — so fetching on expand doesn't break the
+  // never-auto-spend rule. The newest one becomes the displayed reading, which
+  // is what makes the panel feel persistent across tab switches and visits.
+  // Keyed on the idle phase so it can never race a stream in progress, and so
+  // a finished generation refreshes the list on its way back to idle.
+  useEffect(() => {
+    if (!expanded || !status?.optIn || phase !== 'idle') return;
+    let alive = true;
+    fetchReviewHistory(deckId)
+      .then((readings) => {
+        if (!alive) return;
+        setHistory(readings);
+        const newest = readings[0];
+        if (newest) {
+          setReview(
+            (prev) => prev ?? { content: newest.content, key: null, writtenAt: newest.createdAt }
+          );
+        }
+      })
+      .catch(() => {
+        if (alive) setHistory((prev) => prev ?? []);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [expanded, status?.optIn, deckId, phase]);
 
   const commanderName = partnerCommander
     ? `${commander.name} // ${partnerCommander.name}`
@@ -81,7 +120,7 @@ export function DeckAiReview({
   if (!status) return null;
 
   const remaining = Math.max(0, status.limit - status.used);
-  const stale = review !== null && review.key !== currentKey;
+  const stale = review !== null && review.key !== null && review.key !== currentKey;
 
   const read = () => {
     const requestKey = currentKey;
@@ -160,6 +199,16 @@ export function DeckAiReview({
               </button>
             </div>
           )}
+          {/* A history-restored reading gets an as-of date, not a stale flag —
+              whether the deck has changed since isn't knowable client-side. */}
+          {review?.key === null && (
+            <div className="deck-ai-stale" role="status">
+              <span>Written {formatRelativeTime(review.writtenAt ?? 0, { verbose: true })}.</span>
+              <button type="button" className="btn" onClick={read} disabled={phase === 'reading'}>
+                Read again
+              </button>
+            </div>
+          )}
           {/* Announced, but visually hidden — a "Writing…" line that later
               disappears would itself shift the reading. */}
           {!review && (
@@ -173,6 +222,46 @@ export function DeckAiReview({
             stale={stale}
             streaming={!review}
           />
+        </div>
+      )}
+
+      {/* Every reading kept for this deck, newest first — reopening one is a
+          local swap, never a model call. Hidden while a new one is written. */}
+      {history !== null && history.length > 1 && phase !== 'reading' && (
+        <nav className="deck-ai-history" aria-label="Previous readings">
+          <span className="deck-ai-history-label">Readings</span>
+          {history.map((r) => {
+            const active = review !== null && review.content === r.content;
+            return (
+              <button
+                key={r.id}
+                type="button"
+                className="deck-ai-history-item"
+                aria-current={active || undefined}
+                onClick={() => {
+                  if (active) return;
+                  setReview({ content: r.content, key: null, writtenAt: r.createdAt });
+                  setError(null);
+                  setPhase('idle');
+                }}
+              >
+                {formatRelativeTime(r.createdAt, { verbose: true })}
+              </button>
+            );
+          })}
+        </nav>
+      )}
+
+      {/* First expand: a beat while past readings are checked, so the idle
+          pitch never flashes in front of a reading about to restore. */}
+      {phase === 'idle' && !review && history === null && (
+        <div
+          className="deck-ai-skeleton"
+          role="status"
+          aria-live="polite"
+          aria-label="Checking for past readings"
+        >
+          <span className="deck-ai-skeleton-line deck-ai-skeleton-line--short" />
         </div>
       )}
 
@@ -198,7 +287,7 @@ export function DeckAiReview({
         </div>
       )}
 
-      {phase === 'idle' && !review && (
+      {phase === 'idle' && !review && history !== null && (
         <div className="deck-ai-idle">
           <p className="deck-ai-idle-text">
             What is this deck actually trying to do, and where does it break? Written for this exact
