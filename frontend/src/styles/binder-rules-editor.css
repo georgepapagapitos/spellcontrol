@@ -67,6 +67,16 @@
   grid-column: 1 / -1;
 }
 
+/* The field picker is the row's PRIMARY control — it's what you came here to
+   change — and it measured 95x34 on touch while the reorder buttons beside it
+   sit at 44. Scoped to this row rather than raising `.toolbar-pill` app-wide,
+   which is a sweep of its own across every toolbar in the app. */
+@media (pointer: coarse) {
+  .sort-editor-row > .toolbar-pill {
+    min-height: 44px;
+  }
+}
+
 .sort-editor-num {
   font-family: var(--font-mono);
   font-size: var(--text-sm);

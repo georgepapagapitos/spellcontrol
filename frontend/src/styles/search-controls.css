@@ -192,6 +192,17 @@
   cursor: pointer;
 }
 
+/* The whole row is the label, so the row IS the hit target — but it measured
+   235x30 on touch, because only the 14px checkbox inside it had any intrinsic
+   height. Rows stack with room below, so they grow rather than take a ghost
+   (a ghost would overlap the row beneath and toggle the wrong option). */
+@media (pointer: coarse) {
+  .filter-popover-row {
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
 @media (hover: hover) and (pointer: fine) {
   .filter-popover-row:hover {
     background: var(--surface-raised);
@@ -290,6 +301,17 @@
   border-color: var(--accent);
 }
 
+/* These chips WRAP inside a popover panel that has room to grow, so they take
+   the floor on their real boxes — a ghost would overlap the neighbouring chip
+   and toggle the wrong format. Discover's equivalent chips already had this;
+   the deck and combo popovers that copy this class did not. */
+@media (pointer: coarse) {
+  .deck-filter-chip {
+    min-height: 44px;
+    padding-inline: var(--space-3);
+  }
+}
+
 .deck-filters-footer {
   display: flex;
   justify-content: flex-end;
@@ -336,6 +358,27 @@
 /* Press feedback (STYLE_GUIDE § Motion pattern 6). */
 .sort-popover-btn:active {
   transform: scale(0.97);
+}
+
+/* The binder summary line is a DENSE row — "Browse pages · sort: … · Collapse
+   all" all sit on one line at toolbar density. Growing this pill's real box to
+   44px would set the row's height and push the card grid down on every phone,
+   so it takes the floor on a centred ghost instead (STYLE_GUIDE § Responsive,
+   the dense-row pattern). Measured 31.6px tall before this. */
+@media (pointer: coarse) {
+  .sort-popover-btn {
+    position: relative;
+  }
+
+  .sort-popover-btn::after {
+    content: '';
+    position: absolute;
+    inset: 50% auto auto 50%;
+    width: 100%;
+    min-width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
 }
 
 .sort-popover-btn > svg {

@@ -166,7 +166,7 @@ export function SelectMenu<T extends string | number>({
           right: panelPos.right,
           top: panelPos.top,
           bottom: panelPos.bottom,
-          zIndex: 1200,
+          zIndex: 'var(--z-portal-popover)',
           // Scale the enter animation from the trigger corner: anchored-side
           // top/bottom + left/right mirror how the panel was placed.
           transformOrigin: `${panelPos.top !== undefined ? 'top' : 'bottom'} ${

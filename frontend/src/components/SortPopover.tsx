@@ -1,11 +1,9 @@
 import { ArrowUpDown } from 'lucide-react';
-import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { sortEntryLabel } from '../lib/sorting';
 import { SortEditor } from './SortEditor';
 import type { SortEntry, SortField } from '../types';
-import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
-import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
+import { useAnchoredPanel } from '@/lib/use-anchored-panel';
 
 type ValueOrders = Partial<Record<SortField, string[]>>;
 
@@ -15,8 +13,6 @@ interface Props {
   onSortsChange: (next: SortEntry[]) => void;
   onValueOrdersChange: (next: ValueOrders) => void;
 }
-
-type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
 
 /**
  * In-view sort control for the binder summary line: a button showing the
@@ -28,86 +24,41 @@ type PanelPos = { top?: number; bottom?: number; left?: number; right?: number }
  * mobile bottom nav, and keyboard inset).
  */
 export function SortPopover({ sorts, valueOrders, onSortsChange, onValueOrdersChange }: Props) {
-  const [open, setOpen] = useState(false);
-  const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+  // `align: 'left'` — the sort panel is wide. `ignoreSelector` keeps the
+  // SelectMenu portal-escape guard: a sort-field dropdown renders to <body>, so
+  // interacting with (or scrolling) it must not collapse the sort popover.
+  const { open, toggle, triggerRef, panelRef, panelStyle } = useAnchoredPanel({
+    align: 'left',
+    ignoreSelector: '.toolbar-popover-panel',
+  });
 
   const activeSorts = sorts.filter((s) => s && s.field !== 'none');
   const breadcrumb = activeSorts.map(sortEntryLabel).join(' › ');
 
-  // After the panel renders in the portal, measure and clamp/flip into the safe
-  // viewport. useLayoutEffect fires before paint so there is no visible flash.
-  useLayoutEffect(() => {
-    if (!open || !panelRef.current || !buttonRef.current) return;
-    const anchorRect = buttonRef.current.getBoundingClientRect();
-    const panelRect = panelRef.current.getBoundingClientRect();
-    const safe = getSafeViewport();
-    const placement = computePopoverPlacement(
-      anchorRect,
-      { width: panelRect.width, height: panelRect.height },
-      safe,
-      'left' // sort panel opens left-aligned (it's wide)
-    );
-    setPanelPos({
-      top: placement.top,
-      bottom: placement.bottom,
-      left: placement.left,
-      right: placement.right,
-    });
-  }, [open]);
-
-  // Dismiss/focus/back semantics — including dismissing when the page scrolls
-  // out from under this fixed-position panel. `ignoreSelector` keeps the old
-  // SelectMenu portal-escape guard: a sort-field dropdown renders to <body>, so
-  // interacting with (or scrolling) it must not collapse the sort popover.
-  useMenuKeyboard({
-    open,
-    onClose: () => setOpen(false),
-    panelRef,
-    triggerRef: buttonRef,
-    dialog: true,
-    ignoreSelector: '.toolbar-popover-panel',
-  });
-
-  const handleToggle = () => {
-    if (!open && buttonRef.current) {
-      const r = buttonRef.current.getBoundingClientRect();
-      setPanelPos({ top: r.bottom + 6, left: Math.max(8, r.left) });
-    }
-    setOpen((v) => !v);
-  };
-
   return (
     <div className="sort-popover">
       <button
-        ref={buttonRef}
+        ref={triggerRef}
         type="button"
         className={`sort-popover-btn${open ? ' open' : ''}`}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label="Change sort order"
         title="Change sort order"
-        onClick={handleToggle}
+        onClick={toggle}
       >
         <ArrowUpDown width={13} height={13} strokeWidth={2} aria-hidden />
         <span className="sort-popover-label">{breadcrumb ? `Sort: ${breadcrumb}` : 'Sort'}</span>
       </button>
       {open &&
-        panelPos &&
+        panelStyle &&
         createPortal(
           <div
             ref={panelRef}
             className="sort-popover-panel"
             role="dialog"
             aria-label="Sort within binder"
-            style={{
-              position: 'fixed',
-              top: panelPos.top,
-              bottom: panelPos.bottom,
-              left: panelPos.left,
-              right: panelPos.right,
-            }}
+            style={panelStyle}
           >
             <SortEditor
               compact

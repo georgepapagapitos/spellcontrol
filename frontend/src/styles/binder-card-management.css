@@ -84,6 +84,17 @@
   z-index: 1;
 }
 
+/* These are DRAG targets (`touch-action: none`), which makes the floor matter
+   more here than on a tap-only control: a finger that starts 4px off a 28px
+   chip doesn't just miss, it scrolls nothing and drags nothing. A ghost is not
+   an option — the drag listener lives on the real box — so the chip grows. */
+@media (pointer: coarse) {
+  .sort-value-order-chip {
+    min-height: 44px;
+    padding-inline: 0.85rem;
+  }
+}
+
 .sort-value-order-num {
   color: var(--text-muted);
   font-size: var(--text-xs);

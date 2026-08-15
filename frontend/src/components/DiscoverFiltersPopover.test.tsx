@@ -45,24 +45,27 @@ describe('DiscoverFiltersPopover', () => {
     }
   });
 
-  it('picking a Format radio updates filters and closes the popover', () => {
+  // Radios used to dismiss the panel on pick, which made this the only popover
+  // in the family that vanished mid-edit — and setting format AND budget meant
+  // reopening it. Every control now leaves the panel open; you close it.
+  it('picking a Format radio updates filters and keeps the popover open', () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
     openPanel();
     fireEvent.click(screen.getByRole('radio', { name: 'Commander' }));
 
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ format: 'commander' }));
-    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('dialog')).not.toBeNull();
   });
 
-  it('picking a Budget radio updates filters and closes the popover', () => {
+  it('picking a Budget radio updates filters and keeps the popover open', () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
     openPanel();
     fireEvent.click(screen.getByRole('radio', { name: 'Under $50' }));
 
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ budget: 'under50' }));
-    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('dialog')).not.toBeNull();
   });
 
   it('toggling a Color checkbox updates filters and keeps the popover open', () => {
@@ -95,7 +98,9 @@ describe('DiscoverFiltersPopover', () => {
     openPanel();
     fireEvent.click(screen.getByRole('checkbox', { name: 'White' }));
 
-    expect(screen.getByRole('button', { name: 'Filters, 1 active' })).toBeTruthy();
+    // "(1 active)", not ", 1 active" — the four filter triggers had drifted to
+    // two different phrasings; they share one `<FilterTrigger>` now.
+    expect(screen.getByRole('button', { name: 'Filters (1 active)' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /clear filters/i }));
     expect(screen.getByRole('button', { name: /^filters$/i })).toBeTruthy();
   });

@@ -261,6 +261,9 @@
 .collection-filters-dialog-body {
   flex: 1 1 auto;
   overflow-y: auto;
+  /* Twenty sections deep — scrolling to the end and swiping once more used to
+     chain straight into the card grid behind the dialog. */
+  overscroll-behavior: contain;
   padding: 0.9rem var(--space-4) var(--space-4);
   display: flex;
   flex-direction: column;
@@ -633,6 +636,18 @@
 .color-filter-btn.is-active .color-pip-mana {
   box-shadow: 0 0 0 2px var(--accent);
   border-radius: 50%;
+}
+
+/* The WUBRG+C pip row — the most-tapped control in every filter surface
+   (collection dialog, deck / combo popovers) and, at 34px, the smallest.
+   The pips sit in a `gap: 0.3rem` row with slack on both sides, so they take
+   the floor on their real boxes; a ghost would bleed over the pip next door
+   and toggle the wrong colour. */
+@media (pointer: coarse) {
+  .color-filter-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
 .collection-select {

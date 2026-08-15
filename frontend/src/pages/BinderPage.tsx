@@ -31,7 +31,7 @@ import { BinderListView } from '../components/BinderListView';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { FilterChipsRow } from '../components/shared/FilterChipsRow';
-import { FilterPopover } from '../components/FilterPopover';
+import { ViewOptionsPopover } from '../components/ViewOptionsPopover';
 import { useSetMap } from '../lib/api';
 import { useConfirm } from '../lib/use-confirm';
 import { useStoredView } from '../lib/use-stored-view';
@@ -359,7 +359,7 @@ export function BinderPage() {
           placeholder="Search"
           ariaLabel="Search cards by name"
           trailing={
-            <FilterPopover
+            <ViewOptionsPopover
               ariaLabel="Binder options"
               toggles={[
                 ...(view === 'pages'

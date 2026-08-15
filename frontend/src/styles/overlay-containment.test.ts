@@ -56,6 +56,9 @@ describe('overlay scroll containment', () => {
     // The shared trade printing chooser (composer + accept dialog) — capped and
     // scrolled because a real collection holds 59 printings of Mountain.
     ['components/trade/PrintingChoices.css', '.printing-choices'],
+    // The collection Filters dialog — twenty sections deep, so it gets scrolled
+    // to its end more often than any other overlay body in the app.
+    ['styles/collection.css', '.collection-filters-dialog-body'],
   ];
 
   for (const [file, selector] of SCROLLERS) {
@@ -223,6 +226,29 @@ describe('coarse-pointer touch floor', () => {
     // the door below 44px silently — this allowlist is opt-in, so a control
     // is unguarded until it is named. Measured 121.3×44 at 320-1440px.
     ['components/home/QuickActionsRow.css', '.home-quick-action'],
+    // ── The rule / sort / filter overlay family ──────────────────────────
+    // The binder summary line's sort breadcrumb. Dense row (it shares a line
+    // with Browse pages and Collapse all), so it takes the floor on a ghost.
+    ['styles/search-controls.css', '.sort-popover-btn::after'],
+    // Format/Source/Result/Pieces chips. They WRAP inside a popover panel with
+    // room to grow, so real boxes — a ghost would overlap the next chip.
+    ['styles/search-controls.css', '.deck-filter-chip'],
+    // The WUBRG+C pip row: the most-tapped control in every filter surface and,
+    // at 34px, the smallest. Real boxes for the same reason as the chips.
+    ['styles/collection.css', '.color-filter-btn'],
+    // Custom sort value order — DRAG targets (`touch-action: none`), so a ghost
+    // is impossible: the drag listener is on the real box.
+    ['styles/binder-card-management.css', '.sort-value-order-chip'],
+    // The sort editor's reorder/remove buttons. Their floor used to be gated on
+    // `max-width: 600px` as well, which left coarse-pointer tablets and
+    // touchscreen laptops on a 33x31 target.
+    ['styles/responsive-nav.css', '.tab-action'],
+    // The sort row's field picker — the row's primary control, and it was the
+    // shortest thing in it (95x34 beside 44px reorder buttons).
+    ['styles/binder-rules-editor.css', '.sort-editor-row > .toolbar-pill'],
+    // The binder's view-option rows. The whole row is the <label>, so the row
+    // IS the target; only the 14px checkbox inside gave it any height (235x30).
+    ['styles/search-controls.css', '.filter-popover-row'],
   ];
 
   for (const [file, selector] of CONTROLS) {
