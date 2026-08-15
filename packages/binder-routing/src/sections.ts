@@ -1,6 +1,7 @@
 import type { EnrichedCard, SetMap, SortField } from './types.js';
 import { COLOR_INFO, COLOR_ORDER, getColorKey } from './colors.js';
 import { TYPE_ORDER, getCardType } from './card-types.js';
+import { releaseDateOf } from './sorting.js';
 
 export interface SectionContext {
   setMap?: SetMap;
@@ -20,10 +21,11 @@ export interface SectionMeta {
 }
 
 /**
- * `order` for a group whose sort value is unknown (a set with no release date,
- * a Secret Lair number MTGJSON hasn't mapped). Section ordering keeps these
- * last whatever the direction — "newest drop first" leading with the cards
- * whose date we don't know is never what was asked for.
+ * `order` for a group whose sort value is unknown — a set with no release date,
+ * a Secret Lair number MTGJSON hasn't mapped, a card with no mana value or no
+ * EDHREC rank. Section ordering keeps these last whatever the direction:
+ * "newest first" leading with the cards whose date we don't know is never what
+ * was asked for. The card-side twin is `UNKNOWN_VALUE` in sorting.ts.
  */
 export const UNKNOWN_ORDER = Number.MAX_SAFE_INTEGER;
 
@@ -58,7 +60,7 @@ function capitalize(s: string): string {
 
 function cmcBucket(cmc: number | undefined): SectionMeta {
   if (cmc === undefined || cmc === null || Number.isNaN(cmc)) {
-    return { key: 'cmc-?', label: 'Unknown CMC', order: 999 };
+    return { key: 'cmc-?', label: 'Unknown CMC', order: UNKNOWN_ORDER };
   }
   if (cmc >= 7) return { key: 'cmc-7+', label: 'CMC 7+', order: 7 };
   return { key: `cmc-${cmc}`, label: `CMC ${cmc}`, order: cmc };
@@ -73,7 +75,7 @@ function priceBucket(p: number): SectionMeta {
 }
 
 function edhrecBucket(rank: number | undefined): SectionMeta {
-  if (rank === undefined) return { key: 'edhrec-none', label: 'Unranked', order: 99 };
+  if (rank === undefined) return { key: 'edhrec-none', label: 'Unranked', order: UNKNOWN_ORDER };
   if (rank <= 100) return { key: 'edhrec-100', label: 'Top 100', order: 0 };
   if (rank <= 1000) return { key: 'edhrec-1000', label: 'Top 1,000', order: 1 };
   if (rank <= 10000) return { key: 'edhrec-10k', label: 'Top 10,000', order: 2 };
@@ -118,11 +120,12 @@ export function getSectionMeta(
     case 'cmc':
       return cmcBucket(card.cmc);
     case 'setReleaseDate': {
-      const code = (card.setCode || '').toUpperCase();
-      const released = card.sldDrop ? card.sldDropReleasedAt : ctx?.setMap?.[code]?.releasedAt;
+      // `releaseDateOf` is the single source of a printing's date, so a section's
+      // position and its cards' order can't disagree. Unknown sorts last in BOTH
+      // directions — see UNKNOWN_ORDER.
+      const released = releaseDateOf(card, ctx?.setMap);
       return {
         ...setMeta(card),
-        // Unknown release dates sort last — in BOTH directions, see UNKNOWN_ORDER.
         order: released ? new Date(released).getTime() : UNKNOWN_ORDER,
       };
     }
