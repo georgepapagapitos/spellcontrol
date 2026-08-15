@@ -449,7 +449,7 @@ export function FilterFieldEditor({
 
       {/* Format/Legality */}
       {showLegality && (
-        <Row label={isBinder ? 'Format legality' : 'Format'} fieldId="legalities">
+        <Row label="Format" fieldId="legalities">
           <ChipExpressionBuilder
             options={SHARED_FORMAT_OPTIONS}
             value={value.legalities ?? EMPTY_EXPR}

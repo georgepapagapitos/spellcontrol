@@ -425,6 +425,10 @@ function FilterGroupFields({
           value={filter.rarities ?? EMPTY_EXPR}
           onChange={(next) => patch({ rarities: next })}
           defaultJoiner="OR"
+          // A card has exactly ONE rarity, so "rare AND mythic" can never match
+          // anything. The collection Filters dialog already locked this; the
+          // binder editor let you build the empty set by hand.
+          lockJoiner="OR"
           placeholder="Add rarity..."
         />
       </RuleRow>
@@ -445,7 +449,7 @@ function FilterGroupFields({
         <NumberRangeInput
           min={filter.priceMin}
           max={filter.priceMax}
-          step={0.25}
+          step={0.01}
           onMinChange={(v) => patch({ priceMin: v })}
           onMaxChange={(v) => patch({ priceMax: v })}
         />

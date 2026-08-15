@@ -85,7 +85,8 @@ import {
   type ListLayoutRow,
 } from '../lib/group-sections';
 import { readLocalStorage } from '../lib/local-storage';
-import { colorSelectionMatches, getColorKey, type ColorMatchMode } from '../lib/colors';
+import { type ColorMatchMode } from '../lib/colors';
+import { rowMatchesCollectionFilter } from '../lib/collection-filter';
 import { useCollectionStore } from '../store/collection';
 import {
   collectionFiltersToFilterGroup,
@@ -107,13 +108,7 @@ import { FilterChipsRow, type FilterChipDescriptor } from './shared/FilterChipsR
 import { ToolbarPopover } from './shared/ToolbarPopover';
 import { ViewPopoverPanel } from './shared/ViewPopoverPanel';
 import { buildEditedCards, isNoOpCardEdit, stackCopies, stackDetailMix } from '../lib/edit-card';
-import {
-  compileExpression,
-  compileFilter,
-  cardMatchesCompiled,
-  exactMatchesExpression,
-  isExpressionEmpty,
-} from '../lib/rules';
+import { compileExpression, compileFilter, isExpressionEmpty } from '../lib/rules';
 
 interface Props {
   cards: EnrichedCard[];
@@ -778,37 +773,22 @@ export function CardListTable({
     debouncedSearch,
   ]);
 
-  const filtered = useMemo(
-    () =>
-      rows.filter((r) => {
-        // Post-check 1: binder membership (collection-only)
-        if (compiledBinder) {
-          const bname = r.binderName ?? '__uncategorized';
-          if (!exactMatchesExpression(bname, compiledBinder)) return false;
-        }
-        // Post-check 2: color identity (collection-only, different semantics than engine)
-        if (colorFilter.size > 0) {
-          const k = getColorKey(r.card);
-          const ci = r.card.colorIdentity || [];
-          if (!colorSelectionMatches(k, ci, colorFilter, colorMode)) return false;
-        }
-        // Post-check 3: condition (collection-only, physical copy field)
-        if (compiledCondition && !exactMatchesExpression(r.card.condition, compiledCondition))
-          return false;
-        // Post-check 4: language (collection-only, physical copy field;
-        // absent language means English, same default CardRow displays)
-        if (compiledLanguage && !exactMatchesExpression(r.card.language || 'en', compiledLanguage))
-          return false;
-        // Post-check 5: tradeable surplus (collection-only, needs allocation data)
-        if (surplusOnly && !surplusByName.has(r.card.name)) return false;
-        // Post-check 6: proxy-only (collection-only, physical copy field)
-        if (proxyOnly && !r.card.proxy) return false;
-        // Engine check: everything else (type, rarity, oracle, legality, layout,
-        // treatment, border, finish, sets, price, cmc, name search)
-        return cardMatchesCompiled(r.card, compiledMatchFilter);
-      }),
+  // The predicate itself lives in lib/collection-filter so the Filters dialog
+  // can run the identical thing over its DRAFT state for a live match count.
+  const filterCriteria = useMemo(
+    () => ({
+      matchFilter: compiledMatchFilter,
+      binder: compiledBinder,
+      colors: colorFilter,
+      colorMode,
+      condition: compiledCondition,
+      language: compiledLanguage,
+      surplusOnly,
+      surplusByName,
+      proxyOnly,
+    }),
     [
-      rows,
+      compiledMatchFilter,
       compiledBinder,
       colorFilter,
       colorMode,
@@ -817,8 +797,12 @@ export function CardListTable({
       surplusOnly,
       surplusByName,
       proxyOnly,
-      compiledMatchFilter,
     ]
+  );
+
+  const filtered = useMemo(
+    () => rows.filter((r) => rowMatchesCollectionFilter(r, filterCriteria)),
+    [rows, filterCriteria]
   );
 
   // Import timestamp per importId, for the "Date added" sort (whole-import
@@ -1954,6 +1938,9 @@ export function CardListTable({
               proxyOnly={proxyOnly}
               setProxyOnly={setProxyOnly}
               activeCount={activeFilterCount}
+              rows={rows}
+              surplusByName={surplusByName}
+              searchTerm={debouncedSearch}
             />
           }
         />

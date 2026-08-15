@@ -231,7 +231,7 @@ export const FILTER_FIELDS: FilterFieldSpec[] = [
   },
   {
     id: 'legalities',
-    label: 'Format legality',
+    label: 'Format',
     group: 'Value & play',
     keywords: ['commander', 'modern', 'pioneer', 'standard', 'format'],
     isSet: (f) => hasChips(f.legalities),
