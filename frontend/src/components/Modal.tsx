@@ -88,13 +88,25 @@ export function Modal({
     [onClose]
   );
 
+  // Captured during THIS component's render, which happens before any child
+  // mounts. Reading it in the mount effect instead was too late whenever the
+  // dialog had an `autoFocus` child: `autoFocus` is applied as the DOM node is
+  // inserted, so by the time effects ran, `document.activeElement` was already
+  // that child. The modal then "restored" focus to its own input — which the
+  // close had just unmounted, failing the isConnected check — and the user was
+  // dropped on <body>. Measured on the binder editor, whose name field
+  // autofocuses; it affects every autoFocus dialog on this primitive.
+  const prevFocusedRef = useRef<HTMLElement | null>(
+    typeof document === 'undefined' ? null : (document.activeElement as HTMLElement | null)
+  );
+
   useEffect(() => {
     // Move focus into the dialog so Tab starts inside it. An autoFocus
     // child has already focused itself by the time this effect runs —
     // focusInto's contains() check leaves it alone.
-    const prevFocused = document.activeElement as HTMLElement | null;
     if (panelRef.current) focusInto(panelRef.current);
 
+    const prevFocused = prevFocusedRef.current;
     return () => {
       // Restore focus to whatever was focused before the modal opened, so
       // keyboard / screen-reader users aren't dropped at the top of the page

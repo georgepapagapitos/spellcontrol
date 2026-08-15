@@ -129,8 +129,11 @@ export function ChipExpressionBuilder(props: Props) {
   return (
     <div className="chip-builder-wrap">
       <div className="chip-builder-inner">
+        {/* Keyed by value, not index: `appendChip` dedupes, so a value is
+            unique within a row, and removing a chip from the middle under an
+            index key re-labelled every chip after it. */}
         {chips.map((c, i) => (
-          <span key={i} className="chip-builder-row">
+          <span key={c.value} className="chip-builder-row">
             {i > 0 && (
               <button
                 type="button"
@@ -158,6 +161,7 @@ export function ChipExpressionBuilder(props: Props) {
               <button
                 type="button"
                 className="chip-builder-toggle"
+                aria-label={`${labelFor(c.value, props)} is ${c.negate ? 'excluded' : 'required'}; activate to flip`}
                 onClick={() => toggleChipNegate(i)}
               >
                 {c.negate ? 'IS NOT' : 'IS'}
@@ -166,7 +170,10 @@ export function ChipExpressionBuilder(props: Props) {
               <button
                 type="button"
                 className="chip-builder-remove"
-                aria-label="Remove"
+                // Was a bare "Remove". Tabbing a row of six rarity chips
+                // announced the same word six times with nothing to tell them
+                // apart.
+                aria-label={`Remove ${labelFor(c.value, props)}`}
                 onClick={() => removeChip(i)}
               >
                 ×
