@@ -100,6 +100,39 @@ aiRouter.get('/status', requireAuth, async (req: Request, res: Response) => {
 });
 
 // ────────────────────────────────────────────────
+// GET /api/ai/history?deckId=… — past readings for one deck, newest first.
+// A DB read of the user's own generated content: free, spends no quota, and
+// never touches the model. Rows written before deck_id existed aren't listed.
+// ────────────────────────────────────────────────
+aiRouter.get('/history', requireAuth, async (req: Request, res: Response) => {
+  const deckId = req.query.deckId;
+  if (typeof deckId !== 'string' || !deckId || deckId.length > 200) {
+    return res.status(400).json({ error: 'deckId is required.' });
+  }
+  const rows = await getPool().query<{
+    id: string;
+    content: string;
+    model: string;
+    created_at: string | number;
+  }>(
+    `SELECT id, content, model, created_at
+       FROM ai_reviews
+      WHERE user_id = $1 AND feature = $2 AND deck_id = $3
+      ORDER BY created_at DESC
+      LIMIT 20`,
+    [req.user!.id, DECK_REVIEW_FEATURE, deckId]
+  );
+  res.json({
+    readings: rows.rows.map((r) => ({
+      id: r.id,
+      content: r.content,
+      model: r.model,
+      createdAt: Number(r.created_at),
+    })),
+  });
+});
+
+// ────────────────────────────────────────────────
 // POST /api/ai/opt-in { enabled: boolean }
 // ────────────────────────────────────────────────
 aiRouter.post('/opt-in', optInLimiter, requireAuth, async (req: Request, res: Response) => {
@@ -256,8 +289,8 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
 
   await pool.query(
     `INSERT INTO ai_reviews
-       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, created_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, created_at, deck_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      ON CONFLICT (user_id, feature, input_hash) DO NOTHING`,
     [
       crypto.randomUUID(),
@@ -269,6 +302,7 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
       generation.inputTokens,
       generation.outputTokens,
       Date.now(),
+      request.deckId,
     ]
   );
 
@@ -453,8 +487,8 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
 
   await pool.query(
     `INSERT INTO ai_reviews
-       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, created_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, created_at, deck_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      ON CONFLICT (user_id, feature, input_hash) DO NOTHING`,
     [
       crypto.randomUUID(),
@@ -466,6 +500,7 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
       generation.inputTokens,
       generation.outputTokens,
       Date.now(),
+      request.deckId,
     ]
   );
 

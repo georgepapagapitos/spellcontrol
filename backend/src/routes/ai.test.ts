@@ -279,6 +279,35 @@ describe('POST /api/ai/deck-review', () => {
     expect(status.body.used).toBe(1);
   });
 
+  it('records the reading in per-deck history, scoped to the deck and the user', async () => {
+    const cookie = await makeUser('ai-review-history');
+    await optIn(cookie);
+
+    const missing = await request(app).get('/api/ai/history').set('Cookie', cookie);
+    expect(missing.status).toBe(400);
+
+    const empty = await request(app).get('/api/ai/history?deckId=deck-1').set('Cookie', cookie);
+    expect(empty.status).toBe(200);
+    expect(empty.body.readings).toEqual([]);
+
+    await request(app).post('/api/ai/deck-review').set('Cookie', cookie).send(reviewBody());
+
+    const after = await request(app).get('/api/ai/history?deckId=deck-1').set('Cookie', cookie);
+    expect(after.body.readings).toHaveLength(1);
+    expect(after.body.readings[0]).toMatchObject({ content: REVIEW_TEXT, model: 'test-model' });
+    expect(typeof after.body.readings[0].createdAt).toBe('number');
+
+    // Scoped to the deck it was written for…
+    const otherDeck = await request(app).get('/api/ai/history?deckId=deck-2').set('Cookie', cookie);
+    expect(otherDeck.body.readings).toEqual([]);
+
+    // …and to the user who wrote it.
+    const stranger = await makeUser('ai-review-history-2');
+    await optIn(stranger);
+    const cross = await request(app).get('/api/ai/history?deckId=deck-1').set('Cookie', stranger);
+    expect(cross.body.readings).toEqual([]);
+  });
+
   it('an edited deck misses the cache and spends quota again', async () => {
     const cookie = await makeUser('ai-review-edit');
     await optIn(cookie);

@@ -3,6 +3,7 @@ import {
   buildDeckReviewCards,
   deckContentKey,
   fetchAiStatus,
+  fetchReviewHistory,
   requestDeckReview,
   setAiOptIn,
   splitReviewSections,
@@ -190,6 +191,22 @@ describe('fetchAiStatus', () => {
     expect(await fetchAiStatus()).toBeNull();
     stubFetch(401, { error: 'Not authenticated.' });
     expect(await fetchAiStatus()).toBeNull();
+  });
+});
+
+describe('fetchReviewHistory', () => {
+  it('returns readings and encodes the deck id', async () => {
+    const readings = [{ id: 'r1', content: 'prose', model: 'm', createdAt: 1 }];
+    const mock = stubFetch(200, { readings });
+    expect(await fetchReviewHistory('deck/1')).toEqual(readings);
+    expect(mock.mock.calls[0][0]).toBe('/api/ai/history?deckId=deck%2F1');
+  });
+
+  it('degrades to empty when the feature is unavailable', async () => {
+    stubFetch(404, { error: 'Not found.' });
+    expect(await fetchReviewHistory('d1')).toEqual([]);
+    stubFetch(401, { error: 'Not authenticated.' });
+    expect(await fetchReviewHistory('d1')).toEqual([]);
   });
 });
 
