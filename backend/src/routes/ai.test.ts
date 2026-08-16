@@ -404,6 +404,34 @@ describe('POST /api/ai/deck-review', () => {
     expect(stream.streamed.trim()).toBe('Prose here.');
   });
 
+  it('never streams the answer marker to the reader', async () => {
+    // The tool loop's gate releases text FROM the marker onward, so the marker
+    // is the first thing this gate sees. It is machine framing, not prose.
+    const cookie = await makeUser('ai-refine-marker');
+    await optIn(cookie);
+    mockState.generate.mockImplementation(
+      async (_s: string, _u: string, onDelta?: (t: string) => void) => {
+        onDelta?.('---STRAT');
+        onDelta?.('EGY---\nYour deck grinds value.');
+        onDelta?.('\n\n---TWEAKS---\n[]');
+        return {
+          content: '---STRATEGY---\nYour deck grinds value.\n\n---TWEAKS---\n[]',
+          inputTokens: 1,
+          outputTokens: 1,
+          fetched: [],
+        };
+      }
+    );
+    const res = await request(app)
+      .post('/api/ai/deck-refine')
+      .set('Cookie', cookie)
+      .send(refineBody());
+    const stream = parseStream(res.text);
+    expect(stream.streamed).not.toContain('STRATEGY');
+    expect(stream.streamed.trim()).toBe('Your deck grinds value.');
+    expect((stream.done as { content: string }).content).toBe('Your deck grinds value.');
+  });
+
   it('reports a MID-stream failure in-band, stores nothing, spends nothing', async () => {
     const cookie = await makeUser('ai-review-midfail');
     await optIn(cookie);
@@ -606,6 +634,9 @@ describe('POST /api/ai/deck-refine', () => {
         { add: 'Mana Crypt', cut: 'Sol Ring', why: 'Fast mana is fast.' },
         { add: 'Viscera Seer', cut: null, why: 'A free sac outlet this deck lacks.' },
       ]);
+      // Deliberately NO `fetched` key. The grounding audit runs after the 200
+      // and the first deltas are out, so it has to survive a generation that
+      // lacks one — a throw there truncates the answer instead of erroring.
       return { content: raw, inputTokens: 1, outputTokens: 1 };
     });
     const res = await request(app)
@@ -615,6 +646,77 @@ describe('POST /api/ai/deck-refine', () => {
 
     const done = parseStream(res.text).done as { tweaks: { add: string }[] };
     expect(done.tweaks.map((t) => t.add)).toEqual(['Viscera Seer']);
+  });
+
+  it('hands the model a card-search tool and an answer marker', async () => {
+    const cookie = await makeUser('ai-refine-tools');
+    await optIn(cookie);
+    mockState.generate.mockImplementation(async () => ({
+      content: refineReply(PROSE, []),
+      inputTokens: 1,
+      outputTokens: 1,
+      fetched: [],
+    }));
+    await request(app).post('/api/ai/deck-refine').set('Cookie', cookie).send(refineBody());
+
+    const options = mockState.generate.mock.calls[0][4] as {
+      tools: { definition: { name: string } }[];
+      answerMarker: string;
+    };
+    expect(options.tools.map((t) => t.definition.name)).toEqual(['lookup_cards']);
+    // Without a marker the model's research narration would stream into the
+    // strategy read and be stored as part of it.
+    expect(options.answerMarker).toBe('---STRATEGY---');
+  });
+
+  it('restricts the search to the collection on an owned-only build', async () => {
+    // The guarantee used to live in the client's pool filter. Now that the
+    // model searches for its own candidates, the server has to carry it.
+    const cookie = await makeUser('ai-refine-owned');
+    await optIn(cookie);
+    const { getPool } = await import('../db');
+    const { rows } = await getPool().query<{ id: string }>(
+      'SELECT id FROM users WHERE username = $1',
+      ['ai-refine-owned']
+    );
+    await getPool().query(
+      `INSERT INTO user_cards (user_id, id, import_id, data, rev, updated_at)
+       VALUES ($1, 'c1', 'i1', $2::jsonb, 1, 1)`,
+      [rows[0].id, JSON.stringify({ name: 'Eternal Witness', oracleId: 'o-ew' })]
+    );
+    mockState.generate.mockImplementation(async () => ({
+      content: refineReply(PROSE, []),
+      inputTokens: 1,
+      outputTokens: 1,
+      fetched: [],
+    }));
+
+    await request(app)
+      .post('/api/ai/deck-refine')
+      .set('Cookie', cookie)
+      .send(refineBody({ ownedOnly: true }));
+
+    const options = mockState.generate.mock.calls[0][4] as {
+      tools: { definition: { description: string } }[];
+    };
+    expect(options.tools[0].definition.description).toMatch(/ALREADY OWNS/);
+  });
+
+  it('leaves the search unrestricted when the build is not owned-only', async () => {
+    const cookie = await makeUser('ai-refine-unowned');
+    await optIn(cookie);
+    mockState.generate.mockImplementation(async () => ({
+      content: refineReply(PROSE, []),
+      inputTokens: 1,
+      outputTokens: 1,
+      fetched: [],
+    }));
+    await request(app).post('/api/ai/deck-refine').set('Cookie', cookie).send(refineBody());
+
+    const options = mockState.generate.mock.calls[0][4] as {
+      tools: { definition: { description: string } }[];
+    };
+    expect(options.tools[0].definition.description).not.toMatch(/ALREADY OWNS/);
   });
 
   it('shares the daily quota pool with the review', async () => {
