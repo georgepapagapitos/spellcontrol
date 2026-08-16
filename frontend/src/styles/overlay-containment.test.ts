@@ -249,6 +249,10 @@ describe('coarse-pointer touch floor', () => {
     // The binder's view-option rows. The whole row is the <label>, so the row
     // IS the target; only the 14px checkbox inside gave it any height (235x30).
     ['styles/search-controls.css', '.filter-popover-row'],
+    // The toolbar sort menu's Reverse action (E250). Real box, not a ghost:
+    // it sits directly beneath the last field option, so the crowded axis is
+    // vertical and a 44px ghost would reach up into that option.
+    ['styles/deck-builder-display.css', '.sort-menu-reverse'],
   ];
 
   for (const [file, selector] of CONTROLS) {

@@ -13,7 +13,7 @@ import type {
 } from '../types';
 import type { SortContext } from '../lib/sorting';
 import { compileFilter, cardMatchesCompiled, isExpressionEmpty } from '../lib/rules';
-import { sortCards, printingKey } from '../lib/sorting';
+import { sortCards, printingKey, sortDirectionLabel } from '../lib/sorting';
 import { colorSelectionMatches, getColorKey, type ColorMatchMode } from '../lib/colors';
 import { cardTagLabel } from '../lib/card-tags';
 import { useCardsWithTags } from '../lib/card-tags';
@@ -22,10 +22,9 @@ import { ownedCountForEntry, isTrackingList } from '../lib/lists';
 import { useCollectionStore } from '../store/collection';
 import { CollectionFiltersDialog } from './CollectionFiltersDialog';
 import { SearchPill } from './SearchPill';
-import { SelectMenu } from './SelectMenu';
+import { SortMenu, type SortMenuOption } from './SortMenu';
 import { ViewModeToggle } from './ViewModeToggle';
 import { Legend } from './Legend';
-import { SortDirArrow } from './SortDirArrow';
 import { CardRow } from './shared/CardRow';
 import {
   CardGridCell,
@@ -85,6 +84,14 @@ const LIST_SORTS: Array<{ value: SortField; label: string; defaultDir: SortDir }
   { value: 'setName', label: 'Set', defaultDir: 'asc' },
 ];
 const DEFAULT_DIR = new Map(LIST_SORTS.map((s) => [s.value, s.defaultDir]));
+
+// Every key here is a real SortField, so the direction wording comes from the
+// shared per-field vocabulary rather than being restated for this surface.
+const SORT_MENU_OPTIONS: SortMenuOption<SortField>[] = LIST_SORTS.map((s) => ({
+  value: s.value,
+  label: s.label,
+  dirLabels: [sortDirectionLabel(s.value, 'asc'), sortDirectionLabel(s.value, 'desc')],
+}));
 
 // Richest → sparsest (grid, list, compact) — the canonical view-toggle order
 // every card surface uses (collection, search, binder, shared views).
@@ -613,14 +620,12 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
               {sorted.length.toLocaleString()} of {rows.length.toLocaleString()} cards
             </span>
           )}
-          <SelectMenu<SortField>
+          <SortMenu<SortField>
             label="Sort"
             value={sortKey}
-            options={LIST_SORTS.map((s) => ({ value: s.value, label: s.label }))}
+            dir={sortDir}
+            options={SORT_MENU_OPTIONS}
             onChange={pickSort}
-            closeOnSelect={false}
-            leadingIcon={<SortDirArrow dir={sortDir} />}
-            renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={sortDir} /> : null)}
           />
           {!isNarrow && <ViewModeToggle value={view} onChange={setView} options={VIEW_OPTIONS} />}
           {!isNarrow && view === 'grid' && (

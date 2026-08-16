@@ -45,6 +45,14 @@ interface Props<T extends string | number> {
   searchable?: boolean;
   /** Placeholder for the search input (searchable mode). */
   searchPlaceholder?: string;
+  /**
+   * Extra controls pinned below the option list — a named action that belongs
+   * to the menu rather than to any one option (`SortMenu`'s Reverse). Opt-in:
+   * most callers of this menu have no such action and render nothing here.
+   * Anything focusable inside joins the arrow-key cycle, because Tab closes
+   * the panel and would otherwise make the footer keyboard-unreachable.
+   */
+  footer?: ReactNode;
 }
 
 type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
@@ -71,6 +79,7 @@ export function SelectMenu<T extends string | number>({
   closeOnSelect = true,
   searchable = false,
   searchPlaceholder = 'Search…',
+  footer,
 }: Props<T>) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -86,7 +95,11 @@ export function SelectMenu<T extends string | number>({
     onClose: () => setOpen(false),
     panelRef,
     triggerRef: buttonRef,
-    itemSelector: '[role="option"]',
+    // Arrow keys walk the options and then the footer's controls. The footer
+    // has to be in this cycle rather than left to Tab: Tab closes the panel
+    // (see useMenuKeyboard), so a footer action outside the cycle can only be
+    // reached with a pointer.
+    itemSelector: footer ? '[role="option"], .toolbar-popover-footer button' : '[role="option"]',
     // Searchable mode lands focus on the filter input; otherwise on the
     // currently-selected option.
     initialItemSelector: searchable
@@ -224,6 +237,7 @@ export function SelectMenu<T extends string | number>({
             })
           )}
         </ul>
+        {footer && <div className="toolbar-popover-footer">{footer}</div>}
       </div>,
       document.body
     );

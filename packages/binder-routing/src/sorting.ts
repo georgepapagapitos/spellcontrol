@@ -73,14 +73,26 @@ export const SORT_FIELDS: {
 ];
 
 /**
+ * The two collection-only fields are deliberately absent from SORT_FIELDS —
+ * they'd be dead options in the binder sort picker, which has no import
+ * history to sort by. They still appear in the collection's own sort menu, so
+ * they still need direction wording; it just doesn't belong in the picker's
+ * vocabulary list.
+ */
+const EXTRA_DIR_LABELS: Partial<Record<SortField, [string, string]>> = {
+  dateAdded: ['Oldest first', 'Newest first'],
+  dateEdited: ['Oldest first', 'Newest first'],
+};
+
+/**
  * What this field's cards look like in this direction, e.g. "Newest first".
  * Falls back to the raw direction for a field with no entry (there is none
  * today; the fallback exists so adding a SortField can't crash a label).
  */
 export function sortDirectionLabel(field: SortField, dir: SortDir): string {
-  const spec = SORT_FIELDS.find((f) => f.value === field);
-  if (!spec) return dir === 'asc' ? 'Ascending' : 'Descending';
-  return spec.dirLabels[dir === 'asc' ? 0 : 1];
+  const labels = SORT_FIELDS.find((f) => f.value === field)?.dirLabels ?? EXTRA_DIR_LABELS[field];
+  if (!labels) return dir === 'asc' ? 'Ascending' : 'Descending';
+  return labels[dir === 'asc' ? 0 : 1];
 }
 
 /**

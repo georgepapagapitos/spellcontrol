@@ -16,8 +16,7 @@ import { useConfirm } from '../lib/use-confirm';
 import { useStoredSort } from '../lib/use-stored-sort';
 import { useStoredView } from '../lib/use-stored-view';
 import { useDebouncedValue } from '../lib/use-debounced-value';
-import { SelectMenu, type SelectOption } from '../components/SelectMenu';
-import { SortDirArrow } from '../components/SortDirArrow';
+import { SortMenu, type SortMenuOption } from '../components/SortMenu';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { OverflowMenu } from '../components/OverflowMenu';
@@ -44,10 +43,12 @@ type SortDir = 'asc' | 'desc';
 // banners. Only the two density-distinct row layouts are meaningful here.
 type ListsViewMode = 'list' | 'compact';
 
-const SORT_OPTIONS: SelectOption<ListSortField>[] = [
-  { value: 'order', label: 'Order' },
-  { value: 'name', label: 'Name' },
-  { value: 'entries', label: 'Entry count' },
+// Lists sort on their own keys, so the direction wording is authored here —
+// each phrased as what it does to the rows, never asc/desc.
+const SORT_OPTIONS: SortMenuOption<ListSortField>[] = [
+  { value: 'order', label: 'Order', dirLabels: ['Your order', 'Reversed'] },
+  { value: 'name', label: 'Name', dirLabels: ['A → Z', 'Z → A'] },
+  { value: 'entries', label: 'Entry count', dirLabels: ['Fewest', 'Most'] },
 ];
 
 const SORT_DEFAULT_DIR: Record<ListSortField, SortDir> = {
@@ -270,14 +271,12 @@ export function ListsPage() {
       {lists.length > 0 && (
         <div className="binders-index-sort-bar">
           {lists.length > 1 && (
-            <SelectMenu
+            <SortMenu
               value={sortField}
+              dir={sortDir}
               options={SORT_OPTIONS}
               onChange={toggleSort}
               ariaLabel="Sort lists by"
-              closeOnSelect={false}
-              leadingIcon={<SortDirArrow dir={sortDir} />}
-              renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={sortDir} /> : null)}
             />
           )}
           <ViewModeToggle<ListsViewMode>

@@ -19,8 +19,7 @@ import {
 import { Legend, LegendContent } from '../Legend';
 import { OverflowMenu } from '../OverflowMenu';
 import { SearchPill } from '../SearchPill';
-import { SelectMenu } from '../SelectMenu';
-import { SortDirArrow } from '../SortDirArrow';
+import { SortMenu, type SortMenuOption } from '../SortMenu';
 import { ViewModeToggle as SharedViewModeToggle } from '../ViewModeToggle';
 import { ZoomControl } from '../ZoomControl';
 import { ZOOM_MAX, ZOOM_MAX_NARROW } from '@/lib/grid-zoom';
@@ -73,6 +72,24 @@ const SORT_LABEL: Record<SortMode, string> = {
 // (it's how drag-to-reorder becomes available at all; see DeckCardRow's
 // drag handle), not a default anyone would reach for first.
 const SORT_ORDER: SortMode[] = ['name', 'cmc', 'color', 'price', 'added', 'custom'];
+
+// A deck sorts by card attributes but on its own key union, so the direction
+// wording is authored here — phrased as the EFFECT on the decklist, never
+// asc/desc. "Added" is the deck's own add order, not an import date.
+const SORT_DIR_LABELS: Record<SortMode, [string, string]> = {
+  name: ['A → Z', 'Z → A'],
+  cmc: ['Low → high', 'High → low'],
+  color: ['WUBRG', 'GRBUW'],
+  price: ['Cheapest', 'Priciest'],
+  added: ['Oldest first', 'Newest first'],
+  custom: ['Your order', 'Reversed'],
+};
+
+const SORT_MENU_OPTIONS: SortMenuOption<SortMode>[] = SORT_ORDER.map((m) => ({
+  value: m,
+  label: SORT_LABEL[m],
+  dirLabels: SORT_DIR_LABELS[m],
+}));
 
 const SHOW_PREFS_LABEL: Record<keyof ShowPrefs, string> = {
   price: 'Price',
@@ -319,14 +336,12 @@ export function DeckToolbar({
           </button>
         )}
 
-        <SelectMenu
+        <SortMenu
           ariaLabel="Sort"
           value={sort}
-          options={SORT_ORDER.map((m) => ({ value: m, label: SORT_LABEL[m] }))}
+          dir={sortDir}
+          options={SORT_MENU_OPTIONS}
           onChange={onToggleSort}
-          closeOnSelect={false}
-          leadingIcon={<SortDirArrow dir={sortDir} />}
-          renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={sortDir} /> : null)}
         />
 
         {!isNarrowGrid && (
