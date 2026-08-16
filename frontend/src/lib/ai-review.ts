@@ -23,11 +23,71 @@ export interface DeckReviewResult {
   usage: { inputTokens: number; outputTokens: number };
 }
 
+/**
+ * Exactly the fields `backend/src/ai/deck-review.ts`'s `renderAnalysis` reads
+ * off `DeckAnalysisResult`, plus the optional bracket target/estimate (also
+ * read there). Everything else — role ranges/status/message/contributingSlotIds,
+ * curve verdict/message/peak, colorIdentity, taggerReady, sizeDelta — is
+ * server-discarded, so it never leaves the browser. `roles[].contributingSlotIds`
+ * was the worst offender: several KB of `slot_<uuid>` strings per request, and
+ * (since the whole analysis object is the cache key) cosmetic slot-id churn was
+ * silently invalidating cached reviews.
+ */
+export interface AiAnalysisPayload {
+  totalNonCommander: number;
+  types: {
+    lands: number;
+    creatures: number;
+    instants: number;
+    sorceries: number;
+    artifacts: number;
+    enchantments: number;
+    planeswalkers: number;
+    battles: number;
+  };
+  curve: {
+    averageCmc: number;
+    buckets: { cmc: number; count: number }[];
+  };
+  roles: { label: string; count: number }[];
+  /** Omitted entirely when both are absent. */
+  bracket?: { target: number | null; estimate: number | null };
+}
+
+/** Project a full `DeckAnalysisResult` down to what the AI prompt reads. */
+export function toAiAnalysis(
+  analysis: DeckAnalysisResult,
+  bracket?: { target: number | null; estimate: number | null }
+): AiAnalysisPayload {
+  const payload: AiAnalysisPayload = {
+    totalNonCommander: analysis.totalNonCommander,
+    types: {
+      lands: analysis.types.lands,
+      creatures: analysis.types.creatures,
+      instants: analysis.types.instants,
+      sorceries: analysis.types.sorceries,
+      artifacts: analysis.types.artifacts,
+      enchantments: analysis.types.enchantments,
+      planeswalkers: analysis.types.planeswalkers,
+      battles: analysis.types.battles,
+    },
+    curve: {
+      averageCmc: analysis.curve.averageCmc,
+      buckets: analysis.curve.buckets.map((b) => ({ cmc: b.cmc, count: b.count })),
+    },
+    roles: analysis.roles.map((r) => ({ label: r.label, count: r.count })),
+  };
+  if (bracket && (bracket.target != null || bracket.estimate != null)) {
+    payload.bracket = bracket;
+  }
+  return payload;
+}
+
 export interface DeckReviewPayload {
   deckId: string;
   commander: string;
   cards: { name: string; oracleId: string; qty: number }[];
-  analysis: DeckAnalysisResult;
+  analysis: AiAnalysisPayload;
 }
 
 /** null = feature unavailable (backend key absent) or caller unauthenticated. */

@@ -14,11 +14,15 @@ import { renderAnalysis, type OracleEntry } from './deck-review';
  *
  * The prompt is the feature and is eval-gated exactly like the review prompt:
  * change it only with an eval run.
+ *
+ * v3 adds the bracket target/estimate line to the statistics block (see
+ * deck-review.ts's v7 note for the shared payload/prompt-contract change and
+ * why the clause treats the numbers as given data, never something to infer).
  */
 export const DECK_REFINE_FEATURE = 'deck-refine';
 
 /** Bump whenever DECK_REFINE_SYSTEM_PROMPT's text changes. */
-export const DECK_REFINE_PROMPT_VERSION = 'v2';
+export const DECK_REFINE_PROMPT_VERSION = 'v3';
 
 /** Cap on what the model may propose, enforced again after parsing. */
 export const MAX_TWEAKS = 5;
@@ -71,6 +75,19 @@ The rules on those changes are what make you useful rather than dangerous:
   that already works is a success, not a failure to find something. Do not
   manufacture churn to look useful.
 - Do not break the mana base. If you cut a land, add a land.
+
+On the bracket line, when the statistics include one: it may show a
+target the owner set and/or an estimate the app computed for the deck as
+generated. Both are GIVEN DATA - the app computed them - never something
+for you to infer, recompute, or explain back to the reader.
+
+- No proposed change may push the deck above a stated target.
+- When the estimate already sits above the target, prefer cuts and
+  power-neutral swaps over pure additions - the deck needs to come down,
+  not further up.
+- When no target is set, or the estimate is at or below it, ignore the
+  bracket line and judge changes purely on how well they serve the deck's
+  plan.
 
 Apply BOTH of these tests to every change before you propose it. A change
 that fails either one is worse than no change at all:

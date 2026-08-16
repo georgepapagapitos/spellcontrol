@@ -13,7 +13,28 @@ import { __resetAiStatus } from '../../lib/use-ai-status';
 vi.mock('./useCardCarousel', () => ({
   useCardCarousel: () => ({ open: () => {}, preview: null }),
 }));
-vi.mock('../../lib/deck-analysis', () => ({ analyzeDeck: () => ({ totalNonCommander: 99 }) }));
+vi.mock('../../lib/deck-analysis', () => ({
+  analyzeDeck: () => ({
+    totalNonCommander: 99,
+    expectedSize: 99,
+    sizeDelta: 0,
+    types: {
+      creatures: 0,
+      instants: 0,
+      sorceries: 0,
+      artifacts: 0,
+      enchantments: 0,
+      planeswalkers: 0,
+      battles: 0,
+      lands: 0,
+      other: 0,
+    },
+    curve: { buckets: [], averageCmc: 0, peak: 0, verdict: 'curve-ok', message: '' },
+    roles: [],
+    colorIdentity: { commanderColors: [], offColorCards: [] },
+    taggerReady: true,
+  }),
+}));
 vi.mock('@/lib/use-tagger-ready', () => ({ useTaggerReady: () => true }));
 
 function card(name: string): ScryfallCard {
