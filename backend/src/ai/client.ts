@@ -21,6 +21,8 @@ export interface AiGeneration {
   content: string;
   inputTokens: number;
   outputTokens: number;
+  /** `stop_reason === 'max_tokens'` — the reply was cut off, not finished. */
+  truncated: boolean;
 }
 
 /**
@@ -30,43 +32,35 @@ export interface AiGeneration {
  * still the FULL text plus token usage, so the caller stores and audits exactly
  * what it did before. Callers that don't want the chunks pass no `onDelta`.
  *
- * `prefill` seeds the assistant turn. Use it for structure the caller REQUIRES
- * rather than merely requests: the review's section labels are load-bearing —
- * the panel streams into a titled layout keyed off them — and asking Haiku
- * nicely for them in the system prompt does not work. It complied 4/4 when the
- * prompt was replayed through Claude Code subagents and 0/1 against the real
- * API, which is exactly the kind of gap a prompt eval cannot see. Prefilling
- * the first label makes it a fact instead of a request, and having emitted one
- * label the model reliably emits the rest.
+ * `signal` cancels the in-flight call (e.g. the client disconnected) — the
+ * route wires an `AbortController` per request.
  *
- * The API does not echo the prefill, so it is prepended to the returned content
- * AND pushed through `onDelta` first — otherwise the client's stream would be
- * missing its opening label while the stored row had it.
- *
- * ⚠️ A prefill must NOT end with whitespace — the API rejects the request with
- * "final assistant content cannot end with trailing whitespace". Trimmed here
- * so no caller has to remember.
+ * This used to take a `prefill` that seeded the assistant turn to force the
+ * review's section labels. Removed: an assistant prefill returns HTTP 400 on
+ * every Claude 4.6-and-later model, so it silently pinned the feature to
+ * Haiku 4.5 despite the "tier is a one-string change" comment above. A live
+ * probe on 2026-08-16 (2 fixtures x 3 runs, prompt v6, no prefill) got all
+ * three labels right in 6/6 runs unaided — the prefill was compensating for
+ * prompt v4's weaker label instruction, and later prompt versions fixed that
+ * independently.
  */
 export async function generateReview(
   system: string,
   user: string,
   onDelta?: (text: string) => void,
-  prefill?: string
+  signal?: AbortSignal
 ): Promise<AiGeneration> {
   if (!client) client = new Anthropic();
-  const messages: Anthropic.MessageParam[] = [{ role: 'user', content: user }];
-  const seed = prefill?.replace(/\s+$/, '');
-  if (seed) messages.push({ role: 'assistant', content: seed });
-  const stream = client.messages.stream({
-    model: AI_MODEL,
-    max_tokens: 2000,
-    system,
-    messages,
-  });
-  if (onDelta) {
-    if (seed) onDelta(seed);
-    stream.on('text', onDelta);
-  }
+  const stream = client.messages.stream(
+    {
+      model: AI_MODEL,
+      max_tokens: 2000,
+      system,
+      messages: [{ role: 'user', content: user }],
+    },
+    { signal }
+  );
+  if (onDelta) stream.on('text', onDelta);
   const res = await stream.finalMessage();
   if (res.stop_reason === 'refusal') {
     throw new Error('The model declined to review this deck.');
@@ -78,8 +72,9 @@ export async function generateReview(
     .trim();
   if (!generated) throw new Error('The model returned an empty review.');
   return {
-    content: seed ? `${seed}${generated}` : generated,
+    content: generated,
     inputTokens: res.usage.input_tokens,
     outputTokens: res.usage.output_tokens,
+    truncated: res.stop_reason === 'max_tokens',
   };
 }

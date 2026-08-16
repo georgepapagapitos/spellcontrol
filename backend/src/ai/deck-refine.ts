@@ -17,6 +17,9 @@ import { renderAnalysis, type OracleEntry } from './deck-review';
  */
 export const DECK_REFINE_FEATURE = 'deck-refine';
 
+/** Bump whenever DECK_REFINE_SYSTEM_PROMPT's text changes. */
+export const DECK_REFINE_PROMPT_VERSION = 'v2';
+
 /** Cap on what the model may propose, enforced again after parsing. */
 export const MAX_TWEAKS = 5;
 

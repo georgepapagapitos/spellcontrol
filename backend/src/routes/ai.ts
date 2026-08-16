@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { Router, type Request, type Response } from 'express';
+import { APIUserAbortError } from '@anthropic-ai/sdk';
 import { logger } from '../logger';
 import { loadAuthedUser, readSessionCookie, requireAuth } from '../auth';
 import { getPool } from '../db';
@@ -8,8 +9,8 @@ import { getScryfallCache } from '../scryfall-cache';
 import { aiEnabled, generateReview, AI_MODEL } from '../ai/client';
 import {
   DECK_REVIEW_FEATURE,
+  DECK_REVIEW_PROMPT_VERSION,
   DECK_REVIEW_SYSTEM_PROMPT,
-  WEAKNESS_MARK,
   buildUserMessage,
   hashDeckReviewInput,
   parseDeckReviewRequest,
@@ -17,6 +18,7 @@ import {
 } from '../ai/deck-review';
 import {
   DECK_REFINE_FEATURE,
+  DECK_REFINE_PROMPT_VERSION,
   DECK_REFINE_SYSTEM_PROMPT,
   TWEAKS_DELIMITER,
   buildRefineMessage,
@@ -172,6 +174,8 @@ interface ReviewDone {
   cached: boolean;
   model: string;
   usage: { inputTokens: number; outputTokens: number };
+  /** Present + true only when the reply was cut off at max_tokens. */
+  truncated?: boolean;
 }
 type ReviewLine = { delta: string } | { done: ReviewDone } | { error: string };
 
@@ -198,6 +202,14 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
   // destroyed socket is harmless, but an unhandled 'error' on the response
   // would take the whole process down — one listener retires that class.
   res.on('error', () => {});
+  // A disconnect mid-generation should stop billing for a call nobody will
+  // read. `writableEnded` guards against the same 'close' event firing on a
+  // normal, already-finished response — without it every successful request
+  // would abort itself.
+  const ac = new AbortController();
+  req.on('close', () => {
+    if (!res.writableEnded) ac.abort();
+  });
   let streaming = false;
   const send = (line: ReviewLine) => {
     if (!streaming) {
@@ -270,12 +282,13 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
       DECK_REVIEW_SYSTEM_PROMPT,
       buildUserMessage(request, oracle),
       (delta) => send({ delta }),
-      // Seed the first section label rather than asking for it — see the
-      // prefill note in ai/client.ts. NO trailing newline: the API rejects a
-      // final assistant message ending in whitespace.
-      WEAKNESS_MARK
+      ac.signal
     );
   } catch (err) {
+    if (err instanceof APIUserAbortError) {
+      // The client is gone — nothing to write a row for, nothing to stream to.
+      return res.end();
+    }
     logger.error('[ai] deck review generation failed', err);
     // Once a delta is out the status line is spent, so the failure has to ride
     // the stream. Nothing is stored, so nothing is charged against the quota
@@ -287,10 +300,14 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
     return res.status(502).json({ error: 'The review could not be generated. Try again.' });
   }
 
+  if (generation.truncated) {
+    logger.warn(`[ai] deck review truncated at max_tokens (deckId=${request.deckId})`);
+  }
+
   await pool.query(
     `INSERT INTO ai_reviews
-       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, created_at, deck_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, created_at, deck_id, prompt_version)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      ON CONFLICT (user_id, feature, input_hash) DO NOTHING`,
     [
       crypto.randomUUID(),
@@ -303,6 +320,7 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
       generation.outputTokens,
       Date.now(),
       request.deckId,
+      DECK_REVIEW_PROMPT_VERSION,
     ]
   );
 
@@ -312,6 +330,7 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
       cached: false,
       model: AI_MODEL,
       usage: { inputTokens: generation.inputTokens, outputTokens: generation.outputTokens },
+      ...(generation.truncated ? { truncated: true } : {}),
     },
   });
   res.end();
@@ -380,6 +399,8 @@ interface RefineDone {
   cached: boolean;
   model: string;
   usage: { inputTokens: number; outputTokens: number };
+  /** Present + true only when the reply was cut off at max_tokens. */
+  truncated?: boolean;
 }
 type RefineLine = { delta: string } | { done: RefineDone } | { error: string };
 
@@ -407,6 +428,10 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
   const pool = getPool();
 
   res.on('error', () => {});
+  const ac = new AbortController();
+  req.on('close', () => {
+    if (!res.writableEnded) ac.abort();
+  });
   let streaming = false;
   const send = (line: RefineLine) => {
     if (!streaming) {
@@ -467,15 +492,23 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
     generation = await generateReview(
       DECK_REFINE_SYSTEM_PROMPT,
       buildRefineMessage(request, oracle),
-      makeProseGate((text) => send({ delta: text }))
+      makeProseGate((text) => send({ delta: text })),
+      ac.signal
     );
   } catch (err) {
+    if (err instanceof APIUserAbortError) {
+      return res.end();
+    }
     logger.error('[ai] deck refine generation failed', err);
     if (streaming) {
       send({ error: 'The refine pass could not be generated. Try again.' });
       return res.end();
     }
     return res.status(502).json({ error: 'The refine pass could not be generated. Try again.' });
+  }
+
+  if (generation.truncated) {
+    logger.warn(`[ai] deck refine truncated at max_tokens (deckId=${request.deckId})`);
   }
 
   const out = parseRefineOutput(generation.content, request);
@@ -487,8 +520,8 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
 
   await pool.query(
     `INSERT INTO ai_reviews
-       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, created_at, deck_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, created_at, deck_id, prompt_version)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      ON CONFLICT (user_id, feature, input_hash) DO NOTHING`,
     [
       crypto.randomUUID(),
@@ -501,6 +534,7 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
       generation.outputTokens,
       Date.now(),
       request.deckId,
+      DECK_REFINE_PROMPT_VERSION,
     ]
   );
 
@@ -511,6 +545,7 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
       cached: false,
       model: AI_MODEL,
       usage: { inputTokens: generation.inputTokens, outputTokens: generation.outputTokens },
+      ...(generation.truncated ? { truncated: true } : {}),
     },
   });
   res.end();
