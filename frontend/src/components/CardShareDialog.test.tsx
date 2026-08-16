@@ -27,6 +27,13 @@ describe('CardShareDialog', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('layers above the card preview it opens over', () => {
+    // Sibling of .card-preview-backdrop (--z-overlay) in the DOM, so a plain
+    // --z-modal backdrop would render it behind the preview, uninteractable.
+    open();
+    expect(document.querySelector('.modal-backdrop--over-sheet')).not.toBeNull();
+  });
+
   it('names the download after the card', () => {
     open();
     expect(screen.getByText('Downloads sol-ring.jpg')).toBeTruthy();

@@ -123,7 +123,15 @@ export function CardShareDialog({ name, imageUrl, onClose }: Props) {
   }
 
   return (
-    <Modal onClose={onClose} labelledBy="card-share-title" dismissable={!busy}>
+    <Modal
+      onClose={onClose}
+      labelledBy="card-share-title"
+      dismissable={!busy}
+      // The card preview portals us to <body> as a *sibling* of its own
+      // backdrop, which sits at --z-overlay — a plain --z-modal backdrop
+      // paints underneath it, leaving the dialog visible but unclickable.
+      backdropClassName="modal-backdrop--over-sheet"
+    >
       <h2 id="card-share-title" className="choice-dialog-title">
         Share {name}
       </h2>
