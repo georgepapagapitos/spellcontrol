@@ -963,6 +963,18 @@ above pages that each re-list their own, is the pattern this replaced.
 - **Edge tabs name the first group, never the join.** A merged section's `label`
   is every group it swallowed joined with " · "; a spread index tab takes
   `section.labels[0]` instead.
+- **A header that must exist names the first group and counts the rest.** List
+  view and the shared binder view keep collapsible section blocks (their rows
+  carry the page number, so the header is the only grouping chrome they have) —
+  those take `sectionHeading(cardLabels, section.label)`, which renders
+  "Artist Series Mark Poole +23 more" and leaves the full run on `title`. The
+  count is of groups **still visible** after search/filters, so a header never
+  advertises a drop with no rows under it. `+N more` is the app's standing
+  overflow idiom (`TradeTargetsCard`, `DeckAnalysisPanel`) — don't invent
+  another.
+- **One card's context is never the section label.** Anything naming a single
+  card's group — the preview carousel's context line — reads
+  `section.cardLabels[i]`; only a header reads `label`.
 
 ## Color pip rows — AND/OR match-mode chip
 

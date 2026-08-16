@@ -5,6 +5,7 @@ import { normalizeForSearch } from '../../lib/normalize-search';
 import { formatMoney } from '../../lib/format-money';
 import { formatIdentity } from '../../lib/display-name';
 import { groupCards } from '../../lib/shared-grouping';
+import { sectionHeading } from '../../lib/section-heading';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardList } from './SharedCardList';
 import { SharedEmptyState } from './SharedEmptyState';
@@ -64,13 +65,20 @@ export function SharedBinderView({ data }: Props) {
   // A merged section's label is a joined run of every group sharing its pages,
   // so each card carries its own group label — keyed by card identity, since
   // filtering and grouping both break index alignment with `cardLabels`.
-  const previewLabels = useMemo(() => {
+  const labelByCard = useMemo(() => {
     const byCard = new Map<PublicCard, string>();
     for (const s of data.sections) {
       if (s.cardLabels) s.cards.forEach((c, i) => byCard.set(c, s.cardLabels![i] ?? s.label));
     }
-    return sections.flatMap((s) => s.groups.map((g) => byCard.get(g.card) ?? s.label));
-  }, [sections, data.sections]);
+    return byCard;
+  }, [data.sections]);
+  // Group label per visible card, per section — feeds both the carousel's
+  // context line and each section's heading.
+  const groupLabels = useMemo(
+    () => sections.map((s) => s.groups.map((g) => labelByCard.get(g.card) ?? s.label)),
+    [sections, labelByCard]
+  );
+  const previewLabels = useMemo(() => groupLabels.flat(), [groupLabels]);
   const previewQty = useMemo(
     () => sections.flatMap((s) => s.groups.map((g) => g.quantity)),
     [sections]
@@ -137,9 +145,9 @@ export function SharedBinderView({ data }: Props) {
           onClearSearch={search ? () => setSearch('') : undefined}
         />
       ) : (
-        sections.map((section) => (
+        sections.map((section, si) => (
           <section key={section.key} className="shared-deck-section">
-            <h2 className="shared-deck-section-heading">
+            <h2 className="shared-deck-section-heading" title={section.label}>
               {section.pip && (
                 <span
                   className="shared-binder-section-pip"
@@ -147,7 +155,7 @@ export function SharedBinderView({ data }: Props) {
                   aria-hidden="true"
                 />
               )}
-              {section.label} ({section.cards.length})
+              {sectionHeading(groupLabels[si], section.label)} ({section.cards.length})
             </h2>
             {view === 'grid' ? (
               <ul className="shared-card-grid shared-card-grid--small">

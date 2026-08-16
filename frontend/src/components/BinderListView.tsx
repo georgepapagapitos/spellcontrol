@@ -20,6 +20,7 @@ import { Legend } from './Legend';
 import { BinderPagePreview } from './BinderPagePreview';
 import type { SectionTabInput } from '../lib/binder-spreads';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
+import { sectionHeading } from '../lib/section-heading';
 
 interface Props {
   binder: MaterializedBinder;
@@ -342,7 +343,9 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
                 ▾
               </span>
               {section.pip && <ColorPip color={section.key} pip="lg" />}
-              <span className="section-title">{section.label}</span>
+              <span className="section-title" title={section.label}>
+                {sectionHeading(section.cardLabels, section.label)}
+              </span>
               <span className="section-meta">
                 {totalQty} {totalQty === 1 ? 'card' : 'cards'}
                 {isGrouped && totalQty !== rows.length && ` · ${rows.length} unique`}
