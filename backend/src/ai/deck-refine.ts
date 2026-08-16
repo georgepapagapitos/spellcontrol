@@ -13,17 +13,23 @@ import { renderAnalysis, type OracleEntry } from './deck-review';
  *
  * ⚠️ **v4 moved where the candidates come from.** Through v3 the ONLY cards the
  * model could propose were the engine's `pool`, and the verifier's whole job was
- * "is this name in that pool". Driving real generated decks showed the pool is
- * mostly empty in production: of its five coach lanes, `synergy` needs live
- * Scryfall oracle searches and `hiddenGems` needs a card-similar snapshot fetch,
- * both best-effort and both soft-failing to an EMPTY lane, while `substitutes`
- * only ever matched the owned collection. On a real deck the "300 candidates"
- * were usually just land upgrades. So the model now SEARCHES for candidates with
- * `lookup_cards`, the pool stays as engine EVIDENCE it should weigh first, and
- * the verifier checks a card's PROPERTIES (real, Commander-legal, in identity,
- * not already in the deck, owned when owned-only) instead of its provenance —
- * see `makeCandidateResolver`, and note that a cached row is re-verified on
- * replay when the fetched cards are long gone.
+ * "is this name in that pool".
+ *
+ * The reason that changed is the pool's NARROWNESS, not its size — six live
+ * generations (2026-08-16, real EDHREC + Scryfall) found it populated every
+ * time, at gaps 30 / gems 10 / synergy 0-17. But every one of those ~50 rows is
+ * derived from EDHREC's aggregate view of the commander plus lift scoring over
+ * the same data, which is exactly the consensus the deck builder exists to get
+ * out from under — and a keyhole beside the ~107k cards `lookup_cards` reaches
+ * by effect. (See `buildRefinePool` for why a deck can still arrive with empty
+ * lanes: they soft-fail, and they are persisted on the deck.)
+ *
+ * So the model now SEARCHES for candidates with `lookup_cards`, the pool stays
+ * as engine EVIDENCE it should weigh first, and the verifier checks a card's
+ * PROPERTIES (real, Commander-legal, in identity, not already in the deck, owned
+ * when owned-only) instead of its provenance — see `makeCandidateResolver`, and
+ * note that a cached row is re-verified on replay when the fetched cards are
+ * long gone.
  *
  * The prompt is the feature and is eval-gated exactly like the review prompt:
  * change it only with an eval run.
