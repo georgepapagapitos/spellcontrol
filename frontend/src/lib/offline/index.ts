@@ -97,12 +97,15 @@ export async function offlineSearchCards(
   } = opts;
 
   // Glue on the same color/format clauses the live searchCards() function
-  // adds — including the colorless-identity fix: empty colorIdentity means a
-  // COLORLESS commander, not "unrestricted" (see client.ts's liveSearchCards
-  // for the full incident writeup).
-  const colorClause = !skipColorFilter
-    ? `id<=${colorIdentity.length > 0 ? colorIdentity.join('') : 'c'}`
-    : '';
+  // adds. `[]` means UNRESTRICTED, exactly as in client.ts's liveSearchCards:
+  // the generic surfaces (collection add, scanner, command palette, lists,
+  // binder-rule preview) pass [] with no commander in sight, and the implicit
+  // `id<=c` fallback this used to have made every one of them colorless-only.
+  // Callers that really mean "colorless commander" say so via
+  // commanderSearchIdentity(), which yields ['C'] — see client.ts for both
+  // incident writeups.
+  const colorClause =
+    !skipColorFilter && colorIdentity.length > 0 ? `id<=${colorIdentity.join('')}` : '';
   const formatClause = skipFormatFilter ? '' : 'f:commander';
   const fullQuery = `${colorClause} (${rawQuery}) ${formatClause}`.trim();
 
