@@ -10,9 +10,15 @@ FROM node:22-bookworm-slim AS build
 WORKDIR /app
 
 # Shared packages first: install (no scripts), then build each dist. Kept as
-# their own layers so a backend-only src change doesn't rebuild them. Both
-# apps depend on both packages via `file:` deps, so both dists must exist
-# before any `npm ci` below.
+# their own layers so a backend-only src change doesn't rebuild them. The apps
+# depend on these packages via `file:` deps, so every dist must exist before
+# any `npm ci` below.
+#
+# ⚠️ ADDING A packages/* PACKAGE? It needs a stage here or the image build
+# breaks — and CI will NOT catch it, because typecheck/lint/test run in a
+# working tree where the package is already built. The failure only surfaces in
+# the Fly deploy / GHCR publish. This bit us once already (PR #312 added
+# binder-routing, #314 fixed this file).
 COPY packages/game-core/package.json packages/game-core/package-lock.json packages/game-core/tsconfig*.json ./packages/game-core/
 RUN npm --prefix packages/game-core ci --ignore-scripts
 COPY packages/game-core/src ./packages/game-core/src
@@ -22,6 +28,15 @@ COPY packages/binder-routing/package.json packages/binder-routing/package-lock.j
 RUN npm --prefix packages/binder-routing ci --ignore-scripts
 COPY packages/binder-routing/src ./packages/binder-routing/src
 RUN npm --prefix packages/binder-routing run build
+
+# deck-metrics: the bracket estimator. Frontend-only consumer today, so it is
+# built here (the web bundle imports it) but NOT copied into the runtime image
+# below. When the backend takes a `file:` dep on it, add the runtime
+# package.json + dist copy alongside the other two.
+COPY packages/deck-metrics/package.json packages/deck-metrics/package-lock.json packages/deck-metrics/tsconfig*.json ./packages/deck-metrics/
+RUN npm --prefix packages/deck-metrics ci --ignore-scripts
+COPY packages/deck-metrics/src ./packages/deck-metrics/src
+RUN npm --prefix packages/deck-metrics run build
 
 # Backend deps (resolves file:../packages/{game-core,binder-routing} — dirs
 # present + built, so their dist-guarded `prepare` is a no-op), then compile.

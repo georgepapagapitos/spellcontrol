@@ -1,27 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { DetectedCombo } from '@/deck-builder/types';
+import type { DetectedCombo, RoleKey, TagLookup } from './index';
+import { estimateBracket } from './index';
 
-// Tagger reads a bundled JSON keyed by card name; mock so estimator behavior
-// is exercised deterministically without touching the cached tag data.
-vi.mock('@/deck-builder/services/tagger/client', () => ({
-  hasTag: vi.fn(),
-  isMassLandDenial: vi.fn(),
-  isExtraTurn: vi.fn(),
-  getCardRole: vi.fn(),
-}));
+// Tag membership is a parameter, so the suite supplies it directly rather than
+// mocking a module — estimator behavior stays deterministic without touching any
+// cached tag data. (This suite lived in the frontend and mocked the tagger
+// client before the estimator moved into this package.)
 
-import {
-  hasTag,
-  isMassLandDenial,
-  isExtraTurn,
-  getCardRole,
-} from '@/deck-builder/services/tagger/client';
-import { estimateBracket } from './bracketEstimator';
+const mockHasTag = vi.fn<(name: string, tag: string) => boolean>();
+const mockIsMLD = vi.fn<(name: string) => boolean>();
+const mockIsExtraTurn = vi.fn<(name: string) => boolean>();
+const mockGetRole = vi.fn<(name: string) => RoleKey | null>();
 
-const mockHasTag = vi.mocked(hasTag);
-const mockIsMLD = vi.mocked(isMassLandDenial);
-const mockIsExtraTurn = vi.mocked(isExtraTurn);
-const mockGetRole = vi.mocked(getCardRole);
+const tags: TagLookup = {
+  hasTag: mockHasTag,
+  getCardRole: mockGetRole,
+  isMassLandDenial: mockIsMLD,
+  isExtraTurn: mockIsExtraTurn,
+};
 
 beforeEach(() => {
   mockHasTag.mockReset().mockReturnValue(false);
@@ -57,7 +53,8 @@ describe('estimateBracket — output shape', () => {
       3.5,
       undefined,
       { removal: 0, boardwipe: 0 },
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.bracket).toBeGreaterThanOrEqual(1);
     expect(r.bracket).toBeLessThanOrEqual(5);
@@ -68,7 +65,7 @@ describe('estimateBracket — output shape', () => {
   });
 
   it('returns Core (bracket 2) for an empty / vanilla deck — Exhibition is never auto-assigned', () => {
-    const r = estimateBracket([], undefined, 4, undefined, undefined, new Set());
+    const r = estimateBracket([], undefined, 4, undefined, undefined, new Set(), tags);
     expect(r.bracket).toBe(2);
     expect(r.label).toBe('Core');
     expect(r.hardFloors).toHaveLength(0);
@@ -83,7 +80,8 @@ describe('estimateBracket — hard floors', () => {
       4,
       undefined,
       undefined,
-      new Set(['Cyclonic Rift'])
+      new Set(['Cyclonic Rift']),
+      tags
     );
     expect(r.bracket).toBeGreaterThanOrEqual(3);
     expect(r.hardFloors.some((f) => f.bracket === 3)).toBe(true);
@@ -92,7 +90,7 @@ describe('estimateBracket — hard floors', () => {
 
   it('4+ game changers → bracket 4 floor', () => {
     const gc = ['A', 'B', 'C', 'D'];
-    const r = estimateBracket(gc, undefined, 4, undefined, undefined, new Set(gc));
+    const r = estimateBracket(gc, undefined, 4, undefined, undefined, new Set(gc), tags);
     expect(r.bracket).toBeGreaterThanOrEqual(4);
     expect(r.hardFloors.some((f) => f.bracket === 4)).toBe(true);
     expect(r.breakdown.gameChangerCount).toBe(4);
@@ -106,7 +104,8 @@ describe('estimateBracket — hard floors', () => {
       3,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.bracket).toBeGreaterThanOrEqual(4);
     expect(r.breakdown.massLandDenialCount).toBe(1);
@@ -115,14 +114,14 @@ describe('estimateBracket — hard floors', () => {
   // ── Root P0 bug regression ────────────────────────────────────────────────
 
   it('P0 REGRESSION: complete 2-card combo with null bracket → B3 floor (was B2)', () => {
-    const r = estimateBracket(['Forest'], [combo(null)], 4, undefined, undefined, new Set());
+    const r = estimateBracket(['Forest'], [combo(null)], 4, undefined, undefined, new Set(), tags);
     expect(r.bracket).toBeGreaterThanOrEqual(3);
     expect(r.breakdown.twoCardComboCount).toBe(1);
     expect(r.hardFloors.some((f) => f.bracket === 3)).toBe(true);
   });
 
   it('2-card combo with low acceleration → B3 floor', () => {
-    const r = estimateBracket(['Forest'], [combo(3)], 4, undefined, undefined, new Set());
+    const r = estimateBracket(['Forest'], [combo(3)], 4, undefined, undefined, new Set(), tags);
     expect(r.bracket).toBeGreaterThanOrEqual(3);
     expect(r.breakdown.twoCardComboCount).toBe(1);
   });
@@ -146,7 +145,8 @@ describe('estimateBracket — hard floors', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.breakdown.fastManaCount).toBe(5);
     expect(r.breakdown.tutorCount).toBe(4);
@@ -161,7 +161,8 @@ describe('estimateBracket — hard floors', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.bracket).toBeGreaterThanOrEqual(4);
   });
@@ -176,7 +177,8 @@ describe('estimateBracket — hard floors', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.bracket).toBe(3);
     expect(r.hardFloors.some((f) => f.bracket === 4)).toBe(false);
@@ -186,7 +188,15 @@ describe('estimateBracket — hard floors', () => {
     // MULTI_CARD_COMBO_WEIGHT (0.5) means one multi-card combo contributes 0.5
     // toward effectiveComboCount, below the >=1 gate — an isolated 3+-card
     // value line shouldn't blow a casual deck into a higher bracket.
-    const r = estimateBracket(['Forest'], [combo(4, true, 3)], 4, undefined, undefined, new Set());
+    const r = estimateBracket(
+      ['Forest'],
+      [combo(4, true, 3)],
+      4,
+      undefined,
+      undefined,
+      new Set(),
+      tags
+    );
     expect(r.breakdown.twoCardComboCount).toBe(0);
     expect(r.breakdown.multiCardComboCount).toBe(1);
     expect(r.hardFloors.filter((f) => f.reason.includes('combo'))).toHaveLength(0);
@@ -202,7 +212,8 @@ describe('estimateBracket — hard floors', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.breakdown.twoCardComboCount).toBe(0);
     expect(r.breakdown.multiCardComboCount).toBe(2);
@@ -222,7 +233,8 @@ describe('estimateBracket — hard floors', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.breakdown.multiCardComboCount).toBe(3);
     expect(r.bracket).toBe(3);
@@ -232,7 +244,7 @@ describe('estimateBracket — hard floors', () => {
   it('E97: many complete multi-card combos alone escalate to B4 by redundancy', () => {
     // 8 * 0.5 = 4.0, clearing COMBO_REDUNDANCY_THRESHOLD on its own.
     const combos = Array.from({ length: 8 }, () => combo(null, true, 3));
-    const r = estimateBracket(['Forest'], combos, 4, undefined, undefined, new Set());
+    const r = estimateBracket(['Forest'], combos, 4, undefined, undefined, new Set(), tags);
     expect(r.breakdown.multiCardComboCount).toBe(8);
     expect(r.bracket).toBe(4);
     const comboFloor = r.hardFloors.find((f) => f.reason.includes('multi-card'));
@@ -254,7 +266,8 @@ describe('estimateBracket — hard floors', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.breakdown.twoCardComboCount).toBe(2);
     expect(r.breakdown.multiCardComboCount).toBe(6);
@@ -268,7 +281,8 @@ describe('estimateBracket — hard floors', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.breakdown.multiCardComboCount).toBe(0);
     expect(r.bracket).toBe(3);
@@ -283,7 +297,8 @@ describe('estimateBracket — hard floors', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.breakdown.twoCardComboCount).toBe(0);
     expect(r.bracket).toBe(2);
@@ -296,7 +311,8 @@ describe('estimateBracket — hard floors', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     // R2 override: multiple slow 2-card combos without acceleration/R/S tag stay at B3.
     expect(r.bracket).toBe(3);
@@ -317,7 +333,8 @@ describe('estimateBracket — hard floors', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.breakdown.twoCardComboCount).toBe(4);
     expect(r.bracket).toBe(4);
@@ -333,7 +350,8 @@ describe('estimateBracket — hard floors', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.breakdown.twoCardComboCount).toBe(3);
     expect(r.bracket).toBe(3);
@@ -350,7 +368,8 @@ describe('estimateBracket — hard floors', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.breakdown.extraTurnCount).toBe(2);
     expect(r.hardFloors.find((f) => f.reason.includes('extra turn'))).toBeUndefined();
@@ -364,7 +383,15 @@ describe('estimateBracket — hard floors', () => {
     // by the two-card combo path. E48: softened 4→3 with no corpus regression.
     const names = ['Time Warp', 'Temporal Mastery', 'Walk the Aeons'];
     mockIsExtraTurn.mockImplementation((name: string) => names.includes(name));
-    const r = estimateBracket([...names, 'Forest'], undefined, 4, undefined, undefined, new Set());
+    const r = estimateBracket(
+      [...names, 'Forest'],
+      undefined,
+      4,
+      undefined,
+      undefined,
+      new Set(),
+      tags
+    );
     expect(r.breakdown.extraTurnCount).toBe(3);
     expect(r.bracket).toBe(3);
     expect(r.hardFloors.some((f) => f.bracket === 3 && f.reason.includes('extra turn'))).toBe(true);
@@ -382,7 +409,8 @@ describe('estimateBracket — hard floors', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     // MLD (4) wins
     expect(r.bracket).toBeGreaterThanOrEqual(4);
@@ -399,7 +427,8 @@ describe('estimateBracket — hard floors', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.breakdown.massLandDenialCount).toBe(0);
     expect(r.hardFloors.some((f) => f.reason.includes('Mass land denial'))).toBe(false);
@@ -417,7 +446,8 @@ describe('estimateBracket — hard floors', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.breakdown.massLandDenialCount).toBe(0);
     expect(r.bracket).toBe(2);
@@ -433,7 +463,8 @@ describe('estimateBracket — hard floors', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.breakdown.massLandDenialCount).toBe(0);
     expect(r.bracket).toBe(2);
@@ -445,7 +476,7 @@ describe('estimateBracket — hard floors', () => {
     mockHasTag.mockImplementation((_n: string, tag: string) => tag === 'counterspell');
     mockGetRole.mockReturnValue(null); // pure counters: no removal/boardwipe role
     const counters = Array.from({ length: 12 }, (_, i) => `Counter ${i}`);
-    const r = estimateBracket(counters, undefined, 3, undefined, {}, new Set());
+    const r = estimateBracket(counters, undefined, 3, undefined, {}, new Set(), tags);
     expect(r.breakdown.interactionCount).toBe(12);
   });
 
@@ -469,7 +500,8 @@ describe('estimateBracket — hard floors', () => {
       3.5,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.breakdown.massLandDenialCount).toBe(0);
     expect(r.breakdown.extraTurnCount).toBe(0);
@@ -489,7 +521,8 @@ describe('estimateBracket — hard floors', () => {
       3.5,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.breakdown.massLandDenialCount).toBe(1);
     expect(
@@ -507,7 +540,8 @@ describe('estimateBracket — hard floors', () => {
       3.5,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.breakdown.extraTurnCount).toBe(3);
     // 3 extra turns → bracket-3 floor (sub-theme, not provable chaining)
@@ -536,7 +570,8 @@ describe('estimateBracket — hard floors', () => {
       3,
       undefined,
       { removal: removal.length, boardwipe: 0 }, // roleCounts from the tagger
-      new Set()
+      new Set(),
+      tags
     );
     // interactionCount = roleCounts.removal (2) + roleCounts.boardwipe (0) + counterspells (3) = 5
     expect(r.breakdown.interactionCount).toBe(5);
@@ -560,7 +595,8 @@ describe('estimateBracket — hard floors', () => {
       3,
       undefined,
       { removal: 1, boardwipe: 0 }, // hybridCard already in roleCounts.removal
-      new Set()
+      new Set(),
+      tags
     );
     // pureCounters (2) via counterspells Set + hybridCard in roleCounts.removal (1) = 3 total
     expect(r.breakdown.interactionCount).toBe(3);
@@ -578,7 +614,8 @@ describe('estimateBracket — hard floors', () => {
       3,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     // None of these should appear in the stax signal — they are hatebears, not lock pieces.
     expect(r.breakdown.staxPieceCount).toBe(0);
@@ -607,7 +644,8 @@ describe('estimateBracket — hard floors', () => {
       3,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.breakdown.staxPieceCount).toBe(2); // only the 2 real lock pieces
     // 2 real stax pieces = below the 3-piece floor threshold
@@ -622,7 +660,8 @@ describe('estimateBracket — hard floors', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.breakdown.staxPieceCount).toBe(2);
     expect(r.hardFloors.find((f) => f.reason.includes('stax'))).toBeUndefined();
@@ -637,7 +676,8 @@ describe('estimateBracket — hard floors', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.breakdown.staxPieceCount).toBe(3);
     expect(r.bracket).toBeGreaterThanOrEqual(3);
@@ -658,7 +698,8 @@ describe('estimateBracket — hard floors', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.breakdown.staxPieceCount).toBe(5);
     expect(r.bracket).toBeGreaterThanOrEqual(4);
@@ -671,13 +712,13 @@ describe('estimateBracket — soft score', () => {
     // 5 fast mana cards × 8 = 40 (the cap). Sol Ring is intentionally excluded
     // from the FAST_MANA set (RC: allowed in brackets 1–2 as a precon staple).
     const names = ['Mana Crypt', 'Mana Vault', 'Mox Diamond', 'Chrome Mox', 'Lotus Petal'];
-    const r = estimateBracket(names, undefined, 4, undefined, undefined, new Set());
+    const r = estimateBracket(names, undefined, 4, undefined, undefined, new Set(), tags);
     expect(r.breakdown.fastManaCount).toBe(5);
     expect(r.softScore).toBeGreaterThanOrEqual(40);
   });
 
   it('Sol Ring does not contribute to fast-mana density (precon staple)', () => {
-    const r = estimateBracket(['Sol Ring'], undefined, 4, undefined, undefined, new Set());
+    const r = estimateBracket(['Sol Ring'], undefined, 4, undefined, undefined, new Set(), tags);
     expect(r.breakdown.fastManaCount).toBe(0);
     expect(r.breakdown.fastManaNames).not.toContain('Sol Ring');
   });
@@ -693,15 +734,32 @@ describe('estimateBracket — soft score', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.breakdown.tutorCount).toBe(1);
     expect(r.breakdown.tutorNames).toEqual(['Demonic Tutor']);
   });
 
   it('low average CMC contributes to soft score', () => {
-    const highCmc = estimateBracket(['Forest'], undefined, 5, undefined, undefined, new Set());
-    const lowCmc = estimateBracket(['Forest'], undefined, 1.5, undefined, undefined, new Set());
+    const highCmc = estimateBracket(
+      ['Forest'],
+      undefined,
+      5,
+      undefined,
+      undefined,
+      new Set(),
+      tags
+    );
+    const lowCmc = estimateBracket(
+      ['Forest'],
+      undefined,
+      1.5,
+      undefined,
+      undefined,
+      new Set(),
+      tags
+    );
     expect(lowCmc.softScore).toBeGreaterThan(highCmc.softScore);
   });
 
@@ -714,7 +772,8 @@ describe('estimateBracket — soft score', () => {
       4,
       undefined,
       { removal: 4, boardwipe: 2 }, // 6 / 62 = 9.7% — below 10% floor, no bonus
-      new Set()
+      new Set(),
+      tags
     );
     const mid = estimateBracket(
       deck,
@@ -722,7 +781,8 @@ describe('estimateBracket — soft score', () => {
       4,
       undefined,
       { removal: 8, boardwipe: 2 }, // 10 / 62 = 16.1% — between floor and cap
-      new Set()
+      new Set(),
+      tags
     );
     const high = estimateBracket(
       deck,
@@ -730,7 +790,8 @@ describe('estimateBracket — soft score', () => {
       4,
       undefined,
       { removal: 12, boardwipe: 3 }, // 15 / 62 = 24.2% — over the 22% cap
-      new Set()
+      new Set(),
+      tags
     );
     expect(low.softScore).toBe(0);
     expect(mid.softScore).toBeGreaterThan(low.softScore);
@@ -749,7 +810,8 @@ describe('estimateBracket — soft score promotion', () => {
       1.5,
       undefined,
       { removal: 12, boardwipe: 5 },
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.softScore).toBeGreaterThanOrEqual(66);
     // No hard floor (no game changers, no MLD, no combos, no extra turns) → Core (2)
@@ -781,7 +843,8 @@ describe('estimateBracket — soft score promotion', () => {
       1.5,
       undefined,
       { removal: 12, boardwipe: 5 },
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.softScore).toBeGreaterThanOrEqual(80);
     expect(r.bracket).toBe(5);
@@ -795,7 +858,8 @@ describe('estimateBracket — soft score promotion', () => {
       1.5,
       undefined,
       { removal: 12, boardwipe: 5 },
-      new Set(['Cyclonic Rift'])
+      new Set(['Cyclonic Rift']),
+      tags
     );
     expect(r.bracket).toBe(4);
   });
@@ -807,7 +871,8 @@ describe('estimateBracket — soft score promotion', () => {
       4,
       undefined,
       undefined,
-      new Set()
+      new Set(),
+      tags
     );
     expect(r.softScore).toBeLessThan(66);
     // Below the promotion threshold → stays at the Core (2) baseline.
