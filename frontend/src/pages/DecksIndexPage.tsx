@@ -28,8 +28,7 @@ import { ReadinessSpotlight } from '../components/deck/ReadinessSpotlight';
 import { BetweenYourDecks } from '../components/deck/BetweenYourDecks';
 import { ProductSearchDialog } from '../components/ProductSearchDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { SelectMenu, type SelectOption } from '../components/SelectMenu';
-import { SortDirArrow } from '../components/SortDirArrow';
+import { SortMenu, type SortMenuOption } from '../components/SortMenu';
 import { ColorPip } from '../components/shared/ManaSymbol';
 import { colorSelectionMatches, type ColorMatchMode } from '../lib/colors';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
@@ -84,13 +83,15 @@ const EMPTY_PUBLIC_IDS: ReadonlySet<string> = new Set();
 type DeckSortField = 'edited' | 'created' | 'name' | 'commander' | 'cards' | 'value';
 type SortDir = 'asc' | 'desc';
 
-const DECK_SORT_OPTIONS: SelectOption<DeckSortField>[] = [
-  { value: 'edited', label: 'Date edited' },
-  { value: 'created', label: 'Date created' },
-  { value: 'name', label: 'Name' },
-  { value: 'commander', label: 'Commander' },
-  { value: 'cards', label: 'Card count' },
-  { value: 'value', label: 'Value' },
+// Decks sort on their own keys, so the direction wording is authored here —
+// each phrased as what it does to the rows, never asc/desc.
+const DECK_SORT_OPTIONS: SortMenuOption<DeckSortField>[] = [
+  { value: 'edited', label: 'Date edited', dirLabels: ['Oldest first', 'Newest first'] },
+  { value: 'created', label: 'Date created', dirLabels: ['Oldest first', 'Newest first'] },
+  { value: 'name', label: 'Name', dirLabels: ['A → Z', 'Z → A'] },
+  { value: 'commander', label: 'Commander', dirLabels: ['A → Z', 'Z → A'] },
+  { value: 'cards', label: 'Card count', dirLabels: ['Fewest', 'Most'] },
+  { value: 'value', label: 'Value', dirLabels: ['Cheapest', 'Priciest'] },
 ];
 
 const DECK_SORT_DEFAULT_DIR: Record<DeckSortField, SortDir> = {
@@ -586,16 +587,12 @@ export function DecksIndexPage() {
         {decks.length > 0 && (
           <div className="decks-index-sort-bar">
             {decks.length > 1 && (
-              <SelectMenu
+              <SortMenu
                 value={sortField}
+                dir={sortDir}
                 options={DECK_SORT_OPTIONS}
                 onChange={toggleSort}
                 ariaLabel="Sort decks by"
-                closeOnSelect={false}
-                leadingIcon={<SortDirArrow dir={sortDir} />}
-                renderItemPrefix={(_opt, active) =>
-                  active ? <SortDirArrow dir={sortDir} /> : null
-                }
               />
             )}
             <ViewModeToggle<DecksViewMode>

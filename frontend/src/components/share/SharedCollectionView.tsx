@@ -15,8 +15,7 @@ import { CardPreview } from '../CardPreview';
 import { publicCardToEnriched } from '../../lib/shared-filter';
 import { useSharedFilters } from './use-shared-filters';
 import { SearchPill } from '../SearchPill';
-import { SelectMenu } from '../SelectMenu';
-import { SortDirArrow } from '../SortDirArrow';
+import { SortMenu, type SortMenuOption } from '../SortMenu';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { formatMoney } from '../../lib/format-money';
 import { formatIdentity } from '../../lib/display-name';
@@ -27,13 +26,16 @@ interface Props {
 
 type ViewKind = 'grid' | 'list';
 
-const SORT_OPTIONS: Array<{ key: SharedSortKey; label: string }> = [
-  { key: 'name', label: 'Name' },
-  { key: 'cmc', label: 'Mana value' },
-  { key: 'price', label: 'Price' },
-  { key: 'set', label: 'Set' },
-  { key: 'rarity', label: 'Rarity' },
-  { key: 'qty', label: 'Quantity' },
+// Public read-only page — it can't import the collection's sort machinery
+// (its keys are this projection's own), so the direction wording is authored
+// here to match the private surfaces word for word.
+const SORT_OPTIONS: SortMenuOption<SharedSortKey>[] = [
+  { value: 'name', label: 'Name', dirLabels: ['A → Z', 'Z → A'] },
+  { value: 'cmc', label: 'Mana value', dirLabels: ['Low → high', 'High → low'] },
+  { value: 'price', label: 'Price', dirLabels: ['Cheapest', 'Priciest'] },
+  { value: 'set', label: 'Set', dirLabels: ['A → Z', 'Z → A'] },
+  { value: 'rarity', label: 'Rarity', dirLabels: ['Common first', 'Mythic first'] },
+  { value: 'qty', label: 'Quantity', dirLabels: ['Fewest', 'Most'] },
 ];
 
 export function SharedCollectionView({ data }: Props) {
@@ -63,8 +65,9 @@ export function SharedCollectionView({ data }: Props) {
   const totalCards = data.cards.length;
   const totalValue = data.cards.reduce((sum, c) => sum + c.purchasePrice, 0);
 
-  // Mirrors the collection's SelectMenu sort behavior: re-picking the active
-  // field flips direction, picking a new field resets to ascending.
+  // Mirrors the collection's sort behavior: re-picking the active field flips
+  // direction (which is what SortMenu's Reverse action calls), picking a new
+  // field resets to ascending.
   const toggleSort = (key: SharedSortKey) => {
     if (key === sort) setDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else {
@@ -102,14 +105,12 @@ export function SharedCollectionView({ data }: Props) {
           className="shared-toolbar-search"
           trailing={filterNode}
         />
-        <SelectMenu<SharedSortKey>
+        <SortMenu<SharedSortKey>
           ariaLabel="Sort"
           value={sort}
-          options={SORT_OPTIONS.map((s) => ({ value: s.key, label: s.label }))}
+          dir={dir}
+          options={SORT_OPTIONS}
           onChange={toggleSort}
-          closeOnSelect={false}
-          leadingIcon={<SortDirArrow dir={dir} />}
-          renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={dir} /> : null)}
         />
         <ViewModeToggle<ViewKind>
           ariaLabel="Collection view mode"

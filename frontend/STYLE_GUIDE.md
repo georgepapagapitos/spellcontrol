@@ -1630,7 +1630,9 @@ to anything new that edits a predicate.
   date is newest-*last*; ascending EDHREC rank is most-popular-*first*;
   ascending price is cheapest-first. One word, three mental models. Each field
   carries both phrasings in `SORT_FIELDS.dirLabels` ("Newest first", "A → Z",
-  "Most played") — resolve with `sortDirectionLabel()`.
+  "Most played") — resolve with `sortDirectionLabel()`. A surface whose sort
+  keys aren't the shared `SortField` union (decks, binders, lists) authors its
+  own pair beside its option list; it does not fall back to asc/desc.
 - **The field picker hides fields another row already uses.** A second pass on
   the same field has no ties left to break.
 - **Reorder/remove buttons name their row** ("Move Color earlier in the sort
@@ -1638,6 +1640,41 @@ to anything new that edits a predicate.
 - Put the grid on the LIST and let rows `display: contents`, so pickers,
   direction chips and action clusters line up down the panel. Per-row grids
   size their own columns and the control column reads as stacked one-offs.
+
+#### The compact toolbar pill (E250)
+
+Where sort is one **pill in a toolbar** rather than a row editor, the rulings
+above still hold — the direction control just moves *inside the menu*, because
+these rows are width-budgeted and CI-guarded (§ Toolbars & action rows). Use
+**`components/SortMenu.tsx`**; don't re-assemble it from `SelectMenu` +
+`SortDirArrow`. Seven toolbars each carried that same boilerplate, and the
+arrow they rendered was a passive status glyph you had no way to act on.
+
+```
+┌─────────────────────────┐
+│ ✓ Name          A → Z   │   active row states its RESOLVED direction
+│   Color                 │
+│   Price                 │
+├─────────────────────────┤
+│ ⇅ Reverse  (Z → A)      │   named action; says what it will PRODUCE
+└─────────────────────────┘
+```
+
+- **Not a second toolbar button.** The menu is already open at the moment you
+  want to reverse, and a per-toolbar direction button spends width on all
+  seven — the exact budget the ≤640px "View" collapse exists to protect.
+- **Reverse re-picks the active field.** Every one of these surfaces already
+  flips direction when handed the field it is on, so the action needs no new
+  callback anywhere — and the old re-select-to-flip gesture keeps working. It
+  was never wrong, only invisible; leave it in.
+- **The footer joins the arrow-key cycle, not Tab.** Tab *closes* this popover
+  family (`useMenuKeyboard`), so anything focusable below the list would be
+  pointer-only otherwise. That's what `SelectMenu`'s `footer` prop wires up.
+  The prop is opt-in: `SelectMenu` is also the group-by, tag and rule-field
+  picker, and none of those has an action that belongs to the whole menu.
+- **A sortable table column header is already this control** and is exempt:
+  click a header to sort, click again to reverse is universal, and the header
+  is itself the visible affordance (`SharedListView`).
 
 ### Anchored panels
 

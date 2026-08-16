@@ -27,8 +27,7 @@ import { formatMoney } from '../lib/format-money';
 import { useSetMap } from '../lib/api';
 import { useConfirm } from '../lib/use-confirm';
 import { Modal } from '../components/Modal';
-import { SelectMenu, type SelectOption } from '../components/SelectMenu';
-import { SortDirArrow } from '../components/SortDirArrow';
+import { SortMenu, type SortMenuOption } from '../components/SortMenu';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { FilterChipsRow } from '../components/shared/FilterChipsRow';
@@ -52,11 +51,14 @@ type BinderSortField = 'position' | 'name' | 'cards' | 'pages';
 type SortDir = 'asc' | 'desc';
 type BindersViewMode = 'grid' | 'list' | 'compact';
 
-const SORT_OPTIONS: SelectOption<BinderSortField>[] = [
-  { value: 'position', label: 'Order' },
-  { value: 'name', label: 'Name' },
-  { value: 'cards', label: 'Card count' },
-  { value: 'pages', label: 'Page count' },
+// Binders sort on their own keys, so the direction wording is authored here —
+// each phrased as what it does to the rows, never asc/desc. "Order" ascending
+// is the hand-arranged order, which is also the only state that allows drag.
+const SORT_OPTIONS: SortMenuOption<BinderSortField>[] = [
+  { value: 'position', label: 'Order', dirLabels: ['Your order', 'Reversed'] },
+  { value: 'name', label: 'Name', dirLabels: ['A → Z', 'Z → A'] },
+  { value: 'cards', label: 'Card count', dirLabels: ['Fewest', 'Most'] },
+  { value: 'pages', label: 'Page count', dirLabels: ['Fewest', 'Most'] },
 ];
 
 const SORT_DEFAULT_DIR: Record<BinderSortField, SortDir> = {
@@ -307,14 +309,12 @@ export function BindersIndexPage() {
       {binders.length > 0 && (
         <div className="binders-index-sort-bar">
           {binders.length > 1 && (
-            <SelectMenu
+            <SortMenu
               value={sortField}
+              dir={sortDir}
               options={SORT_OPTIONS}
               onChange={toggleSort}
               ariaLabel="Sort binders by"
-              closeOnSelect={false}
-              leadingIcon={<SortDirArrow dir={sortDir} />}
-              renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={sortDir} /> : null)}
             />
           )}
           <ViewModeToggle<BindersViewMode>

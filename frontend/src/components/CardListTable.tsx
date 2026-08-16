@@ -72,9 +72,9 @@ import { CollectionFiltersDialog } from './CollectionFiltersDialog';
 import { SaveToListDialog } from './SaveToListDialog';
 import { useCardsWithTags, cardTagLabel } from '../lib/card-tags';
 import { InlineCardSearch } from './InlineCardSearch';
-import { SortDirArrow } from './SortDirArrow';
+import { SortMenu, type SortMenuOption } from './SortMenu';
 import { useDebouncedValue } from '../lib/use-debounced-value';
-import { sortCards, printingKey, type SortContext } from '../lib/sorting';
+import { sortCards, printingKey, sortDirectionLabel, type SortContext } from '../lib/sorting';
 import { getSectionMeta } from '@spellcontrol/binder-routing';
 import {
   groupRowsIntoSections,
@@ -251,6 +251,18 @@ const SORT_FIELD_BY_KEY: Record<SortKey, (typeof SORT_FIELDS)[number]> = SORT_FI
   },
   {} as Record<SortKey, (typeof SORT_FIELDS)[number]>
 );
+
+// Direction wording comes from the shared per-field vocabulary rather than
+// being restated here — these keys already map onto the SortField union that
+// owns it, so "Newest first" / "Most played" stay one string app-wide.
+const SORT_MENU_OPTIONS: SortMenuOption<SortKey>[] = SORT_FIELDS.map((f) => ({
+  value: f.key,
+  label: f.label,
+  dirLabels: [
+    sortDirectionLabel(SORT_KEY_TO_FIELD[f.key], 'asc'),
+    sortDirectionLabel(SORT_KEY_TO_FIELD[f.key], 'desc'),
+  ],
+}));
 
 // "Group by" sections the visible rows under per-attribute headers, reusing the
 // binder-routing sectioning engine (getSectionMeta) so the buckets/labels/order
@@ -2034,14 +2046,12 @@ export function CardListTable({
               {!isNarrow && <span>{allCollapsed ? 'Expand all' : 'Collapse all'}</span>}
             </button>
           )}
-          <SelectMenu
+          <SortMenu
             ariaLabel="Sort"
             value={sortKey}
-            options={SORT_FIELDS.map((f) => ({ value: f.key, label: f.label }))}
+            dir={sortDir}
+            options={SORT_MENU_OPTIONS}
             onChange={toggleSort}
-            closeOnSelect={false}
-            leadingIcon={<SortDirArrow dir={sortDir} />}
-            renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={sortDir} /> : null)}
           />
           {!isNarrow && view === 'grid' && (
             <ZoomControl
