@@ -15,8 +15,9 @@ vi.mock('../ai/client', () => ({
     system: string,
     user: string,
     onDelta?: (t: string) => void,
-    signal?: AbortSignal
-  ) => mockState.generate(system, user, onDelta, signal),
+    signal?: AbortSignal,
+    options?: unknown
+  ) => mockState.generate(system, user, onDelta, signal, options),
 }));
 
 // The route imports this class by name from the real SDK to distinguish an
@@ -55,7 +56,7 @@ beforeEach(() => {
     async (_system: string, _user: string, onDelta?: (t: string) => void) => {
       onDelta?.('Your deck is ');
       onDelta?.('a fine deck.');
-      return { content: REVIEW_TEXT, inputTokens: 1000, outputTokens: 200 };
+      return { content: REVIEW_TEXT, inputTokens: 1000, outputTokens: 200, fetched: [] };
     }
   );
 });
@@ -386,7 +387,12 @@ describe('POST /api/ai/deck-review', () => {
       async (_s: string, _u: string, onDelta?: (t: string) => void) => {
         onDelta?.('Prose here.\n\n---TWE');
         onDelta?.('AKS---\n[]');
-        return { content: 'Prose here.\n\n---TWEAKS---\n[]', inputTokens: 1, outputTokens: 1 };
+        return {
+          content: 'Prose here.\n\n---TWEAKS---\n[]',
+          inputTokens: 1,
+          outputTokens: 1,
+          fetched: [],
+        };
       }
     );
     const res = await request(app)
@@ -437,6 +443,7 @@ describe('POST /api/ai/deck-review', () => {
           inputTokens: 1000,
           outputTokens: 2000,
           truncated: true,
+          fetched: [],
         };
       }
     );
@@ -496,6 +503,46 @@ describe('POST /api/ai/deck-review', () => {
     );
     expect(rows.rows.map((r) => r.prompt_version)).toEqual([DECK_REVIEW_PROMPT_VERSION]);
   });
+
+  it('hands the model a lookup_cards tool scoped to this deck', async () => {
+    const cookie = await makeUser('ai-review-tooling');
+    await optIn(cookie);
+    await request(app).post('/api/ai/deck-review').set('Cookie', cookie).send(reviewBody());
+
+    // 5th argument is the options bag the route builds per request.
+    const options = mockState.generate.mock.calls.at(-1)?.[4] as
+      | { tools?: Array<{ definition: { name: string } }>; answerMarker?: string }
+      | undefined;
+    expect(options?.tools?.map((t) => t.definition.name)).toEqual(['lookup_cards']);
+    // Without the marker the gate is off and the model's research narration
+    // would stream into the review panel.
+    const { WEAKNESS_MARK } = await import('../ai/deck-review');
+    expect(options?.answerMarker).toBe(WEAKNESS_MARK);
+  });
+
+  it('still delivers the review when it cites a card it never looked up', async () => {
+    // The grounding check is a signal, not a filter: cutting a name out of
+    // prose mangles the sentence, so an unverified citation is logged and the
+    // reading is still delivered. This pins that it cannot throw after the
+    // headers are already out — which is exactly how it broke once.
+    const cookie = await makeUser('ai-review-unverified');
+    await optIn(cookie);
+    const prose = 'Your deck wants an answer. Add Tropical Island for fixing.';
+    mockState.generate.mockImplementation(
+      async (_s: string, _u: string, onDelta?: (t: string) => void) => {
+        onDelta?.(prose);
+        return { content: prose, inputTokens: 10, outputTokens: 10, fetched: [] };
+      }
+    );
+
+    const res = await request(app)
+      .post('/api/ai/deck-review')
+      .set('Cookie', cookie)
+      .send(reviewBody());
+
+    expect(res.status).toBe(200);
+    expect(parseStream(res.text).done).toMatchObject({ content: prose });
+  });
 });
 
 describe('POST /api/ai/deck-refine', () => {
@@ -508,7 +555,7 @@ describe('POST /api/ai/deck-refine', () => {
           { add: 'Eternal Witness', cut: 'Sol Ring', why: 'Recursion beats a rock here.' },
         ]);
         onDelta?.(raw);
-        return { content: raw, inputTokens: 500, outputTokens: 120 };
+        return { content: raw, inputTokens: 500, outputTokens: 120, fetched: [] };
       }
     );
   });

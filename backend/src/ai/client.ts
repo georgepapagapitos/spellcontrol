@@ -1,4 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { logger } from '../logger';
+import { createMarkerGate, runTool, type AiTool, type FetchedCard } from './tools';
 
 /**
  * Thin Anthropic client for the opt-in AI features (T96 "Read the deck").
@@ -23,6 +25,47 @@ export interface AiGeneration {
   outputTokens: number;
   /** `stop_reason === 'max_tokens'` — the reply was cut off, not finished. */
   truncated: boolean;
+  /**
+   * Every card the model retrieved via a tool this conversation. These are real
+   * by construction (they came back from our own card cache), so they are the
+   * allowlist the route checks the finished prose against.
+   */
+  fetched: FetchedCard[];
+}
+
+/**
+ * Give up rather than loop forever if the model keeps calling tools. Measured
+ * at n=12: a typical review searches 3 times, but the long tail reaches 12
+ * lookups across ~8 turns, and a cap of 6 cut three of those off mid-answer.
+ */
+const MAX_TOOL_ITERATIONS = 10;
+
+/**
+ * Per-TURN output cap.
+ *
+ * 2000 was right when one turn was the whole review (~900 tokens of prose).
+ * With tools the model also narrates its research, and that narration is
+ * charged against the same budget even though the marker gate discards it —
+ * measured, a run spent ~1750 tokens thinking out loud and had 250 left for
+ * the review, which then truncated mid-word. Raising the ceiling costs nothing
+ * on turns that don't need it.
+ */
+const MAX_OUTPUT_TOKENS = 4000;
+
+type Cacheable = { cache_control?: Anthropic.CacheControlEphemeral | null };
+
+function markCacheable(block: Cacheable | undefined): void {
+  if (block) block.cache_control = { type: 'ephemeral' };
+}
+
+/** Drop every breakpoint in the message history, so only the newest one holds. */
+function clearCacheControl(messages: Anthropic.MessageParam[]): void {
+  for (const message of messages) {
+    if (typeof message.content === 'string') continue;
+    for (const block of message.content) {
+      if ('cache_control' in block) delete (block as Cacheable).cache_control;
+    }
+  }
 }
 
 /**
@@ -48,33 +91,126 @@ export async function generateReview(
   system: string,
   user: string,
   onDelta?: (text: string) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  options?: { tools?: AiTool[]; answerMarker?: string }
 ): Promise<AiGeneration> {
   if (!client) client = new Anthropic();
-  const stream = client.messages.stream(
-    {
-      model: AI_MODEL,
-      max_tokens: 2000,
-      system,
-      messages: [{ role: 'user', content: user }],
-    },
-    { signal }
-  );
-  if (onDelta) stream.on('text', onDelta);
-  const res = await stream.finalMessage();
-  if (res.stop_reason === 'refusal') {
-    throw new Error('The model declined to review this deck.');
+  const tools = options?.tools ?? [];
+  const marker = options?.answerMarker;
+
+  const messages: Anthropic.MessageParam[] = [{ role: 'user', content: user }];
+  const fetched: FetchedCard[] = [];
+  let inputTokens = 0;
+  let outputTokens = 0;
+
+  // Only gate when there are tools AND a marker to gate on. Without tools the
+  // model has nothing to narrate about, so text streams straight through and
+  // the no-tools path behaves exactly as it did before.
+  const gate = tools.length > 0 && marker ? createMarkerGate(marker, onDelta) : null;
+
+  for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
+    const stream = client.messages.stream(
+      {
+        model: AI_MODEL,
+        max_tokens: MAX_OUTPUT_TOKENS,
+        system,
+        messages,
+        ...(tools.length > 0
+          ? {
+              tools: tools.map((t) => t.definition),
+              // `tools` renders ahead of `system`, so the shared prefix is now
+              // long enough to clear Haiku 4.5's 4096-token cache minimum —
+              // which the system prompt alone never did. One breakpoint on the
+              // last system block covers tools + system together.
+              system: [
+                {
+                  type: 'text' as const,
+                  text: system,
+                  cache_control: { type: 'ephemeral' as const },
+                },
+              ],
+            }
+          : {}),
+      },
+      { signal }
+    );
+    if (gate) stream.on('text', (t) => gate.push(t));
+    else if (onDelta) stream.on('text', onDelta);
+
+    const res = await stream.finalMessage();
+    inputTokens += res.usage.input_tokens;
+    outputTokens += res.usage.output_tokens;
+
+    if (res.stop_reason === 'refusal') {
+      throw new Error('The model declined to review this deck.');
+    }
+
+    const toolUses = res.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
+    if (toolUses.length === 0) {
+      const generated = gate
+        ? gate.text.trim()
+        : res.content
+            .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+            .map((b) => b.text)
+            .join('\n')
+            .trim();
+      if (!generated) throw new Error('The model returned an empty review.');
+      return {
+        content: generated,
+        inputTokens,
+        outputTokens,
+        truncated: res.stop_reason === 'max_tokens',
+        fetched,
+      };
+    }
+
+    // Truncation mid-tool-call leaves an unanswerable tool_use — the input JSON
+    // is incomplete, so running it would act on half a request.
+    if (res.stop_reason === 'max_tokens') {
+      throw new Error('The model ran out of room mid tool call.');
+    }
+
+    messages.push({ role: 'assistant', content: res.content });
+    // All results go back in ONE user message — splitting them across messages
+    // trains the model out of calling tools in parallel.
+    const results: Anthropic.ToolResultBlockParam[] = toolUses.map((use) => {
+      const out = runTool(tools, use.name, (use.input ?? {}) as Record<string, unknown>);
+      for (const card of out.fetched) {
+        if (!fetched.some((f) => f.name === card.name)) fetched.push(card);
+      }
+      return {
+        type: 'tool_result',
+        tool_use_id: use.id,
+        content: out.text,
+        ...(out.isError ? { is_error: true } : {}),
+      };
+    });
+    messages.push({ role: 'user', content: results });
+    // Cache the conversation so far, not just tools+system. Each iteration
+    // resends every prior tool result, and card text is bulky — measured 35k
+    // input tokens across a 7-lookup review versus 5.6k for the no-tool
+    // version. A breakpoint on the newest turn makes the next iteration read
+    // that prefix at ~0.1x instead of paying full price for it again.
+    //
+    // The marker MOVES rather than accumulating: only 4 breakpoints are allowed
+    // per request, and a long loop would blow that budget in four turns.
+    // Earlier breakpoints stay valid as read points either way.
+    clearCacheControl(messages);
+    markCacheable(results.at(-1));
+    gate?.reset();
   }
-  const generated = res.content
-    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-    .map((b) => b.text)
-    .join('\n')
-    .trim();
-  if (!generated) throw new Error('The model returned an empty review.');
-  return {
-    content: generated,
-    inputTokens: res.usage.input_tokens,
-    outputTokens: res.usage.output_tokens,
-    truncated: res.stop_reason === 'max_tokens',
-  };
+
+  // Out of iterations. If the model already wrote a reviewable answer, keep it
+  // rather than failing a request the user waited on.
+  if (gate?.opened) {
+    logger.warn('[ai] tool loop hit its iteration cap; returning the partial answer');
+    return {
+      content: gate.text.trim(),
+      inputTokens,
+      outputTokens,
+      truncated: true,
+      fetched,
+    };
+  }
+  throw new Error('The model kept calling tools without answering.');
 }

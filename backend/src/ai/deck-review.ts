@@ -39,11 +39,23 @@ import crypto from 'node:crypto';
  * clause uses the same mechanism: the numbers are GIVEN DATA, never something
  * to infer, recompute, or explain back to the reader. Re-verify with a live
  * probe, same as v6.
+ *
+ * v8 gives the model a `lookup_cards` tool and makes the prescription's card
+ * names checkable: a name may come from the decklist or from a card it looked
+ * up, and nowhere else. This is the same move as v6 — replace a request the
+ * model cannot self-assess with a mechanism it can — applied to the one gap v6
+ * could not reach. v6 tied card BEHAVIOUR to the reference block, but the
+ * prescription names cards that have no reference line by construction
+ * (`hydrateOracle` covers commander + deck only), so the rule had nothing to
+ * bite on there. A tool supplies the missing reference lines on demand, and
+ * `unverifiedCitations` checks the finished prose against what was actually
+ * fetched. Measured before this change on `fixture-3-healthy` at n=12: 6/12
+ * runs named at least one card that was neither in the deck nor verifiable.
  */
 export const DECK_REVIEW_FEATURE = 'deck-review';
 
 /** Bump whenever DECK_REVIEW_SYSTEM_PROMPT's text changes. */
-export const DECK_REVIEW_PROMPT_VERSION = 'v7';
+export const DECK_REVIEW_PROMPT_VERSION = 'v8';
 
 /**
  * Section labels the model emits. They exist so the client can stream text
@@ -136,14 +148,25 @@ answer. Close the weakness section with a paragraph that says what to do:
   enough that the reader could search a collection for it - the class of
   card, at what speed, on what permanent type. The effect is the fix; a
   card name is only ever an illustration of it.
-- The card reference is the complete list of cards whose text you can
-  actually read. A card that is not in it is a card you are recalling
-  from memory, and you are not reliable there: you may name one as a
-  familiar example of the effect, but do NOT state what it does, what it
-  fetches, what it taps for, what it costs, or what type line it has.
-  Say the effect in your own words and let the name sit beside it as a
-  pointer. A confidently wrong card text is worse than no card name at
-  all, and it is the one mistake in this section a reader cannot catch.
+- You have a lookup_cards tool. Use it here. Search the effect you just
+  named, in rules wording, and you get real cards back with their real
+  text - already filtered to this commander's colour identity, to
+  Commander-legal cards, and excluding what the deck already runs.
+  Search before you write the prescription, not after.
+- One search per fix you intend to prescribe, so two or three in total.
+  Each one is slow and you are keeping a reader waiting; a broad query
+  returns better options than four narrow ones. Do not search for
+  effects you have already decided against, and do not re-run a search
+  to confirm what the last one told you.
+- Name a card only if it is in the decklist or you looked it up in this
+  conversation. Those are the only two places a name can come from. A
+  card you merely remember is not a card you may name - describe the
+  effect instead and search for it. This is checkable after the fact,
+  and it is checked.
+- Once you have looked a card up, its reference line is what it does.
+  Quote behaviour from that text, never from memory. A confidently wrong
+  card text is worse than no card name at all, and it is the one mistake
+  in this section a reader cannot catch.
 - This is a singleton format. Never suggest a second copy of a card the
   deck already runs - basic lands are the only exception.
 - Prefer a fix the deck can make with what it already owns: a card in
@@ -357,6 +380,59 @@ export interface OracleEntry {
   manaCost?: string;
   typeLine?: string;
   oracleText?: string;
+}
+
+/**
+ * Card names the review cites that it has no grounds to cite.
+ *
+ * The prompt lets the prescription name a card the deck doesn't run — a named
+ * example is a real reader affordance (E245) — but before tools existed there
+ * was nothing behind such a name except the model's memory, and a measured
+ * 6/12 of reviews on a healthy deck named at least one. `lookup_cards` gives
+ * the model a way to name cards it has actually read, so the claim becomes
+ * checkable: a cited card must be in the decklist or in what it fetched.
+ *
+ * Pure, so it tests without a cache: `isRealCard` decides what counts as a card
+ * name. Over-collects capitalised runs and lets that predicate reject the
+ * prose, which is the same shape the eval's grader uses — a phrase only counts
+ * once the card database confirms it.
+ *
+ * Single words are ignored. "There", "Ramp" and "Treasure" are all real card
+ * names against a 100k-card database, and counting them made the eval's version
+ * of this metric mostly false positives.
+ */
+export function unverifiedCitations(
+  prose: string,
+  allowed: Iterable<string>,
+  isRealCard: (name: string) => boolean
+): string[] {
+  const ok = new Set([...allowed].map((n) => n.toLowerCase()));
+  const WORD = "[A-Z][\\w'’-]*";
+  const JOIN = '(?:of|the|and|to|in|a|an|from|with|for)';
+  const re = new RegExp(`\\b${WORD}(?:[ -](?:${JOIN}|${WORD}))*`, 'g');
+  const out = new Set<string>();
+
+  for (const match of prose.matchAll(re)) {
+    const words = match[0].replace(/[\s,]+$/, '').split(/\s+/);
+    // Scan every window in the run, not just its prefixes. A capitalised run
+    // routinely starts on an ordinary word — "Cut Wooded Foothills", "Swap
+    // Wooded Foothills for Verdant Catacombs" — and a prefix-only scan tries
+    // "Cut Wooded Foothills", then "Cut Wooded", and never reaches the card.
+    // Longest window at each position wins, then skip past it so one sentence
+    // can yield both names.
+    for (let start = 0; start < words.length; ) {
+      let matched = 0;
+      for (let len = words.length - start; len >= 2; len--) {
+        const candidate = words.slice(start, start + len).join(' ');
+        if (!isRealCard(candidate)) continue;
+        if (!ok.has(candidate.toLowerCase())) out.add(candidate);
+        matched = len;
+        break;
+      }
+      start += matched || 1;
+    }
+  }
+  return [...out];
 }
 
 /** Assemble the user message: decklist + on-screen stats + oracle reference. */

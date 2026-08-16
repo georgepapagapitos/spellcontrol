@@ -7,13 +7,16 @@ import { getPool } from '../db';
 import { testAwareLimiter } from '../route-utils';
 import { getScryfallCache } from '../scryfall-cache';
 import { aiEnabled, generateReview, AI_MODEL } from '../ai/client';
+import { lookupCardsTool } from '../ai/tools';
 import {
   DECK_REVIEW_FEATURE,
   DECK_REVIEW_PROMPT_VERSION,
   DECK_REVIEW_SYSTEM_PROMPT,
+  WEAKNESS_MARK,
   buildUserMessage,
   hashDeckReviewInput,
   parseDeckReviewRequest,
+  unverifiedCitations,
   type OracleEntry,
 } from '../ai/deck-review';
 import {
@@ -27,6 +30,25 @@ import {
   parseRefineRequest,
   type RefineTweak,
 } from '../ai/deck-refine';
+
+/**
+ * Oracle facts don't expire the way prices do, so card lookups that only read
+ * name/type/text ignore the cache's 7-day TTL — the same reasoning
+ * `getMany`'s `allowStale` documents. Never read a price off one of these.
+ */
+const ORACLE_MAX_AGE_MS = Number.MAX_SAFE_INTEGER;
+
+/**
+ * The commander's colour identity, so card search only returns cards this deck
+ * could legally run. A miss returns undefined, which searches unrestricted —
+ * better a wider search than none, and the prompt still states the rule.
+ */
+function commanderIdentity(
+  cache: ReturnType<typeof getScryfallCache>,
+  commander: string
+): string[] | undefined {
+  return cache.getCheapestByName(commander, ORACLE_MAX_AGE_MS)?.color_identity ?? undefined;
+}
 
 /**
  * Opt-in AI features (T96 "Read the deck"). Consent is enforced server-side —
@@ -282,7 +304,19 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
       DECK_REVIEW_SYSTEM_PROMPT,
       buildUserMessage(request, oracle),
       (delta) => send({ delta }),
-      ac.signal
+      ac.signal,
+      {
+        // Scoped to this deck, so anything the model retrieves is already a
+        // legal suggestion for it — the filtering that used to live in the
+        // prompt as "stay inside the colour identity" is now in the query.
+        tools: [
+          lookupCardsTool(cache, {
+            colorIdentity: commanderIdentity(cache, request.commander),
+            exclude: [request.commander, ...request.cards.map((c) => c.name)],
+          }),
+        ],
+        answerMarker: WEAKNESS_MARK,
+      }
     );
   } catch (err) {
     if (err instanceof APIUserAbortError) {
@@ -302,6 +336,27 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
 
   if (generation.truncated) {
     logger.warn(`[ai] deck review truncated at max_tokens (deckId=${request.deckId})`);
+  }
+
+  // The grounding check. A cited card must be in the deck or something the
+  // model actually fetched; anything else it recalled from memory. Logged
+  // rather than stripped — this is prose, and cutting a name out of a sentence
+  // mangles the sentence. It is the same prompt-drift signal deck-refine logs
+  // for off-pool names, and the number the live probe reads.
+  const unverified = unverifiedCitations(
+    generation.content,
+    [
+      request.commander,
+      ...request.cards.map((c) => c.name),
+      ...generation.fetched.map((f) => f.name),
+    ],
+    (name) => cache.getCheapestByName(name, ORACLE_MAX_AGE_MS) !== null
+  );
+  if (unverified.length > 0) {
+    logger.warn(
+      `[ai] review cited ${unverified.length} unverified card(s) (deckId=${request.deckId}, ` +
+        `promptVersion=${DECK_REVIEW_PROMPT_VERSION}): ${unverified.join(', ')}`
+    );
   }
 
   await pool.query(
