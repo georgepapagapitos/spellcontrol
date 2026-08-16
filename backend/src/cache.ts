@@ -6,6 +6,70 @@ import type { ScryfallCard, Ruling } from './types';
 
 const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
+/** Colour-identity bits, so "fits inside this commander's identity" is one AND. */
+const COLOR_BITS: Record<string, number> = { W: 1, U: 2, B: 4, R: 8, G: 16 };
+
+/** `['B','G'] -> 20`. Colourless is 0, which is a subset of every identity. */
+export function colorIdentityMask(identity: readonly string[] | undefined): number {
+  let mask = 0;
+  for (const c of identity ?? []) mask |= COLOR_BITS[c.toUpperCase()] ?? 0;
+  return mask;
+}
+
+/**
+ * Turn free text into a safe FTS5 MATCH expression.
+ *
+ * Callers pass an EFFECT in plain words ("destroy target artifact"), never FTS5
+ * syntax — the eventual caller is a language model, and letting it hand-write
+ * match expressions means a stray `"` or `*` throws `fts5: syntax error` instead
+ * of returning cards. Every token is quoted (so operator words like AND/OR/NOT
+ * and punctuation are literal) and joined with AND, which is the right default
+ * for effect search: "destroy artifact" should match "destroy target artifact",
+ * so this is deliberately an all-terms-present match rather than a phrase.
+ *
+ * Returns null when nothing searchable survives, so the caller can return no
+ * results rather than issue a query that matches everything.
+ */
+export function toMatchExpression(query: string, join: 'AND' | 'OR' = 'AND'): string | null {
+  const tokens = String(query ?? '')
+    // FTS5 treats these as syntax; strip rather than escape so a model's stray
+    // punctuation degrades into a plain word search instead of an error.
+    .replace(/["*():^-]/g, ' ')
+    .split(/\s+/)
+    .filter((t) => t.length > 0);
+  if (tokens.length === 0) return null;
+  return tokens.map((t) => `"${t}"`).join(` ${join} `);
+}
+
+/** One card as the oracle-text search returns it. Printing-agnostic. */
+export interface CardSearchResult {
+  oracleId: string;
+  name: string;
+  typeLine: string;
+  oracleText: string;
+  cmc: number | null;
+  colorIdentity: string;
+}
+
+export interface CardSearchOptions {
+  /** Plain-language effect text. Not FTS5 syntax — see {@link toMatchExpression}. */
+  query: string;
+  /** Only cards whose colour identity fits INSIDE this one (e.g. ['B','G']). */
+  colorIdentity?: readonly string[];
+  /** Restrict to cards legal in Commander. */
+  commanderLegalOnly?: boolean;
+  /** Substring match on the type line, e.g. 'Instant', 'Land'. */
+  typeLine?: string;
+  /** Names to exclude — the deck's own cards, so results are things it lacks. */
+  exclude?: readonly string[];
+  limit?: number;
+}
+
+const SEARCH_LIMIT_DEFAULT = 20;
+const SEARCH_LIMIT_MAX = 100;
+/** Rows per backfill page — bounds both heap and WAL growth. ~22MB of JSON. */
+const BACKFILL_PAGE_SIZE = 5000;
+
 /**
  * SQLite-backed cache for Scryfall card data, keyed by Scryfall ID.
  * Uses synchronous better-sqlite3 — fine at our request volumes and avoids callback noise.
@@ -23,6 +87,9 @@ export class ScryfallCache {
   private setStmt: Database.Statement;
   private setLookupStmt: Database.Statement;
   private setRulingsStmt: Database.Statement;
+  /** Null when the FTS5 index could not be created — search then returns []. */
+  private searchInsertStmt: Database.Statement | null = null;
+  private searchDeleteStmt: Database.Statement | null = null;
 
   constructor(dbPath: string) {
     const dir = path.dirname(dbPath);
@@ -59,6 +126,145 @@ export class ScryfallCache {
     );
     this.setRulingsStmt = this.db.prepare(
       'INSERT OR REPLACE INTO card_rulings (scryfall_id, data, cached_at) VALUES (?, ?, ?)'
+    );
+
+    this.ensureSearchIndex();
+  }
+
+  /**
+   * Full-text index over the oracle text already sitting in this cache.
+   *
+   * Until now the cache could only answer EXACT name lookups, so the only way to
+   * ask "what cards do this?" was to call Scryfall — which we can't do at any
+   * volume from a shared Fly IP. ~100k cards' rules text is already here; this
+   * makes it searchable locally, which is what lets the AI features propose
+   * cards they actually retrieved rather than ones they remember.
+   *
+   * One row per PRINTING (1:1 with `cards`, so the incremental path in
+   * `setMany` stays a plain insert) and deduped to one row per `oracle_id` at
+   * QUERY time — otherwise a search returns the same card twenty times.
+   *
+   * The filterable columns are UNINDEXED: they're returned and compared, never
+   * tokenized, so they don't bloat the term index.
+   */
+  private ensureSearchIndex(): void {
+    try {
+      this.db.exec(`
+        CREATE VIRTUAL TABLE IF NOT EXISTS card_search USING fts5(
+          name, type_line, oracle_text,
+          scryfall_id UNINDEXED,
+          oracle_id UNINDEXED,
+          ci_mask UNINDEXED,
+          commander_legal UNINDEXED,
+          cmc UNINDEXED,
+          tokenize = 'unicode61 remove_diacritics 2'
+        );
+      `);
+
+      this.searchInsertStmt = this.db.prepare(
+        `INSERT INTO card_search
+           (name, type_line, oracle_text, scryfall_id, oracle_id, ci_mask, commander_legal, cmc)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      );
+      this.searchDeleteStmt = this.db.prepare('DELETE FROM card_search WHERE scryfall_id = ?');
+
+      // Backfill only when the index is empty but cards exist — i.e. the first
+      // boot after this shipped, or after someone dropped the table. Measured
+      // ~1.3s for 107k rows, so it is a one-time cost, not a per-boot one.
+      const indexed = (
+        this.db.prepare('SELECT COUNT(*) AS n FROM card_search').get() as { n: number }
+      ).n;
+      if (indexed > 0) return;
+      const cards = (this.db.prepare('SELECT COUNT(*) AS n FROM cards').get() as { n: number }).n;
+      if (cards === 0) return;
+
+      const started = Date.now();
+      // Read in PAGES, never `.all()` and never `.iterate()`.
+      //
+      // `.all()` materialises every blob at once — the rows are full Scryfall
+      // JSON, ~470MB across 107k cards, which is a heap spike that matters on
+      // the 2GB production VM (we have OOM'd on bulk card data before).
+      //
+      // `.iterate()` looks like the fix and is a trap: better-sqlite3
+      // invalidates an open iterator as soon as another statement runs on the
+      // same connection, and we insert into `card_search` inside the loop. It
+      // does not throw — the loop just stops early. Measured against the real
+      // cache it indexed 16 of 107,369 cards and reported success.
+      //
+      // Keyset pagination over the primary key keeps memory bounded (one page
+      // of blobs) without an open cursor, and costs nothing extra since
+      // `scryfall_id` is the PK. One transaction per page also bounds WAL
+      // growth, which matters on a 1GB volume.
+      const page = this.db.prepare(
+        'SELECT scryfall_id, data FROM cards WHERE scryfall_id > ? ORDER BY scryfall_id LIMIT ?'
+      );
+      const indexPage = this.db.transaction((items: Array<{ data: string }>) => {
+        for (const row of items) {
+          try {
+            this.indexCard(JSON.parse(row.data) as ScryfallCard);
+          } catch {
+            // A single unparseable blob shouldn't abort the whole backfill.
+          }
+        }
+      });
+
+      let after = '';
+      let count = 0;
+      for (;;) {
+        const rows = page.all(after, BACKFILL_PAGE_SIZE) as Array<{
+          scryfall_id: string;
+          data: string;
+        }>;
+        if (rows.length === 0) break;
+        indexPage(rows);
+        count += rows.length;
+        after = rows[rows.length - 1].scryfall_id;
+        if (rows.length < BACKFILL_PAGE_SIZE) break;
+      }
+      logger.info(
+        `[cache] built oracle-text search index over ${count} cards in ${Date.now() - started}ms`
+      );
+    } catch (err) {
+      // A missing index degrades card search to "no results"; it must never
+      // stop the cache — and therefore the server — from starting.
+      logger.error('[cache] could not build card_search index, oracle search unavailable:', err);
+    }
+  }
+
+  /**
+   * Index one printing. Shared by the backfill and `setMany` so the flattening
+   * rules live in exactly one place — the reason this is TypeScript rather than
+   * a SQLite trigger over `json_extract`, which would have been a second
+   * implementation of the same transform, free to drift.
+   */
+  private indexCard(card: ScryfallCard): void {
+    if (!this.searchInsertStmt) return;
+    // Multi-face layouts carry their rules text per face, so a search for a back
+    // face's ability would miss the card entirely if we only read the top level.
+    const faces = card.card_faces ?? [];
+    const oracleText =
+      card.oracle_text ||
+      faces
+        .map((f) => f.oracle_text ?? '')
+        .filter(Boolean)
+        .join('\n//\n');
+    const typeLine =
+      card.type_line ||
+      faces
+        .map((f) => f.type_line ?? '')
+        .filter(Boolean)
+        .join(' // ');
+    if (!oracleText && !typeLine) return;
+
+    this.searchInsertStmt.run(
+      card.name ?? '',
+      typeLine,
+      oracleText,
+      card.id,
+      card.oracle_id ?? '',
+      colorIdentityMask(card.color_identity),
+      card.legalities?.commander === 'legal' ? 1 : 0,
+      typeof card.cmc === 'number' ? card.cmc : null
     );
   }
 
@@ -256,11 +462,115 @@ export class ScryfallCache {
         const now = Date.now();
         for (const card of items) {
           this.setStmt.run(card.id, JSON.stringify(card), now);
+          // Keep the oracle-text index in step with the rows it indexes. Cheap
+          // (~80k rows/sec measured), and without it a newly-cached set stays
+          // invisible to card search until someone rebuilds the index.
+          this.reindexCard(card);
         }
       });
       insert(cards);
     } catch (err) {
       logger.error('[cache] setMany failed, cards will not be cached:', err);
+    }
+  }
+
+  /**
+   * Re-index one printing. `cards` uses INSERT OR REPLACE, but FTS5 has no
+   * upsert, so the old row is deleted first — otherwise re-caching a card (which
+   * the price refresh does routinely) would accumulate duplicate index rows.
+   */
+  private reindexCard(card: ScryfallCard): void {
+    if (!this.searchDeleteStmt) return;
+    this.searchDeleteStmt.run(card.id);
+    this.indexCard(card);
+  }
+
+  /**
+   * Search the cached oracle text. Returns one row per ORACLE card (not per
+   * printing), best match first.
+   *
+   * ⚠️ Deliberately ignores the 7-day TTL. That TTL exists because PRICES move;
+   * a card's rules text does not — the same reasoning `getMany`'s `allowStale`
+   * already documents. Honouring it here would make search results vanish as
+   * rows aged out and force exactly the Scryfall round-trips this index exists
+   * to avoid. Never read a price off these results.
+   */
+  searchCards(options: CardSearchOptions): CardSearchResult[] {
+    if (!this.searchInsertStmt) return [];
+    // Require every term first — that is the precise answer when it exists.
+    // Fall back to ANY term (bm25 still ranks best-overlap first) when it finds
+    // nothing, because an all-terms match is unforgiving of conceptual phrasing:
+    // "graveyard cards cannot be exiled" returned 0 against the real 107k-card
+    // cache even though the effect plainly exists. An empty result is the worst
+    // possible answer here — it sends the caller back to reciting cards from
+    // memory, which is the whole failure this index exists to remove.
+    const strict = this.runSearch(options, 'AND');
+    if (strict.length > 0) return strict;
+    return this.runSearch(options, 'OR');
+  }
+
+  private runSearch(options: CardSearchOptions, join: 'AND' | 'OR'): CardSearchResult[] {
+    const match = toMatchExpression(options.query, join);
+    if (!match) return [];
+
+    const limit = Math.min(Math.max(1, options.limit ?? SEARCH_LIMIT_DEFAULT), SEARCH_LIMIT_MAX);
+    const where: string[] = ['card_search MATCH ?'];
+    const params: Array<string | number> = [match];
+
+    if (options.commanderLegalOnly) where.push('commander_legal = 1');
+    if (options.colorIdentity) {
+      // Subset test: every colour bit the card needs must be present in the
+      // deck's identity. Colourless (0) passes against every identity.
+      where.push('(ci_mask & ~?) = 0');
+      params.push(colorIdentityMask(options.colorIdentity));
+    }
+    if (options.typeLine) {
+      where.push('type_line LIKE ?');
+      params.push(`%${options.typeLine}%`);
+    }
+
+    try {
+      const rows = this.db
+        .prepare(
+          `SELECT oracle_id, name, type_line, oracle_text, ci_mask, MIN(cmc) AS cmc
+             FROM card_search
+            WHERE ${where.join(' AND ')}
+            GROUP BY oracle_id
+            ORDER BY rank
+            LIMIT ?`
+        )
+        // Over-fetch by the exclusion count: excluded cards are dropped below,
+        // and a deck that already runs the top matches would otherwise get an
+        // empty answer to a perfectly good question.
+        .all(...params, limit + (options.exclude?.length ?? 0)) as Array<{
+        oracle_id: string;
+        name: string;
+        type_line: string;
+        oracle_text: string;
+        ci_mask: number;
+        cmc: number | null;
+      }>;
+
+      // Excluding by NAME in SQL would need a variable-length IN clause for what
+      // is usually a 100-card decklist; filtering here keeps the query fixed.
+      const excluded = new Set((options.exclude ?? []).map((n) => n.toLowerCase()));
+      return rows
+        .filter((r) => !excluded.has(r.name.toLowerCase()))
+        .slice(0, limit)
+        .map((r) => ({
+          oracleId: r.oracle_id,
+          name: r.name,
+          typeLine: r.type_line,
+          oracleText: r.oracle_text,
+          cmc: r.cmc,
+          colorIdentity: Object.entries(COLOR_BITS)
+            .filter(([, bit]) => (r.ci_mask & bit) !== 0)
+            .map(([c]) => c)
+            .join(''),
+        }));
+    } catch (err) {
+      logger.error('[cache] searchCards failed, returning no results:', err);
+      return [];
     }
   }
 
