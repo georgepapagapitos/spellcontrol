@@ -4,7 +4,12 @@ import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import type { Change } from '@/lib/deck-change';
 import { analyzeDeck } from '../../lib/deck-analysis';
 import { useTaggerReady } from '@/lib/use-tagger-ready';
-import { buildDeckReviewCards, splitReviewSections, tokenizeCardNames } from '../../lib/ai-review';
+import {
+  buildDeckReviewCards,
+  splitReviewSections,
+  toAiAnalysis,
+  tokenizeCardNames,
+} from '../../lib/ai-review';
 import { requestDeckRefine, type RefineCard, type RefineTweak } from '../../lib/ai-refine';
 import { noteAiExhausted, noteAiSpend, useAiStatus } from '../../lib/use-ai-status';
 import { AiMarker, DeckAiConsent, isAiInviteDismissed } from './DeckAiConsent';
@@ -20,6 +25,10 @@ interface DeckAiRefineProps {
   /** Engine-supplied candidates — the only cards the model may propose. */
   pool: RefineCard[];
   ownedOnly: boolean;
+  /** The owner's target bracket (`deck.bracketOverride`), if set. */
+  bracketTarget?: number | null;
+  /** The app's current-power estimate (`deck.bracketEstimation?.bracket`), if computed. */
+  bracketEstimate?: number | null;
   /** The existing coach apply path — never a parallel one. */
   onApplyMove: (change: Change) => void;
   /**
@@ -61,6 +70,8 @@ export function DeckAiRefine({
   mainboard,
   pool,
   ownedOnly,
+  bracketTarget = null,
+  bracketEstimate = null,
   onApplyMove,
   variant = 'build',
 }: DeckAiRefineProps) {
@@ -97,7 +108,10 @@ export function DeckAiRefine({
     setStrategy(null);
     setTweaks([]);
     setApplied(new Set());
-    const analysis = analyzeDeck({ format, commander, partnerCommander, mainboard }, taggerReady);
+    const analysis = toAiAnalysis(
+      analyzeDeck({ format, commander, partnerCommander, mainboard }, taggerReady),
+      { target: bracketTarget, estimate: bracketEstimate }
+    );
     requestDeckRefine(
       { deckId, commander: commanderName, cards, pool, ownedOnly, analysis },
       setStreamed

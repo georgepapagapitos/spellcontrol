@@ -1392,6 +1392,8 @@ export function DeckEditorPage() {
               mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
               pool={refinePool}
               ownedOnly={refineOwnedOnly}
+              bracketTarget={deck.bracketOverride ?? null}
+              bracketEstimate={deck.bracketEstimation?.bracket ?? null}
               onApplyMove={(change) => {
                 // Mirror the panel's own onAdd: a pure add on a full deck
                 // opens the replace-when-full prompt, so the sheet gets
@@ -3116,6 +3118,8 @@ export function DeckEditorPage() {
                     commander={deck.commander}
                     partnerCommander={deck.partnerCommander ?? null}
                     mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
+                    bracketTarget={deck.bracketOverride ?? null}
+                    bracketEstimate={deck.bracketEstimation?.bracket ?? null}
                   />
                   {/* The refine pass is generated-deck only: it exists to
                       second-guess the generator, and a hand-built deck has no
@@ -3130,6 +3134,8 @@ export function DeckEditorPage() {
                       mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
                       pool={refinePool}
                       ownedOnly={refineOwnedOnly}
+                      bracketTarget={deck.bracketOverride ?? null}
+                      bracketEstimate={deck.bracketEstimation?.bracket ?? null}
                       onApplyMove={handleApplyCoachMove}
                     />
                   )}
@@ -3513,6 +3519,8 @@ export function DeckEditorPage() {
                 mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
                 pool={[{ name: pendingAdd, oracleId: '', qty: 1 }]}
                 ownedOnly={false}
+                bracketTarget={deck.bracketOverride ?? null}
+                bracketEstimate={deck.bracketEstimation?.bracket ?? null}
                 onApplyMove={(change) => {
                   // A verdict swap resolves the whole prompt: apply through the
                   // coach path (atomic swap + undo) and close.
@@ -3618,6 +3626,8 @@ export function DeckEditorPage() {
                 mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
                 pool={refinePool}
                 ownedOnly={refineOwnedOnly}
+                bracketTarget={deck.bracketOverride ?? null}
+                bracketEstimate={deck.bracketEstimation?.bracket ?? null}
                 onApplyMove={handleApplyCoachMove}
               />
             ) : undefined

@@ -12,6 +12,7 @@ import {
   fetchReviewHistory,
   requestDeckReview,
   splitReviewSections,
+  toAiAnalysis,
   tokenizeCardNames,
   type ReviewReading,
 } from '../../lib/ai-review';
@@ -26,6 +27,10 @@ interface DeckAiReviewProps {
   commander: ScryfallCard;
   partnerCommander: ScryfallCard | null;
   mainboard: { slotId: string; card: ScryfallCard }[];
+  /** The owner's target bracket (`deck.bracketOverride`), if set. */
+  bracketTarget?: number | null;
+  /** The app's current-power estimate (`deck.bracketEstimation?.bracket`), if computed. */
+  bracketEstimate?: number | null;
 }
 
 interface HeldReview {
@@ -55,6 +60,8 @@ export function DeckAiReview({
   commander,
   partnerCommander,
   mainboard,
+  bracketTarget = null,
+  bracketEstimate = null,
 }: DeckAiReviewProps) {
   const taggerReady = useTaggerReady();
   const status = useAiStatus();
@@ -135,7 +142,10 @@ export function DeckAiReview({
     setError(null);
     setStreamed('');
     setReview(null);
-    const analysis = analyzeDeck({ format, commander, partnerCommander, mainboard }, taggerReady);
+    const analysis = toAiAnalysis(
+      analyzeDeck({ format, commander, partnerCommander, mainboard }, taggerReady),
+      { target: bracketTarget, estimate: bracketEstimate }
+    );
     requestDeckReview({ deckId, commander: commanderName, cards, analysis }, setStreamed)
       .then((result) => {
         setReview({ content: result.content, key: requestKey });

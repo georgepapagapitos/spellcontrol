@@ -7,8 +7,10 @@ import {
   requestDeckReview,
   setAiOptIn,
   splitReviewSections,
+  toAiAnalysis,
   tokenizeCardNames,
 } from './ai-review';
+import type { DeckAnalysisResult } from './deck-analysis';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 function card(name: string, oracleId = `o-${name}`): ScryfallCard {
@@ -177,6 +179,91 @@ describe('tokenizeCardNames', () => {
 
   it('returns the text untouched when the deck has no names to match', () => {
     expect(tokenizeCardNames('Nothing to chip.', [])).toEqual([{ text: 'Nothing to chip.' }]);
+  });
+});
+
+function fullAnalysis(): DeckAnalysisResult {
+  return {
+    totalNonCommander: 99,
+    expectedSize: 99,
+    sizeDelta: 0,
+    types: {
+      creatures: 30,
+      instants: 6,
+      sorceries: 7,
+      artifacts: 5,
+      enchantments: 1,
+      planeswalkers: 0,
+      battles: 0,
+      lands: 38,
+      other: 12,
+    },
+    curve: {
+      buckets: [{ cmc: 1, count: 9 }],
+      averageCmc: 2.7,
+      peak: 6,
+      verdict: 'curve-ok',
+      message: 'fine',
+    },
+    roles: [
+      {
+        key: 'ramp',
+        label: 'Ramp',
+        count: 8,
+        range: [8, 12],
+        status: 'ok',
+        message: 'fine',
+        contributingSlotIds: ['slot_1', 'slot_2'],
+      },
+    ],
+    colorIdentity: { commanderColors: ['B', 'G'], offColorCards: [] },
+    taggerReady: true,
+  };
+}
+
+describe('toAiAnalysis', () => {
+  it('drops every field renderAnalysis does not read', () => {
+    const payload = toAiAnalysis(fullAnalysis());
+    expect(payload).toEqual({
+      totalNonCommander: 99,
+      types: {
+        lands: 38,
+        creatures: 30,
+        instants: 6,
+        sorceries: 7,
+        artifacts: 5,
+        enchantments: 1,
+        planeswalkers: 0,
+        battles: 0,
+      },
+      curve: { averageCmc: 2.7, buckets: [{ cmc: 1, count: 9 }] },
+      roles: [{ label: 'Ramp', count: 8 }],
+    });
+    // `expectedSize`, `sizeDelta`, `colorIdentity`, `taggerReady`, curve
+    // verdict/message/peak, and role range/status/message/contributingSlotIds
+    // never made it in.
+    expect(payload).not.toHaveProperty('taggerReady');
+    expect(
+      (payload.roles[0] as unknown as Record<string, unknown>).contributingSlotIds
+    ).toBeUndefined();
+  });
+
+  it('carries bracket through when at least one of target/estimate is set', () => {
+    expect(toAiAnalysis(fullAnalysis(), { target: 2, estimate: 4 }).bracket).toEqual({
+      target: 2,
+      estimate: 4,
+    });
+    expect(toAiAnalysis(fullAnalysis(), { target: 2, estimate: null }).bracket).toEqual({
+      target: 2,
+      estimate: null,
+    });
+  });
+
+  it('omits bracket entirely when both are absent', () => {
+    expect(toAiAnalysis(fullAnalysis(), { target: null, estimate: null })).not.toHaveProperty(
+      'bracket'
+    );
+    expect(toAiAnalysis(fullAnalysis())).not.toHaveProperty('bracket');
   });
 });
 

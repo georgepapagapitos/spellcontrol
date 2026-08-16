@@ -1,6 +1,6 @@
 import { authedFetch, handleResponse } from './fetch-utils';
 import { readNdjson } from './ndjson';
-import type { DeckAnalysisResult } from './deck-analysis';
+import type { AiAnalysisPayload } from './ai-review';
 import type { GapAnalysisCard, HiddenGemRow } from '@/deck-builder/types';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
 import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
@@ -42,7 +42,7 @@ export interface DeckRefinePayload {
   cards: RefineCard[];
   pool: RefineCard[];
   ownedOnly: boolean;
-  analysis: DeckAnalysisResult;
+  analysis: AiAnalysisPayload;
 }
 
 /**

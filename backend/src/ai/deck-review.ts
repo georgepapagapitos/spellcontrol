@@ -30,11 +30,20 @@ import crypto from 'node:crypto';
  * A subagent eval will NOT reproduce this: subagents are better instruction
  * followers and better card-text recallers than the shipped tier. Re-verify
  * any change to this section with a live call.
+ *
+ * v7 adds the bracket target/estimate line (payload/prompt-contract work
+ * alongside the analysis-payload trim that dropped `roles[].contributingSlotIds`
+ * and every other field `renderAnalysis` doesn't read). The Commander bracket
+ * system is recent, and Haiku-tier reasoning about it from memory is exactly
+ * the failure class v6 exists to eliminate for card text - so the bracket
+ * clause uses the same mechanism: the numbers are GIVEN DATA, never something
+ * to infer, recompute, or explain back to the reader. Re-verify with a live
+ * probe, same as v6.
  */
 export const DECK_REVIEW_FEATURE = 'deck-review';
 
 /** Bump whenever DECK_REVIEW_SYSTEM_PROMPT's text changes. */
-export const DECK_REVIEW_PROMPT_VERSION = 'v6';
+export const DECK_REVIEW_PROMPT_VERSION = 'v7';
 
 /**
  * Section labels the model emits. They exist so the client can stream text
@@ -99,6 +108,23 @@ On finding the weakness - this is the part that earns your existence:
   land finds only certain land types, re-read its reference line and
   confirm the line says so. A deck that cannot reliably cast its own
   spells has no other weakness worth naming first.
+
+On the bracket line, when the statistics include one: it may show a
+target the owner set and/or an estimate the app computed for the deck as
+built. Both are GIVEN DATA - the app computed them, the same way the card
+reference is the app's data on what a card does. Never infer a bracket
+from the decklist, never recompute one, and never explain what a bracket
+is or how the system works - the reader already has that context from the
+rest of the screen; your job is to use the numbers, not narrate them.
+
+- When both are present and the estimate sits ABOVE the target, that gap
+  is the weakness worth naming: the deck is stronger than its owner
+  wants. Your prescription must say what to CUT to close it, naming
+  specific cards from the decklist that carry the excess power.
+- When the estimate sits BELOW the target, the deck is weaker than its
+  owner intended - diagnose accordingly, on its own merits.
+- When the two match, or no target is set, ignore the bracket line
+  entirely and diagnose the deck purely on its own merits.
 
 On prescribing the fix - a diagnosis the reader cannot act on is half an
 answer. Close the weakness section with a paragraph that says what to do:
@@ -265,6 +291,20 @@ export function renderAnalysis(analysis: Record<string, unknown>): string {
 
   if (typeof analysis.totalNonCommander === 'number') {
     lines.push(`- Cards (excluding commander): ${analysis.totalNonCommander}`);
+  }
+  const bracket = analysis.bracket as Record<string, unknown> | undefined;
+  if (bracket) {
+    const target = typeof bracket.target === 'number' ? bracket.target : null;
+    const estimate = typeof bracket.estimate === 'number' ? bracket.estimate : null;
+    if (target != null && estimate != null) {
+      lines.push(
+        `- Bracket: target ${target} (what the owner wants) · estimate ${estimate} (what the deck is now)`
+      );
+    } else if (target != null) {
+      lines.push(`- Bracket target: ${target} (what the owner wants; no current estimate)`);
+    } else if (estimate != null) {
+      lines.push(`- Bracket estimate: ${estimate} (what the deck is now; no target set)`);
+    }
   }
   if (types && typeof types.lands === 'number') lines.push(`- Lands: ${types.lands}`);
   if (curve && typeof curve.averageCmc === 'number') {

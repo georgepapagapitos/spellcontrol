@@ -148,6 +148,44 @@ describe('renderAnalysis', () => {
       'no statistics'
     );
   });
+
+  describe('bracket line', () => {
+    it('renders target and estimate together, unambiguously labelled', () => {
+      const out = renderAnalysis({ bracket: { target: 2, estimate: 4 } });
+      expect(out).toContain(
+        '- Bracket: target 2 (what the owner wants) · estimate 4 (what the deck is now)'
+      );
+    });
+
+    it('renders a target with no estimate', () => {
+      const out = renderAnalysis({ bracket: { target: 2, estimate: null } });
+      expect(out).toContain('- Bracket target: 2 (what the owner wants; no current estimate)');
+    });
+
+    it('renders an estimate with no target', () => {
+      const out = renderAnalysis({ bracket: { target: null, estimate: 4 } });
+      expect(out).toContain('- Bracket estimate: 4 (what the deck is now; no target set)');
+    });
+
+    it('omits the line entirely when both are absent', () => {
+      expect(renderAnalysis({ bracket: { target: null, estimate: null } })).not.toContain(
+        'Bracket'
+      );
+      expect(renderAnalysis({ bracket: {} })).not.toContain('Bracket');
+    });
+
+    it('never throws on a malformed bracket value', () => {
+      expect(() => renderAnalysis({ bracket: 'nope' } as never)).not.toThrow();
+      expect(() => renderAnalysis({ bracket: null } as never)).not.toThrow();
+      expect(() => renderAnalysis({ bracket: 5 } as never)).not.toThrow();
+      expect(() =>
+        renderAnalysis({ bracket: { target: 'high', estimate: [] } } as never)
+      ).not.toThrow();
+      expect(renderAnalysis({ bracket: { target: 'high', estimate: [] } } as never)).not.toContain(
+        'Bracket'
+      );
+    });
+  });
 });
 
 describe('buildUserMessage', () => {
