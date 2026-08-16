@@ -1,0 +1,26 @@
+{
+  // Base config: editor + `typecheck`. The CJS/ESM emit configs extend this.
+  // Like game-core (and unlike binder-routing), the whole package is a single
+  // `src/index.ts`, so there are no relative imports and none of the explicit
+  // `.js` extensions `module: Node16` would otherwise demand.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "rootDir": "src",
+    "outDir": "dist/cjs",
+    "declarationDir": "dist/types"
+  },
+  "include": ["src"],
+  "exclude": ["dist", "node_modules"]
+}

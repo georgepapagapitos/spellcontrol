@@ -20,27 +20,21 @@
  * of them, that's a signal worth investigating before merging.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { DetectedCombo } from '@/deck-builder/types';
+import type { DetectedCombo, RoleKey, TagLookup } from './index';
 
-vi.mock('@/deck-builder/services/tagger/client', () => ({
-  hasTag: vi.fn(),
-  isMassLandDenial: vi.fn(),
-  isExtraTurn: vi.fn(),
-  getCardRole: vi.fn(),
-}));
+import { estimateBracket } from './index';
 
-import {
-  hasTag,
-  isMassLandDenial,
-  isExtraTurn,
-  getCardRole,
-} from '@/deck-builder/services/tagger/client';
-import { estimateBracket } from './bracketEstimator';
+const mockHasTag = vi.fn<(name: string, tag: string) => boolean>();
+const mockIsMLD = vi.fn<(name: string) => boolean>();
+const mockIsExtraTurn = vi.fn<(name: string) => boolean>();
+const mockGetRole = vi.fn<(name: string) => RoleKey | null>();
 
-const mockHasTag = vi.mocked(hasTag);
-const mockIsMLD = vi.mocked(isMassLandDenial);
-const mockIsExtraTurn = vi.mocked(isExtraTurn);
-const mockGetRole = vi.mocked(getCardRole);
+const tags: TagLookup = {
+  hasTag: mockHasTag,
+  getCardRole: mockGetRole,
+  isMassLandDenial: mockIsMLD,
+  isExtraTurn: mockIsExtraTurn,
+};
 
 interface ReferenceDeck {
   name: string;
@@ -393,7 +387,8 @@ function runFixture(deck: ReferenceDeck) {
     deck.averageCmc,
     undefined,
     { removal: deck.removalCount, boardwipe: deck.boardwipeCount },
-    new Set([...GC_SUBSET, ...deck.gameChangerNames])
+    new Set([...GC_SUBSET, ...deck.gameChangerNames]),
+    tags
   );
 }
 

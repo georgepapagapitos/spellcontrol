@@ -1,0 +1,14 @@
+{
+  // ESM build — consumed by the Vite/Rollup frontend bundle (resolves the
+  // package "exports" → "import" condition). No declarations here (the
+  // .d.ts set is emitted once by the CJS build into dist/types).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "outDir": "dist/esm",
+    "declaration": false,
+    "declarationDir": null
+  },
+  "exclude": ["dist", "node_modules", "**/*.test.ts"]
+}

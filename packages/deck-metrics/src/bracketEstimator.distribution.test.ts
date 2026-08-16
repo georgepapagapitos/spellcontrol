@@ -16,27 +16,21 @@
  * across the space. See the project memory on auditing heuristics, not green tests.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { DetectedCombo } from '@/deck-builder/types';
+import type { DetectedCombo, RoleKey, TagLookup } from './index';
 
-vi.mock('@/deck-builder/services/tagger/client', () => ({
-  hasTag: vi.fn(() => false),
-  isMassLandDenial: vi.fn(() => false),
-  isExtraTurn: vi.fn(() => false),
-  getCardRole: vi.fn(() => null),
-}));
+import { estimateBracket } from './index';
 
-import { estimateBracket } from './bracketEstimator';
-import {
-  hasTag,
-  isMassLandDenial,
-  isExtraTurn,
-  getCardRole,
-} from '@/deck-builder/services/tagger/client';
+const mHasTag = vi.fn<(name: string, tag: string) => boolean>();
+const mMLD = vi.fn<(name: string) => boolean>();
+const mET = vi.fn<(name: string) => boolean>();
+const mRole = vi.fn<(name: string) => RoleKey | null>();
 
-const mHasTag = vi.mocked(hasTag);
-const mMLD = vi.mocked(isMassLandDenial);
-const mET = vi.mocked(isExtraTurn);
-const mRole = vi.mocked(getCardRole);
+const tags: TagLookup = {
+  hasTag: mHasTag,
+  getCardRole: mRole,
+  isMassLandDenial: mMLD,
+  isExtraTurn: mET,
+};
 
 const FAST_MANA = [
   'Mana Crypt',
@@ -89,7 +83,15 @@ beforeEach(() => {
 describe('estimateBracket — distribution invariants', () => {
   it('a power-neutral deck estimates to Core (2), never Exhibition (1)', () => {
     const { names, gcNames } = deck({});
-    const r = estimateBracket(names, [], 3.2, undefined, { removal: 6, boardwipe: 2 }, gcNames);
+    const r = estimateBracket(
+      names,
+      [],
+      3.2,
+      undefined,
+      { removal: 6, boardwipe: 2 },
+      gcNames,
+      tags
+    );
     expect(r.bracket).toBe(2);
     expect(r.label).toBe('Core');
   });
@@ -98,7 +100,15 @@ describe('estimateBracket — distribution invariants', () => {
     // No game changers, no fast mana, no combos, moderate curve, real interaction.
     const { names, gcNames } = deck({});
     for (const cmc of [2.8, 3.0, 3.2, 3.5]) {
-      const r = estimateBracket(names, [], cmc, undefined, { removal: 7, boardwipe: 1 }, gcNames);
+      const r = estimateBracket(
+        names,
+        [],
+        cmc,
+        undefined,
+        { removal: 7, boardwipe: 1 },
+        gcNames,
+        tags
+      );
       expect(r.bracket, `cmc ${cmc}`).toBe(2);
     }
   });
@@ -120,7 +130,8 @@ describe('estimateBracket — distribution invariants', () => {
                   cmc,
                   undefined,
                   { removal: interaction, boardwipe: 0 },
-                  gcNames
+                  gcNames,
+                  tags
                 );
                 counts[r.bracket]++;
                 total++;
@@ -136,11 +147,11 @@ describe('estimateBracket — distribution invariants', () => {
   it('preserves the game-changer floors (1–3 GC → ≥3, 4+ GC → ≥4)', () => {
     const oneGc = deck({ gc: 1 });
     expect(
-      estimateBracket(oneGc.names, [], 3.2, undefined, undefined, oneGc.gcNames).bracket
+      estimateBracket(oneGc.names, [], 3.2, undefined, undefined, oneGc.gcNames, tags).bracket
     ).toBeGreaterThanOrEqual(3);
     const fourGc = deck({ gc: 4 });
     expect(
-      estimateBracket(fourGc.names, [], 3.2, undefined, undefined, fourGc.gcNames).bracket
+      estimateBracket(fourGc.names, [], 3.2, undefined, undefined, fourGc.gcNames, tags).bracket
     ).toBeGreaterThanOrEqual(4);
   });
 
@@ -162,7 +173,15 @@ describe('estimateBracket — distribution invariants', () => {
       for (const fm of [0, 3])
         for (const cmc of [2.5, 3.5]) {
           const { names, gcNames } = deck({ gc, fastMana: fm });
-          const r = estimateBracket(names, [twoCardCombo], cmc, undefined, undefined, gcNames);
+          const r = estimateBracket(
+            names,
+            [twoCardCombo],
+            cmc,
+            undefined,
+            undefined,
+            gcNames,
+            tags
+          );
           counts[r.bracket]++;
         }
     // No deck with a 2-card combo should ever be B1 or B2.
