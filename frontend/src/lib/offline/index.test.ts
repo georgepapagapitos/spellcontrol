@@ -127,21 +127,36 @@ describe('offlineSearchCards', () => {
     expect(resp.data.map((c) => c.name).sort()).toEqual(['Counterspell']);
   });
 
-  // Defect A (iter-6 Slice B follow-up, CRITICAL): colorIdentity: [] means a
-  // COLORLESS commander, not "no restriction". The old
-  // `colorIdentity.length > 0 ? 'id<=...' : ''` fell through to an empty
-  // filter for [] — a colorless-identity search returned cards of ANY color
-  // (live repro: Kozilek, the Great Distortion, colorIdentity [], seated
-  // Omniscience — a {U}{U}{U} enchantment — via this exact gap, since
-  // scryfallFill.ts's fillWithScryfall has no client-side color-identity
-  // check and relies entirely on this query-string filter).
-  it('restricts to colorless cards for an empty (colorless-commander) colorIdentity', async () => {
+  // Defect A (iter-6 Slice B follow-up, CRITICAL): a colorless commander must
+  // not seat coloured cards (live repro: Kozilek, the Great Distortion seating
+  // Omniscience — a {U}{U}{U} enchantment — since scryfallFill.ts's
+  // fillWithScryfall has no client-side color-identity check and relies
+  // entirely on this query-string filter). Colorless is spelled ['C'], which
+  // is what commanderSearchIdentity() yields; see the sibling test below for
+  // why it can NOT be spelled [].
+  it('restricts to colorless cards for a colorless-commander colorIdentity', async () => {
+    await replaceOracleCards([
+      slim('o-omni', 'Omniscience', { colorIdentity: ['U'], typeLine: 'Enchantment' }),
+      slim('o-colorless', 'Colorless Enchantment', { colorIdentity: [], typeLine: 'Enchantment' }),
+    ]);
+    const resp = await offlineSearchCards('t:enchantment', { colorIdentity: ['C'] });
+    expect(resp.data.map((c) => c.name)).toEqual(['Colorless Enchantment']);
+  });
+
+  // The other half of the same fork, and the mirror of liveSearchCards: `[]`
+  // means UNRESTRICTED. Every generic search surface (collection Add Cards via
+  // use-search-cards, InlineCardSearch, ScannerQueueSheet, CommandPalette,
+  // AvatarPickerSheet) passes [] with no commander in sight. The implicit
+  // `id<=c` fallback this file used to carry made all of them colorless-only —
+  // on native, where the offline bundle is what serves search, "tainted"
+  // returned NO MATCHES because every Tainted card is coloured.
+  it('does not restrict by color for an empty (no-commander) colorIdentity', async () => {
     await replaceOracleCards([
       slim('o-omni', 'Omniscience', { colorIdentity: ['U'], typeLine: 'Enchantment' }),
       slim('o-colorless', 'Colorless Enchantment', { colorIdentity: [], typeLine: 'Enchantment' }),
     ]);
     const resp = await offlineSearchCards('t:enchantment', { colorIdentity: [] });
-    expect(resp.data.map((c) => c.name)).toEqual(['Colorless Enchantment']);
+    expect(resp.data.map((c) => c.name).sort()).toEqual(['Colorless Enchantment', 'Omniscience']);
   });
 
   it('paginates and reports has_more correctly', async () => {
