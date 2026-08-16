@@ -89,6 +89,8 @@ export const aiReviews = pgTable(
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
     /** Deck the reading was written for; NULL on rows predating history. */
     deckId: text('deck_id'),
+    /** Prompt version that produced the row; NULL on rows predating the column. */
+    promptVersion: text('prompt_version'),
   },
   (t) => [uniqueIndex('ai_reviews_key_idx').on(t.userId, t.feature, t.inputHash)]
 );

@@ -11,9 +11,18 @@ const mockState = {
 vi.mock('../ai/client', () => ({
   AI_MODEL: 'test-model',
   aiEnabled: () => mockState.enabled,
-  generateReview: (system: string, user: string, onDelta?: (t: string) => void) =>
-    mockState.generate(system, user, onDelta),
+  generateReview: (
+    system: string,
+    user: string,
+    onDelta?: (t: string) => void,
+    signal?: AbortSignal
+  ) => mockState.generate(system, user, onDelta, signal),
 }));
+
+// The route imports this class by name from the real SDK to distinguish an
+// abort from a genuine failure — that import is untouched by the mock above,
+// so tests can throw the real class to simulate a client disconnect.
+import { APIUserAbortError } from '@anthropic-ai/sdk';
 
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 
@@ -415,6 +424,77 @@ describe('POST /api/ai/deck-review', () => {
     // Nothing stored ⇒ nothing charged, and the retry is a clean first attempt.
     const status = await request(app).get('/api/ai/status').set('Cookie', cookie);
     expect(status.body.used).toBe(0);
+  });
+
+  it('marks a max_tokens generation truncated and still stores the row', async () => {
+    const cookie = await makeUser('ai-review-truncated');
+    await optIn(cookie);
+    mockState.generate.mockImplementation(
+      async (_system: string, _user: string, onDelta?: (t: string) => void) => {
+        onDelta?.('Your deck is ');
+        return {
+          content: 'Your deck is ',
+          inputTokens: 1000,
+          outputTokens: 2000,
+          truncated: true,
+        };
+      }
+    );
+    const res = await request(app)
+      .post('/api/ai/deck-review')
+      .set('Cookie', cookie)
+      .send(reviewBody());
+    expect(res.status).toBe(200);
+    expect(parseStream(res.text).done).toMatchObject({ truncated: true });
+
+    // Truncated still means "generated" — the row is stored and quota spent.
+    const status = await request(app).get('/api/ai/status').set('Cookie', cookie);
+    expect(status.body.used).toBe(1);
+  });
+
+  it('does not mark truncated on a normal completion', async () => {
+    const cookie = await makeUser('ai-review-nottruncated');
+    await optIn(cookie);
+    const res = await request(app)
+      .post('/api/ai/deck-review')
+      .set('Cookie', cookie)
+      .send(reviewBody());
+    expect(parseStream(res.text).done).not.toHaveProperty('truncated');
+  });
+
+  it('an aborted request stores no row and spends no quota', async () => {
+    const cookie = await makeUser('ai-review-aborted');
+    await optIn(cookie);
+    // Simulates the client disconnecting mid-generation: the SDK surfaces this
+    // as APIUserAbortError, distinct from a genuine failure.
+    mockState.generate.mockRejectedValue(new APIUserAbortError());
+    const res = await request(app)
+      .post('/api/ai/deck-review')
+      .set('Cookie', cookie)
+      .send(reviewBody());
+
+    // No 500, no error line — an abort is a quiet no-op on a socket nobody
+    // is reading from anymore.
+    expect(res.status).toBe(200);
+    expect(parseStream(res.text).error).toBeUndefined();
+
+    const status = await request(app).get('/api/ai/status').set('Cookie', cookie);
+    expect(status.body.used).toBe(0);
+  });
+
+  it('stamps the stored row with the review prompt version', async () => {
+    const cookie = await makeUser('ai-review-promptversion');
+    await optIn(cookie);
+    await request(app).post('/api/ai/deck-review').set('Cookie', cookie).send(reviewBody());
+
+    const { getPool } = await import('../db');
+    const { DECK_REVIEW_PROMPT_VERSION } = await import('../ai/deck-review');
+    const rows = await getPool().query<{ prompt_version: string }>(
+      `SELECT r.prompt_version FROM ai_reviews r JOIN users u ON u.id = r.user_id
+        WHERE u.username = $1`,
+      ['ai-review-promptversion']
+    );
+    expect(rows.rows.map((r) => r.prompt_version)).toEqual([DECK_REVIEW_PROMPT_VERSION]);
   });
 });
 

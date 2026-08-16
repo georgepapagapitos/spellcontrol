@@ -33,6 +33,9 @@ import crypto from 'node:crypto';
  */
 export const DECK_REVIEW_FEATURE = 'deck-review';
 
+/** Bump whenever DECK_REVIEW_SYSTEM_PROMPT's text changes. */
+export const DECK_REVIEW_PROMPT_VERSION = 'v6';
+
 /**
  * Section labels the model emits. They exist so the client can stream text
  * straight into its final, titled layout instead of rendering loose paragraphs

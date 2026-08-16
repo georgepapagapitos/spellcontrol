@@ -686,5 +686,9 @@ export async function ensureSchema(): Promise<void> {
     -- (review history). Nullable: rows predating the column stay unlisted
     -- rather than backfilled — history accrues from the change forward.
     ALTER TABLE ai_reviews ADD COLUMN IF NOT EXISTS deck_id TEXT;
+    -- Prompt version that produced the row, so a stored review can be
+    -- attributed to the prompt text that wrote it. Nullable: rows predating
+    -- the column stay unattributed rather than backfilled.
+    ALTER TABLE ai_reviews ADD COLUMN IF NOT EXISTS prompt_version TEXT;
   `);
 }
