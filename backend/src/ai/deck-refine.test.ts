@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   MAX_TWEAKS,
+  STRATEGY_MARK,
   TWEAKS_DELIMITER,
   buildRefineMessage,
   hashRefineInput,
@@ -214,8 +215,76 @@ describe('buildRefineMessage', () => {
     expect(msg).toContain('Boros Signet');
   });
 
-  it('says so explicitly when the pool is empty', () => {
+  it('points an empty engine list at the search tool instead of at silence', () => {
+    // Several coach lanes need live network calls and soft-fail to nothing, so
+    // an empty list is routine — it must not read as "this deck needs no work".
     const msg = buildRefineMessage({ ...REQ, pool: [] }, []);
-    expect(msg).toContain('propose nothing');
+    expect(msg).toContain('lookup_cards');
+    expect(msg).not.toContain('propose nothing');
+  });
+});
+
+describe('parseRefineOutput — candidates the model looked up (v4)', () => {
+  it('still rejects an unknown name when no resolver is supplied', () => {
+    const out = parseRefineOutput(
+      reply('Prose.', [{ add: 'Smothering Tithe', cut: 'Sol Ring', why: 'Taxes.' }]),
+      REQ
+    );
+    expect(out.tweaks).toEqual([]);
+    expect(out.rejected).toEqual(['Smothering Tithe']);
+  });
+
+  it('accepts an off-pool card the resolver vouches for', () => {
+    const out = parseRefineOutput(
+      reply('Prose.', [{ add: 'Smothering Tithe', cut: 'Sol Ring', why: 'Taxes.' }]),
+      REQ,
+      (name) => (name === 'Smothering Tithe' ? 'Smothering Tithe' : null)
+    );
+    expect(out.tweaks).toEqual([{ add: 'Smothering Tithe', cut: 'Sol Ring', why: 'Taxes.' }]);
+    expect(out.rejected).toEqual([]);
+  });
+
+  it('still rejects what the resolver refuses', () => {
+    const out = parseRefineOutput(
+      reply('Prose.', [{ add: 'Black Lotus', cut: 'Sol Ring', why: 'Fast.' }]),
+      REQ,
+      () => null
+    );
+    expect(out.tweaks).toEqual([]);
+    expect(out.rejected).toEqual(['Black Lotus']);
+  });
+
+  it('prefers the pool spelling over the resolver — engine evidence wins', () => {
+    const resolver = () => 'SOMETHING ELSE';
+    const out = parseRefineOutput(
+      reply('Prose.', [{ add: 'boros signet', cut: null, why: 'Fixing.' }]),
+      REQ,
+      resolver
+    );
+    expect(out.tweaks[0].add).toBe('Boros Signet');
+  });
+
+  it('takes the resolver canonical spelling, so the apply path gets a real name', () => {
+    const out = parseRefineOutput(
+      reply('Prose.', [{ add: 'smothering tithe', cut: null, why: 'Taxes.' }]),
+      REQ,
+      () => 'Smothering Tithe'
+    );
+    expect(out.tweaks[0].add).toBe('Smothering Tithe');
+  });
+});
+
+describe('parseRefineOutput — the research narration never reaches the reader', () => {
+  it('drops everything before the strategy marker', () => {
+    const raw = `I should look for ramp first.\n${STRATEGY_MARK}\nYour deck cheats fatties in.\n\n${TWEAKS_DELIMITER}\n[]`;
+    const out = parseRefineOutput(raw, REQ);
+    expect(out.strategy).toBe('Your deck cheats fatties in.');
+    expect(out.strategy).not.toMatch(/look for ramp/);
+    expect(out.strategy).not.toContain(STRATEGY_MARK);
+  });
+
+  it('reads a reply with no marker unchanged — cached v3 rows still render', () => {
+    const out = parseRefineOutput(reply('Your deck cheats fatties in.', []), REQ);
+    expect(out.strategy).toBe('Your deck cheats fatties in.');
   });
 });

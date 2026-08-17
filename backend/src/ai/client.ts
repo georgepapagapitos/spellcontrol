@@ -49,8 +49,20 @@ const MAX_TOOL_ITERATIONS = 10;
  * measured, a run spent ~1750 tokens thinking out loud and had 250 left for
  * the review, which then truncated mid-word. Raising the ceiling costs nothing
  * on turns that don't need it.
+ *
+ * 4000 → 6000 when the REFINE pass gained tools: refine has to fit research
+ * narration, three paragraphs of prose AND a JSON tail into one budget, and a
+ * truncation there costs the tweak list entirely — the tail is the last thing
+ * written, so the user gets a strategy read and no suggestions. Measured 1 run
+ * in 19 on prompt v4 (5301 output tokens, zero tweaks).
+ *
+ * ⚠️ The 6000 itself is NOT probe-verified — the Anthropic account ran out of
+ * credit part way through that gate, so there was no budget left to re-measure.
+ * It is a ceiling, not a target: a turn that doesn't need the room doesn't
+ * spend it, and nothing about it can change the output's shape. Re-measure the
+ * truncation rate when credits are back.
  */
-const MAX_OUTPUT_TOKENS = 4000;
+const MAX_OUTPUT_TOKENS = 6000;
 
 type Cacheable = { cache_control?: Anthropic.CacheControlEphemeral | null };
 

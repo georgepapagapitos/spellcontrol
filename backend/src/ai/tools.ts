@@ -54,8 +54,19 @@ function asString(value: unknown): string | undefined {
  */
 export function lookupCardsTool(
   cache: ScryfallCache,
-  context: { colorIdentity?: readonly string[]; exclude?: readonly string[] }
+  context: {
+    colorIdentity?: readonly string[];
+    exclude?: readonly string[];
+    /**
+     * When set, every result is a card the player physically owns. A HARD
+     * constraint applied in the query, not a preference the model may weigh:
+     * under owned-only generation a card they would have to buy is not a
+     * suggestion at all.
+     */
+    ownedNames?: readonly string[];
+  }
 ): AiTool {
+  const ownedOnly = context.ownedNames !== undefined;
   return {
     definition: {
       name: 'lookup_cards',
@@ -69,6 +80,15 @@ export function lookupCardsTool(
         '"whenever a creature you control dies". Results are already filtered to the commander\'s',
         'colour identity, to Commander-legal cards, and exclude cards the deck already runs, so',
         'anything returned is a legal suggestion for this deck.',
+        ...(ownedOnly
+          ? [
+              '',
+              'Results are further restricted to cards THIS PLAYER ALREADY OWNS, because they are',
+              'building from their own collection. Every card returned is one they can physically',
+              'put in the deck today, and a card that does NOT come back from this tool is not',
+              'available to them however strong it would be.',
+            ]
+          : []),
         '',
         "Returns each card's exact name, type line, mana value and oracle text. Quote behaviour",
         'from that text, never from memory. An empty result means try different wording.',
@@ -110,12 +130,15 @@ export function lookupCardsTool(
         colorIdentity: context.colorIdentity,
         commanderLegalOnly: true,
         exclude: context.exclude,
+        ownedNames: context.ownedNames,
         limit: Math.min(Math.max(1, Math.trunc(limitRaw)), LOOKUP_LIMIT_MAX),
       });
 
       if (hits.length === 0) {
         return {
-          text: `No cards matched "${query}". Try describing the effect in different rules wording.`,
+          text: ownedOnly
+            ? `Nothing this player owns matched "${query}". Try different rules wording, or accept that their collection has no answer to this and look for a different improvement.`
+            : `No cards matched "${query}". Try describing the effect in different rules wording.`,
           fetched: [],
         };
       }
@@ -133,6 +156,58 @@ export function lookupCardsTool(
         .join('\n');
       return { text, fetched };
     },
+  };
+}
+
+/**
+ * Oracle facts don't expire the way prices do, so a legality/identity check
+ * ignores the cache's 7-day TTL. Never read a price off a card resolved here.
+ */
+const ORACLE_MAX_AGE_MS = Number.MAX_SAFE_INTEGER;
+
+/**
+ * Resolve a card name the model proposed into a card this deck may actually
+ * add — returning its canonical spelling, or null to reject it.
+ *
+ * The refine pass used to answer that question with "is this name in the pool
+ * the engine supplied". Once the model can look cards up, the pool stops being
+ * the boundary, so the boundary becomes the one the lookup query already
+ * enforces: a real card, legal in Commander, inside the commander's colour
+ * identity, not already in the deck, and owned when the build is owned-only.
+ *
+ * Deliberately a PROPERTY check rather than a provenance one. A cached refine
+ * row is re-parsed and re-verified when it is replayed, and the cards fetched
+ * during the original generation are long gone by then — so "did the model
+ * actually fetch this?" would pass on first read and silently drop every
+ * tool-sourced tweak on the second. Provenance is still worth knowing and is
+ * logged as the prompt-drift signal; legality is what gets ENFORCED.
+ */
+export function makeCandidateResolver(
+  cache: ScryfallCache,
+  context: {
+    colorIdentity?: readonly string[];
+    exclude?: readonly string[];
+    ownedNames?: readonly string[];
+  }
+): (name: string) => string | null {
+  const identity = context.colorIdentity ? new Set(context.colorIdentity) : null;
+  const excluded = new Set((context.exclude ?? []).map((n) => n.toLowerCase()));
+  const owned = context.ownedNames ? new Set(context.ownedNames.map((n) => n.toLowerCase())) : null;
+
+  return (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return null;
+    const card = cache.getCheapestByName(trimmed, ORACLE_MAX_AGE_MS);
+    if (!card) return null;
+    // Match on the CANONICAL name throughout: the model may spell a card the
+    // way it remembers it, and the deck/owned sets are keyed by real names.
+    const canonical = card.name;
+    const key = canonical.toLowerCase();
+    if (excluded.has(key) || excluded.has(trimmed.toLowerCase())) return null;
+    if (card.legalities?.commander !== 'legal') return null;
+    if (identity && (card.color_identity ?? []).some((c) => !identity.has(c))) return null;
+    if (owned && !owned.has(key)) return null;
+    return canonical;
   };
 }
 

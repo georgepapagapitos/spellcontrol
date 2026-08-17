@@ -7,7 +7,7 @@ import { getPool } from '../db';
 import { testAwareLimiter } from '../route-utils';
 import { getScryfallCache } from '../scryfall-cache';
 import { aiEnabled, generateReview, AI_MODEL } from '../ai/client';
-import { lookupCardsTool } from '../ai/tools';
+import { lookupCardsTool, makeCandidateResolver } from '../ai/tools';
 import {
   DECK_REVIEW_FEATURE,
   DECK_REVIEW_PROMPT_VERSION,
@@ -23,6 +23,7 @@ import {
   DECK_REFINE_FEATURE,
   DECK_REFINE_PROMPT_VERSION,
   DECK_REFINE_SYSTEM_PROMPT,
+  STRATEGY_MARK,
   TWEAKS_DELIMITER,
   buildRefineMessage,
   hashRefineInput,
@@ -417,21 +418,62 @@ function hydrateOracle(names: string[]): OracleEntry[] {
 }
 
 /**
+ * Every distinct card name this user physically owns.
+ *
+ * Owned-only generation used to be enforced entirely client-side, by filtering
+ * the candidate pool before it was submitted. Once the model searches for its
+ * own candidates that filter no longer covers anything, so the constraint moves
+ * here — where it is also no longer the client's word for it.
+ *
+ * DISTINCT on the name keeps this proportional to the collection's variety
+ * rather than its size: a playset of a card is one row here, and a 20k-card
+ * collection is a few thousand names.
+ */
+async function loadOwnedNames(userId: string): Promise<string[]> {
+  const { rows } = await getPool().query<{ name: string }>(
+    `SELECT DISTINCT data->>'name' AS name
+       FROM user_cards
+      WHERE user_id = $1 AND deleted_at IS NULL AND data->>'name' IS NOT NULL`,
+    [userId]
+  );
+  return rows.map((r) => r.name);
+}
+
+/**
  * Emit only the prose half of a refine reply as it streams.
  *
- * The model writes prose, then a delimiter, then JSON. The JSON is machine
- * output and must never flicker across the user's screen, so this forwards
- * everything up to the delimiter and then goes quiet. Deltas split wherever the
- * model happens to chunk, so it holds back a delimiter-length tail rather than
- * risk emitting half of `---TWEAKS---` as if it were prose.
+ * The model writes a marker, then prose, then a delimiter, then JSON. Both the
+ * marker and the JSON are machine output and must never flicker across the
+ * user's screen, so this drops the opening marker, forwards everything up to
+ * the delimiter, and then goes quiet. Deltas split wherever the model happens
+ * to chunk, so it holds back a delimiter-length tail rather than risk emitting
+ * half of `---TWEAKS---` as if it were prose.
+ *
+ * The marker arrives here because the tool loop's gate releases text FROM the
+ * marker onward — that is what tells it the research is over. Stripping it is
+ * this gate's job; `parseRefineOutput` does the same for the stored copy.
  */
 function makeProseGate(emit: (text: string) => void): (delta: string) => void {
   let acc = '';
   let sent = 0;
   let done = false;
+  let markerHandled = false;
   return (delta: string) => {
     if (done) return;
     acc += delta;
+    if (!markerHandled) {
+      const markAt = acc.indexOf(STRATEGY_MARK);
+      if (markAt !== -1) {
+        acc = acc.slice(markAt + STRATEGY_MARK.length).replace(/^\r?\n/, '');
+        markerHandled = true;
+      } else if (acc.length < STRATEGY_MARK.length) {
+        // Could still be the marker arriving a character at a time.
+        return;
+      } else {
+        // No marker in a reply long enough to hold one — a v3-shaped answer.
+        markerHandled = true;
+      }
+    }
     const at = acc.indexOf(TWEAKS_DELIMITER);
     if (at !== -1) {
       if (at > sent) emit(acc.slice(sent, at));
@@ -499,6 +541,19 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
     if (!res.writableEnded) res.write(`${JSON.stringify(line)}\n`);
   };
 
+  // What the model may propose beyond the engine's list. Built BEFORE the cache
+  // check on purpose: a stored reply is re-verified when it is replayed, and
+  // without the resolver every card the model looked up would verify on the
+  // first read and vanish on the second.
+  const cache = getScryfallCache();
+  const ownedNames = request.ownedOnly ? await loadOwnedNames(userId) : undefined;
+  const searchContext = {
+    colorIdentity: commanderIdentity(cache, request.commander),
+    exclude: [request.commander, ...request.cards.map((c) => c.name)],
+    ownedNames,
+  };
+  const resolveCandidate = makeCandidateResolver(cache, searchContext);
+
   const cached = await pool.query<{
     content: string;
     model: string;
@@ -512,7 +567,7 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
   );
   if (cached.rows.length > 0) {
     const row = cached.rows[0];
-    const out = parseRefineOutput(row.content, request);
+    const out = parseRefineOutput(row.content, request, resolveCandidate);
     send({ delta: out.strategy });
     send({
       done: {
@@ -534,8 +589,9 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
     });
   }
 
-  // The pool needs hydrating too — the model can't judge a candidate it only
-  // knows the name of.
+  // The engine's suggestions need hydrating too — the model can't judge a
+  // candidate it only knows the name of. Cards it looks up arrive with their
+  // oracle text already attached, so they need nothing here.
   const oracle = hydrateOracle([
     request.commander,
     ...request.cards.map((c) => c.name),
@@ -548,7 +604,14 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
       DECK_REFINE_SYSTEM_PROMPT,
       buildRefineMessage(request, oracle),
       makeProseGate((text) => send({ delta: text })),
-      ac.signal
+      ac.signal,
+      {
+        // Same deck scoping as the review, plus the owned-only restriction:
+        // under an owned-only build a card the player would have to buy is not
+        // a suggestion, so it never enters the search results at all.
+        tools: [lookupCardsTool(cache, searchContext)],
+        answerMarker: STRATEGY_MARK,
+      }
     );
   } catch (err) {
     if (err instanceof APIUserAbortError) {
@@ -566,11 +629,30 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
     logger.warn(`[ai] deck refine truncated at max_tokens (deckId=${request.deckId})`);
   }
 
-  const out = parseRefineOutput(generation.content, request);
+  const out = parseRefineOutput(generation.content, request, resolveCandidate);
   // Rejected names mean the prompt's grounding rule slipped. They never reach
   // the user, but they're the signal that the prompt needs another eval run.
   if (out.rejected.length > 0) {
-    logger.warn(`[ai] deck refine proposed ${out.rejected.length} off-pool card(s)`, out.rejected);
+    logger.warn(`[ai] deck refine proposed ${out.rejected.length} unusable card(s)`, out.rejected);
+  }
+  // Provenance, as a drift signal only — the enforced check is legality, since
+  // that is the one a cache replay can recompute. A tweak the model never
+  // looked up is a real card it recalled rather than read, which is exactly
+  // the habit the tool exists to replace.
+  // `?? []` is not paranoia: this runs AFTER the 200 and the first deltas are
+  // out, so a TypeError here doesn't 500 — it kills the stream mid-answer and
+  // surfaces to the client as a truncated review. The review's citation check
+  // shipped exactly that bug once.
+  const grounded = new Set([
+    ...request.pool.map((c) => c.name.toLowerCase()),
+    ...(generation.fetched ?? []).map((f) => f.name.toLowerCase()),
+  ]);
+  const recalled = out.tweaks.map((t) => t.add).filter((n) => !grounded.has(n.toLowerCase()));
+  if (recalled.length > 0) {
+    logger.warn(
+      `[ai] deck refine proposed ${recalled.length} card(s) it never looked up ` +
+        `(deckId=${request.deckId}, promptVersion=${DECK_REFINE_PROMPT_VERSION}): ${recalled.join(', ')}`
+    );
   }
 
   await pool.query(

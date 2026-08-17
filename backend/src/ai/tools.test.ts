@@ -3,7 +3,7 @@ import os from 'os';
 import path from 'path';
 import fs from 'fs';
 import { ScryfallCache } from '../cache';
-import { createMarkerGate, lookupCardsTool, runTool } from './tools';
+import { createMarkerGate, lookupCardsTool, makeCandidateResolver, runTool } from './tools';
 import type { ScryfallCard } from '../types';
 
 function card(overrides: Partial<ScryfallCard> & { id: string; name: string }): ScryfallCard {
@@ -190,5 +190,109 @@ describe('createMarkerGate', () => {
     gate.push('A review with no labels at all.');
     expect(gate.opened).toBe(false);
     expect(gate.text).toBe('');
+  });
+});
+
+describe('lookup_cards, owned-only', () => {
+  it('returns only cards the player owns', () => {
+    const tool = lookupCardsTool(cache, { ownedNames: ['Relic Crush'] });
+    const names = tool.run({ query: 'destroy target artifact' }).fetched.map((f) => f.name);
+    expect(names).toEqual(['Relic Crush']);
+  });
+
+  it('matches owned names case-insensitively — the two sides are entered separately', () => {
+    const tool = lookupCardsTool(cache, { ownedNames: ['relic crush'] });
+    const names = tool.run({ query: 'destroy target artifact' }).fetched.map((f) => f.name);
+    expect(names).toEqual(['Relic Crush']);
+  });
+
+  it('restricts INSIDE the query, so an owned card ranked low still surfaces', () => {
+    // The point of doing this in SQL: 'Relic Crush' loses on rank to the two
+    // instants, so a post-filter with a small limit would answer "you own
+    // nothing that does this" while the collection plainly holds an answer.
+    const tool = lookupCardsTool(cache, { ownedNames: ['Relic Crush'] });
+    const names = tool
+      .run({ query: 'destroy target artifact', limit: 1 })
+      .fetched.map((f) => f.name);
+    expect(names).toEqual(['Relic Crush']);
+  });
+
+  it('says the collection has no answer, not that the wording was wrong', () => {
+    const tool = lookupCardsTool(cache, { ownedNames: ['Some Card They Own'] });
+    const { text, fetched } = tool.run({ query: 'destroy target artifact' });
+    expect(fetched).toEqual([]);
+    expect(text).toMatch(/Nothing this player owns matched/);
+  });
+
+  it('tells the model in its own description that the results are owned', () => {
+    expect(lookupCardsTool(cache, { ownedNames: [] }).definition.description).toMatch(
+      /ALREADY OWNS/
+    );
+    expect(lookupCardsTool(cache, {}).definition.description).not.toMatch(/ALREADY OWNS/);
+  });
+});
+
+describe('makeCandidateResolver', () => {
+  /** getCheapestByName reads `card_lookups`, which the bulk ingest populates. */
+  function alias(name: string, id: string, set = 'tst') {
+    cache.setLookups([{ key: `ns:${name.toLowerCase()}|${set}`, scryfallId: id }]);
+  }
+
+  beforeEach(() => {
+    alias('Naturalize', 'id-naturalize');
+    alias('Shatter', 'id-shatter');
+    alias('Relic Crush', 'id-crush');
+  });
+
+  it('accepts a real card and returns its canonical spelling', () => {
+    const resolve = makeCandidateResolver(cache, {});
+    expect(resolve('naturalize')).toBe('Naturalize');
+  });
+
+  it('rejects a card that does not exist — the hallucination case', () => {
+    expect(makeCandidateResolver(cache, {})('Blightsteel Chancellor of Nothing')).toBeNull();
+  });
+
+  it('rejects a card outside the commander colour identity', () => {
+    const resolve = makeCandidateResolver(cache, { colorIdentity: ['B', 'G'] });
+    expect(resolve('Naturalize')).toBe('Naturalize');
+    expect(resolve('Shatter')).toBeNull();
+  });
+
+  it('rejects a card the deck already runs', () => {
+    const resolve = makeCandidateResolver(cache, { exclude: ['Naturalize'] });
+    expect(resolve('Naturalize')).toBeNull();
+  });
+
+  it('rejects a card the player does not own when the build is owned-only', () => {
+    const resolve = makeCandidateResolver(cache, { ownedNames: ['Relic Crush'] });
+    expect(resolve('Relic Crush')).toBe('Relic Crush');
+    expect(resolve('Naturalize')).toBeNull();
+  });
+
+  it('rejects a card that is not Commander-legal', () => {
+    cache.setMany([
+      card({
+        id: 'id-banned',
+        name: 'Banned Thing',
+        oracle_id: 'o-banned',
+        type_line: 'Artifact',
+        oracle_text: 'Destroy target artifact.',
+        color_identity: [],
+        legalities: { commander: 'banned' },
+      }),
+    ]);
+    alias('Banned Thing', 'id-banned');
+    expect(makeCandidateResolver(cache, {})('Banned Thing')).toBeNull();
+  });
+
+  it('is recomputable from the request alone — the cache-replay guarantee', () => {
+    // A stored refine reply is re-verified when it is replayed, long after the
+    // cards the model fetched are gone. Two resolvers built from the same
+    // request must therefore agree.
+    const ctx = { colorIdentity: ['G'], exclude: ['Relic Crush'] };
+    expect(makeCandidateResolver(cache, ctx)('Naturalize')).toBe(
+      makeCandidateResolver(cache, ctx)('Naturalize')
+    );
   });
 });

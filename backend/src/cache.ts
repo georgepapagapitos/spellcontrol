@@ -62,6 +62,14 @@ export interface CardSearchOptions {
   typeLine?: string;
   /** Names to exclude — the deck's own cards, so results are things it lacks. */
   exclude?: readonly string[];
+  /**
+   * Names to restrict TO — the player's own collection, when a caller may only
+   * suggest cards they physically have. Unlike {@link exclude} this cannot be
+   * applied after the query: the owned cards for a niche effect routinely rank
+   * below the LIMIT, so post-filtering would answer "you own nothing that does
+   * this" when the collection plainly holds something.
+   */
+  ownedNames?: readonly string[];
   limit?: number;
 }
 
@@ -527,6 +535,16 @@ export class ScryfallCache {
     if (options.typeLine) {
       where.push('type_line LIKE ?');
       params.push(`%${options.typeLine}%`);
+    }
+    if (options.ownedNames) {
+      // ONE bound parameter whatever the collection's size. A literal IN list
+      // would need a placeholder per owned name — tens of thousands of them for
+      // a real collection, past SQLite's variable limit — so the names ride in
+      // as a single JSON array and json_each unpacks them. Compared
+      // case-insensitively because collection rows and cache rows are entered
+      // by different paths.
+      where.push('lower(name) IN (SELECT value FROM json_each(?))');
+      params.push(JSON.stringify(options.ownedNames.map((n) => n.toLowerCase())));
     }
 
     try {
