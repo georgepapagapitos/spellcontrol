@@ -86,6 +86,29 @@ describe('ingestScryfallBulk', () => {
     for (const c of cards) yield c as never;
   }
 
+  it('idles between flushes so it cannot monopolise a shared CPU', async () => {
+    // The regression this guards: `setImmediate` yields but hands the CPU
+    // straight back, so on shared-cpu-1x the ingest still burned the burst
+    // quota, Fly throttled the machine, /health took >5s, and the proxy
+    // evicted a perfectly healthy instance (2026-08-17 outage). A real delay
+    // is what caps the duty cycle. Asserted as "a timer was scheduled with a
+    // non-zero delay" rather than wall-clock, so this stays fast and stable.
+    const scheduled: number[] = [];
+    const realSetTimeout = globalThis.setTimeout;
+    const spy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((
+      fn: () => void,
+      ms?: number
+    ) => {
+      scheduled.push(ms ?? 0);
+      return realSetTimeout(fn, 0);
+    }) as typeof globalThis.setTimeout);
+
+    await ingestScryfallBulk(gen([bulk()]), cache);
+    spy.mockRestore();
+
+    expect(scheduled.some((ms) => ms > 0)).toBe(true);
+  });
+
   it('writes cards and name+set(+collector) aliases, resolvable from cache', async () => {
     const result = await ingestScryfallBulk(gen([bulk()]), cache);
     expect(result.written).toBe(1);
