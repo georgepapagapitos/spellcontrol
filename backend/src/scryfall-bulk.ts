@@ -29,6 +29,25 @@ export const SCRYFALL_BULK_INDEX_URL = 'https://api.scryfall.com/bulk-data';
 const FLUSH_AT = 1000;
 
 /**
+ * Milliseconds to idle after each flush, so this job cannot monopolise the CPU.
+ *
+ * ⚠️ `setImmediate` alone is NOT enough, and assuming it was cost a production
+ * outage. Yielding lets a queued request *run*, but it hands the CPU straight
+ * back — so on `shared-cpu-1x` the ingest still burns the burst quota, Fly
+ * throttles the machine, and a healthy app answers a trivial endpoint in 12.5s.
+ * The health check (5s at the time) then failed and the proxy evicted the only
+ * instance: the app was alive and serving the whole time.
+ *
+ * A real delay is what caps the duty cycle. At ~107k cards / 1000 per batch
+ * that is ~107 flushes, so 25ms costs the run about 3 seconds of wall clock —
+ * nothing for an unattended nightly job — while leaving the event loop genuinely
+ * idle between transactions instead of merely interruptible.
+ *
+ * `0` disables pacing (tests, and local runs where the CPU is not contended).
+ */
+const FLUSH_PAUSE_MS = Number(process.env.SCRYFALL_BULK_FLUSH_PAUSE_MS ?? 25);
+
+/**
  * Superset of our {@link ScryfallCard} — the bulk dump carries fields we use to
  * decide whether a printing is a real paper card before storing it.
  */
@@ -232,8 +251,12 @@ export async function ingestScryfallBulk(
       aliases += aliasBatch.length;
       aliasBatch = [];
     }
-    // Yield so the event loop can service health checks between transactions.
-    await new Promise<void>((resolve) => setImmediate(resolve));
+    // Idle between transactions. `setImmediate` yields but takes the CPU
+    // straight back; a real pause is what stops this job eating the machine's
+    // shared-CPU quota and getting the instance evicted. See FLUSH_PAUSE_MS.
+    await new Promise<void>((resolve) =>
+      FLUSH_PAUSE_MS > 0 ? setTimeout(resolve, FLUSH_PAUSE_MS) : setImmediate(resolve)
+    );
   };
 
   for await (const raw of source) {

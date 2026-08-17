@@ -30,7 +30,15 @@ primary_region = "ord"
     grace_period = "30s"
     interval = "30s"
     method = "GET"
-    timeout = "5s"
+    # 15s, not 5s. On shared-cpu-1x a batch job burns the CPU quota and Fly
+    # throttles the machine, so a HEALTHY app can take >5s to answer /health —
+    # measured 12.5s on a trivial endpoint during the nightly Scryfall ingest.
+    # At 5s that read as "app is down" and the proxy evicted the only instance
+    # (2026-08-17: repeated 503s with the process alive and serving). The app
+    # being slow for a few minutes is a latency problem; being evicted is an
+    # outage. Pair with the paced ingest in scryfall-bulk.ts, which caps how
+    # much CPU that job can take in the first place.
+    timeout = "15s"
     path = "/health"
 
 [[vm]]
