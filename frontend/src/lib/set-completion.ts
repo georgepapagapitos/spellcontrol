@@ -13,6 +13,10 @@ import { normalizeForSearch } from './normalize-search';
 /**
  * Set-completion math (E131). Ownership is printing-keyed: you "have" a
  * checklist slot when you own any finish of that set + collector number.
+ *
+ * A proxy never fills a slot: collecting a set means owning the real print, so
+ * every function here skips `proxy` copies. (Their market value is already
+ * forced to 0 upstream by `applyPrices`, so the money side needs no guard.)
  */
 
 export interface SetProgress {
@@ -51,6 +55,7 @@ export function computeSetProgress(
 ): SetProgress[] {
   const ownedBySet = new Map<string, Set<string>>();
   for (const c of cards) {
+    if (c.proxy) continue;
     const code = c.setCode?.toUpperCase();
     if (!code) continue;
     let slots = ownedBySet.get(code);
@@ -100,7 +105,7 @@ export function computeSldDropProgress(
 ): SetProgress[] {
   const ownedNumbers = new Set<string>();
   for (const c of cards) {
-    if (c.setCode?.toUpperCase() === SLD_CODE && c.collectorNumber) {
+    if (!c.proxy && c.setCode?.toUpperCase() === SLD_CODE && c.collectorNumber) {
       ownedNumbers.add(c.collectorNumber);
     }
   }
@@ -230,7 +235,7 @@ export function searchCollectionCardSets(
 
   const groups = new Map<string, CardSetMatch>();
   for (const c of cards) {
-    if (!c.name || !c.setCode || !c.name.toLowerCase().includes(q)) continue;
+    if (c.proxy || !c.name || !c.setCode || !c.name.toLowerCase().includes(q)) continue;
     const key = c.name.toLowerCase();
     let group = groups.get(key);
     if (!group) {
@@ -279,7 +284,7 @@ export function overlaySetOwnership(
   const upper = code.toUpperCase();
   const qtyByNumber = new Map<string, number>();
   for (const c of collection) {
-    if (c.setCode?.toUpperCase() !== upper || !c.collectorNumber) continue;
+    if (c.proxy || c.setCode?.toUpperCase() !== upper || !c.collectorNumber) continue;
     qtyByNumber.set(c.collectorNumber, (qtyByNumber.get(c.collectorNumber) ?? 0) + 1);
   }
   return setCards

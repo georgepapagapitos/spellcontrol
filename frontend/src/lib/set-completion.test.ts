@@ -332,3 +332,35 @@ describe('searchCollectionCardSets', () => {
     expect(total).toBe(9);
   });
 });
+
+describe('proxies never fill a checklist slot', () => {
+  const proxy = (setCode: string, cn: string) => owned(setCode, cn, { proxy: true });
+
+  it('is excluded from hub set progress', () => {
+    const rows = computeSetProgress([owned('ONE', '1'), proxy('ONE', '2')], SET_MAP);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ code: 'ONE', owned: 1, total: 3 });
+    // A set owned only in proxy doesn't appear at all.
+    expect(computeSetProgress([proxy('LEA', '1')], SET_MAP)).toEqual([]);
+  });
+
+  it('is excluded from Secret Lair drop progress', () => {
+    const rows = computeSldDropProgress([owned('SLD', '92'), proxy('SLD', '93')], SLD_INDEX);
+    expect(rows.find((r) => r.drop === 'OMG KITTIES')).toMatchObject({ owned: 1, total: 3 });
+  });
+
+  it('reads as missing on the set checklist', () => {
+    const rows = overlaySetOwnership(
+      [setCard('1'), setCard('2')],
+      [owned('ONE', '1'), proxy('ONE', '2')],
+      'ONE'
+    );
+    expect(rows.map((r) => r.qty)).toEqual([1, 0]);
+  });
+
+  it('is excluded from the card → sets search', () => {
+    const { matches, total } = searchCollectionCardSets([proxy('ONE', '2')], 'Card 2');
+    expect(matches).toEqual([]);
+    expect(total).toBe(0);
+  });
+});
