@@ -1101,14 +1101,18 @@ export function DeckEditorPage() {
   }, [deck, commanderColorIdentity, collectionCards, deckCards, fetchedFixingLands, ownedNames]);
 
   /**
-   * The AI refine pass's candidate pool (T102 slice 4). Assembled from the
-   * three lanes the coach ALREADY computed — EDHREC gaps, off-meta synergy
-   * hits, owned substitutes — so the model curates cards the app was already
-   * willing to recommend, with no new engine call and the deterministic
-   * generator untouched. Owned-only builds keep the pool inside the collection
-   * via the same `constrainsToCollection` predicate generation itself used
-   * (the fine-grained strategy survives on `buildReport`, not
-   * `generationContext`, which only persists the boolean).
+   * The engine's suggestions for the AI refine pass (T102 slice 4). Assembled
+   * from lanes the coach ALREADY computed, so there is no new engine call and
+   * the deterministic generator stays untouched.
+   *
+   * These are EVIDENCE, not the model's whole world — it also searches the card
+   * database server-side. See `buildRefinePool` for why that changed and for
+   * which of these lanes actually contain anything on a real deck.
+   *
+   * Owned-only builds still filter here via the same `constrainsToCollection`
+   * predicate generation itself used (the fine-grained strategy survives on
+   * `buildReport`, not `generationContext`, which only persists the boolean),
+   * but the guarantee is enforced on the server now.
    */
   const refineOwnedOnly = useMemo(
     () => constrainsToCollection(deck?.buildReport?.collectionStrategy ?? 'prefer'),
