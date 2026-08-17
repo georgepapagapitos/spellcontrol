@@ -385,7 +385,23 @@ export function createMarkerGate(marker: string, onDelta?: (text: string) => voi
      */
     endTurn(hadToolCalls: boolean) {
       if (turnOpen) {
-        kept += turn.slice(turn.indexOf(marker));
+        const answered = turn.slice(turn.indexOf(marker));
+        // ⚠️ A RE-EMITTED marker means the model restarted its answer.
+        //
+        // The per-turn rule below only drops a MARKERLESS research turn. It does
+        // not help when a turn opens with the marker, writes a draft section,
+        // then trails off into narration on its way to another tool call —
+        // that turn is kept whole, narration and all. Observed in production
+        // (fix #1644 shipped without covering it, and 6 probe runs missed it):
+        //
+        //   turn A: ---WEAKNESS--- <draft> "Let me find those specific cards:"
+        //   turn B: ---WEAKNESS--- <rewrite> ---GAMEPLAN--- …
+        //
+        // The model re-labelling a section it already wrote is it replacing that
+        // section, so everything kept before it — the draft AND the narration
+        // hanging off its end — is superseded. Drop it.
+        if (kept.includes(marker)) kept = '';
+        kept += answered;
       } else if (!hadToolCalls && everOpened) {
         // Nothing followed it, so it cannot be narration — and the answer had
         // already started, so this is its continuation. It was never streamed

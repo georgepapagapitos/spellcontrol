@@ -254,6 +254,40 @@ describe('createMarkerGate', () => {
     gate.push(`${MARK}\nA partial answer`);
     expect(gate.text).toBe(`${MARK}\nA partial answer`);
   });
+
+  it('drops a DRAFT section the model later re-labels and rewrites', () => {
+    // Reported from production after #1644. The per-turn rule does not cover a
+    // turn that OPENS with the marker and then trails into narration on its way
+    // to another tool call — it was kept whole:
+    //
+    //   ---WEAKNESS--- <draft> "Let me find those specific cards:"  → tool call
+    //   ---WEAKNESS--- <rewrite> ---GAMEPLAN--- …                   → done
+    //
+    // The reader saw the draft, the narration, and then the real section, with a
+    // literal ---WEAKNESS--- sitting in the prose.
+    const gate = createMarkerGate(MARK);
+    gate.push(`${MARK}\nThe draft weakness.\n\nLet me find those specific cards:`);
+    gate.endTurn(true);
+    gate.push(`${MARK}\nThe real weakness.\n---GAMEPLAN---\nThe plan.`);
+    gate.endTurn(false);
+
+    expect(gate.text).toBe(`${MARK}\nThe real weakness.\n---GAMEPLAN---\nThe plan.`);
+    expect(gate.text).not.toMatch(/draft weakness/);
+    expect(gate.text).not.toMatch(/Let me find those specific cards/);
+    // Exactly one marker survives — the duplicate is what leaked into the prose.
+    expect(gate.text.split(MARK).length - 1).toBe(1);
+  });
+
+  it('does NOT discard earlier sections when a LATER, different marker arrives', () => {
+    // The restart rule keys on re-emitting the SAME marker. A turn that moves on
+    // to the next section must not wipe the one before it.
+    const gate = createMarkerGate(MARK);
+    gate.push(`${MARK}\nThe weakness.`);
+    gate.endTurn(true);
+    gate.push('---GAMEPLAN---\nThe plan.');
+    gate.endTurn(false);
+    expect(gate.text).toBe(`${MARK}\nThe weakness.---GAMEPLAN---\nThe plan.`);
+  });
 });
 
 describe('lookup_cards, owned-only', () => {
