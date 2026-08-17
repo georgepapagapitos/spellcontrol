@@ -226,6 +226,15 @@ jobs:
         working-directory: packages/binder-routing
         run: npm ci && npm run build
 
+      # Added when the backend took a file: dep on deck-metrics for the AI
+      # check_bracket tool. EVERY shared package the consumer depends on needs a
+      # step here: without it the consumer's `npm ci` runs that package's
+      # dist-guarded prepare with none of its devDependencies present, and the
+      # build dies on "TS2688: Cannot find type definition file for 'node'".
+      - name: Build shared deck-metrics
+        working-directory: packages/deck-metrics
+        run: npm ci && npm run build
+
       - name: Install dependencies
         run: npm ci
 
