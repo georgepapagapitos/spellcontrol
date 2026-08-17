@@ -11,11 +11,13 @@ import type { ImportHistoryEntry } from '../lib/local-cards';
 // rather than unit tests of any one function.
 const importTextMock =
   vi.fn<(text: string, onProgress?: unknown, proxy?: boolean) => Promise<UploadResponse>>();
+const fetchImportLinkMock = vi.fn<(url: string) => Promise<{ text: string; name: string }>>();
 vi.mock('../lib/api', () => ({
   importText: (text: string, onProgress?: unknown, proxy?: boolean) =>
     importTextMock(text, onProgress, proxy),
   importFile: vi.fn(),
   importRows: vi.fn(),
+  fetchImportLink: (url: string) => fetchImportLinkMock(url),
 }));
 
 // InlineCardSearch (rendered by the unresolved-name repair row) hits Scryfall
@@ -124,13 +126,17 @@ const PRIOR: ImportHistoryEntry = {
 };
 
 async function paste(text = '1 Forest') {
-  fireEvent.change(screen.getByRole('textbox'), { target: { value: text } });
+  // Named query: the Google-link field is a textbox in this card too.
+  fireEvent.change(screen.getByRole('textbox', { name: /card list to import/i }), {
+    target: { value: text },
+  });
   fireEvent.click(screen.getByRole('button', { name: 'Import' }));
   await screen.findByText('How should these cards be imported?');
 }
 
 beforeEach(() => {
   importTextMock.mockReset();
+  fetchImportLinkMock.mockReset();
   importCardsMock.mockClear();
   addCardMock.mockClear();
   mockSearchCards.mockReset();
@@ -357,5 +363,53 @@ describe('UploadPanel import review surface (E130)', () => {
     // ...and the repair removed the name from the store's withheld bucket.
     expect(mockState.unresolvedNames).toEqual([]);
     expect(match).toBeTruthy();
+  });
+});
+
+describe('UploadPanel Google-link import', () => {
+  const linkField = () => screen.getByLabelText('Google Sheets or Drive link');
+
+  it('stages the fetched file under the name Google gave it', async () => {
+    fetchImportLinkMock.mockResolvedValue({
+      text: 'Name,Quantity\nSol Ring,1\n',
+      name: 'My Cards - Sheet1.csv',
+    });
+
+    render(<UploadPanel />);
+    fireEvent.change(linkField(), {
+      target: { value: 'https://docs.google.com/spreadsheets/d/ABC/edit#gid=0' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Fetch/ }));
+
+    // It lands in the staged list, so the normal "Import N files" path takes
+    // over from here — nothing about the link survives past this point.
+    expect(await screen.findByText('My Cards - Sheet1.csv')).toBeTruthy();
+    expect(fetchImportLinkMock).toHaveBeenCalledWith(
+      'https://docs.google.com/spreadsheets/d/ABC/edit#gid=0'
+    );
+    expect(screen.getByRole('button', { name: 'Import 1 file' })).toBeTruthy();
+    expect((linkField() as HTMLInputElement).value).toBe('');
+  });
+
+  it("surfaces the server's message and stages nothing when the fetch fails", async () => {
+    fetchImportLinkMock.mockRejectedValue(new Error('Set access to "Anyone with the link".'));
+
+    render(<UploadPanel />);
+    fireEvent.change(linkField(), { target: { value: 'https://drive.google.com/open?id=X' } });
+    fireEvent.click(screen.getByRole('button', { name: /Fetch/ }));
+
+    await waitFor(() =>
+      expect(mockState.setError).toHaveBeenCalledWith('Set access to "Anyone with the link".')
+    );
+    expect(screen.queryByRole('button', { name: /Import 1 file/ })).toBeNull();
+  });
+
+  it('stays disabled until there is a link to fetch', () => {
+    render(<UploadPanel />);
+    const fetchBtn = screen.getByRole('button', { name: /Fetch/ }) as HTMLButtonElement;
+    expect(fetchBtn.disabled).toBe(true);
+    // Whitespace is not a link.
+    fireEvent.change(linkField(), { target: { value: '   ' } });
+    expect(fetchBtn.disabled).toBe(true);
   });
 });

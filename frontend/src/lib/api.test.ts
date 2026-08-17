@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
+  fetchImportLink,
   importFile,
   importText,
   importDeckFile,
@@ -44,6 +45,29 @@ describe('api', () => {
     const init = fetchSpy.mock.calls[0][1] as RequestInit;
     expect(init.headers).toMatchObject({ 'Content-Type': 'application/json' });
     expect(JSON.parse(init.body as string)).toEqual({ text: 'Sol Ring' });
+  });
+
+  it('fetchImportLink posts the link and returns the text plus its name', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ text: 'Sol Ring', name: 'Cards.csv' }));
+    const url = 'https://docs.google.com/spreadsheets/d/ABC/edit#gid=0';
+    await expect(fetchImportLink(url)).resolves.toEqual({ text: 'Sol Ring', name: 'Cards.csv' });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/import/link',
+      expect.objectContaining({ method: 'POST' })
+    );
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(init.body as string)).toEqual({ url });
+  });
+
+  it("fetchImportLink surfaces the server's message so the sharing hint reaches the user", async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ error: 'Set access to "Anyone with the link".' }, { status: 400 })
+    );
+    await expect(fetchImportLink('https://drive.google.com/open?id=X')).rejects.toThrow(
+      /Anyone with the link/
+    );
   });
 
   it('importFile reads the file as text and posts JSON', async () => {
