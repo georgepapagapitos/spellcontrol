@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { logger } from '../logger';
 import * as schema from './schema';
 
 export type Database = NodePgDatabase<typeof schema>;
@@ -14,8 +15,33 @@ export function getPool(): Pool {
       throw new Error('DATABASE_URL is not set');
     }
     pool = new Pool({ connectionString, max: 10 });
+    attachPoolErrorHandler(pool);
   }
   return pool;
+}
+
+/**
+ * Keep an idle-client failure from killing the process.
+ *
+ * `pg` emits `'error'` on the POOL when a client dies while idle — nobody is
+ * awaiting a query, so there is no promise to reject. Node's rule is that an
+ * unhandled `'error'` event is fatal, so without this listener the whole server
+ * exits 1 and Fly restarts it.
+ *
+ * That is not hypothetical: Neon recycles serverless compute and drops idle
+ * connections as NORMAL behaviour, and on 2026-08-17 it crash-looped production
+ * for ~40 minutes — `error: server conn crashed?` (Neon's wording) thrown out of
+ * `pg-protocol`'s parser, `exit_code=1, oom_killed=false`. It reads as random
+ * unexplained downtime, and nothing in the logs points at Postgres until you
+ * look at the machine's exit events.
+ *
+ * Logging is the whole fix. `pg` has already discarded the broken client; the
+ * pool opens a fresh one on the next acquire, so a recycle becomes a log line.
+ */
+function attachPoolErrorHandler(p: Pool): void {
+  p.on('error', (err) => {
+    logger.error('[db] idle client error — connection discarded, pool will reconnect:', err);
+  });
 }
 
 export function getDb(): Database {
@@ -27,6 +53,10 @@ export function getDb(): Database {
 
 /** Test-only: inject a custom pool / db (e.g. against a per-test schema). */
 export function setDbForTesting(p: Pool, d: Database): void {
+  // Guarded here too, not just in getPool: an injected pool is the same
+  // process-fatal hazard, and a container torn down under a suite would take
+  // the runner down instead of failing a test.
+  attachPoolErrorHandler(p);
   pool = p;
   dbInstance = d;
 }
