@@ -275,9 +275,11 @@ function stableStringify(value: unknown): string {
 }
 
 /**
- * Cache key AND staleness signal, same contract as the review's. The pool is
- * part of it: the same deck offered a different pool is a different question,
- * and must not serve the old answer.
+ * Cache key AND staleness signal, same contract as the review's — including the
+ * prompt version, for the same reason (see `hashDeckReviewInput`): without it a
+ * refine-prompt change is invisible on every deck that already has a stored
+ * answer. The pool is part of it too: the same deck offered a different pool is
+ * a different question, and must not serve the old answer.
  */
 export function hashRefineInput(req: RefineRequest): string {
   const byName = (a: RefineCard, b: RefineCard) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
@@ -285,6 +287,7 @@ export function hashRefineInput(req: RefineRequest): string {
     .createHash('sha256')
     .update(
       stableStringify({
+        promptVersion: DECK_REFINE_PROMPT_VERSION,
         commander: req.commander,
         cards: [...req.cards].sort(byName),
         pool: [...req.pool].sort(byName).map((c) => c.name),
