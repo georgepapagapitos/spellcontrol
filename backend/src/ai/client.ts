@@ -159,6 +159,9 @@ export async function generateReview(
 
     const toolUses = res.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
     if (toolUses.length === 0) {
+      // No tool call followed this turn, so its text is answer, not research —
+      // that is the distinction the gate needs and cannot see for itself.
+      gate?.endTurn(false);
       const generated = gate
         ? gate.text.trim()
         : res.content
@@ -209,7 +212,9 @@ export async function generateReview(
     // Earlier breakpoints stay valid as read points either way.
     clearCacheControl(messages);
     markCacheable(results.at(-1));
-    gate?.reset();
+    // This turn ended in a tool call, so any text it produced without a section
+    // marker was the model thinking out loud on its way to that call.
+    gate?.endTurn(true);
   }
 
   // Out of iterations. If the model already wrote a reviewable answer, keep it

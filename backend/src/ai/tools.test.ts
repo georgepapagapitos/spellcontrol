@@ -172,16 +172,17 @@ describe('createMarkerGate', () => {
   it('drops a discarded tool turn so it cannot leak into the answer', () => {
     const gate = createMarkerGate(MARK);
     gate.push('Searching for removal...');
-    gate.reset(); // the turn ended in a tool call; that text is not the review
+    gate.endTurn(true); // the turn ended in a tool call; that text is not the review
     gate.push(`${MARK}\nThe real answer.`);
+    gate.endTurn(false);
     expect(gate.text).toBe(`${MARK}\nThe real answer.`);
     expect(gate.text).not.toMatch(/Searching/);
   });
 
-  it('reset after the marker keeps the answer — the review spans turns', () => {
+  it('keeps a section that ended in a tool call — the review spans turns', () => {
     const gate = createMarkerGate(MARK);
     gate.push(`${MARK}\nFirst half.`);
-    gate.reset();
+    gate.endTurn(true);
     expect(gate.text).toBe(`${MARK}\nFirst half.`);
   });
 
@@ -190,6 +191,68 @@ describe('createMarkerGate', () => {
     gate.push('A review with no labels at all.');
     expect(gate.opened).toBe(false);
     expect(gate.text).toBe('');
+  });
+
+  it('drops narration the model emits AFTER it has started answering', () => {
+    // The production bug, in its exact shape: the model wrote the weakness,
+    // went back to the tools, narrated between calls, then wrote the remaining
+    // sections. The old gate opened once and kept everything after it, so five
+    // interjections shipped inside the review and into `ai_reviews`.
+    const seen: string[] = [];
+    const gate = createMarkerGate(MARK, (t) => seen.push(t));
+
+    gate.push(`${MARK}\nThe mana base cannot support the curve.`);
+    gate.endTurn(true); // → looked a card up
+
+    gate.push('Good—Mesmeric Orb directly mills whenever a permanent untaps.');
+    gate.endTurn(true); // → searched again
+
+    gate.push('That mills to the graveyard, not exile. Let me refine:');
+    gate.endTurn(true); // → searched again
+
+    gate.push('---GAMEPLAN---\nYour deck grinds value.');
+    gate.endTurn(false); // → done
+
+    expect(gate.text).toBe(
+      `${MARK}\nThe mana base cannot support the curve.---GAMEPLAN---\nYour deck grinds value.`
+    );
+    expect(gate.text).not.toMatch(/Mesmeric Orb directly mills/);
+    expect(gate.text).not.toMatch(/Let me refine/);
+    // And it never reached the reader's screen either.
+    expect(seen.join('')).not.toMatch(/Let me refine/);
+  });
+
+  it('keeps a markerless FINAL turn — nothing followed it, so it is the answer', () => {
+    // The asymmetry the fix rests on: narration is always followed by a tool
+    // call, so a markerless turn that ENDS the loop is the answer running on.
+    const seen: string[] = [];
+    const gate = createMarkerGate(MARK, (t) => seen.push(t));
+    gate.push(`${MARK}\nThe weakness.`);
+    gate.endTurn(true);
+    gate.push(' And one more paragraph about it.');
+    gate.endTurn(false);
+
+    expect(gate.text).toBe(`${MARK}\nThe weakness. And one more paragraph about it.`);
+    expect(seen.join('')).toContain('And one more paragraph');
+  });
+
+  it('still drops a markerless turn that DID lead to a tool call', () => {
+    const gate = createMarkerGate(MARK);
+    gate.push(`${MARK}\nThe weakness.`);
+    gate.endTurn(true);
+    gate.push('Let me check one more thing.');
+    gate.endTurn(true);
+    gate.push('---WINS---\nYou win by attacking.');
+    gate.endTurn(false);
+    expect(gate.text).not.toMatch(/one more thing/);
+  });
+
+  it('reads correctly mid-turn, for the iteration-cap path', () => {
+    // `generateReview` returns the partial answer when it runs out of
+    // iterations, and gets there without closing the turn.
+    const gate = createMarkerGate(MARK);
+    gate.push(`${MARK}\nA partial answer`);
+    expect(gate.text).toBe(`${MARK}\nA partial answer`);
   });
 });
 
