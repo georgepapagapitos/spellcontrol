@@ -41,7 +41,7 @@ import { renderAnalysis, type OracleEntry } from './deck-review';
 export const DECK_REFINE_FEATURE = 'deck-refine';
 
 /** Bump whenever DECK_REFINE_SYSTEM_PROMPT's text changes. */
-export const DECK_REFINE_PROMPT_VERSION = 'v4';
+export const DECK_REFINE_PROMPT_VERSION = 'v5';
 
 /** Cap on what the model may propose, enforced again after parsing. */
 export const MAX_TWEAKS = 5;
@@ -147,6 +147,12 @@ for you to infer, recompute, or explain back to the reader.
 - When no target is set, or the estimate is at or below it, ignore the
   bracket line and judge changes purely on how well they serve the deck's
   plan.
+- You have a check_bracket tool. When a target is set and you are about to
+  claim a change respects it, CHECK the change instead of asserting it: pass
+  the add and the cut, one change per call, and read back what the bracket
+  did. If the check says a change pushes the deck past the target, drop that
+  change. Do not argue with the result, and do not explain the bracket scale
+  back to the reader.
 
 Apply BOTH of these tests to every change before you propose it. A change
 that fails either one is worse than no change at all:

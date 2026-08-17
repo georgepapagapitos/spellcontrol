@@ -24,6 +24,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",
     "@spellcontrol/binder-routing": "file:../packages/binder-routing",
+    "@spellcontrol/deck-metrics": "file:../packages/deck-metrics",
     "@spellcontrol/game-core": "file:../packages/game-core",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.11.1",

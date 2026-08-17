@@ -7,7 +7,10 @@ import { getPool } from '../db';
 import { testAwareLimiter } from '../route-utils';
 import { getScryfallCache } from '../scryfall-cache';
 import { aiEnabled, generateReview, AI_MODEL } from '../ai/client';
-import { lookupCardsTool, makeCandidateResolver } from '../ai/tools';
+import { checkBracketTool, lookupCardsTool, makeCandidateResolver, type AiTool } from '../ai/tools';
+import { getTagLookup } from '../ai/tags';
+import { estimateForNames, renderBracketCheck } from '../ai/bracket';
+import { loadRelevantCombos } from './combos';
 import {
   DECK_REVIEW_FEATURE,
   DECK_REVIEW_PROMPT_VERSION,
@@ -440,6 +443,30 @@ async function loadOwnedNames(userId: string): Promise<string[]> {
 }
 
 /**
+ * The bracket checker, or nothing at all.
+ *
+ * Returned as an array so the caller can spread it: when the tag data is
+ * missing the tool is simply NOT OFFERED, rather than offered and answering
+ * from empty tag sets. That distinction is the whole point — every `TagLookup`
+ * predicate returns false on a miss, so a lookup over absent data reports that
+ * no deck contains mass land denial, an extra turn, or any role, and hands back
+ * a confident bracket that is too low. A model with no bracket tool says
+ * nothing; a model with a broken one asserts a wrong number.
+ */
+function bracketTools(
+  request: { cards: { name: string }[]; commander: string },
+  cache: ReturnType<typeof getScryfallCache>
+): AiTool[] {
+  const tags = getTagLookup();
+  if (!tags) return [];
+  const deckNames = [request.commander, ...request.cards.map((c) => c.name)];
+  const inputs = { cache, tags, loadCombos: loadRelevantCombos };
+  return [
+    checkBracketTool(deckNames, (names) => estimateForNames(names, inputs), renderBracketCheck),
+  ];
+}
+
+/**
  * Emit only the prose half of a refine reply as it streams.
  *
  * The model writes a marker, then prose, then a delimiter, then JSON. Both the
@@ -609,7 +636,7 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
         // Same deck scoping as the review, plus the owned-only restriction:
         // under an owned-only build a card the player would have to buy is not
         // a suggestion, so it never enters the search results at all.
-        tools: [lookupCardsTool(cache, searchContext)],
+        tools: [lookupCardsTool(cache, searchContext), ...bracketTools(request, cache)],
         answerMarker: STRATEGY_MARK,
       }
     );

@@ -163,7 +163,7 @@ function asStringArray(value: unknown, max: number): string[] | null {
  * combos table to take the top-N by popularity, then fetch the card list
  * for just those N. Two round-trips total (vs. three in the naive shape).
  */
-async function loadRelevantCombos(oracleIds: string[]): Promise<ComboInput[]> {
+export async function loadRelevantCombos(oracleIds: string[]): Promise<ComboInput[]> {
   if (oracleIds.length === 0) return [];
   const db = getDb();
 

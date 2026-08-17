@@ -663,10 +663,39 @@ describe('POST /api/ai/deck-refine', () => {
       tools: { definition: { name: string } }[];
       answerMarker: string;
     };
-    expect(options.tools.map((t) => t.definition.name)).toEqual(['lookup_cards']);
+    expect(options.tools.map((t) => t.definition.name)).toEqual(['lookup_cards', 'check_bracket']);
     // Without a marker the model's research narration would stream into the
     // strategy read and be stored as part of it.
     expect(options.answerMarker).toBe('---STRATEGY---');
+  });
+
+  it('WITHHOLDS check_bracket when the tag data is missing', async () => {
+    // A TagLookup over absent data does not throw — it answers "no" to every
+    // predicate, so the estimator reports no mass land denial, no extra turns
+    // and no roles, and hands back a confidently too-low bracket. Not offering
+    // the tool is the only safe failure.
+    const { getTagLookup, __resetTagLookup } = await import('../ai/tags');
+    const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue('/nonexistent-for-this-test');
+    __resetTagLookup();
+    expect(getTagLookup()).toBeNull();
+
+    const cookie = await makeUser('ai-refine-notags');
+    await optIn(cookie);
+    mockState.generate.mockImplementation(async () => ({
+      content: refineReply(PROSE, []),
+      inputTokens: 1,
+      outputTokens: 1,
+      fetched: [],
+    }));
+    await request(app).post('/api/ai/deck-refine').set('Cookie', cookie).send(refineBody());
+
+    const options = mockState.generate.mock.calls[0][4] as {
+      tools: { definition: { name: string } }[];
+    };
+    expect(options.tools.map((t) => t.definition.name)).toEqual(['lookup_cards']);
+
+    cwdSpy.mockRestore();
+    __resetTagLookup();
   });
 
   it('restricts the search to the collection on an owned-only build', async () => {

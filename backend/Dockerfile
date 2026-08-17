@@ -71,6 +71,14 @@ COPY packages/game-core/package.json ./packages/game-core/
 COPY --from=build /app/packages/game-core/dist ./packages/game-core/dist
 COPY packages/binder-routing/package.json ./packages/binder-routing/
 COPY --from=build /app/packages/binder-routing/dist ./packages/binder-routing/dist
+# deck-metrics: #1637 deliberately shipped only the BUILD stage, because the
+# backend took no file: dep on it yet. It does now (the AI check_bracket tool
+# runs the bracket estimator), so the runtime copy has to exist or the `npm ci`
+# below cannot resolve the link. CI does NOT catch this — it runs in a working
+# tree where the package is already present, so a missing runtime copy surfaces
+# only in the Fly/GHCR image builds. Same trap binder-routing hit in #312/#314.
+COPY packages/deck-metrics/package.json ./packages/deck-metrics/
+COPY --from=build /app/packages/deck-metrics/dist ./packages/deck-metrics/dist
 
 # Prod-only backend deps (better-sqlite3's native install script still runs;
 # game-core is linked from the path above).
