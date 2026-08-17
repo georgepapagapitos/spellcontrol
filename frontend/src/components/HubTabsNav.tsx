@@ -37,6 +37,11 @@ export interface HubTab {
  * names the Collection hub as the reference. A page-level "distinct views"
  * switcher is a different control — use the `underline` variant of Tabs.tsx —
  * and an exclusive-value picker is a third thing again (native radios).
+ *
+ * The strip is the SECOND nav tier, though, so its current tab is marked with
+ * an accent underline rather than the header's cover dye — two dyed tabs
+ * stacked gave a parent and its child the same weight. See the
+ * `.collection-hub-tabs .site-nav-link.active` rule in `styles/responsive-nav.css`.
  */
 export function HubTabsNav({ ariaLabel, tabs }: { ariaLabel: string; tabs: HubTab[] }) {
   const navRef = useRef<HTMLElement>(null);

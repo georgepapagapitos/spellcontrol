@@ -403,6 +403,20 @@ a hero CTA.
   `components/Tabs.tsx` (accent underline tracks the active tab). It reads
   unambiguously as tabs; the soft `hub` nav-pill look does **not** and is
   reserved for the site/section nav (e.g. the Collection header).
+- **The accent cover dye marks the CURRENT tab of the primary nav only; a
+  second nav tier below it marks its current tab with an accent underline.**
+  Both the leather header nav and the hub strip (`HubTabsNav`) share
+  `.site-nav-link`, and both used to take the dye on `.active` — so on
+  `/collection/lists` the parent (COLLECTION) and its child (LISTS) rendered as
+  two identical filled tabs, one above the other, each hanging off its own
+  hairline ~12px apart. Same marker at both levels = no hierarchy, and the pair
+  read as a staircase. Their near-alignment was coincidence, not structure — the
+  offset moves with whichever pair of tabs is current — so the fix is to
+  separate the **tiers**, never to align the boxes. The hub's current tab is
+  now `--text-primary` + `box-shadow: inset 0 -2px 0 var(--accent)` riding the
+  strip's bottom border (inset, so the tab's box and the strip's layout are
+  untouched), with no hover lift, because it is the page you are already on.
+  Any third nav tier steps down again — it does not reach back for the dye.
 - All tabbed surfaces go through the shared `components/Tabs.tsx` primitive
   (roving tabindex, arrow-key nav, `role=tablist`/`tab`/`tabpanel`). Don't
   hand-roll a tab strip. **This applies inside overlays, sheets, modals, editor
