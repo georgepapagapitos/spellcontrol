@@ -1,4 +1,5 @@
 import { isBasicLandName } from '@/lib/allocations';
+import type { DeckFormatConfig } from '@/deck-builder/types';
 
 /** A single deck-health gate. `fail` = hard rule (legality); `warn` = soft target. */
 export type CheckStatus = 'pass' | 'warn' | 'fail';
@@ -59,13 +60,16 @@ export interface ValidationInput {
   roleTargets?: Record<string, number>;
   /** Average mana value of the deck (from the mana analysis). */
   averageCmc?: number;
+  /** The deck's format rules — total size (commander[s] included) and the
+   *  per-name copy limit. Omit to gate as Commander (100 cards, singleton). */
+  format?: Pick<DeckFormatConfig, 'deckSize' | 'maxCopies'>;
 }
 
 /** Decks with an average MV above this read as top-heavy. Mirrors the bracket
  *  estimator's low-curve threshold so the two agree on "fast enough". */
 const CURVE_AVG_MAX = 3.5;
-/** Commander decks are exactly 100 cards (commander[s] + 99). */
-const COMMANDER_DECK_SIZE = 100;
+/** Fallback format rules when no config is passed: Commander (commander[s] + 99). */
+const DEFAULT_FORMAT: Required<ValidationInput>['format'] = { deckSize: 100, maxCopies: 1 };
 
 /** Tolerant role lookup — counts/targets share keys but casing varies by source. */
 function roleValue(map: Record<string, number> | undefined, ...keys: string[]): number | undefined {
@@ -81,6 +85,7 @@ function roleValue(map: Record<string, number> | undefined, ...keys: string[]): 
  */
 export function buildValidationChecklist(input: ValidationInput): ValidationResult {
   const { cards, commanderIdentity, roleCounts, roleTargets, averageCmc } = input;
+  const { deckSize, maxCopies } = input.format ?? DEFAULT_FORMAT;
   const checks: ValidationCheck[] = [];
 
   // ── Hard rules ──────────────────────────────────────────────────────────
@@ -88,8 +93,8 @@ export function buildValidationChecklist(input: ValidationInput): ValidationResu
   checks.push({
     id: 'size',
     label: 'Deck size',
-    status: size === COMMANDER_DECK_SIZE ? 'pass' : 'fail',
-    detail: `${size} / ${COMMANDER_DECK_SIZE} cards`,
+    status: size === deckSize ? 'pass' : 'fail',
+    detail: `${size} / ${deckSize} cards`,
   });
 
   if (commanderIdentity) {
@@ -111,12 +116,19 @@ export function buildValidationChecklist(input: ValidationInput): ValidationResu
     if (isBasicLandName(c.name)) continue; // basics may repeat
     nameCounts.set(c.name, (nameCounts.get(c.name) ?? 0) + 1);
   }
-  const dupes = [...nameCounts.values()].filter((n) => n > 1).length;
+  const over = [...nameCounts.values()].filter((n) => n > maxCopies).length;
   checks.push({
     id: 'singleton',
-    label: 'Singleton',
-    status: dupes === 0 ? 'pass' : 'fail',
-    detail: dupes === 0 ? 'no duplicates' : `${dupes} duplicate name${dupes === 1 ? '' : 's'}`,
+    label: maxCopies === 1 ? 'Singleton' : 'Copy limit',
+    status: over === 0 ? 'pass' : 'fail',
+    detail:
+      over === 0
+        ? maxCopies === 1
+          ? 'no duplicates'
+          : `max ${maxCopies} copies of a card`
+        : maxCopies === 1
+          ? `${over} duplicate name${over === 1 ? '' : 's'}`
+          : `${over} name${over === 1 ? '' : 's'} over ${maxCopies} copies`,
   });
 
   // ── Soft targets ────────────────────────────────────────────────────────
