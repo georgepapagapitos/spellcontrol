@@ -55,7 +55,7 @@ import crypto from 'node:crypto';
 export const DECK_REVIEW_FEATURE = 'deck-review';
 
 /** Bump whenever DECK_REVIEW_SYSTEM_PROMPT's text changes. */
-export const DECK_REVIEW_PROMPT_VERSION = 'v8';
+export const DECK_REVIEW_PROMPT_VERSION = 'v9';
 
 /**
  * Section labels the model emits. They exist so the client can stream text
@@ -146,8 +146,9 @@ answer. Close the weakness section with a paragraph that says what to do:
   to an artifact, which this deck currently cannot touch at all" is.
 - Lead each fix with the EFFECT the deck is missing, described precisely
   enough that the reader could search a collection for it - the class of
-  card, at what speed, on what permanent type. The effect is the fix; a
-  card name is only ever an illustration of it.
+  card, at what speed, on what permanent type. Then name the cards that
+  supply it. The effect tells the reader what is wrong; the names are
+  what they act on.
 - You have a lookup_cards tool. Use it here. Search the effect you just
   named, in rules wording, and you get real cards back with their real
   text - already filtered to this commander's colour identity, to
@@ -163,10 +164,18 @@ answer. Close the weakness section with a paragraph that says what to do:
   card you merely remember is not a card you may name - describe the
   effect instead and search for it. This is checkable after the fact,
   and it is checked.
+- A card you DID look up is yours to name, and you should name it. Having
+  searched, hand the reader the one or two best cards the search returned
+  - by name - and say what each one does for this deck. A fix that
+  describes an effect and names nothing sends the reader back to a search
+  you have already run for them, and it is the most common way this
+  section disappoints. Only when a search returns nothing usable do you
+  describe the effect alone, and then say that is what happened.
 - Once you have looked a card up, its reference line is what it does.
-  Quote behaviour from that text, never from memory. A confidently wrong
-  card text is worse than no card name at all, and it is the one mistake
-  in this section a reader cannot catch.
+  Quote behaviour from that text, never from memory - a confidently wrong
+  card text is the one mistake in this section a reader cannot catch.
+  That is a reason to read the line you were given before you write, not
+  a reason to withhold the name.
 - This is a singleton format. Never suggest a second copy of a card the
   deck already runs - basic lands are the only exception.
 - Prefer a fix the deck can make with what it already owns: a card in
@@ -285,14 +294,26 @@ function stableStringify(value: unknown): string {
 }
 
 /**
- * The cache key: content hash over commander + sorted card list + analysis.
- * The same hash is the staleness signal — a review is stale exactly when the
- * deck's current hash differs from the one it was written for. No edit
- * counters (a counter and a hash drift: edit a card and revert it and they
- * disagree).
+ * The cache key: content hash over the PROMPT VERSION + commander + sorted card
+ * list + analysis. The same hash is the staleness signal — a review is stale
+ * exactly when the deck's current hash differs from the one it was written for.
+ * No edit counters (a counter and a hash drift: edit a card and revert it and
+ * they disagree).
+ *
+ * The prompt version is in the key because the prompt IS the feature. Without
+ * it a prompt change is invisible on every deck that already has a reading:
+ * the row replays verbatim, "Read again" re-hashes to the same key, and the
+ * only way to observe the new prompt is to edit the deck or delete the row by
+ * hand. That cost a real debugging session (board E254) — the fix that shipped
+ * looked like it had done nothing. A reading written by a different prompt is
+ * stale by definition, which is exactly what this key already means.
+ *
+ * The bump is deliberate and rare, so this invalidates only when the prompt
+ * text actually changes; a deck whose reading is current stays cached.
  */
 export function hashDeckReviewInput(req: DeckReviewRequest): string {
   const canonical = stableStringify({
+    promptVersion: DECK_REVIEW_PROMPT_VERSION,
     commander: req.commander,
     cards: [...req.cards]
       .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
