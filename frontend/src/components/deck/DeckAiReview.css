@@ -224,8 +224,9 @@
   }
 }
 
-/* Three titled sections, not three chunky blocks of text. The weakness leads —
-   it's the part the statistics on the other tab can't give you. */
+/* Titled sections, not chunky blocks of text. The weakness leads — it's the
+   part the statistics on the other tab can't give you — and the fixes for it
+   follow immediately, because that pair is the whole reason to read this. */
 .deck-ai-section + .deck-ai-section {
   margin-top: var(--space-4);
 }
@@ -252,6 +253,79 @@
 
 .deck-ai-section--weakness p {
   font-size: var(--text-base);
+}
+
+/* The fixes: the only part of the reading the reader can act on, so it reads as
+   a list of moves rather than the tail of a paragraph. Rail in the accent
+   (do this) against the weakness's warning rail (this is wrong), and the pair
+   sits tight together as one diagnosis→prescription unit. */
+.deck-ai-section--fixes {
+  padding-left: 0.7rem;
+  border-left: 3px solid var(--accent);
+}
+
+/* Tighter than the gap between unrelated sections: these two are one thought. */
+.deck-ai-section--weakness + .deck-ai-section--fixes {
+  margin-top: var(--space-3);
+}
+
+.deck-ai-section--fixes .deck-ai-section-title {
+  color: var(--accent);
+}
+
+.deck-ai-fixes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: deck-ai-fix;
+}
+
+.deck-ai-fixes li {
+  position: relative;
+  counter-increment: deck-ai-fix;
+  padding-left: 1.75rem;
+  font-size: var(--text-base);
+  line-height: 1.55;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.deck-ai-fixes li + li {
+  margin-top: var(--space-3);
+}
+
+/* `list-style: none` drops list semantics in Safari, so the ol carries an
+   explicit role="list" and this is purely the visual marker. */
+.deck-ai-fixes li::before {
+  content: counter(deck-ai-fix);
+  position: absolute;
+  top: 0.1em;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The caret rides the last fix while the section is still being written. */
+.deck-ai-section--writing .deck-ai-fixes li:last-child::after {
+  content: '▍';
+  margin-left: 0.1em;
+  color: var(--text-muted);
+  animation: deck-ai-caret 1s steps(2, start) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-ai-section--writing .deck-ai-fixes li:last-child::after {
+    animation: none;
+  }
 }
 
 /* Card names the model referenced — tappable into the shared card carousel.

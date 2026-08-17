@@ -100,11 +100,11 @@ describe('splitReviewSections', () => {
 
   // The streaming contract: every block exists from the first label, so the
   // layout is final before the text is.
-  it('returns all three sections from the very first label', () => {
+  it('returns all four sections from the very first label', () => {
     const secs = splitReviewSections(`${W}\nThe mana is w`, true);
-    expect(secs?.map((s) => s.id)).toEqual(['weakness', 'gameplan', 'win']);
+    expect(secs?.map((s) => s.id)).toEqual(['weakness', 'fixes', 'gameplan', 'win']);
     expect(secs?.[1].paragraphs).toEqual([]);
-    expect(secs?.[2].paragraphs).toEqual([]);
+    expect(secs?.[3].paragraphs).toEqual([]);
   });
 
   it('marks the section being written as incomplete, earlier ones as done', () => {
@@ -132,32 +132,55 @@ describe('splitReviewSections', () => {
   });
 
   it('tolerates a missing section rather than dropping the rest', () => {
+    // A finished reading renders what it has: the gameplan label never
+    // appeared, so there is no empty block where it would have gone. This is
+    // also every pre-v11 cached reading, none of which has a fixes section.
     const secs = splitReviewSections(`${W}\nFlaw.\n\n${N}\nWin.`);
-    expect(secs?.map((s) => s.paragraphs.length)).toEqual([1, 0, 1]);
+    expect(secs?.map((s) => s.id)).toEqual(['weakness', 'win']);
+    expect(secs?.map((s) => s.paragraphs.length)).toEqual([1, 1]);
+  });
+
+  describe('the fixes section', () => {
+    const F = '---FIXES---';
+
+    it('makes each line its own fix', () => {
+      const secs = splitReviewSections(
+        `${W}\nFlaw.\n\n${F}\nAn instant-speed artifact answer.\nA second land that taps for black.\n\n${G}\nPlan.\n\n${N}\nWin.`
+      );
+      expect(secs?.[1].id).toBe('fixes');
+      expect(secs?.[1].paragraphs).toEqual([
+        'An instant-speed artifact answer.',
+        'A second land that taps for black.',
+      ]);
+    });
+
+    it('strips a bullet or number the model wrote anyway', () => {
+      const secs = splitReviewSections(`${W}\nFlaw.\n\n${F}\n1. Add removal.\n- Add a rock.`);
+      expect(secs?.[1].paragraphs).toEqual(['Add removal.', 'Add a rock.']);
+    });
+
+    it('leaves a lone fix as one item', () => {
+      const secs = splitReviewSections(`${W}\nFlaw.\n\n${F}\nOne fix is enough here.`);
+      expect(secs?.[1].paragraphs).toEqual(['One fix is enough here.']);
+    });
   });
 
   describe('the end marker', () => {
-    // The production bug: the model finished the review and carried on
-    // thinking. With no terminator the last section slices to the end of the
-    // text, so the notes rendered inside "How it wins" — one live run trailed
-    // the finished reading with 38 lines of self-deliberation that way.
-    const trailing = [
-      '',
-      'Actually, wait. I need to review this carefully against the requirements.',
-      'Let me count sentences:',
-    ].join('\n\n');
+    // The production leak: the model wrote the whole review and carried on
+    // narrating its next move, and with no terminator that ran into the last
+    // section (which slices to the end of the text).
+    const trailing =
+      '\n\nNow for the prescriptions. I need to identify which untap creatures to cut:';
 
-    it('ends the reading at the terminator', () => {
+    it('drops everything the model writes after the terminator', () => {
       const secs = splitReviewSections(`${full}\n\n---END---${trailing}`);
       expect(secs?.at(-1)?.paragraphs).toEqual(['Combat damage.']);
-      expect(JSON.stringify(secs)).not.toContain('Let me count sentences');
+      expect(JSON.stringify(secs)).not.toContain('Now for the prescriptions');
     });
 
-    it('cuts mid-stream too, so the notes never render even for a frame', () => {
-      // The panel accumulates deltas, so by the time these bytes are known to
-      // be notes they are already on the client.
+    it('drops it mid-stream too, so it never renders even for a frame', () => {
       const secs = splitReviewSections(`${full}\n\n---END---${trailing}`, true);
-      expect(JSON.stringify(secs)).not.toContain('Actually, wait');
+      expect(JSON.stringify(secs)).not.toContain('untap creatures');
     });
 
     it('is optional — a reading without one reads exactly as before', () => {

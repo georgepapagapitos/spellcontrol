@@ -5,6 +5,7 @@ import {
   hashDeckReviewInput,
   parseDeckReviewRequest,
   renderAnalysis,
+  renderFetchedCards,
   type DeckReviewRequest,
 } from './deck-review';
 
@@ -211,5 +212,33 @@ describe('buildUserMessage', () => {
     const parsed = parseDeckReviewRequest(validBody());
     if (!parsed.ok) throw new Error('fixture invalid');
     expect(buildUserMessage(parsed.value, [])).not.toContain('Card reference');
+  });
+});
+
+describe('renderFetchedCards', () => {
+  // The handoff between the two passes. Pass 2 has no tools, so this block is
+  // the ONLY place its prescribable card names can come from.
+  it('lists each card once, with the text the writing pass may quote', () => {
+    const out = renderFetchedCards([
+      { name: 'Anguished Unmaking', typeLine: 'Instant', oracleText: 'Exile target\npermanent.' },
+      { name: 'Despark', typeLine: 'Instant', oracleText: 'Exile target permanent.' },
+      { name: 'Anguished Unmaking', typeLine: 'Instant', oracleText: 'Exile target permanent.' },
+    ]);
+    expect(out).toContain('Cards you looked up');
+    expect(out).toContain('Anguished Unmaking — Instant: Exile target permanent.');
+    expect(out).toContain('Despark');
+    // Two searches routinely return the same card; it must not be listed twice.
+    expect(out.match(/Anguished Unmaking/g)).toHaveLength(1);
+    // Newlines flattened — the block is one card per line.
+    expect(out.split('\n').filter((l) => l.includes('Anguished'))).toHaveLength(1);
+  });
+
+  it('renders a card that has no type line or text rather than dropping it', () => {
+    expect(renderFetchedCards([{ name: 'Bojuka Bog' }])).toContain('Bojuka Bog');
+  });
+
+  it('returns empty for no cards, so the caller appends no empty section', () => {
+    // A review whose research found nothing must not be told it has a list.
+    expect(renderFetchedCards([])).toBe('');
   });
 });

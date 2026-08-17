@@ -115,11 +115,12 @@ export async function generateReview(
   let inputTokens = 0;
   let outputTokens = 0;
 
-  // Only gate when there are tools AND a marker to gate on. Without tools the
-  // model has nothing to narrate about, so text streams straight through and
-  // the no-tools path behaves exactly as it did before.
-  const gate =
-    tools.length > 0 && marker ? createMarkerGate(marker, onDelta, options?.endMarker) : null;
+  // Gate whenever there is a marker to gate on, with or without tools. The
+  // review's WRITING pass has no tools — nothing to narrate toward — but it
+  // still wants both halves: text before the first label is preamble, and the
+  // terminator ends the answer. A caller that passes no marker (the review's
+  // RESEARCH pass, whose text is discarded wholesale) streams through as before.
+  const gate = marker ? createMarkerGate(marker, onDelta, options?.endMarker) : null;
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     const stream = client.messages.stream(
@@ -170,7 +171,13 @@ export async function generateReview(
             .map((b) => b.text)
             .join('\n')
             .trim();
-      if (!generated) throw new Error('The model returned an empty review.');
+      // A RESEARCH pass legitimately writes nothing — its whole output is the
+      // cards it fetched, and the prompt tells it to write no prose. Only treat
+      // empty text as a failure when there is nothing to show for the call at
+      // all. A no-tools writing pass has no `fetched`, so it still throws.
+      if (!generated && fetched.length === 0) {
+        throw new Error('The model returned an empty review.');
+      }
       return {
         content: generated,
         inputTokens,

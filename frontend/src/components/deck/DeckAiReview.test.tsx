@@ -291,6 +291,55 @@ describe('the reading', () => {
     expect(container.textContent).not.toContain('---END---');
   });
 
+  it('renders the fixes as separate acts, and drops what the model wrote after the end', async () => {
+    // The prescription is a list you can act on line by line, and the notes the
+    // model writes after finishing end at the terminator instead of running
+    // into "How it wins". The fixes' cards come from the RESEARCH pass, which
+    // is why they are chippable without the deck containing them.
+    const v11 = [
+      '---WEAKNESS---\nYour mana cannot support it.',
+      '---FIXES---\nAn instant-speed answer: Anguished Unmaking.\nA second untapped source of black.',
+      '---GAMEPLAN---\nYour deck ramps into Sol Ring.',
+      '---WINS---\nIt wins by connecting with Kaalia of the Vast.',
+      '---END---',
+      'Now for the prescriptions. I need to identify which untap creatures to cut:',
+    ].join('\n\n');
+    stubApi(true, [
+      { delta: v11 },
+      {
+        done: {
+          content: v11,
+          cached: false,
+          model: 'm',
+          usage: {},
+          fetched: ['Anguished Unmaking'],
+        },
+      },
+    ]);
+    const { container } = renderPanel();
+    await expandStrip();
+    fireEvent.click(await screen.findByRole('button', { name: 'Read the deck' }));
+
+    const fixes = await waitFor(() => {
+      const el = container.querySelector('.deck-ai-fixes');
+      if (!el) throw new Error('no fixes list');
+      return el;
+    });
+    expect([...fixes.querySelectorAll('li')].map((li) => li.textContent)).toEqual([
+      'An instant-speed answer: Anguished Unmaking.',
+      'A second untapped source of black.',
+    ]);
+    // Its own titled block, between the diagnosis and the rest.
+    expect(
+      [...container.querySelectorAll('.deck-ai-section-title')].map((t) => t.textContent?.trim())
+    ).toEqual(['The weakness that matters', 'What to do about it', 'The gameplan', 'How it wins']);
+    // A recommended card is still tappable inside a fix.
+    expect(fixes.querySelector('.deck-ai-card-chip')?.textContent).toBe('Anguished Unmaking');
+    // And the notes reached nobody.
+    expect(container.textContent).not.toContain('Now for the prescriptions');
+    expect(container.textContent).not.toContain('---END---');
+  });
+
   it('chips the cards it recommends, name-only so they open the owned printing', async () => {
     // The prescription names a card the deck does NOT run — which is the whole
     // point of a recommendation, and exactly why matching prose against the
