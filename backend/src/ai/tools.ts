@@ -352,28 +352,93 @@ export function checkBracketTool(
  * - a markerless turn that ended the loop is the answer continuing, and is kept.
  *
  * The caller must therefore tell it how each turn ended — see {@link endTurn}.
+ *
+ * ⚠️ **That rule is per-turn, so it cannot see narration INSIDE an answering
+ * turn** — and the model does that too. Observed in production after #1644:
+ *
+ *   turn N: ---WEAKNESS--- … ---WINS--- <the whole review>
+ *           "Now for the prescriptions. I need to identify which untap
+ *            creatures to cut and what to replace them with:"
+ *
+ * The turn opened on a marker, so it was kept whole, and the trailing notes
+ * rendered inside "How it wins" (the client slices its last section to the end
+ * of the text). No per-turn signal separates them, because there isn't one: the
+ * answer simply has no end. `endMarker` gives it one — the prompt emits it after
+ * the last section, and everything from there on is discarded and the gate stays
+ * shut for the rest of the conversation. One live baseline run trailed the
+ * finished review with **38 lines** of self-deliberation. Measured on
+ * `fixture-1-grounding`, 3 arms, n=22/build: trailing leaks 1/22 → 0/22, leaked
+ * narration 40 lines → 3.
+ *
+ * ⚠️ **MID-answer narration is still open, and two fixes for it were measured
+ * and REJECTED. Read this before trying a third.**
+ *
+ * "A markerless turn that ended in a tool call is research" is a heuristic, and
+ * it is false when the model searches mid-answer — it emits a section label,
+ * THEN searches, then writes the body, so the body lands in markerless turns
+ * and the rule throws the real answer away (seen on the raw stream 1 run in 8;
+ * a labelled section came back EMPTY in 3 of 6).
+ *
+ * - **`tool_choice: none` once the gate opens**, to make the heuristic true by
+ *   removing the tool. Measured n=22: mid-answer leaks 2→3 (no gain) and
+ *   MISSING section labels 1→5. Denied the tool, the model *narrates a search
+ *   it cannot perform* ("Let me search for the right cards:Good.") and never
+ *   reaches the closing sections. It moves the failure rather than removing it.
+ * - **Open the gate on ANY section label.** A turn continuing prose that only
+ *   later reaches the next label would release from THAT label and drop the
+ *   continuation ahead of it — strictly worse in the common case.
+ *
+ * The design that would close it is two calls: one with tools whose text is
+ * discarded entirely, then a tool-free call that writes, with the fetched card
+ * text in its user message. No tools while writing means no narration to
+ * separate, no turn boundary to lose a body at, and no denied tool to fake.
+ * That is a real refactor of the request flow and has not been done.
  */
-export function createMarkerGate(marker: string, onDelta?: (text: string) => void) {
+export function createMarkerGate(
+  marker: string,
+  onDelta?: (text: string) => void,
+  endMarker?: string
+) {
   /** The answer, accumulated across turns. */
   let kept = '';
   /** Raw text of the turn in progress. */
   let turn = '';
   let turnOpen = false;
   let everOpened = false;
+  /** The end marker has been seen — the answer is finished, whatever follows. */
+  let closed = false;
+
+  /** Characters of `turn` already released to `onDelta`. */
+  let sent = 0;
+  // Held back so an end marker split across deltas is never half-streamed: the
+  // reader would see a dangling "---EN" that the rest of the marker never
+  // completes, because the completing delta is the one that closes the gate.
+  const hold = endMarker ? endMarker.length - 1 : 0;
+
+  /** Truncate at the end marker, latching the gate shut when it is there. */
+  const cut = (text: string): string => {
+    const at = endMarker ? text.indexOf(endMarker) : -1;
+    if (at === -1) return text;
+    closed = true;
+    return text.slice(0, at);
+  };
 
   return {
     push(text: string) {
+      if (closed) return;
       turn += text;
-      if (turnOpen) {
-        onDelta?.(text);
-        return;
+      if (!turnOpen) {
+        const at = turn.indexOf(marker);
+        if (at === -1) return;
+        // This turn is answering. Release from the marker; the rest streams live.
+        turnOpen = true;
+        everOpened = true;
+        sent = at;
       }
-      const at = turn.indexOf(marker);
-      if (at === -1) return;
-      // This turn is answering. Release from the marker; the rest streams live.
-      turnOpen = true;
-      everOpened = true;
-      onDelta?.(turn.slice(at));
+      const end = endMarker ? turn.indexOf(endMarker, sent) : -1;
+      const upto = end === -1 ? Math.max(sent, turn.length - hold) : end;
+      if (upto > sent) onDelta?.(turn.slice(sent, upto));
+      sent = upto;
     },
 
     /**
@@ -384,8 +449,14 @@ export function createMarkerGate(marker: string, onDelta?: (text: string) => voi
      * running on past a section it already labelled.
      */
     endTurn(hadToolCalls: boolean) {
+      if (closed) {
+        turn = '';
+        turnOpen = false;
+        sent = 0;
+        return;
+      }
       if (turnOpen) {
-        const answered = turn.slice(turn.indexOf(marker));
+        const answered = cut(turn.slice(turn.indexOf(marker)));
         // ⚠️ A RE-EMITTED marker means the model restarted its answer.
         //
         // The per-turn rule below only drops a MARKERLESS research turn. It does
@@ -406,11 +477,13 @@ export function createMarkerGate(marker: string, onDelta?: (text: string) => voi
         // Nothing followed it, so it cannot be narration — and the answer had
         // already started, so this is its continuation. It was never streamed
         // (no marker opened this turn), so release it now.
-        kept += turn;
-        onDelta?.(turn);
+        const tail = cut(turn);
+        kept += tail;
+        onDelta?.(tail);
       }
       turn = '';
       turnOpen = false;
+      sent = 0;
     },
 
     /**
@@ -421,8 +494,10 @@ export function createMarkerGate(marker: string, onDelta?: (text: string) => voi
      * cap can return mid-turn.
      */
     get text() {
-      if (!turnOpen) return kept;
-      return kept + turn.slice(turn.indexOf(marker));
+      if (closed || !turnOpen) return kept;
+      const answered = turn.slice(turn.indexOf(marker));
+      const at = endMarker ? answered.indexOf(endMarker) : -1;
+      return kept + (at === -1 ? answered : answered.slice(0, at));
     },
     get opened() {
       return everOpened;

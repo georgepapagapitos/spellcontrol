@@ -104,7 +104,7 @@ export async function generateReview(
   user: string,
   onDelta?: (text: string) => void,
   signal?: AbortSignal,
-  options?: { tools?: AiTool[]; answerMarker?: string }
+  options?: { tools?: AiTool[]; answerMarker?: string; endMarker?: string }
 ): Promise<AiGeneration> {
   if (!client) client = new Anthropic();
   const tools = options?.tools ?? [];
@@ -118,7 +118,8 @@ export async function generateReview(
   // Only gate when there are tools AND a marker to gate on. Without tools the
   // model has nothing to narrate about, so text streams straight through and
   // the no-tools path behaves exactly as it did before.
-  const gate = tools.length > 0 && marker ? createMarkerGate(marker, onDelta) : null;
+  const gate =
+    tools.length > 0 && marker ? createMarkerGate(marker, onDelta, options?.endMarker) : null;
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     const stream = client.messages.stream(

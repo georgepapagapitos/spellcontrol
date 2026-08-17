@@ -217,6 +217,17 @@ export const WEAKNESS_MARK = '---WEAKNESS---';
 export const GAMEPLAN_MARK = '---GAMEPLAN---';
 export const WINS_MARK = '---WINS---';
 
+/**
+ * The answer's terminator (prompt v11).
+ *
+ * The server discards everything past it before storing, so this is not
+ * belt-and-braces for the stored reading — it is for the LIVE one. The panel is
+ * built by accumulating deltas, and by the time the model's trailing notes are
+ * recognised as notes those bytes are already here. Cutting at the marker on
+ * this side too means they never render, not even for a frame.
+ */
+export const END_MARK = '---END---';
+
 const SECTION_SPECS = [
   { id: 'weakness', mark: WEAKNESS_MARK, title: 'The weakness that matters' },
   { id: 'gameplan', mark: GAMEPLAN_MARK, title: 'The gameplan' },
@@ -239,9 +250,15 @@ const SECTION_SPECS = [
  * Returns null when no label has appeared at all (an older cached review from
  * prompt v3, or a model that ignored the format) — the caller falls back to
  * plain paragraphs, which is exactly the pre-v4 rendering.
+ *
+ * The reading ends at {@link END_MARK}. Without that cut the last section runs
+ * to the end of the text, which is how the model's post-answer notes came to
+ * render inside "How it wins".
  */
 export function splitReviewSections(content: string, streaming = false): ReviewSection[] | null {
-  const found = SECTION_SPECS.map((spec) => ({ spec, at: content.indexOf(spec.mark) })).filter(
+  const endAt = content.indexOf(END_MARK);
+  const text = endAt === -1 ? content : content.slice(0, endAt);
+  const found = SECTION_SPECS.map((spec) => ({ spec, at: text.indexOf(spec.mark) })).filter(
     (f) => f.at !== -1
   );
   if (found.length === 0) return null;
@@ -254,7 +271,7 @@ export function splitReviewSections(content: string, streaming = false): ReviewS
     const body =
       hit === undefined
         ? ''
-        : content
+        : text
             .slice(
               hit.at + spec.mark.length,
               idx < found.length - 1 ? found[idx + 1].at : undefined

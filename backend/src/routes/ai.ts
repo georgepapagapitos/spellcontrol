@@ -15,6 +15,7 @@ import {
   DECK_REVIEW_FEATURE,
   DECK_REVIEW_PROMPT_VERSION,
   DECK_REVIEW_SYSTEM_PROMPT,
+  END_MARK,
   WEAKNESS_MARK,
   buildUserMessage,
   hashDeckReviewInput,
@@ -333,6 +334,7 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
           }),
         ],
         answerMarker: WEAKNESS_MARK,
+        endMarker: END_MARK,
       }
     );
   } catch (err) {

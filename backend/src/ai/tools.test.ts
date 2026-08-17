@@ -288,6 +288,72 @@ describe('createMarkerGate', () => {
     gate.endTurn(false);
     expect(gate.text).toBe(`${MARK}\nThe weakness.---GAMEPLAN---\nThe plan.`);
   });
+
+  describe('the end marker', () => {
+    const END = '---END---';
+
+    it('drops narration the model writes after finishing, in the SAME turn', () => {
+      // The production leak that survived #1644. Every rule above is per-TURN,
+      // and this turn opened on the marker and never called a tool — so it was
+      // kept whole and the notes rendered inside "How it wins".
+      const seen: string[] = [];
+      const gate = createMarkerGate(MARK, (t) => seen.push(t), END);
+
+      gate.push(`${MARK}\nThe weakness.---WINS---\nCombat damage.\n\n${END}\n`);
+      gate.push('Now for the prescriptions. I need to identify which untap creatures to cut:');
+      gate.endTurn(false);
+
+      // Trailing whitespace before the terminator is the caller's to trim
+      // (`generateReview` does), so the gate cuts exactly at the marker.
+      expect(gate.text.trim()).toBe(`${MARK}\nThe weakness.---WINS---\nCombat damage.`);
+      expect(seen.join('')).not.toMatch(/Now for the prescriptions/);
+      expect(seen.join('')).not.toContain(END);
+    });
+
+    it('never half-streams a terminator split across deltas', () => {
+      // Without the hold-back the reader would see a dangling "---EN" that no
+      // later delta completes, because the completing delta closes the gate.
+      const seen: string[] = [];
+      const gate = createMarkerGate(MARK, (t) => seen.push(t), END);
+      gate.push(`${MARK}\nDone.\n---EN`);
+      gate.push('D---\nAnd now some notes to myself.');
+      gate.endTurn(false);
+
+      expect(seen.join('')).toBe(`${MARK}\nDone.\n`);
+      expect(gate.text).toBe(`${MARK}\nDone.\n`);
+    });
+
+    it('stays shut for the rest of the conversation', () => {
+      const seen: string[] = [];
+      const gate = createMarkerGate(MARK, (t) => seen.push(t), END);
+      gate.push(`${MARK}\nThe answer.${END}`);
+      gate.endTurn(true);
+      gate.push(`${MARK}\nA whole second attempt at it.`);
+      gate.endTurn(false);
+
+      expect(gate.text).toBe(`${MARK}\nThe answer.`);
+      expect(seen.join('')).not.toMatch(/second attempt/);
+    });
+
+    it('closes on a terminator in a markerless continuation turn', () => {
+      const gate = createMarkerGate(MARK, undefined, END);
+      gate.push(`${MARK}\nThe weakness.`);
+      gate.endTurn(true);
+      gate.push(` And the rest.\n${END}\nnotes`);
+      gate.endTurn(false);
+      expect(gate.text).toBe(`${MARK}\nThe weakness. And the rest.\n`);
+    });
+
+    it('is optional — no terminator behaves exactly as before', () => {
+      const seen: string[] = [];
+      const gate = createMarkerGate(MARK, (t) => seen.push(t));
+      gate.push(`${MARK}\nThe weakness.`);
+      gate.push(' Streamed as it arrives.');
+      gate.endTurn(false);
+      expect(seen).toEqual([`${MARK}\nThe weakness.`, ' Streamed as it arrives.']);
+      expect(gate.text).toBe(`${MARK}\nThe weakness. Streamed as it arrives.`);
+    });
+  });
 });
 
 describe('lookup_cards, owned-only', () => {
