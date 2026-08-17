@@ -30,9 +30,20 @@
 /* The AI slot (replace-when-full verdict). Same bounding contract as the
    Suggestions tab's .card-search-ai: the sheet is a capped flex column, so an
    expanded reading scrolls internally rather than past the sheet, and the
-   ranked cuts keep their share. */
+   ranked cuts keep their share.
+   `flex-shrink: 0` is load-bearing. This slot and the list below it BOTH size
+   from content (`flex-basis: auto`), so once the sheet hits its 70vh cap the
+   shrink is split between them in proportion to those bases — and the list can
+   afford it (it scrolls) while this cannot: collapsed, the slot holds a single
+   .deck-ai-strip button, so shrinking just guillotines it. Measured at
+   1400×700 with the shipped CSS: a 49px strip rendered 37.8px, showing a
+   sliver of its own top edge. The list is the designated absorber; the strip
+   is chrome and keeps its height. max-height + overflow still bound the
+   EXPANDED reading, which is what they were for. (.card-search-ai survives the
+   same declaration only because its sibling list is `flex: 1` — basis 0, so it
+   carries no shrink weight and the slot is never asked to give any up.) */
 .deck-size-prompt-ai {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
   max-height: 50%;
   overflow-y: auto;
