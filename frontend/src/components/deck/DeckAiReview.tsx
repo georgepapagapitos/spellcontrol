@@ -12,6 +12,7 @@ import {
   fetchReviewHistory,
   requestDeckReview,
   splitReviewSections,
+  stripEmphasis,
   toAiAnalysis,
   tokenizeCardNames,
   type ReviewReading,
@@ -390,18 +391,22 @@ function ReviewProse({
   streaming?: boolean;
 }) {
   const carousel = useCardCarousel('Cards in the reading');
-  const sections = useMemo(() => splitReviewSections(content, streaming), [content, streaming]);
+  // Strip markdown emphasis before anything else reads the prose: the model
+  // bolds card names and nothing here renders markdown, so the asterisks
+  // otherwise reach the page verbatim.
+  const prose = useMemo(() => stripEmphasis(content), [content]);
+  const sections = useMemo(() => splitReviewSections(prose, streaming), [prose, streaming]);
   const names = useMemo(() => [...chipCards.keys(), ...(suggested ?? [])], [chipCards, suggested]);
 
   const paragraphs = useMemo(
     () =>
       sections
         ? sections.flatMap((s) => s.paragraphs)
-        : content
+        : prose
             .split(/\n{2,}/)
             .map((p) => p.trim())
             .filter(Boolean),
-    [sections, content]
+    [sections, prose]
   );
 
   /** Carousel slides: every mentioned card, in first-appearance order. */

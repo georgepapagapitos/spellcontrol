@@ -7,6 +7,7 @@ import { useTaggerReady } from '@/lib/use-tagger-ready';
 import {
   buildDeckReviewCards,
   splitReviewSections,
+  stripEmphasis,
   toAiAnalysis,
   tokenizeCardNames,
 } from '../../lib/ai-review';
@@ -370,7 +371,10 @@ function RefineProse({
   streaming?: boolean;
 }) {
   const carousel = useCardCarousel('Cards in the reading');
-  const sections = useMemo(() => splitReviewSections(content), [content]);
+  // See ReviewProse: markdown emphasis is stripped before anything reads the
+  // prose, because nothing here renders markdown.
+  const prose = useMemo(() => stripEmphasis(content), [content]);
+  const sections = useMemo(() => splitReviewSections(prose), [prose]);
   const names = useMemo(
     () => [...cardsByName.keys(), ...(suggested ?? [])],
     [cardsByName, suggested]
@@ -379,11 +383,11 @@ function RefineProse({
     () =>
       sections
         ? sections.flatMap((s) => s.paragraphs)
-        : content
+        : prose
             .split(/\n{2,}/)
             .map((p) => p.trim())
             .filter(Boolean),
-    [sections, content]
+    [sections, prose]
   );
 
   const entries = useMemo(() => {
