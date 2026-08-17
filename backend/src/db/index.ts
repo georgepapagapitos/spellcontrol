@@ -690,5 +690,11 @@ export async function ensureSchema(): Promise<void> {
     -- attributed to the prompt text that wrote it. Nullable: rows predating
     -- the column stay unattributed rather than backfilled.
     ALTER TABLE ai_reviews ADD COLUMN IF NOT EXISTS prompt_version TEXT;
+    -- Names the model looked up while writing this row, so a REPLAYED reading
+    -- can still chip the cards it suggested. The prose alone cannot carry that:
+    -- a suggested card is by definition absent from the decklist, which is the
+    -- only other name source the client has. Nullable — rows predating the
+    -- column chip deck cards only, exactly as they did before.
+    ALTER TABLE ai_reviews ADD COLUMN IF NOT EXISTS fetched_names JSONB;
   `);
 }

@@ -142,8 +142,9 @@ aiRouter.get('/history', requireAuth, async (req: Request, res: Response) => {
     content: string;
     model: string;
     created_at: string | number;
+    fetched_names: string[] | null;
   }>(
-    `SELECT id, content, model, created_at
+    `SELECT id, content, model, created_at, fetched_names
        FROM ai_reviews
       WHERE user_id = $1 AND feature = $2 AND deck_id = $3
       ORDER BY created_at DESC
@@ -156,6 +157,7 @@ aiRouter.get('/history', requireAuth, async (req: Request, res: Response) => {
       content: r.content,
       model: r.model,
       createdAt: Number(r.created_at),
+      ...(r.fetched_names?.length ? { fetched: r.fetched_names } : {}),
     })),
   });
 });
@@ -176,7 +178,7 @@ aiRouter.post('/opt-in', optInLimiter, requireAuth, async (req: Request, res: Re
  * The deck-review wire format (T102): **NDJSON**, one JSON object per line.
  *
  * - `{"delta":"…"}` — a chunk of prose, in order. For live display only.
- * - `{"done":{content,cached,model,usage}}` — the terminator, and the
+ * - `{"done":{content,cached,model,usage,fetched?}}` — the terminator, and the
  *   AUTHORITATIVE full text. Its ABSENCE is how the client detects a truncated
  *   stream, so it is the only success signal. Repeating the text costs ~2KB and
  *   buys the guarantee that what gets displayed and what got stored are the
@@ -202,6 +204,15 @@ interface ReviewDone {
   usage: { inputTokens: number; outputTokens: number };
   /** Present + true only when the reply was cut off at max_tokens. */
   truncated?: boolean;
+  /**
+   * Cards the model looked up while writing this review — the ones it is
+   * recommending. The client tokenizes prose against the decklist, so without
+   * this a *suggested* card is the one card in the reading you cannot tap:
+   * it is absent from the deck by definition. Omitted (not `[]`) when there
+   * is nothing to send, including for rows stored before the column existed,
+   * so the client distinguishes "none" from "unknown" the same way.
+   */
+  fetched?: string[];
 }
 type ReviewLine = { delta: string } | { done: ReviewDone } | { error: string };
 
@@ -254,8 +265,9 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
     model: string;
     input_tokens: number;
     output_tokens: number;
+    fetched_names: string[] | null;
   }>(
-    `SELECT content, model, input_tokens, output_tokens
+    `SELECT content, model, input_tokens, output_tokens, fetched_names
        FROM ai_reviews
       WHERE user_id = $1 AND feature = $2 AND input_hash = $3`,
     [userId, DECK_REVIEW_FEATURE, inputHash]
@@ -269,6 +281,7 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
         cached: true,
         model: row.model,
         usage: { inputTokens: row.input_tokens, outputTokens: row.output_tokens },
+        ...(row.fetched_names?.length ? { fetched: row.fetched_names } : {}),
       },
     });
     return res.end();
@@ -363,10 +376,12 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
     );
   }
 
+  const fetchedNames = lookedUpNames(generation.fetched);
+
   await pool.query(
     `INSERT INTO ai_reviews
-       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, created_at, deck_id, prompt_version)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, created_at, deck_id, prompt_version, fetched_names)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
      ON CONFLICT (user_id, feature, input_hash) DO NOTHING`,
     [
       crypto.randomUUID(),
@@ -380,6 +395,7 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
       Date.now(),
       request.deckId,
       DECK_REVIEW_PROMPT_VERSION,
+      JSON.stringify(fetchedNames),
     ]
   );
 
@@ -390,10 +406,24 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
       model: AI_MODEL,
       usage: { inputTokens: generation.inputTokens, outputTokens: generation.outputTokens },
       ...(generation.truncated ? { truncated: true } : {}),
+      ...(fetchedNames.length ? { fetched: fetchedNames } : {}),
     },
   });
   res.end();
 });
+
+/**
+ * Distinct names the model looked up, in first-fetch order — stored on the row
+ * and sent on `{done}` so the client can chip the cards a reading recommends.
+ *
+ * `?? []` is not paranoia: this runs after the 200 and the first deltas are
+ * out, so a TypeError here would not 500 — it would kill the stream mid-answer
+ * and reach the client as a truncated review. The citation check shipped
+ * exactly that bug once, from a route-test mock with no `fetched`.
+ */
+function lookedUpNames(fetched: { name: string }[] | undefined): string[] {
+  return [...new Set((fetched ?? []).map((f) => f.name))];
+}
 
 /**
  * Cache-only oracle hydration, shared by both features. A miss means the model
@@ -525,6 +555,8 @@ interface RefineDone {
   usage: { inputTokens: number; outputTokens: number };
   /** Present + true only when the reply was cut off at max_tokens. */
   truncated?: boolean;
+  /** Cards the model looked up — see {@link ReviewDone.fetched}. */
+  fetched?: string[];
 }
 type RefineLine = { delta: string } | { done: RefineDone } | { error: string };
 
@@ -586,8 +618,9 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
     model: string;
     input_tokens: number;
     output_tokens: number;
+    fetched_names: string[] | null;
   }>(
-    `SELECT content, model, input_tokens, output_tokens
+    `SELECT content, model, input_tokens, output_tokens, fetched_names
        FROM ai_reviews
       WHERE user_id = $1 AND feature = $2 AND input_hash = $3`,
     [userId, DECK_REFINE_FEATURE, inputHash]
@@ -603,6 +636,7 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
         cached: true,
         model: row.model,
         usage: { inputTokens: row.input_tokens, outputTokens: row.output_tokens },
+        ...(row.fetched_names?.length ? { fetched: row.fetched_names } : {}),
       },
     });
     return res.end();
@@ -682,10 +716,12 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
     );
   }
 
+  const fetchedNames = lookedUpNames(generation.fetched);
+
   await pool.query(
     `INSERT INTO ai_reviews
-       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, created_at, deck_id, prompt_version)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, created_at, deck_id, prompt_version, fetched_names)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
      ON CONFLICT (user_id, feature, input_hash) DO NOTHING`,
     [
       crypto.randomUUID(),
@@ -699,6 +735,7 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
       Date.now(),
       request.deckId,
       DECK_REFINE_PROMPT_VERSION,
+      JSON.stringify(fetchedNames),
     ]
   );
 
@@ -710,6 +747,7 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
       model: AI_MODEL,
       usage: { inputTokens: generation.inputTokens, outputTokens: generation.outputTokens },
       ...(generation.truncated ? { truncated: true } : {}),
+      ...(fetchedNames.length ? { fetched: fetchedNames } : {}),
     },
   });
   res.end();

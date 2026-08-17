@@ -21,6 +21,15 @@ export interface DeckReviewResult {
   cached: boolean;
   model: string;
   usage: { inputTokens: number; outputTokens: number };
+  /**
+   * Cards the review looked up while writing — the ones it is recommending.
+   * Chips are matched against the decklist, and a recommended card is by
+   * definition NOT in the decklist, so without this the cards the reading is
+   * actually telling you to add are the only ones you cannot tap. Absent on
+   * readings stored before the server sent it: chip the deck alone then,
+   * rather than reading absence as "it looked nothing up".
+   */
+  fetched?: string[];
 }
 
 /**
@@ -102,6 +111,8 @@ export interface ReviewReading {
   content: string;
   model: string;
   createdAt: number;
+  /** See {@link DeckReviewResult.fetched}. Absent on pre-column rows. */
+  fetched?: string[];
 }
 
 /**
@@ -273,8 +284,14 @@ const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\
 
 /**
  * Split a paragraph into plain-text runs and card-name mentions, so the names
- * can render as tappable chips. The model is instructed to reference only
- * cards that appear in the decklist, so exact-name matching is reliable.
+ * can render as tappable chips.
+ *
+ * `matchNames` is the deck's cards PLUS the cards the model looked up while
+ * writing (`DeckReviewResult.fetched`). Both are exact, server-vouched names,
+ * so exact matching stays reliable — and the prescription's recommendations,
+ * which are absent from the decklist by construction, become tappable too.
+ * A name the model invented is in neither list and simply gets no chip, which
+ * is the belt-and-braces that has always been here.
  *
  * Longest name first, so "Kaalia of the Vast" wins over a shorter list-mate it
  * contains. A double-faced card also matches on its front face alone (the
@@ -282,9 +299,9 @@ const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\
  * canonical full name, which is what the deck is keyed by. Boundaries are
  * non-word only, so a possessive ("Kaalia's trigger") still chips the name.
  */
-export function tokenizeCardNames(text: string, deckCardNames: string[]): ProseToken[] {
+export function tokenizeCardNames(text: string, matchNames: string[]): ProseToken[] {
   const canonical = new Map<string, string>();
-  for (const name of deckCardNames) {
+  for (const name of matchNames) {
     canonical.set(name.toLowerCase(), name);
     const front = name.split(' // ')[0];
     if (front !== name) canonical.set(front.toLowerCase(), name);

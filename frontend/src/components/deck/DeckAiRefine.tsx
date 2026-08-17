@@ -81,6 +81,8 @@ export function DeckAiRefine({
   const [error, setError] = useState<string | null>(null);
   const [streamed, setStreamed] = useState('');
   const [strategy, setStrategy] = useState<string | null>(null);
+  /** Cards the pass looked up — chipped alongside the deck's own. */
+  const [suggested, setSuggested] = useState<string[] | undefined>(undefined);
   const [tweaks, setTweaks] = useState<RefineTweak[]>([]);
   const [applied, setApplied] = useState<Set<string>>(new Set());
   const [inviteDismissed, setInviteDismissed] = useState(isAiInviteDismissed);
@@ -106,6 +108,7 @@ export function DeckAiRefine({
     setError(null);
     setStreamed('');
     setStrategy(null);
+    setSuggested(undefined);
     setTweaks([]);
     setApplied(new Set());
     const analysis = toAiAnalysis(
@@ -118,6 +121,7 @@ export function DeckAiRefine({
     )
       .then((result) => {
         setStrategy(result.content);
+        setSuggested(result.fetched);
         // A full deck can't take a pure add — in the replace posture a
         // cut-less tweak has no apply path, so it never renders as one.
         setTweaks(variant === 'replace' ? result.tweaks.filter((t) => t.cut) : result.tweaks);
@@ -230,7 +234,7 @@ export function DeckAiRefine({
 
       {strategy && (
         <div aria-live="polite">
-          <RefineProse content={strategy} cardsByName={cardsByName} />
+          <RefineProse content={strategy} cardsByName={cardsByName} suggested={suggested} />
           {tweaks.length > 0 ? (
             <ul className="deck-ai-tweaks">
               {tweaks.map((t) => (
@@ -351,19 +355,26 @@ export function DeckAiRefine({
   );
 }
 
-/** The strategy read, sectioned and chipped exactly like the deck review. */
+/** The strategy read, sectioned and chipped exactly like the deck review —
+ *  including `suggested`, the cards this pass looked up, which stay name-only
+ *  so the carousel resolves the player's own printing where they own one. */
 function RefineProse({
   content,
   cardsByName,
+  suggested,
   streaming = false,
 }: {
   content: string;
   cardsByName: Map<string, ScryfallCard>;
+  suggested?: string[];
   streaming?: boolean;
 }) {
   const carousel = useCardCarousel('Cards in the reading');
   const sections = useMemo(() => splitReviewSections(content), [content]);
-  const names = useMemo(() => [...cardsByName.keys()], [cardsByName]);
+  const names = useMemo(
+    () => [...cardsByName.keys(), ...(suggested ?? [])],
+    [cardsByName, suggested]
+  );
   const paragraphs = useMemo(
     () =>
       sections
@@ -384,7 +395,7 @@ function RefineProse({
     }
     return seen.map((name) => ({
       name,
-      label: 'Named in the reading',
+      label: cardsByName.has(name) ? 'Named in the reading' : 'Suggested — not in this deck',
       card: cardsByName.get(name),
     }));
   }, [paragraphs, names, cardsByName]);

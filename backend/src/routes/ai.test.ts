@@ -289,6 +289,60 @@ describe('POST /api/ai/deck-review', () => {
     expect(status.body.used).toBe(1);
   });
 
+  it('sends the cards it looked up, and still sends them on a cache hit', async () => {
+    const cookie = await makeUser('ai-review-fetched');
+    await optIn(cookie);
+    // Two lookups returning the same card: the wire carries DISTINCT names, so
+    // the client's chip set doesn't grow with the model's search count.
+    mockState.generate.mockImplementation(async () => ({
+      content: REVIEW_TEXT,
+      inputTokens: 1000,
+      outputTokens: 200,
+      fetched: [
+        { name: 'Bojuka Bog' },
+        { name: 'Gray Merchant of Asphodel' },
+        { name: 'Bojuka Bog' },
+      ],
+    }));
+
+    const fresh = await request(app)
+      .post('/api/ai/deck-review')
+      .set('Cookie', cookie)
+      .send(reviewBody());
+    expect(parseStream(fresh.text).done).toMatchObject({
+      cached: false,
+      fetched: ['Bojuka Bog', 'Gray Merchant of Asphodel'],
+    });
+
+    // The replay is the path that matters: an unchanged deck re-reads from the
+    // row, and a suggested card must stay tappable there too.
+    const replay = await request(app)
+      .post('/api/ai/deck-review')
+      .set('Cookie', cookie)
+      .send(reviewBody());
+    expect(parseStream(replay.text).done).toMatchObject({
+      cached: true,
+      fetched: ['Bojuka Bog', 'Gray Merchant of Asphodel'],
+    });
+    expect(mockState.generate).toHaveBeenCalledTimes(1);
+
+    const history = await request(app).get('/api/ai/history?deckId=deck-1').set('Cookie', cookie);
+    expect(history.body.readings[0].fetched).toEqual(['Bojuka Bog', 'Gray Merchant of Asphodel']);
+  });
+
+  it('omits the looked-up list rather than sending an empty one', async () => {
+    const cookie = await makeUser('ai-review-nofetch');
+    await optIn(cookie);
+    const res = await request(app)
+      .post('/api/ai/deck-review')
+      .set('Cookie', cookie)
+      .send(reviewBody());
+    // Absent, not `[]` — the client tells "looked nothing up" apart from "this
+    // row predates the column" by the key being missing either way, so the two
+    // must serialise identically.
+    expect(parseStream(res.text).done).not.toHaveProperty('fetched');
+  });
+
   it('records the reading in per-deck history, scoped to the deck and the user', async () => {
     const cookie = await makeUser('ai-review-history');
     await optIn(cookie);
