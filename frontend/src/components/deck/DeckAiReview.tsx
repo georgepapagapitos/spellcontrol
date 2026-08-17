@@ -43,6 +43,12 @@ interface HeldReview {
   key: string | null;
   /** Server timestamp, present only on history-restored readings. */
   writtenAt?: number;
+  /**
+   * Cards this reading looked up — its recommendations. Held per reading, not
+   * per deck: reopening an older reading must chip the cards THAT reading
+   * suggested, not the newest one's.
+   */
+  fetched?: string[];
 }
 
 /**
@@ -101,7 +107,13 @@ export function DeckAiReview({
         const newest = readings[0];
         if (newest) {
           setReview(
-            (prev) => prev ?? { content: newest.content, key: null, writtenAt: newest.createdAt }
+            (prev) =>
+              prev ?? {
+                content: newest.content,
+                key: null,
+                writtenAt: newest.createdAt,
+                fetched: newest.fetched,
+              }
           );
         }
       })
@@ -148,7 +160,7 @@ export function DeckAiReview({
     );
     requestDeckReview({ deckId, commander: commanderName, cards, analysis }, setStreamed)
       .then((result) => {
-        setReview({ content: result.content, key: requestKey });
+        setReview({ content: result.content, key: requestKey, fetched: result.fetched });
         setStreamed('');
         setPhase('idle');
         if (!result.cached) noteAiSpend();
@@ -236,6 +248,7 @@ export function DeckAiReview({
           <ReviewProse
             content={review ? review.content : streamed}
             chipCards={chipCards}
+            suggested={review?.fetched}
             stale={stale}
             streaming={!review}
           />
@@ -257,7 +270,12 @@ export function DeckAiReview({
                 aria-current={active || undefined}
                 onClick={() => {
                   if (active) return;
-                  setReview({ content: r.content, key: null, writtenAt: r.createdAt });
+                  setReview({
+                    content: r.content,
+                    key: null,
+                    writtenAt: r.createdAt,
+                    fetched: r.fetched,
+                  });
                   setError(null);
                   setPhase('idle');
                 }}
@@ -346,23 +364,34 @@ export function DeckAiReview({
  * section is COMPLETE — chipping a half-typed name would change its width and
  * jitter the line under the cursor.
  *
+ * Two kinds of name chip. Deck cards carry their `ScryfallCard` straight from
+ * `chipCards`, so the carousel shows the printing this deck holds. `suggested`
+ * cards — the ones the review looked up and is recommending — are name-only by
+ * design: that routes them through the carousel's own resolver, which prefers
+ * the player's OWNED printing before falling back to a default, so a
+ * recommendation you already own opens as your copy. `suggested` arrives with
+ * `{done}`, so nothing extra chips mid-stream; sections only chip when
+ * complete anyway.
+ *
  * Prose with no labels at all (a review cached from prompt v3) falls back to
  * plain paragraphs, exactly as it rendered before.
  */
 function ReviewProse({
   content,
   chipCards,
+  suggested,
   stale,
   streaming = false,
 }: {
   content: string;
   chipCards: Map<string, ScryfallCard>;
+  suggested?: string[];
   stale: boolean;
   streaming?: boolean;
 }) {
   const carousel = useCardCarousel('Cards in the reading');
   const sections = useMemo(() => splitReviewSections(content, streaming), [content, streaming]);
-  const names = useMemo(() => [...chipCards.keys()], [chipCards]);
+  const names = useMemo(() => [...chipCards.keys(), ...(suggested ?? [])], [chipCards, suggested]);
 
   const paragraphs = useMemo(
     () =>
@@ -383,7 +412,11 @@ function ReviewProse({
         if (t.card && !seen.includes(t.card)) seen.push(t.card);
       }
     }
-    return seen.map((name) => ({ name, label: 'Named in the reading', card: chipCards.get(name) }));
+    return seen.map((name) => ({
+      name,
+      label: chipCards.has(name) ? 'Named in the reading' : 'Suggested — not in this deck',
+      card: chipCards.get(name),
+    }));
   }, [paragraphs, names, chipCards]);
 
   const renderParagraph = (text: string, key: string, chipped: boolean) => (

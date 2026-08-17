@@ -34,6 +34,8 @@ export interface DeckRefineResult {
   cached: boolean;
   model: string;
   usage: { inputTokens: number; outputTokens: number };
+  /** See `DeckReviewResult.fetched` — cards looked up, so prose can chip them. */
+  fetched?: string[];
 }
 
 export interface DeckRefinePayload {

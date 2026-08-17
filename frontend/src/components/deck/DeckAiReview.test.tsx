@@ -12,7 +12,13 @@ import { __resetAiStatus } from '../../lib/use-ai-status';
 
 // The carousel pulls in the Scryfall client + CardPreview; the panel only needs
 // to prove it hands the tapped name over.
-const opened: { entries: { name: string }[]; tapped: string }[] = [];
+// `card` is captured as well as `name`: an entry carrying one skips the
+// carousel's resolver, and it is that resolver which prefers the player's OWNED
+// printing. A suggested card must therefore arrive name-only.
+const opened: {
+  entries: { name: string; label?: string; card?: unknown }[];
+  tapped: string;
+}[] = [];
 vi.mock('./useCardCarousel', () => ({
   useCardCarousel: () => ({
     open: (entries: { name: string }[], tapped: string) => opened.push({ entries, tapped }),
@@ -252,6 +258,65 @@ describe('the reading', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Preview Sol Ring' })[0]);
     expect(opened[0].tapped).toBe('Sol Ring');
     expect(opened[0].entries.map((e) => e.name)).toEqual(['Sol Ring', 'Kaalia of the Vast']);
+  });
+
+  it('chips the cards it recommends, name-only so they open the owned printing', async () => {
+    // The prescription names a card the deck does NOT run — which is the whole
+    // point of a recommendation, and exactly why matching prose against the
+    // decklist alone left it as dead text.
+    const withFix = [
+      '---WEAKNESS---\nYour mana cannot support it. Add Anguished Unmaking for an answer.',
+      '---GAMEPLAN---\nYour deck ramps into Sol Ring.',
+      '---WINS---\nIt wins by connecting with Kaalia of the Vast.',
+    ].join('\n\n');
+    stubApi(true, [
+      { delta: withFix },
+      {
+        done: {
+          content: withFix,
+          cached: false,
+          model: 'm',
+          usage: {},
+          fetched: ['Anguished Unmaking'],
+        },
+      },
+    ]);
+    const { container } = renderPanel();
+    await expandStrip();
+    fireEvent.click(await screen.findByRole('button', { name: 'Read the deck' }));
+
+    await waitFor(() => {
+      if (!container.querySelector('.deck-ai-section--weakness')) throw new Error('not yet');
+    });
+    const chips = [...container.querySelectorAll('.deck-ai-card-chip')].map((c) => c.textContent);
+    expect(chips).toContain('Anguished Unmaking');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Preview Anguished Unmaking' }));
+    const suggested = opened[0].entries.find((e) => e.name === 'Anguished Unmaking');
+    // No `card`, so the carousel resolves it — that resolver is what prefers a
+    // printing the player already owns over Scryfall's default.
+    expect(suggested?.card).toBeUndefined();
+    expect(suggested?.label).toBe('Suggested — not in this deck');
+    // A deck card still carries its printing straight through, as before.
+    expect(opened[0].entries.find((e) => e.name === 'Sol Ring')?.card).toBeTruthy();
+  });
+
+  it('chips deck cards only when the reading predates the looked-up list', async () => {
+    // A row stored before the column existed sends no `fetched`. That must read
+    // as "unknown", not as "it looked nothing up" — the deck chips still work.
+    stubApi(true, [
+      { delta: REVIEW },
+      { done: { content: REVIEW, cached: true, model: 'm', usage: {} } },
+    ]);
+    const { container } = renderPanel();
+    await expandStrip();
+    fireEvent.click(await screen.findByRole('button', { name: 'Read the deck' }));
+
+    await waitFor(() => {
+      if (!container.querySelector('.deck-ai-section--weakness')) throw new Error('not yet');
+    });
+    const chips = [...container.querySelectorAll('.deck-ai-card-chip')].map((c) => c.textContent);
+    expect(chips).toEqual(['Sol Ring', 'Sol Ring', 'Kaalia of the Vast', 'Kaalia of the Vast']);
   });
 
   it('shows nothing but the error when the stream dies mid-write', async () => {
