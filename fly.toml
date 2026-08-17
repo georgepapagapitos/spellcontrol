@@ -43,7 +43,23 @@ primary_region = "ord"
 
 [[vm]]
   cpu_kind = "shared"
-  cpus = 1
+  # 2 cores, not 1. On a single shared core the nightly Scryfall bulk ingest
+  # (~450MB stream, ~107k rows, synchronous better-sqlite3 writes) starved the
+  # health check for 20+ minutes at a stretch: the app stayed alive and serving,
+  # but answered a trivial endpoint in 12.5s, so the proxy evicted the only
+  # instance and the site 503'd (2026-08-17, hours of downtime).
+  #
+  # Three code-side attempts did NOT fix it — deferring the job off the boot
+  # path (#1653), pacing the SQLite flushes (#1655), and forwarding stream
+  # errors (#1657, which fixed a real crash but not the starvation). Scaling to
+  # 2 cores did, immediately: health went green with the ingest still running.
+  # The job needs more CPU than a fraction of one shared core, and the second
+  # core costs a few dollars a month.
+  #
+  # ⚠️ Matches the manual `flyctl scale vm shared-cpu-2x` applied 2026-08-17 —
+  # deploys would otherwise revert it to this file's value and bring the outage
+  # straight back. Same trap the memory_mb note below records.
+  cpus = 2
   # 2048: the offline oracle-bulk rebuild OOM-killed the 1GB VM (exit 137) —
   # scanner-matcher embeddings + SQLite cache + the build spike exceed 1GB.
   # The build tail is streamed now (bulk-cache.ts), but 2GB keeps headroom for
