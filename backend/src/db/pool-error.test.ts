@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { EventEmitter } from 'node:events';
 import { Pool } from 'pg';
 import { setDbForTesting } from './index';
 import type { Database } from './index';
@@ -35,6 +36,22 @@ describe('pg pool error handling', () => {
     // Exactly the shape Neon produces: an error event on the pool with nothing
     // awaiting it. Before the fix this propagated as an uncaught exception.
     expect(() => p.emit('error', new Error('server conn crashed?'), {} as never)).not.toThrow();
+    void p.end().catch(() => {});
+  });
+
+  it('gives every CONNECTED client its own error listener', () => {
+    // The pool-level handler does NOT cover a checked-out client: from
+    // connect() to release() the borrower owns it. routes/sync.ts holds one
+    // across a long transaction, and every drizzle `db.transaction()` (combos
+    // ingest, aggregates rollup, feedback) checks one out internally. Shipping
+    // only the pool handler (#1651) left production still crash-looping, so
+    // this pins the second listener.
+    const p = new Pool({ connectionString: 'postgres://unused/never-connected' });
+    setDbForTesting(p, {} as Database);
+    const client = new EventEmitter();
+    p.emit('connect', client as never);
+    expect(client.listenerCount('error')).toBeGreaterThan(0);
+    expect(() => client.emit('error', new Error('server conn crashed?'))).not.toThrow();
     void p.end().catch(() => {});
   });
 });

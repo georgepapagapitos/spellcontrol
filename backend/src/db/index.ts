@@ -21,26 +21,43 @@ export function getPool(): Pool {
 }
 
 /**
- * Keep an idle-client failure from killing the process.
+ * Keep a dropped Postgres connection from killing the process.
  *
- * `pg` emits `'error'` on the POOL when a client dies while idle — nobody is
- * awaiting a query, so there is no promise to reject. Node's rule is that an
- * unhandled `'error'` event is fatal, so without this listener the whole server
- * exits 1 and Fly restarts it.
+ * Node treats an unhandled `'error'` event as **fatal**, and a dropped
+ * connection surfaces as exactly that. Neon recycles serverless compute and
+ * drops connections as NORMAL behaviour, so this fires on its own schedule: on
+ * 2026-08-17 it crash-looped production for over an hour — `error: server conn
+ * crashed?` (Neon's wording, code 08P01) out of `pg-protocol`'s parser,
+ * `exit_code=1, oom_killed=false`.
  *
- * That is not hypothetical: Neon recycles serverless compute and drops idle
- * connections as NORMAL behaviour, and on 2026-08-17 it crash-looped production
- * for ~40 minutes — `error: server conn crashed?` (Neon's wording) thrown out of
- * `pg-protocol`'s parser, `exit_code=1, oom_killed=false`. It reads as random
- * unexplained downtime, and nothing in the logs points at Postgres until you
- * look at the machine's exit events.
+ * ⛔ TWO listeners are required, and the pool-level one alone is NOT enough —
+ * that mistake shipped as #1651 and prod kept crashing:
  *
- * Logging is the whole fix. `pg` has already discarded the broken client; the
- * pool opens a fresh one on the next acquire, so a recycle becomes a log line.
+ * 1. **`pool.on('error')`** covers clients sitting IDLE in the pool. Nobody is
+ *    awaiting a query, so there is no promise to reject.
+ * 2. **`pool.on('connect')` → `client.on('error')`** covers a CHECKED-OUT
+ *    client. From `connect()` to `release()` node-postgres hands ownership to
+ *    the borrower and stops handling that client's errors. `routes/sync.ts`
+ *    holds one across a long transaction, and every drizzle `db.transaction()`
+ *    (combos ingest, aggregates rollup, feedback) checks one out internally —
+ *    none of which the pool-level handler can see.
+ *
+ * The `connect` hook fires once per physical connection, not per checkout, so
+ * the listener rides the client's whole lifetime and cannot leak.
+ *
+ * Logging is the whole fix. `pg` already discards the broken client and the
+ * pool opens a fresh one on the next acquire; in-flight queries still reject
+ * normally through their own promises. This only stops the raw EventEmitter
+ * 'error' from reaching Node's fatal path.
  */
 function attachPoolErrorHandler(p: Pool): void {
   p.on('error', (err) => {
     logger.error('[db] idle client error — connection discarded, pool will reconnect:', err);
+  });
+  p.on('connect', (client) => {
+    client.on('error', (err) => {
+      logger.error('[db] client error (in use or connecting) — connection will be discarded:', err);
+    });
   });
 }
 
