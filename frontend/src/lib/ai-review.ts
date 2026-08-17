@@ -283,6 +283,57 @@ export interface ProseToken {
 const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
+ * Markdown emphasis the model sometimes writes around a card name, stripped for
+ * display. Nothing renders markdown here — the prose goes into `<p>` as text —
+ * so `**Extraordinary Journey**` reached the reader with the asterisks showing.
+ *
+ * Measured across 70 live runs: v8 emitted `**` in 7/35, prompt v9 in **18/35**,
+ * because telling the model to name cards prominently made it bold them. A
+ * prompt rule could ask it to stop, but that is a request the model can ignore
+ * on any given run; stripping at the render boundary is not. Only the doubled
+ * marker is removed — a lone asterisk is left alone, since MTG text uses it in
+ * variable power/toughness.
+ */
+export function stripEmphasis(text: string): string {
+  return text.replace(/\*\*/g, '');
+}
+
+/**
+ * Short forms a legend is referred to by, mapped back to its full name.
+ *
+ * The model writes "Teferi", "Ioreth", "Vizier" and "Captain America" for cards
+ * whose printed names are far longer, and exact-name matching left exactly
+ * those as dead text beside chipped neighbours — the reader sees an arbitrary
+ * half of the names light up. Both standard legend shapes are covered:
+ * `Name, Title` and `Name of Place`.
+ *
+ * Three guards, because a short form is a much blunter instrument than a full
+ * name:
+ * - **Ambiguous prefixes are dropped.** Two Teferis in one deck means "Teferi"
+ *   identifies neither.
+ * - **Never shadows a real card name.** A prefix that is itself somebody's full
+ *   name stays that card.
+ * - **Must be capitalised where it appears** (enforced at match time) and at
+ *   least 4 characters. Without this, "Will, Scion of Peace" turns every "will"
+ *   in the prose into a chip.
+ */
+function shortForms(canonical: Map<string, string>): Map<string, string> {
+  const counts = new Map<string, Set<string>>();
+  for (const full of new Set(canonical.values())) {
+    const cut = full.search(/,| of /);
+    if (cut < 0) continue;
+    const alias = full.slice(0, cut).trim();
+    if (alias.length < 4 || canonical.has(alias.toLowerCase())) continue;
+    const seen = counts.get(alias.toLowerCase()) ?? new Set<string>();
+    seen.add(full);
+    counts.set(alias.toLowerCase(), seen);
+  }
+  const out = new Map<string, string>();
+  for (const [key, fulls] of counts) if (fulls.size === 1) out.set(key, [...fulls][0]);
+  return out;
+}
+
+/**
  * Split a paragraph into plain-text runs and card-name mentions, so the names
  * can render as tappable chips.
  *
@@ -298,6 +349,10 @@ const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\
  * model writes "Delver of Secrets", not the `//` name) but always reports the
  * canonical full name, which is what the deck is keyed by. Boundaries are
  * non-word only, so a possessive ("Kaalia's trigger") still chips the name.
+ *
+ * Legends also match on their short form — see {@link shortForms} — because the
+ * model writes "Teferi" and "Vizier" as readily as the printed name, and the
+ * reader cannot tell why half the names in a sentence are tappable.
  */
 export function tokenizeCardNames(text: string, matchNames: string[]): ProseToken[] {
   const canonical = new Map<string, string>();
@@ -306,6 +361,9 @@ export function tokenizeCardNames(text: string, matchNames: string[]): ProseToke
     const front = name.split(' // ')[0];
     if (front !== name) canonical.set(front.toLowerCase(), name);
   }
+  const aliases = shortForms(canonical);
+  for (const [key, full] of aliases) canonical.set(key, full);
+
   const matchable = [...canonical.keys()].sort((a, b) => b.length - a.length);
   if (matchable.length === 0) return [{ text }];
 
@@ -314,8 +372,12 @@ export function tokenizeCardNames(text: string, matchNames: string[]): ProseToke
   let last = 0;
   for (const m of text.matchAll(re)) {
     const at = m.index ?? 0;
+    const key = m[0].toLowerCase();
+    // A short form only counts when it is capitalised as written: "Will" is a
+    // card, "will" is a verb, and the alternation above is case-insensitive.
+    if (aliases.has(key) && m[0][0] !== m[0][0].toUpperCase()) continue;
     if (at > last) tokens.push({ text: text.slice(last, at) });
-    tokens.push({ text: m[0], card: canonical.get(m[0].toLowerCase()) });
+    tokens.push({ text: m[0], card: canonical.get(key) });
     last = at + m[0].length;
   }
   if (last < text.length) tokens.push({ text: text.slice(last) });

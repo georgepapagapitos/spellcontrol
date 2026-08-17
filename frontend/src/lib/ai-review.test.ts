@@ -7,6 +7,7 @@ import {
   requestDeckReview,
   setAiOptIn,
   splitReviewSections,
+  stripEmphasis,
   toAiAnalysis,
   tokenizeCardNames,
 } from './ai-review';
@@ -140,6 +141,51 @@ describe('tokenizeCardNames', () => {
   const text = (tokens: ReturnType<typeof tokenizeCardNames>) => tokens.map((t) => t.text).join('');
   const chipped = (tokens: ReturnType<typeof tokenizeCardNames>) =>
     tokens.filter((t) => t.card).map((t) => t.card);
+
+  it('chips a legend by the short form the model actually writes', () => {
+    // Observed live: the model writes "Teferi" and "Vizier" beside full names,
+    // so exact-match-only lit up an arbitrary half of one sentence.
+    const tokens = tokenizeCardNames('Untap with Teferi, then Vizier, then Ioreth to close.', [
+      'Teferi, Who Slows the Sunset',
+      'Vizier of Remedies',
+      'Ioreth of the Healing House',
+    ]);
+    expect(chipped(tokens)).toEqual([
+      'Teferi, Who Slows the Sunset',
+      'Vizier of Remedies',
+      'Ioreth of the Healing House',
+    ]);
+    expect(text(tokens)).toBe('Untap with Teferi, then Vizier, then Ioreth to close.');
+  });
+
+  it('still prefers the full name when the model writes it out', () => {
+    const tokens = tokenizeCardNames('Cast Teferi, Who Slows the Sunset on turn five.', [
+      'Teferi, Who Slows the Sunset',
+    ]);
+    expect(tokens.filter((t) => t.card)).toHaveLength(1);
+    expect(tokens.find((t) => t.card)?.text).toBe('Teferi, Who Slows the Sunset');
+  });
+
+  it('never chips a lowercase word that happens to be a legend short form', () => {
+    // "Will, Scion of Peace" would otherwise turn every "will" into a chip.
+    const tokens = tokenizeCardNames('You will win if Will resolves.', ['Will, Scion of Peace']);
+    expect(chipped(tokens)).toEqual(['Will, Scion of Peace']);
+    expect(text(tokens)).toBe('You will win if Will resolves.');
+  });
+
+  it('drops an ambiguous short form rather than guessing', () => {
+    const tokens = tokenizeCardNames('Teferi untaps everything.', [
+      'Teferi, Who Slows the Sunset',
+      'Teferi, Temporal Archmage',
+    ]);
+    expect(chipped(tokens)).toEqual([]);
+    expect(text(tokens)).toBe('Teferi untaps everything.');
+  });
+
+  it('never lets a short form shadow another card whose full name it is', () => {
+    const tokens = tokenizeCardNames('Shadow blocks well.', ['Shadow', 'Shadow of the Grave']);
+    expect(chipped(tokens)).toEqual(['Shadow']);
+  });
 
   it('chips in-deck names and leaves the prose byte-identical', () => {
     const tokens = tokenizeCardNames('Cast Sol Ring early, then Demonic Tutor.', [
@@ -375,5 +421,28 @@ describe('requestDeckReview', () => {
       message: expect.stringContaining('Daily limit'),
       status: 429,
     });
+  });
+});
+
+describe('stripEmphasis', () => {
+  it('removes markdown bold the model writes around card names', () => {
+    // Nothing renders markdown here, so this reached the page verbatim as
+    // "**Extraordinary Journey**" — seen in 18/35 live runs on prompt v9.
+    expect(stripEmphasis('Add **Extraordinary Journey** now.')).toBe(
+      'Add Extraordinary Journey now.'
+    );
+  });
+
+  it('removes an unclosed marker mid-stream rather than showing it', () => {
+    expect(stripEmphasis('Add **Extraordinary')).toBe('Add Extraordinary');
+  });
+
+  it('leaves a lone asterisk alone — MTG writes variable power that way', () => {
+    expect(stripEmphasis('a */* creature')).toBe('a */* creature');
+  });
+
+  it('lets a bolded name still chip once stripped', () => {
+    const tokens = tokenizeCardNames(stripEmphasis('Add **Sol Ring**.'), ['Sol Ring']);
+    expect(tokens.filter((t) => t.card).map((t) => t.card)).toEqual(['Sol Ring']);
   });
 });
