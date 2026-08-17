@@ -1,9 +1,15 @@
-import { Camera, ChevronDown, ChevronRight, RotateCcw, Trash2, Upload } from 'lucide-react';
+import { Camera, ChevronDown, ChevronRight, Link2, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { Suspense, lazy, useId, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { formatRelativeTime } from '../lib/format-time';
 import { haptics } from '../lib/haptics';
 import { useCollectionStore, type ImportMode } from '../store/collection';
-import { importFile, importRows, importText, type ImportProgressCallback } from '../lib/api';
+import {
+  fetchImportLink,
+  importFile,
+  importRows,
+  importText,
+  type ImportProgressCallback,
+} from '../lib/api';
 import type { UploadResponse } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { parseBackup } from '../lib/backup';
@@ -128,6 +134,10 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const [pasteText, setPasteText] = useState('');
+  /** Google Sheets / Drive share link, fetched server-side and staged as a file. */
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkBusy, setLinkBusy] = useState(false);
+  const linkInputId = useId();
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [stageNote, setStageNote] = useState<string | null>(null);
   const [showUnresolved, setShowUnresolved] = useState(false);
@@ -215,6 +225,27 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     const { files, renamed, dropped } = mergeStagedFiles(stagedFiles, incoming);
     setStagedFiles(files);
     setStageNote(stagedFilesNotice(renamed, dropped));
+  };
+
+  /**
+   * Pull a Sheet / Drive file down through the backend and stage it as a normal
+   * File — from here it's indistinguishable from one the user dropped, so the
+   * re-import gate, per-file history and routing summary all work unchanged.
+   */
+  const handleFetchLink = async () => {
+    const url = linkUrl.trim();
+    if (!url || linkBusy || isLoading) return;
+    setLinkBusy(true);
+    setError(null);
+    try {
+      const { text, name } = await fetchImportLink(url);
+      stageIncoming([new File([text], name, { type: 'text/csv' })]);
+      setLinkUrl('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't fetch that link");
+    } finally {
+      setLinkBusy(false);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -832,12 +863,57 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
           ) : (
             <textarea
               className="paste-textarea import-textarea"
+              // Named because a placeholder is not an accessible name, and this
+              // is no longer the only textbox in the card.
+              aria-label="Card list to import"
               value={pasteText}
               onChange={(e) => setPasteText(e.target.value)}
               placeholder={'4 Arcane Signet\n1 Cyclonic Rift\n2 Forest\n…'}
               disabled={isLoading}
             />
           )}
+
+          {/* Google keeps a lot of people's collections in a Sheet, which no
+              file picker on any platform can reach — the OS picker already
+              covers files sitting *in* Drive. The server fetches it (no CORS
+              on Google's export endpoints) and it lands here as a staged file. */}
+          <div className="import-link-row">
+            <label className="sr-only" htmlFor={linkInputId}>
+              Google Sheets or Drive link
+            </label>
+            <input
+              id={linkInputId}
+              type="url"
+              className="import-link-input"
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  void handleFetchLink();
+                }
+              }}
+              placeholder="…or paste a Google Sheets / Drive link"
+              disabled={isLoading || linkBusy}
+              inputMode="url"
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <button
+              type="button"
+              className="btn import-link-btn"
+              onClick={handleFetchLink}
+              disabled={isLoading || linkBusy || !linkUrl.trim()}
+              title="Fetch a card list from a Google Sheet, or from a file in Drive. The link has to be shared with anyone who has it."
+            >
+              {linkBusy ? (
+                <span className="spinner" />
+              ) : (
+                <Link2 width={14} height={14} strokeWidth={1.8} aria-hidden />
+              )}
+              <span>{linkBusy ? 'Fetching…' : 'Fetch'}</span>
+            </button>
+          </div>
 
           <label className="field-checkbox import-proxy-toggle">
             <input

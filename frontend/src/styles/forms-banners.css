@@ -195,6 +195,7 @@
 select,
 input[type='number'],
 input[type='text'],
+input[type='url'],
 input[type='search'] {
   font-size: var(--text-base);
   color: var(--text-primary);
