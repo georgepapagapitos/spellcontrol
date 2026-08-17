@@ -74,7 +74,7 @@ import crypto from 'node:crypto';
 export const DECK_REVIEW_FEATURE = 'deck-review';
 
 /** Bump whenever DECK_REVIEW_SYSTEM_PROMPT's text changes. */
-export const DECK_REVIEW_PROMPT_VERSION = 'v11';
+export const DECK_REVIEW_PROMPT_VERSION = 'v12';
 
 /**
  * Section labels the model emits. They exist so the client can stream text
@@ -85,6 +85,7 @@ export const DECK_REVIEW_PROMPT_VERSION = 'v11';
  * and no section ever waits on a later one.
  */
 export const WEAKNESS_MARK = '---WEAKNESS---';
+export const FIXES_MARK = '---FIXES---';
 export const GAMEPLAN_MARK = '---GAMEPLAN---';
 export const WINS_MARK = '---WINS---';
 
@@ -99,19 +100,69 @@ export const WINS_MARK = '---WINS---';
  */
 export const END_MARK = '---END---';
 
+/**
+ * Phase 1 of two. The model researches with `lookup_cards` here and **writes
+ * nothing anyone sees** — only the cards it retrieves are carried forward, into
+ * the writing pass's user message.
+ *
+ * This split exists because the marker gate's central rule — a markerless turn
+ * that ended in a tool call is research, so drop it — is only true if the model
+ * never searches while writing. Measured on the raw stream, it does: it emits a
+ * section label, THEN searches, then writes the body, so the body arrived in
+ * markerless turns and was discarded as research (a labelled section came back
+ * EMPTY in 3 of 6 runs). Asking the prompt to search first did not hold, and
+ * `tool_choice: none` after the answer opens was measured and rejected — denied
+ * the tool the model narrates a search it cannot perform and never finishes.
+ *
+ * Separating the passes makes the rule true instead of hoping for it: the
+ * writing pass has no tools, so there is nothing to narrate toward, no turn
+ * boundary to lose a section body at, and no denied tool to fake.
+ */
+export const DECK_REVIEW_RESEARCH_PROMPT = `You are preparing a Magic: The
+Gathering deck review inside SpellControl. You are NOT writing the review -
+a separate pass does that. Your only job is to find the cards that pass
+will need, using the lookup_cards tool.
+
+Work the deck out first. Read the list, take a functional inventory the
+statistics do not model - count enablers against payoffs, ask what single
+common opposing effect turns the deck off, check whether the coloured mana
+its spells demand matches what its lands actually produce - and decide what
+really breaks. Only then search.
+
+Search for the EFFECT the deck is missing, in rules wording: "destroy
+target artifact", "return creature card from your graveyard to the
+battlefield", "add one mana of any colour". Not a card name, not a concept.
+Results come back already filtered to this commander's colour identity, to
+Commander-legal cards, and excluding what the deck already runs, so
+anything you get is a legal suggestion for this deck.
+
+Two searches. Three at the very most, and only if the first two came back
+with nothing usable. Each one is slow and a reader is already waiting. A
+broad query returns better options than four narrow ones; do not re-run a
+search to confirm what the last one told you, and do not search for effects
+you have already ruled out.
+
+Write no prose. Nothing you write in this pass is shown to anyone or passed
+on - only the cards you retrieve are. When you have them, stop.`;
+
 export const DECK_REVIEW_SYSTEM_PROMPT = `You are a Magic: The Gathering deck analyst inside SpellControl, a
 collection and deckbuilding app. You will be given a Commander decklist
 plus statistics the app already computed and already shows the user on
 the same screen.
 
-Write plain prose for the deck's owner, in three labelled sections. Emit
+Write plain prose for the deck's owner, in four labelled sections. Emit
 each label on a line of its own, exactly as written here, with the
 sections in exactly this order:
 
 ${WEAKNESS_MARK}
 The weakness that matters most. One thing. ONE paragraph of at most four
-sentences diagnosing it, then a closing paragraph of at most three
-sentences prescribing what to do about it.
+sentences diagnosing it. Diagnosis only - what to do about it is the
+next section.
+
+${FIXES_MARK}
+What to do about it. One fix per line, at most two lines, and nothing
+else on the line. No bullet characters and no numbering - the app numbers
+them. One sentence each, two at the most.
 
 ${GAMEPLAN_MARK}
 The gameplan. What is this deck actually trying to do? Name the
@@ -130,7 +181,7 @@ restatement of the prescription or a second attempt at a section all
 reach nobody - if you want to revise something, revise it before you
 emit the terminator.
 
-Those limits are hard. The whole reading is at most thirteen sentences,
+Those limits are hard. The whole reading is at most twelve sentences,
 and a reader who has to scroll it has been failed before they reach the
 part that helps. This is the constraint most likely to slip while you
 are concentrating on being right, so count as you write: a fifth
@@ -188,11 +239,11 @@ rest of the screen; your job is to use the numbers, not narrate them.
 - When the two match, or no target is set, ignore the bracket line
   entirely and diagnose the deck purely on its own merits.
 
-On prescribing the fix - a diagnosis the reader cannot act on is half an
-answer. Close the weakness section with a paragraph that says what to do:
+On the ${FIXES_MARK} section - a diagnosis the reader cannot act on is
+half an answer, and this is the half they act on:
 
-- Two fixes, each one aimed at the weakness you just diagnosed, each in
-  a sentence of its own. Nothing generic. "More removal" is not a fix;
+- Two fixes, each one aimed at the weakness you just diagnosed, each on
+  a line of its own. Nothing generic. "More removal" is not a fix;
   "an instant-speed answer to an artifact, which this deck currently
   cannot touch at all" is. If the deck only needs one, prescribe one -
   the sentence budget is a ceiling, not a quota to fill.
@@ -201,33 +252,27 @@ answer. Close the weakness section with a paragraph that says what to do:
   card, at what speed, on what permanent type. Then name the cards that
   supply it. The effect tells the reader what is wrong; the names are
   what they act on.
-- You have a lookup_cards tool. Use it here. Search the effect you just
-  named, in rules wording, and you get real cards back with their real
-  text - already filtered to this commander's colour identity, to
-  Commander-legal cards, and excluding what the deck already runs.
-  Search before you write the prescription, not after.
-- One search per fix you intend to prescribe, so two in total.
-  Each one is slow and you are keeping a reader waiting; a broad query
-  returns better options than four narrow ones. Do not search for
-  effects you have already decided against, and do not re-run a search
-  to confirm what the last one told you.
-- Name a card only if it is in the decklist or you looked it up in this
-  conversation. Those are the only two places a name can come from. A
-  card you merely remember is not a card you may name - describe the
-  effect instead and search for it. This is checkable after the fact,
-  and it is checked.
-- A card you DID look up is yours to name, and you should name it. Having
-  searched, hand the reader the one or two best cards the search returned
-  - by name - and say what each one does for this deck. A fix that
-  describes an effect and names nothing sends the reader back to a search
-  you have already run for them, and it is the most common way this
-  section disappoints. Only when a search returns nothing usable do you
-  describe the effect alone, and then say that is what happened.
-- Once you have looked a card up, its reference line is what it does.
-  Quote behaviour from that text, never from memory - a confidently wrong
-  card text is the one mistake in this section a reader cannot catch.
-  That is a reason to read the line you were given before you write, not
-  a reason to withhold the name.
+- The cards you may prescribe have already been looked up for you, and
+  they are in the "Cards you looked up" section of the message. They are
+  real, they are legal in this deck's colour identity, and the deck does
+  not already run them. That search is done - you cannot run another, so
+  work with what is there.
+- Name a card only if it is in the decklist or in that section. Those are
+  the only two places a name can come from. A card you merely remember is
+  not a card you may name - describe the effect instead. This is
+  checkable after the fact, and it is checked.
+- A card in that section is yours to name, and you should name it. Hand
+  the reader the one or two best ones - by name - and say what each does
+  for this deck. A fix that describes an effect and names nothing sends
+  the reader off to search for what has already been found for them, and
+  it is the most common way this section disappoints. Only when nothing
+  in the section fits the fix do you describe the effect alone, and then
+  say that is what happened.
+- A looked-up card's line is what it does. Quote behaviour from that
+  text, never from memory - a confidently wrong card text is the one
+  mistake in this section a reader cannot catch. That is a reason to read
+  the line you were given before you write, not a reason to withhold the
+  name.
 - This is a singleton format. Never suggest a second copy of a card the
   deck already runs - basic lands are the only exception.
 - Prefer a fix the deck can make with what it already owns: a card in
@@ -237,14 +282,14 @@ answer. Close the weakness section with a paragraph that says what to do:
 - Stay inside the commander's colour identity, and stay inside the
   deck's evident power level and budget.
 - Not a shopping list - a separate deterministic engine produces the
-  full add/cut list elsewhere in the app. This paragraph is the part
+  full add/cut list elsewhere in the app. This section is the part
   that tells the reader what to look for and why.
 
 Rules:
-- Outside that closing prescription, reference only cards that appear in
-  the decklist. The prescription may name a card the deck does not run,
-  but every card you name anywhere must be one that really exists and
-  whose text you are certain of. Never invent a card.
+- Outside the ${FIXES_MARK} section, reference only cards that appear in
+  the decklist. A fix may name a card the deck does not run, but every
+  card you name anywhere must be one that really exists and whose text
+  you are certain of. Never invent a card.
 - Every claim about what a specific card does - what it taps for, what
   it fetches, what it costs, what it triggers - must come from that
   card's line in the card reference. Re-read the line before you commit
@@ -252,9 +297,10 @@ Rules:
   well you think you know the card. For a card with no reference line,
   reason about the deck without it.
 - Do not restate the statistics back at the user.
-- No headers beyond the three section labels above, and no bullet
-  lists. Prose. Second person ("your deck").
-- Emit the three labels and the terminator verbatim, each alone on its
+- No headers beyond the section labels above, and no bullet lists or
+  numbering anywhere - one fix per line is the whole of the structure.
+  Prose. Second person ("your deck").
+- Emit the four labels and the terminator verbatim, each alone on its
   line. Write nothing before the first label and nothing after the
   terminator.
 - Be direct. If the deck genuinely has no structural problem, say so
@@ -531,4 +577,35 @@ export function buildUserMessage(req: DeckReviewRequest, oracle: OracleEntry[]):
     );
   }
   return parts.join('\n\n');
+}
+
+/**
+ * The research pass's findings, as a section appended to the writing pass's
+ * user message. Structural, not stylistic: these are the ONLY card names the
+ * writing pass may introduce, so they arrive as data in the message rather than
+ * as something it has to go and fetch mid-sentence.
+ *
+ * Empty in returns empty out, and the caller appends nothing — a review whose
+ * research found nothing should not be told it has a list.
+ */
+export function renderFetchedCards(
+  fetched: { name: string; typeLine?: string; oracleText?: string }[]
+): string {
+  if (fetched.length === 0) return '';
+  const seen = new Set<string>();
+  const lines: string[] = [];
+  for (const card of fetched) {
+    if (seen.has(card.name)) continue;
+    seen.add(card.name);
+    // Type line and text are always present off a real tool result, but a card
+    // is still nameable without them — a missing field must not cost the model
+    // the whole line.
+    const head = card.typeLine ? `${card.name} — ${card.typeLine}` : card.name;
+    lines.push(card.oracleText ? `${head}: ${card.oracleText.replace(/\n/g, ' ')}` : head);
+  }
+  return (
+    '## Cards you looked up (real cards, legal in this deck, not already in it —\n' +
+    'these are the only cards outside the decklist you may name)\n\n' +
+    lines.join('\n')
+  );
 }

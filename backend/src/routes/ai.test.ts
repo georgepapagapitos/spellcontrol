@@ -52,8 +52,20 @@ beforeEach(() => {
   mockState.generate.mockReset();
   // Emit the text in two chunks, the way a real stream arrives, so the route's
   // delta forwarding is exercised rather than assumed.
+  // The review is TWO calls: a research pass (tools, no streaming, prose
+  // discarded) then a writing pass (no tools, streams). The mock has to tell
+  // them apart or every count in this file doubles.
   mockState.generate.mockImplementation(
-    async (_system: string, _user: string, onDelta?: (t: string) => void) => {
+    async (
+      _system: string,
+      _user: string,
+      onDelta?: (t: string) => void,
+      _signal?: AbortSignal,
+      options?: { tools?: unknown[] }
+    ) => {
+      if (options?.tools?.length) {
+        return { content: '', inputTokens: 500, outputTokens: 100, fetched: [] };
+      }
       onDelta?.('Your deck is ');
       onDelta?.('a fine deck.');
       return { content: REVIEW_TEXT, inputTokens: 1000, outputTokens: 200, fetched: [] };
@@ -270,7 +282,9 @@ describe('POST /api/ai/deck-review', () => {
       content: REVIEW_TEXT,
       cached: false,
       model: 'test-model',
-      usage: { inputTokens: 1000, outputTokens: 200 },
+      // Both passes are billed: research 500/100 + writing 1000/200. The user
+      // pays for the lookups whether or not their prose is shown.
+      usage: { inputTokens: 1500, outputTokens: 300 },
     });
 
     const second = await request(app)
@@ -282,8 +296,9 @@ describe('POST /api/ai/deck-review', () => {
     // A cache hit uses the same wire format — one delta plus the terminator.
     expect(secondStream.deltas).toEqual([REVIEW_TEXT]);
     expect(secondStream.done).toMatchObject({ cached: true, content: REVIEW_TEXT });
-    // The cache hit never touched the model.
-    expect(mockState.generate).toHaveBeenCalledTimes(1);
+    // The cache hit never touched the model. Two calls, not one: research
+    // then write.
+    expect(mockState.generate).toHaveBeenCalledTimes(2);
 
     const status = await request(app).get('/api/ai/status').set('Cookie', cookie);
     expect(status.body.used).toBe(1);
@@ -324,7 +339,7 @@ describe('POST /api/ai/deck-review', () => {
       cached: true,
       fetched: ['Bojuka Bog', 'Gray Merchant of Asphodel'],
     });
-    expect(mockState.generate).toHaveBeenCalledTimes(1);
+    expect(mockState.generate).toHaveBeenCalledTimes(2);
 
     const history = await request(app).get('/api/ai/history?deckId=deck-1').set('Cookie', cookie);
     expect(history.body.readings[0].fetched).toEqual(['Bojuka Bog', 'Gray Merchant of Asphodel']);
@@ -386,7 +401,7 @@ describe('POST /api/ai/deck-review', () => {
     const res = await request(app).post('/api/ai/deck-review').set('Cookie', cookie).send(edited);
     expect(res.status).toBe(200);
     expect(parseStream(res.text).done).toMatchObject({ cached: false });
-    expect(mockState.generate).toHaveBeenCalledTimes(2);
+    expect(mockState.generate).toHaveBeenCalledTimes(4);
   });
 
   it('429s at the daily limit; cache hits still work past it', async () => {
@@ -492,7 +507,18 @@ describe('POST /api/ai/deck-review', () => {
     // Deltas go out, then the model dies — the 200 status is already spent, so
     // the failure has to ride the stream itself.
     mockState.generate.mockImplementation(
-      async (_system: string, _user: string, onDelta?: (t: string) => void) => {
+      async (
+        _system: string,
+        _user: string,
+        onDelta?: (t: string) => void,
+        _signal?: AbortSignal,
+        options?: { tools?: unknown[] }
+      ) => {
+        // The research pass succeeds; the WRITING pass dies mid-stream, which
+        // is the only way a failure can land after the headers are gone.
+        if (options?.tools?.length) {
+          return { content: '', inputTokens: 500, outputTokens: 100, fetched: [] };
+        }
         onDelta?.('Your deck is ');
         throw new Error('boom');
       }
@@ -586,26 +612,88 @@ describe('POST /api/ai/deck-review', () => {
     expect(rows.rows.map((r) => r.prompt_version)).toEqual([DECK_REVIEW_PROMPT_VERSION]);
   });
 
-  it('hands the model a lookup_cards tool scoped to this deck', async () => {
+  it('researches with tools, then WRITES without them', async () => {
+    // The whole point of the two-pass split. If the writing pass keeps the
+    // tools, the model searches mid-answer again — it emits a section label,
+    // then calls lookup_cards, and the section body lands in a markerless turn
+    // the gate discards as research (measured: a section came back EMPTY in 3
+    // of 6 runs). No tools while writing means that cannot happen.
     const cookie = await makeUser('ai-review-tooling');
     await optIn(cookie);
     await request(app).post('/api/ai/deck-review').set('Cookie', cookie).send(reviewBody());
 
-    // 5th argument is the options bag the route builds per request.
-    const options = mockState.generate.mock.calls.at(-1)?.[4] as
-      | {
-          tools?: Array<{ definition: { name: string } }>;
-          answerMarker?: string;
-          endMarker?: string;
+    type Opts = {
+      tools?: Array<{ definition: { name: string } }>;
+      answerMarker?: string;
+      endMarker?: string;
+    };
+    // 3rd argument is `onDelta`, 5th is the options bag the route builds.
+    const calls = mockState.generate.mock.calls;
+    expect(calls).toHaveLength(2);
+    const [research, writing] = calls as [
+      [string, string, undefined, unknown, Opts],
+      [string, string, (t: string) => void, unknown, Opts],
+    ];
+
+    // Pass 1: tools, and NOT streamed — the reader never sees research.
+    expect(research[4]?.tools?.map((t) => t.definition.name)).toEqual(['lookup_cards']);
+    expect(research[2]).toBeUndefined();
+    expect(research[4]?.answerMarker).toBeUndefined();
+
+    // Pass 2: no tools, streamed, gated at both ends.
+    const { WEAKNESS_MARK, END_MARK, DECK_REVIEW_RESEARCH_PROMPT, DECK_REVIEW_SYSTEM_PROMPT } =
+      await import('../ai/deck-review');
+    expect(writing[4]?.tools).toBeUndefined();
+    expect(typeof writing[2]).toBe('function');
+    expect(writing[4]?.answerMarker).toBe(WEAKNESS_MARK);
+    expect(writing[4]?.endMarker).toBe(END_MARK);
+
+    // And each pass gets its own prompt.
+    expect(research[0]).toBe(DECK_REVIEW_RESEARCH_PROMPT);
+    expect(writing[0]).toBe(DECK_REVIEW_SYSTEM_PROMPT);
+  });
+
+  it("carries the research pass's CARDS into the writing pass, and its prose nowhere", async () => {
+    const cookie = await makeUser('ai-review-handoff');
+    await optIn(cookie);
+    mockState.generate.mockImplementation(
+      async (
+        _system: string,
+        _user: string,
+        onDelta?: (t: string) => void,
+        _signal?: AbortSignal,
+        options?: { tools?: unknown[] }
+      ) => {
+        if (options?.tools?.length) {
+          return {
+            content: 'Let me search for artifact removal. Good, that worked.',
+            inputTokens: 500,
+            outputTokens: 100,
+            fetched: [
+              { name: 'Anguished Unmaking', typeLine: 'Instant', oracleText: 'Exile target…' },
+            ],
+          };
         }
-      | undefined;
-    expect(options?.tools?.map((t) => t.definition.name)).toEqual(['lookup_cards']);
-    // Without the marker the gate is off and the model's research narration
-    // would stream into the review panel; without the terminator the answer has
-    // no end, and notes the model writes after it ride into the last section.
-    const { WEAKNESS_MARK, END_MARK } = await import('../ai/deck-review');
-    expect(options?.answerMarker).toBe(WEAKNESS_MARK);
-    expect(options?.endMarker).toBe(END_MARK);
+        onDelta?.(REVIEW_TEXT);
+        return { content: REVIEW_TEXT, inputTokens: 1000, outputTokens: 200, fetched: [] };
+      }
+    );
+    const res = await request(app)
+      .post('/api/ai/deck-review')
+      .set('Cookie', cookie)
+      .send(reviewBody());
+
+    const writingUserMessage = mockState.generate.mock.calls.at(-1)?.[1] as string;
+    expect(writingUserMessage).toContain('Anguished Unmaking');
+    expect(writingUserMessage).toContain('Cards you looked up');
+    // The research pass's PROSE is discarded wholesale — it is the narration
+    // the gate used to have to detect, and it reaches neither the writing
+    // pass's message nor the reader.
+    expect(writingUserMessage).not.toContain('Let me search');
+    expect(res.text).not.toContain('Let me search');
+
+    // Pass 2 has no tools, so the allowlist has to come from pass 1.
+    expect(parseStream(res.text).done).toMatchObject({ fetched: ['Anguished Unmaking'] });
   });
 
   it('still delivers the review when it cites a card it never looked up', async () => {

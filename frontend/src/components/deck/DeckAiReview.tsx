@@ -424,29 +424,31 @@ function ReviewProse({
     }));
   }, [paragraphs, names, chipCards]);
 
+  /** Prose runs with the card names chipped — the same content in a `p` or an `li`. */
+  const renderRuns = (text: string, chipped: boolean) =>
+    chipped ? (
+      tokenizeCardNames(text, names).map((t, i) => {
+        const named = t.card;
+        return named ? (
+          <button
+            key={i}
+            type="button"
+            className="deck-ai-card-chip"
+            onClick={() => void carousel.open(entries, named)}
+            aria-label={`Preview ${named}`}
+          >
+            {t.text}
+          </button>
+        ) : (
+          <span key={i}>{t.text}</span>
+        );
+      })
+    ) : (
+      <span>{text}</span>
+    );
+
   const renderParagraph = (text: string, key: string, chipped: boolean) => (
-    <p key={key}>
-      {chipped ? (
-        tokenizeCardNames(text, names).map((t, i) => {
-          const named = t.card;
-          return named ? (
-            <button
-              key={i}
-              type="button"
-              className="deck-ai-card-chip"
-              onClick={() => void carousel.open(entries, named)}
-              aria-label={`Preview ${named}`}
-            >
-              {t.text}
-            </button>
-          ) : (
-            <span key={i}>{t.text}</span>
-          );
-        })
-      ) : (
-        <span>{text}</span>
-      )}
-    </p>
+    <p key={key}>{renderRuns(text, chipped)}</p>
   );
 
   const proseClass = `deck-ai-prose${stale ? ' deck-ai-prose--stale' : ''}${
@@ -468,8 +470,16 @@ function ReviewProse({
                 <h5 id={`deck-ai-section-${sec.id}`} className="deck-ai-section-title">
                   {sec.title}
                 </h5>
-                {sec.paragraphs.map((para, i) =>
-                  renderParagraph(para, `${sec.id}-${i}`, sec.complete)
+                {sec.id === 'fixes' ? (
+                  <ol className="deck-ai-fixes" role="list">
+                    {sec.paragraphs.map((fix, i) => (
+                      <li key={`${sec.id}-${i}`}>{renderRuns(fix, sec.complete)}</li>
+                    ))}
+                  </ol>
+                ) : (
+                  sec.paragraphs.map((para, i) =>
+                    renderParagraph(para, `${sec.id}-${i}`, sec.complete)
+                  )
                 )}
               </section>
             ))

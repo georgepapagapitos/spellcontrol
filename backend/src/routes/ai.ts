@@ -14,12 +14,14 @@ import { loadRelevantCombos } from './combos';
 import {
   DECK_REVIEW_FEATURE,
   DECK_REVIEW_PROMPT_VERSION,
+  DECK_REVIEW_RESEARCH_PROMPT,
   DECK_REVIEW_SYSTEM_PROMPT,
   END_MARK,
   WEAKNESS_MARK,
   buildUserMessage,
   hashDeckReviewInput,
   parseDeckReviewRequest,
+  renderFetchedCards,
   unverifiedCitations,
   type OracleEntry,
 } from '../ai/deck-review';
@@ -316,12 +318,29 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
     }
   }
 
+  // TWO PASSES: research, then write.
+  //
+  // They used to be one tool-using call, and the marker gate had to tell the
+  // model's research narration apart from the review inside a single stream.
+  // Its rule — a markerless turn that ended in a tool call is research — is
+  // only true if the model never searches mid-answer, and measured on the raw
+  // stream it does: it emits a section label, THEN searches, so section bodies
+  // arrived in markerless turns and were thrown away as research. Neither a
+  // firmer prompt nor `tool_choice: none` fixed that (both measured; see
+  // `createMarkerGate`).
+  //
+  // Splitting the passes makes the rule unnecessary rather than true. Pass 1
+  // has tools and its prose is discarded wholesale. Pass 2 has NO tools, so
+  // there is nothing to narrate toward, no turn boundary to lose a body at, and
+  // no denied tool to fake — every byte it writes is answer.
+  const userMessage = buildUserMessage(request, oracle);
   let generation;
   try {
-    generation = await generateReview(
-      DECK_REVIEW_SYSTEM_PROMPT,
-      buildUserMessage(request, oracle),
-      (delta) => send({ delta }),
+    // Pass 1 — research. No `onDelta`: the reader sees none of this.
+    const research = await generateReview(
+      DECK_REVIEW_RESEARCH_PROMPT,
+      userMessage,
+      undefined,
       ac.signal,
       {
         // Scoped to this deck, so anything the model retrieves is already a
@@ -333,10 +352,26 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
             exclude: [request.commander, ...request.cards.map((c) => c.name)],
           }),
         ],
-        answerMarker: WEAKNESS_MARK,
-        endMarker: END_MARK,
       }
     );
+
+    // Pass 2 — write. The research pass's CARDS carry over; its prose does not.
+    const found = renderFetchedCards(research.fetched);
+    generation = await generateReview(
+      DECK_REVIEW_SYSTEM_PROMPT,
+      found ? `${userMessage}\n\n${found}` : userMessage,
+      (delta) => send({ delta }),
+      ac.signal,
+      { answerMarker: WEAKNESS_MARK, endMarker: END_MARK }
+    );
+    // Bill both passes, and keep the research pass's cards as the citation
+    // allowlist — pass 2 has no tools, so its own `fetched` is always empty.
+    generation = {
+      ...generation,
+      fetched: research.fetched,
+      inputTokens: generation.inputTokens + research.inputTokens,
+      outputTokens: generation.outputTokens + research.outputTokens,
+    };
   } catch (err) {
     if (err instanceof APIUserAbortError) {
       // The client is gone — nothing to write a row for, nothing to stream to.
