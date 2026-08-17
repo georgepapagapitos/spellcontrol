@@ -1165,6 +1165,43 @@ function scheduleScryfallBulkIngest(): void {
   setInterval(tick, TWENTY_FOUR_HOURS);
 }
 
+/**
+ * Hold heavy background work back from the boot path, and stagger it.
+ *
+ * This process is single-threaded on one shared vCPU, and the worst offenders
+ * are SYNCHRONOUS: `better-sqlite3` writes block the event loop outright, so
+ * while the Scryfall bulk ingest runs (~450MB, ~107k rows) nothing answers —
+ * not requests, not the health check. `fly.toml` gives that check a 5s timeout,
+ * so it goes critical, the proxy drops the only instance, and the whole site
+ * 503s during what should be an unremarkable background refresh.
+ *
+ * Measured on the 2026-08-17 deploys: the matcher preload alone took 38.8s and
+ * 148.7s on two boots, with the bulk ingest, combo ingest and aggregates
+ * rollup all kicked off in the same tick.
+ *
+ * So each job waits until the health check has had time to pass (grace 30s +
+ * interval 30s) and then they go one at a time. Offsets rather than a queue:
+ * these are fire-and-forget schedulers with their own recency guards, the
+ * point is only that they must not land together, and a queue would need every
+ * one of them to report completion honestly to stay correct.
+ */
+const BOOT_DEFER_MS = Number(process.env.BOOT_DEFER_MS ?? 90_000);
+
+function afterBoot(label: string, offsetMs: number, fn: () => void): void {
+  const timer = setTimeout(() => {
+    logger.info(`[boot] starting deferred ${label}`);
+    try {
+      fn();
+    } catch (err) {
+      logger.error(`[boot] deferred ${label} failed to start:`, err);
+    }
+  }, BOOT_DEFER_MS + offsetMs);
+  // `unref` so a pending warm-up can never be the reason the process stays
+  // alive — in production the HTTP server holds the loop open, and anything
+  // that imports this module without serving should still be able to exit.
+  timer.unref();
+}
+
 async function start() {
   await ensureSchema();
   await promoteAdminsAtBoot();
@@ -1175,15 +1212,16 @@ async function start() {
   });
 
   if (process.env.COMBOS_INGEST_DISABLED !== '1') {
-    scheduleComboIngest();
+    afterBoot('combo ingest', 30_000, scheduleComboIngest);
   }
 
   if (process.env.AGGREGATES_ROLLUP_DISABLED !== '1') {
-    scheduleAggregatesRollup();
+    afterBoot('aggregates rollup', 60_000, scheduleAggregatesRollup);
   }
 
   if (process.env.SCRYFALL_BULK_INGEST_DISABLED !== '1') {
-    scheduleScryfallBulkIngest();
+    // Last and longest — this is the one that actually blocks the loop.
+    afterBoot('scryfall bulk ingest', 120_000, scheduleScryfallBulkIngest);
   }
 
   // Eagerly load the scanner matcher (pHash + embedding DBs + ONNX session) so
@@ -1193,20 +1231,28 @@ async function start() {
   // the ~1s ONNX session create. A `null` resolve means the data files aren't
   // present (logged inside `getMatcher`); a rejection is unexpected and gets
   // surfaced loudly so monitoring can catch it.
+  //
+  // Deferred like the ingests: the "~1s ONNX session create" in that note is
+  // true locally but not on Fly, where loading 54k hashes + embeddings off the
+  // volume measured 38.8s and 148.7s. It is a warm-up, not a correctness
+  // requirement, so it goes first among the deferred jobs and still surfaces
+  // missing data files loudly.
   if (process.env.SCANNER_PRELOAD_DISABLED !== '1') {
     const dataDir =
       process.env.SCANNER_DATA_DIR || path.resolve(__dirname, '..', 'data', 'scanner');
-    void getMatcher(dataDir).then(
-      (matcher) => {
-        if (matcher) {
-          const { hashDb, embeddingDb } = matcher.stats();
-          logger.info(
-            `[server] scanner matcher preloaded — hashes=${hashDb}, embeddings=${embeddingDb}`
-          );
-        }
-      },
-      (err) => logger.error('[server] scanner matcher preload failed:', err)
-    );
+    afterBoot('scanner matcher preload', 0, () => {
+      void getMatcher(dataDir).then(
+        (matcher) => {
+          if (matcher) {
+            const { hashDb, embeddingDb } = matcher.stats();
+            logger.info(
+              `[server] scanner matcher preloaded — hashes=${hashDb}, embeddings=${embeddingDb}`
+            );
+          }
+        },
+        (err) => logger.error('[server] scanner matcher preload failed:', err)
+      );
+    });
   }
 
   // The Scryfall oracle bulk is built lazily on the first request to
