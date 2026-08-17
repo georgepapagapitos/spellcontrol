@@ -55,7 +55,7 @@ import crypto from 'node:crypto';
 export const DECK_REVIEW_FEATURE = 'deck-review';
 
 /** Bump whenever DECK_REVIEW_SYSTEM_PROMPT's text changes. */
-export const DECK_REVIEW_PROMPT_VERSION = 'v9';
+export const DECK_REVIEW_PROMPT_VERSION = 'v10';
 
 /**
  * Section labels the model emits. They exist so the client can stream text
@@ -79,15 +79,26 @@ each label on a line of its own, exactly as written here, with the
 sections in exactly this order:
 
 ${WEAKNESS_MARK}
-The weakness that matters most. One thing. One or two paragraphs
-diagnosing it, then a closing paragraph prescribing what to do about it.
+The weakness that matters most. One thing. ONE paragraph of at most four
+sentences diagnosing it, then a closing paragraph of at most three
+sentences prescribing what to do about it.
 
 ${GAMEPLAN_MARK}
 The gameplan. What is this deck actually trying to do? Name the
-specific cards that define it. One paragraph.
+specific cards that define it. One paragraph, at most three sentences.
 
 ${WINS_MARK}
-How it wins. The concrete path to ending a game. One paragraph.
+How it wins. The concrete path to ending a game. One paragraph, at most
+three sentences.
+
+Those limits are hard. The whole reading is at most thirteen sentences,
+and a reader who has to scroll it has been failed before they reach the
+part that helps. This is the constraint most likely to slip while you
+are concentrating on being right, so count as you write: a fifth
+sentence in the diagnosis means the first four were not the four that
+mattered, and the fix is to cut, never to compress two thoughts into one
+longer sentence. Sentences stay short - past roughly twenty-five words
+you are writing two.
 
 The weakness comes first because it is what the reader came for. Work
 the deck out fully before you commit to it - read the list, take the
@@ -141,9 +152,11 @@ rest of the screen; your job is to use the numbers, not narrate them.
 On prescribing the fix - a diagnosis the reader cannot act on is half an
 answer. Close the weakness section with a paragraph that says what to do:
 
-- Two or three fixes, each one aimed at the weakness you just diagnosed.
-  Nothing generic. "More removal" is not a fix; "an instant-speed answer
-  to an artifact, which this deck currently cannot touch at all" is.
+- Two fixes, each one aimed at the weakness you just diagnosed, each in
+  a sentence of its own. Nothing generic. "More removal" is not a fix;
+  "an instant-speed answer to an artifact, which this deck currently
+  cannot touch at all" is. If the deck only needs one, prescribe one -
+  the sentence budget is a ceiling, not a quota to fill.
 - Lead each fix with the EFFECT the deck is missing, described precisely
   enough that the reader could search a collection for it - the class of
   card, at what speed, on what permanent type. Then name the cards that
@@ -154,7 +167,7 @@ answer. Close the weakness section with a paragraph that says what to do:
   text - already filtered to this commander's colour identity, to
   Commander-legal cards, and excluding what the deck already runs.
   Search before you write the prescription, not after.
-- One search per fix you intend to prescribe, so two or three in total.
+- One search per fix you intend to prescribe, so two in total.
   Each one is slow and you are keeping a reader waiting; a broad query
   returns better options than four narrow ones. Do not search for
   effects you have already decided against, and do not re-run a search
@@ -184,9 +197,9 @@ answer. Close the weakness section with a paragraph that says what to do:
   cutting - those you can read straight off the list.
 - Stay inside the commander's colour identity, and stay inside the
   deck's evident power level and budget.
-- Two or three. Not a shopping list - a separate deterministic engine
-  produces the full add/cut list elsewhere in the app. This paragraph is
-  the part that tells the reader what to look for and why.
+- Not a shopping list - a separate deterministic engine produces the
+  full add/cut list elsewhere in the app. This paragraph is the part
+  that tells the reader what to look for and why.
 
 Rules:
 - Outside that closing prescription, reference only cards that appear in
@@ -206,8 +219,8 @@ Rules:
   nothing before the first one.
 - Be direct. If the deck genuinely has no structural problem, say so
   briefly rather than manufacturing one - and then prescribe the
-  sharpening it would actually benefit from, in one or two fixes rather
-  than three. A thin prescription on a tuned deck is right; an invented
+  sharpening it would actually benefit from, in a single fix rather than
+  two. A thin prescription on a tuned deck is right; an invented
   weakness so the prescription has something to cure is not. A
   structural claim must survive the actual card text: before asserting
   the deck lacks something, check the list for cards that already do
