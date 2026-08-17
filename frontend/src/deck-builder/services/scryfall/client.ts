@@ -9,6 +9,7 @@ import { normalizeScryfallQuery } from '@/lib/normalize-search';
 import { scryfallFetch, scryfallRequest } from '@/lib/scryfall-fetch';
 import { apiUrl } from '@/lib/api-base';
 import { persistCard, readCachedCards } from './cache';
+import { HARDCODED_GAME_CHANGERS as SHARED_GAME_CHANGERS } from '@spellcontrol/deck-metrics';
 
 /**
  * Cheap synchronous gate used to short-circuit every Scryfall call when the
@@ -894,73 +895,16 @@ export function getCachedCard(name: string): ScryfallCard | undefined {
 }
 
 /**
- * Official Commander Game Changers list (Feb 9, 2026 — 53 cards).
- * Used as the offline fallback when is:gamechanger cannot be queried live.
- * Update when the RC publishes a new list and the live query is reachable to verify.
- * Canonical names must match Scryfall exactly (commas in "Narset, Parter of Veils" etc.).
+ * Official Commander Game Changers list — now shared.
+ *
+ * The list itself moved to `@spellcontrol/deck-metrics` because the backend
+ * needs the same one for the AI `check_bracket` tool and has no other source
+ * (its card cache stores a trimmed field set with no `game_changer` flag). Two
+ * hand-maintained copies would drift, and this list drives a HARD bracket floor
+ * — the two apps would end up disagreeing about a deck's bracket. This module
+ * still owns the LIVE `is:gamechanger` query that unions on top of it.
  */
-const HARDCODED_GAME_CHANGERS: ReadonlySet<string> = new Set([
-  // White
-  'Drannith Magistrate',
-  'Enlightened Tutor',
-  'Farewell',
-  'Humility',
-  "Serra's Sanctum",
-  'Smothering Tithe',
-  "Teferi's Protection",
-  // Blue
-  'Consecrated Sphinx',
-  'Cyclonic Rift',
-  'Fierce Guardianship',
-  'Force of Will',
-  'Gifts Ungiven',
-  'Intuition',
-  'Mystical Tutor',
-  'Narset, Parter of Veils',
-  'Rhystic Study',
-  "Thassa's Oracle",
-  // Black
-  'Ad Nauseam',
-  "Bolas's Citadel",
-  'Braids, Cabal Minion',
-  'Demonic Tutor',
-  'Imperial Seal',
-  'Necropotence',
-  'Opposition Agent',
-  'Orcish Bowmasters',
-  'Tergrid, God of Fright',
-  'Vampiric Tutor',
-  // Red
-  'Gamble',
-  "Jeska's Will",
-  'Underworld Breach',
-  // Green
-  'Biorhythm',
-  'Crop Rotation',
-  "Gaea's Cradle",
-  'Natural Order',
-  'Seedborn Muse',
-  'Survival of the Fittest',
-  'Worldly Tutor',
-  // Multicolor
-  'Aura Shards',
-  'Coalition Victory',
-  'Grand Arbiter Augustin IV',
-  'Notion Thief',
-  // Colorless / Lands
-  'Ancient Tomb',
-  'Chrome Mox',
-  'Field of the Dead',
-  'Glacial Chasm',
-  'Grim Monolith',
-  "Lion's Eye Diamond",
-  'Mana Vault',
-  "Mishra's Workshop",
-  'Mox Diamond',
-  'Panoptic Mirror',
-  'The One Ring',
-  'The Tabernacle at Pendrell Vale',
-]);
+const HARDCODED_GAME_CHANGERS = SHARED_GAME_CHANGERS;
 
 // Cached set of game changer card names from Scryfall
 let gameChangerNamesCache: Set<string> | null = null;

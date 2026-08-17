@@ -97,6 +97,134 @@ export function bracketLabel(bracket: number): string {
 }
 
 /**
+ * Official Commander Game Changers list (Feb 9, 2026 — 53 cards).
+ *
+ * Lives here rather than in either app because BOTH need it and neither can
+ * derive it: the frontend uses it as the offline floor under its live
+ * `is:gamechanger` Scryfall query, and the backend has no other source at all —
+ * the card cache stores a trimmed field set that does not include Scryfall's
+ * `game_changer` flag. A second hand-maintained copy would drift, and a drifting
+ * game-changer list moves a HARD bracket floor, so the two apps would disagree
+ * about a deck's bracket rather than about a detail.
+ *
+ * Update when the RC publishes a new list, with the live query reachable to
+ * verify. Canonical names must match Scryfall exactly (commas in "Narset,
+ * Parter of Veils", apostrophes in "Serra's Sanctum").
+ */
+export const HARDCODED_GAME_CHANGERS: ReadonlySet<string> = new Set([
+  // White
+  'Drannith Magistrate',
+  'Enlightened Tutor',
+  'Farewell',
+  'Humility',
+  "Serra's Sanctum",
+  'Smothering Tithe',
+  "Teferi's Protection",
+  // Blue
+  'Consecrated Sphinx',
+  'Cyclonic Rift',
+  'Fierce Guardianship',
+  'Force of Will',
+  'Gifts Ungiven',
+  'Intuition',
+  'Mystical Tutor',
+  'Narset, Parter of Veils',
+  'Rhystic Study',
+  "Thassa's Oracle",
+  // Black
+  'Ad Nauseam',
+  "Bolas's Citadel",
+  'Braids, Cabal Minion',
+  'Demonic Tutor',
+  'Imperial Seal',
+  'Necropotence',
+  'Opposition Agent',
+  'Orcish Bowmasters',
+  'Tergrid, God of Fright',
+  'Vampiric Tutor',
+  // Red
+  'Gamble',
+  "Jeska's Will",
+  'Underworld Breach',
+  // Green
+  'Biorhythm',
+  'Crop Rotation',
+  "Gaea's Cradle",
+  'Natural Order',
+  'Seedborn Muse',
+  'Survival of the Fittest',
+  'Worldly Tutor',
+  // Multicolor
+  'Aura Shards',
+  'Coalition Victory',
+  'Grand Arbiter Augustin IV',
+  'Notion Thief',
+  // Colorless / Lands
+  'Ancient Tomb',
+  'Chrome Mox',
+  'Field of the Dead',
+  'Glacial Chasm',
+  'Grim Monolith',
+  "Lion's Eye Diamond",
+  'Mana Vault',
+  "Mishra's Workshop",
+  'Mox Diamond',
+  'Panoptic Mirror',
+  'The One Ring',
+  'The Tabernacle at Pendrell Vale',
+]);
+
+/**
+ * Build a {@link TagLookup} over raw tagger data (`{ tag: [cardName, …] }`).
+ *
+ * The role PRECEDENCE encoded here is the thing worth sharing — not the lookup
+ * itself. `getCardRole` folds four tags into `ramp` and six into `cardDraw`, and
+ * checks boardwipe before removal because boardwipe is the more specific claim.
+ * A second copy of those rules on the server would not fail loudly when it
+ * drifted; it would quietly classify cards differently and hand back a bracket
+ * that disagrees with the one the user is looking at.
+ *
+ * The frontend's tagger client keeps its own copy of these predicates because it
+ * also serves cube roles, subtypes and UI labels — but
+ * `taglookup-parity.test.ts` pins the two against each other.
+ */
+export function createTagLookup(tags: Record<string, readonly string[]>): TagLookup {
+  const sets: Record<string, Set<string>> = {};
+  for (const tag in tags) sets[tag] = new Set(tags[tag]);
+  const has = (tag: string, name: string) => sets[tag]?.has(name) ?? false;
+
+  return {
+    hasTag: (name, tag) => has(tag, name),
+    isMassLandDenial: (name) => has('mass-land-denial', name),
+    isExtraTurn: (name) => has('extra-turn', name),
+    getCardRole: (name) => {
+      // Priority order — boardwipe before removal, it is the more specific tag.
+      if (has('boardwipe', name)) return 'boardwipe';
+      if (has('removal', name)) return 'removal';
+      if (
+        has('ramp', name) ||
+        has('cost-reducer', name) ||
+        has('mana-dork', name) ||
+        has('mana-rock', name)
+      ) {
+        return 'ramp';
+      }
+      if (
+        has('card-advantage', name) ||
+        has('tutor', name) ||
+        has('draw', name) ||
+        has('wheel', name) ||
+        has('looting', name) ||
+        has('cantrip', name)
+      ) {
+        return 'cardDraw';
+      }
+      return null;
+    },
+  };
+}
+
+/**
  * Fast mana sources used as a power-density soft signal.
  *
  * Excludes Sol Ring: the RC and the wider community treat it as a

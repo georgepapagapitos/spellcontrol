@@ -60,9 +60,9 @@ afterEach(() => {
 });
 
 describe('lookup_cards', () => {
-  it('returns real cards with the text the model may quote', () => {
+  it('returns real cards with the text the model may quote', async () => {
     const tool = lookupCardsTool(cache, {});
-    const { text, fetched } = tool.run({ query: 'destroy target artifact' });
+    const { text, fetched } = await tool.run({ query: 'destroy target artifact' });
     expect(fetched.map((f) => f.name)).toContain('Naturalize');
     expect(text).toContain('Destroy target artifact');
     // The result carries type line and mana value, so the model never has to
@@ -70,64 +70,64 @@ describe('lookup_cards', () => {
     expect(text).toMatch(/Naturalize \(mana value 2\) — Instant:/);
   });
 
-  it('confines results to the commander colour identity', () => {
+  it('confines results to the commander colour identity', async () => {
     const tool = lookupCardsTool(cache, { colorIdentity: ['B', 'G'] });
-    const names = tool.run({ query: 'destroy target artifact' }).fetched.map((f) => f.name);
+    const names = (await tool.run({ query: 'destroy target artifact' })).fetched.map((f) => f.name);
     expect(names).toContain('Naturalize');
     expect(names).not.toContain('Shatter'); // red — not castable in Golgari
   });
 
-  it('excludes cards the deck already runs', () => {
+  it('excludes cards the deck already runs', async () => {
     const tool = lookupCardsTool(cache, { exclude: ['Naturalize'] });
-    const names = tool.run({ query: 'destroy target artifact' }).fetched.map((f) => f.name);
+    const names = (await tool.run({ query: 'destroy target artifact' })).fetched.map((f) => f.name);
     expect(names).not.toContain('Naturalize');
     expect(names).toContain('Relic Crush');
   });
 
-  it('filters by type line', () => {
+  it('filters by type line', async () => {
     const tool = lookupCardsTool(cache, {});
-    const names = tool
-      .run({ query: 'destroy target artifact', type_line: 'Sorcery' })
-      .fetched.map((f) => f.name);
+    const names = (
+      await tool.run({ query: 'destroy target artifact', type_line: 'Sorcery' })
+    ).fetched.map((f) => f.name);
     expect(names).toEqual(['Relic Crush']);
   });
 
-  it('tells the model to rephrase rather than returning nothing useful', () => {
+  it('tells the model to rephrase rather than returning nothing useful', async () => {
     const tool = lookupCardsTool(cache, {});
-    const { text, fetched } = tool.run({ query: 'zzzzz qqqqq wwwww' });
+    const { text, fetched } = await tool.run({ query: 'zzzzz qqqqq wwwww' });
     expect(fetched).toEqual([]);
     expect(text).toMatch(/different rules wording/);
   });
 
-  it('handles a missing query as a message, not a crash', () => {
+  it('handles a missing query as a message, not a crash', async () => {
     const tool = lookupCardsTool(cache, {});
-    const { text, fetched } = tool.run({});
+    const { text, fetched } = await tool.run({});
     expect(fetched).toEqual([]);
     expect(text).toMatch(/No query given/);
   });
 
-  it('caps the result count even when the model asks for more', () => {
+  it('caps the result count even when the model asks for more', async () => {
     const tool = lookupCardsTool(cache, {});
-    const { fetched } = tool.run({ query: 'destroy target artifact', limit: 9999 });
+    const { fetched } = await tool.run({ query: 'destroy target artifact', limit: 9999 });
     expect(fetched.length).toBeLessThanOrEqual(20);
   });
 });
 
 describe('runTool', () => {
-  it('reports an unknown tool back to the model instead of throwing', () => {
-    const out = runTool([], 'no_such_tool', {});
+  it('reports an unknown tool back to the model instead of throwing', async () => {
+    const out = await runTool([], 'no_such_tool', {});
     expect(out.isError).toBe(true);
     expect(out.text).toMatch(/No tool named/);
   });
 
-  it('turns a thrown tool into an error result so the review still finishes', () => {
+  it('turns a thrown tool into an error result so the review still finishes', async () => {
     const exploding = {
       definition: { name: 'boom', description: '', input_schema: { type: 'object' as const } },
       run: () => {
         throw new Error('kaboom');
       },
     };
-    const out = runTool([exploding], 'boom', {});
+    const out = await runTool([exploding], 'boom', {});
     expect(out.isError).toBe(true);
     expect(out.text).toMatch(/Continue without it/);
     expect(out.fetched).toEqual([]);
@@ -257,32 +257,32 @@ describe('createMarkerGate', () => {
 });
 
 describe('lookup_cards, owned-only', () => {
-  it('returns only cards the player owns', () => {
+  it('returns only cards the player owns', async () => {
     const tool = lookupCardsTool(cache, { ownedNames: ['Relic Crush'] });
-    const names = tool.run({ query: 'destroy target artifact' }).fetched.map((f) => f.name);
+    const names = (await tool.run({ query: 'destroy target artifact' })).fetched.map((f) => f.name);
     expect(names).toEqual(['Relic Crush']);
   });
 
-  it('matches owned names case-insensitively — the two sides are entered separately', () => {
+  it('matches owned names case-insensitively — the two sides are entered separately', async () => {
     const tool = lookupCardsTool(cache, { ownedNames: ['relic crush'] });
-    const names = tool.run({ query: 'destroy target artifact' }).fetched.map((f) => f.name);
+    const names = (await tool.run({ query: 'destroy target artifact' })).fetched.map((f) => f.name);
     expect(names).toEqual(['Relic Crush']);
   });
 
-  it('restricts INSIDE the query, so an owned card ranked low still surfaces', () => {
+  it('restricts INSIDE the query, so an owned card ranked low still surfaces', async () => {
     // The point of doing this in SQL: 'Relic Crush' loses on rank to the two
     // instants, so a post-filter with a small limit would answer "you own
     // nothing that does this" while the collection plainly holds an answer.
     const tool = lookupCardsTool(cache, { ownedNames: ['Relic Crush'] });
-    const names = tool
-      .run({ query: 'destroy target artifact', limit: 1 })
-      .fetched.map((f) => f.name);
+    const names = (await tool.run({ query: 'destroy target artifact', limit: 1 })).fetched.map(
+      (f) => f.name
+    );
     expect(names).toEqual(['Relic Crush']);
   });
 
-  it('says the collection has no answer, not that the wording was wrong', () => {
+  it('says the collection has no answer, not that the wording was wrong', async () => {
     const tool = lookupCardsTool(cache, { ownedNames: ['Some Card They Own'] });
-    const { text, fetched } = tool.run({ query: 'destroy target artifact' });
+    const { text, fetched } = await tool.run({ query: 'destroy target artifact' });
     expect(fetched).toEqual([]);
     expect(text).toMatch(/Nothing this player owns matched/);
   });

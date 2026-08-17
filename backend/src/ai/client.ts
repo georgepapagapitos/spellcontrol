@@ -188,18 +188,23 @@ export async function generateReview(
     messages.push({ role: 'assistant', content: res.content });
     // All results go back in ONE user message — splitting them across messages
     // trains the model out of calling tools in parallel.
-    const results: Anthropic.ToolResultBlockParam[] = toolUses.map((use) => {
-      const out = runTool(tools, use.name, (use.input ?? {}) as Record<string, unknown>);
-      for (const card of out.fetched) {
-        if (!fetched.some((f) => f.name === card.name)) fetched.push(card);
-      }
-      return {
-        type: 'tool_result',
-        tool_use_id: use.id,
-        content: out.text,
-        ...(out.isError ? { is_error: true } : {}),
-      };
-    });
+    // Run the turn's tool calls in parallel — the model issues them together,
+    // and `check_bracket` waits on Postgres, so serialising them would add a
+    // round-trip per call to a request the user is already watching.
+    const results: Anthropic.ToolResultBlockParam[] = await Promise.all(
+      toolUses.map(async (use): Promise<Anthropic.ToolResultBlockParam> => {
+        const out = await runTool(tools, use.name, (use.input ?? {}) as Record<string, unknown>);
+        for (const card of out.fetched) {
+          if (!fetched.some((f) => f.name === card.name)) fetched.push(card);
+        }
+        return {
+          type: 'tool_result',
+          tool_use_id: use.id,
+          content: out.text,
+          ...(out.isError ? { is_error: true } : {}),
+        };
+      })
+    );
     messages.push({ role: 'user', content: results });
     // Cache the conversation so far, not just tools+system. Each iteration
     // resends every prior tool result, and card text is bulky — measured 35k

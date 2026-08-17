@@ -1,4 +1,5 @@
 import type Anthropic from '@anthropic-ai/sdk';
+import type { BracketEstimation } from '@spellcontrol/deck-metrics';
 import { logger } from '../logger';
 import type { ScryfallCache } from '../cache';
 
@@ -22,13 +23,22 @@ export interface FetchedCard {
   oracleText: string;
 }
 
+export interface ToolResult {
+  text: string;
+  fetched: FetchedCard[];
+}
+
 export interface AiTool {
   definition: Anthropic.Tool;
   /**
    * Run the tool. Returns the text handed back to the model as the tool
    * result, plus any cards that text vouches for.
+   *
+   * May be async: `lookup_cards` is a synchronous SQLite read, but
+   * `check_bracket` has to reach Postgres for the combo dataset. Callers await
+   * the result either way.
    */
-  run(input: Record<string, unknown>): { text: string; fetched: FetchedCard[] };
+  run(input: Record<string, unknown>): ToolResult | Promise<ToolResult>;
 }
 
 /** Cap per call — enough to choose from, small enough not to flood the context. */
@@ -212,6 +222,112 @@ export function makeCandidateResolver(
 }
 
 /**
+ * `check_bracket` — re-run the app's own bracket estimator over the deck with a
+ * proposed swap applied, and report whether the bracket actually moved.
+ *
+ * The point is to replace an assertion with a measurement. The model is told a
+ * target and an estimate in the statistics block, and it will happily claim a
+ * cut "brings you back under your target" — a claim nothing checked. This lets
+ * it check, using the same estimator the app shows the user.
+ *
+ * ⚠️ Scoped to a SINGLE swap on purpose. The estimator's hard floors are
+ * non-linear (a completed two-card combo, a game changer, mass land denial), so
+ * "what do these five changes do together" is a different question with a
+ * different answer, and answering it one card at a time would mislead.
+ */
+export function checkBracketTool(
+  deckNames: readonly string[],
+  estimate: (names: string[]) => Promise<BracketEstimation>,
+  render: (
+    before: BracketEstimation,
+    after: BracketEstimation,
+    change: { add?: string; cut?: string }
+  ) => string
+): AiTool {
+  // The "before" estimate is the same every call — same deck, same inputs — but
+  // the model checks 4-5 changes per review (measured across 33 runs), and each
+  // estimate costs a combo query against Postgres. Computing it once takes that
+  // from ~9 queries per refine to ~5.
+  let baseline: Promise<BracketEstimation> | null = null;
+
+  /**
+   * Cap on checks per request. Measured 41, 52 and 56 calls across 12-run arms —
+   * a long tail of ~9 in one review, each one two estimates deep. The cap is
+   * generous against MAX_TWEAKS (5) so it never bites a model checking the
+   * changes it actually intends, only one looping.
+   */
+  const MAX_CHECKS = 12;
+  let checks = 0;
+
+  return {
+    definition: {
+      name: 'check_bracket',
+      description: [
+        "Check what ONE proposed change does to this deck's Commander bracket, before you",
+        'commit to proposing it. Use it whenever the statistics show a bracket target and you',
+        'are about to claim a change keeps the deck inside it — that claim is checkable, so',
+        'check it rather than asserting it.',
+        '',
+        'Pass the card being added and/or the card being cut. Returns the bracket before and',
+        'after, and which hard floors changed. One change per call: bracket floors do not add',
+        'up linearly, so a combined answer for several swaps would be wrong.',
+      ].join('\n'),
+      input_schema: {
+        type: 'object',
+        properties: {
+          add: {
+            type: 'string',
+            description: 'Exact name of the card being added. Omit for a pure cut.',
+          },
+          cut: {
+            type: 'string',
+            description: 'Exact name of the card being cut. Omit for a pure add.',
+          },
+        },
+        required: [],
+      },
+    },
+
+    async run(input) {
+      const add = asString(input.add);
+      const cut = asString(input.cut);
+      if (!add && !cut) {
+        return {
+          text: 'Pass `add`, `cut`, or both — there is no change to check otherwise.',
+          fetched: [],
+        };
+      }
+
+      const lower = (s: string) => s.toLowerCase();
+      if (cut && !deckNames.some((n) => lower(n) === lower(cut))) {
+        return {
+          text: `"${cut}" is not in the decklist, so it cannot be cut. Check the list and try again.`,
+          fetched: [],
+        };
+      }
+
+      if (checks >= MAX_CHECKS) {
+        return {
+          text: `That is ${MAX_CHECKS} bracket checks on one deck, which is enough. Decide with what you already know and write the answer.`,
+          fetched: [],
+        };
+      }
+      checks++;
+
+      const after = deckNames.filter((n) => !cut || lower(n) !== lower(cut));
+      if (add) after.push(add);
+
+      baseline ??= estimate([...deckNames]);
+      const [before, afterEst] = await Promise.all([baseline, estimate(after)]);
+      // No `fetched`: this vouches for nothing about a card's TEXT, only about
+      // the deck's bracket. Treating it as a citation source would let the
+      // model name a card it never actually read.
+      return { text: render(before, afterEst, { add, cut }), fetched: [] };
+    },
+  };
+}
+
+/**
  * Keeps the model's research out of the answer.
  *
  * A tool-calling model narrates ("Let me look up some artifact removal") on the
@@ -303,17 +419,18 @@ export function createMarkerGate(marker: string, onDelta?: (text: string) => voi
  * results rather than exceptions — a tool failure should make the model try
  * something else, not kill a review the user is already waiting on.
  */
-export function runTool(
+export async function runTool(
   tools: AiTool[],
   name: string,
   input: Record<string, unknown>
-): { text: string; fetched: FetchedCard[]; isError: boolean } {
+): Promise<{ text: string; fetched: FetchedCard[]; isError: boolean }> {
   const tool = tools.find((t) => t.definition.name === name);
   if (!tool) {
     return { text: `No tool named "${name}".`, fetched: [], isError: true };
   }
   try {
-    const { text, fetched } = tool.run(input);
+    // `await` covers both shapes — a sync tool's plain object passes through.
+    const { text, fetched } = await tool.run(input);
     return { text, fetched, isError: false };
   } catch (err) {
     logger.error(`[ai] tool ${name} threw`, err);
