@@ -1069,8 +1069,17 @@ export function DeckDisplay({
         roleCounts: roleCounts ?? derivedRoles?.roleCounts,
         roleTargets,
         averageCmc: manaData.averageCmc,
+        format: formatConfig,
       }),
-    [allCards, commanderIdentity, roleCounts, derivedRoles, roleTargets, manaData.averageCmc]
+    [
+      allCards,
+      commanderIdentity,
+      roleCounts,
+      derivedRoles,
+      roleTargets,
+      manaData.averageCmc,
+      formatConfig,
+    ]
   );
 
   // Report the roll-up to the page so the view tabs can badge it. The memo above
