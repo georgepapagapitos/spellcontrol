@@ -260,6 +260,37 @@ describe('the reading', () => {
     expect(opened[0].entries.map((e) => e.name)).toEqual(['Sol Ring', 'Kaalia of the Vast']);
   });
 
+  it('stops the reading at the terminator, so the model’s notes never render', async () => {
+    // The reported bug: with no terminator the last section slices to the end
+    // of the text, so everything the model wrote after finishing appeared under
+    // "How it wins" — one live run trailed it with 38 lines of self-talk.
+    const withNotes = [
+      '---WEAKNESS---\nYour mana cannot support it.',
+      '---GAMEPLAN---\nYour deck ramps into Sol Ring.',
+      '---WINS---\nIt wins by connecting with Kaalia of the Vast.',
+      '---END---',
+      'Actually, wait. Let me re-read the rules again:',
+      'Let me count sentences:',
+    ].join('\n\n');
+    stubApi(true, [
+      { delta: withNotes },
+      { done: { content: withNotes, cached: false, model: 'm', usage: {} } },
+    ]);
+    const { container } = renderPanel();
+    await expandStrip();
+    fireEvent.click(await screen.findByRole('button', { name: 'Read the deck' }));
+
+    const wins = await waitFor(() => {
+      const el = container.querySelector('.deck-ai-section--win');
+      if (!el) throw new Error('no wins section');
+      return el;
+    });
+    expect(wins.textContent).toContain('It wins by connecting');
+    expect(wins.textContent).not.toContain('Let me');
+    expect(container.textContent).not.toContain('Actually, wait');
+    expect(container.textContent).not.toContain('---END---');
+  });
+
   it('chips the cards it recommends, name-only so they open the owned printing', async () => {
     // The prescription names a card the deck does NOT run — which is the whole
     // point of a recommendation, and exactly why matching prose against the

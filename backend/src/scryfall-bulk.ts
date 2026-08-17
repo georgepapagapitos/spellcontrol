@@ -125,25 +125,8 @@ export async function* streamBulkJsonl<T>(url: string): AsyncGenerator<T> {
     throw new Error(`Scryfall bulk download returned ${res.status}`);
   }
   const nodeStream = Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]);
-  // ⛔ `.pipe()` does NOT forward errors from the source stream, and an
-  // unhandled `'error'` on a Readable is PROCESS-FATAL.
-  //
-  // Without this forward, a mid-download disconnect — routine on a ~450MB
-  // transfer — emits `'error'` on `nodeStream` with nobody listening: the
-  // `for await` below only observes the readline interface, which sits
-  // downstream of the gunzip and never sees it. That killed the server, Fly
-  // restarted it, the ingest began again from zero, and it never once
-  // completed (2026-08-17: `TypeError: terminated` /
-  // `SocketError: other side closed` out of undici, `exit_code=1`).
-  //
-  // Forwarding to the gunzip surfaces the failure on the interface, so the
-  // `for await` throws, the caller's catch logs it, and a dropped connection
-  // fails the JOB instead of the process. In the non-gzip case readline
-  // already sees `nodeStream` directly and rejects on its own.
-  const gunzip = url.endsWith('.gz') ? createGunzip() : null;
-  if (gunzip) nodeStream.on('error', (err) => gunzip.destroy(err));
   const lines = createInterface({
-    input: gunzip ? nodeStream.pipe(gunzip) : nodeStream,
+    input: url.endsWith('.gz') ? nodeStream.pipe(createGunzip()) : nodeStream,
     crlfDelay: Infinity,
   });
   try {

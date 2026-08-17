@@ -51,11 +51,30 @@ import crypto from 'node:crypto';
  * `unverifiedCitations` checks the finished prose against what was actually
  * fetched. Measured before this change on `fixture-3-healthy` at n=12: 6/12
  * runs named at least one card that was neither in the deck nor verifiable.
+ *
+ * v11 gives the answer an END, which every earlier version lacked. The marker
+ * gate opens on the first section label and keeps that turn whole; it only
+ * knows how to drop a turn that never marked at all (#1644 and #1647 fixed that
+ * half, twice). So a turn that wrote the WHOLE review and then carried on
+ * thinking sailed straight through — and the client slices its last section to
+ * the end of the text, so the notes rendered inside "How it wins".
+ *
+ * Reported from production and reproduced live: one baseline run trailed the
+ * finished review with **38 lines** of self-deliberation ("Actually, wait. Let
+ * me re-read the rules again:", "Let me count sentences:"), every line of it
+ * displayed. Measured on `fixture-1-grounding`, 3 arms, n=22/build: trailing
+ * leaks 1/22 → 0/22, total leaked narration 40 lines → 3.
+ *
+ * ⚠️ It does NOT close MID-answer narration — the model interrupting itself
+ * before the last section (2-3/22 on both builds, a line or two each). A
+ * terminator cannot reach that by construction, and two attempts at it were
+ * measured and rejected; see `createMarkerGate` in `ai/tools.ts` for both and
+ * for the design that would.
  */
 export const DECK_REVIEW_FEATURE = 'deck-review';
 
 /** Bump whenever DECK_REVIEW_SYSTEM_PROMPT's text changes. */
-export const DECK_REVIEW_PROMPT_VERSION = 'v10';
+export const DECK_REVIEW_PROMPT_VERSION = 'v11';
 
 /**
  * Section labels the model emits. They exist so the client can stream text
@@ -68,6 +87,17 @@ export const DECK_REVIEW_PROMPT_VERSION = 'v10';
 export const WEAKNESS_MARK = '---WEAKNESS---';
 export const GAMEPLAN_MARK = '---GAMEPLAN---';
 export const WINS_MARK = '---WINS---';
+
+/**
+ * The answer's terminator (v11).
+ *
+ * Everything from here on is discarded and the gate latches shut, so the model
+ * carrying on after it — to second-guess itself, to re-check the rules, to
+ * restate the fix — cannot reach the reader. It is emitted like the section
+ * labels, which the model gets right unaided (0/22 missed it), and forgetting
+ * it is not a regression: the gate then behaves exactly as v10 did.
+ */
+export const END_MARK = '---END---';
 
 export const DECK_REVIEW_SYSTEM_PROMPT = `You are a Magic: The Gathering deck analyst inside SpellControl, a
 collection and deckbuilding app. You will be given a Commander decklist
@@ -90,6 +120,15 @@ specific cards that define it. One paragraph, at most three sentences.
 ${WINS_MARK}
 How it wins. The concrete path to ending a game. One paragraph, at most
 three sentences.
+
+${END_MARK}
+
+${END_MARK} closes the reading. Emit it on a line of its own once the
+last section is written, and stop there. Everything after it is
+discarded, so notes to yourself, a re-check of these instructions, a
+restatement of the prescription or a second attempt at a section all
+reach nobody - if you want to revise something, revise it before you
+emit the terminator.
 
 Those limits are hard. The whole reading is at most thirteen sentences,
 and a reader who has to scroll it has been failed before they reach the
@@ -215,8 +254,9 @@ Rules:
 - Do not restate the statistics back at the user.
 - No headers beyond the three section labels above, and no bullet
   lists. Prose. Second person ("your deck").
-- Emit the three labels verbatim, each alone on its line, and write
-  nothing before the first one.
+- Emit the three labels and the terminator verbatim, each alone on its
+  line. Write nothing before the first label and nothing after the
+  terminator.
 - Be direct. If the deck genuinely has no structural problem, say so
   briefly rather than manufacturing one - and then prescribe the
   sharpening it would actually benefit from, in a single fix rather than

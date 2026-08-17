@@ -593,13 +593,19 @@ describe('POST /api/ai/deck-review', () => {
 
     // 5th argument is the options bag the route builds per request.
     const options = mockState.generate.mock.calls.at(-1)?.[4] as
-      | { tools?: Array<{ definition: { name: string } }>; answerMarker?: string }
+      | {
+          tools?: Array<{ definition: { name: string } }>;
+          answerMarker?: string;
+          endMarker?: string;
+        }
       | undefined;
     expect(options?.tools?.map((t) => t.definition.name)).toEqual(['lookup_cards']);
     // Without the marker the gate is off and the model's research narration
-    // would stream into the review panel.
-    const { WEAKNESS_MARK } = await import('../ai/deck-review');
+    // would stream into the review panel; without the terminator the answer has
+    // no end, and notes the model writes after it ride into the last section.
+    const { WEAKNESS_MARK, END_MARK } = await import('../ai/deck-review');
     expect(options?.answerMarker).toBe(WEAKNESS_MARK);
+    expect(options?.endMarker).toBe(END_MARK);
   });
 
   it('still delivers the review when it cites a card it never looked up', async () => {

@@ -135,6 +135,35 @@ describe('splitReviewSections', () => {
     const secs = splitReviewSections(`${W}\nFlaw.\n\n${N}\nWin.`);
     expect(secs?.map((s) => s.paragraphs.length)).toEqual([1, 0, 1]);
   });
+
+  describe('the end marker', () => {
+    // The production bug: the model finished the review and carried on
+    // thinking. With no terminator the last section slices to the end of the
+    // text, so the notes rendered inside "How it wins" — one live run trailed
+    // the finished reading with 38 lines of self-deliberation that way.
+    const trailing = [
+      '',
+      'Actually, wait. I need to review this carefully against the requirements.',
+      'Let me count sentences:',
+    ].join('\n\n');
+
+    it('ends the reading at the terminator', () => {
+      const secs = splitReviewSections(`${full}\n\n---END---${trailing}`);
+      expect(secs?.at(-1)?.paragraphs).toEqual(['Combat damage.']);
+      expect(JSON.stringify(secs)).not.toContain('Let me count sentences');
+    });
+
+    it('cuts mid-stream too, so the notes never render even for a frame', () => {
+      // The panel accumulates deltas, so by the time these bytes are known to
+      // be notes they are already on the client.
+      const secs = splitReviewSections(`${full}\n\n---END---${trailing}`, true);
+      expect(JSON.stringify(secs)).not.toContain('Actually, wait');
+    });
+
+    it('is optional — a reading without one reads exactly as before', () => {
+      expect(splitReviewSections(full)?.at(-1)?.paragraphs).toEqual(['Combat damage.']);
+    });
+  });
 });
 
 describe('tokenizeCardNames', () => {
