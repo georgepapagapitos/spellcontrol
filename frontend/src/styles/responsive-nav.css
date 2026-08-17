@@ -350,14 +350,13 @@
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
 }
 
-/* Tape on DARK grounds (the leather header; the active tab's accent fill,
-   which appears in both header and hub) sinks into the ground — the tape
-   value (#1e1c18) nearly matches the leather (#211d18), so only the pale
-   digits float. Tape stays tape; the chip gains a pale keyline so its
-   silhouette reads on any dark/dye ground. Paper-hub resting tape keeps
-   the plain dark-on-paper look (already high contrast). */
-.site-header .site-nav-count,
-.site-nav-link.active .site-nav-count {
+/* Tape on the DARK leather header (including its accent-dyed current tab)
+   sinks into the ground — the tape value (#1e1c18) nearly matches the
+   leather (#211d18), so only the pale digits float. Tape stays tape; the
+   chip gains a pale keyline so its silhouette reads on any dark/dye ground.
+   Hub tape (resting AND current) keeps the plain on-page look — the hub's
+   current tab no longer carries a dye to sink into. */
+.site-header .site-nav-count {
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 8%),
     0 0 0 1px rgb(255 255 255 / 25%);
@@ -372,7 +371,8 @@
 
 /* The current tab wears the guild's cover dye, rounded toward the page it
    attaches to; the 1px top-face highlight lifts the silhouette off dark
-   grounds. --on-accent text ≥4.5:1 in every theme. */
+   grounds. --on-accent text ≥4.5:1 in every theme. The cover dye marks the
+   PRIMARY nav only — the hub strip steps down a tier below. */
 .site-nav-link.active {
   background: var(--accent);
   color: var(--on-accent);
@@ -505,6 +505,26 @@
 
 .collection-hub-tabs .site-nav-link {
   flex: 0 0 auto;
+}
+
+/* The hub is the SECOND nav tier, so its current tab steps down from the
+   header's cover dye to the underline tier: primary-text label + a 2px accent
+   rule riding the strip's bottom border. Two accent-dyed tabs stacked gave the
+   parent (COLLECTION) and its child (LISTS) identical weight — no hierarchy —
+   and hung a filled block off each of two hairlines ~12px apart, which read as
+   a staircase. Their near-alignment was coincidence, not structure: the offset
+   moves with whichever pair of tabs is current, so this is fixed by tier, not
+   by nudging positions.
+   The rule is an INSET shadow, not a border/underline box: the tab already
+   overlaps the strip's 1px border via `margin-bottom: -1px` above, and a real
+   border would change its box and reflow the strip. Deliberately no hover
+   lift — this tab is the page you are already on; the resting tabs keep the
+   shared --surface-raised hover, which is what makes them read as the
+   clickable ones. */
+.collection-hub-tabs .site-nav-link.active {
+  background: none;
+  color: var(--text-primary);
+  box-shadow: inset 0 -2px 0 var(--accent);
 }
 
 /* ── Mobile bottom tab bar ─────────────────────────────────────────────── */
