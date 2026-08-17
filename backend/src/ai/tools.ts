@@ -212,48 +212,88 @@ export function makeCandidateResolver(
 }
 
 /**
- * Withholds text until the answer actually starts.
+ * Keeps the model's research out of the answer.
  *
- * A tool-calling model narrates ("Let me look up some artifact removal") before
- * it answers, and that text arrives on the same stream as the review. Streaming
- * it through would put the model's working notes in the review panel, and store
- * them in `ai_reviews`. Buffering everything instead would cost the live
- * streaming this feature was built for (measured 7-9s to first answer, which is
- * why it streams at all).
+ * A tool-calling model narrates ("Let me look up some artifact removal") on the
+ * same stream as the review, so something has to separate working notes from
+ * the answer. Buffering the whole reply instead would cost the live streaming
+ * this feature was built for (measured 7-9s to first answer).
  *
- * So: hold text until the first section marker appears, emit from the marker
- * onward, then pass through live. Narration never reaches the client, and the
- * review itself still streams token by token. The same gate cleans the STORED
- * content, so a cache replay shows the review and not the research.
+ * ⚠️ **The first version of this gate opened once and never closed, and that was
+ * wrong in production.** It assumed the model researches, then answers. It does
+ * not: it wrote the weakness section, called more tools, and wrote the rest — so
+ * everything after the first marker was kept, and five interjections
+ * ("Good—Mesmeric Orb directly mills…", "Let me refine:", "Looking back at the
+ * results:") landed in the panel AND in the stored `ai_reviews` row, complete
+ * with unrendered `**markdown**`.
+ *
+ * The signal that actually separates them: **narration is always followed by a
+ * tool call.** A turn that ends without one is never research — it is the model
+ * answering. So the gate works per TURN:
+ *
+ * - each turn starts closed, and releases text from ITS OWN first marker;
+ * - a markerless turn that ended in a tool call is narration, and is dropped;
+ * - a markerless turn that ended the loop is the answer continuing, and is kept.
+ *
+ * The caller must therefore tell it how each turn ended — see {@link endTurn}.
  */
 export function createMarkerGate(marker: string, onDelta?: (text: string) => void) {
-  let buffer = '';
-  let open = false;
+  /** The answer, accumulated across turns. */
+  let kept = '';
+  /** Raw text of the turn in progress. */
+  let turn = '';
+  let turnOpen = false;
+  let everOpened = false;
+
   return {
     push(text: string) {
-      if (open) {
-        buffer += text;
+      turn += text;
+      if (turnOpen) {
         onDelta?.(text);
         return;
       }
-      buffer += text;
-      const at = buffer.indexOf(marker);
+      const at = turn.indexOf(marker);
       if (at === -1) return;
-      // Drop everything before the marker, then release what we were holding.
-      buffer = buffer.slice(at);
-      open = true;
-      onDelta?.(buffer);
+      // This turn is answering. Release from the marker; the rest streams live.
+      turnOpen = true;
+      everOpened = true;
+      onDelta?.(turn.slice(at));
     },
-    /** Text from the marker onward, or '' if the marker never showed up. */
+
+    /**
+     * Close the current turn.
+     *
+     * `hadToolCalls` is the whole decision: it is what distinguishes a markerless
+     * turn of research notes from a markerless turn that is simply the answer
+     * running on past a section it already labelled.
+     */
+    endTurn(hadToolCalls: boolean) {
+      if (turnOpen) {
+        kept += turn.slice(turn.indexOf(marker));
+      } else if (!hadToolCalls && everOpened) {
+        // Nothing followed it, so it cannot be narration — and the answer had
+        // already started, so this is its continuation. It was never streamed
+        // (no marker opened this turn), so release it now.
+        kept += turn;
+        onDelta?.(turn);
+      }
+      turn = '';
+      turnOpen = false;
+    },
+
+    /**
+     * The answer: text from each marker onward, research discarded.
+     *
+     * Includes the turn in progress when that turn has already hit its marker,
+     * so this reads correctly whether or not `endTurn` has run — the iteration
+     * cap can return mid-turn.
+     */
     get text() {
-      return open ? buffer : '';
+      if (!turnOpen) return kept;
+      return kept + turn.slice(turn.indexOf(marker));
     },
     get opened() {
-      return open;
-    },
-    /** Start a fresh turn — a discarded tool turn must not leak into the next. */
-    reset() {
-      if (!open) buffer = '';
+      return everOpened;
     },
   };
 }
