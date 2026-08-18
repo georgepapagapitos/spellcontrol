@@ -63,7 +63,7 @@ export function BrewBuildPage(): JSX.Element {
   const resetDeckBuilder = useDeckBuilderStore((s) => s.reset);
   useEffect(() => {
     resetDeckBuilder();
-    // Mount-only reset, mirrors DeckNewPage/GuidedBuildPage — resetDeckBuilder
+    // Mount-only reset, mirrors DeckNewPage — resetDeckBuilder
     // is a stable Zustand action reference, safe to omit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -486,7 +486,6 @@ export function DecksIndexPage() {
           targetBracket: deck.generationContext?.targetBracket ?? 'all',
           landCount: deck.generationContext?.landCount ?? 37,
           collectionMode: deck.generationContext?.collectionMode ?? false,
-          varietySeed: deck.generationContext?.varietySeed,
         },
       },
     });
@@ -682,7 +681,7 @@ export function DecksIndexPage() {
               drop.
             </p>
             <div className="empty-state-actions decks-empty-actions">
-              <Link to="/decks/new/guided" className="btn btn-primary empty-state-action">
+              <Link to="/decks/new" className="btn btn-primary empty-state-action">
                 <Wand2 width={14} height={14} strokeWidth={2} aria-hidden />
                 Build a deck
               </Link>
