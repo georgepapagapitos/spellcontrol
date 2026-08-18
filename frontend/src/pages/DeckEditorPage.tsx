@@ -372,7 +372,7 @@ export function DeckEditorPage() {
     }
   }, []);
   // One-shot build-report sheet: shown once immediately after deck generation.
-  // Gated on BOTH the justGenerated router state (set by GuidedBuildPage's
+  // Gated on BOTH the justGenerated router state (set by the build flow's
   // post-save navigate — so pre-existing generated decks never pop it) AND the
   // localStorage seen-set (so a refresh that restores history state doesn't
   // re-show it).

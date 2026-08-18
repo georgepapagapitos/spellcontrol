@@ -106,10 +106,10 @@ describe('DecksIndexPage — empty state three doors (UX-317)', () => {
     expect(screen.getByText(/Build one from scratch/)).toBeTruthy();
   });
 
-  it('has a "Build a deck" link pointing at /decks/new/guided', () => {
+  it('has a "Build a deck" link pointing at /decks/new', () => {
     renderEmpty();
     const link = screen.getByRole('link', { name: /Build a deck/ });
-    expect(link.getAttribute('href')).toBe('/decks/new/guided');
+    expect(link.getAttribute('href')).toBe('/decks/new');
   });
 
   it('has an "Import deck" button in the empty-state area that opens the import dialog', () => {

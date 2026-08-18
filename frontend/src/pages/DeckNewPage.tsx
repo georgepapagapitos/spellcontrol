@@ -49,9 +49,6 @@ interface PrefillState {
   sourceDeckId?: string;
   /** Format of the source deck — a PDH regenerate must stay PDH. */
   format?: DeckFormat;
-  /** Variety roll the source deck was built with — restoring it makes
-   *  Regenerate reproduce the same build; absent clears any lingering roll. */
-  varietySeed?: number;
 }
 
 export function DeckNewPage() {
@@ -211,9 +208,6 @@ export function DeckNewPage() {
         ...(prefill.landCount !== undefined && { landCount: prefill.landCount }),
         ...(prefill.collectionMode !== undefined && { collectionMode: prefill.collectionMode }),
         ...(prefill.mustIncludeCards?.length ? { mustIncludeCards: prefill.mustIncludeCards } : {}),
-        // Always written, even as undefined: for pre-feature decks a lingering
-        // roll from an unrelated session must not leak into this regenerate.
-        varietySeed: prefill.varietySeed,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -374,7 +368,7 @@ export function DeckNewPage() {
   );
 
   // While generating, replace the page body with the shared takeover so the
-  // build feels deliberate — identical to the guided "Build together" flow.
+  // build feels deliberate.
   if (isBuilding && progress) {
     return (
       <div className="deck-builder-page">
@@ -469,22 +463,7 @@ export function DeckNewPage() {
         <p className="format-pill-hint">{formatConfig.description}</p>
       </section>
 
-      {/* Guided/Brew walk the EDHREC-driven Commander flow — no PDH data there. */}
-      {formatConfig.hasCommander && !isPdh && (
-        <section className="deck-builder-section guided-cta">
-          <div className="guided-cta-text">
-            <strong>Not sure where to start?</strong>
-            <span>
-              Build together — a guided, step-by-step Commander build that explains each decision as
-              you go.
-            </span>
-          </div>
-          <button type="button" className="btn" onClick={() => navigate('/decks/new/guided')}>
-            Build together →
-          </button>
-        </section>
-      )}
-
+      {/* Brew walks the EDHREC-driven Commander flow — no PDH data there. */}
       {formatConfig.hasCommander && !isPdh && (
         <section className="deck-builder-section guided-cta">
           <div className="guided-cta-text">

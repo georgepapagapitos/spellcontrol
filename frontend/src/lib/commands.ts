@@ -118,13 +118,6 @@ export function buildCommands({ decks, go, aiAvailable, deckPage }: BuildCommand
       run: () => go('/decks/new'),
     },
     {
-      id: 'action:guided-build',
-      label: 'Guided build',
-      group: 'Actions',
-      hint: 'New deck',
-      run: () => go('/decks/new/guided'),
-    },
-    {
       // DecksIndexPage owns the import dialog as local state, so the palette
       // asks for it through location state — the same channel DeckNewPage's
       // `prefill` already uses. No new global store for one boolean.

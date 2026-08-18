@@ -133,11 +133,11 @@ export function resolveGenerationNavState(
 }
 
 /**
- * Shared orchestration for the two commander deck-generation surfaces
- * (the single-page "New deck" form and the step-by-step "Build together"
- * wizard). Both surfaces drive the same engine with identical EDHREC
- * pre-fetch, collection-mode handling, and progress lifecycle — keeping that
- * here is the only way the two stay in lockstep.
+ * Shared orchestration for the commander deck-generation surfaces (the
+ * single-page "New deck" form, Brew mode, and the editor's regenerate). They
+ * drive the same engine with identical EDHREC pre-fetch, collection-mode
+ * handling, and progress lifecycle — keeping that here is the only way they
+ * stay in lockstep.
  * The pages own their own layout/chrome; this owns the generation logic.
  */
 export function useDeckGeneration({

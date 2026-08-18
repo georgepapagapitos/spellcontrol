@@ -1,4 +1,4 @@
-/* deck-builder-page.css — Page scaffold (header, subtitle, section card chrome) shared by DeckNewPage/GuidedBuildPage/DeckCustomizer.
+/* deck-builder-page.css — Page scaffold (header, subtitle, section card chrome) shared by DeckNewPage/BrewBuildPage/DeckCustomizer.
  * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
  * Original lines 1-39. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
 .deck-builder-page {

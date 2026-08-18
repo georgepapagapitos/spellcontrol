@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Dices, RotateCcw } from 'lucide-react';
+import { Check, ChevronDown, RotateCcw } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type {
   BudgetOption,
@@ -97,7 +97,6 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
       tempoAutoDetect: true,
       saltTolerance: 2,
       brewLevel: 0.5,
-      varietySeed: undefined,
       scryfallQuery: '',
       mustIncludeCards: [],
       bannedCards: [],
@@ -166,13 +165,6 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
           summary={poolSummary(customization)}
         >
           <PoolGroup customization={customization} update={update} />
-        </CollapsibleGroup>
-        <CollapsibleGroup
-          title="Variety"
-          defaultOpen={false}
-          summary={varietySummary(customization)}
-        >
-          <VarietyGroup customization={customization} update={update} />
         </CollapsibleGroup>
         <CollapsibleGroup title="Tempo" defaultOpen={false} summary={tempoSummary(customization)}>
           <TempoGroup customization={customization} update={update} />
@@ -328,10 +320,6 @@ function poolSummary(c: Customization): string {
   return parts.length ? parts.join(' · ') : 'Any card';
 }
 
-function varietySummary(c: Customization): string {
-  return c.varietySeed === undefined ? 'Signature build' : `Roll #${c.varietySeed}`;
-}
-
 function tempoSummary(c: Customization): string {
   return c.tempoAutoDetect ? 'Auto-detect' : PACING_LABELS[c.tempoPacing];
 }
@@ -485,52 +473,6 @@ function BrewGroup({ customization, update }: DeckCustomizerProps) {
           <p className="deck-customizer-slider-desc">{description}</p>
         </div>
       </div>
-    </div>
-  );
-}
-
-// Variety reroll — a reproducible "shake up close calls" lever. Each roll is
-// a seed: the same roll + settings rebuilds the same deck (see cardPicking.ts's
-// computeVarietyJitterBoosts), so variety never costs determinism.
-function VarietyGroup({ customization, update }: DeckCustomizerProps) {
-  const roll = customization.varietySeed;
-  return (
-    <div className="deck-customizer-variety">
-      <div className="deck-customizer-slider-header">
-        <span
-          className="deck-customizer-slider-value"
-          style={{ marginLeft: 'auto' }}
-          aria-live="polite"
-        >
-          {roll === undefined ? 'Signature build' : `Roll #${roll}`}
-        </span>
-      </div>
-      <div className="deck-customizer-variety-actions">
-        <button
-          type="button"
-          className="deck-customizer-reroll-btn"
-          onClick={() => update({ varietySeed: (roll ?? 0) + 1 })}
-        >
-          <Dices width={16} height={16} strokeWidth={2} aria-hidden />
-          Reroll
-        </button>
-        {roll !== undefined && (
-          <button
-            type="button"
-            className="deck-customizer-group-reset"
-            onClick={() => update({ varietySeed: undefined })}
-            title="Back to the signature build — the same best deck every time"
-          >
-            <RotateCcw width={12} height={12} strokeWidth={2} aria-hidden />
-            Reset
-          </button>
-        )}
-      </div>
-      <p className="deck-customizer-slider-desc">
-        {roll === undefined
-          ? 'The signature build: these settings pick the same best deck every time. Reroll to shake up close calls between similar cards.'
-          : 'Close calls between similar cards follow this roll. The same roll rebuilds the same deck — reroll again for a fresh take.'}
-      </p>
     </div>
   );
 }
