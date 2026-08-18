@@ -1239,6 +1239,37 @@ Any future line/trend chart follows the same specs (horizontal bars stay on
   shared **card-picker** pattern: `.card-picker-root` + `.card-picker-sheet` —
   a **bottom sheet on mobile, centered modal ≥1024px**. Dismiss via backdrop
   tap, a close button, and `Esc`.
+- **A sheet's middle is ONE scroll region — header and footer are chrome.**
+  When a card-picker sheet stacks several content blocks between its header
+  and footer (an AI slot, a ranked list, a reveal-more section), they live in
+  a single `flex: 1 1 auto; min-height: 0; overflow-y: auto` body, never as
+  sibling flex children with individual caps and scrollbars. Per-child caps
+  turn into flex-shrink arithmetic that either guillotines a fixed-height
+  child or overruns the sheet with content nothing can scroll to — both
+  shipped on `DeckSizePrompt` (the 49px AI strip rendered 37.8px; then an
+  expanded verdict + expanded list pushed rows and buttons past the sheet
+  edge with no scrollbar anywhere, the "can't scroll down" report,
+  2026-08-18). `DeckSizePrompt.css`'s `.deck-size-prompt-body` is the
+  reference. Give chrome (`.card-picker-header`/`-footer`) `flex-shrink: 0`.
+- **A dense desktop dialog widens past the phone default.** The shell's
+  ≥1024px modal is `width: 480px` — right for a short confirm, cramped for a
+  working dialog (AI prose + candidate rows). Override per-sheet with a
+  two-class rule (`.card-picker-sheet.deck-size-prompt { width: min(42rem,
+  calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
+  regardless of import order, same cascade rule as the Home bento overrides.
+- **`CardPreview` ≥1024px is two panes, not a scaled-up phone sheet.** The
+  bottom-band panel scaled to desktop left centered text floating in a
+  full-width dark strip, and "expanding" it crushed the hero card to a
+  thumbnail (user rejection, 2026-08-18). On desktop the info panel is a
+  full-height right column (`grid-column: 2`, `clamp(24rem, 30vw, 30rem)`
+  wide) beside the carousel: every detail always visible, the card never
+  shrinks, and the Details toggle is hidden (`.card-preview-details-btn`) —
+  there is nothing left for it to toggle. The #636 stable-frame ruling (ONE
+  fixed frame + inner scroll, never per-card content-driven height) is
+  upheld: the column is the same fixed frame for every card. <1024px keeps
+  the stacked sheet and its Details toggle unchanged. Flanking carousel
+  slides render at `opacity: 0.45` at every width — the centered card is the
+  one being read.
 - **Exception — the deck editor's workbench rail.** At ≥1280px, "Add cards"
   stops being an overlay: it docks beside the live decklist as a persistent
   `.deck-add-rail` column instead of covering it. It takes no dialog
@@ -3065,11 +3096,17 @@ if the file weren't there (same trap as the coarse-pointer floor):
   at 1440 and every row renders as a name at one end with its meta at the
   other. The deck analysis board keeps 2-col + spanning heroes — that ruling is
   about charts, and does not transfer.
-- **`align-items: start`, not the board's stretch.** Home mixes 3-row and
-  5-row cards in one row, and a stretched short card renders the difference as
-  dead space inside its own border. Ragged column bottoms are the correct read
-  for a signal mosaic. (`.home-card--empty` had already opted out of stretch
-  for exactly this reason; this generalises it.)
+- **Row-stretch stays; the slack goes INSIDE the card, absorbed by the body.**
+  An `align-items: start` pass shipped briefly (#1679) and was rejected on
+  sight ("weird spacing… broken up look"): grid rows are still tracks, so a
+  short card's slack rendered as a floating gap *outside* its border against
+  its row-mates — worse than the stretch it replaced. The settled ruling:
+  cards in a row share one height (the board's default stretch), and
+  `.home-card-body { flex: 1 1 auto }` absorbs the difference between the
+  list and the View-all footer, pinning the footer to the card's bottom edge —
+  the standard equal-tile bento read. Only `.home-card--empty` keeps its
+  `align-self: start` opt-out; a 44px invitation row must never inflate to a
+  list card's height.
 - **The entrance cascade is CSS-only here.** Home's cards are fixed JSX
   children, not a mapped list, so there is no index to thread
   `panelCascadeClass` through nine components for — `.home-bento > *` +

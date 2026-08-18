@@ -10,6 +10,17 @@
   padding: var(--space-4);
 }
 
+/* Absorb a stretched row's slack INSIDE the body, between the list and the
+   View-all footer — the bento keeps the board's row-stretch (see
+   HomePage.css), so cards in a row share one height and the footer pins to
+   the card's bottom edge. Without this the slack pooled below the footer as
+   an unexplained hollow. Natural-height contexts (the phone's single column)
+   see no change: no slack, flex-basis auto. */
+.home-card-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .home-card-header {
   display: flex;
   align-items: center;

@@ -17,6 +17,25 @@
   color: var(--text-secondary);
 }
 
+/* ONE scroll region between header and footer: AI verdict + candidates +
+   the expanded "pick another" list flow together and scroll together, so
+   nothing can clip behind the footer with no scrollbar anywhere. This
+   replaces the old three-competing-scrollers shape (AI slot capped at 50%
+   with its own scroll, first list with its own scroll, "more" section with
+   neither) whose flex-shrink arithmetic guillotined the AI strip once
+   (measured 49px → 37.8px at 1400×700) and, once both AI and list were
+   expanded, overran the sheet with unreachable content. A single scroller
+   has no shrink split to tune — content is natural height, the region
+   scrolls, the footer stays pinned. */
+.deck-size-prompt-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .deck-size-prompt-list {
   display: flex;
   flex-direction: column;
@@ -24,30 +43,24 @@
   margin: 0;
   padding: 0 0 var(--space-1);
   list-style: none;
-  overflow-y: auto;
+  flex-shrink: 0;
 }
 
-/* The AI slot (replace-when-full verdict). Same bounding contract as the
-   Suggestions tab's .card-search-ai: the sheet is a capped flex column, so an
-   expanded reading scrolls internally rather than past the sheet, and the
-   ranked cuts keep their share.
-   `flex-shrink: 0` is load-bearing. This slot and the list below it BOTH size
-   from content (`flex-basis: auto`), so once the sheet hits its 70vh cap the
-   shrink is split between them in proportion to those bases — and the list can
-   afford it (it scrolls) while this cannot: collapsed, the slot holds a single
-   .deck-ai-strip button, so shrinking just guillotines it. Measured at
-   1400×700 with the shipped CSS: a 49px strip rendered 37.8px, showing a
-   sliver of its own top edge. The list is the designated absorber; the strip
-   is chrome and keeps its height. max-height + overflow still bound the
-   EXPANDED reading, which is what they were for. (.card-search-ai survives the
-   same declaration only because its sibling list is `flex: 1` — basis 0, so it
-   carries no shrink weight and the slot is never asked to give any up.) */
 .deck-size-prompt-ai {
-  flex: 0 0 auto;
-  min-height: 0;
-  max-height: 50%;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  flex-shrink: 0;
+}
+
+/* Desktop: the 480px card-picker default is a phone sheet's width on a
+   screen with room to spare — the AI verdict wraps every few words and the
+   whole dialog reads crunched (user report, 2026-08-18). Widen to a real
+   reading measure and let it use more of the viewport's height. Scoped
+   two-class so it outweighs the shell's own ≥1024 rule regardless of
+   import order. */
+@media (min-width: 1024px) {
+  .card-picker-sheet.deck-size-prompt {
+    width: min(42rem, calc(100vw - 4rem));
+    max-height: min(52rem, 85vh);
+  }
 }
 
 .deck-size-prompt-row {
@@ -233,4 +246,11 @@
 .deck-size-prompt-footer {
   flex-wrap: wrap;
   gap: 0.4rem;
+}
+
+/* Header and footer are chrome — the body above is the ONLY shrinker, so
+   neither can ever be squeezed by a tall AI verdict or candidate list. */
+.deck-size-prompt .card-picker-header,
+.deck-size-prompt .card-picker-footer {
+  flex-shrink: 0;
 }
