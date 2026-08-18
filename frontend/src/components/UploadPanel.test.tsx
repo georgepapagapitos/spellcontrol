@@ -436,9 +436,7 @@ describe('UploadPanel Google Drive picker', () => {
     render(<UploadPanel />);
     fireEvent.click(screen.getByRole('button', { name: /Google Drive/ }));
 
-    await waitFor(() =>
-      expect(mockState.setError).toHaveBeenCalledWith('Couldn’t reach Google.')
-    );
+    await waitFor(() => expect(mockState.setError).toHaveBeenCalledWith('Couldn’t reach Google.'));
   });
 });
 
