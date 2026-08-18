@@ -26,10 +26,22 @@ vi.mock('../lib/api', () => ({
 // branches are chosen by the test, never by the environment.
 const pickerAvailableMock = vi.fn(() => false);
 const pickFromDriveMock = vi.fn<() => Promise<File[]>>();
+// vi.hoisted: `vi.mock` is lifted above ordinary declarations, so a plain
+// `class` here is still in its temporal dead zone when the factory runs.
+const { CancelledError } = vi.hoisted(() => ({
+  CancelledError: class CancelledError extends Error {
+    constructor() {
+      super('cancelled');
+      this.name = 'CancelledError';
+    }
+  },
+}));
 vi.mock('../lib/google-picker', () => ({
   googlePickerAvailable: () => pickerAvailableMock(),
   googlePickerConfigured: () => pickerAvailableMock(),
   pickFromGoogleDrive: () => pickFromDriveMock(),
+  CancelledError,
+  isCancelled: (e: unknown) => e instanceof CancelledError,
 }));
 
 // InlineCardSearch (rendered by the unresolved-name repair row) hits Scryfall
@@ -420,15 +432,23 @@ describe('UploadPanel Google Drive picker', () => {
     expect(mockState.setError).not.toHaveBeenCalledWith(expect.any(String));
   });
 
-  it('stays silent when the consent popup is dismissed', async () => {
-    // google-picker signals that with an empty message; surfacing it would
-    // put an empty error banner on screen.
-    pickFromDriveMock.mockRejectedValue(new Error(''));
+  it('stays silent when the user cancels', async () => {
+    pickFromDriveMock.mockRejectedValue(new CancelledError());
     render(<UploadPanel />);
     fireEvent.click(screen.getByRole('button', { name: /Google Drive/ }));
 
     await waitFor(() => expect(pickFromDriveMock).toHaveBeenCalled());
     expect(mockState.setError).not.toHaveBeenCalledWith(expect.any(String));
+  });
+
+  it('does NOT swallow an error that merely has an empty message', async () => {
+    // The bug this replaces: "silent" was encoded as an empty message, so a
+    // real abort after a successful auth vanished without a banner or a log.
+    pickFromDriveMock.mockRejectedValue(new Error(''));
+    render(<UploadPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /Google Drive/ }));
+
+    await waitFor(() => expect(mockState.setError).toHaveBeenCalled());
   });
 
   it('surfaces a real picker failure', async () => {

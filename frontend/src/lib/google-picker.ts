@@ -38,9 +38,37 @@ const PICKABLE_MIMES = [
   SHEET_MIME,
 ].join(',');
 
+/**
+ * The user backed out. A distinct type, NOT an Error with an empty message:
+ * the empty-string convention this replaces meant "stay quiet", and it silently
+ * swallowed a real abort — the user authorised, the flow gave up, and nothing
+ * appeared or was logged. Callers must special-case cancellation explicitly.
+ */
+export class CancelledError extends Error {
+  constructor() {
+    super('cancelled');
+    this.name = 'CancelledError';
+  }
+}
+
+export function isCancelled(err: unknown): boolean {
+  return err instanceof CancelledError;
+}
+
 /** True when the build carries Picker credentials at all. */
 export function googlePickerConfigured(): boolean {
   return Boolean(API_KEY && CLIENT_ID);
+}
+
+/**
+ * The Cloud project number, which the Picker needs as its "app id" whenever the
+ * `drive.file` scope is used — it is how Drive knows which app to grant the
+ * picked file to. It is the leading numeric segment of the OAuth client id
+ * (`<projectNumber>-<hash>.apps.googleusercontent.com`), so it needs no second
+ * env var and cannot drift out of sync with the client it belongs to.
+ */
+function appId(): string {
+  return CLIENT_ID?.split('-')[0] ?? '';
 }
 
 /**
@@ -101,28 +129,57 @@ const g = () => (window as Win).google as any;
 // ── token ───────────────────────────────────────────────────────────────────
 let token: { value: string; expiresAt: number } | null = null;
 
+/**
+ * Grace period after the consent popup closes before we call it a cancel.
+ *
+ * `popup_closed` fires when the consent window goes away — which also happens
+ * on a SUCCESSFUL grant, and it can arrive before the token callback. Treating
+ * it as an immediate cancel aborted the whole flow *after* the user had already
+ * authorised: they got signed in, then nothing opened. Waiting briefly lets the
+ * token that is already on its way win the race.
+ */
+const POPUP_CLOSED_GRACE_MS = 1500;
+
 async function getAccessToken(): Promise<string> {
   // Reuse while comfortably valid so picking a second file doesn't re-prompt.
   if (token && token.expiresAt - Date.now() > 60_000) return token.value;
   await loadScript(GIS_SRC);
   return new Promise<string>((resolve, reject) => {
+    let settled = false;
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      fn();
+    };
+
     const client = g().accounts.oauth2.initTokenClient({
       client_id: CLIENT_ID!,
       scope: SCOPE,
       callback: (r: TokenResponse) => {
         if (!r.access_token) {
-          reject(
-            new Error(r.error ? `Google declined access (${r.error}).` : 'No access granted.')
+          finish(() =>
+            reject(
+              new Error(r.error ? `Google declined access (${r.error}).` : 'No access granted.')
+            )
           );
           return;
         }
-        token = { value: r.access_token, expiresAt: Date.now() + (r.expires_in ?? 3600) * 1000 };
-        resolve(r.access_token);
+        // Bind before the closure — the narrowing from the guard above doesn't
+        // survive into a deferred callback.
+        const granted = r.access_token;
+        token = { value: granted, expiresAt: Date.now() + (r.expires_in ?? 3600) * 1000 };
+        finish(() => resolve(granted));
       },
       error_callback: (e: { type?: string }) => {
-        // Closing the consent popup is a normal outcome, not a failure to
-        // shout about — an empty message tells the caller to stay quiet.
-        reject(new Error(e?.type === 'popup_closed' ? '' : "Couldn't get permission from Google."));
+        if (e?.type === 'popup_closed') {
+          // Might be a cancel, might be a grant whose token is still in flight
+          // — see POPUP_CLOSED_GRACE_MS. `settled` makes the late token win.
+          setTimeout(() => finish(() => reject(new CancelledError())), POPUP_CLOSED_GRACE_MS);
+          return;
+        }
+        finish(() =>
+          reject(new Error(`Couldn't get permission from Google (${e?.type ?? 'unknown'}).`))
+        );
       },
     });
     client.requestAccessToken({ prompt: '' });
@@ -155,16 +212,30 @@ async function download(doc: PickedDoc, accessToken: string): Promise<File> {
 }
 
 // ── the picker itself ───────────────────────────────────────────────────────
+/** How long to wait for the picker library before admitting it never arrived.
+ *  Without this, a `gapi.load` that never calls back leaves the promise hanging
+ *  and the button stuck on "Opening…" with nothing to diagnose. */
+const PICKER_LOAD_TIMEOUT_MS = 15_000;
+
 function showPicker(accessToken: string): Promise<PickedDoc[]> {
   return new Promise((resolve, reject) => {
+    let loaded = false;
+    setTimeout(() => {
+      if (!loaded) reject(new Error("Google's file picker didn't finish loading."));
+    }, PICKER_LOAD_TIMEOUT_MS);
+
     (window as Win).gapi!.load('picker', () => {
+      loaded = true;
       try {
         const picker = g().picker;
+        if (!picker?.PickerBuilder) {
+          throw new Error("Google's file picker library loaded but exposed no API.");
+        }
         const view = new picker.DocsView(picker.ViewId.DOCS)
           .setIncludeFolders(true)
           .setSelectFolderEnabled(false)
           .setMimeTypes(PICKABLE_MIMES);
-        new picker.PickerBuilder()
+        const builder = new picker.PickerBuilder()
           .setDeveloperKey(API_KEY!)
           .setOAuthToken(accessToken)
           .addView(view)
@@ -177,11 +248,14 @@ function showPicker(accessToken: string): Promise<PickedDoc[]> {
             if (action === picker.Action.PICKED) {
               resolve((data[picker.Response.DOCUMENTS] as PickedDoc[]) ?? []);
             } else if (action === picker.Action.CANCEL) {
-              resolve([]);
+              reject(new CancelledError());
             }
-          })
-          .build()
-          .setVisible(true);
+          });
+        // Required with drive.file: without the app id Drive has no app to
+        // grant the picked file to, and the download 403s later.
+        const id = appId();
+        if (id) builder.setAppId(id);
+        builder.build().setVisible(true);
       } catch (err) {
         reject(err instanceof Error ? err : new Error('Failed to open the Drive picker.'));
       }
@@ -192,13 +266,29 @@ function showPicker(accessToken: string): Promise<PickedDoc[]> {
 /**
  * Open the user's Drive and return whatever they chose as ordinary `File`s, so
  * every caller can hand the result to the same staging path a drag-drop uses.
- * Resolves to `[]` when the user cancels — cancelling is not an error.
+ *
+ * Throws {@link CancelledError} when the user backs out — check `isCancelled`
+ * rather than inspecting messages. Every other failure throws a real Error AND
+ * logs it: this flow spans two Google libraries, a popup and an iframe, so a
+ * failure nobody can see is the expensive kind. It stayed silent once already.
  */
 export async function pickFromGoogleDrive(): Promise<File[]> {
   if (!googlePickerAvailable()) return [];
-  await loadScript(GAPI_SRC);
-  const accessToken = await getAccessToken();
-  const docs = await showPicker(accessToken);
-  if (docs.length === 0) return [];
-  return Promise.all(docs.map((d) => download(d, accessToken)));
+  try {
+    await loadScript(GAPI_SRC);
+    const accessToken = await getAccessToken();
+    const docs = await showPicker(accessToken);
+    if (docs.length === 0) return [];
+    return await Promise.all(docs.map((d) => download(d, accessToken)));
+  } catch (err) {
+    if (!isCancelled(err)) {
+      // This flow spans two Google libraries, a popup and a cross-origin
+      // iframe, none of which we can instrument. It failed silently in
+      // production once; the console is the only place a user can read back
+      // what actually went wrong.
+      // eslint-disable-next-line no-console
+      console.error('[drive-picker] failed:', err);
+    }
+    throw err;
+  }
 }
