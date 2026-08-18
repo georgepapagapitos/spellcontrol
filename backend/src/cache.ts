@@ -98,6 +98,8 @@ export class ScryfallCache {
   /** Null when the FTS5 index could not be created — search then returns []. */
   private searchInsertStmt: Database.Statement | null = null;
   private searchDeleteStmt: Database.Statement | null = null;
+  private searchRowidStmt: Database.Statement | null = null;
+  private searchMapSetStmt: Database.Statement | null = null;
 
   constructor(dbPath: string) {
     const dir = path.dirname(dbPath);
@@ -174,7 +176,61 @@ export class ScryfallCache {
            (name, type_line, oracle_text, scryfall_id, oracle_id, ci_mask, commander_legal, cmc)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       );
-      this.searchDeleteStmt = this.db.prepare('DELETE FROM card_search WHERE scryfall_id = ?');
+      // ⛔ Do NOT go back to `DELETE FROM card_search WHERE scryfall_id = ?`.
+      //
+      // `scryfall_id` is an UNINDEXED fts5 column, so that delete cannot seek —
+      // it FULL SCANS the index. Per-card cost therefore grows with the index,
+      // making a full re-ingest O(n^2). Measured on this exact schema:
+      //
+      //   index size    cost per card       (500 reindexes)
+      //   5,000         0.73 ms
+      //   20,000        2.83 ms
+      //   50,000        7.77 ms
+      //   107,383      22.94 ms   <- production
+      //
+      // At 22.94 ms x 107k cards that is ~40 minutes of pure FTS work on a
+      // local SSD, and on the Fly volume it was ~12 HOURS: the nightly ingest
+      // ran all night, degraded latency the whole time, and had never once
+      // completed (board E259 / the 2026-08-17 outage post-mortem).
+      //
+      // Deleting by `rowid` seeks instead, and is flat in the index size —
+      // 129 ms for the same 500 reindexes at n=107,383, a ~90x improvement.
+      // `card_search_map` is what makes the rowid reachable, since fts5 has no
+      // upsert and `cards` uses INSERT OR REPLACE (which churns its own rowid,
+      // so it cannot be borrowed).
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS card_search_map (
+          scryfall_id TEXT PRIMARY KEY,
+          rid INTEGER NOT NULL
+        );
+      `);
+      this.searchRowidStmt = this.db.prepare(
+        'SELECT rid FROM card_search_map WHERE scryfall_id = ?'
+      );
+      this.searchMapSetStmt = this.db.prepare(
+        'INSERT OR REPLACE INTO card_search_map (scryfall_id, rid) VALUES (?, ?)'
+      );
+      this.searchDeleteStmt = this.db.prepare('DELETE FROM card_search WHERE rowid = ?');
+
+      // An index that predates the map has no rowids recorded. Without this the
+      // first reindex of every card would find no rid, skip the delete, and
+      // silently accumulate DUPLICATE index rows — the exact bug the delete
+      // exists to prevent. One scan of the index, and only when it is missing.
+      const mapped = (
+        this.db.prepare('SELECT COUNT(*) AS n FROM card_search_map').get() as { n: number }
+      ).n;
+      if (mapped === 0) {
+        const t0 = Date.now();
+        this.db.exec(
+          'INSERT OR REPLACE INTO card_search_map (scryfall_id, rid) ' +
+            'SELECT scryfall_id, rowid FROM card_search'
+        );
+        const n = (
+          this.db.prepare('SELECT COUNT(*) AS n FROM card_search_map').get() as { n: number }
+        ).n;
+        if (n > 0)
+          logger.info(`[cache] built card_search rowid map (${n} rows) in ${Date.now() - t0}ms`);
+      }
 
       // Backfill only when the index is empty but cards exist — i.e. the first
       // boot after this shipped, or after someone dropped the table. Measured
@@ -264,7 +320,7 @@ export class ScryfallCache {
         .join(' // ');
     if (!oracleText && !typeLine) return;
 
-    this.searchInsertStmt.run(
+    const info = this.searchInsertStmt.run(
       card.name ?? '',
       typeLine,
       oracleText,
@@ -274,6 +330,8 @@ export class ScryfallCache {
       card.legalities?.commander === 'legal' ? 1 : 0,
       typeof card.cmc === 'number' ? card.cmc : null
     );
+    // Remember where it landed so the next reindex can seek straight to it.
+    this.searchMapSetStmt?.run(card.id, info.lastInsertRowid as number);
   }
 
   /**
@@ -488,8 +546,9 @@ export class ScryfallCache {
    * the price refresh does routinely) would accumulate duplicate index rows.
    */
   private reindexCard(card: ScryfallCard): void {
-    if (!this.searchDeleteStmt) return;
-    this.searchDeleteStmt.run(card.id);
+    if (!this.searchDeleteStmt || !this.searchRowidStmt) return;
+    const existing = this.searchRowidStmt.get(card.id) as { rid: number } | undefined;
+    if (existing) this.searchDeleteStmt.run(existing.rid);
     this.indexCard(card);
   }
 
