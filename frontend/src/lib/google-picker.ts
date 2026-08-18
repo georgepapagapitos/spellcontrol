@@ -200,7 +200,21 @@ async function getAccessToken(): Promise<string> {
         if (e?.type === 'popup_closed') {
           // Might be a cancel, might be a grant whose token is still in flight
           // — see POPUP_CLOSED_GRACE_MS. `settled` makes the late token win.
-          setTimeout(() => finish(() => reject(new CancelledError())), POPUP_CLOSED_GRACE_MS);
+          setTimeout(
+            () =>
+              finish(() => {
+                // Reaching here means the popup closed and no token EVER
+                // arrived. Usually a real cancel, but it is also what a
+                // severed opener looks like (see the COOP note in
+                // backend/src/server.ts) — and that spent three rounds
+                // looking like "nothing happens". The UI stays quiet, but
+                // never let it be undiagnosable.
+                // eslint-disable-next-line no-console
+                console.debug('[drive-picker] popup closed with no token — treating as cancel');
+                reject(new CancelledError());
+              }),
+            POPUP_CLOSED_GRACE_MS
+          );
           return;
         }
         // A blocked popup is a browser setting, not a bug the user can act on

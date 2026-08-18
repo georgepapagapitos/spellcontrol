@@ -198,6 +198,20 @@ app.use(
     },
     hsts: { maxAge: 31_536_000, includeSubDomains: true },
     frameguard: { action: 'deny' },
+    /**
+     * Helmet defaults this to `same-origin`, which puts any popup WE open into
+     * a different browsing-context group and makes `window.opener` null inside
+     * it. Google's identity client hands the OAuth token back through the
+     * opener, so under the default the Drive consent popup opened, the user
+     * signed in, the popup closed — and the token never arrived. The picker
+     * then never opened, with nothing in the console to explain it.
+     *
+     * `same-origin-allow-popups` keeps the protection that matters (a
+     * cross-origin page that opens US still gets no handle on this window)
+     * while letting popups we open keep their opener. It is the setting
+     * Google's own sign-in docs require.
+     */
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
   })
 );
 // Permissions-Policy isn't a helmet default. Mirror nginx.conf: deny what the
