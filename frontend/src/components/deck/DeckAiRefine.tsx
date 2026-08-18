@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, RefreshCw, X } from 'lucide-react';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import type { Change } from '@/lib/deck-change';
 import { analyzeDeck } from '../../lib/deck-analysis';
@@ -49,6 +49,41 @@ interface DeckAiRefineProps {
    *   Same strip posture (the ranked cuts are the prompt's primary content).
    */
   variant?: 'build' | 'suggestions' | 'replace' | 'coach';
+  /**
+   * Same-role stand-ins per proposed card, keyed by the proposed card's name.
+   * Built by `buildAlternativeIndex`. Absent ⇒ render no re-roll control.
+   */
+  alternatives?: ReadonlyMap<string, string[]>;
+  /**
+   * Bulk-apply every remaining swap tweak as ONE undo entry.
+   * Absent ⇒ render no bulk control.
+   */
+  onApplyAll?: (swaps: Array<{ removeName: string; addName: string }>) => void;
+}
+
+/** localStorage key for a deck's dismissed AI-refine suggestions (added-card
+ *  names). Wrapped in try/catch everywhere it's touched — Safari private
+ *  mode throws on both read and write. */
+function dismissedKey(deckId: string): string {
+  return `sc-ai-refine-dismissed:${deckId}`;
+}
+
+function loadDismissed(deckId: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(dismissedKey(deckId));
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? new Set(parsed.filter((n) => typeof n === 'string')) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDismissed(deckId: string, names: Set<string>): void {
+  try {
+    localStorage.setItem(dismissedKey(deckId), JSON.stringify([...names]));
+  } catch {
+    // Private-mode/quota — the dismissal just won't survive a reload.
+  }
 }
 
 /**
@@ -75,6 +110,8 @@ export function DeckAiRefine({
   bracketEstimate = null,
   onApplyMove,
   variant = 'build',
+  alternatives,
+  onApplyAll,
 }: DeckAiRefineProps) {
   const taggerReady = useTaggerReady();
   const status = useAiStatus();
@@ -88,6 +125,20 @@ export function DeckAiRefine({
   const [applied, setApplied] = useState<Set<string>>(new Set());
   const [inviteDismissed, setInviteDismissed] = useState(isAiInviteDismissed);
   const [expanded, setExpanded] = useState(false);
+  // Dismissed swaps (T102 refine levers) — keyed by the AI's proposed `add`
+  // name, persisted so a rejected suggestion never resurrects on reopen or a
+  // cached-reading replay.
+  //
+  // ⚠️ This initializer runs on MOUNT, which is correct only because every call
+  // site passes `key={deck.id}`. `/decks/:id` has no route key, so react-router
+  // reuses the editor element when navigating between decks — without the key
+  // this panel would never unmount, deck A's set would stay in state, and the
+  // next `saveDismissed` would write it back under deck B's key. The same key is
+  // what discards deck A's reading, so "Apply all" can't push A's swaps into B.
+  const [dismissed, setDismissed] = useState<Set<string>>(() => loadDismissed(deckId));
+  // Re-roll index per tweak (keyed by the AI's `add` name) into that row's
+  // `alternatives` list. Absent ⇒ showing the AI's original pick.
+  const [rerollIndex, setRerollIndex] = useState<Map<string, number>>(new Map());
 
   const commanderName = partnerCommander
     ? `${commander.name} // ${partnerCommander.name}`
@@ -112,6 +163,7 @@ export function DeckAiRefine({
     setSuggested(undefined);
     setTweaks([]);
     setApplied(new Set());
+    setRerollIndex(new Map());
     const analysis = toAiAnalysis(
       analyzeDeck({ format, commander, partnerCommander, mainboard }, taggerReady),
       { target: bracketTarget, estimate: bracketEstimate }
@@ -138,28 +190,100 @@ export function DeckAiRefine({
       });
   };
 
+  // A re-rolled row shows a different card than the AI proposed, so any
+  // apply path — single accept or the bulk "Apply all" — must move on the
+  // card actually on screen, never the AI's original pick underneath it.
+  const displayNameFor = (tweak: RefineTweak): string => {
+    const idx = rerollIndex.get(tweak.add);
+    if (idx === undefined) return tweak.add;
+    return alternatives?.get(tweak.add)?.[idx] ?? tweak.add;
+  };
+
   const accept = (tweak: RefineTweak) => {
+    const addName = displayNameFor(tweak);
+    // The AI's `why` is about the AI's card — once re-rolled it no longer
+    // applies, so the applied Change carries a neutral engine reason instead
+    // of misattributing the model's claim to a card it never evaluated.
+    const reason = rerollIndex.has(tweak.add)
+      ? `Engine alternative — same role as ${tweak.add}.`
+      : tweak.why;
     // `name` is the card coming IN and `inName` the one being cut — the
     // direction `fromSwap` and the page's apply handler both use.
     onApplyMove(
       tweak.cut
         ? {
-            id: `ai-refine:${tweak.cut}->${tweak.add}`,
+            id: `ai-refine:${tweak.cut}->${addName}`,
             type: 'swap',
             lane: 'similar',
-            name: tweak.add,
+            name: addName,
             inName: tweak.cut,
-            reason: tweak.why,
+            reason,
           }
         : {
-            id: `ai-refine:${tweak.add}`,
+            id: `ai-refine:${addName}`,
             type: 'add',
             lane: 'similar',
-            name: tweak.add,
-            reason: tweak.why,
+            name: addName,
+            reason,
           }
     );
     setApplied((prev) => new Set(prev).add(tweak.add));
+  };
+
+  // Every remaining swap tweak eligible for the bulk button: not yet applied
+  // or dismissed, and cut-bearing (a cut-less pure add has no swap pair).
+  const bulkable = tweaks.filter((t) => t.cut && !applied.has(t.add) && !dismissed.has(t.add));
+
+  const applyAll = () => {
+    if (!onApplyAll) return;
+    const swaps = bulkable.map((t) => ({
+      removeName: t.cut as string,
+      addName: displayNameFor(t),
+    }));
+    onApplyAll(swaps);
+    setApplied((prev) => {
+      const next = new Set(prev);
+      for (const t of bulkable) next.add(t.add);
+      return next;
+    });
+  };
+
+  const dismiss = (addName: string) => {
+    setDismissed((prev) => {
+      const next = new Set(prev).add(addName);
+      saveDismissed(deckId, next);
+      return next;
+    });
+  };
+
+  const undoDismiss = (addName: string) => {
+    setDismissed((prev) => {
+      const next = new Set(prev);
+      next.delete(addName);
+      saveDismissed(deckId, next);
+      return next;
+    });
+  };
+
+  /** Cycle: AI's pick → alt 0 → alt 1 → … → back to the AI's pick. */
+  const cycleAlt = (addName: string, altsLength: number) => {
+    setRerollIndex((prev) => {
+      const cur = prev.get(addName);
+      const nextIdx = cur === undefined ? 0 : cur + 1;
+      const next = new Map(prev);
+      if (nextIdx >= altsLength) next.delete(addName);
+      else next.set(addName, nextIdx);
+      return next;
+    });
+  };
+
+  const resetReroll = (addName: string) => {
+    setRerollIndex((prev) => {
+      if (!prev.has(addName)) return prev;
+      const next = new Map(prev);
+      next.delete(addName);
+      return next;
+    });
   };
 
   const isSuggestions = variant === 'suggestions';
@@ -237,38 +361,101 @@ export function DeckAiRefine({
         <div aria-live="polite">
           <RefineProse content={strategy} cardsByName={cardsByName} suggested={suggested} />
           {tweaks.length > 0 ? (
-            <ul className="deck-ai-tweaks">
-              {tweaks.map((t) => (
-                <li key={t.add} className="deck-ai-tweak">
-                  <div className="deck-ai-tweak-move">
-                    <strong>{t.add}</strong>
-                    {t.cut && (
-                      <>
-                        <span className="deck-ai-tweak-arrow" aria-hidden>
-                          ←
-                        </span>
-                        <span className="deck-ai-tweak-cut">{t.cut}</span>
-                      </>
-                    )}
-                  </div>
-                  <p className="deck-ai-tweak-why">{t.why}</p>
-                  {applied.has(t.add) ? (
-                    <span className="deck-ai-tweak-done">
-                      <Check width={14} height={14} strokeWidth={2.5} aria-hidden /> Applied
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn"
-                      onClick={() => accept(t)}
-                      aria-label={t.cut ? `Swap ${t.cut} for ${t.add}` : `Add ${t.add}`}
-                    >
-                      Apply
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <>
+              {onApplyAll && !isReplace && bulkable.length >= 2 && (
+                <button type="button" className="btn deck-ai-bulk-apply" onClick={applyAll}>
+                  Apply all {bulkable.length} swaps
+                </button>
+              )}
+              <ul className="deck-ai-tweaks">
+                {tweaks.map((t) => {
+                  if (dismissed.has(t.add)) {
+                    return (
+                      <li key={t.add} className="deck-ai-tweak deck-ai-tweak--dismissed">
+                        <span className="deck-ai-tweak-dismissed-text">Dismissed {t.add}</span>
+                        <button
+                          type="button"
+                          className="btn deck-ai-tweak-undo"
+                          onClick={() => undoDismiss(t.add)}
+                        >
+                          Undo
+                        </button>
+                      </li>
+                    );
+                  }
+                  const alts = alternatives?.get(t.add) ?? [];
+                  const rerollIdx = rerollIndex.get(t.add);
+                  const rerolled = rerollIdx !== undefined;
+                  const shownName = rerolled ? (alts[rerollIdx] ?? t.add) : t.add;
+                  return (
+                    <li key={t.add} className="deck-ai-tweak">
+                      <div className="deck-ai-tweak-move">
+                        <strong>{shownName}</strong>
+                        {t.cut && (
+                          <>
+                            <span className="deck-ai-tweak-arrow" aria-hidden>
+                              ←
+                            </span>
+                            <span className="deck-ai-tweak-cut">{t.cut}</span>
+                          </>
+                        )}
+                      </div>
+                      {rerolled ? (
+                        <p className="deck-ai-tweak-why deck-ai-tweak-why--engine">
+                          Engine alternative — same role as {t.add}.{' '}
+                          <button
+                            type="button"
+                            className="deck-ai-tweak-reset"
+                            onClick={() => resetReroll(t.add)}
+                            aria-label={`Use the AI's pick, ${t.add}, instead`}
+                          >
+                            Use the AI&rsquo;s pick
+                          </button>
+                        </p>
+                      ) : (
+                        <p className="deck-ai-tweak-why">{t.why}</p>
+                      )}
+                      <div className="deck-ai-tweak-actions">
+                        {alts.length > 0 && (
+                          <button
+                            type="button"
+                            className="deck-ai-tweak-reroll"
+                            onClick={() => cycleAlt(t.add, alts.length)}
+                            aria-label={`Try another alternative to ${shownName}`}
+                          >
+                            <RefreshCw width={14} height={14} aria-hidden />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="deck-ai-tweak-dismiss"
+                          onClick={() => dismiss(t.add)}
+                          aria-label={`Dismiss ${shownName}`}
+                        >
+                          <X width={14} height={14} aria-hidden />
+                        </button>
+                        {applied.has(t.add) ? (
+                          <span className="deck-ai-tweak-done">
+                            <Check width={14} height={14} strokeWidth={2.5} aria-hidden /> Applied
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={() => accept(t)}
+                            aria-label={
+                              t.cut ? `Swap ${t.cut} for ${shownName}` : `Add ${shownName}`
+                            }
+                          >
+                            Apply
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
           ) : (
             /* An empty list is a real answer, not a failure — say so plainly
                rather than leaving the panel looking broken. */
