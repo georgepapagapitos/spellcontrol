@@ -243,6 +243,15 @@ export async function ingestScryfallBulk(
   let cardBatch: ScryfallCard[] = [];
   let aliasBatch: Array<{ key: string; scryfallId: string }> = [];
 
+  // A run takes many minutes and previously logged only "downloading" and
+  // "done" — so a healthy slow run and a hung one looked identical from the
+  // outside, which cost real time during the 2026-08-18 investigation (the only
+  // way to tell them apart was querying MAX(cached_at) out of the live DB over
+  // SSH). One line per 10k cards is enough to see progress and rate.
+  const startedAt = Date.now();
+  let lastLoggedAt = 0;
+  const PROGRESS_EVERY = 10_000;
+
   const flush = async () => {
     if (cardBatch.length > 0) {
       cache.setMany(cardBatch);
@@ -253,6 +262,12 @@ export async function ingestScryfallBulk(
       cache.setLookups(aliasBatch);
       aliases += aliasBatch.length;
       aliasBatch = [];
+    }
+    if (written - lastLoggedAt >= PROGRESS_EVERY) {
+      lastLoggedAt = written;
+      logger.info(
+        `[scryfall-bulk] ${written} cards, ${aliases} aliases in ${Math.round((Date.now() - startedAt) / 1000)}s`
+      );
     }
     // Idle between transactions. `setImmediate` yields but takes the CPU
     // straight back; a real pause is what stops this job eating the machine's

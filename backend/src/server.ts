@@ -4,6 +4,7 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import helmet from 'helmet';
 import multer from 'multer';
 import path from 'path';
+import { Worker } from 'node:worker_threads';
 import { existsSync } from 'fs';
 import { gzip } from 'node:zlib';
 import { DB_PATH, getScryfallCache, pickEurForFinish, pickUsdForFinish } from './scryfall-cache';
@@ -56,7 +57,6 @@ import {
   getCardById,
   fetchRulings,
 } from './scryfall';
-import { runScryfallBulkIngest } from './scryfall-bulk';
 import { dedupePreservingOrder } from './utils';
 import { getSetMap, getSetCards, SetNotFoundError } from './sets';
 import { parseImport } from './parsers';
@@ -1233,11 +1233,38 @@ function scheduleAggregatesRollup(): void {
  */
 function scheduleScryfallBulkIngest(): void {
   const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
+  // Only ever one ingest in flight. The 24h interval makes overlap unlikely in
+  // principle, but a run measured on 2026-08-18 had not finished after 10
+  // minutes, so "the next tick lands while the last is still going" is a real
+  // shape, not a hypothetical — and two threads writing the same SQLite file
+  // is not something to find out about in production.
+  let running = false;
+
   const tick = () => {
-    runScryfallBulkIngest(cache, DB_PATH).catch((err) => {
-      logger.error('[scryfall-bulk] schedule tick failed:', err);
+    if (running) {
+      logger.warn('[scryfall-bulk] previous ingest still running — skipping this tick');
+      return;
+    }
+    // `.ts` under tsx in dev, `.js` from dist in production. Deriving it from
+    // this module's own extension keeps the two in step without a build flag.
+    const entry = path.join(__dirname, `scryfall-bulk.worker${path.extname(__filename)}`);
+    running = true;
+    const started = Date.now();
+    const worker = new Worker(entry, { workerData: { dbPath: DB_PATH } });
+    worker.on('error', (err) => {
+      // Worker construction/runtime failure. Without this listener the error
+      // reaches the process as an unhandled 'error' event.
+      logger.error('[scryfall-bulk] worker error:', err);
+    });
+    worker.on('exit', (code) => {
+      running = false;
+      const secs = Math.round((Date.now() - started) / 1000);
+      if (code === 0) logger.info(`[scryfall-bulk] worker finished in ${secs}s`);
+      else logger.error(`[scryfall-bulk] worker exited with code ${code} after ${secs}s`);
     });
   };
+
   tick();
   setInterval(tick, TWENTY_FOUR_HOURS);
 }
@@ -1245,12 +1272,19 @@ function scheduleScryfallBulkIngest(): void {
 /**
  * Hold heavy background work back from the boot path, and stagger it.
  *
- * This process is single-threaded on one shared vCPU, and the worst offenders
- * are SYNCHRONOUS: `better-sqlite3` writes block the event loop outright, so
- * while the Scryfall bulk ingest runs (~450MB, ~107k rows) nothing answers —
- * not requests, not the health check. `fly.toml` gives that check a 5s timeout,
- * so it goes critical, the proxy drops the only instance, and the whole site
- * 503s during what should be an unremarkable background refresh.
+ * This process is single-threaded, and the worst offenders are SYNCHRONOUS:
+ * `better-sqlite3` writes block whatever thread they run on, so while the
+ * Scryfall bulk ingest runs (~450MB, ~107k rows) nothing on that thread
+ * answers — not requests, not the health check. The check then goes critical,
+ * the proxy drops the only instance, and the whole site 503s during what should
+ * be an unremarkable background refresh.
+ *
+ * The bulk ingest no longer runs on this thread at all — it was moved to a
+ * worker (`scryfall-bulk.worker.ts`) after a measured run took the site down
+ * for ~10 minutes on 2026-08-18. Deferring and staggering never addressed that;
+ * they only moved the window. The remaining jobs here are still on the event
+ * loop, so the staggering below still matters — and the scanner matcher preload
+ * (measured 38.8s and 148.7s) is the next candidate for the same treatment.
  *
  * Measured on the 2026-08-17 deploys: the matcher preload alone took 38.8s and
  * 148.7s on two boots, with the bulk ingest, combo ingest and aggregates
