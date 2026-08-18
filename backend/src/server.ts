@@ -212,6 +212,21 @@ app.use(
      * Google's own sign-in docs require.
      */
     crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+    /**
+     * Helmet defaults this to `no-referrer`, which tells the browser never to
+     * send a `Referer` — and a Google API key restricted to specific websites
+     * is checked against exactly that header. So the restriction could never
+     * match: Google rejected every Picker request with "Requests from referer
+     * <empty> are blocked", which the Picker shows as the far less helpful
+     * "The API developer key is invalid." The Cloud Console settings were
+     * correct the entire time.
+     *
+     * `strict-origin-when-cross-origin` is the modern browser default and
+     * sends only the ORIGIN cross-origin (never the path, and nothing at all
+     * when downgrading to http), so Google gets `https://spellcontrol.com/`
+     * to match against while no page a user is on ever leaks.
+     */
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   })
 );
 // Permissions-Policy isn't a helmet default. Mirror nginx.conf: deny what the
