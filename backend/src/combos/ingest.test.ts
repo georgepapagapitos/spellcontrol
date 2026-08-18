@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi, afterEach } from 'vitest';
 import { Pool } from 'pg';
+import { Readable } from 'node:stream';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import crypto from 'crypto';
 import * as schema from '../db/schema';
@@ -31,6 +32,49 @@ afterEach(() => {
 });
 
 describe('streamSpellbookVariants', () => {
+  // ⛔ Both of these guard the bug class that took production down on
+  // 2026-08-17 (#1657, and this file was still carrying it): `.pipe()` does
+  // NOT forward errors from the source, and an unhandled `'error'` on a stream
+  // is PROCESS-FATAL. A dropped Commander Spellbook download therefore killed
+  // the server instead of failing the ingest.
+  //
+  // A rejected promise is the whole point. Without the forward these do not
+  // fail — they CRASH the worker, which is precisely the production behaviour.
+  // (Verified: with `pipeForwardingErrors` reverted to a bare `.pipe()`, the
+  // run dies with "Channel closed"/worker exit rather than reporting a failure.)
+  it('a dropped download rejects the caller instead of killing the process (object payload)', async () => {
+    const body = new Readable({ read() {} });
+    // `{variants: [...]}` — the dominant upstream shape, and the branch with
+    // the deepest pipe chain (parser -> filter -> streamArray).
+    body.push('{"variants":[{"id":"a","uses":[{"card":{"name":"A","oracleId":"oa"}}]},');
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      body: Readable.toWeb(body),
+    } as unknown as Response);
+
+    const iter = streamSpellbookVariants()[Symbol.asyncIterator]();
+    const first = await iter.next();
+    expect(first.value).toMatchObject({ id: 'a' });
+
+    body.destroy(new Error('terminated')); // how undici surfaces a dead socket
+    await expect(iter.next()).rejects.toThrow();
+  });
+
+  it('a dropped download rejects the caller instead of killing the process (array payload)', async () => {
+    const body = new Readable({ read() {} });
+    body.push('[{"id":"a","uses":[{"card":{"name":"A","oracleId":"oa"}}]},');
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      body: Readable.toWeb(body),
+    } as unknown as Response);
+
+    const iter = streamSpellbookVariants()[Symbol.asyncIterator]();
+    const first = await iter.next();
+    expect(first.value).toMatchObject({ id: 'a' });
+
+    body.destroy(new Error('terminated'));
+    await expect(iter.next()).rejects.toThrow();
+  });
   it('streams variants out of a `{variants: [...]}` payload', async () => {
     const body = JSON.stringify({
       variants: [

@@ -7,6 +7,7 @@ import { createGunzip } from 'node:zlib';
 import type { ScryfallCard } from './types';
 import type { ScryfallCache } from './cache';
 import { cardAliasKeys, SCRYFALL_USER_AGENT } from './scryfall';
+import { pipeForwardingErrors } from './stream-utils';
 
 /**
  * Ingests Scryfall's daily `default_cards` bulk dump into the SQLite card cache so
@@ -126,7 +127,9 @@ export async function* streamBulkJsonl<T>(url: string): AsyncGenerator<T> {
   }
   const nodeStream = Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]);
   const lines = createInterface({
-    input: url.endsWith('.gz') ? nodeStream.pipe(createGunzip()) : nodeStream,
+    // In the non-gzip case readline watches `nodeStream` directly and rejects
+    // on its own; the gzip case needs the forward (see `pipeForwardingErrors`).
+    input: url.endsWith('.gz') ? pipeForwardingErrors(nodeStream, createGunzip()) : nodeStream,
     crlfDelay: Infinity,
   });
   try {

@@ -1,0 +1,87 @@
+# Production uptime alert.
+#
+# On 2026-08-17 the site was down, on and off, for roughly six hours and NOBODY
+# WAS NOTIFIED — a human noticed by loading the page. Fly was doing its job
+# (restarting a process that kept killing itself) and the health check was
+# correctly reporting failure; there was simply nothing watching it. This is
+# that missing watcher.
+#
+# Deliberately dumb: an unauthenticated `curl` against the public origin, no
+# checkout, no secrets, no new service. It answers the only question that
+# matters — "can a user load this right now?" — from outside our own
+# infrastructure, which is exactly what an internal check cannot tell you.
+#
+# ## How you get told
+#
+# A failing scheduled workflow emails the repo owner (GitHub's default for
+# scheduled runs on the default branch) and shows up in the Actions tab. If you
+# want it louder, Settings -> Notifications -> Actions, or add a webhook step.
+#
+# ## Why three samples, and why 2-of-3
+#
+# ⚠️ ONE 200 IS NOT RECOVERY. A crash-looping app serves perfectly well between
+# restarts, so a single probe can hit a good window and report health while the
+# site is unusable — that misreading cost hours on 2026-08-17. Three samples
+# spread over a minute, alerting at 2 failures, catches both shapes seen that
+# day: the flat 503 window, and the flapping one (measured 000/000/000/200/200
+# /000 while the machine was being evicted and restarted). A single transient
+# blip stays quiet, so this does not cry wolf.
+name: Uptime
+
+on:
+  schedule:
+    # Every 5 minutes — GitHub's finest cron granularity. Scheduled runs are
+    # best-effort and can be delayed under load, so treat the alert as "the site
+    # was down for a while", not as a precise time-to-detect.
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+# A backed-up queue must never stack probes on top of each other.
+concurrency:
+  group: uptime
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    name: Probe production /health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Sample /health three times
+        run: |
+          set -u
+          # spellcontrol.com is the canonical prod origin — the one the web app
+          # and the native App Link both use. Probe what users actually hit.
+          URL="https://spellcontrol.com/health"
+          fails=0
+          for i in 1 2 3; do
+            if [ "$i" -ne 1 ]; then sleep 20; fi
+            # --max-time 20 matches the shape of the failure we care about: on a
+            # starved instance a HEALTHY app answered a trivial endpoint in
+            # 12.5s, so a shorter deadline would alert on mere slowness. Fly's
+            # own check allows 15s (fly.toml); this is deliberately a little
+            # more patient, because being slow is not being down.
+            body=$(curl -sS --max-time 20 "$URL" || echo "")
+            # Check the BODY, not just the status. Non-/api/ misses fall through
+            # to the SPA fallback, which happily answers 200 with index.html — so
+            # a status-only probe can pass on a page that proves nothing. Only
+            # the real handler emits `"ok":true`.
+            case "$body" in
+              *'"ok":true'*) echo "sample $i: ok" ;;
+              *) echo "sample $i: FAILED (${body:-no response})"; fails=$((fails + 1)) ;;
+            esac
+          done
+          echo "failed samples: $fails/3"
+          if [ "$fails" -ge 2 ]; then
+            echo "::error::SpellControl production is DOWN — $fails of 3 probes to $URL failed."
+            echo ""
+            echo "First moves, in this order (see memory project_pg_pool_error_crash):"
+            echo "  1. flyctl machine status <id> --app spellcontrol-api  -> read the EVENT LOG."
+            echo "     exit_code / oom_killed / requested_stop separates app-crash, OOM,"
+            echo "     deliberate stop and health eviction. Do NOT theorise before reading it."
+            echo "  2. flyctl logs --app spellcontrol-api"
+            echo "  3. Kill switches, if a batch job is implicated: SCRYFALL_BULK_INGEST_DISABLED=1,"
+            echo "     SCANNER_PRELOAD_DISABLED=1, COMBOS_INGEST_DISABLED=1, AGGREGATES_ROLLUP_DISABLED=1."
+            exit 1
+          fi
+          echo "Production is up."

@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { gzipSync } from 'node:zlib';
 import { ScryfallCache } from './cache';
+import { Readable } from 'node:stream';
 import {
   projectBulkCard,
   ingestScryfallBulk,
@@ -11,6 +12,7 @@ import {
   readBulkMeta,
   writeBulkMeta,
   fetchScryfallBulkEntry,
+  streamBulkJsonl,
 } from './scryfall-bulk';
 
 let dir: string;
@@ -161,6 +163,43 @@ describe('bulk meta', () => {
     expect(readBulkMeta(dbPath)).toBeNull();
     writeBulkMeta(dbPath, { updatedAt: 123 });
     expect(readBulkMeta(dbPath)?.updatedAt).toBe(123);
+  });
+});
+
+describe('streamBulkJsonl', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  // ⚠️ THIS TEST AND ITS FIX WERE SILENTLY REVERTED ONCE ALREADY. #1656 — an
+  // AI-prompt PR cut from a branch older than #1657 — carried the pre-fix
+  // version of both this file and scryfall-bulk.ts through its squash-merge.
+  // CI stayed green because the test went out with the fix, and the reverted
+  // code shipped to production. If you are resolving a conflict here, the
+  // forward stays.
+  it('a mid-download disconnect rejects the caller instead of killing the process', async () => {
+    // ⛔ The regression this guards took production down repeatedly on
+    // 2026-08-17. `.pipe()` does NOT forward source errors, so when the
+    // ~450MB transfer dropped, `'error'` fired on the undici-backed Readable
+    // with nobody listening — process-fatal, `exit_code=1`, and the ingest
+    // restarted from zero forever because it only records success.
+    //
+    // A rejected promise here is the whole point: the JOB fails, the server
+    // lives. Without the forward this test does not fail, it CRASHES the
+    // worker, which is exactly how it behaved in prod.
+    const body = new Readable({ read() {} });
+    body.push(gzipSync(Buffer.from('{"id":"a"}\n')));
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      body: Readable.toWeb(body),
+    } as unknown as Response);
+
+    const iter = streamBulkJsonl<{ id: string }>('https://example.test/bulk.jsonl.gz');
+    const first = await iter.next();
+    expect(first.value).toEqual({ id: 'a' });
+
+    // The socket dies mid-stream, exactly as undici surfaces it.
+    body.destroy(new Error('terminated'));
+
+    await expect(iter.next()).rejects.toThrow();
   });
 });
 
