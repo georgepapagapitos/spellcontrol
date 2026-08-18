@@ -2,6 +2,7 @@ import { logger } from './logger';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
+import { pipeline as streamPipeline } from 'node:stream/promises';
 import { createInterface } from 'node:readline';
 import { createGunzip } from 'node:zlib';
 import type { ScryfallCard } from './types';
@@ -116,20 +117,30 @@ export async function fetchScryfallBulkEntry(
  * when Scryfall changed the field all three broke independently. One place to
  * fix next time.
  */
-export async function* streamBulkJsonl<T>(url: string): AsyncGenerator<T> {
+export async function* streamBulkJsonl<T>(urlOrPath: string): AsyncGenerator<T> {
+  const remote = /^https?:\/\//i.test(urlOrPath);
   const ctrl = new AbortController();
-  const res = await fetch(url, {
-    headers: { 'User-Agent': SCRYFALL_USER_AGENT },
-    signal: ctrl.signal,
-  });
-  if (!res.ok || !res.body) {
-    throw new Error(`Scryfall bulk download returned ${res.status}`);
+  let nodeStream: Readable;
+  if (remote) {
+    const res = await fetch(urlOrPath, {
+      headers: { 'User-Agent': SCRYFALL_USER_AGENT },
+      signal: ctrl.signal,
+    });
+    if (!res.ok || !res.body) {
+      throw new Error(`Scryfall bulk download returned ${res.status}`);
+    }
+    nodeStream = Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]);
+  } else {
+    // Local path: the two-step download in `streamDefaultCards`. Reading from
+    // disk has no socket to starve, which is the whole point (see there).
+    nodeStream = fs.createReadStream(urlOrPath);
   }
-  const nodeStream = Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]);
   const lines = createInterface({
     // In the non-gzip case readline watches `nodeStream` directly and rejects
     // on its own; the gzip case needs the forward (see `pipeForwardingErrors`).
-    input: url.endsWith('.gz') ? pipeForwardingErrors(nodeStream, createGunzip()) : nodeStream,
+    input: urlOrPath.endsWith('.gz')
+      ? pipeForwardingErrors(nodeStream, createGunzip())
+      : nodeStream,
     crlfDelay: Infinity,
   });
   try {
@@ -169,10 +180,105 @@ async function fetchDefaultCardsUrl(): Promise<{ url: string; updatedAt: string 
  * gzipped / far larger raw, so it's never materialized whole — reading it
  * line-by-line keeps peak memory flat regardless of dump size.
  */
-export async function* streamDefaultCards(): AsyncGenerator<BulkCard> {
+/** The downloaded dump, parked next to the cache on the persistent volume. */
+function bulkDownloadPath(dbPath: string): string {
+  return path.join(path.dirname(dbPath), 'scryfall-bulk.partial.jsonl.gz');
+}
+
+/** Written only once the download is COMPLETE, and records which dump it is. */
+function bulkDownloadMarkerPath(dbPath: string): string {
+  return path.join(path.dirname(dbPath), 'scryfall-bulk.partial.json');
+}
+
+/**
+ * Downloads to `<dest>.downloading`, then renames. The rename is atomic, so a
+ * process killed mid-transfer leaves a `.downloading` scrap rather than a
+ * truncated file that looks complete.
+ */
+async function downloadBulkToDisk(url: string, dest: string): Promise<void> {
+  const res = await fetch(url, { headers: { 'User-Agent': SCRYFALL_USER_AGENT } });
+  if (!res.ok || !res.body) {
+    throw new Error(`Scryfall bulk download returned ${res.status}`);
+  }
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  const tmp = `${dest}.downloading`;
+  // `pipeline` forwards errors and destroys both ends — the same reason
+  // `pipeForwardingErrors` exists for the `.pipe()` sites.
+  await streamPipeline(
+    Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]),
+    fs.createWriteStream(tmp)
+  );
+  fs.renameSync(tmp, dest);
+}
+
+/**
+ * Two-step: download the dump to disk in one pass, then stream-parse from
+ * there. **Do not collapse this back into a single streamed fetch.**
+ *
+ * ## The stall it fixes
+ *
+ * Parsing straight off the undici response means the socket is consumed only as
+ * fast as ~107k synchronous `better-sqlite3` writes allow. That starves the
+ * HTTP/2 stream, and the transfer dies mid-run. Measured twice on 2026-08-18,
+ * on two separate deploys: the ingest wrote **exactly 3000 rows** (3 flushes of
+ * FLUSH_AT) and then made no further progress — the same number both times,
+ * which is what ruled out CPU throttling as the cause and pointed at the
+ * consumer's rate instead.
+ *
+ * `scanner/embedding-ingest.ts` already hit this and already fixed it the same
+ * way; its note says the streamed pattern "starved the HTTP/2 socket mid-run and
+ * tripped `read ETIMEDOUT` somewhere past 1500 records". This file simply never
+ * got the same treatment. Reading from disk has no socket to starve, so the
+ * ingest can take as long as it takes.
+ *
+ * ## It also makes an interrupted run resumable (E256)
+ *
+ * The old code recorded success only at the very end, so a restart re-pulled the
+ * whole dump from zero — across six attempts on 2026-08-17 it never once
+ * completed. Now a *completed* download is kept on disk with a marker naming the
+ * dump it came from; a rerun of the same dump skips straight to ingesting it.
+ * The download is ~77MB compressed and is deleted once the ingest succeeds.
+ */
+export async function* streamDefaultCards(dbPath: string): AsyncGenerator<BulkCard> {
   const { url } = await fetchDefaultCardsUrl();
-  logger.info('[scryfall-bulk] downloading default_cards from', url);
-  yield* streamBulkJsonl<BulkCard>(url);
+  const file = bulkDownloadPath(dbPath);
+  const marker = bulkDownloadMarkerPath(dbPath);
+
+  const reusable = ((): boolean => {
+    try {
+      const saved = JSON.parse(fs.readFileSync(marker, 'utf-8')) as { url?: string };
+      // Same dump only — a marker from yesterday's dump must not shadow today's.
+      return saved.url === url && fs.existsSync(file);
+    } catch {
+      // No marker, or an unreadable one: treat as nothing to reuse.
+      return false;
+    }
+  })();
+
+  if (reusable) {
+    logger.info('[scryfall-bulk] reusing already-downloaded dump', file);
+  } else {
+    logger.info('[scryfall-bulk] downloading default_cards from', url);
+    const t0 = Date.now();
+    await downloadBulkToDisk(url, file);
+    fs.writeFileSync(marker, JSON.stringify({ url, completedAt: Date.now() }));
+    const mb = (fs.statSync(file).size / 1e6).toFixed(1);
+    logger.info(`[scryfall-bulk] downloaded ${mb} MB in ${Date.now() - t0}ms`);
+  }
+
+  yield* streamBulkJsonl<BulkCard>(file);
+}
+
+/** Drops the downloaded dump once it has been fully ingested. */
+function clearBulkDownload(dbPath: string): void {
+  for (const f of [bulkDownloadPath(dbPath), bulkDownloadMarkerPath(dbPath)]) {
+    try {
+      fs.rmSync(f, { force: true });
+    } catch (err) {
+      // Disk space is worth a warning, never a failed ingest.
+      logger.warn('[scryfall-bulk] could not remove', f, err);
+    }
+  }
 }
 
 /**
@@ -345,8 +451,9 @@ export async function runScryfallBulkIngest(
     }
   }
   const start = Date.now();
-  const result = await ingestScryfallBulk(streamDefaultCards(), cache);
+  const result = await ingestScryfallBulk(streamDefaultCards(dbPath), cache);
   writeBulkMeta(dbPath, { updatedAt: Date.now() });
+  clearBulkDownload(dbPath);
   logger.info(
     `[scryfall-bulk] ingest done in ${Date.now() - start}ms — ` +
       `wrote ${result.written} cards, ${result.aliases} aliases, skipped ${result.skipped}`

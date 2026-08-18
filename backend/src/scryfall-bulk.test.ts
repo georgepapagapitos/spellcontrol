@@ -246,6 +246,77 @@ describe('runScryfallBulkIngest', () => {
     expect(cache.getManyByKeys(['nsc:sol ring|cmr|472']).size).toBe(1);
     expect(readBulkMeta(dbPath)).not.toBeNull();
   });
+
+  // ── The download is a separate step now (E256 + the 2026-08-18 stall) ──────
+  //
+  // Parsing straight off the socket starved the HTTP/2 stream: two runs on two
+  // deploys each wrote EXACTLY 3000 rows and then stopped. The dump is now
+  // pulled to disk first, which also means an interrupted run does not re-pull
+  // ~77MB from zero — it never once completed across six attempts on
+  // 2026-08-17 for precisely that reason.
+
+  /** Index + feed mock that counts how many times the DUMP itself was fetched. */
+  function mockFeed(dumpUrl = 'https://x/default.jsonl.gz') {
+    const feed = gzipSync(JSON.stringify(bulk()));
+    const counts = { dump: 0, index: 0 };
+    vi.spyOn(global, 'fetch').mockImplementation((url) => {
+      if (String(url).endsWith('/bulk-data')) {
+        counts.index++;
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              data: [{ type: 'default_cards', jsonl_download_uri: dumpUrl, updated_at: 'x' }],
+            }),
+            { headers: { 'Content-Type': 'application/json' } }
+          )
+        );
+      }
+      counts.dump++;
+      return Promise.resolve(new Response(new Uint8Array(feed)));
+    });
+    return counts;
+  }
+
+  const downloadFile = () => path.join(dir, 'scryfall-bulk.partial.jsonl.gz');
+  const downloadMarker = () => path.join(dir, 'scryfall-bulk.partial.json');
+
+  it('removes the downloaded dump once the ingest succeeds', async () => {
+    mockFeed();
+    await runScryfallBulkIngest(cache, dbPath, { force: true });
+    expect(fs.existsSync(downloadFile())).toBe(false);
+    expect(fs.existsSync(downloadMarker())).toBe(false);
+  });
+
+  it('reuses an already-downloaded dump instead of re-pulling it', async () => {
+    // Stand in for a run that downloaded, then died before finishing the
+    // ingest — exactly the 2026-08-17 shape.
+    fs.writeFileSync(downloadFile(), gzipSync(JSON.stringify(bulk())));
+    fs.writeFileSync(
+      downloadMarker(),
+      JSON.stringify({ url: 'https://x/default.jsonl.gz', completedAt: Date.now() })
+    );
+
+    const counts = mockFeed();
+    const result = await runScryfallBulkIngest(cache, dbPath, { force: true });
+
+    expect(result?.written).toBe(1);
+    // The whole point: the dump was NOT fetched again.
+    expect(counts.dump).toBe(0);
+  });
+
+  it('re-downloads when the marker names a different dump', async () => {
+    // Yesterday's leftovers must never shadow today's dump.
+    fs.writeFileSync(downloadFile(), gzipSync(JSON.stringify(bulk())));
+    fs.writeFileSync(
+      downloadMarker(),
+      JSON.stringify({ url: 'https://x/OLD-default.jsonl.gz', completedAt: Date.now() })
+    );
+
+    const counts = mockFeed('https://x/default.jsonl.gz');
+    await runScryfallBulkIngest(cache, dbPath, { force: true });
+
+    expect(counts.dump).toBe(1);
+  });
 });
 
 describe('fetchScryfallBulkEntry', () => {
