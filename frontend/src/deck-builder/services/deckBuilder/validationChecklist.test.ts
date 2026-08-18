@@ -12,6 +12,19 @@ function legalDeck(): ValidationInput['cards'] {
   return cards;
 }
 
+/** Pauper/Modern/Standard shape: 60 cards, up to 4 copies of a name. */
+const PAUPER = { deckSize: 60, maxCopies: 4 };
+
+/** A legal 60-card mono-red list: 9 names × 4 copies + 24 Mountains. */
+function sixtyCardFourOfDeck(): ValidationInput['cards'] {
+  const cards: ValidationInput['cards'] = [];
+  for (const name of ['Lightning Bolt', ...Array.from({ length: 8 }, (_, i) => `Spell ${i}`)])
+    for (let i = 0; i < 4; i++) cards.push({ name, color_identity: ['R'], cmc: 1 });
+  for (let i = 0; i < 24; i++)
+    cards.push({ name: 'Mountain', color_identity: [], type_line: 'Basic Land' });
+  return cards;
+}
+
 const ROLE_TARGETS = { ramp: 10, removal: 8, boardwipe: 3, cardDraw: 10 };
 
 describe('buildValidationChecklist', () => {
@@ -49,6 +62,26 @@ describe('buildValidationChecklist', () => {
     cards.push({ name: 'Spell 0', color_identity: ['U'], cmc: 2 }); // dupe non-basic
     const r = buildValidationChecklist({ cards, commanderIdentity: ['U', 'R'] });
     expect(r.checks.find((c) => c.id === 'singleton')?.status).toBe('fail');
+  });
+
+  it('gates a 60-card 4-of format on its own size and copy limit', () => {
+    const pauper = buildValidationChecklist({ cards: sixtyCardFourOfDeck(), format: PAUPER });
+    const byId = Object.fromEntries(pauper.checks.map((c) => [c.id, c]));
+    expect(byId.size.status).toBe('pass');
+    expect(byId.size.detail).toBe('60 / 60 cards');
+    expect(byId.singleton.status).toBe('pass'); // 4-ofs are legal here
+    expect(byId.singleton.label).toBe('Copy limit');
+    expect(pauper.hardFails).toBe(0);
+  });
+
+  it('flags a fifth copy in a 4-of format', () => {
+    const cards = sixtyCardFourOfDeck();
+    cards[59] = { name: 'Lightning Bolt', color_identity: ['R'], cmc: 1 }; // 5th Bolt
+    const copyLimit = buildValidationChecklist({ cards, format: PAUPER }).checks.find(
+      (c) => c.id === 'singleton'
+    );
+    expect(copyLimit?.status).toBe('fail');
+    expect(copyLimit?.detail).toBe('1 name over 4 copies');
   });
 
   it('warns when a role target is short and passes when met', () => {

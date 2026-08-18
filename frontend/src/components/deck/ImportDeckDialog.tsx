@@ -1,9 +1,9 @@
 import { useCallback, useId, useMemo, useRef, useState } from 'react';
-import { Upload, Download, ChevronRight } from 'lucide-react';
+import { Upload, Download, ChevronRight, Link2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../Modal';
 import { ProgressBar } from '../ProgressBar';
-import { importDeckText, importDeckFile } from '../../lib/api';
+import { fetchImportLink, importDeckText, importDeckFile } from '../../lib/api';
 import { useDecksStore } from '../../store/decks';
 import { buildAllocationMap, type AllocationInfo } from '../../lib/allocations';
 import { useBuildDeckFromImport } from '../../lib/build-deck-from-import';
@@ -122,6 +122,10 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
   const visibilityGroup = useId();
   const [step, setStep] = useState<Step>('input');
   const [pasteText, setPasteText] = useState('');
+  /** Google Sheets / Drive share link, fetched server-side and staged as a file. */
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkBusy, setLinkBusy] = useState(false);
+  const linkInputId = useId();
   const [deckName, setDeckName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -484,6 +488,27 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
     [acceptFiles]
   );
 
+  /**
+   * Pull a Sheet / Drive file down through the backend and stage it as a normal
+   * File, so the batch parse, merge mode and review step treat it like any
+   * other upload.
+   */
+  const handleFetchLink = useCallback(async () => {
+    const url = linkUrl.trim();
+    if (!url || linkBusy || isLoading) return;
+    setLinkBusy(true);
+    setError(null);
+    try {
+      const { text, name } = await fetchImportLink(url);
+      acceptFiles([new File([text], name, { type: 'text/csv' })]);
+      setLinkUrl('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't fetch that link");
+    } finally {
+      setLinkBusy(false);
+    }
+  }, [acceptFiles, isLoading, linkBusy, linkUrl]);
+
   const handlePickFile = useCallback(async () => {
     if (isLoading) return;
     if (isNativePlatform()) {
@@ -770,12 +795,53 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                 </label>
                 <textarea
                   className="paste-textarea import-textarea"
+                  aria-label="Deck list to import"
                   value={pasteText}
                   onChange={(e) => setPasteText(e.target.value)}
                   placeholder={PASTE_PLACEHOLDERS[selectedFormat]}
                   disabled={isLoading}
                   autoFocus
                 />
+                {/* Same deal as the collection importer: a decklist living in a
+                    Google Sheet is the one source no OS file picker can reach.
+                    The fetched file joins the staged batch like any other. */}
+                <div className="import-link-row">
+                  <label className="sr-only" htmlFor={linkInputId}>
+                    Google Sheets or Drive link
+                  </label>
+                  <input
+                    id={linkInputId}
+                    type="url"
+                    className="import-link-input"
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        void handleFetchLink();
+                      }
+                    }}
+                    placeholder="…or paste a Google Sheets / Drive link"
+                    disabled={isLoading || linkBusy}
+                    inputMode="url"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  <button
+                    type="button"
+                    className="btn import-link-btn"
+                    onClick={handleFetchLink}
+                    disabled={isLoading || linkBusy || !linkUrl.trim()}
+                    title="Fetch a deck list from a Google Sheet, or from a file in Drive. The link has to be shared with anyone who has it."
+                  >
+                    {linkBusy ? (
+                      <span className="spinner" />
+                    ) : (
+                      <Link2 width={14} height={14} strokeWidth={1.8} aria-hidden />
+                    )}
+                    <span>{linkBusy ? 'Fetching…' : 'Fetch'}</span>
+                  </button>
+                </div>
               </>
             )}
             {/* Only the paths that create exactly one deck (paste, or a

@@ -750,6 +750,53 @@
   min-height: 96px;
 }
 
+/* Google-link import. It sits in the flow next to the paste box rather than
+   behind a "from Drive" toggle: a Sheet is the one source no OS file picker on
+   any platform can reach, and nobody discovers an entry point they'd first have
+   to reveal. Font size is inherited from the global input rule on purpose —
+   16px is what stops iOS auto-zooming the page on focus. */
+.import-link-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* The row is a flex item in the card's column, so its content minimum
+     becomes the whole card's minimum width. Measured at 360px: without this
+     the card demanded 352px and its right edge (Upload files, Import) was
+     clipped by the sheet. */
+  min-width: 0;
+}
+
+.import-link-input {
+  /* `width: 0` is the load-bearing one, and min-width:0 alone does NOT cover
+     it: an <input> keeps an intrinsic width from its default `size` attribute
+     (~20 characters), and that width propagates up as the card's minimum —
+     measured at 360px, it pushed the card to 352px inside a 312px sheet and
+     clipped Upload files / Import off the right edge. Zero width plus
+     flex-grow gives the same rendered input with no intrinsic floor. */
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+  font-family: var(--font-mono);
+}
+
+.import-link-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Coarse-pointer floor (STYLE_GUIDE § Responsive) — the global input rule is
+   desktop-density, and `.btn` is pinned to 36px under 600px by
+   responsive-nav.css, which loads after this file. A bare `.import-link-btn`
+   here measured 41px while declaring 44; the row selector outranks it. */
+@media (pointer: coarse) {
+  .import-link-row .import-link-input,
+  .import-link-row .import-link-btn {
+    min-height: 44px;
+  }
+}
+
 .import-proxy-toggle {
   margin: 0;
 }

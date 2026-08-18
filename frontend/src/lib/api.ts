@@ -192,6 +192,22 @@ export async function importFile(
 }
 
 /**
+ * Resolve a Google Sheets / Drive share link to its file text.
+ *
+ * The server does the fetching (Google's export endpoints send no CORS headers)
+ * and returns the text plus the file's real name, so the caller can stage it as
+ * an ordinary `File` and reuse the whole existing import path unchanged.
+ */
+export async function fetchImportLink(url: string): Promise<{ text: string; name: string }> {
+  const response = await fetchWithTimeout('/api/import/link', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  });
+  return handleResponse<{ text: string; name: string }>(response);
+}
+
+/**
  * Retry a degraded import by POSTing the server's withheld `fetchErrors` rows
  * back verbatim as `{ rows }` — no re-parse, so quantity/printing/finish
  * survive. Small payloads (only the failed bucket), so no chunking; the same

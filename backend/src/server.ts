@@ -11,6 +11,7 @@ import { resolveOracleFacts, ORACLE_REQUEST_LIMIT, type OracleRequest } from './
 import { closeDb, ensureSchema } from './db';
 import { testAwareLimiter } from './route-utils';
 import { parseMarkAllAsProxies } from './import-proxy-flag';
+import { fetchImportLink, ImportLinkError } from './import-link';
 import { promoteAdminsAtBoot } from './admin/bootstrap';
 import { authRouter } from './routes/auth';
 import { adminRouter } from './routes/admin';
@@ -148,6 +149,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // imports without users tripping the limiter mid-upload; it's still tight
 // enough to throttle abusive single-IP scripting.
 const importLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 });
+// One request per link, and a user only pastes a handful — tight, because each
+// one makes the server fetch a third-party URL on the caller's behalf.
+const importLinkLimiter = testAwareLimiter({ windowMs: 60_000, max: 20 });
 const priceLimiter = testAwareLimiter({ windowMs: 60_000, max: 30 });
 const productLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 });
 // Each uncached set code fans out to up to MAX_SET_PAGES Scryfall requests
@@ -646,6 +650,30 @@ app.post(
     }
   }
 );
+
+/**
+ * Resolve a Google Sheets / Drive share link to the file's raw text.
+ *
+ * Deliberately does NOT import anything: it hands the text back so the client
+ * can stage it as a normal file and run the existing /api/import flow over it
+ * (chunking, retry, the re-import gate, history). The fetch has to happen here
+ * because Google's export endpoints send no CORS headers — see import-link.ts
+ * for the host allowlist that makes a server-side fetch of a user-supplied URL
+ * safe.
+ */
+app.post('/api/import/link', importLinkLimiter, async (req: Request, res: Response) => {
+  const url = typeof req.body?.url === 'string' ? req.body.url.trim() : '';
+  if (!url) return res.status(400).json({ error: 'Paste a Google Sheets or Drive link.' });
+  try {
+    res.json(await fetchImportLink(url));
+  } catch (err) {
+    // ImportLinkError messages are written for the user (bad link, not shared,
+    // too big). Anything else is ours to log and generalize.
+    if (err instanceof ImportLinkError) return res.status(400).json({ error: err.message });
+    logger.error('[import-link] error:', err);
+    res.status(502).json({ error: "Couldn't reach Google to fetch that link." });
+  }
+});
 
 /**
  * Deck-oriented import endpoint. Parses the same formats as /api/import but
