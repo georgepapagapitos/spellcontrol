@@ -642,7 +642,7 @@ export function CardPreview({
         <div className="card-preview-flip-row" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
-            className={`card-preview-flip-btn${expanded ? ' is-on' : ''}`}
+            className={`card-preview-flip-btn card-preview-details-btn${expanded ? ' is-on' : ''}`}
             onClick={(e) => {
               e.stopPropagation();
               setExpanded((v) => !v);

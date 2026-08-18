@@ -246,49 +246,58 @@ export function DeckSizePrompt({
           )}
         </div>
 
-        {aiSlot && <div className="deck-size-prompt-ai">{aiSlot}</div>}
+        {/* ONE scroll region for everything between header and footer — the AI
+            verdict, the ranked candidates, and the expanded "pick another"
+            list flow and scroll together. The previous shape (three sibling
+            flex children, each with its own cap/scroll) meant an expanded AI
+            reading + expanded list overran the sheet's max-height with no
+            scrollbar anywhere — content clipped behind the footer and the
+            user "can't scroll down". */}
+        <div className="deck-size-prompt-body">
+          {aiSlot && <div className="deck-size-prompt-ai">{aiSlot}</div>}
 
-        {options.length > 0 ? (
-          <ul className="deck-size-prompt-list" role="list">
-            {options.map((o) => (
-              <OptionRow
-                key={o.key}
-                option={o}
-                verb={actionVerb}
-                busy={busy}
-                onPreview={() => carousel.open(previewEntries, o.name)}
-              />
-            ))}
-          </ul>
-        ) : (
-          <p className="deck-size-prompt-empty">No suggestions — pick a card below.</p>
-        )}
+          {options.length > 0 ? (
+            <ul className="deck-size-prompt-list" role="list">
+              {options.map((o) => (
+                <OptionRow
+                  key={o.key}
+                  option={o}
+                  verb={actionVerb}
+                  busy={busy}
+                  onPreview={() => carousel.open(previewEntries, o.name)}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="deck-size-prompt-empty">No suggestions — pick a card below.</p>
+          )}
 
-        {moreOptions && moreOptions.length > 0 && (
-          <div className="deck-size-prompt-more">
-            {showAll ? (
-              <ul className="deck-size-prompt-list" role="list">
-                {moreOptions.map((o) => (
-                  <OptionRow
-                    key={o.key}
-                    option={o}
-                    verb={actionVerb}
-                    busy={busy}
-                    onPreview={() => carousel.open(previewEntries, o.name)}
-                  />
-                ))}
-              </ul>
-            ) : (
-              <button
-                type="button"
-                className="deck-size-prompt-showall"
-                onClick={() => setShowAll(true)}
-              >
-                Pick another card…
-              </button>
-            )}
-          </div>
-        )}
+          {moreOptions && moreOptions.length > 0 && (
+            <div className="deck-size-prompt-more">
+              {showAll ? (
+                <ul className="deck-size-prompt-list" role="list">
+                  {moreOptions.map((o) => (
+                    <OptionRow
+                      key={o.key}
+                      option={o}
+                      verb={actionVerb}
+                      busy={busy}
+                      onPreview={() => carousel.open(previewEntries, o.name)}
+                    />
+                  ))}
+                </ul>
+              ) : (
+                <button
+                  type="button"
+                  className="deck-size-prompt-showall"
+                  onClick={() => setShowAll(true)}
+                >
+                  Pick another card…
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
         <div className="card-picker-footer deck-size-prompt-footer">
           {footer.map((f) => (
