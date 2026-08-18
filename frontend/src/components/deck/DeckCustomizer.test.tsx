@@ -177,54 +177,11 @@ describe('DeckCustomizer — Staples <-> Theme dial (always visible)', () => {
     expect(update).toHaveBeenCalledWith({ brewLevel: 0.75 });
   });
 
-  it('resets brewLevel and varietySeed with Reset all', () => {
+  it('resets brewLevel with Reset all', () => {
     const update = vi.fn();
-    render(
-      <DeckCustomizer
-        customization={baseCustomization({ brewLevel: 1, varietySeed: 3 })}
-        update={update}
-      />
-    );
+    render(<DeckCustomizer customization={baseCustomization({ brewLevel: 1 })} update={update} />);
     fireEvent.click(screen.getByTitle('Reset all customization to defaults'));
-    expect(update).toHaveBeenCalledWith(
-      expect.objectContaining({ brewLevel: 0.5, varietySeed: undefined })
-    );
-  });
-});
-
-describe('DeckCustomizer — Variety reroll', () => {
-  function openVariety() {
-    fireEvent.click(screen.getByText('Variety'));
-  }
-
-  it('shows the signature build state with no roll active, and no Reset', () => {
-    render(<DeckCustomizer customization={baseCustomization()} update={vi.fn()} />);
-    openVariety();
-    expect(screen.getByText('Signature build')).toBeTruthy();
-    expect(screen.getByText(/same best deck every time/)).toBeTruthy();
-    expect(screen.queryByText(/Back to the signature build/)).toBeNull();
-  });
-
-  it('Reroll starts at roll 1 from the signature build', () => {
-    const update = vi.fn();
-    render(<DeckCustomizer customization={baseCustomization()} update={update} />);
-    openVariety();
-    fireEvent.click(screen.getByText('Reroll'));
-    expect(update).toHaveBeenCalledWith({ varietySeed: 1 });
-  });
-
-  it('shows the active roll, bumps it on Reroll, and Reset clears it', () => {
-    const update = vi.fn();
-    render(
-      <DeckCustomizer customization={baseCustomization({ varietySeed: 4 })} update={update} />
-    );
-    openVariety();
-    expect(screen.getByText('Roll #4')).toBeTruthy();
-    expect(screen.getByText(/same roll rebuilds the same deck/)).toBeTruthy();
-    fireEvent.click(screen.getByText('Reroll'));
-    expect(update).toHaveBeenCalledWith({ varietySeed: 5 });
-    fireEvent.click(screen.getByTitle(/Back to the signature build/));
-    expect(update).toHaveBeenCalledWith({ varietySeed: undefined });
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ brewLevel: 0.5 }));
   });
 });
 
@@ -236,7 +193,6 @@ describe('DeckCustomizer — collapsed group summaries', () => {
           deckBudget: 50,
           maxCardPrice: 5,
           saltTolerance: 0,
-          varietySeed: 3,
           maxRarity: 'rare',
         })}
         update={vi.fn()}
@@ -244,7 +200,6 @@ describe('DeckCustomizer — collapsed group summaries', () => {
     );
     expect(screen.getByText('$50 deck · $5 card')).toBeTruthy();
     expect(screen.getByText('Unsalted')).toBeTruthy();
-    expect(screen.getByText('Roll #3')).toBeTruthy();
     expect(screen.getByText('Auto-detect')).toBeTruthy();
     expect(screen.getByText('Rare max')).toBeTruthy();
     expect(screen.getByText('None')).toBeTruthy();
@@ -254,7 +209,6 @@ describe('DeckCustomizer — collapsed group summaries', () => {
     render(<DeckCustomizer customization={baseCustomization()} update={vi.fn()} />);
     expect(screen.getByText('No limits')).toBeTruthy();
     expect(screen.getByText('Any card')).toBeTruthy();
-    expect(screen.getByText('Signature build')).toBeTruthy();
   });
 
   it('hides the summary while the group is open', () => {

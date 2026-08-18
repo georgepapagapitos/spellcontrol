@@ -3368,7 +3368,7 @@ own) resolves art at `useCardThumb`'s `'normal'` size, matching
 `CardSearchPanel`'s add-cards row thumb — never `'small'`, which is reserved
 for genuinely dense, already-decided lists (the guided-brew pick list, E128
 above). `CommanderResultCard` (by-name search, by-playstyle browse, EDHREC
-top-N, the guided build's playstyle list) is the reference.
+top-N, the New-deck playstyle list) is the reference.
 
 ### Grid "Details" captions — fixed-height lines, per-line opt-out
 

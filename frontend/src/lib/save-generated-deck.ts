@@ -90,7 +90,6 @@ export function saveGeneratedDeck(
       collectionMode: customization.collectionMode,
       generationMode: generated.generationMode ?? customization.generationMode,
       generationModeDetail: generated.generationModeDetail,
-      varietySeed: customization.varietySeed,
     },
     roleCounts: generated.roleCounts,
     categoryTargets: generated.composition,

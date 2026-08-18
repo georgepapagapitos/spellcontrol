@@ -372,7 +372,7 @@ import { DeckEditorPage } from './DeckEditorPage';
 
 function renderEditor({ justGenerated = false }: { justGenerated?: boolean } = {}) {
   // The one-shot Build Report only shows when arriving FROM generation —
-  // GuidedBuildPage navigates with { state: { justGenerated: true } }.
+  // The build flow navigates with { state: { justGenerated: true } }.
   const entry = justGenerated
     ? { pathname: '/decks/deck-1', state: { justGenerated: true } }
     : '/decks/deck-1';
