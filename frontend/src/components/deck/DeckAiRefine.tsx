@@ -35,8 +35,10 @@ interface DeckAiRefineProps {
   /**
    * Where the panel lives, which decides its posture and copy.
    *
-   * - `'build'` (default): the post-generation pass — full panel, generated
-   *   decks, "second-guess the generator" framing.
+   * - `'build'` (default): the post-generation build-report sheet — full panel,
+   *   always a freshly generated deck. `'coach'` shares this copy but is NOT
+   *   generated-only any more (#1673), so the shared text stays
+   *   provenance-neutral rather than claiming a generator built the deck.
    * - `'suggestions'`: the add-cards sheet's Suggestions tab (E244). The tab's
    *   primary job is browsing candidates, so per the STYLE_GUIDE insight-strip
    *   ruling the panel starts as ONE compact 44px strip and expands in place —
@@ -514,7 +516,11 @@ export function DeckAiRefine({
                   }. It only chooses cards the app already found, never invented ones.`
                 : pool.length === 0
                   ? 'Once the coach has candidates for this deck, AI can weigh them and suggest a few swaps.'
-                  : `AI can read what the generator built and suggest a few changes${
+                  : /* Deliberately says "this deck", not "what the generator
+                       built": since #1673 the Coach mount is no longer gated to
+                       generated decks, and this same string renders on
+                       hand-built ones, where a generator never existed. */
+                    `AI can read this deck and suggest a few changes${
                       ownedOnly ? ' from cards you own' : ''
                     } — chosen from the ${pool.length} candidates the coach already found, never invented.`}
           </p>

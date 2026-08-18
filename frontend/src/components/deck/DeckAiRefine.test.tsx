@@ -149,6 +149,15 @@ describe('DeckAiRefine', () => {
     expect(await screen.findByText(/already holds together/)).toBeTruthy();
   });
 
+  it('never claims a generator built the deck — the Coach mount serves hand-built decks too', async () => {
+    // #1673 ungated the Coach mount, so this same idle copy renders on decks
+    // that were never generated. Caught by driving a real hand-built deck.
+    stubApi(true, []);
+    renderPanel(() => {});
+    expect(await screen.findByText(/AI can read this deck/)).toBeTruthy();
+    expect(screen.queryByText(/the generator built/)).toBeNull();
+  });
+
   it('replace posture: strip → "Weigh this add" → an upgrade verdict applies as a swap', async () => {
     const applied: Change[] = [];
     stubApi(true, [
