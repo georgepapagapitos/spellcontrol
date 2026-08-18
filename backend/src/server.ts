@@ -213,20 +213,18 @@ app.use(
      */
     crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
     /**
-     * Helmet defaults this to `no-referrer`, which tells the browser never to
-     * send a `Referer` — and a Google API key restricted to specific websites
-     * is checked against exactly that header. So the restriction could never
-     * match: Google rejected every Picker request with "Requests from referer
-     * <empty> are blocked", which the Picker shows as the far less helpful
-     * "The API developer key is invalid." The Cloud Console settings were
-     * correct the entire time.
+     * `no-referrer` — no outbound request carries where the user was. This is
+     * also helmet's default; it is set explicitly to carry the note below.
      *
-     * `strict-origin-when-cross-origin` is the modern browser default and
-     * sends only the ORIGIN cross-origin (never the path, and nothing at all
-     * when downgrading to http), so Google gets `https://spellcontrol.com/`
-     * to match against while no page a user is on ever leaks.
+     * ⚠️ Do NOT relax this "so the Google API key's website restriction can
+     * match". That was tried (#1675) and reverted here: the Drive Picker's
+     * backend never receives the hosting page's `Referer` at all, so no
+     * referrer policy can make an HTTP-referrer key restriction work. The
+     * Picker's key must have Application restrictions = None regardless —
+     * see `.env.example` and `lib/google-picker.ts`. Relaxing this buys
+     * nothing and costs every user's page path on cross-origin requests.
      */
-    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    referrerPolicy: { policy: 'no-referrer' },
   })
 );
 // Permissions-Policy isn't a helmet default. Mirror nginx.conf: deny what the
