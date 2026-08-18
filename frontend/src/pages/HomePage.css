@@ -7,11 +7,36 @@
 }
 
 /* Composition, not a fresh selector: .home-bento rides every .deck-bento rule
-   (grid, container queries, gap, the load-bearing width: 100%) verbatim —
-   this override only widens the bento's cap from deck-analysis's 1320px
-   default to the app's standard 1400px page width. */
-.home-bento {
+   (grid, container queries, gap, the load-bearing width: 100%) verbatim, and
+   overrides only the three things Home's nine-card mosaic wants differently
+   from the deck board's four-to-six charts.
+
+   ⚠️ Two-class `.deck-bento.home-bento` (0,2,0), NOT bare `.home-bento`: the
+   board's own rules are single-class and live in a stylesheet that loads
+   AFTER this one, so an equal-specificity override loses the cascade
+   silently — the page renders exactly as if the file weren't there (same trap
+   as the coarse-pointer floor cascade, STYLE_GUIDE § Responsive). */
+.deck-bento.home-bento {
   --analysis-max: var(--page-max);
+  /* Natural height per card, NOT the shared board's row-stretch: Home mixes
+     3-row and 5-row cards in the same row, so a short one inflates to its
+     neighbour's height and renders the difference as dead space inside its
+     own border. (`.home-card--empty` already opted out with `align-self:
+     start` for exactly this reason — this generalises it to every card.)
+     Ragged column bottoms are the correct read for a signal mosaic. */
+  align-items: start;
+}
+
+/* Home carries nine cards, not the deck board's four-to-six, and every one of
+   them is a short list rather than a chart. At the shared 2-col tier a card is
+   ~690px wide at 1440, so each row renders as a name at one end and its meta
+   at the other with a desert between. A third column from 1200px puts rows at
+   ~440px, where the two sit together. (Scoped to `.home-bento` — the deck
+   analysis board's own comment settles 2-col + spanning heroes as ITS target.) */
+@container bento-host (min-width: 1200px) {
+  .deck-bento.home-bento {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 /* bento-host (E157→E158): the bento's board-level 640/1040 column rules are
@@ -21,4 +46,36 @@
    (<640 container) keep the single-column stack. */
 .home-page {
   container: bento-host / inline-size;
+}
+
+/* Entrance cascade — the same `panel-cascade-in` keyframe the analysis board
+   plays, driven off DOM order instead of `usePanelCascade`: Home's nine cards
+   are fixed JSX children, not a mapped list, so there is no index to thread a
+   className through nine components for. Slots cap at 6, matching
+   panelCascadeClass's MAX_STAGGER, and the whole block is opt-in on motion
+   preference — under `reduce` the cards simply appear. */
+@media (prefers-reduced-motion: no-preference) {
+  .home-bento > * {
+    animation: panel-cascade-in var(--motion-gentle) var(--ease-out-soft) both;
+  }
+
+  .home-bento > *:nth-child(2) {
+    animation-delay: 40ms;
+  }
+
+  .home-bento > *:nth-child(3) {
+    animation-delay: 80ms;
+  }
+
+  .home-bento > *:nth-child(4) {
+    animation-delay: 120ms;
+  }
+
+  .home-bento > *:nth-child(5) {
+    animation-delay: 160ms;
+  }
+
+  .home-bento > *:nth-child(n + 6) {
+    animation-delay: 200ms;
+  }
 }

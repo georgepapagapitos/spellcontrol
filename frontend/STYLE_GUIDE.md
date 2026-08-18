@@ -3054,6 +3054,28 @@ stat-tile delta convention:
 
 ## Home signal cards
 
+Home's board overrides the shared `.deck-bento` on two axes, and both
+overrides are written as **two-class `.deck-bento.home-bento` (0,2,0)** — the
+board's own rules are single-class and load from a later stylesheet, so an
+equal-specificity override loses the cascade silently and the page renders as
+if the file weren't there (same trap as the coarse-pointer floor):
+
+- **Three columns from a 1200px container, not the board's two.** Home carries
+  nine cards that are all short lists; at the 2-col tier a card is ~690px wide
+  at 1440 and every row renders as a name at one end with its meta at the
+  other. The deck analysis board keeps 2-col + spanning heroes — that ruling is
+  about charts, and does not transfer.
+- **`align-items: start`, not the board's stretch.** Home mixes 3-row and
+  5-row cards in one row, and a stretched short card renders the difference as
+  dead space inside its own border. Ragged column bottoms are the correct read
+  for a signal mosaic. (`.home-card--empty` had already opted out of stretch
+  for exactly this reason; this generalises it.)
+- **The entrance cascade is CSS-only here.** Home's cards are fixed JSX
+  children, not a mapped list, so there is no index to thread
+  `panelCascadeClass` through nine components for — `.home-bento > *` +
+  `:nth-child` delays reuse the shared `panel-cascade-in` keyframe, capped at
+  6 slots like `MAX_STAGGER`, inside `prefers-reduced-motion: no-preference`.
+
 A `/home` bento card (`components/home/HomeCard.tsx` shell) that has nothing
 to show does not get a full-height placeholder panel — it collapses:
 
@@ -3588,6 +3610,23 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
   the thinned zones carries `text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5)` as
   a second legibility floor. Flat `--art-scrim` coverage remains correct for
   small tiles/badges where content genuinely spans the whole art.
+- **A hero band's functional column carries FOUR rows, or the card sets the
+  height and the column falls apart.** `HomeHero` is a two-column band whose
+  right column (the featured sleeve, capped at `20rem`) is the taller of the
+  two, so `justify-content: space-between` renders every unit of the
+  difference as one dead gap in the middle of the left column — the "boring
+  and bland, a lot of empty space" report. The fix is content, not a smaller
+  card: greeting/value → **scale line** → search → Quick Actions, four rows
+  that fill the sleeve's own height. The scale line is three link plates
+  (`Cards` / `Decks` / `Binders`, `--font-label` caption over a `--font-serif`
+  tabular numeral on a `--surface` plate), each a door to its surface. Two
+  hard rules: it is **suppressed wholesale when every count is zero** (a row
+  of zeroes reads worse than no row) and for guests (the hero shows a guest
+  nothing personal — same rule as the art pick); and labels **singularize at
+  1** ("1 Binder"), because a figure that small makes "1 Binders" read as a
+  bug. Restating the header's own nav chips is deliberate — those are
+  abbreviated glyphs (`12K`), these are the real figures.
+
 - **`/home` hero = featured-card sleeve, not a backdrop (geometry rule).**
   A dashboard hero band is ~8:1 while card art crops are ~4:3, so a `cover`
   backdrop discards ~85% of the illustration — no scrim tuning fixes that.
