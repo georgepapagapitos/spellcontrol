@@ -148,10 +148,29 @@ app.use(
       reportOnly: true,
       directives: {
         'default-src': ["'self'"],
-        'script-src': ["'self'", "'unsafe-inline'", 'blob:', "'wasm-unsafe-eval'"],
+        // apis.google.com + accounts.google.com: the Drive picker and the GIS
+        // token client are loaded from Google and cannot be self-hosted.
+        'script-src': [
+          "'self'",
+          "'unsafe-inline'",
+          'blob:',
+          "'wasm-unsafe-eval'",
+          'https://apis.google.com',
+          'https://accounts.google.com',
+        ],
         'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         'font-src': ["'self'", 'https://fonts.gstatic.com'],
-        'img-src': ["'self'", 'data:', 'blob:', 'https://*.scryfall.io', 'https://*.scryfall.com'],
+        'img-src': [
+          "'self'",
+          'data:',
+          'blob:',
+          'https://*.scryfall.io',
+          'https://*.scryfall.com',
+          // Drive picker chrome: file thumbnails and Google's own icons.
+          'https://*.googleusercontent.com',
+          'https://ssl.gstatic.com',
+          'https://www.gstatic.com',
+        ],
         'connect-src': [
           "'self'",
           'https://api.scryfall.com',
@@ -160,7 +179,14 @@ app.use(
           'https://cdn.jsdelivr.net',
           'https://unpkg.com',
           'https://tessdata.projectnaptha.com',
+          // Token grant + the Drive file/export download the picker feeds.
+          'https://accounts.google.com',
+          'https://www.googleapis.com',
+          'https://content.googleapis.com',
         ],
+        // The picker renders in an iframe we open. Distinct from
+        // `frame-ancestors` below, which governs who may frame US (nobody).
+        'frame-src': ['https://docs.google.com', 'https://accounts.google.com'],
         'worker-src': ["'self'", 'blob:'],
         'object-src': ["'none'"],
         'base-uri': ["'self'"],

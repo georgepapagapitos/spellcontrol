@@ -56,6 +56,17 @@ RUN npm --prefix backend run build
 COPY frontend/package.json frontend/package-lock.json ./frontend/
 RUN npm --prefix frontend ci
 COPY frontend/ ./frontend/
+# Google Drive picker credentials. Both are PUBLIC values that ship inside the
+# bundle — security comes from the API key's HTTP-referrer restriction and the
+# OAuth client's authorized origins, not from hiding them. They must arrive as
+# build args because Vite inlines `import.meta.env.*` at BUILD time: setting
+# them as Fly runtime secrets would leave the compiled bundle without them and
+# the Drive button silently absent in prod. Unset is a supported state — the
+# picker gates itself off and the pasted-link fallback renders instead.
+ARG VITE_GOOGLE_API_KEY=""
+ARG VITE_GOOGLE_CLIENT_ID=""
+ENV VITE_GOOGLE_API_KEY=$VITE_GOOGLE_API_KEY \
+    VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 RUN npm --prefix frontend run build
 
 FROM node:22-bookworm-slim

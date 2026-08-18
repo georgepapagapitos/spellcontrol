@@ -1,5 +1,5 @@
 import { useCallback, useId, useMemo, useRef, useState } from 'react';
-import { Upload, Download, ChevronRight, Link2 } from 'lucide-react';
+import { Upload, Download, ChevronRight, Cloud, Link2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../Modal';
 import { ProgressBar } from '../ProgressBar';
@@ -22,6 +22,7 @@ import {
 } from './import-deck-shared';
 import { isNativePlatform } from '../../lib/platform';
 import { pickNativeFiles } from '../../lib/native-file-picker';
+import { googlePickerAvailable, pickFromGoogleDrive } from '../../lib/google-picker';
 import { usePublishOnCreate, type PublishOutcome } from '../../lib/use-publish-on-create';
 
 const DECK_IMPORT_MIME = ['text/csv', 'text/tab-separated-values', 'text/plain'];
@@ -126,6 +127,10 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
   const [linkUrl, setLinkUrl] = useState('');
   const [linkBusy, setLinkBusy] = useState(false);
   const linkInputId = useId();
+  const [driveBusy, setDriveBusy] = useState(false);
+  /** Web-only — see google-picker.ts. Native and un-keyed builds fall back to
+   *  the link field below. */
+  const canPickDrive = googlePickerAvailable();
   const [deckName, setDeckName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -509,6 +514,23 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
     }
   }, [acceptFiles, isLoading, linkBusy, linkUrl]);
 
+  /** Open Drive and stage the picked files like any other upload. */
+  const handlePickDrive = useCallback(async () => {
+    if (isLoading || driveBusy) return;
+    setDriveBusy(true);
+    setError(null);
+    try {
+      acceptFiles(await pickFromGoogleDrive());
+    } catch (err) {
+      // Empty message = the user dismissed Google's consent popup; that's a
+      // cancel, not something to put in the error slot.
+      const msg = err instanceof Error ? err.message : "Couldn't open Google Drive";
+      if (msg) setError(msg);
+    } finally {
+      setDriveBusy(false);
+    }
+  }, [acceptFiles, driveBusy, isLoading]);
+
   const handlePickFile = useCallback(async () => {
     if (isLoading) return;
     if (isNativePlatform()) {
@@ -802,46 +824,49 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                   disabled={isLoading}
                   autoFocus
                 />
-                {/* Same deal as the collection importer: a decklist living in a
-                    Google Sheet is the one source no OS file picker can reach.
-                    The fetched file joins the staged batch like any other. */}
-                <div className="import-link-row">
-                  <label className="sr-only" htmlFor={linkInputId}>
-                    Google Sheets or Drive link
-                  </label>
-                  <input
-                    id={linkInputId}
-                    type="url"
-                    className="import-link-input"
-                    value={linkUrl}
-                    onChange={(e) => setLinkUrl(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        void handleFetchLink();
-                      }
-                    }}
-                    placeholder="…or paste a Google Sheets / Drive link"
-                    disabled={isLoading || linkBusy}
-                    inputMode="url"
-                    autoComplete="off"
-                    spellCheck={false}
-                  />
-                  <button
-                    type="button"
-                    className="btn import-link-btn"
-                    onClick={handleFetchLink}
-                    disabled={isLoading || linkBusy || !linkUrl.trim()}
-                    title="Fetch a deck list from a Google Sheet, or from a file in Drive. The link has to be shared with anyone who has it."
-                  >
-                    {linkBusy ? (
-                      <span className="spinner" />
-                    ) : (
-                      <Link2 width={14} height={14} strokeWidth={1.8} aria-hidden />
-                    )}
-                    <span>{linkBusy ? 'Fetching…' : 'Fetch'}</span>
-                  </button>
-                </div>
+                {/* Fallback for where the Drive picker can't run (Capacitor
+                    WebView / un-keyed build): a decklist in a Google Sheet is
+                    the one source no OS file picker can reach. The fetched
+                    file joins the staged batch like any other. */}
+                {!canPickDrive && (
+                  <div className="import-link-row">
+                    <label className="sr-only" htmlFor={linkInputId}>
+                      Google Sheets or Drive link
+                    </label>
+                    <input
+                      id={linkInputId}
+                      type="url"
+                      className="import-link-input"
+                      value={linkUrl}
+                      onChange={(e) => setLinkUrl(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void handleFetchLink();
+                        }
+                      }}
+                      placeholder="…or paste a Google Sheets / Drive link"
+                      disabled={isLoading || linkBusy}
+                      inputMode="url"
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                    <button
+                      type="button"
+                      className="btn import-link-btn"
+                      onClick={handleFetchLink}
+                      disabled={isLoading || linkBusy || !linkUrl.trim()}
+                      title="Fetch a deck list from a Google Sheet, or from a file in Drive. The link has to be shared with anyone who has it."
+                    >
+                      {linkBusy ? (
+                        <span className="spinner" />
+                      ) : (
+                        <Link2 width={14} height={14} strokeWidth={1.8} aria-hidden />
+                      )}
+                      <span>{linkBusy ? 'Fetching…' : 'Fetch'}</span>
+                    </button>
+                  </div>
+                )}
               </>
             )}
             {/* Only the paths that create exactly one deck (paste, or a
@@ -1174,6 +1199,22 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
 
       {step === 'input' && (
         <div className="modal-footer">
+          {canPickDrive && (
+            <button
+              type="button"
+              className="btn"
+              onClick={handlePickDrive}
+              disabled={isLoading || driveBusy}
+              title="Browse your Google Drive — Sheets are exported to CSV automatically"
+            >
+              {driveBusy ? (
+                <span className="spinner" />
+              ) : (
+                <Cloud width={14} height={14} strokeWidth={1.8} aria-hidden />
+              )}
+              <span>{driveBusy ? 'Opening…' : 'Google Drive'}</span>
+            </button>
+          )}
           <button
             type="button"
             className="btn"

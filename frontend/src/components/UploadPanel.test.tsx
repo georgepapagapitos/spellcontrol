@@ -20,6 +20,18 @@ vi.mock('../lib/api', () => ({
   fetchImportLink: (url: string) => fetchImportLinkMock(url),
 }));
 
+// The Drive picker decides which import affordance renders at all, and it reads
+// its credentials from import.meta.env — which means a developer with a real
+// .env.local would exercise a DIFFERENT branch than CI. Mock it so both
+// branches are chosen by the test, never by the environment.
+const pickerAvailableMock = vi.fn(() => false);
+const pickFromDriveMock = vi.fn<() => Promise<File[]>>();
+vi.mock('../lib/google-picker', () => ({
+  googlePickerAvailable: () => pickerAvailableMock(),
+  googlePickerConfigured: () => pickerAvailableMock(),
+  pickFromGoogleDrive: () => pickFromDriveMock(),
+}));
+
 // InlineCardSearch (rendered by the unresolved-name repair row) hits Scryfall
 // search through this client — stub it so repair tests control the results.
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
@@ -137,6 +149,8 @@ async function paste(text = '1 Forest') {
 beforeEach(() => {
   importTextMock.mockReset();
   fetchImportLinkMock.mockReset();
+  pickerAvailableMock.mockReturnValue(false);
+  pickFromDriveMock.mockReset();
   importCardsMock.mockClear();
   addCardMock.mockClear();
   mockSearchCards.mockReset();
@@ -363,6 +377,68 @@ describe('UploadPanel import review surface (E130)', () => {
     // ...and the repair removed the name from the store's withheld bucket.
     expect(mockState.unresolvedNames).toEqual([]);
     expect(match).toBeTruthy();
+  });
+});
+
+describe('UploadPanel Google Drive picker', () => {
+  beforeEach(() => pickerAvailableMock.mockReturnValue(true));
+
+  it('offers the Drive picker instead of the link field when it can run', () => {
+    render(<UploadPanel />);
+    expect(screen.getByRole('button', { name: /Google Drive/ })).toBeTruthy();
+    // Two ways to reach the same place is clutter — the picker supersedes it.
+    expect(screen.queryByLabelText('Google Sheets or Drive link')).toBeNull();
+  });
+
+  it('falls back to the link field where the picker cannot run', () => {
+    // Native WebView / un-keyed build. A Sheet is unreachable by the OS
+    // picker, so this fallback is the only way in on those platforms.
+    pickerAvailableMock.mockReturnValue(false);
+    render(<UploadPanel />);
+    expect(screen.queryByRole('button', { name: /Google Drive/ })).toBeNull();
+    expect(screen.getByLabelText('Google Sheets or Drive link')).toBeTruthy();
+  });
+
+  it('stages whatever the picker returns', async () => {
+    pickFromDriveMock.mockResolvedValue([
+      new File(['Name\nSol Ring\n'], 'My Collection.csv', { type: 'text/csv' }),
+    ]);
+    render(<UploadPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /Google Drive/ }));
+
+    expect(await screen.findByText('My Collection.csv')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Import 1 file' })).toBeTruthy();
+  });
+
+  it('stages nothing when the user cancels the picker', async () => {
+    pickFromDriveMock.mockResolvedValue([]);
+    render(<UploadPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /Google Drive/ }));
+
+    await waitFor(() => expect(pickFromDriveMock).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: /Import 1 file/ })).toBeNull();
+    expect(mockState.setError).not.toHaveBeenCalledWith(expect.any(String));
+  });
+
+  it('stays silent when the consent popup is dismissed', async () => {
+    // google-picker signals that with an empty message; surfacing it would
+    // put an empty error banner on screen.
+    pickFromDriveMock.mockRejectedValue(new Error(''));
+    render(<UploadPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /Google Drive/ }));
+
+    await waitFor(() => expect(pickFromDriveMock).toHaveBeenCalled());
+    expect(mockState.setError).not.toHaveBeenCalledWith(expect.any(String));
+  });
+
+  it('surfaces a real picker failure', async () => {
+    pickFromDriveMock.mockRejectedValue(new Error('Couldn’t reach Google.'));
+    render(<UploadPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /Google Drive/ }));
+
+    await waitFor(() =>
+      expect(mockState.setError).toHaveBeenCalledWith('Couldn’t reach Google.')
+    );
   });
 });
 

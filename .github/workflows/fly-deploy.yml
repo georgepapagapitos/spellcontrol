@@ -75,7 +75,17 @@ jobs:
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
+      # The two VITE_* values are baked into the bundle at build time, so they
+      # have to be build args — as Fly runtime secrets they would arrive too
+      # late and the Drive button would be missing from the deployed bundle.
+      # They are public by design (see backend/Dockerfile); if the repo secrets
+      # are unset the build still succeeds and the picker gates itself off.
       - name: Deploy
-        run: flyctl deploy --remote-only
+        run: |
+          flyctl deploy --remote-only \
+            --build-arg VITE_GOOGLE_API_KEY="$VITE_GOOGLE_API_KEY" \
+            --build-arg VITE_GOOGLE_CLIENT_ID="$VITE_GOOGLE_CLIENT_ID"
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          VITE_GOOGLE_API_KEY: ${{ secrets.VITE_GOOGLE_API_KEY }}
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}

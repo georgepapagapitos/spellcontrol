@@ -1,4 +1,13 @@
-import { Camera, ChevronDown, ChevronRight, Link2, RotateCcw, Trash2, Upload } from 'lucide-react';
+import {
+  Camera,
+  ChevronDown,
+  ChevronRight,
+  Cloud,
+  Link2,
+  RotateCcw,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import { Suspense, lazy, useId, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { formatRelativeTime } from '../lib/format-time';
 import { haptics } from '../lib/haptics';
@@ -41,6 +50,7 @@ import { mergeStagedFiles, stagedFilesNotice } from '../lib/staged-files';
 import { useFileDrop } from '../lib/use-file-drop';
 import { isNativePlatform, openExternal } from '../lib/platform';
 import { pickNativeFiles } from '../lib/native-file-picker';
+import { googlePickerAvailable, pickFromGoogleDrive } from '../lib/google-picker';
 
 const CSV_MIME_TYPES = ['text/csv', 'text/tab-separated-values', 'text/plain'];
 
@@ -138,6 +148,10 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   const [linkUrl, setLinkUrl] = useState('');
   const [linkBusy, setLinkBusy] = useState(false);
   const linkInputId = useId();
+  const [driveBusy, setDriveBusy] = useState(false);
+  /** Web-only: Google blocks its OAuth popup inside the Capacitor WebView, and
+   *  an un-keyed build has no credentials. Both fall back to the link field. */
+  const canPickDrive = googlePickerAvailable();
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [stageNote, setStageNote] = useState<string | null>(null);
   const [showUnresolved, setShowUnresolved] = useState(false);
@@ -218,6 +232,26 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       return;
     }
     fileInputRef.current?.click();
+  };
+
+  /**
+   * Open the user's Drive. Whatever they pick arrives as a normal File — a
+   * Sheet is exported to CSV on the way — so it stages exactly like a drop.
+   */
+  const handlePickDrive = async () => {
+    if (isLoading || driveBusy) return;
+    setDriveBusy(true);
+    setError(null);
+    try {
+      stageIncoming(await pickFromGoogleDrive());
+    } catch (err) {
+      // An empty message means the user closed the consent popup — that's a
+      // cancel, not a failure, and doesn't deserve an error banner.
+      const msg = err instanceof Error ? err.message : "Couldn't open Google Drive";
+      if (msg) setError(msg);
+    } finally {
+      setDriveBusy(false);
+    }
   };
 
   const stageIncoming = (incoming: File[]) => {
@@ -816,6 +850,22 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                   <span>Scan cards</span>
                 </button>
               )}
+              {canPickDrive && (
+                <button
+                  type="button"
+                  className="btn import-upload-btn"
+                  onClick={handlePickDrive}
+                  disabled={isLoading || driveBusy}
+                  title="Browse your Google Drive and pick a card list — Sheets are exported to CSV automatically"
+                >
+                  {driveBusy ? (
+                    <span className="spinner" />
+                  ) : (
+                    <Cloud width={14} height={14} strokeWidth={1.8} aria-hidden />
+                  )}
+                  <span>{driveBusy ? 'Opening…' : 'Google Drive'}</span>
+                </button>
+              )}
               <button
                 type="button"
                 className="btn import-upload-btn"
@@ -873,47 +923,50 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
             />
           )}
 
-          {/* Google keeps a lot of people's collections in a Sheet, which no
-              file picker on any platform can reach — the OS picker already
-              covers files sitting *in* Drive. The server fetches it (no CORS
-              on Google's export endpoints) and it lands here as a staged file. */}
-          <div className="import-link-row">
-            <label className="sr-only" htmlFor={linkInputId}>
-              Google Sheets or Drive link
-            </label>
-            <input
-              id={linkInputId}
-              type="url"
-              className="import-link-input"
-              value={linkUrl}
-              onChange={(e) => setLinkUrl(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  void handleFetchLink();
-                }
-              }}
-              placeholder="…or paste a Google Sheets / Drive link"
-              disabled={isLoading || linkBusy}
-              inputMode="url"
-              autoComplete="off"
-              spellCheck={false}
-            />
-            <button
-              type="button"
-              className="btn import-link-btn"
-              onClick={handleFetchLink}
-              disabled={isLoading || linkBusy || !linkUrl.trim()}
-              title="Fetch a card list from a Google Sheet, or from a file in Drive. The link has to be shared with anyone who has it."
-            >
-              {linkBusy ? (
-                <span className="spinner" />
-              ) : (
-                <Link2 width={14} height={14} strokeWidth={1.8} aria-hidden />
-              )}
-              <span>{linkBusy ? 'Fetching…' : 'Fetch'}</span>
-            </button>
-          </div>
+          {/* Fallback for the platforms the Drive picker can't run on (the
+              Capacitor WebView, or a build with no API key). A Sheet is the one
+              source the OS document picker cannot reach, so native still needs
+              a way in; the server fetches the link because Google's export
+              endpoints send no CORS headers. */}
+          {!canPickDrive && (
+            <div className="import-link-row">
+              <label className="sr-only" htmlFor={linkInputId}>
+                Google Sheets or Drive link
+              </label>
+              <input
+                id={linkInputId}
+                type="url"
+                className="import-link-input"
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    void handleFetchLink();
+                  }
+                }}
+                placeholder="…or paste a Google Sheets / Drive link"
+                disabled={isLoading || linkBusy}
+                inputMode="url"
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <button
+                type="button"
+                className="btn import-link-btn"
+                onClick={handleFetchLink}
+                disabled={isLoading || linkBusy || !linkUrl.trim()}
+                title="Fetch a card list from a Google Sheet, or from a file in Drive. The link has to be shared with anyone who has it."
+              >
+                {linkBusy ? (
+                  <span className="spinner" />
+                ) : (
+                  <Link2 width={14} height={14} strokeWidth={1.8} aria-hidden />
+                )}
+                <span>{linkBusy ? 'Fetching…' : 'Fetch'}</span>
+              </button>
+            </div>
+          )}
 
           <label className="field-checkbox import-proxy-toggle">
             <input
