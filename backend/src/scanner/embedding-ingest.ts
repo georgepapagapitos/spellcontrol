@@ -40,6 +40,7 @@ import * as os from 'node:os';
 import { pipeline as streamPipeline } from 'node:stream/promises';
 import { createInterface } from 'node:readline';
 import { createGunzip } from 'node:zlib';
+import { pipeForwardingErrors } from '../stream-utils';
 import sharp from 'sharp';
 import * as ort from 'onnxruntime-node';
 import { logger } from '../logger';
@@ -132,7 +133,7 @@ export async function* streamUniqueArtwork(urlOrPath: string): AsyncIterable<Scr
 
   const file = createReadStream(urlOrPath);
   const lines = createInterface({
-    input: urlOrPath.endsWith('.gz') ? file.pipe(createGunzip()) : file,
+    input: urlOrPath.endsWith('.gz') ? pipeForwardingErrors(file, createGunzip()) : file,
     crlfDelay: Infinity,
   });
   try {

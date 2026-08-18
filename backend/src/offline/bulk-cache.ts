@@ -9,6 +9,7 @@ import streamArray from 'stream-json/streamers/stream-array.js';
 import type { SlimCard, SlimTokenRef } from './types';
 import { SCRYFALL_USER_AGENT } from '../scryfall';
 import { NON_PLAYABLE_LAYOUTS, fetchScryfallBulkEntry } from '../scryfall-bulk';
+import { pipeForwardingErrors } from '../stream-utils';
 
 /**
  * Superset of the backend's ScryfallCard type — Scryfall's oracle_cards bulk
@@ -309,7 +310,7 @@ async function buildPayload(): Promise<BulkPayload> {
   const nodeStream = Readable.fromWeb(dlRes.body as Parameters<typeof Readable.fromWeb>[0]);
   // `withParserAsStream` is the combined parser + streamArray Duplex; emits
   // one `{ key, value }` per top-level array element.
-  const pipeline = nodeStream.pipe(streamArray.withParserAsStream());
+  const pipeline = pipeForwardingErrors(nodeStream, streamArray.withParserAsStream());
 
   // The tail is streamed too: each slim card is stringified, hashed, and
   // gzipped one at a time, so we never hold the slims array, the full JSON

@@ -758,9 +758,11 @@ gamesRouter.get('/:code/events', readLimiter, requireAuth, async (req: Request, 
   }
 
   // A failed write on this response must never reach the process as an
-  // unhandled 'error' event: `backend/src/` installs no `uncaughtException`
-  // handler, so one would exit the process and take down every in-progress
-  // game for every user — not just this connection.
+  // unhandled 'error' event. `server.ts` now installs an `uncaughtException`
+  // handler that logs and stays up, so this is no longer the difference
+  // between a dropped connection and a dead server — but that net exists to
+  // make bugs LOUD, not to own them. This listener is still the fix: it keeps
+  // one client's failed write from ever leaving this connection.
   //
   // The live path is `broadcastGameDeleted` → `onDeleted` → `res.end()`, which
   // does NOT clear the heartbeat below (only `req.on('close')` does). A

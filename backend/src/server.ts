@@ -76,6 +76,55 @@ import type { DeckImportResponse, EnrichedCard, UploadResponse } from './types';
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3737;
 
+/**
+ * Last-resort process guards. Armed before anything else boots, because the
+ * failures they catch happen in *background* work — schedulers, ingests,
+ * streams — not in a request, so no route handler ever sees them.
+ *
+ * ## Why this exists
+ *
+ * On 2026-08-17 production died repeatedly over roughly six hours, and every
+ * death was silent: an unhandled `'error'` event on an EventEmitter is fatal
+ * in Node, so the process vanished mid-job with **nothing in the logs**. Four
+ * separate faults hid behind each other (a dropped idle Postgres connection
+ * #1651, a checked-out client #1654, a dropped bulk download #1657), and each
+ * one was diagnosed by inference, deploy, and wait — because the only evidence
+ * was Fly restarting a machine. Any one of these two lines would have printed
+ * the stack and named the culprit in seconds.
+ *
+ * ## Why it does NOT exit
+ *
+ * The conventional advice is to log and exit, on the theory that an uncaught
+ * exception leaves unknowable state. That advice is wrong *here*, and this is
+ * a deliberate departure from it:
+ *
+ * - Every fault of 2026-08-17 was a stray error on a background stream or
+ *   connection. The HTTP server, the SQLite cache and the pg pool were all
+ *   intact. Exiting was not a safety measure — **exiting WAS the outage**.
+ * - This app runs as a single Fly machine (`min_machines_running = 1`), so
+ *   `process.exit()` is a total outage, not a drained instance. There is no
+ *   sibling to take the traffic.
+ * - A process genuinely wedged past recovery still gets caught: it stops
+ *   answering `/health` and Fly replaces it. That path is already load-bearing
+ *   and does not need our help.
+ *
+ * So: stay up, and make the failure **loud** instead of invisible. A logged
+ * stack that costs one degraded background job beats a silent restart that
+ * costs the site.
+ *
+ * These are a safety net, never a substitute for handling the error at its
+ * source — see `pipeForwardingErrors` in `stream-utils.ts` and the listeners
+ * in `db/index.ts`. If either of these fires, that is a BUG REPORT: find the
+ * unhandled emitter and give it an owner.
+ */
+process.on('uncaughtException', (err, origin) => {
+  logger.error(`[server] UNCAUGHT EXCEPTION (${origin}) — staying up, but this is a bug:`, err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  logger.error('[server] UNHANDLED REJECTION — staying up, but this is a bug:', reason);
+});
+
 const app = express();
 const cache = getScryfallCache();
 

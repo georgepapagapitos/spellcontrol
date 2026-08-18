@@ -8,6 +8,7 @@ import streamArray from 'stream-json/streamers/stream-array.js';
 import { getDb } from '../db';
 import { combos, comboCards, comboIngestRuns } from '../db/schema';
 import { SCRYFALL_USER_AGENT } from '../scryfall';
+import { pipeForwardingErrors } from '../stream-utils';
 
 const SPELLBOOK_BULK_URL = 'https://json.commanderspellbook.com/variants.json';
 
@@ -106,7 +107,7 @@ export async function* streamSpellbookVariants(): AsyncIterable<unknown> {
     // Top-level array — stream each element directly. `withParserAsStream`
     // gives us a Duplex that combines `parser()` and `streamArray()` and
     // emits `{key, value}` per array element.
-    const pipeline = nodeStream.pipe(streamArray.withParserAsStream());
+    const pipeline = pipeForwardingErrors(nodeStream, streamArray.withParserAsStream());
     for await (const item of pipeline as AsyncIterable<{ key: number; value: unknown }>) {
       yield item.value;
     }
@@ -132,7 +133,7 @@ export async function* streamSpellbookVariants(): AsyncIterable<unknown> {
  * that fall inside the target array → streamArray.
  */
 async function* streamArrayUnderKey(nodeStream: Readable, key: string): AsyncIterable<unknown> {
-  const tokens = nodeStream.pipe(jsonParser());
+  const tokens = pipeForwardingErrors(nodeStream, jsonParser());
 
   // Forward tokens only while we're inside the target value's subtree. We
   // start tracking nesting depth from the moment `keyValue: <key>` is seen
@@ -176,7 +177,10 @@ async function* streamArrayUnderKey(nodeStream: Readable, key: string): AsyncIte
     },
   });
 
-  const pipeline = tokens.pipe(filter).pipe(streamArray.asStream());
+  const pipeline = pipeForwardingErrors(
+    pipeForwardingErrors(tokens, filter),
+    streamArray.asStream()
+  );
   for await (const item of pipeline as AsyncIterable<{ key: number; value: unknown }>) {
     yield item.value;
   }
