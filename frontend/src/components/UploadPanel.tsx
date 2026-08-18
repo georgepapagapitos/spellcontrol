@@ -50,7 +50,7 @@ import { mergeStagedFiles, stagedFilesNotice } from '../lib/staged-files';
 import { useFileDrop } from '../lib/use-file-drop';
 import { isNativePlatform, openExternal } from '../lib/platform';
 import { pickNativeFiles } from '../lib/native-file-picker';
-import { googlePickerAvailable, pickFromGoogleDrive } from '../lib/google-picker';
+import { googlePickerAvailable, isCancelled, pickFromGoogleDrive } from '../lib/google-picker';
 
 const CSV_MIME_TYPES = ['text/csv', 'text/tab-separated-values', 'text/plain'];
 
@@ -245,10 +245,11 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     try {
       stageIncoming(await pickFromGoogleDrive());
     } catch (err) {
-      // An empty message means the user closed the consent popup — that's a
-      // cancel, not a failure, and doesn't deserve an error banner.
-      const msg = err instanceof Error ? err.message : "Couldn't open Google Drive";
-      if (msg) setError(msg);
+      // Backing out is silent; anything else must be visible. The old
+      // empty-message convention swallowed a real abort — see CancelledError.
+      if (!isCancelled(err)) {
+        setError(err instanceof Error ? err.message : "Couldn't open Google Drive");
+      }
     } finally {
       setDriveBusy(false);
     }
