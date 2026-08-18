@@ -49,6 +49,7 @@ import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckAiReview } from '../components/deck/DeckAiReview';
 import { DeckAiRefine } from '../components/deck/DeckAiRefine';
 import { buildRefinePool } from '../lib/ai-refine';
+import { buildAlternativeIndex } from '../lib/refine-alternatives';
 import { constrainsToCollection } from '@/deck-builder/services/deckBuilder/deckFilters';
 import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { DeckTokensSheet } from '../components/deck/DeckTokensSheet';
@@ -1113,6 +1114,10 @@ export function DeckEditorPage() {
    * predicate generation itself used (the fine-grained strategy survives on
    * `buildReport`, not `generationContext`, which only persists the boolean),
    * but the guarantee is enforced on the server now.
+   *
+   * A hand-built deck has no `buildReport`, so this alone defaults false —
+   * callers OR it with the user's live `ownedOnly` toggle so the AI panel
+   * still respects "owned only" on decks that were never generated.
    */
   const refineOwnedOnly = useMemo(
     () => constrainsToCollection(deck?.buildReport?.collectionStrategy ?? 'prefer'),
@@ -1132,6 +1137,21 @@ export function DeckEditorPage() {
           })
         : [],
     [deck, substitutionPlan, landUpgrades, deckCardNames, refineOwnedOnly, ownedNames]
+  );
+  // Same-role re-roll index for the AI panel's swap rows — built from the engine
+  // pool so a re-roll never needs another model call.
+  //
+  // ⚠️ Gated on `taggerReady`, not just the pool. `classifyCandidate` reads the
+  // tagger's tag sets, and `getCardRole` returns null for EVERY card until they
+  // finish loading — so computing this before they land yields an all-empty
+  // index, and without the dependency it would never recompute once they do.
+  // The re-roll control would then be permanently absent rather than late.
+  const refineAlternatives = useMemo(
+    () =>
+      taggerReady
+        ? buildAlternativeIndex(refinePool, classifyCandidate)
+        : new Map<string, string[]>(),
+    [refinePool, taggerReady]
   );
 
   // `/` opens the search panel; `c` jumps to the Power tab and reveals the
@@ -1387,7 +1407,15 @@ export function DeckEditorPage() {
         commanderKey={commanderKey}
         aiSlot={
           formatConfig?.hasCommander && deck.commander ? (
+            /* `key={deck.id}` on EVERY mount of this panel is load-bearing, not
+               cosmetic: `/decks/:id` has no route key, so react-router reuses
+               this page element when navigating between decks and the panel
+               would otherwise never unmount — leaving the previous deck's
+               reading on screen (its "Apply all" would push those swaps into the
+               deck now open) and its dismissal set in state, which the next save
+               would write back under this deck's key. */
             <DeckAiRefine
+              key={deck.id}
               variant="suggestions"
               deckId={deck.id}
               format={deck.format}
@@ -1395,7 +1423,8 @@ export function DeckEditorPage() {
               partnerCommander={deck.partnerCommander ?? null}
               mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
               pool={refinePool}
-              ownedOnly={refineOwnedOnly}
+              ownedOnly={refineOwnedOnly || ownedOnly}
+              alternatives={refineAlternatives}
               bracketTarget={deck.bracketOverride ?? null}
               bracketEstimate={deck.bracketEstimation?.bracket ?? null}
               onApplyMove={(change) => {
@@ -1408,6 +1437,7 @@ export function DeckEditorPage() {
                 }
                 void handleApplyCoachMove(change);
               }}
+              onApplyAll={(swaps) => handleApplyCostSwaps(swaps, 'ai')}
             />
           ) : undefined
         }
@@ -2046,9 +2076,10 @@ export function DeckEditorPage() {
   // swap-only, so the deck size never changes. `kind` only tunes the copy.
   const handleApplyCostSwaps = async (
     swaps: Array<{ removeName: string; addName: string }>,
-    kind: 'budget' | 'bracket' = 'budget'
+    kind: 'budget' | 'bracket' | 'ai' = 'budget'
   ) => {
     if (!deck) return;
+    const kindLabel = kind === 'ai' ? 'AI' : kind;
     try {
       const slotsByName = new Map<string, string[]>();
       for (const c of deck.cards) {
@@ -2078,13 +2109,14 @@ export function DeckEditorPage() {
           /* skip cards that won't resolve — leave the original in place */
         }
       }
-      if (before) commitEdit(deck.id, `apply ${done} ${kind} swap${done === 1 ? '' : 's'}`, before);
+      if (before)
+        commitEdit(deck.id, `apply ${done} ${kindLabel} swap${done === 1 ? '' : 's'}`, before);
       pushToast({
-        message: `Applied ${done} ${kind} swap${done === 1 ? '' : 's'}`,
+        message: `Applied ${done} ${kindLabel} swap${done === 1 ? '' : 's'}`,
         tone: 'success',
       });
     } catch {
-      pushToast({ message: `Couldn't apply ${kind} swaps.`, tone: 'error' });
+      pushToast({ message: `Couldn't apply ${kindLabel} swaps.`, tone: 'error' });
     }
   };
 
@@ -3125,24 +3157,22 @@ export function DeckEditorPage() {
                     bracketTarget={deck.bracketOverride ?? null}
                     bracketEstimate={deck.bracketEstimation?.bracket ?? null}
                   />
-                  {/* The refine pass is generated-deck only: it exists to
-                      second-guess the generator, and a hand-built deck has no
-                      generator decision to second-guess. */}
-                  {deck.source === 'generated' && (
-                    <DeckAiRefine
-                      variant="coach"
-                      deckId={deck.id}
-                      format={deck.format}
-                      commander={deck.commander}
-                      partnerCommander={deck.partnerCommander ?? null}
-                      mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
-                      pool={refinePool}
-                      ownedOnly={refineOwnedOnly}
-                      bracketTarget={deck.bracketOverride ?? null}
-                      bracketEstimate={deck.bracketEstimation?.bracket ?? null}
-                      onApplyMove={handleApplyCoachMove}
-                    />
-                  )}
+                  <DeckAiRefine
+                    key={deck.id}
+                    variant="coach"
+                    deckId={deck.id}
+                    format={deck.format}
+                    commander={deck.commander}
+                    partnerCommander={deck.partnerCommander ?? null}
+                    mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
+                    pool={refinePool}
+                    ownedOnly={refineOwnedOnly || ownedOnly}
+                    alternatives={refineAlternatives}
+                    bracketTarget={deck.bracketOverride ?? null}
+                    bracketEstimate={deck.bracketEstimation?.bracket ?? null}
+                    onApplyMove={handleApplyCoachMove}
+                    onApplyAll={(swaps) => handleApplyCostSwaps(swaps, 'ai')}
+                  />
                 </>
               ) : undefined
             }
@@ -3515,6 +3545,7 @@ export function DeckEditorPage() {
           aiSlot={
             formatConfig?.hasCommander && deck.commander ? (
               <DeckAiRefine
+                key={deck.id}
                 variant="replace"
                 deckId={deck.id}
                 format={deck.format}
@@ -3623,16 +3654,19 @@ export function DeckEditorPage() {
           refineSlot={
             deck.commander ? (
               <DeckAiRefine
+                key={deck.id}
                 deckId={deck.id}
                 format={deck.format}
                 commander={deck.commander}
                 partnerCommander={deck.partnerCommander ?? null}
                 mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
                 pool={refinePool}
-                ownedOnly={refineOwnedOnly}
+                ownedOnly={refineOwnedOnly || ownedOnly}
+                alternatives={refineAlternatives}
                 bracketTarget={deck.bracketOverride ?? null}
                 bracketEstimate={deck.bracketEstimation?.bracket ?? null}
                 onApplyMove={handleApplyCoachMove}
+                onApplyAll={(swaps) => handleApplyCostSwaps(swaps, 'ai')}
               />
             ) : undefined
           }

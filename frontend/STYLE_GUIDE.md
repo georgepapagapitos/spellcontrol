@@ -4194,3 +4194,31 @@ Model-written text always says so. The rulings:
   since it never depends on a pool, is the one strip that may render
   pre-consent (expanding shows the in-place consent card). Only the
   build-report sheet still mounts the full refine panel.
+- **Managing an AI proposal afterwards is code, not another model call**
+  (T102 refine levers, `DeckAiRefine`). Once the model has proposed its
+  tweaks, three controls operate purely on data already in the browser and
+  never re-prompt: **bulk-apply** every remaining swap as one undo entry (a
+  plain `.btn` above the list, hidden below 2 remaining un-applied/un-dismissed
+  swap tweaks and hidden entirely on the `replace` variant, whose bulk verdict
+  is meaningless for a one-card prompt); **dismiss**, which collapses a row to
+  a quiet "Dismissed {name}" line with an **Undo** — reversible, never
+  destructive — and persists by added-card name in
+  `localStorage['sc-ai-refine-dismissed:<deckId>']` (try/catch every access;
+  Safari private mode throws) so a rejected suggestion never resurrects on
+  reopen or a cached-reading replay; and **re-roll**, which cycles a row
+  through an engine-supplied alternatives list (AI's pick → alt 0 → … → back
+  to the AI's pick) and, critically, **drops the AI's `why` the instant a row
+  is re-rolled** — that sentence was a claim about the AI's card, and showing
+  it under a different card would misattribute a model claim to a card the
+  model never evaluated. A re-rolled row shows a neutral, honestly-sourced
+  line instead ("Engine alternative — same role as {original}."), styled
+  distinctly (italic, no `AiMarker`) since it is explicitly **not**
+  model-written text, plus an explicit way back to the AI's original pick.
+  Accepting a re-rolled row applies the card **currently on screen**, never
+  the AI's original pick underneath it — the same rule bulk-apply honors via
+  a shared `displayNameFor` helper. The dismiss/re-roll icon controls use the
+  ghost hit-area pattern (`.deck-row-select-check`'s technique: small visible
+  box, 44px `::after` on coarse) so they can't inflate the dense tweak row's
+  height; the standalone bulk-apply and undo buttons take their floor
+  directly via a two-class selector (`.btn.deck-ai-bulk-apply`) so it beats
+  responsive-nav.css's same-specificity `.btn { min-height: 36px }`.

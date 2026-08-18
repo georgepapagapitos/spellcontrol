@@ -304,4 +304,194 @@ describe('DeckAiRefine', () => {
     const btn = await screen.findByRole('button', { name: 'Refine this build' });
     expect(btn).toHaveProperty('disabled', true);
   });
+
+  // ── Refine-panel levers (bulk apply, dismiss, re-roll) — code-only, never
+  // another AI request. ──
+
+  function threeTweakStub() {
+    stubApi(true, [
+      { add: 'Card A', cut: 'Cut A', why: 'Reason A.' },
+      { add: 'Card B', cut: 'Cut B', why: 'Reason B.' },
+      { add: 'Card C', cut: 'Cut C', why: 'Reason C.' },
+    ]);
+  }
+
+  interface ThreeTweakProps {
+    onApplyMove?: (c: Change) => void;
+    onApplyAll?: (swaps: Array<{ removeName: string; addName: string }>) => void;
+    alternatives?: ReadonlyMap<string, string[]>;
+    deckId?: string;
+  }
+
+  /** Built separately from `render` so a test can `rerender` it with a new
+   *  `deckId` — the deck-switch path. Carries the same `key={deck.id}` every
+   *  production call site does, which is what resets the panel per deck. */
+  function threeTweakPanel(props: ThreeTweakProps) {
+    return (
+      <DeckAiRefine
+        key={props.deckId ?? 'd1'}
+        deckId={props.deckId ?? 'd1'}
+        format="commander"
+        commander={card('Meren of Clan Nel Toth')}
+        partnerCommander={null}
+        mainboard={[
+          { slotId: 's1', card: card('Cut A') },
+          { slotId: 's2', card: card('Cut B') },
+          { slotId: 's3', card: card('Cut C') },
+        ]}
+        pool={[{ name: 'Card A', oracleId: 'p1', qty: 1 }]}
+        ownedOnly={false}
+        onApplyMove={props.onApplyMove ?? (() => {})}
+        onApplyAll={props.onApplyAll}
+        alternatives={props.alternatives}
+      />
+    );
+  }
+
+  function renderThreeTweaks(props: ThreeTweakProps) {
+    return render(threeTweakPanel(props));
+  }
+
+  it('bulk apply passes every remaining swap as {removeName, addName} pairs', async () => {
+    threeTweakStub();
+    const applied: Array<{ removeName: string; addName: string }> = [];
+    renderThreeTweaks({ onApplyAll: (swaps) => applied.push(...swaps) });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Refine this build' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply all 3 swaps' }));
+
+    expect(applied).toEqual([
+      { removeName: 'Cut A', addName: 'Card A' },
+      { removeName: 'Cut B', addName: 'Card B' },
+      { removeName: 'Cut C', addName: 'Card C' },
+    ]);
+    // Bulk-applied rows read as Applied, same as a single accept.
+    expect(screen.getAllByText('Applied')).toHaveLength(3);
+  });
+
+  it('hides the bulk button below 2 remaining tweaks', async () => {
+    stubApi(true, [{ add: 'Card A', cut: 'Cut A', why: 'Reason A.' }]);
+    renderThreeTweaks({ onApplyAll: () => {} });
+    fireEvent.click(await screen.findByRole('button', { name: 'Refine this build' }));
+    await screen.findByText('Reason A.');
+    expect(screen.queryByRole('button', { name: /Apply all/ })).toBeNull();
+  });
+
+  it('hides the bulk button for the replace variant, even with 2+ tweaks', async () => {
+    stubApi(true, [
+      { add: 'Card A', cut: 'Cut A', why: 'Reason A.' },
+      { add: 'Card A', cut: 'Cut B', why: 'Reason B.' },
+    ]);
+    render(
+      <DeckAiRefine
+        deckId="d1"
+        format="commander"
+        commander={card('Meren of Clan Nel Toth')}
+        partnerCommander={null}
+        mainboard={[{ slotId: 's1', card: card('Cut A') }]}
+        pool={[{ name: 'Card A', oracleId: 'p1', qty: 1 }]}
+        ownedOnly={false}
+        onApplyMove={() => {}}
+        onApplyAll={() => {}}
+        variant="replace"
+      />
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /Is it an upgrade\?/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Weigh this add' }));
+    await screen.findByText('Reason A.');
+    expect(screen.queryByRole('button', { name: /Apply all/ })).toBeNull();
+  });
+
+  it('dismiss collapses the row reversibly, persists across a remount, and undo restores it', async () => {
+    threeTweakStub();
+    const { unmount } = renderThreeTweaks({});
+    fireEvent.click(await screen.findByRole('button', { name: 'Refine this build' }));
+    await screen.findByText('Reason B.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss Card B' }));
+    expect(await screen.findByText('Dismissed Card B')).toBeTruthy();
+    expect(screen.queryByText('Reason B.')).toBeNull();
+    expect(JSON.parse(localStorage.getItem('sc-ai-refine-dismissed:d1') as string)).toEqual([
+      'Card B',
+    ]);
+
+    unmount();
+
+    // Remount, re-run, and confirm the dismissal survived (rejected suggestion
+    // does not resurrect on reopen / a cache replay).
+    threeTweakStub();
+    renderThreeTweaks({});
+    fireEvent.click(await screen.findByRole('button', { name: 'Refine this build' }));
+    expect(await screen.findByText('Dismissed Card B')).toBeTruthy();
+    expect(screen.queryByText('Reason B.')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(await screen.findByText('Reason B.')).toBeTruthy();
+    expect(screen.queryByText('Dismissed Card B')).toBeNull();
+    expect(JSON.parse(localStorage.getItem('sc-ai-refine-dismissed:d1') as string)).toEqual([]);
+  });
+
+  it('re-roll applies the currently displayed alternative and drops the AI why', async () => {
+    stubApi(true, [{ add: 'Card A', cut: 'Cut A', why: "The AI's own reasoning about Card A." }]);
+    const applied: Change[] = [];
+    const alternatives = new Map([['Card A', ['Card A2', 'Card A3']]]);
+    renderThreeTweaks({ onApplyMove: (c) => applied.push(c), alternatives });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Refine this build' }));
+    await screen.findByText("The AI's own reasoning about Card A.");
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try another alternative to Card A' }));
+    expect(await screen.findByText('Card A2')).toBeTruthy();
+    // The AI's why no longer applies to a card it never evaluated.
+    expect(screen.queryByText("The AI's own reasoning about Card A.")).toBeNull();
+    expect(screen.getByText(/Engine alternative — same role as Card A\./)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try another alternative to Card A2' }));
+    expect(await screen.findByText('Card A3')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /Swap Cut A for Card A3/ }));
+    expect(applied[0]).toMatchObject({ type: 'swap', name: 'Card A3', inName: 'Cut A' });
+    expect(applied[0].reason).not.toMatch(/AI's own reasoning/);
+
+    // A way back to the AI's pick: cycling past the last alternative wraps.
+    expect(screen.queryByRole('button', { name: /Use the AI's pick/ })).toBeTruthy();
+  });
+
+  // ── Deck-switch isolation. `/decks/:id` carries no `key`, so react-router
+  // REUSES this element when moving between decks and it never unmounts. ──
+
+  it("drops the previous deck's reading when the editor switches decks", async () => {
+    // Left on screen, deck A's tweaks would still be applicable — and "Apply
+    // all" would push A's swaps straight into deck B.
+    threeTweakStub();
+    const view = renderThreeTweaks({ onApplyAll: () => {}, deckId: 'deck-a' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Refine this build' }));
+    expect(await screen.findByRole('button', { name: 'Apply all 3 swaps' })).toBeTruthy();
+
+    view.rerender(threeTweakPanel({ onApplyAll: () => {}, deckId: 'deck-b' }));
+
+    expect(screen.queryByRole('button', { name: 'Apply all 3 swaps' })).toBeNull();
+    expect(screen.queryByText('Reason A.')).toBeNull();
+  });
+
+  it("reads the newly-opened deck's dismissals, not the deck it mounted with", async () => {
+    // The corruption case: a mount-only initializer keeps deck A's set, and the
+    // next save writes it back under deck B's key.
+    localStorage.setItem('sc-ai-refine-dismissed:deck-b', JSON.stringify(['Card B']));
+    threeTweakStub();
+    const view = renderThreeTweaks({ deckId: 'deck-a' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Refine this build' }));
+    // Deck A has dismissed nothing, so B's stored dismissal must not apply here.
+    expect(await screen.findByText('Reason B.')).toBeTruthy();
+    expect(screen.queryByText('Dismissed Card B')).toBeNull();
+
+    view.rerender(threeTweakPanel({ deckId: 'deck-b' }));
+    threeTweakStub();
+    fireEvent.click(await screen.findByRole('button', { name: 'Refine this build' }));
+
+    expect(await screen.findByText('Dismissed Card B')).toBeTruthy();
+    expect(screen.queryByText('Reason B.')).toBeNull();
+    // Deck A's key was never written with deck B's set.
+    expect(localStorage.getItem('sc-ai-refine-dismissed:deck-a')).toBeNull();
+  });
 });
