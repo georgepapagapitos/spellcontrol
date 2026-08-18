@@ -1288,6 +1288,19 @@ async function start() {
     logger.info(`[server] cache stats:`, cache.stats());
   });
 
+  // The one case where the process-level guard above is the WRONG answer, so it
+  // gets its owner here. A failed `listen` (EADDRINUSE, EACCES) used to crash
+  // the process, which Fly recovered by restarting it. With `uncaughtException`
+  // handled, that same failure would instead leave us alive and NOT listening —
+  // a process that can never pass a health check and never exits to be replaced.
+  // Boot failures are the exception to "stay up": there is nothing to stay up
+  // for. `start()`'s catch already covers the rejection path; this covers the
+  // event path.
+  server.on('error', (err) => {
+    logger.error('[server] listen failed — exiting so the platform can restart:', err);
+    process.exit(1);
+  });
+
   if (process.env.COMBOS_INGEST_DISABLED !== '1') {
     afterBoot('combo ingest', 30_000, scheduleComboIngest);
   }
