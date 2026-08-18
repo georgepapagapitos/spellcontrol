@@ -19,12 +19,16 @@ function stubGoogle(
   opts: {
     token?: { access_token?: string; expires_in?: number; error?: string };
     tokenError?: { type?: string };
+    /** ms after popup_closed that the token arrives — reproduces the race. */
+    tokenAfterPopupClose?: number;
     docs?: { id: string; name: string; mimeType: string }[];
     cancel?: boolean;
   } = {}
 ) {
   const picked = opts.docs ?? [];
   let builtCallback: ((d: Record<string, unknown>) => void) | undefined;
+  /** What the module actually asked the Picker for. */
+  const seen: { appId?: string } = {};
 
   const chain = () => {
     const b: Record<string, unknown> = {};
@@ -41,6 +45,10 @@ function stubGoogle(
     ]) {
       b[m] = () => b;
     }
+    b.setAppId = (id: string) => {
+      seen.appId = id;
+      return b;
+    };
     b.setCallback = (cb: (d: Record<string, unknown>) => void) => {
       builtCallback = cb;
       return b;
@@ -66,7 +74,19 @@ function stubGoogle(
         }) => ({
           requestAccessToken: () => {
             if (opts.tokenError) cfg.error_callback?.(opts.tokenError);
-            else cfg.callback(opts.token ?? { access_token: 'tok', expires_in: 3600 });
+            // The race that broke this in production: the popup closing is
+            // reported BEFORE the token that the same grant is about to
+            // deliver. Both fire, in that order.
+            if (opts.tokenAfterPopupClose) {
+              setTimeout(
+                () => cfg.callback({ access_token: 'tok', expires_in: 3600 }),
+                opts.tokenAfterPopupClose
+              );
+              return;
+            }
+            if (!opts.tokenError) {
+              cfg.callback(opts.token ?? { access_token: 'tok', expires_in: 3600 });
+            }
           },
         }),
       },
@@ -84,6 +104,7 @@ function stubGoogle(
       Action: { PICKED: 'picked', CANCEL: 'cancel' },
     },
   };
+  return seen;
 }
 
 beforeEach(() => {
@@ -192,10 +213,10 @@ describe('picking', () => {
     await expect(m.pickFromGoogleDrive()).resolves.toHaveLength(2);
   });
 
-  it('treats cancelling the picker as an empty result, not an error', async () => {
+  it('reports cancelling the picker as CancelledError, not a silent empty result', async () => {
     const m = await load(KEYED);
     stubGoogle({ cancel: true });
-    await expect(m.pickFromGoogleDrive()).resolves.toEqual([]);
+    await expect(m.pickFromGoogleDrive()).rejects.toSatisfy(m.isCancelled);
   });
 
   it('reports a refused download against the file name', async () => {
@@ -212,17 +233,49 @@ describe('picking', () => {
     await expect(m.pickFromGoogleDrive()).rejects.toThrow(/too big/);
   });
 
-  it('signals a dismissed consent popup with an empty message', async () => {
-    // Callers use the empty message to stay silent — closing the popup is a
-    // cancel, and must not surface as an error banner.
+  it('reports a genuinely dismissed consent popup as a cancellation', async () => {
     const m = await load(KEYED);
     stubGoogle({ tokenError: { type: 'popup_closed' } });
-    await expect(m.pickFromGoogleDrive()).rejects.toThrow('');
+    await expect(m.pickFromGoogleDrive()).rejects.toSatisfy(m.isCancelled);
+  });
+
+  it('THE REGRESSION: a token arriving after popup_closed still opens the picker', async () => {
+    // Google reports the consent window closing before delivering the token of
+    // the grant that just succeeded. Treating popup_closed as an immediate
+    // cancel aborted AFTER the user had authorised — they got signed in and
+    // nothing opened, silently. The grace period must let the token win.
+    const m = await load(KEYED);
+    stubGoogle({
+      tokenError: { type: 'popup_closed' },
+      tokenAfterPopupClose: 200,
+      docs: [{ id: 'f1', name: 'cards.csv', mimeType: 'text/csv' }],
+    });
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response('Name\nForest\n'));
+
+    const files = await m.pickFromGoogleDrive();
+    expect(files.map((f) => f.name)).toEqual(['cards.csv']);
   });
 
   it('surfaces a real token failure', async () => {
     const m = await load(KEYED);
     stubGoogle({ token: { error: 'access_denied' } });
     await expect(m.pickFromGoogleDrive()).rejects.toThrow(/access_denied/);
+  });
+
+  it('names the failure type when Google errors for a non-popup reason', async () => {
+    const m = await load(KEYED);
+    stubGoogle({ tokenError: { type: 'unknown_error' } });
+    await expect(m.pickFromGoogleDrive()).rejects.toThrow(/unknown_error/);
+  });
+
+  it('sets the app id, which drive.file needs to grant the picked file', async () => {
+    // Without it the picker opens but the download 403s — the failure lands a
+    // step later than the cause, so pin it here.
+    const m = await load(KEYED);
+    const seen = stubGoogle({ docs: [{ id: 'f1', name: 'a.csv', mimeType: 'text/csv' }] });
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response('Name\nForest\n'));
+    await m.pickFromGoogleDrive();
+    // KEYED client id is "test-client.apps...", so the leading segment is "test".
+    expect(seen.appId).toBe('test');
   });
 });

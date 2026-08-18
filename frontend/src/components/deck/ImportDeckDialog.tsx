@@ -22,7 +22,7 @@ import {
 } from './import-deck-shared';
 import { isNativePlatform } from '../../lib/platform';
 import { pickNativeFiles } from '../../lib/native-file-picker';
-import { googlePickerAvailable, pickFromGoogleDrive } from '../../lib/google-picker';
+import { googlePickerAvailable, isCancelled, pickFromGoogleDrive } from '../../lib/google-picker';
 import { usePublishOnCreate, type PublishOutcome } from '../../lib/use-publish-on-create';
 
 const DECK_IMPORT_MIME = ['text/csv', 'text/tab-separated-values', 'text/plain'];
@@ -522,10 +522,10 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
     try {
       acceptFiles(await pickFromGoogleDrive());
     } catch (err) {
-      // Empty message = the user dismissed Google's consent popup; that's a
-      // cancel, not something to put in the error slot.
-      const msg = err instanceof Error ? err.message : "Couldn't open Google Drive";
-      if (msg) setError(msg);
+      // Backing out is silent; anything else must be visible. See CancelledError.
+      if (!isCancelled(err)) {
+        setError(err instanceof Error ? err.message : "Couldn't open Google Drive");
+      }
     } finally {
       setDriveBusy(false);
     }
