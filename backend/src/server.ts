@@ -138,14 +138,17 @@ app.set('trust proxy', 1);
 // This app serves both the JSON API and the static web SPA, so the CSP has
 // to cover the browser app. Ported from the old frontend/nginx.conf policy
 // (that nginx hop is retired now that Express serves the bundle directly).
-// Kept Report-Only — the SPA has an inline theme script + blob workers (OCR)
-// and pulls WASM / fonts / Scryfall imagery; observe violation reports before
-// promoting to an enforcing Content-Security-Policy.
+// ENFORCING. It spent its whole life Report-Only with no `report-uri`/
+// `report-to`, which meant it could neither block nor report a thing — Firefox
+// says so in the console. Rather than stand up a report collector for a policy
+// whose directives were already enumerated by hand, the allowlist was checked
+// against every external origin the SPA actually reaches at runtime and turned
+// on. `'unsafe-inline'` stays in script-src/style-src: index.html has an inline
+// theme script and React writes inline styles.
 app.use(
   helmet({
     contentSecurityPolicy: {
       useDefaults: false,
-      reportOnly: true,
       directives: {
         'default-src': ["'self'"],
         // apis.google.com + accounts.google.com: the Drive picker and the GIS
@@ -153,8 +156,6 @@ app.use(
         'script-src': [
           "'self'",
           "'unsafe-inline'",
-          'blob:',
-          "'wasm-unsafe-eval'",
           'https://apis.google.com',
           'https://accounts.google.com',
         ],
@@ -176,9 +177,11 @@ app.use(
           'https://api.scryfall.com',
           'https://json.edhrec.com',
           'https://*.scryfall.io',
-          'https://cdn.jsdelivr.net',
-          'https://unpkg.com',
-          'https://tessdata.projectnaptha.com',
+          // Cube import reads a cube straight from CubeCobra's JSON API, and
+          // the game-night venue field geocodes against Photon. Both are
+          // browser-side fetches, not proxied through us.
+          'https://cubecobra.com',
+          'https://photon.komoot.io',
           // Token grant + the Drive file/export download the picker feeds.
           'https://accounts.google.com',
           'https://www.googleapis.com',
@@ -187,7 +190,7 @@ app.use(
         // The picker renders in an iframe we open. Distinct from
         // `frame-ancestors` below, which governs who may frame US (nobody).
         'frame-src': ['https://docs.google.com', 'https://accounts.google.com'],
-        'worker-src': ["'self'", 'blob:'],
+        'worker-src': ["'self'"],
         'object-src': ["'none'"],
         'base-uri': ["'self'"],
         'frame-ancestors': ["'none'"],
