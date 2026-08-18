@@ -76,10 +76,35 @@ const mockSyncState = vi.hoisted(() => ({ state: 'idle' as string }));
 vi.mock('../lib/sync', () => ({
   getSyncState: () => mockSyncState.state,
   onSyncedChange: () => () => {},
+  // Both stores' persist subscribers call this SYNCHRONOUSLY on any
+  // `cards`/`binders`/`decks` write, so seeding a store below throws without
+  // it — the scale-line tests are the first in this file to write real rows.
+  isApplyingServer: () => false,
 }));
 
 import { HomePage } from './HomePage';
 import { useCollectionStore } from '../store/collection';
+import { useDecksStore } from '../store/decks';
+import type { BinderDef, EnrichedCard } from '../types';
+import type { Deck } from '../store/decks';
+
+/** The thinnest rows the scale line's three counts can be taken from — the
+ *  cards below still walk them (NewArrivalsCard reads deck.cards), so an
+ *  empty object literal isn't enough. */
+function makeRow(): EnrichedCard {
+  return { name: 'Card', quantity: 1 } as unknown as EnrichedCard;
+}
+
+function makeDeckRow(id: string): Deck {
+  return {
+    id,
+    name: id,
+    format: 'commander',
+    cards: [],
+    sideboard: [],
+    updatedAt: 0,
+  } as unknown as Deck;
+}
 
 function renderPage() {
   return render(
@@ -98,7 +123,8 @@ beforeEach(() => {
   mockSyncState.state = 'idle';
   // The real store boots with hydrating: true (App flips it after the IDB
   // hydrate); settle it here so the fallback branch is reachable by default.
-  useCollectionStore.setState({ hydrating: false });
+  useCollectionStore.setState({ hydrating: false, cards: [], binders: [] });
+  useDecksStore.setState({ decks: [] });
 });
 
 describe('HomePage', () => {
@@ -210,6 +236,36 @@ describe('HomePage', () => {
         screen.getByRole('heading', { level: 1, name: 'Plan your Magic: The Gathering collection' })
       ).toBeTruthy();
       expect(screen.queryByText(/Good morning/)).toBeNull();
+    });
+  });
+
+  describe('hero scale line', () => {
+    it('is suppressed entirely on a fresh account — a row of zeroes is worse than no row', () => {
+      const { container } = renderPage();
+      expect(container.querySelector('.home-hero-stats')).toBeNull();
+    });
+
+    it('is suppressed for a guest even with local rows (the hero shows a guest nothing personal)', () => {
+      mockAuthState.status = 'guest';
+      useCollectionStore.setState({ cards: [makeRow(), makeRow()] });
+      const { container } = renderPage();
+      expect(container.querySelector('.home-hero-stats')).toBeNull();
+    });
+
+    it('renders one labelled door per count once any store holds rows', () => {
+      useCollectionStore.setState({
+        cards: [makeRow(), makeRow(), makeRow()],
+        binders: [{ id: 'b1', name: 'Binder', filterGroups: [] } as unknown as BinderDef],
+      });
+      useDecksStore.setState({ decks: [makeDeckRow('d1'), makeDeckRow('d2')] });
+      renderPage();
+      expect(screen.getByRole('link', { name: '3 cards' }).getAttribute('href')).toBe(
+        '/collection'
+      );
+      expect(screen.getByRole('link', { name: '2 decks' }).getAttribute('href')).toBe('/decks');
+      expect(screen.getByRole('link', { name: '1 binder' }).getAttribute('href')).toBe(
+        '/collection/binders'
+      );
     });
   });
 });

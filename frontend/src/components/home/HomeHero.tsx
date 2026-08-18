@@ -1,6 +1,6 @@
 import './HomeHero.css';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { BrandMark } from '../shared/BrandMark';
 import { SearchPill } from '../SearchPill';
@@ -29,6 +29,10 @@ type SearchScope = 'mine' | 'discover';
 /** The caption's provenance line states WHY this card was picked — an
  *  unlabeled pick read as random to real users ("why does it pick that
  *  card?"), and the picker always knows its reason. */
+/** Every scale-line label is a plain plural, so one copy of the s-strip
+ *  covers all three — "1 Binders" reads as a bug in a figure that small. */
+const singularize = (n: number, label: string) => (n === 1 ? label.slice(0, -1) : label);
+
 const PICK_REASON_LABEL: Record<HeroPickReason, string> = {
   top: 'One of your most valuable cards',
   recent: 'One of your newest arrivals',
@@ -37,8 +41,9 @@ const PICK_REASON_LABEL: Record<HeroPickReason, string> = {
 
 /**
  * /home's hero panel ("your collection is the hero", featured-card revision):
- * a sleeve-matte panel (T53 material system) with the greeting/value, scoped
- * deck search, and Quick Actions in the main column, and the day's card from
+ * a sleeve-matte panel (T53 material system) with the greeting/value, the
+ * scale line (cards/decks/binders, each a door), scoped deck search, and
+ * Quick Actions in the main column, and the day's card from
  * the viewer's own collection displayed as an OBJECT — a full, uncropped art
  * crop in a sleeve frame with a tape-label caption — instead of a
  * letterboxed backdrop. (The old full-bleed backdrop cover-cropped a ~4:3
@@ -53,6 +58,7 @@ export function HomeHero() {
   const profile = useAuth((s) => s.profile);
 
   const collectionCards = useCollectionStore((s) => s.cards);
+  const binders = useCollectionStore((s) => s.binders);
   const importHistory = useCollectionStore((s) => s.importHistory);
   const decks = useDecksStore((s) => s.decks);
 
@@ -145,6 +151,19 @@ export function HomeHero() {
   const chip = formatValueDeltaChip(delta, valueData?.today ?? '');
   const latestValue = points.length > 0 ? points[points.length - 1].value : null;
 
+  // Scale line: the three things this collection IS, each one a door. The
+  // header's nav chips carry the same two counts abbreviated to "12K"/"6";
+  // these are the real figures, and they're what keeps the hero's functional
+  // column from opening a dead gap between the greeting and the search when
+  // the featured card sets the panel height. Suppressed wholesale on a fresh
+  // account — a row of zeroes is worse than no row.
+  const stats = [
+    { label: 'Cards', value: collectionCards.length, to: '/collection' },
+    { label: 'Decks', value: decks.length, to: '/decks' },
+    { label: 'Binders', value: binders.length, to: '/collection/binders' },
+  ];
+  const showStats = authed && stats.some((s) => s.value > 0);
+
   const name = formatIdentity({
     username: user?.username ?? '',
     displayName: profile?.displayName ?? null,
@@ -190,6 +209,28 @@ export function HomeHero() {
             <h1 className="home-hero-greeting">Plan your Magic: The Gathering collection</h1>
           )}
         </div>
+
+        {showStats && (
+          <ul className="home-hero-stats">
+            {stats.map((stat) => (
+              <li key={stat.label}>
+                <Link
+                  to={stat.to}
+                  className="home-hero-stat"
+                  aria-label={`${stat.value.toLocaleString()} ${singularize(
+                    stat.value,
+                    stat.label
+                  ).toLowerCase()}`}
+                >
+                  <span className="home-hero-stat-value">{stat.value.toLocaleString()}</span>
+                  <span className="home-hero-stat-label">
+                    {singularize(stat.value, stat.label)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
 
         <form className="home-hero-search" role="search" onSubmit={handleSubmit}>
           {/* A setting (what the search below targets), not a view switch —
