@@ -346,3 +346,55 @@ describe('search index backfill', () => {
     }
   });
 });
+
+describe('card_search rowid map (E259)', () => {
+  /** How many index rows exist for a printing — 1 unless we leaked duplicates. */
+  function indexRowsFor(dbPath: string, scryfallId: string): number {
+    const db = new Database(dbPath, { readonly: true });
+    try {
+      return (
+        db
+          .prepare('SELECT COUNT(*) AS n FROM card_search WHERE scryfall_id = ?')
+          .get(scryfallId) as { n: number }
+      ).n;
+    } finally {
+      db.close();
+    }
+  }
+
+  it('re-caching a card replaces its index row instead of duplicating it', () => {
+    const dbPath = path.join(dir, 'cards.db');
+    const c = card({ id: 'x-1', name: 'Sol Ring', oracle_text: 'Add two colorless mana.' });
+    cache.setMany([c]);
+    cache.setMany([{ ...c, oracle_text: 'Add two colorless mana. Updated.' }]);
+    cache.setMany([{ ...c, oracle_text: 'Add two colorless mana. Updated twice.' }]);
+
+    expect(indexRowsFor(dbPath, 'x-1')).toBe(1);
+    expect(cache.searchCards({ query: 'updated twice' }).map((r) => r.name)).toContain('Sol Ring');
+  });
+
+  it('an index built BEFORE the map still de-duplicates once the map backfills', () => {
+    // The upgrade path this fix has to survive: production already holds
+    // ~107k card_search rows with no card_search_map. If the backfill did not
+    // run, the first reindex of every card would find no rowid, skip the
+    // delete, and silently double the index.
+    const dbPath = path.join(dir, 'legacy.db');
+    const legacy = new ScryfallCache(dbPath);
+    const c = card({ id: 'y-1', name: 'Counterspell', oracle_text: 'Counter target spell.' });
+    legacy.setMany([c]);
+    legacy.close();
+
+    // Simulate the pre-fix on-disk state: index populated, map absent.
+    const raw = new Database(dbPath);
+    raw.exec('DROP TABLE IF EXISTS card_search_map');
+    raw.close();
+
+    const upgraded = new ScryfallCache(dbPath);
+    try {
+      upgraded.setMany([{ ...c, oracle_text: 'Counter target spell. Revised.' }]);
+      expect(indexRowsFor(dbPath, 'y-1')).toBe(1);
+    } finally {
+      upgraded.close();
+    }
+  });
+});
