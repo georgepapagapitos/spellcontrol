@@ -1,4 +1,4 @@
-import { useCallback, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Upload, Download, ChevronRight, Cloud, Link2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../Modal';
@@ -22,7 +22,12 @@ import {
 } from './import-deck-shared';
 import { isNativePlatform } from '../../lib/platform';
 import { pickNativeFiles } from '../../lib/native-file-picker';
-import { googlePickerAvailable, isCancelled, pickFromGoogleDrive } from '../../lib/google-picker';
+import {
+  googlePickerAvailable,
+  isCancelled,
+  pickFromGoogleDrive,
+  warmGooglePicker,
+} from '../../lib/google-picker';
 import { usePublishOnCreate, type PublishOutcome } from '../../lib/use-publish-on-create';
 
 const DECK_IMPORT_MIME = ['text/csv', 'text/tab-separated-values', 'text/plain'];
@@ -131,6 +136,11 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
   /** Web-only — see google-picker.ts. Native and un-keyed builds fall back to
    *  the link field below. */
   const canPickDrive = googlePickerAvailable();
+  // Warm Google's scripts before the click — awaiting them inside the handler
+  // spends the user activation the consent popup needs. See warmGooglePicker.
+  useEffect(() => {
+    if (canPickDrive) warmGooglePicker();
+  }, [canPickDrive]);
   const [deckName, setDeckName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
