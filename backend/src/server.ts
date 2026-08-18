@@ -1234,31 +1234,40 @@ function scheduleAggregatesRollup(): void {
 function scheduleScryfallBulkIngest(): void {
   const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 
-  // Only ever one ingest in flight. The 24h interval makes overlap unlikely in
-  // principle, but a run measured on 2026-08-18 had not finished after 10
-  // minutes, so "the next tick lands while the last is still going" is a real
-  // shape, not a hypothetical — and two threads writing the same SQLite file
+  // Only ever one ingest in flight — two threads writing the same SQLite file
   // is not something to find out about in production.
-  let running = false;
+  //
+  // But "skip while one is running" alone is a trap: an ingest CAN hang
+  // indefinitely. Observed twice on 2026-08-18, before the download was moved
+  // to disk — the transfer stalled and undici raised nothing at all, so the
+  // worker sat there holding a dead socket forever, with no error to react to.
+  // A permanent skip would then mean the ingest never runs again until someone
+  // redeploys. A worker still alive a full interval later is wedged, not slow,
+  // so it gets terminated and replaced. That is safe now that an interrupted
+  // run resumes from the downloaded dump instead of restarting from zero.
+  let current: Worker | null = null;
 
   const tick = () => {
-    if (running) {
-      logger.warn('[scryfall-bulk] previous ingest still running — skipping this tick');
-      return;
+    if (current) {
+      logger.error(
+        '[scryfall-bulk] previous ingest still running a full interval later — terminating it'
+      );
+      void current.terminate();
+      current = null;
     }
     // `.ts` under tsx in dev, `.js` from dist in production. Deriving it from
     // this module's own extension keeps the two in step without a build flag.
     const entry = path.join(__dirname, `scryfall-bulk.worker${path.extname(__filename)}`);
-    running = true;
     const started = Date.now();
     const worker = new Worker(entry, { workerData: { dbPath: DB_PATH } });
+    current = worker;
     worker.on('error', (err) => {
       // Worker construction/runtime failure. Without this listener the error
       // reaches the process as an unhandled 'error' event.
       logger.error('[scryfall-bulk] worker error:', err);
     });
     worker.on('exit', (code) => {
-      running = false;
+      if (current === worker) current = null;
       const secs = Math.round((Date.now() - started) / 1000);
       if (code === 0) logger.info(`[scryfall-bulk] worker finished in ${secs}s`);
       else logger.error(`[scryfall-bulk] worker exited with code ${code} after ${secs}s`);
