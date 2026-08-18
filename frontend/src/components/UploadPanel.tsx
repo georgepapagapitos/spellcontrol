@@ -8,7 +8,16 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
-import { Suspense, lazy, useId, useMemo, useRef, useState, type MouseEvent } from 'react';
+import {
+  Suspense,
+  lazy,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from 'react';
 import { formatRelativeTime } from '../lib/format-time';
 import { haptics } from '../lib/haptics';
 import { useCollectionStore, type ImportMode } from '../store/collection';
@@ -50,7 +59,12 @@ import { mergeStagedFiles, stagedFilesNotice } from '../lib/staged-files';
 import { useFileDrop } from '../lib/use-file-drop';
 import { isNativePlatform, openExternal } from '../lib/platform';
 import { pickNativeFiles } from '../lib/native-file-picker';
-import { googlePickerAvailable, isCancelled, pickFromGoogleDrive } from '../lib/google-picker';
+import {
+  googlePickerAvailable,
+  isCancelled,
+  pickFromGoogleDrive,
+  warmGooglePicker,
+} from '../lib/google-picker';
 
 const CSV_MIME_TYPES = ['text/csv', 'text/tab-separated-values', 'text/plain'];
 
@@ -152,6 +166,12 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   /** Web-only: Google blocks its OAuth popup inside the Capacitor WebView, and
    *  an un-keyed build has no credentials. Both fall back to the link field. */
   const canPickDrive = googlePickerAvailable();
+  // Load Google's scripts before the click, not during it: awaiting them inside
+  // the handler spends the user activation the consent popup needs, and the
+  // browser then blocks it outright. See warmGooglePicker.
+  useEffect(() => {
+    if (canPickDrive) warmGooglePicker();
+  }, [canPickDrive]);
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [stageNote, setStageNote] = useState<string | null>(null);
   const [showUnresolved, setShowUnresolved] = useState(false);

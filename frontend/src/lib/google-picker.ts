@@ -140,10 +140,36 @@ let token: { value: string; expiresAt: number } | null = null;
  */
 const POPUP_CLOSED_GRACE_MS = 1500;
 
+/**
+ * Google's two scripts, loaded ahead of the click.
+ *
+ * **This is why the button exists at all.** A browser only allows a popup while
+ * a user gesture is still "active", and awaiting a network round-trip spends
+ * that activation. Awaiting the gapi + GIS loads inside the click handler and
+ * *then* calling `requestAccessToken()` got the consent popup blocked outright
+ * — "Opening multiple popups was blocked due to lack of user activation" — so
+ * nothing ever opened. Warming them up front means the click reaches
+ * `requestAccessToken()` with the activation intact.
+ */
+export function warmGooglePicker(): void {
+  if (!googlePickerAvailable()) return;
+  // Fire and forget: a failure here just means the click path awaits instead,
+  // and it must never surface as an error the user didn't ask for.
+  void loadScript(GAPI_SRC).catch(() => {});
+  void loadScript(GIS_SRC).catch(() => {});
+}
+
+/** True once both scripts are in place, i.e. the click path needs no `await`. */
+function isWarm(): boolean {
+  const w = window as Win;
+  return Boolean(w.gapi && (w.google as { accounts?: unknown } | undefined)?.accounts);
+}
+
 async function getAccessToken(): Promise<string> {
   // Reuse while comfortably valid so picking a second file doesn't re-prompt.
   if (token && token.expiresAt - Date.now() > 60_000) return token.value;
-  await loadScript(GIS_SRC);
+  // Only await when the warm-up hasn't landed yet — see warmGooglePicker.
+  if (!isWarm()) await loadScript(GIS_SRC);
   return new Promise<string>((resolve, reject) => {
     let settled = false;
     const finish = (fn: () => void) => {
@@ -175,6 +201,18 @@ async function getAccessToken(): Promise<string> {
           // Might be a cancel, might be a grant whose token is still in flight
           // — see POPUP_CLOSED_GRACE_MS. `settled` makes the late token win.
           setTimeout(() => finish(() => reject(new CancelledError())), POPUP_CLOSED_GRACE_MS);
+          return;
+        }
+        // A blocked popup is a browser setting, not a bug the user can act on
+        // from a generic message — name the actual remedy.
+        if (e?.type === 'popup_failed_to_open') {
+          finish(() =>
+            reject(
+              new Error(
+                'Your browser blocked Google’s sign-in window. Allow pop-ups for this site, then try again.'
+              )
+            )
+          );
           return;
         }
         finish(() =>
@@ -272,11 +310,35 @@ function showPicker(accessToken: string): Promise<PickedDoc[]> {
  * logs it: this flow spans two Google libraries, a popup and an iframe, so a
  * failure nobody can see is the expensive kind. It stayed silent once already.
  */
-export async function pickFromGoogleDrive(): Promise<File[]> {
-  if (!googlePickerAvailable()) return [];
+/**
+ * The pick currently in flight, if any.
+ *
+ * A React `busy` flag cannot guard this: `setDriveBusy(true)` is asynchronous,
+ * so two quick clicks both read `false`, both start a flow, and both call
+ * `requestAccessToken()` — the browser blocks the second with "Opening multiple
+ * popups was blocked due to lack of user activation", and the user sees
+ * nothing open. Guarding at the module means every call site is covered,
+ * including any added later.
+ */
+let inFlight: Promise<File[]> | null = null;
+
+export function pickFromGoogleDrive(): Promise<File[]> {
+  if (!googlePickerAvailable()) return Promise.resolve([]);
+  if (inFlight) return inFlight;
+  inFlight = runPick().finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
+
+async function runPick(): Promise<File[]> {
   try {
-    await loadScript(GAPI_SRC);
+    // getAccessToken FIRST, and with no await before it when warm — the popup
+    // it opens needs this click's user activation, and awaiting the gapi load
+    // here is exactly what spent it. gapi is only needed later, for the picker
+    // iframe, which is not popup-gated.
     const accessToken = await getAccessToken();
+    await loadScript(GAPI_SRC);
     const docs = await showPicker(accessToken);
     if (docs.length === 0) return [];
     return await Promise.all(docs.map((d) => download(d, accessToken)));

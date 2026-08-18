@@ -40,6 +40,7 @@ vi.mock('../lib/google-picker', () => ({
   googlePickerAvailable: () => pickerAvailableMock(),
   googlePickerConfigured: () => pickerAvailableMock(),
   pickFromGoogleDrive: () => pickFromDriveMock(),
+  warmGooglePicker: () => {},
   CancelledError,
   isCancelled: (e: unknown) => e instanceof CancelledError,
 }));
