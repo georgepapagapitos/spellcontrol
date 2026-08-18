@@ -21,14 +21,20 @@ function stubGoogle(
     tokenError?: { type?: string };
     /** ms after popup_closed that the token arrives — reproduces the race. */
     tokenAfterPopupClose?: number;
+    /** Delay the token, as a real consent popup does — without this the whole
+     *  flow resolves synchronously and concurrency can't be modelled. */
+    tokenDelay?: number;
     docs?: { id: string; name: string; mimeType: string }[];
     cancel?: boolean;
   } = {}
 ) {
   const picked = opts.docs ?? [];
   let builtCallback: ((d: Record<string, unknown>) => void) | undefined;
-  /** What the module actually asked the Picker for. */
-  const seen: { appId?: string } = {};
+  /** What the module actually asked Google for. */
+  const seen: { appId?: string; tokenRequests: number; pickerShows: number } = {
+    tokenRequests: 0,
+    pickerShows: 0,
+  };
 
   const chain = () => {
     const b: Record<string, unknown> = {};
@@ -54,6 +60,7 @@ function stubGoogle(
       return b;
     };
     b.setVisible = () => {
+      seen.pickerShows++;
       builtCallback?.({
         action: opts.cancel ? 'cancel' : 'picked',
         docs: picked,
@@ -73,6 +80,7 @@ function stubGoogle(
           error_callback?: (e: unknown) => void;
         }) => ({
           requestAccessToken: () => {
+            seen.tokenRequests++;
             if (opts.tokenError) cfg.error_callback?.(opts.tokenError);
             // The race that broke this in production: the popup closing is
             // reported BEFORE the token that the same grant is about to
@@ -85,7 +93,10 @@ function stubGoogle(
               return;
             }
             if (!opts.tokenError) {
-              cfg.callback(opts.token ?? { access_token: 'tok', expires_in: 3600 });
+              const deliver = () =>
+                cfg.callback(opts.token ?? { access_token: 'tok', expires_in: 3600 });
+              if (opts.tokenDelay) setTimeout(deliver, opts.tokenDelay);
+              else deliver();
             }
           },
         }),
@@ -254,6 +265,54 @@ describe('picking', () => {
 
     const files = await m.pickFromGoogleDrive();
     expect(files.map((f) => f.name)).toEqual(['cards.csv']);
+  });
+
+  it('THE REGRESSION: two rapid clicks open exactly ONE consent popup', async () => {
+    // The reported failure was "Opening multiple popups was blocked due to
+    // lack of user activation" and nothing opening. A React busy flag can't
+    // prevent it — setDriveBusy(true) is async, so two quick clicks both read
+    // false and both start a flow. The second popup is then blocked. The guard
+    // has to be synchronous, which is why it lives in the module.
+    const m = await load(KEYED);
+    const seen = stubGoogle({
+      docs: [{ id: 'f1', name: 'a.csv', mimeType: 'text/csv' }],
+      tokenDelay: 20,
+    });
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response('Name\nForest\n'));
+
+    const [a, b] = await Promise.all([m.pickFromGoogleDrive(), m.pickFromGoogleDrive()]);
+    expect(seen.tokenRequests).toBe(1);
+    // Both callers still get the result — the second rides the first flow.
+    expect(a.map((f) => f.name)).toEqual(['a.csv']);
+    expect(b.map((f) => f.name)).toEqual(['a.csv']);
+  });
+
+  it('allows a fresh pick once the previous one has finished', async () => {
+    // The in-flight guard must release, or the button works exactly once.
+    const m = await load(KEYED);
+    const seen = stubGoogle({ docs: [{ id: 'f1', name: 'a.csv', mimeType: 'text/csv' }] });
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response('Name\nForest\n'));
+
+    await m.pickFromGoogleDrive();
+    await m.pickFromGoogleDrive();
+    // The token is cached for an hour, so the second pick correctly skips
+    // re-auth — what must happen twice is the PICKER opening.
+    expect(seen.pickerShows).toBe(2);
+    expect(seen.tokenRequests).toBe(1);
+  });
+
+  it('releases the in-flight guard after a failure too', async () => {
+    const m = await load(KEYED);
+    const seen = stubGoogle({ token: { error: 'access_denied' } });
+    await expect(m.pickFromGoogleDrive()).rejects.toThrow();
+    await expect(m.pickFromGoogleDrive()).rejects.toThrow();
+    expect(seen.tokenRequests).toBe(2);
+  });
+
+  it('tells the user how to fix a browser-blocked popup', async () => {
+    const m = await load(KEYED);
+    stubGoogle({ tokenError: { type: 'popup_failed_to_open' } });
+    await expect(m.pickFromGoogleDrive()).rejects.toThrow(/Allow pop-ups/i);
   });
 
   it('surfaces a real token failure', async () => {
