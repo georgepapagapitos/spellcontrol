@@ -16,6 +16,13 @@ import { isNativePlatform } from './platform';
  * run in the Capacitor app. Native is not left short: its system document
  * picker already lists Drive (see `native-file-picker.ts`), and the pasted-link
  * path still covers native Sheets. `googlePickerAvailable()` is the gate.
+ *
+ * ⛔ **The API key must NOT carry a Websites (HTTP referrer) restriction.** The
+ * Picker's backend never receives the hosting page's `Referer`, so such a
+ * restriction can never match and every open fails with the misleading "The API
+ * developer key is invalid". Restrict the key by *API* instead (Picker + Drive)
+ * — see `.env.example`. Two response headers also have to cooperate; both are
+ * pinned by `backend/src/security-headers.test.ts`.
  */
 
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string | undefined;
