@@ -1,0 +1,27 @@
+/* Mana + Keyrune, re-declared to point at our own woff2 builds.
+ *
+ * The vendor @font-face rules (mana-font/css/mana.min.css,
+ * keyrune/css/keyrune.min.css) serve fonts whose every glyph carries the same
+ * placeholder bbox instead of its real bounds, so Firefox logs ~940
+ * `glyf: Glyph bbox was incorrect; adjusting` warnings per page load. These
+ * rules come later in the cascade and so win the font-family match, pointing
+ * both families at the fixed builds from scripts/rebuild-icon-fonts.py — which
+ * are also woff2-only, halving what the browser downloads (668K -> 322K).
+ *
+ * Imported immediately after the vendor CSS in main.tsx; the icon classes
+ * (.ms-*, .ss-*) still come from the vendor stylesheets.
+ */
+
+@font-face {
+  font-family: 'Mana';
+  src: url('../assets/fonts/mana.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Keyrune';
+  src: url('../assets/fonts/keyrune.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
