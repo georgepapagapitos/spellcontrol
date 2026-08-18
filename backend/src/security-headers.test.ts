@@ -30,16 +30,15 @@ describe('security headers', () => {
     );
   });
 
-  it('still sends an origin referrer, which referrer-restricted API keys need', () => {
-    // Helmet's default is `no-referrer`, which tells the browser to send no
-    // Referer at all — so a Google API key restricted to specific websites can
-    // never match, and every Picker request came back "Requests from referer
-    // <empty> are blocked". The Picker reports that as "The API developer key
-    // is invalid", sending you to the Cloud Console to fix settings that were
-    // already correct.
-    expect(SERVER_TS).toMatch(
-      /referrerPolicy:\s*\{\s*policy:\s*'strict-origin-when-cross-origin'\s*\}/
-    );
+  it('sends no referrer at all', () => {
+    // Deliberately the strictest option: no outbound request reveals where the
+    // user was. This was briefly relaxed to `strict-origin-when-cross-origin`
+    // (#1675) on the theory that the Drive Picker's referrer-restricted API key
+    // needed a referrer to match — it did not help, because the Picker's
+    // backend never receives the page's Referer at all. The key must be
+    // unrestricted-by-website regardless, so relaxing this bought nothing.
+    // Guarding the strict value keeps that dead end from being re-walked.
+    expect(SERVER_TS).toMatch(/referrerPolicy:\s*\{\s*policy:\s*'no-referrer'\s*\}/);
   });
 
   it('does not silently fall back to helmet defaults for COOP', () => {
