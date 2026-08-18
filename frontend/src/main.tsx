@@ -5,6 +5,9 @@ import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import 'mana-font/css/mana.min.css';
 import 'keyrune/css/keyrune.min.css';
+// Must follow the two vendor stylesheets — it re-points their @font-face rules
+// at our bbox-corrected woff2 builds (see the file header).
+import './styles/icon-fonts.css';
 // Split from the former styles/global.css — imported in original cascade order
 // so the split is a pure file-organization change (no behavior change).
 import './styles/tokens.css';
