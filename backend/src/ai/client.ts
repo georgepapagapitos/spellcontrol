@@ -154,6 +154,17 @@ export async function generateReview(
     const res = await stream.finalMessage();
     inputTokens += res.usage.input_tokens;
     outputTokens += res.usage.output_tokens;
+    // Cache reads are billed at ~0.1x and are NOT part of `input_tokens`, so
+    // the usage we store and show can't tell a landing breakpoint from a
+    // silently invalidated one — the difference is 10x on a prefix every turn
+    // resends. Per turn, not per generation: the shape is the signal (turn 1
+    // writes, later turns read), and a run whose read stays 0 after the first
+    // turn has an invalidator, not a cold cache.
+    logger.info(
+      `[ai] usage turn=${i} in=${res.usage.input_tokens} out=${res.usage.output_tokens} ` +
+        `cacheWrite=${res.usage.cache_creation_input_tokens ?? 0} ` +
+        `cacheRead=${res.usage.cache_read_input_tokens ?? 0}`
+    );
 
     if (res.stop_reason === 'refusal') {
       throw new Error('The model declined to review this deck.');
