@@ -3,6 +3,15 @@
  * (global.css owns the bottom-sheet ↔ centered-modal swap, the scrim, and
  * safe-area insets by construction). */
 
+/* Desktop: the shell's 480px default splits into ~220px Top/Bottom drop
+   columns — give the two-column reorder room (dense-dialog ruling,
+   STYLE_GUIDE § Overlays). */
+@media (min-width: 1024px) {
+  .card-picker-sheet.playtest-scry-sheet {
+    width: min(720px, 92vw);
+  }
+}
+
 .playtest-scry-sheet .card-picker-header {
   display: flex;
   flex-direction: column;

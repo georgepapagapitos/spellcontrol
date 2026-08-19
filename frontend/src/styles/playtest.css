@@ -1087,6 +1087,15 @@ body:has(.playtest-page) {
 
 /* ── Token creator (layered on the shared card-picker sheet) ───────────── */
 
+/* Desktop: the shell's 480px default piles the preset chips into a tall
+   column — widen so the chip cloud breathes, mirroring DeckTokensSheet
+   (dense-dialog ruling, STYLE_GUIDE § Overlays). */
+@media (min-width: 1024px) {
+  .card-picker-sheet.playtest-token-sheet {
+    width: min(640px, 92vw);
+  }
+}
+
 .playtest-token-presets {
   display: flex;
   flex-wrap: wrap;
