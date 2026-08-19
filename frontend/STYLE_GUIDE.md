@@ -1257,6 +1257,15 @@ Any future line/trend chart follows the same specs (horizontal bars stay on
   two-class rule (`.card-picker-sheet.deck-size-prompt { width: min(42rem,
   calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
   regardless of import order, same cascade rule as the Home bento overrides.
+  Swept fleet-wide 2026-08-19; the current widths, for consistency when
+  adding a sibling: Add cards 900 · Test hand 1180 · CardGroup 960 ·
+  NewArrivals / PullList 720 · ConflictPanel 720 · DeckSizePrompt 42rem ·
+  BuildReport / BetweenYourDecks / DeckTokens 640 · BuyList / DeckPrimer
+  ≈560. A new overlay whose body is rows, a diff, images, or anything you
+  *work in* picks from this table — it does not ship on the 480px default.
+  (Playtest's eight `card-picker-sheet` consumers still ride 480px —
+  un-swept; the card-bearing ones (zone viewer, scry, opening hand, stats)
+  are the known next slice.)
 - **`CardPreview` ≥1024px is two panes, not a scaled-up phone sheet.** The
   bottom-band panel scaled to desktop left centered text floating in a
   full-width dark strip, and "expanding" it crushed the hero card to a
