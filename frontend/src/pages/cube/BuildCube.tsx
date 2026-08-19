@@ -225,7 +225,7 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
     const reserved = picks.filter((p) => p.allocatedCopyId).length;
     cubeStore.setPhysical(physicalTarget.id, true, picks);
     pushToast({
-      message: `“${physicalTarget.name}” marked physical — reserved ${reserved} of your copies`,
+      message: `“${physicalTarget.name}” marked physical — reserved ${reserved} of your copies.`,
       tone: 'success',
     });
     setPhysicalTarget(null);
@@ -286,7 +286,12 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
                 className={`cube-saved-row${sc.id === highlightId ? ' cube-saved-row--target' : ''}`}
                 aria-current={sc.id === highlightId ? 'true' : undefined}
               >
-                <button type="button" className="cube-saved-load" onClick={() => handleLoad(sc)}>
+                <button
+                  type="button"
+                  className="cube-saved-load"
+                  title={sc.name}
+                  onClick={() => handleLoad(sc)}
+                >
                   <span className="cube-saved-name">{sc.name}</span>
                   <span className="cube-saved-meta">
                     {sc.size} cards · {SIZE_INFO[sc.size].players} players · saved{' '}

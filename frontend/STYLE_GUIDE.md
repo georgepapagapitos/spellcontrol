@@ -164,7 +164,10 @@ body never re-asks the question.
 **Toasts:** a status fragment takes no period ("Added Sol Ring", "Undone: cut
 Llanowar Elves"); a complete sentence takes one ("Prices refreshed.", "Link
 copied to clipboard."). Pick fragment for action confirmations, sentence for
-state announcements.
+state announcements. A binary toggle's two toasts (on-state and off-state)
+carry matching punctuation — review them side by side, not in isolation;
+the cube physical toggle shipped one state with a period and its sibling
+without.
 
 **Physical-reconciliation actions (binder review queue, #1019):** when a row
 asks the user to reconcile app state with the physical world, the button
@@ -2827,7 +2830,19 @@ gated, so the test is what holds the line — mirror of `radius-tokens.test.ts`)
   ```
 
   `focus-visible-rings.test.ts` enforces this (subset-coverage aware, with a
-  short justified allowlist for base-class-covered variants).
+  short justified allowlist for base-class-covered variants). Its keyword
+  list gained `card` in the sweep-3 remediation — that one word surfaced 26
+  latent keyboard-invisible tiles/rows app-wide, so when naming a new
+  interactive class, prefer a keyword the guard already knows. **Known blind
+  spot:** the guard pairs rings against `:hover`, so a control with *neither*
+  hover nor focus-visible is invisible to it (bit the playtest zones drawer);
+  a control with no hover still needs its ring.
+- **Icon-only controls carry a hover treatment like their row siblings.** A
+  stepper `+`/`−` or remove `×` has no text affordance at rest; one control
+  in a row with hover feedback and its sibling without reads as "this one is
+  broken". `outline-offset: 2px` is the ring default — a tighter 1px is only
+  for a control whose ring would clip a flush neighbour, stated in a comment
+  at the declaration.
 
 - **`outline: none` inside a `:focus-visible` block is invalid.** A block that
   sets `outline: none` and relies only on a border-color or background shift
@@ -3794,8 +3809,11 @@ revealed only at `≥1024px` + `(hover:hover) and (pointer:fine)` — i.e. deskt
 fine-pointer only. Do NOT add similar chips to page headers/toolbars.
 
 **`kbd` styling.** The overlay uses `.shortcuts-overlay-kbd` (from `styles/modals-dialogs.css`).
-The footer chip uses `.footer-shortcuts-kbd`. Both have the same visual treatment
-(mono, small-caps-border box) — don't hand-roll a third variant.
+The footer chip uses `.footer-shortcuts-kbd`, and the command palette's
+`.cmdk-footer kbd` now matches them. All three share one visual treatment
+(mono, `--text-primary` on `--surface-raised`, `--border-strong` box) — don't
+hand-roll a fourth variant (the palette shipped as a divergent third and was
+re-aligned in sweep 3).
 
 ---
 

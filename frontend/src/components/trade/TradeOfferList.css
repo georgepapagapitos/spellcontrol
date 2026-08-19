@@ -279,6 +279,10 @@
 .trade-offer-chip-name {
   font-size: var(--text-xs);
   color: var(--text-primary);
+  /* Row-flex item beside a fixed thumb: default min-width:auto = the full
+     nowrap text width, so without this the ellipsis never engages and a
+     long name overflows the chip border. */
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

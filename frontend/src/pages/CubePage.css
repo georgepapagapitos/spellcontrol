@@ -37,6 +37,7 @@
 .cube-error {
   background: var(--err-bg);
   color: var(--err-text);
+  border: 1px solid var(--err-border);
 }
 
 .cube-empty {
@@ -398,12 +399,17 @@
   color: var(--text-muted);
 }
 
+/* Section titles join the canonical serif/uppercase treatment (.cube-saved-head)
+   so all five headings on the page read in one register. */
 .cube-balance h3,
 .cube-gaps h3,
 .cube-list h3 {
   margin: 0 0 var(--space-2);
-  font-size: var(--text-base);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
   color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 .cube-legend {
   list-style: none;
@@ -441,8 +447,11 @@
 }
 .cube-archetypes-head h3 {
   margin: 0;
-  font-size: var(--text-base);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
   color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 .cube-draftability {
   display: inline-flex;
@@ -806,6 +815,13 @@
 .cube-collab-friend-row.disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* Same 44px coarse floor its sibling picker (.cube-size-opt) already takes. */
+@media (pointer: coarse) {
+  .cube-collab-friend-row {
+    min-height: 44px;
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {

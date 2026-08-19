@@ -1702,3 +1702,11 @@
     min-height: 44px;
   }
 }
+
+/* a11y (sweep 3): ring parity for :hover selectors surfaced when the
+   focus-visible guard's keyword list gained `card`. */
+.scanner-card-panel-main:focus-visible,
+.scanner-card-panel-set:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+}
