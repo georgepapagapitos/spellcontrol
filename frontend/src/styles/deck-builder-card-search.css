@@ -37,11 +37,14 @@
 
 /* Desktop workbench (E126): the default 480px picker modal is too cramped for
    a power search with badges + art thumbs — widen it (test-hand precedent:
-   the shared shell already takes per-sheet width overrides ≥1024px). */
+   the shared shell already takes per-sheet width overrides ≥1024px). This
+   modal is the ONLY desktop presentation — the ≥1280px docked .deck-add-rail
+   was retired 2026-08-19 (a 400px column cramped the search; don't re-add) —
+   so size it like a workspace, not a dialog. */
 @media (min-width: 1024px) {
   .deck-add-sheet {
-    height: 74vh;
-    width: min(92vw, 760px);
+    height: 80vh;
+    width: min(92vw, 900px);
   }
 }
 
@@ -651,48 +654,4 @@
 .card-search-add:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-}
-
-/* Workbench rail (≥1280px): the add panel docks beside the deck instead of
-   covering it — the decklist stays visible and live while adding. Reuses
-   .deck-add-sheet's inner layout rules; this block only reshapes the outer
-   box from a floating sheet into a docked sticky column. */
-@media (min-width: 1280px) {
-  .deck-editor-layout {
-    flex-direction: row;
-    align-items: flex-start;
-  }
-  .deck-editor-main {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-  .deck-add-rail {
-    flex: 0 0 400px;
-    width: 400px;
-    /* DEFINITE height, not auto+max-height: with an indefinite height chain
-       the inner percentage caps can't resolve (.card-search-ai's
-       max-height: 60% collapsed the AI strip to an 8px sliver). Also keeps
-       the rail a stable frame across tabs — the same rationale as the
-       sheet's pinned 74vh. Shrunk by --deck-view-tabs-sticky-h to match the
-       `top` offset below, so the bottom edge lands in the same place. */
-    height: calc(100dvh - 7.5rem - var(--deck-view-tabs-sticky-h));
-    position: sticky;
-    /* Pins BENEATH the page's own sticky Deck/Stats/Power/Coach strip
-       (.deck-editor-view-tabs, also --z-popover, always present above this
-       row) instead of `var(--space-3)` alone — that used to stick the rail
-       12px from the viewport top, which is UNDER the tabs strip's ~40px
-       sticky box. Same z-index + earlier in the stacking order meant the
-       strip painted over the rail's own top content (the Mainboard/
-       Sideboard/Considering zone toggle), hiding it to a sliver on scroll. */
-    top: calc(var(--deck-view-tabs-sticky-h) + var(--space-3));
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    background: var(--surface);
-    border: 0.5px solid var(--border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-card, none);
-    overflow: hidden;
-    padding-bottom: var(--space-3);
-  }
 }

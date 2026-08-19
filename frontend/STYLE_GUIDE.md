@@ -1270,13 +1270,14 @@ Any future line/trend chart follows the same specs (horizontal bars stay on
   the stacked sheet and its Details toggle unchanged. Flanking carousel
   slides render at `opacity: 0.45` at every width — the centered card is the
   one being read.
-- **Exception — the deck editor's workbench rail.** At ≥1280px, "Add cards"
-  stops being an overlay: it docks beside the live decklist as a persistent
-  `.deck-add-rail` column instead of covering it. It takes no dialog
-  semantics (no `role="dialog"`/`aria-modal`, no focus trap, no backdrop, no
-  slide animation) — it's a normal in-flow sibling, toggled by the same
-  disclosure state as the sheet. Below 1280px the sheet/modal presentation
-  above is unchanged.
+- **The deck editor's workbench rail is RETIRED (2026-08-19) — don't
+  re-add it.** The ≥1280px `.deck-add-rail` docked "Add cards" beside the
+  decklist as a 400px sticky column; the user ruled the narrow column made
+  the search panel cramped and reverted it. "Add cards" is the card-picker
+  sheet/modal at every width, sized as a workspace on desktop
+  (`.deck-add-sheet` at `min(92vw, 900px) × 80vh`). Deck-view review
+  dialogs follow the dense-dialog ruling above rather than the 480–520px
+  phone default: `NewArrivalsSheet` 720px, `BuildReportSheet` 640px.
 - **Every card-picker sheet dims the page behind it — by construction.** The
   scrim lives on the shell itself: `:where(.card-picker-root) { background:
 var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
