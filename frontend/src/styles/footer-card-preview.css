@@ -581,8 +581,12 @@
   -webkit-backface-visibility: hidden;
   /* Use clip-path instead of overflow:hidden — the latter creates a paint
      boundary that can override backface-visibility in some browsers, which
-     ends up showing the mirrored front face when the flipper is at 180°. */
-  clip-path: inset(0 round 14px);
+     ends up showing the mirrored front face when the flipper is at 180°.
+     Radius is proportional (≈ a real card's 4.7%-of-width corner, 3.37% of
+     height at the fixed 488/680 aspect) so it always covers the corner fill
+     baked into Scryfall JPEG scans — white on scanned printings — at any
+     rendered size; a fixed px radius only trimmed a sliver of it. */
+  clip-path: inset(0 round 4.7% / 3.37%);
   /* Promote each face to its own compositing layer. The clip-path keeps the
      faces out of the compositor, and Chrome then ignores backface-visibility
      WHILE the flipper's transform is animating — the outgoing face paints
