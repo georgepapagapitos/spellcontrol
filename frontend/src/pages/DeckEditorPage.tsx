@@ -2746,6 +2746,16 @@ export function DeckEditorPage() {
           {renaming ? (
             <div
               className="deck-editor-hero-edit"
+              // Clicking a color swatch must not blur-commit: the visible
+              // swatch span isn't focusable, so mousedown moves focus to
+              // <body> (relatedTarget null) and the commit unmounts this UI
+              // before the radio's click ever fires — the color never changed.
+              // Keeping focus put (except for text inputs, which need it)
+              // fixes that in every browser, Safari's no-focus buttons included.
+              onMouseDown={(e) => {
+                const t = e.target as HTMLElement;
+                if (!t.matches('input:not([type="radio"])')) e.preventDefault();
+              }}
               onBlur={(e) => {
                 if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
                   handleCommitRename();
