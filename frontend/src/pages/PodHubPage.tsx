@@ -396,6 +396,7 @@ export function PodHubPage() {
   if (notFound) {
     return (
       <div className="pod-hub">
+        <BackLink />
         <div className="empty-state" role="status">
           <p className="empty-state-tagline">Pod not found.</p>
           <p className="empty-state-hint">
@@ -725,7 +726,11 @@ export function PodHubPage() {
       {removeTarget && (
         <ConfirmDialog
           title={`Remove ${removeTarget.username} from ${pod.name}?`}
-          body="They'll lose access to the pod immediately."
+          body={
+            removeTarget.status === 'invited'
+              ? "The invite is withdrawn — they won't be able to join from it."
+              : "They'll lose access to the pod immediately."
+          }
           confirmLabel={removeBusy ? 'Removing…' : 'Remove'}
           danger
           onConfirm={() => void handleRemoveMember()}

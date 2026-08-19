@@ -425,7 +425,7 @@ export function DeckAiRefine({
                             onClick={() => cycleAlt(t.add, alts.length)}
                             aria-label={`Try another alternative to ${shownName}`}
                           >
-                            <RefreshCw width={14} height={14} aria-hidden />
+                            <RefreshCw width={16} height={16} aria-hidden />
                           </button>
                         )}
                         <button
@@ -434,7 +434,7 @@ export function DeckAiRefine({
                           onClick={() => dismiss(t.add)}
                           aria-label={`Dismiss ${shownName}`}
                         >
-                          <X width={14} height={14} aria-hidden />
+                          <X width={16} height={16} aria-hidden />
                         </button>
                         {applied.has(t.add) ? (
                           <span className="deck-ai-tweak-done">
