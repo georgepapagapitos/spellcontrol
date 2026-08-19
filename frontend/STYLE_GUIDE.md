@@ -4343,3 +4343,21 @@ Model-written text always says so. The rulings:
   height; the standalone bulk-apply and undo buttons take their floor
   directly via a two-class selector (`.btn.deck-ai-bulk-apply`) so it beats
   responsive-nav.css's same-specificity `.btn { min-height: 36px }`.
+- **Rule citations in AI prose are text-level, in the accent, and expand to
+  the official text on the same page** (E261, `/rules`). A cited rule number
+  (`.rules-ref-chip`) takes the card-chip treatment (weight + underline in
+  running text, never a pill) but in `--accent`, because it expands content
+  below rather than opening a preview overlay; it carries `aria-expanded` +
+  `aria-controls` for the row it toggles in the "Rules cited" list. **Only
+  refs the server verified against the corpus become interactive** — an
+  unverified number stays plain prose, exactly as a hallucinated card name
+  gets no chip. Every AI answer that quotes an authority renders the
+  authority's own text within reach, plus a plain-words disclaimer
+  ("AI can misread corner cases — for tournament play, ask a judge"):
+  grounding the reader can check is the feature, not decoration.
+- **The Rules Reference sheet carries the AI escalation door** (E261): one
+  quiet insight-strip row above its footer — "Ask a rules question", Sparkles
+  glyph, "AI — cites the rules" hint — that closes the sheet and navigates to
+  `/rules`, seeding the ask box with the search that came up short (a seed
+  only; nothing sends until Ask). Self-hiding like every AI surface: without
+  AI the sheet is exactly today's sheet.

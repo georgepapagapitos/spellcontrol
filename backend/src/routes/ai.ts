@@ -37,6 +37,24 @@ import {
   parseRefineRequest,
   type RefineTweak,
 } from '../ai/deck-refine';
+import {
+  ANSWER_MARK,
+  RULES_QA_FEATURE,
+  RULES_QA_PROMPT_VERSION,
+  RULES_QA_RESEARCH_PROMPT,
+  RULES_QA_SYSTEM_PROMPT,
+  buildRulesQaMessage,
+  citedRuleRefs,
+  getRuleTool,
+  hashRulesQaInput,
+  lookupCardTool,
+  makeAnswerGate,
+  parseRulesQuestion,
+  renderFetchedRules,
+  searchRulesTool,
+  stripAnswerMark,
+} from '../ai/rules-qa';
+import { getRulesIndex, type RuleEntry } from '../rules';
 
 /**
  * Oracle facts don't expire the way prices do, so card lookups that only read
@@ -789,3 +807,278 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
   });
   res.end();
 });
+
+/** A rule the answer cited, resolved back to its official text. */
+interface CitedRule {
+  ref: string;
+  text: string;
+}
+
+/**
+ * Resolve every rule number the prose cites against the CR index — recomputed
+ * on every read, cache hits included, so a stored answer re-verifies against
+ * the CURRENT rules document (the same property-over-provenance reasoning as
+ * the refine replay). A cited ref the corpus doesn't hold is reported so the
+ * caller can log it as the prompt-drift signal; it simply gets no citation
+ * card in the UI, same as a hallucinated card name gets no chip.
+ */
+function hydrateCitations(content: string): { rules: CitedRule[]; missing: string[] } {
+  const index = getRulesIndex();
+  const rules: CitedRule[] = [];
+  const missing: string[] = [];
+  for (const ref of citedRuleRefs(content)) {
+    const hit = index.getExact(ref);
+    if (hit) rules.push({ ref: hit.ref, text: hit.body });
+    else missing.push(ref);
+  }
+  return { rules, missing };
+}
+
+interface RulesDone {
+  content: string;
+  cached: boolean;
+  model: string;
+  usage: { inputTokens: number; outputTokens: number };
+  /** Present + true only when the reply was cut off at max_tokens. */
+  truncated?: boolean;
+  /** Cards the model looked up — see {@link ReviewDone.fetched}. */
+  fetched?: string[];
+  /** Every rule the answer cites, with its official text, in citation order. */
+  rules: CitedRule[];
+}
+type RulesLine = { delta: string } | { done: RulesDone } | { error: string };
+
+// ────────────────────────────────────────────────
+// GET /api/ai/rules-history — the user's past rules questions, newest first.
+// A DB read of their own generated content: free, spends no quota, never
+// touches the model. Citations are re-hydrated per row (see hydrateCitations).
+// ────────────────────────────────────────────────
+aiRouter.get('/rules-history', requireAuth, async (req: Request, res: Response) => {
+  const rows = await getPool().query<{
+    id: string;
+    question: string | null;
+    content: string;
+    created_at: string | number;
+    fetched_names: string[] | null;
+  }>(
+    `SELECT id, question, content, created_at, fetched_names
+       FROM ai_reviews
+      WHERE user_id = $1 AND feature = $2
+      ORDER BY created_at DESC
+      LIMIT 20`,
+    [req.user!.id, RULES_QA_FEATURE]
+  );
+  res.json({
+    effectiveDate: getRulesIndex().status().effectiveDate,
+    questions: rows.rows.map((r) => {
+      const content = stripAnswerMark(r.content);
+      return {
+        id: r.id,
+        question: r.question ?? '',
+        content,
+        createdAt: Number(r.created_at),
+        rules: hydrateCitations(content).rules,
+        ...(r.fetched_names?.length ? { fetched: r.fetched_names } : {}),
+      };
+    }),
+  });
+});
+
+// ────────────────────────────────────────────────
+// POST /api/ai/rules-question — the rules Q&A itself (E261). Same flow as the
+// deck review: consent → hash → cache hit (free) → quota → two model passes
+// (research with tools, tool-free writing) → store + terminate. Same NDJSON
+// wire, same `ai_reviews` cache/quota/audit row, question stamped on the row
+// so history can show it.
+// ────────────────────────────────────────────────
+aiRouter.post(
+  '/rules-question',
+  reviewLimiter,
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const parsed = parseRulesQuestion(req.body);
+    if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+    const { question } = parsed.value;
+    const userId = req.user!.id;
+
+    const user = await loadAiUser(userId);
+    if (!user.ai_opt_in) {
+      return res.status(403).json({ error: 'AI features are not enabled for this account.' });
+    }
+
+    const inputHash = hashRulesQaInput(question);
+    const pool = getPool();
+
+    res.on('error', () => {});
+    const ac = new AbortController();
+    req.on('close', () => {
+      if (!res.writableEnded) ac.abort();
+    });
+    let streaming = false;
+    const send = (line: RulesLine) => {
+      if (!streaming) {
+        streaming = true;
+        res.status(200);
+        res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store');
+        res.setHeader('X-Accel-Buffering', 'no');
+      }
+      if (!res.writableEnded) res.write(`${JSON.stringify(line)}\n`);
+    };
+
+    const cached = await pool.query<{
+      content: string;
+      model: string;
+      input_tokens: number;
+      output_tokens: number;
+      fetched_names: string[] | null;
+    }>(
+      `SELECT content, model, input_tokens, output_tokens, fetched_names
+       FROM ai_reviews
+      WHERE user_id = $1 AND feature = $2 AND input_hash = $3`,
+      [userId, RULES_QA_FEATURE, inputHash]
+    );
+    if (cached.rows.length > 0) {
+      const row = cached.rows[0];
+      // Belt-and-braces: rows written before the marker strip shipped carry it.
+      const content = stripAnswerMark(row.content);
+      send({ delta: content });
+      send({
+        done: {
+          content,
+          cached: true,
+          model: row.model,
+          usage: { inputTokens: row.input_tokens, outputTokens: row.output_tokens },
+          rules: hydrateCitations(content).rules,
+          ...(row.fetched_names?.length ? { fetched: row.fetched_names } : {}),
+        },
+      });
+      return res.end();
+    }
+
+    const rulesIndex = getRulesIndex();
+    if (rulesIndex.status().count === 0) {
+      // First boot before the CR ingest lands (or the scrape broke). Honest and
+      // retriable beats an answer grounded in nothing.
+      return res
+        .status(503)
+        .json({ error: 'The rules database is still loading. Try again in a minute.' });
+    }
+
+    const limit = user.ai_daily_limit ?? DEFAULT_DAILY_LIMIT;
+    const used = await usedToday(userId);
+    if (used >= limit) {
+      return res.status(429).json({
+        error: `Daily limit reached (${limit} per day). It resets at midnight UTC.`,
+      });
+    }
+
+    // TWO PASSES, exactly like the deck review (#1660): research with tools
+    // whose prose is discarded wholesale, then a tool-free writing pass that
+    // receives everything the research retrieved. The fetched rules ride a
+    // collector on the tool closures — the loop's `fetched` carries cards only.
+    const cache = getScryfallCache();
+    const fetchedRules: RuleEntry[] = [];
+    const collect = (rule: RuleEntry) => {
+      if (!fetchedRules.some((r) => r.ref === rule.ref)) fetchedRules.push(rule);
+    };
+    const userMessage = buildRulesQaMessage(question);
+    let generation;
+    try {
+      const research = await generateReview(
+        RULES_QA_RESEARCH_PROMPT,
+        userMessage,
+        undefined,
+        ac.signal,
+        {
+          tools: [
+            searchRulesTool(rulesIndex, collect),
+            getRuleTool(rulesIndex, collect),
+            lookupCardTool(cache),
+          ],
+        }
+      );
+
+      const found = [renderFetchedRules(fetchedRules), renderFetchedCards(research.fetched)]
+        .filter(Boolean)
+        .join('\n\n');
+      generation = await generateReview(
+        RULES_QA_SYSTEM_PROMPT,
+        found ? `${userMessage}\n\n${found}` : userMessage,
+        // The loop's gate releases from the marker INCLUSIVE — strip it so it
+        // never flickers across the reader's screen as prose.
+        makeAnswerGate((text) => send({ delta: text })),
+        ac.signal,
+        { answerMarker: ANSWER_MARK, endMarker: END_MARK }
+      );
+      generation = {
+        ...generation,
+        content: stripAnswerMark(generation.content),
+        fetched: research.fetched,
+        inputTokens: generation.inputTokens + research.inputTokens,
+        outputTokens: generation.outputTokens + research.outputTokens,
+      };
+    } catch (err) {
+      if (err instanceof APIUserAbortError) {
+        return res.end();
+      }
+      logger.error('[ai] rules question generation failed', err);
+      if (streaming) {
+        send({ error: 'The answer could not be generated. Try again.' });
+        return res.end();
+      }
+      return res.status(502).json({ error: 'The answer could not be generated. Try again.' });
+    }
+
+    if (generation.truncated) {
+      logger.warn('[ai] rules answer truncated at max_tokens');
+    }
+
+    // Grounding drift is logged, never stripped — same as the review's citation
+    // check. A cited ref the corpus doesn't hold reaches the client as plain
+    // text with no citation card behind it.
+    const { rules, missing } = hydrateCitations(generation.content);
+    if (missing.length > 0) {
+      logger.warn(
+        `[ai] rules answer cited ${missing.length} unknown rule(s) ` +
+          `(promptVersion=${RULES_QA_PROMPT_VERSION}): ${missing.join(', ')}`
+      );
+    }
+
+    const fetchedNames = lookedUpNames(generation.fetched);
+
+    await pool.query(
+      `INSERT INTO ai_reviews
+       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, created_at, prompt_version, fetched_names, question)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+     ON CONFLICT (user_id, feature, input_hash) DO NOTHING`,
+      [
+        crypto.randomUUID(),
+        userId,
+        RULES_QA_FEATURE,
+        inputHash,
+        AI_MODEL,
+        generation.content,
+        generation.inputTokens,
+        generation.outputTokens,
+        Date.now(),
+        RULES_QA_PROMPT_VERSION,
+        JSON.stringify(fetchedNames),
+        question,
+      ]
+    );
+
+    send({
+      done: {
+        content: generation.content,
+        cached: false,
+        model: AI_MODEL,
+        usage: { inputTokens: generation.inputTokens, outputTokens: generation.outputTokens },
+        rules,
+        ...(generation.truncated ? { truncated: true } : {}),
+        ...(fetchedNames.length ? { fetched: fetchedNames } : {}),
+      },
+    });
+    res.end();
+  }
+);

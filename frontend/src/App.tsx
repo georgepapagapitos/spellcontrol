@@ -23,6 +23,7 @@ import { YouPage } from './pages/YouPage';
 import { FriendsPage } from './pages/FriendsPage';
 import { AdminPage } from './pages/AdminPage';
 import { PlayPage } from './pages/PlayPage';
+import { RulesPage } from './pages/RulesPage';
 import AuthPage from './pages/AuthPage';
 import ChooseUsernamePage from './pages/ChooseUsernamePage';
 import { SharedView } from './pages/SharedView';
@@ -314,6 +315,7 @@ export default function App() {
           <Route path="/decks/:id" element={<DeckEditorPage />} />
           <Route path="/decks/:id/playtest" element={<PlaytestPage />} />
           <Route path="/play" element={<PlayPage />} />
+          <Route path="/rules" element={<RulesPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/tags" element={<TagsPage />} />
           <Route path="/you" element={<YouPage />} />
