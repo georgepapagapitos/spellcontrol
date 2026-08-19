@@ -50,7 +50,8 @@
 }
 
 .deck-ai-strip:active {
-  transform: scale(0.99);
+  /* Canonical press feedback value (STYLE_GUIDE § Motion). */
+  transform: scale(0.97);
 }
 
 .deck-ai-strip:focus-visible {
@@ -134,22 +135,22 @@
   padding: var(--space-1) 0;
 }
 
+/* The one shared shimmer (STYLE_GUIDE § Motion) — no bespoke pulse clone. */
 .deck-ai-skeleton-line {
   height: 0.8rem;
   border-radius: 4px;
-  background: var(--border);
-  opacity: 0.6;
-  animation: deck-ai-pulse 1.2s ease-in-out infinite;
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised) 25%,
+    var(--border) 50%,
+    var(--surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }
 
 .deck-ai-skeleton-line--short {
   width: 60%;
-}
-
-@keyframes deck-ai-pulse {
-  50% {
-    opacity: 0.3;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -447,9 +448,26 @@
   color: var(--text-secondary);
 }
 
-/* The tweak row's own control sets the row height (dense-row 44px rule). */
-.deck-ai-tweak .btn {
-  min-height: 44px;
+/* Dense-row rule: NO control takes the 44px on its own box — the old
+   un-gated `min-height: 44px` here inflated every suggestion row on
+   desktop too. Ghost the touch target instead, like the row's reroll/
+   dismiss siblings below. */
+@media (pointer: coarse) {
+  .deck-ai-tweak .btn {
+    position: relative;
+  }
+  .deck-ai-tweak .btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    min-width: 44px;
+    /* 36px like the row's reroll/dismiss ghosts — 44px ghosts on adjacent
+       rows overlap and the later sibling steals the tap (guide § 44px). */
+    height: 36px;
+    transform: translate(-50%, -50%);
+  }
 }
 
 /* ── Apply all (T102 refine levers) ──
@@ -549,6 +567,11 @@
   cursor: pointer;
 }
 
+.deck-ai-tweak-reset:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 @media (pointer: coarse) {
   .deck-ai-tweak-reset::after {
     content: '';
@@ -646,9 +669,13 @@
   font-weight: 600;
 }
 
-/* The rail's own controls set its touch height (dense-row 44px rule). */
+/* Coarse floor at 36px, on the pill itself: the pill IS the tap target in a
+   wrapping rail, where 44px ghosts on adjacent wrapped rows would overlap
+   and mis-route taps — the guide's density-surface floor (§ 44px, "when the
+   row itself is the target, 36 not 44"). The old 44px box doubled the quiet
+   date rail's height. */
 @media (pointer: coarse) {
   .deck-ai-history-item {
-    min-height: 44px;
+    min-height: 36px;
   }
 }

@@ -146,7 +146,7 @@ export function CommandPalette({ onClose }: Props): JSX.Element {
   return (
     <Modal onClose={onClose} className="command-palette" label="Command palette">
       <div className="cmdk-input-row">
-        <Search width={18} height={18} strokeWidth={2} aria-hidden />
+        <Search width={16} height={16} strokeWidth={2} aria-hidden />
         <input
           autoFocus
           type="text"
@@ -171,7 +171,7 @@ export function CommandPalette({ onClose }: Props): JSX.Element {
         ) : (
           <>
             {renderGroups.map((group) => (
-              <div className="cmdk-group" key={group.group}>
+              <div className="cmdk-group" key={group.group} role="group" aria-label={group.group}>
                 <p className="cmdk-group-title" aria-hidden>
                   {group.group}
                 </p>

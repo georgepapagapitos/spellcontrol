@@ -249,6 +249,12 @@
   cursor: default;
 }
 
+@media (hover: hover) and (pointer: fine) {
+  .trade-stepper-btn:not(:disabled):hover {
+    background: var(--border);
+  }
+}
+
 .trade-stepper-value {
   min-width: 1.5ch;
   text-align: center;
@@ -487,12 +493,13 @@
   min-width: 0;
 }
 
-/* "Wanted" — this card is on the friend's want list. */
+/* "Wanted" — this card is on the friend's want list. Non-actionable status
+   label = pill per the shape language (999px), like .trade-offer-status. */
 .trade-wanted-badge {
   flex: 0 0 auto;
   padding: 0 0.35em;
   border: 1px solid var(--accent);
-  border-radius: var(--radius);
+  border-radius: 999px;
   color: var(--accent);
   font-size: var(--text-xs);
   font-weight: 500;
@@ -526,10 +533,24 @@
   color: var(--text-secondary);
 }
 
+/* The one shared shimmer (STYLE_GUIDE § Motion) — mirrors .trades-skeleton-bar. */
 .trade-side-skeleton {
   height: 6rem;
   border-radius: var(--radius);
-  background: var(--surface-raised);
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised) 25%,
+    var(--border) 50%,
+    var(--surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trade-side-skeleton {
+    animation: none;
+  }
 }
 
 .trade-composer-note {

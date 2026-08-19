@@ -8,6 +8,15 @@
   background: var(--overlay);
 }
 
+/* Desktop: the shell's 480px default piles the token chips into a tall
+   phone column — widen so the chip cloud + producers detail breathe
+   (dense-dialog ruling, STYLE_GUIDE § Overlays). */
+@media (min-width: 1024px) {
+  .card-picker-sheet.deck-tokens-sheet {
+    width: min(640px, calc(100vw - 4rem));
+  }
+}
+
 /* The shared sheet has no horizontal padding; pad the content instead so the
    base's safe-area `padding-bottom` is preserved. */
 .deck-tokens-sheet-head {

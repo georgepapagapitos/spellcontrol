@@ -4,7 +4,10 @@
    DeckComparePage.css's `.deck-compare-summary` / `.deck-compare-empty-hint`;
    this file only covers the panel's own chrome. */
 .conflict-panel {
-  max-width: 560px;
+  /* 720px, not 560: this is a working diff surface (deck-diff rows +
+     compare summary + recovery actions), and diff rows read badly narrow
+     (dense-dialog ruling, STYLE_GUIDE § Overlays). */
+  max-width: 720px;
   width: 100%;
   max-height: calc(var(--vh-safe) - 6rem - var(--keyboard-inset));
   display: flex;

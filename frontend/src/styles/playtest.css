@@ -1087,6 +1087,15 @@ body:has(.playtest-page) {
 
 /* ── Token creator (layered on the shared card-picker sheet) ───────────── */
 
+/* Desktop: the shell's 480px default piles the preset chips into a tall
+   column — widen so the chip cloud breathes, mirroring DeckTokensSheet
+   (dense-dialog ruling, STYLE_GUIDE § Overlays). */
+@media (min-width: 1024px) {
+  .card-picker-sheet.playtest-token-sheet {
+    width: min(640px, 92vw);
+  }
+}
+
 .playtest-token-presets {
   display: flex;
   flex-wrap: wrap;
@@ -1367,7 +1376,10 @@ body:has(.playtest-page) {
   .playtest-ctx-sheet .playtest-ctx-counter button,
   .playtest-ctx-sheet .playtest-ctx-sticker button,
   .playtest-ctx-sheet .playtest-ctx-counter-add button,
-  .playtest-ctx-sheet .playtest-ctx-sticker-add button {
+  .playtest-ctx-sheet .playtest-ctx-sticker-add button,
+  /* …and the action list itself — the most-tapped control set on the touch
+     board was the one left out (its padding computed to ~37px). */
+  .playtest-ctx-sheet .playtest-ctx-action {
     min-height: 44px;
   }
 }
@@ -1457,7 +1469,8 @@ body:has(.playtest-page) {
   text-overflow: ellipsis;
 }
 
-/* Larger touch targets for the bottom-sheet variant. */
+/* Larger touch targets for the bottom-sheet variant. (The 44px floor lives
+   in the shared coarse-pointer block above, with its siblings.) */
 .playtest-ctx-sheet .playtest-ctx-action {
   padding: 0.6rem var(--space-3);
   font-size: var(--text-base);
@@ -2047,12 +2060,25 @@ body:has(.playtest-page) {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
+/* Neither control has a :hover rule, so the hover-driven CI guard can't see
+   them — the mobile board's only zones entry point was keyboard-invisible. */
+.playtest-zones-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.playtest-zone-tile__body:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
 
 /* a11y (UX-cohesion): 44px touch targets on coarse pointers (tablet is the
    primary playtest device). */
 @media (pointer: coarse) {
   .playtest-actionbar button,
-  .playtest-opening-back {
+  .playtest-opening-back,
+  /* Keep/Mulligan/"Send to bottom" — the non-dismissable opening-hand
+     sheet's only way through; mutating actions take the floor. */
+  .playtest-opening-footer .btn {
     min-height: 44px;
   }
 }

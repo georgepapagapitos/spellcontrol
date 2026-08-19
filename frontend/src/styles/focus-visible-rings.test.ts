@@ -21,7 +21,7 @@ import { dirname, join } from 'node:path';
 const srcRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const INTERACTIVE =
-  /(btn|button|\blink\b|-link|\btab\b|-tab|chip|pill|-action|-open|-toggle|-cta|-rematch|-remove|-retry|-delete|-add\b|option|summary|facing|sort-btn|signin|stats-link|menu|hub-row|opening|pile|zones|expander|template|segmented|pagination|qty-btn|disc-toggle|swatch|trigger|item)/i;
+  /(btn|button|\blink\b|-link|\btab\b|-tab|chip|pill|-action|-open|-toggle|-cta|-rematch|-remove|-retry|-delete|-add\b|option|summary|facing|sort-btn|signin|stats-link|menu|hub-row|opening|pile|zones|expander|template|segmented|pagination|qty-btn|disc-toggle|swatch|trigger|item|card)/i;
 
 // Selectors covered by a co-occurring base class on the element (the subset rule
 // can't see cross-class coverage), or a non-hover parse artifact. Keep this list

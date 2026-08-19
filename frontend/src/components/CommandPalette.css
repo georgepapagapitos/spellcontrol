@@ -96,15 +96,21 @@
   background: var(--accent-light);
 }
 
+/* The variable-length name is the shrinkable side (min-width: 0 so the
+   ellipsis can engage); the short metadata hint keeps its natural width —
+   the deck-row-name-text precedent, previously inverted here. */
 .cmdk-option-label {
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cmdk-option-hint {
-  overflow: hidden;
+  flex: 0 0 auto;
   font-size: var(--text-sm);
   color: var(--text-muted);
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -137,12 +143,15 @@
   border-top: 1px solid var(--border);
 }
 
+/* Same visual treatment as .shortcuts-overlay-kbd / .footer-shortcuts-kbd
+   (STYLE_GUIDE "kbd styling": one treatment, no hand-rolled variants). */
 .cmdk-footer kbd {
   padding: 1px var(--space-1);
-  font: inherit;
-  color: var(--text-secondary);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius);
 }
 

@@ -10,6 +10,15 @@
   background: var(--overlay);
 }
 
+/* Desktop: the shell's 480px default is a phone column; the pull list is a
+   working checklist of full CardRows — widen it (dense-dialog ruling,
+   STYLE_GUIDE § Overlays; two-class form outweighs the shell rule). */
+@media (min-width: 1024px) {
+  .card-picker-sheet.pull-list-sheet {
+    width: min(720px, calc(100vw - 4rem));
+  }
+}
+
 .pull-list-head {
   display: flex;
   align-items: flex-start;

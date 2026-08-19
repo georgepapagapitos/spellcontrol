@@ -1068,3 +1068,12 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* a11y (sweep 3): ring parity for :hover selectors surfaced when the
+   focus-visible guard's keyword list gained `card`. */
+.upload-card:focus-visible,
+.upload-card-paste:focus-visible,
+.import-card-hint a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

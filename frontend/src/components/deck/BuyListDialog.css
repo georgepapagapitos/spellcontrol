@@ -1,7 +1,10 @@
 /* BuyListDialog — the missing-cards buy list (cart icon beside the missing
-   stat). Mirrors the Export dialog's header/actions anatomy. */
+   stat). Mirrors the Export dialog's header/actions anatomy. 560px, not the
+   440px it shipped at: `qty × name … price` rows carry full card names (DFC
+   names are long) and a 440px column ellipsized them on desktop
+   (dense-dialog ruling, STYLE_GUIDE § Overlays). */
 .buy-list-dialog {
-  max-width: 440px;
+  max-width: 560px;
   width: 100%;
   max-height: calc(var(--vh-safe) - 6rem);
   display: flex;
