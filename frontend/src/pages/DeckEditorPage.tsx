@@ -41,7 +41,6 @@ import type { BinderInfo } from '../components/BinderBadge';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
 import { BuildTimeCoachStrip } from '../components/deck/BuildTimeCoachStrip';
 import { useBuildTimeNudge } from '../lib/use-build-time-nudge';
-import { useMediaQuery } from '../lib/use-media-query';
 import { WedgeHintStrip } from '../components/deck/WedgeHintStrip';
 import { dismissResyncHint, shouldShowResyncHint } from '../lib/wedge-hints';
 import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
@@ -357,10 +356,6 @@ export function DeckEditorPage() {
   } | null>(null);
   const [showPartnerPicker, setShowPartnerPicker] = useState(false);
   const [showAddPanel, setShowAddPanel] = useState(false);
-  // Workbench rail (≥1280px): the add-cards panel docks beside the deck
-  // instead of covering it as a sheet/modal. Below 1280px behavior is
-  // unchanged (bottom sheet <1024px, centered modal 1024-1279px).
-  const isRailViewport = useMediaQuery('(min-width: 1280px)');
   const [confirmDelete, setConfirmDelete] = useState(false);
   // Coach "Owned only" filter — shared by the feed and the Next-best-move hero.
   const [ownedOnly, setOwnedOnly] = useState<boolean>(readOwnedOnly);
@@ -1287,10 +1282,8 @@ export function DeckEditorPage() {
   };
 
   // The add-cards panel's contents (zone toggle + coach strip + search),
-  // shared verbatim by the sheet/modal (<1280px) and the workbench rail
-  // (≥1280px) so the two presentations can never drift apart. `close` is
-  // each host's own dismissal — the sheet's animated `dismiss`, or a plain
-  // state flip for the rail (which has no exit animation).
+  // hosted by the card-picker sheet (bottom sheet on mobile, centered
+  // modal ≥1024px). `close` is the sheet's animated `dismiss`.
   const renderAddPanelContent = (close: () => void) => (
     <>
       <div className="card-picker-handle" aria-hidden />
@@ -1384,9 +1377,9 @@ export function DeckEditorPage() {
           // A full Commander deck would overfill — open the intelligent
           // replace-when-full prompt instead of silently going to 101.
           if (deckIsFull) {
-            // Overlay-only: the rail stays open behind DeckSizePrompt so the
-            // search context (query/tab/scroll) survives the swap decision.
-            if (!isRailViewport) setShowAddPanel(false);
+            // The sheet gets out of the way so DeckSizePrompt isn't stacked
+            // on top of it.
+            setShowAddPanel(false);
             setPendingAdd(card.name);
             return;
           }
@@ -1432,8 +1425,7 @@ export function DeckEditorPage() {
                 // opens the replace-when-full prompt, so the sheet gets
                 // out of its way first (swaps stay in place).
                 if (change.type === 'add' && deckIsFull) {
-                  // Overlay-only — see the onAdd comment above.
-                  if (!isRailViewport) setShowAddPanel(false);
+                  setShowAddPanel(false);
                 }
                 void handleApplyCoachMove(change);
               }}
@@ -3275,14 +3267,6 @@ export function DeckEditorPage() {
             }
           />
         </main>
-        {isRailViewport && showAddPanel && (formatConfig?.hasCommander ? deck.commander : true) && (
-          <aside className="deck-add-sheet deck-add-rail" aria-label="Add cards">
-            {renderAddPanelContent(() => {
-              setShowAddPanel(false);
-              buildTimeNudge.dismiss();
-            })}
-          </aside>
-        )}
       </div>
 
       {/* Test hand — a breakpoint-aware overlay (bottom sheet on mobile,
@@ -3357,12 +3341,9 @@ export function DeckEditorPage() {
         </DeckEditorCardPickerSheet>
       )}
 
-      {/* Add cards — below 1280px, a breakpoint-aware overlay (bottom sheet on
-          mobile, centered modal 1024-1279px) via the shared card-picker
-          sheet. At ≥1280px it docks as a workbench rail instead (mounted as
-          a sibling of `.deck-editor-main`, below) — same disclosure state,
-          same panel content (`renderAddPanelContent`), no dialog chrome. */}
-      {!isRailViewport && showAddPanel && (formatConfig?.hasCommander ? deck.commander : true) && (
+      {/* Add cards — a breakpoint-aware overlay (bottom sheet on mobile,
+          centered modal ≥1024px) via the shared card-picker sheet. */}
+      {showAddPanel && (formatConfig?.hasCommander ? deck.commander : true) && (
         <DeckEditorCardPickerSheet
           label="Add cards"
           className="deck-add-sheet"

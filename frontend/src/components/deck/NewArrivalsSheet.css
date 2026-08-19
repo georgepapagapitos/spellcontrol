@@ -258,8 +258,11 @@
   }
 
   .new-arrivals-sheet {
-    max-width: 520px;
-    max-height: 75dvh;
+    /* Desktop gets a roomy panel, not a phone sheet in the middle of the
+       screen — the rows carry a thumb + name + availability + Add, and at
+       520px they read crammed (user ruling 2026-08-19). */
+    max-width: 720px;
+    max-height: 80dvh;
     border-radius: var(--radius-lg);
     padding-bottom: 0;
     /* No bottom-rise on desktop — centered scale+fade closes instantly
@@ -269,6 +272,15 @@
 
   .new-arrivals-sheet.is-closing {
     animation: modal-panel-out var(--motion-fast) var(--ease-out-soft) forwards;
+  }
+
+  /* More generous row rhythm to match the wider panel. */
+  .new-arrivals-sheet-body {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .new-arrivals-row-thumb-wrap {
+    width: 3rem;
   }
 }
 

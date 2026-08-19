@@ -177,7 +177,9 @@
   }
 
   .build-report-sheet {
-    max-width: 520px;
+    /* Roomy desktop panel, not a phone sheet centered on a big screen —
+       same ruling as NewArrivalsSheet (2026-08-19). */
+    max-width: 640px;
     max-height: 80dvh;
     border-radius: var(--radius-lg);
     /* On desktop the sheet uses a centered scale+fade — no bottom-rise.

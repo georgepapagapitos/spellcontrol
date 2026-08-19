@@ -197,13 +197,6 @@
      Android). Anything added to that row must fit on one line — the
      SearchPill shrinks; wrapping controls belong in the controls row. */
   --collection-search-sticky-h: 3.8rem;
-  /* Height of the deck editor's sticky Deck/Stats/Power/Coach strip
-     (.deck-editor-view-tabs) — also the offset the docked add-cards rail
-     (.deck-add-rail) pins below, so the two stacked sticky elements never
-     overlap. A FIXED height, not padding-derived, for the same reason as
-     the two tokens above: font metrics vary, a guessed height reopens the
-     gap/overlap on some platform. */
-  --deck-view-tabs-sticky-h: 2.5rem;
   /* Height of the fixed bottom mobile tab bar (.mobile-tab-bar) — 0 above
      1024px, where it doesn't render at all. Single source of truth so any
      other viewport-bottom-anchored fixed element (the toast viewport) can
