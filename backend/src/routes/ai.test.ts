@@ -20,11 +20,21 @@ vi.mock('../ai/client', () => ({
   ) => mockState.generate(system, user, onDelta, signal, options),
 }));
 
+// The rules index is a REAL in-memory index (seeded in beforeAll) behind a
+// swappable handle, so the rules-question tests exercise genuine citation
+// hydration and the empty-index 503 without touching the data directory.
+const rulesState = vi.hoisted(() => ({ index: null as unknown }));
+vi.mock('../rules', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('../rules')>();
+  return { ...mod, getRulesIndex: () => rulesState.index as never };
+});
+
 // The route imports this class by name from the real SDK to distinguish an
 // abort from a genuine failure — that import is untouched by the mock above,
 // so tests can throw the real class to simulate a client disconnect.
 import { APIUserAbortError } from '@anthropic-ai/sdk';
 
+import { RulesIndex } from '../rules';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 
 let app: Server;
@@ -34,6 +44,16 @@ beforeAll(async () => {
   const env = await createTestEnv();
   app = env.app;
   cleanup = env.cleanup;
+  const index = new RulesIndex(':memory:');
+  index.replaceAll(
+    [
+      { ref: '704', body: 'State-Based Actions' },
+      { ref: '704.5', body: 'The state-based actions are as follows:' },
+      { ref: '704.5g', body: 'A creature dealt lethal damage is destroyed.' },
+    ],
+    { sourceUrl: 'test', effectiveDate: 'August 7, 2026' }
+  );
+  rulesState.index = index;
 });
 
 afterAll(async () => {
@@ -944,5 +964,153 @@ describe('POST /api/ai/deck-refine', () => {
       ['ai-refine-feature']
     );
     expect(rows.rows.map((r) => r.feature)).toEqual(['deck-refine']);
+  });
+});
+
+describe('POST /api/ai/rules-question and GET /api/ai/rules-history', () => {
+  const ANSWER = 'Yes - the creature dies to state-based actions (704.5g).';
+
+  beforeEach(() => {
+    // Research pass (has tools, prose discarded) then a tool-free writing pass
+    // that streams the answer — same two-call shape as the review.
+    mockState.generate.mockImplementation(
+      async (
+        _system: string,
+        _user: string,
+        onDelta?: (t: string) => void,
+        _signal?: AbortSignal,
+        options?: { tools?: unknown[] }
+      ) => {
+        if (options?.tools?.length) {
+          return { content: '', inputTokens: 400, outputTokens: 80, fetched: [] };
+        }
+        onDelta?.('Yes - the creature dies ');
+        onDelta?.('to state-based actions (704.5g).');
+        return { content: ANSWER, inputTokens: 900, outputTokens: 150, fetched: [] };
+      }
+    );
+  });
+
+  it('rejects an invalid question with 400', async () => {
+    const cookie = await makeUser('rules-invalid');
+    await optIn(cookie);
+    const missing = await request(app)
+      .post('/api/ai/rules-question')
+      .set('Cookie', cookie)
+      .send({});
+    expect(missing.status).toBe(400);
+    const long = await request(app)
+      .post('/api/ai/rules-question')
+      .set('Cookie', cookie)
+      .send({ question: 'x'.repeat(600) });
+    expect(long.status).toBe(400);
+  });
+
+  it('requires consent (403 before opt-in)', async () => {
+    const cookie = await makeUser('rules-no-consent');
+    const res = await request(app)
+      .post('/api/ai/rules-question')
+      .set('Cookie', cookie)
+      .send({ question: 'Does deathtouch kill?' });
+    expect(res.status).toBe(403);
+  });
+
+  it('streams the answer and hydrates the cited rules on done', async () => {
+    const cookie = await makeUser('rules-happy');
+    await optIn(cookie);
+    const res = await request(app)
+      .post('/api/ai/rules-question')
+      .set('Cookie', cookie)
+      .send({ question: 'Does a creature with lethal damage die?' });
+    expect(res.status).toBe(200);
+    const { streamed, done } = parseStream(res.text);
+    expect(streamed).toBe(ANSWER);
+    expect(done).toMatchObject({
+      content: ANSWER,
+      cached: false,
+      model: 'test-model',
+      rules: [{ ref: '704.5g', text: 'A creature dealt lethal damage is destroyed.' }],
+    });
+    // Two model calls: research then write.
+    expect(mockState.generate).toHaveBeenCalledTimes(2);
+  });
+
+  it('serves a repeat question from the cache, case-insensitively, spending nothing', async () => {
+    const cookie = await makeUser('rules-cache');
+    await optIn(cookie);
+    const q = 'Does a 1/1 with lethal damage die?';
+    await request(app).post('/api/ai/rules-question').set('Cookie', cookie).send({ question: q });
+    const again = await request(app)
+      .post('/api/ai/rules-question')
+      .set('Cookie', cookie)
+      .send({ question: q.toUpperCase() });
+    const { done } = parseStream(again.text);
+    expect(done).toMatchObject({ cached: true, content: ANSWER });
+    // Citations hydrate on the cache hit too.
+    expect((done as { rules: { ref: string }[] }).rules.map((r) => r.ref)).toEqual(['704.5g']);
+    expect(mockState.generate).toHaveBeenCalledTimes(2);
+  });
+
+  it('answers 503 when the rules index is empty instead of answering ungrounded', async () => {
+    const seeded = rulesState.index;
+    rulesState.index = new RulesIndex(':memory:');
+    try {
+      const cookie = await makeUser('rules-empty-index');
+      await optIn(cookie);
+      const res = await request(app)
+        .post('/api/ai/rules-question')
+        .set('Cookie', cookie)
+        .send({ question: 'Anything at all?' });
+      expect(res.status).toBe(503);
+    } finally {
+      rulesState.index = seeded;
+    }
+  });
+
+  it('enforces the shared daily quota with 429', async () => {
+    const cookie = await makeUser('rules-quota');
+    await optIn(cookie);
+    const { getPool } = await import('../db');
+    await getPool().query('UPDATE users SET ai_daily_limit = 0 WHERE username = $1', [
+      'rules-quota',
+    ]);
+    const res = await request(app)
+      .post('/api/ai/rules-question')
+      .set('Cookie', cookie)
+      .send({ question: 'Over quota?' });
+    expect(res.status).toBe(429);
+  });
+
+  it('lists past questions with their citations and the rules effective date', async () => {
+    const cookie = await makeUser('rules-history');
+    await optIn(cookie);
+    const q = 'Does lethal damage destroy my creature?';
+    await request(app).post('/api/ai/rules-question').set('Cookie', cookie).send({ question: q });
+    const res = await request(app).get('/api/ai/rules-history').set('Cookie', cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.effectiveDate).toBe('August 7, 2026');
+    expect(res.body.questions).toHaveLength(1);
+    expect(res.body.questions[0]).toMatchObject({
+      question: q,
+      content: ANSWER,
+      rules: [{ ref: '704.5g', text: 'A creature dealt lethal damage is destroyed.' }],
+    });
+    expect(res.body.questions[0].createdAt).toBeTypeOf('number');
+  });
+
+  it('is stored under its own feature key with the question stamped on the row', async () => {
+    const cookie = await makeUser('rules-feature');
+    await optIn(cookie);
+    await request(app)
+      .post('/api/ai/rules-question')
+      .set('Cookie', cookie)
+      .send({ question: 'Feature key?' });
+    const { getPool } = await import('../db');
+    const rows = await getPool().query<{ feature: string; question: string | null }>(
+      `SELECT r.feature, r.question FROM ai_reviews r JOIN users u ON u.id = r.user_id
+        WHERE u.username = $1`,
+      ['rules-feature']
+    );
+    expect(rows.rows).toEqual([{ feature: 'rules-qa', question: 'Feature key?' }]);
   });
 });

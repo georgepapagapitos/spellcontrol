@@ -144,14 +144,24 @@ export function buildCommands({ decks, go, aiAvailable, deckPage }: BuildCommand
         run: () => go(`/decks/${deckPage.id}?view=tune`, { openAiReview: true }),
       });
     }
-    out.push({
-      id: 'ai:settings',
-      label: 'AI settings',
-      group: 'AI',
-      hint: 'You',
-      keywords: ['beta', 'opt in', 'readings', 'quota'],
-      run: () => go('/you?section=ai'),
-    });
+    out.push(
+      {
+        id: 'ai:rules-question',
+        label: 'Ask a rules question',
+        group: 'AI',
+        hint: 'Cites the Comprehensive Rules',
+        keywords: ['rules', 'judge', 'ruling', 'interaction', 'stack'],
+        run: () => go('/rules'),
+      },
+      {
+        id: 'ai:settings',
+        label: 'AI settings',
+        group: 'AI',
+        hint: 'You',
+        keywords: ['beta', 'opt in', 'readings', 'quota'],
+        run: () => go('/you?section=ai'),
+      }
+    );
   }
 
   return out;
