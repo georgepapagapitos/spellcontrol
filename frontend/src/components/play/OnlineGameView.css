@@ -489,6 +489,34 @@ button.ogv-phase-chip--tappable:disabled {
   border-color: var(--accent);
 }
 
+/* Desktop: compose the seat panel instead of stacking phone rows across the
+   full card — the life numeral is THE object of a life tracker, so it takes
+   the left cell at display size; the tool cluster rows up on the right.
+   Exactly three children (head / LifeControls / tools), so the grid is safe. */
+@media (min-width: 1024px) {
+  .ogv-you {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: var(--space-6);
+  }
+
+  .ogv-you-head {
+    grid-column: 1 / -1;
+  }
+
+  .ogv-life--primary .ogv-life-num {
+    font-size: clamp(3rem, 5vw, 4.25rem);
+  }
+
+  .ogv-you-tools {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+  }
+}
+
 .ogv-you.is-eliminated {
   opacity: 0.6;
 }

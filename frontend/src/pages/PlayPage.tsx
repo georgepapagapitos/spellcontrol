@@ -1,4 +1,4 @@
-import { BookOpen, X } from 'lucide-react';
+import { BookOpen, Check, Copy, Swords, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../store/auth';
@@ -19,6 +19,7 @@ import { Modal } from '../components/Modal';
 import { SelectMenu } from '../components/SelectMenu';
 import { Tabs } from '../components/Tabs';
 import { StackedBar } from '../components/shared/MeterBar';
+import { ColorPip } from '../components/shared/ManaSymbol';
 import { FriendsLeaderboard } from '../components/play/FriendsLeaderboard';
 import { GameNightsTab, pendingInviteCount, useGameNights } from '../components/play/GameNights';
 import { aggregateMatchupRecords } from '../lib/matchup-records';
@@ -88,6 +89,16 @@ export function PlayPage() {
   // Which game's join-code banner the host dismissed. Keyed by code so a new
   // game's banner shows again without an effect to reset it.
   const [codeHiddenFor, setCodeHiddenFor] = useState<string | null>(null);
+  const [codeCopied, setCodeCopied] = useState(false);
+  const copyJoinCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 1500);
+    } catch {
+      toast.show({ message: "Couldn't copy the code.", tone: 'error' });
+    }
+  };
 
   const handleStartLocal = (setup: LocalGameSetup) => {
     if (local) setPendingStart(setup);
@@ -105,6 +116,9 @@ export function PlayPage() {
               Rules
             </button>
           </div>
+          <p className="play-page-hero-sub">
+            Track a table in person, or play across devices with a join code.
+          </p>
         </div>
         <Tabs<Tab>
           ariaLabel="Play sections"
@@ -186,6 +200,22 @@ export function PlayPage() {
                 <div className="play-code-banner">
                   <span className="play-code-label">Join code</span>
                   <span className="play-code-value">{online.code}</span>
+                  <button
+                    type="button"
+                    className="play-code-copy"
+                    aria-label={codeCopied ? 'Join code copied' : 'Copy join code'}
+                    onClick={() => void copyJoinCode(online.code)}
+                  >
+                    {codeCopied ? (
+                      <>
+                        <Check width={14} height={14} strokeWidth={2.5} aria-hidden /> Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy width={14} height={14} strokeWidth={2} aria-hidden /> Copy
+                      </>
+                    )}
+                  </button>
                   <span className="play-code-hint">
                     Players go to Play → Online → Join, then enter this code.
                   </span>
@@ -398,7 +428,7 @@ function LocalSetup({
 
   return (
     <form
-      className="play-setup"
+      className="play-setup play-setup-form-grid"
       onSubmit={(e) => {
         e.preventDefault();
         onStart({
@@ -416,7 +446,7 @@ function LocalSetup({
         </h2>
       </header>
 
-      <section aria-labelledby="play-setup-game-label">
+      <section className="play-setup-game" aria-labelledby="play-setup-game-label">
         <h3 id="play-setup-game-label" className="play-setup-section-title">
           Game
         </h3>
@@ -482,6 +512,7 @@ function LocalSetup({
                 aria-label={`Player ${i + 1} name`}
                 placeholder={`Player ${i + 1}`}
               />
+              <SeatPips ci={p.colorIdentity} />
               <SeatDeck
                 decks={decks}
                 value={p.deckId}
@@ -525,6 +556,7 @@ function LocalSetup({
       </section>
 
       <button type="submit" className="btn btn-primary play-setup-start">
+        <Swords width={16} height={16} strokeWidth={2} aria-hidden />
         Start game
       </button>
     </form>
@@ -653,6 +685,21 @@ function blankPlayer(name: string): LocalGameSetup['players'][number] {
   return { name, deckId: null, deckName: null, commander: null, partner: null, colorIdentity: [] };
 }
 
+// A seat's color-identity pips — the deck's colors are game information, so
+// the roster shows them the moment a deck is picked. WUBRG order, always.
+const WUBRG_ORDER = ['W', 'U', 'B', 'R', 'G'];
+function SeatPips({ ci }: { ci: string[] }) {
+  if (ci.length === 0) return null;
+  const sorted = [...ci].sort((a, b) => WUBRG_ORDER.indexOf(a) - WUBRG_ORDER.indexOf(b));
+  return (
+    <span className="play-seat-ci" aria-hidden="true">
+      {sorted.map((c) => (
+        <ColorPip key={c} color={c} />
+      ))}
+    </span>
+  );
+}
+
 const DECK_PICKER_NONE = '__none__';
 
 function DeckPicker({
@@ -736,12 +783,13 @@ function OnlineSetup({
   }
 
   return (
-    <div className="play-setup">
+    <div className="play-setup play-setup--online">
       <Tabs<'host' | 'join'>
         ariaLabel="Online game mode"
         value={mode}
         onChange={setMode}
         variant="fitted"
+        className="play-online-mode-tabs"
         tabs={[
           { id: 'host', label: 'Host' },
           { id: 'join', label: 'Join' },
@@ -750,6 +798,7 @@ function OnlineSetup({
 
       {mode === 'host' ? (
         <form
+          className="play-setup-form-grid"
           onSubmit={(e) => {
             e.preventDefault();
             onHost({
@@ -777,7 +826,7 @@ function OnlineSetup({
             </p>
           </header>
 
-          <section className="play-setup-row">
+          <section className="play-setup-row play-setup-game">
             <div className="play-field play-field-inline">
               <span>Format</span>
               <SelectMenu<GameFormat>
@@ -832,6 +881,7 @@ function OnlineSetup({
                   aria-label="Your name"
                   placeholder={defaultName}
                 />
+                <SeatPips ci={deck?.commander?.color_identity ?? []} />
                 <SeatDeck
                   decks={decks}
                   value={deck?.id ?? null}
@@ -843,11 +893,13 @@ function OnlineSetup({
           </section>
 
           <button type="submit" className="btn btn-primary play-setup-start">
+            <Swords width={16} height={16} strokeWidth={2} aria-hidden />
             Create game
           </button>
         </form>
       ) : (
         <form
+          className="play-setup-form-join"
           onSubmit={(e) => {
             e.preventDefault();
             onJoin(code.trim().toUpperCase(), {
@@ -900,6 +952,7 @@ function OnlineSetup({
                   aria-label="Your name"
                   placeholder={defaultName}
                 />
+                <SeatPips ci={deck?.commander?.color_identity ?? []} />
                 <SeatDeck
                   decks={decks}
                   value={deck?.id ?? null}
@@ -915,6 +968,7 @@ function OnlineSetup({
             className="btn btn-primary play-setup-start"
             disabled={code.trim().length < 3}
           >
+            <Swords width={16} height={16} strokeWidth={2} aria-hidden />
             Join game
           </button>
         </form>

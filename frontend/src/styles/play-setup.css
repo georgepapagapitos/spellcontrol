@@ -28,11 +28,15 @@
    (components/Tabs.tsx, `fitted` variant); only the in-progress dot is
    Play-specific. */
 .play-tab-dot {
-  width: 0.5rem;
-  height: 0.5rem;
+  width: 0.45rem;
+  height: 0.45rem;
   border-radius: 50%;
   background: var(--warn-text);
   display: inline-block;
+  /* A superscript status badge, not trailing punctuation — spaced off the
+     label and raised so "Online●" stops reading as a typo. */
+  margin-left: 0.3rem;
+  transform: translateY(-0.45em);
 }
 
 /* Title + Rules trigger, inline beside the hero h1. This labeled pill is the
@@ -49,6 +53,12 @@
   .play-page-rules-btn {
     min-height: 44px;
   }
+}
+
+.play-page-hero-sub {
+  margin: 0.2rem 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
 }
 
 /* ── Setup forms ─────────────────────────────────────────────────────────── */
@@ -78,6 +88,7 @@
 }
 
 .play-setup-title {
+  font-family: var(--font-serif);
   font-size: var(--text-lg);
   font-weight: 600;
   margin: 0;
@@ -188,6 +199,7 @@
 .play-setup-start {
   align-self: stretch;
   justify-content: center;
+  gap: 0.4rem;
   padding-block: 0.6rem;
   /* Explicit radius so btn's var(--radius) wins over any pill-btn inheritance */
   border-radius: var(--radius);
@@ -343,7 +355,12 @@
 }
 
 .play-rule-pill-state {
+  /* Pinned to the trailing column explicitly — auto-placement was flowing
+     this before the label on some paths, rendering ON/OFF as a full-width
+     bar across the card's top. */
+  grid-column: 2;
   grid-row: 1 / span 2;
+  justify-self: end;
   align-self: center;
   font-size: var(--text-xs);
   font-weight: 700;
@@ -406,7 +423,7 @@
 
 .play-setup-seat {
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: var(--space-2);
   background: var(--surface-raised);
@@ -447,6 +464,23 @@
   outline: 2px solid var(--accent);
   outline-offset: 1px;
   border-radius: var(--radius);
+}
+
+/* The seat's color-identity pips — appear once a deck is chosen, in WUBRG
+   order. Game information (a seat's colors), not decoration. */
+.play-seat-ci {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
+}
+
+/* Phones: the seat row is name + deck; a 5-pip identity row would squeeze
+   the name track (the deck label already names the commander there). */
+@media (max-width: 599px) {
+  .play-seat-ci {
+    display: none;
+  }
 }
 
 .play-setup-seat-deck,
@@ -571,6 +605,68 @@
   text-transform: uppercase;
   letter-spacing: 0.2em;
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-size: var(--text-lg) !important;
+  max-width: 9ch;
+}
+
+/* ── Desktop workbench (≥1024px): config beside the table ────────────────
+   Below 1024px the forms keep their stacked flow. On desktop the setup card
+   splits into two panels — Game + Rules on the left, the roster ("the
+   table") on the right behind a print hairline — so the card composes the
+   width instead of stretching phone rows across it. The shared flex `gap`
+   from `.play-setup form` carries over as the grid's row/column gap. */
+@media (min-width: 1024px) {
+  /* form-qualified so it out-weighs `.play-setup form`'s flex (0-1-1 tie,
+     later in file wins) for the online host form, which is a descendant. */
+  form.play-setup-form-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    grid-template-areas:
+      'header header'
+      'game   roster'
+      'rules  roster'
+      'start  start';
+    grid-template-rows: auto auto 1fr auto;
+    column-gap: var(--space-6);
+  }
+
+  .play-setup-form-grid > .play-setup-header {
+    grid-area: header;
+  }
+
+  .play-setup-form-grid > .play-setup-game {
+    grid-area: game;
+  }
+
+  .play-setup-form-grid > .play-setup-rules {
+    grid-area: rules;
+    align-content: start;
+  }
+
+  .play-setup-form-grid > .play-setup-roster {
+    grid-area: roster;
+    border-left: 0.5px solid var(--border);
+    padding-left: var(--space-6);
+    align-self: start;
+  }
+
+  .play-setup-form-grid > .play-setup-start {
+    grid-area: start;
+    justify-self: end;
+    align-self: end;
+    min-width: 18rem;
+  }
+
+  /* Host/Join is a mode switch, not page chrome — cap the segmented pair. */
+  .play-setup--online > .play-online-mode-tabs {
+    max-width: 24rem;
+  }
+
+  /* Joining is one focused task: a code and a name. Keep it a column. */
+  .play-setup-form-join {
+    max-width: 36rem;
+  }
 }
 
 /* ── Active-game indicators in app chrome ──────────────────────────────── */

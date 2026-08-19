@@ -369,6 +369,23 @@
   opacity: 0.85;
 }
 
+/* Desktop: a strip, not a centered stack in an empty frame — summary reads
+   left, the pick-a-deck / open-board affordance sits right. */
+@media (min-width: 1024px) {
+  .play-board-door {
+    flex-direction: row;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding-inline: var(--space-4);
+  }
+
+  .play-board-door-summary {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-3);
+  }
+}
+
 .play-board-door-summary {
   display: flex;
   flex-direction: column;
