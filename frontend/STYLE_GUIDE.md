@@ -1331,6 +1331,22 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   `margin-bottom: -1px` to leave a 1px block-axis scroll range for touch
   momentum to rubber-band against. Write `overflow-y: hidden` explicitly.
 
+### Play setup — desktop composes config beside the table
+
+The Local and Online-host setup forms are two-panel at ≥1024px
+(`.play-setup-form-grid`): Game + Rules on the left, the Players roster on
+the right behind a print hairline, the Start/Create CTA (accent fill +
+`Swords`) bottom-right at a content width — never a full-card slab. Below
+1024px the stacked phone flow is untouched. Join stays a single focused
+column (`.play-setup-form-join`, 36rem) with a large mono code input. Seat
+rows show the picked deck's color identity as WUBRG-ordered `ColorPip`s
+(`.play-seat-ci`, ≥600px — game information, not decoration). The lobby's
+join-code banner is the table ticket: brass edge + `--brand-seal-gold` code
++ a Copy button (white focus ring — fixed dark ground). The online seat
+panel (`.ogv-you`) grids at ≥1024px: life numeral display-size left, tools
+rowed right. The Play-tab in-progress dot (`.play-tab-dot`) is a raised
+superscript badge, spaced off the label.
+
 ### Game-board panel covers — gestures are panel-local, never screen-local
 
 The multiplayer board rotates each `.player-panel` to face its seat (0 / 90 /
