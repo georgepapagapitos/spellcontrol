@@ -1263,9 +1263,10 @@ Any future line/trend chart follows the same specs (horizontal bars stay on
   BuildReport / BetweenYourDecks / DeckTokens 640 · BuyList / DeckPrimer
   ≈560. A new overlay whose body is rows, a diff, images, or anything you
   *work in* picks from this table — it does not ship on the 480px default.
-  (Playtest's eight `card-picker-sheet` consumers still ride 480px —
-  un-swept; the card-bearing ones (zone viewer, scry, opening hand, stats)
-  are the known next slice.)
+  Playtest's sheets are on it too: opening hand 1180 · zone viewer 900 ·
+  scry 720 · token creator 640 · stats 600; its three short pickers
+  (designations, life adjust, takeback mode) stay on the 480px default
+  deliberately — that width IS right for a brief exclusive choice.
 - **`CardPreview` ≥1024px is two panes, not a scaled-up phone sheet.** The
   bottom-band panel scaled to desktop left centered text floating in a
   full-width dark strip, and "expanding" it crushed the hero card to a
