@@ -1,7 +1,9 @@
-import { X } from 'lucide-react';
+import { Sparkles, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
+import { useAiStatus } from '../lib/use-ai-status';
 import { SearchPill } from './SearchPill';
 import { Tabs } from './Tabs';
 import {
@@ -38,6 +40,9 @@ function RulesReferenceBody({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
   const labelId = useId();
+  const navigate = useNavigate();
+  // The AI door self-hides like every AI surface (null = unavailable/loading).
+  const aiStatus = useAiStatus();
 
   // Don't autofocus the search on touch — it raises the soft keyboard the
   // instant the sheet opens and squashes the layout. Desktop (fine pointer +
@@ -160,6 +165,24 @@ function RulesReferenceBody({ onClose }: { onClose: () => void }) {
             <RulesList bundle={bundle} query={query} onJump={jumpToRule} />
           )}
         </div>
+
+        {/* The escalation door (E261): browsing didn't settle it → ask the AI
+            rules Q&A, seeded with the current search. Self-hiding when AI is
+            unavailable — the sheet without AI is exactly today's sheet. */}
+        {aiStatus && (
+          <button
+            type="button"
+            className="rules-ref-ask-ai"
+            onClick={() => {
+              beginClose();
+              navigate('/rules', query.trim() ? { state: { question: query.trim() } } : undefined);
+            }}
+          >
+            <Sparkles width={14} height={14} aria-hidden />
+            <span className="rules-ref-ask-ai-text">Ask a rules question</span>
+            <span className="rules-ref-ask-ai-hint">AI — cites the rules</span>
+          </button>
+        )}
 
         <p className="rules-ref-foot">
           Comprehensive Rules, effective {bundle?.meta.effective ?? '—'}

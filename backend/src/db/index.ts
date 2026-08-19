@@ -743,5 +743,9 @@ export async function ensureSchema(): Promise<void> {
     -- only other name source the client has. Nullable — rows predating the
     -- column chip deck cards only, exactly as they did before.
     ALTER TABLE ai_reviews ADD COLUMN IF NOT EXISTS fetched_names JSONB;
+    -- The question a rules-qa row answered, verbatim, so the history list can
+    -- show it (the input_hash is normalised and unreadable). Nullable — the
+    -- deck features have no free-text question.
+    ALTER TABLE ai_reviews ADD COLUMN IF NOT EXISTS question TEXT;
   `);
 }
