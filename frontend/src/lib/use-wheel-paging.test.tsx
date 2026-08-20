@@ -59,12 +59,23 @@ describe('useWheelPaging', () => {
     expect(e.defaultPrevented).toBe(true);
   });
 
-  it('ignores vertical-dominant and pinch-zoom (ctrlKey) wheel events', () => {
+  it('claims vertical-dominant wheel (cancelability of the whole sequence) without paging', () => {
     const { track, slides } = harness();
     const vertical = wheel(20, 100);
     track.dispatchEvent(vertical);
-    expect(vertical.defaultPrevented).toBe(false);
-    track.dispatchEvent(wheel(200, 0, true));
+    // Prevented — only the FIRST event of a Chrome scroll sequence is
+    // reliably cancelable, so every non-pinch tick is claimed…
+    expect(vertical.defaultPrevented).toBe(true);
+    // …but a vertical tick never accumulates toward a page turn.
+    expect(slides[0].scrollIntoView).not.toHaveBeenCalled();
+    expect(slides[2].scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it('lets pinch-zoom (ctrlKey) wheel fall through untouched', () => {
+    const { track, slides } = harness();
+    const pinch = wheel(200, 0, true);
+    track.dispatchEvent(pinch);
+    expect(pinch.defaultPrevented).toBe(false);
     expect(slides[0].scrollIntoView).not.toHaveBeenCalled();
     expect(slides[2].scrollIntoView).not.toHaveBeenCalled();
   });

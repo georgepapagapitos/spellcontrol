@@ -139,17 +139,16 @@ function renderPreview({
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('BinderPagePreview spread mode (≥1024px)', () => {
-  it('double-sided: page 0 is alone on the RIGHT of spread 0 (blank left)', () => {
+  it('double-sided: lone page 0 renders as a centered single-page spread — no blank, no spine', () => {
     setMatchMedia(true);
     const pages = [mkPage(1, [mkCard('Alpha', 0)])];
     const { container } = renderPreview({ pages, pageLabels: ['A'], doubleSided: true });
 
-    const spreadSlides = container.querySelectorAll('.binder-pages-slide--spread');
-    expect(spreadSlides.length).toBeGreaterThanOrEqual(1);
-
-    // Blank side present (left of first spread is empty).
-    const blanks = container.querySelectorAll('.binder-spread-blank');
-    expect(blanks.length).toBeGreaterThanOrEqual(1);
+    const single = container.querySelectorAll('.binder-pages-slide--single');
+    expect(single.length).toBe(1);
+    // Just the page — the empty facing side is not represented at all.
+    expect(single[0].querySelectorAll('.binder-pages-page').length).toBe(1);
+    expect(single[0].querySelectorAll('.binder-spread-spine').length).toBe(0);
   });
 
   it('single-sided: pages 0 and 1 appear together in spread 0 — no blank', () => {
@@ -159,9 +158,8 @@ describe('BinderPagePreview spread mode (≥1024px)', () => {
 
     const spreadSlides = container.querySelectorAll('.binder-pages-slide--spread');
     expect(spreadSlides.length).toBeGreaterThanOrEqual(1);
-    // No blank sides when both pages are present.
-    const blanks = container.querySelectorAll('.binder-spread-blank');
-    expect(blanks.length).toBe(0);
+    // Both pages present — a regular spread, not a single-page one.
+    expect(container.querySelectorAll('.binder-pages-slide--single').length).toBe(0);
   });
 
   it('renders spine dividers', () => {
@@ -279,7 +277,6 @@ describe('BinderPagePreview single-page mode (<1024px)', () => {
     const { container } = renderPreview({ pages, pageLabels: ['A', 'A'], doubleSided: false });
     expect(container.querySelectorAll('.binder-pages-slide--spread').length).toBe(0);
     expect(container.querySelectorAll('.binder-spread-spine').length).toBe(0);
-    expect(container.querySelectorAll('.binder-spread-blank').length).toBe(0);
   });
 
   it('keyboard ArrowRight calls scrollIntoView on the next page', () => {
