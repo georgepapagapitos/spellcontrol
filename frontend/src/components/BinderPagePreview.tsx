@@ -6,7 +6,6 @@ import { CardPreview, type CardPreviewAction } from './CardPreview';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useCenteredSlide } from '../lib/use-centered-slide';
 import { useMaxBoundaryScroll } from '../lib/use-max-boundary-scroll';
-import { useWheelPaging } from '../lib/use-wheel-paging';
 import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
@@ -147,6 +146,20 @@ export function BinderPagePreview({
       : startPageIndex
   );
 
+  // The render window follows `selected` only after the scroll has been quiet
+  // for a beat. Swapping placeholder ↔ full slides is a DOM mutation inside
+  // the snap scroller, and Chrome re-snaps on such mutations — doing it the
+  // instant `selected` changes mid-gesture yanked trackpad swipes (the
+  // binder-vs-card-carousel difference: card slides never swap their
+  // subtree). The ±windowRadius buffer keeps the deferral invisible, and
+  // scroll-snap-stop: always caps a gesture at one slide, so the scroll can
+  // never outrun the stale window.
+  const [windowCenter, setWindowCenter] = useState(selected);
+  useEffect(() => {
+    const t = window.setTimeout(() => setWindowCenter(selected), 150);
+    return () => window.clearTimeout(t);
+  }, [selected]);
+
   const [innerCard, setInnerCard] = useState<InnerCardScope | null>(null);
 
   // O(1) lookup from card → flat page index, so we can keep the flipbook in
@@ -251,10 +264,6 @@ export function BinderPagePreview({
   // Clamp the native scroll so a momentum fling can't rubber-band past the
   // first/last page (mirrors CardPreview — same WebView overscroll gap).
   useMaxBoundaryScroll(trackRef);
-
-  // Trackpad two-finger panning cannot out-run the mandatory snap-back on
-  // these wide slides — page discretely instead (see the hook).
-  useWheelPaging(trackRef, slideRefs, selected, slideCount);
 
   useLockBodyScroll();
 
@@ -509,7 +518,7 @@ export function BinderPagePreview({
                   const tabbed = isSpread && (sectionTabs?.length ?? 0) > 1;
 
                   // Compute tab placements only for windowed slides (pure + cheap).
-                  const showPlacements = tabbed && Math.abs(i - selected) <= windowRadius;
+                  const showPlacements = tabbed && Math.abs(i - windowCenter) <= windowRadius;
                   const tabPlacements = showPlacements
                     ? layoutSectionTabs(sectionTabs!, i, spreads, gutterHeight)
                     : [];
@@ -526,7 +535,7 @@ export function BinderPagePreview({
                   const singlePage = spread.left === null || spread.right === null;
                   const slideClasses = `${singlePage ? ' binder-pages-slide--single' : ''}${tabbed ? ' binder-pages-slide--tabbed' : ''}`;
 
-                  if (Math.abs(i - selected) > windowRadius) {
+                  if (Math.abs(i - windowCenter) > windowRadius) {
                     return (
                       <div
                         className={`binder-pages-slide${slideClasses}`}
@@ -593,7 +602,7 @@ export function BinderPagePreview({
                   // slide's width/scroll-snap slot so native scrolling is intact,
                   // but skips the pocket grid (cols×rows cells) — a few thousand
                   // cells mounted at once is what would jank a large binder.
-                  if (Math.abs(i - selected) > windowRadius) {
+                  if (Math.abs(i - windowCenter) > windowRadius) {
                     return (
                       <div
                         className="binder-pages-slide"

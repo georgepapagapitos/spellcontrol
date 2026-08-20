@@ -45,7 +45,6 @@ import { ManaCost } from './ManaCost';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useCenteredSlide } from '../lib/use-centered-slide';
 import { useMaxBoundaryScroll } from '../lib/use-max-boundary-scroll';
-import { useWheelPaging } from '../lib/use-wheel-paging';
 import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import type { AllocationInfo } from '../lib/allocations';
@@ -355,10 +354,6 @@ export function CardPreview({
   // first/last card (CSS overscroll-behavior alone doesn't fully cover the
   // Capacitor WebView — see the hook).
   useMaxBoundaryScroll(trackRef);
-
-  // Trackpad two-finger panning cannot out-run the mandatory snap-back on
-  // these wide slides — page discretely instead (see the hook).
-  useWheelPaging(trackRef, slideRefs, selected, cards.length);
 
   // Sync parent → carousel if the parent index changes externally.
   useEffect(() => {

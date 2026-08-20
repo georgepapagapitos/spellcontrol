@@ -1342,15 +1342,6 @@
   display: none;
 }
 
-/* While use-wheel-paging.ts is panning the track 1:1 with trackpad deltas it
-   drives scrollLeft directly — mandatory snap would fight every write, so the
-   hook sets this class for the duration and removes it after its own settle
-   re-centers a slide. Applies to both card-inspect carousels. */
-.card-preview-track.is-wheel-panning,
-.binder-pages-track.is-wheel-panning {
-  scroll-snap-type: none;
-}
-
 /* NOTE: no breathing-room padding on .binder-pages-track. Unlike
    .card-preview-track, the binder page grid is height-driven with a FIXED
    1.6rem label reserve baked into --slide-size:
