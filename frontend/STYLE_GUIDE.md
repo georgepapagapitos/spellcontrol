@@ -4124,12 +4124,19 @@ single-column at all widths.
 `buildSpreads(pageCount, doubleSided)` in `lib/binder-spreads.ts` owns the
 pairing logic:
 
-- **doubleSided (book/verso-recto):** The first spread always has a blank left
-  side with page 0 on the right — matches physical book convention. Subsequent
-  spreads pair pages as verso/recto pairs. A trailing odd page lands on the
-  left of a final spread with a blank right.
+- **doubleSided (book/verso-recto):** The first spread is page 0 alone (a
+  recto — matches physical book convention). Subsequent spreads pair pages as
+  verso/recto pairs. A trailing odd page becomes a final lone-page spread.
 - **Single-sided (simple pairs):** Pages pair sequentially: [0|1], [2|3], etc.
-  A trailing odd page becomes the left of a final spread with a blank right.
+  A trailing odd page becomes a final lone-page spread.
+
+**Single-page spreads center the page (2026-08-19 ruling).** A spread with only
+one real page renders just that page, horizontally centered in the slide — no
+blank-sheet silhouette, no spine (`.binder-pages-slide--single`). The earlier
+faint `.binder-spread-blank` placeholder was invisible against the scrim, so a
+spine-centered lone-page spread read as "focused on the empty space with the
+page shoved aside". The slide keeps its full spread flex-basis, so snap
+geometry, spacers, and windowing placeholders are unchanged.
 
 ### Spine
 

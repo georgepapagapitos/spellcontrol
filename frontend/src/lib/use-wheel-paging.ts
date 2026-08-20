@@ -21,8 +21,9 @@ const GESTURE_IDLE_MS = 250;
  * horizontal-dominant wheel gesture accumulates toward a threshold and then
  * pages one slide via the same smooth `scrollIntoView` the arrow buttons use.
  *
- * Touch swiping is untouched (no wheel events); vertical wheel input and
- * ctrlKey wheel (trackpad pinch-zoom) fall through to the browser.
+ * Touch swiping is untouched (no wheel events); ctrlKey wheel (trackpad
+ * pinch-zoom) falls through to the browser. Vertical wheel is claimed but
+ * ignored — see the cancelability note in the handler.
  *
  * Used by the two card-inspect carousels (`CardPreview`, `BinderPagePreview`),
  * which share the same centered scroll-snap track model.
@@ -49,11 +50,17 @@ export function useWheelPaging(
     let lastEvent = 0;
 
     const onWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
-      // Claim the gesture even while locked/under threshold — letting any tick
-      // through to the native scroller restarts the snap fight this hook exists
-      // to prevent.
+      if (e.ctrlKey) return; // trackpad pinch-zoom
+      // Claim EVERY tick, not just horizontal-dominant ones: Chrome only
+      // guarantees the FIRST wheel event of a scroll sequence is cancelable.
+      // If a gesture opens with a small vertical wobble (most real two-finger
+      // swipes do) and that tick slips through uncanceled, the rest of the
+      // gesture is dispatched non-cancelable and the native snap fight this
+      // hook exists to prevent comes back. The track has no vertical scroll
+      // and the body is locked while the sheet is open, so a vertical wheel
+      // was inert here anyway.
       e.preventDefault();
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
       const now = Date.now();
       if (now - lastEvent > GESTURE_IDLE_MS) acc = 0;
       lastEvent = now;

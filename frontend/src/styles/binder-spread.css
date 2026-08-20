@@ -66,6 +66,14 @@
   gap: 0;
 }
 
+/* Single-page spread (a first/last page with no facing page): no blank
+   silhouette, no spine — the lone page centers inside the slide, which keeps
+   its full flex-basis so snap geometry and the centering spacers are
+   unchanged. */
+.binder-pages-slide--single {
+  justify-content: center;
+}
+
 /* Spine gutter between the two facing pages. The vertical gradient is
    darkest at the seam (center) to evoke a bound edge; the repeating rings
    hint at binder hardware. Width is an exact fraction of --slide-size so
@@ -99,22 +107,10 @@
    --spread-page-frac, so left + spine + right = --slide-size by construction.
    width:auto overrides .binder-pages-page's base width:100% so the flex basis
    wins; min-width:0 prevents blowout inside the flex row. */
-.binder-pages-slide--spread .binder-pages-page,
-.binder-pages-slide--spread .binder-spread-blank {
+.binder-pages-slide--spread .binder-pages-page {
   flex: 0 0 calc(var(--slide-size) * var(--spread-page-frac));
   width: auto;
   min-width: 0;
-}
-
-/* Blank side placeholder — a barely-visible sheet silhouette. Same aspect
-   ratio as the page grid so the spread stays geometrically balanced. The
-   dashed border and low-alpha fill signal "empty slot" without fake pockets. */
-.binder-spread-blank {
-  min-width: 0;
-  background: color-mix(in srgb, var(--surface-raised) 18%, transparent);
-  border: 1.5px dashed color-mix(in srgb, var(--border) 40%, transparent);
-  border-radius: var(--radius-lg);
-  pointer-events: none;
 }
 
 /* ── Section index-tab gutters (spread mode only, ≥1024px) ──────────────────

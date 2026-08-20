@@ -526,9 +526,15 @@ export function BinderPagePreview({
                       />
                     );
                   }
+                  // A spread with only one real page (first/last of a
+                  // double-sided binder, odd tail of a single-sided one)
+                  // renders just that page, centered — no blank silhouette,
+                  // no spine. The slide keeps its full flex-basis so the
+                  // snap geometry and centering spacers are unchanged.
+                  const singlePage = spread.left === null || spread.right === null;
                   return (
                     <div
-                      className={`binder-pages-slide binder-pages-slide--spread${i === selected ? ' is-active' : ''}${tabbed ? ' binder-pages-slide--tabbed' : ''}`}
+                      className={`binder-pages-slide binder-pages-slide--spread${singlePage ? ' binder-pages-slide--single' : ''}${i === selected ? ' is-active' : ''}${tabbed ? ' binder-pages-slide--tabbed' : ''}`}
                       ref={slideRef}
                       key={`spread-${i}`}
                       onClick={(e) => e.stopPropagation()}
@@ -542,7 +548,7 @@ export function BinderPagePreview({
                           slideRefs={slideRefs}
                         />
                       )}
-                      {spread.left !== null ? (
+                      {spread.left !== null && (
                         <SlideGrid
                           slots={pages[spread.left].slots}
                           cols={cols}
@@ -551,11 +557,9 @@ export function BinderPagePreview({
                           allocations={allocations}
                           onTapCard={handleCardTap}
                         />
-                      ) : (
-                        <div className="binder-spread-blank" aria-hidden="true" />
                       )}
-                      <div className="binder-spread-spine" aria-hidden="true" />
-                      {spread.right !== null ? (
+                      {!singlePage && <div className="binder-spread-spine" aria-hidden="true" />}
+                      {spread.right !== null && (
                         <SlideGrid
                           slots={pages[spread.right].slots}
                           cols={cols}
@@ -564,8 +568,6 @@ export function BinderPagePreview({
                           allocations={allocations}
                           onTapCard={handleCardTap}
                         />
-                      ) : (
-                        <div className="binder-spread-blank" aria-hidden="true" />
                       )}
                       {showPlacements && (
                         <SpreadTabGutter
