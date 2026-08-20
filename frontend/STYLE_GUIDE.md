@@ -4130,13 +4130,17 @@ pairing logic:
 - **Single-sided (simple pairs):** Pages pair sequentially: [0|1], [2|3], etc.
   A trailing odd page becomes a final lone-page spread.
 
-**Single-page spreads center the page (2026-08-19 ruling).** A spread with only
-one real page renders just that page, horizontally centered in the slide — no
-blank-sheet silhouette, no spine (`.binder-pages-slide--single`). The earlier
-faint `.binder-spread-blank` placeholder was invisible against the scrim, so a
-spine-centered lone-page spread read as "focused on the empty space with the
-page shoved aside". The slide keeps its full spread flex-basis, so snap
-geometry, spacers, and windowing placeholders are unchanged.
+**Single-page spreads center the page (2026-08-19 ruling; slide narrowed
+2026-08-20).** A spread with only one real page renders just that page — no
+blank-sheet silhouette, no spine (`.binder-pages-slide--single`) — in a slide
+only as wide as the page itself (+ both tab gutters under `.is-tabbed`). The
+earlier faint `.binder-spread-blank` placeholder was invisible against the
+scrim, so a spine-centered lone-page spread read as "focused on the empty
+space with the page shoved aside"; the first narrowing pass kept the full
+spread flex-basis, which left a ~400px dead gap between the lone page and its
+neighbors. The track's centering spacers are sized for this narrowest slide so
+first/last slides still reach dead center; windowing placeholders carry the
+same class so track width stays stable.
 
 ### Spine
 
