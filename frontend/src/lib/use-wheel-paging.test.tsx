@@ -17,9 +17,12 @@ function harness(selected = 1, slideCount = 3) {
     el.scrollIntoView = vi.fn();
     return el;
   });
+  // Stable ref objects, like the components' useRef — fresh literals per
+  // render would retrigger the hook's effect and clear its pending timers.
+  const trackRef = { current: track };
+  const slideRefs = { current: slides };
   const result = renderHook(
-    ({ sel }: { sel: number }) =>
-      useWheelPaging({ current: track }, { current: slides }, sel, slideCount),
+    ({ sel }: { sel: number }) => useWheelPaging(trackRef, slideRefs, sel, slideCount),
     { initialProps: { sel: selected } }
   );
   return { track, slides, ...result };
@@ -34,82 +37,91 @@ afterEach(() => {
 });
 
 describe('useWheelPaging', () => {
-  it('pages to the next slide once accumulated deltaX crosses the threshold', () => {
-    const { track, slides } = harness();
-    track.dispatchEvent(wheel(50));
-    expect(slides[2].scrollIntoView).not.toHaveBeenCalled();
-    track.dispatchEvent(wheel(50));
+  it('pans scrollLeft 1:1 with horizontal deltas, snap off while panning', () => {
+    const { track } = harness();
+    track.dispatchEvent(wheel(40));
+    track.dispatchEvent(wheel(25));
+    expect(track.scrollLeft).toBe(65);
+    expect(track.classList.contains('is-wheel-panning')).toBe(true);
+  });
+
+  it('claims every non-pinch tick (only the FIRST event of a Chrome scroll sequence is cancelable)', () => {
+    const { track } = harness();
+    const horizontal = wheel(10);
+    const vertical = wheel(2, 100);
+    track.dispatchEvent(horizontal);
+    track.dispatchEvent(vertical);
+    expect(horizontal.defaultPrevented).toBe(true);
+    expect(vertical.defaultPrevented).toBe(true);
+  });
+
+  it('lets pinch-zoom (ctrlKey) wheel fall through untouched', () => {
+    const { track } = harness();
+    const pinch = wheel(200, 0, true);
+    track.dispatchEvent(pinch);
+    expect(pinch.defaultPrevented).toBe(false);
+    expect(track.scrollLeft).toBe(0);
+  });
+
+  it('a vertical-dominant tick never starts a pan', () => {
+    const { track } = harness();
+    track.dispatchEvent(wheel(3, 90));
+    expect(track.scrollLeft).toBe(0);
+    expect(track.classList.contains('is-wheel-panning')).toBe(false);
+  });
+
+  it('settles on the observer-reported slide once the gesture goes quiet, then restores snap', () => {
+    const { track, slides, rerender } = harness();
+    track.dispatchEvent(wheel(500));
+    // observer saw the pan cross into slide 2
+    rerender({ sel: 2 });
+    vi.advanceTimersByTime(150); // > SETTLE_IDLE_MS
     expect(slides[2].scrollIntoView).toHaveBeenCalledWith({
       inline: 'center',
       block: 'nearest',
       behavior: 'smooth',
     });
+    expect(track.classList.contains('is-wheel-panning')).toBe(true); // settle in flight
+    vi.advanceTimersByTime(700); // > SNAP_RESTORE_MS
+    expect(track.classList.contains('is-wheel-panning')).toBe(false);
   });
 
-  it('pages backwards on leftward deltas', () => {
-    const { track, slides } = harness();
-    track.dispatchEvent(wheel(-100));
+  it('a light flick that never left its slide still turns one page in the gesture direction', () => {
+    const { track, slides } = harness(1);
+    track.dispatchEvent(wheel(130)); // ≥ FLICK_MIN_PX, selected still 1
+    vi.advanceTimersByTime(150);
+    expect(slides[2].scrollIntoView).toHaveBeenCalled();
+    track.dispatchEvent(wheel(-130));
+    vi.advanceTimersByTime(150);
     expect(slides[0].scrollIntoView).toHaveBeenCalled();
   });
 
-  it('prevents default on horizontal wheel so the native snap fight never starts', () => {
-    const { track } = harness();
-    const e = wheel(10);
-    track.dispatchEvent(e);
-    expect(e.defaultPrevented).toBe(true);
-  });
-
-  it('claims vertical-dominant wheel (cancelability of the whole sequence) without paging', () => {
-    const { track, slides } = harness();
-    const vertical = wheel(20, 100);
-    track.dispatchEvent(vertical);
-    // Prevented — only the FIRST event of a Chrome scroll sequence is
-    // reliably cancelable, so every non-pinch tick is claimed…
-    expect(vertical.defaultPrevented).toBe(true);
-    // …but a vertical tick never accumulates toward a page turn.
-    expect(slides[0].scrollIntoView).not.toHaveBeenCalled();
+  it('a sub-flick nudge settles back on the current slide', () => {
+    const { track, slides } = harness(1);
+    track.dispatchEvent(wheel(60)); // < FLICK_MIN_PX
+    vi.advanceTimersByTime(150);
+    expect(slides[1].scrollIntoView).toHaveBeenCalled();
     expect(slides[2].scrollIntoView).not.toHaveBeenCalled();
   });
 
-  it('lets pinch-zoom (ctrlKey) wheel fall through untouched', () => {
-    const { track, slides } = harness();
-    const pinch = wheel(200, 0, true);
-    track.dispatchEvent(pinch);
-    expect(pinch.defaultPrevented).toBe(false);
-    expect(slides[0].scrollIntoView).not.toHaveBeenCalled();
-    expect(slides[2].scrollIntoView).not.toHaveBeenCalled();
-  });
-
-  it('locks out further paging during the cooldown, then pages from the NEW slide', () => {
-    const { track, slides, rerender } = harness();
-    track.dispatchEvent(wheel(100));
-    expect(slides[2].scrollIntoView).toHaveBeenCalledTimes(1);
-    // momentum tail inside the cooldown: swallowed
+  it('flick bias clamps at the last slide', () => {
+    const { track, slides } = harness(2);
     track.dispatchEvent(wheel(300));
-    expect(slides[2].scrollIntoView).toHaveBeenCalledTimes(1);
-    // carousel settled on slide 2; a fresh gesture after the cooldown pages on
-    rerender({ sel: 2 });
-    vi.advanceTimersByTime(600);
-    track.dispatchEvent(wheel(100));
-    // slide 2 is the last — clamped, no further scroll
-    expect(slides[2].scrollIntoView).toHaveBeenCalledTimes(1);
-    track.dispatchEvent(wheel(-100));
-    expect(slides[1].scrollIntoView).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(150);
+    expect(slides[2].scrollIntoView).toHaveBeenCalledTimes(1); // recenter, not overflow
   });
 
-  it('drops sub-threshold accumulation once the gesture goes idle', () => {
+  it('momentum ticks extend the gesture instead of settling mid-stream', () => {
     const { track, slides } = harness();
-    track.dispatchEvent(wheel(60));
-    vi.advanceTimersByTime(400); // > GESTURE_IDLE_MS
-    track.dispatchEvent(wheel(60));
-    expect(slides[2].scrollIntoView).not.toHaveBeenCalled();
-    track.dispatchEvent(wheel(60));
-    expect(slides[2].scrollIntoView).toHaveBeenCalledTimes(1);
-  });
-
-  it('clamps at the edges without scrolling', () => {
-    const { track, slides } = harness(0);
-    track.dispatchEvent(wheel(-200));
+    track.dispatchEvent(wheel(100));
+    vi.advanceTimersByTime(100); // < SETTLE_IDLE_MS — still in gesture
+    track.dispatchEvent(wheel(50));
+    vi.advanceTimersByTime(100);
     for (const s of slides) expect(s.scrollIntoView).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(60); // now quiet past the idle window
+    const settled = slides.some(
+      (s) => (s.scrollIntoView as ReturnType<typeof vi.fn>).mock.calls.length > 0
+    );
+    expect(settled).toBe(true);
   });
 });
