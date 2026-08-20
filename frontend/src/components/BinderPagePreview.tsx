@@ -516,25 +516,29 @@ export function BinderPagePreview({
                   const leftPlacements = tabPlacements.filter((p) => p.side === 'left');
                   const rightPlacements = tabPlacements.filter((p) => p.side === 'right');
 
+                  // A spread with only one real page (first/last of a
+                  // double-sided binder, odd tail of a single-sided one)
+                  // renders just that page, centered — no blank silhouette,
+                  // no spine — in a page-wide slide (not spread-wide, which
+                  // left a huge dead gap between it and its neighbors).
+                  // Computed before the window check so placeholder slides
+                  // carry the same narrowed flex-basis.
+                  const singlePage = spread.left === null || spread.right === null;
+                  const slideClasses = `${singlePage ? ' binder-pages-slide--single' : ''}${tabbed ? ' binder-pages-slide--tabbed' : ''}`;
+
                   if (Math.abs(i - selected) > windowRadius) {
                     return (
                       <div
-                        className={`binder-pages-slide${tabbed ? ' binder-pages-slide--tabbed' : ''}`}
+                        className={`binder-pages-slide${slideClasses}`}
                         ref={slideRef}
                         key={`spread-${i}`}
                         onClick={(e) => e.stopPropagation()}
                       />
                     );
                   }
-                  // A spread with only one real page (first/last of a
-                  // double-sided binder, odd tail of a single-sided one)
-                  // renders just that page, centered — no blank silhouette,
-                  // no spine. The slide keeps its full flex-basis so the
-                  // snap geometry and centering spacers are unchanged.
-                  const singlePage = spread.left === null || spread.right === null;
                   return (
                     <div
-                      className={`binder-pages-slide binder-pages-slide--spread${singlePage ? ' binder-pages-slide--single' : ''}${i === selected ? ' is-active' : ''}${tabbed ? ' binder-pages-slide--tabbed' : ''}`}
+                      className={`binder-pages-slide binder-pages-slide--spread${i === selected ? ' is-active' : ''}${slideClasses}`}
                       ref={slideRef}
                       key={`spread-${i}`}
                       onClick={(e) => e.stopPropagation()}

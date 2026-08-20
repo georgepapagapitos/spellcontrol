@@ -45,14 +45,21 @@
   flex-basis: calc(var(--slide-size) + 2 * var(--spread-tab-gutter));
 }
 
-/* Centering spacers in spread+tab mode: first/last slides center against the
-   expanded slide width (slide-size + 2 gutters) so the page grids land at the
-   same visual position as in non-tabbed spread mode. The plain .is-spread
-   spacer (defined above) already handles centering via (100cqw - --slide-size)/2
-   and is correct when no tabs are present. */
+/* Centering spacers in spread mode: sized for the NARROWEST possible
+   first/last slide (a single-page spread), so it can reach dead center at the
+   scroll extremes. When the first/last slide is actually a full spread the
+   spacer is larger than strictly needed, which is harmless — its snap
+   position simply sits at an interior scroll offset instead of the extreme. */
+.binder-pages-backdrop.is-spread .binder-pages-track::before,
+.binder-pages-backdrop.is-spread .binder-pages-track::after {
+  flex-basis: calc((100cqw - var(--slide-size) * var(--spread-page-frac, 0.5)) / 2);
+}
+
 .binder-pages-backdrop.is-spread.is-tabbed .binder-pages-track::before,
 .binder-pages-backdrop.is-spread.is-tabbed .binder-pages-track::after {
-  flex-basis: calc((100cqw - var(--slide-size) - 2 * var(--spread-tab-gutter)) / 2);
+  flex-basis: calc(
+    (100cqw - var(--slide-size) * var(--spread-page-frac, 0.5) - 2 * var(--spread-tab-gutter)) / 2
+  );
 }
 
 /* Spread slide: row of [left-page | spine | right-page]. flex so the spine
@@ -67,11 +74,21 @@
 }
 
 /* Single-page spread (a first/last page with no facing page): no blank
-   silhouette, no spine — the lone page centers inside the slide, which keeps
-   its full flex-basis so snap geometry and the centering spacers are
-   unchanged. */
+   silhouette, no spine — just the page, in a slide only as wide as the page
+   itself. A spread-wide slide here left a huge dead gap between the lone
+   page and its neighboring spreads. Snap-align centers each slide regardless
+   of its width; the track spacers below are sized for this (narrowest)
+   slide so the first/last slide can still reach dead center. */
 .binder-pages-slide--single {
   justify-content: center;
+}
+
+.binder-pages-backdrop.is-spread .binder-pages-slide--single {
+  flex-basis: calc(var(--slide-size) * var(--spread-page-frac, 0.5));
+}
+
+.binder-pages-backdrop.is-spread.is-tabbed .binder-pages-slide--single {
+  flex-basis: calc(var(--slide-size) * var(--spread-page-frac, 0.5) + 2 * var(--spread-tab-gutter));
 }
 
 /* Spine gutter between the two facing pages. The vertical gradient is
