@@ -28,7 +28,12 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // Tag name (as consumed by the app) → Scryfall search query.
-// All but `sacrifice` are the identity mapping onto the otag of the same name.
+// Mostly the identity mapping onto the otag of the same name; where it isn't,
+// the app-facing key is deliberately kept and only the query moved, because the
+// key is the contract with the three consumers named above and the otag is not.
+// Upstream renames a tag from time to time and the old slug then matches
+// nothing, which aborts the whole run (see buildTags) — so a mapping here is
+// the cheap half of the fix.
 const TAG_QUERIES = {
   ramp: 'otag:ramp',
   'cost-reducer': 'otag:cost-reducer',
@@ -48,7 +53,10 @@ const TAG_QUERIES = {
   sacrifice: 'otag:sacrifice-outlet',
   'graveyard-hate': 'otag:graveyard-hate',
   protection: 'otag:protection',
-  'mana-fix': 'otag:mana-fix',
+  // Renamed upstream: `otag:mana-fix` matched 0 cards as of 2026-09-01 and
+  // `otag:chromatic-lantern` ("allows your lands to tap for additional colors
+  // of mana") carries 51 of its 52 former members.
+  'mana-fix': 'otag:chromatic-lantern',
   'utility-land': 'otag:utility-land',
   tapland: 'otag:tapland',
   'mass-land-denial': 'otag:mass-land-denial',
