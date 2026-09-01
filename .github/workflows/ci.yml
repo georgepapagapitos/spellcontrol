@@ -172,10 +172,18 @@ jobs:
       # ordinary source change (and therefore must never be made a required
       # check: a required check that doesn't report never passes).
       #
-      # Cheap in the common case: `prebuild`'s four refresh scripts are
-      # age-gated against their committed snapshots, so they no-op without
-      # fetching — while still importing their dependencies, which is exactly
-      # what catches the js-yaml class of break.
+      # Cheap and offline: `prebuild` passes --no-fetch to its four refresh
+      # scripts, so they keep the committed snapshots and never touch the
+      # network — while still importing their dependencies, which is exactly
+      # what catches the js-yaml class of break (the imports are top-level, so
+      # they run before the --no-fetch bail-out).
+      #
+      # They used to run unflagged, relying on a 30-day age gate to no-op. That
+      # held right up until the gate expired: on 2026-08-30 tagger-tags.json
+      # went past 30 days, every build re-fetched the tag corpus from Scryfall,
+      # Scryfall answered 429 with 60s cooldowns, and this job died on its
+      # 15-minute timeout with nothing wrong with the code. Freshness now
+      # belongs to refresh-snapshots.yml, on a schedule, where slow is free.
       - name: Production build
         run: npm run build
 
