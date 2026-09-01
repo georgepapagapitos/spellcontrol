@@ -5,11 +5,26 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Required for a merge queue on main, and INERT until one is enabled — no
+  # merge_group event is ever emitted without a queue, so this adds no runs
+  # today. It is here first on purpose: a queue tests its candidate on a
+  # temporary `gh-readonly-queue/main/...` branch and announces it as a
+  # `merge_group` event, NOT as a push or a pull_request. Without this
+  # trigger the jobs below never run for a queued entry, so the required
+  # checks never report, and every PR sits in the queue until it times out.
+  # Enabling the queue before this is merged is the classic way to wedge one.
+  merge_group:
 
 # Cancel superseded runs on the same PR when new commits are pushed — rapid
 # re-pushes otherwise run every stacked CI to completion and waste Actions
 # minutes. main is never cancelled (each push gets its own group via run_id):
 # its CI success gates the Fly deploy chain, so we never want a main run killed.
+#
+# A merge_group run is likewise never cancelled, and must not be: the queue is
+# blocked waiting on exactly that run, so killing it would stall the queue
+# rather than save anything. It gets that for free twice over — `head_ref` is
+# empty outside a pull_request, so the group key falls back to the per-run
+# `run_id`, and `cancel-in-progress` evaluates false for any non-PR event.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
