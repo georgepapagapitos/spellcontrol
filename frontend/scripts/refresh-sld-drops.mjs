@@ -11,9 +11,10 @@
 //    feeding MTGJSON; its `variable` blocks carry chase/bonus card numbers
 //    that don't always survive into the compiled SLD.json.
 //
-// Run manually via `npm run refresh-sld-drops`, or auto-invoked by
-// predev/prebuild when the local copy is missing or older than MAX_AGE_DAYS.
-// Pass --force to re-fetch unconditionally. Mirrors refresh-tagger.mjs,
+// Run manually via `npm run refresh-sld-drops`, or auto-invoked by predev when
+// the local copy is missing or older than MAX_AGE_DAYS; `prebuild` passes
+// --no-fetch so a build never touches the network. Pass --force to re-fetch
+// unconditionally, or --no-fetch to keep the committed snapshot at any age. Mirrors refresh-tagger.mjs,
 // including its soft-fail: fetch trouble keeps the existing snapshot.
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -30,6 +31,11 @@ const YAML_URL =
   'https://raw.githubusercontent.com/mtgjson/mtg-sealed-content/main/data/contents/SLD.yaml';
 const MAX_AGE_DAYS = 30;
 const force = process.argv.includes('--force');
+// --no-fetch: never reach the network, just keep whatever snapshot is committed.
+// `prebuild` passes it so a production build can't depend on a third-party API
+// being up, fast, or under its rate limit. --force still wins, so the scheduled
+// refresh workflow and the manual `npm run refresh-*` scripts are unaffected.
+const noFetch = !force && process.argv.includes('--no-fetch');
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dest = resolve(here, '..', 'public', 'sld-drops.json');
@@ -48,6 +54,12 @@ async function ageDays(path) {
 }
 
 const age = await ageDays(dest);
+// An unusable/absent snapshot falls through even under --no-fetch: there is
+// nothing to keep, so the fetch below runs and fails loudly if it must.
+if (noFetch && Number.isFinite(age)) {
+  console.log(`[sld] --no-fetch, keeping the committed snapshot (${age.toFixed(1)}d old)`);
+  process.exit(0);
+}
 if (!force && age < MAX_AGE_DAYS) {
   console.log(`[sld] ${dest} is ${age.toFixed(1)}d old (< ${MAX_AGE_DAYS}d), skipping fetch`);
   process.exit(0);
