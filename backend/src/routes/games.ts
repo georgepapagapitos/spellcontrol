@@ -154,20 +154,66 @@ export const SIGNAL_EMOTES = ['👏', '😬', '🤔', '🔥', '😂', '🫡'] as
 const SIGNAL_DICE = ['d6', 'd20', 'coin', 'first'] as const;
 
 /**
- * An ephemeral table signal — a reaction emote or a server-rolled die/coin —
- * see POST `/:code/signal` below. Unlike `boards`/`requests` this is
- * deliberately NEVER stored: no map, no snapshot, no catch-up for a late or
- * reconnecting subscriber. A missed emote or roll is a missed moment, not a
- * state to recover — broadcasting to whoever's currently connected is the
- * entire feature.
+ * Longest chat message the table accepts. This is table talk during a game
+ * — "hold, I respond", "that resolves", "take 3" — not a message board, so
+ * a tweet-ish cap keeps one seat from papering over the feed and bounds the
+ * broadcast payload. Enforced after trimming.
+ */
+const MAX_CHAT_LEN = 240;
+
+/**
+ * An ephemeral table signal — a reaction emote, a server-rolled die/coin, a
+ * line of table chat, or a point at something on the table — see POST
+ * `/:code/signal` below. Unlike `boards`/`requests` this is deliberately
+ * NEVER stored: no map, no snapshot, no catch-up for a late or reconnecting
+ * subscriber. A missed emote, roll, or point is a missed moment, not a state
+ * to recover — broadcasting to whoever's currently connected is the entire
+ * feature.
+ *
+ * Chat rides this same channel rather than getting a stored history, and
+ * that IS the design: this is a manual-enforcement table where chat is the
+ * talk *around* the current play ("hold on"), which is worthless five
+ * minutes later and would otherwise need retention, moderation, and a
+ * deletion story. Clients keep what arrives while they're connected in
+ * their own in-memory ticker feed (frontend store/play.ts `onlineTicker`)
+ * and lose it on reload, exactly like the rest of the table's ephemera.
  */
 interface GameSignal {
-  kind: 'reaction' | 'roll';
+  kind: 'reaction' | 'roll' | 'chat' | 'point';
   seat: number;
   ts: number;
   emote?: string;
   die?: (typeof SIGNAL_DICE)[number];
   value?: number;
+  /** chat only: the trimmed message body, at most `MAX_CHAT_LEN` chars. */
+  text?: string;
+  /** point only: the seat whose board is being pointed at. */
+  targetSeat?: number;
+  /** point only: the specific card being pointed at on that seat's board.
+   *  Absent means the point is at the seat/player as a whole. */
+  cardId?: string;
+}
+
+/**
+ * Monotonic stamp for a broadcast signal.
+ *
+ * Every client identifies one signal by the pair (seat, ts) — that is what
+ * dedupes the sender's own POST-response echo against the transport frame
+ * of the same signal (frontend store/play.ts `applyServerSignal`). A bare
+ * `Date.now()` breaks that identity the moment one seat produces two
+ * signals inside the same millisecond: the second is indistinguishable from
+ * a duplicate of the first and gets dropped client-side. Tolerable when the
+ * only signals were hand-paced emotes and rolls; not tolerable for chat,
+ * where the dropped frame is a message somebody typed. Nudging the stamp
+ * forward keeps it a plain ascending epoch-ms number on the wire (no
+ * client-side contract change) while making collisions impossible in this
+ * process.
+ */
+let lastSignalTs = 0;
+function nextSignalTs(): number {
+  const now = Date.now();
+  lastSignalTs = now > lastSignalTs ? now : lastSignalTs + 1;
+  return lastSignalTs;
 }
 
 function broadcastSignal(code: string, signal: GameSignal): void {
@@ -1042,9 +1088,13 @@ gamesRouter.post('/:code/board', boardLimiter, requireAuth, async (req: Request,
   res.json({ ok: true });
 });
 
-// Emotes/rolls are bursty (a flurry after a big play) but still human-paced —
-// generous above real usage, well below writeLimiter's per-move budget.
-const signalLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 });
+// Emotes/rolls/points are bursty (a flurry after a big play) but still
+// human-paced, and chat is the one signal a player produces in a sustained
+// run rather than a burst — a heated four-player rules discussion is easily
+// a message every few seconds from several seats at once. Raised from the
+// emote-only budget of 60 to cover that without a legitimate table ever
+// tripping it, and still well below writeLimiter's per-move budget.
+const signalLimiter = testAwareLimiter({ windowMs: 60_000, max: 180 });
 
 /**
  * POST /api/games/:code/signal — broadcast an ephemeral table signal: a
@@ -1054,15 +1104,31 @@ const signalLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 });
  *
  * Body is strictly whitelisted by `kind`: `'reaction'` requires `emote` to be
  * one of the fixed `SIGNAL_EMOTES`; `'roll'` requires `die` to be one of
- * `SIGNAL_DICE`. Anything else (including a well-formed body for the other
- * kind) is a 400. The response signal is built field-by-field from known
- * values — never a spread of the request body — so a stray extra field can
- * never ride along into the broadcast.
+ * `SIGNAL_DICE`; `'chat'` requires a `text` that is non-empty after trimming
+ * and at most `MAX_CHAT_LEN`; `'point'` requires a `targetSeat` that is
+ * actually seated in THIS game, with an optional `cardId`. Anything else
+ * (including a well-formed body for another kind) is a 400. The response
+ * signal is built field-by-field from known values — never a spread of the
+ * request body — so a stray extra field can never ride along into the
+ * broadcast.
  *
  * A roll's `value` is generated here, server-side, so every seat sees the
  * same result: 1-6 for d6, 1-20 for d20, 0|1 for a coin, and for `'first'` —
  * "who goes first" — a uniformly random SEAT NUMBER drawn from the game's
  * current players (clients resolve the seat to a name).
+ *
+ * A point's `cardId` is passed through UNVALIDATED against any board, on
+ * purpose. Board state lives in the ephemeral `boards` map that a seat may
+ * not have published into yet, and a card can legitimately leave a zone in
+ * the moment between the point and its delivery — so the server would be
+ * rejecting valid points to enforce a consistency it cannot actually
+ * guarantee. It is only ever an opaque render key: receivers highlight a
+ * card whose id matches on the target seat's board and otherwise fall back
+ * to pointing at the seat, so an id matching nothing degrades to a
+ * whole-seat point rather than an error. It is length-capped because it is
+ * attacker-controlled text that gets broadcast, and `targetSeat` IS checked
+ * against the roster because a point at a seat nobody occupies has no
+ * sensible rendering at all.
  */
 gamesRouter.post(
   '/:code/signal',
@@ -1080,14 +1146,50 @@ gamesRouter.post(
     const me = state.players.find((p) => p.userId === req.user!.id);
     if (!me) return res.status(404).json({ error: 'Game not found.' });
 
-    const body = req.body as { kind?: unknown; emote?: unknown; die?: unknown };
+    const body = req.body as {
+      kind?: unknown;
+      emote?: unknown;
+      die?: unknown;
+      text?: unknown;
+      targetSeat?: unknown;
+      cardId?: unknown;
+    };
     let signal: GameSignal;
     if (body.kind === 'reaction') {
       const emote = body.emote;
       if (typeof emote !== 'string' || !(SIGNAL_EMOTES as readonly string[]).includes(emote)) {
         return res.status(400).json({ error: 'Invalid emote.' });
       }
-      signal = { kind: 'reaction', seat: me.seat, ts: Date.now(), emote };
+      signal = { kind: 'reaction', seat: me.seat, ts: nextSignalTs(), emote };
+    } else if (body.kind === 'chat') {
+      const raw = body.text;
+      if (typeof raw !== 'string') return res.status(400).json({ error: 'Invalid message.' });
+      const text = raw.trim();
+      if (text.length === 0 || text.length > MAX_CHAT_LEN) {
+        return res.status(400).json({ error: 'Invalid message.' });
+      }
+      signal = { kind: 'chat', seat: me.seat, ts: nextSignalTs(), text };
+    } else if (body.kind === 'point') {
+      const targetSeat = body.targetSeat;
+      if (
+        typeof targetSeat !== 'number' ||
+        !Number.isInteger(targetSeat) ||
+        !state.players.some((p) => p.seat === targetSeat)
+      ) {
+        return res.status(400).json({ error: 'Invalid target seat.' });
+      }
+      const rawCardId = body.cardId;
+      if (rawCardId !== undefined && (typeof rawCardId !== 'string' || rawCardId.length > 128)) {
+        return res.status(400).json({ error: 'Invalid card.' });
+      }
+      const cardId = typeof rawCardId === 'string' && rawCardId.length > 0 ? rawCardId : undefined;
+      signal = {
+        kind: 'point',
+        seat: me.seat,
+        ts: nextSignalTs(),
+        targetSeat,
+        ...(cardId !== undefined && { cardId }),
+      };
     } else if (body.kind === 'roll') {
       const die = body.die;
       if (typeof die !== 'string' || !(SIGNAL_DICE as readonly string[]).includes(die)) {
@@ -1104,7 +1206,7 @@ gamesRouter.post(
       signal = {
         kind: 'roll',
         seat: me.seat,
-        ts: Date.now(),
+        ts: nextSignalTs(),
         die: die as GameSignal['die'],
         value,
       };

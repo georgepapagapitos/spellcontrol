@@ -50,6 +50,7 @@ function item(seat: number, entry: Partial<TickerEntry> = {}): TickerItem {
   return {
     id: nextId++,
     seat,
+    kind: 'play',
     entry: { seq: nextId, kind: 'play', text: `played something #${nextId}`, ...entry },
   };
 }
@@ -93,7 +94,7 @@ describe('TableTicker — glance panel', () => {
   it('shows the empty state before any line arrives', () => {
     mockGlance(true);
     render(<TableTicker onlineTable={table()} />);
-    expect(screen.getByText('Plays will appear here.')).toBeTruthy();
+    expect(screen.getByText('Plays and messages will appear here.')).toBeTruthy();
     expect(screen.queryByRole('log')).toBeNull();
   });
 });

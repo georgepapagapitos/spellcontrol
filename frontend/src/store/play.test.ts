@@ -5,6 +5,7 @@ import {
   recordToRematch,
   usePlayStore,
   type RematchTemplate,
+  type TickerItem,
 } from './play';
 import {
   applyAction,
@@ -65,6 +66,15 @@ import {
   subscribeGameLongPoll,
   type GameLongPollHandlers,
 } from '../lib/games-longpoll';
+
+/** Narrow a feed item to its projected-log form and read its source `seq`.
+ *  Throws rather than returning undefined so a chat line accidentally landing
+ *  in one of these play-line assertions fails loudly instead of comparing as
+ *  a silent `undefined`. */
+function playSeq(it: TickerItem): number {
+  if (it.kind !== 'play') throw new Error(`expected a play line, got ${it.kind}`);
+  return it.entry.seq;
+}
 
 const mockUsesLongPoll = vi.mocked(usesLongPoll);
 const mockSubscribeLongPoll = vi.mocked(subscribeGameLongPoll);
@@ -712,6 +722,65 @@ describe('usePlayStore — online flow', () => {
     expect(usePlayStore.getState().onlineSignal).toEqual({ seq: 1, signal });
   });
 
+  it('a chat signal also lands in the ticker feed as a readable chat line', async () => {
+    mockCreate.mockResolvedValue(makeOnlineGame(1));
+    await usePlayStore.getState().hostOnline({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+    });
+    const signal = mockSignal({ kind: 'chat', seat: 1, ts: 500, emote: undefined, text: 'hold' });
+    mockSendSignal.mockResolvedValue(signal);
+    await usePlayStore.getState().sendSignal({ kind: 'chat', text: 'hold' });
+
+    // Both destinations: the transient layer sees it like any other signal,
+    // and the feed keeps it readable instead of flashing it past.
+    expect(usePlayStore.getState().onlineSignal).toEqual({ seq: 1, signal });
+    expect(usePlayStore.getState().onlineTicker).toEqual([
+      { id: expect.any(Number), seat: 1, kind: 'chat', text: 'hold' },
+    ]);
+  });
+
+  it('a non-chat signal adds nothing to the ticker feed', async () => {
+    mockCreate.mockResolvedValue(makeOnlineGame(1));
+    await usePlayStore.getState().hostOnline({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+    });
+    mockSendSignal.mockResolvedValue(mockSignal({ seat: 0, ts: 500 }));
+    await usePlayStore.getState().sendSignal({ kind: 'reaction', emote: '🔥' });
+    expect(usePlayStore.getState().onlineTicker).toEqual([]);
+  });
+
+  it('the same chat signal delivered twice is adopted once, even with another signal between', async () => {
+    mockCreate.mockResolvedValue(makeOnlineGame(1));
+    await usePlayStore.getState().hostOnline({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+    });
+    // The sender gets its own message back twice — once as the POST-response
+    // echo, once over the transport. An unrelated signal landing between the
+    // two used to push the first out of the old "compare to previous" check
+    // and let the duplicate through, which for chat means the message
+    // appearing in the feed twice.
+    const chat = mockSignal({ kind: 'chat', seat: 1, ts: 500, emote: undefined, text: 'hold' });
+    mockSendSignal.mockResolvedValue(chat);
+    await usePlayStore.getState().sendSignal({ kind: 'chat', text: 'hold' });
+
+    mockSendSignal.mockResolvedValue(mockSignal({ seat: 2, ts: 501 }));
+    await usePlayStore.getState().sendSignal({ kind: 'reaction', emote: '🔥' });
+
+    mockSendSignal.mockResolvedValue(chat);
+    await usePlayStore.getState().sendSignal({ kind: 'chat', text: 'hold' });
+
+    expect(usePlayStore.getState().onlineTicker).toHaveLength(1);
+  });
+
   it('sendSignal is a no-op with no active online game, without calling the API', async () => {
     await usePlayStore.getState().sendSignal({ kind: 'reaction', emote: '🔥' });
     expect(mockSendSignal).not.toHaveBeenCalled();
@@ -1036,7 +1105,7 @@ describe('usePlayStore — play-ticker feed (ingestTicker)', () => {
   it('appends a seat window as feed items, in order', () => {
     usePlayStore.getState().ingestTicker(1, tickerWindow([1, 2, 3]));
     const feed = usePlayStore.getState().onlineTicker;
-    expect(feed.map((it) => it.entry.seq)).toEqual([1, 2, 3]);
+    expect(feed.map((it) => playSeq(it))).toEqual([1, 2, 3]);
     expect(feed.every((it) => it.seat === 1)).toBe(true);
     expect(new Set(feed.map((it) => it.id)).size).toBe(3);
   });
@@ -1051,14 +1120,14 @@ describe('usePlayStore — play-ticker feed (ingestTicker)', () => {
   it('an overlapping window ingests only lines past the seat cursor', () => {
     usePlayStore.getState().ingestTicker(1, tickerWindow([1, 2, 3]));
     usePlayStore.getState().ingestTicker(1, tickerWindow([2, 3, 4, 5]));
-    expect(usePlayStore.getState().onlineTicker.map((it) => it.entry.seq)).toEqual([1, 2, 3, 4, 5]);
+    expect(usePlayStore.getState().onlineTicker.map((it) => playSeq(it))).toEqual([1, 2, 3, 4, 5]);
   });
 
   it('seat cursors are independent — two seats interleave by arrival', () => {
     usePlayStore.getState().ingestTicker(1, tickerWindow([1, 2], 1));
     usePlayStore.getState().ingestTicker(2, tickerWindow([1], 2));
     usePlayStore.getState().ingestTicker(1, tickerWindow([1, 2, 3], 1));
-    expect(usePlayStore.getState().onlineTicker.map((it) => `${it.seat}:${it.entry.seq}`)).toEqual([
+    expect(usePlayStore.getState().onlineTicker.map((it) => `${it.seat}:${playSeq(it)}`)).toEqual([
       '1:1',
       '1:2',
       '2:1',
@@ -1069,7 +1138,7 @@ describe('usePlayStore — play-ticker feed (ingestTicker)', () => {
   it('a seat max-seq moving backward (log restarted) adopts the whole new window', () => {
     usePlayStore.getState().ingestTicker(1, tickerWindow([40, 41, 42]));
     usePlayStore.getState().ingestTicker(1, tickerWindow([1, 2]));
-    const seqs = usePlayStore.getState().onlineTicker.map((it) => it.entry.seq);
+    const seqs = usePlayStore.getState().onlineTicker.map((it) => playSeq(it));
     expect(seqs).toEqual([40, 41, 42, 1, 2]);
   });
 
@@ -1109,7 +1178,7 @@ describe('usePlayStore — play-ticker feed (ingestTicker)', () => {
       const es = FakeEventSource.instances[0];
       const board = { seat: 1, ticker: tickerWindow([1, 2]) } as unknown as PublicBoard;
       es.emit('board', { data: JSON.stringify({ seat: 1, board }) });
-      expect(usePlayStore.getState().onlineTicker.map((it) => it.entry.seq)).toEqual([1, 2]);
+      expect(usePlayStore.getState().onlineTicker.map((it) => playSeq(it))).toEqual([1, 2]);
 
       mockLeave.mockResolvedValue(undefined as never);
       await usePlayStore.getState().leaveOnline();
@@ -1117,7 +1186,7 @@ describe('usePlayStore — play-ticker feed (ingestTicker)', () => {
 
       // Cursor cleared too: the same window re-adopts in the next session.
       usePlayStore.getState().ingestTicker(1, tickerWindow([1, 2]));
-      expect(usePlayStore.getState().onlineTicker.map((it) => it.entry.seq)).toEqual([1, 2]);
+      expect(usePlayStore.getState().onlineTicker.map((it) => playSeq(it))).toEqual([1, 2]);
     } finally {
       vi.unstubAllGlobals();
     }

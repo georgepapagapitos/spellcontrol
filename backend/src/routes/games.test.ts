@@ -2239,6 +2239,124 @@ describe('POST /api/games/:code/signal (ephemeral table signals)', () => {
     expect(res.status).toBe(400);
   });
 
+  it('echoes a chat signal with the server-stamped seat and trims the message', async () => {
+    const { code, joiners } = await setupTable('games_sig_chat_h', ['games_sig_chat_j']);
+    const res = await request(app)
+      .post(`/api/games/${code}/signal`)
+      .set('Cookie', joiners[0])
+      .send({ kind: 'chat', text: '  hold, I respond  ', seat: 0 });
+    expect(res.status).toBe(200);
+    expect(res.body.signal.kind).toBe('chat');
+    expect(res.body.signal.text).toBe('hold, I respond');
+    // Same server-derived-seat contract every other signal kind has: the
+    // body's claimed seat 0 (the host's) is never read.
+    expect(res.body.signal.seat).toBe(1);
+  });
+
+  it('rejects a chat message that is empty or whitespace-only', async () => {
+    const { code, host } = await setupTable('games_sig_chat_empty', []);
+    for (const text of ['', '   ', '\n\t']) {
+      const res = await request(app)
+        .post(`/api/games/${code}/signal`)
+        .set('Cookie', host)
+        .send({ kind: 'chat', text });
+      expect(res.status).toBe(400);
+    }
+  });
+
+  it('rejects a chat message past the length cap, accepting one exactly at it', async () => {
+    const { code, host } = await setupTable('games_sig_chat_len', []);
+    const atCap = await request(app)
+      .post(`/api/games/${code}/signal`)
+      .set('Cookie', host)
+      .send({ kind: 'chat', text: 'x'.repeat(240) });
+    expect(atCap.status).toBe(200);
+    const overCap = await request(app)
+      .post(`/api/games/${code}/signal`)
+      .set('Cookie', host)
+      .send({ kind: 'chat', text: 'x'.repeat(241) });
+    expect(overCap.status).toBe(400);
+  });
+
+  it('rejects a chat message whose text is not a string', async () => {
+    const { code, host } = await setupTable('games_sig_chat_type', []);
+    for (const text of [42, null, { a: 1 }, ['hi']]) {
+      const res = await request(app)
+        .post(`/api/games/${code}/signal`)
+        .set('Cookie', host)
+        .send({ kind: 'chat', text });
+      expect(res.status).toBe(400);
+    }
+  });
+
+  it('two chat signals from one seat get distinct ts, so neither is deduped away as the other', async () => {
+    const { code, host } = await setupTable('games_sig_chat_ts', []);
+    const first = await request(app)
+      .post(`/api/games/${code}/signal`)
+      .set('Cookie', host)
+      .send({ kind: 'chat', text: 'one' });
+    const second = await request(app)
+      .post(`/api/games/${code}/signal`)
+      .set('Cookie', host)
+      .send({ kind: 'chat', text: 'two' });
+    // Clients identify a signal by (seat, ts) — a shared ts inside one
+    // millisecond would make the second message look like a duplicate of the
+    // first and get dropped. See `nextSignalTs`.
+    expect(second.body.signal.ts).toBeGreaterThan(first.body.signal.ts);
+  });
+
+  it('echoes a point signal at a seated target, with and without a card', async () => {
+    const { code, joiners } = await setupTable('games_sig_point_h', ['games_sig_point_j']);
+    const atCard = await request(app)
+      .post(`/api/games/${code}/signal`)
+      .set('Cookie', joiners[0])
+      .send({ kind: 'point', targetSeat: 0, cardId: 'slot_abc#1' });
+    expect(atCard.status).toBe(200);
+    expect(atCard.body.signal.kind).toBe('point');
+    expect(atCard.body.signal.targetSeat).toBe(0);
+    expect(atCard.body.signal.cardId).toBe('slot_abc#1');
+    expect(atCard.body.signal.seat).toBe(1);
+
+    const atSeat = await request(app)
+      .post(`/api/games/${code}/signal`)
+      .set('Cookie', joiners[0])
+      .send({ kind: 'point', targetSeat: 0 });
+    expect(atSeat.status).toBe(200);
+    expect(atSeat.body.signal.cardId).toBeUndefined();
+  });
+
+  it('a point at your own seat is allowed — "this one of mine" is a real thing to indicate', async () => {
+    const { code, host } = await setupTable('games_sig_point_self', []);
+    const res = await request(app)
+      .post(`/api/games/${code}/signal`)
+      .set('Cookie', host)
+      .send({ kind: 'point', targetSeat: 0 });
+    expect(res.status).toBe(200);
+    expect(res.body.signal.targetSeat).toBe(0);
+  });
+
+  it('rejects a point at a seat nobody is sitting in, or a non-integer seat', async () => {
+    const { code, host } = await setupTable('games_sig_point_bad', []);
+    for (const targetSeat of [3, -1, 1.5, '0', null, undefined]) {
+      const res = await request(app)
+        .post(`/api/games/${code}/signal`)
+        .set('Cookie', host)
+        .send({ kind: 'point', targetSeat });
+      expect(res.status).toBe(400);
+    }
+  });
+
+  it('rejects a point whose cardId is over-long or not a string', async () => {
+    const { code, host } = await setupTable('games_sig_point_card', []);
+    for (const cardId of ['x'.repeat(129), 42, { a: 1 }]) {
+      const res = await request(app)
+        .post(`/api/games/${code}/signal`)
+        .set('Cookie', host)
+        .send({ kind: 'point', targetSeat: 0, cardId });
+      expect(res.status).toBe(400);
+    }
+  });
+
   it('echoes a reaction signal with the server-stamped seat, ignoring a spoofed seat in the body', async () => {
     const { code, joiners } = await setupTable('games_sig_echo_h', ['games_sig_echo_j']);
     const res = await request(app)

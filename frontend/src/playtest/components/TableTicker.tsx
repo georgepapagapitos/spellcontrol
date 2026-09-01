@@ -5,6 +5,7 @@ import { paletteForIndex } from '@/lib/seat-palette';
 import type { OnlineTable } from '../hooks/use-online-table';
 import { useMediaQuery } from '../hooks/use-media-query';
 import { GLANCE_QUERY } from './OpponentRail';
+import { TableChat } from './TableChat';
 import './TableTicker.css';
 
 /** Transient-line auto-dismiss (presence density) — long enough to read a
@@ -59,7 +60,7 @@ function TickerPanel({ items, onlineTable }: { items: TickerItem[]; onlineTable:
     <section className="table-ticker" aria-label="Table log">
       <h3 className="table-ticker__heading">Table log</h3>
       {items.length === 0 ? (
-        <p className="table-ticker__empty">Plays will appear here.</p>
+        <p className="table-ticker__empty">Plays and messages will appear here.</p>
       ) : (
         // role="log" = implicit polite live region: new lines are announced
         // without stealing focus, in both densities' place of one.
@@ -69,23 +70,41 @@ function TickerPanel({ items, onlineTable }: { items: TickerItem[]; onlineTable:
           ))}
         </ol>
       )}
+      {/* Glance density only — the rail column has the vertical slack for a
+          persistent composer. In presence density the ticker renders just a
+          portaled transient flash with no in-flow surface to attach one to,
+          so the phone's composer lives in the Log sheet's Table tab. */}
+      <TableChat idPrefix="rail" />
     </section>
   );
 }
 
+/** The one place a feed line's displayed text is derived, so the panel, the
+ *  phone flash, and the Log sheet's Table tab can never disagree about what
+ *  a line says. */
+export function tickerText(item: TickerItem): string {
+  return item.kind === 'chat' ? item.text : item.entry.text;
+}
+
 export function TickerLine({ item, name }: { item: TickerItem; name: string }) {
   const palette = paletteForIndex(item.seat);
+  const isChat = item.kind === 'chat';
   return (
     <li
-      className="table-ticker__line"
+      // Chat is marked as its own modifier rather than styled like a play
+      // line: one is the app narrating verified state, the other is text a
+      // player typed, and a reader has to be able to tell which they're
+      // looking at (see the TickerItem doc comment). The separator after the
+      // name carries that distinction for anyone who can't see the styling.
+      className={isChat ? 'table-ticker__line table-ticker__line--chat' : 'table-ticker__line'}
       style={{
         ['--opp-base' as never]: palette.base,
         ['--opp-edge' as never]: palette.edge,
       }}
     >
       <span className="table-ticker__dot" aria-hidden="true" />
-      <span className="table-ticker__name">{name}</span>
-      <span className="table-ticker__text">{item.entry.text}</span>
+      <span className="table-ticker__name">{isChat ? `${name}:` : name}</span>
+      <span className="table-ticker__text">{tickerText(item)}</span>
     </li>
   );
 }
@@ -129,8 +148,11 @@ function TickerFlash({ items, onlineTable }: { items: TickerItem[]; onlineTable:
       }}
     >
       <span className="table-ticker__dot" aria-hidden="true" />
-      <span className="table-ticker-flash__name">{tickerSeatName(onlineTable, flash.seat)}</span>
-      <span className="table-ticker-flash__text">{flash.entry.text}</span>
+      <span className="table-ticker-flash__name">
+        {tickerSeatName(onlineTable, flash.seat)}
+        {flash.kind === 'chat' ? ':' : ''}
+      </span>
+      <span className="table-ticker-flash__text">{tickerText(flash)}</span>
     </div>,
     document.body
   );

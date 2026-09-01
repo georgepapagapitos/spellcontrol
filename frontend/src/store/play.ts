@@ -112,12 +112,21 @@ export function recordToRematch(rec: GameRecord): RematchTemplate {
 /** One line of the play-ticker feed (see `PlayState.onlineTicker`). `id` is
  *  feed-unique (a per-adoption counter, never reused even across a seat's
  *  log restarting), so it's safe as a render key and as an edge-trigger for
- *  "a new line arrived". */
-export interface TickerItem {
-  id: number;
-  seat: number;
-  entry: TickerEntry;
-}
+ *  "a new line arrived".
+ *
+ *  Two kinds share the one feed on purpose. A `'play'` line is projected
+ *  from a seat's game log (`toPublicTicker`) and narrates what the table
+ *  did; a `'chat'` line is what a player typed. Interleaving them in arrival
+ *  order is the whole value — "Maya played Sol Ring" / "Maya: hold, I
+ *  respond" reads as one conversation, and splitting them into two feeds
+ *  would force a player to reconstruct that ordering by eye. They stay
+ *  DISTINGUISHABLE rather than merged into one text field because they carry
+ *  different trust: a play line is machine-generated from state under the
+ *  projection.ts visibility contract, a chat line is free text another
+ *  player wrote. Renderers must not present the second as the first. */
+export type TickerItem =
+  | { id: number; seat: number; kind: 'play'; entry: TickerEntry }
+  | { id: number; seat: number; kind: 'chat'; text: string };
 
 interface PlayState {
   /** Active local (shared-device) game, if any. */
@@ -350,7 +359,9 @@ function ingestTickerLines(seat: number, ticker: TickerEntry[] | undefined, set:
   const fresh = maxSeq < seen ? ticker : ticker.filter((e) => e.seq > seen);
   if (fresh.length === 0) return;
   tickerSeen.set(seat, maxSeq);
-  const items = fresh.map((entry) => ({ id: nextTickerItemId++, seat, entry }));
+  const items = fresh.map(
+    (entry): TickerItem => ({ id: nextTickerItemId++, seat, kind: 'play', entry })
+  );
   set((s) => ({ onlineTicker: [...s.onlineTicker, ...items].slice(-TICKER_FEED_LIMIT) }));
 }
 
@@ -365,18 +376,66 @@ function applyServerRequest(request: GameRequest, set: PlaySet): void {
 }
 
 /**
+ * Identities — `${seat}:${ts}` — of table signals already adopted, so a
+ * signal delivered twice is adopted once.
+ *
+ * This replaces an older check that compared only against the immediately
+ * previous signal. That was enough while a duplicate could only be the
+ * sender's own POST-response echo racing its transport frame back-to-back,
+ * and while the worst case was one emote animating twice. It is NOT enough
+ * now: any signal from another seat landing between those two frames pushed
+ * the original out of "previous" and let the echo through, and with chat on
+ * this channel that means a message the sender typed once appearing in the
+ * feed twice. The server guarantees the (seat, ts) pair is unique per signal
+ * (see `nextSignalTs` in the route), so remembering the pair is exact.
+ *
+ * Bounded and FIFO-evicted: a `Set` iterates in insertion order, so dropping
+ * `values().next()` drops the oldest. The cap is far above any plausible
+ * in-flight window (duplicates arrive within a round-trip of each other),
+ * so eviction only ever discards identities long past being re-deliverable.
+ * Module-level and cleared wherever the online slice resets, exactly like
+ * `tickerSeen`.
+ */
+const signalSeen = new Set<string>();
+const SIGNAL_SEEN_LIMIT = 200;
+
+/**
  * Adopt an ephemeral table signal from either delivery path — the sender's
  * own POST-response echo (see `sendSignal`) or the transport broadcast. The
- * same frame arrives on both for the sender, so dedupe by (seat, ts): the
- * server stamps `ts` once, making the pair a stable identity for one signal.
- * `seq` increments per adopted signal so consumers re-fire on repeats (two
- * identical emotes in a row are two moments, not one).
+ * same frame arrives on both for the sender, hence the (seat, ts) dedupe
+ * above. `seq` increments per adopted signal so consumers re-fire on repeats
+ * (two identical emotes in a row are two moments, not one).
+ *
+ * A `'chat'` signal is the one kind that ALSO lands somewhere durable-ish:
+ * it appends to `onlineTicker`, so a message stays readable in the table
+ * feed instead of flashing past like an emote. It still goes through
+ * `onlineSignal` as well, so the transient layer can announce an incoming
+ * message the same way it announces a roll.
  */
 function applyServerSignal(signal: GameSignal, set: PlaySet): void {
+  const identity = `${signal.seat}:${signal.ts}`;
+  if (signalSeen.has(identity)) return;
+  signalSeen.add(identity);
+  if (signalSeen.size > SIGNAL_SEEN_LIMIT) {
+    const oldest = signalSeen.values().next().value;
+    if (oldest !== undefined) signalSeen.delete(oldest);
+  }
   set((s) => {
-    const last = s.onlineSignal;
-    if (last && last.signal.seat === signal.seat && last.signal.ts === signal.ts) return {};
-    return { onlineSignal: { seq: (last?.seq ?? 0) + 1, signal } };
+    const next: Partial<PlayState> = {
+      onlineSignal: { seq: (s.onlineSignal?.seq ?? 0) + 1, signal },
+    };
+    // `text` is non-empty by construction server-side; the guard is for a
+    // frame from an older/other client that sent a chat kind without one.
+    if (signal.kind === 'chat' && signal.text) {
+      const line: TickerItem = {
+        id: nextTickerItemId++,
+        seat: signal.seat,
+        kind: 'chat',
+        text: signal.text,
+      };
+      next.onlineTicker = [...s.onlineTicker, line].slice(-TICKER_FEED_LIMIT);
+    }
+    return next;
   });
 }
 
@@ -505,6 +564,7 @@ function resetOnlineState(
   serverCode = null;
   serverVersion = 0;
   tickerSeen.clear();
+  signalSeen.clear();
   set({
     online: null,
     onlineError: null,
@@ -643,6 +703,7 @@ export const usePlayStore = create<PlayState>()(
         serverVersion = game.version;
         serverCode = game.code;
         tickerSeen.clear();
+        signalSeen.clear();
         set({
           online: game,
           onlineError: null,
@@ -661,6 +722,7 @@ export const usePlayStore = create<PlayState>()(
         serverVersion = game.version;
         serverCode = game.code;
         tickerSeen.clear();
+        signalSeen.clear();
         set({
           online: game,
           onlineError: null,
@@ -834,6 +896,7 @@ export const usePlayStore = create<PlayState>()(
           serverCode = null;
           serverVersion = 0;
           tickerSeen.clear();
+          signalSeen.clear();
           set({
             online: null,
             onlineError: null,

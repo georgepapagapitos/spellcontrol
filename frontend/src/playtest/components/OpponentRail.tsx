@@ -6,6 +6,7 @@ import type { PublicBattlefieldCard, PublicBoard } from '@/lib/playtest/projecti
 import { DESIGNATIONS } from '../lib/designations';
 import { useNewCardIds } from '../hooks/use-new-card-ids';
 import { useMediaQuery } from '../hooks/use-media-query';
+import { useTablePointer } from '../hooks/use-table-pointer';
 import { OpponentBoardModal } from './OpponentBoardModal';
 import './OpponentRail.css';
 
@@ -103,6 +104,12 @@ export function OpponentRail({ opponents, activeSeat, children }: OpponentRailPr
     return () => clearTimeout(t);
   }, [activeSeat]);
 
+  // A point at an opponent's board lights their rail entry, so it registers
+  // without the pointed-at card's own sheet being open. A point at the LOCAL
+  // seat has no entry here (a seat never appears in its own `opponents`) —
+  // that one is carried by TableSignals' "is pointing at your ..." line.
+  const pointer = useTablePointer();
+
   if (opponents.length === 0) return null;
 
   return (
@@ -120,6 +127,7 @@ export function OpponentRail({ opponents, activeSeat, children }: OpponentRailPr
             glance={isGlance}
             active={opp.board.seat === activeSeat}
             sweeping={opp.board.seat === sweepSeat}
+            pointed={opp.board.seat === pointer?.targetSeat}
             onOpen={() => setInspecting(opp.board.seat)}
           />
         ))}
@@ -141,12 +149,15 @@ function OpponentEntry({
   glance,
   active,
   sweeping,
+  pointed,
   onOpen,
 }: {
   opp: OpponentSeat;
   glance: boolean;
   active: boolean;
   sweeping: boolean;
+  /** Somebody at the table is currently pointing at this seat's board. */
+  pointed: boolean;
   onOpen: () => void;
 }) {
   const { name, board, pending } = opp;
@@ -166,6 +177,11 @@ function OpponentEntry({
     !pending && `${board.handCount} card${board.handCount === 1 ? '' : 's'} in hand`,
     !pending && `${board.libraryCount} in library`,
     held.length > 0 && `holds ${held.map((d) => d.label).join(', ')}`,
+    // Part of the label rather than a bare visual ring: the highlight is the
+    // whole point of a point, and a screen-reader user reaching this entry
+    // has to be told it is lit. TableSignals separately ANNOUNCES the point
+    // as it arrives; this is what the entry still says on arrival there.
+    pointed && 'being pointed at',
   ]
     .filter(Boolean)
     .join(', ');
@@ -175,7 +191,8 @@ function OpponentEntry({
       className={joinClasses(
         'opponent-entry',
         active && 'is-active-turn',
-        sweeping && 'opponent-entry--turn-sweep'
+        sweeping && 'opponent-entry--turn-sweep',
+        pointed && 'is-pointed'
       )}
       style={{
         ['--opp-base' as never]: palette.base,

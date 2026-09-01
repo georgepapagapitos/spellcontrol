@@ -15,6 +15,8 @@ import { commanderTaxAmount } from '../lib/zones';
 import { DESIGNATIONS } from '../lib/designations';
 import { type OpponentSeat } from './OpponentRail';
 import { useNewCardIds } from '../hooks/use-new-card-ids';
+import { useOnlineSignals } from '../hooks/use-online-signals';
+import { useTablePointer } from '../hooks/use-table-pointer';
 import { PlaytestCardFace } from './PlaytestCardFace';
 import './OpponentBoardModal.css';
 
@@ -69,6 +71,16 @@ export function OpponentBoardModal({ opp, active, onClose }: Props) {
   useLockBodyScroll();
   const { isClosing, beginClose, onAnimationEnd, exitStyle } = useSheetExit(onClose, 'sheet-fall');
   useEscapeKey(beginClose);
+
+  // Pointing is online-only; `useOnlineSignals` is null in solo playtest, so
+  // `point` below is a no-op there and the affordances never render.
+  const linked = useOnlineSignals();
+  const pointer = useTablePointer();
+  const point = (cardId?: string) =>
+    void linked?.sendSignal({ kind: 'point', targetSeat: board.seat, ...(cardId && { cardId }) });
+  // Only a point at THIS board lights anything up in this sheet.
+  const pointedCardId =
+    pointer && pointer.targetSeat === board.seat ? (pointer.cardId ?? null) : null;
 
   const [activeZone, setActiveZone] = useState<BoardZone>('battlefield');
   // Tracked by (zone, card id) rather than a snapshot index — the board can
@@ -200,6 +212,20 @@ export function OpponentBoardModal({ opp, active, onClose }: Props) {
               </span>
             )}
           </div>
+          {linked && (
+            // Points at the seat, not a card — "you", for an attack
+            // declaration or a targeted spell that isn't hitting a specific
+            // permanent. The per-card version lives on the tiles below.
+            <button
+              type="button"
+              className="opponent-board-point"
+              onClick={() => point()}
+              aria-label={`Point at ${name}`}
+              title={`Point at ${name}`}
+            >
+              Point
+            </button>
+          )}
           <button
             type="button"
             className="opponent-board-close"
@@ -237,7 +263,9 @@ export function OpponentBoardModal({ opp, active, onClose }: Props) {
                         key={bf.card.id}
                         bf={bf}
                         isNew={newBattlefieldIds.has(bf.card.id)}
+                        isPointed={pointedCardId === bf.card.id}
                         onInspect={(id) => inspect('battlefield', id)}
+                        onPoint={linked ? () => point(bf.card.id) : undefined}
                       />
                     ))}
                   </div>
@@ -284,11 +312,17 @@ export function OpponentBoardModal({ opp, active, onClose }: Props) {
 function BattlefieldTile({
   bf,
   isNew,
+  isPointed,
   onInspect,
+  onPoint,
 }: {
   bf: PublicBattlefieldCard;
   isNew: boolean;
+  /** Somebody at the table is currently pointing at this exact permanent. */
+  isPointed: boolean;
   onInspect: (cardId: string) => void;
+  /** Absent in solo playtest, where there is no table to point for. */
+  onPoint?: () => void;
 }) {
   const art = useCardThumb(bf.faceDown ? undefined : bf.card.name, 'normal');
   const card: PlaytestCard = {
@@ -314,12 +348,19 @@ function BattlefieldTile({
     phased: bf.phased,
   };
   const interactive = !bf.faceDown;
-  return (
+  // A face-down permanent can still be POINTED at — "the morph", "that one" is
+  // exactly the kind of thing a table needs to indicate — even though it can
+  // never be inspected (its identity is redacted upstream in `toPublicBoard`).
+  // Pointing carries only the opaque instance id, so it reveals nothing.
+  const label = interactive ? card.name : 'Face-down card';
+  const face = (
     <PlaytestCardFace
       card={card}
       bf={adaptedBf}
       size="lg"
-      className={`opponent-board-card${isNew ? ' is-entering' : ''}`}
+      className={`opponent-board-card${isNew ? ' is-entering' : ''}${
+        isPointed ? ' is-pointed' : ''
+      }`}
       // Rotate-AND-scale, not a bare rotate: the tile sits in a wrapping flex
       // grid, so a 90° rotation alone swings the card's long edge outside its
       // own box — an edge-column tapped card then clips off the modal's
@@ -341,6 +382,30 @@ function BattlefieldTile({
           : undefined
       }
     />
+  );
+
+  // Unwrapped when there's nothing to point for, so solo playtest keeps the
+  // exact flex-child it had before this feature rather than gaining a
+  // wrapper that could shift the grid.
+  if (!onPoint) return face;
+
+  return (
+    <div className="opponent-board-tile">
+      {face}
+      {/* A separate control rather than a second gesture on the card: the
+          tile's own click already means "inspect", and overloading it (long
+          press, modifier click) would hide pointing behind something
+          undiscoverable and untouchable by a keyboard. */}
+      <button
+        type="button"
+        className="opponent-board-tile__point"
+        onClick={onPoint}
+        aria-label={`Point at ${label}`}
+        title={`Point at ${label}`}
+      >
+        <span aria-hidden>☞</span>
+      </button>
+    </div>
   );
 }
 

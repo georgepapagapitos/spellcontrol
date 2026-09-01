@@ -9,6 +9,7 @@ import { toast } from '@/store/toasts';
 import { Tabs } from '@/components/Tabs';
 import type { TickerItem } from '@/store/play';
 import { TickerLine } from './TableTicker';
+import { TableChat } from './TableChat';
 
 interface Props {
   log: GameLogEntry[];
@@ -108,6 +109,16 @@ export function PlaytestLogSheet({ log, table, onClose }: Props) {
             ))
           )}
         </div>
+
+        {/* The Table tab's composer. This is the phone's only path to table
+            chat — presence density renders the ticker as a transient portaled
+            flash with nowhere to hang an input (see TableTicker) — and it is
+            reachable on every viewport, so a tablet has both this and the
+            rail's. Outside the scrolling body so a long feed never pushes it
+            out of reach. `TableChat` self-gates on being online and seated,
+            so this is inert in solo playtest, where the tab isn't shown at
+            all. */}
+        {showTable && <TableChat idPrefix="log-sheet" />}
 
         <div className="card-picker-footer">
           {!showTable && (

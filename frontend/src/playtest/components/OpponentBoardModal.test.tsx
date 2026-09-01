@@ -4,13 +4,16 @@
  * vitest/chai matchers, not `.toBeInTheDocument()`/`.toHaveAccessibleName()`.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { OpponentBoardModal } from './OpponentBoardModal';
 import type { OpponentSeat } from './OpponentRail';
 import type { PublicBattlefieldCard, PublicBoard } from '@/lib/playtest/projection';
 import { getCardsByIds, getCardsByNames } from '@/deck-builder/services/scryfall/client';
+import { usePlayStore } from '@/store/play';
+import { useAuth } from '@/store/auth';
+import { createGameState, makePlayer } from '@/lib/game-state';
 
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
   getCardsByIds: vi.fn(),
@@ -380,5 +383,141 @@ describe('OpponentBoardModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Close board view' }));
     expect(document.activeElement).toBe(openBtn);
+  });
+});
+
+describe('OpponentBoardModal — pointing', () => {
+  /** Seat this device at an online table so `useOnlineSignals` links up; the
+   *  point affordances are gated on exactly that (solo playtest has no table
+   *  to point for, which the suite above covers by never setting this). */
+  function seatMeOnline() {
+    const sendSignal = vi.fn().mockResolvedValue(undefined);
+    useAuth.setState({ user: { id: 'me-id', username: 'me', role: 'user' } });
+    usePlayStore.setState({
+      onlineSignal: null,
+      sendSignal,
+      online: createGameState({
+        id: 'g1',
+        code: 'ABCD',
+        mode: 'online',
+        hostUserId: 'me-id',
+        format: 'commander',
+        startingLife: 40,
+        commanderDamageEnabled: true,
+        poisonEnabled: false,
+        players: [
+          makePlayer({
+            id: 'me',
+            userId: 'me-id',
+            seat: 1,
+            name: 'Me',
+            startingLife: 40,
+            isHost: true,
+          }),
+          makePlayer({ id: 'p', userId: 'u', seat: 0, name: 'Priya', startingLife: 40 }),
+        ],
+      }),
+    });
+    return sendSignal;
+  }
+
+  afterEach(() => {
+    usePlayStore.setState({ online: null, onlineSignal: null });
+  });
+
+  it('offers no point affordances in solo playtest', () => {
+    resolveAll([scryCard('c1', 'Sol Ring')]);
+    render(
+      <OpponentBoardModal
+        opp={opp({}, { battlefield: [bfCard('c1', 'Sol Ring')] })}
+        active={false}
+        onClose={() => {}}
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'Point at Priya' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Point at Sol Ring' })).toBeNull();
+  });
+
+  it('points at the seat as a whole from the header, carrying no card', () => {
+    const sendSignal = seatMeOnline();
+    render(<OpponentBoardModal opp={opp()} active={false} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Point at Priya' }));
+    expect(sendSignal).toHaveBeenCalledWith({ kind: 'point', targetSeat: 0 });
+  });
+
+  it('points at one permanent from its tile', () => {
+    const sendSignal = seatMeOnline();
+    resolveAll([scryCard('c1', 'Sol Ring')]);
+    render(
+      <OpponentBoardModal
+        opp={opp({}, { battlefield: [bfCard('c1', 'Sol Ring')] })}
+        active={false}
+        onClose={() => {}}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Point at Sol Ring' }));
+    expect(sendSignal).toHaveBeenCalledWith({ kind: 'point', targetSeat: 0, cardId: 'c1' });
+  });
+
+  it('a face-down permanent can be pointed at without naming it', () => {
+    // Its identity is redacted upstream, and a point carries only the opaque
+    // instance id — so indicating "the morph" reveals nothing.
+    const sendSignal = seatMeOnline();
+    render(
+      <OpponentBoardModal
+        opp={opp({}, { battlefield: [bfCard('c1', 'Sol Ring', { faceDown: true })] })}
+        active={false}
+        onClose={() => {}}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Point at Face-down card' }));
+    expect(sendSignal).toHaveBeenCalledWith({ kind: 'point', targetSeat: 0, cardId: 'c1' });
+  });
+
+  it('lights the permanent an incoming point names, and only that one', async () => {
+    seatMeOnline();
+    resolveAll([scryCard('c1', 'Sol Ring'), scryCard('c2', 'Mox Pearl')]);
+    render(
+      <OpponentBoardModal
+        opp={opp({}, { battlefield: [bfCard('c1', 'Sol Ring'), bfCard('c2', 'Mox Pearl')] })}
+        active={false}
+        onClose={() => {}}
+      />
+    );
+    await act(async () => {
+      usePlayStore.setState({
+        onlineSignal: {
+          seq: 1,
+          signal: { kind: 'point', seat: 0, ts: 1, targetSeat: 0, cardId: 'c2' },
+        },
+      });
+    });
+    // The sheet is portaled to <body>, so query the document, not `container`.
+    const lit = document.querySelectorAll('.opponent-board-card.is-pointed');
+    expect(lit.length).toBe(1);
+    expect(lit[0].getAttribute('aria-label')).toBe('Mox Pearl');
+  });
+
+  it('a point at a DIFFERENT seat lights nothing in this sheet', async () => {
+    seatMeOnline();
+    resolveAll([scryCard('c1', 'Sol Ring')]);
+    render(
+      <OpponentBoardModal
+        opp={opp({}, { battlefield: [bfCard('c1', 'Sol Ring')] })}
+        active={false}
+        onClose={() => {}}
+      />
+    );
+    await act(async () => {
+      usePlayStore.setState({
+        onlineSignal: {
+          seq: 1,
+          signal: { kind: 'point', seat: 0, ts: 1, targetSeat: 5, cardId: 'c1' },
+        },
+      });
+    });
+    // Guard against a vacuous pass: the tile exists, it just isn't lit.
+    expect(document.querySelector('.opponent-board-card')).toBeTruthy();
+    expect(document.querySelector('.opponent-board-card.is-pointed')).toBeNull();
   });
 });
