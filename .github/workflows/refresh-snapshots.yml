@@ -154,3 +154,49 @@ jobs:
             Only files whose 30-day gate had expired are in this diff; the rest were left alone. Each was validated in-workflow (parses, keeps its stamp, passes a shape check) before this PR opened, on top of the refresh scripts' own shrink guard.
 
             Nothing is blocked on merging this — `prebuild` passes `--no-fetch`, so builds use whatever snapshot is committed and never reach for the network. This just keeps the shipped data current.
+
+      # LAST, and deliberately after the PR: every refresh script soft-fails on
+      # purpose ("a stale snapshot beats no snapshot"), so an upstream break
+      # exits 0 and the whole run goes green having refreshed nothing. That is
+      # how run 33523202844 passed while tagger-tags.json stayed 31 days old —
+      # Scryfall had renamed `otag:mana-fix`, one dead tag aborted the build,
+      # and the only trace was a console.warn nobody had reason to read.
+      #
+      # This is the signal that was missing: the job of a scheduled refresh is
+      # to leave every snapshot inside its gate, so ending with one outside is a
+      # failure of this workflow whatever the scripts decided to do about it.
+      # It runs after create-pull-request so a partial refresh still lands — a
+      # run can perfectly well open a good PR and be red about what it missed.
+      - name: Fail if any snapshot is still past its age gate
+        working-directory: frontend
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            // Read each gate out of the script that enforces it, so this check
+            // cannot drift away from the thing it is checking.
+            const gateOf = (script) => {
+              const m = /MAX_AGE_DAYS\s*=\s*(\d+)/.exec(fs.readFileSync(script, "utf8"));
+              if (!m) throw new Error(`no MAX_AGE_DAYS in ${script}`);
+              return Number(m[1]);
+            };
+            const targets = [
+              ["public/tagger-tags.json", "scripts/refresh-tagger.mjs"],
+              ["public/otag-index.json", "scripts/refresh-otag-index.mjs"],
+              ["public/comprehensive-rules.json", "scripts/refresh-rules.mjs"],
+              ["public/sld-drops.json", "scripts/refresh-sld-drops.mjs"],
+            ];
+            let stale = 0;
+            for (const [file, script] of targets) {
+              const data = JSON.parse(fs.readFileSync(file, "utf8"));
+              const stamp = data.generatedAt || data.meta?.fetchedAt;
+              const age = (Date.now() - new Date(stamp).getTime()) / 86400000;
+              const gate = gateOf(script);
+              if (!Number.isFinite(age) || age >= gate) {
+                console.error(`::error file=frontend/${file}::${file} is ${Number.isFinite(age) ? age.toFixed(1) + "d" : "un-stamped"} old, past its ${gate}d gate — the refresh did not take. Check the "${script}" step in this run for the reason it soft-failed.`);
+                stale++;
+              } else {
+                console.log(`${file}: ${age.toFixed(1)}d / ${gate}d`);
+              }
+            }
+            if (stale) process.exit(1);
+          '
