@@ -18,6 +18,34 @@ permissions:
   contents: read
 
 jobs:
+  # Cheap structural gate, deliberately first: a packages/* shared package has to
+  # be registered in every place that installs a consumer, and the places that
+  # are NOT PR checks (the cron ingests, the release build, the image build) fail
+  # weeks later with nothing wrong in the diff that broke them — see the script's
+  # header for the three times this has bitten us. Pure Node against a tiny root
+  # install, so it reports in well under a minute.
+  shared-packages:
+    name: shared packages — registration
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # Root devDeps only (the script needs a YAML parser). --ignore-scripts
+      # skips husky's `prepare`, which has nothing to set up in CI.
+      - name: Install root dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Check shared package registration
+        run: node scripts/check-shared-package-registration.mjs
+
   game-core:
     name: game-core — typecheck & test
     runs-on: ubuntu-latest
