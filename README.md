@@ -191,6 +191,10 @@ The repo is a monorepo with four packages: `backend/`, `frontend/`, and two shar
 
 **binder-routing** (`packages/binder-routing/`) — the second shared package, same shape (zero-dependency, isomorphic, dual CJS + ESM, its own 80%-gated test suite). It owns the binder routing engine: card-to-binder rule matching, filtering, sorting, and materialization. Consumed via `file:` dependency (`@spellcontrol/binder-routing`) by the frontend (live binder views) and the backend (shared-binder projections).
 
+**deck-metrics** (`packages/deck-metrics/`) — the third shared package, same shape. It owns the Commander bracket estimator (hard floors, soft power score, signal breakdown) and its floor predicates, with tag membership injected via `TagLookup` so the package carries no tagger data or I/O. Consumed via `file:` dependency (`@spellcontrol/deck-metrics`) by the frontend (deck analysis, generation convergence) and the backend (the AI `check_bracket` tool).
+
+Adding a shared package means registering it in every place that installs a consumer — both `ci.yml` jobs, the cron ingest workflows, the Android release build, and both stages of `backend/Dockerfile`. Miss one and the consumer's `npm ci` runs that package's dist-guarded `prepare` without its devDependencies, dying on `TS2688`; the places that aren't PR checks surface it weeks later on a cron or a deploy. `scripts/check-shared-package-registration.mjs` enforces this on every PR and prints the full list of what's missing — run it locally with `node scripts/check-shared-package-registration.mjs`.
+
 ## API
 
 All `/api/*` endpoints sit behind helmet and per-endpoint rate limiters.
