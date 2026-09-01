@@ -123,51 +123,21 @@ jobs:
             if (bad) process.exit(1);
           '
 
-      # An app token, not GITHUB_TOKEN: PRs opened with GITHUB_TOKEN do not
-      # trigger other workflows, so the required CI checks would never run and
-      # the "protect main" ruleset would block the PR forever. Same reasoning
-      # and same secrets as scanner-ingest.yml.
-      - name: Generate app token
-        id: app-token
-        uses: actions/create-github-app-token@v3
-        with:
-          app-id: ${{ secrets.SCANNER_BOT_APP_ID }}
-          private-key: ${{ secrets.SCANNER_BOT_PRIVATE_KEY }}
-
-      - name: Open a PR if anything changed
-        uses: peter-evans/create-pull-request@v8
-        with:
-          token: ${{ steps.app-token.outputs.token }}
-          branch: chore/refresh-build-snapshots
-          delete-branch: true
-          base: main
-          title: 'chore(frontend): refresh build snapshots'
-          commit-message: 'chore(frontend): refresh build snapshots'
-          add-paths: |
-            frontend/public/tagger-tags.json
-            frontend/public/otag-index.json
-            frontend/public/comprehensive-rules.json
-            frontend/public/sld-drops.json
-          body: |
-            Automated refresh of the age-gated build snapshots, via the **Refresh build snapshots** workflow.
-
-            Only files whose 30-day gate had expired are in this diff; the rest were left alone. Each was validated in-workflow (parses, keeps its stamp, passes a shape check) before this PR opened, on top of the refresh scripts' own shrink guard.
-
-            Nothing is blocked on merging this — `prebuild` passes `--no-fetch`, so builds use whatever snapshot is committed and never reach for the network. This just keeps the shipped data current.
-
-      # LAST, and deliberately after the PR: every refresh script soft-fails on
-      # purpose ("a stale snapshot beats no snapshot"), so an upstream break
-      # exits 0 and the whole run goes green having refreshed nothing. That is
-      # how run 33523202844 passed while tagger-tags.json stayed 31 days old —
-      # Scryfall had renamed `otag:mana-fix`, one dead tag aborted the build,
-      # and the only trace was a console.warn nobody had reason to read.
+      # Runs BEFORE create-pull-request, because that action ends by doing
+      # `git checkout main && git reset --hard origin/main` — which restores the
+      # working tree to whatever main has committed. A freshness check placed
+      # after it reads main old snapshot, never the one just fetched, so it
+      # failed even on run 33563181201 where the refresh had worked perfectly.
       #
-      # This is the signal that was missing: the job of a scheduled refresh is
-      # to leave every snapshot inside its gate, so ending with one outside is a
-      # failure of this workflow whatever the scripts decided to do about it.
-      # It runs after create-pull-request so a partial refresh still lands — a
-      # run can perfectly well open a good PR and be red about what it missed.
-      - name: Fail if any snapshot is still past its age gate
+      # continue-on-error so a stale snapshot still gets its PR opened; the last
+      # step turns this outcome into the actual red. Every refresh script
+      # soft-fails on purpose ("a stale snapshot beats no snapshot"), so without
+      # this the whole run goes green having refreshed nothing — which is how
+      # run 33523202844 passed while tagger-tags.json sat 31 days old, the only
+      # trace a console.warn nobody had reason to read.
+      - name: Check the snapshots are inside their age gates
+        id: freshness
+        continue-on-error: true
         working-directory: frontend
         run: |
           node -e '
@@ -200,3 +170,46 @@ jobs:
             }
             if (stale) process.exit(1);
           '
+
+      # An app token, not GITHUB_TOKEN: PRs opened with GITHUB_TOKEN do not
+      # trigger other workflows, so the required CI checks would never run and
+      # the "protect main" ruleset would block the PR forever. Same reasoning
+      # and same secrets as scanner-ingest.yml.
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.SCANNER_BOT_APP_ID }}
+          private-key: ${{ secrets.SCANNER_BOT_PRIVATE_KEY }}
+
+      - name: Open a PR if anything changed
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          branch: chore/refresh-build-snapshots
+          delete-branch: true
+          base: main
+          title: 'chore(frontend): refresh build snapshots'
+          commit-message: 'chore(frontend): refresh build snapshots'
+          add-paths: |
+            frontend/public/tagger-tags.json
+            frontend/public/otag-index.json
+            frontend/public/comprehensive-rules.json
+            frontend/public/sld-drops.json
+          body: |
+            Automated refresh of the age-gated build snapshots, via the **Refresh build snapshots** workflow.
+
+            Only files whose 30-day gate had expired are in this diff; the rest were left alone. Each was validated in-workflow (parses, keeps its stamp, passes a shape check) before this PR opened, on top of the refresh scripts' own shrink guard.
+
+            Nothing is blocked on merging this — `prebuild` passes `--no-fetch`, so builds use whatever snapshot is committed and never reach for the network. This just keeps the shipped data current.
+
+      # The job of a scheduled refresh is to leave every snapshot inside its
+      # gate, so ending with one outside is a failure of this workflow whatever
+      # the scripts decided to do about it. Deliberately last: a partial refresh
+      # should still land its PR, and a run can be usefully red about only what
+      # it missed.
+      - name: Fail if any snapshot is still past its age gate
+        if: steps.freshness.outcome == 'failure'
+        run: |
+          echo "::error::A snapshot is still past its age gate. See the \"Check the snapshots are inside their age gates\" step above for which one, and the refresh step named there for why it soft-failed."
+          exit 1
