@@ -315,3 +315,30 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
+
+/* A seat somebody is pointing at. Same ring vocabulary as the pointed card in
+   OpponentBoardModal so the two read as one state at two zoom levels. The
+   ring is static — it carries the meaning on its own if the pulse is
+   suppressed below. */
+.opponent-entry.is-pointed {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: var(--radius);
+  animation: opponent-entry-point-pulse 900ms var(--ease-out-soft) 2;
+}
+
+@keyframes opponent-entry-point-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opponent-entry.is-pointed {
+    animation: none;
+  }
+}

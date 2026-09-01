@@ -220,9 +220,11 @@ describe('useOnlineTable', () => {
 
     // Own lines join the local feed under the own seat — what opponents see
     // of me is exactly what the table feed shows me too.
-    expect(usePlayStore.getState().onlineTicker.map((it) => `${it.seat}:${it.entry.seq}`)).toEqual([
-      '0:1',
-    ]);
+    expect(
+      usePlayStore
+        .getState()
+        .onlineTicker.map((it) => `${it.seat}:${it.kind === 'play' ? it.entry.seq : 'chat'}`)
+    ).toEqual(['0:1']);
   });
 
   it('does not publish at all when solo (no projection performed)', () => {

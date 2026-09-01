@@ -144,17 +144,24 @@ export async function postBoard(code: string, board: PublicBoard): Promise<void>
 }
 
 /**
- * An ephemeral table signal — a reaction emote or a server-rolled die/coin —
- * broadcast to every subscriber and stored nowhere (backend:
+ * An ephemeral table signal — a reaction emote, a server-rolled die/coin, a
+ * line of table chat, or a point at something on the table — broadcast to
+ * every subscriber and stored nowhere (backend:
  * `POST /api/games/:code/signal` in routes/games.ts). `seat`, `value`, and
  * `ts` are server-authoritative: the seat is the caller's own participant
  * record and a roll's value is generated server-side so every seat sees the
  * same result. The sender's own copy comes back in the POST response for
  * instant local echo (see store/play.ts `sendSignal`); the transport
- * delivery of the same frame is deduped there by (seat, ts).
+ * delivery of the same frame is deduped there by (seat, ts), which the
+ * server keeps a usable identity by stamping `ts` strictly ascending rather
+ * than from the raw clock (see `nextSignalTs` in the route).
+ *
+ * Chat being a *signal* and not stored history is deliberate — see the
+ * `GameSignal` doc comment on the backend for the reasoning. It means chat
+ * reaches only who is connected now and is gone on reload, same as an emote.
  */
 export interface GameSignal {
-  kind: 'reaction' | 'roll';
+  kind: 'reaction' | 'roll' | 'chat' | 'point';
   seat: number;
   ts: number;
   /** reaction only — one of the fixed emote set (validated server-side). */
@@ -163,11 +170,23 @@ export interface GameSignal {
   die?: 'd6' | 'd20' | 'coin' | 'first';
   /** roll only: the die face, 0|1 for coin, or the chosen seat for 'first'. */
   value?: number;
+  /** chat only: the message, trimmed and length-capped server-side. */
+  text?: string;
+  /** point only: the seat whose board is being pointed at. Always a seat
+   *  the server verified is actually at this table. */
+  targetSeat?: number;
+  /** point only: which card on that seat's board. Absent means the point is
+   *  at the seat as a whole — and a receiver that can't find this id on the
+   *  target board must degrade to exactly that, since the server does not
+   *  (and cannot reliably) validate the id against live board state. */
+  cardId?: string;
 }
 
 export type GameSignalInput =
   | { kind: 'reaction'; emote: string }
-  | { kind: 'roll'; die: NonNullable<GameSignal['die']> };
+  | { kind: 'roll'; die: NonNullable<GameSignal['die']> }
+  | { kind: 'chat'; text: string }
+  | { kind: 'point'; targetSeat: number; cardId?: string };
 
 export async function sendGameSignal(code: string, input: GameSignalInput): Promise<GameSignal> {
   const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/signal`, {

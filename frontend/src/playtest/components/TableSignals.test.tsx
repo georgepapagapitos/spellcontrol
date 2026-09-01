@@ -118,4 +118,75 @@ describe('TableSignals', () => {
     }
     expect(screen.getAllByRole('status')).toHaveLength(4);
   });
+
+  it('a point at my board addresses me in the second person', async () => {
+    render(<TableSignals />);
+    await act(async () => {
+      withSignal(1, { kind: 'point', seat: 1, ts: 1, targetSeat: 0 });
+    });
+    expect(screen.getByRole('status').textContent).toBe('Maya is pointing at your board');
+  });
+
+  it('a point at another seat reads in the third person, so the table can follow', async () => {
+    render(<TableSignals />);
+    await act(async () => {
+      withSignal(1, { kind: 'point', seat: 1, ts: 1, targetSeat: 2 });
+    });
+    expect(screen.getByRole('status').textContent).toBe("Maya is pointing at Priya's board");
+  });
+
+  it('names the pointed card when it is resolvable on the target seat published board', async () => {
+    usePlayStore.setState({
+      onlineBoards: {
+        0: {
+          seat: 0,
+          turn: 1,
+          life: 40,
+          commanderTax: {},
+          monarch: false,
+          initiative: false,
+          citysBlessing: false,
+          battlefield: [
+            {
+              card: { id: 'c1', name: 'Sol Ring' },
+              tapped: false,
+              counters: {},
+              stickers: [],
+              x: 0,
+              y: 0,
+              faceDown: false,
+            },
+          ],
+          graveyard: [],
+          exile: [],
+          command: [],
+          handCount: 7,
+          libraryCount: 90,
+        },
+      },
+    });
+    render(<TableSignals />);
+    await act(async () => {
+      withSignal(1, { kind: 'point', seat: 1, ts: 1, targetSeat: 0, cardId: 'c1' });
+    });
+    expect(screen.getByRole('status').textContent).toBe('Maya is pointing at your Sol Ring');
+  });
+
+  it('degrades to the board when the pointed card is not on it', async () => {
+    // Routine, not exceptional: the card may have changed zones between the
+    // point and its delivery, and the server never validates the id.
+    render(<TableSignals />);
+    await act(async () => {
+      withSignal(1, { kind: 'point', seat: 1, ts: 1, targetSeat: 0, cardId: 'gone' });
+    });
+    expect(screen.getByRole('status').textContent).toBe('Maya is pointing at your board');
+  });
+
+  it('a chat message is not flashed as a moment — it lands in the ticker feed instead', async () => {
+    render(<TableSignals />);
+    await act(async () => {
+      withSignal(1, { kind: 'chat', seat: 1, ts: 1, text: 'hold' });
+    });
+    expect(screen.queryByRole('status')).toBeNull();
+  });
 });

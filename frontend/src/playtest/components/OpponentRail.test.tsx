@@ -3,8 +3,9 @@
  * No `@testing-library/jest-dom` in this repo — assertions use plain
  * vitest/chai matchers, not `.toBeInTheDocument()`/`.toHaveAccessibleName()`.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { usePlayStore } from '@/store/play';
 import { OpponentRail, type OpponentSeat } from './OpponentRail';
 import type { PublicBattlefieldCard, PublicBoard } from '@/lib/playtest/projection';
 
@@ -87,6 +88,7 @@ function stubOrientation(landscape: boolean) {
 
 beforeEach(() => {
   stubOrientation(false);
+  usePlayStore.setState({ onlineSignal: null });
 });
 
 describe('OpponentRail', () => {
@@ -332,5 +334,66 @@ describe('OpponentRail', () => {
       expect(entering.length).toBe(1);
       expect(entering[0].getAttribute('title')).toBe('Card bf1');
     });
+  });
+});
+
+describe('OpponentRail — pointing', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Push a signal the way the transport does, and let the pointer hook's
+   *  deferred setState flush. */
+  async function point(targetSeat: number, seq = 1) {
+    await act(async () => {
+      usePlayStore.setState({
+        onlineSignal: { seq, signal: { kind: 'point', seat: 9, ts: seq, targetSeat } },
+      });
+    });
+  }
+
+  it('lights the pointed seat and leaves the others dark', async () => {
+    const { container } = render(<OpponentRail opponents={[seat(0), seat(1)]} />);
+    await point(1);
+    const lit = container.querySelectorAll('.opponent-entry.is-pointed');
+    expect(lit.length).toBe(1);
+    expect(lit[0].querySelector('.opponent-entry__name')?.textContent).toBe('Player 1');
+  });
+
+  it('tells a screen reader the entry is lit, not just a ring', async () => {
+    render(<OpponentRail opponents={[seat(0)]} />);
+    await point(0);
+    expect(screen.getByRole('button', { name: /being pointed at/ })).toBeTruthy();
+  });
+
+  it('the highlight clears itself after the point window', async () => {
+    vi.useFakeTimers();
+    const { container } = render(<OpponentRail opponents={[seat(0)]} />);
+    await act(async () => {
+      usePlayStore.setState({
+        onlineSignal: { seq: 1, signal: { kind: 'point', seat: 9, ts: 1, targetSeat: 0 } },
+      });
+    });
+    expect(container.querySelector('.opponent-entry.is-pointed')).toBeTruthy();
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(container.querySelector('.opponent-entry.is-pointed')).toBeNull();
+  });
+
+  it('an unrelated signal landing mid-point does not blank the highlight', async () => {
+    const { container } = render(<OpponentRail opponents={[seat(0)]} />);
+    await point(0);
+    await act(async () => {
+      usePlayStore.setState({
+        onlineSignal: { seq: 2, signal: { kind: 'reaction', seat: 9, ts: 2, emote: '🔥' } },
+      });
+    });
+    expect(container.querySelector('.opponent-entry.is-pointed')).toBeTruthy();
+  });
+
+  it('renders no highlight at all with no point in flight', () => {
+    const { container } = render(<OpponentRail opponents={[seat(0), seat(1)]} />);
+    expect(container.querySelector('.opponent-entry.is-pointed')).toBeNull();
   });
 });

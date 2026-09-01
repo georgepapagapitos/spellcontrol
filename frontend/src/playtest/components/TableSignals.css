@@ -40,6 +40,15 @@
   font-weight: 600;
 }
 
+/* Held, like a roll, rather than rising like a reaction — a point asks the
+   table to go look at something, so the sentence naming it has to stay put
+   long enough to read. Duration matches POINT_MS in use-table-pointer.ts, so
+   this and the highlight on the card clear together. */
+.playtest-table-signal--point {
+  animation: playtest-signal-hold 5s var(--ease-out-soft) forwards;
+  font-weight: 600;
+}
+
 .playtest-table-signal__dot {
   flex-shrink: 0;
   width: 8px;
@@ -111,7 +120,8 @@
     animation-name: playtest-signal-fade;
   }
 
-  .playtest-table-signal--roll {
+  .playtest-table-signal--roll,
+  .playtest-table-signal--point {
     animation-name: playtest-signal-fade-hold;
   }
 

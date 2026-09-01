@@ -285,3 +285,94 @@
   font-size: var(--text-xs);
   font-weight: 700;
 }
+
+/* ── Pointing ─────────────────────────────────────────────────────────── */
+
+.opponent-board-point {
+  flex: 0 0 auto;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+/* Wraps a battlefield tile so the point control can sit over its corner.
+   Sized by the card it contains — it must not introduce a box of its own,
+   or the flex-wrap grid would reflow relative to the read-only layout. */
+.opponent-board-tile {
+  position: relative;
+  display: flex;
+}
+
+.opponent-board-tile__point {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Comfortably past the 24px minimum on a phone — this sits on top of a
+     card the player also has to be able to tap to inspect. */
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  font-size: var(--text-xs);
+  line-height: 1;
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  /* Resting state is quiet so a board of a dozen permanents doesn't read as a
+     board of a dozen buttons; it comes up on hover, and on keyboard focus so
+     it is never invisible to a tab-through. Touch has no hover, so it stays
+     at this floor rather than 0 — an affordance nobody can reveal is an
+     affordance that does not exist on a phone. */
+  opacity: 0.45;
+  transition: opacity 120ms var(--ease-out-soft);
+}
+
+/* Keyboard focus is ungated — a tab-through must reveal the control on every
+   device. The pointer-driven reveal is gated below (E68): on a touch screen
+   that state sticks after a tap, which here would leave one card's point
+   button lit while the player is looking at another. */
+.opponent-board-tile__point:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .opponent-board-tile:hover .opponent-board-tile__point,
+  .opponent-board-tile__point:hover {
+    opacity: 1;
+  }
+}
+
+/* The lit state for a permanent somebody is pointing at. A ring plus a pulse:
+   the ring is what survives `prefers-reduced-motion` below, so the highlight
+   never depends on the animation to be visible. */
+.opponent-board-card.is-pointed {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+  animation: opponent-board-point-pulse 900ms var(--ease-out-soft) 2;
+}
+
+@keyframes opponent-board-point-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opponent-board-card.is-pointed {
+    animation: none;
+  }
+}
