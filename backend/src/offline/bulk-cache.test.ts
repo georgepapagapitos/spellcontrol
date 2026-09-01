@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import {
+  __drainPersistForTesting,
   __getRefreshTimerForTesting,
   __resetOracleBulkForTesting,
   __runDailyRefreshTickForTesting,
@@ -94,9 +95,6 @@ describe('bulk-cache scheduling', () => {
     }
     if (originalOfflineDir === undefined) delete process.env.OFFLINE_DATA_DIR;
     else process.env.OFFLINE_DATA_DIR = originalOfflineDir;
-    // Let any fire-and-forget persistToDisk drain before removing the dir, so a
-    // late write can't recreate it.
-    await new Promise((r) => setTimeout(r, 60));
     await fs.promises.rm(tmpDir, { recursive: true, force: true });
   });
 
@@ -161,16 +159,13 @@ describe('bulk-cache disk persistence', () => {
     } else {
       process.env.DB_PATH = originalDbPath;
     }
-    // Drain any fire-and-forget persistToDisk before removing the dir.
-    await new Promise((r) => setTimeout(r, 60));
     await fs.promises.rm(tmpDir, { recursive: true, force: true });
   });
 
   it('persists bulk + meta to OFFLINE_DATA_DIR after a fresh build', async () => {
     mockScryfallFetch();
     await getOracleBulk();
-    // persistToDisk is fire-and-forget — let the microtask queue drain.
-    await new Promise((r) => setTimeout(r, 50));
+    await __drainPersistForTesting();
     const blob = await fs.promises.stat(path.join(tmpDir, 'offline-oracle.json.gz'));
     const meta = await fs.promises.stat(path.join(tmpDir, 'offline-oracle.meta.json'));
     expect(blob.size).toBeGreaterThan(0);
@@ -180,7 +175,7 @@ describe('bulk-cache disk persistence', () => {
   it('loads from disk on the next getOracleBulk without re-fetching Scryfall', async () => {
     mockScryfallFetch();
     await getOracleBulk();
-    await new Promise((r) => setTimeout(r, 50));
+    await __drainPersistForTesting();
 
     // Drop in-memory state but keep disk cache. Next getOracleBulk should
     // hit loadFromDisk and skip the network entirely.
@@ -198,7 +193,7 @@ describe('bulk-cache disk persistence', () => {
     process.env.DB_PATH = path.join(tmpDir, 'scryfall-cache.db');
     mockScryfallFetch();
     await getOracleBulk();
-    await new Promise((r) => setTimeout(r, 50));
+    await __drainPersistForTesting();
     const blob = await fs.promises.stat(path.join(tmpDir, 'offline-oracle.json.gz'));
     expect(blob.size).toBeGreaterThan(0);
   });
@@ -206,7 +201,7 @@ describe('bulk-cache disk persistence', () => {
   it('rebuilds (ignores disk) when the persisted meta has a stale builderVersion', async () => {
     mockScryfallFetch();
     await getOracleBulk();
-    await new Promise((r) => setTimeout(r, 50));
+    await __drainPersistForTesting();
 
     // Simulate a payload persisted by an older builder.
     const metaPath = path.join(tmpDir, 'offline-oracle.meta.json');
@@ -238,8 +233,6 @@ describe('bulk-cache slimCard filtering', () => {
     await __resetOracleBulkForTesting();
     if (originalOfflineDir === undefined) delete process.env.OFFLINE_DATA_DIR;
     else process.env.OFFLINE_DATA_DIR = originalOfflineDir;
-    // Drain any fire-and-forget persistToDisk before removing the dir.
-    await new Promise((r) => setTimeout(r, 60));
     await fs.promises.rm(tmpDir, { recursive: true, force: true });
   });
 
@@ -359,7 +352,6 @@ describe('bulk-cache isGameChanger flag (E108)', () => {
     await __resetOracleBulkForTesting();
     if (originalOfflineDir === undefined) delete process.env.OFFLINE_DATA_DIR;
     else process.env.OFFLINE_DATA_DIR = originalOfflineDir;
-    await new Promise((r) => setTimeout(r, 60));
     await fs.promises.rm(tmpDir, { recursive: true, force: true });
   });
 
