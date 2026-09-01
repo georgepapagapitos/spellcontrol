@@ -25,7 +25,11 @@
   border: 1px solid rgba(255, 255, 255, 0.22);
   color: #fff;
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  /* --text-base, not --text-sm: next to the panel's giant life numeral a
+     0.82rem count read as decoration, not board state (poison/commander
+     damage are loss conditions). The tap target is unchanged — the UX-320
+     coarse-pointer floor below already owns that. */
+  font-size: var(--text-base);
   font-weight: 800;
   line-height: 1;
   cursor: pointer;
