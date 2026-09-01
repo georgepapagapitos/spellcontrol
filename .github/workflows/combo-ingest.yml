@@ -57,12 +57,15 @@ jobs:
       # dist-guarded `prepare` a no-op when backend installs (mirrors
       # scanner-ingest.yml — backend's npm ci would otherwise trigger their build
       # with no devDeps installed → TS2688 "Cannot find type definition for node").
+      # EVERY shared package in backend/package.json's file: deps needs a line here.
       - name: Build shared packages
         run: |
           npm --prefix packages/game-core ci --ignore-scripts
           npm --prefix packages/game-core run build
           npm --prefix packages/binder-routing ci --ignore-scripts
           npm --prefix packages/binder-routing run build
+          npm --prefix packages/deck-metrics ci --ignore-scripts
+          npm --prefix packages/deck-metrics run build
 
       - name: Install backend dependencies
         working-directory: backend

@@ -1,0 +1,144 @@
+name: Refresh build snapshots
+
+# Keeps frontend/public/{tagger-tags,otag-index,comprehensive-rules,sld-drops}.json
+# current, and opens a PR with whatever changed.
+#
+# Why this exists: those four snapshots are age-gated at MAX_AGE_DAYS = 30 in
+# their refresh scripts. Nothing used to refresh them on a schedule, so the gate
+# expiring was load-bearing — the next person to push inherited the refetch, and
+# `prebuild` ran it inside the CI job. On 2026-08-30 tagger-tags.json and
+# otag-index.json crossed 30 days, every build started re-fetching the whole tag
+# corpus from Scryfall, Scryfall answered 429 with 60s cooldowns, and the
+# frontend job died on its 15-minute timeout with nothing wrong with the code.
+#
+# That half is fixed at the source: `prebuild` now passes --no-fetch, so a build
+# never touches the network. This workflow is the other half — it moves the
+# refresh onto a schedule where slowness costs nothing and a failure is visible
+# on its own terms instead of surfacing as an unrelated PR's red check.
+#
+# Deliberately NOT --force: that flag also bypasses each script's shrink guard
+# (MAX_SHRINK_RATIO), which is the only thing standing between a truncated fetch
+# and a silently degraded snapshot landing in a PR. Without it the scripts keep
+# the age gate, so a run inside the 30-day window is a no-op and opens no PR —
+# which is the intent. Run it manually (workflow_dispatch) to refresh on demand,
+# e.g. right after a set release.
+
+on:
+  schedule:
+    # 05:00 UTC every Monday. Weekly against a 30-day gate means a snapshot is
+    # refreshed within a week of expiring, and quiet weeks cost one no-op run.
+    # Clear of scanner-ingest (04:00) so the two don't contend for a runner.
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+# Never let two refreshes race; the latest wins.
+concurrency:
+  group: refresh-snapshots
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    name: Refresh snapshots from upstream
+    runs-on: ubuntu-latest
+    # The tagger walks 23 Scryfall queries and sleeps 65s on every 429; the otag
+    # index pulls a multi-hundred-MB bulk file. Slow is fine here — that is the
+    # entire point of moving it off the build — so give it real headroom.
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # --ignore-scripts is load-bearing twice over: it skips the `file:` shared
+      # packages' dist-guarded `prepare` (which would need every packages/* dist
+      # built first), and it skips this package's own prebuild. The refresh
+      # scripts only need node builtins plus js-yaml (refresh-sld-drops).
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --ignore-scripts
+
+      # Each script no-ops when its snapshot is under 30 days old, so most runs
+      # do nothing and open no PR. Kept as separate steps so a single upstream
+      # outage is attributable at a glance in the run summary.
+      - name: Refresh tagger tags (Scryfall)
+        working-directory: frontend
+        run: node scripts/refresh-tagger.mjs
+
+      - name: Refresh oracle-tag index (Scryfall bulk)
+        working-directory: frontend
+        run: node scripts/refresh-otag-index.mjs
+
+      - name: Refresh comprehensive rules
+        working-directory: frontend
+        run: node scripts/refresh-rules.mjs
+
+      - name: Refresh Secret Lair drops (MTGJSON)
+        working-directory: frontend
+        run: node scripts/refresh-sld-drops.mjs
+
+      # Gate quality BEFORE opening a PR — mirrors refresh-card-similar.yml. The
+      # scripts' own shrink guard catches a collapsed tag pool; this catches the
+      # coarser failure of a file that no longer parses or lost its stamp.
+      - name: Validate the refreshed snapshots
+        working-directory: frontend
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const checks = [
+              ["public/tagger-tags.json", (d) => Object.keys(d.tags || {}).length >= 20],
+              ["public/otag-index.json", (d) => Object.keys(d.tags || d.index || {}).length > 0],
+              ["public/comprehensive-rules.json", (d) => !!d.meta],
+              ["public/sld-drops.json", (d) => !!d.generatedAt],
+            ];
+            let bad = 0;
+            for (const [file, ok] of checks) {
+              if (!fs.existsSync(file)) { console.error("::error::" + file + " is missing"); bad++; continue; }
+              let data;
+              try { data = JSON.parse(fs.readFileSync(file, "utf8")); }
+              catch (e) { console.error("::error::" + file + " does not parse: " + e.message); bad++; continue; }
+              if (!ok(data)) { console.error("::error::" + file + " failed its shape check"); bad++; continue; }
+              console.log(file + ": ok (generatedAt=" + (data.generatedAt || data.meta?.fetchedAt || "n/a") + ")");
+            }
+            if (bad) process.exit(1);
+          '
+
+      # An app token, not GITHUB_TOKEN: PRs opened with GITHUB_TOKEN do not
+      # trigger other workflows, so the required CI checks would never run and
+      # the "protect main" ruleset would block the PR forever. Same reasoning
+      # and same secrets as scanner-ingest.yml.
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.SCANNER_BOT_APP_ID }}
+          private-key: ${{ secrets.SCANNER_BOT_PRIVATE_KEY }}
+
+      - name: Open a PR if anything changed
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          branch: chore/refresh-build-snapshots
+          delete-branch: true
+          base: main
+          title: 'chore(frontend): refresh build snapshots'
+          commit-message: 'chore(frontend): refresh build snapshots'
+          add-paths: |
+            frontend/public/tagger-tags.json
+            frontend/public/otag-index.json
+            frontend/public/comprehensive-rules.json
+            frontend/public/sld-drops.json
+          body: |
+            Automated refresh of the age-gated build snapshots, via the **Refresh build snapshots** workflow.
+
+            Only files whose 30-day gate had expired are in this diff; the rest were left alone. Each was validated in-workflow (parses, keeps its stamp, passes a shape check) before this PR opened, on top of the refresh scripts' own shrink guard.
+
+            Nothing is blocked on merging this — `prebuild` passes `--no-fetch`, so builds use whatever snapshot is committed and never reach for the network. This just keeps the shipped data current.

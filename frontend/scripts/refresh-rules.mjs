@@ -2,9 +2,11 @@
 // Parses the official Magic Comprehensive Rules .txt into a structured JSON
 // bundle in public/ so the Rules Reference (keywords / glossary / full rules
 // search) works fully offline. Run manually via `npm run refresh-rules`, or
-// auto-invoked by predev/prebuild if the local copy is missing or stale.
+// auto-invoked by predev if the local copy is missing or stale; `prebuild`
+// passes --no-fetch so a build never touches the network.
 //
-// Pass --force to re-fetch/re-parse unconditionally.
+// Pass --force to re-fetch/re-parse unconditionally, or --no-fetch to keep the
+// committed bundle at any age.
 //
 // The CR txt URL is dated per release (~quarterly). We auto-discover the latest
 // from the WotC rules page (it serves the dated .txt href in static HTML), and
@@ -37,6 +39,11 @@ async function discoverLatest() {
 }
 
 const force = process.argv.includes('--force');
+// --no-fetch: never reach the network, just keep whatever snapshot is committed.
+// `prebuild` passes it so a production build can't depend on a third-party API
+// being up, fast, or under its rate limit. --force still wins, so the scheduled
+// refresh workflow and the manual `npm run refresh-*` scripts are unaffected.
+const noFetch = !force && process.argv.includes('--no-fetch');
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dest = resolve(here, '..', 'public', 'comprehensive-rules.json');
@@ -57,6 +64,12 @@ async function ageDays(path) {
 }
 
 const age = await ageDays(dest);
+// An unusable/absent snapshot falls through even under --no-fetch: there is
+// nothing to keep, so the fetch below runs and fails loudly if it must.
+if (noFetch && Number.isFinite(age)) {
+  console.log(`[rules] --no-fetch, keeping the committed snapshot (${age.toFixed(1)}d old)`);
+  process.exit(0);
+}
 if (!force && age < MAX_AGE_DAYS) {
   console.log(`[rules] ${dest} is ${age.toFixed(1)}d old (< ${MAX_AGE_DAYS}d), skipping`);
   process.exit(0);
