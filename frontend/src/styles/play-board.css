@@ -42,6 +42,20 @@
      so changing the registry never needs a CSS edit. */
 }
 
+/* On a wide desktop window the grid otherwise stretches edge to edge — a
+   2-player stack puts each panel's +/− steppers ~1300px apart and the board
+   reads as a splash screen rather than a table. Cap and center the grid; the
+   slate canvas showing through the side margins is the same breathing-room
+   treatment the gap already uses. The seam-positioned hub/undo buttons
+   resolve against the grid (position: relative above), so they stay on the
+   real row/column boundary after centering. */
+@media (min-width: 1280px) {
+  .game-board-grid {
+    max-width: 75rem;
+    margin-inline: auto;
+  }
+}
+
 /* ── Player panel ─────────────────────────────────────────────────────── */
 
 /* Cell wrapper around each panel. Establishes a container-query context
