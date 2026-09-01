@@ -204,6 +204,9 @@ interface BulkPayload {
 
 let current: BulkPayload | null = null;
 let inflight: Promise<BulkPayload> | null = null;
+// Resolves when every deferred persistToDisk started so far has settled. Never
+// rejects — each link carries its own catch. Production never reads this.
+let pendingPersist: Promise<void> = Promise.resolve();
 let refreshTimer: NodeJS.Timeout | null = null;
 /**
  * Most recent build failure. When a build throws, callers can ask `bulkStatus()`
@@ -370,9 +373,13 @@ async function buildPayload(): Promise<BulkPayload> {
   // Capture the target dir NOW (build time), not inside the deferred persist —
   // see persistToDisk's note on the fire-and-forget race.
   const persistDir = offlineDataDir();
-  void persistToDisk(payload, persistDir).catch((err) => {
+  // Still fire-and-forget: nothing on the request path waits for this. The
+  // handle exists only so tests can drain it — see __resetOracleBulkForTesting.
+  // Chained rather than replaced so overlapping builds all get drained.
+  const persist = persistToDisk(payload, persistDir).catch((err) => {
     logger.warn('[offline] failed to persist bulk to disk:', err);
   });
+  pendingPersist = pendingPersist.then(() => persist);
 
   return payload;
 }
@@ -586,6 +593,17 @@ export function __runDailyRefreshTickForTesting(): void {
   runDailyRefreshTick();
 }
 
+/**
+ * Resolves once every deferred persistToDisk started so far has settled.
+ * Tests that assert on the written files need this: the write is
+ * fire-and-forget, so `await getOracleBulk()` returning says nothing about
+ * whether it has hit the disk yet. Sleeping a fixed 50ms instead used to work
+ * until a loaded runner took longer.
+ */
+export async function __drainPersistForTesting(): Promise<void> {
+  await pendingPersist;
+}
+
 export async function __resetOracleBulkForTesting(): Promise<void> {
   // Drain any in-flight build first so its `.then` doesn't restore `current`
   // after we've cleared it — otherwise tests that flip between reset and an
@@ -598,6 +616,12 @@ export async function __resetOracleBulkForTesting(): Promise<void> {
       // ignore — failures are already recorded in lastError
     }
   }
+  // Then the deferred disk write. It is fire-and-forget in production, so
+  // nothing else waits for it — and a test that removes its temp dir while the
+  // write is still in flight gets ENOTEMPTY out of fs.rm's recursive walk, or a
+  // directory resurrected by persistToDisk's mkdir. Suites used to paper over
+  // this with a 60ms sleep, which held until a loaded CI runner outran it.
+  await __drainPersistForTesting();
   current = null;
   inflight = null;
   lastError = null;
