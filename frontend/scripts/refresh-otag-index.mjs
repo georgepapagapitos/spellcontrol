@@ -8,6 +8,9 @@
 // community vocabulary (~4.5k tags) for display and filtering. Two artifacts on
 // purpose — deck generation must not shift when the tag corpus does.
 //
+// Auto-invoked by predev; `prebuild` passes --no-fetch so a build keeps the
+// committed index and never touches the network. --force re-fetches at any age.
+//
 // Sources (both official Scryfall bulk data):
 //   oracle_tags  — the tag corpus; taggings are keyed by oracle_id
 //   oracle_cards — oracle_id → name, so we can emit a NAME-keyed index
@@ -39,6 +42,11 @@ const MAX_AGE_DAYS = 30;
 const MAX_SHRINK_RATIO = 0.2;
 
 const force = process.argv.includes('--force');
+// --no-fetch: never reach the network, just keep whatever snapshot is committed.
+// `prebuild` passes it so a production build can't depend on a third-party API
+// being up, fast, or under its rate limit. --force still wins, so the scheduled
+// refresh workflow and the manual `npm run refresh-*` scripts are unaffected.
+const noFetch = !force && process.argv.includes('--no-fetch');
 const here = dirname(fileURLToPath(import.meta.url));
 const dest = resolve(here, '..', 'public', 'otag-index.json');
 
@@ -153,6 +161,12 @@ function assertNoCollapse(next, previous) {
 
 const previous = await readSnapshot(dest);
 const age = ageDays(previous);
+// An unusable/absent snapshot falls through even under --no-fetch: there is
+// nothing to keep, so the fetch below runs and fails loudly if it must.
+if (noFetch && Number.isFinite(age)) {
+  console.log(`[otag] --no-fetch, keeping the committed snapshot (${age.toFixed(1)}d old)`);
+  process.exit(0);
+}
 if (!force && age < MAX_AGE_DAYS) {
   console.log(`[otag] ${dest} is ${age.toFixed(1)}d old (< ${MAX_AGE_DAYS}d), skipping refresh`);
   process.exit(0);
