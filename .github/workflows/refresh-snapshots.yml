@@ -58,13 +58,25 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      # --ignore-scripts is load-bearing twice over: it skips the `file:` shared
-      # packages' dist-guarded `prepare` (which would need every packages/* dist
-      # built first), and it skips this package's own prebuild. The refresh
-      # scripts only need node builtins plus js-yaml (refresh-sld-drops).
+      # The shared packages must be built before the frontend installs, exactly
+      # as everywhere else. --ignore-scripts does NOT buy an exemption: npm
+      # treats building a `file:` link as part of resolving it, not as a
+      # lifecycle script the flag suppresses, so the dist-guarded `prepare`
+      # still runs and still dies on TS2688 with no devDependencies present.
+      # This workflow's first run proved it (run 33506064224).
+      - name: Build shared packages
+        run: |
+          npm --prefix packages/game-core ci --ignore-scripts
+          npm --prefix packages/game-core run build
+          npm --prefix packages/binder-routing ci --ignore-scripts
+          npm --prefix packages/binder-routing run build
+          npm --prefix packages/deck-metrics ci --ignore-scripts
+          npm --prefix packages/deck-metrics run build
+
+      # The refresh scripts need node builtins plus js-yaml (refresh-sld-drops).
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm ci --ignore-scripts
+        run: npm ci
 
       # Each script no-ops when its snapshot is under 30 days old, so most runs
       # do nothing and open no PR. Kept as separate steps so a single upstream

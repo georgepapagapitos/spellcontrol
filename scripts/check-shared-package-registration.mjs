@@ -30,9 +30,13 @@
 // "First" is enforced by position, not mere presence — a build step after the
 // install is exactly as broken as no build step at all.
 //
-// An `npm ci --ignore-scripts` is deliberately exempt: it never runs `prepare`,
-// which is how refresh-snapshots.yml installs the frontend without needing any
-// package built.
+// --ignore-scripts buys NO exemption, and assuming otherwise is how
+// refresh-snapshots.yml failed on its first run (33506064224) with the very
+// TS2688 this check exists to prevent. npm treats building a `file:` link as
+// part of resolving it, not as a lifecycle script the flag suppresses: the
+// dist-guarded `prepare` runs either way. Verified directly — with a shared
+// package stripped of both dist/ and node_modules (a fresh checkout), a
+// consumer's `npm ci --ignore-scripts` still runs its build and still dies.
 
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -71,11 +75,10 @@ for (const pkg of onDisk) {
 
 const stepText = (step) => `${step?.run ?? ''}\n${step?.['working-directory'] ?? ''}`;
 
-/** Which consumer, if any, this step installs with a scripts-running `npm ci`. */
+/** Which consumer, if any, this step installs with `npm ci`. */
 function installedConsumer(step, jobDefaultDir) {
   const run = step?.run ?? '';
   if (!/\bnpm\b[^\n]*\bci\b/.test(run)) return null;
-  if (/--ignore-scripts/.test(run)) return null; // never runs `prepare`
   const prefixed = /npm\s+--prefix\s+(backend|frontend)\s+ci/.exec(run);
   if (prefixed) return prefixed[1];
   const dir = step['working-directory'] ?? jobDefaultDir;
