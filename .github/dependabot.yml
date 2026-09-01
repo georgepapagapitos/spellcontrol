@@ -1,16 +1,68 @@
+# Dependabot update policy.
+#
+# The grouping below exists to stop dependency traffic starving human PRs.
+#
+# Ungrouped, every bump opened its own PR. Each one runs five CI jobs and, once
+# green, auto-merges (see workflows/dependabot-auto-merge.yml) — which moves
+# `main`. Because `main` requires branches to be up to date before merging, a
+# feature PR must re-run its ~6-minute CI against each new `main`. A weekly
+# batch of ~20 individual bumps therefore moves `main` every few minutes for
+# an hour or more, and any human PR in that window can lose the race
+# indefinitely: it goes green, `main` moves, it goes stale, repeat. That is not
+# hypothetical — it happened to #1711, which needed five full CI cycles to land
+# a diff that never once failed on its own merits.
+#
+# THE GROUP BOUNDARY IS DELIBERATELY THE SAME AS THE AUTO-MERGE BOUNDARY.
+# `dependabot-auto-merge.yml` auto-merges patch and minor only; a major always
+# waits for a human. So patch/minor are grouped here (nobody reads them
+# individually — batching costs no review signal) and majors are deliberately
+# left OUT of every group, so each still arrives as its own PR with its own
+# changelog, diff and CI run, exactly as before. Keep these two boundaries in
+# lockstep: widening a group to include majors would silently batch changes
+# that are supposed to get individual human review.
+#
+# The real cost of grouping is bisection granularity — a broken group is ~10
+# bumps in one commit instead of one. Split across dev vs production, so a
+# failure is at least confined to one side, and accepted knowingly for
+# patch/minor: the class of change least likely to break, and the class nobody
+# was reading one-by-one anyway. If a group does break, `@dependabot recreate`
+# after excluding the suspect package splits it back apart.
 version: 2
 updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: 'github-actions'
+    directory: '/'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
+    groups:
+      # Action bumps are few and near-always safe; one PR for the lot.
+      github-actions:
+        applies-to: version-updates
+        update-types: ['minor', 'patch']
 
-  - package-ecosystem: "npm"
-    directory: "/frontend"
+  - package-ecosystem: 'npm'
+    directory: '/frontend'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
+    groups:
+      frontend-dev:
+        applies-to: version-updates
+        dependency-type: 'development'
+        update-types: ['minor', 'patch']
+      frontend-prod:
+        applies-to: version-updates
+        dependency-type: 'production'
+        update-types: ['minor', 'patch']
 
-  - package-ecosystem: "npm"
-    directory: "/backend"
+  - package-ecosystem: 'npm'
+    directory: '/backend'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
+    groups:
+      backend-dev:
+        applies-to: version-updates
+        dependency-type: 'development'
+        update-types: ['minor', 'patch']
+      backend-prod:
+        applies-to: version-updates
+        dependency-type: 'production'
+        update-types: ['minor', 'patch']
