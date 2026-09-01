@@ -2,8 +2,9 @@
 // Builds the tagger-tags.json snapshot in public/ so the deck builder can
 // classify roles (ramp/removal/wipes/draw) and binder rules can match `tag IS x`
 // without depending on a remote URL at runtime. Run manually via
-// `npm run refresh-tags`, or auto-invoked by predev/prebuild if the local copy
-// is missing or older than MAX_AGE_DAYS.
+// `npm run refresh-tags`, or auto-invoked by predev if the local copy is
+// missing or older than MAX_AGE_DAYS. `prebuild` invokes it with --no-fetch:
+// builds ship the committed snapshot and never reach the network.
 //
 // The snapshot is generated from Scryfall's own `otag:` search operator — the
 // same community oracle-tag corpus that backs Scryfall's tag search. We used to
@@ -12,7 +13,9 @@
 // downloading a prebuilt snapshot instead (escape hatch; unused by default).
 //
 // Flags:
-//   --force   re-fetch/rebuild unconditionally, and bypass the shrink guard
+//   --force      re-fetch/rebuild unconditionally, and bypass the shrink guard
+//   --no-fetch   keep the committed snapshot whatever its age; never touch the
+//                network (ignored when --force is also passed)
 //
 // NOTE: the tag vocabulary below is a contract with three consumers —
 // deck-builder/services/tagger/client.ts (role + subtype lookup),
@@ -63,6 +66,11 @@ const MAX_RETRIES = 3;
 const MAX_SHRINK_RATIO = 0.2;
 
 const force = process.argv.includes('--force');
+// --no-fetch: never reach the network, just keep whatever snapshot is committed.
+// `prebuild` passes it so a production build can't depend on a third-party API
+// being up, fast, or under its rate limit. --force still wins, so the scheduled
+// refresh workflow and the manual `npm run refresh-*` scripts are unaffected.
+const noFetch = !force && process.argv.includes('--no-fetch');
 const here = dirname(fileURLToPath(import.meta.url));
 const dest = resolve(here, '..', 'public', 'tagger-tags.json');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -177,6 +185,12 @@ function assertNoCollapse(tags, previous) {
 
 const previous = await readSnapshot(dest);
 const age = ageDays(previous);
+// An unusable/absent snapshot falls through even under --no-fetch: there is
+// nothing to keep, so the fetch below runs and fails loudly if it must.
+if (noFetch && Number.isFinite(age)) {
+  console.log(`[tagger] --no-fetch, keeping the committed snapshot (${age.toFixed(1)}d old)`);
+  process.exit(0);
+}
 if (!force && age < MAX_AGE_DAYS) {
   console.log(`[tagger] ${dest} is ${age.toFixed(1)}d old (< ${MAX_AGE_DAYS}d), skipping refresh`);
   process.exit(0);
