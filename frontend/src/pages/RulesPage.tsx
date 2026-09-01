@@ -2,6 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import { AiMarker, DeckAiConsent } from '../components/deck/DeckAiConsent';
+// The answer's skeleton, inline error and card chips reuse the review panel's
+// classes by name; this page is its own lazy chunk, so it has to load the
+// stylesheet it borrows from (css-chunk-ownership.test.ts).
+import '../components/deck/DeckAiReview.css';
 import { useCardCarousel, type CarouselEntry } from '../components/deck/useCardCarousel';
 import {
   fetchRulesHistory,
@@ -13,6 +17,7 @@ import {
 import { stripEmphasis, tokenizeCardNames } from '../lib/ai-review';
 import { noteAiExhausted, noteAiSpend, useAiStatus } from '../lib/use-ai-status';
 import { formatRelativeTime } from '../lib/format-time';
+import { useRulesReferenceStore } from '../store/rules-reference';
 import './RulesPage.css';
 
 /** Fill-the-box starters — tapping one spends nothing (never auto-ask). */
@@ -99,6 +104,11 @@ export function RulesPage() {
     };
   }, [status?.optIn, phase]);
 
+  // The built-in Comprehensive Rules reference (keywords, glossary, rule
+  // numbers) is the door out of this page when the AI Q&A isn't available —
+  // a guest who followed Play's "Rules" button here should still get rules.
+  const openRulesReference = useRulesReferenceStore((s) => s.open);
+
   if (!status) {
     // Loading (undefined) renders the same as unavailable for a beat rather
     // than flashing the ask box at someone who can't use it.
@@ -106,9 +116,16 @@ export function RulesPage() {
       <div className="rules-page">
         <RulesPageHeader />
         {status === null && (
-          <p className="rules-unavailable">
-            AI features aren&rsquo;t available for this account yet — the rules Q&amp;A needs them.
-          </p>
+          <div className="rules-unavailable">
+            <p>
+              AI features aren&rsquo;t available for this account yet — the rules Q&amp;A needs
+              them. The rules themselves are still here: look up a keyword, a glossary term, or a
+              rule number in the reference.
+            </p>
+            <button type="button" className="btn" onClick={openRulesReference}>
+              Open the rules reference
+            </button>
+          </div>
         )}
       </div>
     );

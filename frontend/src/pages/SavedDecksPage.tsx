@@ -1,4 +1,7 @@
 import './SavedDecksPage.css';
+// The error/retry row is Discover's (.discover-decks-error*) — this page is
+// its own lazy chunk, so it loads that stylesheet itself.
+import './DiscoverDecksPage.css';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { DecksHubTabs } from '../components/DecksHubTabs';
@@ -33,7 +36,7 @@ export function SavedDecksPage() {
     listBookmarkedDecks()
       .then(setDecks)
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Failed to load your saved decks.');
+        setError(err instanceof Error ? err.message : "Couldn't load your saved decks.");
       })
       .finally(() => setLoading(false));
   }, []);
@@ -51,7 +54,7 @@ export function SavedDecksPage() {
       })
       .catch((err: unknown) => {
         if (!cancelled)
-          setError(err instanceof Error ? err.message : 'Failed to load your saved decks.');
+          setError(err instanceof Error ? err.message : "Couldn't load your saved decks.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

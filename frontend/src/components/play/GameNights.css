@@ -274,17 +274,6 @@
 
 /* ── Create / edit dialog ─────────────────────────────────────────────── */
 
-.game-night-dialog {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.game-night-dialog-title {
-  margin: 0;
-  font-size: var(--text-xl);
-}
-
 .game-night-dialog-field {
   display: flex;
   flex-direction: column;
@@ -388,12 +377,6 @@
   color: var(--text-secondary);
 }
 
-.game-night-dialog-hint {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-}
-
 /* ── "Who's in" people management (edit mode) ─────────────────────────── */
 
 .game-night-dialog-people {
@@ -465,12 +448,6 @@
   color: var(--text-secondary);
   font-size: var(--text-sm);
   text-align: right;
-}
-
-.game-night-dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-2);
 }
 
 /* ── Date-poll create mode (E124) ─────────────────────────────────────── */

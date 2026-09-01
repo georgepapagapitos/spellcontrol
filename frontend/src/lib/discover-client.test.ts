@@ -97,7 +97,7 @@ describe('listDiscoverDecks', () => {
 
   it('falls back to a generic message when the error body is unparsable', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 500 }));
-    await expect(listDiscoverDecks({})).rejects.toThrow('Failed to load public decks.');
+    await expect(listDiscoverDecks({})).rejects.toThrow("Couldn't load public decks.");
   });
 });
 
@@ -132,6 +132,6 @@ describe('searchCommanders', () => {
 
   it('falls back to a generic message when the error body is unparsable', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 500 }));
-    await expect(searchCommanders('a')).rejects.toThrow('Failed to search commanders.');
+    await expect(searchCommanders('a')).rejects.toThrow("Couldn't search commanders.");
   });
 });

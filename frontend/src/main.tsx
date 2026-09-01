@@ -71,6 +71,7 @@ import './styles/play-effects.css';
 import './styles/play-enhancements.css';
 import './styles/play-layout-editor.css';
 import './styles/play-counters-panel.css';
+import './styles/social-shared.css';
 import './styles/shared.css';
 import { bootstrapTheme, useThemeStore } from './store/theme';
 import { bootstrapTypeSet } from './store/typeset';

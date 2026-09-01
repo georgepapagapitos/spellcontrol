@@ -68,3 +68,23 @@
     min-height: 44px;
   }
 }
+
+/* ── Shared with DeckComparePage ──────────────────────────────────────────
+   The diff summary plate and the muted "identical"/"nothing to show" hint are
+   one visual for both diff surfaces. They live here rather than in
+   DeckComparePage.css because this panel is mounted by Layout (always
+   loaded) while the compare page is a lazy chunk — the classes must ship
+   with the surface that is always present. */
+.deck-compare-summary {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-raised);
+  border-radius: var(--radius-lg);
+}
+
+.deck-compare-empty-hint {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
