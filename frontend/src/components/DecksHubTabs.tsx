@@ -3,7 +3,10 @@ import { useAuth } from '../store/auth';
 import { HubTabsNav } from './HubTabsNav';
 
 /**
- * My Decks / Discover / Saved section-nav pills above all three decks pages.
+ * My Decks / Discover / Saved / Cube section-nav pills above the decks pages.
+ * Cube lives here rather than the Collection hub because a cube is a thing
+ * you build and draft — deck-shaped work — not a thing you own; the build
+ * tools themselves still read from the collection.
  *
  * Not a layout route (no `<Outlet/>`): rendered directly by each page as a
  * sibling before its own root element, mirroring how `CollectionHubLayout`
@@ -37,6 +40,11 @@ export function DecksHubTabs() {
               },
             ]
           : []),
+        {
+          to: '/decks/cube',
+          label: 'Cube',
+          active: pathname.startsWith('/decks/cube'),
+        },
       ]}
     />
   );

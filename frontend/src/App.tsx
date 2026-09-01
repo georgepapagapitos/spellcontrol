@@ -1,45 +1,19 @@
 import { logger } from '@/lib/logger';
 import { BrandMark } from '@/components/shared/BrandMark';
-import { useEffect, useRef } from 'react';
-import { Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useRef, type ComponentType } from 'react';
+import { Routes, Route, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Layout } from './components/Layout';
-import { HomePage } from './pages/HomePage';
 import { CollectionHubLayout } from './components/CollectionHubLayout';
-import { CollectionPage } from './pages/CollectionPage';
-import { CubePage } from './pages/CubePage';
-import { SetsPage } from './pages/SetsPage';
-import { BinderPage } from './pages/BinderPage';
-import { BindersIndexPage } from './pages/BindersIndexPage';
-import { ListsPage } from './pages/ListsPage';
-import { CollectionCombosPage } from './pages/CollectionCombosPage';
-import { DecksIndexPage } from './pages/DecksIndexPage';
-import { DiscoverDecksPage } from './pages/DiscoverDecksPage';
-import { SavedDecksPage } from './pages/SavedDecksPage';
-import { DeckNewPage } from './pages/DeckNewPage';
-import { BrewBuildPage } from './pages/BrewBuildPage';
-import { DeckEditorPage } from './pages/DeckEditorPage';
-import { PlaytestPage } from './pages/PlaytestPage';
-import { YouPage } from './pages/YouPage';
-import { FriendsPage } from './pages/FriendsPage';
-import { AdminPage } from './pages/AdminPage';
-import { PlayPage } from './pages/PlayPage';
-import { RulesPage } from './pages/RulesPage';
+// Eager pages — the entry surfaces a first paint lands on. WelcomePage is the
+// marketing landing (guest-fresh "/"), HomePage the authed default, and the
+// auth pair is where the first-run gate sends a brand-new install. Everything
+// else is lazy: each hub loads its chunk on first visit, so the boot bundle
+// stops shipping the deck builder, the play table, and the admin panel to
+// someone who came to look at their binders.
+import { HomePage } from './pages/HomePage';
+import { WelcomePage } from './pages/WelcomePage';
 import AuthPage from './pages/AuthPage';
 import ChooseUsernamePage from './pages/ChooseUsernamePage';
-import { SharedView } from './pages/SharedView';
-import { PublicProfilePage } from './pages/PublicProfilePage';
-import { PublicDeckPage } from './pages/PublicDeckPage';
-import { GameNightView } from './pages/GameNightView';
-import { GameNightSeriesView } from './pages/GameNightSeriesView';
-import { GameNightInviteView } from './pages/GameNightLinkForward';
-import { WelcomePage } from './pages/WelcomePage';
-import { DeckComparePage } from './pages/DeckComparePage';
-import { SearchPage } from './pages/SearchPage';
-import { TagsPage } from './pages/TagsPage';
-import { FriendHubPage } from './pages/FriendHubPage';
-import { TradesPage } from './pages/TradesPage';
-import { PodsIndexPage } from './pages/PodsIndexPage';
-import { PodHubPage } from './pages/PodHubPage';
 import { useAuth } from './store/auth';
 import { useCollectionStore } from './store/collection';
 import { startSync, hydrateLocal } from './lib/sync';
@@ -50,6 +24,61 @@ import { AutoLinkBanner } from './components/AutoLinkBanner';
 import { useFirstRunGate } from './lib/use-first-run-gate';
 import { useTradeSettlement } from './lib/use-trade-settlement';
 import { hasEverVisited } from './lib/first-run';
+
+/** Named-export adapter for React.lazy (every page below exports by name). */
+function lazyPage<K extends string, T extends Record<K, ComponentType>>(
+  load: () => Promise<T>,
+  name: K
+) {
+  return lazy(() => load().then((m) => ({ default: m[name] })));
+}
+
+// Collection hub
+const CollectionPage = lazyPage(() => import('./pages/CollectionPage'), 'CollectionPage');
+const BinderPage = lazyPage(() => import('./pages/BinderPage'), 'BinderPage');
+const BindersIndexPage = lazyPage(() => import('./pages/BindersIndexPage'), 'BindersIndexPage');
+const ListsPage = lazyPage(() => import('./pages/ListsPage'), 'ListsPage');
+const CollectionCombosPage = lazyPage(
+  () => import('./pages/CollectionCombosPage'),
+  'CollectionCombosPage'
+);
+const SetsPage = lazyPage(() => import('./pages/SetsPage'), 'SetsPage');
+// Decks hub
+const DecksIndexPage = lazyPage(() => import('./pages/DecksIndexPage'), 'DecksIndexPage');
+const DiscoverDecksPage = lazyPage(() => import('./pages/DiscoverDecksPage'), 'DiscoverDecksPage');
+const SavedDecksPage = lazyPage(() => import('./pages/SavedDecksPage'), 'SavedDecksPage');
+const DeckNewPage = lazyPage(() => import('./pages/DeckNewPage'), 'DeckNewPage');
+const BrewBuildPage = lazyPage(() => import('./pages/BrewBuildPage'), 'BrewBuildPage');
+const DeckEditorPage = lazyPage(() => import('./pages/DeckEditorPage'), 'DeckEditorPage');
+const DeckComparePage = lazyPage(() => import('./pages/DeckComparePage'), 'DeckComparePage');
+const CubePage = lazyPage(() => import('./pages/CubePage'), 'CubePage');
+// Play
+const PlayPage = lazyPage(() => import('./pages/PlayPage'), 'PlayPage');
+const PlaytestPage = lazyPage(() => import('./pages/PlaytestPage'), 'PlaytestPage');
+// Social
+const YouPage = lazyPage(() => import('./pages/YouPage'), 'YouPage');
+const FriendsPage = lazyPage(() => import('./pages/FriendsPage'), 'FriendsPage');
+const FriendHubPage = lazyPage(() => import('./pages/FriendHubPage'), 'FriendHubPage');
+const TradesPage = lazyPage(() => import('./pages/TradesPage'), 'TradesPage');
+const PodsIndexPage = lazyPage(() => import('./pages/PodsIndexPage'), 'PodsIndexPage');
+const PodHubPage = lazyPage(() => import('./pages/PodHubPage'), 'PodHubPage');
+// Utility / public
+const SearchPage = lazyPage(() => import('./pages/SearchPage'), 'SearchPage');
+const TagsPage = lazyPage(() => import('./pages/TagsPage'), 'TagsPage');
+const RulesPage = lazyPage(() => import('./pages/RulesPage'), 'RulesPage');
+const AdminPage = lazyPage(() => import('./pages/AdminPage'), 'AdminPage');
+const SharedView = lazyPage(() => import('./pages/SharedView'), 'SharedView');
+const PublicProfilePage = lazyPage(() => import('./pages/PublicProfilePage'), 'PublicProfilePage');
+const PublicDeckPage = lazyPage(() => import('./pages/PublicDeckPage'), 'PublicDeckPage');
+const GameNightView = lazyPage(() => import('./pages/GameNightView'), 'GameNightView');
+const GameNightSeriesView = lazyPage(
+  () => import('./pages/GameNightSeriesView'),
+  'GameNightSeriesView'
+);
+const GameNightInviteView = lazyPage(
+  () => import('./pages/GameNightLinkForward'),
+  'GameNightInviteView'
+);
 
 // Fallback for the OAuth App Link landing path. In the happy path Android
 // intercepts https://spellcontrol.com/oauth/callback and hands the URL to
@@ -114,6 +143,35 @@ function OAuthCallbackLanding() {
       </div>
     </div>
   );
+}
+
+/**
+ * Full-viewport brand splash. Doubles as the auth-bootstrap holding state and
+ * the Suspense fallback for lazy routes that render OUTSIDE <Layout/> (share
+ * links, public profiles, game night) — for those the chunk fetch happens
+ * before any app chrome exists, so the splash is the same visual the user is
+ * already looking at during boot. In-Layout routes never reach this boundary;
+ * Layout carries its own in-chrome fallback so the header and tab bar stay
+ * put while a hub's chunk loads.
+ */
+function BootSplash() {
+  return (
+    <div
+      className="auth-page brand-boot"
+      aria-busy="true"
+      role="status"
+      aria-label="Loading SpellControl"
+    >
+      <BrandMark size={96} motion="boot" aria-hidden />
+    </div>
+  );
+}
+
+/** `/collection/cube/:id` lived under Collection before the cube moved to the
+ *  Decks hub — forward saved links and muscle memory to the new home. */
+function LegacyCubeRedirect() {
+  const { id } = useParams();
+  return <Navigate to={id ? `/decks/cube/${id}` : '/decks/cube'} replace />;
 }
 
 export default function App() {
@@ -229,27 +287,17 @@ export default function App() {
     // when no user is signed in — render the SharedView routes outside the
     // auth gate so a friend with a link doesn't get bounced to /auth.
     return (
-      <Routes>
-        <Route path="/s/:token" element={<SharedView />} />
-        <Route path="/u/:username" element={<PublicProfilePage />} />
-        <Route path="/d/:slug" element={<PublicDeckPage />} />
-        <Route path="/gn/s/:token" element={<GameNightSeriesView />} />
-        <Route path="/gn/i/:token" element={<GameNightInviteView />} />
-        <Route path="/gn/:token" element={<GameNightView />} />
-        <Route
-          path="*"
-          element={
-            <div
-              className="auth-page brand-boot"
-              aria-busy="true"
-              role="status"
-              aria-label="Loading SpellControl"
-            >
-              <BrandMark size={96} motion="boot" aria-hidden />
-            </div>
-          }
-        />
-      </Routes>
+      <Suspense fallback={<BootSplash />}>
+        <Routes>
+          <Route path="/s/:token" element={<SharedView />} />
+          <Route path="/u/:username" element={<PublicProfilePage />} />
+          <Route path="/d/:slug" element={<PublicDeckPage />} />
+          <Route path="/gn/s/:token" element={<GameNightSeriesView />} />
+          <Route path="/gn/i/:token" element={<GameNightInviteView />} />
+          <Route path="/gn/:token" element={<GameNightView />} />
+          <Route path="*" element={<BootSplash />} />
+        </Routes>
+      </Suspense>
     );
   }
   // Guests and signed-in users share the same app. Auth is opt-in (WotC Fan
@@ -259,88 +307,96 @@ export default function App() {
   return (
     <>
       <AutoLinkBanner />
-      <Routes>
-        <Route path="/s/:token" element={<SharedView />} />
-        <Route path="/u/:username" element={<PublicProfilePage />} />
-        <Route path="/d/:slug" element={<PublicDeckPage />} />
-        <Route path="/gn/s/:token" element={<GameNightSeriesView />} />
-        <Route path="/gn/i/:token" element={<GameNightInviteView />} />
-        <Route path="/gn/:token" element={<GameNightView />} />
-        {/* Root: the public marketing landing for first-time/logged-out
+      {/* Outer boundary: catches lazy routes that render outside <Layout/>
+          (share views, game night). Layout has its own inner fallback. */}
+      <Suspense fallback={<BootSplash />}>
+        <Routes>
+          <Route path="/s/:token" element={<SharedView />} />
+          <Route path="/u/:username" element={<PublicProfilePage />} />
+          <Route path="/d/:slug" element={<PublicDeckPage />} />
+          <Route path="/gn/s/:token" element={<GameNightSeriesView />} />
+          <Route path="/gn/i/:token" element={<GameNightInviteView />} />
+          <Route path="/gn/:token" element={<GameNightView />} />
+          {/* Root: the public marketing landing for first-time/logged-out
             visitors (and search-engine crawlers — empty storage + guest auth);
             authed users land on /home; returning guests fall back to
             /collection. Rendered outside <Layout> so the landing has no app
             chrome. Canonical homepage URL is `/`. */}
-        <Route
-          path="/"
-          element={
-            status === 'guest' && !hasEverVisited() ? (
-              <WelcomePage />
-            ) : status === 'authed' ? (
-              <Navigate to="/home" replace />
-            ) : (
-              <Navigate to="/collection" replace />
-            )
-          }
-        />
-        {/* Legacy onboarding path → single canonical landing URL. */}
-        <Route path="/welcome" element={<Navigate to="/" replace />} />
-        <Route path="/auth" element={<AuthPage />} />
-        <Route path="/auth/choose-username" element={<ChooseUsernamePage />} />
-        <Route path="/oauth/callback" element={<OAuthCallbackLanding />} />
-        <Route element={<Layout />}>
-          {/* The default landing for authed users (w3-nav-activation) — the "/"
-              and catch-all routes below send them here. Still reachable by
-              direct URL for guests, who are never auto-routed here. */}
-          <Route path="/home" element={<HomePage />} />
-          <Route path="/collection" element={<CollectionHubLayout />}>
-            <Route index element={<CollectionPage />} />
-            <Route path="binders" element={<BindersIndexPage />} />
-            <Route path="binders/:id" element={<BinderPage />} />
-            <Route path="lists" element={<ListsPage />} />
-            <Route path="lists/:id" element={<ListsPage />} />
-            <Route path="combos" element={<CollectionCombosPage />} />
-            <Route path="sets" element={<SetsPage />} />
-            <Route path="sets/:code" element={<SetsPage />} />
-            <Route path="cube" element={<CubePage />} />
-            <Route path="cube/:id" element={<CubePage />} />
-          </Route>
-
-          <Route path="/decks" element={<DecksIndexPage />} />
-          <Route path="/decks/discover" element={<DiscoverDecksPage />} />
-          <Route path="/decks/saved" element={<SavedDecksPage />} />
-          <Route path="/decks/new" element={<DeckNewPage />} />
-          <Route path="/decks/new/brew" element={<BrewBuildPage />} />
-          <Route path="/decks/compare" element={<DeckComparePage />} />
-          <Route path="/decks/:id" element={<DeckEditorPage />} />
-          <Route path="/decks/:id/playtest" element={<PlaytestPage />} />
-          <Route path="/play" element={<PlayPage />} />
-          <Route path="/rules" element={<RulesPage />} />
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/tags" element={<TagsPage />} />
-          <Route path="/you" element={<YouPage />} />
-          <Route path="/friends" element={<FriendsPage />} />
-          <Route path="/friends/:friendId" element={<FriendHubPage />} />
-          <Route path="/trades" element={<TradesPage />} />
-          <Route path="/pods" element={<PodsIndexPage />} />
-          <Route path="/pods/:id" element={<PodHubPage />} />
-          <Route path="/settings" element={<Navigate to="/you" replace />} />
           <Route
-            path="/admin"
-            element={isAdmin ? <AdminPage /> : <Navigate to="/collection" replace />}
-          />
-          <Route
-            path="*"
+            path="/"
             element={
-              status === 'authed' ? (
+              status === 'guest' && !hasEverVisited() ? (
+                <WelcomePage />
+              ) : status === 'authed' ? (
                 <Navigate to="/home" replace />
               ) : (
                 <Navigate to="/collection" replace />
               )
             }
           />
-        </Route>
-      </Routes>
+          {/* Legacy onboarding path → single canonical landing URL. */}
+          <Route path="/welcome" element={<Navigate to="/" replace />} />
+          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/auth/choose-username" element={<ChooseUsernamePage />} />
+          <Route path="/oauth/callback" element={<OAuthCallbackLanding />} />
+          <Route element={<Layout />}>
+            {/* The default landing for authed users (w3-nav-activation) — the "/"
+              and catch-all routes below send them here. Still reachable by
+              direct URL for guests, who are never auto-routed here. */}
+            <Route path="/home" element={<HomePage />} />
+            <Route path="/collection" element={<CollectionHubLayout />}>
+              <Route index element={<CollectionPage />} />
+              <Route path="binders" element={<BindersIndexPage />} />
+              <Route path="binders/:id" element={<BinderPage />} />
+              <Route path="lists" element={<ListsPage />} />
+              <Route path="lists/:id" element={<ListsPage />} />
+              <Route path="combos" element={<CollectionCombosPage />} />
+              <Route path="sets" element={<SetsPage />} />
+              <Route path="sets/:code" element={<SetsPage />} />
+              {/* The cube moved to the Decks hub — it's a thing you BUILD, like
+                a deck, not a thing you own. Old links keep working. */}
+              <Route path="cube" element={<LegacyCubeRedirect />} />
+              <Route path="cube/:id" element={<LegacyCubeRedirect />} />
+            </Route>
+
+            <Route path="/decks" element={<DecksIndexPage />} />
+            <Route path="/decks/discover" element={<DiscoverDecksPage />} />
+            <Route path="/decks/saved" element={<SavedDecksPage />} />
+            <Route path="/decks/new" element={<DeckNewPage />} />
+            <Route path="/decks/new/brew" element={<BrewBuildPage />} />
+            <Route path="/decks/compare" element={<DeckComparePage />} />
+            <Route path="/decks/cube" element={<CubePage />} />
+            <Route path="/decks/cube/:id" element={<CubePage />} />
+            <Route path="/decks/:id" element={<DeckEditorPage />} />
+            <Route path="/decks/:id/playtest" element={<PlaytestPage />} />
+            <Route path="/play" element={<PlayPage />} />
+            <Route path="/rules" element={<RulesPage />} />
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/tags" element={<TagsPage />} />
+            <Route path="/you" element={<YouPage />} />
+            <Route path="/friends" element={<FriendsPage />} />
+            <Route path="/friends/:friendId" element={<FriendHubPage />} />
+            <Route path="/trades" element={<TradesPage />} />
+            <Route path="/pods" element={<PodsIndexPage />} />
+            <Route path="/pods/:id" element={<PodHubPage />} />
+            <Route path="/settings" element={<Navigate to="/you" replace />} />
+            <Route
+              path="/admin"
+              element={isAdmin ? <AdminPage /> : <Navigate to="/collection" replace />}
+            />
+            <Route
+              path="*"
+              element={
+                status === 'authed' ? (
+                  <Navigate to="/home" replace />
+                ) : (
+                  <Navigate to="/collection" replace />
+                )
+              }
+            />
+          </Route>
+        </Routes>
+      </Suspense>
     </>
   );
 }

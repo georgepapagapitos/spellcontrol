@@ -25,7 +25,8 @@ export interface HubTab {
 
 /**
  * The in-page section nav shared by the Collection hub (Cards / Binders /
- * Lists / Sets / Cube) and the Decks hub (My Decks / Discover / Saved).
+ * Lists / Combos / Sets), the Decks hub (My Decks / Discover / Saved / Cube),
+ * and the social hub (Friends / Trades / Pods).
  *
  * Both hubs hand-rolled the same `<nav>` + `<Link className={active ? … : …}
  * aria-current={…}>` block, five and three times over, which meant any fix to

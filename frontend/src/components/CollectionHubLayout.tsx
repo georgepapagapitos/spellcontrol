@@ -3,9 +3,11 @@ import { useCollectionStore } from '../store/collection';
 import { HubTabsNav } from './HubTabsNav';
 
 /**
- * Tab-bar shell for the Collection hub. Renders Cards / Binders / Lists / Sets
- * / Cube tabs above an <Outlet/> so the nested index, binder-detail and
- * list-detail routes all keep the tab bar visible.
+ * Tab-bar shell for the Collection hub. Renders Cards / Binders / Lists /
+ * Combos / Sets tabs above an <Outlet/> so the nested index, binder-detail and
+ * list-detail routes all keep the tab bar visible. (Cube lives in the Decks
+ * hub — it's a thing you build, not a thing you own; `/collection/cube`
+ * redirects there.)
  *
  * Active tab is derived from the live pathname here (NOT a src/lib helper —
  * keeps the gated coverage scope clean). Cards is an exact match because every
@@ -53,11 +55,6 @@ export function CollectionHubLayout() {
             to: '/collection/sets',
             label: 'Sets',
             active: pathname.startsWith('/collection/sets'),
-          },
-          {
-            to: '/collection/cube',
-            label: 'Cube',
-            active: pathname.startsWith('/collection/cube'),
           },
         ]}
       />

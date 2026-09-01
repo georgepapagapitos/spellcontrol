@@ -538,6 +538,16 @@ export function DecksIndexPage() {
               <Package width={14} height={14} strokeWidth={1.8} aria-hidden />
               <span>Add a product</span>
             </button>
+            {/* Page-level door to /decks/compare. The per-deck kebab's
+                "Compare" (pre-picks that deck as side A) stays, but a tool
+                reachable only from a row menu is a tool nobody finds; same
+                ≥2-decks gate — comparing needs two. */}
+            {decks.length >= 2 && (
+              <Link to="/decks/compare" className="pill-btn decks-index-action-secondary">
+                <GitCompareArrows width={14} height={14} strokeWidth={1.8} aria-hidden />
+                <span>Compare</span>
+              </Link>
+            )}
             <OverflowMenu
               className="decks-index-actions-overflow"
               triggerClassName="pill-btn decks-index-actions-kebab"
@@ -549,6 +559,15 @@ export function DecksIndexPage() {
                   icon: Package,
                   onClick: () => setShowProductSearch(true),
                 },
+                ...(decks.length >= 2
+                  ? [
+                      {
+                        label: 'Compare decks',
+                        icon: GitCompareArrows,
+                        onClick: () => navigate('/decks/compare'),
+                      },
+                    ]
+                  : []),
               ]}
             />
             <Link to="/decks/new" className="pill-btn pill-btn-primary">

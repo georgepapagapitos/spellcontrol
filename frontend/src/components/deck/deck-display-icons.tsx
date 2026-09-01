@@ -112,7 +112,7 @@ export function AllocationChip({ row }: { row: Row }) {
         : `${row.claimedElsewhereQty} of ${row.qty} in ${noun}: ${info.ownerName}`;
     return (
       <Link
-        to={isCube ? `/collection/cube/${info.ownerId}` : `/decks/${info.ownerId}`}
+        to={isCube ? `/decks/cube/${info.ownerId}` : `/decks/${info.ownerId}`}
         className="deck-row-alloc-badge"
         style={
           {

@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
 /**
- * FriendsPage — the /friends destination. Owns the page heading and the
- * "Pods" shortcut (+ its pending-invite badge); the social mechanics
- * (search, requests, inbox, activity, the guest sign-in gate) all live in
- * FriendsManagement, which has its own dedicated test file and is stubbed
- * here so this file stays scoped to the page shell.
+ * FriendsPage — the /friends destination. Owns the page heading and renders
+ * the shared SocialHubTabs strip (Friends / Trades / Pods, with the pods
+ * pending-invite count chip); the social mechanics (search, requests, inbox,
+ * activity, the guest sign-in gate) all live in FriendsManagement, which has
+ * its own dedicated test file and is stubbed here so this file stays scoped
+ * to the page shell.
  */
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -73,14 +74,14 @@ describe('FriendsPage', () => {
     expect(link.getAttribute('href')).toBe('/pods');
   });
 
-  it('badges the Pods link with the pending-invite count', async () => {
+  it('badges the Pods tab with the pending-invite count', async () => {
     vi.mocked(listPods).mockResolvedValue([
       pod({ id: 'p1', myStatus: 'invited' }),
       pod({ id: 'p2', myStatus: 'member' }),
     ]);
     renderPage();
 
-    const link = await screen.findByRole('link', { name: /pods, 1 pending invite/i });
+    const link = await screen.findByRole('link', { name: /pods 1 invites awaiting your reply/i });
     expect(link.getAttribute('href')).toBe('/pods');
     expect(link.textContent).toContain('1');
   });

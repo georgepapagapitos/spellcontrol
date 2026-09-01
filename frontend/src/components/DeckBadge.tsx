@@ -49,7 +49,7 @@ function OwnerBadge({
 
   if (owners.length === 1 && !nonInteractive) {
     const to =
-      kind === 'cube' ? `/collection/cube/${owners[0].ownerId}` : `/decks/${owners[0].ownerId}`;
+      kind === 'cube' ? `/decks/cube/${owners[0].ownerId}` : `/decks/${owners[0].ownerId}`;
     return (
       <Link
         to={to}
