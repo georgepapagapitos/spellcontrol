@@ -1,4 +1,5 @@
 import './PodsIndexPage.css';
+import { SocialHubTabs } from '../components/SocialHubTabs';
 import { useCallback, useEffect, useId, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
@@ -42,7 +43,20 @@ function PodsSkeleton() {
   );
 }
 
+/** Page body wrapped so the {@link SocialHubTabs} strip sits OUTSIDE the
+ *  width-capped `.pods-index-page` root — full-bleed and sticky, exactly like the
+ *  Collection and Decks hub strips — on every return path (guest gate
+ *  included) without restructuring them. */
 export function PodsIndexPage() {
+  return (
+    <>
+      <SocialHubTabs />
+      <PodsIndexPageBody />
+    </>
+  );
+}
+
+function PodsIndexPageBody() {
   const status = useAuth((s) => s.status);
   const navigate = useNavigate();
 

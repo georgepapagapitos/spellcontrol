@@ -18,7 +18,7 @@ export function CopyCubeButton({ data }: Props) {
   function handleCopy() {
     copySharedCube(data);
     toast.show({ message: 'Cube copied to your cubes.', tone: 'success' });
-    void navigate('/collection/cube');
+    void navigate('/decks/cube');
   }
 
   return (

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { Header } from './Header';
 import { MobileTabBar } from './MobileTabBar';
@@ -123,7 +123,20 @@ function LayoutShell() {
         {isTouchDevice() && <PullToRefresh scrollEl={scrollEl} onRefresh={refreshNow} />}
         <ScrollContainerContext.Provider value={scrollEl}>
           <div className="container">
-            <Outlet />
+            {/* Pages are lazy route chunks (App.tsx). Catching the load here —
+                below the header/tab bar — keeps the chrome painted while a
+                hub's chunk arrives, so a first visit to a section reads as a
+                page loading, not the app rebooting. */}
+            <Suspense
+              fallback={
+                <div className="page-loader" role="status" aria-live="polite">
+                  <span className="spinner" aria-hidden="true" />
+                  <span className="visually-hidden">Loading</span>
+                </div>
+              }
+            >
+              <Outlet />
+            </Suspense>
             <BinderEditor />
             <Footer />
           </div>

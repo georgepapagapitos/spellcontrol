@@ -1,4 +1,5 @@
 import './TradesPage.css';
+import { SocialHubTabs } from '../components/SocialHubTabs';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../store/auth';
@@ -69,7 +70,20 @@ function TradesSkeleton() {
   );
 }
 
+/** Page body wrapped so the {@link SocialHubTabs} strip sits OUTSIDE the
+ *  width-capped `.trades-page` root — full-bleed and sticky, exactly like the
+ *  Collection and Decks hub strips — on every return path (guest gate
+ *  included) without restructuring them. */
 export function TradesPage() {
+  return (
+    <>
+      <SocialHubTabs />
+      <TradesPageBody />
+    </>
+  );
+}
+
+function TradesPageBody() {
   const status = useAuth((s) => s.status);
   const [offers, setOffers] = useState<TradeOffer[] | null>(null);
   const [truncated, setTruncated] = useState(false);

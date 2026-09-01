@@ -166,7 +166,7 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
     setStatus('done');
   };
 
-  // Deep-link (`/collection/cube/:id`): once the saved list has hydrated, load
+  // Deep-link (`/decks/cube/:id`): once the saved list has hydrated, load
   // the matching cube and scroll its row into view. Handled once per id (a ref
   // gate) so an unrelated `saved` change doesn't re-load or yank scroll; we wait
   // for `saved` to populate because sync hydrates it asynchronously after mount.
