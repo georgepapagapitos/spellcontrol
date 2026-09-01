@@ -9,6 +9,13 @@
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
 
+# node-gyp's toolchain, needed by `npm ci` alone — see the runtime stage below
+# for the full explanation. Placed before any COPY so dependency churn doesn't
+# invalidate this layer. No purge: this stage is discarded.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make \
+  && rm -rf /var/lib/apt/lists/*
+
 # Shared packages first: install (no scripts), then build each dist. Kept as
 # their own layers so a backend-only src change doesn't rebuild them. The apps
 # depend on these packages via `file:` deps, so every dist must exist before
@@ -94,7 +101,25 @@ COPY --from=build /app/packages/deck-metrics/dist ./packages/deck-metrics/dist
 # Prod-only backend deps (better-sqlite3's native install script still runs;
 # game-core is linked from the path above).
 COPY backend/package.json backend/package-lock.json ./backend/
-RUN npm --prefix backend ci --omit=dev && npm cache clean --force
+# python3 + make are node-gyp's configure/build tools, and `npm ci` needs them
+# even when nothing is compiled. better-sqlite3 >=13 ships prebuilt binaries and
+# sets "gypfile": false to tell npm to skip the implicit `node-gyp rebuild` — but
+# that flag lives only in the REGISTRY MANIFEST. `npm install` reads it and skips
+# the rebuild; `npm ci` installs from package-lock.json, which does not record
+# gypfile, so npm falls back to "binding.gyp on disk => run node-gyp rebuild".
+# The rebuild is a no-op (better-sqlite3's binding.gyp detects the prebuild and
+# emits `type: none` targets, so NO compiler is required and nothing is built) —
+# but node-gyp still needs Python to run gyp and make to run the Makefile it
+# generates. node:22-bookworm-slim ships neither, which is what broke this build
+# on the better-sqlite3 12 -> 13 bump (#1701): "Could not find any Python
+# installation to use". Installed and purged inside one layer so the runtime
+# image doesn't carry a toolchain it never uses.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make \
+  && npm --prefix backend ci --omit=dev \
+  && npm cache clean --force \
+  && apt-get purge -y --auto-remove python3 make \
+  && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/backend/dist ./backend/dist
 
 # Scanner matcher data (pHash DB + MobileCLIP embeddings + ONNX model).

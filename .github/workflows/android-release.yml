@@ -104,6 +104,10 @@ jobs:
         working-directory: packages/binder-routing
         run: npm ci && npm run build
 
+      - name: Build shared deck-metrics
+        working-directory: packages/deck-metrics
+        run: npm ci && npm run build
+
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci

@@ -35,6 +35,8 @@ on:
       - 'packages/game-core/package-lock.json'
       - 'packages/binder-routing/package.json'
       - 'packages/binder-routing/package-lock.json'
+      - 'packages/deck-metrics/package.json'
+      - 'packages/deck-metrics/package-lock.json'
       - '.github/workflows/docker-image-build.yml'
   pull_request:
     branches: [main]
@@ -48,6 +50,8 @@ on:
       - 'packages/game-core/package-lock.json'
       - 'packages/binder-routing/package.json'
       - 'packages/binder-routing/package-lock.json'
+      - 'packages/deck-metrics/package.json'
+      - 'packages/deck-metrics/package-lock.json'
       - '.github/workflows/docker-image-build.yml'
 
 concurrency:
