@@ -1,6 +1,6 @@
 # SpellControl
 
-Plan your Magic: The Gathering collection. Import a collection export from any popular tool, sort it into rule-based binders, build and tune decks across eight formats (Commander, Brawl, Standard, Pauper, Modern, Pioneer, Legacy, Vintage), and track multiplayer games — all synced across your devices.
+Plan your Magic: The Gathering collection. Import a collection export from any popular tool, sort it into rule-based binders, build and tune decks across eight formats (Commander, Brawl, Standard, Pauper, Modern, Pioneer, Legacy, Vintage), play and track multiplayer games at the table or online, and trade with friends — all synced across your devices.
 
 ## What you can do
 
@@ -11,6 +11,15 @@ Plan your Magic: The Gathering collection. Import a collection export from any p
 - **Generate Commander decks** from EDHREC data — pick a commander, choose themes, set a power bracket, and get a full 100-card deck with mana curve balancing and role targeting.
 - **Tune any deck with the Coach** — a ranked list of moves (add, cut, swap for a card you already own), each with a plain-English reason, backed by combo, win-condition, and synergy analysis plus power-bracket fit.
 - **Build constructed decks manually** — 60-card decks (Standard, Pauper, Modern, Pioneer, Legacy, Vintage) with 15-card sideboards. Cards flagged inline when not legal in the chosen format.
+- **Build a cube** — a draft-ready singleton cube from cards you own, import one from CubeCobra to see how much of it you own, or build one with friends.
+- **Playtest any deck** — goldfish on a full battlefield board: draw, mulligan, tap, move cards between zones, make tokens.
+- **Play at the table** — a shared life tracker (life, commander damage, step tracking) for local games, or host an online game with a join code: every player syncs live, opens their own board, points at cards, and chats.
+- **Run game nights** — a recurring series with invite links; results land in your game history.
+- **Play with friends** — friend requests and per-friend hubs, pods for your regular table, and trades that settle both collections when an offer is accepted.
+- **Publish and discover decks** — share a deck at a public link, browse and save other people's public decks, and keep a public profile.
+- **Find cards** — card search with owned-copy badges, browse-by-tag discovery over Scryfall's oracle-tag corpus, and a combo finder over what you own.
+- **Look up rules** — a built-in Comprehensive Rules reference: keywords, glossary, and rule-number search, available from anywhere in the app.
+- **Scan paper cards** (Android app) — add cards to the collection by pointing the phone camera at them.
 - **Browse your collection** in a sortable, filterable table with breakdowns by color, type, rarity, and price.
 - **Sign in and sync** — create an account to store your collection, binders, and decks on the server. Changes push automatically and pull on login.
 - **Skin the app** with a guild theme — accents, surfaces, and warning / error colors all re-tint per theme.
@@ -66,6 +75,7 @@ Each binder has one or more **match groups**. A card joins the binder if it matc
 - **Synced state (collection, binders, decks)** — Postgres on the backend, stored per row with a monotonic `rev`. The client syncs **deltas**: a durable mutation queue debounced-pushes per-row upserts/deletes (`POST /api/sync`), and a paged delta pull (`GET /api/sync?since=<cursor>`) applies remote changes in rev order. Conflict resolution is **last-write-wins per row** — no base-version check, no 409.
 - **Local cache** — `IndexedDB` (collection cards, decks, plus a per-row entity store and mutation queue) and `localStorage` (theme and lighter state) in the browser. Hydrated from the server after login; wiped on sign-out.
 - **Scryfall card data** — cached server-side in SQLite for 7 days. Shared across all users of the backend.
+- **Games & social** — online game sessions, game-night series, and finished-game history live in Postgres (`game_sessions`, `game_night_series`, `user_games`), as do friends, trades, and pods. Live online games run the shared `game-core` reducer: the backend applies actions authoritatively, clients apply them optimistically.
 
 ## Setup
 
@@ -83,6 +93,7 @@ Each binder has one or more **match groups**. A card joins the binder if it matc
 npm install                                  # root dev tools (concurrently, husky, prettier)
 npm install --prefix packages/game-core      # shared reducer — installs + builds its dist
 npm install --prefix packages/binder-routing # shared binder routing engine — installs + builds its dist
+npm install --prefix packages/deck-metrics   # shared bracket estimator — installs + builds its dist
 npm install --prefix frontend                # resolves the @spellcontrol/* file: deps
 npm install --prefix backend                 # resolves the @spellcontrol/* file: deps
 npm run db:up                            # dev Postgres on :5432 (docker-compose.dev.yml)
@@ -181,11 +192,11 @@ The backend reads:
 
 ## Architecture
 
-The repo is a monorepo with four packages: `backend/`, `frontend/`, and two shared ones — `packages/game-core/` and `packages/binder-routing/`.
+The repo is a monorepo with five packages: `backend/`, `frontend/`, and three shared ones — `packages/game-core/`, `packages/binder-routing/`, and `packages/deck-metrics/`.
 
 **Backend** — Node + Express 5 + TypeScript. Postgres (via Drizzle) stores user accounts and synced state. A SQLite cache (via better-sqlite3) holds Scryfall card data with a 7-day TTL. Format-specific parsers in `src/parsers/` handle import detection and normalization.
 
-**Frontend** — React 18 + Vite + TypeScript + Zustand + react-router-dom 7. Collection and binder state lives in IndexedDB and localStorage, synced to the server on change. The `deck-builder/` subsystem handles EDHREC-powered deck generation with its own services, store, and types. Plain CSS with guild-themed custom properties for re-skinning.
+**Frontend** — React 19 + Vite + TypeScript + Zustand + react-router-dom 7. Collection and binder state lives in IndexedDB and localStorage, synced to the server on change. The `deck-builder/` subsystem handles EDHREC-powered deck generation with its own services, store, and types. Plain CSS with guild-themed custom properties for re-skinning.
 
 **game-core** (`packages/game-core/`) — a zero-dependency, isomorphic package owning the multiplayer game-state reducer (`applyAction`, `createGameState`, loss/win logic, `GameState`/`GameAction` types). It is the single source of truth: the backend runs it for authoritative online sessions and the frontend runs it for local + optimistic play. Both consume it as a `file:` dependency (`@spellcontrol/game-core`) — `backend → game-core ← frontend`, with game-core a leaf. It builds a dual CJS (backend) + ESM (frontend bundle) output with shared types, has its own test suite (80% coverage gate), and there is no second copy to keep in lockstep.
 
@@ -198,6 +209,8 @@ Adding a shared package means registering it in every place that installs a cons
 ## API
 
 All `/api/*` endpoints sit behind helmet and per-endpoint rate limiters.
+
+The table below documents the collection-import, auth, and sync core. The rest of the surface is mounted per domain in `backend/src/server.ts` — one router each for `activity`, `admin`, `aggregates`, `ai`, `combos`, `discover`, `feedback`, `friends`, `game-nights`, `game-results`, `games`, `offline`, `pods`, `public`, `publications`, `reports`, `scanner`, `shares`, `tonight-trades`, `trades`, and `users` — with routes defined in the matching `backend/src/<domain>/` module.
 
 | Method   | Path                         | Purpose                                                                                             |
 | -------- | ---------------------------- | --------------------------------------------------------------------------------------------------- |
@@ -248,7 +261,7 @@ npm run format            # prettier --write
 npm run format:check
 ```
 
-Per workspace, both `frontend` and `backend` also expose `test:watch` and `test:coverage`. CI enforces an 80% coverage floor on `lib/` and parser modules. The shared `packages/game-core` package is built and tested independently (its own `npm test` / `test:coverage`, run as a dedicated CI job and built before the consumer jobs); the root `npm test` covers `frontend` + `backend` only.
+Per workspace, both `frontend` and `backend` also expose `test:watch` and `test:coverage`. CI enforces an 80% coverage floor on `lib/` and parser modules. The three shared packages (`game-core`, `binder-routing`, `deck-metrics`) are each built and tested independently (their own `npm test` / `test:coverage`, run as dedicated CI jobs and built before the consumer jobs); the root `npm test` covers `frontend` + `backend` only.
 
 `husky` + `lint-staged` run prettier on staged files before commit.
 
