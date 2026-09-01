@@ -11,8 +11,13 @@ const log: GameLogEntry[] = [
 ];
 
 const tableItems: TickerItem[] = [
-  { id: 1, seat: 1, entry: { seq: 1, kind: 'play', text: 'Sol Ring played from hand' } },
-  { id: 2, seat: 0, entry: { seq: 1, kind: 'draw', text: 'Drew 1 card' } },
+  {
+    id: 1,
+    seat: 1,
+    kind: 'play',
+    entry: { seq: 1, kind: 'play', text: 'Sol Ring played from hand' },
+  },
+  { id: 2, seat: 0, kind: 'play', entry: { seq: 1, kind: 'draw', text: 'Drew 1 card' } },
 ];
 
 const nameFor = (seat: number) => (seat === 0 ? 'You' : 'Maya');
