@@ -371,9 +371,27 @@ describe('Presence + status render states', () => {
     );
     render(<OnlineGameView game={game} />);
 
-    expect(screen.getByText('Waiting to start')).toBeTruthy();
+    // The viewer is the host: they get the Start control, not a waiting pill.
+    fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
+    expect(dispatchOnline).toHaveBeenCalledWith({ type: 'start' });
+    expect(screen.queryByText(/Waiting for/)).toBeNull();
     // No active-turn label yet — activeSeat is null until the game starts.
     expect(screen.queryByText(/'s turn/)).toBeNull();
+  });
+
+  it('tells a guest who they are waiting for in the lobby', () => {
+    mockAuthUserId.current = 'user_2';
+    const game = makeTestGame(
+      [
+        makeTestPlayer({ id: 'p0', userId: 'user_1', seat: 0, name: 'Alice' }),
+        makeTestPlayer({ id: 'p1', userId: 'user_2', seat: 1, name: 'Bob' }),
+      ],
+      { status: 'lobby' }
+    );
+    render(<OnlineGameView game={game} />);
+
+    expect(screen.getByText('Waiting for Alice to start')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Start game' })).toBeNull();
   });
 });
 

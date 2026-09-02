@@ -128,6 +128,8 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
 
   const mySeat = game.players.find((p) => p.userId === user?.id) ?? null;
   const viewerSeated = mySeat != null;
+  const isHost = game.hostUserId != null && game.hostUserId === user?.id;
+  const hostName = game.players.find((p) => p.userId === game.hostUserId)?.name ?? 'the host';
   const opponents = game.players.filter((p) => p.seat !== mySeat?.seat);
   const activePlayer =
     game.activeSeat != null ? (game.players.find((p) => p.seat === game.activeSeat) ?? null) : null;
@@ -153,9 +155,24 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
       <header className="ogv-header">
         <div className="ogv-header-main">
           <span className="ogv-code">Game {game.code}</span>
-          {game.status === 'lobby' && (
-            <span className="ogv-turn ogv-turn-waiting">Waiting to start</span>
-          )}
+          {/* Lobby: the host starts the game (server rule — 'start' is host
+              only), so the host gets the button and everyone else is told who
+              they are waiting for. Life can still be tracked meanwhile, which
+              is why the old "Waiting to start" read as stale. */}
+          {game.status === 'lobby' &&
+            (isHost ? (
+              <button
+                type="button"
+                className="btn btn-primary ogv-header-btn ogv-start-btn"
+                onClick={() => dispatch({ type: 'start' })}
+              >
+                Start game
+              </button>
+            ) : (
+              <span className="ogv-turn ogv-turn-waiting" aria-live="polite">
+                Waiting for {hostName} to start
+              </span>
+            ))}
           {turnLabel && (
             <span className="ogv-turn" aria-live="polite">
               <Clock width={14} height={14} strokeWidth={1.8} aria-hidden />
