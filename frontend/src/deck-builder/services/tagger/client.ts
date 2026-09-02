@@ -29,7 +29,7 @@ export async function loadTaggerData(): Promise<TaggerData | null> {
   fetchPromise = (async () => {
     try {
       const res = await fetch(TAG_REPO_URL, { cache: 'no-cache' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error("Couldn't load the tagger snapshot.");
       const data: TaggerData = await res.json();
       cached = data;
       // Build Set lookups

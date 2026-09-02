@@ -29,6 +29,7 @@ import type {
 } from '@/deck-builder/types';
 import type { ComboSeedContext } from '../types/combos';
 
+import { userMessage } from '@/lib/user-error';
 /**
  * Hard gate a freshly generated deck before it's ever saved (E128): illegal
  * cards, color-identity violations, over/under size, copy-limit violations,
@@ -363,7 +364,7 @@ export function useDeckGeneration({
       }
     } catch (e) {
       logger.error('[DeckBuilder] generation failed:', e);
-      setError(e instanceof Error ? e.message : "Couldn't build the deck.");
+      setError(userMessage(e, "Couldn't build the deck."));
     } finally {
       setIsBuilding(false);
       setProgress(null);

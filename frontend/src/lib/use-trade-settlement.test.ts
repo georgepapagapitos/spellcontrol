@@ -17,9 +17,11 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
 
 const markTradeSettledMock = vi.fn<(id: string) => Promise<TradeOffer>>();
 const listTradesMock = vi.fn<() => Promise<TradeListing>>();
+const notifyTradesChangedMock = vi.fn();
 vi.mock('./trades-client', () => ({
   markTradeSettled: (id: string) => markTradeSettledMock(id),
   listTrades: () => listTradesMock(),
+  notifyTradesChanged: () => notifyTradesChangedMock(),
 }));
 
 vi.mock('../store/auth', () => ({
@@ -34,16 +36,38 @@ vi.mock('../store/toasts', () => ({
 const replaceAllCardsMock = vi.fn<(cards: EnrichedCard[]) => Promise<void>>();
 const addCardMock = vi.fn<(...args: unknown[]) => Promise<string[]>>();
 let storeCards: EnrichedCard[] = [];
+let storeHydrating = false;
+type StoreShape = { cards: EnrichedCard[]; hydrating: boolean };
+const storeListeners = new Set<(s: StoreShape) => void>();
+function storeState(): StoreShape & {
+  replaceAllCards: typeof replaceAllCardsMock;
+  addCard: typeof addCardMock;
+} {
+  return {
+    get cards() {
+      return storeCards;
+    },
+    get hydrating() {
+      return storeHydrating;
+    },
+    replaceAllCards: replaceAllCardsMock,
+    addCard: addCardMock,
+  };
+}
+/** Flip the mock store to hydrated (optionally with rows) and notify subscribers. */
+function finishHydration(cards?: EnrichedCard[]) {
+  if (cards) storeCards = cards;
+  storeHydrating = false;
+  for (const l of storeListeners) l(storeState());
+}
 
 vi.mock('../store/collection', () => ({
   useCollectionStore: {
-    getState: () => ({
-      get cards() {
-        return storeCards;
-      },
-      replaceAllCards: replaceAllCardsMock,
-      addCard: addCardMock,
-    }),
+    getState: () => storeState(),
+    subscribe: (listener: (s: StoreShape) => void) => {
+      storeListeners.add(listener);
+      return () => storeListeners.delete(listener);
+    },
   },
 }));
 
@@ -110,6 +134,8 @@ beforeEach(() => {
   markTradeSettledMock.mockResolvedValue(offer({ settled: true }));
   replaceAllCardsMock.mockResolvedValue(undefined);
   addCardMock.mockResolvedValue(['new-copy']);
+  storeHydrating = false;
+  storeListeners.clear();
   storeCards = [
     owned({ copyId: 'a', name: 'Sol Ring', oracleId: 'o-sol', scryfallId: 'scry-c21' }),
   ];
@@ -132,6 +158,9 @@ describe('settleTrade', () => {
       language: undefined,
     });
     expect(markTradeSettledMock).toHaveBeenCalledWith('offer-1');
+    // The open offer lists are told to re-fetch so the row stops saying
+    // "Adding to your collection…".
+    expect(notifyTradesChangedMock).toHaveBeenCalledTimes(1);
   });
 
   it('applies locally BEFORE telling the server', async () => {
@@ -261,6 +290,37 @@ describe('settleTrade', () => {
     const messages = toastShowMock.mock.calls.map((c) => (c[0] as { message: string }).message);
     expect(messages.some((m) => m.includes('1 card in'))).toBe(true);
     expect(messages.some((m) => m.includes('Mana Vault'))).toBe(true);
+  });
+});
+
+describe('settleTrade before the collection has hydrated', () => {
+  it('waits for hydration instead of planning against an empty collection', async () => {
+    // Fresh page load: the store is still reading IndexedDB (cards = []).
+    storeHydrating = true;
+    storeCards = [];
+    getCardByIdMock.mockResolvedValue({ id: 'scry-jud', name: 'Rhystic Study' } as ScryfallCard);
+
+    const pending = settleTrade(offer());
+    await Promise.resolve();
+    await Promise.resolve();
+    // Nothing may touch the collection yet — planning now would report Sol
+    // Ring as "no longer owned" and the first write would tombstone every row
+    // that hadn't loaded.
+    expect(replaceAllCardsMock).not.toHaveBeenCalled();
+    expect(addCardMock).not.toHaveBeenCalled();
+
+    finishHydration([
+      owned({ copyId: 'a', name: 'Sol Ring', oracleId: 'o-sol', scryfallId: 'scry-c21' }),
+      owned({ copyId: 'b', name: 'Counterspell', oracleId: 'o-cs', scryfallId: 'scry-cs' }),
+    ]);
+    expect(await pending).toBe(true);
+    // Planned against the REAL collection: Sol Ring out, Counterspell kept.
+    expect(replaceAllCardsMock).toHaveBeenCalledWith([
+      expect.objectContaining({ copyId: 'b', name: 'Counterspell' }),
+    ]);
+    expect(toastShowMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('no longer had') })
+    );
   });
 });
 

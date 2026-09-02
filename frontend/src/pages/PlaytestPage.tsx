@@ -29,10 +29,15 @@ export function PlaytestPage() {
 
   const deck = id ? decks.find((d) => d.id === id) : undefined;
 
-  // Tracks which deck id we've already asked resume-vs-fresh for, so the
-  // prompt fires once per deck visit. A ref (not state) — it only gates
-  // this effect and shouldn't itself trigger a render.
-  const checkedDeckIdRef = useRef<string | null>(null);
+  // The deck id a resume-vs-fresh prompt is currently open for. It gates only
+  // the prompt: while the confirm dialog is up the effect below can re-run
+  // (deps churn) and must not stack a second dialog. It is NOT a "done this
+  // deck" latch — an earlier version latched on the deck id, and React's
+  // StrictMode remount (mount → teardown → mount) then left the page on
+  // "Shuffling…" forever: the teardown cleared the store, the re-run saw the
+  // latch and bailed, and nothing ever called init() again. Whether a
+  // session exists is answered by `storeDeckId`, so that is the only latch.
+  const promptingForRef = useRef<string | null>(null);
   // A deck whose cards can't be turned into a playable session (a malformed
   // entry, a corrupt snapshot) used to leave the "Shuffling…" spinner up
   // forever with no way out but the browser's back button.
@@ -42,8 +47,7 @@ export function PlaytestPage() {
     if (!hydrated) return;
     if (!deck) return;
     if (storeDeckId === deck.id) return;
-    if (checkedDeckIdRef.current === deck.id) return; // already asked (or none to ask) this visit
-    checkedDeckIdRef.current = deck.id;
+    if (promptingForRef.current === deck.id) return; // resume prompt already open
     // Commit any still-debounced write for whatever deck was previously
     // loaded before we touch the store for this one (route can swap decks
     // without unmounting the page).
@@ -61,12 +65,18 @@ export function PlaytestPage() {
     }
 
     async function offerResume(forDeck: Deck, snap: PlaytestSnapshot) {
-      const resume = await confirm({
-        title: 'Resume game?',
-        body: `Turn ${snap.state.turn} is still in progress. Starting fresh discards that game.`,
-        confirmLabel: 'Resume',
-        cancelLabel: 'Start fresh',
-      });
+      promptingForRef.current = forDeck.id;
+      let resume: boolean;
+      try {
+        resume = await confirm({
+          title: 'Resume game?',
+          body: `Turn ${snap.state.turn} is still in progress. Starting fresh discards that game.`,
+          confirmLabel: 'Resume',
+          cancelLabel: 'Start fresh',
+        });
+      } finally {
+        promptingForRef.current = null;
+      }
       if (resume) {
         startSession(() => hydrate(forDeck.id, snap));
       } else {
@@ -90,7 +100,7 @@ export function PlaytestPage() {
       void offerResume(deck, snapshot);
       return;
     }
-    init(deck.id, deckToPlaytestInit(deck));
+    startSession(() => init(deck.id, deckToPlaytestInit(deck)));
   }, [hydrated, deck, storeDeckId, init, hydrate, confirm]);
 
   useEffect(
@@ -157,7 +167,7 @@ export function PlaytestPage() {
               // Clear any snapshot that might itself be the problem, and let
               // the effect re-run from scratch for this deck.
               clearPlaytestSnapshot(deck.id);
-              checkedDeckIdRef.current = null;
+              promptingForRef.current = null;
               setInitFailed(false);
             }}
           >

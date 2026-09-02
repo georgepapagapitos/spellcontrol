@@ -92,6 +92,6 @@ describe('loadRulesBundle', () => {
   it('throws on a non-ok response', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404 }));
     const mod = await import('./comprehensive-rules');
-    await expect(mod.loadRulesBundle()).rejects.toThrow('404');
+    await expect(mod.loadRulesBundle()).rejects.toThrow(/Couldn't load the Comprehensive Rules/);
   });
 });

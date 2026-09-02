@@ -43,7 +43,9 @@ export async function searchUsers(q: string): Promise<FriendUser[]> {
     credentials: 'include',
   });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to search users.'));
+    throw new Error(
+      await readError(res, "Couldn't search for players. Check your connection and try again.")
+    );
   }
   const body = (await res.json()) as { users: FriendUser[] };
   return body.users;
@@ -60,7 +62,7 @@ export async function sendFriendRequest(username: string): Promise<{
     body: JSON.stringify({ username }),
   });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to send friend request.'));
+    throw new Error(await readError(res, "Couldn't send that friend request. Try again."));
   }
   return (await res.json()) as {
     friendStatus: FriendStatus;
@@ -77,7 +79,7 @@ export async function acceptRequest(requesterId: string): Promise<Friend> {
     }
   );
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to accept friend request.'));
+    throw new Error(await readError(res, "Couldn't accept that request. Try again."));
   }
   const body = (await res.json()) as { friend: Friend };
   return body.friend;
@@ -92,7 +94,7 @@ export async function declineRequest(requesterId: string): Promise<void> {
     }
   );
   if (!res.ok && res.status !== 204) {
-    throw new Error(await readError(res, 'Failed to decline friend request.'));
+    throw new Error(await readError(res, "Couldn't decline that request. Try again."));
   }
 }
 
@@ -102,7 +104,7 @@ export async function cancelRequest(addresseeId: string): Promise<void> {
     credentials: 'include',
   });
   if (!res.ok && res.status !== 204) {
-    throw new Error(await readError(res, 'Failed to cancel friend request.'));
+    throw new Error(await readError(res, "Couldn't cancel that request. Try again."));
   }
 }
 
@@ -112,14 +114,16 @@ export async function removeFriend(friendId: string): Promise<void> {
     credentials: 'include',
   });
   if (!res.ok && res.status !== 204) {
-    throw new Error(await readError(res, 'Failed to remove friend.'));
+    throw new Error(await readError(res, "Couldn't remove that friend. Try again."));
   }
 }
 
 export async function listFriends(): Promise<Friend[]> {
   const res = await fetch(apiUrl('/api/friends'), { credentials: 'include' });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to load friends.'));
+    throw new Error(
+      await readError(res, "Couldn't load your friends. Check your connection and try again.")
+    );
   }
   const body = (await res.json()) as { friends: Friend[] };
   return body.friends;
@@ -131,7 +135,12 @@ export async function listRequests(): Promise<{
 }> {
   const res = await fetch(apiUrl('/api/friends/requests'), { credentials: 'include' });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to load friend requests.'));
+    throw new Error(
+      await readError(
+        res,
+        "Couldn't load your friend requests. Check your connection and try again."
+      )
+    );
   }
   return (await res.json()) as { incoming: FriendRequest[]; outgoing: FriendRequest[] };
 }
@@ -179,7 +188,9 @@ export async function fetchFriendWants(friendId: string): Promise<FriendWantsRes
     credentials: 'include',
   });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to load what this friend is looking for.'));
+    throw new Error(
+      await readError(res, "Couldn't load what this friend is looking for. Try again in a moment.")
+    );
   }
   return (await res.json()) as FriendWantsResponse;
 }
@@ -187,7 +198,9 @@ export async function fetchFriendWants(friendId: string): Promise<FriendWantsRes
 export async function getFriendsActivity(): Promise<FriendActivityItem[]> {
   const res = await fetch(apiUrl('/api/friends/activity'), { credentials: 'include' });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to load activity.'));
+    throw new Error(
+      await readError(res, "Couldn't load recent activity. Check your connection and try again.")
+    );
   }
   const body = (await res.json()) as { items: FriendActivityItem[] };
   return body.items;

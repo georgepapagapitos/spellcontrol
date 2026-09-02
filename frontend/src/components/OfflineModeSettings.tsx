@@ -25,7 +25,7 @@ const PHASE_LABELS: Record<DownloadPhase, string> = {
   'downloading-combos': 'Downloading combos…',
   'storing-combos': 'Saving combos…',
   done: 'Up to date',
-  error: 'Refresh failed',
+  error: "Couldn't refresh",
 };
 
 export function OfflineModeSettings(): React.ReactElement | null {

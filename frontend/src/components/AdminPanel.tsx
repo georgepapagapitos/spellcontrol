@@ -11,6 +11,7 @@ import {
 import { toast } from '../store/toasts';
 import { Modal } from './Modal';
 
+import { userMessage } from '@/lib/user-error';
 const REPORT_KIND_LABEL: Record<AdminReportRow['kind'], string> = {
   deck: 'Deck',
   profile: 'Profile',
@@ -44,6 +45,8 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
   // SharedLinksSettings' shares===null loading sentinel).
   const [reports, setReports] = useState<AdminReportRow[] | null>(null);
   const [reportsError, setReportsError] = useState<string | null>(null);
+  // Bumped by Retry so the reports effect re-runs.
+  const [reportsReloadKey, setReportsReloadKey] = useState(0);
   const [dismissingId, setDismissingId] = useState<string | null>(null);
   const [pendingHide, setPendingHide] = useState<AdminReportRow | null>(null);
   const [hiding, setHiding] = useState(false);
@@ -58,7 +61,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
       const list = await listUsers();
       setUsers(list);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load users.');
+      setError(userMessage(err, "Couldn't load accounts. Try again in a moment."));
     } finally {
       setLoading(false);
     }
@@ -72,7 +75,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
         if (!cancelled) setUsers(list);
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load users.');
+          setError(userMessage(err, "Couldn't load accounts. Try again in a moment."));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -93,7 +96,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
       await refresh();
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : 'Failed to delete user.',
+        message: userMessage(err, "Couldn't delete that account. Try again."),
         tone: 'error',
       });
     } finally {
@@ -111,7 +114,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
       await refresh();
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : 'Failed to clear profile.',
+        message: userMessage(err, "Couldn't clear that profile. Try again."),
         tone: 'error',
       });
     } finally {
@@ -130,13 +133,13 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setReportsError(err instanceof Error ? err.message : 'Failed to load reports.');
+          setReportsError(userMessage(err, "Couldn't load reports. Try again in a moment."));
         }
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reportsReloadKey]);
 
   async function handleDismiss(report: AdminReportRow) {
     setDismissingId(report.id);
@@ -147,7 +150,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
       toast.show({ message: 'Dismissed report', tone: 'success' });
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : 'Failed to dismiss report.',
+        message: userMessage(err, "Couldn't dismiss that report. Try again."),
         tone: 'error',
       });
     } finally {
@@ -168,7 +171,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
       setPendingHide(null);
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : 'Failed to hide content.',
+        message: userMessage(err, "Couldn't hide that content. Try again."),
         tone: 'error',
       });
     } finally {
@@ -191,7 +194,10 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
           {loading && <div className="settings-row-hint">Loading users…</div>}
           {error && (
             <div className="settings-row-hint" role="alert">
-              {error}
+              {error}{' '}
+              <button type="button" className="btn-link" onClick={() => void refresh()}>
+                Retry
+              </button>
             </div>
           )}
           {!loading && !error && users.length === 0 && (
@@ -350,7 +356,18 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
         <div className="settings-card-body">
           {reportsError && (
             <div className="settings-row-hint" role="alert">
-              {reportsError}
+              {reportsError}{' '}
+              <button
+                type="button"
+                className="btn-link"
+                onClick={() => {
+                  setReportsError(null);
+                  setReports(null);
+                  setReportsReloadKey((k) => k + 1);
+                }}
+              >
+                Retry
+              </button>
             </div>
           )}
           {reports === null &&

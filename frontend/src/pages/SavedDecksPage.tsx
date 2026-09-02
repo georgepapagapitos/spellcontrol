@@ -14,6 +14,7 @@ import { useAuth } from '../store/auth';
 import { listBookmarkedDecks, type DiscoverDeck } from '../lib/discover-client';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 
+import { userMessage } from '@/lib/user-error';
 /**
  * /decks/saved — the caller's own bookmarked decks (w2-likes-bookmarks). No
  * filters/sort/pagination, matching the backend's own no-pagination call for
@@ -36,7 +37,7 @@ export function SavedDecksPage() {
     listBookmarkedDecks()
       .then(setDecks)
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Couldn't load your saved decks.");
+        setError(userMessage(err, "Couldn't load your saved decks."));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -53,8 +54,7 @@ export function SavedDecksPage() {
         if (!cancelled) setDecks(res);
       })
       .catch((err: unknown) => {
-        if (!cancelled)
-          setError(err instanceof Error ? err.message : "Couldn't load your saved decks.");
+        if (!cancelled) setError(userMessage(err, "Couldn't load your saved decks."));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

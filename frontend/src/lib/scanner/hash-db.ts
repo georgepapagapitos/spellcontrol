@@ -42,7 +42,7 @@ export function loadHashDb(): Promise<HashDb> {
   pending = (async () => {
     const res = await fetch(DB_URL);
     if (!res.ok) {
-      throw new Error(`hash-db fetch failed: HTTP ${res.status}`);
+      throw new Error("Couldn't download the scanner data. Try again in a moment.");
     }
     const buf = await res.arrayBuffer();
     return decodeHashDb(buf);

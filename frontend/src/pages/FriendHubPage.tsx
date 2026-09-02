@@ -18,7 +18,7 @@ import {
 } from '../lib/trade-radar';
 import { groupOwnedForTrade } from '../lib/trade-picker';
 import { useAllocations, computeSurplusByName } from '../lib/allocations';
-import { listTrades, type TradeOffer } from '../lib/trades-client';
+import { listTrades, subscribeTradesChanged, type TradeOffer } from '../lib/trades-client';
 import { TradeComposer } from '../components/trade/TradeComposer';
 import { TradeOfferList } from '../components/trade/TradeOfferList';
 import { isTrackingList } from '../lib/lists';
@@ -39,6 +39,7 @@ import { useSharedFilters } from '../components/share/use-shared-filters';
 import { SharedEmptyState } from '../components/share/SharedEmptyState';
 import type { ShareKind } from '../lib/shared-types';
 
+import { userMessage } from '@/lib/user-error';
 /** How many collection cards render before "Show more" — the friend's real
  *  collection can be ~11.5k unique oracle cards; filtering runs over the
  *  full set regardless of this cap (see filterFriendCollection). */
@@ -71,7 +72,7 @@ const KIND_ORDER: ShareKind[] = ['deck', 'collection', 'cube', 'binder', 'list']
 
 function HubSkeleton() {
   return (
-    <div className="friends-skeleton" aria-label="Loading" aria-busy="true">
+    <div className="friends-skeleton" role="status" aria-label="Loading" aria-busy="true">
       <span className="friends-skeleton-bar is-row" />
       <span className="friends-skeleton-bar is-row" />
       <span className="friends-skeleton-bar is-row" />
@@ -87,6 +88,8 @@ export function FriendHubPage() {
   const [ownerDisplayName, setOwnerDisplayName] = useState<string | null>(null);
   const [shares, setShares] = useState<FriendShareRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Bumped by Retry so the shares effect re-runs.
+  const [sharesReloadKey, setSharesReloadKey] = useState(0);
   const [h2h, setH2h] = useState<H2HResponse | null>(null);
   const [h2hLoading, setH2hLoading] = useState(true);
   const [tab, setTab] = useState<HubTab>('overview');
@@ -212,6 +215,8 @@ export function FriendHubPage() {
     null
   );
   const refreshTrades = () => setTradeAttempt((n) => n + 1);
+  // A settlement applied by the app shell changes rows in this tab.
+  useEffect(() => subscribeTradesChanged(() => setTradeAttempt((n) => n + 1)), []);
 
   useEffect(() => {
     if (status !== 'authed' || !friendId) return;
@@ -340,13 +345,18 @@ export function FriendHubPage() {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Failed to load shared content.');
+        setError(
+          userMessage(
+            err,
+            "Couldn't load what this friend shares. Check your connection and try again."
+          )
+        );
         setShares([]);
       });
     return () => {
       cancelled = true;
     };
-  }, [friendId, status]);
+  }, [friendId, status, sharesReloadKey]);
 
   useEffect(() => {
     if (status !== 'authed' || !friendId) return;
@@ -554,7 +564,18 @@ export function FriendHubPage() {
 
         {error && (
           <p className="friends-error" role="alert">
-            {error}
+            <span>{error}</span>{' '}
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => {
+                setError(null);
+                setShares(null);
+                setSharesReloadKey((k) => k + 1);
+              }}
+            >
+              Retry
+            </button>
           </p>
         )}
 

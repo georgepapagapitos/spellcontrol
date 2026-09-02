@@ -40,6 +40,7 @@ import { InfoTip } from '../InfoTip';
 import { buildCommanderKey } from '../../lib/commander-key';
 import { getCommanderStatsBatch, type CommanderStats } from '../../lib/aggregates-client';
 
+import { userMessage } from '@/lib/user-error';
 /**
  * Resolves the commander-picker platform-deck-count badge (social W4) for a
  * settled Top-EDHREC/Playstyle candidate list: looks up each visible
@@ -345,6 +346,10 @@ export function CommanderSearch({ value, onSelect, format = 'commander' }: Props
   // on every filter change — we mirror that.)
   const [topCommanders, setTopCommanders] = useState<EDHRECTopCommander[]>([]);
   const [topLoading, setTopLoading] = useState(false);
+  // EDHREC unreachable: rendered as its own state with a Retry, never as the
+  // "No commanders found" empty result — a failed fetch is not an empty list.
+  const [topError, setTopError] = useState(false);
+  const [topReloadKey, setTopReloadKey] = useState(0);
   const [showAllTopCommanders, setShowAllTopCommanders] = useState(false);
 
   useEffect(() => {
@@ -354,12 +359,18 @@ export function CommanderSearch({ value, onSelect, format = 'commander' }: Props
     if (pdh) return;
     let cancelled = false;
     async function run() {
-      if (!cancelled) setTopLoading(true);
+      if (!cancelled) {
+        setTopLoading(true);
+        setTopError(false);
+      }
       try {
         const data = await fetchTopCommanders([...colorFilter]);
         if (!cancelled) setTopCommanders(data);
       } catch {
-        if (!cancelled) setTopCommanders([]);
+        if (!cancelled) {
+          setTopCommanders([]);
+          setTopError(true);
+        }
       } finally {
         if (!cancelled) setTopLoading(false);
       }
@@ -368,7 +379,7 @@ export function CommanderSearch({ value, onSelect, format = 'commander' }: Props
     return () => {
       cancelled = true;
     };
-  }, [colorFilter, pdh]);
+  }, [colorFilter, pdh, topReloadKey]);
 
   // Local search results (owned mode). Kept in state so the dropdown can read
   // it without recomputing on every render. Declared before the search effect
@@ -439,7 +450,9 @@ export function CommanderSearch({ value, onSelect, format = 'commander' }: Props
         if (!cancelled) setResults(cards.slice(0, 12));
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Search failed');
+          setError(
+            userMessage(e, "Couldn't run that search. Check your connection and try again.")
+          );
           setResults([]);
         }
       } finally {
@@ -732,7 +745,7 @@ export function CommanderSearch({ value, onSelect, format = 'commander' }: Props
       const card = await getCardByName(name);
       selectCard(card);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't load card");
+      setError(userMessage(e, "Couldn't load that card. Try again in a moment."));
     } finally {
       setSearchLoading(false);
     }
@@ -750,7 +763,7 @@ export function CommanderSearch({ value, onSelect, format = 'commander' }: Props
       const card = await getOwnedPrinting(owned.scryfallId, owned.name);
       selectCard(card);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't load card");
+      setError(userMessage(e, "Couldn't load that card. Try again in a moment."));
     } finally {
       setSearchLoading(false);
     }
@@ -838,7 +851,7 @@ export function CommanderSearch({ value, onSelect, format = 'commander' }: Props
         await selectByName(pick);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Random pick failed');
+      setError(userMessage(e, "Couldn't pick a random commander. Try again."));
     } finally {
       setRandomLoading(false);
     }
@@ -1139,7 +1152,7 @@ export function CommanderSearch({ value, onSelect, format = 'commander' }: Props
             resultItems
           ) : searchLoading ? (
             <p className="commander-search-status">Searching…</p>
-          ) : (
+          ) : error ? null : (
             <p className="commander-search-status">No commanders found.</p>
           )
         ) : (
@@ -1162,6 +1175,17 @@ export function CommanderSearch({ value, onSelect, format = 'commander' }: Props
 
             {topLoading && visibleTop.length === 0 ? (
               <p className="commander-suggestions-empty">Loading…</p>
+            ) : topError && !ownedOnly && visibleTop.length === 0 ? (
+              <p className="commander-suggestions-empty" role="alert">
+                Couldn&rsquo;t reach EDHREC for top commanders. Check your connection and try again.{' '}
+                <button
+                  type="button"
+                  className="btn-link"
+                  onClick={() => setTopReloadKey((k) => k + 1)}
+                >
+                  Retry
+                </button>
+              </p>
             ) : visibleTop.length === 0 ? (
               pdh && !ownedOnly ? null : (
                 <p className="commander-suggestions-empty">

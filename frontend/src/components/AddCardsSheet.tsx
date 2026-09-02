@@ -10,6 +10,7 @@ import { UploadPanel } from './UploadPanel';
 import { ProductSearchPanel } from './ProductSearchPanel';
 import { Tabs } from './Tabs';
 
+import { userMessage } from '@/lib/user-error';
 const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m.CardScanner })));
 
 type Tab = 'search' | 'upload' | 'product' | 'scan';
@@ -101,7 +102,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
         setScanSuccess(parts.join(' · '));
       }
     } catch (err) {
-      setScanError(err instanceof Error ? err.message : "Couldn't save scanned cards.");
+      setScanError(userMessage(err, "Couldn't save scanned cards."));
     } finally {
       setScanBusy(false);
     }

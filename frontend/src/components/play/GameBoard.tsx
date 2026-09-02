@@ -272,7 +272,14 @@ export function GameBoard({
               : -1;
           const winnerSlot = winnerSeatIdx >= 0 ? board.seats[winnerSeatIdx] : null;
           const winnerRot = isShared && winnerSlot ? winnerSlot.rot : 0;
-          return <WinCelebration game={game} rotation={winnerRot} />;
+          return (
+            <WinCelebration
+              game={game}
+              rotation={winnerRot}
+              onDone={onLeave}
+              onRematch={onRematch}
+            />
+          );
         })()}
 
       {menuOpen && (
@@ -1239,8 +1246,47 @@ const CONFETTI_COUNT = 28;
  * parent only mounts it while `status === 'finished'`, and the keyed remount
  * on game id clears the dismissed state.
  */
-function WinCelebration({ game, rotation = 0 }: { game: GameState; rotation?: number }) {
-  const [dismissed, setDismissed] = useState(false);
+/**
+ * Per-game "already dismissed" memory for the win overlay. Component state
+ * alone replayed the confetti + recap on every remount — every return to
+ * /play, every tab switch back to Local — for as long as the finished game
+ * stayed on the table. sessionStorage is the right scope: it survives
+ * remounts and reloads within the tab and needs no cleanup (a stale key for a
+ * discarded game id is never read again).
+ */
+const CELEBRATION_SEEN_PREFIX = 'spellcontrol:win-celebration-seen:';
+function celebrationSeen(gameId: string): boolean {
+  try {
+    return sessionStorage.getItem(CELEBRATION_SEEN_PREFIX + gameId) === '1';
+  } catch {
+    return false;
+  }
+}
+function markCelebrationSeen(gameId: string): void {
+  try {
+    sessionStorage.setItem(CELEBRATION_SEEN_PREFIX + gameId, '1');
+  } catch {
+    /* private mode / quota — the in-memory flag still covers this mount */
+  }
+}
+
+function WinCelebration({
+  game,
+  rotation = 0,
+  onDone,
+  onRematch,
+}: {
+  game: GameState;
+  rotation?: number;
+  /** Leave the finished table (clear it locally / leave it online). */
+  onDone?: () => void;
+  onRematch?: () => void;
+}) {
+  const [dismissed, setDismissedState] = useState(() => celebrationSeen(game.id));
+  const setDismissed = (next: boolean) => {
+    if (next) markCelebrationSeen(game.id);
+    setDismissedState(next);
+  };
   const isDraw = game.winnerSeat == null;
   const winner = isDraw ? undefined : game.players.find((p) => p.seat === game.winnerSeat);
   const palette = useMemo(
@@ -1307,13 +1353,34 @@ function WinCelebration({ game, rotation = 0 }: { game: GameState; rotation?: nu
           <span className="win-celebration-sub">Game over — no winner</span>
         )}
         <GameRecap game={game} />
-        <button
-          type="button"
-          className="win-celebration-dismiss"
-          onClick={() => setDismissed(true)}
-        >
-          Continue
-        </button>
+        {/* The recap is the end of the session: Done leaves the table (the
+            result is already in History), Rematch re-seats everyone. Tapping
+            outside still just dismisses, for anyone who wants to keep looking
+            at the final board. */}
+        <div className="win-celebration-actions">
+          {onRematch && (
+            <button
+              type="button"
+              className="win-celebration-dismiss"
+              onClick={() => {
+                setDismissed(true);
+                onRematch();
+              }}
+            >
+              Rematch
+            </button>
+          )}
+          <button
+            type="button"
+            className="win-celebration-dismiss is-primary"
+            onClick={() => {
+              setDismissed(true);
+              onDone?.();
+            }}
+          >
+            Done
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -93,7 +93,7 @@ export async function ensureCardTags(): Promise<void> {
         emit();
       }
       const res = await fetch(OTAG_INDEX_URL);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error("Couldn't load the oracle-tag snapshot.");
       const data: OtagIndex = await res.json();
 
       const slugs = data.tags.map((t) => t.s);

@@ -13,6 +13,7 @@ import { useConfirm } from '../lib/use-confirm';
 import { toast } from '../store/toasts';
 import type { ShareKind, ShareRow } from '../lib/shared-types';
 
+import { userMessage } from '@/lib/user-error';
 /** Mirrors share-client.ts's shareUrl() exactly, one path prefix over — kept
  *  local rather than generalizing that helper for a single second call site. */
 function ownProfileUrl(username: string): string {
@@ -60,6 +61,8 @@ export function SharedLinksSettings() {
 
   const [shares, setShares] = useState<ShareRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Bumped by Retry so the list effect re-runs.
+  const [reloadKey, setReloadKey] = useState(0);
   const [revokingToken, setRevokingToken] = useState<string | null>(null);
   const { confirm, dialog: confirmDialog } = useConfirm();
   // Token of the row whose QR modal is open; null when none is. A page can
@@ -85,12 +88,12 @@ export function SharedLinksSettings() {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Failed to load shares.');
+        setError(userMessage(err, "Couldn't load your share links. Try again in a moment."));
       });
     return () => {
       cancelled = true;
     };
-  }, [isAuthed]);
+  }, [isAuthed, reloadKey]);
 
   // Own-profile discoverability row (blocking fix, w1-public-profile-page):
   // publishing a deck previously had no in-app link to preview/copy/share the
@@ -177,7 +180,7 @@ export function SharedLinksSettings() {
         toast.show({ message: 'Share link revoked.', tone: 'success' });
       } catch (err) {
         toast.show({
-          message: err instanceof Error ? err.message : "Couldn't revoke share.",
+          message: userMessage(err, "Couldn't revoke that share link. Try again."),
           tone: 'error',
         });
       } finally {
@@ -250,7 +253,20 @@ export function SharedLinksSettings() {
           )}
           {error && (
             <div role="alert" className="settings-row-text">
-              <div className="settings-row-hint">{error}</div>
+              <div className="settings-row-hint">
+                {error}{' '}
+                <button
+                  type="button"
+                  className="btn-link"
+                  onClick={() => {
+                    setError(null);
+                    setShares(null);
+                    setReloadKey((k) => k + 1);
+                  }}
+                >
+                  Retry
+                </button>
+              </div>
             </div>
           )}
           {shares === null && !error && (

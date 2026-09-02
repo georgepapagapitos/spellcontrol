@@ -124,6 +124,10 @@ export function GameMenu({
                           Share recap
                         </button>
                       )}
+                      {/* Not "Close": the sheet's ✕ already owns that accessible
+                          name, and this button leaves the board, not the menu.
+                          Say what actually happens — local games clear the table
+                          (the result is already in History); online games leave it. */}
                       {onLeave && (
                         <button
                           type="button"
@@ -133,7 +137,7 @@ export function GameMenu({
                             onClose();
                           }}
                         >
-                          Close
+                          {game.mode === 'online' ? 'Leave the table' : 'Clear the table'}
                         </button>
                       )}
                     </>

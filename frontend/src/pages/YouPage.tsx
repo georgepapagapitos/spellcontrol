@@ -37,6 +37,7 @@ import { scrollToHeading } from '../lib/scroll-to-heading';
 import { listFriends } from '../lib/friends-client';
 import { useFriendRequests } from '../lib/use-friend-requests';
 
+import { userMessage } from '@/lib/user-error';
 // Header account-menu deep link (`/you?section=…`) → the group heading to
 // scroll/focus. Values are the header menu's own vocabulary, not the heading
 // ids themselves, so a rename of one heading only needs updating here. Every
@@ -206,7 +207,7 @@ export function YouPage() {
         await Browser.open({ url: googleLinkUrl('native', intent) });
       } catch (err) {
         toast.show({
-          message: err instanceof Error ? err.message : "Couldn't start linking.",
+          message: userMessage(err, "Couldn't start linking."),
           tone: 'error',
         });
         setLinkBusy(false);
@@ -227,7 +228,7 @@ export function YouPage() {
       setUnlinkOpen(false);
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't unlink Google.",
+        message: userMessage(err, "Couldn't unlink Google."),
         tone: 'error',
       });
     } finally {
@@ -258,7 +259,7 @@ export function YouPage() {
     if (useCollectionStore.getState().cards.some((c) => !c.pricedAt)) {
       refreshPrices(undefined, { track: true }).catch((err: unknown) => {
         toast.show({
-          message: err instanceof Error ? err.message : "Couldn't refresh prices.",
+          message: userMessage(err, "Couldn't refresh prices. Try again in a moment."),
           tone: 'error',
         });
       });
@@ -274,7 +275,7 @@ export function YouPage() {
       toast.show({ message: 'Prices refreshed.', tone: 'success' });
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't refresh prices.",
+        message: userMessage(err, "Couldn't refresh prices. Try again in a moment."),
         tone: 'error',
       });
     }
@@ -323,7 +324,7 @@ export function YouPage() {
         navigate('/auth');
       } else {
         toast.show({
-          message: useAuth.getState().error ?? "Couldn't delete account.",
+          message: useAuth.getState().error ?? "Couldn't delete your account. Try again.",
           tone: 'error',
         });
         setDeleteStep(0);
@@ -342,7 +343,8 @@ export function YouPage() {
     } catch (err) {
       logger.warn('[settings] reset app cache failed:', err);
       toast.show({
-        message: 'Failed to reset the app cache. Try clearing site data from your browser.',
+        message:
+          "Couldn't reset the app cache. Try clearing this site's data in your browser settings.",
         tone: 'error',
       });
       setResetCacheBusy(false);

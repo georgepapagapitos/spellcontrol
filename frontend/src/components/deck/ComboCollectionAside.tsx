@@ -7,6 +7,7 @@ import type { EnrichedCard } from '../../types';
 import type { ComboCardRef } from '../../types/combos';
 import type { CardLocation } from '../../lib/card-locations';
 
+import { userMessage } from '@/lib/user-error';
 const SHOWN_COMMANDERS = 3;
 /**
  * Past this many hosts, the exact count stops being useful information — a
@@ -71,8 +72,7 @@ export function ComboCollectionAside({ cards, produces, hosts, locations }: Prop
       });
     } catch (err) {
       toast.show({
-        message:
-          err instanceof Error ? err.message : `Couldn't open a build for ${commander.name}.`,
+        message: userMessage(err, `Couldn't open a build for ${commander.name}.`),
         tone: 'error',
       });
       setSeeding(null);

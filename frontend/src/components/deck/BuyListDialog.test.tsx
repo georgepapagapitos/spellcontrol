@@ -33,7 +33,7 @@ describe('tcgplayerMassEntryUrl', () => {
 describe('BuyListDialog', () => {
   it('renders rows with line prices, the total, and the TCGPlayer link', () => {
     const tally = [mk('Sol Ring', 2, '3.20'), mk('Counterspell', 1)];
-    const { container, getByText } = render(
+    const { baseElement: container, getByText } = render(
       <BuyListDialog
         tally={tally}
         currency="USD"
@@ -53,7 +53,7 @@ describe('BuyListDialog', () => {
 
   it('hands the tapped row back through onPickCard', () => {
     const picked: string[] = [];
-    const { container } = render(
+    const { baseElement: container } = render(
       <BuyListDialog
         tally={[mk('Sol Ring', 1, '3.20'), mk('Counterspell', 1)]}
         currency="USD"

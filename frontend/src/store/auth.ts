@@ -4,6 +4,7 @@ import type { AuthUser, Profile } from '../lib/auth-api';
 import { flushSync, stopSyncAndWipeLocal } from '../lib/sync';
 import { markEverVisited } from '../lib/first-run';
 
+import { userMessage } from '@/lib/user-error';
 export type AuthStatus = 'unknown' | 'loading' | 'authed' | 'guest';
 
 // Remember the signed-in identity locally so being OFFLINE doesn't look like
@@ -177,7 +178,12 @@ export const useAuth = create<AuthState>((set, get) => {
         signInAs(user);
         return true;
       } catch (err) {
-        set({ error: err instanceof Error ? err.message : 'Login failed.' });
+        set({
+          error: userMessage(
+            err,
+            "Couldn't sign you in. Check your username and password and try again."
+          ),
+        });
         return false;
       }
     },
@@ -189,7 +195,7 @@ export const useAuth = create<AuthState>((set, get) => {
         signInAs(user);
         return true;
       } catch (err) {
-        set({ error: err instanceof Error ? err.message : 'Registration failed.' });
+        set({ error: userMessage(err, "Couldn't create your account. Try again.") });
         return false;
       }
     },
@@ -208,7 +214,9 @@ export const useAuth = create<AuthState>((set, get) => {
         // single-use — that must be a no-op, not a logout.
         const stillAuthed = get().status === 'authed';
         set({
-          error: stillAuthed ? null : err instanceof Error ? err.message : 'Google sign-in failed.',
+          error: stillAuthed
+            ? null
+            : userMessage(err, "Couldn't finish signing in with Google. Try again."),
           status: stillAuthed ? 'authed' : 'guest',
         });
         return stillAuthed;
@@ -223,7 +231,7 @@ export const useAuth = create<AuthState>((set, get) => {
         return { ok: true };
       } catch (err) {
         const status = (err as { status?: number }).status;
-        set({ error: err instanceof Error ? err.message : "Couldn't finish sign-up." });
+        set({ error: userMessage(err, "Couldn't finish sign-up.") });
         return { ok: false, status };
       }
     },
@@ -235,7 +243,7 @@ export const useAuth = create<AuthState>((set, get) => {
         signInAs(user);
         return true;
       } catch (err) {
-        set({ error: err instanceof Error ? err.message : "Couldn't link the account." });
+        set({ error: userMessage(err, "Couldn't link the account.") });
         return false;
       }
     },
@@ -266,7 +274,7 @@ export const useAuth = create<AuthState>((set, get) => {
         // wrong move. If the call fails the user stays signed in with data intact.
         await authApi.deleteAccount();
       } catch (err) {
-        set({ error: err instanceof Error ? err.message : "Couldn't delete account." });
+        set({ error: userMessage(err, "Couldn't delete your account. Try again.") });
         return false;
       }
       // Server rows are gone and the cookie is cleared. stopSyncAndWipeLocal

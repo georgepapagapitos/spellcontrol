@@ -24,7 +24,9 @@ async function readError(res: Response, fallback: string): Promise<string> {
 export async function listPods(): Promise<Pod[]> {
   const res = await fetch(apiUrl('/api/pods'), { credentials: 'include' });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to load pods.'));
+    throw new Error(
+      await readError(res, "Couldn't load your pods. Check your connection and try again.")
+    );
   }
   const body = (await res.json()) as { pods: Pod[] };
   return body.pods;
@@ -38,7 +40,7 @@ export async function createPod(name: string): Promise<Pod> {
     body: JSON.stringify({ name }),
   });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to create pod.'));
+    throw new Error(await readError(res, "Couldn't create the pod. Try again."));
   }
   const body = (await res.json()) as { pod: Pod };
   return body.pod;
@@ -57,7 +59,7 @@ export async function invitePodMembers(
     body: JSON.stringify({ userIds }),
   });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to invite friends.'));
+    throw new Error(await readError(res, "Couldn't send those invites. Try again."));
   }
   return (await res.json()) as { invited: string[] };
 }
@@ -68,7 +70,7 @@ export async function acceptPodInvite(podId: string): Promise<void> {
     credentials: 'include',
   });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to accept invite.'));
+    throw new Error(await readError(res, "Couldn't accept the invite. Try again."));
   }
 }
 
@@ -78,7 +80,7 @@ export async function declinePodInvite(podId: string): Promise<void> {
     credentials: 'include',
   });
   if (!res.ok && res.status !== 204) {
-    throw new Error(await readError(res, 'Failed to decline invite.'));
+    throw new Error(await readError(res, "Couldn't decline the invite. Try again."));
   }
 }
 
@@ -88,7 +90,7 @@ export async function leavePod(podId: string): Promise<void> {
     credentials: 'include',
   });
   if (!res.ok && res.status !== 204) {
-    throw new Error(await readError(res, 'Failed to leave pod.'));
+    throw new Error(await readError(res, "Couldn't leave the pod. Try again."));
   }
 }
 
@@ -134,7 +136,9 @@ export async function getPod(id: string): Promise<PodDetail> {
     throw new PodNotFoundError();
   }
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to load pod.'));
+    throw new Error(
+      await readError(res, "Couldn't load this pod. Check your connection and try again.")
+    );
   }
   return (await res.json()) as PodDetail;
 }
@@ -149,7 +153,7 @@ export async function renamePod(id: string, name: string): Promise<string> {
     body: JSON.stringify({ name }),
   });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to rename pod.'));
+    throw new Error(await readError(res, "Couldn't rename the pod. Try again."));
   }
   const body = (await res.json()) as { pod: Pod };
   return body.pod.name;
@@ -162,7 +166,7 @@ export async function deletePod(id: string): Promise<void> {
     credentials: 'include',
   });
   if (!res.ok && res.status !== 204) {
-    throw new Error(await readError(res, 'Failed to delete pod.'));
+    throw new Error(await readError(res, "Couldn't delete the pod. Try again."));
   }
 }
 
@@ -173,7 +177,7 @@ export async function removePodMember(id: string, userId: string): Promise<void>
     { method: 'DELETE', credentials: 'include' }
   );
   if (!res.ok && res.status !== 204) {
-    throw new Error(await readError(res, 'Failed to remove member.'));
+    throw new Error(await readError(res, "Couldn't remove that member. Try again."));
   }
 }
 
@@ -215,7 +219,9 @@ export async function fetchPodGames(id: string): Promise<PodGameResult[]> {
     credentials: 'include',
   });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to load shared history.'));
+    throw new Error(
+      await readError(res, "Couldn't load the pod's game history. Try again in a moment.")
+    );
   }
   const body = (await res.json()) as { games: PodGameResult[] };
   return body.games;
@@ -287,7 +293,7 @@ export async function fetchPodLeaderboard(id: string): Promise<PodLeaderboard> {
     credentials: 'include',
   });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to load the leaderboard.'));
+    throw new Error(await readError(res, "Couldn't load the leaderboard. Try again in a moment."));
   }
   const body = (await res.json()) as Partial<PodLeaderboard>;
   // `records` is absent when talking to a backend that predates it — treat

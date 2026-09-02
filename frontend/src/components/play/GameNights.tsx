@@ -48,6 +48,7 @@ import { NightPoll, formatSlot } from '../NightPoll';
 import { TonightTrades } from './TonightTrades';
 import './GameNights.css';
 
+import { userMessage } from '@/lib/user-error';
 const STATUS_LABELS: Array<{ status: RsvpStatus; label: string }> = [
   { status: 'going', label: 'Going' },
   { status: 'maybe', label: 'Maybe' },
@@ -101,7 +102,7 @@ export function useGameNights(enabled: boolean) {
         setError(null);
       })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Couldn't load game nights.");
+        setError(userMessage(err, "Couldn't load game nights."));
       })
       .finally(() => setLoading(false));
   }, [enabled]);
@@ -251,7 +252,7 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
               )
               .catch((err) =>
                 toast.show({
-                  message: err instanceof Error ? err.message : "Couldn't cancel the game night.",
+                  message: userMessage(err, "Couldn't cancel the game night."),
                   tone: 'error',
                 })
               );
@@ -274,7 +275,7 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
               .then(() => toast.show({ message: 'Game night deleted.' }))
               .catch((err) =>
                 toast.show({
-                  message: err instanceof Error ? err.message : "Couldn't delete the game night.",
+                  message: userMessage(err, "Couldn't delete the game night."),
                   tone: 'error',
                 })
               );
@@ -345,7 +346,7 @@ function NightCard({
       await refresh();
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't save your RSVP.",
+        message: userMessage(err, "Couldn't save your RSVP."),
         tone: 'error',
       });
     } finally {
@@ -593,7 +594,7 @@ function NightCard({
               .then(() => toast.show({ message: 'Series stopped — no more weekly nights.' }))
               .catch((err) =>
                 toast.show({
-                  message: err instanceof Error ? err.message : "Couldn't stop the series.",
+                  message: userMessage(err, "Couldn't stop the series."),
                   tone: 'error',
                 })
               );
@@ -615,7 +616,7 @@ function NightCard({
               .then(() => toast.show({ message: 'Date locked in.' }))
               .catch((err) =>
                 toast.show({
-                  message: err instanceof Error ? err.message : "Couldn't lock the date in.",
+                  message: userMessage(err, "Couldn't lock the date in."),
                   tone: 'error',
                 })
               );
@@ -679,7 +680,7 @@ function AttendeeSheet({ night, onClose }: { night: GameNight; onClose: () => vo
       toast.show({ message: `Friend request sent to ${displayName}.`, tone: 'success' });
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't send the friend request.",
+        message: userMessage(err, "Couldn't send the friend request."),
         tone: 'error',
       });
     } finally {
@@ -815,7 +816,7 @@ function PollDialog({
       toast.show({ message: 'Date vote opened — attendees can vote now.' });
       onSaved();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Couldn't open the date vote.");
+      setFormError(userMessage(err, "Couldn't open the date vote."));
       setSaving(false);
     }
   }
@@ -1048,7 +1049,7 @@ function NightDialog({
       onPeopleChanged();
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't remove them from the night.",
+        message: userMessage(err, "Couldn't remove them from the night."),
         tone: 'error',
       });
     } finally {
@@ -1067,7 +1068,7 @@ function NightDialog({
       onPeopleChanged();
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't block them.",
+        message: userMessage(err, "Couldn't block them."),
         tone: 'error',
       });
     } finally {
@@ -1085,7 +1086,7 @@ function NightDialog({
       onPeopleChanged();
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't unblock them.",
+        message: userMessage(err, "Couldn't unblock them."),
         tone: 'error',
       });
     } finally {
@@ -1103,7 +1104,7 @@ function NightDialog({
       onPeopleChanged();
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't remove the invite.",
+        message: userMessage(err, "Couldn't remove the invite."),
         tone: 'error',
       });
     } finally {
@@ -1123,7 +1124,7 @@ function NightDialog({
       onPeopleChanged();
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't create the invite link.",
+        message: userMessage(err, "Couldn't create the invite link."),
         tone: 'error',
       });
     } finally {
@@ -1162,7 +1163,7 @@ function NightDialog({
       onPeopleChanged();
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't revoke the link.",
+        message: userMessage(err, "Couldn't revoke the link."),
         tone: 'error',
       });
     } finally {
@@ -1252,7 +1253,7 @@ function NightDialog({
       }
       onSaved();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Couldn't save the game night.");
+      setFormError(userMessage(err, "Couldn't save the game night."));
       setSaving(false);
     }
   }

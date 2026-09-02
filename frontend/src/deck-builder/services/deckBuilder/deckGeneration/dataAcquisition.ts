@@ -513,7 +513,9 @@ export async function acquireCardPoolPhase(
       );
 
       if (!themeMergeResult) {
-        throw new Error('All theme-specific EDHREC fetches failed');
+        throw new Error(
+          "EDHREC didn't return data for any of those themes. Try fewer themes or a different commander."
+        );
       }
 
       let mergedCardlists = themeMergeResult.data.cardlists;
@@ -546,7 +548,10 @@ export async function acquireCardPoolPhase(
                 budgetOption,
                 undefined
               );
-              if (!noBracket) throw new Error('theme-only EDHREC fetch failed');
+              if (!noBracket)
+                throw new Error(
+                  "EDHREC didn't return data for that theme. Try a different theme or bracket."
+                );
               // Stash the counts but don't commit to state yet — this rung
               // may still turn out thin and the ladder moves on, in which
               // case these counts would describe a page that isn't the pool.

@@ -39,6 +39,7 @@ import { ScannerQueueSheet } from './ScannerQueueSheet';
 import { entryKey, useScanQueue } from '../lib/use-scan-queue';
 import type { ScryfallCard } from '@/deck-builder/types';
 
+import { userMessage } from '@/lib/user-error';
 /**
  * Compute the on-screen rectangle of the visible video band given a fit mode.
  * `contain` letterboxes (rect may be smaller than the container);
@@ -277,7 +278,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         void prewarm();
       } catch (err) {
         logger.error('[scanner] native preview failed:', err);
-        const msg = err instanceof Error ? err.message : "Couldn't start the camera.";
+        const msg = userMessage(err, "Couldn't start the camera.");
         setErrorMsg(msg);
         setStatus('error');
       }

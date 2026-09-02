@@ -20,6 +20,7 @@ import { formatRelativeTime } from '../lib/format-time';
 import { useRulesReferenceStore } from '../store/rules-reference';
 import './RulesPage.css';
 
+import { userMessage } from '@/lib/user-error';
 /** Fill-the-box starters — tapping one spends nothing (never auto-ask). */
 const SAMPLE_QUESTIONS = [
   'Does deathtouch destroy a creature with indestructible?',
@@ -171,7 +172,7 @@ export function RulesPage() {
         // A partial answer is worth nothing — it was never stored, and half a
         // ruling still reads as a ruling. Drop it and offer the retry.
         setStreamed('');
-        setError(err.message || 'The answer could not be generated. Try again.');
+        setError(userMessage(err, "Couldn't generate an answer. Try again."));
         setPhase('error');
       });
   };

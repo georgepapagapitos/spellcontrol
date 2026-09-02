@@ -16,6 +16,7 @@ import { useOwnershipLens } from '../lib/use-ownership-lens';
 import { OwnershipLensStrip } from '../components/deck/OwnershipLensStrip';
 import type { PublicDeckCard } from '../lib/shared-types';
 
+import { userMessage } from '@/lib/user-error';
 // Stable empty array — passed to useOwnershipLens before the deck has
 // loaded, so its useMemo deps don't thrash on a fresh [] literal every render.
 const EMPTY_DECK_CARDS: PublicDeckCard[] = [];
@@ -79,7 +80,7 @@ function PublicDeckPageInner({ slug }: { slug: string }) {
         } else {
           setState({
             status: 'error',
-            message: err instanceof Error ? err.message : 'Failed to load this deck.',
+            message: userMessage(err, "Couldn't load this deck. Check the link and try again."),
           });
         }
       });

@@ -4,6 +4,7 @@ import { toast } from '../../store/toasts';
 import { submitReport, type ReportKind } from '../../lib/report-client';
 import './ReportDialog.css';
 
+import { userMessage } from '@/lib/user-error';
 const REASON_MAX = 500;
 
 interface Props {
@@ -39,7 +40,7 @@ export function ReportDialog({ kind, targetId, onClose }: Props) {
       onClose();
     } catch (err) {
       setSubmitting(false);
-      setError(err instanceof Error ? err.message : 'Failed to submit report.');
+      setError(userMessage(err, "Couldn't send your report. Try again."));
     }
   }
 

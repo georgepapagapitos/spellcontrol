@@ -3,6 +3,7 @@ import { Sparkles, X } from 'lucide-react';
 import { grantAiConsent } from '../../lib/use-ai-status';
 import './DeckAiConsent.css';
 
+import { userMessage } from '@/lib/user-error';
 /** Shared across every AI surface — dismissing anywhere dismisses everywhere. */
 const INVITE_DISMISSED_KEY = 'sc-ai-invite-dismissed';
 
@@ -55,7 +56,7 @@ export function DeckAiConsent({
     setBusy(true);
     setError(null);
     grantAiConsent()
-      .catch((err: Error) => setError(err.message || 'Could not turn this on.'))
+      .catch((err: unknown) => setError(userMessage(err, "Couldn't turn this on. Try again.")))
       .finally(() => setBusy(false));
   };
 

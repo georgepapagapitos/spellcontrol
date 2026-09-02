@@ -30,6 +30,7 @@ import {
   type PodRecords,
 } from '../lib/pods-client';
 
+import { userMessage } from '@/lib/user-error';
 const POD_NAME_MAX = 60;
 
 type GamesFetch =
@@ -185,7 +186,10 @@ export function PodHubPage() {
       })
       .catch((err: unknown) => {
         if (err instanceof PodNotFoundError) setNotFound(true);
-        else setLoadError(err instanceof Error ? err.message : 'Failed to load pod.');
+        else
+          setLoadError(
+            userMessage(err, "Couldn't load this pod. Check your connection and try again.")
+          );
       });
   }, [id]);
 
@@ -202,7 +206,7 @@ export function PodHubPage() {
       .catch((err: unknown) => {
         setGamesFetch({
           status: 'error',
-          message: err instanceof Error ? err.message : 'Failed to load shared history.',
+          message: userMessage(err, "Couldn't load the pod's game history. Try again in a moment."),
         });
       });
   }, [id]);
@@ -216,7 +220,7 @@ export function PodHubPage() {
       .catch((err: unknown) => {
         setLeaderboardFetch({
           status: 'error',
-          message: err instanceof Error ? err.message : 'Failed to load the leaderboard.',
+          message: userMessage(err, "Couldn't load the leaderboard. Try again in a moment."),
         });
       });
   }, [id]);
@@ -297,7 +301,7 @@ export function PodHubPage() {
       loadPod();
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't accept the invite.",
+        message: userMessage(err, "Couldn't accept the invite."),
         tone: 'error',
       });
     } finally {
@@ -314,7 +318,7 @@ export function PodHubPage() {
       navigate('/pods');
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't decline the invite.",
+        message: userMessage(err, "Couldn't decline the invite."),
         tone: 'error',
       });
       setInviteRespondBusy(false);
@@ -342,7 +346,7 @@ export function PodHubPage() {
       setRenaming(false);
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't rename the pod.",
+        message: userMessage(err, "Couldn't rename the pod."),
         tone: 'error',
       });
     }
@@ -358,7 +362,7 @@ export function PodHubPage() {
       loadPod();
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't remove that member.",
+        message: userMessage(err, "Couldn't remove that member."),
         tone: 'error',
       });
     } finally {
@@ -375,7 +379,7 @@ export function PodHubPage() {
       navigate('/pods');
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't delete the pod.",
+        message: userMessage(err, "Couldn't delete the pod."),
         tone: 'error',
       });
       setDeleteBusy(false);
@@ -428,7 +432,7 @@ export function PodHubPage() {
     return (
       <div className="pod-hub">
         <BackLink />
-        <div className="pod-hub-skeleton" aria-label="Loading" aria-busy="true">
+        <div className="pod-hub-skeleton" role="status" aria-label="Loading" aria-busy="true">
           <span className="pod-hub-skeleton-bar is-title" />
           <span className="pod-hub-skeleton-bar" />
           <span className="pod-hub-skeleton-bar" />
@@ -585,7 +589,12 @@ export function PodHubPage() {
             <div className="deck-stats-panel">
               <h2 className="deck-stats-panel-title">Shared history</h2>
               {gamesFetch.status === 'loading' ? (
-                <div className="pod-hub-table-skeleton" aria-label="Loading" aria-busy="true" />
+                <div
+                  className="pod-hub-table-skeleton"
+                  role="status"
+                  aria-label="Loading"
+                  aria-busy="true"
+                />
               ) : gamesFetch.status === 'error' ? (
                 <p className="friends-error" role="alert">
                   <span>{gamesFetch.message}</span>
@@ -630,7 +639,12 @@ export function PodHubPage() {
             <div className="deck-stats-panel">
               <h2 className="deck-stats-panel-title">Leaderboard</h2>
               {leaderboardFetch.status === 'loading' ? (
-                <div className="pod-hub-table-skeleton" aria-label="Loading" aria-busy="true" />
+                <div
+                  className="pod-hub-table-skeleton"
+                  role="status"
+                  aria-label="Loading"
+                  aria-busy="true"
+                />
               ) : leaderboardFetch.status === 'error' ? (
                 <p className="friends-error" role="alert">
                   <span>{leaderboardFetch.message}</span>
@@ -815,7 +829,7 @@ function InviteMembersDialog({
       const result = await invitePodMembers(podId, Array.from(checked));
       onInvited(result.invited.length);
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Couldn't send invites — try again.");
+      setFormError(userMessage(err, "Couldn't send invites — try again."));
     } finally {
       setSaving(false);
     }

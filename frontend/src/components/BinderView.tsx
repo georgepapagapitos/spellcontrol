@@ -22,7 +22,13 @@ import { CardPreview, type CardPreviewAction } from './CardPreview';
 import { CardPreviewContext } from './CardPreviewContext';
 import { ColorPip } from './shared/ManaSymbol';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
-import { buildEditedCards, isNoOpCardEdit, stackCopies, stackDetailMix } from '../lib/edit-card';
+import {
+  buildEditedCards,
+  isNoOpCardEdit,
+  stackCopies,
+  stackDetailMix,
+  printingStubFromEnriched,
+} from '../lib/edit-card';
 import { BinderPagePreview } from './BinderPagePreview';
 import type { SectionTabInput } from '../lib/binder-spreads';
 import { BinderDriftBanner } from './BinderDriftBanner';
@@ -508,6 +514,7 @@ function SectionList({
         <CardEditDialog
           cardName={editingCard.name}
           currentScryfallId={editingCard.scryfallId}
+          fallbackCard={printingStubFromEnriched(editingCard)}
           currentFinish={editingCard.finish ?? (editingCard.foil ? 'foil' : 'nonfoil')}
           quantity={qtyByCopyId ? editingQty : undefined}
           singleCopy={!qtyByCopyId}

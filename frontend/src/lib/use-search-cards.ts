@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { searchCards } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard } from '@/deck-builder/types';
 
+import { userMessage } from '@/lib/user-error';
 const DEFAULT_DEBOUNCE_MS = 300;
 const DEFAULT_MIN_QUERY_LENGTH = 2;
 
@@ -89,7 +90,9 @@ export function useSearchCards<T = ScryfallCard>(
         if (!cancelled) setResults(data.slice(0, limit));
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Search failed.');
+          setError(
+            userMessage(e, "Couldn't run that search. Check your connection and try again.")
+          );
           setResults([]);
         }
       } finally {

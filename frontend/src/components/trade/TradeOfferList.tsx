@@ -229,7 +229,7 @@ function TradeOfferCard({
       // unambiguous and waiting for the background runner would leave their
       // collection visibly stale.
       await settleTrade(updated);
-    }, 'Failed to accept the trade.');
+    }, "Couldn't accept the trade. Try again.");
     setChoosing(null);
   }
 
@@ -319,7 +319,9 @@ function TradeOfferCard({
                 type="button"
                 className="btn"
                 disabled={busy}
-                onClick={() => void run(() => declineTrade(offer.id), 'Failed to decline.')}
+                onClick={() =>
+                  void run(() => declineTrade(offer.id), "Couldn't decline the trade. Try again.")
+                }
               >
                 Decline
               </button>
@@ -340,7 +342,9 @@ function TradeOfferCard({
               type="button"
               className="btn"
               disabled={busy}
-              onClick={() => void run(() => withdrawTrade(offer.id), 'Failed to withdraw.')}
+              onClick={() =>
+                void run(() => withdrawTrade(offer.id), "Couldn't withdraw the trade. Try again.")
+              }
             >
               {busy ? 'Working…' : 'Withdraw'}
             </button>

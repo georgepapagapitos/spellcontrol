@@ -23,6 +23,7 @@ import { NightPoll } from '../components/NightPoll';
 import { OverflowMenu } from '../components/OverflowMenu';
 import './GameNightView.css';
 
+import { userMessage } from '@/lib/user-error';
 const STATUS_LABELS: Array<{ status: RsvpStatus; label: string }> = [
   { status: 'going', label: 'Going' },
   { status: 'maybe', label: 'Maybe' },
@@ -108,7 +109,7 @@ function GameNightViewInner({ token }: { token: string }) {
         } else {
           setState({
             status: 'error',
-            message: err instanceof Error ? err.message : "Couldn't load the game night.",
+            message: userMessage(err, "Couldn't load the game night."),
           });
         }
       });
@@ -238,7 +239,7 @@ function NightBody({
       // Re-fetch so the attendee list reflects the change without a reload.
       onPayload(await fetchPublicGameNight(token, username === null ? rsvp.id : undefined));
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Couldn't save your RSVP.");
+      setFormError(userMessage(err, "Couldn't save your RSVP."));
     } finally {
       setBusy(null);
     }

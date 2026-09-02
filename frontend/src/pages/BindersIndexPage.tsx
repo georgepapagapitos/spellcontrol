@@ -47,6 +47,7 @@ import { importText } from '../lib/api';
 import { sampleCardsAsCsv, SAMPLE_BINDERS, SAMPLE_CARDS } from '../lib/samples';
 import { ProgressBar } from '../components/ProgressBar';
 
+import { userMessage } from '@/lib/user-error';
 type BinderSortField = 'position' | 'name' | 'cards' | 'pages';
 type SortDir = 'asc' | 'desc';
 type BindersViewMode = 'grid' | 'list' | 'compact';
@@ -100,7 +101,7 @@ export function BindersIndexPage() {
       await loadSampleBinders(response);
       setShowSamplesIntro(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't load samples");
+      setError(userMessage(err, "Couldn't load the samples. Try again in a moment."));
     } finally {
       setLoadingSamples(false);
     }

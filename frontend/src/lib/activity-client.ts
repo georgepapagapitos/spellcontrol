@@ -104,7 +104,9 @@ async function readError(res: Response, fallback: string): Promise<string> {
 export async function getActivity(): Promise<ActivityResponse> {
   const res = await fetch(apiUrl('/api/activity'), { credentials: 'include' });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to load activity.'));
+    throw new Error(
+      await readError(res, "Couldn't load recent activity. Check your connection and try again.")
+    );
   }
   return (await res.json()) as ActivityResponse;
 }

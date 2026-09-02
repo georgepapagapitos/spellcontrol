@@ -5,6 +5,7 @@ import { TAKEBACK_EXPIRY_GRACE_MS } from '../lib/takeback';
 import type { GameRequest } from '@/lib/games-api';
 import type { OnlineTable } from '../hooks/use-online-table';
 
+import { userMessage } from '@/lib/user-error';
 interface Props {
   onlineTable: OnlineTable;
 }
@@ -96,7 +97,7 @@ function TakebackConsentCard({ request: incoming }: { request: GameRequest }) {
       // once the store's onlineRequests update lands (status turns terminal),
       // unmounting this prompt entirely.
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't respond — try again.");
+      setError(userMessage(err, "Couldn't respond — try again."));
       setResponding(null);
     }
   }

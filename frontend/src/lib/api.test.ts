@@ -177,7 +177,7 @@ describe('api', () => {
     vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(uploadOk({ totalRows: 500 }))
       .mockRejectedValue(new TypeError('failed to fetch'));
-    await expect(importText(text)).rejects.toThrow(/Import failed on batch \d+ of 3/);
+    await expect(importText(text)).rejects.toThrow(/Couldn't finish the import \(batch \d+ of 3\)/);
   });
 
   it('atomicity: a mid-chunk failure leaves the caller with NO partial data', async () => {
@@ -279,9 +279,13 @@ describe('api', () => {
     await expect(importText('x')).rejects.toThrow(/plain failure/);
   });
 
-  it('falls back to a generic message for long error bodies', async () => {
+  it('falls back to an actionable message for long error bodies (never a bare status)', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('x'.repeat(500), { status: 500 }));
-    await expect(importText('x')).rejects.toThrow(/HTTP 500/);
+    const err = await importText('x').catch((e: Error & { status?: number }) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).toMatch(/server isn't responding/);
+    expect((err as Error).message).not.toMatch(/500/);
+    expect((err as { status?: number }).status).toBe(500);
   });
 
   it('reports timeouts as a friendly message', async () => {

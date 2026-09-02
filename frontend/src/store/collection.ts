@@ -55,6 +55,7 @@ import {
 } from '../lib/collection-snapshot';
 import { toast } from './toasts';
 
+import { userMessage } from '@/lib/user-error';
 function newBinderId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID();
@@ -517,7 +518,10 @@ export const useCollectionStore = create<CollectionState>()(
             });
           }
         } catch (err) {
-          const msg = err instanceof Error ? err.message : 'Failed to load saved collection.';
+          const msg = userMessage(
+            err,
+            "Couldn't load your saved collection on this device. Reload the page to try again."
+          );
           set({ error: msg });
         } finally {
           set({ hydrating: false });
@@ -868,7 +872,9 @@ export const useCollectionStore = create<CollectionState>()(
               }
               if (res.ok) return ((await res.json()) as { prices: FinishPrices }).prices;
               const body = (await res.json().catch(() => ({}))) as { error?: string };
-              const err = new Error(body.error || `HTTP ${res.status}`);
+              const err = new Error(
+                body.error || "The price service isn't responding. Try again in a moment."
+              );
               if (
                 !PRICE_RETRYABLE_STATUS.has(res.status) ||
                 attempt >= PRICE_RETRY_DELAYS_MS.length
@@ -970,7 +976,7 @@ export const useCollectionStore = create<CollectionState>()(
           // diff uses — per-card deltas into the device-local movers log.
           recordDailyMovers(computeMovers(beforeCards, afterCards)).catch(() => {});
         } catch (err) {
-          const msg = err instanceof Error ? err.message : 'Failed to refresh prices.';
+          const msg = userMessage(err, "Couldn't refresh prices. Try again in a moment.");
           logger.warn('[store] refreshPrices failed:', err);
           set({ error: msg });
           // Re-throw so callers can tell success from failure. SettingsPage's

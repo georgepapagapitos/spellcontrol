@@ -61,7 +61,9 @@ export async function fetchPublicProfile(username: string): Promise<PublicProfil
     throw new ProfileNotFoundError();
   }
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to load this profile.'));
+    throw new Error(
+      await readError(res, "Couldn't load this profile. Check the link and try again.")
+    );
   }
   return (await res.json()) as PublicProfile;
 }

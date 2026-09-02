@@ -12,6 +12,7 @@ import { handleResponse, fetchWithAbortTimeout } from './fetch-utils';
 import { chunkImportText } from './import-chunker';
 import { mergeUploadResponses } from './merge-upload-responses';
 
+import { userMessage } from '@/lib/user-error';
 const TIMEOUT_MS = 120_000;
 const IMPORT_CHUNK_SIZE = 500;
 /**
@@ -162,8 +163,10 @@ export async function importText(
       try {
         responses[i] = await postImportChunkWithRetry(chunks[i], proxy);
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        throw new Error(`Import failed on batch ${i + 1} of ${chunks.length}: ${message}`);
+        const message = userMessage(err, "The server didn't respond. Try the import again.");
+        throw new Error(
+          `Couldn't finish the import (batch ${i + 1} of ${chunks.length}). ${message}`
+        );
       }
       completed++;
       onProgress?.({ chunkIndex: completed, totalChunks: chunks.length });

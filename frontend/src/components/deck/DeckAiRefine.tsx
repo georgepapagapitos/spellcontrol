@@ -17,6 +17,7 @@ import { AiMarker, DeckAiConsent, isAiInviteDismissed } from './DeckAiConsent';
 import { useCardCarousel } from './useCardCarousel';
 import './DeckAiReview.css';
 
+import { userMessage } from '@/lib/user-error';
 interface DeckAiRefineProps {
   deckId: string;
   format: DeckFormat;
@@ -187,7 +188,7 @@ export function DeckAiRefine({
       .catch((err: Error & { status?: number }) => {
         if (err.status === 429) noteAiExhausted();
         setStreamed('');
-        setError(err.message || 'The refine pass could not be generated. Try again.');
+        setError(userMessage(err, "Couldn't generate the refine pass. Try again."));
         setPhase('error');
       });
   };

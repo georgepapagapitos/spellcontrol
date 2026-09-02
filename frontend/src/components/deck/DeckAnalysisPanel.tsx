@@ -39,6 +39,7 @@ import { Tabs } from '../Tabs';
 import { SelectMenu, type SelectOption } from '../SelectMenu';
 import { OwnershipBadge } from './OwnershipBadge';
 
+import { userMessage } from '@/lib/user-error';
 export interface DeckAnalysisPanelHandle {
   /** Expand the panel, scroll it into view, and focus the diagnosis header. */
   reveal(): void;
@@ -366,7 +367,7 @@ function SuggestionsSection({
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Failed to load suggestions');
+        setError(userMessage(err, "Couldn't load suggestions. Try again in a moment."));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -541,7 +542,7 @@ function SuggestionsSection({
         onAdd(scry, claim?.copyId ?? null);
         setCandidates((prev) => prev.filter((c) => c.name !== card.name));
       } catch (err) {
-        setError(err instanceof Error ? err.message : `Failed to add ${card.name}`);
+        setError(userMessage(err, `Couldn't add ${card.name}. Try again.`));
       } finally {
         setAdding(null);
       }

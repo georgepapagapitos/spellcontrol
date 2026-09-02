@@ -804,6 +804,16 @@ export function DeckEditorPage() {
     return map;
   }, [binderByCopyId, collectionCards]);
 
+  // The command zone's names, kept out of every add-cards result list.
+  const commanderName = deck?.commander?.name;
+  const partnerCommanderName = deck?.partnerCommander?.name;
+  const commanderNames = useMemo(() => {
+    const names: string[] = [];
+    if (commanderName) names.push(commanderName);
+    if (partnerCommanderName) names.push(partnerCommanderName);
+    return names;
+  }, [commanderName, partnerCommanderName]);
+
   const commanderColorIdentity = useMemo(() => {
     if (!deck) return [];
     const ci = new Set<string>();
@@ -1363,6 +1373,7 @@ export function DeckEditorPage() {
         ref={searchPanelRef}
         deckId={deck.id}
         commanderColorIdentity={commanderColorIdentity}
+        commanderNames={commanderNames}
         existingCardCounts={existingCardCounts}
         binderByCardName={binderByCardName}
         onAdd={({ card }) => {
@@ -1397,6 +1408,8 @@ export function DeckEditorPage() {
         ownershipFor={ownershipFor}
         enableSuggestions={!!formatConfig?.hasCommander}
         suggestionsPending={analysisState === 'pending'}
+        suggestionsFailed={analysisState === 'error'}
+        onRetrySuggestions={analysisState === 'error' ? bracketAnalysis.retry : undefined}
         commanderKey={commanderKey}
         aiSlot={
           formatConfig?.hasCommander && deck.commander ? (
@@ -2983,7 +2996,7 @@ export function DeckEditorPage() {
       </div>
 
       <div className="deck-editor-layout">
-        <main className="deck-editor-main">
+        <div className="deck-editor-main">
           {/* Deck re-sync discovery hint — hidden while the add-cards sheet is
               open so it can never be on screen at the same time as the
               binder-location hint inside that sheet (at most one wedge-
@@ -3276,7 +3289,7 @@ export function DeckEditorPage() {
               ) : undefined
             }
           />
-        </main>
+        </div>
       </div>
 
       {/* Test hand — a breakpoint-aware overlay (bottom sheet on mobile,
@@ -3423,6 +3436,7 @@ export function DeckEditorPage() {
         <CardEditDialog
           cardName={editingSlot.card.name}
           currentScryfallId={editingSlot.card.id}
+          fallbackCard={editingSlot.card}
           // The slot's real finish is whatever physical copy it's bound to —
           // an unbound slot has no finish, so it reads as non-foil.
           currentFinish={(() => {

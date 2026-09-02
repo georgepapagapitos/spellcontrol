@@ -57,11 +57,11 @@ describe('getActivity', () => {
 
   it('falls back to a generic message when the error body is not JSON', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 500 }));
-    await expect(getActivity()).rejects.toThrow(/Failed to load activity/);
+    await expect(getActivity()).rejects.toThrow(/Couldn't load recent activity/);
   });
 
   it('falls back to a generic message when the error body has no error field', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({}, { status: 500 }));
-    await expect(getActivity()).rejects.toThrow(/Failed to load activity/);
+    await expect(getActivity()).rejects.toThrow(/Couldn't load recent activity/);
   });
 });

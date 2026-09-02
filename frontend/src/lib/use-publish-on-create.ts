@@ -11,6 +11,7 @@ import {
 } from './publications-client';
 import { toast } from '../store/toasts';
 
+import { userMessage } from '@/lib/user-error';
 export type CreateVisibility = 'private' | 'public';
 
 /** Handed to `onSettled` only when a publish attempt actually succeeded. */
@@ -113,7 +114,7 @@ export function usePublishOnCreate(onSettled: (deckId: string, outcome?: Publish
           setNeedsDisplayName(true);
         } else {
           toast.show({
-            message: err instanceof Error ? err.message : 'Failed to publish deck.',
+            message: userMessage(err, "Couldn't publish the deck. Try again."),
             tone: 'warn',
           });
           onSettled(deckId);
@@ -139,7 +140,7 @@ export function usePublishOnCreate(onSettled: (deckId: string, outcome?: Publish
       onSettled(pendingPublishId, { isFirstPublish: pub.isFirstPublish });
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't publish the deck.",
+        message: userMessage(err, "Couldn't publish the deck."),
         tone: 'warn',
       });
       onSettled(pendingPublishId);

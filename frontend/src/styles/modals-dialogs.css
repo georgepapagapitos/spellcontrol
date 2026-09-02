@@ -40,6 +40,55 @@
   z-index: calc(var(--z-overlay) + 1);
 }
 
+/* Pattern B — sheet-presented dialog. A picker-style dialog (share audience,
+   "send to a friend") is a bottom sheet on phones, the way the OS share
+   sheet is, and a centred dialog everywhere else. Opt in per dialog with
+   `backdropClassName="modal-backdrop--sheet"`; confirmations stay centred
+   at every width (an alert is read, a sheet is picked from). */
+@media (max-width: 600px) {
+  /* Doubled class: the phone `.modal-backdrop` rule below this file's
+     Pattern A block resets alignment/padding at the same specificity, and
+     the sheet must win regardless of source order. */
+  .modal-backdrop.modal-backdrop--sheet {
+    /* Explicit axis: the phone backdrop is a column flexbox, so anchoring
+       to the bottom is a justify-content job, not align-items. */
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .modal-backdrop.modal-backdrop--sheet > [role='dialog'] {
+    max-width: none;
+    width: 100%;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding-bottom: calc(var(--space-5) + var(--safe-bottom));
+    animation: sheet-panel-in 220ms var(--ease-out-soft);
+  }
+
+  .modal-backdrop.modal-backdrop--sheet.is-closing > [role='dialog'] {
+    animation: modal-panel-out var(--motion-fast) var(--ease-out-soft) forwards;
+  }
+}
+
+@keyframes sheet-panel-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop--sheet > [role='dialog'] {
+    animation: none;
+  }
+}
+
 .modal-backdrop.is-closing > [role='dialog'] {
   animation: modal-panel-out var(--motion-fast) var(--ease-out-soft) forwards;
 }

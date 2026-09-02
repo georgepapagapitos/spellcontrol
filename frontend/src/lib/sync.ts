@@ -561,8 +561,16 @@ async function persistKind<T>(
     // Removing a copy is always a cardinality change; read its group from the
     // pre-delete local row (estore.deleteMany hard-deletes, so this is our
     // last chance to know which printing it belonged to — E129).
-    const cardGroup = kind === 'card' ? cardGroupIdentity(localById.get(id)?.data) : undefined;
-    muts.push({ op: 'delete', kind, id, ...(cardGroup ? { cardGroup } : {}) });
+    const prior = localById.get(id);
+    const cardGroup = kind === 'card' ? cardGroupIdentity(prior?.data) : undefined;
+    const syncedRev = baseRevFor(prior);
+    muts.push({
+      op: 'delete',
+      kind,
+      id,
+      ...(cardGroup ? { cardGroup } : {}),
+      ...(cardGroup && syncedRev > 0 ? { syncedRev } : {}),
+    });
   }
 
   if (muts.length > 0) {
@@ -889,6 +897,14 @@ async function buildOutbound(muts: queue.Mutation[]): Promise<{
   const upserts: SyncUpsert[] = [];
   const deletions: SyncDeletion[] = [];
   const candidateGroups = new Map<string, queue.CardGroup>();
+  // Confirmed copies this batch deletes, per group. They are already gone from
+  // live IDB (persistKind hard-deletes before enqueueing), but the server still
+  // has them — so the baseline the server compares against must include them,
+  // or removing ONE of two copies always reads as stale: the client asserted
+  // [c-2], the server held [c-1, c-2], and the delete bounced with "A card
+  // quantity changed on another device" while both copies came back. That is
+  // how a settled trade silently un-settled itself on the accepting device.
+  const deletedConfirmedByGroup = new Map<string, string[]>();
   for (const m of muts) {
     if (m.op === 'upsert') {
       const upsert: SyncUpsert = {
@@ -907,7 +923,13 @@ async function buildOutbound(muts: queue.Mutation[]): Promise<{
       upserts.push(upsert);
     } else {
       if (m.kind === 'card' && m.cardGroup) {
-        candidateGroups.set(cardGroupKeyStr(m.cardGroup), m.cardGroup);
+        const key = cardGroupKeyStr(m.cardGroup);
+        candidateGroups.set(key, m.cardGroup);
+        if ((m.syncedRev ?? 0) > 0) {
+          const arr = deletedConfirmedByGroup.get(key) ?? [];
+          arr.push(m.id);
+          deletedConfirmedByGroup.set(key, arr);
+        }
       }
       deletions.push({ kind: m.kind, id: m.id });
     }
@@ -925,6 +947,7 @@ async function buildOutbound(muts: queue.Mutation[]): Promise<{
           return baseRevFor(row) > 0 && identity != null && cardGroupKeyStr(identity) === key;
         })
         .map((row) => row.id)
+        .concat(deletedConfirmedByGroup.get(key) ?? [])
         .sort();
       // An empty baseline means the group has no confirmed members yet (a
       // first-time add) — nothing for the server to compare against, so skip

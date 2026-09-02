@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { useAnimatedNumber, __resetRevealRegistryForTests } from './use-animated-number';
 
 // ── rAF / cAF fake ──────────────────────────────────────────────────────────
@@ -194,6 +195,22 @@ describe('reveal-key mode', () => {
       advanceTime(400);
     });
     expect(result.current.display).toBe(68);
+  });
+
+  it('survives a StrictMode remount mid-reveal — display still reaches target', () => {
+    // React 19 StrictMode mounts, runs the effect cleanup, then re-runs the
+    // effect. The cleanup cancels the rAF loop; if the key stayed consumed the
+    // re-run bailed and display froze at 0 (the "0 cards · $0" hero over a
+    // full grid). The cleanup must hand the key back so the re-run re-arms.
+    const { result } = renderHook(
+      () => useAnimatedNumber(81, { revealMs: 600, revealKey: 'strict-key' }),
+      { wrapper: StrictMode }
+    );
+    expect(result.current.display).toBe(0);
+    act(() => {
+      flushAllFrames();
+    });
+    expect(result.current.display).toBe(81);
   });
 
   it('same key on remount — second instance starts at target (key consumed)', () => {

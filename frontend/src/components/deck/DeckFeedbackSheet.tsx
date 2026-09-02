@@ -22,6 +22,7 @@ import { useDeckHistoryStore } from '../../store/deck-history';
 import { useDecksStore, type Deck } from '../../store/decks';
 import { toast } from '../../store/toasts';
 
+import { userMessage } from '@/lib/user-error';
 interface Props {
   deck: Deck;
   onClose: () => void;
@@ -59,7 +60,8 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
         if (!cancelled) setLink(shareUrl(row.token));
       })
       .catch((err) => {
-        if (!cancelled) setLinkError(err instanceof Error ? err.message : 'Failed to create link.');
+        if (!cancelled)
+          setLinkError(userMessage(err, "Couldn't create the feedback link. Try again."));
       });
     listDeckFeedback(deck.id)
       .then((rows) => {
@@ -67,7 +69,9 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
       })
       .catch((err) => {
         if (!cancelled)
-          setLoadError(err instanceof Error ? err.message : 'Failed to load feedback.');
+          setLoadError(
+            userMessage(err, "Couldn't load the feedback on this deck. Try again in a moment.")
+          );
       });
     return () => {
       cancelled = true;
@@ -157,7 +161,7 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
       await setSuggestionStatus(response.id, suggestion.id, status);
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : 'Failed to record the verdict.',
+        message: userMessage(err, "Couldn't save that verdict. Try again."),
         tone: 'warn',
       });
     }
@@ -169,7 +173,7 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
       await deleteFeedback(response.id);
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : 'Failed to delete the response.',
+        message: userMessage(err, "Couldn't delete that response. Try again."),
         tone: 'warn',
       });
     }

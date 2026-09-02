@@ -104,7 +104,7 @@ async function download(version: string): Promise<void> {
   const res = await fetch(apiUrl('/api/offline/combos'), {
     headers: { Accept: 'application/json' },
   });
-  if (!res.ok) throw new Error(`Failed to fetch combo dataset (${res.status})`);
+  if (!res.ok) throw new Error("Couldn't download the combo data. Try again in a moment.");
   const combos = (await res.json()) as OfflineCombo[];
   await replaceCombos(combos);
   await writeStandaloneCombosVersion(version);

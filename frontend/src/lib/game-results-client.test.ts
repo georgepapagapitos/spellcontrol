@@ -60,6 +60,6 @@ describe('fetchH2H', () => {
 
   it('throws on 403 (not friends) with the fallback when no error body', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 403 }));
-    await expect(fetchH2H('f1')).rejects.toThrow('Failed to load head-to-head.');
+    await expect(fetchH2H('f1')).rejects.toThrow(/Couldn't load your head-to-head record/);
   });
 });

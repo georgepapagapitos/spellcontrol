@@ -66,6 +66,7 @@ import {
   warmGooglePicker,
 } from '../lib/google-picker';
 
+import { userMessage } from '@/lib/user-error';
 const CSV_MIME_TYPES = ['text/csv', 'text/tab-separated-values', 'text/plain'];
 
 // Same handful of external import-tool links repeat below — one small closure
@@ -247,7 +248,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
         const files = await pickNativeFiles({ types: CSV_MIME_TYPES, multiple: true });
         stageIncoming(files);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Couldn't open file picker");
+        setError(userMessage(err, "Couldn't open the file picker. Try again."));
       }
       return;
     }
@@ -268,7 +269,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       // Backing out is silent; anything else must be visible. The old
       // empty-message convention swallowed a real abort — see CancelledError.
       if (!isCancelled(err)) {
-        setError(err instanceof Error ? err.message : "Couldn't open Google Drive");
+        setError(userMessage(err, "Couldn't open Google Drive. Try again."));
       }
     } finally {
       setDriveBusy(false);
@@ -297,7 +298,12 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       stageIncoming([new File([text], name, { type: 'text/csv' })]);
       setLinkUrl('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't fetch that link");
+      setError(
+        userMessage(
+          err,
+          "Couldn't fetch that link. Check it's a public Google Sheets or Drive link and try again."
+        )
+      );
     } finally {
       setLinkBusy(false);
     }
@@ -564,7 +570,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
         await commitSingle(gate.singleResult, choice, gate.p, gate.binderName);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't complete the import.");
+      setError(userMessage(err, "Couldn't complete the import."));
     } finally {
       setLoading(false);
       setImportProgress(null);
@@ -673,7 +679,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
         const [file] = await pickNativeFiles({ types: JSON_MIME_TYPES, multiple: false });
         if (file) await applyBackupFile(file);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Restore failed');
+        setError(userMessage(err, "Couldn't restore that import. Try again."));
       }
       return;
     }
@@ -698,7 +704,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       parts.push(`${backup.binders.length} binder${backup.binders.length === 1 ? '' : 's'}`);
       setSuccessMsg(`Backup restored · ${parts.join(' · ')}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Restore failed');
+      setError(userMessage(err, "Couldn't restore that import. Try again."));
     } finally {
       setLoading(false);
     }

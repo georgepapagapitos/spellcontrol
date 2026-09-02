@@ -5,6 +5,7 @@ import { apiUrl } from '../../lib/api-base';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { EmptyStateMark } from '../shared/EmptyStateMark';
 
+import { userMessage } from '@/lib/user-error';
 interface RisingCommander {
   commanderKey: string;
   commanderName: string;
@@ -57,7 +58,7 @@ function useTrendingRail(enabled: boolean) {
         setError(null);
       })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Couldn't load trending decks.");
+        setError(userMessage(err, "Couldn't load trending decks."));
       })
       .finally(() => setLoading(false));
   }, [enabled]);

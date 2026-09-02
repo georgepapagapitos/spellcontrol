@@ -15,6 +15,7 @@ import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
 import type { DeckFormat } from '../deck-builder/types';
 import './PublicProfilePage.css';
 
+import { userMessage } from '@/lib/user-error';
 const NOT_FOUND_MESSAGE = "This profile doesn't exist or has no public decks to show.";
 // Platform counts (views/copies) below this read as noise on a brand-new
 // publisher's profile, so each is hidden individually rather than showing a
@@ -236,7 +237,7 @@ function PublicProfilePageInner({ username }: { username: string }) {
         } else {
           setState({
             status: 'error',
-            message: err instanceof Error ? err.message : 'Failed to load this profile.',
+            message: userMessage(err, "Couldn't load this profile. Check the link and try again."),
           });
         }
       });

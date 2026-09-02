@@ -21,6 +21,7 @@ import type { ShareKind, ShareRow } from '../lib/shared-types';
 import { toast } from '../store/toasts';
 import { useAuth } from '../store/auth';
 
+import { userMessage } from '@/lib/user-error';
 type DialogAudience = 'link' | 'friends' | 'direct';
 
 /**
@@ -143,7 +144,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
         if (!cancelled) setShare(row);
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to create share.');
+        if (!cancelled) setError(userMessage(err, "Couldn't create the share link. Try again."));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -269,7 +270,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
       setNeedsDisplayName(false);
       setLadder('private');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to revoke sharing.');
+      setError(userMessage(err, "Couldn't stop sharing. Try again."));
     } finally {
       setWorking(false);
       setPrivateBusy(false);
@@ -288,6 +289,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
       setPublication(pub);
       setPendingPublicConfirm(false);
       setNeedsDisplayName(false);
+      setAnnouncement('');
       if (shouldCelebrateFirstPublish(resourceId, pub.isFirstPublish)) {
         fireSealMoment(colorIdentity);
       }
@@ -299,7 +301,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
         setNeedsDisplayName(true);
         setAnnouncement('Set a display name to continue publishing.');
       } else {
-        setError(err instanceof Error ? err.message : 'Failed to publish deck.');
+        setError(userMessage(err, "Couldn't publish the deck. Try again."));
       }
     }
   };
@@ -330,7 +332,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
       useAuth.setState((s) => (s.profile ? { profile: { ...s.profile, ...updated } } : s));
       await doPublish();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't save your display name.");
+      setError(userMessage(err, "Couldn't save your display name."));
     } finally {
       setWorking(false);
     }
@@ -359,7 +361,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
       setShare(null);
       setLadder('private');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to unpublish deck.');
+      setError(userMessage(err, "Couldn't unpublish the deck. Try again."));
     } finally {
       setWorking(false);
     }
@@ -492,6 +494,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
       onClose={onClose}
       labelledBy="share-dialog-title"
       dismissable={!working}
+      backdropClassName="modal-backdrop--sheet"
       className="choice-dialog share-dialog"
     >
       {sealMoment}

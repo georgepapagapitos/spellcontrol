@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { NightOption } from '../lib/game-nights-api';
 import './NightPoll.css';
 
+import { userMessage } from '@/lib/user-error';
 /** Mirrors the backend MAX_OPTIONS cap — hide the suggest form once full. */
 const POLL_MAX = 8;
 
@@ -61,7 +62,7 @@ export function NightPoll({
       await onVote([...selected]);
       setSelected(null); // back to mirroring the (refreshed) server state
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't save your votes.");
+      setError(userMessage(err, "Couldn't save your votes."));
     } finally {
       setBusy(null);
     }
@@ -80,7 +81,7 @@ export function NightPoll({
       await onSuggest(startsAt);
       setSuggestAt('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't suggest that time.");
+      setError(userMessage(err, "Couldn't suggest that time."));
     } finally {
       setBusy(null);
     }

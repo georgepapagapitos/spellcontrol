@@ -259,7 +259,7 @@ async function download(doc: PickedDoc, accessToken: string): Promise<File> {
     throw new Error(
       res.status === 403 || res.status === 404
         ? `Google wouldn't return “${doc.name}”. Try picking it again.`
-        : `Couldn't download “${doc.name}” (HTTP ${res.status}).`
+        : `Couldn't download “${doc.name}” from Google Drive. Try picking it again.`
     );
   }
   const text = await res.text();
@@ -316,7 +316,11 @@ function showPicker(accessToken: string): Promise<PickedDoc[]> {
         if (id) builder.setAppId(id);
         builder.build().setVisible(true);
       } catch (err) {
-        reject(err instanceof Error ? err : new Error('Failed to open the Drive picker.'));
+        reject(
+          err instanceof Error
+            ? err
+            : new Error("Couldn't open the Google Drive picker. Try again.")
+        );
       }
     });
   });

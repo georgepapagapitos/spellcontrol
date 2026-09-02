@@ -111,7 +111,7 @@ describe('useDeckCombos', () => {
   });
 
   it('falls back to a generic message when the rejected error has no message field', async () => {
-    // Use a bare object with no message — exercises the `?? 'Failed to load…'` branch.
+    // Use a bare object with no message — exercises the userMessage fallback branch.
     vi.mocked(matchCombos).mockRejectedValue({} as Error);
 
     const { result } = renderHook(() =>
@@ -122,7 +122,7 @@ describe('useDeckCombos', () => {
       await vi.advanceTimersByTimeAsync(300);
     });
 
-    expect(result.current.error).toBe('Failed to load combos.');
+    expect(result.current.error).toBe("Couldn't load combos. Try again in a moment.");
   });
 
   it('evicts the oldest cache entry once the cache fills past CACHE_LIMIT', async () => {

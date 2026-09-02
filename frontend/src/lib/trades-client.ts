@@ -62,6 +62,26 @@ export interface TradeOffer {
   resolvedAt: number | null;
 }
 
+/**
+ * Cross-component "trades changed" signal. A settlement runs from the app
+ * shell (`useTradeSettlement`), not from the page showing the offer, so the
+ * offer card kept reading "Adding to your collection…" until a reload even
+ * though the toast had already said it settled. Any list of offers subscribes
+ * and re-fetches; anything that changes an offer notifies.
+ */
+const tradeListeners = new Set<() => void>();
+
+export function subscribeTradesChanged(listener: () => void): () => void {
+  tradeListeners.add(listener);
+  return () => {
+    tradeListeners.delete(listener);
+  };
+}
+
+export function notifyTradesChanged(): void {
+  for (const listener of tradeListeners) listener();
+}
+
 /** Thrown when a transition lost a race — the offer was already answered. */
 export class TradeConflictError extends Error {}
 
@@ -101,7 +121,7 @@ export async function listTrades(opts: { withUserId?: string } = {}): Promise<Tr
   const res = await fetch(apiUrl(`/api/trades${query}`), { credentials: 'include' });
   const data = await handle<{ offers: TradeOffer[]; truncated?: boolean }>(
     res,
-    'Failed to load trades.'
+    "Couldn't load your trades. Check your connection and try again."
   );
   return { offers: data.offers, truncated: data.truncated ?? false };
 }
@@ -124,7 +144,7 @@ export async function proposeTrade(input: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-  const data = await handle<{ offer: TradeOffer }>(res, 'Failed to send the trade.');
+  const data = await handle<{ offer: TradeOffer }>(res, "Couldn't send the trade. Try again.");
   return data.offer;
 }
 
@@ -140,7 +160,7 @@ export async function acceptTrade(offerId: string, resolved: TradeCard[]): Promi
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'accept', resolved }),
   });
-  const data = await handle<{ offer: TradeOffer }>(res, 'Failed to accept the trade.');
+  const data = await handle<{ offer: TradeOffer }>(res, "Couldn't accept the trade. Try again.");
   return data.offer;
 }
 
@@ -151,7 +171,7 @@ export async function declineTrade(offerId: string): Promise<TradeOffer> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'decline' }),
   });
-  const data = await handle<{ offer: TradeOffer }>(res, 'Failed to decline the trade.');
+  const data = await handle<{ offer: TradeOffer }>(res, "Couldn't decline the trade. Try again.");
   return data.offer;
 }
 
@@ -162,7 +182,7 @@ export async function withdrawTrade(offerId: string): Promise<TradeOffer> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'withdraw' }),
   });
-  const data = await handle<{ offer: TradeOffer }>(res, 'Failed to withdraw the trade.');
+  const data = await handle<{ offer: TradeOffer }>(res, "Couldn't withdraw the trade. Try again.");
   return data.offer;
 }
 
@@ -177,6 +197,9 @@ export async function markTradeSettled(offerId: string): Promise<TradeOffer> {
     method: 'POST',
     credentials: 'include',
   });
-  const data = await handle<{ offer: TradeOffer }>(res, 'Failed to record the trade.');
+  const data = await handle<{ offer: TradeOffer }>(
+    res,
+    "Couldn't record the trade as settled. It'll be retried the next time you open the app."
+  );
   return data.offer;
 }

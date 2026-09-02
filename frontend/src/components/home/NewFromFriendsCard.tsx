@@ -8,6 +8,7 @@ import { useAuth } from '../../store/auth';
 import { getFriendsActivity, type FriendActivityItem } from '../../lib/friends-client';
 import { formatRelativeTime } from '../../lib/format-time';
 
+import { userMessage } from '@/lib/user-error';
 const ROW_ICON_PROPS = { width: 11, height: 11, strokeWidth: 2.2, 'aria-hidden': true } as const;
 
 function rowKey(item: FriendActivityItem): string {
@@ -39,7 +40,9 @@ export function NewFromFriendsCard() {
     getFriendsActivity()
       .then((result) => setItems(result))
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Failed to load activity.');
+        setError(
+          userMessage(err, "Couldn't load recent activity. Check your connection and try again.")
+        );
       });
   }, []);
 

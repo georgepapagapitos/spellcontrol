@@ -4,6 +4,7 @@ import { SettingsRow } from './SettingsRow';
 import { fetchAiStatus, setAiOptIn, type AiStatus } from '../../lib/ai-review';
 import { toast } from '../../store/toasts';
 
+import { userMessage } from '@/lib/user-error';
 /**
  * The single global AI consent toggle (T96) — not a per-feature matrix.
  * Renders nothing when the backend doesn't have the feature configured or
@@ -37,7 +38,7 @@ export function AiFeaturesSettings() {
       setStatus({ ...status, optIn });
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : 'Could not update the AI setting.',
+        message: userMessage(err, "Couldn't update the AI setting. Try again."),
       });
     } finally {
       setBusy(false);

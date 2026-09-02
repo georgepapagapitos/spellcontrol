@@ -42,6 +42,7 @@ import {
   cubeRowKeyDown,
 } from './shared';
 
+import { userMessage } from '@/lib/user-error';
 export function BuildCube({ highlightId }: { highlightId?: string }) {
   const collectionCards = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
@@ -122,7 +123,7 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
       cubeStore.setResult(size, newCube);
       setStatus('done');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong building the cube.');
+      setError(userMessage(e, "Couldn't build the cube. Try again."));
       setStatus('error');
     }
   }, [uniqueNames, collectionCards, size, synergyLevel, cubeStore]);

@@ -6,6 +6,7 @@ import { toast } from '../store/toasts';
 import { importScannedCards } from '../lib/scan-import';
 import { useScanQueueStore } from '../lib/use-scan-queue';
 
+import { userMessage } from '@/lib/user-error';
 const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m.CardScanner })));
 
 const ICON_PROPS = { width: 22, height: 22, strokeWidth: 1.7, 'aria-hidden': true } as const;
@@ -51,7 +52,7 @@ export function ScanFab() {
       });
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't save scanned cards.",
+        message: userMessage(err, "Couldn't save scanned cards."),
         tone: 'error',
       });
     } finally {
