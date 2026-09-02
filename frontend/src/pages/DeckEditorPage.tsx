@@ -804,6 +804,16 @@ export function DeckEditorPage() {
     return map;
   }, [binderByCopyId, collectionCards]);
 
+  // The command zone's names, kept out of every add-cards result list.
+  const commanderName = deck?.commander?.name;
+  const partnerCommanderName = deck?.partnerCommander?.name;
+  const commanderNames = useMemo(() => {
+    const names: string[] = [];
+    if (commanderName) names.push(commanderName);
+    if (partnerCommanderName) names.push(partnerCommanderName);
+    return names;
+  }, [commanderName, partnerCommanderName]);
+
   const commanderColorIdentity = useMemo(() => {
     if (!deck) return [];
     const ci = new Set<string>();
@@ -1363,6 +1373,7 @@ export function DeckEditorPage() {
         ref={searchPanelRef}
         deckId={deck.id}
         commanderColorIdentity={commanderColorIdentity}
+        commanderNames={commanderNames}
         existingCardCounts={existingCardCounts}
         binderByCardName={binderByCardName}
         onAdd={({ card }) => {

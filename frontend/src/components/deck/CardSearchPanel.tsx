@@ -125,6 +125,13 @@ interface Props {
    * absent for a card with no owned copy or no matching binder.
    */
   binderByCardName?: Map<string, BinderInfo[]>;
+  /**
+   * Names already seated in the command zone (commander + partner). Hidden
+   * from every result list: adding them again puts a second copy into the
+   * 99 — a singleton violation the Stats tab then flags, and a phantom
+   * "missing" copy when the only owned one is the commander itself.
+   */
+  commanderNames?: string[];
 }
 
 type Mode = 'collection' | 'scryfall' | 'suggestions';
@@ -295,9 +302,17 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     commanderKey,
     binderByCardName,
     aiSlot,
+    commanderNames,
   },
   ref
 ) {
+  // Keyed on the joined names so a parent re-render with an equal array
+  // doesn't churn every result memo below.
+  const commanderNamesKey = (commanderNames ?? []).join('\u0000');
+  const excludeNames = useMemo(
+    () => new Set(commanderNamesKey ? commanderNamesKey.split('\u0000') : []),
+    [commanderNamesKey]
+  );
   // Open smart: commander decks land on Suggestions ("here's what fits") so
   // the panel never opens blank; typing or switching tabs takes over from there.
   const [mode, setMode] = useState<Mode>(() => (enableSuggestions ? 'suggestions' : 'collection'));
@@ -645,6 +660,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             deckId={deckId}
             colorIdentity={commanderColorIdentity}
             existingCardCounts={existingCardCounts}
+            excludeNames={excludeNames}
             query={query}
             activeIndex={activeIndex}
             onActiveChange={setActiveIndex}
@@ -686,6 +702,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
               deckId={deckId}
               colorIdentity={commanderColorIdentity}
               existingCardCounts={existingCardCounts}
+              excludeNames={excludeNames}
               query={query}
               activeIndex={activeIndex}
               onActiveChange={setActiveIndex}
@@ -711,6 +728,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             deckId={deckId}
             colorIdentity={commanderColorIdentity}
             existingCardCounts={existingCardCounts}
+            excludeNames={excludeNames}
             query={query}
             activeIndex={activeIndex}
             onActiveChange={setActiveIndex}
@@ -749,6 +767,8 @@ interface ResultsProps {
   onPreviewFit?: (card: ScryfallCard) => void;
   onAnnounce: (msg: string) => void;
   publishVisible: (cards: ScryfallCard[], addAt: (index: number) => Promise<void> | void) => void;
+  /** Card names never offered as an add (the deck's commander/partner). */
+  excludeNames: ReadonlySet<string>;
 }
 
 /** Deck-fit intelligence shared by the Collection and Scryfall tabs. */
@@ -818,6 +838,7 @@ function CollectionResults({
   sort,
   enforceCommander,
   onSearchScryfall,
+  excludeNames,
 }: CollectionResultsProps) {
   const collection = useCollectionStore((s) => s.cards);
   const pushToast = useToastsStore((s) => s.push);
@@ -840,6 +861,7 @@ function CollectionResults({
     const seenNames = new Set<string>();
     const out: Array<{ card: EnrichedCard; nameHit: boolean }> = [];
     for (const c of collection) {
+      if (excludeNames.has(c.name)) continue;
       const ci = c.colorIdentity ?? [];
       if (enforceCommander) {
         if (!ci.every((k) => colorIdentity.includes(k))) continue;
@@ -897,6 +919,7 @@ function CollectionResults({
     collection,
     colorIdentity,
     enforceCommander,
+    excludeNames,
     search,
     sort,
     gapByName,
@@ -1395,6 +1418,7 @@ function ScryfallResults({
   topCardCounts,
   sort,
   ownershipFor,
+  excludeNames,
 }: ScryfallResultsProps) {
   const collection = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
@@ -1441,7 +1465,7 @@ function ScryfallResults({
         // they're tagged in the row UI and an add-time warning lets the user
         // know they're outside the deck's color identity.
         const resp = await searchCards(q, colorIdentity, { skipColorFilter: true });
-        if (!cancelled) setResults(resp.data.slice(0, 60));
+        if (!cancelled) setResults(resp.data.filter((c) => !excludeNames.has(c.name)).slice(0, 60));
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : 'Search failed');
@@ -1456,7 +1480,7 @@ function ScryfallResults({
       cancelled = true;
       if (debounce.current) window.clearTimeout(debounce.current);
     };
-  }, [query, colorIdentity]);
+  }, [query, colorIdentity, excludeNames]);
 
   // Client-side re-sort of the fetched page; 'default' keeps the server's
   // relevance order.
