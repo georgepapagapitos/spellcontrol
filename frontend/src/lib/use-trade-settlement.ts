@@ -6,7 +6,12 @@ import { getCardById } from './api';
 import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { logger } from './logger';
 import { planSettlement, describeSettlement } from './trade-settlement';
-import { listTrades, markTradeSettled, type TradeOffer } from './trades-client';
+import {
+  listTrades,
+  markTradeSettled,
+  notifyTradesChanged,
+  type TradeOffer,
+} from './trades-client';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Condition, Finish } from '../types';
 
@@ -157,6 +162,8 @@ async function applySettlement(offer: TradeOffer): Promise<boolean> {
     // removal half had to be idempotent.
     logger.warn('[trades] Settled locally but failed to record it:', err);
   }
+  // Whatever list is showing this offer should stop saying "Adding…".
+  notifyTradesChanged();
 
   const who = offer.counterpartyDisplayName || `@${offer.counterpartyUsername}`;
   toast.show({

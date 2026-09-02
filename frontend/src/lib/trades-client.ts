@@ -62,6 +62,26 @@ export interface TradeOffer {
   resolvedAt: number | null;
 }
 
+/**
+ * Cross-component "trades changed" signal. A settlement runs from the app
+ * shell (`useTradeSettlement`), not from the page showing the offer, so the
+ * offer card kept reading "Adding to your collection…" until a reload even
+ * though the toast had already said it settled. Any list of offers subscribes
+ * and re-fetches; anything that changes an offer notifies.
+ */
+const tradeListeners = new Set<() => void>();
+
+export function subscribeTradesChanged(listener: () => void): () => void {
+  tradeListeners.add(listener);
+  return () => {
+    tradeListeners.delete(listener);
+  };
+}
+
+export function notifyTradesChanged(): void {
+  for (const listener of tradeListeners) listener();
+}
+
 /** Thrown when a transition lost a race — the offer was already answered. */
 export class TradeConflictError extends Error {}
 

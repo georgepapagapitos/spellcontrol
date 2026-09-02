@@ -18,7 +18,7 @@ import {
 } from '../lib/trade-radar';
 import { groupOwnedForTrade } from '../lib/trade-picker';
 import { useAllocations, computeSurplusByName } from '../lib/allocations';
-import { listTrades, type TradeOffer } from '../lib/trades-client';
+import { listTrades, subscribeTradesChanged, type TradeOffer } from '../lib/trades-client';
 import { TradeComposer } from '../components/trade/TradeComposer';
 import { TradeOfferList } from '../components/trade/TradeOfferList';
 import { isTrackingList } from '../lib/lists';
@@ -215,6 +215,8 @@ export function FriendHubPage() {
     null
   );
   const refreshTrades = () => setTradeAttempt((n) => n + 1);
+  // A settlement applied by the app shell changes rows in this tab.
+  useEffect(() => subscribeTradesChanged(() => setTradeAttempt((n) => n + 1)), []);
 
   useEffect(() => {
     if (status !== 'authed' || !friendId) return;

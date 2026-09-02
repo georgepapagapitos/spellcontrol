@@ -17,9 +17,11 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
 
 const markTradeSettledMock = vi.fn<(id: string) => Promise<TradeOffer>>();
 const listTradesMock = vi.fn<() => Promise<TradeListing>>();
+const notifyTradesChangedMock = vi.fn();
 vi.mock('./trades-client', () => ({
   markTradeSettled: (id: string) => markTradeSettledMock(id),
   listTrades: () => listTradesMock(),
+  notifyTradesChanged: () => notifyTradesChangedMock(),
 }));
 
 vi.mock('../store/auth', () => ({
@@ -156,6 +158,9 @@ describe('settleTrade', () => {
       language: undefined,
     });
     expect(markTradeSettledMock).toHaveBeenCalledWith('offer-1');
+    // The open offer lists are told to re-fetch so the row stops saying
+    // "Adding to your collection…".
+    expect(notifyTradesChangedMock).toHaveBeenCalledTimes(1);
   });
 
   it('applies locally BEFORE telling the server', async () => {
