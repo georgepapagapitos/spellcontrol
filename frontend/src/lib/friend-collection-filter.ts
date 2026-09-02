@@ -1,7 +1,7 @@
 import type { FriendCard } from './cube/pool';
 import type { PublicCard } from './shared-types';
 import { colorSelectionMatches, type ColorMatchMode } from './colors';
-import { buildFriendSearch } from './friend-search';
+import { buildFriendSearch, type FriendSearchCaps } from './friend-search';
 
 /** WUBRG identity codes plus 'C' for colorless. */
 export type FriendColorFilter = ReadonlySet<string>;
@@ -11,9 +11,10 @@ const EMPTY_COLORS: FriendColorFilter = new Set();
 /**
  * Lift a friend card into the public-card shape the shared filter dialog
  * matches on (`useSharedFilters` → `makeSharedMatcher`). The friend payload is
- * public card FACTS only — no printing, price, rules text or legality — so
- * every field it lacks is left empty and the dialog is mounted with the
- * `card-facts` facet set, which hides the rows those fields would drive.
+ * public card FACTS only — name, type line, colours, mana value, rarity, and
+ * (on an enriched payload) rules text and filterable-format legality. No
+ * printing and no price: those fields are left empty and the dialog is
+ * mounted with the `card-facts` facet set, which hides the rows they drive.
  */
 export function friendCardToPublic(card: FriendCard): PublicCard {
   return {
@@ -31,6 +32,8 @@ export function friendCardToPublic(card: FriendCard): PublicCard {
     typeLine: card.typeLine,
     colors: card.colors,
     colorIdentity: card.colorIdentity,
+    oracleText: card.oracleText,
+    legalities: card.legalities,
   };
 }
 
@@ -93,6 +96,8 @@ export interface FriendCollectionFilters {
   colorMode?: ColorMatchMode;
   /** Oracle-tag lookup, so `otag:` clauses resolve (keyed by card NAME). */
   tagsFor?: (name: string) => string[];
+  /** Which optional facts this payload carries — see `friendPayloadCaps`. */
+  caps?: FriendSearchCaps;
 }
 
 export interface FriendCollectionResult {
@@ -122,7 +127,7 @@ export function filterFriendCollection(
   // routes through the shared Scryfall interpreter. `ignored` names any clause
   // the thin friend payload can't answer, so the caller can say so rather than
   // rendering an empty list as "they own none" (E237).
-  const search = buildFriendSearch(filters.query, filters.tagsFor);
+  const search = buildFriendSearch(filters.query, filters.tagsFor, filters.caps);
   const colors = filters.colors ?? EMPTY_COLORS;
   const cardsOut = cards
     .filter((c) => search.match(c) && colorMatches(c, colors, filters.colorMode ?? 'any'))

@@ -123,6 +123,8 @@ describe('friendCardToPublic', () => {
       cmc: 1,
       typeLine: 'Artifact',
       rarity: 'uncommon',
+      oracleText: '{T}: Add {C}{C}.',
+      legalities: { commander: 'legal' },
     });
     expect(pc).toMatchObject({
       name: 'Sol Ring',
@@ -132,6 +134,8 @@ describe('friendCardToPublic', () => {
       colors: [],
       colorIdentity: [],
       rarity: 'uncommon',
+      oracleText: '{T}: Add {C}{C}.',
+      legalities: { commander: 'legal' },
       setCode: '',
       purchasePrice: 0,
     });

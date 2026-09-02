@@ -45,6 +45,36 @@ const UNANSWERABLE: Record<string, string> = {
   banned: 'banned:',
 };
 
+/**
+ * What THIS payload carries beyond the baseline. The friend endpoint now
+ * ships rules text and filterable-format legality, but a payload cached
+ * before that lacks both — so the caller probes the cards it actually has
+ * (see `friendPayloadCaps`) and `o:` / `f:` / `banned:` are answered or
+ * stripped accordingly. `keyword:` is never carried and is always stripped.
+ */
+export interface FriendSearchCaps {
+  oracleText?: boolean;
+  legalities?: boolean;
+}
+
+/** Probe a payload for the optional card facts — true when any card has one. */
+export function friendPayloadCaps(cards: readonly FriendCard[]): FriendSearchCaps {
+  return {
+    oracleText: cards.some((c) => c.oracleText !== undefined),
+    legalities: cards.some((c) => c.legalities !== undefined),
+  };
+}
+
+function unanswerableFor(caps: FriendSearchCaps): Record<string, string> {
+  const out = { ...UNANSWERABLE };
+  if (caps.oracleText) delete out.oracle;
+  if (caps.legalities) {
+    delete out.format;
+    delete out.banned;
+  }
+  return out;
+}
+
 export interface FriendSearch {
   kind: 'empty' | 'name' | 'syntax';
   /** True when a clause needs the oracle-tag snapshot loaded. */
@@ -59,26 +89,31 @@ function toQueryCard(card: FriendCard, tagsFor?: (name: string) => string[]): Qu
     name: card.name,
     cmc: card.cmc,
     typeLine: card.typeLine,
-    // No oracleText by design — the payload doesn't carry it, and `o:` clauses
-    // are stripped before matching rather than silently missing everything.
+    // Present only on an enriched payload; on an older one `o:` clauses are
+    // stripped before matching rather than silently missing everything.
+    oracleText: card.oracleText,
     colors: card.colors,
     // Absent identity falls back to `colors`: a card's identity is a superset
     // of its cost colours, so this is the closest honest approximation for a
     // payload cached before the enrichment shipped. It is NOT `[]`, which the
     // engine would read as colourless and match against everything.
     colorIdentity: card.colorIdentity ?? card.colors,
-    legalities: {},
+    legalities: card.legalities ?? {},
     rarity: card.rarity,
     tags: tagsFor ? tagsFor(card.name) : undefined,
   };
 }
 
 /** Drop clauses the payload can't answer; report their labels. */
-function stripUnanswerable(parsed: ParsedQuery): { query: ParsedQuery; ignored: string[] } {
+function stripUnanswerable(
+  parsed: ParsedQuery,
+  caps: FriendSearchCaps
+): { query: ParsedQuery; ignored: string[] } {
   const ignored = new Set<string>();
+  const unanswerable = unanswerableFor(caps);
   const groups = parsed.groups.map((group) =>
     group.filter((clause) => {
-      const label = UNANSWERABLE[clause.kind];
+      const label = unanswerable[clause.kind];
       if (label === undefined) return true;
       ignored.add(label);
       return false;
@@ -97,14 +132,15 @@ function stripUnanswerable(parsed: ParsedQuery): { query: ParsedQuery; ignored: 
  */
 export function buildFriendSearch(
   query: string,
-  tagsFor?: (name: string) => string[]
+  tagsFor?: (name: string) => string[],
+  caps: FriendSearchCaps = {}
 ): FriendSearch {
   const q = query.trim();
   if (!q) return { kind: 'empty', usesTags: false, ignored: [], match: () => true };
 
   if (hasQuerySyntax(q)) {
     const parsed = parseQuery(q);
-    const { query: usable, ignored } = stripUnanswerable(parsed);
+    const { query: usable, ignored } = stripUnanswerable(parsed, caps);
     // Every clause was unanswerable — matching an empty query would return the
     // WHOLE collection, which reads as a successful search. Return nothing and
     // let the caller show `ignored` as the reason.

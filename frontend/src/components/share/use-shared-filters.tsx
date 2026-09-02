@@ -69,7 +69,15 @@ export type SharedFilterFacets = 'all' | 'card-facts';
  */
 export function useSharedFilters(
   cards: PublicCard[],
-  opts: { withPrice?: boolean; facets?: SharedFilterFacets } = {}
+  opts: {
+    withPrice?: boolean;
+    facets?: SharedFilterFacets;
+    /** `card-facts` only: whether THIS payload carries rules text / legality.
+     *  A friend payload cached before the endpoint shipped them has neither,
+     *  and a facet over a field no card has would match nothing. */
+    hasOracleText?: boolean;
+    hasLegalities?: boolean;
+  } = {}
 ): {
   filterNode: ReactNode;
   matches: (pc: PublicCard) => boolean;
@@ -79,10 +87,11 @@ export function useSharedFilters(
   clear: () => void;
 } {
   const withPrice = opts.withPrice ?? true;
-  // 'card-facts' is the friend-collection projection (name / type line /
-  // colors / mana value / rarity — no printing, no rules text, no price):
-  // every facet that would read a field it doesn't carry is hidden, so the
-  // dialog never offers a filter that silently matches nothing.
+  // 'card-facts' is the friend-collection projection: card-level facts only
+  // (name / type line / colors / mana value / rarity, plus rules text and
+  // legality when the payload has them) — never printing or price. Every
+  // facet that would read a field the payload doesn't carry is hidden, so
+  // the dialog never offers a filter that silently matches nothing.
   const cardFacts = opts.facets === 'card-facts';
 
   const [supertypeExpr, setSupertypeExpr] = useState<ChipExpression>(EMPTY_EXPR);
@@ -214,8 +223,8 @@ export function useSharedFilters(
       {...(cardFacts ? {} : { finishExpr, setFinishExpr })}
       {...(cardFacts
         ? {
-            showOracleText: false,
-            showLegality: false,
+            showOracleText: opts.hasOracleText ?? false,
+            showLegality: opts.hasLegalities ?? false,
             showTreatment: false,
             showBorder: false,
             showLayout: false,

@@ -18,6 +18,12 @@ export interface FriendCard {
   typeLine: string;
   rarity?: string;
   edhrecRank?: number;
+  /** Card-level facts the friend endpoint added later: rules text and
+   *  legality in the filterable formats. Optional because cached payloads
+   *  from before they shipped lack them — `friend-search.ts` strips `o:` /
+   *  `f:` and the browser hides those facets when the payload has none. */
+  oracleText?: string;
+  legalities?: Record<string, string>;
   // Populated during Scryfall enrichment (see CubePage), not by the API.
   synergyProducers?: CubeCard['synergyProducers'];
   synergyPayoffs?: CubeCard['synergyPayoffs'];

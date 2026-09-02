@@ -30,6 +30,7 @@ import {
   type FriendSortKey,
 } from '../lib/friend-collection-filter';
 import { getCardTags, useCardTagsReady } from '../lib/card-tags';
+import { friendPayloadCaps } from '../lib/friend-search';
 import { H2HSummary } from '../components/play/H2HSummary';
 import { Tabs, type TabItem } from '../components/Tabs';
 import { SearchPill } from '../components/SearchPill';
@@ -249,12 +250,21 @@ export function FriendHubPage() {
     () => (friendCards ?? []).map(friendCardToPublic),
     [friendCards]
   );
+  // Rules text and legality ride the payload only since the endpoint started
+  // sending them; probe what this payload actually has so the dialog and the
+  // `o:` / `f:` search agree on what can be answered.
+  const friendCaps = useMemo(() => friendPayloadCaps(friendCards ?? []), [friendCards]);
   const {
     filterNode: collectionFilterNode,
     matches: collectionMatches,
     activeCount: collectionFilterCount,
     clear: clearCollectionFilters,
-  } = useSharedFilters(friendPublicCards, { withPrice: false, facets: 'card-facts' });
+  } = useSharedFilters(friendPublicCards, {
+    withPrice: false,
+    facets: 'card-facts',
+    hasOracleText: friendCaps.oracleText,
+    hasLegalities: friendCaps.legalities,
+  });
 
   // `otag:` needs the tag snapshot; load it only when the query asks for one
   // (same gate as CardSearchPanel — the snapshot is a multi-MB artifact).
@@ -267,9 +277,10 @@ export function FriendHubPage() {
         ? filterFriendCollection(friendCards, {
             query: collectionQuery,
             tagsFor: collectionTagsReady ? getCardTags : undefined,
+            caps: friendCaps,
           })
         : { cards: [], ignored: [] },
-    [friendCards, collectionQuery, collectionTagsReady]
+    [friendCards, friendCaps, collectionQuery, collectionTagsReady]
   );
   // The search narrows by name/syntax; the dialog's facets narrow the rest,
   // matching against each card's public-card projection (by index, so the
@@ -625,9 +636,10 @@ export function FriendHubPage() {
             {friendSearchResult.ignored.length > 0 && (
               <p className="friend-hub-search-note" role="status">
                 {friendSearchResult.ignored.join(', ')}{' '}
-                {friendSearchResult.ignored.length === 1 ? 'is' : 'are'} not searchable in a
-                friend’s collection — it only carries public card facts, not rules text. The rest of
-                your search still applied.
+                {friendSearchResult.ignored.length === 1 ? 'isn’t' : 'aren’t'} searchable in this
+                collection — its card data doesn’t carry what{' '}
+                {friendSearchResult.ignored.length === 1 ? 'it' : 'they'} read. The rest of your
+                search still applied.
               </p>
             )}
 
