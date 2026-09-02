@@ -216,8 +216,26 @@
   letter-spacing: 0.18em;
 }
 
-.win-celebration-dismiss {
+.win-celebration-actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  flex-wrap: wrap;
   margin-top: 0.9rem;
+}
+
+.win-celebration-dismiss.is-primary {
+  background: rgba(255, 255, 255, 0.92);
+  color: #111;
+  border-color: transparent;
+}
+
+.win-celebration-dismiss:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+
+.win-celebration-dismiss {
   padding: 0.55rem 1.4rem;
   border-radius: var(--radius);
   border: 1px solid rgba(255, 255, 255, 0.25);

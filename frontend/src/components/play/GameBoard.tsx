@@ -272,7 +272,14 @@ export function GameBoard({
               : -1;
           const winnerSlot = winnerSeatIdx >= 0 ? board.seats[winnerSeatIdx] : null;
           const winnerRot = isShared && winnerSlot ? winnerSlot.rot : 0;
-          return <WinCelebration game={game} rotation={winnerRot} />;
+          return (
+            <WinCelebration
+              game={game}
+              rotation={winnerRot}
+              onDone={onLeave}
+              onRematch={onRematch}
+            />
+          );
         })()}
 
       {menuOpen && (
@@ -1263,7 +1270,18 @@ function markCelebrationSeen(gameId: string): void {
   }
 }
 
-function WinCelebration({ game, rotation = 0 }: { game: GameState; rotation?: number }) {
+function WinCelebration({
+  game,
+  rotation = 0,
+  onDone,
+  onRematch,
+}: {
+  game: GameState;
+  rotation?: number;
+  /** Leave the finished table (clear it locally / leave it online). */
+  onDone?: () => void;
+  onRematch?: () => void;
+}) {
   const [dismissed, setDismissedState] = useState(() => celebrationSeen(game.id));
   const setDismissed = (next: boolean) => {
     if (next) markCelebrationSeen(game.id);
@@ -1335,13 +1353,34 @@ function WinCelebration({ game, rotation = 0 }: { game: GameState; rotation?: nu
           <span className="win-celebration-sub">Game over — no winner</span>
         )}
         <GameRecap game={game} />
-        <button
-          type="button"
-          className="win-celebration-dismiss"
-          onClick={() => setDismissed(true)}
-        >
-          Continue
-        </button>
+        {/* The recap is the end of the session: Done leaves the table (the
+            result is already in History), Rematch re-seats everyone. Tapping
+            outside still just dismisses, for anyone who wants to keep looking
+            at the final board. */}
+        <div className="win-celebration-actions">
+          {onRematch && (
+            <button
+              type="button"
+              className="win-celebration-dismiss"
+              onClick={() => {
+                setDismissed(true);
+                onRematch();
+              }}
+            >
+              Rematch
+            </button>
+          )}
+          <button
+            type="button"
+            className="win-celebration-dismiss is-primary"
+            onClick={() => {
+              setDismissed(true);
+              onDone?.();
+            }}
+          >
+            Done
+          </button>
+        </div>
       </div>
     </div>
   );

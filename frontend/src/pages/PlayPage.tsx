@@ -172,7 +172,11 @@ export function PlayPage() {
               canControlAll
               onMinimize={hideBoard}
               onEnd={() => setPendingEnd('local')}
-              onLeave={() => setPendingDiscard(true)}
+              // A finished game is already in History — clearing it is not
+              // destructive, so it doesn't ask. An in-progress one still does.
+              onLeave={() =>
+                local.status === 'finished' ? discardLocal() : setPendingDiscard(true)
+              }
               onRematch={() => rematchLocal(gameToRematch(local))}
             />
           ) : (
@@ -331,20 +335,7 @@ export function PlayPage() {
         />
       )}
 
-      {pendingDiscard && local?.status === 'finished' && (
-        <ConfirmDialog
-          title="Clear the table?"
-          body="This game is already in your history. Clearing the table just makes room for the next one."
-          confirmLabel="Clear the table"
-          onConfirm={() => {
-            discardLocal();
-            setPendingDiscard(false);
-          }}
-          onCancel={() => setPendingDiscard(false)}
-        />
-      )}
-
-      {pendingDiscard && local?.status !== 'finished' && (
+      {pendingDiscard && (
         <ConfirmDialog
           title="Discard this game?"
           body="The current game will be removed without saving to history."
