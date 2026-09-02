@@ -169,3 +169,39 @@ describe('Share recap entry point', () => {
     );
   });
 });
+
+describe('Win celebration', () => {
+  it('does not replay after the board remounts once it was dismissed', () => {
+    sessionStorage.clear();
+    const game = makeTestState([makeTestPlayer()], {
+      mode: 'local',
+      status: 'finished',
+      winnerSeat: 0,
+    });
+    const first = render(<GameBoard game={game} dispatch={vi.fn()} canControlAll />);
+    const overlay = screen.getByRole('dialog', { name: 'Alice wins' });
+    fireEvent.click(overlay);
+    expect(screen.queryByRole('dialog', { name: 'Alice wins' })).toBeNull();
+    first.unmount();
+
+    // Same finished game back on the table (a return to /play, a tab switch):
+    // the recap was already seen — no confetti again.
+    render(<GameBoard game={game} dispatch={vi.fn()} canControlAll />);
+    expect(screen.queryByRole('dialog', { name: 'Alice wins' })).toBeNull();
+  });
+
+  it('labels the finished-game exit by what it does, not "Close"', () => {
+    sessionStorage.clear();
+    const game = makeTestState([makeTestPlayer()], {
+      mode: 'local',
+      status: 'finished',
+      winnerSeat: 0,
+    });
+    render(<GameBoard game={game} dispatch={vi.fn()} canControlAll onLeave={vi.fn()} />);
+    fireEvent.click(screen.getByRole('dialog', { name: 'Alice wins' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    expect(screen.getByRole('button', { name: 'Clear the table' })).toBeTruthy();
+    // Exactly one control named "Close" in the sheet — the ✕.
+    expect(screen.getAllByRole('button', { name: 'Close' })).toHaveLength(1);
+  });
+});

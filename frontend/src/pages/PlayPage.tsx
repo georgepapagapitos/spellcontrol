@@ -324,7 +324,20 @@ export function PlayPage() {
         />
       )}
 
-      {pendingDiscard && (
+      {pendingDiscard && local?.status === 'finished' && (
+        <ConfirmDialog
+          title="Clear the table?"
+          body="This game is already in your history. Clearing the table just makes room for the next one."
+          confirmLabel="Clear the table"
+          onConfirm={() => {
+            discardLocal();
+            setPendingDiscard(false);
+          }}
+          onCancel={() => setPendingDiscard(false)}
+        />
+      )}
+
+      {pendingDiscard && local?.status !== 'finished' && (
         <ConfirmDialog
           title="Discard this game?"
           body="The current game will be removed without saving to history."

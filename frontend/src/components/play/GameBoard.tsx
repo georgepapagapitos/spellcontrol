@@ -1239,8 +1239,36 @@ const CONFETTI_COUNT = 28;
  * parent only mounts it while `status === 'finished'`, and the keyed remount
  * on game id clears the dismissed state.
  */
+/**
+ * Per-game "already dismissed" memory for the win overlay. Component state
+ * alone replayed the confetti + recap on every remount — every return to
+ * /play, every tab switch back to Local — for as long as the finished game
+ * stayed on the table. sessionStorage is the right scope: it survives
+ * remounts and reloads within the tab and needs no cleanup (a stale key for a
+ * discarded game id is never read again).
+ */
+const CELEBRATION_SEEN_PREFIX = 'spellcontrol:win-celebration-seen:';
+function celebrationSeen(gameId: string): boolean {
+  try {
+    return sessionStorage.getItem(CELEBRATION_SEEN_PREFIX + gameId) === '1';
+  } catch {
+    return false;
+  }
+}
+function markCelebrationSeen(gameId: string): void {
+  try {
+    sessionStorage.setItem(CELEBRATION_SEEN_PREFIX + gameId, '1');
+  } catch {
+    /* private mode / quota — the in-memory flag still covers this mount */
+  }
+}
+
 function WinCelebration({ game, rotation = 0 }: { game: GameState; rotation?: number }) {
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissedState] = useState(() => celebrationSeen(game.id));
+  const setDismissed = (next: boolean) => {
+    if (next) markCelebrationSeen(game.id);
+    setDismissedState(next);
+  };
   const isDraw = game.winnerSeat == null;
   const winner = isDraw ? undefined : game.players.find((p) => p.seat === game.winnerSeat);
   const palette = useMemo(
