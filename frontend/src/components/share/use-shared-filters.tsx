@@ -53,6 +53,9 @@ function setMapFrom(cards: PublicCard[]): SetMap {
   return map;
 }
 
+/** Which facets the payload can answer — see `useSharedFilters`. */
+export type SharedFilterFacets = 'all' | 'card-facts';
+
 /**
  * Shared-view filter: the SAME `CollectionFiltersDialog` the authed collection
  * uses. The public share payload now carries every field the filter matches on
@@ -66,9 +69,21 @@ function setMapFrom(cards: PublicCard[]): SetMap {
  */
 export function useSharedFilters(
   cards: PublicCard[],
-  opts: { withPrice?: boolean } = {}
-): { filterNode: ReactNode; matches: (pc: PublicCard) => boolean } {
+  opts: { withPrice?: boolean; facets?: SharedFilterFacets } = {}
+): {
+  filterNode: ReactNode;
+  matches: (pc: PublicCard) => boolean;
+  /** Committed facet count — the same number the trigger's badge shows. */
+  activeCount: number;
+  /** Reset every committed facet (a page-level "reset" beside the search). */
+  clear: () => void;
+} {
   const withPrice = opts.withPrice ?? true;
+  // 'card-facts' is the friend-collection projection (name / type line /
+  // colors / mana value / rarity — no printing, no rules text, no price):
+  // every facet that would read a field it doesn't carry is hidden, so the
+  // dialog never offers a filter that silently matches nothing.
+  const cardFacts = opts.facets === 'card-facts';
 
   const [supertypeExpr, setSupertypeExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [typesExpr, setTypesExpr] = useState<ChipExpression>(EMPTY_EXPR);
@@ -94,7 +109,7 @@ export function useSharedFilters(
   const tagsReady = useCardTagsReady(!isExpressionEmpty(oracleTagExpr));
 
   const subtypeSuggestions = useMemo(() => subtypesFrom(cards), [cards]);
-  const setMap = useMemo(() => setMapFrom(cards), [cards]);
+  const setMap = useMemo(() => (cardFacts ? {} : setMapFrom(cards)), [cards, cardFacts]);
 
   const state: SharedFilterState = {
     supertypeExpr,
@@ -146,6 +161,27 @@ export function useSharedFilters(
 
   const activeCount = countActiveSharedFilters(state);
 
+  const clear = () => {
+    setSupertypeExpr(EMPTY_EXPR);
+    setTypesExpr(EMPTY_EXPR);
+    setSubtypeExpr(EMPTY_EXPR);
+    setColorFilter(new Set());
+    setColorMode('any');
+    setRarityExpr(EMPTY_EXPR);
+    setOracleExpr(EMPTY_EXPR);
+    setOracleTagExpr(EMPTY_EXPR);
+    setLegalityExpr(EMPTY_EXPR);
+    setLayoutExpr(EMPTY_EXPR);
+    setTreatmentExpr(EMPTY_EXPR);
+    setBorderExpr(EMPTY_EXPR);
+    setFinishExpr(EMPTY_EXPR);
+    setSetFilter(new Set());
+    setCmcMin(undefined);
+    setCmcMax(undefined);
+    setPriceMin(undefined);
+    setPriceMax(undefined);
+  };
+
   const filterNode = (
     <CollectionFiltersDialog
       supertypeExpr={supertypeExpr}
@@ -175,8 +211,17 @@ export function useSharedFilters(
       setTreatmentExpr={setTreatmentExpr}
       borderExpr={borderExpr}
       setBorderExpr={setBorderExpr}
-      finishExpr={finishExpr}
-      setFinishExpr={setFinishExpr}
+      {...(cardFacts ? {} : { finishExpr, setFinishExpr })}
+      {...(cardFacts
+        ? {
+            showOracleText: false,
+            showLegality: false,
+            showTreatment: false,
+            showBorder: false,
+            showLayout: false,
+            showSet: false,
+          }
+        : {})}
       setFilter={setFilter}
       setSetFilter={setSetFilter}
       setMap={setMap}
@@ -189,5 +234,5 @@ export function useSharedFilters(
     />
   );
 
-  return { filterNode, matches };
+  return { filterNode, matches, activeCount, clear };
 }

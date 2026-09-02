@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { filterFriendCollection } from './friend-collection-filter';
+import {
+  filterFriendCollection,
+  friendCardToPublic,
+  sortFriendCollection,
+} from './friend-collection-filter';
 import type { FriendCard } from './cube/pool';
 
 function card(overrides: Partial<FriendCard> & { name: string }): FriendCard {
@@ -106,5 +110,74 @@ describe('filterFriendCollection', () => {
 
   it('reports nothing for a fully answerable query', () => {
     expect(filterFriendCollection(cards, { query: 'bolt', colors: new Set() }).ignored).toEqual([]);
+  });
+});
+
+describe('friendCardToPublic', () => {
+  it('carries the card facts across and leaves every printing field empty', () => {
+    const pc = friendCardToPublic({
+      name: 'Sol Ring',
+      oracleId: 'sol',
+      colors: [],
+      colorIdentity: [],
+      cmc: 1,
+      typeLine: 'Artifact',
+      rarity: 'uncommon',
+    });
+    expect(pc).toMatchObject({
+      name: 'Sol Ring',
+      oracleId: 'sol',
+      cmc: 1,
+      typeLine: 'Artifact',
+      colors: [],
+      colorIdentity: [],
+      rarity: 'uncommon',
+      setCode: '',
+      purchasePrice: 0,
+    });
+  });
+});
+
+describe('sortFriendCollection', () => {
+  const sol = card({ name: 'Sol Ring', edhrecRank: 1, cmc: 1, rarity: 'uncommon' });
+  const bolt = card({ name: 'Lightning Bolt', edhrecRank: 50, cmc: 1, rarity: 'common' });
+  const wrath = card({ name: 'Wrath of God', edhrecRank: 20, cmc: 4, rarity: 'rare' });
+  const naya = card({ name: 'Naya Charm', cmc: 3, rarity: 'uncommon' });
+  const cards = [naya, bolt, wrath, sol];
+
+  it('popularity ascending is most-played first, unranked last either way', () => {
+    expect(sortFriendCollection(cards, 'popularity', 'asc').map((c) => c.name)).toEqual([
+      'Sol Ring',
+      'Wrath of God',
+      'Lightning Bolt',
+      'Naya Charm',
+    ]);
+    expect(sortFriendCollection(cards, 'popularity', 'desc').map((c) => c.name)).toEqual([
+      'Lightning Bolt',
+      'Wrath of God',
+      'Sol Ring',
+      'Naya Charm',
+    ]);
+  });
+
+  it('breaks mana-value and rarity ties by name and honours direction', () => {
+    expect(sortFriendCollection(cards, 'cmc', 'asc').map((c) => c.name)).toEqual([
+      'Lightning Bolt',
+      'Sol Ring',
+      'Naya Charm',
+      'Wrath of God',
+    ]);
+    expect(sortFriendCollection(cards, 'rarity', 'desc').map((c) => c.name)).toEqual([
+      'Wrath of God',
+      'Naya Charm',
+      'Sol Ring',
+      'Lightning Bolt',
+    ]);
+  });
+
+  it('does not mutate its input', () => {
+    const copy = [...cards];
+    sortFriendCollection(cards, 'name', 'asc');
+    expect(cards).toEqual(copy);
   });
 });

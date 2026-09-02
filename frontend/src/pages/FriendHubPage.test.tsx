@@ -169,7 +169,11 @@ describe('FriendHubPage — Collection browser', () => {
     await openCollectionTab();
     await screen.findByText('Sol Ring');
 
+    // Color lives inside the shared filter dialog now — the same door the
+    // authed collection and the public share views use.
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
     fireEvent.click(screen.getByRole('button', { name: 'Blue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
     expect(await screen.findByText(/no cards match your search or filters/i)).toBeTruthy();
     expect(screen.queryByText('Sol Ring')).toBeNull();
