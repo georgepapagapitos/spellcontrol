@@ -44,7 +44,20 @@ export type Mutation =
       clientRev?: number;
       cardGroup?: CardGroup;
     }
-  | { op: 'delete'; kind: EntityKind; id: string; cardGroup?: CardGroup };
+  | {
+      op: 'delete';
+      kind: EntityKind;
+      id: string;
+      cardGroup?: CardGroup;
+      /**
+       * The server rev the deleted row carried locally (E129). A card delete is
+       * hard-removed from IDB before the batch is built, so this is the only
+       * record that the copy WAS a confirmed member of its printing group —
+       * buildOutbound folds it back into the group's baseline. 0/absent means
+       * the row never reached the server and belongs in no baseline.
+       */
+      syncedRev?: number;
+    };
 
 export interface QueuedMutation {
   /** Auto-assigned by IDB. Strictly increasing. */

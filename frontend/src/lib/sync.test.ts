@@ -998,6 +998,80 @@ describe('card printing-group reject-stale (E129)', () => {
     ]);
   });
 
+  it('keeps a deleted confirmed copy in its group baseline (removing 1 of 2 copies must not read as stale)', async () => {
+    await estore.putMany('card', [
+      {
+        id: 'c-1',
+        data: { copyId: 'c-1', scryfallId: 'S', finish: 'nonfoil' },
+        rev: 5,
+        syncedRev: 5,
+        deletedAt: null,
+      },
+      {
+        id: 'c-2',
+        data: { copyId: 'c-2', scryfallId: 'S', finish: 'nonfoil' },
+        rev: 5,
+        syncedRev: 5,
+        deletedAt: null,
+      },
+    ]);
+    // Drop c-2 (a trade handed it over, or the user edited the quantity down).
+    await persistCardsState([
+      { copyId: 'c-1', scryfallId: 'S', finish: 'nonfoil' },
+    ] as unknown as Array<{ copyId: string; importId?: string }>);
+    const batch = await queue.peekBatch(10);
+    expect(batch[0].m).toMatchObject({ op: 'delete', id: 'c-2', syncedRev: 5 });
+
+    mockPush.mockResolvedValueOnce({
+      applied: [{ kind: 'card', id: 'c-2', rev: 6, deletedAt: 1 }],
+      cursor: 6,
+    });
+    await startSync('user-1');
+    const body = mockPush.mock.calls[0][0] as {
+      deletions: Array<{ kind: string; id: string }>;
+      cardGroupChecks?: Array<{ scryfallId: string; finish: string; baseline: string[] }>;
+    };
+    expect(body.deletions).toEqual([{ kind: 'card', id: 'c-2' }]);
+    // c-2 is already hard-deleted from live IDB, but the server still holds it:
+    // the baseline must describe what the client believed the server had —
+    // both copies — or the server sees [c-1] ≠ [c-1, c-2] and bounces the
+    // delete as a cross-device quantity conflict.
+    expect(body.cardGroupChecks).toEqual([
+      { scryfallId: 'S', finish: 'nonfoil', baseline: ['c-1', 'c-2'] },
+    ]);
+  });
+
+  it('leaves an unconfirmed (never-pushed) deleted copy out of the baseline', async () => {
+    await estore.putMany('card', [
+      {
+        id: 'c-1',
+        data: { copyId: 'c-1', scryfallId: 'S', finish: 'nonfoil' },
+        rev: 5,
+        syncedRev: 5,
+        deletedAt: null,
+      },
+      {
+        id: 'c-2',
+        data: { copyId: 'c-2', scryfallId: 'S', finish: 'nonfoil' },
+        rev: 0,
+        deletedAt: null,
+      },
+    ]);
+    await persistCardsState([
+      { copyId: 'c-1', scryfallId: 'S', finish: 'nonfoil' },
+    ] as unknown as Array<{ copyId: string; importId?: string }>);
+    const batch = await queue.peekBatch(10);
+    expect((batch[0].m as { syncedRev?: number }).syncedRev).toBeUndefined();
+    mockPush.mockResolvedValueOnce({ applied: [], cursor: 5 });
+    await startSync('user-1');
+    const body = mockPush.mock.calls[0][0] as {
+      cardGroupChecks?: Array<{ scryfallId: string; finish: string; baseline: string[] }>;
+    };
+    expect(body.cardGroupChecks).toEqual([
+      { scryfallId: 'S', finish: 'nonfoil', baseline: ['c-1'] },
+    ]);
+  });
+
   it('sends no cardGroupChecks when the batch has no cardinality-changing card op (back-compat)', async () => {
     await queue.enqueue({ op: 'upsert', kind: 'binder', id: 'b-1', data: { id: 'b-1' } });
     mockPush.mockResolvedValueOnce({
