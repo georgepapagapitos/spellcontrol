@@ -288,6 +288,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
       setPublication(pub);
       setPendingPublicConfirm(false);
       setNeedsDisplayName(false);
+      setAnnouncement('');
       if (shouldCelebrateFirstPublish(resourceId, pub.isFirstPublish)) {
         fireSealMoment(colorIdentity);
       }
