@@ -110,17 +110,29 @@ export function RulesPage() {
   const openRulesReference = useRulesReferenceStore((s) => s.open);
 
   if (!status) {
-    // Loading (undefined) renders the same as unavailable for a beat rather
-    // than flashing the ask box at someone who can't use it.
+    // Loading (undefined) shows a skeleton line rather than flashing the ask
+    // box at someone who can't use it. Unavailable (null) is one signal with
+    // several causes — no key on the backend, an account the feature isn't
+    // open to, signed out, or the status call failed — so the copy names
+    // none of them (STYLE_GUIDE § Voice, rule 3) and offers the door that is
+    // always open: the built-in Comprehensive Rules reference.
     return (
       <div className="rules-page">
         <RulesPageHeader />
-        {status === null && (
+        {status === undefined ? (
+          <div
+            className="deck-ai-skeleton"
+            role="status"
+            aria-live="polite"
+            aria-label="Checking whether the rules Q&A is available"
+          >
+            <span className="deck-ai-skeleton-line deck-ai-skeleton-line--short" />
+          </div>
+        ) : (
           <div className="rules-unavailable">
             <p>
-              AI features aren&rsquo;t available for this account yet — the rules Q&amp;A needs
-              them. The rules themselves are still here: look up a keyword, a glossary term, or a
-              rule number in the reference.
+              The AI rules Q&amp;A isn&rsquo;t available for you right now. The rules themselves are
+              still here: look up a keyword, a glossary term, or a rule number in the reference.
             </p>
             <button type="button" className="btn" onClick={openRulesReference}>
               Open the rules reference
