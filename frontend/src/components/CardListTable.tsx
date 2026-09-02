@@ -107,7 +107,13 @@ import {
 import { FilterChipsRow, type FilterChipDescriptor } from './shared/FilterChipsRow';
 import { ToolbarPopover } from './shared/ToolbarPopover';
 import { ViewPopoverPanel } from './shared/ViewPopoverPanel';
-import { buildEditedCards, isNoOpCardEdit, stackCopies, stackDetailMix } from '../lib/edit-card';
+import {
+  buildEditedCards,
+  isNoOpCardEdit,
+  stackCopies,
+  stackDetailMix,
+  printingStubFromEnriched,
+} from '../lib/edit-card';
 import { compileExpression, compileFilter, isExpressionEmpty } from '../lib/rules';
 
 interface Props {
@@ -2473,6 +2479,7 @@ export function CardListTable({
         <CardEditDialog
           cardName={editingCard.name}
           currentScryfallId={editingCard.scryfallId}
+          fallbackCard={printingStubFromEnriched(editingCard)}
           currentFinish={editingCard.finish ?? (editingCard.foil ? 'foil' : 'nonfoil')}
           quantity={editingSingle ? undefined : editingQty}
           singleCopy={editingSingle}

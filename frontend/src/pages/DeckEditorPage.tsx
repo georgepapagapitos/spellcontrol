@@ -3436,6 +3436,7 @@ export function DeckEditorPage() {
         <CardEditDialog
           cardName={editingSlot.card.name}
           currentScryfallId={editingSlot.card.id}
+          fallbackCard={editingSlot.card}
           // The slot's real finish is whatever physical copy it's bound to —
           // an unbound slot has no finish, so it reads as non-foil.
           currentFinish={(() => {

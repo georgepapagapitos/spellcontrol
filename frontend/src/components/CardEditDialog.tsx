@@ -141,6 +141,12 @@ interface Props {
     acquiredPrice?: string;
     priceOverride?: string;
   };
+  /**
+   * The copy's current printing, used only when the live printings lookup
+   * fails: quantity, condition, flags and prices can still be saved against
+   * it, so a Scryfall outage blocks a printing swap and nothing else.
+   */
+  fallbackCard?: ScryfallCard;
   onConfirm: (selection: PrintingSelection) => void;
   onCancel: () => void;
 }
@@ -207,6 +213,7 @@ export function CardEditDialog({
   resolveOwnedFinishes,
   details,
   mixedDetails,
+  fallbackCard,
   onConfirm,
   onCancel,
 }: Props) {
@@ -280,7 +287,15 @@ export function CardEditDialog({
       .then((cards) => {
         if (cancelled) return;
         setPrintings(cards);
-        setError(null);
+        // Every real card has at least its own printing; an empty list means
+        // the lookup degraded upstream (the backend returns [] when Scryfall
+        // is unreachable). Treat it as the outage it is so the fallback below
+        // keeps the rest of the dialog usable.
+        setError(
+          cards.length === 0
+            ? "Couldn't load other printings. You can still edit this copy; try again in a moment for a printing swap."
+            : null
+        );
         setLoadedFor(cardName);
       })
       .catch((err) => {
@@ -353,7 +368,12 @@ export function CardEditDialog({
     [filteredGroups]
   );
 
-  const selectedCard = printings.find((c) => c.id === selectedId) ?? null;
+  // With the lookup down, the current printing stands in so every non-printing
+  // edit still saves; the picker itself is hidden (nothing to pick from).
+  const printingsUnavailable = loadedFor === cardName && printings.length === 0;
+  const selectedCard =
+    printings.find((c) => c.id === selectedId) ??
+    (printingsUnavailable && fallbackCard?.id === currentScryfallId ? fallbackCard : null);
   const availableFinishes = useMemo<Finish[]>(() => {
     if (!selectedCard?.finishes || selectedCard.finishes.length === 0) return ['nonfoil'];
     return selectedCard.finishes.filter(
@@ -487,7 +507,7 @@ export function CardEditDialog({
           </div>
         )}
 
-        {!loading && !error && (
+        {!loading && (!error || (printingsUnavailable && selectedCard)) && (
           <div className="card-edit-layout">
             <div className="card-edit-preview">
               {selectedCard && frontImage(selectedCard) ? (
@@ -690,105 +710,107 @@ export function CardEditDialog({
               )}
             </div>
 
-            <div className="card-edit-sets">
-              <div className="card-edit-sets-header">
-                <div className="card-edit-sets-header-left">
-                  <span>
-                    {shownCount} printing{shownCount === 1 ? '' : 's'} across{' '}
-                    {filteredGroups.length} set{filteredGroups.length === 1 ? '' : 's'}
-                  </span>
-                  {hasAnyOwned && (
-                    <button
-                      type="button"
-                      className="card-edit-owned-toggle"
-                      aria-pressed={ownedOnly}
-                      onClick={() => setOwnedOnly((v) => !v)}
-                    >
-                      Owned only
-                    </button>
-                  )}
-                </div>
-                <SearchPill
-                  className="card-edit-set-search"
-                  placeholder="Filter sets…"
-                  value={search}
-                  onChange={setSearch}
-                  ariaLabel="Filter by set name or code"
-                />
-              </div>
-              <div className="card-edit-sets-list">
-                {filteredGroups.length === 0 && (
-                  <div className="card-edit-sets-empty">No sets match "{search}"</div>
-                )}
-                {filteredGroups.map((group) => (
-                  <div key={group.setCode} className="card-edit-set-group">
-                    <div className="card-edit-set-name">
-                      {setMap?.[group.setCode]?.iconSvgUri && (
-                        <img
-                          src={setMap[group.setCode].iconSvgUri}
-                          alt=""
-                          aria-hidden
-                          className="card-edit-set-icon"
-                        />
-                      )}
-                      <span>{group.setName}</span>{' '}
-                      <span className="card-edit-set-code">{group.setCode}</span>
-                    </div>
-                    {group.cards.map((card) => {
-                      const active = card.id === selectedId;
-                      const finishes: string[] = card.finishes ?? ['nonfoil'];
-                      const price = priceForFinish(
-                        card,
-                        finishes.includes('nonfoil') ? 'nonfoil' : (finishes[0] as Finish)
-                      );
-                      const availability = resolveAvailability?.(card);
-                      const availBadge =
-                        availability && availability !== 'unowned'
-                          ? AVAILABILITY_BADGE[availability]
-                          : null;
-                      const rowOwnedFinishes = resolveOwnedFinishes?.(card) ?? [];
-                      return (
-                        <button
-                          key={card.id}
-                          type="button"
-                          className={`card-edit-printing-row${active ? ' is-active' : ''}${card.id === currentScryfallId ? ' is-current' : ''}`}
-                          onClick={() => setSelectedId(card.id)}
-                          aria-pressed={active}
-                        >
-                          <span className="card-edit-printing-num">#{card.collector_number}</span>
-                          <span className="card-edit-printing-finishes">
-                            {finishes.map((f) => {
-                              const owned = rowOwnedFinishes.includes(f as Finish);
-                              return (
-                                <span
-                                  key={f}
-                                  className={`card-edit-finish-tag card-edit-finish-tag--${f}${owned ? ' is-owned' : ''}`}
-                                >
-                                  {f === 'nonfoil' ? 'NF' : f === 'foil' ? 'F' : 'E'}
-                                  {owned && <span className="sr-only"> (owned)</span>}
-                                </span>
-                              );
-                            })}
-                          </span>
-                          <span className="card-edit-printing-rarity">{card.rarity}</span>
-                          <span className="card-edit-printing-price">
-                            {formatMoney(price, { zeroAsDash: true })}
-                          </span>
-                          {availBadge && (
-                            <span className={`card-edit-avail-badge ${availBadge.className}`}>
-                              {availBadge.label}
-                            </span>
-                          )}
-                          {card.id === currentScryfallId && (
-                            <span className="card-edit-current-badge">current</span>
-                          )}
-                        </button>
-                      );
-                    })}
+            {!printingsUnavailable && (
+              <div className="card-edit-sets">
+                <div className="card-edit-sets-header">
+                  <div className="card-edit-sets-header-left">
+                    <span>
+                      {shownCount} printing{shownCount === 1 ? '' : 's'} across{' '}
+                      {filteredGroups.length} set{filteredGroups.length === 1 ? '' : 's'}
+                    </span>
+                    {hasAnyOwned && (
+                      <button
+                        type="button"
+                        className="card-edit-owned-toggle"
+                        aria-pressed={ownedOnly}
+                        onClick={() => setOwnedOnly((v) => !v)}
+                      >
+                        Owned only
+                      </button>
+                    )}
                   </div>
-                ))}
+                  <SearchPill
+                    className="card-edit-set-search"
+                    placeholder="Filter sets…"
+                    value={search}
+                    onChange={setSearch}
+                    ariaLabel="Filter by set name or code"
+                  />
+                </div>
+                <div className="card-edit-sets-list">
+                  {filteredGroups.length === 0 && (
+                    <div className="card-edit-sets-empty">No sets match "{search}"</div>
+                  )}
+                  {filteredGroups.map((group) => (
+                    <div key={group.setCode} className="card-edit-set-group">
+                      <div className="card-edit-set-name">
+                        {setMap?.[group.setCode]?.iconSvgUri && (
+                          <img
+                            src={setMap[group.setCode].iconSvgUri}
+                            alt=""
+                            aria-hidden
+                            className="card-edit-set-icon"
+                          />
+                        )}
+                        <span>{group.setName}</span>{' '}
+                        <span className="card-edit-set-code">{group.setCode}</span>
+                      </div>
+                      {group.cards.map((card) => {
+                        const active = card.id === selectedId;
+                        const finishes: string[] = card.finishes ?? ['nonfoil'];
+                        const price = priceForFinish(
+                          card,
+                          finishes.includes('nonfoil') ? 'nonfoil' : (finishes[0] as Finish)
+                        );
+                        const availability = resolveAvailability?.(card);
+                        const availBadge =
+                          availability && availability !== 'unowned'
+                            ? AVAILABILITY_BADGE[availability]
+                            : null;
+                        const rowOwnedFinishes = resolveOwnedFinishes?.(card) ?? [];
+                        return (
+                          <button
+                            key={card.id}
+                            type="button"
+                            className={`card-edit-printing-row${active ? ' is-active' : ''}${card.id === currentScryfallId ? ' is-current' : ''}`}
+                            onClick={() => setSelectedId(card.id)}
+                            aria-pressed={active}
+                          >
+                            <span className="card-edit-printing-num">#{card.collector_number}</span>
+                            <span className="card-edit-printing-finishes">
+                              {finishes.map((f) => {
+                                const owned = rowOwnedFinishes.includes(f as Finish);
+                                return (
+                                  <span
+                                    key={f}
+                                    className={`card-edit-finish-tag card-edit-finish-tag--${f}${owned ? ' is-owned' : ''}`}
+                                  >
+                                    {f === 'nonfoil' ? 'NF' : f === 'foil' ? 'F' : 'E'}
+                                    {owned && <span className="sr-only"> (owned)</span>}
+                                  </span>
+                                );
+                              })}
+                            </span>
+                            <span className="card-edit-printing-rarity">{card.rarity}</span>
+                            <span className="card-edit-printing-price">
+                              {formatMoney(price, { zeroAsDash: true })}
+                            </span>
+                            {availBadge && (
+                              <span className={`card-edit-avail-badge ${availBadge.className}`}>
+                                {availBadge.label}
+                              </span>
+                            )}
+                            {card.id === currentScryfallId && (
+                              <span className="card-edit-current-badge">current</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>

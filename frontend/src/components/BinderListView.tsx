@@ -12,7 +12,13 @@ import { CardPreview, type CardPreviewAction } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ColorPip } from './shared/ManaSymbol';
 import { CardRow } from './shared/CardRow';
-import { buildEditedCards, isNoOpCardEdit, stackCopies, stackDetailMix } from '../lib/edit-card';
+import {
+  buildEditedCards,
+  isNoOpCardEdit,
+  stackCopies,
+  stackDetailMix,
+  printingStubFromEnriched,
+} from '../lib/edit-card';
 import { useCollectionStore } from '../store/collection';
 import { useToastsStore } from '../store/toasts';
 import { SortPopover } from './SortPopover';
@@ -419,6 +425,7 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
         <CardEditDialog
           cardName={editingCard.name}
           currentScryfallId={editingCard.scryfallId}
+          fallbackCard={printingStubFromEnriched(editingCard)}
           currentFinish={editingCard.finish ?? (editingCard.foil ? 'foil' : 'nonfoil')}
           quantity={editingSingle ? undefined : editingQty}
           singleCopy={editingSingle}

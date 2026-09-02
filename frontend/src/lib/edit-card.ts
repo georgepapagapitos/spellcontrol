@@ -72,6 +72,48 @@ export function stackDetailMix(copies: EnrichedCard[]): {
  * `usd_foil`, then etched, then plain; nonfoil rows the reverse. Returns 0 when
  * no positive, finite price is present.
  */
+/**
+ * The current printing, rebuilt from the collection row, for when the live
+ * printings lookup fails. `buildEditedCards` re-stamps every printing field
+ * from the selected ScryfallCard, so a stub must round-trip the row's own
+ * values (images, set, prices, treatments) or a quantity edit during a
+ * Scryfall outage would blank them. Only ever used when the fetched list is
+ * unavailable — never offered as a swap target.
+ */
+export function printingStubFromEnriched(card: EnrichedCard): ScryfallCard {
+  const price = card.purchasePrice > 0 ? String(card.purchasePrice) : null;
+  const foil = card.finish ? card.finish !== 'nonfoil' : card.foil;
+  const images =
+    card.imageSmall || card.imageNormal || card.imageLarge
+      ? { small: card.imageSmall, normal: card.imageNormal, large: card.imageLarge }
+      : undefined;
+  return {
+    id: card.scryfallId,
+    name: card.name,
+    set: card.setCode.toLowerCase(),
+    set_name: card.setName,
+    collector_number: card.collectorNumber,
+    rarity: card.rarity,
+    finishes: card.finishes ?? [card.finish ?? (card.foil ? 'foil' : 'nonfoil')],
+    frame_effects: card.frameEffects,
+    full_art: card.fullArt,
+    border_color: card.borderColor,
+    layout: card.layout,
+    promo_types: card.promoTypes,
+    image_uris: images,
+    card_faces: card.imageNormalBack
+      ? [
+          { name: card.name, image_uris: images },
+          {
+            name: card.name,
+            image_uris: { normal: card.imageNormalBack, large: card.imageLargeBack },
+          },
+        ]
+      : undefined,
+    prices: foil ? { usd_foil: price, usd: null } : { usd: price, usd_foil: null },
+  } as ScryfallCard;
+}
+
 export function pickPrice(card: ScryfallCard, foil: boolean): number {
   const p = card.prices;
   if (!p) return 0;
