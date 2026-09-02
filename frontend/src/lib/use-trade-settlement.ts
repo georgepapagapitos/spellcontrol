@@ -66,7 +66,29 @@ export async function settleTrade(offer: TradeOffer): Promise<boolean> {
   }
 }
 
+/**
+ * Resolves once the collection store has loaded its local rows. Settling
+ * against a store that has not hydrated yet plans against an EMPTY collection:
+ * the cards owed read as "no longer owned", and the first write persists a
+ * one-card array whose diff against IDB tombstones everything else. That is
+ * not hypothetical — the proposer's device wiped a 49-card collection down to
+ * the single card it had just received, because the focus/mount sweep raced
+ * the IndexedDB hydrate and lost.
+ */
+export function waitForCollectionHydration(): Promise<void> {
+  if (!useCollectionStore.getState().hydrating) return Promise.resolve();
+  return new Promise((resolve) => {
+    const unsubscribe = useCollectionStore.subscribe((s) => {
+      if (!s.hydrating) {
+        unsubscribe();
+        resolve();
+      }
+    });
+  });
+}
+
 async function applySettlement(offer: TradeOffer): Promise<boolean> {
+  await waitForCollectionHydration();
   const store = useCollectionStore.getState();
   const plan = planSettlement(offer.give, offer.receive, store.cards);
 
@@ -193,6 +215,11 @@ export function useTradeSettlement(): void {
       if (running.current || cancelled) return;
       running.current = true;
       try {
+        // Never plan a settlement before the collection is in memory — see
+        // waitForCollectionHydration. Mount and window focus both fire this
+        // while a fresh page load is still reading IndexedDB.
+        await waitForCollectionHydration();
+        if (cancelled) return;
         // Re-list before EVERY settle rather than iterating one snapshot: a
         // settle takes real time (one lookup per received copy), and another
         // device can settle a later offer in that window — trusting the stale
