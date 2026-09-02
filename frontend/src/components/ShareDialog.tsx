@@ -494,6 +494,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
       onClose={onClose}
       labelledBy="share-dialog-title"
       dismissable={!working}
+      backdropClassName="modal-backdrop--sheet"
       className="choice-dialog share-dialog"
     >
       {sealMoment}

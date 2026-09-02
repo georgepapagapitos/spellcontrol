@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { App as CapacitorApp } from '@capacitor/app';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { focusInto, trapTab, useOverlayLayer } from '../lib/overlay-layer';
@@ -146,7 +147,13 @@ export function Modal({
     };
   }, [beginClose, dismissable, isTopmost]);
 
-  return (
+  // Portal to <body>. A modal rendered in place inherits any ancestor's
+  // containing block: a deck hero with `container-type: inline-size` traps
+  // `position: fixed`, so the share dialog opened clipped inside the hero
+  // with its backdrop dimming only that card (STYLE_GUIDE § Responsive:
+  // "Floating UI inside any panel must portal to <body>"). Every Modal is a
+  // top layer, so every Modal portals.
+  const node = (
     <div
       className={`modal-backdrop${backdropClassName ? ` ${backdropClassName}` : ''}${
         isClosing ? ' is-closing' : ''
@@ -169,4 +176,5 @@ export function Modal({
       </div>
     </div>
   );
+  return typeof document === 'undefined' ? node : createPortal(node, document.body);
 }

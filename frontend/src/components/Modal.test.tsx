@@ -54,13 +54,13 @@ describe('Modal focus management', () => {
   });
 
   it('applies an optional class to the backdrop layer', () => {
-    const { container } = render(
+    render(
       <Modal onClose={() => {}} label="Test" backdropClassName="modal-backdrop--over-sheet">
         <button type="button">x</button>
       </Modal>
     );
 
-    expect(container.querySelector('.modal-backdrop--over-sheet')).not.toBeNull();
+    expect(document.body.querySelector('.modal-backdrop--over-sheet')).not.toBeNull();
   });
 
   it('wraps Tab from the last focusable to the first, and Shift+Tab from first to last', () => {
@@ -150,12 +150,12 @@ describe('Modal exit animation (delayed unmount)', () => {
 
   it('backdrop click also goes through the delayed exit, and double-triggering closes once', () => {
     const onClose = vi.fn();
-    const { container } = render(
+    render(
       <Modal onClose={onClose} label="Test">
         <button type="button">x</button>
       </Modal>
     );
-    const backdrop = container.querySelector('.modal-backdrop') as HTMLElement;
+    const backdrop = document.body.querySelector('.modal-backdrop') as HTMLElement;
 
     fireEvent.click(backdrop);
     fireEvent.keyDown(document, { key: 'Escape' }); // second trigger mid-exit
@@ -179,13 +179,13 @@ describe('Modal exit animation (delayed unmount)', () => {
 
   it('ignores Escape and backdrop click when dismissable is false', () => {
     const onClose = vi.fn();
-    const { container } = render(
+    render(
       <Modal onClose={onClose} label="Test" dismissable={false}>
         <button type="button">x</button>
       </Modal>
     );
     fireEvent.keyDown(document, { key: 'Escape' });
-    fireEvent.click(container.querySelector('.modal-backdrop') as HTMLElement);
+    fireEvent.click(document.body.querySelector('.modal-backdrop') as HTMLElement);
     expect(onClose).not.toHaveBeenCalled();
   });
 
