@@ -55,6 +55,16 @@ primitives directory.
 
 ### Overlays
 
+- **Sheet-presented dialogs (Pattern B).** A dialog you _pick from_ — the
+  share audience, "send to a friend" — is a bottom sheet at ≤600px and a
+  centred dialog above, the way the OS share sheet behaves. Opt in with
+  `<Modal backdropClassName="modal-backdrop--sheet">`; the rule lives next to
+  Pattern A in `modals-dialogs.css`. Confirmations stay centred at every
+  width: an alert is read, a sheet is picked from. Every `<Modal>` portals to
+  `<body>` — rendered in place it inherits a `container-type` ancestor as its
+  containing block, which is how the share dialog once opened clipped inside
+  the deck hero with a backdrop that dimmed only that card.
+
 | Reach for                                         | Instead of                           | Ruling                                                                  |
 | ------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------- |
 | `components/Modal`                                | a bespoke `position: fixed` layer    | § Overlays — hand-rolled `.modal-backdrop` dialogs are the anti-pattern |
@@ -1376,6 +1386,23 @@ works for the bottom seat and is backwards for the top one.
   color identity (`pp-color-*`) → `paletteForSeat` inline vars. Use the
   `seatColorKey` helper rather than re-deriving the override/identity
   precedence.
+
+### Finished tables and lobbies
+
+- **The win recap is the end of the session.** Its actions are **Done**
+  (primary: leaves the table — clears a local one, leaves an online one) and
+  **Rematch** (re-seats the same players). The result is already in History
+  by then, so leaving a finished table never asks for confirmation; only an
+  in-progress game's Discard does. Tapping outside the recap still dismisses
+  to the final board for anyone who wants to keep looking; the game menu's
+  exit there is "Clear the table" / "Leave the table", never "Close" (the
+  sheet's ✕ owns that name). The recap's dismissal is remembered per game id
+  so it doesn't replay on every return to /play.
+- **A lobby names what it is waiting for.** Online games start on an
+  explicit host action (`start` is host-only server-side): the host sees a
+  **Start game** button in the header, everyone else sees "Waiting for
+  {host} to start". A bare "Waiting to start" beside a life counter that
+  already syncs read as stale state.
 
 ### Board modes — per-player data belongs on that player's seat
 
@@ -2926,15 +2953,15 @@ gated, so the test is what holds the line — mirror of `radius-tokens.test.ts`)
 - **44px touch targets** — see § Responsive for the `@media (pointer: coarse)`
   mechanism.
 - **The app shell owns the one `<main>`.** `Layout` renders `<main
-  className="app-main">`; a page inside it never adds another `<main>` (the
+className="app-main">`; a page inside it never adds another `<main>` (the
   deck editor once did, which axe reports as a nested duplicate landmark).
-  Pages rendered *outside* the shell (`/auth`, `/auth/choose-username`, the
+  Pages rendered _outside_ the shell (`/auth`, `/auth/choose-username`, the
   OAuth landing, share views, public profiles) must supply their own `<main>`
   so nothing sits outside a landmark.
 - **A loading skeleton that carries `aria-label="Loading"` needs
   `role="status"`.** A bare `<div aria-label>` is an ARIA error (the label is
   prohibited on a generic element) and screen readers drop it; `role="status"`
-  + `aria-busy="true"` is the pattern every skeleton uses.
+  - `aria-busy="true"` is the pattern every skeleton uses.
 - **Route-level axe gate.** `pages/a11y.routes.test.tsx` renders every route
   inside the real shell at phone width (390px, coarse pointer) with stores
   seeded and the network guarded, and fails on any axe violation. Only
