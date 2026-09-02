@@ -2996,7 +2996,7 @@ export function DeckEditorPage() {
       </div>
 
       <div className="deck-editor-layout">
-        <main className="deck-editor-main">
+        <div className="deck-editor-main">
           {/* Deck re-sync discovery hint — hidden while the add-cards sheet is
               open so it can never be on screen at the same time as the
               binder-location hint inside that sheet (at most one wedge-
@@ -3289,7 +3289,7 @@ export function DeckEditorPage() {
               ) : undefined
             }
           />
-        </main>
+        </div>
       </div>
 
       {/* Test hand — a breakpoint-aware overlay (bottom sheet on mobile,

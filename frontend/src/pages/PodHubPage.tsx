@@ -432,7 +432,7 @@ export function PodHubPage() {
     return (
       <div className="pod-hub">
         <BackLink />
-        <div className="pod-hub-skeleton" aria-label="Loading" aria-busy="true">
+        <div className="pod-hub-skeleton" role="status" aria-label="Loading" aria-busy="true">
           <span className="pod-hub-skeleton-bar is-title" />
           <span className="pod-hub-skeleton-bar" />
           <span className="pod-hub-skeleton-bar" />
@@ -589,7 +589,12 @@ export function PodHubPage() {
             <div className="deck-stats-panel">
               <h2 className="deck-stats-panel-title">Shared history</h2>
               {gamesFetch.status === 'loading' ? (
-                <div className="pod-hub-table-skeleton" aria-label="Loading" aria-busy="true" />
+                <div
+                  className="pod-hub-table-skeleton"
+                  role="status"
+                  aria-label="Loading"
+                  aria-busy="true"
+                />
               ) : gamesFetch.status === 'error' ? (
                 <p className="friends-error" role="alert">
                   <span>{gamesFetch.message}</span>
@@ -634,7 +639,12 @@ export function PodHubPage() {
             <div className="deck-stats-panel">
               <h2 className="deck-stats-panel-title">Leaderboard</h2>
               {leaderboardFetch.status === 'loading' ? (
-                <div className="pod-hub-table-skeleton" aria-label="Loading" aria-busy="true" />
+                <div
+                  className="pod-hub-table-skeleton"
+                  role="status"
+                  aria-label="Loading"
+                  aria-busy="true"
+                />
               ) : leaderboardFetch.status === 'error' ? (
                 <p className="friends-error" role="alert">
                   <span>{leaderboardFetch.message}</span>

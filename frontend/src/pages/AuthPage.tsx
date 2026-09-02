@@ -170,7 +170,7 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="auth-page">
+    <main className="auth-page">
       <div className="auth-card">
         <div className="auth-brand-hero" aria-hidden="true">
           <BrandMark size={48} motion="idle" />
@@ -351,6 +351,6 @@ export default function AuthPage() {
           Continue without an account
         </button>
       </div>
-    </div>
+    </main>
   );
 }

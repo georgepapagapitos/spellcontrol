@@ -64,7 +64,7 @@ export function HomeCard({
       </div>
       <div className="home-card-body">
         {loading ? (
-          <div className="home-card-skeleton" aria-label="Loading" aria-busy="true">
+          <div className="home-card-skeleton" role="status" aria-label="Loading" aria-busy="true">
             <span className="home-card-skeleton-bar" />
             <span className="home-card-skeleton-bar" />
             <span className="home-card-skeleton-bar" />

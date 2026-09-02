@@ -36,7 +36,7 @@ function PodMemberCount({ count }: { count: number }) {
 
 function PodsSkeleton() {
   return (
-    <div className="pods-skeleton" aria-label="Loading" aria-busy="true">
+    <div className="pods-skeleton" role="status" aria-label="Loading" aria-busy="true">
       <span className="pods-skeleton-bar" />
       <span className="pods-skeleton-bar" />
       <span className="pods-skeleton-bar" />

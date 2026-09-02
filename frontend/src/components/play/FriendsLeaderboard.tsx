@@ -60,7 +60,7 @@ export function FriendsLeaderboard() {
     return (
       <section className="play-records">
         <h2 className="play-records-title">Friends leaderboard</h2>
-        <div className="leaderboard-skeleton" aria-label="Loading" aria-busy="true" />
+        <div className="leaderboard-skeleton" role="status" aria-label="Loading" aria-busy="true" />
       </section>
     );
   }
@@ -175,7 +175,9 @@ function H2HDetail({ friendId }: { friendId: string }) {
     );
   }
   if (!data) {
-    return <div className="leaderboard-skeleton" aria-label="Loading" aria-busy="true" />;
+    return (
+      <div className="leaderboard-skeleton" role="status" aria-label="Loading" aria-busy="true" />
+    );
   }
 
   return <H2HSummary data={data} />;

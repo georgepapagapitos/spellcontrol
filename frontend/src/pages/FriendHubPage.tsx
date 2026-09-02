@@ -72,7 +72,7 @@ const KIND_ORDER: ShareKind[] = ['deck', 'collection', 'cube', 'binder', 'list']
 
 function HubSkeleton() {
   return (
-    <div className="friends-skeleton" aria-label="Loading" aria-busy="true">
+    <div className="friends-skeleton" role="status" aria-label="Loading" aria-busy="true">
       <span className="friends-skeleton-bar is-row" />
       <span className="friends-skeleton-bar is-row" />
       <span className="friends-skeleton-bar is-row" />

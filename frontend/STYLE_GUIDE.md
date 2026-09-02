@@ -2925,6 +2925,23 @@ gated, so the test is what holds the line — mirror of `radius-tokens.test.ts`)
   behavior change for mouse/sighted users.
 - **44px touch targets** — see § Responsive for the `@media (pointer: coarse)`
   mechanism.
+- **The app shell owns the one `<main>`.** `Layout` renders `<main
+  className="app-main">`; a page inside it never adds another `<main>` (the
+  deck editor once did, which axe reports as a nested duplicate landmark).
+  Pages rendered *outside* the shell (`/auth`, `/auth/choose-username`, the
+  OAuth landing, share views, public profiles) must supply their own `<main>`
+  so nothing sits outside a landmark.
+- **A loading skeleton that carries `aria-label="Loading"` needs
+  `role="status"`.** A bare `<div aria-label>` is an ARIA error (the label is
+  prohibited on a generic element) and screen readers drop it; `role="status"`
+  + `aria-busy="true"` is the pattern every skeleton uses.
+- **Route-level axe gate.** `pages/a11y.routes.test.tsx` renders every route
+  inside the real shell at phone width (390px, coarse pointer) with stores
+  seeded and the network guarded, and fails on any axe violation. Only
+  `color-contrast` is off (happy-dom computes no styles — contrast is a
+  browser-screenshot check). Add a new route there when you add a page; an
+  environment-only false positive goes in that route's `allow` list with its
+  reason, never a global rule switch.
 
 ## CSS file layout
 

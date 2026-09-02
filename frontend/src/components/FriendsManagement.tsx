@@ -53,7 +53,7 @@ function friendStatusLabel(status: FriendUser['friendStatus']): string {
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 function FriendsSkeleton() {
   return (
-    <div className="friends-skeleton" aria-label="Loading" aria-busy="true">
+    <div className="friends-skeleton" role="status" aria-label="Loading" aria-busy="true">
       <span className="friends-skeleton-bar is-row" />
       <span className="friends-skeleton-bar is-row" />
       <span className="friends-skeleton-bar is-row" />
