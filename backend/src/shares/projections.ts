@@ -248,8 +248,10 @@ const FILTERABLE_FORMATS = [
   'pauper',
 ] as const;
 
-/** Trim a card's legalities to the filterable formats (non-empty string values). */
-function pickLegalities(raw: unknown): Record<string, string> | undefined {
+/** Trim a card's legalities to the filterable formats (non-empty string values).
+ *  Shared with the friend-collection projection (routes/friends.ts) so both
+ *  public card surfaces expose the same format set. */
+export function pickLegalities(raw: unknown): Record<string, string> | undefined {
   const rec = asRecord(raw);
   if (!rec) return undefined;
   const out: Record<string, string> = {};

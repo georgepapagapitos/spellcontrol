@@ -1,6 +1,7 @@
 /* PodsIndexPage — /pods: your pods, pending invites, and the create flow.
    Reuses .binder-hero (page title), .empty-state (empty state),
-   .friends-signin-prompt (guest gate), .friends-error(-retry) (load error),
+   .friends-signin-prompt (guest gate) and .friends-error(-retry) (load error)
+   from styles/social-shared.css,
    and .deck-bento (the "Your pods" tile grid's responsive column count) —
    this file only adds what none of those shared families already cover.
    Pods have no art/color by design (routes/pods.ts) — the owner's UserAvatar

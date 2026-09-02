@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { fetchAiStatus, setAiOptIn, type AiStatus } from './ai-review';
+import { useAuth } from '../store/auth';
 
 /**
  * One shared AI status for the whole page (T102).
@@ -16,6 +17,9 @@ type Snapshot = AiStatus | null | undefined;
 
 let snapshot: Snapshot;
 let inFlight: Promise<void> | null = null;
+// Bumped by every reset so a fetch started for the previous identity can't
+// land its answer on the new one.
+let generation = 0;
 const listeners = new Set<() => void>();
 
 function emit(next: Snapshot) {
@@ -25,12 +29,55 @@ function emit(next: Snapshot) {
 
 function load() {
   if (inFlight) return;
+  const gen = generation;
   inFlight = fetchAiStatus()
-    .then((s) => emit(s))
-    .catch(() => emit(null))
+    .then((s) => {
+      if (gen === generation) emit(s);
+    })
+    .catch(() => {
+      if (gen === generation) emit(null);
+    })
     .finally(() => {
-      inFlight = null;
+      if (gen === generation) inFlight = null;
     });
+}
+
+/**
+ * Forget the cached status and, if anything is watching, fetch it again.
+ * Availability is a property of WHO is asking — the backend answers 404 to
+ * a guest or to an account the feature isn't open to, and a real status to
+ * an account it is — so a snapshot taken before a sign-in or sign-out is
+ * about someone else. Without this, a guest who signed in kept every AI
+ * door hidden until a hard reload, and someone who signed out kept doors
+ * that answered 401.
+ */
+export function resetAiStatus(): void {
+  generation += 1;
+  inFlight = null;
+  emit(undefined);
+  if (listeners.size > 0) load();
+}
+
+/** `authed:<id>` / `guest`; undefined while bootstrap hasn't decided yet. */
+function identityOf(state: { status: string; user: { id: string } | null }): string | undefined {
+  if (state.status === 'authed') return `authed:${state.user?.id ?? ''}`;
+  if (state.status === 'guest') return 'guest';
+  return undefined;
+}
+
+// A status fetched during bootstrap already carried the session cookie, so
+// the first resolution (undefined → something) needs no refetch; only a
+// change between two decided identities does. Guarded because several page
+// tests replace the auth store with a bare function.
+if (typeof useAuth.subscribe === 'function') {
+  let identity = identityOf(useAuth.getState());
+  useAuth.subscribe((state) => {
+    const next = identityOf(state);
+    if (next === undefined || next === identity) return;
+    const wasDecided = identity !== undefined;
+    identity = next;
+    if (wasDecided) resetAiStatus();
+  });
 }
 
 function subscribe(fn: () => void): () => void {
@@ -66,6 +113,7 @@ export async function grantAiConsent(): Promise<void> {
 
 /** Test seam — reset the module store between cases. */
 export function __resetAiStatus(): void {
+  generation += 1;
   snapshot = undefined;
   inFlight = null;
 }

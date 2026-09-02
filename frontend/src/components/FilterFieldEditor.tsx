@@ -165,6 +165,8 @@ export interface FilterFieldEditorProps {
   showLegality?: boolean;
   showTreatment?: boolean;
   showBorder?: boolean;
+  /** Same idea for Layout — a payload that carries no `layout` field hides the row. */
+  showLayout?: boolean;
   /**
    * Markup variant for the row wrappers:
    * - 'binder'  (default) — uses `rule-row` / `rule-label` classes from
@@ -374,6 +376,7 @@ export function FilterFieldEditor({
   showLegality = true,
   showTreatment = true,
   showBorder = true,
+  showLayout = true,
   variant = 'binder',
 }: FilterFieldEditorProps) {
   const isBinder = variant === 'binder';
@@ -461,16 +464,18 @@ export function FilterFieldEditor({
       )}
 
       {/* Layout */}
-      <Row label="Layout" fieldId="layouts">
-        <ChipExpressionBuilder
-          options={SHARED_LAYOUT_OPTIONS}
-          value={value.layouts ?? EMPTY_EXPR}
-          onChange={(next) => onPatch({ layouts: next })}
-          defaultJoiner="OR"
-          lockJoiner="OR"
-          placeholder="Add layout…"
-        />
-      </Row>
+      {showLayout && (
+        <Row label="Layout" fieldId="layouts">
+          <ChipExpressionBuilder
+            options={SHARED_LAYOUT_OPTIONS}
+            value={value.layouts ?? EMPTY_EXPR}
+            onChange={(next) => onPatch({ layouts: next })}
+            defaultJoiner="OR"
+            lockJoiner="OR"
+            placeholder="Add layout…"
+          />
+        </Row>
+      )}
 
       {/* Treatment */}
       {showTreatment && (

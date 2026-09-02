@@ -33,6 +33,10 @@
 }
 
 .rules-unavailable {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
   margin: 0;
   padding: var(--space-3);
   border: 1px solid var(--border);
@@ -40,6 +44,10 @@
   background: var(--surface-raised);
   font-size: var(--text-sm);
   color: var(--text-secondary);
+}
+
+.rules-unavailable p {
+  margin: 0;
 }
 
 /* ── Ask box ── */

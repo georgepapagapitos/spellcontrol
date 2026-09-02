@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildFriendSearch } from './friend-search';
+import { buildFriendSearch, friendPayloadCaps } from './friend-search';
 import type { FriendCard } from './cube/pool';
 
 function card(overrides: Partial<FriendCard> = {}): FriendCard {
@@ -114,5 +114,42 @@ describe('buildFriendSearch — unanswerable clauses are stripped and reported',
 
   it('reports nothing when every clause is answerable', () => {
     expect(buildFriendSearch('t:creature cmc<=2').ignored).toEqual([]);
+  });
+});
+
+describe('buildFriendSearch — an enriched payload answers o: and f:', () => {
+  const rhystic = card({
+    name: 'Rhystic Study',
+    oracleId: 'o-rhystic',
+    colors: ['U'],
+    colorIdentity: ['U'],
+    cmc: 3,
+    typeLine: 'Enchantment',
+    oracleText:
+      'Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.',
+    legalities: { commander: 'legal', modern: 'not_legal' },
+  });
+
+  it('probes the payload for the optional facts', () => {
+    expect(friendPayloadCaps([forest, rhystic])).toEqual({ oracleText: true, legalities: true });
+    expect(friendPayloadCaps([forest])).toEqual({ oracleText: false, legalities: false });
+  });
+
+  it('answers o: and f: when the payload carries them, and still strips keyword:', () => {
+    const caps = friendPayloadCaps([rhystic]);
+    const draw = buildFriendSearch('o:draw', undefined, caps);
+    expect(draw.ignored).toEqual([]);
+    expect(draw.match(rhystic)).toBe(true);
+    expect(draw.match(forest)).toBe(false);
+
+    const cmdr = buildFriendSearch('f:commander keyword:flying', undefined, caps);
+    expect(cmdr.ignored).toEqual(['keyword:']);
+    expect(cmdr.match(rhystic)).toBe(true);
+    expect(buildFriendSearch('f:modern', undefined, caps).match(rhystic)).toBe(false);
+  });
+
+  it('keeps stripping o: for a payload that predates the enrichment', () => {
+    const s = buildFriendSearch('o:draw', undefined, friendPayloadCaps([forest]));
+    expect(s.ignored).toEqual(['o:']);
   });
 });

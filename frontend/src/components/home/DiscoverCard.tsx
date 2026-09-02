@@ -57,7 +57,7 @@ export function DiscoverCard() {
     listDiscoverDecks({ sort: 'newest', page: 1 })
       .then((result) => setDecks(result.decks))
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Failed to load public decks.');
+        setError(err instanceof Error ? err.message : "Couldn't load public decks.");
       });
   }, []);
 

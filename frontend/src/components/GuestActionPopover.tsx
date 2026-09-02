@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { X } from 'lucide-react';
+import './GuestActionPopover.css';
 import { useMenuKeyboard } from '../lib/use-menu-keyboard';
 import { computePopoverPlacement, getSafeViewport } from '../lib/popover-placement';
 

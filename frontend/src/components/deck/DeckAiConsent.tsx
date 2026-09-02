@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Sparkles, X } from 'lucide-react';
 import { grantAiConsent } from '../../lib/use-ai-status';
+import './DeckAiConsent.css';
 
 /** Shared across every AI surface — dismissing anywhere dismisses everywhere. */
 const INVITE_DISMISSED_KEY = 'sc-ai-invite-dismissed';

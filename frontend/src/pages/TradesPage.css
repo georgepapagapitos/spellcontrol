@@ -1,8 +1,8 @@
 /* TradesPage — /trades: every offer the viewer is party to, grouped by what
    they have to do about it. Reuses .binder-hero (page title), .empty-state
    (+ EmptyStateMark) for the page-level empty, .friends-signin-prompt (guest
-   gate) and .friends-error(-retry) (load error) — the same shared families
-   PodsIndexPage.css leans on. The rows themselves are TradeOfferList, which
+   gate) and .friends-error(-retry) (load error) — the shared social families
+   in styles/social-shared.css that PodsIndexPage.css leans on too. The rows themselves are TradeOfferList, which
    owns its own styles; this file only adds the page shell and the group
    headings. */
 

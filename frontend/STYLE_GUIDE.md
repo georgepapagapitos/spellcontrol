@@ -583,7 +583,7 @@ against **Folio** or **Grimoire**, both still selectable sets — where one name
 a face, read the role.
 
 **The default set is chosen for legibility, not for taste.** A default is what
-every reader gets *before they know a picker exists*, so it is the one set that
+every reader gets _before they know a picker exists_, so it is the one set that
 has to work for someone who did not choose it. Grimoire — whose own registry
 hint reads "Gothic and heavy. Loud on purpose" — is the least legible set we
 ship, so it is an opt-in a click away in Settings → Appearance rather than the
@@ -686,7 +686,6 @@ signals rather than shipping an in-app duplicate of each one.
   so this is not a rescue — it honours a reader who asked for less subtlety.
 
   Three rules for that block, all load-bearing:
-
   1. **Re-point at stronger siblings; never declare new colours.** Each theme
      defines its own `--text-secondary` / `--border-strong`, so one block covers
      all ten with correct hues, and a new theme is covered the day it lands.
@@ -698,7 +697,7 @@ signals rather than shipping an in-app duplicate of each one.
      only reason it wins. A media query adds no specificity.
 
   `themes-contrast.test.ts` pins that secondary is at least as strong as muted
-  in every theme — otherwise "more contrast" could mean *less* in some theme,
+  in every theme — otherwise "more contrast" could mean _less_ in some theme,
   and nothing else would catch it, since the block declares no colour of its own.
 
 ## App chrome — leather & divider tabs (T53)
@@ -1005,8 +1004,13 @@ colors"). One combine-operator language app-wide — the pill is the same one
 accent-filled variant and OR the muted one.
 
 - **Placement:** dialog/popover sections put it right-aligned in the section
-  label row (`*-section-label--split`); inline pip rows (friend hub) append
-  it after the pips.
+  label row (`*-section-label--split`). There is no longer an inline pip row
+  anywhere: the friend hub used to append the toggle after a bare pip row,
+  which spread the pips across a phone and squeezed the hint into a
+  three-line sliver at the edge. It now mounts the same `CollectionFiltersDialog`
+  the collection and the public share views use (`useSharedFilters` with the
+  `card-facts` facet set), so every card-filtering surface shares one filter
+  door, one pip row, and one AND/OR placement.
 - **The hint is mandatory.** Between two value chips the operator explains
   itself; standing alone it doesn't — never render the bare pill without the
   hint text.
@@ -1258,14 +1262,14 @@ Any future line/trend chart follows the same specs (horizontal bars stay on
   ≥1024px modal is `width: 480px` — right for a short confirm, cramped for a
   working dialog (AI prose + candidate rows). Override per-sheet with a
   two-class rule (`.card-picker-sheet.deck-size-prompt { width: min(42rem,
-  calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
+calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
   regardless of import order, same cascade rule as the Home bento overrides.
   Swept fleet-wide 2026-08-19; the current widths, for consistency when
   adding a sibling: Add cards 900 · Test hand 1180 · CardGroup 960 ·
   NewArrivals / PullList 720 · ConflictPanel 720 · DeckSizePrompt 42rem ·
   BuildReport / BetweenYourDecks / DeckTokens 640 · BuyList / DeckPrimer
   ≈560. A new overlay whose body is rows, a diff, images, or anything you
-  *work in* picks from this table — it does not ship on the 480px default.
+  _work in_ picks from this table — it does not ship on the 480px default.
   Playtest's sheets are on it too: opening hand 1180 · zone viewer 900 ·
   scry 720 · token creator 640 · stats 600; its three short pickers
   (designations, life adjust, takeback mode) stay on the 480px default
@@ -1342,10 +1346,11 @@ column (`.play-setup-form-join`, 36rem) with a large mono code input. Seat
 rows show the picked deck's color identity as WUBRG-ordered `ColorPip`s
 (`.play-seat-ci`, ≥600px — game information, not decoration). The lobby's
 join-code banner is the table ticket: brass edge + `--brand-seal-gold` code
-+ a Copy button (white focus ring — fixed dark ground). The online seat
-panel (`.ogv-you`) grids at ≥1024px: life numeral display-size left, tools
-rowed right. The Play-tab in-progress dot (`.play-tab-dot`) is a raised
-superscript badge, spaced off the label.
+
+- a Copy button (white focus ring — fixed dark ground). The online seat
+  panel (`.ogv-you`) grids at ≥1024px: life numeral display-size left, tools
+  rowed right. The Play-tab in-progress dot (`.play-tab-dot`) is a raised
+  superscript badge, spaced off the label.
 
 ### Game-board panel covers — gestures are panel-local, never screen-local
 
@@ -1702,7 +1707,7 @@ to anything new that edits a predicate.
   nothing on screen suggesting that did anything, while the ▲/▼ buttons sitting
   where a direction control belongs did reordering.
 - **Label a direction with its EFFECT, not `asc`/`desc`.** Ascending release
-  date is newest-*last*; ascending EDHREC rank is most-popular-*first*;
+  date is newest-_last_; ascending EDHREC rank is most-popular-_first_;
   ascending price is cheapest-first. One word, three mental models. Each field
   carries both phrasings in `SORT_FIELDS.dirLabels` ("Newest first", "A → Z",
   "Most played") — resolve with `sortDirectionLabel()`. A surface whose sort
@@ -1719,7 +1724,7 @@ to anything new that edits a predicate.
 #### The compact toolbar pill (E250)
 
 Where sort is one **pill in a toolbar** rather than a row editor, the rulings
-above still hold — the direction control just moves *inside the menu*, because
+above still hold — the direction control just moves _inside the menu_, because
 these rows are width-budgeted and CI-guarded (§ Toolbars & action rows). Use
 **`components/SortMenu.tsx`**; don't re-assemble it from `SelectMenu` +
 `SortDirArrow`. Seven toolbars each carried that same boilerplate, and the
@@ -1742,7 +1747,7 @@ arrow they rendered was a passive status glyph you had no way to act on.
   flips direction when handed the field it is on, so the action needs no new
   callback anywhere — and the old re-select-to-flip gesture keeps working. It
   was never wrong, only invisible; leave it in.
-- **The footer joins the arrow-key cycle, not Tab.** Tab *closes* this popover
+- **The footer joins the arrow-key cycle, not Tab.** Tab _closes_ this popover
   family (`useMenuKeyboard`), so anything focusable below the list would be
   pointer-only otherwise. That's what `SelectMenu`'s `footer` prop wires up.
   The prop is opt-in: `SelectMenu` is also the group-by, tag and rule-field
@@ -2850,9 +2855,10 @@ gated, so the test is what holds the line — mirror of `radius-tokens.test.ts`)
   list gained `card` in the sweep-3 remediation — that one word surfaced 26
   latent keyboard-invisible tiles/rows app-wide, so when naming a new
   interactive class, prefer a keyword the guard already knows. **Known blind
-  spot:** the guard pairs rings against `:hover`, so a control with *neither*
+  spot:** the guard pairs rings against `:hover`, so a control with _neither_
   hover nor focus-visible is invisible to it (bit the playtest zones drawer);
   a control with no hover still needs its ring.
+
 - **Icon-only controls carry a hover treatment like their row siblings.** A
   stepper `+`/`−` or remove `×` has no text affordance at rest; one control
   in a row with hover feedback and its sibling without reads as "this one is
@@ -3141,7 +3147,7 @@ if the file weren't there (same trap as the coarse-pointer floor):
 - **Row-stretch stays; the slack goes INSIDE the card, absorbed by the body.**
   An `align-items: start` pass shipped briefly (#1679) and was rejected on
   sight ("weird spacing… broken up look"): grid rows are still tracks, so a
-  short card's slack rendered as a floating gap *outside* its border against
+  short card's slack rendered as a floating gap _outside_ its border against
   its row-mates — worse than the stretch it replaced. The settled ruling:
   cards in a row share one height (the board's default stretch), and
   `.home-card-body { flex: 1 1 auto }` absorbs the difference between the

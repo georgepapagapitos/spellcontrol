@@ -391,7 +391,21 @@ export function CollectionCombosPage() {
             </p>
           )}
 
-          {error && <p className="deck-combos-empty deck-combos-error">{error}</p>}
+          {/* A load failure is retryable and says so — the raw transport error
+              ("Request failed: HTTP 502") named nothing the reader could act on. */}
+          {error && (
+            <div className="deck-combos-empty" role="alert">
+              <p className="deck-combos-error">
+                Couldn&rsquo;t check your collection against the combo database.
+              </p>
+              <p className="deck-combos-empty-secondary">
+                Check your connection and try again.{' '}
+                <button type="button" className="btn-link" onClick={refetch} disabled={loading}>
+                  {loading ? 'Retrying…' : 'Retry'}
+                </button>
+              </p>
+            </div>
+          )}
 
           {(loading || searchPending) && matches.length === 0 && (
             <p className="deck-combos-empty" role="status" aria-live="polite">

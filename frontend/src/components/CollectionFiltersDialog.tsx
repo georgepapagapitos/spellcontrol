@@ -119,6 +119,11 @@ interface Props {
   showLegality?: boolean;
   showTreatment?: boolean;
   showBorder?: boolean;
+  /** Layout and Set need `layout` / `setCode` on the card. A friend's
+   *  collection payload carries neither (public card facts only), so its
+   *  browser hides both rows rather than offering facets that match nothing. */
+  showLayout?: boolean;
+  showSet?: boolean;
 
   setFilter: Set<string>;
   setSetFilter: (next: Set<string>) => void;
@@ -272,6 +277,8 @@ function DialogBody({
   showLegality = true,
   showTreatment = true,
   showBorder = true,
+  showLayout = true,
+  showSet = true,
   setFilter,
   setSetFilter,
   setMap,
@@ -621,6 +628,7 @@ function DialogBody({
           showLegality={showLegality}
           showTreatment={showTreatment}
           showBorder={showBorder}
+          showLayout={showLayout}
           variant="dialog"
         />
 
@@ -695,10 +703,12 @@ function DialogBody({
           </section>
         )}
 
-        <section className="collection-filters-section">
-          <div className="collection-filters-section-label">Set</div>
-          <SetFilterPicker setMap={setMap} value={draftSet} onChange={setDraftSet} />
-        </section>
+        {showSet && (
+          <section className="collection-filters-section">
+            <div className="collection-filters-section-label">Set</div>
+            <SetFilterPicker setMap={setMap} value={draftSet} onChange={setDraftSet} />
+          </section>
+        )}
 
         {showSurplus && (
           <section className="collection-filters-section">

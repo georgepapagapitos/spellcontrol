@@ -6,7 +6,9 @@ import { eq } from 'drizzle-orm';
 import { getScryfallCache } from '../scryfall-cache';
 import { areFriends } from '../friends/relations';
 import { resolveShareLabels } from '../shares/labels';
-import { asRecord } from '../shares/projections';
+import { asRecord, pickLegalities } from '../shares/projections';
+import { gzip } from 'node:zlib';
+import { logger } from '../logger';
 import { testAwareLimiter } from '../route-utils';
 
 export const friendsRouter: Router = Router();
@@ -499,6 +501,15 @@ interface FriendCard {
   /** One character; makes `r:` real instead of degrading to match-anything. */
   rarity?: string;
   edhrecRank?: number;
+  /**
+   * Card-level facts, not copy-level: the rules text and the card's legality
+   * in the filterable formats (same trim as the public share projection).
+   * These are what the friend browser's Oracle text / Format facets and its
+   * `o:` / `f:` search read. Still nothing about the copy — no printing, no
+   * finish, no price — so the contents-yes-value-no contract holds.
+   */
+  oracleText?: string;
+  legalities?: Record<string, string>;
 }
 
 interface FriendCollectionResponse {
@@ -586,9 +597,16 @@ friendsRouter.get(
       deduped.push({ data: d, scryfallId });
     }
 
-    // 5. Bulk-fetch Scryfall cache for rank fallback (only for cards missing edhrecRank)
+    // 5. Bulk-fetch Scryfall cache for fallback — only the cards whose stored
+    //    JSON is missing something the projection wants.
     const scryfallIds = deduped
-      .filter((e) => typeof e.data.edhrecRank !== 'number' && e.scryfallId)
+      .filter(
+        (e) =>
+          e.scryfallId &&
+          (typeof e.data.edhrecRank !== 'number' ||
+            typeof e.data.oracleText !== 'string' ||
+            !e.data.legalities)
+      )
       .map((e) => e.scryfallId);
 
     const scryfallMap =
@@ -614,13 +632,19 @@ friendsRouter.get(
       let edhrecRank: number | undefined;
       let rarity: string | undefined;
       let identity = colorIdentity;
+      let oracleText = typeof d.oracleText === 'string' && d.oracleText ? d.oracleText : undefined;
+      let legalities = pickLegalities(d.legalities);
       if (typeof d.rarity === 'string') rarity = d.rarity;
       if (typeof d.edhrecRank === 'number') {
         edhrecRank = d.edhrecRank;
       }
       if (
         scryfallId &&
-        (edhrecRank === undefined || rarity === undefined || identity.length === 0)
+        (edhrecRank === undefined ||
+          rarity === undefined ||
+          identity.length === 0 ||
+          oracleText === undefined ||
+          legalities === undefined)
       ) {
         const cached = scryfallMap.get(scryfallId);
         if (cached) {
@@ -633,12 +657,22 @@ friendsRouter.get(
               (c): c is string => typeof c === 'string'
             );
           }
+          if (
+            oracleText === undefined &&
+            typeof cached.oracle_text === 'string' &&
+            cached.oracle_text
+          ) {
+            oracleText = cached.oracle_text;
+          }
+          if (legalities === undefined) legalities = pickLegalities(cached.legalities);
         }
       }
 
       const card: FriendCard = { name, oracleId, colors, colorIdentity: identity, cmc, typeLine };
       if (rarity !== undefined) card.rarity = rarity;
       if (edhrecRank !== undefined) card.edhrecRank = edhrecRank;
+      if (oracleText !== undefined) card.oracleText = oracleText;
+      if (legalities !== undefined) card.legalities = legalities;
       cards.push(card);
     }
 
@@ -648,7 +682,22 @@ friendsRouter.get(
       cards,
     };
 
-    return res.json(response);
+    // Gzipped by hand, like /api/cards/oracle-facts: there is no compression
+    // middleware in this app, and rules text roughly triples a 10k-card
+    // answer that phones fetch on every friend-hub visit. ~4x on the wire.
+    const body = Buffer.from(JSON.stringify(response), 'utf-8');
+    gzip(body, (err, gzipped) => {
+      if (err) {
+        logger.warn('[friends/collection] gzip failed, sending uncompressed:', err);
+        return res.type('application/json').send(body);
+      }
+      res
+        .set({
+          'Content-Type': 'application/json; charset=utf-8',
+          'Content-Encoding': 'gzip',
+        })
+        .send(gzipped);
+    });
   }
 );
 

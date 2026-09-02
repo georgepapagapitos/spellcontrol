@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { WifiOff } from 'lucide-react';
 import { Modal } from '../Modal';
+// Reuses AppendDeckDialog's offline / nothing-to-add notes by name.
+import './AppendDeckDialog.css';
 import { ProgressBar } from '../ProgressBar';
 import { importDeckText } from '../../lib/api';
 import { useDecksStore, useLocalMutationToken, type Deck } from '../../store/decks';

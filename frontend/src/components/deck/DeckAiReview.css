@@ -1,24 +1,6 @@
 /* "Read the deck" — the opt-in AI panel (T96). Reuses the stats-bento panel
    chrome (.deck-stats-panel); everything here is the panel's own content. */
 
-/* The AI marker: model-written text says so, always. Sits inline with the
-   panel title so the provenance reads before the prose does. */
-.deck-ai-marker {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  margin-left: var(--space-2);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0.1rem var(--space-2);
-  vertical-align: middle;
-}
-
 /* ── Collapsed strip (the Suggestions-tab posture, E244) ──
    One compact row per the STYLE_GUIDE insight-strip ruling: the tab's rows
    are the primary content, so the AI panel earns its space only when asked. */
@@ -86,14 +68,8 @@
   color: var(--text-muted);
 }
 
-/* ── Invitation (not opted in; shown once, dismissible) ── */
-.deck-ai-invite {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.deck-ai-invite-text,
+/* ── Idle ── (the invitation's rules live in DeckAiConsent.css; the idle
+   text/actions rows deliberately match them one for one) */
 .deck-ai-idle-text {
   margin: 0;
   font-size: var(--text-sm);
@@ -101,18 +77,11 @@
   line-height: 1.45;
 }
 
-.deck-ai-invite-actions,
 .deck-ai-idle-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-}
-
-.deck-ai-invite-dismiss {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
 }
 
 /* ── Idle ── */
@@ -363,14 +332,6 @@
 .deck-ai-prose--stale p,
 .deck-ai-prose--stale .deck-ai-card-chip {
   color: var(--text-secondary);
-}
-
-/* ── Inline consent (T102): the grant happens where the feature is, not in a
-   settings page the user has to be told about. ── */
-.deck-ai-consent-error {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--warn-text);
 }
 
 /* ── Proposed tweaks (T102 slice 4) ──

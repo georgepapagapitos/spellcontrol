@@ -651,6 +651,51 @@ describe('GET /api/friends/:friendId/collection', () => {
     expect(res.body.cards).toEqual([]);
   }, 15000);
 
+  it('200 — carries rules text and filterable-format legality, never printing or price', async () => {
+    const alice = await makeUserFull('fc-facts-alice');
+    const bob = await makeUserFull('fc-facts-bob');
+    await befriend(alice, bob);
+    await seedUserCards(bob.id, [
+      {
+        name: 'Rhystic Study',
+        oracleId: 'oracle-rhystic',
+        scryfallId: 'sf-rhystic',
+        setCode: 'pcy',
+        collectorNumber: '45',
+        finish: 'foil',
+        purchasePrice: 38,
+        colors: ['U'],
+        colorIdentity: ['U'],
+        cmc: 3,
+        typeLine: 'Enchantment',
+        rarity: 'common',
+        edhrecRank: 5,
+        oracleText:
+          'Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.',
+        legalities: {
+          commander: 'legal',
+          modern: 'not_legal',
+          brawl: 'not_legal',
+          alchemy: 'legal',
+        },
+      },
+    ]);
+    const res = await request(app)
+      .get(`/api/friends/${bob.id}/collection`)
+      .set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.cards).toHaveLength(1);
+    const card = res.body.cards[0];
+    expect(card.oracleText).toMatch(/draw a card/);
+    // Trimmed to the same filterable set the public share projection uses.
+    expect(card.legalities).toEqual({ commander: 'legal', modern: 'not_legal' });
+    // The copy itself stays private: no printing, finish, or price.
+    expect(card).not.toHaveProperty('scryfallId');
+    expect(card).not.toHaveProperty('setCode');
+    expect(card).not.toHaveProperty('finish');
+    expect(card).not.toHaveProperty('purchasePrice');
+  }, 15000);
+
   it('200 — prefers the friend’s display name when set', async () => {
     const alice = await makeUserFull('fc-dn-alice');
     const bob = await makeUserFull('fc-dn-bob');

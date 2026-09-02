@@ -63,7 +63,7 @@ export async function listDiscoverDecks(
     credentials: 'include',
   });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to load public decks.'));
+    throw new Error(await readError(res, "Couldn't load public decks."));
   }
   return (await res.json()) as ListDiscoverDecksResult;
 }
@@ -79,7 +79,7 @@ export async function searchCommanders(q: string): Promise<string[]> {
     credentials: 'include',
   });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to search commanders.'));
+    throw new Error(await readError(res, "Couldn't search commanders."));
   }
   const body = (await res.json()) as { commanders: string[] };
   return body.commanders;
@@ -91,7 +91,7 @@ export async function searchCommanders(q: string): Promise<string[]> {
 export async function listBookmarkedDecks(): Promise<DiscoverDeck[]> {
   const res = await fetch(apiUrl('/api/discover/bookmarks'), { credentials: 'include' });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to load your saved decks.'));
+    throw new Error(await readError(res, "Couldn't load your saved decks."));
   }
   const body = (await res.json()) as { decks: DiscoverDeck[] };
   return body.decks;

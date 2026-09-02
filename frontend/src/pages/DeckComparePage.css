@@ -67,20 +67,11 @@
  * (STYLE_GUIDE § Voice & copy). This local class only styles the small
  * inline "Card lists are identical" sub-panel placeholder (the guide's
  * documented exception for a concise single-line notice). */
-.deck-compare-empty-hint {
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-}
-
 /* ── Summary + sections ───────────────────────────────────────────────── */
-.deck-compare-summary {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  margin-bottom: var(--space-4);
-  padding: var(--space-2) var(--space-3);
-  background: var(--surface-raised);
-  border-radius: var(--radius-lg);
-}
+/* .deck-compare-summary and .deck-compare-empty-hint live in
+   components/ConflictPanel.css — the sync-conflict panel (mounted by Layout,
+   so always loaded) reuses both, and this page is a lazy chunk it can't
+   depend on. */
 .deck-compare-section {
   border-top: 1px solid var(--border);
   padding: var(--space-4) 0;

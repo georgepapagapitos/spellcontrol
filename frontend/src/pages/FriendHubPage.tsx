@@ -23,14 +23,19 @@ import { TradeComposer } from '../components/trade/TradeComposer';
 import { TradeOfferList } from '../components/trade/TradeOfferList';
 import { isTrackingList } from '../lib/lists';
 import { useCardThumb } from '../lib/card-thumbs';
-import { filterFriendCollection } from '../lib/friend-collection-filter';
+import {
+  filterFriendCollection,
+  friendCardToPublic,
+  sortFriendCollection,
+  type FriendSortKey,
+} from '../lib/friend-collection-filter';
 import { getCardTags, useCardTagsReady } from '../lib/card-tags';
+import { friendPayloadCaps } from '../lib/friend-search';
 import { H2HSummary } from '../components/play/H2HSummary';
 import { Tabs, type TabItem } from '../components/Tabs';
 import { SearchPill } from '../components/SearchPill';
-import { ColorPip } from '../components/shared/ManaSymbol';
-import { ColorMatchModeToggle } from '../components/shared/ColorMatchModeToggle';
-import type { ColorMatchMode } from '../lib/colors';
+import { SortMenu, type SortMenuOption } from '../components/SortMenu';
+import { useSharedFilters } from '../components/share/use-shared-filters';
 import { SharedEmptyState } from '../components/share/SharedEmptyState';
 import type { ShareKind } from '../lib/shared-types';
 
@@ -39,13 +44,13 @@ import type { ShareKind } from '../lib/shared-types';
  *  full set regardless of this cap (see filterFriendCollection). */
 const COLLECTION_PAGE_SIZE = 60;
 
-const COLOR_OPTIONS: Array<{ key: string; label: string }> = [
-  { key: 'W', label: 'White' },
-  { key: 'U', label: 'Blue' },
-  { key: 'B', label: 'Black' },
-  { key: 'R', label: 'Red' },
-  { key: 'G', label: 'Green' },
-  { key: 'C', label: 'Colorless' },
+// Popularity is EDHREC rank, where 1 is the most-played card — so "ascending"
+// reads most-popular-first (see SortMenuOption.dirLabels).
+const COLLECTION_SORT_OPTIONS: SortMenuOption<FriendSortKey>[] = [
+  { value: 'popularity', label: 'Popularity', dirLabels: ['Most played', 'Least played'] },
+  { value: 'name', label: 'Name', dirLabels: ['A → Z', 'Z → A'] },
+  { value: 'cmc', label: 'Mana value', dirLabels: ['Low → high', 'High → low'] },
+  { value: 'rarity', label: 'Rarity', dirLabels: ['Common first', 'Mythic first'] },
 ];
 
 type HubTab = 'overview' | 'collection' | 'trades';
@@ -232,11 +237,34 @@ export function FriendHubPage() {
   // they sent is waiting on the other person, not on them.
   const awaitingMe = openTrades.filter((o) => !o.mine).length;
 
-  // ── Collection browser filters ──────────────────────────────────────
+  // ── Collection browser: search + the shared filter dialog + sort ────
+  // Same three controls as the authed collection and the public share views
+  // (SearchPill with the filter door in its trailing slot, SortMenu). The
+  // friend payload is card facts only, so the dialog mounts with the
+  // `card-facts` facet set and hides every row it couldn't answer.
   const [collectionQuery, setCollectionQuery] = useState('');
-  const [collectionColors, setCollectionColors] = useState<Set<string>>(new Set());
-  const [collectionColorMode, setCollectionColorMode] = useState<ColorMatchMode>('any');
+  const [collectionSort, setCollectionSort] = useState<FriendSortKey>('popularity');
+  const [collectionDir, setCollectionDir] = useState<'asc' | 'desc'>('asc');
   const [collectionVisible, setCollectionVisible] = useState(COLLECTION_PAGE_SIZE);
+  const friendPublicCards = useMemo(
+    () => (friendCards ?? []).map(friendCardToPublic),
+    [friendCards]
+  );
+  // Rules text and legality ride the payload only since the endpoint started
+  // sending them; probe what this payload actually has so the dialog and the
+  // `o:` / `f:` search agree on what can be answered.
+  const friendCaps = useMemo(() => friendPayloadCaps(friendCards ?? []), [friendCards]);
+  const {
+    filterNode: collectionFilterNode,
+    matches: collectionMatches,
+    activeCount: collectionFilterCount,
+    clear: clearCollectionFilters,
+  } = useSharedFilters(friendPublicCards, {
+    withPrice: false,
+    facets: 'card-facts',
+    hasOracleText: friendCaps.oracleText,
+    hasLegalities: friendCaps.legalities,
+  });
 
   // `otag:` needs the tag snapshot; load it only when the query asks for one
   // (same gate as CardSearchPanel — the snapshot is a multi-MB artifact).
@@ -248,36 +276,55 @@ export function FriendHubPage() {
       friendCards
         ? filterFriendCollection(friendCards, {
             query: collectionQuery,
-            colors: collectionColors,
-            colorMode: collectionColorMode,
             tagsFor: collectionTagsReady ? getCardTags : undefined,
+            caps: friendCaps,
           })
         : { cards: [], ignored: [] },
-    [friendCards, collectionQuery, collectionColors, collectionColorMode, collectionTagsReady]
+    [friendCards, friendCaps, collectionQuery, collectionTagsReady]
   );
-  const filteredFriendCards = friendSearchResult.cards;
+  // The search narrows by name/syntax; the dialog's facets narrow the rest,
+  // matching against each card's public-card projection (by index, so the
+  // conversion runs once per payload rather than once per keystroke).
+  const filteredFriendCards = useMemo(() => {
+    const publicByCard = new Map<FriendCard, (typeof friendPublicCards)[number]>();
+    (friendCards ?? []).forEach((c, i) => publicByCard.set(c, friendPublicCards[i]));
+    const kept = friendSearchResult.cards.filter((c) => {
+      const pc = publicByCard.get(c);
+      return pc ? collectionMatches(pc) : true;
+    });
+    return sortFriendCollection(kept, collectionSort, collectionDir);
+  }, [
+    friendCards,
+    friendPublicCards,
+    friendSearchResult,
+    collectionMatches,
+    collectionSort,
+    collectionDir,
+  ]);
 
-  // A friend switch, a retry, or a filter change all invalidate the current
-  // "show more" depth — reset to the first page. Adjusted during render (the
-  // React-documented pattern for resetting state on a prop/derived-value
-  // change) rather than in an effect, which would cascade an extra render.
-  const collectionResetKey = `${friendId ?? ''}:${collectionAttempt}:${collectionQuery}:${[...collectionColors].sort().join(',')}:${collectionColorMode}`;
-  const [lastResetKey, setLastResetKey] = useState(collectionResetKey);
-  if (collectionResetKey !== lastResetKey) {
-    setLastResetKey(collectionResetKey);
+  // A friend switch, a retry, a search, a filter, or a sort change all
+  // invalidate the current "show more" depth — reset to the first page. The
+  // filtered list's identity changes on exactly those events, so it is the
+  // reset key. Adjusted during render (the React-documented pattern for
+  // resetting state on a derived-value change) rather than in an effect,
+  // which would cascade an extra render.
+  const [lastFilteredList, setLastFilteredList] = useState(filteredFriendCards);
+  if (filteredFriendCards !== lastFilteredList) {
+    setLastFilteredList(filteredFriendCards);
     setCollectionVisible(COLLECTION_PAGE_SIZE);
   }
 
   const visibleFriendCards = filteredFriendCards.slice(0, collectionVisible);
   const hasMoreFriendCards = filteredFriendCards.length > collectionVisible;
 
-  const toggleCollectionColor = (c: string) => {
-    setCollectionColors((prev) => {
-      const next = new Set(prev);
-      if (next.has(c)) next.delete(c);
-      else next.add(c);
-      return next;
-    });
+  // Mirrors the collection's sort behavior: re-picking the active field
+  // flips direction (SortMenu's Reverse action), a new field resets to asc.
+  const toggleCollectionSort = (key: FriendSortKey) => {
+    if (key === collectionSort) setCollectionDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setCollectionSort(key);
+      setCollectionDir('asc');
+    }
   };
 
   useEffect(() => {
@@ -575,37 +622,24 @@ export function FriendHubPage() {
                 placeholder="Search by card name"
                 ariaLabel={`Search ${who}’s collection by card name`}
                 className="friend-hub-collection-search"
+                trailing={collectionFilterNode}
               />
-              <div className="color-filter-row" role="group" aria-label="Filter by color">
-                {COLOR_OPTIONS.map((c) => {
-                  const active = collectionColors.has(c.key);
-                  return (
-                    <button
-                      key={c.key}
-                      type="button"
-                      className={`color-filter-btn${active ? ' is-active' : ''}`}
-                      onClick={() => toggleCollectionColor(c.key)}
-                      aria-label={c.label}
-                      aria-pressed={active}
-                      title={c.label}
-                    >
-                      <ColorPip color={c.key} pip="lg" />
-                    </button>
-                  );
-                })}
-                <ColorMatchModeToggle
-                  mode={collectionColorMode}
-                  onChange={setCollectionColorMode}
-                />
-              </div>
+              <SortMenu<FriendSortKey>
+                ariaLabel="Sort"
+                value={collectionSort}
+                dir={collectionDir}
+                options={COLLECTION_SORT_OPTIONS}
+                onChange={toggleCollectionSort}
+              />
             </div>
 
             {friendSearchResult.ignored.length > 0 && (
               <p className="friend-hub-search-note" role="status">
                 {friendSearchResult.ignored.join(', ')}{' '}
-                {friendSearchResult.ignored.length === 1 ? 'is' : 'are'} not searchable in a
-                friend’s collection — it only carries public card facts, not rules text. The rest of
-                your search still applied.
+                {friendSearchResult.ignored.length === 1 ? 'isn’t' : 'aren’t'} searchable in this
+                collection — its card data doesn’t carry what{' '}
+                {friendSearchResult.ignored.length === 1 ? 'it' : 'they'} read. The rest of your
+                search still applied.
               </p>
             )}
 
@@ -617,11 +651,10 @@ export function FriendHubPage() {
                   emptyHint="There's nothing to browse until they do."
                   filteredTagline="No cards match your search or filters."
                   onClearSearch={
-                    collectionQuery || collectionColors.size > 0
+                    collectionQuery || collectionFilterCount > 0
                       ? () => {
                           setCollectionQuery('');
-                          setCollectionColors(new Set());
-                          setCollectionColorMode('any');
+                          clearCollectionFilters();
                         }
                       : undefined
                   }
