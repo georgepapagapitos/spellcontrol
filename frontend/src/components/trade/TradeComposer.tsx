@@ -37,6 +37,7 @@ import type { EnrichedCard } from '../../types';
 import type { FriendCard } from '../../lib/cube/pool';
 import type { FriendWant } from '../../lib/friends-client';
 
+import { userMessage } from '@/lib/user-error';
 /** How many picker results render before the list asks you to narrow down.
  *  A real collection is ~11.5k unique cards; the search filters the full set
  *  regardless of this cap (same contract as the friend Collection browser). */
@@ -429,7 +430,7 @@ export function TradeComposer({
       onSent(offer);
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : 'Failed to send the trade.',
+        message: userMessage(err, "Couldn't send the trade. Try again."),
         tone: 'error',
       });
       setSending(false);

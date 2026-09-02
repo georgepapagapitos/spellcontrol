@@ -7,6 +7,7 @@ import { ColorPip } from '../shared/ManaSymbol';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { listDiscoverDecks, type DiscoverDeck } from '../../lib/discover-client';
 
+import { userMessage } from '@/lib/user-error';
 function rowAriaLabel(deck: DiscoverDeck): string {
   const parts = [deck.name];
   if (deck.commanderName) parts.push(deck.commanderName);
@@ -57,7 +58,9 @@ export function DiscoverCard() {
     listDiscoverDecks({ sort: 'newest', page: 1 })
       .then((result) => setDecks(result.decks))
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Couldn't load public decks.");
+        setError(
+          userMessage(err, "Couldn't load public decks. Check your connection and try again.")
+        );
       });
   }, []);
 

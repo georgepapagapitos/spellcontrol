@@ -26,6 +26,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { useOnline } from './import-deck-shared';
 import './BulkEditDeckDialog.css';
 
+import { userMessage } from '@/lib/user-error';
 interface Props {
   deck: Deck;
   onClose: () => void;
@@ -135,7 +136,7 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
       setStep('review');
     } catch (err) {
       setFetchError(
-        err instanceof Error ? err.message : 'Could not resolve new cards. Check your connection.'
+        userMessage(err, "Couldn't look up the new cards. Check your connection and try again.")
       );
       setStep('input');
     }

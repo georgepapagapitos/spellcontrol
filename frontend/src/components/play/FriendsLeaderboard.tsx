@@ -11,6 +11,7 @@ import {
 } from '../../lib/game-results-client';
 import './FriendsLeaderboard.css';
 
+import { userMessage } from '@/lib/user-error';
 /**
  * Server-authoritative "Friends leaderboard": W/L over online games you played
  * with each friend, expandable to a head-to-head detail. Social data is fetched
@@ -27,7 +28,9 @@ export function FriendsLeaderboard() {
         setEntries(rows);
         setError(null);
       })
-      .catch((e: Error) => setError(e.message));
+      .catch((e: unknown) =>
+        setError(userMessage(e, "Couldn't load the leaderboard. Try again in a moment."))
+      );
   }, []);
 
   useEffect(() => {
@@ -155,7 +158,10 @@ function H2HDetail({ friendId }: { friendId: string }) {
     let live = true;
     fetchH2H(friendId)
       .then((d) => live && setData(d))
-      .catch((e: Error) => live && setError(e.message));
+      .catch(
+        (e: unknown) =>
+          live && setError(userMessage(e, "Couldn't load the leaderboard. Try again in a moment."))
+      );
     return () => {
       live = false;
     };

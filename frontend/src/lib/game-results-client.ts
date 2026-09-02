@@ -90,7 +90,8 @@ async function readError(res: Response, fallback: string): Promise<string> {
 
 export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
   const res = await fetch(apiUrl('/api/game-results/leaderboard'), { credentials: 'include' });
-  if (!res.ok) throw new Error(await readError(res, 'Failed to load leaderboard.'));
+  if (!res.ok)
+    throw new Error(await readError(res, "Couldn't load the leaderboard. Try again in a moment."));
   const body = (await res.json()) as { leaderboard: LeaderboardEntry[] };
   return body.leaderboard;
 }
@@ -99,6 +100,9 @@ export async function fetchH2H(friendId: string): Promise<H2HResponse> {
   const res = await fetch(apiUrl(`/api/game-results/h2h/${encodeURIComponent(friendId)}`), {
     credentials: 'include',
   });
-  if (!res.ok) throw new Error(await readError(res, 'Failed to load head-to-head.'));
+  if (!res.ok)
+    throw new Error(
+      await readError(res, "Couldn't load your head-to-head record. Try again in a moment.")
+    );
   return (await res.json()) as H2HResponse;
 }

@@ -12,6 +12,7 @@ import { OwnershipBadge } from './OwnershipBadge';
 import { SearchPill } from '../SearchPill';
 import { ManaCost } from '../ManaCost';
 
+import { userMessage } from '@/lib/user-error';
 interface Props {
   /** The primary commander — drives which partners are legal. */
   commander: ScryfallCard;
@@ -124,7 +125,7 @@ export function PartnerCommanderSelector({ commander, partner, onSelect, collect
         }
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Couldn't load partners.");
+          setError(userMessage(e, "Couldn't load partners."));
           setResults([]);
         }
       } finally {

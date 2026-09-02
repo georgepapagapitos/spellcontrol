@@ -27,6 +27,7 @@ import { FORMAT_OPTIONS, MAX_LOCAL_PLAYERS, MIN_LOCAL_PLAYERS } from '../lib/gam
 import type { GameAction, GameFormat, GamePlayer, GameRecord, GameState } from '../lib/game-state';
 import type { PublicBoard } from '../lib/playtest/projection';
 
+import { userMessage } from '@/lib/user-error';
 type Tab = 'local' | 'online' | 'nights' | 'history';
 
 export function PlayPage() {
@@ -270,7 +271,10 @@ export function PlayPage() {
                 onHost={(opts) =>
                   void hostOnline(opts).catch((err) =>
                     toast.show({
-                      message: err instanceof Error ? err.message : "Couldn't create game.",
+                      message: userMessage(
+                        err,
+                        "Couldn't create the game. Check your connection and try again."
+                      ),
                       tone: 'error',
                     })
                   )
@@ -278,7 +282,10 @@ export function PlayPage() {
                 onJoin={(code, opts) =>
                   void joinOnline(code, opts).catch((err) =>
                     toast.show({
-                      message: err instanceof Error ? err.message : "Couldn't join game.",
+                      message: userMessage(
+                        err,
+                        "Couldn't join that game. Check the code and try again."
+                      ),
                       tone: 'error',
                     })
                   )

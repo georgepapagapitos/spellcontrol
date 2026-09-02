@@ -21,6 +21,7 @@ import { usePlayStore } from '../../store/play';
 import { GameRecap } from './GameRecap';
 import './OnlineGameView.css';
 
+import { userMessage } from '@/lib/user-error';
 const PHASE_LABELS: Record<GamePhase, string> = {
   beginning: 'Beginning',
   main1: 'Main 1',
@@ -868,7 +869,7 @@ function HoldControl({
         await raiseGameRequest('hold', { summary: '' });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't reach the table — try again.");
+      setError(userMessage(err, "Couldn't reach the table — try again."));
     } finally {
       setBusy(false);
     }

@@ -20,6 +20,7 @@ import { deckCardToPublicCard } from './SharedDeckView';
 import { useSharedFilters } from './use-shared-filters';
 import type { ScryfallCard } from '@/deck-builder/types';
 
+import { userMessage } from '@/lib/user-error';
 interface Props {
   data: PublicDeck;
   token: string;
@@ -253,7 +254,7 @@ export function DeckFeedbackView({ data, token }: Props) {
     } catch (err) {
       setSubmitState({
         status: 'error',
-        message: err instanceof Error ? err.message : 'Failed to submit feedback.',
+        message: userMessage(err, "Couldn't send your feedback. Try again."),
       });
     }
   };

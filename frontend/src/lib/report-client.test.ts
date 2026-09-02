@@ -58,7 +58,7 @@ describe('submitReport', () => {
   it('falls back to a generic message when the error body is unparsable', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 500 }));
     await expect(submitReport({ kind: 'deck', targetId: 'd1', reason: 'x' })).rejects.toThrow(
-      /Failed to submit report/
+      /Couldn't send your report/
     );
   });
 });

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { matchCombos } from './api/combos';
 import type { ComboMatch, ComboMatchResponse } from '../types/combos';
 
+import { userMessage } from '@/lib/user-error';
 interface Args {
   /** Oracle ids of every card currently in the deck (commander + main + side). */
   deckOracleIds: string[];
@@ -154,7 +155,11 @@ export function useDeckCombos(args: Args): Result {
         })
         .catch((err: Error) => {
           if (reqIdRef.current !== myReqId) return;
-          setState({ data: null, loading: false, error: err.message ?? 'Failed to load combos.' });
+          setState({
+            data: null,
+            loading: false,
+            error: userMessage(err, "Couldn't load combos. Try again in a moment."),
+          });
         });
     }, DEBOUNCE_MS);
 

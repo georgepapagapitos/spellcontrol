@@ -8,6 +8,7 @@ import { SelectMenu, type SelectOption } from './SelectMenu';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Condition, Finish } from '../types';
 
+import { userMessage } from '@/lib/user-error';
 const PRINTING_PAGE_SIZE = 8;
 
 export const FINISH_LABEL: Record<Finish, string> = {
@@ -116,7 +117,7 @@ export function PrintingPicker({ cardName, fallback, showExtras = false, onAdd }
       })
       .catch((e) => {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Couldn't load printings");
+        setError(userMessage(e, "Couldn't load other printings. Try again in a moment."));
         setPrintings([fallback]);
         setSelectedId(fallback.id);
       })

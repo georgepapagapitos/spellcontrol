@@ -8,6 +8,7 @@ import {
 import { SharedShell } from '../components/share/SharedShell';
 import { BrandMark } from '../components/shared/BrandMark';
 
+import { userMessage } from '@/lib/user-error';
 /**
  * Shared landing for the two link types that resolve to a night rather than
  * being one: the stable weekly-series link (/gn/s/:token, E125) and a named
@@ -45,7 +46,7 @@ export function GameNightLinkForward({
         } else {
           setState({
             status: 'error',
-            message: err instanceof Error ? err.message : "Couldn't load the game night.",
+            message: userMessage(err, "Couldn't load the game night."),
           });
         }
       });

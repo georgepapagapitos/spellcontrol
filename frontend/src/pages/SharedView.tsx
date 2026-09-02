@@ -16,6 +16,7 @@ import { BrandMark } from '../components/shared/BrandMark';
 import { CopyDeckButton } from '../components/share/CopyDeckButton';
 import { CopyCubeButton } from '../components/share/CopyCubeButton';
 
+import { userMessage } from '@/lib/user-error';
 /** Tab title per share kind — every kind but `collection` carries its own
  *  owner-given name; `collection` has none, so it falls back to the same
  *  "Collection" label the page itself renders as its `<h1>`. */
@@ -75,7 +76,10 @@ function SharedViewInner({ token }: { token: string }) {
         } else {
           setState({
             status: 'error',
-            message: err instanceof Error ? err.message : 'Failed to load shared content.',
+            message: userMessage(
+              err,
+              "Couldn't load this shared page. Check the link and try again."
+            ),
           });
         }
       });

@@ -38,6 +38,7 @@ import {
   stripExtension,
 } from '../../lib/staged-files';
 
+import { userMessage } from '@/lib/user-error';
 interface Props {
   onClose: () => void;
   /** Initial / fallback format selection. The user can change it per deck. */
@@ -256,9 +257,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
       const result = await importDeckText(text);
       processSingleResult(result);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Import failed. Check the format and try again.'
-      );
+      setError(userMessage(err, "Couldn't read that deck list. Check the format and try again."));
       setStep('input');
       setIsLoading(false);
     }
@@ -328,7 +327,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
           unresolved.push(...r.unresolvedNames);
           fetchFailed.push(...r.fetchErrors);
         } catch (err) {
-          failed.push(`${file.name}: ${err instanceof Error ? err.message : 'failed'}`);
+          failed.push(`${file.name}: ${userMessage(err, "couldn't be read")}`);
         }
       }
       setProgress(null);
@@ -383,7 +382,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
           key: `${i}-${file.name}`,
           fileName: file.name,
           status: 'failed',
-          error: err instanceof Error ? err.message : 'Import failed.',
+          error: userMessage(err, "Couldn't import this file. Check the format and try again."),
           name: stripExtension(file.name),
           format: selectedFormat,
           commander: null,
@@ -434,7 +433,9 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
           candidates: commanderCandidatesFor(r.cards, d.format),
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Retry failed. Give it a moment.');
+        setError(
+          userMessage(err, "Still couldn't reach the card service. Give it a moment and try again.")
+        );
       } finally {
         setIsLoading(false);
       }
@@ -518,7 +519,12 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
       acceptFiles([new File([text], name, { type: 'text/csv' })]);
       setLinkUrl('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't fetch that link");
+      setError(
+        userMessage(
+          err,
+          "Couldn't fetch that link. Check it's a public Google Sheets or Drive link and try again."
+        )
+      );
     } finally {
       setLinkBusy(false);
     }
@@ -534,7 +540,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
     } catch (err) {
       // Backing out is silent; anything else must be visible. See CancelledError.
       if (!isCancelled(err)) {
-        setError(err instanceof Error ? err.message : "Couldn't open Google Drive");
+        setError(userMessage(err, "Couldn't open Google Drive. Try again."));
       }
     } finally {
       setDriveBusy(false);
@@ -548,7 +554,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
         const files = await pickNativeFiles({ types: DECK_IMPORT_MIME, multiple: true });
         acceptFiles(files);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Couldn't open file picker");
+        setError(userMessage(err, "Couldn't open the file picker. Try again."));
       }
       return;
     }

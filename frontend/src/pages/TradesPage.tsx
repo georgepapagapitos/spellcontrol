@@ -8,6 +8,7 @@ import { SearchPill } from '../components/SearchPill';
 import { TradeOfferList } from '../components/trade/TradeOfferList';
 import { listTrades, type TradeOffer } from '../lib/trades-client';
 
+import { userMessage } from '@/lib/user-error';
 /**
  * `/trades` — every offer the viewer is party to, both directions, one place.
  *
@@ -108,7 +109,9 @@ function TradesPageBody() {
       .catch((err: unknown) => {
         if (cancelled) return;
         setOffers([]);
-        setLoadError(err instanceof Error ? err.message : 'Failed to load your trades.');
+        setLoadError(
+          userMessage(err, "Couldn't load your trades. Check your connection and try again.")
+        );
       });
     return () => {
       cancelled = true;

@@ -19,6 +19,7 @@ import {
   type Pod,
 } from '../lib/pods-client';
 
+import { userMessage } from '@/lib/user-error';
 const POD_NAME_MAX = 60;
 
 /* Legacy useAnimatedNumber (no revealKey) — tweens changes while mounted,
@@ -79,7 +80,9 @@ function PodsIndexPageBody() {
     listPods()
       .then(setPods)
       .catch((err: unknown) => {
-        setLoadError(err instanceof Error ? err.message : 'Failed to load pods.');
+        setLoadError(
+          userMessage(err, "Couldn't load your pods. Check your connection and try again.")
+        );
       });
   }, []);
 
@@ -92,7 +95,9 @@ function PodsIndexPageBody() {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setLoadError(err instanceof Error ? err.message : 'Failed to load pods.');
+        setLoadError(
+          userMessage(err, "Couldn't load your pods. Check your connection and try again.")
+        );
         setPods([]);
       });
     return () => {
@@ -108,7 +113,7 @@ function PodsIndexPageBody() {
       loadPods();
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't accept the invite.",
+        message: userMessage(err, "Couldn't accept the invite."),
         tone: 'error',
       });
     } finally {
@@ -124,7 +129,7 @@ function PodsIndexPageBody() {
       loadPods();
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't decline the invite.",
+        message: userMessage(err, "Couldn't decline the invite."),
         tone: 'error',
       });
     } finally {
@@ -340,7 +345,7 @@ function CreatePodDialog({
       }
       onCreated(pod);
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Couldn't create the pod.");
+      setFormError(userMessage(err, "Couldn't create the pod."));
     } finally {
       setSaving(false);
     }

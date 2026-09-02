@@ -1408,6 +1408,8 @@ export function DeckEditorPage() {
         ownershipFor={ownershipFor}
         enableSuggestions={!!formatConfig?.hasCommander}
         suggestionsPending={analysisState === 'pending'}
+        suggestionsFailed={analysisState === 'error'}
+        onRetrySuggestions={analysisState === 'error' ? bracketAnalysis.retry : undefined}
         commanderKey={commanderKey}
         aiSlot={
           formatConfig?.hasCommander && deck.commander ? (

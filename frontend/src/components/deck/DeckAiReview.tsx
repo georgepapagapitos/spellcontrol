@@ -22,6 +22,7 @@ import { AiMarker, DeckAiConsent, isAiInviteDismissed } from './DeckAiConsent';
 import { useCardCarousel } from './useCardCarousel';
 import './DeckAiReview.css';
 
+import { userMessage } from '@/lib/user-error';
 interface DeckAiReviewProps {
   deckId: string;
   format: DeckFormat;
@@ -171,7 +172,7 @@ export function DeckAiReview({
         // A partial reading is worth nothing — it was never stored, and half a
         // finding reads as a finding. Drop it and offer the retry.
         setStreamed('');
-        setError(err.message || 'The review could not be generated. Try again.');
+        setError(userMessage(err, "Couldn't generate the review. Try again."));
         setPhase('error');
       });
   };

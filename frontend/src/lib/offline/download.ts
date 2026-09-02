@@ -60,7 +60,7 @@ async function fetchManifest(onProgress?: ProgressFn): Promise<OfflineManifest> 
     });
     if (res.ok) return (await res.json()) as OfflineManifest;
     if (!RETRYABLE_STATUSES.has(res.status) || Date.now() - started > MAX_RETRY_WINDOW_MS) {
-      throw new Error(`Failed to fetch offline manifest (${res.status})`);
+      throw new Error("Couldn't reach the card data service. Try again in a moment.");
     }
     const retryAfter = parseRetryAfter(res.headers.get('Retry-After'));
     const wait = retryAfter ?? backoffMs;
@@ -88,7 +88,7 @@ async function fetchJsonWithProgress<T>(
   // size, which is exactly what we want for the progress bar's denominator.
   const res = await fetch(apiUrl(url), { headers: { Accept: 'application/json' } });
   if (!res.ok) {
-    throw new Error(`Failed to fetch ${url} (${res.status})`);
+    throw new Error("Couldn't download the card data. Try again in a moment.");
   }
   const headerLen = res.headers.get('Content-Length');
   const total = headerLen ? parseInt(headerLen, 10) : expectedBytes;

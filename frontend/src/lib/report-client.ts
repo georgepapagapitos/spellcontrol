@@ -31,6 +31,6 @@ export async function submitReport(input: {
     body: JSON.stringify(input),
   });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to submit report.'));
+    throw new Error(await readError(res, "Couldn't send your report. Try again."));
   }
 }

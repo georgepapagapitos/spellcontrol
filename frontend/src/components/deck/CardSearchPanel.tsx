@@ -51,6 +51,7 @@ import {
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import type { CardPreviewAction } from '../CardPreview';
 
+import { userMessage } from '@/lib/user-error';
 function isOffColor(cardCI: string[] | undefined, commanderCI: string[]): boolean {
   if (commanderCI.length === 0) return false;
   const set = new Set(commanderCI);
@@ -103,6 +104,13 @@ interface Props {
   ownershipFor?: (name: string) => ChangeOwnership;
   enableSuggestions?: boolean;
   suggestionsPending?: boolean;
+  /**
+   * The deck's commander analysis (EDHREC) failed, so there are no
+   * suggestions to show — distinct from "nothing to suggest". Renders the
+   * failure with a Retry instead of the success-shaped empty state.
+   */
+  suggestionsFailed?: boolean;
+  onRetrySuggestions?: () => void;
   /**
    * AI affordance for the Suggestions tab (E244) — the deck page mounts
    * `<DeckAiRefine variant="suggestions">` here, same slot pattern as the
@@ -299,6 +307,8 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     ownershipFor,
     enableSuggestions,
     suggestionsPending,
+    suggestionsFailed,
+    onRetrySuggestions,
     commanderKey,
     binderByCardName,
     aiSlot,
@@ -719,6 +729,8 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
               hiddenGems={hiddenGems}
               ownershipFor={ownershipFor ?? ALL_UNOWNED}
               pending={suggestionsPending}
+              failed={suggestionsFailed}
+              onRetry={onRetrySuggestions}
               onSearchCollection={() => setMode('collection')}
               onSearchScryfall={() => setMode('scryfall')}
             />
@@ -1114,6 +1126,9 @@ interface SuggestionsResultsProps extends ResultsProps {
   ownershipFor: (name: string) => ChangeOwnership;
   /** Commander-deck analysis still on its first run. */
   pending?: boolean;
+  /** Commander-deck analysis failed (EDHREC unreachable, etc.). */
+  failed?: boolean;
+  onRetry?: () => void;
   /** Jump to another tab keeping the query (zero-result escape hatches). */
   onSearchCollection: () => void;
   onSearchScryfall: () => void;
@@ -1133,6 +1148,8 @@ function SuggestionsResults({
   hiddenGems,
   ownershipFor,
   pending,
+  failed,
+  onRetry,
   onSearchCollection,
   onSearchScryfall,
 }: SuggestionsResultsProps) {
@@ -1239,6 +1256,25 @@ function SuggestionsResults({
   }
 
   const total = counts.owned + counts.inOtherDeck + counts.inCube + counts.unowned;
+  if (total === 0 && failed && !query) {
+    // The analysis never produced anything — say so. The success-shaped copy
+    // below ("your deck already runs the staples") is a lie on a blank deck
+    // whose EDHREC fetch simply failed.
+    return (
+      <div className="card-search-empty-wrap" role="alert">
+        <p className="card-search-empty">
+          Couldn&rsquo;t reach EDHREC for suggestions. Check your connection and try again.
+        </p>
+        {onRetry && (
+          <div className="card-search-empty-actions">
+            <button type="button" className="btn btn-sm" onClick={onRetry}>
+              Retry
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
   if (total === 0) {
     return (
       <>
@@ -1468,7 +1504,9 @@ function ScryfallResults({
         if (!cancelled) setResults(resp.data.filter((c) => !excludeNames.has(c.name)).slice(0, 60));
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Search failed');
+          setError(
+            userMessage(e, "Couldn't run that search. Check your connection and try again.")
+          );
           setResults([]);
         }
       } finally {

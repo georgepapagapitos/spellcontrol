@@ -37,6 +37,7 @@ import {
   cubeRowKeyDown,
 } from './shared';
 
+import { userMessage } from '@/lib/user-error';
 const MAX_FRIENDS = 3;
 
 export function CollabCube() {
@@ -194,9 +195,7 @@ export function CollabCube() {
       setCube(newCube);
       setStatus('done');
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : 'Something went wrong building the collaborative cube.'
-      );
+      setError(userMessage(e, "Couldn't build the collaborative cube. Try again."));
       setStatus('error');
     }
   }, [selectedIds, friends, collectionCards, myUniqueNames, myUsername, size, synergyLevel]);

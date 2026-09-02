@@ -26,6 +26,7 @@ import {
 import { useInbox, markInboxSeen } from '../lib/use-inbox';
 import { useConfirm } from '../lib/use-confirm';
 
+import { userMessage } from '@/lib/user-error';
 type TabId = 'friends' | 'requests' | 'inbox' | 'activity';
 
 const TABS = [
@@ -101,7 +102,9 @@ export function FriendsManagement() {
     getFriendsActivity()
       .then((items) => setActivity(items))
       .catch((err: unknown) => {
-        setActivityError(err instanceof Error ? err.message : 'Failed to load activity.');
+        setActivityError(
+          userMessage(err, "Couldn't load recent activity. Check your connection and try again.")
+        );
       });
   }, []);
 
@@ -128,7 +131,9 @@ export function FriendsManagement() {
         setOutgoing(requestsRes.outgoing);
       })
       .catch((err: unknown) => {
-        setLoadError(err instanceof Error ? err.message : 'Failed to load friends.');
+        setLoadError(
+          userMessage(err, "Couldn't load your friends. Check your connection and try again.")
+        );
       });
   }, []);
 
@@ -182,7 +187,9 @@ export function FriendsManagement() {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setLoadError(err instanceof Error ? err.message : 'Failed to load friends.');
+        setLoadError(
+          userMessage(err, "Couldn't load your friends. Check your connection and try again.")
+        );
         // Set empty arrays so skeleton goes away even on error
         setFriends([]);
         setIncoming([]);
@@ -203,7 +210,9 @@ export function FriendsManagement() {
       const results = await searchUsers(q);
       setSearchResults(results);
     } catch (err) {
-      setSearchError(err instanceof Error ? err.message : 'Search failed.');
+      setSearchError(
+        userMessage(err, "Couldn't run that search. Check your connection and try again.")
+      );
       setSearchResults(null);
     } finally {
       setSearching(false);
@@ -239,7 +248,7 @@ export function FriendsManagement() {
       }
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : 'Action failed.',
+        message: userMessage(err, "That didn't go through. Try again."),
         tone: 'error',
       });
     } finally {
@@ -262,7 +271,7 @@ export function FriendsManagement() {
       void loadData();
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : 'Failed to accept request.',
+        message: userMessage(err, "Couldn't accept that request. Try again."),
         tone: 'error',
       });
     } finally {
@@ -278,7 +287,7 @@ export function FriendsManagement() {
       void loadData();
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : 'Failed to decline request.',
+        message: userMessage(err, "Couldn't decline that request. Try again."),
         tone: 'error',
       });
     } finally {
@@ -294,7 +303,7 @@ export function FriendsManagement() {
       void loadData();
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : 'Failed to cancel request.',
+        message: userMessage(err, "Couldn't cancel that request. Try again."),
         tone: 'error',
       });
     } finally {
@@ -321,7 +330,7 @@ export function FriendsManagement() {
       void loadData();
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : 'Failed to remove friend.',
+        message: userMessage(err, "Couldn't remove that friend. Try again."),
         tone: 'error',
       });
     } finally {

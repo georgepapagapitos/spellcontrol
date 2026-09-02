@@ -760,7 +760,9 @@ export async function fetchPartnerCommanderData(
   if (data1) return data1;
   if (data2) return data2;
 
-  throw new Error(`Failed to fetch EDHREC data for both ${commander1} and ${commander2}`);
+  throw new Error(
+    `EDHREC has no data for ${commander1} or ${commander2}. Try a different commander.`
+  );
 }
 
 /**

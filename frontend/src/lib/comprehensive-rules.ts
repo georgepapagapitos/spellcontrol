@@ -30,7 +30,7 @@ let cache: Promise<RulesBundle> | null = null;
 export function loadRulesBundle(): Promise<RulesBundle> {
   if (!cache) {
     cache = fetch('/comprehensive-rules.json').then((r) => {
-      if (!r.ok) throw new Error(`Failed to load rules (${r.status})`);
+      if (!r.ok) throw new Error("Couldn't load the Comprehensive Rules. Try again in a moment.");
       return r.json() as Promise<RulesBundle>;
     });
   }

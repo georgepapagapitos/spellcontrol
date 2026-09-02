@@ -15,6 +15,7 @@ import { Modal } from '../Modal';
 import { RadarCardTile } from '../../pages/FriendHubPage';
 import './TonightTrades.css';
 
+import { userMessage } from '@/lib/user-error';
 interface TonightTradesData {
   incoming: (TradeRadarMatch & { supplierUsername: string })[];
   outgoing: (TradeRadarMatch & { wanterUsername: string })[];
@@ -68,7 +69,7 @@ export function TonightTrades({
       void refresh();
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't update tonight's trades.",
+        message: userMessage(err, "Couldn't update tonight's trades."),
         tone: 'error',
       });
     } finally {

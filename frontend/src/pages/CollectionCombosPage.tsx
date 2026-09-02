@@ -392,7 +392,7 @@ export function CollectionCombosPage() {
           )}
 
           {/* A load failure is retryable and says so — the raw transport error
-              ("Request failed: HTTP 502") named nothing the reader could act on. */}
+              (a bare gateway status) named nothing the reader could act on. */}
           {error && (
             <div className="deck-combos-empty" role="alert">
               <p className="deck-combos-error">

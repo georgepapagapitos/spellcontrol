@@ -20,6 +20,7 @@ import { CommanderSearch } from './CommanderSearch';
 import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import './AppendDeckDialog.css';
 
+import { userMessage } from '@/lib/user-error';
 interface Props {
   deck: Deck;
   onClose: () => void;
@@ -67,9 +68,7 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
       setShowCommanderSearch(false);
       setStep('review');
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Import failed. Check the format and try again.'
-      );
+      setError(userMessage(err, "Couldn't read that deck list. Check the format and try again."));
       setStep('input');
     } finally {
       setIsLoading(false);

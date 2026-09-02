@@ -15,6 +15,7 @@ import type { RewindVerdict } from '@/lib/playtest/rewind';
 import type { GameRequest } from '@/lib/games-api';
 import type { OnlineTable } from './use-online-table';
 
+import { userMessage } from '@/lib/user-error';
 export interface TakebackStatus {
   mode: TakebackMode;
   setMode(mode: TakebackMode): void;
@@ -187,7 +188,7 @@ export function useTakeback(onlineTable: OnlineTable | null): TakebackStatus {
         setMyRequestId(req.id);
       })
       .catch((err: unknown) => {
-        setRaiseError(err instanceof Error ? err.message : "Couldn't ask the table.");
+        setRaiseError(userMessage(err, "Couldn't ask the table."));
       });
     return plan;
   }, [pendingRequest, plan, next, dispatch, raiseGameRequest]);

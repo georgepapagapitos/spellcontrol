@@ -128,7 +128,7 @@ describe('syncOfflineData', () => {
     // No timers fire on this path (500 is not retryable), so attach the
     // rejection matcher up front to avoid an unhandled-rejection warning.
     const pending = syncOfflineData({});
-    const assertion = expect(pending).rejects.toThrow(/manifest \(500\)/);
+    const assertion = expect(pending).rejects.toThrow(/Couldn't reach the card data service/);
     await vi.runAllTimersAsync();
     await assertion;
   });

@@ -37,6 +37,7 @@ import { useDocumentTitle } from '../lib/use-document-title';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 
+import { userMessage } from '@/lib/user-error';
 type DiscoverSortField = DiscoverSortKey | 'buildable';
 
 // No sort here has a real asc/desc — the server always orders each column
@@ -160,7 +161,9 @@ export function DiscoverDecksPage() {
         setHasMore(res.hasMore);
       })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Failed to load public decks.');
+        setError(
+          userMessage(err, "Couldn't load public decks. Check your connection and try again.")
+        );
       })
       .finally(() => setLoading(false));
   }, [serverSort, filters]);
@@ -180,7 +183,9 @@ export function DiscoverDecksPage() {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Failed to load public decks.');
+        setError(
+          userMessage(err, "Couldn't load public decks. Check your connection and try again.")
+        );
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -204,7 +209,7 @@ export function DiscoverDecksPage() {
         setHasMore(res.hasMore);
       })
       .catch((err: unknown) => {
-        setLoadMoreError(err instanceof Error ? err.message : 'Failed to load more decks.');
+        setLoadMoreError(userMessage(err, "Couldn't load more decks. Try again."));
       })
       .finally(() => setLoadingMore(false));
   }, [page, serverSort, filters, fetchKey]);

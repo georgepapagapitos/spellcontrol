@@ -10,6 +10,7 @@ import { SearchPill } from './SearchPill';
 import { SelectMenu } from './SelectMenu';
 import { CONDITION_OPTIONS, LANGUAGE_OPTIONS } from './PrintingPicker';
 
+import { userMessage } from '@/lib/user-error';
 /** True when a printing's availability means the user owns at least one copy. */
 function isOwnedAvailability(a: ChangeOwnership): boolean {
   return a === 'owned' || a === 'in-other-deck' || a === 'in-cube';
@@ -270,6 +271,8 @@ export function CardEditDialog({
   const currency = useCurrency();
 
   const loading = loadedFor !== cardName && error === null;
+  // Bumped by Retry so the printings effect re-runs for the same card name.
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -282,13 +285,13 @@ export function CardEditDialog({
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Failed to load printings');
+        setError(userMessage(err, "Couldn't load other printings. Try again in a moment."));
         setLoadedFor(cardName);
       });
     return () => {
       cancelled = true;
     };
-  }, [cardName]);
+  }, [cardName, reloadKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -467,7 +470,22 @@ export function CardEditDialog({
 
       <div className="modal-body card-edit-body">
         {loading && <div className="card-edit-loading">Loading printings…</div>}
-        {error && <div className="card-edit-error">{error}</div>}
+        {error && (
+          <div className="card-edit-error" role="alert">
+            {error}{' '}
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => {
+                setError(null);
+                setLoadedFor(null);
+                setReloadKey((k) => k + 1);
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         {!loading && !error && (
           <div className="card-edit-layout">

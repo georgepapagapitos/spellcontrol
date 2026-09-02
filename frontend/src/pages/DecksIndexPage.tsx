@@ -74,6 +74,7 @@ import {
 import { toast } from '../store/toasts';
 import { useAuth } from '../store/auth';
 
+import { userMessage } from '@/lib/user-error';
 const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const;
 
 // Stable empty-set reference for guests/pre-bootstrap — avoids allocating a
@@ -438,7 +439,7 @@ export function DecksIndexPage() {
         toast.show({ message: 'Set a display name to publish.', tone: 'warn' });
       } else {
         toast.show({
-          message: err instanceof Error ? err.message : "Couldn't change deck visibility.",
+          message: userMessage(err, "Couldn't change deck visibility."),
           tone: 'error',
         });
       }

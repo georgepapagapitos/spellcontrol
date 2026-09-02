@@ -72,7 +72,9 @@ export interface OwnedPublication {
 export async function listMyPublications(): Promise<OwnedPublication[]> {
   const res = await fetch(apiUrl('/api/publications/decks'), { credentials: 'include' });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to load your publications.'));
+    throw new Error(
+      await readError(res, "Couldn't load your published decks. Try again in a moment.")
+    );
   }
   const body = (await res.json()) as { publications: OwnedPublication[] };
   return body.publications;
@@ -85,7 +87,9 @@ export async function getPublication(deckId: string): Promise<Publication | null
     credentials: 'include',
   });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to load publish status.'));
+    throw new Error(
+      await readError(res, "Couldn't check whether this deck is published. Try again in a moment.")
+    );
   }
   const body = (await res.json()) as { publication: Publication | null };
   return body.publication;
@@ -111,7 +115,7 @@ export async function publishDeck(deckId: string): Promise<PublishResult> {
     credentials: 'include',
   });
   if (!res.ok) {
-    const message = await readError(res, 'Failed to publish deck.');
+    const message = await readError(res, "Couldn't publish the deck. Try again.");
     if (message === 'display_name_required') throw new DisplayNameRequiredError();
     if (res.status === 404 && message === 'Deck not found.') throw new DeckNotSyncedYetError();
     throw new Error(message);
@@ -127,7 +131,7 @@ export async function unpublishDeck(deckId: string): Promise<void> {
     credentials: 'include',
   });
   if (!res.ok && res.status !== 404) {
-    throw new Error(await readError(res, 'Failed to unpublish deck.'));
+    throw new Error(await readError(res, "Couldn't unpublish the deck. Try again."));
   }
 }
 

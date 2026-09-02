@@ -43,7 +43,7 @@ export async function loadCardSimilar(): Promise<CardSimilarData | null> {
   fetchPromise = (async () => {
     try {
       const res = await fetch(SIMILAR_URL, { cache: 'no-cache' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error("Couldn't load the card-similarity snapshot.");
       const data: CardSimilarData = await res.json();
       cached = data;
       rankMaps = buildRankMaps(data.similar);

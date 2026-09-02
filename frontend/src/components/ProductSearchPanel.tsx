@@ -26,6 +26,7 @@ import type {
 } from '../types';
 import './ProductSearchPanel.css';
 
+import { userMessage } from '@/lib/user-error';
 /** Carousel entries for a product's full physical contents (one swipeable card per copy-set). */
 function physicalToEntries(physicalCards: ProductPhysicalCard[]): CarouselEntry[] {
   return physicalCards.map((pc) => ({
@@ -275,7 +276,9 @@ export function ProductSearchPanel({ onClose }: Props) {
         if (!cancelled) setResults(products);
       } catch (e) {
         if (!cancelled) {
-          setListError(e instanceof Error ? e.message : 'Search failed');
+          setListError(
+            userMessage(e, "Couldn't run that search. Check your connection and try again.")
+          );
           setResults([]);
         }
       } finally {
@@ -295,7 +298,7 @@ export function ProductSearchPanel({ onClose }: Props) {
       const resolved = await fetchProduct(p.fileName);
       setSelected(resolved);
     } catch (e) {
-      setProductError(e instanceof Error ? e.message : "Couldn't load this product.");
+      setProductError(userMessage(e, "Couldn't load this product."));
     } finally {
       setLoadingProduct(false);
     }
@@ -332,7 +335,7 @@ export function ProductSearchPanel({ onClose }: Props) {
       const count = await addToCollection(resp);
       setBanner(`Added ${count.toLocaleString()} cards to your collection.`);
     } catch (e) {
-      setProductError(e instanceof Error ? e.message : "Couldn't add to collection.");
+      setProductError(userMessage(e, "Couldn't add that to your collection. Try again."));
     } finally {
       setBusy(false);
     }
@@ -345,7 +348,7 @@ export function ProductSearchPanel({ onClose }: Props) {
       await addToCollection(resp);
       addAsDeck(resp); // navigates + closes
     } catch (e) {
-      setProductError(e instanceof Error ? e.message : "Couldn't add this precon.");
+      setProductError(userMessage(e, "Couldn't add this precon."));
       setBusy(false);
     }
   };

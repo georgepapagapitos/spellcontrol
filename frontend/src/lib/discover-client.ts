@@ -63,7 +63,9 @@ export async function listDiscoverDecks(
     credentials: 'include',
   });
   if (!res.ok) {
-    throw new Error(await readError(res, "Couldn't load public decks."));
+    throw new Error(
+      await readError(res, "Couldn't load public decks. Check your connection and try again.")
+    );
   }
   return (await res.json()) as ListDiscoverDecksResult;
 }

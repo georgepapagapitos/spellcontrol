@@ -38,6 +38,7 @@ import { clearUndo } from '../lib/undo-stack';
 import { FORMAT_OPTIONS } from '../lib/game-formats';
 import type { PublicBoard, TickerEntry } from '../lib/playtest/projection';
 
+import { userMessage } from '@/lib/user-error';
 const POLL_INTERVAL_MS = 2500;
 
 export interface LocalGameSetup {
@@ -767,7 +768,7 @@ export const usePlayStore = create<PlayState>()(
         try {
           for (const a of list) optimistic = applyAction(optimistic, a);
         } catch (err) {
-          set({ onlineError: err instanceof Error ? err.message : 'Invalid action.' });
+          set({ onlineError: userMessage(err, "That move isn't allowed right now.") });
           return;
         }
         set({ online: optimistic });
@@ -803,8 +804,8 @@ export const usePlayStore = create<PlayState>()(
                 } else if (e.status === 403) {
                   await recoverFromServerState(
                     code,
-                    e.message || 'Not allowed.',
-                    e.message || 'Not allowed.',
+                    userMessage(e, "That move isn't allowed right now."),
+                    userMessage(e, "That move isn't allowed right now."),
                     set
                   );
                 } else {
@@ -820,8 +821,8 @@ export const usePlayStore = create<PlayState>()(
                   // whether or not the refetch succeeds.
                   await recoverFromServerState(
                     code,
-                    e.message || 'Action failed.',
-                    e.message || 'Action failed.',
+                    userMessage(e, "That didn't go through. Try again."),
+                    userMessage(e, "That didn't go through. Try again."),
                     set
                   );
                 }

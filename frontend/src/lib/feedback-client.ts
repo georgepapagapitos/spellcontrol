@@ -70,7 +70,7 @@ export async function submitFeedback(
     body: JSON.stringify(input),
   });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to submit feedback.'));
+    throw new Error(await readError(res, "Couldn't send your feedback. Try again."));
   }
   const body = (await res.json()) as { feedback: { id: string } };
   return body.feedback;
@@ -82,7 +82,9 @@ export async function listDeckFeedback(deckId: string): Promise<FeedbackResponse
     credentials: 'include',
   });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to load feedback.'));
+    throw new Error(
+      await readError(res, "Couldn't load the feedback on this deck. Try again in a moment.")
+    );
   }
   const body = (await res.json()) as { responses: FeedbackResponse[] };
   return body.responses;
@@ -106,7 +108,7 @@ export async function setSuggestionStatus(
     }
   );
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to update suggestion.'));
+    throw new Error(await readError(res, "Couldn't save that verdict. Try again."));
   }
 }
 
@@ -117,6 +119,6 @@ export async function deleteFeedback(feedbackId: string): Promise<void> {
     credentials: 'include',
   });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to delete feedback.'));
+    throw new Error(await readError(res, "Couldn't delete that response. Try again."));
   }
 }

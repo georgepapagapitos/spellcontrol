@@ -39,6 +39,7 @@ import { FreshDecksRail } from '../components/welcome/FreshDecksRail';
 import { TrendingRail } from '../components/aggregates/TrendingRail';
 import './WelcomePage.css';
 
+import { userMessage } from '@/lib/user-error';
 /** Feature blocks — real prose so the page has something for search engines to
  *  index (the gated app itself exposes almost no crawlable text). Claims here
  *  must stay accurate to README's feature list. */
@@ -89,7 +90,7 @@ export function WelcomePage() {
       markEverVisited();
       navigate('/collection');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Couldn't load sample cards";
+      const msg = userMessage(err, "Couldn't load the sample cards. Try again in a moment.");
       setSampleError(msg);
       // Propagate to the global error banner too (matches BindersIndexPage behaviour)
       setError(msg);

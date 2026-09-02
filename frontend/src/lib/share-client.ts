@@ -61,7 +61,7 @@ export async function createShare(input: {
     body: JSON.stringify(input),
   });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to create share.'));
+    throw new Error(await readError(res, "Couldn't create the share link. Try again."));
   }
   const body = (await res.json()) as { share: ShareRow };
   return body.share;
@@ -71,7 +71,7 @@ export async function createShare(input: {
 export async function listShares(): Promise<ShareRow[]> {
   const res = await fetch(apiUrl('/api/shares'), { credentials: 'include' });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to list shares.'));
+    throw new Error(await readError(res, "Couldn't load your share links. Try again in a moment."));
   }
   const body = (await res.json()) as { shares: ShareRow[] };
   return body.shares;
@@ -84,7 +84,7 @@ export async function revokeShare(token: string): Promise<void> {
     credentials: 'include',
   });
   if (!res.ok && res.status !== 404) {
-    throw new Error(await readError(res, 'Failed to revoke share.'));
+    throw new Error(await readError(res, "Couldn't revoke that share link. Try again."));
   }
 }
 
@@ -105,7 +105,9 @@ export async function fetchPublicShare(token: string): Promise<PublicShareRespon
     throw new ShareAuthRequiredError();
   }
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to load shared content.'));
+    throw new Error(
+      await readError(res, "Couldn't load this shared page. Check the link and try again.")
+    );
   }
   return (await res.json()) as PublicShareResponse;
 }
@@ -119,7 +121,9 @@ export async function getFriendShares(
     credentials: 'include',
   });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to load shared content.'));
+    throw new Error(
+      await readError(res, "Couldn't load this shared page. Check the link and try again.")
+    );
   }
   return (await res.json()) as {
     ownerUsername: string;
@@ -132,7 +136,9 @@ export async function getFriendShares(
 export async function getInbox(): Promise<InboxShareRow[]> {
   const res = await fetch(apiUrl('/api/shares/inbox'), { credentials: 'include' });
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to load your inbox.'));
+    throw new Error(
+      await readError(res, "Couldn't load your inbox. Check your connection and try again.")
+    );
   }
   const body = (await res.json()) as { shares: InboxShareRow[] };
   return body.shares;
@@ -213,7 +219,7 @@ export async function fetchPublicDeckPage(slug: string): Promise<PublicDeckPage>
     throw new PublicDeckNotFoundError();
   }
   if (!res.ok) {
-    throw new Error(await readError(res, 'Failed to load this deck.'));
+    throw new Error(await readError(res, "Couldn't load this deck. Check the link and try again."));
   }
   return (await res.json()) as PublicDeckPage;
 }

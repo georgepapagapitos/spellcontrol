@@ -29,6 +29,7 @@ import type {
   SortField,
 } from '../types';
 
+import { userMessage } from '@/lib/user-error';
 const EMPTY_FILTER: BinderFilter = {};
 const newGroup = (): BinderFilterGroup => ({ filter: {} });
 
@@ -445,7 +446,7 @@ export function BinderEditor() {
       }
       setEditingBinder(null);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Save failed');
+      setErrorMsg(userMessage(err, "Couldn't save the binder. Try again."));
     } finally {
       setSaving(false);
       setLoading(false);
@@ -515,7 +516,7 @@ export function BinderEditor() {
         else createBinder(input);
         setEditingBinder(null);
       } catch (err) {
-        setErrorMsg(err instanceof Error ? err.message : 'Save failed');
+        setErrorMsg(userMessage(err, "Couldn't save the binder. Try again."));
       } finally {
         setSaving(false);
       }
@@ -1136,9 +1137,7 @@ export function BinderEditor() {
                         });
                         stageIncoming(files);
                       } catch (err) {
-                        setErrorMsg(
-                          err instanceof Error ? err.message : "Couldn't open file picker"
-                        );
+                        setErrorMsg(userMessage(err, "Couldn't open the file picker. Try again."));
                       }
                       return;
                     }

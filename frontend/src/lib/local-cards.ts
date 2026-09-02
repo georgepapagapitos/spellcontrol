@@ -66,7 +66,7 @@ export interface StoredCollection {
  *  instead of claiming the whole import was lost). */
 export class SaveCollectionError extends Error {
   constructor(readonly kinds: string[]) {
-    super(`Failed to persist locally: ${kinds.join(', ')}`);
+    super(`Couldn't save ${kinds.join(', ')} on this device.`);
     this.name = 'SaveCollectionError';
   }
 }

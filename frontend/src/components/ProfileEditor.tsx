@@ -8,6 +8,7 @@ import { UserAvatar } from './UserAvatar';
 import { AvatarPickerSheet } from './AvatarPickerSheet';
 import './ProfileEditor.css';
 
+import { userMessage } from '@/lib/user-error';
 const DISPLAY_NAME_MAX = 40;
 const BIO_MAX = 280;
 
@@ -109,7 +110,7 @@ export function ProfileEditor() {
       toast.show({ message: 'Profile saved.', tone: 'success' });
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't save your profile.",
+        message: userMessage(err, "Couldn't save your profile."),
         tone: 'error',
       });
     } finally {
