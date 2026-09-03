@@ -605,6 +605,8 @@
 }
 
 .settings-theme-option {
+  min-width: 0;
+  overflow-wrap: anywhere;
   position: relative;
   display: grid;
   grid-template-columns: auto 1fr;

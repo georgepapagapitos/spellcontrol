@@ -449,8 +449,10 @@
 
 .decks-index-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   align-items: center;
+  min-width: 0;
 }
 
 /* Generic kebab wrapper — panel portals to <body>, so no position:relative needed.

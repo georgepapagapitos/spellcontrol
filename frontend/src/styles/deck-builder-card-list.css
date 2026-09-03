@@ -508,6 +508,11 @@
 
 .deck-row-tag-chip {
   display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
   padding: 0.02rem 0.4rem;
   border-radius: 999px;
   border: 1px solid var(--border);

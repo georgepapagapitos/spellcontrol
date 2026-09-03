@@ -148,6 +148,8 @@
   color: var(--text-primary);
   margin: 0;
   line-height: 1.1;
+  /* One long word at a large font scale breaks rather than widening the page. */
+  overflow-wrap: anywhere;
 }
 
 .binder-hero-meta {

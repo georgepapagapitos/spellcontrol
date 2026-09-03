@@ -46,6 +46,14 @@
   color: var(--text-secondary);
 }
 
+/* Free-standing CTA — lets the label wrap instead of overflowing the panel
+   at large font scales (.btn is nowrap by default). */
+.rules-unavailable .btn {
+  white-space: normal;
+  height: auto;
+  max-width: 100%;
+}
+
 .rules-unavailable p {
   margin: 0;
 }
