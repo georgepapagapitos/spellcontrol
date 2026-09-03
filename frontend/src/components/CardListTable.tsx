@@ -1,3 +1,4 @@
+import { EmptyStateMark } from './shared/EmptyStateMark';
 import {
   AlignJustify,
   Bookmark,
@@ -2215,6 +2216,7 @@ export function CardListTable({
         // "no matches". Same view, just empty: point at the search bar above
         // and offer the Add cards sheet (search · list · scan) right here.
         <div className="empty-state">
+          <EmptyStateMark />
           <p className="empty-state-tagline">Your collection is empty.</p>
           <p className="empty-state-hint">
             Search for a card above to add it, or use Add cards to import a list

@@ -1,3 +1,4 @@
+import { EmptyStateMark } from '../shared/EmptyStateMark';
 import {
   useCallback,
   useEffect,
@@ -170,6 +171,7 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
     <div className="game-nights">
       {nights.length === 0 ? (
         <div className="empty-state">
+          <EmptyStateMark />
           <p className="empty-state-tagline">No game nights planned.</p>
           <p className="empty-state-hint">
             Pick a date or let the group vote, then share the link. Anyone can RSVP, no account

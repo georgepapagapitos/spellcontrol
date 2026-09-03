@@ -1,3 +1,4 @@
+import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { ChevronDown, LayoutGrid, List, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -224,7 +225,8 @@ export function TagsPage() {
         </section>
       ) : (
         ready && (
-          <div className="tags-page-status tags-page-landing">
+          <div className="empty-state">
+            <EmptyStateMark />
             <p className="empty-state-tagline">Pick a tag to see what it finds.</p>
             <p className="empty-state-hint">
               Combine tags to narrow — “sweeper” plus “instant speed” is a much shorter list.

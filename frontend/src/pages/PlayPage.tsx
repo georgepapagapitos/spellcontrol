@@ -1,3 +1,4 @@
+import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { BookOpen, Check, Copy, Swords, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -1114,6 +1115,7 @@ function HistoryTab({
   if (history.length === 0 && userId === null) {
     return (
       <div className="empty-state">
+        <EmptyStateMark />
         <p className="empty-state-tagline">No games yet.</p>
         <p className="empty-state-hint">Head to Local or Online to start your first game.</p>
       </div>
@@ -1125,6 +1127,7 @@ function HistoryTab({
       {userId !== null && <FriendsLeaderboard />}
       {history.length === 0 && (
         <div className="empty-state">
+          <EmptyStateMark />
           <p className="empty-state-tagline">No games on this device yet.</p>
           <p className="empty-state-hint">Head to Local or Online to start your first game.</p>
         </div>

@@ -197,14 +197,6 @@
   font-size: var(--text-sm);
 }
 
-.sets-empty p {
-  margin: 0;
-}
-
-.sets-empty-link {
-  color: var(--accent);
-}
-
 .sets-list {
   list-style: none;
   margin: 0;

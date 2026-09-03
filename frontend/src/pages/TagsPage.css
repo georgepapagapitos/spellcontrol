@@ -243,10 +243,6 @@
   text-align: center;
 }
 
-.tags-page-landing {
-  margin-top: var(--space-5);
-}
-
 .tags-retry {
   padding: 0.1rem 0.4rem;
   border: 1px solid var(--border);

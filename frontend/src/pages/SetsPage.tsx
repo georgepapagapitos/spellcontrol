@@ -1,3 +1,4 @@
+import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -364,11 +365,17 @@ function SetsIndex() {
       </header>
 
       {progress.length === 0 ? (
-        <div className="sets-empty">
-          <p>No sets to track yet — your collection is empty.</p>
-          <Link to="/collection" className="sets-empty-link">
-            Add or import cards to start completing sets.
-          </Link>
+        <div className="empty-state">
+          <EmptyStateMark />
+          <p className="empty-state-tagline">No sets to track yet.</p>
+          <p className="empty-state-hint">
+            Add or import cards and your set completion shows up here.
+          </p>
+          <div className="empty-state-actions">
+            <Link to="/collection" className="btn btn-primary">
+              Add cards
+            </Link>
+          </div>
         </div>
       ) : (
         <>
