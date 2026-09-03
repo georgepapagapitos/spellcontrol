@@ -12,6 +12,7 @@
 .playtest-stats-body {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   padding: var(--space-4);
   display: flex;

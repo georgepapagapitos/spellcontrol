@@ -35,6 +35,7 @@
    * one scrolls inside the card instead of pushing "Continue" off-screen. */
   max-height: 38vh;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .game-recap-row {

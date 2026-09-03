@@ -59,6 +59,24 @@ describe('overlay scroll containment', () => {
     // The collection Filters dialog — twenty sections deep, so it gets scrolled
     // to its end more often than any other overlay body in the app.
     ['styles/collection.css', '.collection-filters-dialog-body'],
+    // Polish-pass sweep: every remaining overlay scroller found by grep.
+    ['components/play/GameNights.css', '.game-night-place-results'],
+    ['components/play/GameNights.css', '.game-night-dialog-friend-list'],
+    ['components/play/GameNights.css', '.game-night-dialog-people-list'],
+    ['components/play/GameRecap.css', '.game-recap-list'],
+    ['styles/play-panel-menus.css', '.seat-menu-body'],
+    ['styles/play-panel-menus.css', '.game-menu-body'],
+    ['styles/playtest.css', '.playtest-zone-grid'],
+    ['styles/playtest.css', '.playtest-zones-panel'],
+    ['playtest/components/PlaytestLogSheet.css', '.playtest-log-body'],
+    ['playtest/components/PlaytestStatsSheet.css', '.playtest-stats-body'],
+    ['playtest/components/TableTicker.css', '.table-ticker__list'],
+    ['components/deck/BetweenYourDecks.css', '.between-decks-sheet-body'],
+    ['components/deck/DeckPrimerSheet.css', '.deck-primer-sheet-body'],
+    ['components/deck/DeckTokensSheet.css', '.deck-tokens-sheet-body'],
+    ['styles/deck-builder-card-search.css', '.deck-test-hand-sheet-body'],
+    ['styles/deck-builder-card-search.css', '.card-search-results'],
+    ['styles/deck-builder-export.css', '.export-dialog-preview'],
   ];
 
   for (const [file, selector] of SCROLLERS) {
@@ -152,17 +170,29 @@ describe('horizontal tab strips', () => {
     ['styles/deck-builder-tabs.css', '.sc-tabs--scrollable'],
     ['styles/deck-builder-tabs.css', '.sc-tabs--hub'],
     ['styles/deck-builder-tabs.css', '.sc-tabs--underline'],
+    ['styles/binder-nav.css', '.binder-tab-row'],
+    ['styles/binder-card-management.css', '.add-cards-tabs'],
+    ['styles/shared.css', '.shared-table-scroll'],
+    ['styles/play-history-inline.css', '.play-records'],
+    ['styles/playtest.css', '.playtest-life-strip'],
+    ['styles/playtest.css', '.playtest-mana-pool'],
+    ['components/play/H2HSummary.css', '.h2h-detail'],
+    ['styles/admin-scanner.css', '.admin-users-table-scroll'],
   ];
 
   for (const [file, selector] of STRIPS) {
     it(`${selector} scrolls on one axis only`, () => {
-      const strip = blocks(read(file), selector)[0] ?? '';
-      expect(strip, `no ${selector} rule found`).toMatch(/overflow-x:\s*auto/);
-      expect(
-        strip,
-        `${selector} sets overflow-x but not overflow-y, so the block axis ` +
-          'computes to auto and the strip becomes an unintended 2-axis scroller'
-      ).toMatch(/overflow-y:\s*(hidden|clip)/);
+      // The scrolling declaration may live in a media-query variant rather
+      // than the base rule, so check every block that sets overflow-x.
+      const strips = blocks(read(file), selector).filter((b) => /overflow-x:\s*auto/.test(b));
+      expect(strips, `no ${selector} rule sets overflow-x: auto`).not.toEqual([]);
+      for (const strip of strips) {
+        expect(
+          strip,
+          `${selector} sets overflow-x but not overflow-y, so the block axis ` +
+            'computes to auto and the strip becomes an unintended 2-axis scroller'
+        ).toMatch(/overflow-y:\s*(hidden|clip)/);
+      }
     });
   }
 

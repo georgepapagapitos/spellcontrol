@@ -319,6 +319,7 @@
   list-style: none;
   max-height: 14rem;
   overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--surface);
   border: 0.5px solid var(--border-strong);
   border-radius: var(--radius);
@@ -363,6 +364,7 @@
   gap: var(--space-1);
   max-height: 10rem;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .game-night-dialog-friend-list label {
@@ -401,6 +403,7 @@
   gap: var(--space-1);
   max-height: 12rem;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* Mint row for a named guest invite link (E208). The label field takes the

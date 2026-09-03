@@ -43,6 +43,7 @@
      no-overflow floor still applies even to an internal-only surface). */
   display: block;
   overflow-x: auto;
+  overflow-y: hidden;
   border-collapse: collapse;
   font-size: var(--text-sm);
 }
@@ -1547,6 +1548,7 @@
   width: 100%;
   min-width: 0;
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
 }
 

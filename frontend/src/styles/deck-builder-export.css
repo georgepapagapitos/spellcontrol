@@ -127,6 +127,8 @@
   border-radius: var(--radius);
   padding: var(--space-3) var(--space-4);
   color: var(--text-primary);
+  /* A scrolling textarea inside the dialog — contained like every overlay scroller. */
+  overscroll-behavior: contain;
 }
 
 /* Wrap the format/meta/actions onto two rows on narrow viewports so the

@@ -1017,6 +1017,7 @@ body:has(.playtest-page) {
 .playtest-zone-grid {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   list-style: none;
   margin: 0;
@@ -1209,6 +1210,7 @@ body:has(.playtest-page) {
 .playtest-ctx-sheet .playtest-ctx-menu {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   padding: var(--space-2);
 }
@@ -1579,6 +1581,7 @@ body:has(.playtest-page) {
   gap: var(--space-2);
   padding: var(--space-3) calc(var(--space-3) + var(--safe-right)) var(--space-3) var(--space-3);
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .playtest-zone-tile {
@@ -2126,6 +2129,7 @@ body:has(.playtest-page) {
   border-bottom: 0.5px solid var(--border);
   background: var(--surface);
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: thin;
 }
 
@@ -2249,6 +2253,7 @@ body:has(.playtest-page) {
   border-bottom: 0.5px solid var(--border);
   background: var(--surface);
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: thin;
 }
 

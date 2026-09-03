@@ -198,6 +198,7 @@
 .between-decks-sheet-body {
   padding: 0.2rem var(--space-1) var(--space-3);
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .between-decks-list {

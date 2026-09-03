@@ -415,6 +415,7 @@
   padding: var(--space-4);
   /* Wide matchup table (9 cols) scrolls within its card rather than overflowing the body at 320px. */
   overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .play-records-title {

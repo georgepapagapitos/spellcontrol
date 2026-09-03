@@ -557,6 +557,7 @@
    (the shell clips page-level x-overflow). */
 .shared-table-scroll {
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
 }
 
