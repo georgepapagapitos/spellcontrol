@@ -755,6 +755,24 @@
    any platform can reach, and nobody discovers an entry point they'd first have
    to reveal. Font size is inherited from the global input rule on purpose —
    16px is what stops iOS auto-zooming the page on focus. */
+.import-link-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* Visible, not sr-only: the field's meaning ("which link?") has to survive
+   without the placeholder, which is gone the moment someone types and was
+   truncating at 360px anyway. Same caption tier as `.import-deck-name-label`. */
+.import-link-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
 .import-link-row {
   display: flex;
   align-items: center;

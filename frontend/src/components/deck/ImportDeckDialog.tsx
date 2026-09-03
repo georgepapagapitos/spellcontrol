@@ -845,42 +845,44 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                     the one source no OS file picker can reach. The fetched
                     file joins the staged batch like any other. */}
                 {!canPickDrive && (
-                  <div className="import-link-row">
-                    <label className="sr-only" htmlFor={linkInputId}>
+                  <div className="import-link-field">
+                    <label className="import-link-label" htmlFor={linkInputId}>
                       Google Sheets or Drive link
                     </label>
-                    <input
-                      id={linkInputId}
-                      type="url"
-                      className="import-link-input"
-                      value={linkUrl}
-                      onChange={(e) => setLinkUrl(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          void handleFetchLink();
-                        }
-                      }}
-                      placeholder="Paste a share link"
-                      disabled={isLoading || linkBusy}
-                      inputMode="url"
-                      autoComplete="off"
-                      spellCheck={false}
-                    />
-                    <button
-                      type="button"
-                      className="btn import-link-btn"
-                      onClick={handleFetchLink}
-                      disabled={isLoading || linkBusy || !linkUrl.trim()}
-                      title="Fetch a deck list from a Google Sheet, or from a file in Drive. The link has to be shared with anyone who has it."
-                    >
-                      {linkBusy ? (
-                        <span className="spinner" />
-                      ) : (
-                        <Link2 width={14} height={14} strokeWidth={1.8} aria-hidden />
-                      )}
-                      <span>{linkBusy ? 'Fetching…' : 'Fetch'}</span>
-                    </button>
+                    <div className="import-link-row">
+                      <input
+                        id={linkInputId}
+                        type="url"
+                        className="import-link-input"
+                        value={linkUrl}
+                        onChange={(e) => setLinkUrl(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            void handleFetchLink();
+                          }
+                        }}
+                        placeholder="Paste the link"
+                        disabled={isLoading || linkBusy}
+                        inputMode="url"
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                      <button
+                        type="button"
+                        className="btn import-link-btn"
+                        onClick={handleFetchLink}
+                        disabled={isLoading || linkBusy || !linkUrl.trim()}
+                        title="Fetch a deck list from a Google Sheet, or from a file in Drive. The link has to be shared with anyone who has it."
+                      >
+                        {linkBusy ? (
+                          <span className="spinner" />
+                        ) : (
+                          <Link2 width={14} height={14} strokeWidth={1.8} aria-hidden />
+                        )}
+                        <span>{linkBusy ? 'Fetching…' : 'Fetch'}</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </>
