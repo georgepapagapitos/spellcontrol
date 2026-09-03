@@ -1053,6 +1053,7 @@ function GameChangerOptions({
           <input
             ref={inputRef}
             className="option-card-input"
+            aria-label="Custom count"
             type="number"
             min={1}
             value={draft}
@@ -1151,6 +1152,7 @@ function ScryfallGroup({ customization, update }: DeckCustomizerProps) {
       <input
         type="text"
         className="deck-customizer-text-input"
+        aria-label="Additional Scryfall query"
         value={customization.scryfallQuery}
         placeholder="e.g. -is:reprint or set:mkm"
         onChange={(e) => update({ scryfallQuery: e.target.value })}
@@ -1283,9 +1285,16 @@ function Field({
   align?: 'center' | 'stretch';
   children: React.ReactNode;
 }) {
+  const labelId = useId();
   return (
-    <div className={`deck-customizer-field deck-customizer-field-${align}`}>
-      <span className="deck-customizer-field-label">{label}</span>
+    <div
+      className={`deck-customizer-field deck-customizer-field-${align}`}
+      role="group"
+      aria-labelledby={labelId}
+    >
+      <span id={labelId} className="deck-customizer-field-label">
+        {label}
+      </span>
       <div className="deck-customizer-field-control">{children}</div>
       {hint && <small className="deck-customizer-field-hint">{hint}</small>}
     </div>

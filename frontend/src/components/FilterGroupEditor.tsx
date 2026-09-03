@@ -597,6 +597,7 @@ function FilterGroupFields({
           </label>
           <input
             type="number"
+            aria-label="Number of most popular EDH cards"
             value={filter.edhrecRankMax ?? ''}
             min={1}
             max={50000}

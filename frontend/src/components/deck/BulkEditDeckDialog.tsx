@@ -276,6 +276,7 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
             )}
             <textarea
               className="paste-textarea bulk-edit-textarea"
+              aria-label="Updated decklist"
               value={text}
               onChange={(e) => setText(e.target.value)}
               disabled={isLoading}

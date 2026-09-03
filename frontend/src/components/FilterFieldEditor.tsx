@@ -100,6 +100,7 @@ export function NumberRangeInput({
     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
       <input
         type="number"
+        aria-label="Minimum"
         value={min ?? ''}
         step={step}
         min={0}
@@ -112,6 +113,7 @@ export function NumberRangeInput({
       <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>to</span>
       <input
         type="number"
+        aria-label="Maximum"
         value={max ?? ''}
         step={step}
         min={0}

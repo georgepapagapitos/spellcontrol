@@ -237,7 +237,7 @@ export function CardContextMenu({
           {attachedToName ? (
             <div className="playtest-ctx-attached">
               <span>{attachedToName}</span>
-              <button type="button" onClick={() => onAttach(null)} aria-label="unattach">
+              <button type="button" onClick={() => onAttach(null)}>
                 Unattach
               </button>
             </div>

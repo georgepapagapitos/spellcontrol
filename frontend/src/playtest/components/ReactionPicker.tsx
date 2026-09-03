@@ -69,7 +69,6 @@ export function ReactionPicker() {
       <button
         ref={buttonRef}
         type="button"
-        aria-label="Send a reaction"
         title="Send a reaction"
         aria-haspopup="menu"
         aria-expanded={open}
@@ -84,7 +83,7 @@ export function ReactionPicker() {
             ref={panelRef}
             className="playtest-reaction-picker"
             role="menu"
-            aria-label="Send a reaction"
+            aria-label="Reactions"
             style={{
               position: 'fixed',
               top: panelPos.top,

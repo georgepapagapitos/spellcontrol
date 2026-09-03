@@ -1,4 +1,4 @@
-import { MoreHorizontal, Undo2 } from 'lucide-react';
+import { Compass, Crown, MoreHorizontal, Undo2 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GameAction, GamePlayer, GameState } from '../../lib/game-state';
 import { cmdDamageKey } from '../../lib/game-state';
@@ -859,15 +859,19 @@ function PlayerPanel({
               counters (bottom-left). They render inside the rotated panel so they
               always read upright for that seat. */}
           {(isMonarch || isInitiative) && (
-            <div className="pp-designation-chips" aria-hidden="true">
+            <div className="pp-designation-chips">
               {isMonarch && (
-                <span className="pp-designation-chip is-monarch" aria-label="Monarch">
-                  👑
+                <span className="pp-designation-chip is-monarch" role="img" aria-label="Monarch">
+                  <Crown width={14} height={14} aria-hidden />
                 </span>
               )}
               {isInitiative && (
-                <span className="pp-designation-chip is-initiative" aria-label="Initiative">
-                  🧭
+                <span
+                  className="pp-designation-chip is-initiative"
+                  role="img"
+                  aria-label="Initiative"
+                >
+                  <Compass width={14} height={14} aria-hidden />
                 </span>
               )}
             </div>

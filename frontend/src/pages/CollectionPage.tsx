@@ -184,8 +184,7 @@ export function CollectionPage() {
                       type="button"
                       className="collection-hero-stats-link"
                       onClick={() => setStatsOpen(true)}
-                      aria-label="Open collection breakdown"
-                      title="Breakdown"
+                      aria-label="Stats: collection breakdown"
                     >
                       <BarChart3 width={12} height={12} strokeWidth={2} aria-hidden />
                       <span>Stats</span>

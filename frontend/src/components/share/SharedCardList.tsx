@@ -46,7 +46,6 @@ export function SharedCardList({ items, onPreview, showPrice = true }: Props) {
               key={it.key}
               onClick={() => onPreview(i)}
               tabIndex={0}
-              role="button"
               aria-label={`Preview ${it.card.name}${ownedAriaSuffix(it.ownership)}`}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {

@@ -132,6 +132,7 @@ export function DeckExportDialog({ text, format, onFormatChange, title, onClose 
         </div>
         <textarea
           className="export-dialog-preview"
+          aria-label="Exported decklist"
           value={text}
           readOnly
           spellCheck={false}
