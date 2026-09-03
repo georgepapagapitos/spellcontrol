@@ -78,7 +78,9 @@ export function UserAvatar({ imageUrl, name, size = 32 }: Props) {
 
   const bg = PRESET_COLORS[hash(name) % PRESET_COLORS.length].hex;
   const color = fallbackTextColor(bg);
-  const initial = (name.trim().charAt(0) || '?').toUpperCase();
+  // Array.from splits on code points, so an emoji or astral-plane letter
+  // isn't cut into a lone surrogate half.
+  const initial = (Array.from(name.trim())[0] ?? '?').toUpperCase();
 
   return (
     <span

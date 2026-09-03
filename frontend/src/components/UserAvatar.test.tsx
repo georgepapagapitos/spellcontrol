@@ -26,6 +26,11 @@ describe('UserAvatar', () => {
     expect(getByText('S')).toBeTruthy();
   });
 
+  it('keeps a multi-unit first character whole instead of a lone surrogate', () => {
+    const { getByText } = render(<UserAvatar imageUrl={null} name="𝔊andalf" />);
+    expect(getByText('𝔊')).toBeTruthy();
+  });
+
   it('uppercases the initial from a lowercase name', () => {
     const { getByText } = render(<UserAvatar imageUrl={undefined} name="sol ring" />);
     expect(getByText('S')).toBeTruthy();
