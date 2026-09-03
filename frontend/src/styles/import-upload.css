@@ -856,6 +856,14 @@
   justify-content: center;
 }
 
+/* An empty-state CTA's label may wrap — at a 200% font scale "Import your
+   collection" is wider than a phone, and .btn is nowrap by default. */
+.empty-state-actions .btn {
+  white-space: normal;
+  height: auto;
+  max-width: 100%;
+}
+
 /* Single CTA inside an empty state (e.g. the empty-collection "Add cards").
    The parent centers inline content; this just gives the button its icon gap. */
 .empty-state-action {
