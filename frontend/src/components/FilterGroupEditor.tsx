@@ -414,7 +414,7 @@ function FilterGroupFields({
           value={filter.colors ?? EMPTY_EXPR}
           onChange={(next) => patch({ colors: next })}
           defaultJoiner="OR"
-          placeholder="Add color..."
+          placeholder="Add color…"
         />
       </RuleRow>
 
@@ -429,7 +429,7 @@ function FilterGroupFields({
           // anything. The collection Filters dialog already locked this; the
           // binder editor let you build the empty set by hand.
           lockJoiner="OR"
-          placeholder="Add rarity..."
+          placeholder="Add rarity…"
         />
       </RuleRow>
 
@@ -461,7 +461,7 @@ function FilterGroupFields({
           type="text"
           value={filter.nameContains || ''}
           onChange={(e) => patch({ nameContains: e.target.value })}
-          placeholder="e.g. dragon, sword..."
+          placeholder="e.g. dragon, sword"
         />
       </RuleRow>
 
@@ -804,7 +804,7 @@ function SetMultiSelect({
             setQuery(e.target.value);
             setOpen(true);
           }}
-          placeholder={options.length === 0 ? 'no cards loaded' : 'add set...'}
+          placeholder={options.length === 0 ? 'no cards loaded' : 'Add set…'}
           disabled={options.length === 0}
         />
         {open && filtered.length > 0 && (

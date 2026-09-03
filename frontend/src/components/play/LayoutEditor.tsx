@@ -366,7 +366,9 @@ export function CustomLayoutEditor({
 
         <footer className="cle-foot">
           <span className="cle-status">
-            {allPlaced ? 'All seats placed' : `${count - placedCount} seat(s) to place`}
+            {allPlaced
+              ? 'All seats placed'
+              : `${count - placedCount} ${count - placedCount === 1 ? 'seat' : 'seats'} to place`}
           </span>
           <div className="cle-foot-actions">
             <button type="button" className="game-menu-btn" onClick={onClose}>

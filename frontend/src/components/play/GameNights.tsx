@@ -130,7 +130,7 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
   if (isGuest) {
     return (
       <div className="empty-state">
-        <p className="empty-state-tagline">Game nights need an account</p>
+        <p className="empty-state-tagline">Game nights need an account.</p>
         <p className="empty-state-hint">
           Sign in to plan a night and invite friends. Anyone you send the link to can RSVP without
           an account.
@@ -151,7 +151,7 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
   if (error) {
     return (
       <div className="empty-state">
-        <p className="empty-state-tagline">Couldn't load game nights</p>
+        <p className="empty-state-tagline">Couldn't load game nights.</p>
         <p className="empty-state-hint">{error}</p>
         <div className="empty-state-actions">
           <button
@@ -1404,7 +1404,7 @@ function NightDialog({
               onFocus={() => setPlaceOpen(true)}
               onKeyDown={onPlaceKeyDown}
               maxLength={120}
-              placeholder="e.g. Sam's place, or search an address"
+              placeholder="e.g. Sam's place"
               role="combobox"
               aria-autocomplete="list"
               aria-expanded={placeOpen && placeOptions.length > 0}
@@ -1449,7 +1449,7 @@ function NightDialog({
               onChange={(e) => setNotes(e.target.value)}
               maxLength={500}
               rows={3}
-              placeholder="e.g. bracket 2 decks, snacks covered"
+              placeholder="e.g. bracket 2 decks"
             />
           </label>
 

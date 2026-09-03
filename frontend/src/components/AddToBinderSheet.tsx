@@ -128,7 +128,7 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
                     {isManual && <span className="add-to-binder-mode-hint">Manual</span>}
                   </span>
                   {!matches && !isCurrent && !isAdded && (
-                    <span className="add-to-binder-mismatch">Does not match rules</span>
+                    <span className="add-to-binder-mismatch">Doesn't match rules</span>
                   )}
                   {isAllocated && binder.hideDeckAllocated === false && !isCurrent && !isAdded && (
                     <span className="add-to-binder-mismatch">

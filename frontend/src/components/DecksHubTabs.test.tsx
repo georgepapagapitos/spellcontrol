@@ -24,7 +24,7 @@ describe('DecksHubTabs', () => {
     });
     renderTabs();
 
-    expect(screen.getByText('My Decks')).toBeTruthy();
+    expect(screen.getByText('My decks')).toBeTruthy();
     expect(screen.getByText('Discover')).toBeTruthy();
     expect(screen.queryByText('Saved')).toBeNull();
   });

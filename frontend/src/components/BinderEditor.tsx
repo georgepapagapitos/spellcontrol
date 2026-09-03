@@ -582,7 +582,7 @@ export function BinderEditor() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Standard staples, Cube reserves..."
+                  placeholder="e.g. Standard staples"
                   autoFocus
                   style={{ width: '100%' }}
                 />
@@ -1037,7 +1037,7 @@ export function BinderEditor() {
             >
               {importDragging && (
                 <div className="file-drop-overlay" aria-hidden="true">
-                  <div className="file-drop-message">Drop file(s) — one binder each</div>
+                  <div className="file-drop-message">Drop files — one binder each</div>
                 </div>
               )}
               <p className="muted" style={{ marginBottom: '0.5rem' }}>
@@ -1193,7 +1193,7 @@ export function BinderEditor() {
                 ? importProgress.totalFiles && importProgress.totalFiles > 1
                   ? `File ${importProgress.fileIndex}/${importProgress.totalFiles} · batch ${importProgress.chunkIndex}/${importProgress.totalChunks}…`
                   : `Importing batch ${importProgress.chunkIndex} of ${importProgress.totalChunks}…`
-                : 'Saving...'
+                : 'Saving…'
               : existing
                 ? 'Save changes'
                 : binderMode === 'import'

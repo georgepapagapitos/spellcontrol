@@ -209,7 +209,7 @@ export function RulesPage() {
           className="rules-ask-input"
           rows={2}
           maxLength={500}
-          placeholder="How does… what happens when… can I…"
+          placeholder="Ask a rules question"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => {

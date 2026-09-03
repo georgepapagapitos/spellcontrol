@@ -456,7 +456,7 @@ describe('Tradeable binder flag', () => {
     const existing = makeBinderDef({ tradeable: true });
     const updateBinder = openEditor(existing);
 
-    fireEvent.change(screen.getByPlaceholderText('e.g. Standard staples, Cube reserves...'), {
+    fireEvent.change(screen.getByPlaceholderText('e.g. Standard staples'), {
       target: { value: 'Renamed binder' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));

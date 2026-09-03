@@ -96,8 +96,8 @@ export function ImportCube() {
 
       {status === 'idle' && !result && (
         <p className="cube-import-hint">
-          Paste a link to any public cube on CubeCobra. We&apos;ll match it against your collection
-          so you can see exactly what you own and what you&apos;d need.
+          Paste a link to any public cube on CubeCobra. It&apos;s matched against your collection,
+          so you see exactly what you own and what you&apos;d need.
         </p>
       )}
 

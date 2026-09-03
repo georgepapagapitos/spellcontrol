@@ -2215,7 +2215,7 @@ export function CardListTable({
         // "no matches". Same view, just empty: point at the search bar above
         // and offer the Add cards sheet (search · list · scan) right here.
         <div className="empty-state">
-          <p className="empty-state-tagline">Your collection is empty</p>
+          <p className="empty-state-tagline">Your collection is empty.</p>
           <p className="empty-state-hint">
             Search for a card above to add it, or use Add cards to import a list
             {canScan ? ' or scan your cards' : ''}.
@@ -2233,7 +2233,7 @@ export function CardListTable({
         </div>
       ) : sorted.length === 0 && !showScryfall ? (
         <div className="empty-state">
-          <p className="empty-state-tagline">No matches</p>
+          <p className="empty-state-tagline">No matches.</p>
           <p className="empty-state-hint">Try a broader search or fewer filters.</p>
           <button type="button" className="btn empty-state-action" onClick={clearAllFilters}>
             Clear filters

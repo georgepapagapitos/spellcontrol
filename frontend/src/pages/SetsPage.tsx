@@ -551,7 +551,7 @@ function SetDetail({ code }: { code: string }) {
         celebratedSetComplete.add(sealKey);
         fireSealMoment();
         pushToast({
-          message: `${displayName} complete — all ${rows.length} cards collected!`,
+          message: `${displayName} complete — all ${rows.length} cards collected.`,
           tone: 'success',
         });
       }

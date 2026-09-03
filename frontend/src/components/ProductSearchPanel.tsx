@@ -531,7 +531,7 @@ export function ProductSearchPanel({ onClose }: Props) {
     <div className="add-card-search-panel">
       <div className="add-card-search-input-wrap">
         <SearchPill
-          placeholder="Search products — e.g. “Fae Dominion”, “Goblin Storm”"
+          placeholder="Search products"
           value={query}
           onChange={setQuery}
           ariaLabel="Search products"

@@ -1140,7 +1140,7 @@ export function CommanderSearch({ value, onSelect, format = 'commander' }: Props
             ) : (
               <>
                 <p className="commander-suggestions-hint">
-                  Pick how you want to play. We’ll show the commanders that do it best
+                  Pick how you want to play, and see the commanders that do it best
                   {ownedOnly ? ' from your collection' : ' on EDHREC'}.
                 </p>
                 <PlaystyleGrid onSelect={setPlaystyle} />

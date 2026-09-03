@@ -157,7 +157,7 @@ export function SharedLinksSettings() {
       });
     } catch (err) {
       if (err && (err as { message?: string }).message?.includes('cancel')) return;
-      toast.show({ message: "Couldn't open share sheet.", tone: 'warn' });
+      toast.show({ message: "Couldn't open share sheet", tone: 'warn' });
     }
   }, []);
 

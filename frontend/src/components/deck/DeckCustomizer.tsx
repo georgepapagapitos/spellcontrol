@@ -240,7 +240,7 @@ function BracketGroup({ customization, update }: DeckCustomizerProps) {
   return (
     <div className="deck-customizer-group">
       <div className="deck-customizer-group-header">
-        <h3 className="deck-customizer-group-title">Target Bracket</h3>
+        <h3 className="deck-customizer-group-title">Power bracket</h3>
       </div>
       <div className="deck-customizer-group-body">
         {/* Native radios: exclusivity + arrow-key nav + one group tab stop. */}

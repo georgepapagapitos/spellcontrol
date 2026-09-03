@@ -859,7 +859,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
         >
           {isDragging && (
             <div className="file-drop-overlay" aria-hidden="true">
-              <div className="file-drop-message">Drop file(s) to stage</div>
+              <div className="file-drop-message">Drop files to stage</div>
             </div>
           )}
           <div className="import-card-header">
@@ -972,7 +972,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                     void handleFetchLink();
                   }
                 }}
-                placeholder="…or paste a Google Sheets / Drive link"
+                placeholder="Or paste a Google Sheets or Drive link"
                 disabled={isLoading || linkBusy}
                 inputMode="url"
                 autoComplete="off"

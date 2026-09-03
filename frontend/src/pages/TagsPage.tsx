@@ -209,7 +209,7 @@ export function TagsPage() {
               options={[
                 {
                   value: 'grid',
-                  label: 'Cards view',
+                  label: 'Grid view',
                   icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
                 },
                 {

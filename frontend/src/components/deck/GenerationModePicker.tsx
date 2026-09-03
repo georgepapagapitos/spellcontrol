@@ -34,7 +34,7 @@ const MODES: readonly ModeDef[] = [
   },
   {
     id: 'oracle-role',
-    label: 'By Function',
+    label: 'By function',
     tag: 'Scryfall',
     icon: Wrench,
     blurb:
@@ -43,7 +43,7 @@ const MODES: readonly ModeDef[] = [
   },
   {
     id: 'art-theme',
-    label: 'By Art',
+    label: 'By art',
     tag: 'Scryfall',
     icon: Palette,
     blurb: 'Every card depicts one motif. A deck that looks like a curated gallery.',
@@ -51,7 +51,7 @@ const MODES: readonly ModeDef[] = [
   },
   {
     id: 'historical',
-    label: 'By Era',
+    label: 'By era',
     tag: 'Scryfall',
     icon: Hourglass,
     blurb: "Only cards from a slice of Magic's past — an old-school build puzzle.",
@@ -212,8 +212,8 @@ function OracleConfig({ customization, update }: Pick<Props, 'customization' | '
   return (
     <>
       <p className="gen-mode-explain">
-        We ignore crowd data and pick the strongest cards for each <strong>role</strong> in your
-        colors — a solid functional deck for any commander, even ones EDHREC barely covers.
+        Skips crowd data and picks the strongest cards for each <strong>role</strong> in your colors
+        — a solid functional deck for any commander, even ones EDHREC barely covers.
       </p>
       <label className="gen-mode-toggle">
         <input

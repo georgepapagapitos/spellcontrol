@@ -85,7 +85,7 @@ export function ViewPopoverPanel<T extends string>({
       )}
       <div className="view-popover-section">
         <button type="button" className="toolbar-popover-item" onClick={() => setKeyOpen(true)}>
-          <span>Symbol key…</span>
+          <span>Symbol key</span>
         </button>
       </div>
     </>

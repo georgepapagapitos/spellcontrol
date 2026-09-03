@@ -360,7 +360,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
     moves.push({
       id: 'bracket-fit',
       tier: 3,
-      title: 'Fit your bracket target',
+      title: 'Fit your power bracket',
       detail: 'Bracket Fit has card moves ready to close the gap to your target bracket.',
       navigateTo: 'tune',
       focus: 'bracket-fit',

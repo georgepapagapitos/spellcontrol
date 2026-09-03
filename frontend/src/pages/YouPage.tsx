@@ -648,7 +648,7 @@ export function YouPage() {
 
       <div role="group" aria-labelledby="settings-data-group-title">
         <h2 id="settings-data-group-title" className="settings-section-header">
-          Data &amp; Storage
+          Data &amp; storage
         </h2>
 
         <OfflineModeSettings />
@@ -960,7 +960,7 @@ function WipeConfirmDialog({ cardCount, step, busy, onAdvance, onCancel }: WipeC
           </>
         ) : (
           <>
-            You are about to remove all <strong>{frozenCount.toLocaleString()}</strong>{' '}
+            You're about to remove all <strong>{frozenCount.toLocaleString()}</strong>{' '}
             {frozenCount === 1 ? 'card' : 'cards'} from your collection. Binder definitions and
             decks are kept, but decks will lose their physical copy assignments.
           </>

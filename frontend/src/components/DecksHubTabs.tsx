@@ -20,7 +20,7 @@ export function DecksHubTabs() {
     <HubTabsNav
       ariaLabel="Decks sections"
       tabs={[
-        { to: '/decks', label: 'My Decks', active: pathname === '/decks' },
+        { to: '/decks', label: 'My decks', active: pathname === '/decks' },
         {
           to: '/decks/discover',
           label: 'Discover',

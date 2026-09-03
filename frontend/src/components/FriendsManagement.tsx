@@ -485,7 +485,7 @@ export function FriendsManagement() {
             <FriendsSkeleton />
           ) : friendsList.length === 0 ? (
             <div className="empty-state" role="status">
-              <p className="empty-state-tagline">No friends yet</p>
+              <p className="empty-state-tagline">No friends yet.</p>
               <p className="empty-state-hint">Search above to find and add other players.</p>
             </div>
           ) : (
@@ -642,7 +642,7 @@ export function FriendsManagement() {
             <FriendsSkeleton />
           ) : inboxList.length === 0 ? (
             <div className="empty-state" role="status">
-              <p className="empty-state-tagline">Nothing shared yet</p>
+              <p className="empty-state-tagline">Nothing shared yet.</p>
               <p className="empty-state-hint">
                 When a friend shares a deck or collection with you, it shows up here.
               </p>

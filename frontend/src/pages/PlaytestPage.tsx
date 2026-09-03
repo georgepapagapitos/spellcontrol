@@ -122,7 +122,7 @@ export function PlaytestPage() {
   if (!deck) {
     return (
       <div className="empty-state">
-        <p className="empty-state-tagline">Deck not found</p>
+        <p className="empty-state-tagline">Deck not found.</p>
         <p className="empty-state-hint">It may have been deleted. Pick another deck to playtest.</p>
         <div className="empty-state-actions">
           <button type="button" className="btn btn-primary" onClick={() => navigate('/decks')}>
@@ -135,7 +135,7 @@ export function PlaytestPage() {
   if (deck.cards.length === 0) {
     return (
       <div className="empty-state">
-        <p className="empty-state-tagline">Nothing to playtest yet</p>
+        <p className="empty-state-tagline">Nothing to playtest yet.</p>
         <p className="empty-state-hint">
           This deck has no cards. Add some and the goldfish table will be waiting.
         </p>
@@ -154,7 +154,7 @@ export function PlaytestPage() {
   if (initFailed) {
     return (
       <div className="empty-state">
-        <p className="empty-state-tagline">Couldn't start this playtest</p>
+        <p className="empty-state-tagline">Couldn't start this playtest.</p>
         <p className="empty-state-hint">
           Something in this deck couldn't be dealt into a game. Try again, or open the deck to check
           its cards.
