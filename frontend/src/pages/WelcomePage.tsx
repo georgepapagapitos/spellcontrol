@@ -101,7 +101,7 @@ export function WelcomePage() {
 
   return (
     <div className="welcome-page">
-      <div className="welcome-shell">
+      <main className="welcome-shell">
         <WelcomeHero />
 
         <FreshDecksRail />
@@ -171,7 +171,7 @@ export function WelcomePage() {
             are trademarks of Wizards of the Coast LLC. Card data and images via Scryfall.
           </p>
         </footer>
-      </div>
+      </main>
     </div>
   );
 }

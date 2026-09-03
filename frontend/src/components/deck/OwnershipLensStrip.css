@@ -85,12 +85,3 @@
     animation: none;
   }
 }
-
-/* ── Wrapper around the strip/skeleton in PublicDeckPage — reuses
-   .shared-view's width math verbatim (STYLE_GUIDE: "not new width math" for
-   this strip), just trims the bottom padding so the deck header immediately
-   below isn't pushed down by two stacked paddings. ─────────────────────── */
-
-.ownership-lens-view-slot {
-  padding-bottom: 0;
-}
