@@ -12,6 +12,7 @@ import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { AddCardSheet } from '../components/AddCardSheet';
 import { BackLink } from '../components/BackLink';
+import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { OverflowMenu } from '../components/OverflowMenu';
 
 const BinderCardEditor = lazy(() =>
@@ -411,14 +412,21 @@ export function BinderPage() {
           if (active.totalCards === 0) {
             return (
               <div className="empty-state">
-                No cards match this binder's rules.{' '}
-                <button
-                  className="btn"
-                  style={{ marginLeft: 8 }}
-                  onClick={() => setEditingBinder(active.def.id)}
-                >
-                  Binder rules
-                </button>
+                <EmptyStateMark />
+                <p className="empty-state-tagline">No cards match this binder’s rules.</p>
+                <p className="empty-state-hint">
+                  Loosen a rule or add another match group, and cards from your collection file in
+                  here.
+                </p>
+                <div className="empty-state-actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => setEditingBinder(active.def.id)}
+                  >
+                    Binder rules
+                  </button>
+                </div>
               </div>
             );
           }
