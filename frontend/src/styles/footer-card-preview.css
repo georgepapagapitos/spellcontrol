@@ -1040,6 +1040,9 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+  /* A long binder/deck name truncates inside the pill; a pill never wraps. */
+  max-width: 100%;
+  white-space: nowrap;
   padding: 0.05rem 0.45rem;
   margin: 0 0.05rem;
   border-radius: 999px;
@@ -1068,6 +1071,12 @@
     border-color: var(--pill-color, var(--accent));
     outline: none;
   }
+}
+
+.card-preview-context-pill > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .card-preview-context-pill svg {

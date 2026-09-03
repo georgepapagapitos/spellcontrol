@@ -266,6 +266,11 @@
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
+  /* Player names — long ones truncate rather than stretch the tray. */
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cle-tray-chip.is-selected {

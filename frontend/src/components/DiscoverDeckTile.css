@@ -163,6 +163,15 @@
   gap: 0.4rem;
 }
 
+/* A long display name truncates on one line over the art instead of
+   wrapping into the pills below. */
+.decks-index-list.is-grid .discover-tile-owner > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Like/Bookmark corner slot (w2-likes-bookmarks) — a sibling of the tile's
    <Link>, positioned exactly like .decks-index-card-menu. The buttons
    themselves (.tile-action-btn) are styled in LikeButton.css, shared by
