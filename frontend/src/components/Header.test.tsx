@@ -38,8 +38,9 @@ vi.mock('../lib/use-activity', () => ({
 vi.mock('../store/collection', () => ({
   useCollectionStore: (selector: (s: { cards: unknown[] }) => unknown) => selector({ cards: [] }),
 }));
+const { decksState } = vi.hoisted(() => ({ decksState: { decks: [] as unknown[] } }));
 vi.mock('../store/decks', () => ({
-  useDecksStore: (selector: (s: { decks: unknown[] }) => unknown) => selector({ decks: [] }),
+  useDecksStore: (selector: (s: { decks: unknown[] }) => unknown) => selector(decksState),
 }));
 vi.mock('../store/play', () => ({
   usePlayStore: (selector: (s: { local: unknown; online: unknown }) => unknown) =>
@@ -67,6 +68,18 @@ afterEach(() => {
   activityState.actionRequired = [];
   navigateMock.mockClear();
   authState.logout.mockClear();
+});
+
+describe('Header — nav counts', () => {
+  it('compacts the deck count the same way as the card count', () => {
+    decksState.decks = Array.from({ length: 1500 }, () => ({}));
+    try {
+      renderHeader();
+      expect(screen.getByLabelText('1500 decks').textContent).toBe('1.5k');
+    } finally {
+      decksState.decks = [];
+    }
+  });
 });
 
 describe('Header — nav links', () => {
