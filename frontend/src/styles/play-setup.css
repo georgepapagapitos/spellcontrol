@@ -477,7 +477,7 @@
 
 /* Phones: the seat row is name + deck; a 5-pip identity row would squeeze
    the name track (the deck label already names the commander there). */
-@media (max-width: 599px) {
+@media (max-width: 600px) {
   .play-seat-ci {
     display: none;
   }

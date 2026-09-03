@@ -476,7 +476,7 @@
    never as an inset on the info panel/label below. Tablet + desktop (≥601)
    get top headroom; mobile (≤600) also gets side gutters so the card isn't
    edge-to-edge. Don't fold this into the sheet or "optimize" it away. */
-@media (min-width: 601px) {
+@media (min-width: 600px) {
   .card-preview-track {
     padding-top: 1.25rem;
   }
@@ -1325,7 +1325,7 @@
    → the page, rendering as a gutter around the grid, never an inset on the
    panel. Tablet + desktop (≥601) get top headroom; mobile (≤600) also gets side
    gutters. */
-@media (min-width: 601px) {
+@media (min-width: 600px) {
   .binder-pages-track {
     padding-top: 1.25rem;
   }

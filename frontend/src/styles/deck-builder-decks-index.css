@@ -221,7 +221,7 @@
    it stranded mid-row with acres of empty space to its right. Below this it
    flows inline after the detail, because a right-aligned scrap on a wrapped
    second line reads as a layout bug. */
-@media (min-width: 601px) {
+@media (min-width: 600px) {
   .decks-index-list.is-list .decks-index-card-time {
     margin-left: auto;
     padding-left: var(--space-3);

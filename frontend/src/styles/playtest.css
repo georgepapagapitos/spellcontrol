@@ -1974,7 +1974,7 @@ body:has(.playtest-page) {
 
 /* Phones: seven across would be ~35px slivers. Wrap to rows of four instead —
    all seven still visible at once, each roughly twice the size. */
-@media (max-width: 599px) {
+@media (max-width: 600px) {
   .playtest-opening-cards {
     --row-n: min(4, var(--hand-n, 7));
     /* Tighter gutters here go straight into card width, which is the whole
