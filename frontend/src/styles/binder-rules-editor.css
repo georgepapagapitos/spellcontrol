@@ -682,6 +682,9 @@
 .filter-group-legend {
   display: flex;
   align-items: center;
+  /* The count and actions drop to a second line before the name field is
+     squeezed below its placeholder at 360px. */
+  flex-wrap: wrap;
   gap: var(--space-2);
   width: 100%;
   padding: 0 var(--space-1);
@@ -689,7 +692,7 @@
 }
 
 .filter-group-name {
-  flex: 1 1 auto;
+  flex: 1 1 8rem;
   min-width: 0;
   background: transparent;
   border: 1px solid transparent;
