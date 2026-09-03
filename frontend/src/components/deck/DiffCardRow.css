@@ -81,6 +81,11 @@
   min-height: 44px;
   transition: color var(--motion-fast);
 }
+.deck-diff-show-more:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .deck-diff-show-more:hover {
     color: var(--text-primary);

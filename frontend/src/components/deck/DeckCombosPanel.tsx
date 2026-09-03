@@ -326,15 +326,19 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
           </div>
         )}
 
-        {error && <p className="deck-combos-empty deck-combos-error">{error}</p>}
+        {error && (
+          <div className="discover-decks-error" role="alert">
+            <span>{error}</span>
+          </div>
+        )}
 
         {!error && matches.length === 0 && !loading && (
           <div className="deck-combos-empty">
             {tab === 'inDeck' ? (
               !deckHasOracleIds ? (
                 <p>
-                  This deck&rsquo;s cards don&rsquo;t have combo data yet. If you imported it before
-                  the combo update, re-import or wait for background sync.
+                  This deck's cards don't have combo data yet. If you imported it before the combo
+                  update, re-import or wait for background sync.
                 </p>
               ) : (
                 <>

@@ -183,13 +183,13 @@ async function applySettlement(offer: TradeOffer): Promise<boolean> {
   }
   if (substituted.length > 0) {
     toast.show({
-      message: `Added ${substituted.join(', ')} as a different printing — the exact one couldn’t be looked up.`,
+      message: `Added ${substituted.join(', ')} as a different printing — the exact one couldn't be looked up.`,
       tone: 'warn',
     });
   }
   if (unresolved.length > 0) {
     toast.show({
-      message: `Couldn’t look up ${unresolved.join(', ')} — add ${
+      message: `Couldn't look up ${unresolved.join(', ')} — add ${
         unresolved.length === 1 ? 'it' : 'them'
       } by hand.`,
       tone: 'warn',

@@ -68,7 +68,7 @@ export function ListAddCardSheet({ list, initialQuery = '', onClose }: Props) {
           <p className="add-card-sheet-hint">
             {list.kind === 'tracking'
               ? 'This tracking list just catalogues cards — adding here never touches your collection.'
-              : 'Lists hold cards you don’t own yet — adding here never touches your collection.'}
+              : "Lists hold cards you don't own yet — adding here never touches your collection."}
           </p>
           <SearchPill
             value={query}

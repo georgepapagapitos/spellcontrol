@@ -160,7 +160,7 @@ describe('App — /oauth/callback landing', () => {
 
   it('shows the web-fallback link on an error, even with no code/signup param', () => {
     renderAt('/oauth/callback?error=access_denied');
-    expect(screen.getByText('Sign-in didn’t finish')).toBeTruthy();
+    expect(screen.getByText("Sign-in didn't finish")).toBeTruthy();
     expect(screen.getByText('Continue on the web instead')).toBeTruthy();
   });
 

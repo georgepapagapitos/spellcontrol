@@ -52,8 +52,8 @@ describe('ReactionPicker', () => {
   it('is collapsed until the trigger is clicked, then shows all six reactions', () => {
     render(<ReactionPicker />);
     expect(screen.queryByRole('menu')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Send a reaction' }));
-    const menu = screen.getByRole('menu', { name: 'Send a reaction' });
+    fireEvent.click(screen.getByRole('button', { name: 'React' }));
+    const menu = screen.getByRole('menu', { name: 'Reactions' });
     expect(menu).toBeTruthy();
     for (const emote of REACTION_EMOTES) {
       expect(screen.getByRole('menuitem', { name: REACTION_LABEL[emote] })).toBeTruthy();
@@ -64,7 +64,7 @@ describe('ReactionPicker', () => {
     'sends { kind: "reaction", emote: %s } and closes on %s',
     (emote, label) => {
       render(<ReactionPicker />);
-      fireEvent.click(screen.getByRole('button', { name: 'Send a reaction' }));
+      fireEvent.click(screen.getByRole('button', { name: 'React' }));
       fireEvent.click(screen.getByRole('menuitem', { name: label }));
       expect(usePlayStore.getState().sendSignal).toHaveBeenCalledWith({
         kind: 'reaction',

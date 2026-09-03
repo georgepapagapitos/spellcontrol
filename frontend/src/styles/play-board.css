@@ -514,7 +514,7 @@
 .player-panel-life {
   /* Life numeral dominates the panel — sized to fill, with step buttons
      pushed to the outer edges so they read as accents, not equals. */
-  font-size: clamp(7.5rem, 34vmin, 20rem);
+  font-size: calc(clamp(7.5rem, 34vmin, 20rem) * var(--life-scale, 1));
   font-weight: 900;
   line-height: 0.9;
   color: #fff;
@@ -532,26 +532,42 @@
    on a small phone. */
 .game-board-4 .player-panel-life,
 .game-board-3 .player-panel-life {
-  font-size: clamp(3.25rem, 16vmin, 13rem);
+  font-size: calc(clamp(3.25rem, 16vmin, 13rem) * var(--life-scale, 1));
 }
 
 .game-board-5 .player-panel-life,
 .game-board-6 .player-panel-life {
-  font-size: clamp(2.5rem, 12vmin, 9rem);
+  font-size: calc(clamp(2.5rem, 12vmin, 9rem) * var(--life-scale, 1));
 }
 
 @media (min-width: 1600px) {
   .game-board-2 .player-panel-life {
-    font-size: clamp(7rem, 30vmin, 22rem);
+    font-size: calc(clamp(7rem, 30vmin, 22rem) * var(--life-scale, 1));
   }
   .game-board-3 .player-panel-life,
   .game-board-4 .player-panel-life {
-    font-size: clamp(5rem, 22vmin, 15rem);
+    font-size: calc(clamp(5rem, 22vmin, 15rem) * var(--life-scale, 1));
   }
   .game-board-5 .player-panel-life,
   .game-board-6 .player-panel-life {
-    font-size: clamp(4rem, 16vmin, 11rem);
+    font-size: calc(clamp(4rem, 16vmin, 11rem) * var(--life-scale, 1));
   }
+}
+
+/* Wide totals shrink so they stay clear of the ± buttons at the panel's
+   edges: a 320px panel fits two digits at full size, three at 72%. Set from
+   the digit count in GameBoard; every size rule above multiplies by it. */
+.player-panel-life[data-digits='3'] {
+  --life-scale: 0.72;
+}
+
+.player-panel-life[data-digits='4'] {
+  --life-scale: 0.55;
+}
+
+.player-panel-life[data-digits='5'],
+.player-panel-life[data-digits='6'] {
+  --life-scale: 0.42;
 }
 
 .is-eliminated .player-panel-life {

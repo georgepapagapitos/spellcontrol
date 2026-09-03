@@ -97,9 +97,10 @@ export function NumberRangeInput({
   onMaxChange: (v: number | undefined) => void;
 }) {
   return (
-    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+    <div className="rule-range-row">
       <input
         type="number"
+        aria-label="Minimum"
         value={min ?? ''}
         step={step}
         min={0}
@@ -107,11 +108,12 @@ export function NumberRangeInput({
         onChange={(e) =>
           onMinChange(e.target.value === '' ? undefined : parseFloat(e.target.value))
         }
-        style={{ width: 90 }}
+        className="rule-number-input"
       />
-      <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>to</span>
+      <span className="rule-field-note">to</span>
       <input
         type="number"
+        aria-label="Maximum"
         value={max ?? ''}
         step={step}
         min={0}
@@ -119,7 +121,7 @@ export function NumberRangeInput({
         onChange={(e) =>
           onMaxChange(e.target.value === '' ? undefined : parseFloat(e.target.value))
         }
-        style={{ width: 90 }}
+        className="rule-number-input"
       />
     </div>
   );
@@ -321,7 +323,7 @@ function ScryfallQueryRow({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+      <div className="rule-range-row">
         <input
           type="text"
           value={draft}
@@ -347,7 +349,7 @@ function ScryfallQueryRow({
       <span
         role="status"
         aria-live="polite"
-        style={{ fontSize: '0.78rem', color: error ? 'var(--err-text)' : 'var(--text-muted)' }}
+        className={`rule-field-status${error ? ' is-error' : ''}`}
       >
         {error
           ? error

@@ -328,3 +328,21 @@
   mask-composite: exclude;
   pointer-events: none;
 }
+
+/* Coarse-pointer floor: the "page N" opener is a 19px text button with a
+   whole binder page of room around it, so it ghosts a full 44px target. */
+@media (pointer: coarse) {
+  .page-num-link {
+    position: relative;
+  }
+
+  .page-num-link::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}

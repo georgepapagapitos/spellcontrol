@@ -59,6 +59,24 @@ describe('overlay scroll containment', () => {
     // The collection Filters dialog — twenty sections deep, so it gets scrolled
     // to its end more often than any other overlay body in the app.
     ['styles/collection.css', '.collection-filters-dialog-body'],
+    // Polish-pass sweep: every remaining overlay scroller found by grep.
+    ['components/play/GameNights.css', '.game-night-place-results'],
+    ['components/play/GameNights.css', '.game-night-dialog-friend-list'],
+    ['components/play/GameNights.css', '.game-night-dialog-people-list'],
+    ['components/play/GameRecap.css', '.game-recap-list'],
+    ['styles/play-panel-menus.css', '.seat-menu-body'],
+    ['styles/play-panel-menus.css', '.game-menu-body'],
+    ['styles/playtest.css', '.playtest-zone-grid'],
+    ['styles/playtest.css', '.playtest-zones-panel'],
+    ['playtest/components/PlaytestLogSheet.css', '.playtest-log-body'],
+    ['playtest/components/PlaytestStatsSheet.css', '.playtest-stats-body'],
+    ['playtest/components/TableTicker.css', '.table-ticker__list'],
+    ['components/deck/BetweenYourDecks.css', '.between-decks-sheet-body'],
+    ['components/deck/DeckPrimerSheet.css', '.deck-primer-sheet-body'],
+    ['components/deck/DeckTokensSheet.css', '.deck-tokens-sheet-body'],
+    ['styles/deck-builder-card-search.css', '.deck-test-hand-sheet-body'],
+    ['styles/deck-builder-card-search.css', '.card-search-results'],
+    ['styles/deck-builder-export.css', '.export-dialog-preview'],
   ];
 
   for (const [file, selector] of SCROLLERS) {
@@ -143,15 +161,51 @@ describe('shared confirm-dialog action row', () => {
   });
 });
 
-describe('sticky hub tab strip', () => {
-  it('scrolls on one axis only', () => {
-    const strip = blocks(read('styles/responsive-nav.css'), '.collection-hub-tabs')[0] ?? '';
-    expect(strip, 'no .collection-hub-tabs rule found').toMatch(/overflow-x:\s*auto/);
-    expect(
-      strip,
-      '.collection-hub-tabs sets overflow-x but not overflow-y, so the block axis ' +
-        'computes to auto and the strip becomes an unintended 2-axis scroller'
-    ).toMatch(/overflow-y:\s*(hidden|clip)/);
+describe('horizontal tab strips', () => {
+  // Every tab strip that scrolls sideways. With only overflow-x set the block
+  // axis computes to auto and the strip becomes an unintended 2-axis scroller
+  // (a 1px block-axis range for touch momentum to rubber-band against).
+  const STRIPS: Array<[string, string]> = [
+    ['styles/responsive-nav.css', '.collection-hub-tabs'],
+    ['styles/deck-builder-tabs.css', '.sc-tabs--scrollable'],
+    ['styles/deck-builder-tabs.css', '.sc-tabs--hub'],
+    ['styles/deck-builder-tabs.css', '.sc-tabs--underline'],
+    ['styles/binder-nav.css', '.binder-tab-row'],
+    ['styles/binder-card-management.css', '.add-cards-tabs'],
+    ['styles/shared.css', '.shared-table-scroll'],
+    ['styles/play-history-inline.css', '.play-records'],
+    ['styles/playtest.css', '.playtest-life-strip'],
+    ['styles/playtest.css', '.playtest-mana-pool'],
+    ['components/play/H2HSummary.css', '.h2h-detail'],
+    ['styles/admin-scanner.css', '.admin-users-table-scroll'],
+  ];
+
+  for (const [file, selector] of STRIPS) {
+    it(`${selector} scrolls on one axis only`, () => {
+      // The scrolling declaration may live in a media-query variant rather
+      // than the base rule, so check every block that sets overflow-x.
+      const strips = blocks(read(file), selector).filter((b) => /overflow-x:\s*auto/.test(b));
+      expect(strips, `no ${selector} rule sets overflow-x: auto`).not.toEqual([]);
+      for (const strip of strips) {
+        expect(
+          strip,
+          `${selector} sets overflow-x but not overflow-y, so the block axis ` +
+            'computes to auto and the strip becomes an unintended 2-axis scroller'
+        ).toMatch(/overflow-y:\s*(hidden|clip)/);
+      }
+    });
+  }
+
+  it('fades the edge a Tabs strip has more tabs behind', () => {
+    // The scrollbar is hidden on these strips, so the fade is the only scroll
+    // affordance — without it an overflowing tab reads as clipped layout.
+    const css = read('styles/deck-builder-tabs.css');
+    for (const state of ['start', 'end', 'both']) {
+      expect(
+        blocks(css, `.sc-tabs[data-overflow='${state}']`).some((b) => /mask-image:/.test(b)),
+        `.sc-tabs[data-overflow='${state}'] has no mask-image fade`
+      ).toBe(true);
+    }
   });
 });
 
@@ -253,6 +307,37 @@ describe('coarse-pointer touch floor', () => {
     // it sits directly beneath the last field option, so the crowded axis is
     // vertical and a 44px ghost would reach up into that option.
     ['styles/deck-builder-display.css', '.sort-menu-reverse'],
+    // ── Polish-pass sweep: free-standing controls measured under 44px on a
+    // coarse pointer by the route walk (320–768px, touch emulation). Inline
+    // and dense-row controls ghost; everything else grows its box.
+    ['components/InfoTip.css', '.info-tip-btn::after'],
+    ['components/shared/ColorMatchModeToggle.css', '.color-mode-toggle .chip-joiner::after'],
+    ['styles/play-panel-menus.css', '.seat-menu-row input'],
+    ['styles/search-controls.css', '.search-pill'],
+    ['styles/play-setup.css', '.play-setup-seat-name'],
+    ['styles/play-panel-menus.css', '.seat-menu-row .pill-btn'],
+    ['styles/binder-card-management.css', '.back-link'],
+    ['styles/binder-grid-slots.css', '.page-num-link::after'],
+    ['styles/deck-builder-commander.css', '.commander-color-pip::after'],
+    ['styles/binder-hero.css', '.binder-summary-browse-pages::after'],
+    ['styles/binder-hero.css', '.binder-hero-actions-kebab'],
+    ['styles/deck-builder-decks-index.css', '.decks-index-actions-kebab'],
+    ['styles/play-setup.css', '.play-stepper-btn'],
+    ['styles/play-setup.css', '.play-setup-seat-deck-add'],
+    ['styles/collection.css', '.collection-hero-stats-link::after'],
+    ['styles/collection.css', '.card-list-binder-badge::after'],
+    ['styles/collection.css', '.card-list-deck-badge::after'],
+    ['components/home/HomeCard.css', '.home-card-retry'],
+    ['styles/deck-builder-analysis.css', '.deck-stat-btn'],
+    ['styles/deck-builder-toast.css', '.toast-close'],
+    ['styles/footer-card-preview.css', '.card-preview-details-btn'],
+    ['components/CardRulings.css', '.card-rulings-toggle'],
+    ['components/CardDetails.css', '.card-disc-toggle'],
+    ['styles/binder-card-management.css', '.add-to-binder-btn'],
+    ['components/deck/DeckSizePrompt.css', '.deck-size-prompt-showall'],
+    ['components/deck/NextBestMove.css', '.next-best-move-add'],
+    ['styles/deck-builder-display.css', '.role-badge-btn::after'],
+    ['styles/deck-builder-row-qty.css', '.deck-row-qty-edit::after'],
   ];
 
   for (const [file, selector] of CONTROLS) {

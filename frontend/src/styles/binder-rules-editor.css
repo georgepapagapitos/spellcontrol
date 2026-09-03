@@ -24,6 +24,9 @@
 .binder-behaviour-option {
   display: flex;
   align-items: center;
+  /* The tip sits at the row's end on every row, so a label that wraps at
+     360px doesn't leave its tip in a different column from its neighbours'. */
+  justify-content: space-between;
   gap: var(--space-1);
 }
 
@@ -679,6 +682,9 @@
 .filter-group-legend {
   display: flex;
   align-items: center;
+  /* The count and actions drop to a second line before the name field is
+     squeezed below its placeholder at 360px. */
+  flex-wrap: wrap;
   gap: var(--space-2);
   width: 100%;
   padding: 0 var(--space-1);
@@ -686,7 +692,7 @@
 }
 
 .filter-group-name {
-  flex: 1 1 auto;
+  flex: 1 1 8rem;
   min-width: 0;
   background: transparent;
   border: 1px solid transparent;
@@ -705,9 +711,13 @@
 }
 
 .filter-group-name:focus {
-  outline: none;
   border-color: var(--accent);
   background: var(--bg);
+}
+
+.filter-group-name:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* When the user hasn't typed a name, the input's placeholder carries the
@@ -1453,4 +1463,32 @@
 .starter-template-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Rule-editor number fields and their inline notes. A global
+   `input[type='number'] { width: 80px }` used to size every number input in
+   the app and each rule editor overrode it with an inline width; the width
+   now lives here, on the fields that want it. */
+.rule-number-input {
+  width: 6rem;
+}
+
+.rule-field-note {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.rule-field-status {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.rule-field-status.is-error {
+  color: var(--err-text);
+}
+
+.rule-range-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }

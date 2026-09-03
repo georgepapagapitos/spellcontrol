@@ -56,6 +56,11 @@
   text-decoration: none;
 }
 
+.shared-brand:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .shared-brand:hover {
     color: var(--accent-hover, var(--accent));
@@ -403,6 +408,10 @@
   text-align: center;
   background: var(--surface-raised);
   box-sizing: border-box;
+  /* Same as .collection-grid-placeholder: break inside an unbreakable name
+     rather than overflow the tile on both sides. */
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .shared-tile-qty {
@@ -548,6 +557,7 @@
    (the shell clips page-level x-overflow). */
 .shared-table-scroll {
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -1326,4 +1336,58 @@
 .feedback-sent h1 {
   font-family: var(--font-serif);
   margin: 0;
+}
+
+/* Coarse-pointer floors for the public share shell's links (brand, footer
+   CTA) — the only controls on a logged-out page's chrome. */
+@media (pointer: coarse) {
+  .shared-brand,
+  .shared-footer-cta {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
+/* ── Load-failure strip ──────────────────────────────────────────────────
+   One row: message + Retry. Shared by Discover, Saved decks, the Trending
+   rail and both combo surfaces, so it lives here (global) rather than in
+   DiscoverDecksPage.css — a page can hit an error before Discover's chunk
+   has ever loaded. */
+.discover-decks-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--err-text);
+  font-size: var(--text-sm);
+}
+
+.discover-decks-error-retry {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 0 var(--space-3);
+  height: 2rem;
+  background: none;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--motion-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .discover-decks-error-retry:hover {
+    background: var(--surface-raised);
+  }
+}
+
+.discover-decks-error-retry:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

@@ -266,6 +266,11 @@
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
+  /* Player names — long ones truncate rather than stretch the tray. */
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cle-tray-chip.is-selected {
@@ -352,4 +357,24 @@
 .seat-menu-facing-btn:has(input:focus-visible) {
   outline: 2px solid rgba(255, 255, 255, 0.7);
   outline-offset: 3px;
+}
+
+.cle-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.cle-tray-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.cle-ctrl:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.cle-cell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

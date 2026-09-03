@@ -14,6 +14,7 @@
   align-items: stretch;
   gap: var(--space-1);
   overflow-x: auto;
+  overflow-y: hidden;
   flex-wrap: nowrap;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;

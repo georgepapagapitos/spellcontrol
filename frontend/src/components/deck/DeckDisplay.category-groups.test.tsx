@@ -121,7 +121,7 @@ describe('DeckDisplay category groups (E124)', () => {
       categoryTargets: { boardWipes: 3 }, // no board-wipe cards in the deck
     });
     const titles = sectionTitles(container);
-    expect(titles.some((t) => t.startsWith('Board Wipe'))).toBe(true);
+    expect(titles.some((t) => t.startsWith('Board wipe'))).toBe(true);
     expect(container.textContent).toContain('(0 / 3)');
     // singleRemoval has no target and no cards — must not render at all.
     expect(titles.some((t) => t.startsWith('Removal'))).toBe(false);

@@ -379,7 +379,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
             : err.name === 'NotFoundError'
               ? 'No camera was found on this device.'
               : err.message
-          : 'Could not start the camera.';
+          : "Couldn't start the camera.";
       setErrorMsg(msg);
       setStatus('error');
     }

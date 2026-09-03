@@ -364,10 +364,7 @@ export function YouPage() {
       <h2 className="settings-tier-header">Identity</h2>
 
       {username && (
-        <div role="group" aria-labelledby="settings-profile-group-title">
-          <h2 id="settings-profile-group-title" className="settings-section-header">
-            Profile
-          </h2>
+        <div>
           <SettingsSection
             id="settings-profile-title"
             title="Profile"
@@ -378,10 +375,7 @@ export function YouPage() {
         </div>
       )}
 
-      <div role="group" aria-labelledby="settings-account-group-title">
-        <h2 id="settings-account-group-title" className="settings-section-header">
-          Account
-        </h2>
+      <div>
         <SettingsSection id="settings-account-title" title="Account">
           {username ? (
             <>
@@ -542,10 +536,7 @@ export function YouPage() {
       {/* ═══ Your data — backup, sharing, storage ════════════════════════ */}
       <h2 className="settings-tier-header">Your data</h2>
 
-      <div role="group" aria-labelledby="settings-collection-group-title">
-        <h2 id="settings-collection-group-title" className="settings-section-header">
-          Collection
-        </h2>
+      <div>
         <SettingsSection
           id="settings-collection-title"
           title="Collection"
@@ -620,7 +611,7 @@ export function YouPage() {
               </>
             }
             valueWithTip
-            hint="Re-map each deck’s reserved copies after edits or re-imports."
+            hint="Re-map each deck's reserved copies after edits or re-imports."
             actions={
               <button
                 type="button"
@@ -648,7 +639,7 @@ export function YouPage() {
 
       <div role="group" aria-labelledby="settings-data-group-title">
         <h2 id="settings-data-group-title" className="settings-section-header">
-          Data &amp; Storage
+          Data &amp; storage
         </h2>
 
         <OfflineModeSettings />
@@ -686,9 +677,6 @@ export function YouPage() {
       )}
 
       {/* ═══ Danger zone ═══════════════════════════════════════════════════ */}
-      <h2 id="settings-danger-group-title" className="settings-section-header">
-        Danger zone
-      </h2>
       <section
         className="settings-card settings-card--danger"
         aria-labelledby="settings-danger-title"
@@ -960,7 +948,7 @@ function WipeConfirmDialog({ cardCount, step, busy, onAdvance, onCancel }: WipeC
           </>
         ) : (
           <>
-            You are about to remove all <strong>{frozenCount.toLocaleString()}</strong>{' '}
+            You're about to remove all <strong>{frozenCount.toLocaleString()}</strong>{' '}
             {frozenCount === 1 ? 'card' : 'cards'} from your collection. Binder definitions and
             decks are kept, but decks will lose their physical copy assignments.
           </>

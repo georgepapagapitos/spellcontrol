@@ -37,3 +37,13 @@
   opacity: 0.5;
   cursor: default;
 }
+
+.table-chat__send:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.table-chat__input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

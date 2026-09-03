@@ -111,6 +111,7 @@
   /* Content normally fits the whole panel; only the very smallest 6-player
      seats could need this, and then it scrolls rather than clipping. */
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .seat-menu-label {
@@ -127,12 +128,25 @@
 
 .seat-menu-row input {
   flex: 1;
+  min-width: 0;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.18);
   color: #fff;
   border-radius: var(--radius);
   padding: 0.3rem var(--space-2);
   font-family: var(--font-mono);
+}
+
+/* Mutating row on a phone game board: the field and its Set button share
+   the 44px floor. */
+@media (pointer: coarse) {
+  .seat-menu-row input {
+    min-height: 44px;
+  }
+
+  .seat-menu-row .pill-btn {
+    min-height: 44px;
+  }
 }
 
 .seat-menu-action {
@@ -142,6 +156,9 @@
   border-radius: var(--radius);
   padding: 0.45rem 0.6rem;
   font-size: var(--text-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -464,6 +481,8 @@
   background: rgba(255, 255, 255, 0.12);
   border-color: #fff;
   color: #fff;
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -667,6 +686,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -957,6 +977,24 @@
 }
 /* The radio inside carries focus now, so the ring hangs off the label. */
 .seat-menu-swatch:has(input:focus-visible) {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+
+.counter-row-btn:focus-visible {
+  /* Always-dark ground — white ring (STYLE_GUIDE § Accessibility). */
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+
+.seat-menu-close:focus-visible {
+  /* Always-dark ground — white ring (STYLE_GUIDE § Accessibility). */
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+
+.seat-menu-row input:focus-visible {
+  /* Always-dark ground — white ring (STYLE_GUIDE § Accessibility). */
   outline: 2px solid rgba(255, 255, 255, 0.7);
   outline-offset: 3px;
 }

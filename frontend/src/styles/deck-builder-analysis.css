@@ -726,3 +726,10 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/* Coarse-pointer floor for the stat-strip buttons (41px at rest). */
+@media (pointer: coarse) {
+  .deck-stat-btn {
+    min-height: 44px;
+  }
+}

@@ -240,7 +240,7 @@ function BracketGroup({ customization, update }: DeckCustomizerProps) {
   return (
     <div className="deck-customizer-group">
       <div className="deck-customizer-group-header">
-        <h3 className="deck-customizer-group-title">Target Bracket</h3>
+        <h3 className="deck-customizer-group-title">Power bracket</h3>
       </div>
       <div className="deck-customizer-group-body">
         {/* Native radios: exclusivity + arrow-key nav + one group tab stop. */}
@@ -702,7 +702,7 @@ const MP_AXES: {
   {
     key: 'reliable',
     label: 'Color fixing',
-    hint: 'Favors lands that tap more of your deck’s colors over off-color picks.',
+    hint: "Favors lands that tap more of your deck's colors over off-color picks.",
     color: 'var(--accent)',
   },
   {
@@ -736,7 +736,7 @@ function ManaPhilosophyGroup({ customization, update }: DeckCustomizerProps) {
     <div className="mana-philosophy-group">
       <p className="deck-customizer-hint">
         Blend four priorities for the nonbasic lands the generator picks: reliable color fixing,
-        useful abilities, modal spell-lands, and price. Off by default — every deck keeps today’s
+        useful abilities, modal spell-lands, and price. Off by default — every deck keeps today's
         land priority until you turn this on.
       </p>
       <label className="collection-group-row">
@@ -1053,6 +1053,7 @@ function GameChangerOptions({
           <input
             ref={inputRef}
             className="option-card-input"
+            aria-label="Custom count"
             type="number"
             min={1}
             value={draft}
@@ -1151,6 +1152,7 @@ function ScryfallGroup({ customization, update }: DeckCustomizerProps) {
       <input
         type="text"
         className="deck-customizer-text-input"
+        aria-label="Additional Scryfall query"
         value={customization.scryfallQuery}
         placeholder="e.g. -is:reprint or set:mkm"
         onChange={(e) => update({ scryfallQuery: e.target.value })}
@@ -1283,9 +1285,16 @@ function Field({
   align?: 'center' | 'stretch';
   children: React.ReactNode;
 }) {
+  const labelId = useId();
   return (
-    <div className={`deck-customizer-field deck-customizer-field-${align}`}>
-      <span className="deck-customizer-field-label">{label}</span>
+    <div
+      className={`deck-customizer-field deck-customizer-field-${align}`}
+      role="group"
+      aria-labelledby={labelId}
+    >
+      <span id={labelId} className="deck-customizer-field-label">
+        {label}
+      </span>
       <div className="deck-customizer-field-control">{children}</div>
       {hint && <small className="deck-customizer-field-hint">{hint}</small>}
     </div>

@@ -63,7 +63,7 @@ describe('RulesPage', () => {
   it('renders the unavailable note when AI is off for the account', () => {
     aiState.status = null;
     renderPage();
-    expect(screen.getByText(/isn’t available for you right now/)).toBeTruthy();
+    expect(screen.getByText(/isn't available for you right now/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Open the rules reference' })).toBeTruthy();
     expect(screen.queryByLabelText('Your rules question')).toBeNull();
   });

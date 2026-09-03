@@ -58,7 +58,11 @@
    surface + hairline border to stay legible against both the card's resting
    bg and the row's hover bg (both land on --surface). */
 .home-recent-deck-format {
-  flex-shrink: 0;
+  /* Shrinks after the name has given up its width (large font scales). */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   background: var(--surface);
   border: 0.5px solid var(--border);
 }

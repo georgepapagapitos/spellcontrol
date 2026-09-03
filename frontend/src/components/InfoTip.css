@@ -81,3 +81,22 @@
   /* Break long card names instead of overflowing the bubble. */
   overflow-wrap: anywhere;
 }
+
+/* Coarse-pointer floor (STYLE_GUIDE § Responsive): the glyph is 16px and sits
+   inline in a label, so it ghosts its hit area rather than growing the box —
+   the label's line height stays put. */
+@media (pointer: coarse) {
+  .info-tip-btn {
+    position: relative;
+  }
+
+  .info-tip-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}

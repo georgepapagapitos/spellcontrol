@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Download, LayoutGrid, List as ListIcon } from 'lucide-react';
 import type { PublicDeck, PublicDeckCard } from '../../lib/shared-types';
@@ -56,6 +56,9 @@ interface Props {
   /** Viewer's per-card ownership (w1-ownership-lens), keyed by card name —
    *  absent on a guest view or any page that doesn't compute a lens. */
   ownership?: Map<string, CardOwnership>;
+  /** Rendered first inside the page's <main> (the ownership-lens strip), so
+   *  it shares the landmark and width math instead of sitting above it. */
+  lead?: ReactNode;
 }
 
 type ViewKind = 'grid' | 'list';
@@ -124,7 +127,7 @@ interface DeckSection {
   start: number;
 }
 
-export function SharedDeckView({ data, publicMeta, ownership }: Props) {
+export function SharedDeckView({ data, publicMeta, ownership, lead }: Props) {
   const [search, setSearch] = useState('');
   const [view, setView] = useState<ViewKind>('grid');
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -302,6 +305,7 @@ export function SharedDeckView({ data, publicMeta, ownership }: Props) {
 
   return (
     <main className="shared-view">
+      {lead}
       <header className="shared-view-header">
         <p className="shared-view-owner">
           {publicMeta ? (

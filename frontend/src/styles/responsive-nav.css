@@ -284,22 +284,6 @@
   }
 }
 
-/* Hover styles only where hover is real (avoid sticky :hover on touch) */
-@media (hover: none) {
-  @media (hover: hover) and (pointer: fine) {
-    .upload-card:hover {
-      border-color: var(--border-strong);
-      background: var(--surface);
-    }
-  }
-
-  @media (hover: hover) and (pointer: fine) {
-    .color-swatch:hover {
-      transform: none;
-    }
-  }
-}
-
 /* ── Top-nav links ─────────────────────────────────────────────────────── */
 /* Divider-tab navigation (T53 Phase 2). .site-nav-link is shared by the
    desktop header (leather chrome) and the collection/decks hub strips
@@ -792,4 +776,9 @@
   .mobile-tab-bar-label-short {
     display: block;
   }
+}
+
+.scan-fab-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

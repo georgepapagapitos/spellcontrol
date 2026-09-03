@@ -80,7 +80,7 @@ export function ImportCube() {
           type="url"
           inputMode="url"
           className="cube-input"
-          placeholder="https://cubecobra.com/cube/overview/…"
+          placeholder="cubecobra.com/cube/…"
           aria-label="CubeCobra cube link"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
@@ -96,8 +96,8 @@ export function ImportCube() {
 
       {status === 'idle' && !result && (
         <p className="cube-import-hint">
-          Paste a link to any public cube on CubeCobra. We&apos;ll match it against your collection
-          so you can see exactly what you own and what you&apos;d need.
+          Paste a link to any public cube on CubeCobra. It&apos;s matched against your collection,
+          so you see exactly what you own and what you&apos;d need.
         </p>
       )}
 
@@ -220,13 +220,13 @@ export function ImportCube() {
                       <VerdictBadge
                         tone="neutral"
                         label="In a deck"
-                        title="You own this, but it’s currently in a deck"
+                        title="You own this, but it's currently in a deck"
                       />
                     ) : r.ownership === 'in-cube' ? (
                       <VerdictBadge
                         tone="neutral"
                         label="In a cube"
-                        title="You own this, but it’s reserved by a physical cube"
+                        title="You own this, but it's reserved by a physical cube"
                       />
                     ) : (
                       <OwnershipBadge owned={r.ownership === 'owned'} showUnowned />

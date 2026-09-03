@@ -219,7 +219,7 @@ export function ReadinessSpotlight() {
         <div className="readiness-spotlight-header-text">
           <p className="readiness-spotlight-eyebrow">Build another</p>
           <p className="readiness-spotlight-hint">
-            You already own the staples — here&rsquo;s what&rsquo;s closest to done.
+            You already own the staples — here's what's closest to done.
           </p>
         </div>
         <button

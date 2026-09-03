@@ -11,16 +11,22 @@
   min-height: 24px;
 }
 
-.color-mode-toggle .chip-joiner {
-  /* Standalone pill (no surrounding chips) — keep the 44px effective touch
-     target the dense-row convention expects without inflating the visual. */
-  position: relative;
-}
+/* Standalone pill (no surrounding chips) — a 44px ghost hit area on touch
+   only, same shape as .info-tip-btn::after, without inflating the visual. */
+@media (pointer: coarse) {
+  .color-mode-toggle .chip-joiner {
+    position: relative;
+  }
 
-.color-mode-toggle .chip-joiner::after {
-  content: '';
-  position: absolute;
-  inset: -10px;
+  .color-mode-toggle .chip-joiner::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
 }
 
 .color-mode-toggle-hint {

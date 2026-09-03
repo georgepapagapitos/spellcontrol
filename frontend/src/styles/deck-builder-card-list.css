@@ -508,6 +508,11 @@
 
 .deck-row-tag-chip {
   display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
   padding: 0.02rem 0.4rem;
   border-radius: 999px;
   border: 1px solid var(--border);
@@ -1109,7 +1114,7 @@
 .deck-row-role-cost-reducer,
 .deck-row-role-ramp {
   --role-ink-scrim: var(--art-scrim-success);
-  color: #4ca352;
+  color: var(--role-ink-ramp);
 }
 
 .deck-row-role-counterspell,
@@ -1117,13 +1122,13 @@
 .deck-row-role-spot-removal,
 .deck-row-role-removal {
   --role-ink-scrim: var(--art-scrim-err);
-  color: #d8442a;
+  color: var(--role-ink-removal);
 }
 
 .deck-row-role-bounce-wipe,
 .deck-row-role-boardwipe {
   --role-ink-scrim: var(--art-scrim-warn);
-  color: #d4a838;
+  color: var(--role-ink-wipe);
 }
 
 .deck-row-role-tutor,
@@ -1132,7 +1137,7 @@
 .deck-row-role-card-draw,
 .deck-row-role-card-advantage {
   --role-ink-scrim: var(--art-scrim-info);
-  color: #3a85cc;
+  color: var(--role-ink-draw);
 }
 
 /* On the grid's dark art plate the list-row inks above drop below AA

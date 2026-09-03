@@ -271,7 +271,7 @@ export function DeckFeedbackView({ data, token }: Props) {
           <h1>Feedback sent</h1>
           <p>
             {/* Prose, not a row/label — no secondary handle mid-sentence. */}
-            Thanks! {owner.primary} will see your{' '}
+            {owner.primary} will see your{' '}
             {suggestionCount > 0
               ? `${suggestionCount} suggestion${suggestionCount === 1 ? '' : 's'}`
               : 'comment'}{' '}
@@ -333,7 +333,7 @@ export function DeckFeedbackView({ data, token }: Props) {
         <SearchPill
           value={addQuery}
           onChange={setAddQuery}
-          placeholder="Suggest a card to add (name or Scryfall syntax)…"
+          placeholder="Suggest a card to add"
           ariaLabel="Search cards to suggest adding"
           className="feedback-add-search"
         />
@@ -566,7 +566,7 @@ export function DeckFeedbackView({ data, token }: Props) {
             maxLength={4000}
             rows={4}
             onChange={(e) => setComment(e.target.value)}
-            placeholder="Overall thoughts, lines to consider, meta context…"
+            placeholder="Overall thoughts, lines to consider, meta context"
           />
         </label>
         {submitState.status === 'error' && (

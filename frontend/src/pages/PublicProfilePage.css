@@ -160,22 +160,22 @@
 }
 
 .public-profile-tile-colorbar-seg--w {
-  background: #f0f2c0;
+  background: var(--mtg-w);
 }
 .public-profile-tile-colorbar-seg--u {
-  background: #b5cde3;
+  background: var(--mtg-u);
 }
 .public-profile-tile-colorbar-seg--b {
-  background: #aca29a;
+  background: var(--mtg-b);
 }
 .public-profile-tile-colorbar-seg--r {
-  background: #db8664;
+  background: var(--mtg-r);
 }
 .public-profile-tile-colorbar-seg--g {
-  background: #93b483;
+  background: var(--mtg-g);
 }
 .public-profile-tile-colorbar-seg--c {
-  background: #beb9b2;
+  background: var(--mtg-colorless);
 }
 
 @media (hover: hover) and (pointer: fine) {

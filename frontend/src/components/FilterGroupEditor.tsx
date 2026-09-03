@@ -414,7 +414,7 @@ function FilterGroupFields({
           value={filter.colors ?? EMPTY_EXPR}
           onChange={(next) => patch({ colors: next })}
           defaultJoiner="OR"
-          placeholder="Add color..."
+          placeholder="Add color…"
         />
       </RuleRow>
 
@@ -429,7 +429,7 @@ function FilterGroupFields({
           // anything. The collection Filters dialog already locked this; the
           // binder editor let you build the empty set by hand.
           lockJoiner="OR"
-          placeholder="Add rarity..."
+          placeholder="Add rarity…"
         />
       </RuleRow>
 
@@ -461,7 +461,7 @@ function FilterGroupFields({
           type="text"
           value={filter.nameContains || ''}
           onChange={(e) => patch({ nameContains: e.target.value })}
-          placeholder="e.g. dragon, sword..."
+          placeholder="e.g. dragon, sword"
         />
       </RuleRow>
 
@@ -597,6 +597,7 @@ function FilterGroupFields({
           </label>
           <input
             type="number"
+            aria-label="Number of most popular EDH cards"
             value={filter.edhrecRankMax ?? ''}
             min={1}
             max={50000}
@@ -608,11 +609,9 @@ function FilterGroupFields({
                 edhrecRankMax: e.target.value === '' ? undefined : parseInt(e.target.value),
               })
             }
-            style={{ width: 90 }}
+            className="rule-number-input"
           />
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-            most popular EDH cards
-          </span>
+          <span className="rule-field-note">most popular EDH cards</span>
         </div>
       </RuleRow>
 
@@ -804,7 +803,7 @@ function SetMultiSelect({
             setQuery(e.target.value);
             setOpen(true);
           }}
-          placeholder={options.length === 0 ? 'no cards loaded' : 'add set...'}
+          placeholder={options.length === 0 ? 'no cards loaded' : 'Add set…'}
           disabled={options.length === 0}
         />
         {open && filtered.length > 0 && (

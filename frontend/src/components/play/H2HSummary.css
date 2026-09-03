@@ -7,6 +7,7 @@
      rows carry long opponent names and this component is embedded in more
      than one host, only one of which happens to clip safely. */
   overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .h2h-summary {

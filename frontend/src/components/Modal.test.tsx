@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
+import { flushSync } from 'react-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Modal } from './Modal';
 
@@ -229,5 +230,38 @@ describe('stacked modals', () => {
     });
     expect(closeTop).toHaveBeenCalledTimes(1);
     expect(closeBottom).not.toHaveBeenCalled();
+  });
+});
+
+describe('Modal Escape vs. sibling document listeners', () => {
+  // The deck editor's hint strip listens for Escape too, and its dismissal
+  // re-renders the page before the Modal's own listener runs (the browser
+  // flushes React between the listeners of a trusted key event). A Modal
+  // that re-subscribed on every render was swapped out mid-dispatch and
+  // never saw that Escape — the export dialog needed two presses to close.
+  it('still closes when an earlier listener re-renders the tree mid-dispatch', () => {
+    mockReducedMotion(true);
+    const onClose = vi.fn();
+    let bump: () => void = () => {};
+    function Host() {
+      const [n, setN] = useState(0);
+      bump = () => flushSync(() => setN((v) => v + 1));
+      return (
+        <Modal onClose={() => onClose(n)} label="Test">
+          <button type="button">x</button>
+        </Modal>
+      );
+    }
+    const earlier = () => bump();
+    document.addEventListener('keydown', earlier);
+    try {
+      render(<Host />);
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(onClose).toHaveBeenCalledTimes(1);
+      // The latest onClose ran — the one rendered after the sibling's update.
+      expect(onClose).toHaveBeenCalledWith(1);
+    } finally {
+      document.removeEventListener('keydown', earlier);
+    }
   });
 });

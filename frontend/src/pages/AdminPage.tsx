@@ -4,6 +4,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 import { SearchPill } from '../components/SearchPill';
+import { useConfirm } from '../lib/use-confirm';
 import { Tabs } from '../components/Tabs';
 import { useDecksStore, type Deck } from '../store/decks';
 import { useCubeStore, type SavedCube } from '../store/cube';
@@ -20,6 +21,9 @@ type Tab = 'overview' | 'decks' | 'allocations' | 'collection' | 'binders' | 'st
 const EMPTY_COLLECTION: Map<string, EnrichedCard> = new Map();
 
 export function AdminPage() {
+  // Destructive debug actions go through the shared confirm dialog, never
+  // window.confirm (STYLE_GUIDE § Overlays).
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const isAdmin = useAuth((s) => s.user?.role === 'admin');
   const cards = useCollectionStore((s) => s.cards);
   const hydrating = useCollectionStore((s) => s.hydrating);
@@ -194,6 +198,7 @@ export function AdminPage() {
 
   return (
     <div className="admin-page">
+      {confirmDialog}
       <div className="admin-header">
         <h1>Debug / Admin</h1>
         <p className="admin-sub">
@@ -484,16 +489,44 @@ export function AdminPage() {
           fileName={fileName}
           uploadedAt={uploadedAt}
           importHistory={importHistory}
-          onClearCards={() => {
-            if (confirm('Wipe the entire collection from IndexedDB? Decks/binders are kept.'))
-              void clearCards();
+          onClearCards={async () => {
+            const ok = await confirm({
+              title: 'Clear the collection?',
+              body: 'Every card in IndexedDB is removed. Decks and binders are kept.',
+              confirmLabel: 'Clear collection',
+              danger: true,
+            });
+            if (ok) void clearCards();
           }}
-          onClearBinders={() => {
-            if (confirm('Delete every binder definition? Cards untouched.')) deleteAllBinders();
+          onClearBinders={async () => {
+            const ok = await confirm({
+              title: 'Delete every binder?',
+              body: 'Binder definitions are removed. Cards are untouched.',
+              confirmLabel: 'Delete binders',
+              danger: true,
+            });
+            if (ok) deleteAllBinders();
           }}
-          onClearDecks={() => {
-            if (confirm(`Delete all ${decks.length} deck(s)? Collection/binders are kept.`))
-              deleteAllDecks();
+          onClearDecks={async () => {
+            const ok = await confirm({
+              title: `Delete all ${decks.length} ${decks.length === 1 ? 'deck' : 'decks'}?`,
+              body: 'Collection and binders are kept.',
+              confirmLabel: 'Delete decks',
+              danger: true,
+            });
+            if (ok) deleteAllDecks();
+          }}
+          onNuke={async () => {
+            const ok = await confirm({
+              title: 'Wipe everything and reload?',
+              body: 'Collection, decks, binders and local settings are all removed from this device.',
+              confirmLabel: 'Wipe everything',
+              danger: true,
+            });
+            if (!ok) return;
+            localStorage.clear();
+            indexedDB.deleteDatabase('spellcontrol');
+            location.reload();
           }}
           onRerunRemap={() => {
             remapAllocations(cards);
@@ -851,6 +884,7 @@ function StorageTab({
   onClearCards,
   onClearBinders,
   onClearDecks,
+  onNuke,
   onRerunRemap,
 }: {
   fileName: string;
@@ -859,6 +893,7 @@ function StorageTab({
   onClearCards: () => void;
   onClearBinders: () => void;
   onClearDecks: () => void;
+  onNuke: () => void;
   onRerunRemap: () => void;
 }) {
   const [remapToast, setRemapToast] = useState<string | null>(null);
@@ -954,17 +989,7 @@ function StorageTab({
         <button onClick={onClearCards}>Clear collection (IndexedDB)</button>
         <button onClick={onClearBinders}>Delete all binders</button>
         <button onClick={onClearDecks}>Delete all decks</button>
-        <button
-          onClick={() => {
-            if (confirm('Nuke EVERYTHING (collection + decks + binders + localStorage)?')) {
-              localStorage.clear();
-              indexedDB.deleteDatabase('spellcontrol');
-              location.reload();
-            }
-          }}
-        >
-          Nuke everything &amp; reload
-        </button>
+        <button onClick={onNuke}>Wipe everything &amp; reload</button>
       </div>
     </section>
   );

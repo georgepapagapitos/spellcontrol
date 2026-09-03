@@ -76,7 +76,7 @@
 
 /* Below 600px there's no room for a teaser line alongside two buttons —
    matches UX-334's "hide the teaser entirely below 600px" ruling. */
-@media (max-width: 599px) {
+@media (max-width: 600px) {
   .build-time-coach-strip-detail {
     display: none;
   }

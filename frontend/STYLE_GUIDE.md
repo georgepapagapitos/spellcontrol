@@ -121,7 +121,12 @@ never what the app "is."
    game night."
 4. **Sentence case, no exclamation marks, no cutesy filler.** No "Oops!",
    "Awesome!", emoji, or marketing adjectives.
-5. **Use contractions** — "Couldn't add {card}", not "Could not add". They match
+5. **Apostrophes are straight, quotes are curly.** Copy writes `'` (the
+   codebase and this guide's examples do; a typographic `’` reads as a
+   different glyph beside its neighbours), while quoted terms use `“ ”`
+   ("try “sweeper”"). Card names and oracle text are data and keep whatever
+   the source has — fixtures that test apostrophe normalisation stay `’`.
+6. **Use contractions** — "Couldn't add {card}", not "Could not add". They match
    the human register everywhere user-facing (errors, confirms, hints).
 
 **Primary empty states are two parts: tagline + hint.** A short tagline naming
@@ -132,6 +137,12 @@ an exclamation. Use the shared `.empty-state` + `.empty-state-tagline` +
 **primary** (page/section-level) empties. A small **inline sub-panel
 placeholder** (a sideboard slot list, a mini-chart's no-data line) may stay a
 single concise line — the two-part pattern would read visually heavy there.
+
+**A load failure is the `.discover-decks-error` strip, not an empty state.**
+One row: the message in a `role="alert"` box plus a `.discover-decks-error-retry`
+button when a reload exists. Discover, Saved decks, the Trending rail and both
+combo surfaces share it; the rules live in the global `shared.css` slice so a
+page that renders it before Discover has ever loaded is still styled.
 
 **Primary empty states also carry a brand-mark aura (E114).** `<EmptyStateMark />`
 (`components/shared/EmptyStateMark.tsx`) renders `<BrandMark size={40}
@@ -430,6 +441,14 @@ a hero CTA.
   strip's bottom border (inset, so the tab's box and the strip's layout are
   untouched), with no hover lift, because it is the page you are already on.
   Any third nav tier steps down again — it does not reach back for the dye.
+- **A scrollable tab strip tells you it scrolls.** `Tabs` (`--scrollable`,
+  `--hub`, `--underline`) sets `data-overflow="start|end|both"` on its root
+  from its own scroll position and the stylesheet masks that edge with a
+  `--space-6` fade (`deck-builder-tabs.css`), the same tell `HubTabsNav`
+  carries; the selected tab is also scrolled into view on change. A strip
+  whose last tab is cut off flat at the viewport edge reads as the end of
+  the list — the fade is what says "more". Every strip on the primitive
+  gets it for free; don't hand-roll a per-page gradient.
 - All tabbed surfaces go through the shared `components/Tabs.tsx` primitive
   (roving tabindex, arrow-key nav, `role=tablist`/`tab`/`tabpanel`). Don't
   hand-roll a tab strip. **This applies inside overlays, sheets, modals, editor
@@ -711,6 +730,13 @@ signals rather than shipping an in-app duplicate of each one.
   and nothing else would catch it, since the block declares no colour of its own.
 
 ## App chrome — leather & divider tabs (T53)
+
+- **Sticky chrome clears the display cutout on both sides.** `.site-header`
+  pads with `max(var(--space-4), var(--safe-right))` /
+  `max(var(--space-4), var(--safe-left))`, the same floor the mobile tab bar
+  and the phone modal backdrop use, so a landscape phone with a notch never
+  puts the brand or nav under the cutout. Any new fixed/sticky bar takes the
+  same two insets, not just `--safe-top`/`--safe-bottom`.
 
 The header and mobile tab bar are the **binder's cover**, not page surfaces —
 they wear the `--chrome-*` tokens (`-bg`, `-surface`, `-text`, `-text-muted`,
@@ -1327,6 +1353,26 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   (reference: `ConfirmDialog.tsx`). Hand-rolled `.modal-backdrop` dialogs are
   also discouraged — route through `<Modal>` so the exit animation, focus-trap,
   and Escape/hardware-back handling come for free (see § Motion).
+- **An overlay that can't portal still answers Escape and hardware back.**
+  The game board's in-panel covers (seat menu, counters, life keypad), its
+  bottom-sheet game menu and the custom layout editor render in place —
+  the seat menu inherits its panel's rotation, the menu rises from the
+  board's own edge — so they can't be a `<Modal>`. They use
+  `lib/use-overlay-dismiss.ts` (`useOverlayDismiss(onClose, panelRef)`):
+  the same shared layer stack, topmost-only Escape and Android back, Tab
+  trap and focus restoration, no exit animation. A new in-place overlay
+  takes this hook; it never hand-rolls a keydown listener again.
+- **Document key listeners subscribe once; the latest callback lives in a
+  ref.** `Modal`, `useSheetExit`, `useEscapeKey`, `useOverlayDismiss` and
+  `useMenuKeyboard` all keep `onClose` in a ref and register their
+  `keydown`/`backButton` listeners for the component's lifetime. Putting an
+  inline callback in the effect deps re-subscribes on every render, and a
+  listener swapped out mid-dispatch never fires: the browser runs a
+  microtask checkpoint between the listeners of a trusted key event, React
+  flushes there, and any earlier Escape listener that re-renders the page
+  (the deck editor's resync hint strip) silently ate the Modal's Escape —
+  the export dialog and pull list needed two presses (2026-09). Any new
+  hook that listens on `document`/`window` follows the ref pattern.
 - **Every scroller inside an overlay declares `overscroll-behavior: contain`.**
   `useLockBodyScroll` is not the mechanism it looks like: `body` is _already_
   permanently `overflow: hidden` (`base-layout.css`), so locking it changes
@@ -2656,6 +2702,24 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   (`backdrop-filter` panel), not a third gradient tune.
 - **Game-canonical colors** (counter gold, etc.) live in the `--mtg-*` block
   (`--mtg-counter-gold`) and are not themed — never hard-code a game-surface hex.
+- **Number fields are sized by class, never by a global selector.** The
+  rule editors' min/max/count boxes use `.rule-number-input` (6rem,
+  `binder-rules-editor.css`); the old `search-controls.css`
+  `input[type='number'] { width: 80px }` rule is gone because it silently
+  sized every numeric field in the app. A new numeric field picks a width
+  on its own class.
+- **The solo-playtest table stack is named.** `--z-table-chrome` (900, zones
+  tab) · `--z-table-panel` (901, zones panel, takeback banner) ·
+  `--z-table-banner` (902, resistance banner) · `--z-table-consent` (950)
+  sit between `--z-suggest` and `--z-modal`; the table's context menu and
+  floating life panel ride `--z-overlay` (±1 for its backdrop and the zone
+  menu popover). `playtest.css` carries no bare three-digit z-index.
+- **Role ink colors are tokens too.** The four card-role hues (ramp, removal,
+  wipe, draw) that tint role chips, curve-phase bars and analysis rows are
+  `--role-ink-ramp` / `--role-ink-removal` / `--role-ink-wipe` /
+  `--role-ink-draw` in `tokens.css` (fixed, like `--mtg-*` — a role reads
+  the same on every guild). `deck-builder-card-list.css` and
+  `DeckCurvePhases.css` consume them; a new role surface does too.
 - **Mana identity palette — one set of WUBRG colors.** Color-identity fills (the
   five colors + multicolor/colorless/land) come from the canonical
   `--mtg-w` / `--mtg-u` / `--mtg-b` / `--mtg-r` / `--mtg-g` /

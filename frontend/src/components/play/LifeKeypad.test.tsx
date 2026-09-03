@@ -73,7 +73,7 @@ describe('LifeKeypad — absolute set mode (default)', () => {
     const onClose = vi.fn();
     renderKeypad(40, vi.fn(), onClose);
 
-    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(document.body, { key: 'Escape' });
 
     expect(onClose).toHaveBeenCalledOnce();
   });

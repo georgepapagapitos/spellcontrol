@@ -136,3 +136,21 @@ input.deck-row-qty-input.deck-row-qty-missing {
     transform: translateX(-50%);
   }
 }
+
+/* Coarse-pointer floor for the qty readout/editor in a dense row: a
+   horizontal-only ghost, exactly like the ± steppers beside it. */
+@media (pointer: coarse) {
+  .deck-row-qty-edit {
+    position: relative;
+  }
+
+  .deck-row-qty-edit::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 44px;
+    height: 100%;
+    transform: translateX(-50%);
+  }
+}

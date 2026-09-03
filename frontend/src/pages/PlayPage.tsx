@@ -1,3 +1,4 @@
+import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { BookOpen, Check, Copy, Swords, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -257,7 +258,7 @@ export function PlayPage() {
             </>
           ) : isGuest ? (
             <div className="empty-state">
-              <p className="empty-state-tagline">Online games need an account</p>
+              <p className="empty-state-tagline">Online games need an account.</p>
               <p className="empty-state-hint">
                 Sign in to host or join a multiplayer game so other players can sync to it. Local
                 games work without an account.
@@ -831,7 +832,7 @@ function OnlineSetup({
               {hasActive ? 'Host a different game' : 'Host a game'}
             </h2>
             <p className="play-setup-help">
-              You will get a 4-character code. Share it with friends so they can join from their own
+              You'll get a 4-character code. Share it with friends so they can join from their own
               devices.
               {hasActive && ' Hosting a new game will leave the one you have minimized.'}
             </p>
@@ -936,9 +937,9 @@ function OnlineSetup({
               <input
                 className="play-join-code"
                 value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 6))}
+                onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 4))}
                 placeholder="ABCD"
-                maxLength={6}
+                maxLength={4}
                 inputMode="text"
                 autoCapitalize="characters"
                 spellCheck={false}
@@ -1114,7 +1115,8 @@ function HistoryTab({
   if (history.length === 0 && userId === null) {
     return (
       <div className="empty-state">
-        <p className="empty-state-tagline">No games yet</p>
+        <EmptyStateMark />
+        <p className="empty-state-tagline">No games yet.</p>
         <p className="empty-state-hint">Head to Local or Online to start your first game.</p>
       </div>
     );
@@ -1125,7 +1127,8 @@ function HistoryTab({
       {userId !== null && <FriendsLeaderboard />}
       {history.length === 0 && (
         <div className="empty-state">
-          <p className="empty-state-tagline">No games on this device yet</p>
+          <EmptyStateMark />
+          <p className="empty-state-tagline">No games on this device yet.</p>
           <p className="empty-state-hint">Head to Local or Online to start your first game.</p>
         </div>
       )}

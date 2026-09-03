@@ -319,7 +319,7 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
                   title={
                     sc.isPhysical
                       ? 'Physical cube — reserves your copies. Click to unmark.'
-                      : 'Mark as physically built (reserves your copies so decks can’t use them)'
+                      : "Mark as physically built (reserves your copies so decks can't use them)"
                   }
                 >
                   <Boxes width={15} height={15} aria-hidden />
@@ -403,7 +403,7 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
       {deleteTarget && (
         <ConfirmDialog
           title="Delete cube?"
-          body={`“${deleteTarget.name}” will be removed. This can’t be undone.`}
+          body={`“${deleteTarget.name}” will be removed. This can't be undone.`}
           confirmLabel="Delete"
           danger
           onConfirm={handleDelete}

@@ -1263,7 +1263,7 @@ function SuggestionsResults({
     return (
       <div className="card-search-empty-wrap" role="alert">
         <p className="card-search-empty">
-          Couldn&rsquo;t reach EDHREC for suggestions. Check your connection and try again.
+          Couldn't reach EDHREC for suggestions. Check your connection and try again.
         </p>
         {onRetry && (
           <div className="card-search-empty-actions">

@@ -106,7 +106,7 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
         </div>
 
         {sorted.length === 0 ? (
-          <div className="card-picker-empty" style={{ padding: '2rem 1rem' }}>
+          <div className="card-picker-empty" style={{ padding: 'var(--space-6) var(--space-4)' }}>
             No binders yet. Create a binder first.
           </div>
         ) : (
@@ -128,7 +128,7 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
                     {isManual && <span className="add-to-binder-mode-hint">Manual</span>}
                   </span>
                   {!matches && !isCurrent && !isAdded && (
-                    <span className="add-to-binder-mismatch">Does not match rules</span>
+                    <span className="add-to-binder-mismatch">Doesn't match rules</span>
                   )}
                   {isAllocated && binder.hideDeckAllocated === false && !isCurrent && !isAdded && (
                     <span className="add-to-binder-mismatch">

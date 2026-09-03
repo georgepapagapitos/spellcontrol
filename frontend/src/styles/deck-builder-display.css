@@ -577,7 +577,8 @@
 /* Width modifier on the shared <SearchPill> for the deck toolbar — caps how
    wide the field grows so the neighboring toggles keep their room. */
 .deck-toolbar-search {
-  min-width: 11rem;
+  /* Never wider than the toolbar row — 11rem is 352px at a 200% font scale. */
+  min-width: min(11rem, 100%);
   max-width: 18rem;
 }
 
@@ -657,5 +658,23 @@
   .toolbar-viewmode-btn {
     width: 2.75rem;
     height: 2.75rem;
+  }
+}
+
+/* Coarse-pointer floor for the role badges on tiles and rows: dense
+   surfaces, so they ghost, capped at the row's own height. */
+@media (pointer: coarse) {
+  .role-badge-btn {
+    position: relative;
+  }
+
+  .role-badge-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 36px;
+    transform: translate(-50%, -50%);
   }
 }

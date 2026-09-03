@@ -1,3 +1,4 @@
+import { EmptyStateMark } from '../shared/EmptyStateMark';
 import {
   useCallback,
   useEffect,
@@ -130,7 +131,7 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
   if (isGuest) {
     return (
       <div className="empty-state">
-        <p className="empty-state-tagline">Game nights need an account</p>
+        <p className="empty-state-tagline">Game nights need an account.</p>
         <p className="empty-state-hint">
           Sign in to plan a night and invite friends. Anyone you send the link to can RSVP without
           an account.
@@ -151,7 +152,7 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
   if (error) {
     return (
       <div className="empty-state">
-        <p className="empty-state-tagline">Couldn't load game nights</p>
+        <p className="empty-state-tagline">Couldn't load game nights.</p>
         <p className="empty-state-hint">{error}</p>
         <div className="empty-state-actions">
           <button
@@ -170,6 +171,7 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
     <div className="game-nights">
       {nights.length === 0 ? (
         <div className="empty-state">
+          <EmptyStateMark />
           <p className="empty-state-tagline">No game nights planned.</p>
           <p className="empty-state-hint">
             Pick a date or let the group vote, then share the link. Anyone can RSVP, no account
@@ -312,13 +314,7 @@ function NightCard({
   const polling = night.options.length > 0;
   const weekly = night.series !== null && night.series.endedAt === null;
   const formatLabel = gameFormatLabel(night.format);
-  const when = new Date(night.startsAt).toLocaleString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+  const when = formatSlot(night.startsAt);
   const going = night.rsvps.filter((r) => r.status === 'going').length;
   const maybe = night.rsvps.filter((r) => r.status === 'maybe').length;
   const tally = [`${going} going`, maybe > 0 ? `${maybe} maybe` : null].filter(Boolean).join(' · ');
@@ -1404,7 +1400,7 @@ function NightDialog({
               onFocus={() => setPlaceOpen(true)}
               onKeyDown={onPlaceKeyDown}
               maxLength={120}
-              placeholder="e.g. Sam's place, or search an address"
+              placeholder="e.g. Sam's place"
               role="combobox"
               aria-autocomplete="list"
               aria-expanded={placeOpen && placeOptions.length > 0}
@@ -1449,7 +1445,7 @@ function NightDialog({
               onChange={(e) => setNotes(e.target.value)}
               maxLength={500}
               rows={3}
-              placeholder="e.g. bracket 2 decks, snacks covered"
+              placeholder="e.g. bracket 2 decks"
             />
           </label>
 

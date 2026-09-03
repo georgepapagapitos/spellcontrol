@@ -88,8 +88,8 @@ export async function gapAnalysisPhase(
       const ROLE_LABELS: Record<string, string> = {
         ramp: 'Ramp',
         removal: 'Removal',
-        boardwipe: 'Board Wipes',
-        cardDraw: 'Card Advantage',
+        boardwipe: 'Board wipes',
+        cardDraw: 'Card advantage',
       };
       gapAnalysis = gapCandidates
         .filter((c) => !violatesConstraints(gapCardMap.get(c.name)))

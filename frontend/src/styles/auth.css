@@ -302,6 +302,11 @@
     0 1px 0 rgb(0 0 0 / 12%);
 }
 
+.auth-submit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .auth-submit:hover:not(:disabled) {
     background: var(--accent-hover);
@@ -349,6 +354,11 @@
   color: var(--text-primary);
   cursor: pointer;
   font-family: inherit;
+}
+
+.auth-google:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -399,6 +409,11 @@
   font-size: var(--text-sm);
   cursor: pointer;
   font-family: inherit;
+}
+
+.auth-back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 @media (hover: hover) and (pointer: fine) {

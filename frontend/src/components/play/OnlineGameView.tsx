@@ -1,4 +1,4 @@
-import { Clock, Undo2 } from 'lucide-react';
+import { Clock, Compass, Crown, Undo2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   DesignationKind,
@@ -239,7 +239,7 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
               undoLabel={undoLabel}
             />
           ) : (
-            <div className="ogv-spectator">You&rsquo;re viewing this game without a seat.</div>
+            <div className="ogv-spectator">You're viewing this game without a seat.</div>
           )}
         </>
       )}
@@ -834,7 +834,7 @@ function YourPanel({
               aria-pressed={isMonarch}
               onClick={() => claim('monarch', isMonarch)}
             >
-              👑 {isMonarch ? 'Monarch' : 'Take Monarch'}
+              <Crown width={14} height={14} aria-hidden /> {isMonarch ? 'Monarch' : 'Take monarch'}
             </button>
             <button
               type="button"
@@ -842,7 +842,8 @@ function YourPanel({
               aria-pressed={isInitiative}
               onClick={() => claim('initiative', isInitiative)}
             >
-              🧭 {isInitiative ? 'Initiative' : 'Take Initiative'}
+              <Compass width={14} height={14} aria-hidden />{' '}
+              {isInitiative ? 'Initiative' : 'Take initiative'}
             </button>
           </div>
         )}

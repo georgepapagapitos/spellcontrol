@@ -97,7 +97,7 @@ export function TradeOfferList({ offers, onChanged, onCounter, linkCounterparty,
       <div className="empty-state trade-offers-empty">
         <p className="empty-state-tagline">No trades yet.</p>
         <p className="empty-state-hint">
-          Propose one and it shows up here — for both of you — until it’s answered.
+          Propose one and it shows up here — for both of you — until it's answered.
         </p>
       </div>
     );
@@ -155,7 +155,7 @@ function TradeOfferCard({
     const all = [...offer.give, ...offer.receive];
     const { cards, indexOf } = await resolveTradePreview(all);
     if (cards.length === 0) {
-      toast.show({ message: 'Couldn’t load these cards right now.', tone: 'warn' });
+      toast.show({ message: "Couldn't load these cards right now.", tone: 'warn' });
       return;
     }
     // A card whose own lookup failed is not in the carousel; open at the

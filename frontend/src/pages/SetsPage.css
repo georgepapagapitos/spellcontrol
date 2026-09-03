@@ -19,16 +19,10 @@
   gap: var(--space-2);
 }
 
+/* The shared SearchPill (same frame as every other hub's search); capped
+   so the sort menu keeps sitting beside it on wide screens. */
 .sets-search {
-  flex: 1 1 12rem;
-  max-width: 20rem;
-  min-height: 44px;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text-primary);
-  font-size: var(--text-sm);
+  max-width: 24rem;
 }
 
 @media (pointer: coarse) {
@@ -203,14 +197,6 @@
   font-size: var(--text-sm);
 }
 
-.sets-empty p {
-  margin: 0;
-}
-
-.sets-empty-link {
-  color: var(--accent);
-}
-
 .sets-list {
   list-style: none;
   margin: 0;
@@ -231,6 +217,11 @@
   background: var(--surface);
   color: inherit;
   text-decoration: none;
+}
+
+.sets-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -322,6 +313,11 @@
   color: var(--text-secondary);
   font-size: var(--text-sm);
   text-decoration: none;
+}
+
+.sets-back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -562,4 +558,9 @@
     /* Shared keyframe from footer-card-preview.css (motion-tokens guard). */
     animation: skeleton-shimmer 1.4s ease-in-out infinite;
   }
+}
+
+.sets-retry:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

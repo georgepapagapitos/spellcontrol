@@ -239,7 +239,7 @@ export function ScannerQueueSheet({
           <SearchPill
             className="scanner-search-pill"
             inputType="text"
-            placeholder="Search Scryfall to add a card…"
+            placeholder="Search Scryfall"
             value={query}
             onChange={setQuery}
             ariaLabel="Search Scryfall to add a card"

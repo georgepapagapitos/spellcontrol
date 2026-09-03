@@ -101,7 +101,7 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
     } catch (err) {
       // Cancelling the system sheet rejects with a generic error; soft no-op.
       if (err && (err as { message?: string }).message?.includes('cancel')) return;
-      toast.show({ message: "Couldn't open share sheet.", tone: 'warn' });
+      toast.show({ message: "Couldn't open share sheet", tone: 'warn' });
     }
   };
 

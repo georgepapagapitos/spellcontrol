@@ -179,6 +179,7 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
             </p>
             <textarea
               className="paste-textarea import-textarea"
+              aria-label="Decklist to add"
               value={pasteText}
               onChange={(e) => setPasteText(e.target.value)}
               placeholder={'1 Sol Ring\n1 Arcane Signet\n1 Cultivate\n...'}

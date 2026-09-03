@@ -129,7 +129,7 @@ function MechanicSearch({
         <input
           type="text"
           inputMode="search"
-          placeholder="Find a mechanic — e.g. “die roll”, “sacrifice”, otag:proliferate"
+          placeholder="Find a mechanic"
           value={value}
           onChange={(e) => setValue(e.target.value)}
           aria-label="Search for cards by mechanic or Scryfall query"

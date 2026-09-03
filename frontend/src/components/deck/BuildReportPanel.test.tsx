@@ -118,12 +118,12 @@ describe('BuildReportPanel', () => {
     expect(gaps.length).toBe(2);
 
     // Canonical label from ROLE_TITLES — never the raw "cardDraw" key.
-    expect(gaps[0].textContent).toContain('Card Advantage');
+    expect(gaps[0].textContent).toContain('Card advantage');
     expect(gaps[0].textContent).not.toContain('cardDraw');
     expect(gaps[1].textContent).toContain('Ramp');
 
     // Reads as have / target: count emphasized, target muted.
-    expect(gaps[0].querySelector('.build-report-gap-label')?.textContent).toBe('Card Advantage');
+    expect(gaps[0].querySelector('.build-report-gap-label')?.textContent).toBe('Card advantage');
     const count = gaps[0].querySelector('.build-report-gap-count');
     expect(count?.textContent?.replace(/\s+/g, ' ').trim()).toBe('9 / 10');
     expect(
@@ -225,7 +225,7 @@ describe('BuildReportPanel', () => {
           report={makeReport({ synergyFills: [{ name: 'Fill A', matchedTags: ['ramp'] }] })}
         />
       );
-      expect(screen.getByText('Fits your deck’s ramp')).toBeTruthy();
+      expect(screen.getByText("Fits your deck's ramp")).toBeTruthy();
     });
 
     it('shows the lift-flavored reason when liftedBy is present and there are no matched tags', () => {
@@ -250,7 +250,7 @@ describe('BuildReportPanel', () => {
         />
       );
       expect(
-        screen.getByText('Fits your deck’s ramp · Lifted by Sol Ring, Rhystic Study')
+        screen.getByText("Fits your deck's ramp · Lifted by Sol Ring, Rhystic Study")
       ).toBeTruthy();
     });
 
@@ -837,7 +837,7 @@ describe('BuildReportPanel — archetype disclosure', () => {
     render(
       <BuildReportPanel
         report={makeReport({
-          archetypeNote: 'Built as Enchantress — from EDHREC’s dominant theme for this commander.',
+          archetypeNote: "Built as Enchantress — from EDHREC's dominant theme for this commander.",
         })}
       />
     );

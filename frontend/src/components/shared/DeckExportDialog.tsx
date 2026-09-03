@@ -71,7 +71,7 @@ export function DeckExportDialog({ text, format, onFormatChange, title, onClose 
       // The user cancelling the system sheet rejects with a generic error;
       // treat anything from this call as a soft no-op rather than a toast.
       if (err && (err as { message?: string }).message?.includes('cancel')) return;
-      toast.show({ message: "Couldn't open share sheet.", tone: 'warn' });
+      toast.show({ message: "Couldn't open share sheet", tone: 'warn' });
     }
   };
 
@@ -132,6 +132,7 @@ export function DeckExportDialog({ text, format, onFormatChange, title, onClose 
         </div>
         <textarea
           className="export-dialog-preview"
+          aria-label="Exported decklist"
           value={text}
           readOnly
           spellCheck={false}

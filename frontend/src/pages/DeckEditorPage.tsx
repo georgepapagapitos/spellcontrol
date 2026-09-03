@@ -174,8 +174,8 @@ function buildWinConditionSummary(wc: WinConditionAnalysis | undefined): string 
 const ROLE_LABEL: Record<string, string> = {
   ramp: 'Ramp',
   removal: 'Removal',
-  boardwipe: 'Board Wipes',
-  cardDraw: 'Card Advantage',
+  boardwipe: 'Board wipes',
+  cardDraw: 'Card advantage',
 };
 
 /** Shortcut items contributed to the registry under the "Deck editor" section. */
@@ -2121,7 +2121,7 @@ export function DeckEditorPage() {
         tone: 'success',
       });
     } catch {
-      pushToast({ message: `Couldn't apply ${kindLabel} swaps.`, tone: 'error' });
+      pushToast({ message: `Couldn't apply ${kindLabel} swaps`, tone: 'error' });
     }
   };
 
@@ -3407,8 +3407,8 @@ export function DeckEditorPage() {
 
       {confirmDelete && (
         <ConfirmDialog
-          title="Delete deck"
-          body={`Delete "${deck.name}"? This cannot be undone.`}
+          title={`Delete "${deck.name}"?`}
+          body="This cannot be undone."
           confirmLabel="Delete"
           danger
           onConfirm={handleConfirmDelete}

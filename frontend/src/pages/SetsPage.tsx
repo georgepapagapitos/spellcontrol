@@ -1,3 +1,4 @@
+import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -37,6 +38,7 @@ import {
   type SldDropsIndex,
 } from '../lib/sld-drops';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
+import { SearchPill } from '../components/SearchPill';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { useCollectionStore } from '../store/collection';
@@ -46,7 +48,6 @@ import { RarityBadge } from '../components/shared/RarityBadge';
 import { Tabs } from '../components/Tabs';
 import { MeterBar } from '../components/shared/MeterBar';
 import { useSealMoment } from '../components/shared/SealMoment';
-import { isNativePlatform } from '../lib/platform';
 
 /** Sets whose 100%-completion seal already fired this app-open (STYLE_GUIDE
  *  "Completion moments": once per subject per app-open). */
@@ -364,29 +365,29 @@ function SetsIndex() {
       </header>
 
       {progress.length === 0 ? (
-        <div className="sets-empty">
-          <p>No sets to track yet — your collection is empty.</p>
-          <Link to="/collection" className="sets-empty-link">
-            Add or import cards to start completing sets.
-          </Link>
+        <div className="empty-state">
+          <EmptyStateMark />
+          <p className="empty-state-tagline">No sets to track yet.</p>
+          <p className="empty-state-hint">
+            Add or import cards and your set completion shows up here.
+          </p>
+          <div className="empty-state-actions">
+            <Link to="/collection" className="btn btn-primary">
+              Add cards
+            </Link>
+          </div>
         </div>
       ) : (
         <>
           <div className="sets-toolbar">
-            <input
-              // The Android WebView paints `type="search"` with an opaque
-              // light background that ignores the dark theme, so the field is
-              // unreadable there. `text` on native only — web keeps the native
-              // clear button. Same reasoning SearchPill's `inputType` documents.
-              type={isNativePlatform() ? 'text' : 'search'}
+            <SearchPill
               className="sets-search"
-              placeholder="Filter sets or search a card…"
-              aria-label="Filter sets by name or code, or search cards by name"
+              placeholder="Filter sets or cards"
+              ariaLabel="Filter sets by name or code, or search cards by name"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={setQuery}
             />
             <SelectMenu
-              label="Sort"
               ariaLabel="Sort sets"
               value={sort}
               options={SORT_OPTIONS}
@@ -479,8 +480,8 @@ function SetDetail({ code }: { code: string }) {
             state: {
               status: 'error',
               message: navigator.onLine
-                ? 'Couldn’t load this set’s card list from Scryfall.'
-                : 'You’re offline — set checklists need a connection.',
+                ? "Couldn't load this set's card list from Scryfall."
+                : "You're offline — set checklists need a connection.",
             },
           });
       });
@@ -557,7 +558,7 @@ function SetDetail({ code }: { code: string }) {
         celebratedSetComplete.add(sealKey);
         fireSealMoment();
         pushToast({
-          message: `${displayName} complete — all ${rows.length} cards collected!`,
+          message: `${displayName} complete — all ${rows.length} cards collected.`,
           tone: 'success',
         });
       }
@@ -706,15 +707,13 @@ function SetDetail({ code }: { code: string }) {
           </div>
 
           <div className="sets-toolbar sets-detail-toolbar">
-            <input
-              // See the toolbar search above — native WebView theming.
-              type={isNativePlatform() ? 'text' : 'search'}
+            <SearchPill
               className="sets-search"
-              placeholder="Search cards…"
-              aria-label="Search this checklist by card name or collector number"
+              placeholder="Search this set"
+              ariaLabel="Search this checklist by card name or collector number"
               value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
+              onChange={(next) => {
+                setQuery(next);
                 setPreviewIndex(null);
               }}
             />

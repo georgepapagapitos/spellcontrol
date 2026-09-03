@@ -319,8 +319,8 @@ export function CollectionCombosPage() {
       {partial && (
         <div className="deck-combos-partial-banner" role="status" aria-live="polite">
           <span>
-            Showing partial results — your device couldn&rsquo;t load the full combo dataset, so
-            some combos may be missing.
+            Showing partial results — your device couldn't load the full combo dataset, so some
+            combos may be missing.
           </span>
           <button type="button" className="btn-link" onClick={refetch} disabled={loading}>
             {loading ? 'Retrying…' : 'Retry'}
@@ -394,16 +394,16 @@ export function CollectionCombosPage() {
           {/* A load failure is retryable and says so — the raw transport error
               (a bare gateway status) named nothing the reader could act on. */}
           {error && (
-            <div className="deck-combos-empty" role="alert">
-              <p className="deck-combos-error">
-                Couldn&rsquo;t check your collection against the combo database.
-              </p>
-              <p className="deck-combos-empty-secondary">
-                Check your connection and try again.{' '}
-                <button type="button" className="btn-link" onClick={refetch} disabled={loading}>
-                  {loading ? 'Retrying…' : 'Retry'}
-                </button>
-              </p>
+            <div className="discover-decks-error" role="alert">
+              <span>Couldn't check your collection against the combo database.</span>
+              <button
+                type="button"
+                className="discover-decks-error-retry"
+                onClick={refetch}
+                disabled={loading}
+              >
+                {loading ? 'Retrying…' : 'Retry'}
+              </button>
             </div>
           )}
 

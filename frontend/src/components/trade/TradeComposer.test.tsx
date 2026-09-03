@@ -150,7 +150,7 @@ describe('TradeComposer — give-side result row split', () => {
     expect(screen.queryByTestId('preview')).toBeNull();
   });
 
-  it('walks that side’s whole results list, opening on the tapped card', () => {
+  it("walks that side's whole results list, opening on the tapped card", () => {
     renderComposer();
     fireEvent.click(within(giveResults()).getByRole('button', { name: 'Preview Sol Ring' }));
 
@@ -240,7 +240,7 @@ describe('TradeComposer — the 40-line side cap', () => {
     }
 
     // The 41st is behind the search; surfacing it must not let it in.
-    fireEvent.change(screen.getByRole('textbox', { name: /Search Trade Pal’s collection/i }), {
+    fireEvent.change(screen.getByRole('textbox', { name: /Search Trade Pal's collection/i }), {
       target: { value: 'Wanted Card 41' },
     });
     fireEvent.click(within(wantResults()).getByRole('button', { name: 'Add Wanted Card 41' }));

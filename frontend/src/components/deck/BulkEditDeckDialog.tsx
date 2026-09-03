@@ -223,7 +223,7 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
               {mode === 'resync' ? (
                 <>
                   Paste the updated list from wherever you keep it — Moxfield, Archidekt, anywhere.
-                  We'll diff it against this deck and show exactly what changed before you save.
+                  It's diffed against this deck, and you see exactly what changed before you save.
                   Cards you keep unchanged stay bound to the same physical copy.
                 </>
               ) : (
@@ -276,6 +276,7 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
             )}
             <textarea
               className="paste-textarea bulk-edit-textarea"
+              aria-label="Updated decklist"
               value={text}
               onChange={(e) => setText(e.target.value)}
               disabled={isLoading}

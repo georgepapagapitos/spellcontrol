@@ -449,8 +449,10 @@
 
 .decks-index-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   align-items: center;
+  min-width: 0;
 }
 
 /* Generic kebab wrapper — panel portals to <body>, so no position:relative needed.
@@ -524,4 +526,11 @@
 .overflow-menu-trigger:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Coarse-pointer floor on the width axis too — the trigger measured 34×44. */
+@media (pointer: coarse) {
+  .overflow-menu-trigger {
+    min-width: 44px;
+  }
 }

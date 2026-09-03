@@ -21,7 +21,7 @@ import { dirname, join } from 'node:path';
 const srcRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const INTERACTIVE =
-  /(btn|button|\blink\b|-link|\btab\b|-tab|chip|pill|-action|-open|-toggle|-cta|-rematch|-remove|-retry|-delete|-add\b|option|summary|facing|sort-btn|signin|stats-link|menu|hub-row|opening|pile|zones|expander|template|segmented|pagination|qty-btn|disc-toggle|swatch|trigger|item|card)/i;
+  /(btn|button|\blink\b|-link|\btab\b|-tab|chip|pill|-action|-open|-toggle|-cta|-rematch|-remove|-retry|-delete|-add\b|option|summary|facing|sort-btn|signin|stats-link|menu|hub-row|opening|pile|zones|expander|template|segmented|pagination|qty-btn|disc-toggle|swatch|trigger|item|card|close|dismiss|submit|-back\b|brand|-clear\b|-step\b|-more\b|-nav\b|reveal|-send\b|-fab|-head\b|-act\b|-cell\b|-ctrl\b|-die\b|keypad|showall|indicator|-point\b|-reset\b|-result\b|-finish\b|-row\b|-name\b|-select\b|-pick\b|handle|-flip|-details\b|-go\b|-play\b|-start\b|-release\b|input\b|-suggest|google)/i;
 
 // Selectors covered by a co-occurring base class on the element (the subset rule
 // can't see cross-class coverage), or a non-hover parse artifact. Keep this list
@@ -32,7 +32,15 @@ const ALLOWLIST = new Set([
   '.upload-action-danger', // element also carries .upload-action
   '.upload-action-primary', // element also carries .upload-action
   '.deck-row-menu-item--danger', // element also carries .deck-row-menu-item
+  '.life-keypad-confirm--minus', // element also carries .life-keypad-confirm
+  '.life-keypad-confirm--plus', // element also carries .life-keypad-confirm
   '.scanner-search-pill > input:-webkit-autofill', // autofill style, not a hover affordance
+  '.auth-field input:-webkit-autofill', // autofill style, not a hover affordance
+  // Non-focusable <li> containers whose hover is a row highlight; the button
+  // or link inside each row carries the ring.
+  '.new-arrivals-row',
+  '.trade-result-row',
+  '.deck-combos-row',
 ]);
 
 function cssFiles(dir: string): string[] {

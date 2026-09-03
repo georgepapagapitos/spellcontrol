@@ -73,7 +73,7 @@ export function Header() {
             <span>Decks</span>
             {deckCount > 0 && (
               <span className="site-nav-count" aria-label={`${deckCount} decks`}>
-                {deckCount}
+                {formatCount(deckCount)}
               </span>
             )}
           </NavLink>

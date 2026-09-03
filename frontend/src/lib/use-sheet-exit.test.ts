@@ -135,6 +135,23 @@ describe('useSheetExit', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('beginClose keeps its identity across re-renders and calls the latest onClose', () => {
+    setReducedMotion(true);
+    const first = vi.fn();
+    const second = vi.fn();
+    const { result, rerender } = renderHook(({ cb }) => useSheetExit(cb), {
+      initialProps: { cb: first },
+    });
+    const beginClose = result.current.beginClose;
+
+    rerender({ cb: second });
+    expect(result.current.beginClose).toBe(beginClose);
+
+    act(() => result.current.beginClose());
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledTimes(1);
+  });
+
   it('reduced motion closes immediately without animating', () => {
     setReducedMotion(true);
     const onClose = vi.fn();

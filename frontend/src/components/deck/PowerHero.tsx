@@ -284,7 +284,7 @@ export function PowerHero({
         <p className="power-hero-collection">
           <Sparkles className="power-hero-collection-icon" aria-hidden="true" />
           You own the missing piece for {comboOwnedMissing}{' '}
-          {comboOwnedMissing === 1 ? 'combo' : 'combos'} you&rsquo;re one away from.
+          {comboOwnedMissing === 1 ? 'combo' : 'combos'} you're one away from.
         </p>
       )}
     </section>

@@ -148,6 +148,8 @@
   color: var(--text-primary);
   margin: 0;
   line-height: 1.1;
+  /* One long word at a large font scale breaks rather than widening the page. */
+  overflow-wrap: anywhere;
 }
 
 .binder-hero-meta {
@@ -628,4 +630,28 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
+}
+
+/* Coarse-pointer floors. Browse pages shares a dense summary line with the
+   sort breadcrumb (which already ghosts), so it ghosts too; the hero's ⋮
+   kebab is a free-standing icon control and grows its own box. */
+@media (pointer: coarse) {
+  .binder-summary-browse-pages {
+    position: relative;
+  }
+
+  .binder-summary-browse-pages::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+
+  .binder-hero-actions-kebab {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }

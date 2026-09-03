@@ -416,7 +416,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
     {
       value: 'friends',
       label: 'My friends',
-      hint: 'Only your accepted friends can open this — they’ll need to be signed in.',
+      hint: "Only your accepted friends can open this — they'll need to be signed in.",
     },
     ...(kind === 'deck'
       ? [
@@ -464,7 +464,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
       // The user cancelling the system sheet rejects with a generic error;
       // treat anything from this call as a soft no-op rather than a toast.
       if (err && (err as { message?: string }).message?.includes('cancel')) return;
-      toast.show({ message: "Couldn't open share sheet.", tone: 'warn' });
+      toast.show({ message: "Couldn't open share sheet", tone: 'warn' });
     }
   };
 
@@ -583,7 +583,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
         <>
           {audience === 'direct' && recipientName && (
             <p className="share-dialog-sent" role="status">
-              Sent to @{recipientName} — they’ll see it in their inbox. You can also copy the link
+              Sent to @{recipientName} — they'll see it in their inbox. You can also copy the link
               below.
             </p>
           )}

@@ -253,7 +253,7 @@ export function TradeComposer({
     const rows = wantResults.map((card) => toRequestedCard(card, 1));
     const { cards: slides, indexOf } = await resolveTradePreview(rows);
     if (slides.length === 0) {
-      toast.show({ message: 'Couldn’t load these cards right now.', tone: 'warn' });
+      toast.show({ message: "Couldn't load these cards right now.", tone: 'warn' });
       return;
     }
     const actions: (() => void)[] = [];
@@ -273,7 +273,7 @@ export function TradeComposer({
     const all = [...giveCards, ...wantCards];
     const { cards: slides, indexOf } = await resolveTradePreview(all);
     if (slides.length === 0) {
-      toast.show({ message: 'Couldn’t load these cards right now.', tone: 'warn' });
+      toast.show({ message: "Couldn't load these cards right now.", tone: 'warn' });
       return;
     }
     const at = indexOf(tapped);
@@ -457,8 +457,8 @@ export function TradeComposer({
             Propose a trade — {friendName}
           </h2>
           <p className="game-night-dialog-hint">
-            Pick what changes hands. {friendName} sees the exact printings you’re offering, and
-            confirms which of theirs they’re giving when they accept.
+            Pick what changes hands. {friendName} sees the exact printings you're offering, and
+            confirms which of theirs they're giving when they accept.
           </p>
 
           <div className="trade-composer-sides">
@@ -549,7 +549,7 @@ export function TradeComposer({
                     : wantedOnly
                       ? `Nothing ${friendName} wants matches that search. Turn off “${friendName} wants” to offer something else.`
                       : spareOnly
-                        ? 'No spare copies match that search. Turn off “Spare copies” to offer one that’s in a deck.'
+                        ? "No spare copies match that search. Turn off “Spare copies” to offer one that's in a deck."
                         : 'No cards match that search.'
               }
             />
@@ -570,10 +570,10 @@ export function TradeComposer({
               }
               query={wantQuery}
               onQuery={setWantQuery}
-              searchLabel={`Search ${friendName}’s collection`}
+              searchLabel={`Search ${friendName}'s collection`}
               searchNote={
                 wantSearch.ignored.length > 0
-                  ? `${wantSearch.ignored.join(', ')} ${wantSearch.ignored.length === 1 ? 'is' : 'are'} not searchable in a friend’s collection — the rest of your search still applied.`
+                  ? `${wantSearch.ignored.join(', ')} ${wantSearch.ignored.length === 1 ? 'is' : 'are'} not searchable in a friend's collection — the rest of your search still applied.`
                   : undefined
               }
               picked={wantCards.map((c) => ({
@@ -607,11 +607,11 @@ export function TradeComposer({
                 if (card) void inspectWantResult(card);
               }}
               loading={friendCardsLoading}
-              error={friendCardsError ? `Couldn’t load ${friendName}’s collection.` : undefined}
+              error={friendCardsError ? `Couldn't load ${friendName}'s collection.` : undefined}
               onRetry={onRetryFriendCards}
               emptyResults={
                 (friendCards?.length ?? 0) === 0
-                  ? `${friendName} hasn’t added any cards yet.`
+                  ? `${friendName} hasn't added any cards yet.`
                   : 'No cards match that search.'
               }
             />

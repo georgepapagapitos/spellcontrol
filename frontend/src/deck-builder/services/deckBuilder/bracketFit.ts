@@ -926,8 +926,8 @@ export function buildBracketFitPlan(
       summary: 'Exhibition (Bracket 1) is a theme-first build, not a power level you tune down to.',
       note:
         detected <= EXHIBITION_TUNES_TO
-          ? 'Your deck already sits at the Core (Bracket 2) floor. Exhibition is about building around a concept over winning — a deckbuilding choice the power estimate can’t measure.'
-          : 'These cuts bring the deck down to the Core (Bracket 2) floor. Reaching Exhibition itself is a theme-build choice the power estimate can’t measure.',
+          ? "Your deck already sits at the Core (Bracket 2) floor. Exhibition is about building around a concept over winning — a deckbuilding choice the power estimate can't measure."
+          : "These cuts bring the deck down to the Core (Bracket 2) floor. Reaching Exhibition itself is a theme-build choice the power estimate can't measure.",
     };
   }
 

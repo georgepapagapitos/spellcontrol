@@ -545,6 +545,11 @@
   padding: 0.3rem var(--space-2);
 }
 
+.commander-playstyle-more:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .commander-playstyle-more:hover {
     text-decoration: underline;
@@ -616,6 +621,11 @@
   color: var(--text-muted);
   cursor: pointer;
   padding: 0.2rem 0.4rem;
+}
+
+.commander-color-clear:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -808,4 +818,30 @@
 .commander-surprise-chip:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Coarse-pointer floor for the WUBRG pip row: six pips plus Clear must still
+   fit a 320px phone, so the box grows to 40px and a vertical-only ghost
+   supplies the last 4px — sideways ghosts would overlap the neighbouring pip
+   and hand its tap to whichever sibling is later in the DOM. */
+@media (pointer: coarse) {
+  .commander-color-pip {
+    position: relative;
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .commander-color-pip::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 44px;
+    transform: translateY(-50%);
+  }
+
+  .commander-suggestion-chip {
+    min-height: 44px;
+  }
 }

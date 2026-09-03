@@ -28,9 +28,9 @@ export function RulesReferenceSheet() {
 }
 
 const PLACEHOLDER: Record<Tab, string> = {
-  keywords: 'Search keywords (e.g. flying, scry)…',
-  glossary: 'Search terms…',
-  rules: 'Search rules, or jump to a number (e.g. 509.2)…',
+  keywords: 'Search keywords',
+  glossary: 'Search terms',
+  rules: 'Search rules or jump to a number',
 };
 
 function RulesReferenceBody({ onClose }: { onClose: () => void }) {
@@ -144,7 +144,7 @@ function RulesReferenceBody({ onClose }: { onClose: () => void }) {
         >
           {loadError ? (
             <p className="rules-ref-status">
-              Couldn’t load the rules. Check your connection and reopen.
+              Couldn't load the rules. Check your connection and reopen.
             </p>
           ) : !bundle ? (
             <p className="rules-ref-status" aria-busy="true">

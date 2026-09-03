@@ -14,23 +14,6 @@
   padding: var(--space-4);
 }
 
-.pod-hub-back {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--text-secondary);
-  text-decoration: none;
-  transition: color var(--motion-fast);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .pod-hub-back:hover {
-    color: var(--text-primary);
-  }
-}
-
 /* ── Header: name (+ owner rename) and owner actions ─────────────────────
    ≤600px stacks (name above actions); ≥601px goes to one row once there's
    room, per STYLE_GUIDE Responsive. ─────────────────────────────────────── */

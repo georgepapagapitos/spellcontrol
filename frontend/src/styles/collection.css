@@ -1456,6 +1456,11 @@ i.ss.set-symbol--mythic {
   color: var(--text-secondary);
   text-align: center;
   background: var(--surface-raised);
+  /* A name with no break opportunity (Asmoranomardicadaistinaculdacar) is
+     wider than a phone tile; centered flex content overflows both edges and
+     the tile shows the middle of the word. Break inside the word instead. */
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 /* Bottom-left corner cluster on a grid tile — the qty badge plus, when the
@@ -2405,4 +2410,53 @@ i.ss.set-symbol--mythic {
 .card-list-binder-badge--multi:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Coarse-pointer floors. The hero's Stats link is inline in the meta line
+   (24px) — it ghosts so the line doesn't grow. The in-binder / in-deck
+   badges sit in a tile corner or beside a name in a dense list row, so they
+   ghost too, capped at the row's own height so adjacent rows' ghosts never
+   overlap. */
+@media (pointer: coarse) {
+  .collection-hero-stats-link {
+    position: relative;
+  }
+
+  .collection-hero-stats-link::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: calc(100% + 16px);
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+
+  .card-list-binder-badge {
+    position: relative;
+  }
+
+  .card-list-binder-badge::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 36px;
+    transform: translate(-50%, -50%);
+  }
+
+  .card-list-deck-badge {
+    position: relative;
+  }
+
+  .card-list-deck-badge::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 36px;
+    transform: translate(-50%, -50%);
+  }
 }

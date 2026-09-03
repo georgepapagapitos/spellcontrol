@@ -169,7 +169,7 @@ export function PullListSheet({
         <div className="pull-list-body">
           {groups.length === 0 ? (
             <div className="empty-state">
-              <p className="empty-state-tagline">Nothing to pull yet</p>
+              <p className="empty-state-tagline">Nothing to pull yet.</p>
               <p className="empty-state-hint">Add cards to the deck first.</p>
             </div>
           ) : (

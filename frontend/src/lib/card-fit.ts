@@ -67,8 +67,8 @@ export interface ComputeAddFitParams {
 const ROLE_LABELS: Record<string, string> = {
   ramp: 'Ramp',
   removal: 'Removal',
-  boardwipe: 'Board Wipes',
-  cardDraw: 'Card Advantage',
+  boardwipe: 'Board wipes',
+  cardDraw: 'Card advantage',
 };
 
 /**

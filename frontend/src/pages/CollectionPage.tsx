@@ -124,9 +124,13 @@ export function CollectionPage() {
       ) : (
         <>
           {error && (
-            <div className="error-banner" style={{ marginBottom: '1rem' }}>
+            <div className="error-banner" style={{ marginBottom: 'var(--space-4)' }}>
               {error}
-              <button className="btn-link" style={{ marginLeft: 8 }} onClick={() => setError(null)}>
+              <button
+                className="btn-link"
+                style={{ marginLeft: 'var(--space-2)' }}
+                onClick={() => setError(null)}
+              >
                 Dismiss
               </button>
             </div>
@@ -184,8 +188,7 @@ export function CollectionPage() {
                       type="button"
                       className="collection-hero-stats-link"
                       onClick={() => setStatsOpen(true)}
-                      aria-label="Open collection breakdown"
-                      title="Breakdown"
+                      aria-label="Stats: collection breakdown"
                     >
                       <BarChart3 width={12} height={12} strokeWidth={2} aria-hidden />
                       <span>Stats</span>

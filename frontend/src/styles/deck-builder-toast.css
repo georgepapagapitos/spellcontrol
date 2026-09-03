@@ -195,3 +195,16 @@
     display: none;
   }
 }
+
+/* Coarse-pointer floors: the toast's Undo/Retry commits a state change and
+   the ✕ is its only dismiss, so both take the full 44px on touch. */
+@media (pointer: coarse) {
+  .toast-action,
+  .toast-close {
+    min-height: 44px;
+  }
+
+  .toast-close {
+    min-width: 44px;
+  }
+}

@@ -8,7 +8,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { GameLayout, GameState } from '../../lib/game-state';
 import type { BoardLayout } from '../../lib/board-layouts';
 import {
@@ -27,6 +27,7 @@ import {
 } from '../../lib/custom-layout';
 import { paletteForIndex } from '../../lib/seat-palette';
 import { FacingArrow } from './FacingArrow';
+import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
 
 // ── Layout picker (board arrangement) ────────────────────────────────────
 
@@ -223,6 +224,9 @@ export function CustomLayoutEditor({
     placeAt(seat, Number(c) as 1 | 2, Number(r));
   };
 
+  const panelRef = useRef<HTMLDivElement>(null);
+  useOverlayDismiss(onClose, panelRef);
+
   const apply = () => {
     if (!allPlaced) return;
     const seats = placements as Placement[];
@@ -230,8 +234,15 @@ export function CustomLayoutEditor({
   };
 
   return (
-    <div className="cle-backdrop" role="dialog" aria-label="Custom table layout" onClick={onClose}>
-      <div className="cle" onClick={(e) => e.stopPropagation()}>
+    <div className="cle-backdrop" role="presentation" onClick={onClose}>
+      <div
+        ref={panelRef}
+        className="cle"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Custom table layout"
+        onClick={(e) => e.stopPropagation()}
+      >
         <header className="cle-head">
           <span className="cle-title">Custom layout</span>
           <button type="button" className="cle-close" aria-label="Close" onClick={onClose}>
@@ -366,7 +377,9 @@ export function CustomLayoutEditor({
 
         <footer className="cle-foot">
           <span className="cle-status">
-            {allPlaced ? 'All seats placed' : `${count - placedCount} seat(s) to place`}
+            {allPlaced
+              ? 'All seats placed'
+              : `${count - placedCount} ${count - placedCount === 1 ? 'seat' : 'seats'} to place`}
           </span>
           <div className="cle-foot-actions">
             <button type="button" className="game-menu-btn" onClick={onClose}>

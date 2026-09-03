@@ -14,7 +14,7 @@ export interface SizePromptOption {
   /** Stable key (slotId for cuts, name for adds). */
   key: string;
   name: string;
-  /** Role label chip ("Ramp", "Card Advantage"). */
+  /** Role label chip ("Ramp", "Card advantage"). */
   roleLabel?: string;
   /** Short muted "why" ("same role", "weak slot", "fills the Ramp gap"). */
   hint?: string;

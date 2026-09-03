@@ -1,3 +1,4 @@
+import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { AlignJustify, HelpCircle, LayoutGrid, List } from 'lucide-react';
 import { useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -80,12 +81,12 @@ export function SearchPage() {
       <header className="search-page-head">
         <h1>Card search</h1>
         <p className="search-page-sub">
-          Look up any card — art, oracle text, rulings, printings, and prices. You don’t need to own
+          Look up any card — art, oracle text, rulings, printings, and prices. You don't need to own
           it.{' '}
           <Link className="search-page-tags-link" to="/tags">
             Browse by tag
           </Link>{' '}
-          when you know what a card should do but not what it’s called.
+          when you know what a card should do but not what it's called.
         </p>
       </header>
       <SearchPill
@@ -131,7 +132,7 @@ export function SearchPage() {
               ))}
             </ul>
             <p className="search-syntax-note">
-              <code>otag:</code> searches Scryfall’s community-curated functional categories, e.g.{' '}
+              <code>otag:</code> searches Scryfall's community-curated functional categories, e.g.{' '}
               <code>otag:repeatable-creature-tokens</code>.{' '}
               <a
                 href="https://scryfall.com/docs/syntax"
@@ -179,6 +180,7 @@ export function SearchPage() {
         </>
       ) : (
         <div className="empty-state">
+          <EmptyStateMark />
           <p className="empty-state-tagline">Every card, one search away.</p>
           <p className="empty-state-hint">
             Type a card name, or use Scryfall syntax like “t:dragon cmc&lt;4” or “o:landfall c:g”.

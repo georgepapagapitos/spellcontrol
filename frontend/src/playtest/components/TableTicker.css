@@ -41,6 +41,7 @@
      entries above it reachable without scrolling past a long game's log. */
   max-height: 16rem;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .table-ticker__line {

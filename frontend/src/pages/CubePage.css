@@ -801,6 +801,11 @@
   background: transparent;
 }
 
+.cube-collab-friend-row:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .cube-collab-friend-row:hover:not(.disabled) {
     background: var(--surface-raised);

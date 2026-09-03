@@ -216,6 +216,14 @@
      panel *underneath* its own trigger's bar. */
   --z-menu: 120;
   --z-suggest: 200;
+  /* Solo-playtest table chrome: the zones tab and its panel, the takeback
+     and resistance banners and the consent prompt stack above the board's
+     own cards and below every modal. Named so playtest.css never carries a
+     bare literal in the 900s again. */
+  --z-table-chrome: 900;
+  --z-table-panel: 901;
+  --z-table-banner: 902;
+  --z-table-consent: 950;
   --z-modal: 1000;
   --z-overlay: 1100;
   /* Keyboard-docked tray (mobile commander search) — portaled to <body>, so it
@@ -344,6 +352,15 @@
   --mtg-multicolor: #c8a02e;
   --mtg-colorless: #b8b8b8;
   --mtg-land: #9c7a4d;
+  /* Deck role inks — the four functional-role hues (ramp / removal / board
+     wipe / card advantage) painted on themed rows, chips and grade letters.
+     Fixed like the WUBRG set above so the role→hue map lives in one place
+     (their on-art-plate counterparts are the --art-scrim-* tones, applied via
+     --role-ink-scrim beside each role group in deck-builder-card-list.css). */
+  --role-ink-ramp: #4ca352;
+  --role-ink-removal: #d8442a;
+  --role-ink-wipe: #d4a838;
+  --role-ink-draw: #3a85cc;
   /* MTG-canonical counter gold (game-surface convention, do not retheme). */
   --mtg-counter-gold: #ffd460;
 

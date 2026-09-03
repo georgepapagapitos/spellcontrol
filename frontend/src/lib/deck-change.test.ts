@@ -266,12 +266,12 @@ describe('fromBrewCandidate', () => {
 describe('fromOptimizeCard', () => {
   const base: OptimizeCard = {
     name: 'Smothering Tithe',
-    reason: 'Fills Card Advantage gap',
-    reasonCategory: 'Card Advantage',
+    reason: 'Fills Card advantage gap',
+    reasonCategory: 'Card advantage',
     inclusion: 41,
     price: '$24.00',
     role: 'cardDraw',
-    roleLabel: 'Card Advantage',
+    roleLabel: 'Card advantage',
     imageUrl: 'http://img/tithe',
     cmc: 4,
     primaryType: 'Enchantment',
@@ -287,7 +287,7 @@ describe('fromOptimizeCard', () => {
     expect(c.ownership).toBe('unowned');
     expect(c.deltaPrice).toBe(24);
     expect(c.inclusion).toBe(41);
-    expect(c.group).toBe('Card Advantage');
+    expect(c.group).toBe('Card advantage');
     expect(c.isGameChanger).toBe(true);
   });
 
@@ -429,7 +429,7 @@ describe('fromSubstituteRow', () => {
   const row: SubstituteRow = {
     wantedName: 'Cyclonic Rift',
     wantedRole: 'boardwipe',
-    wantedRoleLabel: 'Board Wipes',
+    wantedRoleLabel: 'Board wipes',
     wantedCmc: 7,
     usedName: 'Evacuation',
     usedSubtypeMatch: true,
@@ -445,7 +445,7 @@ describe('fromSubstituteRow', () => {
     expect(c.ownership).toBe('owned');
     expect(c.reason).toContain('Evacuation');
     expect(c.role).toBe('boardwipe');
-    expect(c.roleLabel).toBe('Board Wipes');
+    expect(c.roleLabel).toBe('Board wipes');
     expect(c.cmc).toBe(7);
   });
 });
@@ -509,11 +509,11 @@ describe('fromSwap', () => {
     const c = fromSwap({
       inCard,
       outName: 'Mind Stone',
-      reason: 'Overlapping Card Advantage',
+      reason: 'Overlapping Card advantage',
       ownership: 'owned',
       inclusion: 62,
       role: 'cardDraw',
-      roleLabel: 'Card Advantage',
+      roleLabel: 'Card advantage',
     });
     expect(c.type).toBe('swap');
     expect(c.name).toBe('Rhystic Study'); // primary card = coming IN
@@ -523,7 +523,7 @@ describe('fromSwap', () => {
     expect(c.lane).toBe('similar'); // default lane
     expect(c.ownership).toBe('owned');
     expect(c.inclusion).toBe(62);
-    expect(c.reason).toBe('Overlapping Card Advantage');
+    expect(c.reason).toBe('Overlapping Card advantage');
     expect(c.imageUrl).toBe('https://img/rhystic-normal');
     expect(c.cmc).toBe(3);
     expect(c.typeLine).toBe('Enchantment');
@@ -786,14 +786,14 @@ describe('whyFactors wiring — every lane adapter carries a structured breakdow
         inName: 'Evacuation',
         reason: 'Too powerful',
         signal: 'game-changer',
-        roleLabel: 'Board Wipes',
+        roleLabel: 'Board wipes',
         inclusion: 40,
       },
       'owned'
     );
     const texts = (swap.whyFactors ?? []).map((f) => f.text);
     expect(texts.some((t) => /Game Changers list/.test(t))).toBe(true);
-    expect(texts.some((t) => /Same Board Wipes slot/.test(t))).toBe(true);
+    expect(texts.some((t) => /Same Board wipes slot/.test(t))).toBe(true);
   });
 
   it('fromComboCompletion counts pieces and flags the two-card caution', () => {

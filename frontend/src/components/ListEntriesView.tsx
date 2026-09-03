@@ -1,6 +1,5 @@
 import { Plus, SlidersHorizontal } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import type { ListDef } from '../types';
 import { useEnrichedListEntries } from '../lib/use-enriched-list-entries';
 import { dynamicListRows, isRuleEmpty } from '../lib/dynamic-list';
@@ -9,6 +8,7 @@ import { summarizeListCost } from '../lib/list-cost';
 import { isTrackingList } from '../lib/lists';
 import { formatMoney } from '../lib/format-money';
 import { useCollectionStore } from '../store/collection';
+import { BackLink } from './BackLink';
 import { ListDetailView } from './ListDetailView';
 import { ListAddCardSheet } from './ListAddCardSheet';
 import { ListRuleEditor } from './ListRuleEditor';
@@ -78,6 +78,7 @@ export function ListEntriesView({ list }: Props) {
 
   return (
     <div className="binders-index-page">
+      <BackLink to="/collection/lists" label="All lists" />
       <header className="binder-hero binders-index-hero">
         <div className="binders-index-hero-text">
           <h1 className="binder-hero-name">{list.name}</h1>
@@ -136,9 +137,6 @@ export function ListEntriesView({ list }: Props) {
           </p>
         </div>
         <div className="binders-index-actions">
-          <Link to="/collection/lists" className="pill-btn">
-            <span>Back to lists</span>
-          </Link>
           {isDynamic ? (
             <button
               type="button"

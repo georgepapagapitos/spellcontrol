@@ -105,7 +105,7 @@ function OAuthCallbackLanding() {
   let title: string;
   let message: string;
   if (errored) {
-    title = 'Sign-in didn’t finish';
+    title = "Sign-in didn't finish";
     message = 'Open SpellControl and try signing in again.';
   } else if (!hasPayload) {
     title = 'Nothing to finish here';

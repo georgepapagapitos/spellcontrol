@@ -738,7 +738,7 @@ export function CoachFeed({
           <div className="empty-state">
             <p className="empty-state-tagline">Nothing to coach — this deck looks tuned.</p>
             <p className="empty-state-hint">
-              Your deck is well-covered. Try adjusting your bracket target or browsing themes below.
+              Your deck is well-covered. Try adjusting your power bracket or browsing themes below.
             </p>
           </div>
         ) : (

@@ -1,3 +1,4 @@
+import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { ChevronDown, LayoutGrid, List, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -79,7 +80,7 @@ export function TagsPage() {
       <header className="tags-page-head">
         <h1>Browse by tag</h1>
         <p className="tags-page-sub">
-          Find cards by what they do, not what they’re called. Pick a function to see every card
+          Find cards by what they do, not what they're called. Pick a function to see every card
           that does it — no commander required.
         </p>
       </header>
@@ -142,7 +143,7 @@ export function TagsPage() {
         <div id="tags-browse-panel">
           {!ready && loadError ? (
             <div className="tags-page-status" role="alert">
-              <p className="empty-state-tagline">Couldn’t load the tag list.</p>
+              <p className="empty-state-tagline">Couldn't load the tag list.</p>
               <p className="empty-state-hint">
                 The tag snapshot ships with the app, so this is usually a one-off.{' '}
                 <button type="button" className="tags-retry" onClick={() => void ensureCardTags()}>
@@ -209,7 +210,7 @@ export function TagsPage() {
               options={[
                 {
                   value: 'grid',
-                  label: 'Cards view',
+                  label: 'Grid view',
                   icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
                 },
                 {
@@ -224,7 +225,8 @@ export function TagsPage() {
         </section>
       ) : (
         ready && (
-          <div className="tags-page-status tags-page-landing">
+          <div className="empty-state">
+            <EmptyStateMark />
             <p className="empty-state-tagline">Pick a tag to see what it finds.</p>
             <p className="empty-state-hint">
               Combine tags to narrow — “sweeper” plus “instant speed” is a much shorter list.

@@ -440,7 +440,7 @@ export function BindersIndexPage() {
             </BulkSelectBar>
           )}
           {sortField === 'position' && sortDir === 'asc' && (
-            <p className="muted" style={{ marginBottom: '0.5rem' }}>
+            <p className="muted" style={{ marginBottom: 'var(--space-2)' }}>
               Cards file into the first binder whose rules match, top to bottom.{' '}
               <InfoTip
                 label="binder priority order"

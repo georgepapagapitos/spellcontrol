@@ -412,7 +412,7 @@ export function DeckAiRefine({
                             onClick={() => resetReroll(t.add)}
                             aria-label={`Use the AI's pick, ${t.add}, instead`}
                           >
-                            Use the AI&rsquo;s pick
+                            Use the AI's pick
                           </button>
                         </p>
                       ) : (

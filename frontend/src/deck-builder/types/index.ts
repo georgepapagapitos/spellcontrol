@@ -357,7 +357,7 @@ export interface GapAnalysisCard {
   imageUrl?: string;
   isOwned?: boolean;
   role?: string; // Functional role from tagger (e.g. 'ramp', 'removal')
-  roleLabel?: string; // Display label (e.g. 'Ramp', 'Card Draw')
+  roleLabel?: string; // Display label (e.g. 'Ramp', 'Card draw')
   /** EDHREC lift co-play seed names (top-3, strongest first) this candidate is
    *  connected to — see services/deckBuilder/liftSynergy.ts buildLiftIndex.
    *  Undefined when the card has no lift connectivity to the seed set. */

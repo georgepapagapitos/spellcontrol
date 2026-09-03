@@ -1,3 +1,4 @@
+import { Coins, Target } from 'lucide-react';
 import { useState } from 'react';
 import type { GameAction, GameState } from '../../lib/game-state';
 import {
@@ -47,7 +48,7 @@ export function GameTools({ game, dispatch }: Props) {
   const onCoin = () => {
     const side = flipCoin();
     reveal({ kind: 'coin', side });
-    announce(`🪙 Coin flip → ${side}`);
+    announce(`Coin flip: ${side}`);
   };
 
   const onRoll = (sides: number, count = 1) => {
@@ -60,7 +61,7 @@ export function GameTools({ game, dispatch }: Props) {
     const pick = pickFirstPlayer(game.players);
     if (!pick) return;
     reveal({ kind: 'first', name: pick.name });
-    announce(`🎯 First player → ${pick.name}`);
+    announce(`First player: ${pick.name}`);
     // Record the pick as state, not just prose. The log note above is the
     // human-readable moment; `startingSeat` is what the finished-game summary
     // carries into the on-the-play win-rate rollup. Unlike coin/dice — genuinely
@@ -77,7 +78,7 @@ export function GameTools({ game, dispatch }: Props) {
           <div key={spin} className="game-tools-result is-pop">
             {result.kind === 'coin' && (
               <>
-                <span className="game-tools-result-big">{result.side === 'Heads' ? '𝗛' : '𝗧'}</span>
+                <span className="game-tools-result-big">{result.side === 'Heads' ? 'H' : 'T'}</span>
                 <span className="game-tools-result-sub">{result.side}</span>
               </>
             )}
@@ -112,10 +113,10 @@ export function GameTools({ game, dispatch }: Props) {
 
       <div className="game-tools-actions">
         <button type="button" className="game-tools-btn" onClick={onCoin}>
-          🪙 Flip coin
+          <Coins width={14} height={14} aria-hidden /> Flip coin
         </button>
         <button type="button" className="game-tools-btn" onClick={onFirstPlayer}>
-          🎯 First player
+          <Target width={14} height={14} aria-hidden /> First player
         </button>
       </div>
 

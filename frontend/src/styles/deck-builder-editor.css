@@ -117,7 +117,7 @@
 /* Phones: full-bleed art, vertical scrim. The hero gets real height so the
    art reads as art and not as a texture behind a label, and bottom padding
    so the title/meta/visibility chip stack sits in the opaque band. */
-@media (max-width: 599px) {
+@media (max-width: 600px) {
   .deck-editor-hero--art {
     min-height: 8.5rem;
     justify-content: flex-end;
@@ -241,6 +241,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.deck-editor-name:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 @media (hover: hover) and (pointer: fine) {

@@ -147,15 +147,15 @@ function PublicDeckPageInner({ slug }: { slug: string }) {
   const { payload } = state;
   return (
     <SharedShell>
-      <div className="shared-view ownership-lens-view-slot">
-        <OwnershipLensStrip
-          lens={lens}
-          missingCost={missingCost}
-          missingCardPrices={missingCardPrices}
-          loading={lensLoading}
-        />
-      </div>
       <SharedDeckView
+        lead={
+          <OwnershipLensStrip
+            lens={lens}
+            missingCost={missingCost}
+            missingCardPrices={missingCardPrices}
+            loading={lensLoading}
+          />
+        }
         data={payload.deck}
         publicMeta={{
           slug: payload.slug,

@@ -861,7 +861,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                           void handleFetchLink();
                         }
                       }}
-                      placeholder="…or paste a Google Sheets / Drive link"
+                      placeholder="Paste a share link"
                       disabled={isLoading || linkBusy}
                       inputMode="url"
                       autoComplete="off"

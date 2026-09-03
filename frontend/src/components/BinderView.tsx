@@ -21,6 +21,7 @@ import { PageGrid } from './PageGrid';
 import { CardPreview, type CardPreviewAction } from './CardPreview';
 import { CardPreviewContext } from './CardPreviewContext';
 import { ColorPip } from './shared/ManaSymbol';
+import { EmptyStateMark } from './shared/EmptyStateMark';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import {
   buildEditedCards,
@@ -80,7 +81,9 @@ export function BinderView({ binders, driftBinders, viewToggle, qtyByCopyId, sho
   if (!active) {
     return (
       <div className="empty-state">
-        Select a binder above, or click <strong>+ New binder</strong> to create one.
+        <EmptyStateMark />
+        <p className="empty-state-tagline">No binder selected.</p>
+        <p className="empty-state-hint">Pick a binder above, or create one with New binder.</p>
       </div>
     );
   }
@@ -88,14 +91,20 @@ export function BinderView({ binders, driftBinders, viewToggle, qtyByCopyId, sho
   if (active.totalCards === 0) {
     return (
       <div className="empty-state">
-        No cards match this binder's rules.{' '}
-        <button
-          className="btn"
-          style={{ marginLeft: 8 }}
-          onClick={() => setEditingBinder(active.def.id)}
-        >
-          Binder rules
-        </button>
+        <EmptyStateMark />
+        <p className="empty-state-tagline">No cards match this binder's rules.</p>
+        <p className="empty-state-hint">
+          Loosen a rule or add another match group, and cards from your collection file in here.
+        </p>
+        <div className="empty-state-actions">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setEditingBinder(active.def.id)}
+          >
+            Binder rules
+          </button>
+        </div>
       </div>
     );
   }

@@ -116,7 +116,7 @@ export function TradeAcceptDialog({ counterpartyName, choices, busy, onCancel, o
     const asked = choices.map((c) => c.asked);
     const { cards, indexOf } = await resolveTradePreview(asked);
     if (cards.length === 0) {
-      toast.show({ message: 'Couldn’t load these cards right now.', tone: 'warn' });
+      toast.show({ message: "Couldn't load these cards right now.", tone: 'warn' });
       return;
     }
     const at = indexOf(tapped);
@@ -197,7 +197,7 @@ export function TradeAcceptDialog({ counterpartyName, choices, busy, onCancel, o
           </ul>
 
           <p className="trade-accept-total">
-            <span>You’re giving</span>
+            <span>You're giving</span>
             <span className="trade-accept-total-value">{formatMoney(totalValue)}</span>
           </p>
 

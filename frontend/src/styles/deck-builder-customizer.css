@@ -615,6 +615,7 @@
   cursor: inherit;
 }
 
+button.option-card:focus-visible,
 .option-card:has(input:focus-visible) {
   border-color: var(--accent);
   outline: 2px solid var(--accent);
@@ -845,7 +846,7 @@
   top: calc(100% + var(--space-1));
   left: 0;
   right: 0;
-  z-index: 30;
+  z-index: var(--z-dropdown);
   list-style: none;
   margin: 0;
   padding: var(--space-1);
@@ -931,8 +932,8 @@
 
 @media (hover: hover) and (pointer: fine) {
   .deck-customizer-pill-remove:hover {
-    background: var(--err-bg, var(--surface-raised));
-    color: var(--err, var(--text-primary));
+    background: var(--err-bg);
+    color: var(--err-text);
   }
 }
 @media (pointer: coarse) {

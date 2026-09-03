@@ -19,7 +19,7 @@ export const OTAG_DESCRIPTIONS: Record<string, string> = {
   removal: 'Gets rid of an opposing card or permanent',
   'spot-removal': 'Removes a single targeted threat',
   counterspell: 'Counters a spell on the stack',
-  bounce: 'Returns permanents to their owner’s hand',
+  bounce: "Returns permanents to their owner's hand",
   boardwipe: 'Destroys or removes many permanents at once',
   'card-advantage': 'Nets you more cards than it cost',
   draw: 'Draws you extra cards',

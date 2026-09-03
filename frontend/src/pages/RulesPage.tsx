@@ -132,8 +132,8 @@ export function RulesPage() {
         ) : (
           <div className="rules-unavailable">
             <p>
-              The AI rules Q&amp;A isn&rsquo;t available for you right now. The rules themselves are
-              still here: look up a keyword, a glossary term, or a rule number in the reference.
+              The AI rules Q&amp;A isn't available for you right now. The rules themselves are still
+              here: look up a keyword, a glossary term, or a rule number in the reference.
             </p>
             <button type="button" className="btn" onClick={openRulesReference}>
               Open the rules reference
@@ -209,7 +209,7 @@ export function RulesPage() {
           className="rules-ask-input"
           rows={2}
           maxLength={500}
-          placeholder="How does… what happens when… can I…"
+          placeholder="Ask a rules question"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => {
