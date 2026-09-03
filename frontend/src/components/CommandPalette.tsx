@@ -151,7 +151,7 @@ export function CommandPalette({ onClose }: Props): JSX.Element {
           autoFocus
           type="text"
           className="cmdk-input"
-          placeholder="Search pages, decks, cards and actions…"
+          placeholder="Search pages, decks, cards…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onKeyDown}

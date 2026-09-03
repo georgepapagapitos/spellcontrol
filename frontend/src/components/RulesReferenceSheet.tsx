@@ -28,9 +28,9 @@ export function RulesReferenceSheet() {
 }
 
 const PLACEHOLDER: Record<Tab, string> = {
-  keywords: 'Search keywords (e.g. flying, scry)…',
-  glossary: 'Search terms…',
-  rules: 'Search rules, or jump to a number (e.g. 509.2)…',
+  keywords: 'Search keywords',
+  glossary: 'Search terms',
+  rules: 'Search rules or jump to a number',
 };
 
 function RulesReferenceBody({ onClose }: { onClose: () => void }) {

@@ -80,7 +80,7 @@ export function ImportCube() {
           type="url"
           inputMode="url"
           className="cube-input"
-          placeholder="https://cubecobra.com/cube/overview/…"
+          placeholder="cubecobra.com/cube/…"
           aria-label="CubeCobra cube link"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
