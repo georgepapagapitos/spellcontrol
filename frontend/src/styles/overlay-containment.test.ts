@@ -311,6 +311,9 @@ describe('coarse-pointer touch floor', () => {
     // coarse pointer by the route walk (320–768px, touch emulation). Inline
     // and dense-row controls ghost; everything else grows its box.
     ['components/InfoTip.css', '.info-tip-btn::after'],
+    ['components/shared/ColorMatchModeToggle.css', '.color-mode-toggle .chip-joiner::after'],
+    ['styles/play-panel-menus.css', '.seat-menu-row input'],
+    ['styles/play-panel-menus.css', '.seat-menu-row .pill-btn'],
     ['styles/binder-card-management.css', '.back-link'],
     ['styles/binder-grid-slots.css', '.page-num-link::after'],
     ['styles/deck-builder-commander.css', '.commander-color-pip::after'],

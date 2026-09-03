@@ -128,12 +128,25 @@
 
 .seat-menu-row input {
   flex: 1;
+  min-width: 0;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.18);
   color: #fff;
   border-radius: var(--radius);
   padding: 0.3rem var(--space-2);
   font-family: var(--font-mono);
+}
+
+/* Mutating row on a phone game board: the field and its Set button share
+   the 44px floor. */
+@media (pointer: coarse) {
+  .seat-menu-row input {
+    min-height: 44px;
+  }
+
+  .seat-menu-row .pill-btn {
+    min-height: 44px;
+  }
 }
 
 .seat-menu-action {
