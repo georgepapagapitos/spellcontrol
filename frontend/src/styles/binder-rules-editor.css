@@ -1458,3 +1458,31 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Rule-editor number fields and their inline notes. A global
+   `input[type='number'] { width: 80px }` used to size every number input in
+   the app and each rule editor overrode it with an inline width; the width
+   now lives here, on the fields that want it. */
+.rule-number-input {
+  width: 6rem;
+}
+
+.rule-field-note {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.rule-field-status {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.rule-field-status.is-error {
+  color: var(--err-text);
+}
+
+.rule-range-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}

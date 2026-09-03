@@ -124,9 +124,13 @@ export function CollectionPage() {
       ) : (
         <>
           {error && (
-            <div className="error-banner" style={{ marginBottom: '1rem' }}>
+            <div className="error-banner" style={{ marginBottom: 'var(--space-4)' }}>
               {error}
-              <button className="btn-link" style={{ marginLeft: 8 }} onClick={() => setError(null)}>
+              <button
+                className="btn-link"
+                style={{ marginLeft: 'var(--space-2)' }}
+                onClick={() => setError(null)}
+              >
                 Dismiss
               </button>
             </div>

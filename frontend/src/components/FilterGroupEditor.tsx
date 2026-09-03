@@ -609,11 +609,9 @@ function FilterGroupFields({
                 edhrecRankMax: e.target.value === '' ? undefined : parseInt(e.target.value),
               })
             }
-            style={{ width: 90 }}
+            className="rule-number-input"
           />
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-            most popular EDH cards
-          </span>
+          <span className="rule-field-note">most popular EDH cards</span>
         </div>
       </RuleRow>
 

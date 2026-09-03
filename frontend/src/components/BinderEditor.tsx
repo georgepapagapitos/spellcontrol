@@ -682,9 +682,9 @@ export function BinderEditor() {
                           if (e.key === 'Enter') e.currentTarget.blur();
                         }}
                         aria-label="Capacity in cards"
-                        style={{ width: 100 }}
+                        className="rule-number-input"
                       />
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      <span className="rule-field-note">
                         cards · ≈{' '}
                         <strong>{Math.ceil(fixedCapacity / pocketSize).toLocaleString()}</strong>{' '}
                         {Math.ceil(fixedCapacity / pocketSize) === 1 ? 'page' : 'pages'}
@@ -1040,7 +1040,7 @@ export function BinderEditor() {
                   <div className="file-drop-message">Drop files — one binder each</div>
                 </div>
               )}
-              <p className="muted" style={{ marginBottom: '0.5rem' }}>
+              <p className="muted" style={{ marginBottom: 'var(--space-2)' }}>
                 Paste a card list, or upload one or more CSV files —{' '}
                 <strong>each file becomes its own binder</strong>. Cards are added to your
                 collection and pinned into their binder in the order listed.
@@ -1109,7 +1109,7 @@ export function BinderEditor() {
                     ))}
                   </ul>
                   {importStageNote && (
-                    <p className="muted" style={{ marginTop: '0.25rem' }}>
+                    <p className="muted" style={{ marginTop: 'var(--space-1)' }}>
                       {importStageNote}
                     </p>
                   )}
@@ -1124,7 +1124,7 @@ export function BinderEditor() {
                   autoFocus
                 />
               )}
-              <div style={{ marginTop: '0.5rem' }}>
+              <div style={{ marginTop: 'var(--space-2)' }}>
                 <button
                   type="button"
                   className="btn"
@@ -1161,7 +1161,10 @@ export function BinderEditor() {
                   disabled={saving}
                 />
               </div>
-              <label className="field-checkbox import-proxy-toggle" style={{ marginTop: '0.5rem' }}>
+              <label
+                className="field-checkbox import-proxy-toggle"
+                style={{ marginTop: 'var(--space-2)' }}
+              >
                 <input
                   type="checkbox"
                   checked={importAsProxies}
@@ -1212,7 +1215,7 @@ export function BinderEditor() {
           <h2 className="choice-dialog-title" id="binder-collision-title">
             Some binder names need a decision
           </h2>
-          <ul className="choice-dialog-body" style={{ paddingLeft: '1.1rem' }}>
+          <ul className="choice-dialog-body" style={{ paddingLeft: 'var(--space-4)' }}>
             {collisionPrompt.map((c) => (
               <li key={c.name}>
                 <strong>"{c.name}"</strong>
