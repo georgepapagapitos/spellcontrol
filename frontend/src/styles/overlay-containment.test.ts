@@ -277,6 +277,32 @@ describe('coarse-pointer touch floor', () => {
     // it sits directly beneath the last field option, so the crowded axis is
     // vertical and a 44px ghost would reach up into that option.
     ['styles/deck-builder-display.css', '.sort-menu-reverse'],
+    // ── Polish-pass sweep: free-standing controls measured under 44px on a
+    // coarse pointer by the route walk (320–768px, touch emulation). Inline
+    // and dense-row controls ghost; everything else grows its box.
+    ['components/InfoTip.css', '.info-tip-btn::after'],
+    ['styles/binder-card-management.css', '.back-link'],
+    ['styles/binder-grid-slots.css', '.page-num-link::after'],
+    ['styles/deck-builder-commander.css', '.commander-color-pip::after'],
+    ['styles/binder-hero.css', '.binder-summary-browse-pages::after'],
+    ['styles/binder-hero.css', '.binder-hero-actions-kebab'],
+    ['styles/deck-builder-decks-index.css', '.decks-index-actions-kebab'],
+    ['styles/play-setup.css', '.play-stepper-btn'],
+    ['styles/play-setup.css', '.play-setup-seat-deck-add'],
+    ['styles/collection.css', '.collection-hero-stats-link::after'],
+    ['styles/collection.css', '.card-list-binder-badge::after'],
+    ['styles/collection.css', '.card-list-deck-badge::after'],
+    ['components/home/HomeCard.css', '.home-card-retry'],
+    ['styles/deck-builder-analysis.css', '.deck-stat-btn'],
+    ['styles/deck-builder-toast.css', '.toast-close'],
+    ['styles/footer-card-preview.css', '.card-preview-details-btn'],
+    ['components/CardRulings.css', '.card-rulings-toggle'],
+    ['components/CardDetails.css', '.card-disc-toggle'],
+    ['styles/binder-card-management.css', '.add-to-binder-btn'],
+    ['components/deck/DeckSizePrompt.css', '.deck-size-prompt-showall'],
+    ['components/deck/NextBestMove.css', '.next-best-move-add'],
+    ['styles/deck-builder-display.css', '.role-badge-btn::after'],
+    ['styles/deck-builder-row-qty.css', '.deck-row-qty-edit::after'],
   ];
 
   for (const [file, selector] of CONTROLS) {

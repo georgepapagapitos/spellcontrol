@@ -1336,3 +1336,14 @@
   font-family: var(--font-serif);
   margin: 0;
 }
+
+/* Coarse-pointer floors for the public share shell's links (brand, footer
+   CTA) — the only controls on a logged-out page's chrome. */
+@media (pointer: coarse) {
+  .shared-brand,
+  .shared-footer-cta {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}

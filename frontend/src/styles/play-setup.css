@@ -825,3 +825,21 @@ body:has(.game-board) .modal-backdrop {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Coarse-pointer floors: the starting-life ± steppers (40px boxes) and the
+   per-seat "+ Deck" opener (32px) are both free-standing controls. */
+@media (pointer: coarse) {
+  .play-stepper-btn {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .play-setup-seat-deck-add {
+    min-height: 44px;
+  }
+
+  .play-setup-seat-deck-clear {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

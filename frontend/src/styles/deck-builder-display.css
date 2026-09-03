@@ -659,3 +659,21 @@
     height: 2.75rem;
   }
 }
+
+/* Coarse-pointer floor for the role badges on tiles and rows: dense
+   surfaces, so they ghost, capped at the row's own height. */
+@media (pointer: coarse) {
+  .role-badge-btn {
+    position: relative;
+  }
+
+  .role-badge-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 36px;
+    transform: translate(-50%, -50%);
+  }
+}

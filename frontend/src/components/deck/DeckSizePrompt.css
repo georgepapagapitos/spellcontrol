@@ -219,7 +219,7 @@
 
 @media (pointer: coarse) {
   .deck-size-prompt-act {
-    min-height: 40px;
+    min-height: 44px;
   }
 }
 
@@ -263,4 +263,11 @@
 .deck-size-prompt .card-picker-header,
 .deck-size-prompt .card-picker-footer {
   flex-shrink: 0;
+}
+
+/* Coarse-pointer floor for the full-width "Pick another card…" expander. */
+@media (pointer: coarse) {
+  .deck-size-prompt-showall {
+    min-height: 44px;
+  }
 }

@@ -199,3 +199,10 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Coarse-pointer floor: the disclosure row is the tap target. */
+@media (pointer: coarse) {
+  .card-disc-toggle {
+    min-height: 44px;
+  }
+}

@@ -106,3 +106,14 @@
   outline: 2px solid rgba(255, 255, 255, 0.7);
   outline-offset: 3px;
 }
+
+/* Coarse-pointer floor: the disclosure row is the tap target. */
+@media (pointer: coarse) {
+  .card-rulings-toggle {
+    min-height: 44px;
+  }
+
+  .card-rulings-retry {
+    min-height: 44px;
+  }
+}

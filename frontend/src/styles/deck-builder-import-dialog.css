@@ -525,3 +525,10 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Coarse-pointer floor on the width axis too — the trigger measured 34×44. */
+@media (pointer: coarse) {
+  .overflow-menu-trigger {
+    min-width: 44px;
+  }
+}

@@ -284,7 +284,10 @@
 
 /* 44px touch targets on coarse pointers. */
 @media (pointer: coarse) {
-  .next-best-move-add,
+  .next-best-move-add {
+    min-height: 44px;
+  }
+
   .next-best-move-nav {
     min-height: 44px;
   }
