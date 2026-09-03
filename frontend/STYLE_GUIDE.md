@@ -133,6 +133,12 @@ an exclamation. Use the shared `.empty-state` + `.empty-state-tagline` +
 placeholder** (a sideboard slot list, a mini-chart's no-data line) may stay a
 single concise line — the two-part pattern would read visually heavy there.
 
+**A load failure is the `.discover-decks-error` strip, not an empty state.**
+One row: the message in a `role="alert"` box plus a `.discover-decks-error-retry`
+button when a reload exists. Discover, Saved decks, the Trending rail and both
+combo surfaces share it; the rules live in the global `shared.css` slice so a
+page that renders it before Discover has ever loaded is still styled.
+
 **Primary empty states also carry a brand-mark aura (E114).** `<EmptyStateMark />`
 (`components/shared/EmptyStateMark.tsx`) renders `<BrandMark size={40}
 motion="idle" />` — the shipped breathing aura, already reduced-motion-gated —
@@ -2697,6 +2703,12 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   `input[type='number'] { width: 80px }` rule is gone because it silently
   sized every numeric field in the app. A new numeric field picks a width
   on its own class.
+- **The solo-playtest table stack is named.** `--z-table-chrome` (900, zones
+  tab) · `--z-table-panel` (901, zones panel, takeback banner) ·
+  `--z-table-banner` (902, resistance banner) · `--z-table-consent` (950)
+  sit between `--z-suggest` and `--z-modal`; the table's context menu and
+  floating life panel ride `--z-overlay` (±1 for its backdrop and the zone
+  menu popover). `playtest.css` carries no bare three-digit z-index.
 - **Role ink colors are tokens too.** The four card-role hues (ramp, removal,
   wipe, draw) that tint role chips, curve-phase bars and analysis rows are
   `--role-ink-ramp` / `--role-ink-removal` / `--role-ink-wipe` /
