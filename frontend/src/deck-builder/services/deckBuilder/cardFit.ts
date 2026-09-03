@@ -24,8 +24,8 @@ const SUPERTYPES = new Set(['Legendary', 'Basic', 'Snow', 'Tribal', 'World', 'To
 const ROLE_LABELS: Record<RoleKey, string> = {
   ramp: 'Ramp',
   removal: 'Removal',
-  boardwipe: 'Board Wipes',
-  cardDraw: 'Card Advantage',
+  boardwipe: 'Board wipes',
+  cardDraw: 'Card advantage',
 };
 
 export type MisfitReasonKind =

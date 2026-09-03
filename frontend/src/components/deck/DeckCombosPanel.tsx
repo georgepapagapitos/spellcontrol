@@ -326,7 +326,11 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
           </div>
         )}
 
-        {error && <p className="deck-combos-empty deck-combos-error">{error}</p>}
+        {error && (
+          <div className="discover-decks-error" role="alert">
+            <span>{error}</span>
+          </div>
+        )}
 
         {!error && matches.length === 0 && !loading && (
           <div className="deck-combos-empty">

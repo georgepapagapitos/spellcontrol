@@ -174,8 +174,8 @@ function buildWinConditionSummary(wc: WinConditionAnalysis | undefined): string 
 const ROLE_LABEL: Record<string, string> = {
   ramp: 'Ramp',
   removal: 'Removal',
-  boardwipe: 'Board Wipes',
-  cardDraw: 'Card Advantage',
+  boardwipe: 'Board wipes',
+  cardDraw: 'Card advantage',
 };
 
 /** Shortcut items contributed to the registry under the "Deck editor" section. */

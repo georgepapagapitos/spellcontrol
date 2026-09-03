@@ -26,9 +26,9 @@ export const BREW_SLOT_ORDER: BrewSlotKey[] = [...BREW_ROLE_ORDER, 'theme', 'fin
 
 const ROLE_LABELS: Record<RoleKey, string> = {
   ramp: 'Ramp',
-  cardDraw: 'Card Draw',
+  cardDraw: 'Card draw',
   removal: 'Removal',
-  boardwipe: 'Board Wipes',
+  boardwipe: 'Board wipes',
 };
 
 export interface BrewSlotDef {

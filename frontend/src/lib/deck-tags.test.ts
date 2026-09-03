@@ -44,11 +44,11 @@ describe('suggestedTagForCard', () => {
     mockedCategory = 'ramp';
     expect(suggestedTagForCard(sc())).toBe('Ramp');
     mockedCategory = 'cardDraw';
-    expect(suggestedTagForCard(sc())).toBe('Card Advantage');
+    expect(suggestedTagForCard(sc())).toBe('Card advantage');
     mockedCategory = 'singleRemoval';
     expect(suggestedTagForCard(sc())).toBe('Removal');
     mockedCategory = 'boardWipes';
-    expect(suggestedTagForCard(sc())).toBe('Board Wipe');
+    expect(suggestedTagForCard(sc())).toBe('Board wipe');
   });
 
   it('suggests nothing for type-obvious or catch-all buckets', () => {

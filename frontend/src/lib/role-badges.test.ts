@@ -131,7 +131,7 @@ describe('rolesForCard / multiRoleTitle', () => {
   it('lists every role a card fills, in canonical order', () => {
     mockCardMatchesRole.mockImplementation((_name, role) => role === 'ramp' || role === 'cardDraw');
     expect(rolesForCard({ name: 'x' })).toEqual(['ramp', 'cardDraw']);
-    expect(multiRoleTitle({ name: 'x' })).toBe('Ramp + Card Advantage');
+    expect(multiRoleTitle({ name: 'x' })).toBe('Ramp + Card advantage');
   });
 
   it('falls back to "Multi-role" when no role matches', () => {

@@ -42,7 +42,7 @@ function humanizeGenerationMode(mode: GenerationMode, detail?: string): string {
 
 /**
  * Canonical label for a role-gap key. Prefers the shared ROLE_TITLES map
- * (e.g. cardDraw → "Card Advantage"); for any unknown key, humanizes the
+ * (e.g. cardDraw → "Card advantage"); for any unknown key, humanizes the
  * raw key by splitting camelCase and capitalizing instead of leaking it.
  */
 function humanizeRole(role: string): string {

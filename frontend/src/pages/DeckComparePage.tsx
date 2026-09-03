@@ -314,7 +314,7 @@ export function DeckComparePage() {
                                 <strong>Ramp</strong> — cards that add extra mana to speed you up.
                               </li>
                               <li>
-                                <strong>Card Advantage</strong> — cards that draw or make more
+                                <strong>Card advantage</strong> — cards that draw or make more
                                 cards.
                               </li>
                               <li>

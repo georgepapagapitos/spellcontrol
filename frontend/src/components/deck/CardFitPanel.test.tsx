@@ -38,7 +38,7 @@ function baseReport(over: Partial<AddFitReport> = {}): AddFitReport {
     axesMissed: [],
     axesNew: [],
     curve: { cmc: 2, nonlandAtCmc: 3 },
-    role: { role: 'cardDraw', label: 'Card Advantage', countInDeck: 4 },
+    role: { role: 'cardDraw', label: 'Card advantage', countInDeck: 4 },
     color: { withinIdentity: true, colorless: false },
     rankedCuts: [cut('Weak Token Maker')],
     ...over,
@@ -71,7 +71,7 @@ describe('CardFitPanel', () => {
     expect(screen.getByText('Young Pyromancer')).toBeTruthy();
     expect(screen.getByText(/Strengthens your Tokens engine/)).toBeTruthy();
     expect(screen.getByText(/3 other cards at this mana value/)).toBeTruthy();
-    expect(screen.getByText(/Card Advantage/)).toBeTruthy();
+    expect(screen.getByText(/Card advantage/)).toBeTruthy();
   });
 
   it('shows a mixed verdict + new-angle when the add ignores the engine', () => {

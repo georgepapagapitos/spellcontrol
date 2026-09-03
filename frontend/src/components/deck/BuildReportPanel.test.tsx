@@ -118,12 +118,12 @@ describe('BuildReportPanel', () => {
     expect(gaps.length).toBe(2);
 
     // Canonical label from ROLE_TITLES — never the raw "cardDraw" key.
-    expect(gaps[0].textContent).toContain('Card Advantage');
+    expect(gaps[0].textContent).toContain('Card advantage');
     expect(gaps[0].textContent).not.toContain('cardDraw');
     expect(gaps[1].textContent).toContain('Ramp');
 
     // Reads as have / target: count emphasized, target muted.
-    expect(gaps[0].querySelector('.build-report-gap-label')?.textContent).toBe('Card Advantage');
+    expect(gaps[0].querySelector('.build-report-gap-label')?.textContent).toBe('Card advantage');
     const count = gaps[0].querySelector('.build-report-gap-count');
     expect(count?.textContent?.replace(/\s+/g, ' ').trim()).toBe('9 / 10');
     expect(

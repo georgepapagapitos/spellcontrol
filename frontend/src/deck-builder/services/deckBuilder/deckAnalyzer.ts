@@ -234,8 +234,8 @@ export interface DeckAnalysis {
 export const ROLE_LABELS: Record<string, string> = {
   ramp: 'Ramp',
   removal: 'Removal',
-  boardwipe: 'Board Wipes',
-  cardDraw: 'Card Advantage',
+  boardwipe: 'Board wipes',
+  cardDraw: 'Card advantage',
 };
 
 /**
@@ -797,7 +797,7 @@ export function getCurvePhases(
       },
       {
         roleGroup: 'cardDraw',
-        label: 'Card Draw',
+        label: 'Card draw',
         current: cardDrawInPhase,
         target: prt?.cardDraw ?? 0,
         deficit: Math.max(0, (prt?.cardDraw ?? 0) - cardDrawInPhase),
@@ -2431,19 +2431,19 @@ export function analyzeDeck(
   const SUBTYPE_LABELS: Record<string, string> = {
     'mana-producer': 'Mana Dork',
     'mana-rock': 'Mana Rock',
-    'cost-reducer': 'Cost Reducer',
+    'cost-reducer': 'Cost reducer',
     ramp: 'Ramp',
     counterspell: 'Counter',
     bounce: 'Bounce',
-    'spot-removal': 'Spot Removal',
+    'spot-removal': 'Spot removal',
     removal: 'Removal',
-    'bounce-wipe': 'Bounce Wipe',
-    boardwipe: 'Board Wipe',
+    'bounce-wipe': 'Bounce wipe',
+    boardwipe: 'Board wipe',
     tutor: 'Tutor',
     wheel: 'Wheel',
     cantrip: 'Cantrip',
-    'card-draw': 'Card Draw',
-    'card-advantage': 'Card Advantage',
+    'card-draw': 'Card draw',
+    'card-advantage': 'Card advantage',
   };
 
   function makeAnalyzedCard(card: ScryfallCard, targetRole?: string): AnalyzedCard {

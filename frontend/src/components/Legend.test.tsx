@@ -124,8 +124,8 @@ describe('Legend (context-aware symbol key)', () => {
     for (const [abbr, word] of [
       ['RA', 'Ramp'],
       ['MR', 'Mana Rock'],
-      ['SR', 'Spot Removal'],
-      ['DR', 'Card Draw'],
+      ['SR', 'Spot removal'],
+      ['DR', 'Card draw'],
     ]) {
       expect(screen.getByText(abbr)).toBeTruthy();
       expect(screen.getByText(word)).toBeTruthy();

@@ -140,7 +140,7 @@ export interface Change {
   // ── MTG metadata (renders the "why", drives sort + correctness) ──
   /** Functional role key: 'ramp' | 'removal' | 'boardwipe' | 'cardDraw'. */
   role?: string;
-  /** Display label: 'Ramp' | 'Removal' | 'Board Wipes' | 'Card Advantage'. */
+  /** Display label: 'Ramp' | 'Removal' | 'Board wipes' | 'Card advantage'. */
   roleLabel?: string;
   /** EDHREC inclusion % (0–100). Primary sort key for fill-gaps. undefined → "Off-meta". */
   inclusion?: number;

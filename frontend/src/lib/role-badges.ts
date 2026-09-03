@@ -20,8 +20,8 @@ export type { RoleKey };
 export const ROLE_TITLES: Record<RoleKey, string> = {
   ramp: 'Ramp',
   removal: 'Removal',
-  boardwipe: 'Board Wipe',
-  cardDraw: 'Card Advantage',
+  boardwipe: 'Board wipe',
+  cardDraw: 'Card advantage',
 };
 
 export type RoleBadge = { label: string; title: string; tone: string };
@@ -47,19 +47,19 @@ export type RoleCardInput = Pick<ScryfallCard, 'name'> &
 export const ROLE_BADGE_BY_TONE: Record<string, { label: string; title: string }> = {
   'mana-producer': { label: 'MP', title: 'Mana Producer' },
   'mana-rock': { label: 'MR', title: 'Mana Rock' },
-  'cost-reducer': { label: 'CR', title: 'Cost Reducer' },
+  'cost-reducer': { label: 'CR', title: 'Cost reducer' },
   ramp: { label: 'RA', title: 'Ramp' },
   counterspell: { label: 'CT', title: 'Counterspell' },
   bounce: { label: 'BN', title: 'Bounce' },
-  'spot-removal': { label: 'SR', title: 'Spot Removal' },
+  'spot-removal': { label: 'SR', title: 'Spot removal' },
   removal: { label: 'RE', title: 'Removal' },
-  'bounce-wipe': { label: 'BW', title: 'Bounce Wipe' },
-  boardwipe: { label: 'WI', title: 'Board Wipe' },
+  'bounce-wipe': { label: 'BW', title: 'Bounce wipe' },
+  boardwipe: { label: 'WI', title: 'Board wipe' },
   tutor: { label: 'TU', title: 'Tutor' },
   wheel: { label: 'WH', title: 'Wheel' },
   cantrip: { label: 'CN', title: 'Cantrip' },
-  'card-draw': { label: 'DR', title: 'Card Draw' },
-  'card-advantage': { label: 'CA', title: 'Card Advantage' },
+  'card-draw': { label: 'DR', title: 'Card draw' },
+  'card-advantage': { label: 'CA', title: 'Card advantage' },
 };
 
 // Grouped ordering for the legend / popover (by top-level role, matching
