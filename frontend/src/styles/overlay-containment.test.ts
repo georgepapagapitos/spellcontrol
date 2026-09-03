@@ -143,15 +143,39 @@ describe('shared confirm-dialog action row', () => {
   });
 });
 
-describe('sticky hub tab strip', () => {
-  it('scrolls on one axis only', () => {
-    const strip = blocks(read('styles/responsive-nav.css'), '.collection-hub-tabs')[0] ?? '';
-    expect(strip, 'no .collection-hub-tabs rule found').toMatch(/overflow-x:\s*auto/);
-    expect(
-      strip,
-      '.collection-hub-tabs sets overflow-x but not overflow-y, so the block axis ' +
-        'computes to auto and the strip becomes an unintended 2-axis scroller'
-    ).toMatch(/overflow-y:\s*(hidden|clip)/);
+describe('horizontal tab strips', () => {
+  // Every tab strip that scrolls sideways. With only overflow-x set the block
+  // axis computes to auto and the strip becomes an unintended 2-axis scroller
+  // (a 1px block-axis range for touch momentum to rubber-band against).
+  const STRIPS: Array<[string, string]> = [
+    ['styles/responsive-nav.css', '.collection-hub-tabs'],
+    ['styles/deck-builder-tabs.css', '.sc-tabs--scrollable'],
+    ['styles/deck-builder-tabs.css', '.sc-tabs--hub'],
+    ['styles/deck-builder-tabs.css', '.sc-tabs--underline'],
+  ];
+
+  for (const [file, selector] of STRIPS) {
+    it(`${selector} scrolls on one axis only`, () => {
+      const strip = blocks(read(file), selector)[0] ?? '';
+      expect(strip, `no ${selector} rule found`).toMatch(/overflow-x:\s*auto/);
+      expect(
+        strip,
+        `${selector} sets overflow-x but not overflow-y, so the block axis ` +
+          'computes to auto and the strip becomes an unintended 2-axis scroller'
+      ).toMatch(/overflow-y:\s*(hidden|clip)/);
+    });
+  }
+
+  it('fades the edge a Tabs strip has more tabs behind', () => {
+    // The scrollbar is hidden on these strips, so the fade is the only scroll
+    // affordance — without it an overflowing tab reads as clipped layout.
+    const css = read('styles/deck-builder-tabs.css');
+    for (const state of ['start', 'end', 'both']) {
+      expect(
+        blocks(css, `.sc-tabs[data-overflow='${state}']`).some((b) => /mask-image:/.test(b)),
+        `.sc-tabs[data-overflow='${state}'] has no mask-image fade`
+      ).toBe(true);
+    }
   });
 });
 

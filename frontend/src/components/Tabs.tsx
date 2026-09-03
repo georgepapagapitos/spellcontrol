@@ -140,6 +140,55 @@ export function Tabs<T extends string>({
     return () => ro.disconnect();
   }, [isUnderline, value, tabKey]);
 
+  // Horizontal scroll strips (every variant but `fitted`) publish their
+  // overflow state as `data-overflow` so the stylesheet can fade the edge
+  // that has more tabs behind it. The scrollbar is hidden on these strips,
+  // so without the fade a tab running past the edge reads as hard-clipped
+  // layout rather than "scroll for more" (the Play page's History tab and the
+  // cube workshop's third tab both shipped that way at 320px). Measured on
+  // scroll + resize; the attribute only changes when the state does.
+  const isScrollStrip = variant !== 'fitted';
+  useLayoutEffect(() => {
+    if (!isScrollStrip) return;
+    const list = listRef.current;
+    if (!list) return;
+    const update = () => {
+      const max = list.scrollWidth - list.clientWidth;
+      let next = 'none';
+      if (max > 1) {
+        const atStart = list.scrollLeft <= 1;
+        const atEnd = list.scrollLeft >= max - 1;
+        next = atStart ? 'end' : atEnd ? 'start' : 'both';
+      }
+      if (list.dataset.overflow !== next) list.dataset.overflow = next;
+    };
+    update();
+    list.addEventListener('scroll', update, { passive: true });
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
+    ro?.observe(list);
+    return () => {
+      list.removeEventListener('scroll', update);
+      ro?.disconnect();
+    };
+  }, [isScrollStrip, tabKey]);
+
+  // Keep the selected tab in view on a scroll strip. scrollLeft rather than
+  // scrollIntoView(): the latter walks every scrollable ancestor and would
+  // also move `.app-main` (mirrors HubTabsNav).
+  useLayoutEffect(() => {
+    if (!isScrollStrip) return;
+    const list = listRef.current;
+    const btn = list?.querySelector<HTMLButtonElement>('[role="tab"][aria-selected="true"]');
+    if (!list || !btn) return;
+    const listBox = list.getBoundingClientRect();
+    const btnBox = btn.getBoundingClientRect();
+    const pad = 16;
+    const pastRight = btnBox.right - listBox.right;
+    const pastLeft = listBox.left - btnBox.left;
+    if (pastRight > 0) list.scrollLeft += pastRight + pad;
+    else if (pastLeft > 0) list.scrollLeft -= pastLeft + pad;
+  }, [isScrollStrip, value, tabKey]);
+
   const focusSelect = (rawIdx: number) => {
     if (tabs.length === 0) return;
     const idx = ((rawIdx % tabs.length) + tabs.length) % tabs.length;

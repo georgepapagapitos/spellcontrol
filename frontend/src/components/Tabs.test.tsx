@@ -113,6 +113,39 @@ describe('Tabs', () => {
 // E223 — health badges. The badge's whole point is being readable without
 // opening the tab, which means readable to a screen reader too: the glanceable
 // text is decorative, the description carries the meaning.
+describe('Tabs — scroll strips', () => {
+  it('reports no overflow on a strip whose tabs all fit', () => {
+    render(
+      <Tabs ariaLabel="Strip" value="a" onChange={() => {}} tabs={TABS} variant="underline" />
+    );
+    expect(screen.getByRole('tablist').getAttribute('data-overflow')).toBe('none');
+  });
+
+  it('publishes which edge has more tabs behind it as the strip scrolls', () => {
+    render(
+      <Tabs ariaLabel="Strip" value="a" onChange={() => {}} tabs={TABS} variant="underline" />
+    );
+    const list = screen.getByRole('tablist');
+    // happy-dom lays nothing out, so fake a strip twice as wide as its box.
+    Object.defineProperty(list, 'scrollWidth', { value: 600, configurable: true });
+    Object.defineProperty(list, 'clientWidth', { value: 300, configurable: true });
+    list.scrollLeft = 0;
+    fireEvent.scroll(list);
+    expect(list.getAttribute('data-overflow')).toBe('end');
+    list.scrollLeft = 150;
+    fireEvent.scroll(list);
+    expect(list.getAttribute('data-overflow')).toBe('both');
+    list.scrollLeft = 300;
+    fireEvent.scroll(list);
+    expect(list.getAttribute('data-overflow')).toBe('start');
+  });
+
+  it('leaves the fitted variant alone — it never scrolls', () => {
+    render(<Tabs ariaLabel="Strip" value="a" onChange={() => {}} tabs={TABS} />);
+    expect(screen.getByRole('tablist').hasAttribute('data-overflow')).toBe(false);
+  });
+});
+
 describe('Tabs — health badges', () => {
   const BADGED: Array<TabItem<Id>> = [
     { id: 'a', label: 'Alpha' },

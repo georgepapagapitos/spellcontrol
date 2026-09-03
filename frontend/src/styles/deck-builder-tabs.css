@@ -16,6 +16,7 @@
 
 .sc-tabs--scrollable {
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: none; /* Firefox */
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: x proximity;
@@ -35,12 +36,38 @@
   border-radius: 0;
   padding: 0 0 0.4rem;
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
 
 .sc-tabs--hub::-webkit-scrollbar {
   display: none;
+}
+
+/* Scroll affordance for every strip that hides its scrollbar. Tabs.tsx sets
+   `data-overflow` to the edge(s) with tabs behind them; the fade lands on
+   that edge only, so a strip whose tabs all fit is untouched and the edge
+   that is fully scrolled stays crisp. Same gutter-sized fade as
+   `.collection-hub-tabs` (responsive-nav.css) — one affordance app-wide.
+   Both axes are stated on each strip above: with only `overflow-x` set the
+   block axis computes to `auto` and the strip becomes a 2-axis scroller. */
+.sc-tabs[data-overflow='end'] {
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--space-6)), transparent 100%);
+}
+
+.sc-tabs[data-overflow='start'] {
+  mask-image: linear-gradient(to right, transparent 0, #000 var(--space-6));
+}
+
+.sc-tabs[data-overflow='both'] {
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--space-6),
+    #000 calc(100% - var(--space-6)),
+    transparent 100%
+  );
 }
 
 .sc-tabs--hub .site-nav-link {
@@ -72,6 +99,7 @@
   padding: 0;
   gap: 0.15rem;
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
