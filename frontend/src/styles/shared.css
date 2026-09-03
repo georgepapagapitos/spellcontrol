@@ -56,6 +56,11 @@
   text-decoration: none;
 }
 
+.shared-brand:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .shared-brand:hover {
     color: var(--accent-hover, var(--accent));

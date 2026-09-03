@@ -166,6 +166,11 @@
   cursor: pointer;
 }
 
+.deck-test-hand-sheet-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .deck-test-hand-sheet-close:hover {
     background: var(--surface-raised);

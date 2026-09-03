@@ -195,6 +195,11 @@
     border-color var(--motion-fast) ease;
 }
 
+.next-best-move-nav:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .next-best-move-nav:hover {
     background: var(--surface);
@@ -283,4 +288,9 @@
   .next-best-move-nav {
     min-height: 44px;
   }
+}
+
+.next-best-move-add:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

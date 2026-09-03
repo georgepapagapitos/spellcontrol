@@ -464,6 +464,8 @@
   background: rgba(255, 255, 255, 0.12);
   border-color: #fff;
   color: #fff;
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -957,6 +959,24 @@
 }
 /* The radio inside carries focus now, so the ring hangs off the label. */
 .seat-menu-swatch:has(input:focus-visible) {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+
+.counter-row-btn:focus-visible {
+  /* Always-dark ground — white ring (STYLE_GUIDE § Accessibility). */
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+
+.seat-menu-close:focus-visible {
+  /* Always-dark ground — white ring (STYLE_GUIDE § Accessibility). */
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+
+.seat-menu-row input:focus-visible {
+  /* Always-dark ground — white ring (STYLE_GUIDE § Accessibility). */
   outline: 2px solid rgba(255, 255, 255, 0.7);
   outline-offset: 3px;
 }

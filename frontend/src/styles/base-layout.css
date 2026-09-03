@@ -282,6 +282,12 @@ select {
   text-decoration: none;
 }
 
+.site-brand:focus-visible {
+  /* White ring — always-dark leather (see .site-nav-link ruling). */
+  outline: 2px solid rgb(255 255 255 / 70%);
+  outline-offset: 2px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .site-brand:hover {
     /* Brass on leather — the brand's own metallic, theme-invariant. */

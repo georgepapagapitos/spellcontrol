@@ -201,6 +201,11 @@
   transition: background var(--motion-fast) ease;
 }
 
+.deck-size-prompt-act:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .deck-size-prompt-act:hover:not(:disabled) {
     background: var(--accent-hover);
@@ -234,6 +239,11 @@
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
+}
+
+.deck-size-prompt-showall:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 @media (hover: hover) and (pointer: fine) {

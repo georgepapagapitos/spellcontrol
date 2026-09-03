@@ -553,6 +553,11 @@
     border-color var(--motion-fast) ease;
 }
 
+.play-setup-seat-deck-clear:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .play-setup-seat-remove:hover,
   .play-setup-seat-deck-clear:hover {

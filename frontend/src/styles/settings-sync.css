@@ -173,6 +173,12 @@
   text-decoration: none;
   cursor: pointer;
 }
+.header-sync-indicator:focus-visible {
+  /* White ring — always-dark leather (see .site-nav-link ruling). */
+  outline: 2px solid rgb(255 255 255 / 70%);
+  outline-offset: 2px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .header-sync-indicator:hover {
     filter: brightness(0.92);

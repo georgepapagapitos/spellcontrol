@@ -265,7 +265,6 @@
     background: var(--accent-light);
     color: var(--accent);
     border-color: var(--accent);
-    outline: none;
   }
 }
 
@@ -321,6 +320,9 @@
   background: var(--accent-light);
   border-color: var(--accent);
   color: var(--accent);
+  /* Always-dark keypad cover — white ring, same ruling as .life-keypad-close. */
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 @media (hover: hover) and (pointer: fine) {
   .life-keypad-btn:hover {
@@ -350,6 +352,12 @@
   cursor: pointer;
   flex: 0 0 auto;
   transition: background var(--motion-fast) ease;
+}
+
+.life-keypad-confirm:focus-visible {
+  /* Always-dark ground — white ring (STYLE_GUIDE § Accessibility). */
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 
 @media (hover: hover) and (pointer: fine) {

@@ -87,6 +87,11 @@
   cursor: pointer;
 }
 
+.ogv-phase-start:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .ogv-phase-start:hover {
     color: var(--text-secondary);
@@ -816,4 +821,34 @@ button.ogv-phase-chip--tappable:disabled {
   .ogv-life--primary .ogv-life-num {
     font-size: var(--text-2xl);
   }
+}
+
+button.ogv-phase-chip--tappable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ogv-hold-release:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ogv-life-step:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ogv-undo-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ogv-chip-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ogv-stepper-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

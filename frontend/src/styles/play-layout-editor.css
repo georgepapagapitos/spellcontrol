@@ -353,3 +353,23 @@
   outline: 2px solid rgba(255, 255, 255, 0.7);
   outline-offset: 3px;
 }
+
+.cle-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.cle-tray-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.cle-ctrl:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.cle-cell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

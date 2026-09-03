@@ -335,6 +335,9 @@
 
 .play-code-dismiss:focus-visible {
   color: #fff;
+  /* Fixed dark join-code ticket — white ring, like .play-code-copy. */
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 
 @media (hover: hover) and (pointer: fine) {

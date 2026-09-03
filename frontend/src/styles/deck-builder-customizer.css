@@ -615,6 +615,7 @@
   cursor: inherit;
 }
 
+button.option-card:focus-visible,
 .option-card:has(input:focus-visible) {
   border-color: var(--accent);
   outline: 2px solid var(--accent);

@@ -705,9 +705,13 @@
 }
 
 .filter-group-name:focus {
-  outline: none;
   border-color: var(--accent);
   background: var(--bg);
+}
+
+.filter-group-name:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* When the user hasn't typed a name, the input's placeholder carries the

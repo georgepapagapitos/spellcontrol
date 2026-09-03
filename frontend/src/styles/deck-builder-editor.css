@@ -243,6 +243,11 @@
   white-space: nowrap;
 }
 
+.deck-editor-name:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .deck-editor-name:hover {
     color: var(--accent);
