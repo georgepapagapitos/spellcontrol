@@ -37,6 +37,7 @@ import {
   type SldDropsIndex,
 } from '../lib/sld-drops';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
+import { SearchPill } from '../components/SearchPill';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { useCollectionStore } from '../store/collection';
@@ -46,7 +47,6 @@ import { RarityBadge } from '../components/shared/RarityBadge';
 import { Tabs } from '../components/Tabs';
 import { MeterBar } from '../components/shared/MeterBar';
 import { useSealMoment } from '../components/shared/SealMoment';
-import { isNativePlatform } from '../lib/platform';
 
 /** Sets whose 100%-completion seal already fired this app-open (STYLE_GUIDE
  *  "Completion moments": once per subject per app-open). */
@@ -373,20 +373,14 @@ function SetsIndex() {
       ) : (
         <>
           <div className="sets-toolbar">
-            <input
-              // The Android WebView paints `type="search"` with an opaque
-              // light background that ignores the dark theme, so the field is
-              // unreadable there. `text` on native only — web keeps the native
-              // clear button. Same reasoning SearchPill's `inputType` documents.
-              type={isNativePlatform() ? 'text' : 'search'}
+            <SearchPill
               className="sets-search"
-              placeholder="Filter sets or search a card…"
-              aria-label="Filter sets by name or code, or search cards by name"
+              placeholder="Filter sets or cards"
+              ariaLabel="Filter sets by name or code, or search cards by name"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={setQuery}
             />
             <SelectMenu
-              label="Sort"
               ariaLabel="Sort sets"
               value={sort}
               options={SORT_OPTIONS}
@@ -706,15 +700,13 @@ function SetDetail({ code }: { code: string }) {
           </div>
 
           <div className="sets-toolbar sets-detail-toolbar">
-            <input
-              // See the toolbar search above — native WebView theming.
-              type={isNativePlatform() ? 'text' : 'search'}
+            <SearchPill
               className="sets-search"
-              placeholder="Search cards…"
-              aria-label="Search this checklist by card name or collector number"
+              placeholder="Search this set"
+              ariaLabel="Search this checklist by card name or collector number"
               value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
+              onChange={(next) => {
+                setQuery(next);
                 setPreviewIndex(null);
               }}
             />
