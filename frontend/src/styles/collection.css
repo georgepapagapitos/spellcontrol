@@ -1456,6 +1456,11 @@ i.ss.set-symbol--mythic {
   color: var(--text-secondary);
   text-align: center;
   background: var(--surface-raised);
+  /* A name with no break opportunity (Asmoranomardicadaistinaculdacar) is
+     wider than a phone tile; centered flex content overflows both edges and
+     the tile shows the middle of the word. Break inside the word instead. */
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 /* Bottom-left corner cluster on a grid tile — the qty badge plus, when the

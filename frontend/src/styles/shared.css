@@ -403,6 +403,10 @@
   text-align: center;
   background: var(--surface-raised);
   box-sizing: border-box;
+  /* Same as .collection-grid-placeholder: break inside an unbreakable name
+     rather than overflow the tile on both sides. */
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .shared-tile-qty {
