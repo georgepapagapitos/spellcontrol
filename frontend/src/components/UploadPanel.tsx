@@ -972,7 +972,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                     void handleFetchLink();
                   }
                 }}
-                placeholder="Or paste a Google Sheets or Drive link"
+                placeholder="Paste a share link"
                 disabled={isLoading || linkBusy}
                 inputMode="url"
                 autoComplete="off"
