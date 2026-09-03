@@ -24,6 +24,9 @@
 .binder-behaviour-option {
   display: flex;
   align-items: center;
+  /* The tip sits at the row's end on every row, so a label that wraps at
+     360px doesn't leave its tip in a different column from its neighbours'. */
+  justify-content: space-between;
   gap: var(--space-1);
 }
 
