@@ -2,6 +2,7 @@ import './PodsIndexPage.css';
 import { SocialHubTabs } from '../components/SocialHubTabs';
 import { useCallback, useEffect, useId, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useSignInPath } from '../lib/sign-in-path';
 import { Plus } from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
@@ -59,6 +60,7 @@ export function PodsIndexPage() {
 
 function PodsIndexPageBody() {
   const status = useAuth((s) => s.status);
+  const signInHref = useSignInPath();
   const navigate = useNavigate();
 
   const [pods, setPods] = useState<Pod[] | null>(null);
@@ -159,7 +161,7 @@ function PodsIndexPageBody() {
           <p className="friends-signin-body">
             Create an account or sign in to track games and trades with your regular table.
           </p>
-          <Link to="/auth" className="friends-signin-btn">
+          <Link to={signInHref} className="friends-signin-btn">
             Sign in
           </Link>
         </div>

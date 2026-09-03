@@ -1,6 +1,7 @@
 import './FriendHubPage.css';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { useSignInPath } from '../lib/sign-in-path';
 import { BackLink } from '../components/BackLink';
 import { BookOpen, Box, FolderOpen, Layers, ListChecks } from 'lucide-react';
 import { useAuth } from '../store/auth';
@@ -84,6 +85,7 @@ function HubSkeleton() {
 export function FriendHubPage() {
   const { friendId } = useParams<{ friendId: string }>();
   const status = useAuth((s) => s.status);
+  const signInHref = useSignInPath();
 
   const [ownerUsername, setOwnerUsername] = useState<string | null>(null);
   const [ownerDisplayName, setOwnerDisplayName] = useState<string | null>(null);
@@ -386,7 +388,7 @@ export function FriendHubPage() {
           <p className="friends-signin-body">
             Sign in to see what your friends have shared with you.
           </p>
-          <Link to="/auth" className="friends-signin-btn">
+          <Link to={signInHref} className="friends-signin-btn">
             Sign in
           </Link>
         </div>

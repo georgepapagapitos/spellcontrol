@@ -2,6 +2,7 @@ import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { BookOpen, Check, Copy, Swords, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useSignInPath } from '../lib/sign-in-path';
 import { useAuth } from '../store/auth';
 import { useDecksStore, type Deck } from '../store/decks';
 import {
@@ -35,6 +36,7 @@ export function PlayPage() {
   const [params, setParams] = useSearchParams();
   const user = useAuth((s) => s.user);
   const isGuest = useAuth((s) => s.status === 'guest');
+  const signInHref = useSignInPath();
   const decks = useDecksStore((s) => s.decks);
   const openRules = useRulesReferenceStore((s) => s.open);
 
@@ -264,7 +266,7 @@ export function PlayPage() {
                 games work without an account.
               </p>
               <div className="empty-state-actions">
-                <Link to="/auth" className="btn btn-primary">
+                <Link to={signInHref} className="btn btn-primary">
                   Sign in
                 </Link>
               </div>

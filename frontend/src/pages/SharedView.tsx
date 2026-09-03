@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Link } from 'react-router-dom';
+import { useSignInPath } from '../lib/sign-in-path';
 import { fetchPublicShare, ShareAuthRequiredError, ShareNotFoundError } from '../lib/share-client';
 import type { PublicShareResponse } from '../lib/shared-types';
 import { useDocumentTitle } from '../lib/use-document-title';
@@ -53,6 +54,7 @@ export function SharedView() {
 }
 
 function SharedViewInner({ token }: { token: string }) {
+  const signInHref = useSignInPath();
   const [state, setState] = useState<
     | { status: 'loading' }
     | { status: 'notFound' }
@@ -115,7 +117,7 @@ function SharedViewInner({ token }: { token: string }) {
         <main className="shared-view shared-view--missing">
           <h1>Friends only</h1>
           <p>The owner shared this with their friends. Sign in to view it.</p>
-          <Link to="/auth" className="btn btn-primary shared-copy-btn">
+          <Link to={signInHref} className="btn btn-primary shared-copy-btn">
             Sign in
           </Link>
         </main>

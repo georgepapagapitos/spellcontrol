@@ -2,6 +2,7 @@ import { EmptyStateMark } from './shared/EmptyStateMark';
 import './FriendsManagement.css';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useSignInPath } from '../lib/sign-in-path';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
 import { Tabs } from './Tabs';
@@ -64,6 +65,7 @@ function FriendsSkeleton() {
 
 export function FriendsManagement() {
   const status = useAuth((s) => s.status);
+  const signInHref = useSignInPath();
   // The inbox + its unseen count come from the shared hook (same source as the
   // nav badge) — no duplicate fetch/state here.
   const { count: inboxCount, items: inbox } = useInbox();
@@ -351,7 +353,7 @@ export function FriendsManagement() {
           Create an account or sign in to send friend requests, track your friends' collections, and
           more.
         </p>
-        <Link to="/auth" className="friends-signin-btn">
+        <Link to={signInHref} className="friends-signin-btn">
           Sign in
         </Link>
       </div>

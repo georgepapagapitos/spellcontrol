@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useSignInPath } from '../../lib/sign-in-path';
 import { ChevronRight } from 'lucide-react';
 import './OwnershipLensStrip.css';
 import type { OwnershipLens } from '../../lib/ownership-lens';
@@ -30,6 +31,7 @@ interface Props {
 export function OwnershipLensStrip({ lens, missingCost, missingCardPrices, loading }: Props) {
   const [open, setOpen] = useState(false);
   const sheetId = useId();
+  const signInHref = useSignInPath();
 
   if (loading) {
     return <div className="ownership-lens-skeleton" aria-hidden="true" />;
@@ -37,7 +39,7 @@ export function OwnershipLensStrip({ lens, missingCost, missingCardPrices, loadi
 
   if (!lens) {
     return (
-      <Link to="/auth" className="ownership-lens-strip ownership-lens-strip--guest">
+      <Link to={signInHref} className="ownership-lens-strip ownership-lens-strip--guest">
         <span className="ownership-lens-strip-label">
           Sign in to see what you own from this deck
         </span>

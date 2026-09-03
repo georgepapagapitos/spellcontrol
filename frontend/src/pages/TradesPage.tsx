@@ -2,6 +2,7 @@ import './TradesPage.css';
 import { SocialHubTabs } from '../components/SocialHubTabs';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useSignInPath } from '../lib/sign-in-path';
 import { useAuth } from '../store/auth';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { SearchPill } from '../components/SearchPill';
@@ -86,6 +87,7 @@ export function TradesPage() {
 
 function TradesPageBody() {
   const status = useAuth((s) => s.status);
+  const signInHref = useSignInPath();
   const [offers, setOffers] = useState<TradeOffer[] | null>(null);
   const [truncated, setTruncated] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -147,7 +149,7 @@ function TradesPageBody() {
           <p className="friends-signin-body">
             Trade offers travel between accounts, so they need one on both ends.
           </p>
-          <Link to="/auth" className="friends-signin-btn">
+          <Link to={signInHref} className="friends-signin-btn">
             Sign in
           </Link>
         </div>

@@ -1,5 +1,6 @@
 import { Link2, LogOut, Search, Settings, UserRound } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { useSignInPath } from '../lib/sign-in-path';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { usePlayStore } from '../store/play';
@@ -21,6 +22,7 @@ export function Header() {
   const profile = useAuth((s) => s.profile);
   const logout = useAuth((s) => s.logout);
   const navigate = useNavigate();
+  const signInHref = useSignInPath();
   // One hook, one endpoint, two badges cut from the same bucket so they can
   // never disagree: Home carries the whole activity count (requests, trades,
   // unseen directed shares, feedback, likes); Friends carries only the
@@ -155,7 +157,7 @@ export function Header() {
               ]}
             />
           ) : (
-            <Link viewTransition to="/you" className="site-nav-settings" aria-label="Sign in">
+            <Link viewTransition to={signInHref} className="site-nav-settings" aria-label="Sign in">
               Sign in
             </Link>
           )}

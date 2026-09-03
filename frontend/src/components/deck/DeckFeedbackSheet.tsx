@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useSignInPath } from '../../lib/sign-in-path';
 import { Check, X } from 'lucide-react';
 import './DeckFeedbackSheet.css';
 import { createShare, shareUrl } from '../../lib/share-client';
@@ -37,6 +38,7 @@ interface Props {
  */
 export function DeckFeedbackSheet({ deck, onClose }: Props) {
   const isGuest = useAuth((s) => s.status === 'guest');
+  const signInHref = useSignInPath();
   const [link, setLink] = useState<string | null>(null);
   const [linkError, setLinkError] = useState<string | null>(null);
   const [responses, setResponses] = useState<FeedbackResponse[] | null>(null);
@@ -207,7 +209,7 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
         {isGuest ? (
           <div className="card-picker-empty">
             Feedback links need an account, so responses stay tied to you.{' '}
-            <Link to="/auth" onClick={onClose}>
+            <Link to={signInHref} onClick={onClose}>
               Sign in
             </Link>{' '}
             to use the Feedback Tool.
