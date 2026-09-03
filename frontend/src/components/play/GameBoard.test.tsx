@@ -205,3 +205,35 @@ describe('Win celebration', () => {
     expect(screen.getAllByRole('button', { name: 'Close' })).toHaveLength(1);
   });
 });
+
+describe('Board overlays answer Escape', () => {
+  // These render in place (the seat menu inherits its panel's rotation, the
+  // game menu rises from the board's own edge) rather than through <Modal>,
+  // and used to ignore Escape entirely — a keyboard user had to find the ✕.
+  it('closes the game menu', () => {
+    const game = makeTestState([makeTestPlayer()], { mode: 'local', status: 'active' });
+    render(<GameBoard game={game} dispatch={vi.fn()} canControlAll />);
+    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    expect(screen.getByRole('dialog', { name: 'Local game' })).toBeTruthy();
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Local game' })).toBeNull();
+  });
+
+  it('closes the seat menu and returns focus to its trigger', () => {
+    const game = makeTestState([makeTestPlayer({ name: 'Alice' })], {
+      mode: 'local',
+      status: 'active',
+    });
+    render(<GameBoard game={game} dispatch={vi.fn()} canControlAll />);
+    const trigger = screen.getByRole('button', { name: 'Seat menu' });
+    trigger.focus();
+    fireEvent.click(trigger);
+    const menu = screen.getByRole('dialog', { name: 'Seat menu for Alice' });
+    expect(menu.contains(document.activeElement)).toBe(true);
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Seat menu for Alice' })).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+});

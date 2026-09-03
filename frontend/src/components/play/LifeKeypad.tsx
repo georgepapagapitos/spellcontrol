@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
 
 interface Props {
   playerName: string;
@@ -39,18 +40,20 @@ export function LifeKeypad({ playerName, currentLife, onConfirm, onClose }: Prop
     onConfirm(raw);
   }, [buffer, currentLife, onConfirm]);
 
+  const panelRef = useRef<HTMLDivElement>(null);
+  useOverlayDismiss(onClose, panelRef);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
       // confirmSet must be a dep — an empty-dep effect captured buffer==='' at
       // mount, so Enter dropped the typed total and set life to currentLife.
-      else if (e.key === 'Enter') confirmSet();
+      if (e.key === 'Enter') confirmSet();
       else if (e.key === 'Backspace') setBuffer((b) => b.slice(0, -1));
       else if (/^[0-9]$/.test(e.key)) setBuffer((b) => (b + e.key).slice(0, 4));
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [confirmSet, onClose]);
+  }, [confirmSet]);
 
   function press(d: string) {
     setBuffer((b) => (b + d).slice(0, 4));
@@ -77,8 +80,10 @@ export function LifeKeypad({ playerName, currentLife, onConfirm, onClose }: Prop
 
   return (
     <div
+      ref={panelRef}
       className="life-keypad"
       role="dialog"
+      aria-modal="true"
       aria-label={`Set life for ${playerName}`}
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}

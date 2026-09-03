@@ -1,8 +1,9 @@
 import { Compass, Crown, FastForward, Play } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import type { DesignationKind, GameAction, GamePlayer, GameState } from '../../lib/game-state';
 import { encodeCustomLayout, resolveLayout } from '../../lib/board-layouts';
 import { paletteForSeat } from '../../lib/seat-palette';
+import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
 import { FacingArrow } from './FacingArrow';
 
 // ── Per-seat menu (concede / set life manually) ───────────────────────────
@@ -45,6 +46,8 @@ export function SeatMenu({
   // per instance anyway so a second never silently joins this group.
   const panelColorGroup = useId();
   const facingGroup = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  useOverlayDismiss(onClose, panelRef);
   const setFacing = (rot: 0 | 90 | 180 | 270) => {
     const seats = current.seats.map((st, i) => (i === player.seat ? { ...st, rot } : st));
     dispatch({
@@ -53,7 +56,14 @@ export function SeatMenu({
     });
   };
   return (
-    <div className="seat-menu" role="dialog" onClick={(e) => e.stopPropagation()}>
+    <div
+      ref={panelRef}
+      className="seat-menu"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Seat menu for ${player.name}`}
+      onClick={(e) => e.stopPropagation()}
+    >
       <header className="seat-menu-head">
         <span>{player.name}</span>
         <button type="button" className="seat-menu-close" aria-label="Close" onClick={onClose}>

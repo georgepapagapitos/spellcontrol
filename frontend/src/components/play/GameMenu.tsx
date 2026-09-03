@@ -1,10 +1,11 @@
 import { BookOpen } from 'lucide-react';
-import { useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import type { GameAction, GameState } from '../../lib/game-state';
 import { makePlayer } from '../../lib/game-state';
 import { resolveLayout } from '../../lib/board-layouts';
 import { usePlayStore } from '../../store/play';
 import { useRulesReferenceStore } from '../../store/rules-reference';
+import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
 import { GameHistory } from './GameHistory';
 import { GameTools } from './GameTools';
 import { ViewModeToggle } from '../ViewModeToggle';
@@ -49,6 +50,9 @@ export function GameMenu({
   const openRules = useRulesReferenceStore((s) => s.open);
   const [editorOpen, setEditorOpen] = useState(false);
   const [tab, setTab] = useState<MenuTab>('now');
+  const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  useOverlayDismiss(onClose, panelRef);
   // Setup is host-only and meaningless once the game is over — dropping the
   // tab beats showing an empty one.
   const canSetup = canControlAll && !isFinished;
@@ -56,11 +60,18 @@ export function GameMenu({
 
   return (
     <div className="game-menu-backdrop" onClick={onClose}>
-      <div className="game-menu" role="dialog" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={panelRef}
+        className="game-menu"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
+      >
         <span className="game-menu-grabber" aria-hidden="true" />
         <header className="game-menu-head">
           <div className="game-menu-title">
-            <span className="game-menu-title-main">
+            <span id={titleId} className="game-menu-title-main">
               {game.mode === 'online' ? `Game ${game.code}` : 'Local game'}
             </span>
             <span className="game-menu-title-sub">{game.format}</span>

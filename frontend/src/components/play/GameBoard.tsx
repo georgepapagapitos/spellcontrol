@@ -10,6 +10,7 @@ import { useFloatingDelta } from '../../lib/use-floating-delta';
 import { haptics } from '../../lib/haptics';
 import { useWakeLock } from '../../lib/use-wake-lock';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
+import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
 import { capture, clearUndo, peekLabel, popRestore, runSuppressed } from '../../lib/undo-stack';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { scryfallArtCrop } from '../../lib/offline/slim-to-scryfall';
@@ -1039,18 +1040,16 @@ function CountersPopover({
     rotation,
     disabled: true,
   });
+  const panelRef = useRef<HTMLDivElement>(null);
+  useOverlayDismiss(onClose, panelRef);
   return (
     <div
+      ref={panelRef}
       className="pp-counters-cover"
       role="dialog"
+      aria-modal="true"
       aria-label={`${player.name} counters`}
       onClick={(e) => e.stopPropagation()}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          e.stopPropagation();
-          onClose();
-        }
-      }}
       {...swipeHandlers(0)}
     >
       <div className="pp-counters-inner">
