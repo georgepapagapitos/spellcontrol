@@ -143,6 +143,9 @@
   border-radius: var(--radius);
   padding: 0.45rem 0.6rem;
   font-size: var(--text-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
 }
 
 @media (hover: hover) and (pointer: fine) {

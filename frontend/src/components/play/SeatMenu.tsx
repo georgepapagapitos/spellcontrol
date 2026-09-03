@@ -1,3 +1,4 @@
+import { Compass, Crown, FastForward, Play } from 'lucide-react';
 import { useId, useState } from 'react';
 import type { DesignationKind, GameAction, GamePlayer, GameState } from '../../lib/game-state';
 import { encodeCustomLayout, resolveLayout } from '../../lib/board-layouts';
@@ -218,7 +219,15 @@ export function SeatMenu({
                 onClose();
               }}
             >
-              {isActiveTurn ? '⏩ Pass turn' : '▶ Start turn here'}
+              {isActiveTurn ? (
+                <>
+                  <FastForward width={14} height={14} aria-hidden /> Pass turn
+                </>
+              ) : (
+                <>
+                  <Play width={14} height={14} aria-hidden /> Start turn here
+                </>
+              )}
             </button>
           </div>
         )}
@@ -245,7 +254,8 @@ export function SeatMenu({
                   onClose();
                 }}
               >
-                {isMonarch ? '👑 Remove Monarch' : '👑 Take Monarch'}
+                <Crown width={14} height={14} aria-hidden />{' '}
+                {isMonarch ? 'Remove monarch' : 'Take monarch'}
               </button>
               <button
                 type="button"
@@ -261,7 +271,8 @@ export function SeatMenu({
                   onClose();
                 }}
               >
-                {isInitiative ? '🧭 Remove Initiative' : '🧭 Take Initiative'}
+                <Compass width={14} height={14} aria-hidden />{' '}
+                {isInitiative ? 'Remove initiative' : 'Take initiative'}
               </button>
             </div>
           </>
