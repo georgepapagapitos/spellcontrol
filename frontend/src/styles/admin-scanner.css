@@ -51,7 +51,7 @@
 .admin-table td {
   text-align: left;
   padding: 0.35rem var(--space-2);
-  border-bottom: 1px solid var(--border, #2a2a2a);
+  border-bottom: 1px solid var(--border);
   vertical-align: top;
 }
 .admin-table th {
@@ -117,11 +117,11 @@
   padding: 0;
   max-height: 70vh;
   overflow-y: auto;
-  border: 1px solid var(--border, #333);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
 }
 .admin-deck-list li {
-  border-bottom: 1px solid var(--border, #2a2a2a);
+  border-bottom: 1px solid var(--border);
 }
 .admin-deck-link {
   width: 100%;
@@ -195,7 +195,7 @@
 .admin-raw-actions button {
   background: var(--surface-raised);
   color: inherit;
-  border: 1px solid var(--border, #333);
+  border: 1px solid var(--border);
   padding: 0.4rem var(--space-3);
   border-radius: var(--radius);
   cursor: pointer;

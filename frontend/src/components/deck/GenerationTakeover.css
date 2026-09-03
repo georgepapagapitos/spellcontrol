@@ -16,7 +16,7 @@
 /* Completion beat — the takeover holds fully visible while the seal-burst
    plays; the fade only starts once `.is-leaving` is added. */
 .gen-takeover.is-leaving {
-  animation: gen-takeover-exit var(--motion-base) var(--ease-in-soft) both;
+  animation: gen-takeover-exit var(--motion-base) var(--ease-out-soft) both;
 }
 
 /* Dim + desaturate the commander art so the seal flare and colour sparks

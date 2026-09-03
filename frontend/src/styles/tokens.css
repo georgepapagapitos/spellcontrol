@@ -344,6 +344,15 @@
   --mtg-multicolor: #c8a02e;
   --mtg-colorless: #b8b8b8;
   --mtg-land: #9c7a4d;
+  /* Deck role inks — the four functional-role hues (ramp / removal / board
+     wipe / card advantage) painted on themed rows, chips and grade letters.
+     Fixed like the WUBRG set above so the role→hue map lives in one place
+     (their on-art-plate counterparts are the --art-scrim-* tones, applied via
+     --role-ink-scrim beside each role group in deck-builder-card-list.css). */
+  --role-ink-ramp: #4ca352;
+  --role-ink-removal: #d8442a;
+  --role-ink-wipe: #d4a838;
+  --role-ink-draw: #3a85cc;
   /* MTG-canonical counter gold (game-surface convention, do not retheme). */
   --mtg-counter-gold: #ffd460;
 

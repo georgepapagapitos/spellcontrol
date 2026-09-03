@@ -10,7 +10,9 @@
   border: 0.5px solid var(--border-strong);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-tooltip);
-  z-index: var(--z-popover);
+  /* Portaled to <body> from the board, whose fixed chrome runs above
+     --z-popover — same lift as the zone kebab. */
+  z-index: var(--z-portal-popover);
   animation: playtest-reaction-picker-in var(--motion-fast) var(--ease-out-soft);
 }
 

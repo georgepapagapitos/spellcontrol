@@ -179,7 +179,7 @@ button.ogv-phase-chip--tappable:disabled {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: rgba(220, 38, 38, 0.4);
+  background: color-mix(in srgb, var(--err-text) 40%, transparent);
   pointer-events: none;
   animation: ogv-lethal-flash var(--motion-gentle) ease-out forwards;
 }
@@ -531,7 +531,7 @@ button.ogv-phase-chip--tappable:disabled {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: rgba(220, 38, 38, 0.35);
+  background: color-mix(in srgb, var(--err-text) 35%, transparent);
   pointer-events: none;
   animation: ogv-lethal-flash var(--motion-gentle) ease-out forwards;
 }

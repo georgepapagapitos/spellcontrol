@@ -387,15 +387,15 @@
 }
 
 .deck-curve-phases-grade-a {
-  color: #4ca352;
+  color: var(--role-ink-ramp);
 }
 
 .deck-curve-phases-grade-b {
-  color: #3a85cc;
+  color: var(--role-ink-draw);
 }
 
 .deck-curve-phases-grade-c {
-  color: #d4a838;
+  color: var(--role-ink-wipe);
 }
 
 .deck-curve-phases-grade-d,

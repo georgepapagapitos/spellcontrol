@@ -76,22 +76,22 @@
 }
 
 .discover-tile-colorbar-seg--w {
-  background: #f0f2c0;
+  background: var(--mtg-w);
 }
 .discover-tile-colorbar-seg--u {
-  background: #b5cde3;
+  background: var(--mtg-u);
 }
 .discover-tile-colorbar-seg--b {
-  background: #aca29a;
+  background: var(--mtg-b);
 }
 .discover-tile-colorbar-seg--r {
-  background: #db8664;
+  background: var(--mtg-r);
 }
 .discover-tile-colorbar-seg--g {
-  background: #93b483;
+  background: var(--mtg-g);
 }
 .discover-tile-colorbar-seg--c {
-  background: #beb9b2;
+  background: var(--mtg-colorless);
 }
 
 /* ── List-only stats/buildable (unchanged pre-v2 design) ──────────────── */
