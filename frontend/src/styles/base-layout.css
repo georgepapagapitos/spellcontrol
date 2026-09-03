@@ -252,7 +252,9 @@ select {
      page surface — --chrome-* tokens, never --surface/--bg here. */
   background: var(--chrome-bg);
   border-bottom: 1px solid var(--chrome-border);
-  padding: 0 var(--space-4);
+  /* Landscape phones with a notch: keep the brand and nav clear of the
+     display cutout, same floor the tab bar and modal backdrop use. */
+  padding: 0 max(var(--space-4), var(--safe-right)) 0 max(var(--space-4), var(--safe-left));
   position: sticky;
   top: 0;
   z-index: var(--z-panel);
