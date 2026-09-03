@@ -423,8 +423,11 @@
 }
 
 .play-setup-seat {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  /* A wrapping row rather than a fixed grid: the name field grows to fill
+     at normal sizes and the deck controls drop to a second line at large
+     font scales instead of squeezing the name to zero width. */
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   background: var(--surface-raised);
@@ -458,6 +461,7 @@
   padding: 0.3rem 0.2rem !important;
   font-size: var(--text-base) !important;
   font-weight: 500 !important;
+  flex: 1 1 8rem;
   min-width: 0;
 }
 
