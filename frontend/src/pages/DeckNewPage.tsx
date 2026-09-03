@@ -463,22 +463,6 @@ export function DeckNewPage() {
         <p className="format-pill-hint">{formatConfig.description}</p>
       </section>
 
-      {/* Brew walks the EDHREC-driven Commander flow — no PDH data there. */}
-      {formatConfig.hasCommander && !isPdh && (
-        <section className="deck-builder-section guided-cta">
-          <div className="guided-cta-text">
-            <strong>Prefer to pick every card?</strong>
-            <span>
-              Brew mode walks the deck slot by slot — ramp, draw, removal, wipes, your theme,
-              finishers — dealing you a hand of candidates to add or pass at each stop.
-            </span>
-          </div>
-          <button type="button" className="btn" onClick={() => navigate('/decks/new/brew')}>
-            Start brewing →
-          </button>
-        </section>
-      )}
-
       {formatConfig.hasCommander && (
         <section className="deck-builder-section">
           <h2 className="deck-builder-section-title">Commander</h2>
@@ -488,6 +472,34 @@ export function DeckNewPage() {
             onSelect={selectCommander}
             format={selectedFormat}
           />
+        </section>
+      )}
+
+      {/* Brew walks the EDHREC-driven Commander flow — no PDH data there. It
+          sits BELOW the commander picker, not above it: the subtitle's first
+          instruction is "Pick a commander", and on a 360px phone the promo
+          box used to push the picker under the tab bar, so the first thing
+          in reach was a secondary mode. A commander already picked here
+          rides along (router state) — brew resets the builder store on mount
+          and used to ask for the same commander a second time. */}
+      {formatConfig.hasCommander && !isPdh && (
+        <section className="deck-builder-section guided-cta">
+          <div className="guided-cta-text">
+            <strong>Prefer to pick every card?</strong>
+            <span>
+              Brew mode walks the deck slot by slot — ramp, draw, removal, wipes, your theme,
+              finishers — dealing you a hand of candidates to add or pass at each stop.
+            </span>
+          </div>
+          <button
+            type="button"
+            className="btn"
+            onClick={() =>
+              navigate('/decks/new/brew', commander ? { state: { commander } } : undefined)
+            }
+          >
+            Start brewing →
+          </button>
         </section>
       )}
 
