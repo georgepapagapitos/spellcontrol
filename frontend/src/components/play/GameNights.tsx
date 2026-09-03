@@ -314,13 +314,7 @@ function NightCard({
   const polling = night.options.length > 0;
   const weekly = night.series !== null && night.series.endedAt === null;
   const formatLabel = gameFormatLabel(night.format);
-  const when = new Date(night.startsAt).toLocaleString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+  const when = formatSlot(night.startsAt);
   const going = night.rsvps.filter((r) => r.status === 'going').length;
   const maybe = night.rsvps.filter((r) => r.status === 'maybe').length;
   const tally = [`${going} going`, maybe > 0 ? `${maybe} maybe` : null].filter(Boolean).join(' · ');
