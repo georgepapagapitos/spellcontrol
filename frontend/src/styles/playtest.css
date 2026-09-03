@@ -68,6 +68,37 @@ body:has(.playtest-page) {
   padding: var(--space-1) 10px;
   border-radius: var(--radius);
   cursor: pointer;
+  /* The label is the deck's name, which is unbounded: without a cap it
+     wrapped into a three-line button on a 360px phone and pushed the
+     Playtest title against the edge. One line, ellipsized, never more
+     than the header's share. */
+  min-width: 0;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition:
+    background var(--motion-fast),
+    border-color var(--motion-fast);
+}
+
+.playtest-page__header button:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playtest-page__header button:hover {
+    background: var(--surface-raised);
+    border-color: var(--border-strong);
+  }
+}
+
+@media (pointer: coarse) {
+  .playtest-page__header button {
+    min-height: 44px;
+  }
 }
 
 .playtest-board {
