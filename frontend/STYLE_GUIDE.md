@@ -121,7 +121,12 @@ never what the app "is."
    game night."
 4. **Sentence case, no exclamation marks, no cutesy filler.** No "Oops!",
    "Awesome!", emoji, or marketing adjectives.
-5. **Use contractions** — "Couldn't add {card}", not "Could not add". They match
+5. **Apostrophes are straight, quotes are curly.** Copy writes `'` (the
+   codebase and this guide's examples do; a typographic `’` reads as a
+   different glyph beside its neighbours), while quoted terms use `“ ”`
+   ("try “sweeper”"). Card names and oracle text are data and keep whatever
+   the source has — fixtures that test apostrophe normalisation stay `’`.
+6. **Use contractions** — "Couldn't add {card}", not "Could not add". They match
    the human register everywhere user-facing (errors, confirms, hints).
 
 **Primary empty states are two parts: tagline + hint.** A short tagline naming
