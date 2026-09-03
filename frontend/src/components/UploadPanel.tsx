@@ -1220,6 +1220,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       {pendingImport && (
         <ImportModeDialog
           existingCount={cards.length}
+          hasBinders={binders.length > 0}
           incomingPreview={pendingImport.preview}
           priorImports={findPriorImports(
             pendingImport.files ? pendingImport.files.map((f) => f.name) : [pendingImport.label],
@@ -1382,6 +1383,8 @@ function DeleteImportsDialog({ imports, onConfirm, onCancel }: DeleteImportsDial
 }
 
 interface ImportModeDialogProps {
+  /** Whether any binder exists yet — a first import has no rules to route through. */
+  hasBinders: boolean;
   existingCount: number;
   incomingPreview?: string;
   /** Prior imports whose name matches an incoming source — a likely re-import. */
@@ -1392,6 +1395,7 @@ interface ImportModeDialogProps {
 
 function ImportModeDialog({
   existingCount,
+  hasBinders,
   incomingPreview,
   priorImports,
   onPick,
@@ -1454,7 +1458,9 @@ function ImportModeDialog({
               ? isReimport
                 ? 'Keeps the existing cards AND adds another full copy of this import — duplicates stack.'
                 : 'Keep existing cards and append the new ones. Duplicates will stack.'
-              : 'Import these cards into your collection. They will be routed through your binder rules.'}
+              : hasBinders
+                ? 'Import these cards into your collection. They will be routed through your binder rules.'
+                : 'Import these cards into your collection.'}
           </span>
         </button>
         {!showBinderInput ? (
