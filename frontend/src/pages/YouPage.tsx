@@ -364,10 +364,7 @@ export function YouPage() {
       <h2 className="settings-tier-header">Identity</h2>
 
       {username && (
-        <div role="group" aria-labelledby="settings-profile-group-title">
-          <h2 id="settings-profile-group-title" className="settings-section-header">
-            Profile
-          </h2>
+        <div>
           <SettingsSection
             id="settings-profile-title"
             title="Profile"
@@ -378,10 +375,7 @@ export function YouPage() {
         </div>
       )}
 
-      <div role="group" aria-labelledby="settings-account-group-title">
-        <h2 id="settings-account-group-title" className="settings-section-header">
-          Account
-        </h2>
+      <div>
         <SettingsSection id="settings-account-title" title="Account">
           {username ? (
             <>
@@ -542,10 +536,7 @@ export function YouPage() {
       {/* ═══ Your data — backup, sharing, storage ════════════════════════ */}
       <h2 className="settings-tier-header">Your data</h2>
 
-      <div role="group" aria-labelledby="settings-collection-group-title">
-        <h2 id="settings-collection-group-title" className="settings-section-header">
-          Collection
-        </h2>
+      <div>
         <SettingsSection
           id="settings-collection-title"
           title="Collection"
@@ -686,9 +677,6 @@ export function YouPage() {
       )}
 
       {/* ═══ Danger zone ═══════════════════════════════════════════════════ */}
-      <h2 id="settings-danger-group-title" className="settings-section-header">
-        Danger zone
-      </h2>
       <section
         className="settings-card settings-card--danger"
         aria-labelledby="settings-danger-title"
