@@ -257,7 +257,7 @@ function CardsTab({
   if (activeCards.length === 0 && excludedCards.length === 0) {
     return (
       <p className="binder-card-editor-empty">
-        No cards yet. Click "+ Add cards" to add cards from your collection.
+        No cards yet. Use “Add cards” to add cards from your collection.
       </p>
     );
   }

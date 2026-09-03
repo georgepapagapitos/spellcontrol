@@ -349,7 +349,7 @@ export function BinderPage() {
         <div className="binder-manual-order-bar">
           <span className="sort-mode-badge">Manual order active</span>
           <span className="binder-manual-order-hint">
-            Cards are in your custom order. Open "Manage cards" → Order tab to change.
+            Cards are in your custom order. Open “Manage cards” → Order tab to change.
           </span>
         </div>
       ) : null}
