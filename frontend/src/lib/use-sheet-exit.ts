@@ -53,6 +53,17 @@ export function useSheetExit(
   // frame) can't start two exits / fire onClose twice before the state
   // re-render lands.
   const closingRef = useRef(false);
+  // Latest callback / exit names in refs so `beginClose` and `onAnimationEnd`
+  // keep one identity for the sheet's lifetime. Consumers pass inline arrows
+  // and array literals; when those flowed into the deps, the Escape and
+  // back-button listeners built on them re-subscribed every render, and a
+  // listener swapped out mid-dispatch never fires (see use-escape-key.ts).
+  const onCloseRef = useRef(onClose);
+  const exitNamesRef = useRef(exitAnimationName);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    exitNamesRef.current = exitAnimationName;
+  }, [onClose, exitAnimationName]);
   // Some layouts neutralize the exit keyframe entirely via CSS instead of
   // playing a symmetric fall (e.g. `.card-picker-sheet`'s desktop centered
   // modal sets `animation: none` on `.is-closing` — see
@@ -67,45 +78,40 @@ export function useSheetExit(
     typeof window !== 'undefined' &&
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
 
-  const beginClose = useCallback(
-    (fromY = 0) => {
-      if (closingRef.current) return;
-      closingRef.current = true;
-      // Reduced motion: there is no slide-down to wait on (the keyframe is
-      // neutralized in CSS), so the animationend below would never fire —
-      // close immediately instead of leaving the sheet stuck.
-      if (prefersReducedMotion()) {
-        onClose();
-        return;
-      }
-      // Swipe-dismiss passes a px offset; non-drag paths pass nothing, and a
-      // bare onClick={beginClose} would pass a synthetic event — coerce to a
-      // finite number so the CSS var never goes garbage.
-      setExitFrom(typeof fromY === 'number' && Number.isFinite(fromY) ? fromY : 0);
-      setIsClosing(true);
-      fallbackTimerRef.current = setTimeout(() => {
-        fallbackTimerRef.current = null;
-        onClose();
-      }, 600);
-    },
-    [onClose]
-  );
+  const beginClose = useCallback((fromY = 0) => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    // Reduced motion: there is no slide-down to wait on (the keyframe is
+    // neutralized in CSS), so the animationend below would never fire —
+    // close immediately instead of leaving the sheet stuck.
+    if (prefersReducedMotion()) {
+      onCloseRef.current();
+      return;
+    }
+    // Swipe-dismiss passes a px offset; non-drag paths pass nothing, and a
+    // bare onClick={beginClose} would pass a synthetic event — coerce to a
+    // finite number so the CSS var never goes garbage.
+    setExitFrom(typeof fromY === 'number' && Number.isFinite(fromY) ? fromY : 0);
+    setIsClosing(true);
+    fallbackTimerRef.current = setTimeout(() => {
+      fallbackTimerRef.current = null;
+      onCloseRef.current();
+    }, 600);
+  }, []);
 
-  const onAnimationEnd = useCallback(
-    (e: React.AnimationEvent) => {
-      // Ignore the on-mount entry animation (and any descendant animation
-      // that bubbles up) — only the exit animation should unmount.
-      const exitNames = Array.isArray(exitAnimationName) ? exitAnimationName : [exitAnimationName];
-      if (closingRef.current && exitNames.includes(e.animationName)) {
-        if (fallbackTimerRef.current) {
-          clearTimeout(fallbackTimerRef.current);
-          fallbackTimerRef.current = null;
-        }
-        onClose();
+  const onAnimationEnd = useCallback((e: React.AnimationEvent) => {
+    // Ignore the on-mount entry animation (and any descendant animation
+    // that bubbles up) — only the exit animation should unmount.
+    const names = exitNamesRef.current;
+    const exitNames = Array.isArray(names) ? names : [names];
+    if (closingRef.current && exitNames.includes(e.animationName)) {
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
       }
-    },
-    [onClose, exitAnimationName]
-  );
+      onCloseRef.current();
+    }
+  }, []);
 
   // Unmounting mid-close for an unrelated reason (route change, parent
   // stopped rendering this sheet) — drop the pending fallback so it can't

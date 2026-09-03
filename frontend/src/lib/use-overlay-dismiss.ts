@@ -1,4 +1,4 @@
-import { useEffect, type RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { App as CapacitorApp } from '@capacitor/app';
 import { isNativePlatform } from './platform';
 import { useOverlayLayer } from './overlay-layer';
@@ -28,26 +28,32 @@ export function useOverlayDismiss(
   panelRef?: RefObject<HTMLElement | null>
 ): void {
   const { isTopmost } = useOverlayLayer();
+  // Latest callback in a ref so both listeners register once — see
+  // use-escape-key.ts for why re-subscribing per render drops key events.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || !isTopmost()) return;
-      onClose();
+      onCloseRef.current();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose, isTopmost]);
+  }, [isTopmost]);
 
   useEffect(() => {
     if (!isNativePlatform()) return;
     const handle = CapacitorApp.addListener('backButton', () => {
       if (!isTopmost()) return;
-      onClose();
+      onCloseRef.current();
     });
     return () => {
       void handle.then((h) => h.remove());
     };
-  }, [onClose, isTopmost]);
+  }, [isTopmost]);
 
   useFocusTrap(isTopmost, panelRef);
 }

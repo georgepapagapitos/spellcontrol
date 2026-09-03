@@ -62,6 +62,18 @@ export function Modal({
   // frame) can't start two exits / fire onClose twice before the state
   // re-render lands. Mirrors use-sheet-exit.
   const closingRef = useRef(false);
+  // Latest props in refs so the document/back-button listeners below register
+  // once. Callers pass inline arrows, and re-subscribing per render swapped
+  // the keydown listener out mid-dispatch whenever an earlier listener
+  // re-rendered the tree (the deck editor's hint strip did exactly that) —
+  // a listener removed during dispatch never fires, so Escape was lost. See
+  // use-escape-key.ts.
+  const onCloseRef = useRef(onClose);
+  const dismissableRef = useRef(dismissable);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    dismissableRef.current = dismissable;
+  }, [onClose, dismissable]);
 
   const prefersReducedMotion = () =>
     typeof window !== 'undefined' &&
@@ -74,20 +86,17 @@ export function Modal({
     // animationend below would never fire — close immediately instead of
     // leaving the dialog stuck.
     if (prefersReducedMotion()) {
-      onClose();
+      onCloseRef.current();
       return;
     }
     setIsClosing(true);
-  }, [onClose]);
+  }, []);
 
-  const onAnimationEnd = useCallback(
-    (e: React.AnimationEvent) => {
-      // Ignore the entrance keyframes (and any descendant animation that
-      // bubbles up) — only the panel's exit should unmount.
-      if (closingRef.current && e.animationName === 'modal-panel-out') onClose();
-    },
-    [onClose]
-  );
+  const onAnimationEnd = useCallback((e: React.AnimationEvent) => {
+    // Ignore the entrance keyframes (and any descendant animation that
+    // bubbles up) — only the panel's exit should unmount.
+    if (closingRef.current && e.animationName === 'modal-panel-out') onCloseRef.current();
+  }, []);
 
   // Captured during THIS component's render, which happens before any child
   // mounts. Reading it in the mount effect instead was too late whenever the
@@ -122,14 +131,14 @@ export function Modal({
       // Only the topmost overlay handles keys — see useOverlayLayer.
       if (!isTopmost()) return;
       if (e.key === 'Escape') {
-        if (dismissable) beginClose();
+        if (dismissableRef.current) beginClose();
         return;
       }
       if (panelRef.current) trapTab(panelRef.current, e);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [beginClose, dismissable, isTopmost]);
+  }, [beginClose, isTopmost]);
 
   // Android hardware back button (T11): without a listener, Capacitor's
   // default is to navigate the WebView's own history — which would leave
@@ -140,12 +149,12 @@ export function Modal({
     if (!isNativePlatform()) return;
     const handle = CapacitorApp.addListener('backButton', () => {
       if (!isTopmost()) return;
-      if (dismissable) beginClose();
+      if (dismissableRef.current) beginClose();
     });
     return () => {
       void handle.then((h) => h.remove());
     };
-  }, [beginClose, dismissable, isTopmost]);
+  }, [beginClose, isTopmost]);
 
   // Portal to <body>. A modal rendered in place inherits any ancestor's
   // containing block: a deck hero with `container-type: inline-size` traps
