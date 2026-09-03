@@ -83,7 +83,7 @@ describe('PodsIndexPage — guest gate', () => {
 
     expect(screen.getByText(/sign in to set up your pod/i)).toBeTruthy();
     const signIn = screen.getByRole('link', { name: /^sign in$/i });
-    expect(signIn.getAttribute('href')).toBe('/auth');
+    expect(signIn.getAttribute('href')).toBe('/auth?returnTo=%2Fpods');
   });
 });
 

@@ -508,3 +508,20 @@ describe('UploadPanel Google-link import', () => {
     expect(fetchBtn.disabled).toBe(true);
   });
 });
+
+describe('UploadPanel — import-mode copy on a first import', () => {
+  it('does not mention binder rules when no binder exists yet', async () => {
+    render(<UploadPanel />);
+    await paste();
+    expect(screen.getByText('Import these cards into your collection.')).toBeTruthy();
+    expect(screen.queryByText(/routed through your binder rules/)).toBeNull();
+  });
+
+  it('names the routing once a binder exists', async () => {
+    (mockState as { binders: unknown[] }).binders = [{ id: 'b1', name: 'Bulk', filterGroups: [] }];
+    render(<UploadPanel />);
+    await paste();
+    expect(screen.getByText(/routed through your binder rules/)).toBeTruthy();
+    (mockState as { binders: unknown[] }).binders = [];
+  });
+});

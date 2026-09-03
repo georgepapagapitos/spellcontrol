@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type JSX } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import './BrewBuildPage.css';
 import { BackLink } from '../components/BackLink';
 import { useDeckBuilderStore } from '@/deck-builder/store';
@@ -60,11 +60,20 @@ function relativeTime(ms: number): string {
  */
 export function BrewBuildPage(): JSX.Element {
   const navigate = useNavigate();
+  const location = useLocation();
+  // A commander picked on /decks/new before "Start brewing" — carried in
+  // router state so the person isn't asked to pick it a second time here.
+  const carriedCommander =
+    (location.state as { commander?: ScryfallCard } | null)?.commander ?? null;
   const resetDeckBuilder = useDeckBuilderStore((s) => s.reset);
+  const setCommanderInStore = useDeckBuilderStore((s) => s.setCommander);
   useEffect(() => {
     resetDeckBuilder();
-    // Mount-only reset, mirrors DeckNewPage — resetDeckBuilder
-    // is a stable Zustand action reference, safe to omit.
+    // The reset above wipes the store's commander, so the carried pick is
+    // written back AFTER it — order matters, same as DeckNewPage's prefill.
+    if (carriedCommander) setCommanderInStore(carriedCommander);
+    // Mount-only reset, mirrors DeckNewPage — resetDeckBuilder and
+    // setCommander are stable Zustand action references, safe to omit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

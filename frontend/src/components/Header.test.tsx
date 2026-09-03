@@ -138,10 +138,11 @@ describe('Header — nav links', () => {
 });
 
 describe('Header — guest', () => {
-  it('renders a plain "Sign in" link to /you, not an avatar menu', () => {
+  it('renders a plain "Sign in" link to /auth, not an avatar menu', () => {
     renderHeader();
     const signIn = screen.getByRole('link', { name: /^sign in$/i });
-    expect(signIn.getAttribute('href')).toBe('/you');
+    // Rendered at "/" there is nothing to return to, so no returnTo.
+    expect(signIn.getAttribute('href')).toBe('/auth');
     expect(screen.queryByRole('button', { name: /account menu/i })).toBeNull();
   });
 });

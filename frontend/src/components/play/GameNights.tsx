@@ -8,6 +8,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useSignInPath } from '../../lib/sign-in-path';
 import {
   cancelGameNight,
   createGameNight,
@@ -124,6 +125,7 @@ interface GameNightsTabProps {
 }
 
 export function GameNightsTab({ isGuest, nights, loading, error, refresh }: GameNightsTabProps) {
+  const signInHref = useSignInPath();
   const [dialog, setDialog] = useState<'closed' | 'create' | GameNight>('closed');
   const [pendingCancel, setPendingCancel] = useState<GameNight | null>(null);
   const [pendingDelete, setPendingDelete] = useState<GameNight | null>(null);
@@ -137,7 +139,7 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
           an account.
         </p>
         <div className="empty-state-actions">
-          <Link to="/auth" className="btn btn-primary">
+          <Link to={signInHref} className="btn btn-primary">
             Sign in
           </Link>
         </div>

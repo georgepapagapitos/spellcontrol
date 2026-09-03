@@ -956,42 +956,47 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
               a way in; the server fetches the link because Google's export
               endpoints send no CORS headers. */}
           {!canPickDrive && (
-            <div className="import-link-row">
-              <label className="sr-only" htmlFor={linkInputId}>
+            <div className="import-link-field">
+              {/* A visible label, not a placeholder: the row used to carry only
+                  "Paste a share link", which said nothing about WHICH link
+                  and truncated at 360px anyway. */}
+              <label className="import-link-label" htmlFor={linkInputId}>
                 Google Sheets or Drive link
               </label>
-              <input
-                id={linkInputId}
-                type="url"
-                className="import-link-input"
-                value={linkUrl}
-                onChange={(e) => setLinkUrl(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    void handleFetchLink();
-                  }
-                }}
-                placeholder="Paste a share link"
-                disabled={isLoading || linkBusy}
-                inputMode="url"
-                autoComplete="off"
-                spellCheck={false}
-              />
-              <button
-                type="button"
-                className="btn import-link-btn"
-                onClick={handleFetchLink}
-                disabled={isLoading || linkBusy || !linkUrl.trim()}
-                title="Fetch a card list from a Google Sheet, or from a file in Drive. The link has to be shared with anyone who has it."
-              >
-                {linkBusy ? (
-                  <span className="spinner" />
-                ) : (
-                  <Link2 width={14} height={14} strokeWidth={1.8} aria-hidden />
-                )}
-                <span>{linkBusy ? 'Fetching…' : 'Fetch'}</span>
-              </button>
+              <div className="import-link-row">
+                <input
+                  id={linkInputId}
+                  type="url"
+                  className="import-link-input"
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void handleFetchLink();
+                    }
+                  }}
+                  placeholder="Paste the link"
+                  disabled={isLoading || linkBusy}
+                  inputMode="url"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <button
+                  type="button"
+                  className="btn import-link-btn"
+                  onClick={handleFetchLink}
+                  disabled={isLoading || linkBusy || !linkUrl.trim()}
+                  title="Fetch a card list from a Google Sheet, or from a file in Drive. The link has to be shared with anyone who has it."
+                >
+                  {linkBusy ? (
+                    <span className="spinner" />
+                  ) : (
+                    <Link2 width={14} height={14} strokeWidth={1.8} aria-hidden />
+                  )}
+                  <span>{linkBusy ? 'Fetching…' : 'Fetch'}</span>
+                </button>
+              </div>
             </div>
           )}
 
@@ -1215,6 +1220,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       {pendingImport && (
         <ImportModeDialog
           existingCount={cards.length}
+          hasBinders={binders.length > 0}
           incomingPreview={pendingImport.preview}
           priorImports={findPriorImports(
             pendingImport.files ? pendingImport.files.map((f) => f.name) : [pendingImport.label],
@@ -1377,6 +1383,8 @@ function DeleteImportsDialog({ imports, onConfirm, onCancel }: DeleteImportsDial
 }
 
 interface ImportModeDialogProps {
+  /** Whether any binder exists yet — a first import has no rules to route through. */
+  hasBinders: boolean;
   existingCount: number;
   incomingPreview?: string;
   /** Prior imports whose name matches an incoming source — a likely re-import. */
@@ -1387,6 +1395,7 @@ interface ImportModeDialogProps {
 
 function ImportModeDialog({
   existingCount,
+  hasBinders,
   incomingPreview,
   priorImports,
   onPick,
@@ -1449,7 +1458,9 @@ function ImportModeDialog({
               ? isReimport
                 ? 'Keeps the existing cards AND adds another full copy of this import — duplicates stack.'
                 : 'Keep existing cards and append the new ones. Duplicates will stack.'
-              : 'Import these cards into your collection. They will be routed through your binder rules.'}
+              : hasBinders
+                ? 'Import these cards into your collection. They will be routed through your binder rules.'
+                : 'Import these cards into your collection.'}
           </span>
         </button>
         {!showBinderInput ? (

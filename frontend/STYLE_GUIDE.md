@@ -235,6 +235,25 @@ card…", the "Save As…" convention); never decorative. It does **not** extend
 to general CRUD dialog openers — "Plan a game night", "Edit night", "New
 deck" open a form, not a picker, and stay bare. One em-dash max per string.
 
+**A hint names the control, never a place on the screen.** "Search the card
+index below" was true when the deck editor had a card rail; the same surface is
+now a sheet on a phone and a dialog on desktop, and "below" pointed at nothing.
+Write "Open Add cards to search for cards and start your list" — the control's
+own label survives every layout the surface will ever have.
+
+**A first-time state doesn't reference a thing the user hasn't made.** The
+import-mode dialog told a first import that cards "will be routed through your
+binder rules" — with zero binders there are no rules. Branch the copy on the
+precondition (`hasBinders`), the same way empty states branch on the reason
+for emptiness (§ Empty states).
+
+**A field's meaning lives in a visible label, not a placeholder.** The
+Google-link row shipped with an sr-only label and "Paste a share link" as its
+only visible text — which said nothing about _which_ link, and truncated at
+360px anyway. Placeholders are examples ("Paste the link"); the caption above
+the field (`.import-link-label`, the `.import-deck-name-label` tier) says what
+goes in it.
+
 **Canonical terms (use exactly):** _collection_ (your cards), _binder_ (a
 rule-defined group), _deck_, _power bracket_ (the 1–5 Commander tier — not
 "bracket level"/"bracket target" in user-facing copy), _Coach_ (the
@@ -3913,6 +3932,37 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
   `<div className="auth-brand-hero" aria-hidden="true"><BrandMark size={48} /></div>`
   before the `<h1>`, so a mid-funnel screen reads as the same branded flow rather
   than a disconnected utility form.
+
+## Guest gates — every "Sign in" door carries `returnTo`
+
+A gated surface (Friends, Trades, Pods, Online play, game nights, Saved decks,
+a deck's share dialog, the feedback sheet, the friends-only shared view, the
+header's own Sign in) links to `useSignInPath()` from `lib/sign-in-path.ts`,
+never a bare `/auth`. AuthPage already honours `?returnTo=` (same-origin
+relative paths only — `safeReturnTo`), so a finished sign-in — and "Continue
+without an account" — lands the person back on the page they were gated from.
+Before this, tapping Sign in on Friends and creating an account dropped a new
+player on Home, where Friends is one more tap away on a phone; the first thing
+the app taught them was that doors don't lead back. `/` and the auth pages
+themselves get a bare `/auth` (nothing to return to, and no redirect loop).
+`GuestActionPopover` was the reference implementation; the helper just makes
+it the only way to build the link.
+
+**A share door says "Sharing" on its face.** The deck editor's visibility
+chip is the page's only share entry (§ Overlays keeps it that way — no second
+Share button to compete with it), so it reads `Sharing: Private`, not just the
+state word: a first-time user looking for "share" has to be able to find it
+without hovering for the aria-label. The state word still leads visually — the
+prefix is muted (`.deck-visibility-chip-prefix`).
+
+**Secondary modes sit below the primary action they fork from.** On
+`/decks/new` the brew door ("Prefer to pick every card?") renders _after_ the
+commander picker, not between Format and Commander: the subtitle's first
+instruction is "Pick a commander", and on a 360px phone the promo box used to
+push the picker under the tab bar. A commander picked before "Start brewing"
+travels with the navigation (router state) and `BrewBuildPage` re-applies it
+after its mount-only store reset, so the fork never asks for the same choice
+twice.
 
 ## Keyboard shortcuts — discoverability pattern (UX-334)
 

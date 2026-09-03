@@ -343,9 +343,13 @@ export default function AuthPage() {
           className="auth-back"
           onClick={() => {
             // Choosing guest mode counts as an intentional first-run choice,
-            // so we don't gate the user back here on every cold boot.
+            // so we don't gate the user back here on every cold boot. A gate
+            // that carried `returnTo` gets the person back to that page (the
+            // gate itself still applies there — honest, and one tap from
+            // where they were); the first-run flow, with no returnTo, lands
+            // on the default.
             markEverVisited();
-            navigate('/');
+            navigate(returnTo, { replace: true });
           }}
         >
           Continue without an account

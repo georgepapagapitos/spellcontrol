@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useSignInPath } from '../lib/sign-in-path';
 import { Modal } from './Modal';
 import { ShareQrCode } from './shared/ShareQrCode';
 import { useSealMoment } from './shared/SealMoment';
@@ -61,6 +62,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
   // Share links are per-account (they stay tied to the owner and are
   // revocable), so a guest can't mint one — prompt them to sign in instead.
   const isGuest = useAuth((s) => s.status === 'guest');
+  const signInHref = useSignInPath();
   const username = useAuth((s) => s.user?.username);
   const displayName = useAuth((s) => s.profile?.displayName);
   const [audience, setAudience] = useState<DialogAudience>('link');
@@ -481,7 +483,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
           <button type="button" className="btn" onClick={onClose}>
             Not now
           </button>
-          <Link to="/auth" className="btn btn-primary" onClick={onClose}>
+          <Link to={signInHref} className="btn btn-primary" onClick={onClose}>
             Sign in
           </Link>
         </div>

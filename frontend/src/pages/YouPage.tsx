@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useSignInPath } from '../lib/sign-in-path';
 import { Browser } from '@capacitor/browser';
 import { useAuth } from '../store/auth';
 import { useThemeStore } from '../store/theme';
@@ -66,6 +67,7 @@ function friendsSummary(count: number | null, pending: number): string {
 
 export function YouPage() {
   const username = useAuth((s) => s.user?.username ?? null);
+  const signInHref = useSignInPath();
   const userId = useAuth((s) => s.user?.id ?? null);
   const isAdmin = useAuth((s) => s.user?.role === 'admin');
   const logout = useAuth((s) => s.logout);
@@ -395,7 +397,7 @@ export function YouPage() {
               label="Not signed in"
               hint="Everything is saved on this device. Sign in to back it up and sync — the cards here are added to your account."
               actions={
-                <Link to="/auth" className="pill-btn pill-btn-primary">
+                <Link to={signInHref} className="pill-btn pill-btn-primary">
                   Sign in to sync
                 </Link>
               }
