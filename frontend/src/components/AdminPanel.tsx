@@ -1,3 +1,4 @@
+import { formatBytes } from '../lib/format-bytes';
 import { useCallback, useEffect, useState } from 'react';
 import {
   listUsers,
@@ -17,12 +18,6 @@ const REPORT_KIND_LABEL: Record<AdminReportRow['kind'], string> = {
   profile: 'Profile',
   'game-result': 'Game result',
 };
-
-function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 function formatDate(ms: number): string {
   return new Date(ms).toLocaleDateString(undefined, {

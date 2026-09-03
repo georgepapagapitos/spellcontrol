@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useOfflineStore } from '@/store/offline';
 import { isNativePlatform } from '@/lib/platform';
 import type { DownloadPhase } from '@/lib/offline';
+import { formatBytes } from '@/lib/format-bytes';
 import { formatRelativeTime } from '@/lib/format-time';
 
 /**
@@ -110,12 +111,6 @@ export function OfflineModeSettings(): React.ReactElement | null {
 
 function formatNumber(n: number): string {
   return new Intl.NumberFormat().format(n);
-}
-
-function formatBytes(b: number): string {
-  if (b > 1_000_000) return `${(b / 1_000_000).toFixed(1)} MB`;
-  if (b > 1000) return `${(b / 1000).toFixed(0)} KB`;
-  return `${b} B`;
 }
 
 function formatRelative(ms: number): string {
