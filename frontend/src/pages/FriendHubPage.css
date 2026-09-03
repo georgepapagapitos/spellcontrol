@@ -17,24 +17,6 @@
   margin-bottom: var(--space-4);
 }
 
-.friend-hub-back {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--text-secondary);
-  text-decoration: none;
-  margin-bottom: var(--space-4);
-  transition: color var(--motion-fast);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .friend-hub-back:hover {
-    color: var(--text-primary);
-  }
-}
-
 .friend-hub-heading {
   font-family: var(--font-display);
   font-size: var(--text-xl);

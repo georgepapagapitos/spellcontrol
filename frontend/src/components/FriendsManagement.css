@@ -6,27 +6,6 @@
   padding: var(--space-4);
 }
 
-.friends-page-heading {
-  font-family: var(--font-display);
-  font-size: var(--text-xl);
-  font-weight: 400;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-/* Page heading + the "Trades"/"Pods" shortcuts, side by side (moved here from
-   settings-sync.css's old .you-friends-header when Friends left /you).
-   Wraps: two uppercase nav links plus the heading don't fit beside each other
-   at the 320px floor. */
-.friends-page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-bottom: var(--space-5);
-}
-
 .friends-page-links {
   display: flex;
   align-items: center;

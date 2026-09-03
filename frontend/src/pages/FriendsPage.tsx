@@ -15,11 +15,13 @@ export function FriendsPage() {
     <>
       <SocialHubTabs />
       <div className="friends-page">
-        <div className="friends-page-header">
-          <h1 id="friends-page-heading-title" className="friends-page-heading">
-            Friends
-          </h1>
-        </div>
+        <header className="binder-hero">
+          <div>
+            <h1 id="friends-page-heading-title" className="binder-hero-name">
+              Friends
+            </h1>
+          </div>
+        </header>
         <FriendsManagement />
       </div>
     </>

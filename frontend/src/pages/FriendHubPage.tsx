@@ -1,7 +1,8 @@
 import './FriendHubPage.css';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, BookOpen, Box, FolderOpen, Layers, ListChecks } from 'lucide-react';
+import { BackLink } from '../components/BackLink';
+import { BookOpen, Box, FolderOpen, Layers, ListChecks } from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 import { formatMoney } from '../lib/format-money';
@@ -379,7 +380,7 @@ export function FriendHubPage() {
   if (status === 'guest') {
     return (
       <div className="friend-hub">
-        <BackLink />
+        <BackLink to="/friends" label="Friends" />
         <div className="friends-signin-prompt">
           <p className="friends-signin-title">Sign in to view shared content</p>
           <p className="friends-signin-body">
@@ -419,7 +420,7 @@ export function FriendHubPage() {
 
   return (
     <div className={`friend-hub${tab === 'collection' ? ' friend-hub--wide' : ''}`}>
-      <BackLink />
+      <BackLink to="/friends" label="Friends" />
       <h1 className="friend-hub-heading">{heading}</h1>
       {hasDisplayName && <p className="friend-hub-handle">{handle}</p>}
       <p className="friend-hub-sub">Shared with friends</p>
@@ -906,14 +907,5 @@ function HubRow({ share }: { share: FriendShareRow }) {
         View
       </Link>
     </li>
-  );
-}
-
-function BackLink() {
-  return (
-    <Link to="/friends" className="friend-hub-back">
-      <ArrowLeft width={16} height={16} aria-hidden />
-      Friends
-    </Link>
   );
 }

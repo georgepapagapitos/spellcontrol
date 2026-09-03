@@ -1,7 +1,8 @@
 import './PodHubPage.css';
 import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Layers, Pencil } from 'lucide-react';
+import { BackLink } from '../components/BackLink';
+import { Layers, Pencil } from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
 import { Modal } from '../components/Modal';
@@ -50,15 +51,6 @@ type MemberDecks =
   | { kind: 'not-friend' }
   | { kind: 'loading' }
   | { kind: 'ready'; shares: FriendShareRow[] };
-
-function BackLink() {
-  return (
-    <Link to="/pods" className="pod-hub-back">
-      <ArrowLeft width={16} height={16} aria-hidden />
-      Pods
-    </Link>
-  );
-}
 
 /* Its own component (not inlined in the .map()) so the legacy
    useAnimatedNumber calls below stay one-hook-per-instance. Only the played/
@@ -400,7 +392,7 @@ export function PodHubPage() {
   if (notFound) {
     return (
       <div className="pod-hub">
-        <BackLink />
+        <BackLink to="/pods" label="Pods" />
         <div className="empty-state" role="status">
           <p className="empty-state-tagline">Pod not found.</p>
           <p className="empty-state-hint">
@@ -417,7 +409,7 @@ export function PodHubPage() {
   if (loadError) {
     return (
       <div className="pod-hub">
-        <BackLink />
+        <BackLink to="/pods" label="Pods" />
         <p className="friends-error" role="alert">
           <span>{loadError}</span>
           <button type="button" className="friends-error-retry" onClick={loadPod}>
@@ -431,7 +423,7 @@ export function PodHubPage() {
   if (!pod) {
     return (
       <div className="pod-hub">
-        <BackLink />
+        <BackLink to="/pods" label="Pods" />
         <div className="pod-hub-skeleton" role="status" aria-label="Loading" aria-busy="true">
           <span className="pod-hub-skeleton-bar is-title" />
           <span className="pod-hub-skeleton-bar" />
@@ -449,7 +441,7 @@ export function PodHubPage() {
 
   return (
     <div className="pod-hub">
-      <BackLink />
+      <BackLink to="/pods" label="Pods" />
 
       <header className="pod-hub-header">
         <h1 className="pod-hub-name">
