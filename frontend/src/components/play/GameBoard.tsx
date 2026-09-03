@@ -761,6 +761,7 @@ function PlayerPanel({
               <button
                 type="button"
                 className="player-panel-life player-panel-life-btn"
+                data-digits={String(animatedLife).length}
                 aria-label={
                   cmdTarget
                     ? `${cmdValue} commander damage from ${cmdSourceLabel}`
