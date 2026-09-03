@@ -1649,7 +1649,7 @@ export function DeckDisplay({
                         <>
                           <p className="deck-empty-state-headline">This deck is empty.</p>
                           <p className="deck-empty-state-detail">
-                            Search the card index below and add your first cards.
+                            Open Add cards to search for cards and start your list.
                           </p>
                         </>
                       )}
