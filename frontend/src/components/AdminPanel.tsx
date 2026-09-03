@@ -104,7 +104,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
     setClearingProfile(true);
     try {
       await clearUserProfile(pendingClear.id);
-      toast.show({ message: `Cleared ${pendingClear.username}’s profile`, tone: 'success' });
+      toast.show({ message: `Cleared ${pendingClear.username}'s profile`, tone: 'success' });
       setPendingClear(null);
       await refresh();
     } catch (err) {
@@ -280,7 +280,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
             </h2>
             <p className="choice-dialog-body">
               This permanently removes the account and all of <strong>{pending.username}</strong>
-              ’s synced collection, binders, decks, and game history. This can’t be undone.
+              's synced collection, binders, decks, and game history. This can't be undone.
             </p>
             <div className="choice-dialog-actions admin-modal-actions">
               <button
@@ -313,8 +313,8 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
               Clear profile?
             </h2>
             <p className="choice-dialog-body">
-              This clears <strong>{pendingClear.username}</strong>’s display name, bio, and avatar.
-              They can set a new profile any time — this only removes what’s there now.
+              This clears <strong>{pendingClear.username}</strong>'s display name, bio, and avatar.
+              They can set a new profile any time — this only removes what's there now.
             </p>
             <div className="choice-dialog-actions admin-modal-actions">
               <button

@@ -463,7 +463,7 @@ export function FriendHubPage() {
             <h2 className="friend-hub-section-head">Trade radar</h2>
             {radarError ? (
               <p className="friend-hub-radar-note" role="alert">
-                Couldn’t check {who}’s collection against your want lists.{' '}
+                Couldn't check {who}'s collection against your want lists.{' '}
                 <button
                   type="button"
                   className="btn-link friend-hub-radar-retry"
@@ -480,7 +480,7 @@ export function FriendHubPage() {
               />
             ) : radar.length === 0 ? (
               <p className="friend-hub-radar-note" role="status">
-                Nothing on your want lists is in {who}’s collection.
+                Nothing on your want lists is in {who}'s collection.
               </p>
             ) : (
               <>
@@ -511,10 +511,10 @@ export function FriendHubPage() {
 
         {showWantRadar && (
           <section className="friend-hub-section" aria-label="What this friend is looking for">
-            <h2 className="friend-hub-section-head">They’re looking for</h2>
+            <h2 className="friend-hub-section-head">They're looking for</h2>
             {wantsError ? (
               <p className="friend-hub-radar-note" role="alert">
-                Couldn’t check your collection against {who}’s want lists.{' '}
+                Couldn't check your collection against {who}'s want lists.{' '}
                 <button
                   type="button"
                   className="btn-link friend-hub-radar-retry"
@@ -526,19 +526,19 @@ export function FriendHubPage() {
             ) : wantRadar === null ? (
               <div
                 className="friend-hub-radar-skeleton"
-                aria-label={`Checking ${who}’s want lists`}
+                aria-label={`Checking ${who}'s want lists`}
                 aria-busy="true"
               />
             ) : wantRadar.length === 0 ? (
               <p className="friend-hub-radar-note" role="status">
-                Nothing you own is on {who}’s want lists.
+                Nothing you own is on {who}'s want lists.
               </p>
             ) : (
               <>
                 <p className="friend-hub-radar-lede">
                   {wantRadar.length === 1
-                    ? `1 card you own is on ${who}’s want list`
-                    : `${wantRadar.length} cards you own are on ${who}’s want list`}
+                    ? `1 card you own is on ${who}'s want list`
+                    : `${wantRadar.length} cards you own are on ${who}'s want list`}
                   {spareMatches > 0
                     ? ` — ${spareMatches} you can spare`
                     : ' — every copy is in a deck or cube'}
@@ -585,8 +585,8 @@ export function FriendHubPage() {
         ) : sharesList.length === 0 ? (
           <p className="friends-empty" role="status">
             {ownerUsername
-              ? `${hasDisplayName ? identity!.primary : handle} hasn’t`
-              : 'This person hasn’t'}{' '}
+              ? `${hasDisplayName ? identity!.primary : handle} hasn't`
+              : "This person hasn't"}{' '}
             shared anything with friends yet.
           </p>
         ) : (
@@ -620,7 +620,7 @@ export function FriendHubPage() {
 
         {collectionError ? (
           <p className="friend-hub-radar-note" role="alert">
-            Couldn’t load {who}’s collection.{' '}
+            Couldn't load {who}'s collection.{' '}
             <button
               type="button"
               className="btn-link friend-hub-radar-retry"
@@ -632,7 +632,7 @@ export function FriendHubPage() {
         ) : friendCards === null ? (
           <div
             className="friend-hub-collection-skeleton"
-            aria-label={`Loading ${who}’s collection`}
+            aria-label={`Loading ${who}'s collection`}
             aria-busy="true"
           />
         ) : (
@@ -642,7 +642,7 @@ export function FriendHubPage() {
                 value={collectionQuery}
                 onChange={setCollectionQuery}
                 placeholder="Search by card name"
-                ariaLabel={`Search ${who}’s collection by card name`}
+                ariaLabel={`Search ${who}'s collection by card name`}
                 className="friend-hub-collection-search"
                 trailing={collectionFilterNode}
               />
@@ -658,8 +658,8 @@ export function FriendHubPage() {
             {friendSearchResult.ignored.length > 0 && (
               <p className="friend-hub-search-note" role="status">
                 {friendSearchResult.ignored.join(', ')}{' '}
-                {friendSearchResult.ignored.length === 1 ? 'isn’t' : 'aren’t'} searchable in this
-                collection — its card data doesn’t carry what{' '}
+                {friendSearchResult.ignored.length === 1 ? "isn't" : "aren't"} searchable in this
+                collection — its card data doesn't carry what{' '}
                 {friendSearchResult.ignored.length === 1 ? 'it' : 'they'} read. The rest of your
                 search still applied.
               </p>
@@ -669,7 +669,7 @@ export function FriendHubPage() {
               <div role="status">
                 <SharedEmptyState
                   empty={friendCards.length === 0}
-                  emptyTagline={`${who} hasn’t added anything to their collection yet.`}
+                  emptyTagline={`${who} hasn't added anything to their collection yet.`}
                   emptyHint="There's nothing to browse until they do."
                   filteredTagline="No cards match your search or filters."
                   onClearSearch={
@@ -686,7 +686,7 @@ export function FriendHubPage() {
               <>
                 <ul
                   className="shared-card-grid shared-card-grid--small friend-hub-collection-grid"
-                  aria-label={`${who}’s collection`}
+                  aria-label={`${who}'s collection`}
                 >
                   {visibleFriendCards.map((c) => (
                     <FriendCollectionTile key={c.oracleId} card={c} />
@@ -724,7 +724,7 @@ export function FriendHubPage() {
 
         {offersError ? (
           <p className="friend-hub-radar-note" role="alert">
-            Couldn’t load your trades with {who}.{' '}
+            Couldn't load your trades with {who}.{' '}
             <button
               type="button"
               className="btn-link friend-hub-radar-retry"

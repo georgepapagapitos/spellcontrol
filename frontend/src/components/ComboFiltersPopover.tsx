@@ -147,7 +147,7 @@ export function ComboFiltersPopover({ filters, setFilters, hasCommanders }: Prop
                   title={
                     hasCommanders
                       ? 'Only combos one of your commanders could legally run'
-                      : 'You don’t own any commander-eligible cards yet'
+                      : "You don't own any commander-eligible cards yet"
                   }
                 >
                   One of mine can host it

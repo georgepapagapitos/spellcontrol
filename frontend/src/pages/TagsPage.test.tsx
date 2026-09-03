@@ -51,7 +51,7 @@ describe('TagsPage', () => {
     expect(screen.getByText('Pick a tag to see what it finds.')).toBeTruthy();
   });
 
-  it('collapses the browser on the first pick so results aren’t pushed off-screen', () => {
+  it("collapses the browser on the first pick so results aren't pushed off-screen", () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: /Removal/ }));
     expect(screen.getByTestId('results').textContent).toBe('otag:removal');
@@ -107,7 +107,7 @@ describe('TagsPage', () => {
     readyRef.value = false;
     errorRef.value = true;
     renderPage();
-    expect(screen.getByRole('alert').textContent).toContain('Couldn’t load the tag list.');
+    expect(screen.getByRole('alert').textContent).toContain("Couldn't load the tag list.");
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(ensureCardTags).toHaveBeenCalledTimes(1);
   });

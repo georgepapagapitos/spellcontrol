@@ -348,8 +348,8 @@ export function FriendsManagement() {
       <div className="friends-signin-prompt">
         <p className="friends-signin-title">Sign in to connect with friends</p>
         <p className="friends-signin-body">
-          Create an account or sign in to send friend requests, track your friends&rsquo;
-          collections, and more.
+          Create an account or sign in to send friend requests, track your friends' collections, and
+          more.
         </p>
         <Link to="/auth" className="friends-signin-btn">
           Sign in

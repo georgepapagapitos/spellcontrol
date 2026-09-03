@@ -416,7 +416,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
     {
       value: 'friends',
       label: 'My friends',
-      hint: 'Only your accepted friends can open this — they’ll need to be signed in.',
+      hint: "Only your accepted friends can open this — they'll need to be signed in.",
     },
     ...(kind === 'deck'
       ? [
@@ -583,7 +583,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
         <>
           {audience === 'direct' && recipientName && (
             <p className="share-dialog-sent" role="status">
-              Sent to @{recipientName} — they’ll see it in their inbox. You can also copy the link
+              Sent to @{recipientName} — they'll see it in their inbox. You can also copy the link
               below.
             </p>
           )}

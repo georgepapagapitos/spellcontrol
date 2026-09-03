@@ -554,8 +554,8 @@ function SuggestionsSection({
     return (
       <section className="deck-analysis-suggestions">
         <p className="deck-combos-empty">
-          Suggestions come from EDHREC&rsquo;s commander pages — set a commander to see picks
-          tailored to your deck.
+          Suggestions come from EDHREC's commander pages — set a commander to see picks tailored to
+          your deck.
         </p>
       </section>
     );
@@ -639,7 +639,7 @@ function SuggestionsSection({
       <p className="deck-analysis-suggest-hint" aria-label={`Deck ${deckId.slice(0, 6)}`}>
         {themeSlug
           ? `Picks scoped to the ${themes.find((t) => t.slug === themeSlug)?.name ?? themeSlug} archetype, filtered against your deck.`
-          : 'Picks from EDHREC’s top cards for this commander, filtered against your deck.'}
+          : "Picks from EDHREC's top cards for this commander, filtered against your deck."}
       </p>
 
       {previewCards && previewCards.length > 0 && (

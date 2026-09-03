@@ -47,7 +47,7 @@ export function FriendsLeaderboard() {
       <section className="play-records">
         <h2 className="play-records-title">Friends leaderboard</h2>
         <p className="leaderboard-error" role="alert">
-          Couldn’t load friend records.{' '}
+          Couldn't load friend records.{' '}
           <button type="button" className="link-button" onClick={load}>
             Retry
           </button>
@@ -170,7 +170,7 @@ function H2HDetail({ friendId }: { friendId: string }) {
   if (error) {
     return (
       <p className="leaderboard-error" role="alert">
-        Couldn’t load head-to-head.
+        Couldn't load head-to-head.
       </p>
     );
   }

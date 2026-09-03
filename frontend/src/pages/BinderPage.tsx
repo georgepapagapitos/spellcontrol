@@ -413,7 +413,7 @@ export function BinderPage() {
             return (
               <div className="empty-state">
                 <EmptyStateMark />
-                <p className="empty-state-tagline">No cards match this binder’s rules.</p>
+                <p className="empty-state-tagline">No cards match this binder's rules.</p>
                 <p className="empty-state-hint">
                   Loosen a rule or add another match group, and cards from your collection file in
                   here.

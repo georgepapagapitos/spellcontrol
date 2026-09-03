@@ -271,12 +271,12 @@ export async function scryfallRequest(path: string, init?: RequestInit): Promise
  * to the logger for debugging.
  */
 export function scryfallErrorMessage(status: number | null, statusText = ''): string {
-  if (status === null) return 'Couldn’t reach Scryfall — check your connection and try again.';
+  if (status === null) return "Couldn't reach Scryfall — check your connection and try again.";
   if (status >= 500) return 'Scryfall is temporarily unavailable — try again in a moment.';
   // Scryfall answers an unparseable query with 400/422.
   if (status === 400 || status === 422)
-    return 'Scryfall couldn’t read that search — check the syntax and try again.';
-  return `Scryfall couldn’t complete that request (${status}${statusText ? ` ${statusText}` : ''}).`;
+    return "Scryfall couldn't read that search — check the syntax and try again.";
+  return `Scryfall couldn't complete that request (${status}${statusText ? ` ${statusText}` : ''}).`;
 }
 
 /** `scryfallRequest` + JSON parsing + the shared user-facing error mapping. */

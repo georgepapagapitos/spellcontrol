@@ -480,8 +480,8 @@ function SetDetail({ code }: { code: string }) {
             state: {
               status: 'error',
               message: navigator.onLine
-                ? 'Couldn’t load this set’s card list from Scryfall.'
-                : 'You’re offline — set checklists need a connection.',
+                ? "Couldn't load this set's card list from Scryfall."
+                : "You're offline — set checklists need a connection.",
             },
           });
       });

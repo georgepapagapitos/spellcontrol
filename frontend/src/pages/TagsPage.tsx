@@ -80,7 +80,7 @@ export function TagsPage() {
       <header className="tags-page-head">
         <h1>Browse by tag</h1>
         <p className="tags-page-sub">
-          Find cards by what they do, not what they’re called. Pick a function to see every card
+          Find cards by what they do, not what they're called. Pick a function to see every card
           that does it — no commander required.
         </p>
       </header>
@@ -143,7 +143,7 @@ export function TagsPage() {
         <div id="tags-browse-panel">
           {!ready && loadError ? (
             <div className="tags-page-status" role="alert">
-              <p className="empty-state-tagline">Couldn’t load the tag list.</p>
+              <p className="empty-state-tagline">Couldn't load the tag list.</p>
               <p className="empty-state-hint">
                 The tag snapshot ships with the app, so this is usually a one-off.{' '}
                 <button type="button" className="tags-retry" onClick={() => void ensureCardTags()}>

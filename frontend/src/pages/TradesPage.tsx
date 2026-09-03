@@ -182,7 +182,7 @@ function TradesPageBody() {
         <div className="settings-page-hero-text">
           <h1 className="binder-hero-name">Trades</h1>
           <p className="binder-hero-meta">
-            Every offer you’re part of, either way. Accepting settles both collections.
+            Every offer you're part of, either way. Accepting settles both collections.
           </p>
         </div>
       </header>
@@ -203,8 +203,8 @@ function TradesPageBody() {
           <EmptyStateMark />
           <p className="empty-state-tagline">No trades yet.</p>
           <p className="empty-state-hint">
-            Open a friend’s hub to see what they have and propose one — it shows up here for both of
-            you until it’s answered.
+            Open a friend's hub to see what they have and propose one — it shows up here for both of
+            you until it's answered.
           </p>
           <Link to="/friends" className="btn btn-primary">
             Find a friend to trade with
@@ -266,7 +266,7 @@ function TradesPageBody() {
                   two of them can never need it. */}
               {group.id === 'past' && truncated && rows.length > 0 && (
                 <p className="trades-group-empty trades-cap-note">
-                  Showing your 100 most recent trades. Older ones aren’t listed here.
+                  Showing your 100 most recent trades. Older ones aren't listed here.
                 </p>
               )}
             </section>

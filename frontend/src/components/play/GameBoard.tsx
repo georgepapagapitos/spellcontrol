@@ -901,7 +901,7 @@ function PlayerPanel({
             where they're looking while their life ticks down. */}
         {isCmdSelf && (
           <div className="pp-cmd-focus-bar">
-            <span className="pp-cmd-focus-title">Commander damage you&rsquo;ve received</span>
+            <span className="pp-cmd-focus-title">Commander damage you've received</span>
             <button
               type="button"
               className="pp-cmd-focus-done"

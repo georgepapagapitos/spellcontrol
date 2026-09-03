@@ -132,8 +132,8 @@ export function RulesPage() {
         ) : (
           <div className="rules-unavailable">
             <p>
-              The AI rules Q&amp;A isn&rsquo;t available for you right now. The rules themselves are
-              still here: look up a keyword, a glossary term, or a rule number in the reference.
+              The AI rules Q&amp;A isn't available for you right now. The rules themselves are still
+              here: look up a keyword, a glossary term, or a rule number in the reference.
             </p>
             <button type="button" className="btn" onClick={openRulesReference}>
               Open the rules reference

@@ -317,7 +317,7 @@ describe('user-facing failure messages', () => {
     );
 
     await expect(searchCards('t:zzzzoffline', [])).rejects.toThrow(
-      /Couldn’t reach Scryfall — check your connection/
+      /Couldn't reach Scryfall — check your connection/
     );
   });
 
@@ -327,7 +327,7 @@ describe('user-facing failure messages', () => {
       vi.fn().mockResolvedValue({ ok: false, status: 400, statusText: 'Bad Request' })
     );
 
-    await expect(searchCards('t:zzzzbadsyntax', [])).rejects.toThrow(/couldn’t read that search/);
+    await expect(searchCards('t:zzzzbadsyntax', [])).rejects.toThrow(/couldn't read that search/);
   });
 });
 

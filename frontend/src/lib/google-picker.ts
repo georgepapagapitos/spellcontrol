@@ -230,7 +230,7 @@ async function getAccessToken(): Promise<string> {
           finish(() =>
             reject(
               new Error(
-                'Your browser blocked Google’s sign-in window. Allow pop-ups for this site, then try again.'
+                "Your browser blocked Google's sign-in window. Allow pop-ups for this site, then try again."
               )
             )
           );

@@ -220,13 +220,13 @@ export function ImportCube() {
                       <VerdictBadge
                         tone="neutral"
                         label="In a deck"
-                        title="You own this, but it’s currently in a deck"
+                        title="You own this, but it's currently in a deck"
                       />
                     ) : r.ownership === 'in-cube' ? (
                       <VerdictBadge
                         tone="neutral"
                         label="In a cube"
-                        title="You own this, but it’s reserved by a physical cube"
+                        title="You own this, but it's reserved by a physical cube"
                       />
                     ) : (
                       <OwnershipBadge owned={r.ownership === 'owned'} showUnowned />

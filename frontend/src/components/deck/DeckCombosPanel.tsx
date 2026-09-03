@@ -337,8 +337,8 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
             {tab === 'inDeck' ? (
               !deckHasOracleIds ? (
                 <p>
-                  This deck&rsquo;s cards don&rsquo;t have combo data yet. If you imported it before
-                  the combo update, re-import or wait for background sync.
+                  This deck's cards don't have combo data yet. If you imported it before the combo
+                  update, re-import or wait for background sync.
                 </p>
               ) : (
                 <>

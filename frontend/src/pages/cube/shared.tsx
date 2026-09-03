@@ -193,7 +193,7 @@ export function OwnRowBadge({ own }: { own: Ownership }) {
       <VerdictBadge
         tone="neutral"
         label="In a deck"
-        title="You own this, but it’s currently in a deck"
+        title="You own this, but it's currently in a deck"
       />
     );
   }
@@ -202,7 +202,7 @@ export function OwnRowBadge({ own }: { own: Ownership }) {
       <VerdictBadge
         tone="neutral"
         label="In a cube"
-        title="You own this, but it’s reserved by a physical cube"
+        title="You own this, but it's reserved by a physical cube"
       />
     );
   }

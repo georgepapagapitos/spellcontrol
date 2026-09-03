@@ -34,7 +34,7 @@ export function CardRowMenu({ card, onEditCard, onSplitCopy, onDelete, currentBi
   const items: OverflowMenuItem[] = [
     { label: 'Edit card', icon: Pencil, onClick: onEditCard },
     ...(onSplitCopy
-      ? [{ label: 'Change one copy’s printing…', icon: Layers, onClick: onSplitCopy }]
+      ? [{ label: "Change one copy's printing…", icon: Layers, onClick: onSplitCopy }]
       : []),
     {
       label: currentBinder ? 'Move to binder' : 'Add to binder',

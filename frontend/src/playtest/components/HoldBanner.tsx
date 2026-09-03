@@ -101,7 +101,7 @@ export function HoldBanner() {
             <span className="playtest-hold-banner__message">
               {isMine ? (
                 <>
-                  <strong>You&rsquo;re</strong> holding — the table&rsquo;s waiting
+                  <strong>You're</strong> holding — the table's waiting
                 </>
               ) : (
                 <>

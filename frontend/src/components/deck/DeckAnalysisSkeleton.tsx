@@ -23,7 +23,7 @@ export function DeckAnalysisSkeleton({ status, onRetry }: DeckAnalysisSkeletonPr
       <div className="deck-analysis-skeleton is-error" role="status" aria-live="polite">
         <p className="deck-analysis-skeleton-eyebrow">Analysis unavailable</p>
         <p className="deck-analysis-skeleton-error-text">
-          Couldn’t analyze this deck. EDHREC may be unreachable, or this commander isn’t indexed
+          Couldn't analyze this deck. EDHREC may be unreachable, or this commander isn't indexed
           yet.
           {onRetry && (
             <>

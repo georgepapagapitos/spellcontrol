@@ -77,7 +77,7 @@ export function CardOtagsSheet({ card, onClose }: Props) {
 
         {!ready && loadError ? (
           <div className="card-picker-empty" role="alert">
-            Couldn’t load the tag snapshot.{' '}
+            Couldn't load the tag snapshot.{' '}
             <button
               type="button"
               className="card-otags-retry"
@@ -131,7 +131,7 @@ export function CardOtagsSheet({ card, onClose }: Props) {
         )}
 
         <p className="card-otags-note">
-          Tags come from Scryfall’s community Tagger project; this app bundles a snapshot of curated
+          Tags come from Scryfall's community Tagger project; this app bundles a snapshot of curated
           function tags.
           {taggerUrl && (
             <>

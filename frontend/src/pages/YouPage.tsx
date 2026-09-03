@@ -611,7 +611,7 @@ export function YouPage() {
               </>
             }
             valueWithTip
-            hint="Re-map each deck’s reserved copies after edits or re-imports."
+            hint="Re-map each deck's reserved copies after edits or re-imports."
             actions={
               <button
                 type="button"

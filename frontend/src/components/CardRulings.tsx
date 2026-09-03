@@ -55,7 +55,7 @@ export function CardRulings({ scryfallId }: { scryfallId: string }) {
           )}
           {state === 'error' && (
             <p className="card-rulings-status">
-              Couldn’t load rulings.{' '}
+              Couldn't load rulings.{' '}
               <button type="button" className="card-rulings-retry" onClick={load}>
                 Retry
               </button>

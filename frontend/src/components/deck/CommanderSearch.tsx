@@ -1177,7 +1177,7 @@ export function CommanderSearch({ value, onSelect, format = 'commander' }: Props
               <p className="commander-suggestions-empty">Loading…</p>
             ) : topError && !ownedOnly && visibleTop.length === 0 ? (
               <p className="commander-suggestions-empty" role="alert">
-                Couldn&rsquo;t reach EDHREC for top commanders. Check your connection and try again.{' '}
+                Couldn't reach EDHREC for top commanders. Check your connection and try again.{' '}
                 <button
                   type="button"
                   className="btn-link"
@@ -1192,7 +1192,7 @@ export function CommanderSearch({ value, onSelect, format = 'commander' }: Props
                   {pdh
                     ? 'No uncommon creatures in your collection match that filter.'
                     : ownedOnly
-                      ? 'You don’t own any of EDHREC’s top commanders for that filter.'
+                      ? "You don't own any of EDHREC's top commanders for that filter."
                       : 'No commanders found.'}
                 </p>
               )

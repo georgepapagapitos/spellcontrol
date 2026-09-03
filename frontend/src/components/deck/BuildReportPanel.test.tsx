@@ -225,7 +225,7 @@ describe('BuildReportPanel', () => {
           report={makeReport({ synergyFills: [{ name: 'Fill A', matchedTags: ['ramp'] }] })}
         />
       );
-      expect(screen.getByText('Fits your deck’s ramp')).toBeTruthy();
+      expect(screen.getByText("Fits your deck's ramp")).toBeTruthy();
     });
 
     it('shows the lift-flavored reason when liftedBy is present and there are no matched tags', () => {
@@ -250,7 +250,7 @@ describe('BuildReportPanel', () => {
         />
       );
       expect(
-        screen.getByText('Fits your deck’s ramp · Lifted by Sol Ring, Rhystic Study')
+        screen.getByText("Fits your deck's ramp · Lifted by Sol Ring, Rhystic Study")
       ).toBeTruthy();
     });
 
@@ -837,7 +837,7 @@ describe('BuildReportPanel — archetype disclosure', () => {
     render(
       <BuildReportPanel
         report={makeReport({
-          archetypeNote: 'Built as Enchantress — from EDHREC’s dominant theme for this commander.',
+          archetypeNote: "Built as Enchantress — from EDHREC's dominant theme for this commander.",
         })}
       />
     );

@@ -61,7 +61,7 @@ function humanizeTags(tags: string[]): string {
  *  matches the packagePicks "Lifted by X, Y" phrasing for consistency. */
 function synergyFillReason(f: { matchedTags: string[]; liftedBy?: string[] }): string {
   const tagsPart =
-    f.matchedTags.length > 0 ? `Fits your deck’s ${humanizeTags(f.matchedTags)}` : '';
+    f.matchedTags.length > 0 ? `Fits your deck's ${humanizeTags(f.matchedTags)}` : '';
   const liftPart = f.liftedBy && f.liftedBy.length > 0 ? `Lifted by ${f.liftedBy.join(', ')}` : '';
   return (
     [tagsPart, liftPart].filter(Boolean).join(' · ') ||
@@ -481,7 +481,7 @@ export function BuildReportPanel({
         <details className="build-report-subs">
           <summary>
             Used <strong>{collectionSubstitutions.length}</strong> owned card
-            {collectionSubstitutions.length === 1 ? '' : 's'} in place of staples you don’t own —
+            {collectionSubstitutions.length === 1 ? '' : 's'} in place of staples you don't own —
             why these cards?
           </summary>
           <ul className="build-report-subs-list">
@@ -502,7 +502,7 @@ export function BuildReportPanel({
           <summary>
             <strong>{synergyFills.length}</strong> card
             {synergyFills.length === 1 ? '' : 's'} had no EDHREC data for this commander — why
-            they’re here
+            they're here
           </summary>
           <ul className="build-report-subs-list">
             {synergyFills.map((f) => (

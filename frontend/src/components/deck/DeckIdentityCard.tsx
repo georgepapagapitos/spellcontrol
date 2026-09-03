@@ -592,7 +592,7 @@ export function DeckIdentityCard({
             <div className="deck-identity-card-pillar">
               <span className="deck-identity-card-eyebrow">Build health</span>
               <p className="deck-identity-card-error-text">
-                Couldn’t analyze this deck.
+                Couldn't analyze this deck.
                 {onRetryAnalysis && (
                   <>
                     {' '}

@@ -319,8 +319,8 @@ export function CollectionCombosPage() {
       {partial && (
         <div className="deck-combos-partial-banner" role="status" aria-live="polite">
           <span>
-            Showing partial results — your device couldn&rsquo;t load the full combo dataset, so
-            some combos may be missing.
+            Showing partial results — your device couldn't load the full combo dataset, so some
+            combos may be missing.
           </span>
           <button type="button" className="btn-link" onClick={refetch} disabled={loading}>
             {loading ? 'Retrying…' : 'Retry'}

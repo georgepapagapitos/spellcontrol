@@ -702,7 +702,7 @@ const MP_AXES: {
   {
     key: 'reliable',
     label: 'Color fixing',
-    hint: 'Favors lands that tap more of your deck’s colors over off-color picks.',
+    hint: "Favors lands that tap more of your deck's colors over off-color picks.",
     color: 'var(--accent)',
   },
   {
@@ -736,7 +736,7 @@ function ManaPhilosophyGroup({ customization, update }: DeckCustomizerProps) {
     <div className="mana-philosophy-group">
       <p className="deck-customizer-hint">
         Blend four priorities for the nonbasic lands the generator picks: reliable color fixing,
-        useful abilities, modal spell-lands, and price. Off by default — every deck keeps today’s
+        useful abilities, modal spell-lands, and price. Off by default — every deck keeps today's
         land priority until you turn this on.
       </p>
       <label className="collection-group-row">

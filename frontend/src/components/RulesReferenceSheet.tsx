@@ -144,7 +144,7 @@ function RulesReferenceBody({ onClose }: { onClose: () => void }) {
         >
           {loadError ? (
             <p className="rules-ref-status">
-              Couldn’t load the rules. Check your connection and reopen.
+              Couldn't load the rules. Check your connection and reopen.
             </p>
           ) : !bundle ? (
             <p className="rules-ref-status" aria-busy="true">

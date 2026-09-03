@@ -692,7 +692,7 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
             {rows.length > 0
               ? 'No cards match your filters.'
               : dynamic
-                ? 'Nothing in your collection matches this list’s rule yet — new imports that match will appear here automatically.'
+                ? "Nothing in your collection matches this list's rule yet — new imports that match will appear here automatically."
                 : 'No cards in this list yet.'}
           </p>
           {rows.length > 0 && (

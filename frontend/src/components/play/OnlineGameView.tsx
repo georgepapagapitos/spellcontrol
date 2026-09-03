@@ -239,7 +239,7 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
               undoLabel={undoLabel}
             />
           ) : (
-            <div className="ogv-spectator">You&rsquo;re viewing this game without a seat.</div>
+            <div className="ogv-spectator">You're viewing this game without a seat.</div>
           )}
         </>
       )}

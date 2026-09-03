@@ -64,7 +64,7 @@ export function ThemePicker({ commanderName, selectedSlugs, onToggle }: ThemePic
       <section className="deck-builder-section">
         <h2 className="deck-builder-section-title">Themes</h2>
         <p className="deck-builder-themes-status">
-          Couldn’t load themes.{' '}
+          Couldn't load themes.{' '}
           <button
             type="button"
             className="deck-builder-themes-retry"

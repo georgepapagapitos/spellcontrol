@@ -257,13 +257,13 @@ describe('scryfallFetch', () => {
   // These messages are rendered verbatim by three search surfaces.
   it('throws player-readable copy rather than the raw status', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('nope', { status: 400 }));
-    await expect(scryfallFetch('/cards/search?q=(((')).rejects.toThrow(/couldn’t read that search/);
+    await expect(scryfallFetch('/cards/search?q=(((')).rejects.toThrow(/couldn't read that search/);
   });
 
   it('throws connection copy when fetch itself rejects', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'));
     await expect(scryfallFetch('/cards/named?exact=Sol%20Ring')).rejects.toThrow(
-      /Couldn’t reach Scryfall/
+      /Couldn't reach Scryfall/
     );
   });
 });

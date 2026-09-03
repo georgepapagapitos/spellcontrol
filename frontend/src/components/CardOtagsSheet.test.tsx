@@ -31,7 +31,7 @@ afterEach(() => {
 const solRing = { name: 'Sol Ring', setCode: 'C21', collectorNumber: '263' };
 
 describe('CardOtagsSheet', () => {
-  it('lists the card’s tags as chips with descriptions', () => {
+  it("lists the card's tags as chips with descriptions", () => {
     renderSheet(<CardOtagsSheet card={solRing} onClose={() => {}} />);
     expect(screen.getByText('Mana rock')).toBeTruthy();
     expect(screen.getByText('Ramp')).toBeTruthy();
@@ -93,7 +93,7 @@ describe('CardOtagsSheet', () => {
     readyRef.value = false;
     errorRef.value = true;
     renderSheet(<CardOtagsSheet card={solRing} onClose={() => {}} />);
-    expect(screen.getByRole('alert').textContent).toContain('Couldn’t load the tag snapshot.');
+    expect(screen.getByRole('alert').textContent).toContain("Couldn't load the tag snapshot.");
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(ensureCardTags).toHaveBeenCalledTimes(1);
   });

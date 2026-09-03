@@ -452,7 +452,7 @@ export function ProductSearchPanel({ onClose }: Props) {
 
           {unresolved > 0 && (
             <p className="product-detail-warn">
-              {unresolved} card{unresolved === 1 ? '' : 's'} couldn’t be matched to Scryfall and
+              {unresolved} card{unresolved === 1 ? '' : 's'} couldn't be matched to Scryfall and
               will be skipped. Check the contents against the physical box.
             </p>
           )}
@@ -460,7 +460,7 @@ export function ProductSearchPanel({ onClose }: Props) {
           {selected.fetchErrors.length > 0 && (
             <p className="product-detail-warn">
               {selected.fetchErrors.length} card{selected.fetchErrors.length === 1 ? '' : 's'}{' '}
-              couldn’t be fetched — the card service was unreachable, so this list is incomplete.{' '}
+              couldn't be fetched — the card service was unreachable, so this list is incomplete.{' '}
               <button
                 type="button"
                 className="btn-link"
