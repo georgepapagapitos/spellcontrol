@@ -621,7 +621,7 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
             </span>
           )}
           <SortMenu<SortField>
-            label="Sort"
+            ariaLabel="Sort by"
             value={sortKey}
             dir={sortDir}
             options={SORT_MENU_OPTIONS}
