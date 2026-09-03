@@ -266,7 +266,7 @@ body:has(.playtest-page) {
   top: calc(var(--safe-top) + 6rem);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 902;
+  z-index: var(--z-table-banner);
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -324,7 +324,7 @@ body:has(.playtest-page) {
   top: calc(var(--safe-top) + 6rem);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 901;
+  z-index: var(--z-table-panel);
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -386,7 +386,7 @@ body:has(.playtest-page) {
   top: calc(var(--safe-top) + 6rem);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 950;
+  z-index: var(--z-table-consent);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -1186,12 +1186,12 @@ body:has(.playtest-page) {
 .playtest-ctx__backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1099;
+  z-index: calc(var(--z-overlay) - 1);
 }
 
 .playtest-ctx {
   position: fixed;
-  z-index: 1100;
+  z-index: var(--z-overlay);
   min-width: 12.5rem;
   max-width: calc(100vw - 1rem);
   background: var(--surface);
@@ -1533,7 +1533,7 @@ body:has(.playtest-page) {
   right: 0;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 900;
+  z-index: var(--z-table-chrome);
   background: var(--surface-raised);
   color: var(--text-primary);
   border: 0.5px solid var(--border);
@@ -1571,7 +1571,7 @@ body:has(.playtest-page) {
   transform: translateY(-50%);
   width: min(74vw, 240px);
   max-height: calc(var(--vh-safe) - 1.5rem);
-  z-index: 901;
+  z-index: var(--z-table-panel);
   background: var(--surface);
   border: 0.5px solid var(--border);
   border-right: none;
@@ -1677,7 +1677,7 @@ body:has(.playtest-page) {
    <body> at the tokenized `--z-menu` (80). The playtest board runs its own
    ad-hoc z-index stack (900–1100), so lift this instance above it. */
 .overflow-menu-popover.playtest-zone-menu-popover {
-  z-index: 1101;
+  z-index: calc(var(--z-overlay) + 1);
 }
 
 /* ── Narrow viewport overrides ───────────────────────────────────────── */
@@ -2013,7 +2013,7 @@ body:has(.playtest-page) {
 @media (hover: hover) and (pointer: fine) {
   .playtest-opening-card:not(:disabled):hover {
     transform: translateY(-6px);
-    z-index: 99;
+    z-index: 1;
   }
 }
 
@@ -2021,7 +2021,7 @@ body:has(.playtest-page) {
   transform: translateY(-12px);
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent);
-  z-index: 100;
+  z-index: 2;
 }
 
 .playtest-opening-card.is-dragging {
@@ -2376,7 +2376,7 @@ body:has(.playtest-page) {
 
 .playtest-life-panel-floating {
   position: fixed;
-  z-index: 1100;
+  z-index: var(--z-overlay);
   min-width: 15rem;
   max-width: calc(100vw - 1rem);
   background: var(--surface);

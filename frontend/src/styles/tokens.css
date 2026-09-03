@@ -216,6 +216,14 @@
      panel *underneath* its own trigger's bar. */
   --z-menu: 120;
   --z-suggest: 200;
+  /* Solo-playtest table chrome: the zones tab and its panel, the takeback
+     and resistance banners and the consent prompt stack above the board's
+     own cards and below every modal. Named so playtest.css never carries a
+     bare literal in the 900s again. */
+  --z-table-chrome: 900;
+  --z-table-panel: 901;
+  --z-table-banner: 902;
+  --z-table-consent: 950;
   --z-modal: 1000;
   --z-overlay: 1100;
   /* Keyboard-docked tray (mobile commander search) — portaled to <body>, so it
