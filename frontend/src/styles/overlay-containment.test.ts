@@ -313,6 +313,8 @@ describe('coarse-pointer touch floor', () => {
     ['components/InfoTip.css', '.info-tip-btn::after'],
     ['components/shared/ColorMatchModeToggle.css', '.color-mode-toggle .chip-joiner::after'],
     ['styles/play-panel-menus.css', '.seat-menu-row input'],
+    ['styles/search-controls.css', '.search-pill'],
+    ['styles/play-setup.css', '.play-setup-seat-name'],
     ['styles/play-panel-menus.css', '.seat-menu-row .pill-btn'],
     ['styles/binder-card-management.css', '.back-link'],
     ['styles/binder-grid-slots.css', '.page-num-link::after'],

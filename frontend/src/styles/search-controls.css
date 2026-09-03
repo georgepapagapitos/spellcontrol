@@ -95,6 +95,12 @@
   }
 }
 @media (pointer: coarse) {
+  /* The pill keeps its button-height on desktop; on touch it takes the
+     44px floor like every other free-standing control. */
+  .search-pill {
+    min-height: 44px;
+  }
+
   .search-pill-clear {
     min-width: 44px;
     min-height: 44px;

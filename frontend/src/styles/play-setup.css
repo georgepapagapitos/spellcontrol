@@ -843,3 +843,10 @@ body:has(.game-board) .modal-backdrop {
     min-height: 44px;
   }
 }
+
+/* Seat name fields are typed into on a phone mid-setup — the 44px floor. */
+@media (pointer: coarse) {
+  .play-setup-seat-name {
+    min-height: 44px;
+  }
+}
