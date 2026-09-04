@@ -178,7 +178,7 @@ jobs:
       # these 69-package installs into a 4-minute wait, and this job hit its
       # 15-minute cap before typecheck ever started.
       - name: Restore shared package dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: packages/*/node_modules
           key: shared-packages-${{ runner.os }}-node22-${{ hashFiles('packages/*/package-lock.json') }}
@@ -285,7 +285,7 @@ jobs:
       # build each file: dependency before the consumer install so its
       # dist-guarded prepare is a no-op.
       - name: Restore shared package dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: packages/*/node_modules
           key: shared-packages-${{ runner.os }}-node22-${{ hashFiles('packages/*/package-lock.json') }}
