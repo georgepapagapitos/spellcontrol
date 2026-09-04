@@ -123,6 +123,24 @@ describe('App — "/" route resolution', () => {
   });
 });
 
+describe('App — /settings alias', () => {
+  it('forwards to /you and keeps the query string (the OAuth link result rides on it)', () => {
+    authState.status = 'authed';
+    authState.user = { id: 'u1', username: 'alice', role: 'user' };
+    hasEverVisitedMock.mockReturnValue(true);
+    renderAt('/settings?linked=google');
+    expect(screen.getByTestId('navigate').getAttribute('data-to')).toBe('/you?linked=google');
+  });
+
+  it('forwards a bare /settings to a bare /you', () => {
+    authState.status = 'authed';
+    authState.user = { id: 'u1', username: 'alice', role: 'user' };
+    hasEverVisitedMock.mockReturnValue(true);
+    renderAt('/settings');
+    expect(screen.getByTestId('navigate').getAttribute('data-to')).toBe('/you');
+  });
+});
+
 describe('App — "*" (unmatched path) route resolution', () => {
   it('guest → /collection', () => {
     authState.status = 'guest';

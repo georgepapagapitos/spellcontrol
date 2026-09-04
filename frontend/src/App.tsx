@@ -1,7 +1,15 @@
 import { logger } from '@/lib/logger';
 import { BrandMark } from '@/components/shared/BrandMark';
 import { lazy, Suspense, useEffect, useRef, type ComponentType } from 'react';
-import { Routes, Route, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import {
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { CollectionHubLayout } from './components/CollectionHubLayout';
 // Eager pages — the entry surfaces a first paint lands on. WelcomePage is the
@@ -172,6 +180,16 @@ function BootSplash() {
 function LegacyCubeRedirect() {
   const { id } = useParams();
   return <Navigate to={id ? `/decks/cube/${id}` : '/decks/cube'} replace />;
+}
+
+/** `/settings` is the You page's old address; the header sync pill, the
+ *  auto-link banner and the backend's OAuth link callback still use it. The
+ *  query string has to survive the forward — `/settings?linked=google` is how
+ *  the "Google account linked." toast reaches the page, and a bare
+ *  `<Navigate to="/you">` silently dropped it. */
+function SettingsRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={`/you${search}`} replace />;
 }
 
 export default function App() {
@@ -379,7 +397,7 @@ export default function App() {
             <Route path="/trades" element={<TradesPage />} />
             <Route path="/pods" element={<PodsIndexPage />} />
             <Route path="/pods/:id" element={<PodHubPage />} />
-            <Route path="/settings" element={<Navigate to="/you" replace />} />
+            <Route path="/settings" element={<SettingsRedirect />} />
             <Route
               path="/admin"
               element={isAdmin ? <AdminPage /> : <Navigate to="/collection" replace />}
