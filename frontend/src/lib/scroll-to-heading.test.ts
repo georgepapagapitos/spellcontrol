@@ -24,6 +24,19 @@ describe('scrollToHeading', () => {
     expect(document.activeElement).toBe(el);
   });
 
+  it('re-pins without stealing focus when focus is false', () => {
+    document.body.innerHTML =
+      '<h2 id="target-heading">Target</h2><input id="field" aria-label="Field" />';
+    const el = document.getElementById('target-heading')!;
+    const field = document.getElementById('field')!;
+    field.focus();
+
+    scrollToHeading('target-heading', { focus: false });
+
+    expect(el.scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ block: 'start' }));
+    expect(document.activeElement).toBe(field);
+  });
+
   it('does not throw and does not move focus when the id does not exist', () => {
     expect(() => scrollToHeading('missing-id')).not.toThrow();
     expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
