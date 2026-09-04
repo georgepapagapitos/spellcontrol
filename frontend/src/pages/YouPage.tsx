@@ -421,7 +421,12 @@ export function YouPage() {
           <SettingsSection
             id="settings-profile-title"
             title="Profile"
-            hint="Shown on your public profile and anywhere you appear to other players."
+            hint={
+              <>
+                Shown on your <Link to={`/u/${username}`}>public profile</Link> and anywhere you
+                appear to other players.
+              </>
+            }
           >
             <ProfileEditor />
           </SettingsSection>

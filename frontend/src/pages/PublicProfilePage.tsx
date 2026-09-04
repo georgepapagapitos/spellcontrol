@@ -282,14 +282,23 @@ function PublicProfilePageInner({ username }: { username: string }) {
   return (
     <SharedShell
       action={
-        <button
-          type="button"
-          className="btn-link public-profile-report-btn"
-          aria-label="Report this profile"
-          onClick={() => setReporting(true)}
-        >
-          Report
-        </button>
+        profile.isOwner ? (
+          // Your own profile: the way back to the editor on /you replaces
+          // Report (nobody reports themselves). Closes the round trip the
+          // Profile card's "public profile" link opens.
+          <Link to="/you?section=profile" className="btn-link public-profile-report-btn">
+            Edit profile
+          </Link>
+        ) : (
+          <button
+            type="button"
+            className="btn-link public-profile-report-btn"
+            aria-label="Report this profile"
+            onClick={() => setReporting(true)}
+          >
+            Report
+          </button>
+        )
       }
     >
       <main className="shared-view public-profile-view">

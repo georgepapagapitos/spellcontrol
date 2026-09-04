@@ -223,6 +223,14 @@ describe('you-page — hero copy', () => {
     expect(screen.getByRole('heading', { name: 'Profile' })).toBeTruthy();
   });
 
+  it('links the Profile card to the public profile', () => {
+    authState.user = { username: 'alice', id: 'u1' };
+    authState.status = 'authed';
+    renderYouPage();
+    const link = screen.getByRole('link', { name: 'public profile' });
+    expect(link.getAttribute('href')).toBe('/u/alice');
+  });
+
   it('never calls the page Settings', () => {
     authState.user = { username: 'alice', id: 'u1' };
     authState.status = 'authed';
