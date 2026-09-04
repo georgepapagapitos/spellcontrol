@@ -4041,11 +4041,29 @@ search intact, because `/settings?linked=google` is how the "Google account
 linked." toast reaches the page — a bare `<Navigate to="/you">` dropped it
 and the toast never fired.
 
-**Known gap, deliberately left:** a desktop guest has no door to `/you` at
-all — the header shows only "Sign in" for guests and the tab bar doesn't
-render at ≥1024px — so theme and currency are reachable for a desktop guest
-only by URL or the command palette. That is a navigation change (§ App
-chrome), not a naming one, and is not settled here.
+**A landed heading sits one step in, not flush.** `scrollIntoView` aligns
+the heading to the scrollport's top edge and ignores the container's
+padding, so the first landings sat pressed against the header on desktop
+and the screen edge on a phone. Every heading the link map can target
+(`.settings-tier-header`, `.settings-section-header`, `.settings-card-title`
+inside `.settings-page`) carries `scroll-margin-top: var(--space-4)` — one
+rule, one value, no per-heading offsets.
+
+**The desktop guest's door is the Settings gear.** A guest has no avatar
+menu and the tab bar doesn't render at ≥1024px, so the header shows a gear
+`NavLink` labelled "Settings" beside "Sign in", making the same
+`?section=settings` jump the menu's item makes (theme, typeface, currency
+and backup all work without an account). Signed in, the gear gives way to
+the avatar menu — the `.site-nav-settings` gear was the original door and
+the avatar menu replaced it for players only. Before this a signed-out
+desktop user could reach those preferences only by URL or the command
+palette.
+
+**The profile round trip closes in both directions.** The Profile card's
+hint links "public profile" to `/u/:username`; on your own public profile
+the brand bar's action is "Edit profile" (→ `?section=profile`) instead of
+Report — the server's `isOwner` flag decides, and nobody reports
+themselves.
 
 ## Keyboard shortcuts — discoverability pattern (UX-334)
 
