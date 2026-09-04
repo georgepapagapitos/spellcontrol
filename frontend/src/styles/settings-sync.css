@@ -728,6 +728,17 @@
   }
 }
 
+/* A `?section=` deep link scrolls its heading to the scrollport's top edge
+   (scrollIntoView ignores the container's padding), which left the landed
+   heading flush against the header on desktop and the screen edge on a
+   phone. Every heading the link map can target gets the same margin, so
+   the tier, group and card landings all sit one step in. */
+.settings-page .settings-tier-header,
+.settings-page .settings-section-header,
+.settings-page .settings-card-title {
+  scroll-margin-top: var(--space-4);
+}
+
 /* Section header — a visual chapter-break label between groups of settings
    cards. Mono uppercase, secondary color, no card chrome. */
 .settings-section-header {
