@@ -145,6 +145,12 @@ describe('Header — guest', () => {
     expect(signIn.getAttribute('href')).toBe('/auth');
     expect(screen.queryByRole('button', { name: /account menu/i })).toBeNull();
   });
+
+  it('renders a Settings gear to the Preferences tier of /you — the desktop guest door', () => {
+    renderHeader();
+    const gear = screen.getByRole('link', { name: 'Settings' });
+    expect(gear.getAttribute('href')).toBe('/you?section=settings');
+  });
 });
 
 describe('Header — authed avatar menu', () => {
@@ -154,10 +160,11 @@ describe('Header — authed avatar menu', () => {
     authState.profile = { displayName: null, avatarImageUrl: null };
   }
 
-  it('renders no guest Sign in link', () => {
+  it('renders no guest Sign in link and no guest Settings gear', () => {
     signIn();
     renderHeader();
     expect(screen.queryByRole('link', { name: /^sign in$/i })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Settings' })).toBeNull();
   });
 
   it('opens to exactly 4 items in order: Profile, Settings, Shared links, Sign out', () => {

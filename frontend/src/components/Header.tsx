@@ -167,9 +167,32 @@ export function Header() {
               ]}
             />
           ) : (
-            <Link viewTransition to={signInHref} className="site-nav-settings" aria-label="Sign in">
-              Sign in
-            </Link>
+            <>
+              {/* A guest has no avatar menu, so this gear is the desktop's
+                  only door to /you — the same "Settings" jump the menu's
+                  item makes (the Preferences tier: theme, typeface,
+                  currency, backup all work without an account). Without it
+                  a signed-out desktop user could reach those only by URL. */}
+              <NavLink
+                viewTransition
+                to="/you?section=settings"
+                className={({ isActive }) =>
+                  isActive ? 'site-nav-settings active' : 'site-nav-settings'
+                }
+                aria-label="Settings"
+              >
+                <Settings width={18} height={18} strokeWidth={1.6} aria-hidden />
+                <span className="site-nav-settings-label">Settings</span>
+              </NavLink>
+              <Link
+                viewTransition
+                to={signInHref}
+                className="site-nav-settings"
+                aria-label="Sign in"
+              >
+                Sign in
+              </Link>
+            </>
           )}
         </nav>
       </div>
