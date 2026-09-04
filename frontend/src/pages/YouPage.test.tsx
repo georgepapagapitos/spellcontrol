@@ -8,8 +8,12 @@
  *  - w7-you-ia: the page's tier hierarchy (Identity → Preferences → Your data)
  *    and the Friends pointer row that replaced the inline FriendsManagement
  *    mount now that Friends lives at its own /friends route.
+ *  - you-page: the hero says "You" (the tab's word) for guest and player
+ *    alike, with a meta line that names only what that reader will find;
+ *    every `?section=` door lands its promised heading, and the landing is
+ *    re-pinned while late cards above it are still arriving.
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -199,6 +203,148 @@ describe('w7-you-ia — Friends pointer', () => {
   it('is absent for guests', () => {
     renderYouPage();
     expect(screen.queryByRole('link', { name: /manage friends/i })).toBeNull();
+  });
+});
+
+describe('you-page — hero copy', () => {
+  it('is titled "You" for a guest, with a meta line that does not promise a Profile card', () => {
+    renderYouPage();
+    expect(screen.getByRole('heading', { level: 1, name: 'You' })).toBeTruthy();
+    expect(screen.getByText('Account, appearance, and data tools.')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Profile' })).toBeNull();
+  });
+
+  it('is titled "You" for a signed-in player, with Profile named in the meta line', () => {
+    authState.user = { username: 'alice', id: 'u1' };
+    authState.status = 'authed';
+    renderYouPage();
+    expect(screen.getByRole('heading', { level: 1, name: 'You' })).toBeTruthy();
+    expect(screen.getByText('Profile, account, appearance, and data tools.')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Profile' })).toBeTruthy();
+  });
+
+  it('links the Profile card to the public profile', () => {
+    authState.user = { username: 'alice', id: 'u1' };
+    authState.status = 'authed';
+    renderYouPage();
+    const link = screen.getByRole('link', { name: 'public profile' });
+    expect(link.getAttribute('href')).toBe('/u/alice');
+  });
+
+  it('never calls the page Settings', () => {
+    authState.user = { username: 'alice', id: 'u1' };
+    authState.status = 'authed';
+    renderYouPage();
+    expect(screen.queryByRole('heading', { name: 'Settings' })).toBeNull();
+    // The Danger zone's backup hint names the card, not a page called Settings.
+    expect(
+      screen.getByText(/Make a backup first — Collection → Export full collection/)
+    ).toBeTruthy();
+  });
+});
+
+describe('you-page — every door lands its promised heading', () => {
+  const signedInDoors: Array<[string, string]> = [
+    ['profile', 'Profile'],
+    ['account', 'Account'],
+    ['settings', 'Preferences'],
+    ['sharing', 'Sharing'],
+    ['danger', 'Danger zone'],
+  ];
+
+  it.each(signedInDoors)('?section=%s focuses the "%s" heading', async (section, heading) => {
+    authState.user = { username: 'alice', id: 'u1' };
+    authState.status = 'authed';
+    renderYouPage(`/?section=${section}`);
+    const target = screen.getByRole('heading', { name: heading });
+    await waitFor(() => expect(document.activeElement).toBe(target));
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+  });
+
+  it('?section=account lands the guest on the Not signed in card', async () => {
+    renderYouPage('/?section=account');
+    const target = screen.getByRole('heading', { name: 'Account' });
+    await waitFor(() => expect(document.activeElement).toBe(target));
+    expect(screen.getByRole('link', { name: 'Sign in to sync' })).toBeTruthy();
+  });
+});
+
+describe('you-page — the landing is re-pinned while late cards arrive', () => {
+  type ResizeCb = () => void;
+  let callbacks: ResizeCb[];
+  let disconnects: number;
+  const OriginalResizeObserver = globalThis.ResizeObserver;
+
+  beforeEach(() => {
+    callbacks = [];
+    disconnects = 0;
+    class FakeResizeObserver {
+      constructor(cb: ResizeCb) {
+        callbacks.push(cb);
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {
+        disconnects += 1;
+      }
+    }
+    globalThis.ResizeObserver = FakeResizeObserver as unknown as typeof ResizeObserver;
+  });
+
+  afterEach(() => {
+    globalThis.ResizeObserver = OriginalResizeObserver;
+  });
+
+  it('scrolls the target again on a layout change, without moving focus a second time', async () => {
+    authState.user = { username: 'alice', id: 'u1' };
+    authState.status = 'authed';
+    renderYouPage('/?section=appearance');
+    const heading = screen.getByRole('heading', { name: 'Appearance' });
+    await waitFor(() => expect(document.activeElement).toBe(heading));
+    expect(callbacks).toHaveLength(1);
+    const scrolls = vi.mocked(Element.prototype.scrollIntoView).mock.calls.length;
+
+    // Move focus the way a fast user would, then let a card above grow.
+    screen.getByRole('button', { name: 'Sign out' }).focus();
+    act(() => callbacks[0]());
+
+    expect(vi.mocked(Element.prototype.scrollIntoView).mock.calls.length).toBe(scrolls + 1);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sign out' }));
+  });
+
+  it('?section=sign-in announces the Sign-in methods card on the pass that first finds it', async () => {
+    const { fetchIdentities } = await import('../lib/auth-api');
+    vi.mocked(fetchIdentities).mockResolvedValueOnce({ password: true, google: null });
+    authState.user = { username: 'alice', id: 'u1' };
+    authState.status = 'authed';
+    renderYouPage('/?section=sign-in');
+    // Mount: the card isn't there yet, so nothing scrolled and nothing took focus.
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+    const target = await screen.findByRole('heading', { name: 'Sign-in methods' });
+    expect(callbacks).toHaveLength(1);
+    act(() => callbacks[0]());
+    expect(document.activeElement).toBe(target);
+    // A second layout change re-pins but leaves focus where it is.
+    screen.getByRole('button', { name: 'Sign out' }).focus();
+    act(() => callbacks[0]());
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sign out' }));
+  });
+
+  it('stops re-pinning as soon as the user starts interacting', async () => {
+    authState.user = { username: 'alice', id: 'u1' };
+    authState.status = 'authed';
+    renderYouPage('/?section=appearance');
+    await waitFor(() => expect(callbacks).toHaveLength(1));
+    const before = disconnects;
+    act(() => {
+      window.dispatchEvent(new Event('pointerdown'));
+    });
+    expect(disconnects).toBeGreaterThan(before);
+  });
+
+  it('does not observe at all without a section param', () => {
+    renderYouPage('/');
+    expect(callbacks).toHaveLength(0);
   });
 });
 

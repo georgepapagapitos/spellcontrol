@@ -1,5 +1,5 @@
 import { logger } from '@/lib/logger';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
 import { Browser } from '@capacitor/browser';
@@ -39,23 +39,36 @@ import { listFriends } from '../lib/friends-client';
 import { useFriendRequests } from '../lib/use-friend-requests';
 
 import { userMessage } from '@/lib/user-error';
-// Header account-menu deep link (`/you?section=…`) → the group heading to
-// scroll/focus. Values are the header menu's own vocabulary, not the heading
-// ids themselves, so a rename of one heading only needs updating here. Every
-// group on the page has an entry — `appearance` and `sharing` are the two
-// Header.tsx currently links to; the rest are addressable for future links.
+// Deep link (`/you?section=…`) → the heading to scroll/focus. Values are the
+// linking door's own vocabulary (the header menu's "Profile" / "Settings" /
+// "Shared links", the sync pill's Account, the auto-link banner's sign-in
+// methods), not the heading ids themselves, so a rename of one heading only
+// needs updating here. `settings` lands on the Preferences tier header — the
+// page is "You"; Settings is everything below Identity, and that tier header
+// is where it starts. Every heading here must exist in the render below (a
+// missing id makes the link a silent no-op — `profile`, `account`,
+// `collection` and `danger` shipped that way once).
 const SECTION_HEADING_IDS: Record<string, string> = {
-  profile: 'settings-profile-group-title',
-  account: 'settings-account-group-title',
+  profile: 'settings-profile-title',
+  account: 'settings-account-title',
+  'sign-in': 'settings-signin-title',
+  settings: 'settings-preferences-tier-title',
   appearance: 'settings-appearance-group-title',
   'collection-preferences': 'settings-collection-prefs-group-title',
-  collection: 'settings-collection-group-title',
+  collection: 'settings-collection-title',
   sharing: 'settings-sharing-group-title',
   data: 'settings-data-group-title',
   ai: 'settings-ai-group-title',
   admin: 'settings-admin-group-title',
-  danger: 'settings-danger-group-title',
+  danger: 'settings-danger-title',
 };
+
+// How long after a `?section=` arrival the page keeps re-pinning the target
+// heading while cards above it are still arriving (the Sign-in methods card
+// renders after the identities fetch; the share-link list after its own).
+// Long enough for a slow fetch, short enough that a later resize (the user
+// expanding something) never yanks the page.
+const SECTION_SETTLE_MS = 3000;
 
 function friendsSummary(count: number | null, pending: number): string {
   if (count === null) return 'Manage friend requests and shared collections.';
@@ -112,6 +125,7 @@ export function YouPage() {
   const [unlinkBusy, setUnlinkBusy] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const sectionParam = searchParams.get('section');
+  const pageRef = useRef<HTMLDivElement>(null);
 
   // Friends pointer row (Identity tier) — a summary + link to /friends, not
   // the friend list itself (that's a real page now). Pending count reuses
@@ -182,13 +196,40 @@ export function YouPage() {
     );
   }, [searchParams, setSearchParams]);
 
-  // Deep-link arrival from the header's account menu (Settings / Shared
-  // links): scroll the matching group heading into view and focus it. An
+  // Deep-link arrival (header account menu, sync pill, auto-link banner,
+  // command palette): scroll the matching heading into view and focus it. An
   // absent or unknown `section` value is a no-op — the page just stays
   // wherever it naturally lands.
+  //
+  // One scroll on mount isn't enough for a signed-in player: the Sign-in
+  // methods card (and, lower down, the share-link list) render after their
+  // fetches resolve and push the target down by a card's height, which left
+  // "Settings" landing on the Friends card instead of Appearance. So for a
+  // short settle window, every layout change of the page re-pins the same
+  // heading. Focus is announced exactly once — on the first scroll that
+  // actually finds the heading, which for a target that is itself one of
+  // the late cards (`sign-in`) is a later pass, not the mount. The first
+  // pointer, wheel or key from the user ends the window early so a late
+  // resize can never yank a page they have started to read.
   useEffect(() => {
     const id = sectionParam ? SECTION_HEADING_IDS[sectionParam] : undefined;
-    if (id) scrollToHeading(id);
+    if (!id) return;
+    let announced = scrollToHeading(id);
+    const root = pageRef.current;
+    if (!root || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      if (scrollToHeading(id, { focus: !announced })) announced = true;
+    });
+    observer.observe(root);
+    const stop = () => observer.disconnect();
+    const timer = window.setTimeout(stop, SECTION_SETTLE_MS);
+    const interactions = ['pointerdown', 'wheel', 'keydown'] as const;
+    interactions.forEach((type) => window.addEventListener(type, stop, { passive: true }));
+    return () => {
+      stop();
+      window.clearTimeout(timer);
+      interactions.forEach((type) => window.removeEventListener(type, stop));
+    };
   }, [sectionParam]);
 
   // Native: clear the linking "busy" state when the system browser closes for
@@ -354,23 +395,38 @@ export function YouPage() {
   }
 
   return (
-    <div className="settings-page">
+    <div className="settings-page" ref={pageRef}>
+      {/* The page is "You" — the phone tab, the route and the command palette
+          all say so, and the first tier is who you are. Settings is the part
+          below Identity, not the page's name. The meta line names only what
+          this reader will actually find: a guest has no Profile card. */}
       <header className="binder-hero settings-page-hero">
         <div className="settings-page-hero-text">
-          <h1 className="binder-hero-name">Settings</h1>
-          <p className="binder-hero-meta">Account, appearance, and data tools.</p>
+          <h1 className="binder-hero-name">You</h1>
+          <p className="binder-hero-meta">
+            {username
+              ? 'Profile, account, appearance, and data tools.'
+              : 'Account, appearance, and data tools.'}
+          </p>
         </div>
       </header>
 
       {/* ═══ Identity — who you are ══════════════════════════════════════ */}
-      <h2 className="settings-tier-header">Identity</h2>
+      <h2 id="settings-identity-tier-title" className="settings-tier-header">
+        Identity
+      </h2>
 
       {username && (
         <div>
           <SettingsSection
             id="settings-profile-title"
             title="Profile"
-            hint="Shown on your public profile and anywhere you appear to other players."
+            hint={
+              <>
+                Shown on your <Link to={`/u/${username}`}>public profile</Link> and anywhere you
+                appear to other players.
+              </>
+            }
           >
             <ProfileEditor />
           </SettingsSection>
@@ -457,7 +513,9 @@ export function YouPage() {
       </div>
 
       {/* ═══ Preferences — set-and-forget defaults ═══════════════════════ */}
-      <h2 className="settings-tier-header">Preferences</h2>
+      <h2 id="settings-preferences-tier-title" className="settings-tier-header">
+        Preferences
+      </h2>
 
       <div role="group" aria-labelledby="settings-appearance-group-title">
         <h2 id="settings-appearance-group-title" className="settings-section-header">
@@ -536,7 +594,9 @@ export function YouPage() {
       <AiFeaturesSettings />
 
       {/* ═══ Your data — backup, sharing, storage ════════════════════════ */}
-      <h2 className="settings-tier-header">Your data</h2>
+      <h2 id="settings-your-data-tier-title" className="settings-tier-header">
+        Your data
+      </h2>
 
       <div>
         <SettingsSection
@@ -688,8 +748,7 @@ export function YouPage() {
             Danger zone
           </h2>
           <p className="settings-card-hint">
-            Irreversible actions. Make a backup first — Settings → Collection → Export full
-            collection.
+            Irreversible actions. Make a backup first — Collection → Export full collection.
           </p>
         </header>
         <div className="settings-card-body">
@@ -886,8 +945,8 @@ function DeleteAccountDialog({
         ) : (
           <>
             This permanently deletes the account <strong>{username}</strong> and all of its data
-            from the server. Export a backup first (Data → Export full collection) if you want to
-            keep your collection.
+            from the server. Export a backup first (Collection → Export full collection) if you want
+            to keep your collection.
           </>
         )}
       </p>

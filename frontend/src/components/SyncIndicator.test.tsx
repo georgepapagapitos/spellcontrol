@@ -330,12 +330,14 @@ describe('HeaderSyncIndicator', () => {
     expect(screen.queryByText(/Saving/)).toBeNull();
   });
 
-  it('tapping the indicator links to /settings', () => {
+  it('tapping the indicator links to the Account card on /you', () => {
     authedHeader();
     vi.spyOn(sync, 'isOnline').mockReturnValue(false);
     renderHeaderIndicator();
     const link = screen.getByRole('link');
-    expect(link.getAttribute('href')).toBe('/settings');
+    expect(link.getAttribute('href')).toBe('/you?section=account');
+    // The pill's promise names what you get, not the page's old name.
+    expect(link.getAttribute('title')).not.toMatch(/Settings/);
   });
 
   it('re-renders when the sync listener fires (offline → online + synced)', () => {

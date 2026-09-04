@@ -3964,6 +3964,107 @@ travels with the navigation (router state) and `BrewBuildPage` re-applies it
 after its mount-only store reset, so the fork never asks for the same choice
 twice.
 
+## The You page — one page, one name, precise doors
+
+The phone tab bar's fifth tab is **You**, it opens `/you`, and the page's hero
+says **You** — to a guest and to a signed-in player alike. The page is not
+called Settings anywhere a user can read: Settings is the part of You that
+starts below Identity, not the page's name. The hero's meta line names only
+what _this_ reader will find on the page ("Profile, account, appearance, and
+data tools." signed in; "Account, appearance, and data tools." as a guest —
+a guest has no Profile card, and § Voice's first-time-state rule says never
+point at a thing the reader hasn't got). Rulings, with the reasoning that
+picked each over its alternatives:
+
+- **The page takes the tab's name, not the other way round.** The tab wears
+  the player's own avatar once signed in, the route is `/you`, the command
+  palette entry is "You", and the first tier is who you are (Profile,
+  Account, Sign-in methods, the Friends pointer). An avatar under a tab that
+  says "Settings" reads wrong, and a name that switches with sign-in ("You"
+  for players, something else for guests) breaks the one thing the page has
+  to do: read the same to a first-time guest, a signed-in player, and someone
+  arriving from a header menu item. Before this a first-time guest tapped
+  "You" and landed on a page called "Settings".
+- **The header's Profile, Settings and Shared links stay three menu items
+  landing on one page** — three different jobs on one scroll — and each is a
+  `?section=` jump that puts its promised heading at the top of the viewport:
+  Profile → `?section=profile` (the Profile card), Settings →
+  `?section=settings` (the **Preferences tier header**, where everything
+  below Identity starts), Shared links → `?section=sharing`. A menu item that
+  landed on the page top would show the hero "You" under a label that said
+  "Settings" — the exact mismatch the rename removes. Every other door into
+  the page names what it lands on the same way: the header sync pill →
+  `?section=account` ("Tap for sync details", the Account card holds the full
+  indicator and retries), the auto-link banner → `?section=sign-in` ("Manage
+  sign-in methods"). A door's copy names the control or card it lands on,
+  never "Settings" as a place (§ Voice: a hint names the control).
+- **A guest sees the sign-in card first, preferences below.** Under Identity,
+  "Not signed in" with "Sign in to sync" (carrying `returnTo`, § Guest gates)
+  answers "who am I here" honestly in one row, and sign-in is the one action
+  that changes everything else on the page (Profile, Sharing, sync). It is
+  not a wall: the Theme grid is the next thing on screen, and every
+  preference and data tool works without an account.
+- **Profile sits above Account for a signed-in player.** The tab's avatar is
+  the door; the page opens on the same face, editable. Account (signed in
+  as, Sign out, Sync status) is administrative and follows.
+
+**Every `?section=` value must resolve to a heading id that exists.**
+`SECTION_HEADING_IDS` in `pages/YouPage.tsx` is the vocabulary (the door's
+own words: `profile`, `account`, `sign-in`, `settings`, `appearance`,
+`sharing`, …), and a value whose id isn't rendered is a silent no-op — four
+of them (`profile`, `account`, `collection`, `danger`) shipped that way,
+pointing at `-group-title` ids the page never had. The three tier headers
+carry ids (`settings-identity-tier-title`, `settings-preferences-tier-title`,
+`settings-your-data-tier-title`) so a tier can be a target.
+
+**A deep-link landing is re-pinned while late cards arrive.** One
+`scrollToHeading` on mount is not a landing when cards above the target
+render after their fetches (Sign-in methods after the identities call, the
+share-link list after its own): the target ends up a card's height below the
+top — "Settings" used to land a signed-in phone on the Friends card, 230px
+short of Appearance. `YouPage` observes its own root with a `ResizeObserver`
+for a short settle window (`SECTION_SETTLE_MS`) and re-scrolls the same
+heading on every layout change, focusing it exactly once — on the first pass
+that actually finds it, which for a target that is itself a late card
+(`sign-in`) is not the mount. The first pointer, wheel or key from the user
+ends the window early, so a late resize never yanks a page they have started
+reading. `scrollToHeading` returns whether it found the heading and takes
+`{ focus: false }` for the re-pin passes; it focuses with `preventScroll`,
+because a bare `focus()` runs its own scroll-if-needed and in Chromium that
+cancels the smooth scroll just started whenever the heading is already
+inside the viewport (the heading took focus and stayed mid-screen).
+
+**`/settings` is an alias that keeps its query string.** The header sync
+pill, the auto-link banner and the backend's OAuth link callback still send
+`/settings…`; `SettingsRedirect` in `App.tsx` forwards to `/you` with the
+search intact, because `/settings?linked=google` is how the "Google account
+linked." toast reaches the page — a bare `<Navigate to="/you">` dropped it
+and the toast never fired.
+
+**A landed heading sits one step in, not flush.** `scrollIntoView` aligns
+the heading to the scrollport's top edge and ignores the container's
+padding, so the first landings sat pressed against the header on desktop
+and the screen edge on a phone. Every heading the link map can target
+(`.settings-tier-header`, `.settings-section-header`, `.settings-card-title`
+inside `.settings-page`) carries `scroll-margin-top: var(--space-4)` — one
+rule, one value, no per-heading offsets.
+
+**The desktop guest's door is the Settings gear.** A guest has no avatar
+menu and the tab bar doesn't render at ≥1024px, so the header shows a gear
+`NavLink` labelled "Settings" beside "Sign in", making the same
+`?section=settings` jump the menu's item makes (theme, typeface, currency
+and backup all work without an account). Signed in, the gear gives way to
+the avatar menu — the `.site-nav-settings` gear was the original door and
+the avatar menu replaced it for players only. Before this a signed-out
+desktop user could reach those preferences only by URL or the command
+palette.
+
+**The profile round trip closes in both directions.** The Profile card's
+hint links "public profile" to `/u/:username`; on your own public profile
+the brand bar's action is "Edit profile" (→ `?section=profile`) instead of
+Report — the server's `isOwner` flag decides, and nobody reports
+themselves.
+
 ## Keyboard shortcuts — discoverability pattern (UX-334)
 
 **One global overlay, one registry.** The `?` key opens a single
