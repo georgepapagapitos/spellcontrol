@@ -173,20 +173,22 @@ describe('Header — authed avatar menu', () => {
     ]);
   });
 
-  it('Profile navigates to /you', () => {
+  // Three doors, one page: each menu item is a `?section=` jump so the
+  // heading it promised lands at the top of the viewport (YouPage pins it).
+  it('Profile navigates to /you?section=profile', () => {
     signIn();
     renderHeader();
     fireEvent.click(screen.getByRole('button', { name: /account menu/i }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Profile' }));
-    expect(navigateMock).toHaveBeenCalledWith('/you');
+    expect(navigateMock).toHaveBeenCalledWith('/you?section=profile');
   });
 
-  it('Settings navigates to /you?section=appearance', () => {
+  it('Settings navigates to /you?section=settings', () => {
     signIn();
     renderHeader();
     fireEvent.click(screen.getByRole('button', { name: /account menu/i }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Settings' }));
-    expect(navigateMock).toHaveBeenCalledWith('/you?section=appearance');
+    expect(navigateMock).toHaveBeenCalledWith('/you?section=settings');
   });
 
   it('Shared links navigates to /you?section=sharing', () => {

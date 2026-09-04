@@ -34,7 +34,7 @@ describe('AutoLinkBanner', () => {
     renderBanner();
     expect(screen.getByRole('status').textContent).toContain('@alice');
     expect(screen.getByRole('button', { name: /Got it/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Manage in Settings/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Manage sign-in methods/ })).toBeTruthy();
   });
 
   it('dismisses on "Got it" — POSTs acknowledgement, hides itself', async () => {
@@ -51,7 +51,7 @@ describe('AutoLinkBanner', () => {
     expect(useAuth.getState().autoLinkedAt).toBeNull();
   });
 
-  it('"Manage in Settings" navigates and also clears the banner', () => {
+  it('"Manage sign-in methods" navigates and also clears the banner', () => {
     useAuth.setState({
       user: { id: 'u1', username: 'alice', role: 'user' },
       status: 'authed',
@@ -59,7 +59,7 @@ describe('AutoLinkBanner', () => {
     });
     vi.spyOn(authApi, 'acknowledgeAutoLink').mockResolvedValue();
     renderBanner();
-    fireEvent.click(screen.getByRole('button', { name: /Manage in Settings/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Manage sign-in methods/ }));
     expect(useAuth.getState().autoLinkedAt).toBeNull();
     // We don't assert the URL change here — useNavigate inside MemoryRouter is
     // covered by react-router's own tests. The store state change proves the

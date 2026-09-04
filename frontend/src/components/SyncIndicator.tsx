@@ -148,9 +148,9 @@ export function SyncIndicator() {
  * Signed-out / guest / unknown: also renders nothing — there is no cloud sync
  * to report. Guests already know they're local-only from the Settings badge.
  *
- * Tapping leads to /settings (the full sync story + any retry actions live
- * there). The link wraps only the compact pill so it's a contained click
- * target — not the whole nav slot.
+ * Tapping leads to the Account card on /you (`?section=account` — the full
+ * sync story + any retry actions live there). The link wraps only the compact
+ * pill so it's a contained click target — not the whole nav slot.
  *
  * Non-happy state precedence (same as full SyncIndicator):
  *   Offline → Syncing → Sync failed → Saving (pending)
@@ -186,9 +186,9 @@ export function HeaderSyncIndicator() {
         : 'Offline';
     return (
       <Link
-        to="/settings"
+        to="/you?section=account"
         className="sync-indicator sync-indicator-offline header-sync-indicator"
-        title="Offline — changes saved on this device. Tap to open Settings."
+        title="Offline — changes saved on this device. Tap for sync details."
         aria-label={label}
       >
         {label}
@@ -200,7 +200,7 @@ export function HeaderSyncIndicator() {
   if (state === 'syncing') {
     return (
       <Link
-        to="/settings"
+        to="/you?section=account"
         className="sync-indicator sync-indicator-syncing header-sync-indicator"
         aria-label="Syncing…"
       >
@@ -214,10 +214,10 @@ export function HeaderSyncIndicator() {
   if (errored) {
     return (
       <Link
-        to="/settings"
+        to="/you?section=account"
         className="sync-indicator sync-indicator-error header-sync-indicator"
-        title="Couldn't reach the server — retrying. Tap to open Settings."
-        aria-label="Sync failed — tap to open Settings"
+        title="Couldn't reach the server — retrying. Tap for sync details."
+        aria-label="Sync failed — tap for sync details"
       >
         Sync failed
       </Link>
@@ -229,7 +229,7 @@ export function HeaderSyncIndicator() {
     const detail = pending === 1 ? 'Saving changes…' : `Saving ${pending} changes…`;
     return (
       <Link
-        to="/settings"
+        to="/you?section=account"
         className="sync-indicator sync-indicator-pending header-sync-indicator"
         title={detail}
         aria-label={detail}

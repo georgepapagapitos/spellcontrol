@@ -142,11 +142,21 @@ export function Header() {
               ariaLabel="Account menu"
               align="right"
               items={[
-                { label: 'Profile', icon: UserRound, onClick: () => navigate('/you') },
+                // Three doors into one page (/you): each is a `?section=`
+                // jump that lands its promised heading at the top of the
+                // viewport — Profile on the Profile card, Settings on the
+                // Preferences tier (where everything below Identity starts),
+                // Shared links on the Sharing group. See YouPage's
+                // SECTION_HEADING_IDS for the vocabulary.
+                {
+                  label: 'Profile',
+                  icon: UserRound,
+                  onClick: () => navigate('/you?section=profile'),
+                },
                 {
                   label: 'Settings',
                   icon: Settings,
-                  onClick: () => navigate('/you?section=appearance'),
+                  onClick: () => navigate('/you?section=settings'),
                 },
                 {
                   label: 'Shared links',

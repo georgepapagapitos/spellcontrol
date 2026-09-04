@@ -10,8 +10,8 @@ import { useAuth } from '../store/auth';
  *
  * Lifecycle: rendered at the App root, returns null unless
  * `useAuth().autoLinkedAt` is set. Dismiss → POST acknowledge-auto-link.
- * Unlink → navigate to /settings where the existing identities card
- * handles the actual unlink + clears the same flag server-side.
+ * Unlink → navigate to the Sign-in methods card on /you, which handles the
+ * actual unlink + clears the same flag server-side.
  */
 export function AutoLinkBanner() {
   const autoLinkedAt = useAuth((s) => s.autoLinkedAt);
@@ -34,10 +34,10 @@ export function AutoLinkBanner() {
           className="btn"
           onClick={() => {
             void acknowledge();
-            navigate('/settings');
+            navigate('/you?section=sign-in');
           }}
         >
-          Manage in Settings
+          Manage sign-in methods
         </button>
         <button type="button" className="btn btn-primary" onClick={() => void acknowledge()}>
           Got it

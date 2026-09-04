@@ -396,10 +396,18 @@ export function YouPage() {
 
   return (
     <div className="settings-page" ref={pageRef}>
+      {/* The page is "You" — the phone tab, the route and the command palette
+          all say so, and the first tier is who you are. Settings is the part
+          below Identity, not the page's name. The meta line names only what
+          this reader will actually find: a guest has no Profile card. */}
       <header className="binder-hero settings-page-hero">
         <div className="settings-page-hero-text">
-          <h1 className="binder-hero-name">Settings</h1>
-          <p className="binder-hero-meta">Account, appearance, and data tools.</p>
+          <h1 className="binder-hero-name">You</h1>
+          <p className="binder-hero-meta">
+            {username
+              ? 'Profile, account, appearance, and data tools.'
+              : 'Account, appearance, and data tools.'}
+          </p>
         </div>
       </header>
 
@@ -735,8 +743,7 @@ export function YouPage() {
             Danger zone
           </h2>
           <p className="settings-card-hint">
-            Irreversible actions. Make a backup first — Settings → Collection → Export full
-            collection.
+            Irreversible actions. Make a backup first — Collection → Export full collection.
           </p>
         </header>
         <div className="settings-card-body">
@@ -933,8 +940,8 @@ function DeleteAccountDialog({
         ) : (
           <>
             This permanently deletes the account <strong>{username}</strong> and all of its data
-            from the server. Export a backup first (Data → Export full collection) if you want to
-            keep your collection.
+            from the server. Export a backup first (Collection → Export full collection) if you want
+            to keep your collection.
           </>
         )}
       </p>

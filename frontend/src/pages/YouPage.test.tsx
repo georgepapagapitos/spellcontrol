@@ -8,6 +8,10 @@
  *  - w7-you-ia: the page's tier hierarchy (Identity → Preferences → Your data)
  *    and the Friends pointer row that replaced the inline FriendsManagement
  *    mount now that Friends lives at its own /friends route.
+ *  - you-page: the hero says "You" (the tab's word) for guest and player
+ *    alike, with a meta line that names only what that reader will find;
+ *    every `?section=` door lands its promised heading, and the landing is
+ *    re-pinned while late cards above it are still arriving.
  */
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -199,6 +203,35 @@ describe('w7-you-ia — Friends pointer', () => {
   it('is absent for guests', () => {
     renderYouPage();
     expect(screen.queryByRole('link', { name: /manage friends/i })).toBeNull();
+  });
+});
+
+describe('you-page — hero copy', () => {
+  it('is titled "You" for a guest, with a meta line that does not promise a Profile card', () => {
+    renderYouPage();
+    expect(screen.getByRole('heading', { level: 1, name: 'You' })).toBeTruthy();
+    expect(screen.getByText('Account, appearance, and data tools.')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Profile' })).toBeNull();
+  });
+
+  it('is titled "You" for a signed-in player, with Profile named in the meta line', () => {
+    authState.user = { username: 'alice', id: 'u1' };
+    authState.status = 'authed';
+    renderYouPage();
+    expect(screen.getByRole('heading', { level: 1, name: 'You' })).toBeTruthy();
+    expect(screen.getByText('Profile, account, appearance, and data tools.')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Profile' })).toBeTruthy();
+  });
+
+  it('never calls the page Settings', () => {
+    authState.user = { username: 'alice', id: 'u1' };
+    authState.status = 'authed';
+    renderYouPage();
+    expect(screen.queryByRole('heading', { name: 'Settings' })).toBeNull();
+    // The Danger zone's backup hint names the card, not a page called Settings.
+    expect(
+      screen.getByText(/Make a backup first — Collection → Export full collection/)
+    ).toBeTruthy();
   });
 });
 
