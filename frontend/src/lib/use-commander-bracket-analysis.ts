@@ -71,8 +71,13 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        to bust any cache from the window when Bracket Fit was missing from main.
  *   v4 — win conditions gained `assembly` (E75 assembly clock); bumped so
  *        persisted analyses recompute and the clock surfaces can render.
+ *   v5 — win-condition detector rewrite (#1870, #1876): burn needs burn
+ *        spells, permanent damage engines count, the command zone is
+ *        evidence, token-loop combos are a win path. Without a bump every
+ *        deck kept its persisted "Burn — 0 direct-damage spells" label
+ *        until its cards changed.
  */
-const ANALYSIS_ENGINE_VERSION = 'v4-assembly-clock';
+const ANALYSIS_ENGINE_VERSION = 'v5-wincon-detector';
 
 /**
  * Signature of every input that materially affects grade/bracket: commander(s)

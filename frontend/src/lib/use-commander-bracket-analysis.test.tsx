@@ -40,7 +40,7 @@ function sig(
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null
 ): string {
   return [
-    'v4-assembly-clock',
+    'v5-wincon-detector',
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
     deck.cards
