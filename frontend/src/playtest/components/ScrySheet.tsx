@@ -20,22 +20,25 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ArrowLeft, ArrowRight, Minus, Plus } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Hand, Minus, Plus, Undo2 } from 'lucide-react';
 import './ScrySheet.css';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import type { PlaytestCard, ScryMode } from '@/lib/playtest';
 
-/** Where a peeked card currently sits in the sheet: kept on top, or sent to
- *  the mode's away destination (bottom of library / graveyard). */
-type ColumnId = 'top' | 'away';
+/** Where a peeked card currently sits in the sheet: kept on top, sent to the
+ *  mode's away destination (bottom of library / graveyard), or drawn into
+ *  hand. Hand is unordered, so it is a chip row rather than a third sortable
+ *  column — which is also what keeps the two columns wide enough on a phone. */
+type ColumnId = 'top' | 'away' | 'hand';
 
 export interface ScryResolution {
   mode: ScryMode;
   top: string[];
   bottom?: string[];
   graveyard?: string[];
+  hand?: string[];
   shuffle?: boolean;
 }
 
@@ -56,8 +59,8 @@ const MODE_LABEL: Record<ScryMode, string> = {
 };
 
 const MODE_HINT: Record<ScryMode, string> = {
-  scry: 'Keep cards on top, or send them to the bottom of your library.',
-  surveil: 'Keep cards on top, or put them into your graveyard.',
+  scry: 'Keep cards on top, send them to the bottom, or draw them into your hand.',
+  surveil: 'Keep cards on top, put them into your graveyard, or draw them into your hand.',
   mill: 'Cards go to your graveyard — drag any back to keep it on top.',
 };
 
@@ -108,7 +111,7 @@ export function ScrySheet({ library, initialMode = 'scry', onClose, onResolve }:
   const signature = `${mode}:${peeked.map((c) => c.id).join('|')}`;
   const dealColumns = (): Record<ColumnId, string[]> => {
     const ids = peeked.map((c) => c.id);
-    return mode === 'mill' ? { top: [], away: ids } : { top: ids, away: [] };
+    return mode === 'mill' ? { top: [], away: ids, hand: [] } : { top: ids, away: [], hand: [] };
   };
   const [columns, setColumns] = useState<Record<ColumnId, string[]>>(dealColumns);
   const [trackedSignature, setTrackedSignature] = useState(signature);
@@ -125,13 +128,14 @@ export function ScrySheet({ library, initialMode = 'scry', onClose, onResolve }:
   function columnOf(cols: Record<ColumnId, string[]>, id: string): ColumnId | null {
     if (cols.top.includes(id)) return 'top';
     if (cols.away.includes(id)) return 'away';
+    if (cols.hand.includes(id)) return 'hand';
     return null;
   }
 
   function move(cardId: string, to: ColumnId) {
     setColumns((prev) => {
-      const from: ColumnId = to === 'top' ? 'away' : 'top';
-      if (!prev[from].includes(cardId)) return prev;
+      const from = columnOf(prev, cardId);
+      if (!from || from === to) return prev;
       return {
         ...prev,
         [from]: prev[from].filter((id) => id !== cardId),
@@ -174,19 +178,22 @@ export function ScrySheet({ library, initialMode = 'scry', onClose, onResolve }:
 
   // Only sent when set, so a plain scry stays the same dispatch it always was.
   const shuffle = (mode !== 'mill' && shuffleAfter) || undefined;
+  const hand = columns.hand.length ? columns.hand : undefined;
 
   function handleConfirm() {
     onResolve(
       mode === 'scry'
-        ? { mode, top: columns.top, bottom: columns.away, shuffle }
-        : { mode, top: columns.top, graveyard: columns.away, shuffle }
+        ? { mode, top: columns.top, bottom: columns.away, hand, shuffle }
+        : { mode, top: columns.top, graveyard: columns.away, hand, shuffle }
     );
     beginClose();
   }
 
   const confirmLabel =
     (mode === 'mill' ? `Mill ${columns.away.length}` : `${MODE_LABEL[mode]} ${peeked.length}`) +
+    (hand ? `, ${hand.length} to hand` : '') +
     (shuffle ? ', then shuffle' : '');
+  const toHand = mode === 'mill' ? undefined : (cardId: string) => move(cardId, 'hand');
   const activeCard = activeId ? byId.get(activeId) : undefined;
 
   return (
@@ -275,6 +282,30 @@ export function ScrySheet({ library, initialMode = 'scry', onClose, onResolve }:
             onDragEnd={handleDragEnd}
             onDragCancel={() => setActiveId(null)}
           >
+            {columns.hand.length > 0 && (
+              <div className="playtest-scry-hand">
+                <h3 className="playtest-scry-column__heading">To hand</h3>
+                <ul className="playtest-scry-hand__list" aria-label="To hand">
+                  {columns.hand.map((cardId) => {
+                    const card = byId.get(cardId);
+                    if (!card) return null;
+                    return (
+                      <li key={cardId} className="playtest-scry-hand__chip">
+                        <span>{card.name}</span>
+                        <button
+                          type="button"
+                          className="playtest-scry-card__move"
+                          onClick={() => move(cardId, 'top')}
+                          aria-label={`${card.name}: Back to top of library`}
+                        >
+                          <Undo2 width={16} height={16} aria-hidden />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
             <div className="playtest-scry-columns">
               <ScryColumn
                 id="top"
@@ -285,6 +316,7 @@ export function ScrySheet({ library, initialMode = 'scry', onClose, onResolve }:
                 moveLabel={`Move to ${AWAY_LABEL[mode].toLowerCase()}`}
                 moveIcon="right"
                 onMove={(cardId) => move(cardId, 'away')}
+                onHand={toHand}
               />
               <ScryColumn
                 id="away"
@@ -295,6 +327,7 @@ export function ScrySheet({ library, initialMode = 'scry', onClose, onResolve }:
                 moveLabel="Move to top of library"
                 moveIcon="left"
                 onMove={(cardId) => move(cardId, 'top')}
+                onHand={toHand}
               />
             </div>
             <DragOverlay dropAnimation={null}>
@@ -330,9 +363,21 @@ interface ColumnProps {
   moveLabel: string;
   moveIcon: 'left' | 'right';
   onMove(cardId: string): void;
+  /** Absent in mill mode — nothing is drawn off a mill. */
+  onHand?(cardId: string): void;
 }
 
-function ScryColumn({ id, heading, sub, ids, byId, moveLabel, moveIcon, onMove }: ColumnProps) {
+function ScryColumn({
+  id,
+  heading,
+  sub,
+  ids,
+  byId,
+  moveLabel,
+  moveIcon,
+  onMove,
+  onHand,
+}: ColumnProps) {
   // Droppable in its own right so an emptied column can still receive a drop —
   // a SortableContext with no items has nothing to collide with.
   const { setNodeRef, isOver } = useDroppable({ id: `col:${id}` });
@@ -360,6 +405,7 @@ function ScryColumn({ id, heading, sub, ids, byId, moveLabel, moveIcon, onMove }
                 moveLabel={moveLabel}
                 moveIcon={moveIcon}
                 onMove={onMove}
+                onHand={onHand}
               />
             );
           })}
@@ -377,6 +423,7 @@ interface SortableCardProps {
   moveLabel: string;
   moveIcon: 'left' | 'right';
   onMove(cardId: string): void;
+  onHand?(cardId: string): void;
 }
 
 function SortableScryCard({
@@ -387,6 +434,7 @@ function SortableScryCard({
   moveLabel,
   moveIcon,
   onMove,
+  onHand,
 }: SortableCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: card.id,
@@ -405,18 +453,30 @@ function SortableScryCard({
       >
         <ScryCardFace card={card} />
       </div>
-      <button
-        type="button"
-        className="playtest-scry-card__move"
-        onClick={() => onMove(card.id)}
-        aria-label={`${card.name}: ${moveLabel}`}
-      >
-        {moveIcon === 'right' ? (
-          <ArrowRight width={16} height={16} aria-hidden />
-        ) : (
-          <ArrowLeft width={16} height={16} aria-hidden />
+      <div className="playtest-scry-card__actions">
+        <button
+          type="button"
+          className="playtest-scry-card__move"
+          onClick={() => onMove(card.id)}
+          aria-label={`${card.name}: ${moveLabel}`}
+        >
+          {moveIcon === 'right' ? (
+            <ArrowRight width={16} height={16} aria-hidden />
+          ) : (
+            <ArrowLeft width={16} height={16} aria-hidden />
+          )}
+        </button>
+        {onHand && (
+          <button
+            type="button"
+            className="playtest-scry-card__move"
+            onClick={() => onHand(card.id)}
+            aria-label={`${card.name}: Put in hand`}
+          >
+            <Hand width={16} height={16} aria-hidden />
+          </button>
         )}
-      </button>
+      </div>
     </li>
   );
 }

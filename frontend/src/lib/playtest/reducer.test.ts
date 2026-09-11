@@ -981,6 +981,23 @@ describe('RESOLVE_TOP (scry / surveil / mill)', () => {
     ]);
   });
 
+  it('draws the hand list into hand (Impulse: look at 4, one to hand, rest to bottom)', () => {
+    const s = init(20);
+    const [a, b, c, d] = s.zones.library;
+    const next = applyAction(s, {
+      type: 'RESOLVE_TOP',
+      mode: 'scry',
+      top: [],
+      bottom: [a.id, c.id, d.id],
+      hand: [b.id],
+    });
+    expect(next.zones.hand.at(-1)!.id).toBe(b.id);
+    expect(next.zones.hand).toHaveLength(s.zones.hand.length + 1);
+    expect(next.zones.library.map((x) => x.id)).not.toContain(b.id);
+    expect(next.zones.library.slice(-3).map((x) => x.id)).toEqual([a.id, c.id, d.id]);
+    expect(allCardIds(next)).toEqual(allCardIds(s));
+  });
+
   it('mills into the graveyard in the given order', () => {
     const s = init(20);
     const [a, b] = s.zones.library;
