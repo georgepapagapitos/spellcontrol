@@ -161,6 +161,12 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
         expect(names(generateCube(pool, size))).toEqual(names(cube));
         expect(names(generateCube(shuffled(pool), size, { synergyLevel: 0 }))).toEqual(names(cube));
         const s = scoreCube(cube.picks, pool, band, size);
+        // E285/E286 guards on the SEED: the greedy reserves role + creature
+        // quotas, so the goodstuff cube already carries the corpus shape —
+        // interaction on target (term ≥ 0.9) and creature share at or above
+        // the corpus p25 — before any refinement.
+        expect(s.interaction).toBeGreaterThanOrEqual(0.9);
+        expect(creatureShare(cube.picks)).toBeGreaterThanOrEqual(band.type.creature.p25 - 0.01);
         rows.push({
           size,
           level: 0,
@@ -198,8 +204,12 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
             expect(score[k]).toBeGreaterThanOrEqual(0);
             expect(score[k]).toBeLessThanOrEqual(1);
           }
+          // The seed is scored against the RAW pool here (duplicates + basics
+          // still in), while generateCube scores against its deduped pool, so
+          // rankP80 — and with it the power term — differs in the 4th decimal.
+          // A 1e-3 tolerance absorbs that basis gap, not a real regression.
           const seed = scoreCube(goodstuff.picks, pool, band, size, undefined, level);
-          expect(score.total).toBeGreaterThanOrEqual(seed.total - 1e-9);
+          expect(score.total).toBeGreaterThanOrEqual(seed.total - 1e-3);
           // Engaging synergy deepens archetypes — that is the slider's promise.
           expect(score.archetype).toBeGreaterThanOrEqual(seed.archetype - 1e-9);
 
@@ -208,12 +218,10 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
           expect(removalCount(cube.picks)).toBeGreaterThanOrEqual(
             Math.floor(0.9 * removalCount(goodstuff.picks))
           );
-          // #1521 guard: creature share must not erode below the corpus p25
-          // floor, and never more than 2 points below the goodstuff seed.
+          // #1521 / E285 guard: refinement must not erode creature share below
+          // the corpus p25 floor (the seed lands at the median now).
           const creatures = creatureShare(cube.picks);
-          expect(creatures).toBeGreaterThanOrEqual(
-            Math.min(band.type.creature.p25, creatureShare(goodstuff.picks)) - 0.02
-          );
+          expect(creatures).toBeGreaterThanOrEqual(band.type.creature.p25 - 0.01);
 
           // Same pool in any order → same cube (only checked at max synergy, the
           // slowest path; the seed is already checked above).
