@@ -3031,7 +3031,11 @@ by `styles/spacing-ownership.test.ts` (the root list lives there; add a root
 when you add a shared component) and, in the browser, by the nightly
 journey's touching-siblings check (`scripts/journey.mjs`), which fails a
 screen where two stacked blocks touch. Mounting a shared component somewhere
-new? The new host declares the gap — that is the whole checklist.
+new? The new host declares the gap — that is the whole checklist. Every root
+the test lists is now converted (E287 took the last two, `.empty-state-mark`
+and `.collection-filter-chips`, via `.empty-state > .empty-state-mark` and
+`.card-list > / .container > .collection-filter-chips` host rules), so its
+not-yet-converted list is empty and stays empty.
 
 **Material system (restyle T53).** The palette is built from physical binder
 materials, not dashboard neutrals — this is the app's differentiation from the

@@ -277,12 +277,19 @@ hr {
 
 /* EmptyStateMark (E114) — decorative brand aura above the tagline. Fixed
    40px size (no layout shift), tuned quiet so it never competes with the
-   tagline for attention. */
+   tagline for attention. No outer margin of its own (caller owns spacing,
+   E287): the gap to the tagline is the host's, below. */
 .empty-state-mark {
   display: flex;
   justify-content: center;
-  margin: 0 0 var(--space-3);
   opacity: 0.8;
+}
+
+/* The mark's one host is `.empty-state`, a plain block whose children space
+   themselves by margin (tagline, hint), so the gap below the mark is
+   declared here on the host rather than by the primitive. */
+.empty-state > .empty-state-mark {
+  margin-bottom: var(--space-3);
 }
 
 .empty-state-binder-list {
