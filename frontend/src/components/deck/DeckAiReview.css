@@ -403,6 +403,14 @@
   text-decoration: line-through;
 }
 
+/* The cut half is previewable too: it keeps its struck, muted reading and
+   picks up the chip's underline so both names read as openable. */
+.deck-ai-card-chip.deck-ai-tweak-cut {
+  color: var(--text-muted);
+  text-decoration: underline line-through;
+  text-decoration-color: currentcolor;
+}
+
 /* Explicit placement, all three cells. Without it the `why` row (which spans
    both columns) pushes the action into a THIRD row, where the 1fr column
    stretches it into a full-width bar — the move and its control have to share

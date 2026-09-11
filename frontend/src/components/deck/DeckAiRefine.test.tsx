@@ -10,8 +10,9 @@ import type { Change } from '@/lib/deck-change';
 import { DeckAiRefine } from './DeckAiRefine';
 import { __resetAiStatus } from '../../lib/use-ai-status';
 
+const openCarousel = vi.fn();
 vi.mock('./useCardCarousel', () => ({
-  useCardCarousel: () => ({ open: () => {}, preview: null }),
+  useCardCarousel: () => ({ open: openCarousel, preview: null }),
 }));
 vi.mock('../../lib/deck-analysis', () => ({
   analyzeDeck: () => ({
@@ -84,6 +85,7 @@ function renderPanel(onApplyMove: (c: Change) => void) {
 beforeEach(() => {
   __resetAiStatus();
   localStorage.clear();
+  openCarousel.mockClear();
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -164,6 +166,30 @@ describe('DeckAiRefine', () => {
       inName: 'Necrogen Mists',
       reason: 'Recursion, not a symmetric tax.',
     });
+  });
+
+  it('opens the carousel from either half of a swap — a name alone is unreadable', async () => {
+    // The row names two cards the player may not have memorised. Both halves
+    // open the app's ONE preview carousel, and it opens holding every live
+    // swap so the pair can be compared by swiping.
+    stubApi(true, [
+      { add: "Hell's Caretaker", cut: 'Necrogen Mists', why: 'Recursion, not a symmetric tax.' },
+    ]);
+    renderPanel(() => {});
+    fireEvent.click(await screen.findByRole('button', { name: 'Refine this build' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: "Preview Hell's Caretaker" }));
+    expect(openCarousel).toHaveBeenLastCalledWith(
+      [
+        { name: "Hell's Caretaker", label: 'Swap in for Necrogen Mists' },
+        expect.objectContaining({ name: 'Necrogen Mists', label: "Cut for Hell's Caretaker" }),
+      ],
+      "Hell's Caretaker"
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Preview Necrogen Mists' }));
+    // Opened AT the cut card, so the preview shows what is leaving the deck.
+    expect(openCarousel).toHaveBeenLastCalledWith(expect.anything(), 'Necrogen Mists');
   });
 
   it('applies a cut-less tweak as a plain add', async () => {
