@@ -48,6 +48,9 @@
 
 .deck-size-prompt-ai {
   flex-shrink: 0;
+  /* The body is a plain column with no gap; the AI strip inside carries no
+     margin of its own, so its host wrapper spaces it off the ranked rows. */
+  margin-bottom: var(--space-3);
 }
 
 /* Desktop: the 480px card-picker default is a phone sheet's width on a

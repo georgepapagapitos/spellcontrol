@@ -10,9 +10,11 @@
 //   - horizontal overflow (the page body must never scroll sideways)
 //   - an empty body (a render crash paints nothing, and paints it quietly)
 //   - a missing document title
+//   - two stacked blocks that touch (a host that forgot its gap — see
+//     touchingSiblings below)
 //   - a screenshot, so a failure comes with the picture
 //
-// Any of the first four fails the run. Screenshots + report.json land in
+// Any of the first five fails the run. Screenshots + report.json land in
 // --out. Run by .github/workflows/nightly-journey.yml against a production
 // build served by the backend; locally:
 //
@@ -84,9 +86,119 @@ function executable() {
  * observer warnings, devtools nags. Everything else fails the screen.
  */
 const IGNORED_CONSOLE =
-  /favicon|net::ERR_ABORTED|Failed to load resource.*(401|404|429)|ResizeObserver loop|Download the React DevTools|\[vite\]|DevTools|^Cross-Origin Request Blocked|^Access to fetch at 'https:\/\/api\.scryfall\.com/;
+  /favicon|net::ERR_ABORTED|Failed to load resource.*(401|404|429)|ResizeObserver loop|Download the React DevTools|\[vite\]|DevTools|Scryfall fallback failed|Couldn't reach Scryfall/;
+/**
+ * Third-party hosts the app calls straight from the browser. A headless
+ * runner origin can be refused by them (Scryfall answers a WAF block with no
+ * CORS headers: Chrome logs "Access to fetch … blocked by CORS policy" plus a
+ * net::ERR_FAILED resource line located at the host, Firefox raises a
+ * "Cross-Origin Request Blocked" page error naming the URL). The app handles
+ * that with its own error state, so a failure at one of these hosts is their
+ * reachability, not our defect. Google Fonts is the same story: the type-set
+ * previews on /you pull a dozen faces, and Firefox raises a page error per
+ * face a runner fails to download (2026-09-11), each with a real fallback
+ * stack behind it. Same-origin failures still count.
+ */
+const THIRD_PARTY =
+  /https:\/\/([a-z0-9-]+\.)*(scryfall\.(com|io)|edhrec\.com|fonts\.(gstatic|googleapis)\.com)\//;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Stacked siblings that touch — zero gap between two blocks of content.
+ *
+ * The CSS convention is "caller owns spacing" (STYLE_GUIDE § Color &
+ * spacing): a shared component carries no outer margin, and the host that
+ * renders it lays its children out with `gap`. A host that forgets the gap
+ * renders its children flush — the AI refine panel against the build
+ * report's last pill row (#1887). No unit gate can see a gap, so this runs
+ * in the browser on every screen: every visible container, every pair of
+ * adjacent in-flow children with text, flagged when the lower one starts
+ * where the upper one ends and at least one of the two is a visual box
+ * (border, background or shadow). Two bare text lines touching is
+ * typography (a value over its label, spaced by line-height) and is not
+ * reported.
+ *
+ * Structures that touch by design are excluded: list and table rows, tab
+ * strips against their panel, segmented groups, menus and toolbars, the
+ * app chrome (header / nav / footer / main), a dialog's own header / body /
+ * footer, and anything positioned out of flow.
+ *
+ * Runs inside page.evaluate — keep it self-contained (no closures).
+ */
+function touchingSiblings() {
+  const SKIP_PARENT_TAG =
+    /^(UL|OL|DL|TABLE|THEAD|TBODY|TFOOT|TR|SELECT|DATALIST|NAV|HEADER|FOOTER|SVG|PRE|CODE)$/;
+  const SKIP_ROLE =
+    /^(list|listbox|listitem|option|tablist|tab|tabpanel|radiogroup|group|menu|menubar|menuitem|toolbar|row|rowgroup|gridcell|grid|table|tree|treeitem|navigation|banner|contentinfo|dialog|alertdialog|presentation|none)$/;
+  const SKIP_CHILD_TAG =
+    /^(LI|TR|TD|TH|OPTION|DT|DD|BR|HR|SCRIPT|STYLE|TEMPLATE|SVG|IMG|CANVAS|VIDEO|HEADER|NAV|FOOTER|ASIDE|MAIN)$/;
+  const label = (el) =>
+    el.tagName.toLowerCase() +
+    (typeof el.className === 'string' && el.className.trim()
+      ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.')
+      : '');
+  const boxed = (cs) =>
+    parseFloat(cs.borderTopWidth) > 0 ||
+    parseFloat(cs.borderBottomWidth) > 0 ||
+    (cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundColor !== 'transparent') ||
+    cs.backgroundImage !== 'none' ||
+    cs.boxShadow !== 'none';
+  const out = [];
+  for (const parent of document.body.querySelectorAll('*')) {
+    if (parent.children.length < 2) continue;
+    if (SKIP_PARENT_TAG.test(parent.tagName)) continue;
+    if (SKIP_ROLE.test(parent.getAttribute('role') || '')) continue;
+    const pcs = getComputedStyle(parent);
+    if (pcs.display === 'none' || pcs.display === 'inline' || pcs.display === 'contents') continue;
+    const kids = [];
+    for (const el of parent.children) {
+      if (SKIP_CHILD_TAG.test(el.tagName)) continue;
+      if (SKIP_ROLE.test(el.getAttribute('role') || '')) continue;
+      const cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.display === 'inline' || cs.display === 'contents') continue;
+      if (cs.visibility === 'hidden' || cs.opacity === '0') continue;
+      if (cs.position === 'absolute' || cs.position === 'fixed' || cs.position === 'sticky')
+        continue;
+      const r = el.getBoundingClientRect();
+      if (r.height < 20 || r.width < 40) continue;
+      if (!(el.innerText || '').trim()) continue;
+      kids.push({ el, r, boxed: boxed(cs) });
+    }
+    for (let i = 1; i < kids.length; i++) {
+      const a = kids[i - 1];
+      const b = kids[i];
+      const gap = b.r.top - a.r.bottom;
+      if (gap <= -1 || gap >= 1) continue; // spaced, or side by side / overlapping
+      if (Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left) < 20) continue;
+      if (!a.boxed && !b.boxed) continue;
+      const text = (el) => (el.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 32);
+      out.push({
+        key: `${label(parent)} › ${label(a.el)} | ${label(b.el)}`,
+        detail: `"${text(a.el)}" over "${text(b.el)}" at y=${Math.round(a.r.bottom)}`,
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Pairs that touch on purpose, as the `parent › a | b` keys touchingSiblings
+ * produces (tag + first two classes of each). Add a line only with the ruling
+ * that makes the touch deliberate; a new key without one is the defect this
+ * check exists to catch.
+ */
+const TOUCHING_BY_DESIGN = new Set([
+  // Index tiles are one sleeve: cover art, then the name band, then the meta
+  // strip, attached (STYLE_GUIDE § Color & spacing, sleeve matte).
+  'div.binders-index-card-body › div.binders-index-card-name | div.binders-index-card-meta',
+  // The identity card's art band is the card's own header, attached to its body.
+  'section.deck-identity-card › div.deck-identity-card-art-band | div.deck-identity-card-body',
+  // The playtest board is a full-bleed table: the tracker rail and the hand
+  // rail are edge-attached to the play surface by design.
+  'div.playtest-board › div.playtest-trackers | div.playtest-main',
+  'div.playtest-board › div.playtest-main | div.playtest-hand',
+]);
 const slug = (s) =>
   s
     .replace(/^\//, '')
@@ -139,9 +251,14 @@ async function main() {
       await page.setViewport(tier);
       const consoleErrors = [];
       page.on('console', (m) => {
-        if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 300));
+        if (m.type() !== 'error') return;
+        if (THIRD_PARTY.test(m.location()?.url ?? '') || THIRD_PARTY.test(m.text())) return;
+        consoleErrors.push(m.text().slice(0, 300));
       });
-      page.on('pageerror', (e) => consoleErrors.push('pageerror: ' + String(e).slice(0, 300)));
+      page.on('pageerror', (e) => {
+        if (THIRD_PARTY.test(String(e))) return;
+        consoleErrors.push('pageerror: ' + String(e).slice(0, 300));
+      });
 
       const visit = async (route, label = route) => {
         consoleErrors.length = 0;
@@ -178,6 +295,13 @@ async function main() {
             emptyBody: !document.body || text.trim().length === 0,
           };
         });
+        const touching = [
+          ...new Map(
+            (await page.evaluate(touchingSiblings))
+              .filter((t) => !TOUCHING_BY_DESIGN.has(t.key))
+              .map((t) => [`${t.key} — ${t.detail}`, t])
+          ).keys(),
+        ];
         const errs = consoleErrors.filter((e) => !IGNORED_CONSOLE.test(e));
         const file = `${slug(label)}__${tierName}.png`;
         await page.screenshot({ path: path.join(OUT, file) }).catch(() => {});
@@ -190,18 +314,21 @@ async function main() {
           overflow: m.overflow,
           emptyBody: m.emptyBody,
           consoleErrors: errs.slice(0, 5),
+          touching: touching.slice(0, 8),
           file,
         };
-        rec.fail = rec.overflow > 0 || rec.emptyBody || !rec.title || errs.length > 0;
+        rec.fail =
+          rec.overflow > 0 || rec.emptyBody || !rec.title || errs.length > 0 || touching.length > 0;
         results.push(rec);
         console.log(
           `${rec.fail ? 'FAIL' : ' ok '} ${BROWSER.padEnd(7)} ${tierName.padEnd(7)} ${label.padEnd(36)} ` +
-            `overflow=${rec.overflow} empty=${rec.emptyBody} errors=${errs.length}` +
+            `overflow=${rec.overflow} empty=${rec.emptyBody} errors=${errs.length} touching=${touching.length}` +
             (rec.landed !== label.split('?')[0] && !label.includes('{')
               ? ` landed=${rec.landed}`
               : '')
         );
         if (errs.length) for (const e of errs) console.log(`        ${e}`);
+        if (touching.length) for (const t of rec.touching) console.log(`        touching: ${t}`);
         return rec;
       };
 
@@ -336,6 +463,30 @@ async function main() {
           return { ok: observed === 1, expected: 1, observed };
         });
         deckHref = await page.evaluate(() => location.pathname);
+
+        // --- Generate a deck too: the post-generation "Your deck is ready"
+        // sheet is the one surface no route reaches (router state opens it
+        // once), and it is where the AI panel sat flush against the report
+        // (#1887). EDHREC drafts the 100; the picker above already depends
+        // on EDHREC, so this adds no new dependency, only time.
+        await visit('/decks/new', '/decks/new (generate)');
+        await page.waitForSelector('.commander-result-card', { timeout: 60_000 });
+        await page.evaluate(() => document.querySelector('.commander-result-card')?.click());
+        await clickText(page, /^Generate deck$/, { timeout: 60_000 });
+        await page.waitForSelector('.build-report-sheet', { timeout: 240_000 });
+        await sleep(SETTLE_MS);
+        const sheetRec = await record('/decks/{deck} (generated, build report)');
+        await assertPage(sheetRec, 'build report sheet opens after generation', async () => {
+          const observed = await page.evaluate(
+            () => document.querySelector('.build-report-sheet-heading')?.textContent?.trim() ?? null
+          );
+          return {
+            ok: observed === 'Your deck is ready',
+            expected: 'Your deck is ready',
+            observed,
+          };
+        });
+        await clickText(page, /^View my deck$/, { within: '.build-report-sheet button' });
       } else {
         await visit('/decks');
         deckHref = await page.evaluate(
@@ -426,7 +577,7 @@ async function main() {
   console.log(
     `\n${BROWSER}: ${results.length} screens, ${failed.length} failed` +
       (failed.length
-        ? `\n${failed.map((r) => `  - ${r.viewport} ${r.label}: ${r.emptyBody ? 'empty body; ' : ''}${r.overflow ? `overflow ${r.overflow}px; ` : ''}${!r.title ? 'no title; ' : ''}${r.consoleErrors.join(' | ')}`).join('\n')}`
+        ? `\n${failed.map((r) => `  - ${r.viewport} ${r.label}: ${r.emptyBody ? 'empty body; ' : ''}${r.overflow ? `overflow ${r.overflow}px; ` : ''}${!r.title ? 'no title; ' : ''}${r.touching.length ? `touching ${r.touching.join(', ')}; ` : ''}${r.consoleErrors.join(' | ')}`).join('\n')}`
         : '')
   );
   process.exit(failed.length ? 1 : 0);

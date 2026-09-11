@@ -12,3 +12,9 @@
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
+
+/* The sample-size note sits directly under the number it qualifies; the
+   note itself carries no margin, so the gap is declared here by its host. */
+.commander-popularity-stat + .thin-data-note {
+  margin-top: var(--space-1);
+}

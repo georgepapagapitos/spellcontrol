@@ -188,12 +188,6 @@
   overflow-y: auto;
 }
 
-/* The collapsed strip carries a margin-bottom for its Coach-tab mount; here
-   the body gap already separates siblings and the padding closes the bottom. */
-.build-report-sheet-body > .deck-ai-strip {
-  margin-bottom: 0;
-}
-
 /* ── Footer ────────────────────────────────────────────────────────────── */
 .build-report-sheet-footer {
   padding: var(--space-3) var(--space-4) var(--space-4);

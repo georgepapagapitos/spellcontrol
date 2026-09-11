@@ -2,10 +2,12 @@
    Sample-size disclosure on EDHREC-derived numbers. Dashed rather than solid
    on purpose: a solid warn box would read as an error the user caused, and
    this isn't a fault — it's a caveat on someone else's data. Muted, one line,
-   sitting under the number it qualifies. */
+   sitting under the number it qualifies. No outer margin: the host that
+   renders it after its number owns that gap (STYLE_GUIDE § Color & spacing,
+   "caller owns spacing"). */
 
 .thin-data-note {
-  margin: var(--space-1) 0 0;
+  margin: 0;
   padding: 0.3rem var(--space-2);
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius);
