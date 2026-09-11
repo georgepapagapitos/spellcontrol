@@ -168,7 +168,8 @@ export type PlaytestAction =
       /** Resolve a look-at-the-top-N. Ids not currently in the library — and
        *  repeats across the three lists — are ignored; `top` keeps cards on
        *  top in the given order, `bottom` puts them under the library in the
-       *  given order, `graveyard` mills them. Cards in the peeked window that
+       *  given order, `graveyard` mills them, `hand` draws them (Impulse, Dig
+       *  Through Time). Cards in the peeked window that
        *  appear in none of the lists simply stay where they were. `mode` is
        *  carried for the game log only — the reducer treats all three the
        *  same way. `shuffle` shuffles the library after the cards are placed
@@ -178,6 +179,7 @@ export type PlaytestAction =
       top: string[];
       bottom?: string[];
       graveyard?: string[];
+      hand?: string[];
       shuffle?: boolean;
     }
   | {

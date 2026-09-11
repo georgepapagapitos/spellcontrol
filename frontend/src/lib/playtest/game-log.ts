@@ -163,17 +163,25 @@ function buildRawLogEntries(
           { turn, kind: 'mill', text: `Milled ${milled} card${milled === 1 ? '' : 's'}${then}` },
         ];
       }
-      const looked = new Set([...action.top, ...(action.bottom ?? []), ...(action.graveyard ?? [])])
-        .size;
+      const looked = new Set([
+        ...action.top,
+        ...(action.bottom ?? []),
+        ...(action.graveyard ?? []),
+        ...(action.hand ?? []),
+      ]).size;
       const kept = new Set(action.top).size;
+      const drawn = next.zones.hand.length - current.zones.hand.length;
       const verb = action.mode === 'scry' ? 'Scried' : 'Surveilled';
-      const away =
-        action.mode === 'scry' ? `${looked - kept} to the bottom` : `${milled} to the graveyard`;
+      const parts: string[] = [];
+      if (drawn > 0) parts.push(`${drawn} to hand`);
+      const away = action.mode === 'scry' ? looked - kept - drawn : milled;
+      if (away > 0)
+        parts.push(action.mode === 'scry' ? `${away} to the bottom` : `${away} to the graveyard`);
       return [
         {
           turn,
           kind: action.mode === 'surveil' ? 'mill' : 'scry',
-          text: (looked > kept ? `${verb} ${looked} — ${away}` : `${verb} ${looked}`) + then,
+          text: `${verb} ${looked}` + (parts.length ? ` — ${parts.join(', ')}` : '') + then,
         },
       ];
     }

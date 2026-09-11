@@ -16,7 +16,7 @@ function renderSheet(cards = library(5)) {
 
 /** The per-card move button, addressed by its aria-label prefix. */
 function moveButton(cardName: string) {
-  return screen.getByRole('button', { name: new RegExp(`^${cardName}:`) });
+  return screen.getByRole('button', { name: new RegExp(`^${cardName}: Move`) });
 }
 
 describe('ScrySheet', () => {
@@ -44,6 +44,36 @@ describe('ScrySheet', () => {
       bottom: [],
       shuffle: true,
     });
+  });
+
+  it('draws chosen cards into hand as an unordered chip row (Impulse)', () => {
+    const onResolve = renderSheet();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Number of cards to look at' }), {
+      target: { value: '3' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Card 1: Put in hand' }));
+    expect(screen.getByRole('list', { name: 'To hand' }).textContent).toContain('Card 1');
+    expect(screen.getByRole('list', { name: 'Top of library' }).textContent).not.toContain(
+      'Card 1'
+    );
+    // Changed your mind: the chip's undo puts it back on top.
+    fireEvent.click(screen.getByRole('button', { name: 'Card 1: Back to top of library' }));
+    expect(screen.queryByRole('list', { name: 'To hand' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Card 2: Put in hand' }));
+    fireEvent.click(moveButton('Card 0'));
+    fireEvent.click(screen.getByRole('button', { name: 'Scry 3, 1 to hand' }));
+    expect(onResolve).toHaveBeenCalledWith({
+      mode: 'scry',
+      top: ['c1'],
+      bottom: ['c0'],
+      hand: ['c2'],
+    });
+  });
+
+  it('offers no hand button for mill', () => {
+    renderSheet();
+    fireEvent.click(screen.getByRole('radio', { name: 'Mill' }));
+    expect(screen.queryByRole('button', { name: /Put in hand/ })).toBeNull();
   });
 
   it('offers no shuffle for mill and never sends one', () => {

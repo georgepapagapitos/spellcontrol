@@ -330,11 +330,13 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       const top = pick(action.top);
       const bottom = pick(action.bottom);
       const graveyard = pick(action.graveyard);
+      const hand = pick(action.hand);
       if (claimed.size === 0) return state;
       const rest = state.zones.library.filter((c) => !claimed.has(c.id));
       const next = snapshot(state);
       next.zones.library = [...top, ...rest, ...bottom];
       next.zones.graveyard = next.zones.graveyard.concat(graveyard);
+      next.zones.hand = next.zones.hand.concat(hand);
       if (action.shuffle) {
         next.zones.library = shuffle(next.zones.library, mulberry32(state.rngSeed));
         next.rngSeed = nextSeed(state.rngSeed);

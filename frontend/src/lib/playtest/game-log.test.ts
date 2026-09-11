@@ -44,6 +44,21 @@ describe('buildLogEntries', () => {
     ]);
   });
 
+  it('counts cards drawn into hand separately from the ones sent away', () => {
+    const s = init(10, 1, 0);
+    const [a, b, c] = s.zones.library;
+    const action = {
+      type: 'RESOLVE_TOP' as const,
+      mode: 'scry' as const,
+      top: [a.id],
+      bottom: [c.id],
+      hand: [b.id],
+    };
+    expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([
+      { turn: 1, kind: 'scry', text: 'Scried 3 — 1 to hand, 1 to the bottom', verdict: 'locked' },
+    ]);
+  });
+
   it('notes the shuffle that followed a resolve', () => {
     const s = init(10, 1, 0);
     const [a] = s.zones.library;
