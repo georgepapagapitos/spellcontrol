@@ -770,12 +770,22 @@
    the search bar and the sort/group controls. Wraps gracefully on narrow
    viewports (≤600px hard floor). Rectangles per the STYLE_GUIDE "Shape
    language" rule: chips here are actionable (they have a × to clear), so
-   they use var(--radius) rounded-rect, not 999px pills. */
+   they use var(--radius) rounded-rect, not 999px pills. No outer margin of
+   its own (caller owns spacing, E287): the index pages (.binders-index-page,
+   .decks-index-page) are flex columns whose `gap` spaces the row, and the
+   two plain-block hosts declare the gap in the rule below. */
 .collection-filter-chips {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1);
+}
+
+/* Plain-block hosts: `.card-list` (the collection table, chips between the
+   sticky search row and the sticky controls row) and the page `.container`
+   (binder detail and Combos render as loose siblings straight into it). */
+.card-list > .collection-filter-chips,
+.container > .collection-filter-chips {
   margin-bottom: var(--space-2);
 }
 

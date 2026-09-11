@@ -44,12 +44,13 @@ const SHARED_ROOTS = [
 ];
 
 /**
- * Roots that still carry an outer margin. Each has many hosts that were laid
- * out around that margin; converting one means moving the gap into every
- * host in the same PR. Shrink this list — never grow it. A root listed here
- * is exempt from the assertion below, nothing more.
+ * Roots that still carry an outer margin. Empty since E287 converted the last
+ * two (`.empty-state-mark`, `.collection-filter-chips`): every host now
+ * declares its own gap. Never add to this set — a new shared root ships
+ * without an outer margin. A root listed here would be exempt from the
+ * assertion below, nothing more.
  */
-const NOT_YET_CONVERTED = new Set(['.empty-state-mark', '.collection-filter-chips']);
+const NOT_YET_CONVERTED = new Set<string>();
 
 function cssFiles(dir: string): string[] {
   const out: string[] = [];
@@ -129,12 +130,9 @@ describe('spacing ownership — shared roots carry no outer vertical margin', ()
     ).toEqual([]);
   });
 
-  it('the not-yet-converted list only shrinks', () => {
-    // Two roots, the ones whose hosts were laid out around their margin. When
-    // one is converted, delete it here; never add to this set.
-    expect([...NOT_YET_CONVERTED].sort()).toEqual([
-      '.collection-filter-chips',
-      '.empty-state-mark',
-    ]);
+  it('the not-yet-converted list stays empty', () => {
+    // Every root is converted (E287 took the last two). A new shared root
+    // ships without an outer margin; never add to this set.
+    expect([...NOT_YET_CONVERTED]).toEqual([]);
   });
 });
