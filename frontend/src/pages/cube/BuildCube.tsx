@@ -28,6 +28,7 @@ import { getCardsByNames } from '../../deck-builder/services/scryfall/client';
 import { fetchCubeOracle } from '../../lib/cube/oracle';
 import { loadTaggerData } from '../../deck-builder/services/tagger/client';
 import { loadCubeSignal } from '../../lib/cube/signal';
+import { ensureCardTags, getCardTags, useCardTagsReady } from '../../lib/card-tags';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
 import { CubeSize, SIZE_INFO, ColorBucket, provenance } from '../../lib/cube/targets';
@@ -101,9 +102,12 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
     () => buildAvailableCollection(collectionCards, decks, saved).names,
     [collectionCards, decks, saved]
   );
+  // The play format reads each card's oracle tags (the bundled otag index);
+  // the pool note recomputes once that snapshot lands.
+  const tagsOf = useCardTagsReady() ? getCardTags : NO_TAGS;
   const { names: uniqueNames, hidden } = useMemo(
-    () => filterPool(collectionCards, availableNames, filters),
-    [collectionCards, availableNames, filters]
+    () => filterPool(collectionCards, availableNames, filters, tagsOf),
+    [collectionCards, availableNames, filters, tagsOf]
   );
 
   const generate = useCallback(async () => {
@@ -115,26 +119,29 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
     setEnrichedMap(new Map());
     cubeStore.clear();
     try {
-      // Roles (cubeRole) and the cube power signal; both cached/deduped.
-      await Promise.all([loadTaggerData(), loadCubeSignal()]);
+      // Roles (cubeRole), the cube power signal and the oracle tags the play
+      // format reads; all cached/deduped. The pool is re-filtered here so a
+      // build never runs on names picked before the tag snapshot landed.
+      await Promise.all([loadTaggerData(), loadCubeSignal(), ensureCardTags()]);
+      const { names } = filterPool(collectionCards, availableNames, filters);
       // Pool ranking reads oracle facts for the WHOLE collection — a bulk-data
       // workload Scryfall doesn't want walked card-by-card from a browser, so
       // it comes from our own cache-backed endpoint. Card previews are filled
       // in separately by the effect below, for the picks only.
-      const enriched = await fetchCubeOracle(uniqueNames, collectionCards, (fetched, total) => {
+      const enriched = await fetchCubeOracle(names, collectionCards, (fetched, total) => {
         setFetchProgress({ fetched, total });
       });
       // Fetch phase complete — clear progress so we show the "finalizing" skeleton.
       setFetchProgress(null);
-      const pool = namesToCubePool(uniqueNames, collectionCards, enriched);
-      const newCube = generateCube(pool, size, { synergyLevel });
+      const pool = namesToCubePool(names, collectionCards, enriched);
+      const newCube = generateCube(pool, size, { synergyLevel, format: filters.format });
       cubeStore.setResult(size, newCube);
       setStatus('done');
     } catch (e) {
       setError(userMessage(e, "Couldn't build the cube. Try again."));
       setStatus('error');
     }
-  }, [uniqueNames, collectionCards, size, synergyLevel, cubeStore]);
+  }, [collectionCards, availableNames, filters, size, synergyLevel, cubeStore]);
 
   // Card art/printing details for the picks. This is the ONLY Scryfall call the
   // cube flow makes — a few hundred names, well inside the batch endpoint's
@@ -254,7 +261,12 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
   return (
     <div className="cube-build">
       <div className="cube-controls">
-        <CubeSizePicker size={size} onSize={setSize} />
+        <CubeSizePicker
+          size={size}
+          onSize={setSize}
+          format={filters.format}
+          onFormat={(format) => setFilters({ ...filters, format })}
+        />
         <SynergySlider value={synergyLevel} onChange={setSynergyLevel} />
         <PoolFilterRow filters={filters} onChange={setFilters} />
         <button
@@ -277,6 +289,10 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
             hidden.committed > 0 &&
               `${hidden.committed.toLocaleString()} committed to a deck or cube`,
             hidden.singles > 0 && `${hidden.singles.toLocaleString()} single copies`,
+            hidden.commanderOnly > 0 &&
+              `${hidden.commanderOnly.toLocaleString()} Commander-only cards left out`,
+            hidden.politics > 0 &&
+              `${hidden.politics.toLocaleString()} multiplayer politics cards left out`,
             hidden.rarity > 0 && `${hidden.rarity.toLocaleString()} above the rarity cap`,
             hidden.price > 0 &&
               `${hidden.price.toLocaleString()} over ${formatMoney(filters.maxPrice, { wholeDollars: true })}`,
@@ -432,6 +448,9 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
   );
 }
 
+/** Tag lookup before the otag snapshot lands — nothing is excluded yet. */
+const NO_TAGS = (): readonly string[] => [];
+
 const PRICE_CEILINGS: (number | null)[] = [null, 1, 2, 5, 10];
 
 /**
@@ -495,8 +514,8 @@ function PoolFilterRow({
 function SavedCubeMeta({ sc }: { sc: SavedCube }) {
   return (
     <>
-      {sc.size} cards · {SIZE_INFO[sc.size].players} players · saved{' '}
-      {formatRelativeTime(sc.savedAt)}
+      {sc.size} cards · {SIZE_INFO[sc.size].players} players
+      {sc.cube.format === 'commander' && ' · Commander'} · saved {formatRelativeTime(sc.savedAt)}
       {sc.isPhysical && (
         <span className="cube-saved-physical-tag">
           {' · '}
@@ -571,7 +590,9 @@ function CubeResult({
       <div className="cube-result-head">
         <div>
           <h2>
-            {loaded ? loaded.name : `${built}-card cube`}
+            {loaded
+              ? loaded.name
+              : `${built}-card ${cube.format === 'commander' ? 'Commander cube' : 'cube'}`}
             {built < cube.size && (
               <span className="cube-short-tag"> ({cube.size - built} short)</span>
             )}
@@ -632,8 +653,12 @@ function CubeResult({
           </p>
         ))}
         <p className="cube-provenance">
-          Targets derived from {Object.values(provenance.bands).reduce((a, b) => a + b.n, 0)}{' '}
-          popular CubeCobra cubes (updated {provenance.generatedAt.slice(0, 10)}).
+          Targets derived from{' '}
+          {Object.entries(provenance.bands)
+            .filter(([band]) => (band === 'commander') === (cube.format === 'commander'))
+            .reduce((a, [, b]) => a + b.n, 0)}{' '}
+          popular CubeCobra {cube.format === 'commander' ? 'Commander ' : 'draft '}cubes (updated{' '}
+          {provenance.generatedAt.slice(0, 10)}).
         </p>
       </div>
 

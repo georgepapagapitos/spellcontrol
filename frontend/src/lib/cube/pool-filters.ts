@@ -1,4 +1,6 @@
 import type { EnrichedCard } from '@/types';
+import { getCardTags } from '@/lib/card-tags';
+import { formatExclusion, type CubeFormat } from './play-format';
 
 /**
  * Which owned cards a cube may draw from, decided per NAME over every copy
@@ -17,6 +19,9 @@ import type { EnrichedCard } from '@/types';
  * - `rarity`: 'pauper' keeps names with a common copy, 'peasant' a common or
  *   uncommon copy — the copy you own IS what goes in the cube, so it is the
  *   owned printing's rarity that counts, not the card's cheapest printing.
+ * - `format`: the play format (see ./play-format). `limited` leaves out cards
+ *   that need a commander or the command zone, and group-hug politics cards;
+ *   `commander` leaves nothing out. Read from the card's oracle tags.
  */
 export type PoolSource = 'available' | 'spares' | 'all';
 export type RarityCap = 'any' | 'peasant' | 'pauper';
@@ -24,11 +29,13 @@ export interface PoolFilters {
   source: PoolSource;
   maxPrice: number | null;
   rarity: RarityCap;
+  format: CubeFormat;
 }
 export const DEFAULT_POOL_FILTERS: PoolFilters = {
   source: 'available',
   maxPrice: null,
   rarity: 'any',
+  format: 'limited',
 };
 
 /** Why each hidden name was left out — one reason per name, in filter order. */
@@ -43,6 +50,10 @@ export interface PoolHidden {
   price: number;
   /** A ceiling is set but no copy has a price yet. */
   unpriced: number;
+  /** `limited`: the card's rules text needs a commander or the command zone. */
+  commanderOnly: number;
+  /** `limited`: group-hug politics — it hands the one opponent cards too. */
+  politics: number;
 }
 
 const RARITY_OK: Record<RarityCap, (rarity: string) => boolean> = {
@@ -54,7 +65,9 @@ const RARITY_OK: Record<RarityCap, (rarity: string) => boolean> = {
 export function filterPool(
   collection: readonly EnrichedCard[],
   availableNames: ReadonlySet<string>,
-  filters: PoolFilters
+  filters: PoolFilters,
+  /** Oracle tags per card name — the bundled otag index by default; injected so the filter stays pure. */
+  tagsOf: (name: string) => readonly string[] = getCardTags
 ): { names: string[]; hidden: PoolHidden } {
   const byName = new Map<string, EnrichedCard[]>();
   for (const c of collection) {
@@ -63,7 +76,15 @@ export function filterPool(
     if (rows) rows.push(c);
     else byName.set(c.name, [c]);
   }
-  const hidden: PoolHidden = { committed: 0, singles: 0, rarity: 0, price: 0, unpriced: 0 };
+  const hidden: PoolHidden = {
+    committed: 0,
+    singles: 0,
+    rarity: 0,
+    price: 0,
+    unpriced: 0,
+    commanderOnly: 0,
+    politics: 0,
+  };
   const names: string[] = [];
   for (const [name, rows] of byName) {
     if (filters.source !== 'all' && !availableNames.has(name)) {
@@ -72,6 +93,11 @@ export function filterPool(
     }
     if (filters.source === 'spares' && rows.length < 2) {
       hidden.singles++;
+      continue;
+    }
+    const excluded = formatExclusion(filters.format, tagsOf(name));
+    if (excluded) {
+      hidden[excluded]++;
       continue;
     }
     if (!rows.some((r) => RARITY_OK[filters.rarity](r.rarity))) {

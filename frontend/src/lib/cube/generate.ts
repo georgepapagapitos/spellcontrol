@@ -10,6 +10,7 @@
 // into CubeCard[]; this module does the selection and the explanation.
 
 import { CubeSize, ColorBucket, CurveSlot, Role, targetsForSize, BandTargets } from './targets';
+import type { CubeFormat } from './play-format';
 import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 import type { CubeScore } from './objective';
 import { AXIS_LABEL } from './objective';
@@ -37,6 +38,8 @@ export interface Gap {
 
 export interface GeneratedCube {
   size: CubeSize;
+  /** Play format the cube was shaped for (see ./play-format). Absent on cubes saved before formats = limited. */
+  format?: CubeFormat;
   picks: Pick[];
   /** Achieved count per color bucket (what we actually selected). */
   byBucket: Record<ColorBucket, number>;
@@ -62,6 +65,12 @@ export interface CubeGenOptions {
    * environment (curve, interaction, color) — see `weightsFor` in ./objective.
    */
   synergyLevel?: number;
+  /**
+   * Which corpus the cube is shaped toward — `limited` (draft cubes of this
+   * size, the default) or `commander`. Eligibility is the POOL's business
+   * (filterPool leaves the ineligible cards out before they get here).
+   */
+  format?: CubeFormat;
 }
 
 const BUCKETS: ColorBucket[] = ['W', 'U', 'B', 'R', 'G', 'multicolor', 'colorless', 'land'];
@@ -321,7 +330,8 @@ export function generateCube(
   size: CubeSize,
   options?: CubeGenOptions
 ): GeneratedCube {
-  const band = targetsForSize(size);
+  const format: CubeFormat = options?.format ?? 'limited';
+  const band = targetsForSize(size, format);
   const synergyLevel = Math.max(0, Math.min(1, options?.synergyLevel ?? 0));
 
   // Singleton, no basics. Dedupe by oracleId keeping the best-ranked copy.
@@ -437,6 +447,7 @@ export function generateCube(
   }
   return {
     size,
+    format,
     picks: finalPicks,
     byBucket: finalByBucket,
     targetByBucket,

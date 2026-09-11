@@ -24,9 +24,16 @@ import { tmpdir } from 'node:os';
 import type { EnrichedCard } from '@/types';
 import { loadTaggerData } from '@/deck-builder/services/tagger/client';
 import { loadCubeSignal } from './signal';
+import { ensureCardTags, getCardTags } from '@/lib/card-tags';
+import { formatExclusion } from './play-format';
 import { generateCube, type CubeCard, type GeneratedCube, type Pick } from './generate';
 import { namesToCubePool } from './pool';
-import { filterPool, DEFAULT_POOL_FILTERS, type PoolFilters } from './pool-filters';
+import {
+  filterPool,
+  DEFAULT_POOL_FILTERS,
+  type PoolFilters,
+  type PoolHidden,
+} from './pool-filters';
 import type { OracleFacts } from './oracle';
 import { CUBE_SIZES, targetsForSize, type CubeSize } from './targets';
 import { draftablePoolAxes, scoreCube, type CubeScore } from './objective';
@@ -90,6 +97,9 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
    *  per-name `copies` count), so `filterPool`'s spares rule sees real counts. */
   let collection: EnrichedCard[];
   let facts: Map<string, OracleFacts>;
+  /** The same collection with nothing excluded — the `commander` format's pool. */
+  let commanderPool: CubeCard[];
+  let limitedHidden: PoolHidden;
   const rows: Row[] = [];
   const goodstuffBySize = new Map<CubeSize, GeneratedCube>();
 
@@ -100,6 +110,9 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
     const signalData = JSON.parse(
       readFileSync(resolve(here, '..', '..', '..', 'public', 'cube-signal.json'), 'utf8')
     ) as unknown;
+    const otagData = JSON.parse(
+      readFileSync(resolve(here, '..', '..', '..', 'public', 'otag-index.json'), 'utf8')
+    ) as unknown;
     vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
       if (url.endsWith('/tagger-tags.json')) {
@@ -108,9 +121,12 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
       if (url.endsWith('/cube-signal.json')) {
         return { ok: true, status: 200, json: async () => signalData } as Response;
       }
+      if (url.endsWith('/otag-index.json')) {
+        return { ok: true, status: 200, json: async () => otagData } as Response;
+      }
       throw new Error(`[live-cube] unexpected fetch ${url}`);
     });
-    await Promise.all([loadTaggerData(), loadCubeSignal()]);
+    await Promise.all([loadTaggerData(), loadCubeSignal(), ensureCardTags()]);
     const file = JSON.parse(readFileSync(resolve(POOL_PATH!), 'utf8')) as {
       cards: EnrichedCard[];
       facts: OracleFacts[];
@@ -120,8 +136,18 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
       const copies = Math.max(1, (c as unknown as { copies?: number }).copies ?? 1);
       return Array.from({ length: copies }, (_, i) => ({ ...c, copyId: `${c.name}#${i}` }));
     });
+    // The pool the Build page feeds the generator: every owned name through
+    // the DEFAULT filters (available, any price/rarity, LIMITED format — so the
+    // Commander-only and politics cards are already out).
+    const allNames = new Set(file.cards.map((c) => c.name));
+    limitedHidden = filterPool(collection, allNames, DEFAULT_POOL_FILTERS).hidden;
     pool = namesToCubePool(
-      file.cards.map((c) => c.name),
+      filterPool(collection, allNames, DEFAULT_POOL_FILTERS).names,
+      file.cards,
+      facts
+    );
+    commanderPool = namesToCubePool(
+      filterPool(collection, allNames, { ...DEFAULT_POOL_FILTERS, format: 'commander' }).names,
       file.cards,
       facts
     );
@@ -173,6 +199,67 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
     // real collection, or the EDHREC fallback is silently doing the ranking.
     const signalled = pool.filter((c) => c.cubePop != null).length / pool.length;
     expect(signalled).toBeGreaterThan(0.75);
+  });
+
+  // E288 guard: the play format is a POOL rule. In a limited cube no pick may
+  // need a commander or the command zone, at any size or slider level — and the
+  // exclusion is visible (counted) rather than silent.
+  describe('play format', () => {
+    it('limited leaves the Commander-only and politics cards out, and counts them', () => {
+      expect(limitedHidden.commanderOnly).toBeGreaterThanOrEqual(10);
+      expect(limitedHidden.politics).toBeGreaterThanOrEqual(10);
+      expect(commanderPool.length - pool.length).toBe(
+        limitedHidden.commanderOnly + limitedHidden.politics
+      );
+    });
+
+    for (const size of CUBE_SIZES) {
+      for (const level of [0, 1] as const) {
+        it(`${size} @ ${level}: no command-zone card in a limited cube`, () => {
+          const cube = generateCube(pool, size, { synergyLevel: level });
+          expect(cube.format).toBe('limited');
+          const offenders = cube.picks
+            .map((p) => p.card.name)
+            .filter((n) => formatExclusion('limited', getCardTags(n)) !== null);
+          expect(offenders).toEqual([]);
+        });
+      }
+    }
+
+    it('commander keeps them in and builds a full 360 at both slider ends', () => {
+      const band = targetsForSize(360, 'commander');
+      for (const level of [0, 1] as const) {
+        const cube = generateCube(commanderPool, 360, { synergyLevel: level, format: 'commander' });
+        expect(cube.format).toBe('commander');
+        expect(cube.shortfall).toBe(0);
+        expect(new Set(cube.picks.map((p) => p.card.oracleId)).size).toBe(360);
+        const s = level === 0 ? scoreCube(cube.picks, commanderPool, band, 360) : cube.score!;
+        expect(s.interaction).toBeGreaterThanOrEqual(0.9);
+        expect(creatureShare(cube.picks)).toBeGreaterThanOrEqual(band.type.creature.p25 - 0.01);
+        expect(rampShare(cube.picks)).toBeLessThanOrEqual(band.role.ramp.p75 + 0.01);
+        rows.push({
+          size: 360,
+          level,
+          pool: 'commander',
+          ms: 0,
+          total: s.total,
+          archetype: s.archetype,
+          interaction: s.interaction,
+          removalCount: removalCount(cube.picks),
+          creatureShare: creatureShare(cube.picks),
+          rampShare: rampShare(cube.picks),
+          swaps: 0,
+        });
+      }
+      // Command-zone cards are ELIGIBLE here — the ranking decides from there.
+      // (Ranked by all-cube popularity, Signet/Tower at ~4% still lose a 360 to
+      // 15–25% staples; a Commander-band inclusion signal is the follow-up.)
+      expect(
+        commanderPool.some(
+          (c) => formatExclusion('limited', getCardTags(c.name)) === 'commanderOnly'
+        )
+      ).toBe(true);
+    });
   });
 
   // Pool filters (lib/cube/pool-filters): a peasant / pauper / spares cube is

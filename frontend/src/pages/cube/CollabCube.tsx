@@ -11,6 +11,8 @@ import { getCardsByNames } from '../../deck-builder/services/scryfall/client';
 import { fetchCubeOracle } from '../../lib/cube/oracle';
 import { loadTaggerData } from '../../deck-builder/services/tagger/client';
 import { loadCubeSignal } from '../../lib/cube/signal';
+import { formatExclusion, type CubeFormat } from '../../lib/cube/play-format';
+import { ensureCardTags, getCardTags } from '../../lib/card-tags';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
 import { CubeSize } from '../../lib/cube/targets';
@@ -51,6 +53,9 @@ export function CollabCube() {
 
   const [size, setSize] = useState<CubeSize>(cubeStore.size);
   const [synergyLevel, setSynergyLevel] = useState(0);
+  const [format, setFormat] = useState<CubeFormat>('limited');
+  // Names the play format left out of the last build (mine + friends').
+  const [formatExcluded, setFormatExcluded] = useState(0);
   // Mirror Build mode: only my cards are filtered for availability (friends'
   // cards arrive deduped without copy-level data, so they're always included).
   const [availableOnly, setAvailableOnly] = useState(true);
@@ -152,11 +157,28 @@ export function CollabCube() {
       }
       setFailedFriends(failed);
 
-      await Promise.all([loadTaggerData(), loadCubeSignal()]);
+      await Promise.all([loadTaggerData(), loadCubeSignal(), ensureCardTags()]);
+
+      // The play format decides eligibility before anything is ranked: in a
+      // draft cube, Command Tower and friends are blanks (see play-format).
+      const eligible = (name: string) => formatExclusion(format, getCardTags(name)) === null;
+      const eligibleNames = myUniqueNames.filter(eligible);
+      const eligibleFriendCollections = friendCollections.map(({ username, cards }) => ({
+        username,
+        cards: cards.filter((fc) => eligible(fc.name)),
+      }));
+      setFormatExcluded(
+        myUniqueNames.length -
+          eligibleNames.length +
+          friendCollections.reduce(
+            (n, { cards }, i) => n + cards.length - eligibleFriendCollections[i].cards.length,
+            0
+          )
+      );
 
       // Collect all unique names across me + friends for Scryfall enrichment.
-      const allNames = new Set<string>(myUniqueNames);
-      for (const { cards } of friendCollections) {
+      const allNames = new Set<string>(eligibleNames);
+      for (const { cards } of eligibleFriendCollections) {
         for (const fc of cards) if (fc.name) allNames.add(fc.name);
       }
 
@@ -169,10 +191,10 @@ export function CollabCube() {
       setFetchProgress(null);
 
       // Build my CubeCard pool from my collection.
-      const myPool = namesToCubePool(myUniqueNames, collectionCards, enriched);
+      const myPool = namesToCubePool(eligibleNames, collectionCards, enriched);
 
       // Enrich friend cards with Scryfall data where available.
-      const enrichedFriendCollections = friendCollections.map(({ username, cards }) => ({
+      const enrichedFriendCollections = eligibleFriendCollections.map(({ username, cards }) => ({
         username,
         cards: cards.map((fc) => {
           const s = enriched.get(fc.name);
@@ -191,14 +213,23 @@ export function CollabCube() {
       const { pool, supplierMap: sm } = mergePools(myPool, myUsername, enrichedFriendCollections);
       setSupplierMap(sm);
 
-      const newCube = generateCube(pool, size, { synergyLevel });
+      const newCube = generateCube(pool, size, { synergyLevel, format });
       setCube(newCube);
       setStatus('done');
     } catch (e) {
       setError(userMessage(e, "Couldn't build the collaborative cube. Try again."));
       setStatus('error');
     }
-  }, [selectedIds, friends, collectionCards, myUniqueNames, myUsername, size, synergyLevel]);
+  }, [
+    selectedIds,
+    friends,
+    collectionCards,
+    myUniqueNames,
+    myUsername,
+    size,
+    synergyLevel,
+    format,
+  ]);
 
   const copyList = useCallback(async () => {
     if (!cube) return;
@@ -332,7 +363,7 @@ export function CollabCube() {
 
       {/* Size picker (mirrors BuildCube) */}
       <div className="cube-controls">
-        <CubeSizePicker size={size} onSize={setSize} />
+        <CubeSizePicker size={size} onSize={setSize} format={format} onFormat={setFormat} />
         <SynergySlider value={synergyLevel} onChange={setSynergyLevel} />
         <AvailableToggle
           checked={availableOnly}
@@ -350,6 +381,12 @@ export function CollabCube() {
         </button>
         {selectedIds.size === 0 && (
           <p className="cube-pool-note">Select at least one friend above to get started.</p>
+        )}
+        {formatExcluded > 0 && status === 'done' && (
+          <p className="cube-pool-note">
+            {formatExcluded.toLocaleString()} Commander-only or multiplayer politics cards left out
+            of a draft cube.
+          </p>
         )}
       </div>
 

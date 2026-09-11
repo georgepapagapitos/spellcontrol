@@ -22,7 +22,18 @@ import { dirname, join } from 'node:path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 
-const BANDS = [360, 450, 540, 720];
+// Four draft-cube size bands plus one COMMANDER band: multiplayer Commander
+// cubes (drafted into 100-card singleton decks with a commander) run more ramp,
+// less removal, more gold cards and a heavier curve than a draft cube, so the
+// `commander` play format gets its own corpus rather than the 360 band's. It is
+// keyed by name, not size — Commander cubes range 130–1,740 cards, so only the
+// size-free RATIOS are meaningful and `size` records the median mainboard.
+const BANDS = [360, 450, 540, 720, 'commander'];
+const COMMANDER_QUERY = 'tag:commander';
+// `tag:commander` also matches a few cubes only loosely about the format (a set
+// cube tagged for a Commander night, Tiny Leaders); a Commander cube says so in
+// its name.
+const isCommanderCube = (name) => /commander|edh/i.test(name);
 const TARGET_PER_BAND = 20; // top-N popular public cubes to sample per band
 const MIN_LIKES = 10; // "well-regarded" floor — keeps the long tail of personal cubes out
 const UA = 'spellcontrol-cube-miner (github.com/spellcontrol)';
@@ -35,10 +46,22 @@ for (const [tag, names] of Object.entries(tagger.tags)) tagSet[tag] = new Set(na
 const has = (tag, name) => tagSet[tag]?.has(name) ?? false;
 function cardRole(name) {
   if (has('boardwipe', name)) return 'boardwipe';
-  if (has('removal', name) || has('spot-removal', name) || has('counterspell', name)) return 'removal';
-  if (has('ramp', name) || has('cost-reducer', name) || has('mana-dork', name) || has('mana-rock', name))
+  if (has('removal', name) || has('spot-removal', name) || has('counterspell', name))
+    return 'removal';
+  if (
+    has('ramp', name) ||
+    has('cost-reducer', name) ||
+    has('mana-dork', name) ||
+    has('mana-rock', name)
+  )
     return 'ramp';
-  if (has('card-advantage', name) || has('tutor', name) || has('draw', name) || has('wheel', name) || has('cantrip', name))
+  if (
+    has('card-advantage', name) ||
+    has('tutor', name) ||
+    has('draw', name) ||
+    has('wheel', name) ||
+    has('cantrip', name)
+  )
     return 'cardDraw';
   return null;
 }
@@ -56,11 +79,17 @@ async function listPopularCubes(size, want) {
     const res = await fetch('https://cubecobra.com/search/getmoresearchitems', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'User-Agent': UA },
-      body: JSON.stringify({ query: `cards=${size}`, order: 'pop', ascending: false, lastKey }),
+      body: JSON.stringify({
+        query: size === 'commander' ? COMMANDER_QUERY : `cards=${size}`,
+        order: 'pop',
+        ascending: false,
+        lastKey,
+      }),
     });
     if (!res.ok) throw new Error(`search ${size} page ${page}: HTTP ${res.status}`);
     const data = await res.json();
     for (const c of data.cubes ?? []) {
+      if (size === 'commander' && !isCommanderCube(c.name ?? '')) continue;
       if (c.visibility === 'pu' && (c.likeCount ?? 0) >= MIN_LIKES) {
         out.push({ id: c.id, name: c.name, likes: c.likeCount ?? 0, decks: c.numDecks ?? 0 });
       }
@@ -73,7 +102,9 @@ async function listPopularCubes(size, want) {
 }
 
 async function fetchCube(id) {
-  const res = await fetch(`https://cubecobra.com/cube/api/cubeJSON/${id}`, { headers: { 'User-Agent': UA } });
+  const res = await fetch(`https://cubecobra.com/cube/api/cubeJSON/${id}`, {
+    headers: { 'User-Agent': UA },
+  });
   if (!res.ok) throw new Error(`cubeJSON ${id}: HTTP ${res.status}`);
   return res.json();
 }
@@ -83,7 +114,8 @@ async function fetchCube(id) {
 // present — it's the oracle join); the top-level type_line/cmc/colors are
 // user-overridable and absent on many cubes. Read details-first.
 const cardName = (c) => c.details?.name ?? c.name ?? '';
-const cardType = (c) => (c.details?.type_line ?? c.details?.type ?? c.type_line ?? '').toLowerCase();
+const cardType = (c) =>
+  (c.details?.type_line ?? c.details?.type ?? c.type_line ?? '').toLowerCase();
 const cardCmc = (c) => Number(c.details?.cmc ?? c.cmc ?? 0) || 0;
 const cardColors = (c) => c.details?.colors ?? c.colors ?? [];
 function colorBucket(c) {
@@ -107,7 +139,16 @@ function distribution(cube) {
   for (const c of nonland) curve[Math.min(7, Math.max(0, Math.round(cardCmc(c))))]++;
   for (const k in curve) curve[k] /= nn;
 
-  const TYPES = ['creature', 'instant', 'sorcery', 'artifact', 'enchantment', 'planeswalker', 'land', 'battle'];
+  const TYPES = [
+    'creature',
+    'instant',
+    'sorcery',
+    'artifact',
+    'enchantment',
+    'planeswalker',
+    'land',
+    'battle',
+  ];
   const type = Object.fromEntries(TYPES.map((t) => [t, 0]));
   for (const c of cards) {
     const t = cardType(c);
@@ -146,7 +187,8 @@ function agg(values) {
 }
 function aggregateBand(dists) {
   const pick = (path) => dists.map((d) => path.split('.').reduce((o, k) => o[k], d));
-  const aggGroup = (group) => Object.fromEntries(Object.keys(dists[0][group]).map((k) => [k, agg(pick(`${group}.${k}`))]));
+  const aggGroup = (group) =>
+    Object.fromEntries(Object.keys(dists[0][group]).map((k) => [k, agg(pick(`${group}.${k}`))]));
   return {
     color: aggGroup('color'),
     curve: aggGroup('curve'),
@@ -169,12 +211,12 @@ for (const size of BANDS) {
     try {
       const cube = await fetchCube(seed.id);
       const main = cube.cards?.mainboard || [];
-      if (main.length < size * 0.8) {
+      if (size !== 'commander' && main.length < size * 0.8) {
         process.stderr.write(`  skip ${seed.name} (mainboard ${main.length})\n`);
         continue;
       }
       dists.push(distribution(cube));
-      used.push(seed);
+      used.push({ ...seed, main: main.length });
       process.stderr.write(`  ✓ ${seed.name} (${main.length} cards, ${seed.likes} likes)\n`);
     } catch (e) {
       process.stderr.write(`  ✗ ${seed.name}: ${e.message}\n`);
@@ -182,9 +224,22 @@ for (const size of BANDS) {
     await sleep(700);
   }
   if (dists.length < 5) {
-    process.stderr.write(`  ⚠ only ${dists.length} cubes for band ${size} — targets may be noisy\n`);
+    process.stderr.write(
+      `  ⚠ only ${dists.length} cubes for band ${size} — targets may be noisy\n`
+    );
   }
-  const band = { size, n: dists.length, ...aggregateBand(dists) };
+  // The commander band's `size` is the median mainboard of the cubes sampled —
+  // it only scales `fixingLands` (an absolute count) to the size being built.
+  const bandSize =
+    size === 'commander'
+      ? Math.round(
+          quantile(
+            [...used.map((s) => s.main)].sort((a, b) => a - b),
+            0.5
+          )
+        )
+      : size;
+  const band = { size: bandSize, n: dists.length, ...aggregateBand(dists) };
   // Guard against the silent-garbage failure mode (e.g. a card-shape change
   // upstream zeroing every distribution). Every real cube has creatures and
   // lands — a ~0 median here means classification broke, not that cubes lack them.
@@ -201,7 +256,8 @@ const output = {
   $schema: 'derived — do not hand-edit; regenerate via frontend/scripts/mine-cube-targets.mjs',
   provenance: {
     generatedAt: new Date().toISOString(),
-    source: 'CubeCobra /search/getmoresearchitems (order=pop, public cubes); cube cards via /cube/api/cubeJSON/:id',
+    source:
+      'CubeCobra /search/getmoresearchitems (order=pop, public cubes); cube cards via /cube/api/cubeJSON/:id',
     method: `top ${TARGET_PER_BAND} popularity-ranked public cubes per size band with >= ${MIN_LIKES} likes`,
     taggerGeneratedAt: tagger.generatedAt,
     bands: provBands,
