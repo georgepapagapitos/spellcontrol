@@ -39,7 +39,7 @@ async function waitForQueue(
 beforeEach(async () => {
   estore._resetDbPromiseForTests();
   queue._resetDbPromiseForTests();
-  useCubeStore.setState({ size: 540, result: null, saved: [] });
+  useCubeStore.setState({ size: 540, result: null, loadedId: null, saved: [] });
   localStorage.clear();
   await estore.wipeAll();
   await queue.clear();
@@ -110,6 +110,37 @@ describe('useCubeStore — saved cubes', () => {
     useCubeStore.getState().loadSaved(id);
     expect(useCubeStore.getState().result).not.toBeNull();
     expect(useCubeStore.getState().size).toBe(360);
+  });
+
+  it('loadedId tracks which saved cube the working result is', () => {
+    const s = () => useCubeStore.getState();
+    s().setResult(360, makeCube(360));
+    expect(s().loadedId).toBeNull(); // a fresh build is nobody's cube yet
+    s().saveCurrent('Kept');
+    const id = s().saved[0].id;
+    expect(s().loadedId).toBe(id); // saving makes the working cube THAT cube
+    s().setResult(540, makeCube(540));
+    expect(s().loadedId).toBeNull(); // a rebuild is a new, unsaved cube again
+    s().loadSaved(id);
+    expect(s().loadedId).toBe(id);
+    s().clear();
+    expect(s().loadedId).toBeNull();
+  });
+
+  it('removeSaved of the cube on screen drops the working result with it', () => {
+    const s = () => useCubeStore.getState();
+    s().setResult(360, makeCube(360));
+    s().saveCurrent('A');
+    const a = s().saved[0].id;
+    s().setResult(360, makeCube(360));
+    s().saveCurrent('B');
+    s().loadSaved(a);
+    s().removeSaved(s().saved.find((c) => c.name === 'B')!.id);
+    expect(s().result).not.toBeNull(); // deleting ANOTHER cube leaves the view alone
+    expect(s().loadedId).toBe(a);
+    s().removeSaved(a);
+    expect(s().result).toBeNull();
+    expect(s().loadedId).toBeNull();
   });
 
   it('renameSaved and removeSaved mutate the right entry', () => {

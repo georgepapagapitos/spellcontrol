@@ -50,8 +50,6 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
   const collectionCards = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
   const pushToast = useToastsStore((s) => s.push);
-  const { ownershipFor, committedFor } = useOwnershipFor();
-
   // Default ON: a physical cube is built from cards you can actually pull, so
   // copies already committed elsewhere (today: decks) are excluded. Toggle off
   // to draw from everything you own by name.
@@ -73,6 +71,12 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
   );
   const cube = cubeStore.result;
   const saved = cubeStore.saved;
+  // The saved cube the working result IS (null = a fresh, unsaved build).
+  const loaded = useMemo(
+    () => (cubeStore.loadedId ? (saved.find((c) => c.id === cubeStore.loadedId) ?? null) : null),
+    [cubeStore.loadedId, saved]
+  );
+  const { ownershipFor, committedFor } = useOwnershipFor(loaded?.id ?? null);
 
   // Save / rename / delete dialog targets.
   const [saveOpen, setSaveOpen] = useState(false);
@@ -263,7 +267,13 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
           onClick={generate}
           disabled={status === 'working'}
         >
-          {status === 'working' ? 'Building…' : cube ? 'Rebuild cube' : 'Build cube'}
+          {status === 'working'
+            ? 'Building…'
+            : loaded
+              ? 'Build new cube'
+              : cube
+                ? 'Rebuild cube'
+                : 'Build cube'}
         </button>
         <p className="cube-pool-note">
           {availableOnly ? (
@@ -298,15 +308,7 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
                 >
                   <span className="cube-saved-name">{sc.name}</span>
                   <span className="cube-saved-meta">
-                    {sc.size} cards · {SIZE_INFO[sc.size].players} players · saved{' '}
-                    {formatRelativeTime(sc.savedAt)}
-                    {sc.isPhysical && (
-                      <span className="cube-saved-physical-tag">
-                        {' · '}
-                        <Boxes width={10} height={10} aria-hidden /> Physical ·{' '}
-                        {sc.picks.filter((p) => p.allocatedCopyId).length} reserved
-                      </span>
-                    )}
+                    <SavedCubeMeta sc={sc} />
                   </span>
                 </button>
                 <button
@@ -365,6 +367,7 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
             cube={cube}
             onCopy={copyList}
             onSave={() => setSaveOpen(true)}
+            loaded={loaded}
             ownershipFor={ownershipFor}
             committedFor={committedFor}
             enrichedMap={enrichedMap}
@@ -423,10 +426,29 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
   );
 }
 
+/** "180 cards · 4 players · saved 1h ago · Physical · 180 reserved" — the one
+ *  line that identifies a saved cube, on its row AND over the result it's loaded into. */
+function SavedCubeMeta({ sc }: { sc: SavedCube }) {
+  return (
+    <>
+      {sc.size} cards · {SIZE_INFO[sc.size].players} players · saved{' '}
+      {formatRelativeTime(sc.savedAt)}
+      {sc.isPhysical && (
+        <span className="cube-saved-physical-tag">
+          {' · '}
+          <Boxes width={10} height={10} aria-hidden /> Physical ·{' '}
+          {sc.picks.filter((p) => p.allocatedCopyId).length} reserved
+        </span>
+      )}
+    </>
+  );
+}
+
 function CubeResult({
   cube,
   onCopy,
   onSave,
+  loaded,
   ownershipFor,
   committedFor,
   enrichedMap,
@@ -434,6 +456,8 @@ function CubeResult({
   cube: GeneratedCube;
   onCopy: () => void;
   onSave: () => void;
+  /** The saved cube this result is, or null for a fresh unsaved build. */
+  loaded: SavedCube | null;
   ownershipFor: (name: string) => Ownership;
   committedFor: (name: string) => AllocationInfo[];
   enrichedMap: Map<string, ScryfallCard>;
@@ -483,19 +507,27 @@ function CubeResult({
       <div className="cube-result-head">
         <div>
           <h2>
-            {built}-card cube
+            {loaded ? loaded.name : `${built}-card cube`}
             {built < cube.size && (
               <span className="cube-short-tag"> ({cube.size - built} short)</span>
             )}
           </h2>
           <p className="cube-result-sub">
-            Drawn from {cube.poolSize.toLocaleString()} eligible singles you own.
+            {loaded ? (
+              <SavedCubeMeta sc={loaded} />
+            ) : (
+              <>Drawn from {cube.poolSize.toLocaleString()} eligible singles you own.</>
+            )}
           </p>
         </div>
         <div className="cube-result-actions">
-          <button type="button" className="btn btn-primary" onClick={onSave}>
-            Save cube
-          </button>
+          {/* A loaded cube is already saved — offering "Save cube" again only
+              minted duplicates. Rename / physical / delete live on its row. */}
+          {!loaded && (
+            <button type="button" className="btn btn-primary" onClick={onSave}>
+              Save cube
+            </button>
+          )}
           <button type="button" className="btn" onClick={onCopy}>
             Copy cube list
           </button>
