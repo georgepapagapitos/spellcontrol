@@ -150,6 +150,9 @@ function drainsDamage(oracle: string): boolean {
 // scored candidate win by default even with 5 isComplete combos in the deck.
 const COMBO_WIN_RE =
   /\bwin the game\b|\bwin an? game\b|\bloses? the game\b|\binfinite (?:extra )?turns?\b/i;
+// "You can't lose the game due to having 0 or less life" matches the
+// "lose the game" clause above but is a Platinum Angel effect, not a win.
+const COMBO_NOT_WIN_RE = /\b(?:can't|unable to) lose the game\b/i;
 // "Near-infinite" is Commander Spellbook's own phrasing for a loop bounded
 // only by a resource on the battlefield (mana rocks, life total) — same real
 // win-con as "infinite" for report purposes. "Combat damage" and "lifeloss"
@@ -158,29 +161,55 @@ const COMBO_WIN_RE =
 // engine) — the regex required the literal word "damage" right after
 // "infinite", so those fell to 'other' and the combo went unreported even
 // though it was already counted in bracketEstimation.softScore (E78 items 1).
+// "Infinite combat phases" is infinite attacks — a combat kill with any
+// creature on board (3.8k combos in the dataset carried it as their only
+// win-relevant label).
 const COMBO_DAMAGE_RE =
-  /\b(?:near-)?infinite (?:combat )?damage\b|\bunlimited damage\b|\binfinite lifeloss\b/i;
+  /\b(?:near-)?infinite (?:combat )?damage\b|\bunlimited damage\b|\binfinite lifeloss\b|\b(?:near-)?infinite combat phases\b/i;
 // An infinite creature-token loop is a win the same way infinite draw is
 // (inevitability — swing next turn, or this turn with haste). Commander
 // Spellbook phrases it "Infinite creature tokens with haste" / "Infinite hasty
 // creature tokens" / "Infinite creature tokens"; Godo's Dualcaster Mage +
 // Twinflame line fell to 'other' and the deck showed zero win-path combos.
 const COMBO_TOKENS_RE = /\binfinite (?:hasty |attacking )?(?:[\w/+-]+ )*creature tokens?\b/i;
-const COMBO_MILL_RE = /\binfinite mill\b|\bexile (?:your |their )?librar/i;
+// Tokens handed to opponents (Hunted-cycle politics) or that can't attack
+// are not a board.
+const COMBO_NOT_TOKENS_RE =
+  /\bfor (?:target |any number of |all |one or more )?(?:opponents?|players)\b|\bwith 0 power\b|\bwith defender\b/i;
+// An infinitely large (or infinitely many +1/+1 counters on a) creature is
+// the same inevitability as an infinite token board: one connection ends
+// the game. 13k combos list "Infinite +1/+1 counters on a creature" as their
+// only win-relevant label. "-1/-1 counters" is removal, excluded by the
+// literal "+1/+1".
+const COMBO_GROW_RE =
+  /\b(?:near-)?infinite \+1\/\+1 counters on\b|\b(?:near-)?infinitely (?:large|powerful) creatures?\b|\binfinite power (?:and toughness )?for\b/i;
+// "Exile your library" is a self-effect (Leveler + Lab Man is listed as
+// "Win the game" on its own); only an OPPONENT's library going away is mill.
+const COMBO_MILL_RE =
+  /\binfinite mill\b|\bexile (?:each opponent's|all opponents'|target opponent's|their) librar/i;
 // Infinite card draw is a genuine plan (assemble any answer, or deck the
 // table via inevitability) — unlike a bare infinite-mana loop below, which
 // still needs a second piece to spend the mana on, so it stays excluded.
 const COMBO_DRAW_RE = /\binfinite (?:card )?draw\b|\binfinite draw triggers\b|\bstorm count\b/i;
 const COMBO_MANA_RE = /\binfinite mana\b/i;
 
+// Audited against every distinct Commander Spellbook produces[] label in the
+// ingested dataset (1,087 labels, 2026-09-11); the label families that are
+// wins are bucketed here, everything else ('Infinite ETB', 'Infinite
+// lifegain', 'Lock', bare mana) stays 'other' because it needs a separate
+// payoff card, which Spellbook lists as its own combo when present.
 function comboBucket(
   results: string[]
-): 'win' | 'damage' | 'tokens' | 'mill' | 'draw' | 'mana' | 'other' {
+): 'win' | 'damage' | 'tokens' | 'grow' | 'mill' | 'draw' | 'mana' | 'other' {
+  // Per-label, not joined: a negative clause must veto only its own label.
+  const has = (re: RegExp, veto?: RegExp) =>
+    results.some((l) => re.test(l) && !(veto && veto.test(l)));
+  if (has(COMBO_WIN_RE, COMBO_NOT_WIN_RE)) return 'win';
+  if (has(COMBO_DAMAGE_RE)) return 'damage';
+  if (has(COMBO_TOKENS_RE, COMBO_NOT_TOKENS_RE)) return 'tokens';
+  if (has(COMBO_GROW_RE)) return 'grow';
+  if (has(COMBO_MILL_RE)) return 'mill';
   const joined = results.join(' ');
-  if (COMBO_WIN_RE.test(joined)) return 'win';
-  if (COMBO_DAMAGE_RE.test(joined)) return 'damage';
-  if (COMBO_TOKENS_RE.test(joined)) return 'tokens';
-  if (COMBO_MILL_RE.test(joined)) return 'mill';
   if (COMBO_DRAW_RE.test(joined)) return 'draw';
   if (COMBO_MANA_RE.test(joined)) return 'mana';
   return 'other';
@@ -293,17 +322,26 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
   // ── 1. Infinite combos ────────────────────────────────────────────────────
   const comboWin = combosInDeck.filter((c) => {
     const b = comboBucket(c.results);
-    return b === 'win' || b === 'damage' || b === 'tokens' || b === 'mill' || b === 'draw';
+    return (
+      b === 'win' ||
+      b === 'damage' ||
+      b === 'tokens' ||
+      b === 'grow' ||
+      b === 'mill' ||
+      b === 'draw'
+    );
   });
   if (comboWin.length > 0) {
     const allCards = Array.from(new Set(comboWin.flatMap((c) => c.cards)));
     const buckets = comboWin.map((c) => comboBucket(c.results));
     const dominant =
-      (['win', 'damage', 'tokens', 'mill'] as const).find((b) => buckets.includes(b)) ?? 'draw';
+      (['win', 'damage', 'tokens', 'grow', 'mill'] as const).find((b) => buckets.includes(b)) ??
+      'draw';
     const suffixes: Record<string, string> = {
       win: 'auto-win lines',
       damage: 'infinite damage loops',
       tokens: 'infinite creature-token loops',
+      grow: 'infinitely large creature loops',
       mill: 'infinite mill loops',
       draw: 'infinite card-draw engines',
     };

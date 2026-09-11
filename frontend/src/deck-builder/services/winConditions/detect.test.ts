@@ -205,6 +205,65 @@ describe('infinite creature-token loops', () => {
   });
 });
 
+describe('combo label audit (real Commander Spellbook produces[] labels)', () => {
+  const combo = (results: string[]) =>
+    detectWinConditions(input({ combosInDeck: [{ results, cards: ['A', 'B'] }] })).primary
+      ?.category;
+
+  it('infinite +1/+1 counters and infinitely large creatures are a win path', () => {
+    expect(combo(['Infinite +1/+1 counters on a creature'])).toBe('infinite-combo');
+    expect(combo(['Infinitely large creature until end of turn'])).toBe('infinite-combo');
+    expect(combo(['Near-infinite +1/+1 counters on a creature'])).toBe('infinite-combo');
+    expect(combo(['Infinite -1/-1 counters'])).not.toBe('infinite-combo');
+    expect(combo(['Infinite charge counters on a permanent'])).not.toBe('infinite-combo');
+  });
+
+  it('infinite combat phases are a win path', () => {
+    expect(combo(['Infinite combat phases'])).toBe('infinite-combo');
+  });
+
+  it("exiling your OWN library is not mill; an opponent's is", () => {
+    expect(combo(['Exile your library'])).not.toBe('infinite-combo');
+    expect(
+      combo(['Exile your library with the ability to play the exiled cards until end of turn'])
+    ).not.toBe('infinite-combo');
+    expect(combo(["Exile each opponent's library"])).toBe('infinite-combo');
+  });
+
+  it('"can\'t lose the game" is not a win', () => {
+    expect(combo(["You can't lose the game due to having 0 or less life"])).not.toBe(
+      'infinite-combo'
+    );
+    expect(combo(['Each opponent loses the game'])).toBe('infinite-combo');
+  });
+
+  it('tokens given to opponents or that cannot attack are not a board', () => {
+    expect(combo(['Infinite creature tokens for target opponent'])).not.toBe('infinite-combo');
+    expect(combo(['Infinite creature tokens with 0 power'])).not.toBe('infinite-combo');
+    expect(combo(['Infinite tapped creature tokens'])).toBe('infinite-combo');
+  });
+
+  it('a veto only applies to its own label, not the whole combo', () => {
+    expect(
+      combo(['Infinite creature tokens for target opponent', 'Infinite creature tokens'])
+    ).toBe('infinite-combo');
+  });
+
+  it('bare loops that need a separate payoff stay out', () => {
+    for (const l of [
+      'Infinite creature ETB',
+      'Infinite death triggers',
+      'Infinite lifegain',
+      'Infinite magecraft triggers',
+      'Infinite colorless mana',
+      'Lock',
+      'Infinite untap of creatures you control',
+    ]) {
+      expect(combo([l]), l).not.toBe('infinite-combo');
+    }
+  });
+});
+
 // ── Alt-win ────────────────────────────────────────────────────────────────
 
 describe('alt-win', () => {

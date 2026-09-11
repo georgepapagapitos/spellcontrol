@@ -76,8 +76,11 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        evidence, token-loop combos are a win path. Without a bump every
  *        deck kept its persisted "Burn — 0 direct-damage spells" label
  *        until its cards changed.
+ *   v6 — combo-label audit: +1/+1-counter / infinitely-large / combat-phase
+ *        loops are win paths, self-library exile and opponent-gifted tokens
+ *        are not.
  */
-const ANALYSIS_ENGINE_VERSION = 'v5-wincon-detector';
+const ANALYSIS_ENGINE_VERSION = 'v6-combo-labels';
 
 /**
  * Signature of every input that materially affects grade/bracket: commander(s)
