@@ -16,6 +16,12 @@ import { useToastsStore } from '../../store/toasts';
 import { useCubeStore, SavedCube } from '../../store/cube';
 import { formatRelativeTime } from '../../lib/format-time';
 import { buildAvailableCollection } from '../../lib/collection-availability';
+import { filterPool, DEFAULT_POOL_FILTERS, type PoolFilters } from '../../lib/cube/pool-filters';
+import { SelectMenu } from '../../components/SelectMenu';
+import { InfoTip } from '../../components/InfoTip';
+import { formatMoney } from '../../lib/format-money';
+import { useCurrency } from '../../lib/currency';
+import { Link } from 'react-router-dom';
 import { bindCubeCopies } from '../../lib/bind-cube-copies';
 import type { AllocationInfo } from '../../lib/allocations';
 import { getCardsByNames } from '../../deck-builder/services/scryfall/client';
@@ -37,7 +43,6 @@ import {
   CubeArchetypes,
   CubeEmptyState,
   CubeSizePicker,
-  AvailableToggle,
   CubeLoadingBlock,
   CubeErrorBlock,
   pickToPreviewCard,
@@ -50,10 +55,10 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
   const collectionCards = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
   const pushToast = useToastsStore((s) => s.push);
-  // Default ON: a physical cube is built from cards you can actually pull, so
-  // copies already committed elsewhere (today: decks) are excluded. Toggle off
-  // to draw from everything you own by name.
-  const [availableOnly, setAvailableOnly] = useState(true);
+  // What the cube may draw from. Default = available copies only: a physical
+  // cube is built from cards you can actually pull, so copies committed to a
+  // deck or another physical cube are excluded. See lib/cube/pool-filters.
+  const [filters, setFilters] = useState<PoolFilters>(DEFAULT_POOL_FILTERS);
 
   const cubeStore = useCubeStore();
   const [size, setSize] = useState<CubeSize>(cubeStore.size);
@@ -89,22 +94,16 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
   // Cache the enriched Scryfall map so CubeResult can build EnrichedCards for preview.
   const [enrichedMap, setEnrichedMap] = useState<Map<string, ScryfallCard>>(new Map());
 
-  // Names with at least one free (unallocated) copy vs every owned name. The
-  // gap between them is how many cards are fully committed elsewhere and hidden
-  // when "Available cards only" is on.
-  const { availableNames, committedCount } = useMemo(() => {
-    const avail = buildAvailableCollection(collectionCards, decks, saved);
-    const owned = new Set<string>();
-    for (const c of collectionCards) if (c.name) owned.add(c.name);
-    return { availableNames: avail.names, committedCount: owned.size - avail.names.size };
-  }, [collectionCards, decks, saved]);
-
-  const uniqueNames = useMemo(() => {
-    if (availableOnly) return [...availableNames];
-    const set = new Set<string>();
-    for (const c of collectionCards) if (c.name) set.add(c.name);
-    return [...set];
-  }, [availableOnly, availableNames, collectionCards]);
+  // Names with at least one free (unallocated) copy — the `source: 'available'`
+  // basis, and what "committed" means in the pool note.
+  const availableNames = useMemo(
+    () => buildAvailableCollection(collectionCards, decks, saved).names,
+    [collectionCards, decks, saved]
+  );
+  const { names: uniqueNames, hidden } = useMemo(
+    () => filterPool(collectionCards, availableNames, filters),
+    [collectionCards, availableNames, filters]
+  );
 
   const generate = useCallback(async () => {
     setStatus('working');
@@ -255,12 +254,7 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
       <div className="cube-controls">
         <CubeSizePicker size={size} onSize={setSize} />
         <SynergySlider value={synergyLevel} onChange={setSynergyLevel} />
-        <AvailableToggle
-          checked={availableOnly}
-          onChange={setAvailableOnly}
-          label="Available cards only"
-          infoText="Cards whose only copies are already claimed by a deck or another physical cube are left out, so what you build is what you can physically pull. Turn this off to draw from your whole collection."
-        />
+        <PoolFilterRow filters={filters} onChange={setFilters} />
         <button
           type="button"
           className="btn btn-primary"
@@ -276,15 +270,25 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
                 : 'Build cube'}
         </button>
         <p className="cube-pool-note">
-          {availableOnly ? (
-            <>
-              {uniqueNames.length.toLocaleString()} available cards
-              {committedCount > 0 && (
-                <> · {committedCount.toLocaleString()} committed to a deck or cube (hidden)</>
-              )}
-            </>
-          ) : (
-            <>{uniqueNames.length.toLocaleString()} unique cards in your collection</>
+          {uniqueNames.length.toLocaleString()} cards to draw from
+          {[
+            hidden.committed > 0 &&
+              `${hidden.committed.toLocaleString()} committed to a deck or cube`,
+            hidden.singles > 0 && `${hidden.singles.toLocaleString()} single copies`,
+            hidden.rarity > 0 && `${hidden.rarity.toLocaleString()} above the rarity cap`,
+            hidden.price > 0 &&
+              `${hidden.price.toLocaleString()} over ${formatMoney(filters.maxPrice, { wholeDollars: true })}`,
+          ]
+            .filter((s): s is string => Boolean(s))
+            .map((s) => (
+              <span key={s}> · {s}</span>
+            ))}
+          {hidden.unpriced > 0 && (
+            <span>
+              {' · '}
+              {hidden.unpriced.toLocaleString()} without a price yet (
+              <Link to="/collection">refresh prices</Link>)
+            </span>
           )}
         </p>
       </div>
@@ -422,6 +426,64 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
           onCancel={() => setPhysicalTarget(null)}
         />
       )}
+    </div>
+  );
+}
+
+const PRICE_CEILINGS: (number | null)[] = [null, 1, 2, 5, 10];
+
+/**
+ * "Draw from": which owned cards the generator may use. Three toolbar pickers
+ * (STYLE_GUIDE § Toolbars: compact pickers are the `SelectMenu` pill family) —
+ * source, price ceiling, rarity cap — with one InfoTip for the mechanism. A
+ * peasant or bulk cube is a pool decision, not a ranking one, so the filters
+ * sit in front of the generator and the count line shows what they hid.
+ */
+function PoolFilterRow({
+  filters,
+  onChange,
+}: {
+  filters: PoolFilters;
+  onChange: (next: PoolFilters) => void;
+}) {
+  const currency = useCurrency();
+  const price = (v: number | null) =>
+    v === null ? 'Any price' : `Up to ${formatMoney(v, { currency, wholeDollars: true })}`;
+  return (
+    <div className="cube-pool-filters" role="group" aria-label="Draw from">
+      <span className="cube-pool-filters-title">
+        Draw from
+        <InfoTip
+          label="Draw from"
+          text="Available cards are the copies no deck or physical cube has claimed, so what you build is what you can pull. Spares only also needs two or more copies, so your singles stay in their binders. A price ceiling reads the cheapest copy you own at today's market price; the rarity cap reads the printing you own."
+        />
+      </span>
+      <SelectMenu<PoolFilters['source']>
+        label="Cards"
+        value={filters.source}
+        onChange={(source) => onChange({ ...filters, source })}
+        options={[
+          { value: 'available', label: 'Available' },
+          { value: 'spares', label: 'Spares only' },
+          { value: 'all', label: 'Everything I own' },
+        ]}
+      />
+      <SelectMenu<string>
+        label="Price"
+        value={String(filters.maxPrice)}
+        onChange={(v) => onChange({ ...filters, maxPrice: v === 'null' ? null : Number(v) })}
+        options={PRICE_CEILINGS.map((v) => ({ value: String(v), label: price(v) }))}
+      />
+      <SelectMenu<PoolFilters['rarity']>
+        label="Rarity"
+        value={filters.rarity}
+        onChange={(rarity) => onChange({ ...filters, rarity })}
+        options={[
+          { value: 'any', label: 'Any rarity' },
+          { value: 'peasant', label: 'Commons and uncommons' },
+          { value: 'pauper', label: 'Commons only' },
+        ]}
+      />
     </div>
   );
 }
