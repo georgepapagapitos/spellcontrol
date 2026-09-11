@@ -76,11 +76,9 @@
 
   .gen-takeover-art-fade {
     background:
-      linear-gradient(
-        to top,
-        color-mix(in srgb, var(--surface-raised) 70%, transparent) 0%,
-        transparent 45%
-      ),
+      /* Fully opaque at the bottom edge so the panel dissolves into the
+         phase list instead of ending on a hard horizontal line. */
+      linear-gradient(to top, var(--surface-raised) 0%, transparent 45%),
       linear-gradient(
         to right,
         var(--surface-raised) 0%,
