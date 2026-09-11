@@ -16,7 +16,7 @@ import type { AiScope } from '../../lib/ai-scope';
 import { aiPriceCurrency } from '../../lib/currency';
 import { noteAiExhausted, noteAiSpend, useAiStatus } from '../../lib/use-ai-status';
 import { AiMarker, DeckAiConsent, isAiInviteDismissed } from './DeckAiConsent';
-import { useCardCarousel } from './useCardCarousel';
+import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import './DeckAiReview.css';
 
 import { userMessage } from '@/lib/user-error';
@@ -171,6 +171,9 @@ export function DeckAiRefine({
     for (const { card } of mainboard) m.set(card.name, card);
     return m;
   }, [mainboard]);
+  // A swap row is a decision about two cards, so both names open the app's one
+  // preview carousel — the same affordance the reading's chips already give.
+  const carousel = useCardCarousel('Suggested swaps');
 
   // Self-hiding like every AI surface: nothing at all when the feature is
   // unavailable or consent hasn't been granted (the review panel above owns
@@ -231,6 +234,22 @@ export function DeckAiRefine({
     if (idx === undefined) return tweak.add;
     return alternatives?.get(tweak.add)?.[idx] ?? tweak.add;
   };
+
+  // Every live swap as ONE swipeable set, so a preview opened from any row can
+  // be compared against the rest. The card being cut carries its already-loaded
+  // Scryfall object (it's in the deck), so that half needs no lookup.
+  const previewEntries = (): CarouselEntry[] =>
+    tweaks
+      .filter((t) => !dismissed.has(t.add))
+      .flatMap((t) => {
+        const name = displayNameFor(t);
+        return t.cut
+          ? [
+              { name, label: `Swap in for ${t.cut}` },
+              { name: t.cut, label: `Cut for ${name}`, card: cardsByName.get(t.cut) },
+            ]
+          : [{ name, label: 'Suggested add' }];
+      });
 
   const accept = (tweak: RefineTweak) => {
     const addName = displayNameFor(tweak);
@@ -442,13 +461,29 @@ export function DeckAiRefine({
                   return (
                     <li key={t.add} className="deck-ai-tweak">
                       <div className="deck-ai-tweak-move">
-                        <strong>{shownName}</strong>
+                        <strong>
+                          <button
+                            type="button"
+                            className="deck-ai-card-chip"
+                            onClick={() => carousel.open(previewEntries(), shownName)}
+                            aria-label={`Preview ${shownName}`}
+                          >
+                            {shownName}
+                          </button>
+                        </strong>
                         {t.cut && (
                           <>
                             <span className="deck-ai-tweak-arrow" aria-hidden>
                               ←
                             </span>
-                            <span className="deck-ai-tweak-cut">{t.cut}</span>
+                            <button
+                              type="button"
+                              className="deck-ai-card-chip deck-ai-tweak-cut"
+                              onClick={() => carousel.open(previewEntries(), t.cut as string)}
+                              aria-label={`Preview ${t.cut}`}
+                            >
+                              {t.cut}
+                            </button>
                           </>
                         )}
                       </div>
@@ -594,6 +629,8 @@ export function DeckAiRefine({
           </div>
         </div>
       )}
+
+      {carousel.preview}
     </section>
   );
 }
