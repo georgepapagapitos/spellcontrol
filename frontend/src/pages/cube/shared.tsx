@@ -8,13 +8,10 @@ import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
 import { buildAllocationMap } from '../../lib/allocations';
-import { cubeRole } from '../../deck-builder/services/tagger/client';
-import { synergyTags } from '../../lib/cube/synergy-tags';
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import { CUBE_SIZES, SIZE_INFO, type ColorBucket, type CubeSize } from '../../lib/cube/targets';
-import type { GeneratedCube, CubeCard } from '../../lib/cube/generate';
+import type { GeneratedCube } from '../../lib/cube/generate';
 import type { Ownership } from '../../lib/cube/import';
-import type { OracleFacts } from '../../lib/cube/oracle';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
 
@@ -51,40 +48,6 @@ export const BUCKET_COLOR: Record<ColorBucket, string> = {
   colorless: 'var(--mtg-colorless)',
   land: 'var(--mtg-land)',
 };
-
-/**
- * Map unique card names to a `CubeCard[]` pool, preferring Scryfall-enriched data
- * and falling back to the owned collection copy. Shared by the solo and collab
- * build flows (both build the same name→CubeCard pool from their own collection).
- *
- * Takes `OracleFacts`, not a full `ScryfallCard`, because ranking reads only
- * oracle data — that's what lets the pool pass come from our own backend
- * (`fetchCubeOracle`) rather than a collection-scale walk of the Scryfall API.
- * A full `ScryfallCard` still satisfies the type.
- */
-export function namesToCubePool(
-  names: string[],
-  collectionCards: EnrichedCard[],
-  enriched: Map<string, OracleFacts>
-): CubeCard[] {
-  const ownedByName = new Map<string, EnrichedCard>();
-  for (const c of collectionCards)
-    if (c.name && !ownedByName.has(c.name)) ownedByName.set(c.name, c);
-  return names.map((name) => {
-    const card = ownedByName.get(name);
-    const s = enriched.get(name);
-    return {
-      name,
-      oracleId: s?.oracle_id ?? card?.oracleId ?? name.toLowerCase(),
-      colors: s?.colors ?? card?.colors ?? [],
-      cmc: s?.cmc ?? card?.cmc ?? 0,
-      typeLine: s?.type_line ?? card?.typeLine ?? '',
-      role: cubeRole(name),
-      rank: s?.edhrec_rank ?? card?.edhrecRank,
-      ...synergyTags(s ?? { name }),
-    };
-  });
-}
 
 /**
  * EnrichedCard for the preview carousel: the cached Scryfall row when available,

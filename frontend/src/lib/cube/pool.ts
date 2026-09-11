@@ -1,6 +1,10 @@
 import { apiUrl } from '../api-base';
 import type { CubeCard } from './generate';
 import { byQuality } from './generate';
+import { cubeRole } from '@/deck-builder/services/tagger/client';
+import { synergyTags } from './synergy-tags';
+import type { OracleFacts } from './oracle';
+import type { EnrichedCard } from '@/types';
 
 // ---------------------------------------------------------------------------
 // API contract types
@@ -170,4 +174,38 @@ export function mergePools(
   }
 
   return { pool, supplierMap };
+}
+
+/**
+ * Map unique card names to a `CubeCard[]` pool, preferring Scryfall-enriched data
+ * and falling back to the owned collection copy. Shared by the solo and collab
+ * build flows (both build the same name→CubeCard pool from their own collection).
+ *
+ * Takes `OracleFacts`, not a full `ScryfallCard`, because ranking reads only
+ * oracle data — that's what lets the pool pass come from our own backend
+ * (`fetchCubeOracle`) rather than a collection-scale walk of the Scryfall API.
+ * A full `ScryfallCard` still satisfies the type.
+ */
+export function namesToCubePool(
+  names: string[],
+  collectionCards: EnrichedCard[],
+  enriched: Map<string, OracleFacts>
+): CubeCard[] {
+  const ownedByName = new Map<string, EnrichedCard>();
+  for (const c of collectionCards)
+    if (c.name && !ownedByName.has(c.name)) ownedByName.set(c.name, c);
+  return names.map((name) => {
+    const card = ownedByName.get(name);
+    const s = enriched.get(name);
+    return {
+      name,
+      oracleId: s?.oracle_id ?? card?.oracleId ?? name.toLowerCase(),
+      colors: s?.colors ?? card?.colors ?? [],
+      cmc: s?.cmc ?? card?.cmc ?? 0,
+      typeLine: s?.type_line ?? card?.typeLine ?? '',
+      role: cubeRole(name),
+      rank: s?.edhrec_rank ?? card?.edhrecRank,
+      ...synergyTags(s ?? { name }),
+    };
+  });
 }

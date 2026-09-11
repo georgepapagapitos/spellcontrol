@@ -1,8 +1,9 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mergePools, fetchFriendCollection } from './pool';
+import { mergePools, fetchFriendCollection, namesToCubePool } from './pool';
 import type { CubeCard } from './generate';
 import type { FriendCard } from './pool';
+import type { EnrichedCard } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -192,5 +193,64 @@ describe('fetchFriendCollection', () => {
     } as Response);
 
     await expect(fetchFriendCollection('friend-id-1')).rejects.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// namesToCubePool
+// ---------------------------------------------------------------------------
+
+describe('namesToCubePool', () => {
+  const owned = [
+    {
+      name: 'Llanowar Elves',
+      oracleId: 'own-elves',
+      colors: ['G'],
+      cmc: 1,
+      typeLine: 'Creature — Elf Druid',
+    },
+    {
+      name: 'Swords to Plowshares',
+      oracleId: 'own-swords',
+      colors: ['W'],
+      cmc: 1,
+      typeLine: 'Instant',
+    },
+  ] as unknown as EnrichedCard[];
+
+  it('prefers oracle facts over the owned copy, and classifies synergy from the rules text', () => {
+    const facts = new Map([
+      [
+        'Llanowar Elves',
+        {
+          name: 'Llanowar Elves',
+          oracle_id: 'scry-elves',
+          cmc: 1,
+          type_line: 'Creature — Elf Druid',
+          colors: ['G'],
+          oracle_text: '{T}: Add {G}.',
+          edhrec_rank: 120,
+        },
+      ],
+    ]);
+    const [elves, swords] = namesToCubePool(
+      ['Llanowar Elves', 'Swords to Plowshares'],
+      owned,
+      facts
+    );
+    expect(elves.oracleId).toBe('scry-elves');
+    expect(elves.rank).toBe(120);
+    expect(elves.typeLine).toBe('Creature — Elf Druid');
+    expect(Array.isArray(elves.synergyProducers)).toBe(true);
+    // No facts → the owned copy fills identity/cost/type; rank stays unknown.
+    expect(swords.oracleId).toBe('own-swords');
+    expect(swords.cmc).toBe(1);
+    expect(swords.colors).toEqual(['W']);
+    expect(swords.rank).toBeUndefined();
+  });
+
+  it('falls back to a lowercase-name id for a card in neither source', () => {
+    const [ghost] = namesToCubePool(['Ghost Card'], [], new Map());
+    expect(ghost).toMatchObject({ oracleId: 'ghost card', colors: [], cmc: 0, typeLine: '' });
   });
 });
