@@ -7,7 +7,7 @@ import { InfoTip } from '../../components/InfoTip';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
-import { buildAllocationMap } from '../../lib/allocations';
+import { buildAllocationMap, type AllocationInfo } from '../../lib/allocations';
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import { CUBE_SIZES, SIZE_INFO, type ColorBucket, type CubeSize } from '../../lib/cube/targets';
 import type { GeneratedCube } from '../../lib/cube/generate';
@@ -116,10 +116,13 @@ export function cubeRowKeyDown(e: KeyboardEvent, idx: number, open: (idx: number
 }
 
 /**
- * Build an `ownershipFor(name)` from the live collection + deck AND physical-cube
- * allocations: 'owned' (a free copy exists), 'in-other-deck' / 'in-cube' (every
- * copy is committed — distinguished so the badge names the right place), or
- * 'unowned'. Deck wins the label when copies are split across both.
+ * Ownership lookups from the live collection + deck AND physical-cube
+ * allocations. `ownershipFor(name)`: 'owned' (a free copy exists),
+ * 'in-other-deck' / 'in-cube' (every copy is committed — distinguished so a row
+ * badge names the right place), or 'unowned'; deck wins the label when copies
+ * are split across both. `committedFor(name)`: the distinct owners holding
+ * those copies when none is free — what the grid tile hands `DeckBadge`, so a
+ * cube pick wears the same deck/cube glyph as the collection grid.
  */
 export function useOwnershipFor() {
   const collectionCards = useCollectionStore((s) => s.cards);
@@ -127,26 +130,36 @@ export function useOwnershipFor() {
   const savedCubes = useCubeStore((s) => s.saved);
   return useMemo(() => {
     const allocations = buildAllocationMap(decks, savedCubes);
-    const byName = new Map<string, { free: number; deck: number; cube: number }>();
+    const byName = new Map<string, { free: number; claims: AllocationInfo[] }>();
     for (const copy of collectionCards) {
       if (!copy.name) continue;
       const key = copy.name.toLowerCase();
-      const e = byName.get(key) ?? { free: 0, deck: 0, cube: 0 };
+      const e = byName.get(key) ?? { free: 0, claims: [] };
       const claim = allocations.get(copy.copyId);
       if (!claim) e.free += 1;
-      else if (claim.ownerKind === 'cube') e.cube += 1;
-      else e.deck += 1;
+      else e.claims.push(claim);
       byName.set(key, e);
     }
     const ownershipFor = (name: string): Ownership => {
       const e = byName.get(name.toLowerCase());
       if (!e) return 'unowned';
       if (e.free > 0) return 'owned';
-      if (e.deck > 0) return 'in-other-deck';
-      if (e.cube > 0) return 'in-cube';
+      if (e.claims.some((c) => c.ownerKind === 'deck')) return 'in-other-deck';
+      if (e.claims.length > 0) return 'in-cube';
       return 'unowned';
     };
-    return ownershipFor;
+    const committedFor = (name: string): AllocationInfo[] => {
+      const e = byName.get(name.toLowerCase());
+      if (!e || e.free > 0) return [];
+      const seen = new Set<string>();
+      return e.claims.filter((c) => {
+        const k = `${c.ownerKind}:${c.ownerId}`;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+    };
+    return { ownershipFor, committedFor };
   }, [collectionCards, decks, savedCubes]);
 }
 

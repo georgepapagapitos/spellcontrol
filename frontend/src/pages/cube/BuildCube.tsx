@@ -5,6 +5,8 @@ import { ShareDialog } from '../../components/ShareDialog';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { useStoredView } from '../../lib/use-stored-view';
 import { StackedBar } from '../../components/shared/MeterBar';
+import { CardGridCell } from '../../components/shared/CardGridCell';
+import { DeckBadge } from '../../components/DeckBadge';
 import { CardPreview } from '../../components/CardPreview';
 import { NameInputDialog } from '../../components/NameInputDialog';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -15,6 +17,7 @@ import { useCubeStore, SavedCube } from '../../store/cube';
 import { formatRelativeTime } from '../../lib/format-time';
 import { buildAvailableCollection } from '../../lib/collection-availability';
 import { bindCubeCopies } from '../../lib/bind-cube-copies';
+import type { AllocationInfo } from '../../lib/allocations';
 import { getCardsByNames } from '../../deck-builder/services/scryfall/client';
 import { fetchCubeOracle } from '../../lib/cube/oracle';
 import { loadTaggerData } from '../../deck-builder/services/tagger/client';
@@ -47,7 +50,7 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
   const collectionCards = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
   const pushToast = useToastsStore((s) => s.push);
-  const ownershipFor = useOwnershipFor();
+  const { ownershipFor, committedFor } = useOwnershipFor();
 
   // Default ON: a physical cube is built from cards you can actually pull, so
   // copies already committed elsewhere (today: decks) are excluded. Toggle off
@@ -363,6 +366,7 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
             onCopy={copyList}
             onSave={() => setSaveOpen(true)}
             ownershipFor={ownershipFor}
+            committedFor={committedFor}
             enrichedMap={enrichedMap}
           />
         )}
@@ -424,12 +428,14 @@ function CubeResult({
   onCopy,
   onSave,
   ownershipFor,
+  committedFor,
   enrichedMap,
 }: {
   cube: GeneratedCube;
   onCopy: () => void;
   onSave: () => void;
   ownershipFor: (name: string) => Ownership;
+  committedFor: (name: string) => AllocationInfo[];
   enrichedMap: Map<string, ScryfallCard>;
 }) {
   const built = cube.picks.length;
@@ -582,35 +588,18 @@ function CubeResult({
               </h4>
               {!isCollapsed &&
                 (view === 'gallery' ? (
-                  <ul className="cube-gallery">
-                    {items.map(({ pick: p, flatIndex }) => {
-                      const own = ownershipFor(p.card.name);
-                      const s = enrichedMap.get(p.card.name);
-                      const img = s?.image_uris?.small ?? s?.card_faces?.[0]?.image_uris?.small;
-                      return (
-                        <li key={p.card.oracleId || p.card.name} className="cube-tile">
-                          <button
-                            type="button"
-                            className="cube-tile-btn"
-                            aria-label={`Open preview for ${p.card.name}`}
-                            title={p.card.name}
-                            onClick={() => setPreviewIndex(flatIndex)}
-                          >
-                            {img ? (
-                              <img src={img} alt="" loading="lazy" className="cube-tile-img" />
-                            ) : (
-                              <span className="cube-tile-ph">{p.card.name}</span>
-                            )}
-                            {own !== 'owned' && (
-                              <span className="cube-tile-badge">
-                                <OwnRowBadge own={own} />
-                              </span>
-                            )}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  <div className="cube-gallery">
+                    {items.map(({ pick: p, flatIndex }) => (
+                      <CardGridCell
+                        key={p.card.oracleId || p.card.name}
+                        card={previewCards[flatIndex]}
+                        qty={1}
+                        size="1x"
+                        onActivate={() => setPreviewIndex(flatIndex)}
+                        badges={<DeckBadge allocations={committedFor(p.card.name)} />}
+                      />
+                    ))}
+                  </div>
                 ) : (
                   <ul className="cube-rows">
                     {items.map(({ pick: p, flatIndex }) => {

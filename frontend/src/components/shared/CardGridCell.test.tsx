@@ -118,12 +118,15 @@ const componentsDir = dirname(fileURLToPath(import.meta.url));
 const read = (f: string) => readFileSync(join(componentsDir, '..', f), 'utf8');
 
 describe('guard: every card grid renders the shared tile', () => {
-  it.each([['CardListTable.tsx'], ['ListDetailView.tsx']])('%s uses CardGridCell', (file) => {
-    expect(
-      read(file),
-      `${file} must render <CardGridCell />, not its own tile markup — a private tile is how the lists grid lost its set + price captions`
-    ).toContain('<CardGridCell');
-  });
+  it.each([['CardListTable.tsx'], ['ListDetailView.tsx'], ['../pages/cube/BuildCube.tsx']])(
+    '%s uses CardGridCell',
+    (file) => {
+      expect(
+        read(file),
+        `${file} must render <CardGridCell />, not its own tile markup — a private tile is how the lists grid lost its set + price captions`
+      ).toContain('<CardGridCell');
+    }
+  );
 
   it('lists no longer ships a private grid tile', () => {
     expect(

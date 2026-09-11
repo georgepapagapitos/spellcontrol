@@ -953,7 +953,7 @@
   }
 }
 
-/* Native render-skip for offscreen tiles — same trick as .cube-tile. */
+/* Native render-skip for offscreen tiles — same trick as .cube-gallery. */
 .inline-card-search-tile {
   content-visibility: auto;
   contain-intrinsic-size: auto 210px;
