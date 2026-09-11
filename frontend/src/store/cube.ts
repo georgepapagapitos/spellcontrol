@@ -45,6 +45,14 @@ interface CubeState {
   size: CubeSize;
   /** The current working cube (unsaved until the user names it). */
   result: GeneratedCube | null;
+  /**
+   * Which saved cube `result` IS, when the user loaded one (or just saved the
+   * working cube). null = a fresh, unsaved build. The result view reads this
+   * to show the cube's name instead of "N-card cube", to drop "Save cube" (it
+   * is already saved), and to skip badging a physical cube's own reserved
+   * copies as "in a cube" — they are in THIS cube.
+   */
+  loadedId: string | null;
   /** Named cubes the user kept, newest first. Synced via IDB; NOT in localStorage. */
   saved: SavedCube[];
   setResult: (size: CubeSize, cube: GeneratedCube) => void;
@@ -87,9 +95,10 @@ export const useCubeStore = create<CubeState>()(
     (set) => ({
       size: 540,
       result: null,
+      loadedId: null,
       saved: [],
-      setResult: (size, result) => set({ size, result }),
-      clear: () => set({ result: null }),
+      setResult: (size, result) => set({ size, result, loadedId: null }),
+      clear: () => set({ result: null, loadedId: null }),
       saveCurrent: (name, isPhysical = false, picks = []) =>
         set((s) => {
           if (!s.result) return s;
@@ -102,7 +111,7 @@ export const useCubeStore = create<CubeState>()(
             isPhysical,
             savedAt: Date.now(),
           };
-          return { saved: [entry, ...s.saved] };
+          return { saved: [entry, ...s.saved], loadedId: entry.id };
         }),
       saveDirectly: (name, size, cube, isPhysical = false, picks = []) => {
         const id = crypto.randomUUID();
@@ -125,13 +134,20 @@ export const useCubeStore = create<CubeState>()(
       loadSaved: (id) =>
         set((s) => {
           const found = s.saved.find((c) => c.id === id);
-          return found ? { result: found.cube, size: found.size } : s;
+          return found ? { result: found.cube, size: found.size, loadedId: id } : s;
         }),
       renameSaved: (id, name) =>
         set((s) => ({
           saved: s.saved.map((c) => (c.id === id ? { ...c, name } : c)),
         })),
-      removeSaved: (id) => set((s) => ({ saved: s.saved.filter((c) => c.id !== id) })),
+      // Deleting the cube on screen takes the view with it — a result that
+      // claims to be a cube that no longer exists would be the same confusion
+      // loadedId exists to end.
+      removeSaved: (id) =>
+        set((s) => ({
+          saved: s.saved.filter((c) => c.id !== id),
+          ...(s.loadedId === id ? { result: null, loadedId: null } : {}),
+        })),
       setPhysical: (id, isPhysical, picks) =>
         set((s) => ({
           saved: s.saved.map((c) =>
@@ -157,7 +173,7 @@ export const useCubeStore = create<CubeState>()(
         set((s) => ({
           saved: s.saved.map((c) => (c.id === id ? { ...c, ...patch } : c)),
         })),
-      reset: () => set({ result: null, saved: [] }),
+      reset: () => set({ result: null, loadedId: null, saved: [] }),
     }),
     {
       name: 'spellcontrol-cube',
@@ -168,7 +184,7 @@ export const useCubeStore = create<CubeState>()(
       // persist `merge`, which runs before the subscriber attaches and would be
       // clobbered by the authoritative IDB hydrate (losing them for guests, who
       // have no pull to restore them).
-      partialize: (state) => ({ size: state.size, result: state.result }),
+      partialize: (state) => ({ size: state.size, result: state.result, loadedId: state.loadedId }),
     }
   )
 );
