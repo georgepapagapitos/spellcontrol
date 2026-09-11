@@ -3017,6 +3017,22 @@ is cheap because "it's just a gradient" — if it has to loop, it moves by
 
 ## Color & spacing
 
+**Caller owns spacing (2026-09-11, #1887).** A shared component — anything in
+§ Primitives index, the AI panels (`.deck-ai-strip` / `.deck-ai-review` /
+`.deck-stats-panel` / `.ai-sources`), any root that mounts in more than one
+host — declares **no outer vertical margin**. The host that renders it lays
+its children out with `gap` (a flex column, a grid, or a host-scoped wrapper
+rule such as `.deck-size-prompt-ai { margin-bottom }`). One convention, not
+two: a component that carries its own margin doubles the gap in every host
+that already has one and still lands flush in every host that doesn't — the
+refine panel shipped flush against the build report's last pill row because
+its Coach-tab home supplied the gap and the sheet supplied nothing. Enforced
+by `styles/spacing-ownership.test.ts` (the root list lives there; add a root
+when you add a shared component) and, in the browser, by the nightly
+journey's touching-siblings check (`scripts/journey.mjs`), which fails a
+screen where two stacked blocks touch. Mounting a shared component somewhere
+new? The new host declares the gap — that is the whole checklist.
+
 **Material system (restyle T53).** The palette is built from physical binder
 materials, not dashboard neutrals — this is the app's differentiation from the
 Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:

@@ -246,6 +246,17 @@
   gap: var(--space-4);
 }
 
+/* The page groups several cards under one tier in a bare wrapper (Account +
+   Sign-in methods + Friends; the Your-data cards). The wrapper is the host of
+   those cards, so it declares the same gap the page does — without it the
+   cards sat flush against each other (caught by the journey's
+   touching-siblings check on its first run). */
+.settings-page > div:not([class]) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
 .settings-page-hero {
   margin-bottom: var(--space-2);
 }
