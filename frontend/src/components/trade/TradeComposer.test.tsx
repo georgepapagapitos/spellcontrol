@@ -255,3 +255,35 @@ describe('TradeComposer — the 40-line side cap', () => {
     ).toBe(true);
   });
 });
+
+describe('TradeComposer — the unsearched give list', () => {
+  it('leads with what the friend wants, then spare copies, then the rest', () => {
+    // Alphabetical, this would read Aardvark → Sol Ring → Zebra: the two
+    // useful answers last. Zebra is wanted; Sol Ring has a second copy (one
+    // kept, one spare); Aardvark is neither.
+    storeState = {
+      cards: [
+        owned({ copyId: 'a1', name: 'Aardvark Rider', oracleId: 'o-aard' }),
+        owned({ copyId: 's1', name: 'Sol Ring', oracleId: 'o-sol' }),
+        owned({ copyId: 's2', name: 'Sol Ring', oracleId: 'o-sol' }),
+        owned({ copyId: 'z1', name: 'Zebra Unicorn', oracleId: 'o-zebra' }),
+      ],
+    };
+    renderComposer({ friendWants: [{ name: 'Zebra Unicorn', oracleId: 'o-zebra' }] });
+
+    const names = [...giveResults().querySelectorAll('.trade-picked-name')].map(
+      (n) => n.textContent
+    );
+    expect(names).toEqual(['Zebra Unicorn', 'Sol Ring', 'Aardvark Rider']);
+
+    // A typed search keeps the search's own ranking (name hits first, then
+    // collection order) — the lead-with-wanted rule is for the blank list.
+    fireEvent.change(screen.getByRole('textbox', { name: /Search your collection/i }), {
+      target: { value: 'r' },
+    });
+    const searched = [...giveResults().querySelectorAll('.trade-picked-name')].map(
+      (n) => n.textContent
+    );
+    expect(searched).toEqual(['Aardvark Rider', 'Sol Ring', 'Zebra Unicorn']);
+  });
+});

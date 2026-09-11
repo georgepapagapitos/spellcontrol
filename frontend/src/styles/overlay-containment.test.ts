@@ -271,6 +271,9 @@ describe('coarse-pointer touch floor', () => {
     // Trade Accept / Decline / Withdraw — they settle real cards, so they take
     // the floor per the mutating-actions ruling (STYLE_GUIDE § Responsive).
     ['components/trade/TradeOfferList.css', '.trade-offer-actions .btn'],
+    // "Remove from your list" on a finished offer's card head — a real box,
+    // like .trade-offer-who beside it (a header, not a dense list row).
+    ['components/trade/TradeOfferList.css', '.trade-offer-remove'],
     // /trades' filter, shown once history outgrows a screenful. `.search-pill`
     // is desktop-density (measured 31.6px); lifted page-scoped, because raising
     // the shared primitive is an app-wide sweep of its own.

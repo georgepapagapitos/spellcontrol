@@ -1,7 +1,7 @@
 import './TradeOfferList.css';
 import { useId, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, X } from 'lucide-react';
 import { UserAvatar } from '../UserAvatar';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { formatMoney } from '../../lib/format-money';
@@ -11,6 +11,7 @@ import { toast } from '../../store/toasts';
 import {
   acceptTrade,
   declineTrade,
+  removeTrade,
   withdrawTrade,
   TradeConflictError,
   type TradeCard,
@@ -35,6 +36,49 @@ const STATUS_LABEL: Record<TradeOffer['status'], string> = {
   declined: 'Declined',
   withdrawn: 'Withdrawn',
 };
+
+/**
+ * The pill answers "whose move is it?". A bare "Waiting" read identically on
+ * an offer waiting on YOU and one waiting on THEM, which on the friend hub
+ * (no status groups) put the same word on opposite situations one row apart.
+ */
+function statusLabel(offer: TradeOffer): string {
+  if (offer.status === 'proposed') return offer.mine ? 'Waiting on them' : 'Your call';
+  return STATUS_LABEL[offer.status];
+}
+
+/** A finished trade the viewer may take off their list: answered either way,
+ *  or accepted AND already settled into this collection. An accepted trade
+ *  still settling stays put, since the settlement sweep reads the list. */
+function isRemovable(offer: TradeOffer): boolean {
+  if (offer.status === 'declined' || offer.status === 'withdrawn') return true;
+  return offer.status === 'accepted' && offer.settled;
+}
+
+interface SideValue {
+  /** Rendered form: exact, "from $x", "from $x +?", or "…" while pending. */
+  text: string;
+  /** Total in the viewer's currency, or null while pending / partly unknown. */
+  amount: number | null;
+  /** True when any card was priced from a floor rather than a pinned printing. */
+  estimate: boolean;
+}
+
+/**
+ * The net of the deal, which is the subtraction everyone did in their head
+ * from the two side totals. Null while either side is unpriced: a net built
+ * on a guess is worse than no net.
+ */
+function describeNet(give: SideValue, receive: SideValue): string | null {
+  if (give.amount === null || receive.amount === null) return null;
+  const diff = receive.amount - give.amount;
+  const estimate = give.estimate || receive.estimate;
+  if (Math.abs(diff) < 1) return estimate ? 'About even' : 'Even';
+  const about = estimate ? 'about ' : '';
+  return diff > 0
+    ? `You come out ${about}${formatMoney(diff)} ahead`
+    : `They come out ${about}${formatMoney(-diff)} ahead`;
+}
 
 interface Props {
   offers: TradeOffer[];
@@ -170,6 +214,13 @@ function TradeOfferCard({
   // A settled accepted trade is done; an unsettled one is mid-flight and the
   // app-level runner is about to apply it, so no manual affordance is offered.
   const showSettling = offer.status === 'accepted' && !offer.settled;
+  // A finished trade is a ledger line, not a decision: it drops the note and
+  // the net, tightens up, and gains Remove. Anything still in motion keeps
+  // the full card.
+  const compact = isRemovable(offer);
+  const give = useSideValue(offer.give);
+  const receive = useSideValue(offer.receive);
+  const net = compact ? null : describeNet(give, receive);
 
   async function run(action: () => Promise<unknown>, failure: string) {
     setBusy(true);
@@ -251,7 +302,10 @@ function TradeOfferCard({
   }
 
   return (
-    <article className="trade-offer-card" aria-labelledby={headingId}>
+    <article
+      className={`trade-offer-card${compact ? ' is-compact' : ''}`}
+      aria-labelledby={headingId}
+    >
       <header className="trade-offer-head">
         <h4 className={`trade-offer-title${linkCounterparty ? ' has-link' : ''}`} id={headingId}>
           {linkCounterparty ? (
@@ -277,19 +331,45 @@ function TradeOfferCard({
             className={`trade-offer-status is-${offer.status}`}
             data-testid={`trade-status-${offer.id}`}
           >
-            {STATUS_LABEL[offer.status]}
+            {statusLabel(offer)}
           </span>
           <TradeOfferAge offer={offer} />
         </span>
+        {compact && (
+          // Per-side: the other person keeps their copy, so there is nothing
+          // to confirm and nothing to undo but a list entry.
+          <button
+            type="button"
+            className="trade-offer-remove"
+            aria-label={`Remove this trade with ${who} from your list`}
+            title="Remove from your list"
+            disabled={busy}
+            onClick={() =>
+              void run(async () => {
+                await removeTrade(offer.id);
+                toast.show({ message: 'Removed from your trades.', tone: 'success' });
+              }, "Couldn't remove the trade. Try again.")
+            }
+          >
+            <X width={16} height={16} aria-hidden />
+          </button>
+        )}
       </header>
 
       <div className="trade-offer-sides">
-        <TradeOfferSide label="You give" cards={offer.give} onInspect={inspect} />
+        <TradeOfferSide label="You give" cards={offer.give} value={give.text} onInspect={inspect} />
         <ArrowRight className="trade-offer-arrow" width={18} height={18} aria-label="for" />
-        <TradeOfferSide label="You get" cards={offer.receive} onInspect={inspect} />
+        <TradeOfferSide
+          label="You get"
+          cards={offer.receive}
+          value={receive.text}
+          onInspect={inspect}
+        />
       </div>
 
-      {offer.note && <p className="trade-offer-note">“{offer.note}”</p>}
+      {net && <p className="trade-offer-net">{net}</p>}
+
+      {!compact && offer.note && <p className="trade-offer-note">“{offer.note}”</p>}
 
       {showSettling && (
         <p className="trade-offer-settling" role="status">
@@ -468,32 +548,37 @@ function TradeOfferAge({ offer }: { offer: TradeOffer }) {
  * labelled "from". Never renders a bare 0 for "unknown": the whole point of
  * putting a number here is that it can be trusted.
  */
-function useSideValue(cards: TradeCard[]): string {
+function useSideValue(cards: TradeCard[]): SideValue {
   const { exact, needFloor } = useMemo(() => splitSideValue(cards), [cards]);
   const names = useMemo(() => needFloor.map((c) => c.name), [needFloor]);
   const { prices: floors, pending } = useFloorPrices(names);
 
-  if (names.length === 0) return formatMoney(exact);
-  if (pending) return '…';
+  if (names.length === 0) return { text: formatMoney(exact), amount: exact, estimate: false };
+  if (pending) return { text: '…', amount: null, estimate: true };
 
   const floor = needFloor.reduce((sum, c) => sum + (floors.get(c.name) ?? 0) * c.quantity, 0);
   const anyUnknown = names.some((n) => (floors.get(n) ?? null) === null);
   // "+?" when something could not be priced at all — better an admitted gap
   // than a total that quietly omits a card.
-  return `from ${formatMoney(exact + floor)}${anyUnknown ? ' +?' : ''}`;
+  return {
+    text: `from ${formatMoney(exact + floor)}${anyUnknown ? ' +?' : ''}`,
+    amount: anyUnknown ? null : exact + floor,
+    estimate: true,
+  };
 }
 
 function TradeOfferSide({
   label,
   cards,
+  value,
   onInspect,
 }: {
   label: string;
   cards: TradeCard[];
+  value: string;
   onInspect: (card: TradeCard) => void;
 }) {
   const headingId = useId();
-  const value = useSideValue(cards);
   return (
     <div className="trade-offer-side">
       {/* headingId stays on the label text alone — the value must not leak into

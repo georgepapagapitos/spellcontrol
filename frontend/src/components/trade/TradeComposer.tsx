@@ -195,6 +195,16 @@ export function TradeComposer({
   const giveResults = useMemo(() => {
     let pool = spareOnly ? filterToSurplus(ownedLines, surplusByName) : ownedLines;
     if (wantedOnly) pool = pool.filter((line) => wantedKeys.has(keyOf(line)));
+    if (giveQuery.trim() === '') {
+      // Unsearched, the list opened at "A Killer Among Us" and ran
+      // alphabetically through 11.5k cards, with the useful answers behind
+      // two toggles. Lead with what this friend wants, then spare copies;
+      // the rest keeps collection order. A typed search keeps its own
+      // ranking (name hits first).
+      const rank = (line: OwnedTradeLine) =>
+        wantedKeys.has(keyOf(line)) ? 0 : surplusByName.has(line.name) ? 1 : 2;
+      pool = [...pool].sort((a, b) => rank(a) - rank(b));
+    }
     return filterOwnedLines(pool, giveQuery, giveTagsReady ? getCardTags : undefined).slice(
       0,
       PICKER_LIMIT
@@ -453,8 +463,11 @@ export function TradeComposer({
         className="choice-dialog trade-composer-panel"
       >
         <div className="game-night-dialog trade-composer">
+          {/* "Trade with X", not "Propose a trade · X": the longer form wrapped
+              to two lines of --text-xl on a phone and took a third of the
+              first screen before a single card was visible. */}
           <h2 id={titleId} className="game-night-dialog-title">
-            Propose a trade · {friendName}
+            Trade with {friendName}
           </h2>
           <p className="game-night-dialog-hint">
             Pick what changes hands. {friendName} sees the exact printings and confirms theirs when

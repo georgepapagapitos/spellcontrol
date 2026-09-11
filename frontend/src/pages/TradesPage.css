@@ -18,6 +18,21 @@
   gap: var(--space-2);
 }
 
+/* Title on the left, the section's one action (Clear history) on the right.
+   A wrapper rather than a button inside the <h2>: a heading that contains a
+   control is announced as the control's text. */
+.trades-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.trades-section-action {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+}
+
 .trades-section-title {
   /* Joins the .pods-index-section-title / .deck-combos-title family
      (STYLE_GUIDE "Shape language" — section titles). */

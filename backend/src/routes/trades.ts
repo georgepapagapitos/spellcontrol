@@ -55,6 +55,8 @@ interface TradeOfferRow {
   created_at: string;
   updated_at: string;
   resolved_at: string | null;
+  proposer_hidden_at: string | null;
+  recipient_hidden_at: string | null;
 }
 
 /** What a caller sees. Sides are named from the CALLER's point of view — the
@@ -182,7 +184,24 @@ function toView(
 
 const SELECT_COLUMNS = `id, proposer_id, recipient_id, status, note, proposer_cards,
          recipient_cards, proposer_settled_at, recipient_settled_at,
-         created_at, updated_at, resolved_at`;
+         created_at, updated_at, resolved_at, proposer_hidden_at, recipient_hidden_at`;
+
+/** Which side of the row the caller is, as the column prefix. */
+function sideOf(row: TradeOfferRow, callerId: string): 'proposer' | 'recipient' {
+  return row.proposer_id === callerId ? 'proposer' : 'recipient';
+}
+
+/**
+ * SQL predicate: `side` may remove this row from their list. A still-open
+ * offer has to be answered or withdrawn, not hidden; an accepted one has to
+ * have been settled into this side's collection first, because the listing
+ * skips hidden rows and the settlement sweep reads the listing — hiding it
+ * earlier would strand the cards.
+ */
+function hideableSql(side: 'proposer' | 'recipient'): string {
+  return `(status IN ('declined', 'withdrawn')
+           OR (status = 'accepted' AND ${side}_settled_at IS NOT NULL))`;
+}
 
 /**
  * Loads an offer the caller is a party to. Returns null and writes a uniform
@@ -299,8 +318,10 @@ tradesRouter.get('/', requireAuth, tradeReadLimiter, async (req: Request, res: R
   const status = typeof req.query.status === 'string' ? req.query.status : '';
 
   const params: unknown[] = [callerId];
+  // A row the caller removed is gone from THEIR list only.
   let sql = `SELECT ${SELECT_COLUMNS} FROM trade_offers
-              WHERE (proposer_id = $1 OR recipient_id = $1)`;
+              WHERE ((proposer_id = $1 AND proposer_hidden_at IS NULL)
+                  OR (recipient_id = $1 AND recipient_hidden_at IS NULL))`;
   if (withUserId) {
     params.push(withUserId);
     sql += ` AND (proposer_id = $${params.length} OR recipient_id = $${params.length})`;
@@ -457,3 +478,53 @@ tradesRouter.post(
     res.json({ offer: await viewFor(row, callerId) });
   }
 );
+
+/**
+ * DELETE /api/trades/:id — remove a finished trade from the caller's list.
+ *
+ * A per-side hide, never a delete: the row is two people's record. Idempotent
+ * (204 on a row already hidden). 409 while the offer is still open or still
+ * settling, since either would strand something the list is needed for.
+ */
+tradesRouter.delete('/:id', requireAuth, tradeWriteLimiter, async (req: Request, res: Response) => {
+  const callerId = req.user!.id;
+  const offerId = typeof req.params.id === 'string' ? req.params.id : '';
+
+  const existing = await loadOwnOffer(res, callerId, offerId);
+  if (!existing) return;
+  const side = sideOf(existing, callerId);
+  if (existing[`${side}_hidden_at`] !== null) return res.status(204).end();
+
+  const { rowCount } = await getPool().query(
+    `UPDATE trade_offers SET ${side}_hidden_at = $2
+      WHERE id = $1 AND ${side}_hidden_at IS NULL AND ${hideableSql(side)}`,
+    [offerId, Date.now()]
+  );
+  if (rowCount === 0) {
+    return res.status(409).json({
+      error:
+        existing.status === 'proposed'
+          ? 'That trade is still open. Answer or withdraw it first.'
+          : 'That trade is still being added to your collection.',
+    });
+  }
+  res.status(204).end();
+});
+
+/**
+ * DELETE /api/trades — remove every finished trade from the caller's list in
+ * one write. The per-row route under the write limiter would take minutes to
+ * clear a full history; this is the "Clear history" button.
+ */
+tradesRouter.delete('/', requireAuth, tradeWriteLimiter, async (req: Request, res: Response) => {
+  const callerId = req.user!.id;
+  const { rowCount } = await getPool().query(
+    `UPDATE trade_offers SET
+        proposer_hidden_at = CASE WHEN proposer_id = $1 THEN $2 ELSE proposer_hidden_at END,
+        recipient_hidden_at = CASE WHEN recipient_id = $1 THEN $2 ELSE recipient_hidden_at END
+      WHERE (proposer_id = $1 AND proposer_hidden_at IS NULL AND ${hideableSql('proposer')})
+         OR (recipient_id = $1 AND recipient_hidden_at IS NULL AND ${hideableSql('recipient')})`,
+    [callerId, Date.now()]
+  );
+  res.json({ hidden: rowCount ?? 0 });
+});

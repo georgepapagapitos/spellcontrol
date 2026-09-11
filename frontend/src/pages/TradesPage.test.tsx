@@ -10,8 +10,8 @@
  *
  * No `@testing-library/jest-dom` in this repo — plain vitest matchers.
  */
-import { fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { pending } from '@/test/pending';
 import type { TradeOffer } from '../lib/trades-client';
@@ -27,10 +27,15 @@ vi.mock('../store/collection', () => ({
 vi.mock('../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 const listTrades = vi.fn();
+const clearTradeHistory = vi.fn();
 vi.mock('../lib/trades-client', async () => {
   const actual =
     await vi.importActual<typeof import('../lib/trades-client')>('../lib/trades-client');
-  return { ...actual, listTrades: (...args: unknown[]) => listTrades(...args) };
+  return {
+    ...actual,
+    listTrades: (...args: unknown[]) => listTrades(...args),
+    clearTradeHistory: () => clearTradeHistory(),
+  };
 });
 
 import { TradesPage } from './TradesPage';
@@ -265,5 +270,53 @@ describe('TradesPage', () => {
     expect(stamps).toContain('3d ago');
     expect(stamps).toContain('2d ago');
     expect(stamps).not.toContain('30d ago');
+  });
+
+  it('Clear history asks first, then clears in ONE call and reloads', async () => {
+    listTrades.mockResolvedValue(
+      listing([makeOffer({ id: 'old', status: 'declined', resolvedAt: 2 })])
+    );
+    clearTradeHistory.mockResolvedValue(1);
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Clear history' }));
+    // Nothing happens until the dialog is confirmed.
+    expect(clearTradeHistory).not.toHaveBeenCalled();
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.textContent).toMatch(/other person keeps their own copy/);
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Clear history' }));
+    await waitFor(() => expect(clearTradeHistory).toHaveBeenCalledTimes(1));
+    // Server-authoritative: the page re-fetches rather than patching state.
+    await waitFor(() => expect(listTrades).toHaveBeenCalledTimes(2));
+  });
+
+  it('has no Clear history while nothing is finished', async () => {
+    listTrades.mockResolvedValue(listing([makeOffer({ id: 'incoming' })]));
+    renderPage();
+
+    await screen.findByText('Needs your answer');
+    expect(screen.queryByRole('button', { name: 'Clear history' })).toBeNull();
+  });
+
+  it('Counter hands off to the friend hub with the offer named in the URL', async () => {
+    listTrades.mockResolvedValue(
+      listing([makeOffer({ id: 'incoming', counterpartyId: 'friend-9' })])
+    );
+    function Hub() {
+      const { pathname, search } = useLocation();
+      return <p>{`${pathname}${search}`}</p>;
+    }
+    render(
+      <MemoryRouter initialEntries={['/trades']}>
+        <Routes>
+          <Route path="/trades" element={<TradesPage />} />
+          <Route path="/friends/:friendId" element={<Hub />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Counter' }));
+    expect(await screen.findByText('/friends/friend-9?counter=incoming')).toBeTruthy();
   });
 });

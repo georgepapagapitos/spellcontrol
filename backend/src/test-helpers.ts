@@ -409,7 +409,9 @@ export async function createTestEnv(): Promise<TestEnv> {
       recipient_settled_at BIGINT,
       created_at BIGINT NOT NULL,
       updated_at BIGINT NOT NULL,
-      resolved_at BIGINT
+      resolved_at BIGINT,
+      proposer_hidden_at BIGINT,
+      recipient_hidden_at BIGINT
     );
     CREATE INDEX trade_offers_recipient_idx ON trade_offers(recipient_id, status);
     CREATE INDEX trade_offers_proposer_idx ON trade_offers(proposer_id, status);

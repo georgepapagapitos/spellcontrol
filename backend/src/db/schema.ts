@@ -700,6 +700,10 @@ export const tradeOffers = pgTable(
     updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
     /** Set when status left 'proposed', whichever way it went. */
     resolvedAt: bigint('resolved_at', { mode: 'number' }),
+    /** Per-side "removed from my trades". Hidden rows are skipped by that
+     *  side's listing; the other side is unaffected. */
+    proposerHiddenAt: bigint('proposer_hidden_at', { mode: 'number' }),
+    recipientHiddenAt: bigint('recipient_hidden_at', { mode: 'number' }),
   },
   (t) => ({
     recipientIdx: index('trade_offers_recipient_idx').on(t.recipientId, t.status),

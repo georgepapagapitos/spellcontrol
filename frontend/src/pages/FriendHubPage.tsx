@@ -1,6 +1,6 @@
 import './FriendHubPage.css';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
 import { BackLink } from '../components/BackLink';
 import { BookOpen, Box, FolderOpen, Layers, ListChecks } from 'lucide-react';
@@ -59,6 +59,16 @@ const COLLECTION_SORT_OPTIONS: SortMenuOption<FriendSortKey>[] = [
 
 type HubTab = 'overview' | 'collection' | 'trades';
 
+/** A counter is just a new offer the other way, prefilled with the first card
+ *  they asked for so the composer opens with the conversation already in it. */
+function counterOf(offer: TradeOffer): { want?: { oracleId: string; name: string } } {
+  return {
+    want: offer.give[0]
+      ? { oracleId: offer.give[0].oracleId, name: offer.give[0].name }
+      : undefined,
+  };
+}
+
 /** Display order + presentation for each shareable kind. */
 const KIND_META: Record<ShareKind, { label: string; plural: string; Icon: typeof Layers }> = {
   deck: { label: 'Deck', plural: 'Decks', Icon: Layers },
@@ -96,7 +106,10 @@ export function FriendHubPage() {
   const [sharesReloadKey, setSharesReloadKey] = useState(0);
   const [h2h, setH2h] = useState<H2HResponse | null>(null);
   const [h2hLoading, setH2hLoading] = useState(true);
-  const [tab, setTab] = useState<HubTab>('overview');
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Arriving to counter an offer lands on the Trades tab, where that offer is.
+  const counterId = searchParams.get('counter');
+  const [tab, setTab] = useState<HubTab>(counterId ? 'trades' : 'overview');
 
   // Trade radar: cross-reference the viewer's own want lists against this
   // friend's collection — the same oracle-level fetch the cube collab pool
@@ -240,6 +253,20 @@ export function FriendHubPage() {
       cancelled = true;
     };
   }, [friendId, status, tradeAttempt]);
+
+  // `/friends/:id?counter=<offerId>` — /trades' Counter lands here. The
+  // composer is DERIVED from the param while it names a live incoming offer
+  // (no effect, no setState-in-effect), and closing or sending clears the
+  // param so it can't re-open on the next refetch.
+  const counterOffer =
+    counterId && offers
+      ? offers.find((o) => o.id === counterId && o.status === 'proposed' && !o.mine)
+      : undefined;
+  const activeComposing = composing ?? (counterOffer ? counterOf(counterOffer) : null);
+  function closeComposer() {
+    setComposing(null);
+    if (counterId) setSearchParams({}, { replace: true });
+  }
 
   const openTrades = (offers ?? []).filter((o) => o.status === 'proposed');
   // Only offers awaiting THIS viewer count toward the tab badge — an offer
@@ -754,21 +781,12 @@ export function FriendHubPage() {
           <TradeOfferList
             offers={offers}
             onChanged={refreshTrades}
-            onCounter={(offer) =>
-              // A counter is just a new offer the other way — prefill it with
-              // the first card they asked for so the composer opens with the
-              // conversation already in it.
-              setComposing({
-                want: offer.give[0]
-                  ? { oracleId: offer.give[0].oracleId, name: offer.give[0].name }
-                  : undefined,
-              })
-            }
+            onCounter={(offer) => setComposing(counterOf(offer))}
           />
         )}
       </div>
 
-      {composing && friendId && (
+      {activeComposing && friendId && (
         <TradeComposer
           friendId={friendId}
           friendName={who}
@@ -777,10 +795,10 @@ export function FriendHubPage() {
           friendCardsError={collectionError}
           onRetryFriendCards={retryCollection}
           friendWants={theyWant}
-          initialWant={composing.want}
-          onClose={() => setComposing(null)}
+          initialWant={activeComposing.want}
+          onClose={closeComposer}
           onSent={() => {
-            setComposing(null);
+            closeComposer();
             setTab('trades');
             refreshTrades();
           }}

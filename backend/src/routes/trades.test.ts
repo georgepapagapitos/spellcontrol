@@ -479,3 +479,105 @@ describe('POST /api/trades/:id/settled', () => {
     expect(res.status).toBe(409);
   });
 });
+
+describe('DELETE /api/trades/:id and DELETE /api/trades (remove from my list)', () => {
+  async function pair(): Promise<{ alice: TestUser; bob: TestUser }> {
+    const alice = await makeUser('alice');
+    const bob = await makeUser('bob');
+    await befriend(alice, bob);
+    return { alice, bob };
+  }
+  async function answered(
+    alice: TestUser,
+    bob: TestUser,
+    action: 'decline' | 'accept'
+  ): Promise<string> {
+    const created = await propose(alice, bob);
+    const offerId = created.body.offer.id as string;
+    const res = await request(app)
+      .patch(`/api/trades/${offerId}`)
+      .set('Cookie', bob.cookie)
+      .send(action === 'accept' ? { action, resolved: [RHYSTIC_RESOLVED] } : { action });
+    expect(res.status).toBe(200);
+    return offerId;
+  }
+  const ids = (res: request.Response) => res.body.offers.map((o: { id: string }) => o.id);
+
+  it('hides a declined offer for the caller only; the other side keeps it', async () => {
+    const { alice, bob } = await pair();
+    const offerId = await answered(alice, bob, 'decline');
+
+    const gone = await request(app).delete(`/api/trades/${offerId}`).set('Cookie', alice.cookie);
+    expect(gone.status).toBe(204);
+
+    const mine = await request(app).get('/api/trades').set('Cookie', alice.cookie);
+    expect(ids(mine)).not.toContain(offerId);
+    const theirs = await request(app).get('/api/trades').set('Cookie', bob.cookie);
+    expect(ids(theirs)).toContain(offerId);
+
+    // Idempotent: removing it again is a no-op, not an error.
+    const again = await request(app).delete(`/api/trades/${offerId}`).set('Cookie', alice.cookie);
+    expect(again.status).toBe(204);
+  });
+
+  it('refuses to hide an open offer', async () => {
+    const { alice, bob } = await pair();
+    const created = await propose(alice, bob);
+    const res = await request(app)
+      .delete(`/api/trades/${created.body.offer.id}`)
+      .set('Cookie', bob.cookie);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/still open/);
+  });
+
+  it('refuses to hide an accepted offer until this side has settled it', async () => {
+    const { alice, bob } = await pair();
+    const offerId = await answered(alice, bob, 'accept');
+
+    const early = await request(app).delete(`/api/trades/${offerId}`).set('Cookie', alice.cookie);
+    expect(early.status).toBe(409);
+
+    await request(app).post(`/api/trades/${offerId}/settled`).set('Cookie', alice.cookie);
+    const after = await request(app).delete(`/api/trades/${offerId}`).set('Cookie', alice.cookie);
+    expect(after.status).toBe(204);
+
+    // Bob has not settled, so Bob still cannot hide it.
+    const bobs = await request(app).delete(`/api/trades/${offerId}`).set('Cookie', bob.cookie);
+    expect(bobs.status).toBe(409);
+  });
+
+  it('404s for a non-party, indistinguishable from a missing offer', async () => {
+    const { alice, bob } = await pair();
+    const offerId = await answered(alice, bob, 'decline');
+    const nosy = await makeUser('nosy');
+    const real = await request(app).delete(`/api/trades/${offerId}`).set('Cookie', nosy.cookie);
+    const fake = await request(app)
+      .delete('/api/trades/00000000-0000-0000-0000-000000000000')
+      .set('Cookie', nosy.cookie);
+    expect(real.status).toBe(404);
+    expect(real.body).toEqual(fake.body);
+  });
+
+  it('clears every finished trade in one call and leaves the open ones', async () => {
+    const { alice, bob } = await pair();
+    const declined = await answered(alice, bob, 'decline');
+    const settledByAlice = await answered(alice, bob, 'accept');
+    await request(app).post(`/api/trades/${settledByAlice}/settled`).set('Cookie', alice.cookie);
+    const unsettled = await answered(alice, bob, 'accept');
+    const open = (await propose(alice, bob)).body.offer.id as string;
+
+    const cleared = await request(app).delete('/api/trades').set('Cookie', alice.cookie);
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.hidden).toBe(2);
+
+    const mine = ids(await request(app).get('/api/trades').set('Cookie', alice.cookie));
+    expect(mine).not.toContain(declined);
+    expect(mine).not.toContain(settledByAlice);
+    expect(mine).toContain(unsettled);
+    expect(mine).toContain(open);
+
+    // Bob's list is untouched.
+    const theirs = ids(await request(app).get('/api/trades').set('Cookie', bob.cookie));
+    expect(theirs).toEqual(expect.arrayContaining([declined, settledByAlice, unsettled, open]));
+  });
+});

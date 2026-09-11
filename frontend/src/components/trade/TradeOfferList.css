@@ -34,6 +34,8 @@
 
 .trade-offer-title {
   margin: 0;
+  /* Fills the head so the status column and Remove stay pinned right. */
+  flex: 1 1 auto;
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-primary);
@@ -292,11 +294,123 @@
   color: var(--text-secondary);
 }
 
+/* The net of the deal, stated once. The two side totals are the inputs; this
+   is the subtraction the reader was doing in their head. Muted: it informs
+   the decision, it is not the decision. */
+.trade-offer-net {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
 .trade-offer-note {
   margin: 0;
   font-size: var(--text-sm);
   font-style: italic;
   color: var(--text-secondary);
+}
+
+/* ── Finished trades: a ledger line, not a decision ─────────────────────────
+   A declined / withdrawn / settled row used to be as tall as a live one, so
+   five dead rows outweighed the one that needed answering. Compact keeps the
+   head and the tappable chips (the record of what changed hands) and drops
+   the padding, the note and the net. */
+.trade-offer-card.is-compact {
+  padding: var(--space-2) var(--space-3);
+  gap: var(--space-1);
+  background: var(--surface);
+}
+
+/* Sides become two LEDGER ROWS, "You give · chips · value" over "You get ·
+   chips · value", at every width. The arrow goes (the labels already say
+   which way), and so does the stacked-on-phone layout that made a dead row
+   as tall as a live one. `display: contents` on the label <p> lets its
+   label and value spans sit in the row's own grid; the span keeps its id,
+   so the chip list's aria-labelledby still resolves. */
+.trade-offer-card.is-compact .trade-offer-sides {
+  grid-template-columns: 1fr;
+  gap: var(--space-1);
+}
+
+.trade-offer-card.is-compact .trade-offer-arrow {
+  display: none;
+}
+
+.trade-offer-card.is-compact .trade-offer-side {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-2);
+}
+
+.trade-offer-card.is-compact .trade-offer-side-label {
+  display: contents;
+}
+
+.trade-offer-card.is-compact .trade-offer-side-label > span:first-child {
+  grid-column: 1;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.trade-offer-card.is-compact .trade-offer-side-value {
+  grid-column: 3;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.trade-offer-card.is-compact .trade-offer-side-cards,
+.trade-offer-card.is-compact .trade-offer-side-nothing {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+/* "Remove from your list" on a finished row. A card header, not a dense list
+   row, so on a coarse pointer it takes the floor on its real box (same call as
+   .trade-offer-who beside it). */
+.trade-offer-remove {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .trade-offer-remove:hover {
+    color: var(--text-primary);
+    border-color: var(--border);
+    background: var(--surface-raised);
+  }
+}
+
+.trade-offer-remove:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.trade-offer-remove:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (pointer: coarse) {
+  .trade-offer-remove {
+    width: 44px;
+    height: 44px;
+  }
 }
 
 .trade-offer-settling,
