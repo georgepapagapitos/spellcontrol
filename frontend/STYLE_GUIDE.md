@@ -1374,6 +1374,26 @@ Gate the phone treatment on art actually being present (`.deck-editor-hero--art`
 is the reference modifier). A hero with no art must not inherit the
 `min-height` — an empty tall slab is worse than the plain hero.
 
+**The same two treatments apply to every commander-art header, not only page
+heroes.** The generation takeover (`GenerationTakeover.css`) and the
+post-build report sheet (`BuildReportSheet.css`) both shipped the naive
+version first — a ~4:3 `art_crop` stretched edge-to-edge with `object-fit:
+cover` across a wide, short box, which on any desktop width shows a random
+horizontal slice with the title over the busiest art. Two details that differ
+from the page hero:
+
+- **Fade to the surface the panel sits on**, not to `var(--bg)`. A takeover or
+  sheet is painted on `var(--surface-raised)`, so its horizontal fade and its
+  bottom scrim end in that token; fading to `--bg` leaves a visible seam.
+- **Take the bottom scrim to fully opaque at the edge** so the art dissolves
+  into whatever follows (the phase checklist, the report body) rather than
+  ending on a hard horizontal line.
+- `object-position: center 25%` and `useCardThumb(name, 'art_crop')` for the
+  name-resolved fallback — the `'normal'` full-card image is never a header.
+
+`responsive-primitives.test.ts` pins the `≥600px` right-anchored, width-bounded
+panel for each adopter; add a new header there when you build one.
+
 ## Charts (line / trend)
 
 First instance: the Breakdown drawer's Value section (`components/ValueTrend.tsx`).
@@ -1674,7 +1694,7 @@ Untap):
 
 - **Card density scales with the board.** `--pt-card-w` on
   `body:has(.playtest-page)` is `clamp(90px, min(7vw, (100vh - 340px) / 4.6),
-  140px)` — 7% of the viewport, capped by what three type rows fit in the
+140px)` — 7% of the viewport, capped by what three type rows fit in the
   height left after the chrome, never below the old 90px. Both card vars are
   **registered `@property`s** so `getComputedStyle` hands the drop math a
   resolved length, not the `clamp()` text. Hand cards are the same size as

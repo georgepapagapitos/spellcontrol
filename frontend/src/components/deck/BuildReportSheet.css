@@ -67,15 +67,41 @@
   object-position: center 25%;
 }
 
+/* Phone scrim (STYLE_GUIDE § Page hero art): full-bleed art, near-opaque
+   under the eyebrow + headline, clearing to art at the top. The old fade
+   left the top 20% raw, which put the small mono eyebrow over bright sky. */
 .build-report-sheet-art-fade {
   position: absolute;
   inset: 0;
   background: linear-gradient(
-    to bottom,
-    transparent 20%,
-    color-mix(in srgb, var(--surface-raised) 70%, transparent) 60%,
-    var(--surface-raised) 100%
+    to top,
+    var(--surface-raised) 0%,
+    color-mix(in srgb, var(--surface-raised) 85%, transparent) 40%,
+    color-mix(in srgb, var(--surface-raised) 45%, transparent) 75%,
+    color-mix(in srgb, var(--surface-raised) 25%, transparent) 100%
   );
+}
+
+/* ≥600px: a ~4:3 art_crop across a 9rem-tall header is a 4:1 strip, so the
+   art becomes a right-anchored panel sized to the header height and fades
+   into the surface toward the text column (same ruling as the deck-editor
+   hero and the generation takeover). */
+@media (min-width: 600px) {
+  .build-report-sheet-art {
+    inset: 0 0 0 auto;
+    width: min(14rem, 45%);
+  }
+
+  .build-report-sheet-art-fade {
+    background:
+      linear-gradient(to top, var(--surface-raised) 0%, transparent 45%),
+      linear-gradient(
+        to right,
+        var(--surface-raised) 0%,
+        color-mix(in srgb, var(--surface-raised) 55%, transparent) 40%,
+        transparent 100%
+      );
+  }
 }
 
 /* ── Title row (commander name + close btn) ────────────────────────────── */
@@ -92,7 +118,8 @@
   margin: 0;
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--text-muted);
+  /* Muted small mono has no contrast headroom over art — one token up. */
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   line-height: 1;

@@ -64,7 +64,7 @@ export function BuildReportSheet({
   );
 
   // Resolve commander art via CDN hook (no api.scryfall.com/format=image).
-  const resolvedThumb = useCardThumb(commanderImageUrl ? undefined : commanderName, 'normal');
+  const resolvedThumb = useCardThumb(commanderImageUrl ? undefined : commanderName, 'art_crop');
   const artUrl = commanderImageUrl ?? resolvedThumb;
 
   // Mark seen on mount so a parent re-render doesn't loop the sheet.
