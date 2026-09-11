@@ -335,6 +335,10 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       const next = snapshot(state);
       next.zones.library = [...top, ...rest, ...bottom];
       next.zones.graveyard = next.zones.graveyard.concat(graveyard);
+      if (action.shuffle) {
+        next.zones.library = shuffle(next.zones.library, mulberry32(state.rngSeed));
+        next.rngSeed = nextSeed(state.rngSeed);
+      }
       return withHistory(state, next);
     }
     case 'MOVE_TO_BATTLEFIELD': {

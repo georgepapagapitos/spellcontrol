@@ -258,9 +258,9 @@ export function ActionBar({
         type="button"
         onClick={onScry}
         disabled={libraryCount === 0}
-        title="Look at the top of your library"
+        title="Scry, surveil or mill"
       >
-        Scry
+        Top cards
       </button>
       <button type="button" onClick={onCreateToken}>
         Create token

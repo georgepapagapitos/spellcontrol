@@ -22,15 +22,46 @@ function moveButton(cardName: string) {
 describe('ScrySheet', () => {
   it('opens on scry looking at one card, all of it kept on top', () => {
     renderSheet();
-    expect(screen.getByText('1 card')).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Number of cards to look at' })).toHaveProperty(
+      'value',
+      '1'
+    );
     expect(screen.getByRole('list', { name: 'Top of library' }).textContent).toContain('Card 0');
     expect(screen.getByRole('button', { name: 'Scry 1' })).toBeTruthy();
+  });
+
+  it('jumps straight to a count from the select (Ponder = 3 in two taps)', () => {
+    const onResolve = renderSheet();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Number of cards to look at' }), {
+      target: { value: '3' },
+    });
+    expect(screen.getByRole('list', { name: 'Top of library' }).textContent).toContain('Card 2');
+    fireEvent.click(screen.getByRole('checkbox', { name: /^Shuffle/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Scry 3, then shuffle' }));
+    expect(onResolve).toHaveBeenCalledWith({
+      mode: 'scry',
+      top: ['c0', 'c1', 'c2'],
+      bottom: [],
+      shuffle: true,
+    });
+  });
+
+  it('offers no shuffle for mill and never sends one', () => {
+    const onResolve = renderSheet();
+    fireEvent.click(screen.getByRole('checkbox', { name: /^Shuffle/ }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Mill' }));
+    expect(screen.queryByRole('checkbox', { name: /^Shuffle/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Mill 1' }));
+    expect(onResolve.mock.calls[0][0].shuffle).toBeUndefined();
   });
 
   it('steps the peeked window and re-deals the columns', () => {
     renderSheet();
     fireEvent.click(screen.getByRole('button', { name: 'Look at one more card' }));
-    expect(screen.getByText('2 cards')).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Number of cards to look at' })).toHaveProperty(
+      'value',
+      '2'
+    );
     expect(screen.getByRole('list', { name: 'Top of library' }).textContent).toContain('Card 1');
   });
 

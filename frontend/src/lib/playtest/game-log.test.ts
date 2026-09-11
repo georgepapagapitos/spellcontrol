@@ -44,6 +44,20 @@ describe('buildLogEntries', () => {
     ]);
   });
 
+  it('notes the shuffle that followed a resolve', () => {
+    const s = init(10, 1, 0);
+    const [a] = s.zones.library;
+    const action = {
+      type: 'RESOLVE_TOP' as const,
+      mode: 'scry' as const,
+      top: [a.id],
+      shuffle: true,
+    };
+    expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([
+      { turn: 1, kind: 'scry', text: 'Scried 1, then shuffled', verdict: 'locked' },
+    ]);
+  });
+
   it('logs a mill by the number that actually reached the graveyard', () => {
     const s = init(10, 1, 0);
     const [a, b] = s.zones.library;

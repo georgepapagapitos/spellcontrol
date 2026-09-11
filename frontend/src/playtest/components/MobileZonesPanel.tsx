@@ -67,10 +67,10 @@ export function MobileZonesPanel({
                 ? [
                     { label: 'Shuffle', onClick: () => onShuffleLibrary() },
                     {
-                      // B6-08: the sheet opens with its own count stepper
-                      // (currently defaults to 1) — a fixed "Scry 3" here
-                      // would mislead about what actually happens.
-                      label: 'Scry',
+                      // The sheet picks the mode (scry / surveil / mill) and
+                      // the count, so the entry stays generic: a fixed
+                      // "Scry 3" here would mislead about what happens.
+                      label: 'Top cards',
                       onClick: () => {
                         setOpen(false);
                         onScry();

@@ -124,9 +124,11 @@
   }
 }
 
+/* A native select (global chrome from forms-banners.css) sized to the
+   steppers either side of it, so any count is two taps, not N. */
 .playtest-scry-count__value {
   min-width: 5.5rem;
-  text-align: center;
+  height: 44px;
   font-size: var(--text-sm);
   font-weight: 600;
   font-variant-numeric: tabular-nums;

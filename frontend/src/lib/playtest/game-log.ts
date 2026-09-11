@@ -157,8 +157,11 @@ function buildRawLogEntries(
       // Milled count comes from the resulting state, so ids the reducer
       // discarded (not in the library, or repeated) can't inflate it.
       const milled = next.zones.graveyard.length - current.zones.graveyard.length;
+      const then = action.shuffle ? ', then shuffled' : '';
       if (action.mode === 'mill') {
-        return [{ turn, kind: 'mill', text: `Milled ${milled} card${milled === 1 ? '' : 's'}` }];
+        return [
+          { turn, kind: 'mill', text: `Milled ${milled} card${milled === 1 ? '' : 's'}${then}` },
+        ];
       }
       const looked = new Set([...action.top, ...(action.bottom ?? []), ...(action.graveyard ?? [])])
         .size;
@@ -170,7 +173,7 @@ function buildRawLogEntries(
         {
           turn,
           kind: action.mode === 'surveil' ? 'mill' : 'scry',
-          text: looked > kept ? `${verb} ${looked} — ${away}` : `${verb} ${looked}`,
+          text: (looked > kept ? `${verb} ${looked} — ${away}` : `${verb} ${looked}`) + then,
         },
       ];
     }
