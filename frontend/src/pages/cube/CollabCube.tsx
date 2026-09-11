@@ -44,7 +44,7 @@ export function CollabCube() {
   const decks = useDecksStore((s) => s.decks);
   const authUser = useAuth((s) => s.user);
   const myUsername = authUser?.username ?? '';
-  const ownershipFor = useOwnershipFor();
+  const { ownershipFor } = useOwnershipFor();
   const cubeStore = useCubeStore();
   const pushToast = useToastsStore((s) => s.push);
 

@@ -608,65 +608,18 @@
 }
 
 /* ---- gallery (image grid) ---- */
+/* Tiles are the shared CardGridCell (.collection-grid-*), so the art, badge
+   plate and deck/cube glyph read exactly like the collection grid. Only the
+   container is ours: the collection grid's column/gap contract plus a native
+   render skip — a 720-card gallery stays cheap without virtualization. */
 .cube-gallery {
-  list-style: none;
-  margin: 0;
-  padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fill, minmax(min(120px, 100%), 1fr));
+  gap: var(--card-grid-gap);
 }
-.cube-tile {
-  position: relative;
-  /* Same off-screen render skip as the list rows — a 540-card gallery stays cheap. */
+.cube-gallery > .collection-grid-cell {
   content-visibility: auto;
-  contain-intrinsic-size: auto 150px;
-}
-.cube-tile-btn {
-  display: block;
-  width: 100%;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-.cube-tile-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.cube-tile-img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 488 / 680;
-  object-fit: cover;
-  border-radius: var(--radius);
-  background: var(--surface-raised);
-  transition: transform var(--motion-fast, 120ms) ease;
-}
-@media (hover: hover) and (pointer: fine) {
-  .cube-tile-btn:hover .cube-tile-img {
-    transform: scale(1.03);
-  }
-}
-.cube-tile-ph {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: var(--space-2);
-  aspect-ratio: 488 / 680;
-  border-radius: var(--radius);
-  background: var(--surface-raised);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-}
-.cube-tile-badge {
-  position: absolute;
-  top: var(--space-1);
-  left: var(--space-1);
-  pointer-events: none;
+  contain-intrinsic-size: auto 170px;
 }
 .cube-rows {
   list-style: none;
@@ -685,7 +638,7 @@
 /* The clickable row nests a real <button> (a11y: an `<li role="button">` is
    a non-interactive element carrying an interactive role) — the LI above
    keeps only the render-skip + border-bottom, this owns the row's grid
-   layout plus the UA button-chrome reset (same split as .cube-tile/.cube-tile-btn). */
+   layout plus the UA button-chrome reset. */
 .cube-row-interactive {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);

@@ -21,7 +21,7 @@ import {
 type OwnFilter = 'all' | 'owned' | 'in-other-deck' | 'unowned';
 
 export function ImportCube() {
-  const ownershipFor = useOwnershipFor();
+  const { ownershipFor } = useOwnershipFor();
   const [url, setUrl] = useState('');
   const [status, setStatus] = useState<'idle' | 'working' | 'done' | 'error'>('idle');
   const [error, setError] = useState('');
