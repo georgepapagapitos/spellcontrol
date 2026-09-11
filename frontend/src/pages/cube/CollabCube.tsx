@@ -10,6 +10,7 @@ import { buildAvailableCollection } from '../../lib/collection-availability';
 import { getCardsByNames } from '../../deck-builder/services/scryfall/client';
 import { fetchCubeOracle } from '../../lib/cube/oracle';
 import { loadTaggerData } from '../../deck-builder/services/tagger/client';
+import { loadCubeSignal } from '../../lib/cube/signal';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
 import { CubeSize } from '../../lib/cube/targets';
@@ -151,7 +152,7 @@ export function CollabCube() {
       }
       setFailedFriends(failed);
 
-      await loadTaggerData();
+      await Promise.all([loadTaggerData(), loadCubeSignal()]);
 
       // Collect all unique names across me + friends for Scryfall enrichment.
       const allNames = new Set<string>(myUniqueNames);

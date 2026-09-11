@@ -220,3 +220,17 @@ describe('refineCube', () => {
     expect(r.finalScore).toBeGreaterThanOrEqual(before);
   });
 });
+
+describe('refineCube — role ceilings', () => {
+  it('admits no swap-in for a role already at its cap', () => {
+    const { seed, pool } = tokensScenario();
+    const picked = new Set(seed.picks.map((p) => p.card.oracleId));
+    // Every candidate swap-in is now a ramp card, and ramp is at its ceiling.
+    const capped = pool.map((c) => (picked.has(c.oracleId) ? c : { ...c, role: 'ramp' as const }));
+    const r = refineCube(seed, capped, band360, 360, 1, { ramp: 0 });
+    expect(r.swapLog).toEqual([]);
+    expect(tokenCount(r.picks)).toBe(tokenCount(seed.picks));
+    // Control: the same pool with the ceiling lifted still refines.
+    expect(refineCube(seed, capped, band360, 360, 1).swapLog.length).toBeGreaterThan(0);
+  });
+});

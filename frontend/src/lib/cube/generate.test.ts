@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateCube, bucketOf, curveSlotOf, CubeCard } from './generate';
+import { generateCube, bucketOf, curveSlotOf, byQuality, CubeCard } from './generate';
 import { targetsForSize } from './targets';
 import { scoreCube } from './objective';
 
@@ -13,6 +13,8 @@ function card(p: Partial<CubeCard>): CubeCard {
     typeLine: p.typeLine ?? 'Creature — Human',
     role: p.role ?? null,
     rank: p.rank,
+    cubePop: p.cubePop,
+    cubeElo: p.cubeElo,
     synergyProducers: p.synergyProducers,
     synergyPayoffs: p.synergyPayoffs,
   };
@@ -316,5 +318,110 @@ describe('generateCube — dedupes duplicate printings to one copy', () => {
     const sols = cube.picks.filter((p) => p.card.oracleId === 'sol');
     expect(sols.length).toBe(1);
     expect(sols[0].card.rank).toBe(1);
+  });
+});
+
+describe('byQuality — the cube signal outranks EDHREC rank (E288)', () => {
+  it('orders by cube popularity, then Elo, then rank, then oracleId', () => {
+    const signet = card({
+      name: 'Arcane Signet',
+      oracleId: 'a',
+      rank: 3,
+      cubePop: 4.25,
+      cubeElo: 1655,
+    });
+    const mindStone = card({
+      name: 'Mind Stone',
+      oracleId: 'b',
+      rank: 32,
+      cubePop: 14.94,
+      cubeElo: 1366,
+    });
+    const bolt = card({
+      name: 'Lightning Bolt',
+      oracleId: 'c',
+      rank: 158,
+      cubePop: 26.41,
+      cubeElo: 1658,
+    });
+    const tiePopLowElo = card({ oracleId: 'd', rank: 1, cubePop: 14.94, cubeElo: 1200 });
+    const neverCubedTop = card({ oracleId: 'e', rank: 1 }); // EDHREC #1, unknown to CubeCobra
+    const neverCubedLow = card({ oracleId: 'f', rank: 9000 });
+    const unranked = card({ oracleId: 'g' });
+    const sorted = [
+      unranked,
+      neverCubedLow,
+      tiePopLowElo,
+      signet,
+      neverCubedTop,
+      mindStone,
+      bolt,
+    ].sort(byQuality);
+    expect(sorted.map((c) => c.oracleId)).toEqual(['c', 'b', 'd', 'a', 'e', 'f', 'g']);
+  });
+
+  it('is deterministic regardless of input order', () => {
+    const cards = [
+      card({ oracleId: 'x', cubePop: 1 }),
+      card({ oracleId: 'y', cubePop: 1 }),
+      card({ oracleId: 'z', rank: 4 }),
+    ];
+    const a = [...cards].sort(byQuality).map((c) => c.oracleId);
+    const b = [...cards]
+      .reverse()
+      .sort(byQuality)
+      .map((c) => c.oracleId);
+    expect(a).toEqual(b);
+    expect(a).toEqual(['x', 'y', 'z']);
+  });
+});
+
+describe('role ceilings (E288) — a quota is a floor AND the cap', () => {
+  it('stops taking ramp past its quota even when every ramp card outranks the filler', () => {
+    const pool: CubeCard[] = [];
+    const colors: CubeCard['colors'][] = [['W'], ['U'], ['B'], ['R'], ['G']];
+    for (const c of colors) {
+      // 40 top-signal ramp cards per color would fill 80% of a color's section
+      // by quality alone; the filler creatures are all weaker.
+      for (let i = 0; i < 40; i++)
+        pool.push(
+          card({
+            colors: c,
+            cmc: 1 + (i % 4),
+            typeLine: 'Artifact',
+            role: 'ramp',
+            cubePop: 50 - i * 0.1,
+          })
+        );
+      for (let i = 0; i < 60; i++)
+        pool.push(
+          card({ colors: c, cmc: 1 + (i % 6), typeLine: 'Creature — Elf', cubePop: 10 - i * 0.1 })
+        );
+    }
+    for (let i = 0; i < 90; i++)
+      pool.push(card({ colors: [], typeLine: 'Land', cmc: 0, cubePop: 5 }));
+    const cube = generateCube(pool, 360);
+    expect(cube.picks).toHaveLength(360);
+    const nonland = cube.picks.filter((p) => !/land/i.test(p.card.typeLine));
+    const ramp = nonland.filter((p) => p.card.role === 'ramp').length / nonland.length;
+    const band = targetsForSize(360);
+    expect(ramp).toBeLessThanOrEqual(band.role.ramp.median + 0.02);
+    expect(ramp).toBeGreaterThanOrEqual(band.role.ramp.median - 0.02);
+  });
+
+  it('still fills the cube from capped cards when nothing else is left', () => {
+    const pool: CubeCard[] = [];
+    for (let i = 0; i < 400; i++)
+      pool.push(
+        card({
+          colors: [['W'], ['U'], ['B'], ['R'], ['G']][i % 5],
+          cmc: 1 + (i % 5),
+          typeLine: 'Artifact',
+          role: 'ramp',
+          cubePop: 20,
+        })
+      );
+    const cube = generateCube(pool, 180);
+    expect(cube.picks).toHaveLength(180);
   });
 });

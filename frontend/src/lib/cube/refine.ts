@@ -17,15 +17,16 @@
 
 import type { GeneratedCube, Pick } from './generate';
 import { bucketOf, curveSlotOf, type CubeCard } from './core';
-import type { BandTargets, ColorBucket } from './targets';
+import type { BandTargets, ColorBucket, Role } from './targets';
 import {
   AXIS_LABEL,
   contributes,
-  computeRankP80,
+  computePowerBasis,
   draftablePoolAxes,
   rawPower,
   scoreCube,
   type CubeScore,
+  type PowerBasis,
 } from './objective';
 import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 
@@ -46,7 +47,7 @@ export interface RefineResult {
   byBucket: Record<ColorBucket, number>;
   swapLog: SwapLogEntry[];
   finalScore: number;
-  /** Full objective breakdown of the final picks (rankP80 reused — no re-sort). */
+  /** Full objective breakdown of the final picks (basis reused — no re-sort). */
   score: CubeScore;
 }
 
@@ -78,13 +79,25 @@ function bestSwapForAxis(
   band: BandTargets,
   size: number,
   currentScore: number,
-  rankP80: number,
+  basis: PowerBasis,
   synergyLevel: number,
   power: (c: CubeCard) => number,
-  draftable: ReadonlySet<AxisKey>
+  draftable: ReadonlySet<AxisKey>,
+  roleCap: Partial<Record<Role, number>>
 ): { picks: Pick[]; out: CubeCard; in: CubeCard; newScore: number } | null {
+  // A role already at its corpus quota (its ceiling too — see ./generate) takes
+  // no more members — the objective has no term that would push back, so the
+  // refiner would otherwise re-inflate the removal/ramp the seed just capped.
+  const roleCount = {} as Record<Role, number>;
+  for (const p of picks)
+    if (p.card.role) roleCount[p.card.role] = (roleCount[p.card.role] ?? 0) + 1;
+  const atCap = (c: CubeCard) =>
+    c.role != null && roleCap[c.role] != null && (roleCount[c.role] ?? 0) >= roleCap[c.role]!;
   const ins = pool
-    .filter((c) => !pickedIds.has(c.oracleId) && bucketOf(c) !== 'land' && contributes(c, axis))
+    .filter(
+      (c) =>
+        !pickedIds.has(c.oracleId) && bucketOf(c) !== 'land' && contributes(c, axis) && !atCap(c)
+    )
     .sort((a, b) => power(b) - power(a) || a.oracleId.localeCompare(b.oracleId))
     .slice(0, CANDIDATES_PER_AXIS);
   if (ins.length === 0) return null;
@@ -126,7 +139,7 @@ function bestSwapForAxis(
       bucket: chosen.p.bucket,
       reason: `${AXIS_LABEL.get(axis) ?? axis} support`,
     };
-    const newScore = scoreCube(candidate, pool, band, size, rankP80, synergyLevel).total;
+    const newScore = scoreCube(candidate, pool, band, size, basis, synergyLevel).total;
     if (newScore > currentScore + EPS && (!best || newScore > best.newScore)) {
       best = { picks: candidate, out: chosen.p.card, in: inCard, newScore };
     }
@@ -144,14 +157,16 @@ export function refineCube(
   band: BandTargets,
   size: number,
   /** "Best cards ↔ Synergy" — how much of the objective sits on archetype depth. */
-  synergyLevel = 1
+  synergyLevel = 1,
+  /** Cube-level role ceilings (the corpus-median quotas); a role at its cap admits no swap-in. */
+  roleCap: Partial<Record<Role, number>> = {}
 ): RefineResult {
-  const rankP80 = computeRankP80(pool);
-  const power = (c: CubeCard) => rawPower(c, rankP80);
+  const basis = computePowerBasis(pool);
+  const power = (c: CubeCard) => rawPower(c, basis);
 
   let picks = greedy.picks.slice();
   const pickedIds = new Set(picks.map((p) => p.card.oracleId));
-  let scored = scoreCube(picks, pool, band, size, rankP80, synergyLevel);
+  let scored = scoreCube(picks, pool, band, size, basis, synergyLevel);
   let currentScore = scored.total;
   const swapLog: SwapLogEntry[] = [];
 
@@ -169,7 +184,7 @@ export function refineCube(
 
   const MAX_ITER = Math.min(2 * size, 720);
   for (let iter = 0; iter < MAX_ITER; iter++) {
-    scored = scoreCube(picks, pool, band, size, rankP80, synergyLevel);
+    scored = scoreCube(picks, pool, band, size, basis, synergyLevel);
     const axisScore = new Map(scored.axes.map((a) => [a.axis, a.score]));
     // Weakest-supported draftable axis first (absent from the cube = 0);
     // lexicographic tiebreak for determinism (M13).
@@ -186,10 +201,11 @@ export function refineCube(
         band,
         size,
         currentScore,
-        rankP80,
+        basis,
         synergyLevel,
         power,
-        draftableSet
+        draftableSet,
+        roleCap
       );
       if (swap) {
         picks = swap.picks;
@@ -216,7 +232,7 @@ export function refineCube(
     byBucket[b] = (byBucket[b] ?? 0) + 1;
   }
 
-  // Final breakdown of the climbed picks (rankP80 reused — no pool re-sort).
-  const finalScored = scoreCube(picks, pool, band, size, rankP80, synergyLevel);
+  // Final breakdown of the climbed picks (basis reused — no pool re-sort).
+  const finalScored = scoreCube(picks, pool, band, size, basis, synergyLevel);
   return { picks, byBucket, swapLog, finalScore: finalScored.total, score: finalScored };
 }
