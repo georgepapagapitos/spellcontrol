@@ -1,10 +1,10 @@
 {
   "$schema": "derived — do not hand-edit; regenerate via frontend/scripts/mine-cube-targets.mjs",
   "provenance": {
-    "generatedAt": "2026-08-07T13:52:16.362Z",
+    "generatedAt": "2026-09-11T18:53:29.994Z",
     "source": "CubeCobra /search/getmoresearchitems (order=pop, public cubes); cube cards via /cube/api/cubeJSON/:id",
     "method": "top 20 popularity-ranked public cubes per size band with >= 10 likes",
-    "taggerGeneratedAt": "2026-07-31T15:35:14.254Z",
+    "taggerGeneratedAt": "2026-09-01T22:03:33.453Z",
     "bands": {
       "360": {
         "n": 20,
@@ -12,122 +12,142 @@
           {
             "id": "5d39ce4b8472c42aab0b61c2",
             "name": "Bun Magic Cube",
-            "likes": 1536,
-            "decks": 2018
+            "likes": 1589,
+            "decks": 2018,
+            "main": 360
           },
           {
             "id": "aa4ef3f9-0b4f-4bf0-9fbc-5cc3d3ec5e37",
             "name": "100 Ornithopters",
-            "likes": 1460,
-            "decks": 180
+            "likes": 1543,
+            "decks": 181,
+            "main": 360
           },
           {
             "id": "5d707d8cfcb84a5be6ced09f",
             "name": "The Starter Cube",
-            "likes": 809,
-            "decks": 1488
-          },
-          {
-            "id": "613d81be1de8d5027f16ba32",
-            "name": "Data Generated Vintage Cube",
-            "likes": 516,
-            "decks": 542
-          },
-          {
-            "id": "61454789685c83106293be3c",
-            "name": "Bodleian Cube",
-            "likes": 513,
-            "decks": 663
+            "likes": 829,
+            "decks": 1488,
+            "main": 360
           },
           {
             "id": "3c8379e4-dcf7-45da-9cd3-ad3e12592304",
             "name": "Sacred Geometry",
-            "likes": 485,
-            "decks": 18
+            "likes": 544,
+            "decks": 20,
+            "main": 360
+          },
+          {
+            "id": "61454789685c83106293be3c",
+            "name": "Bodleian Cube",
+            "likes": 528,
+            "decks": 664,
+            "main": 360
+          },
+          {
+            "id": "613d81be1de8d5027f16ba32",
+            "name": "Data Generated Vintage Cube",
+            "likes": 531,
+            "decks": 543,
+            "main": 360
           },
           {
             "id": "5e8c9f60a0c28578ee03de2d",
             "name": "Jank Diver Peasant Cube",
-            "likes": 420,
-            "decks": 728
+            "likes": 434,
+            "decks": 729,
+            "main": 360
           },
           {
             "id": "617b36e887d268103f4acd02",
             "name": "May's Fae Cube",
-            "likes": 413,
-            "decks": 465
+            "likes": 419,
+            "decks": 465,
+            "main": 360
           },
           {
             "id": "605df8591361d3104a896904",
             "name": "Neoclassical Cube",
-            "likes": 368,
-            "decks": 197
-          },
-          {
-            "id": "e1a51d49-9a07-48b1-b2ba-c78b6e65d03b",
-            "name": "Lord of the Rings (LotR) standalone 360",
-            "likes": 263,
-            "decks": 45
-          },
-          {
-            "id": "616f6b81302701102974518b",
-            "name": "Standard Cube - Peasant Edition",
-            "likes": 252,
-            "decks": 313
+            "likes": 382,
+            "decks": 197,
+            "main": 360
           },
           {
             "id": "6253f2e117d248100301077c",
             "name": "Premodern Cube",
-            "likes": 251,
-            "decks": 233
+            "likes": 271,
+            "decks": 234,
+            "main": 360
           },
           {
-            "id": "63924837bceae738e0db06cb",
-            "name": "Triangularity",
-            "likes": 224,
-            "decks": 29
+            "id": "616f6b81302701102974518b",
+            "name": "Standard Cube - Peasant Edition",
+            "likes": 260,
+            "decks": 313,
+            "main": 360
           },
           {
-            "id": "5dc9a64553f3101ce8e1d08c",
-            "name": "The Devoid Cube",
-            "likes": 221,
-            "decks": 487
+            "id": "e1a51d49-9a07-48b1-b2ba-c78b6e65d03b",
+            "name": "Lord of the Rings (LotR) standalone 360",
+            "likes": 277,
+            "decks": 45,
+            "main": 360
           },
           {
             "id": "636e940b282cc10f6a181e75",
             "name": "The Penrose Cube",
-            "likes": 222,
-            "decks": 27
+            "likes": 236,
+            "decks": 27,
+            "main": 360
           },
           {
-            "id": "5ec82086510bc4414742ec52",
-            "name": "Uber Bear's Artifact Cube",
-            "likes": 197,
-            "decks": 217
+            "id": "5dc9a64553f3101ce8e1d08c",
+            "name": "The Devoid Cube",
+            "likes": 222,
+            "decks": 487,
+            "main": 360
+          },
+          {
+            "id": "63924837bceae738e0db06cb",
+            "name": "Triangularity",
+            "likes": 225,
+            "decks": 29,
+            "main": 360
           },
           {
             "id": "ec2a20db-4131-4dcc-8e94-4539db2fc49a",
             "name": "Take Five",
+            "likes": 204,
+            "decks": 7,
+            "main": 360
+          },
+          {
+            "id": "5ec82086510bc4414742ec52",
+            "name": "Uber Bear's Artifact Cube",
             "likes": 196,
-            "decks": 6
+            "decks": 217,
+            "main": 360
           },
           {
             "id": "5f7861a84f9e051049918d2e",
             "name": "Pink Sleeves",
-            "likes": 181,
-            "decks": 471
+            "likes": 186,
+            "decks": 473,
+            "main": 360
           },
           {
             "id": "5e99affb319c431018010d56",
             "name": "The Horror Of Innistrad",
-            "likes": 182,
-            "decks": 297
+            "likes": 188,
+            "decks": 297,
+            "main": 360
           },
           {
             "id": "c1e7f5ff-7bc5-4268-b8b3-c6e2735e346a",
             "name": "LOTR Cube",
-            "likes": 189,
-            "decks": 21
+            "likes": 194,
+            "decks": 21,
+            "main": 360
           }
         ]
       },
@@ -137,122 +157,142 @@
           {
             "id": "5d617ac6c2a85f3b75fe95a4",
             "name": "The Pauper Cube",
-            "likes": 3262,
-            "decks": 13177
+            "likes": 3354,
+            "decks": 13195,
+            "main": 450
           },
           {
             "id": "6377de78946dbd0f6a6e8fff",
             "name": "Peasant Cube (2026)",
-            "likes": 468,
-            "decks": 42
+            "likes": 477,
+            "decks": 42,
+            "main": 450
           },
           {
             "id": "5d70f0322d52e15c2537f057",
             "name": "The Spooty Peasant Cube - 2026 2.0 Edition",
-            "likes": 294,
-            "decks": 485
+            "likes": 296,
+            "decks": 485,
+            "main": 450
           },
           {
             "id": "5d4c6fcd97ca265764f29fa4",
             "name": "Eleusis",
-            "likes": 280,
-            "decks": 903
+            "likes": 281,
+            "decks": 903,
+            "main": 450
           },
           {
             "id": "5ee3e963a97e3610390bda42",
             "name": "Golden Gate Artifact Cube",
-            "likes": 255,
-            "decks": 410
-          },
-          {
-            "id": "63322a647545331a605f8df1",
-            "name": "Spicy Ramen Cube",
-            "likes": 243,
-            "decks": 307
+            "likes": 261,
+            "decks": 410,
+            "main": 450
           },
           {
             "id": "5d3f18dcd1bbf667dd9cd271",
             "name": "Shamim's Cube",
-            "likes": 241,
-            "decks": 1096
+            "likes": 258,
+            "decks": 1096,
+            "main": 450
+          },
+          {
+            "id": "63322a647545331a605f8df1",
+            "name": "Spicy Ramen Cube",
+            "likes": 255,
+            "decks": 308,
+            "main": 450
           },
           {
             "id": "5d2cdf280442c316b0ef86c8",
             "name": "The Miser's Cube",
             "likes": 231,
-            "decks": 364
+            "decks": 364,
+            "main": 450
           },
           {
             "id": "b6ce3845-d40c-4b34-9352-d003dde0e670",
             "name": "Alpha Reimagined",
-            "likes": 214,
-            "decks": 8
+            "likes": 230,
+            "decks": 8,
+            "main": 450
           },
           {
             "id": "5d3ed83247586d63776acbf6",
             "name": "Sammich's Peasant Cube",
-            "likes": 201,
-            "decks": 348
+            "likes": 213,
+            "decks": 348,
+            "main": 450
           },
           {
             "id": "5d5edb04726e4277c7bb31be",
             "name": "Simple_Man's 450 Powered List",
-            "likes": 192,
-            "decks": 965
+            "likes": 196,
+            "decks": 965,
+            "main": 450
           },
           {
             "id": "5d72c6cad13edd6540aff5f3",
             "name": "Mad Peasant",
-            "likes": 192,
-            "decks": 126
+            "likes": 204,
+            "decks": 128,
+            "main": 450
           },
           {
             "id": "5d8171de91139f32f85d1200",
             "name": "Unplayables Cube",
-            "likes": 161,
-            "decks": 29
+            "likes": 168,
+            "decks": 29,
+            "main": 450
           },
           {
             "id": "0bf64b07-f3f5-497b-8552-43c5bca7765e",
             "name": "Early 2010s Nostalgia Cube",
-            "likes": 168,
-            "decks": 91
+            "likes": 173,
+            "decks": 91,
+            "main": 450
           },
           {
             "id": "5fb80566967185106b0b63f3",
             "name": "Petty Nobility",
-            "likes": 101,
-            "decks": 86
+            "likes": 103,
+            "decks": 86,
+            "main": 450
           },
           {
             "id": "5d87ae20d5242a0b00e3205c",
             "name": "Fast Multiplayer Cube",
-            "likes": 100,
-            "decks": 1606
+            "likes": 101,
+            "decks": 1606,
+            "main": 450
           },
           {
             "id": "5dc657d5930245513fdff287",
             "name": "Uncommon Cube",
-            "likes": 95,
-            "decks": 75
+            "likes": 96,
+            "decks": 75,
+            "main": 450
           },
           {
             "id": "62b26ea38e90bf100cec58a4",
             "name": "The $5 Fair 'Nuff Cube",
-            "likes": 94,
-            "decks": 68
+            "likes": 98,
+            "decks": 68,
+            "main": 450
           },
           {
             "id": "6003518eeaf0061046b4c9ae",
             "name": "The Peasant+ Cube",
-            "likes": 89,
-            "decks": 59
+            "likes": 94,
+            "decks": 62,
+            "main": 450
           },
           {
-            "id": "5e9a38afb691a2104a7a5065",
-            "name": "Tjornan's Cube",
-            "likes": 84,
-            "decks": 6048
+            "id": "61483627-042e-4a6c-b1ba-5aae1896d3d1",
+            "name": "The Mono Red Cube",
+            "likes": 94,
+            "decks": 3,
+            "main": 450
           }
         ]
       },
@@ -262,122 +302,142 @@
           {
             "id": "5d2cb3f44153591614458e5d",
             "name": "MTGO Vintage Cube",
-            "likes": 3957,
-            "decks": 139618
+            "likes": 4020,
+            "decks": 139688,
+            "main": 540
           },
           {
             "id": "5d3f7245d1bbf667dd9d4286",
             "name": "The Peasant Cube 2026",
-            "likes": 1471,
-            "decks": 10521
+            "likes": 1500,
+            "decks": 10527,
+            "main": 540
           },
           {
             "id": "5fab13510efe0d1071b87fae",
             "name": "Caleb Gannon's Powered Synergy Cube",
-            "likes": 1470,
-            "decks": 10520
+            "likes": 1491,
+            "decks": 10522,
+            "main": 540
           },
           {
             "id": "5d8cdc9ddabc762f670c1d2a",
             "name": "The Innistrad Anthology Cube",
-            "likes": 566,
-            "decks": 557
+            "likes": 600,
+            "decks": 557,
+            "main": 540
           },
           {
             "id": "5d5ef816726e4277c7bbc6be",
             "name": "The Cube of Cthulhu",
-            "likes": 486,
-            "decks": 487
+            "likes": 503,
+            "decks": 487,
+            "main": 540
           },
           {
             "id": "60886f462e6452103fa39792",
             "name": "The Tempo Cube",
-            "likes": 408,
-            "decks": 1041
+            "likes": 409,
+            "decks": 1041,
+            "main": 540
           },
           {
             "id": "5d757b268f152803feb030f8",
             "name": "The Steve Cube (High Octane Unpowered)",
-            "likes": 387,
-            "decks": 155
+            "likes": 396,
+            "decks": 156,
+            "main": 540
           },
           {
             "id": "615afb91b9880d102e064867",
             "name": "Vintage MenguCube",
-            "likes": 302,
-            "decks": 535
+            "likes": 307,
+            "decks": 535,
+            "main": 540
           },
           {
             "id": "5eb2416d33973f103cfd0a66",
             "name": "Classic Modern Cube",
-            "likes": 319,
-            "decks": 1013
+            "likes": 335,
+            "decks": 1013,
+            "main": 540
+          },
+          {
+            "id": "4d7736b4-3394-4868-9ad1-92f91a3f75c6",
+            "name": "Arena Powered Cube 6.0",
+            "likes": 287,
+            "decks": 153,
+            "main": 540
           },
           {
             "id": "5e87870a40eaf0158ee1292f",
             "name": "Chromatic Cube Draft on MTG Arena, July 2025 ",
             "likes": 267,
-            "decks": 14775
-          },
-          {
-            "id": "4d7736b4-3394-4868-9ad1-92f91a3f75c6",
-            "name": "Arena Powered Cube 5.0",
-            "likes": 278,
-            "decks": 142
+            "decks": 14775,
+            "main": 540
           },
           {
             "id": "620a9f770810a7592dac3843",
             "name": "A Study in Harmony",
-            "likes": 249,
-            "decks": 434
+            "likes": 256,
+            "decks": 436,
+            "main": 540
           },
           {
             "id": "60b65de720a67b104d4f8393",
             "name": "Pauper MenguCube",
-            "likes": 242,
-            "decks": 469
+            "likes": 247,
+            "decks": 469,
+            "main": 540
           },
           {
             "id": "5e5e7c8ea0b97a386ec63124",
             "name": "Cultic Cube",
-            "likes": 227,
-            "decks": 838
+            "likes": 228,
+            "decks": 838,
+            "main": 540
           },
           {
             "id": "623f76ea9604ed1015559ba3",
             "name": "The Live the Dream Cube",
-            "likes": 220,
-            "decks": 103
+            "likes": 224,
+            "decks": 104,
+            "main": 540
           },
           {
             "id": "60520b18b187bd105a2323a3",
             "name": "Ye Olde Vintage Cube",
-            "likes": 177,
-            "decks": 1172
+            "likes": 191,
+            "decks": 1172,
+            "main": 540
           },
           {
             "id": "5d71a20e91560b5ef2891e6e",
             "name": "Chimaera540",
-            "likes": 176,
-            "decks": 214
+            "likes": 177,
+            "decks": 214,
+            "main": 540
           },
           {
             "id": "ef9deff3-c05a-4dc1-a43e-45ad0990e784",
             "name": "The Arena Powered Cube",
-            "likes": 168,
-            "decks": 49
-          },
-          {
-            "id": "5db72d91d4a35c1294819945",
-            "name": "Ancient Times",
-            "likes": 176,
-            "decks": 457
+            "likes": 167,
+            "decks": 49,
+            "main": 540
           },
           {
             "id": "5deef8c7782ed239f581700c",
             "name": "Pauper Pimp Cube",
-            "likes": 164,
-            "decks": 358
+            "likes": 166,
+            "decks": 358,
+            "main": 540
+          },
+          {
+            "id": "5db72d91d4a35c1294819945",
+            "name": "Ancient Times",
+            "likes": 178,
+            "decks": 457,
+            "main": 540
           }
         ]
       },
@@ -387,122 +447,287 @@
           {
             "id": "5d61aa23b8ec593ca4b76ca6",
             "name": "wtwlf123's Cube",
-            "likes": 1314,
-            "decks": 21521
+            "likes": 1324,
+            "decks": 21523,
+            "main": 720
           },
           {
             "id": "5ed29a43d44a3c102e14500a",
             "name": "Amaz's Peasant+ Cube",
-            "likes": 271,
-            "decks": 1565
+            "likes": 270,
+            "decks": 1565,
+            "main": 724
           },
           {
             "id": "5dc453b3940c6e5750342bc2",
             "name": "The Awesome Cube",
-            "likes": 160,
-            "decks": 139
+            "likes": 158,
+            "decks": 139,
+            "main": 720
           },
           {
             "id": "6035a47978a8971042fa746c",
             "name": "Essential Ravnica",
-            "likes": 106,
-            "decks": 153
+            "likes": 107,
+            "decks": 153,
+            "main": 720
           },
           {
             "id": "768edbac-627d-4e18-b555-4001ee1e5a13",
             "name": "Zac Hill's Vision of Standard Cube",
             "likes": 77,
-            "decks": 140
+            "decks": 140,
+            "main": 720
           },
           {
             "id": "5fea15e199d51b7952cd5838",
             "name": "Redacted Cube",
-            "likes": 58,
-            "decks": 38
+            "likes": 57,
+            "decks": 40,
+            "main": 720
           },
           {
             "id": "60c4f2ec897127097fb0b337",
             "name": "NeoPreModern Cube",
-            "likes": 54,
-            "decks": 208
-          },
-          {
-            "id": "6018cf8884cdae10554f36a7",
-            "name": "Core Set 720",
-            "likes": 50,
-            "decks": 304
+            "likes": 53,
+            "decks": 208,
+            "main": 720
           },
           {
             "id": "5f39b15235fe7a0fb6b6d046",
             "name": "California Premiership Cube",
-            "likes": 45,
-            "decks": 183
+            "likes": 48,
+            "decks": 183,
+            "main": 720
+          },
+          {
+            "id": "6018cf8884cdae10554f36a7",
+            "name": "Core Set 720",
+            "likes": 51,
+            "decks": 304,
+            "main": 720
           },
           {
             "id": "5f66c2ba50c854104fe08970",
             "name": "Tribal Cube",
             "likes": 35,
-            "decks": 281
-          },
-          {
-            "id": "5f7e7898164e9c108aa048ff",
-            "name": "The Dumpster Cube",
-            "likes": 31,
-            "decks": 29
+            "decks": 281,
+            "main": 720
           },
           {
             "id": "5d8fdc82f1db0749f138da83",
             "name": "Metacube",
             "likes": 32,
-            "decks": 298
+            "decks": 298,
+            "main": 720
+          },
+          {
+            "id": "5f7e7898164e9c108aa048ff",
+            "name": "The Dumpster Cube",
+            "likes": 31,
+            "decks": 29,
+            "main": 720
           },
           {
             "id": "5e158fce09f9671fcb1e6c43",
             "name": "RETIRED / Legacy XL - CV 2023",
             "likes": 29,
-            "decks": 710
+            "decks": 710,
+            "main": 720
           },
           {
             "id": "62f3fc6bba5feb46db0dab87",
             "name": "Commander Cube",
             "likes": 26,
-            "decks": 41
-          },
-          {
-            "id": "63d5f5e08179370f6951aeb6",
-            "name": "PreModern Cube [2026]",
-            "likes": 28,
-            "decks": 31
+            "decks": 41,
+            "main": 720
           },
           {
             "id": "615b148fb9880d102e071294",
             "name": "The Redacted Cube (2.1)",
             "likes": 26,
-            "decks": 149
+            "decks": 167,
+            "main": 720
+          },
+          {
+            "id": "63d5f5e08179370f6951aeb6",
+            "name": "PreModern Cube [2026]",
+            "likes": 29,
+            "decks": 31,
+            "main": 720
           },
           {
             "id": "5f3bdc7b35fe7a0fb6e33c3f",
             "name": "Daragaz’s Vintage Cube",
-            "likes": 24,
-            "decks": 161
+            "likes": 23,
+            "decks": 161,
+            "main": 720
           },
           {
             "id": "5ea8600773088158393652d3",
             "name": "Mox Cube",
-            "likes": 22,
-            "decks": 79
+            "likes": 21,
+            "decks": 80,
+            "main": 720
           },
           {
             "id": "5d90b7ab92577854e2e33ee5",
             "name": "Legacy 720",
             "likes": 21,
-            "decks": 425
+            "decks": 425,
+            "main": 720
           },
           {
             "id": "6085911538b5bb103d36a8c0",
             "name": "2012 Players Championship",
-            "likes": 20,
-            "decks": 109
+            "likes": 24,
+            "decks": 109,
+            "main": 720
+          }
+        ]
+      },
+      "commander": {
+        "n": 20,
+        "cubes": [
+          {
+            "id": "5ee1ac60516bcd40db036790",
+            "name": "Tom's Commander Cube",
+            "likes": 1038,
+            "decks": 1783,
+            "main": 960
+          },
+          {
+            "id": "608a4a0131e4aa105f3292c7",
+            "name": "Nitpicking Nerds Commander Cube",
+            "likes": 507,
+            "decks": 2496,
+            "main": 748
+          },
+          {
+            "id": "5d3f1c6cd1bbf667dd9cdd1b",
+            "name": "Commander Cube",
+            "likes": 290,
+            "decks": 1345,
+            "main": 960
+          },
+          {
+            "id": "5e52c7c887d68470ced0c4cd",
+            "name": "Easy-To-Understand Commander Cube (480 + 90 Commanders)",
+            "likes": 199,
+            "decks": 115,
+            "main": 586
+          },
+          {
+            "id": "61e090395cd6410ff6d18b5a",
+            "name": "1v1 Jumpstart EDH",
+            "likes": 174,
+            "decks": 180,
+            "main": 1740
+          },
+          {
+            "id": "5d8978207836a91c43c8e3cf",
+            "name": "Miryafa's Commander Cube",
+            "likes": 140,
+            "decks": 353,
+            "main": 480
+          },
+          {
+            "id": "5d63092bd8d36644b64f92a1",
+            "name": "Kyle's Commander Cube",
+            "likes": 80,
+            "decks": 26,
+            "main": 112
+          },
+          {
+            "id": "5fbc8ec9c2955d104221c568",
+            "name": "The Commander Cube 2024",
+            "likes": 78,
+            "decks": 154,
+            "main": 840
+          },
+          {
+            "id": "610986645a705b102abddaf7",
+            "name": "[Jumpstart Commander] KvatchStart Cube",
+            "likes": 73,
+            "decks": 68,
+            "main": 4546
+          },
+          {
+            "id": "01f74cfc-fc0c-4c85-95e9-76d07f959fc2",
+            "name": "Doctor Who Commander Cube",
+            "likes": 66,
+            "decks": 9,
+            "main": 533
+          },
+          {
+            "id": "60a50fdcd88d4f104bb625ef",
+            "name": "Jumpstart Commander",
+            "likes": 62,
+            "decks": 9,
+            "main": 408
+          },
+          {
+            "id": "618278cc07610614421215a2",
+            "name": "Bremer Commander Cube 2026",
+            "likes": 52,
+            "decks": 502,
+            "main": 930
+          },
+          {
+            "id": "750807eb-61db-4910-b2e9-c11d0e9fa752",
+            "name": "Dan's Commander Cube",
+            "likes": 49,
+            "decks": 1,
+            "main": 1636
+          },
+          {
+            "id": "63b78e4b86e27f7750fa66a5",
+            "name": "Theros Vorthos Commander",
+            "likes": 50,
+            "decks": 5,
+            "main": 480
+          },
+          {
+            "id": "5e049096ce1b4e173a96dacc",
+            "name": "Caydened's \"Commander\" Cube",
+            "likes": 40,
+            "decks": 457,
+            "main": 693
+          },
+          {
+            "id": "435e15e9-c9d5-4d40-b2be-3e6f90ea8d54",
+            "name": "Mini Quarter Express Bar Commander Cube",
+            "likes": 49,
+            "decks": 1,
+            "main": 240
+          },
+          {
+            "id": "07d560c8-a072-4ff9-a99c-49f9c57a78f3",
+            "name": "4 Player Commander Micro Cube",
+            "likes": 41,
+            "decks": 0,
+            "main": 240
+          },
+          {
+            "id": "3fde97dd-e948-4d42-bcb9-71d35f4f8593",
+            "name": "Urza's Fiesta Bowl: A Commander Cube",
+            "likes": 34,
+            "decks": 1,
+            "main": 810
+          },
+          {
+            "id": "8cab7ab1-9d36-4aa5-95dd-a80b82d669d7",
+            "name": "Brandon Sanderson Commander Cube",
+            "likes": 39,
+            "decks": 4,
+            "main": 1062
+          },
+          {
+            "id": "5fd172e893df8471604c371a",
+            "name": "My Commander Cube [Real Life]",
+            "likes": 28,
+            "decks": 57,
+            "main": 1080
           }
         ]
       }
@@ -516,7 +741,7 @@
         "W": {
           "median": 0.1347,
           "p25": 0.1028,
-          "p75": 0.1403
+          "p75": 0.1396
         },
         "U": {
           "median": 0.1347,
@@ -529,18 +754,18 @@
           "p75": 0.1444
         },
         "R": {
-          "median": 0.1278,
+          "median": 0.1292,
           "p25": 0.1181,
           "p75": 0.1424
         },
         "G": {
           "median": 0.1264,
-          "p25": 0.1174,
+          "p25": 0.1153,
           "p75": 0.1389
         },
         "multicolor": {
           "median": 0.0847,
-          "p25": 0.0694,
+          "p25": 0.0715,
           "p75": 0.1146
         },
         "colorless": {
@@ -549,7 +774,7 @@
           "p75": 0.1167
         },
         "land": {
-          "median": 0.1611,
+          "median": 0.1597,
           "p25": 0.1083,
           "p75": 0.1917
         }
@@ -562,50 +787,50 @@
         },
         "1": {
           "median": 0.1859,
-          "p25": 0.1493,
-          "p75": 0.2321
+          "p25": 0.1486,
+          "p75": 0.2319
         },
         "2": {
           "median": 0.3018,
-          "p25": 0.2611,
-          "p75": 0.3248
+          "p25": 0.258,
+          "p75": 0.328
         },
         "3": {
-          "median": 0.2235,
+          "median": 0.223,
           "p25": 0.2061,
           "p75": 0.2403
         },
         "4": {
-          "median": 0.1268,
-          "p25": 0.1041,
-          "p75": 0.1476
+          "median": 0.1289,
+          "p25": 0.1037,
+          "p75": 0.1453
         },
         "5": {
-          "median": 0.0721,
+          "median": 0.0712,
           "p25": 0.0575,
-          "p75": 0.0817
+          "p75": 0.0803
         },
         "6": {
-          "median": 0.0372,
+          "median": 0.0374,
           "p25": 0.0273,
-          "p75": 0.0458
+          "p75": 0.0474
         },
         "7": {
           "median": 0.0246,
-          "p25": 0.0163,
+          "p25": 0.0167,
           "p75": 0.0351
         }
       },
       "type": {
         "creature": {
-          "median": 0.4583,
-          "p25": 0.4125,
-          "p75": 0.5188
+          "median": 0.4611,
+          "p25": 0.4104,
+          "p75": 0.5097
         },
         "instant": {
-          "median": 0.1361,
-          "p25": 0.1153,
-          "p75": 0.1556
+          "median": 0.1306,
+          "p25": 0.1146,
+          "p75": 0.15
         },
         "sorcery": {
           "median": 0.1167,
@@ -614,12 +839,12 @@
         },
         "artifact": {
           "median": 0.0792,
-          "p25": 0.0493,
-          "p75": 0.1062
+          "p25": 0.0465,
+          "p75": 0.1118
         },
         "enchantment": {
-          "median": 0.05,
-          "p25": 0.0361,
+          "median": 0.0528,
+          "p25": 0.0382,
           "p75": 0.0729
         },
         "planeswalker": {
@@ -630,7 +855,7 @@
         "land": {
           "median": 0.1514,
           "p25": 0.0979,
-          "p75": 0.1896
+          "p75": 0.1889
         },
         "battle": {
           "median": 0,
@@ -640,28 +865,28 @@
       },
       "role": {
         "removal": {
-          "median": 0.2469,
-          "p25": 0.1946,
+          "median": 0.2475,
+          "p25": 0.197,
           "p75": 0.2758
         },
         "boardwipe": {
-          "median": 0.0241,
+          "median": 0.0248,
           "p25": 0.0191,
           "p75": 0.0347
         },
         "ramp": {
-          "median": 0.0803,
+          "median": 0.0807,
           "p25": 0.0645,
-          "p75": 0.1105
+          "p75": 0.1045
         },
         "cardDraw": {
-          "median": 0.2209,
-          "p25": 0.1882,
-          "p75": 0.2395
+          "median": 0.2222,
+          "p25": 0.1836,
+          "p75": 0.2553
         }
       },
       "fixingLands": {
-        "median": 58,
+        "median": 57.5,
         "p25": 39,
         "p75": 69
       }
@@ -671,156 +896,156 @@
       "n": 20,
       "color": {
         "W": {
-          "median": 0.1411,
+          "median": 0.1422,
           "p25": 0.135,
-          "p75": 0.1428
+          "p75": 0.145
         },
         "U": {
           "median": 0.1378,
-          "p25": 0.1328,
+          "p25": 0.1306,
           "p75": 0.1428
         },
         "B": {
           "median": 0.14,
-          "p25": 0.1322,
+          "p25": 0.1328,
           "p75": 0.1428
         },
         "R": {
           "median": 0.1367,
-          "p25": 0.1311,
-          "p75": 0.1444
+          "p25": 0.1328,
+          "p75": 0.145
         },
         "G": {
-          "median": 0.1378,
+          "median": 0.1356,
           "p25": 0.1306,
           "p75": 0.1444
         },
         "multicolor": {
           "median": 0.0822,
-          "p25": 0.0761,
-          "p75": 0.1161
+          "p25": 0.0694,
+          "p75": 0.1172
         },
         "colorless": {
           "median": 0.0867,
           "p25": 0.0594,
-          "p75": 0.1178
+          "p75": 0.1378
         },
         "land": {
-          "median": 0.1233,
-          "p25": 0.12,
-          "p75": 0.145
+          "median": 0.1222,
+          "p25": 0.1128,
+          "p75": 0.1356
         }
       },
       "curve": {
         "0": {
           "median": 0.0049,
           "p25": 0.0025,
-          "p75": 0.0157
+          "p75": 0.0158
         },
         "1": {
-          "median": 0.2041,
+          "median": 0.2039,
           "p25": 0.1843,
-          "p75": 0.2281
+          "p75": 0.2206
         },
         "2": {
           "median": 0.3168,
           "p25": 0.2879,
-          "p75": 0.3316
+          "p75": 0.3371
         },
         "3": {
-          "median": 0.208,
-          "p25": 0.1981,
-          "p75": 0.2296
+          "median": 0.2117,
+          "p25": 0.1975,
+          "p75": 0.2328
         },
         "4": {
           "median": 0.1136,
-          "p25": 0.0995,
-          "p75": 0.1356
+          "p25": 0.0988,
+          "p75": 0.1374
         },
         "5": {
-          "median": 0.0695,
-          "p25": 0.0602,
+          "median": 0.0672,
+          "p25": 0.0611,
           "p75": 0.0782
         },
         "6": {
-          "median": 0.0374,
-          "p25": 0.0325,
+          "median": 0.0377,
+          "p25": 0.0306,
           "p75": 0.0468
         },
         "7": {
-          "median": 0.0343,
-          "p25": 0.0275,
-          "p75": 0.0361
+          "median": 0.0333,
+          "p25": 0.0283,
+          "p75": 0.035
         }
       },
       "type": {
         "creature": {
-          "median": 0.4756,
-          "p25": 0.4356,
-          "p75": 0.4922
+          "median": 0.4722,
+          "p25": 0.4322,
+          "p75": 0.4928
         },
         "instant": {
-          "median": 0.1222,
+          "median": 0.1244,
           "p25": 0.1089,
           "p75": 0.1422
         },
         "sorcery": {
-          "median": 0.1111,
-          "p25": 0.105,
-          "p75": 0.1139
+          "median": 0.1122,
+          "p25": 0.1061,
+          "p75": 0.1178
         },
         "artifact": {
-          "median": 0.0756,
-          "p25": 0.0578,
-          "p75": 0.0961
+          "median": 0.0767,
+          "p25": 0.0583,
+          "p75": 0.1072
         },
         "enchantment": {
           "median": 0.06,
-          "p25": 0.0394,
-          "p75": 0.0833
+          "p25": 0.0422,
+          "p75": 0.0872
         },
         "planeswalker": {
           "median": 0.0078,
           "p25": 0.0017,
-          "p75": 0.0322
+          "p75": 0.0311
         },
         "land": {
-          "median": 0.1222,
-          "p25": 0.1128,
-          "p75": 0.1433
+          "median": 0.12,
+          "p25": 0.1111,
+          "p75": 0.135
         },
         "battle": {
           "median": 0,
           "p25": 0,
-          "p75": 0
+          "p75": 0.0022
         }
       },
       "role": {
         "removal": {
-          "median": 0.244,
-          "p25": 0.2383,
-          "p75": 0.2596
+          "median": 0.2437,
+          "p25": 0.2384,
+          "p75": 0.2705
         },
         "boardwipe": {
           "median": 0.0256,
           "p25": 0.0177,
-          "p75": 0.0355
+          "p75": 0.0397
         },
         "ramp": {
-          "median": 0.0867,
+          "median": 0.0889,
           "p25": 0.0786,
-          "p75": 0.1141
+          "p75": 0.1078
         },
         "cardDraw": {
-          "median": 0.2145,
-          "p25": 0.1837,
-          "p75": 0.2384
+          "median": 0.2018,
+          "p25": 0.1681,
+          "p75": 0.2392
         }
       },
       "fixingLands": {
-        "median": 55.5,
-        "p25": 54,
-        "p75": 65.25
+        "median": 55,
+        "p25": 50.75,
+        "p75": 61
       }
     },
     "540": {
@@ -828,14 +1053,14 @@
       "n": 20,
       "color": {
         "W": {
-          "median": 0.1306,
+          "median": 0.1287,
           "p25": 0.119,
           "p75": 0.1481
         },
         "U": {
           "median": 0.1315,
-          "p25": 0.1287,
-          "p75": 0.1472
+          "p25": 0.1259,
+          "p75": 0.1468
         },
         "B": {
           "median": 0.1315,
@@ -843,51 +1068,51 @@
           "p75": 0.1486
         },
         "R": {
-          "median": 0.1287,
-          "p25": 0.1199,
+          "median": 0.1278,
+          "p25": 0.1181,
           "p75": 0.1407
         },
         "G": {
           "median": 0.1269,
-          "p25": 0.1194,
-          "p75": 0.1454
+          "p25": 0.1199,
+          "p75": 0.1468
         },
         "multicolor": {
-          "median": 0.0935,
-          "p25": 0.087,
+          "median": 0.1,
+          "p25": 0.0884,
           "p75": 0.1023
         },
         "colorless": {
           "median": 0.112,
-          "p25": 0.0801,
-          "p75": 0.1264
+          "p25": 0.0787,
+          "p75": 0.1236
         },
         "land": {
           "median": 0.1454,
           "p25": 0.1181,
-          "p75": 0.1616
+          "p75": 0.1634
         }
       },
       "curve": {
         "0": {
           "median": 0.0098,
           "p25": 0.0022,
-          "p75": 0.0333
+          "p75": 0.0338
         },
         "1": {
           "median": 0.1913,
           "p25": 0.1646,
-          "p75": 0.2139
+          "p75": 0.2066
         },
         "2": {
-          "median": 0.2882,
+          "median": 0.2883,
           "p25": 0.2672,
-          "p75": 0.3002
+          "p75": 0.2985
         },
         "3": {
           "median": 0.2128,
-          "p25": 0.2056,
-          "p75": 0.2267
+          "p25": 0.2063,
+          "p75": 0.2273
         },
         "4": {
           "median": 0.1322,
@@ -895,39 +1120,39 @@
           "p75": 0.1506
         },
         "5": {
-          "median": 0.0704,
+          "median": 0.0729,
           "p25": 0.0635,
           "p75": 0.0873
         },
         "6": {
-          "median": 0.0381,
+          "median": 0.0395,
           "p25": 0.0332,
-          "p75": 0.0419
+          "p75": 0.0428
         },
         "7": {
-          "median": 0.0424,
+          "median": 0.0428,
           "p25": 0.0277,
-          "p75": 0.0481
+          "p75": 0.0482
         }
       },
       "type": {
         "creature": {
           "median": 0.4454,
-          "p25": 0.4074,
-          "p75": 0.5032
+          "p25": 0.3884,
+          "p75": 0.5046
         },
         "instant": {
-          "median": 0.1259,
+          "median": 0.1269,
           "p25": 0.112,
-          "p75": 0.138
+          "p75": 0.1394
         },
         "sorcery": {
-          "median": 0.1074,
-          "p25": 0.1037,
+          "median": 0.1093,
+          "p25": 0.1032,
           "p75": 0.1245
         },
         "artifact": {
-          "median": 0.0722,
+          "median": 0.0741,
           "p25": 0.0606,
           "p75": 0.1093
         },
@@ -944,7 +1169,7 @@
         "land": {
           "median": 0.1454,
           "p25": 0.1157,
-          "p75": 0.1616
+          "p75": 0.163
         },
         "battle": {
           "median": 0,
@@ -954,30 +1179,30 @@
       },
       "role": {
         "removal": {
-          "median": 0.2542,
-          "p25": 0.215,
-          "p75": 0.2723
+          "median": 0.2561,
+          "p25": 0.2134,
+          "p75": 0.2815
         },
         "boardwipe": {
           "median": 0.0262,
           "p25": 0.0172,
-          "p75": 0.0417
+          "p75": 0.042
         },
         "ramp": {
-          "median": 0.103,
+          "median": 0.1019,
           "p25": 0.0813,
-          "p75": 0.1419
+          "p75": 0.1465
         },
         "cardDraw": {
-          "median": 0.209,
-          "p25": 0.1885,
-          "p75": 0.2508
+          "median": 0.2036,
+          "p25": 0.1826,
+          "p75": 0.2507
         }
       },
       "fixingLands": {
         "median": 78.5,
         "p25": 63.75,
-        "p75": 87.25
+        "p75": 88.25
       }
     },
     "720": {
@@ -986,17 +1211,17 @@
       "color": {
         "W": {
           "median": 0.1292,
-          "p25": 0.1215,
+          "p25": 0.1219,
           "p75": 0.1368
         },
         "U": {
           "median": 0.1264,
-          "p25": 0.1174,
+          "p25": 0.117,
           "p75": 0.1399
         },
         "B": {
           "median": 0.1271,
-          "p25": 0.1188,
+          "p25": 0.1177,
           "p75": 0.142
         },
         "R": {
@@ -1005,17 +1230,17 @@
           "p75": 0.1396
         },
         "G": {
-          "median": 0.1271,
+          "median": 0.1278,
           "p25": 0.1177,
           "p75": 0.1396
         },
         "multicolor": {
           "median": 0.1118,
           "p25": 0.0962,
-          "p75": 0.1286
+          "p75": 0.1283
         },
         "colorless": {
-          "median": 0.1028,
+          "median": 0.0993,
           "p25": 0.083,
           "p75": 0.1243
         },
@@ -1037,7 +1262,7 @@
           "p75": 0.1733
         },
         "2": {
-          "median": 0.2731,
+          "median": 0.2723,
           "p25": 0.2351,
           "p75": 0.2941
         },
@@ -1047,19 +1272,19 @@
           "p75": 0.2475
         },
         "4": {
-          "median": 0.1515,
-          "p25": 0.1279,
+          "median": 0.1498,
+          "p25": 0.1287,
           "p75": 0.1749
         },
         "5": {
           "median": 0.0903,
           "p25": 0.0747,
-          "p75": 0.1071
+          "p75": 0.1075
         },
         "6": {
-          "median": 0.0532,
+          "median": 0.0535,
           "p25": 0.0436,
-          "p75": 0.0588
+          "p75": 0.0595
         },
         "7": {
           "median": 0.0444,
@@ -1069,24 +1294,24 @@
       },
       "type": {
         "creature": {
-          "median": 0.4569,
-          "p25": 0.4372,
+          "median": 0.4556,
+          "p25": 0.4354,
           "p75": 0.4882
         },
         "instant": {
           "median": 0.1146,
-          "p25": 0.0965,
-          "p75": 0.1344
+          "p25": 0.0969,
+          "p75": 0.1351
         },
         "sorcery": {
           "median": 0.0972,
-          "p25": 0.0861,
+          "p25": 0.0858,
           "p75": 0.1226
         },
         "artifact": {
-          "median": 0.084,
+          "median": 0.0847,
           "p25": 0.0676,
-          "p75": 0.1076
+          "p75": 0.1073
         },
         "enchantment": {
           "median": 0.0653,
@@ -1094,12 +1319,12 @@
           "p75": 0.0722
         },
         "planeswalker": {
-          "median": 0.0271,
+          "median": 0.0278,
           "p25": 0.0108,
           "p75": 0.0403
         },
         "land": {
-          "median": 0.1292,
+          "median": 0.1278,
           "p25": 0.1146,
           "p75": 0.1493
         },
@@ -1111,30 +1336,187 @@
       },
       "role": {
         "removal": {
-          "median": 0.2536,
-          "p25": 0.2372,
-          "p75": 0.2672
+          "median": 0.252,
+          "p25": 0.2364,
+          "p75": 0.2681
         },
         "boardwipe": {
-          "median": 0.0331,
+          "median": 0.0337,
           "p25": 0.0293,
           "p75": 0.0394
         },
         "ramp": {
-          "median": 0.0988,
-          "p25": 0.084,
+          "median": 0.0979,
+          "p25": 0.0836,
           "p75": 0.1279
         },
         "cardDraw": {
-          "median": 0.2074,
-          "p25": 0.1789,
-          "p75": 0.2291
+          "median": 0.1981,
+          "p25": 0.1733,
+          "p75": 0.2247
         }
       },
       "fixingLands": {
         "median": 95,
         "p25": 82.5,
         "p75": 109.25
+      }
+    },
+    "commander": {
+      "size": 779,
+      "n": 20,
+      "color": {
+        "W": {
+          "median": 0.1208,
+          "p25": 0.1091,
+          "p75": 0.1302
+        },
+        "U": {
+          "median": 0.1206,
+          "p25": 0.1134,
+          "p75": 0.1357
+        },
+        "B": {
+          "median": 0.1209,
+          "p25": 0.1044,
+          "p75": 0.1307
+        },
+        "R": {
+          "median": 0.1226,
+          "p25": 0.1091,
+          "p75": 0.1292
+        },
+        "G": {
+          "median": 0.1207,
+          "p25": 0.1091,
+          "p75": 0.1307
+        },
+        "multicolor": {
+          "median": 0.1359,
+          "p25": 0.1148,
+          "p75": 0.1593
+        },
+        "colorless": {
+          "median": 0.1193,
+          "p25": 0.0952,
+          "p75": 0.1419
+        },
+        "land": {
+          "median": 0.1188,
+          "p25": 0.1044,
+          "p75": 0.1588
+        }
+      },
+      "curve": {
+        "0": {
+          "median": 0.0071,
+          "p25": 0.0039,
+          "p75": 0.0116
+        },
+        "1": {
+          "median": 0.0937,
+          "p25": 0.064,
+          "p75": 0.1177
+        },
+        "2": {
+          "median": 0.2191,
+          "p25": 0.2038,
+          "p75": 0.234
+        },
+        "3": {
+          "median": 0.2328,
+          "p25": 0.2221,
+          "p75": 0.2555
+        },
+        "4": {
+          "median": 0.1877,
+          "p25": 0.1702,
+          "p75": 0.2024
+        },
+        "5": {
+          "median": 0.1186,
+          "p25": 0.0983,
+          "p75": 0.1368
+        },
+        "6": {
+          "median": 0.068,
+          "p25": 0.0598,
+          "p75": 0.0778
+        },
+        "7": {
+          "median": 0.0613,
+          "p25": 0.0473,
+          "p75": 0.0711
+        }
+      },
+      "type": {
+        "creature": {
+          "median": 0.4941,
+          "p25": 0.4388,
+          "p75": 0.5388
+        },
+        "instant": {
+          "median": 0.1024,
+          "p25": 0.0695,
+          "p75": 0.1117
+        },
+        "sorcery": {
+          "median": 0.0855,
+          "p25": 0.0697,
+          "p75": 0.0967
+        },
+        "artifact": {
+          "median": 0.0986,
+          "p25": 0.0672,
+          "p75": 0.1173
+        },
+        "enchantment": {
+          "median": 0.0724,
+          "p25": 0.055,
+          "p75": 0.087
+        },
+        "planeswalker": {
+          "median": 0.0141,
+          "p25": 0.0031,
+          "p75": 0.0181
+        },
+        "land": {
+          "median": 0.1188,
+          "p25": 0.1042,
+          "p75": 0.1586
+        },
+        "battle": {
+          "median": 0,
+          "p25": 0,
+          "p75": 0.0008
+        }
+      },
+      "role": {
+        "removal": {
+          "median": 0.1723,
+          "p25": 0.1498,
+          "p75": 0.1952
+        },
+        "boardwipe": {
+          "median": 0.0334,
+          "p25": 0.0201,
+          "p75": 0.0354
+        },
+        "ramp": {
+          "median": 0.1384,
+          "p25": 0.1045,
+          "p75": 0.1629
+        },
+        "cardDraw": {
+          "median": 0.2015,
+          "p25": 0.1875,
+          "p75": 0.2282
+        }
+      },
+      "fixingLands": {
+        "median": 86,
+        "p25": 59.25,
+        "p75": 127
       }
     }
   }

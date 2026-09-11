@@ -30,7 +30,15 @@ describe('filterPool', () => {
       'Llanowar Elves',
       'Mystery Card',
     ]);
-    expect(hidden).toEqual({ committed: 1, singles: 0, rarity: 0, price: 0, unpriced: 0 });
+    expect(hidden).toEqual({
+      committed: 1,
+      singles: 0,
+      rarity: 0,
+      price: 0,
+      unpriced: 0,
+      commanderOnly: 0,
+      politics: 0,
+    });
   });
 
   it('all = every owned name, nothing hidden', () => {
@@ -72,5 +80,53 @@ describe('filterPool', () => {
     expect(names).toEqual([]);
     const total = Object.values(hidden).reduce((s, v) => s + v, 0);
     expect(total).toBe(6);
+  });
+});
+
+describe('filterPool — play format', () => {
+  const tags: Record<string, string[]> = {
+    'Command Tower': [
+      'commander-identity-matters',
+      'rainbow-land',
+      'synergy-commander',
+      'commander-matters',
+    ],
+    'Arcane Signet': ['ramp', 'mana-rock', 'synergy-commander', 'commander-matters'],
+    'Secret Rendezvous': ['burst-draw', 'group-hug', 'draw'],
+    'Lightning Bolt': ['burn', 'removal'],
+  };
+  const tagsOf = (name: string) => tags[name] ?? [];
+  const cards = [
+    copy('Command Tower', { rarity: 'common', purchasePrice: 0.5 }),
+    copy('Arcane Signet', { rarity: 'uncommon', purchasePrice: 0.6 }),
+    copy('Secret Rendezvous', { rarity: 'uncommon', purchasePrice: 0.3 }),
+    copy('Lightning Bolt', { rarity: 'uncommon', purchasePrice: 1 }),
+    copy('Untagged Card', { rarity: 'common', purchasePrice: 0.1 }),
+  ];
+  const all = new Set(cards.map((c) => c.name));
+
+  it('limited (the default) leaves Commander-only and politics cards out, counted apart', () => {
+    const { names, hidden } = filterPool(cards, all, DEFAULT_POOL_FILTERS, tagsOf);
+    expect(names).toEqual(['Lightning Bolt', 'Untagged Card']);
+    expect(hidden.commanderOnly).toBe(2);
+    expect(hidden.politics).toBe(1);
+  });
+
+  it('commander keeps them all', () => {
+    const { names, hidden } = filterPool(
+      cards,
+      all,
+      { ...DEFAULT_POOL_FILTERS, format: 'commander' },
+      tagsOf
+    );
+    expect(names).toHaveLength(5);
+    expect(hidden.commanderOnly).toBe(0);
+    expect(hidden.politics).toBe(0);
+  });
+
+  it('ownership is judged before format, so a committed Signet counts as committed', () => {
+    const { hidden } = filterPool(cards, new Set(['Lightning Bolt']), DEFAULT_POOL_FILTERS, tagsOf);
+    expect(hidden.committed).toBe(4);
+    expect(hidden.commanderOnly).toBe(0);
   });
 });

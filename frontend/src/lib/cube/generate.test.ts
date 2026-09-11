@@ -425,3 +425,19 @@ describe('role ceilings (E288) — a quota is a floor AND the cap', () => {
     expect(cube.picks).toHaveLength(180);
   });
 });
+
+describe('play format', () => {
+  it('stamps the format on the cube and shapes a commander cube toward the Commander band', () => {
+    const pool = richPool();
+    const draft = generateCube(pool, 360);
+    const commander = generateCube(pool, 360, { format: 'commander' });
+    expect(draft.format).toBe('limited');
+    expect(commander.format).toBe('commander');
+    expect(commander.picks).toHaveLength(360);
+    // Different corpus → different color/land apportionment.
+    expect(commander.targetByBucket).not.toEqual(draft.targetByBucket);
+    expect(commander.targetByBucket).toEqual(
+      generateCube(pool, 360, { format: 'commander' }).targetByBucket
+    );
+  });
+});

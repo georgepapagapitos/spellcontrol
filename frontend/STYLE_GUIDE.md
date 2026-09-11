@@ -456,6 +456,17 @@ a control row (then the whole `.toolbar-pill` segmented family is `999px`, e.g.
 `.pick-mode-toggle`). A radio/segmented selector inside a form or settings panel
 is not that — its options are rects.
 
+**Paired in-panel selectors stack as sibling rows in ONE block, each option a
+rect.** When two selectors together say what a thing is FOR — the cube's play
+format (Draft / Commander) and its size (180–720) — they live in the same
+`.cube-size` block as two `role="group"` rows of the same rect option
+(`.cube-size-opt`: `var(--radius)`, `--surface`, accent-light when active), the
+deciding one first, each followed by its one-line note. Don't split the pair
+across the controls row or demote one to a `SelectMenu` pill: the pill family is
+for toolbar filters ("Draw from"), and a format is not a filter — it changes the
+corpus the build is shaped toward. Options wrap on phones exactly as the size
+row already does.
+
 **Segmented options carry the 44px coarse floor on the SPAN, not the label.**
 The label-wrapping-a-hidden-radio pattern (`.share-audience-option`,
 `.binder-mode-pill`, `.rule-segmented-pill`, `.playtest-scry-mode`,

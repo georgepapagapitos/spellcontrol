@@ -5,6 +5,7 @@
 // miner; do not hand-edit cube-targets.json.
 
 import raw from './cube-targets.json';
+import type { CubeFormat } from './play-format';
 
 /** A card's color bucket — the primary axis a cube is balanced on. */
 export type ColorBucket = 'W' | 'U' | 'B' | 'R' | 'G' | 'multicolor' | 'colorless' | 'land';
@@ -66,7 +67,14 @@ export const SIZE_INFO: Record<CubeSize, { players: number; note: string }> = {
 
 export const provenance = data.provenance;
 
-export function targetsForSize(size: CubeSize): BandTargets {
+/**
+ * The corpus band a cube is shaped toward. `limited` reads the size band (or
+ * the closest mined one); `commander` reads the band mined from popular
+ * CubeCobra Commander cubes, whose ratios are size-free — only `fixingLands`
+ * (an absolute count) is rescaled from that band's median mainboard.
+ */
+export function targetsForSize(size: CubeSize, format: CubeFormat = 'limited'): BandTargets {
+  if (format === 'commander') return scaled(data.bands.commander, size);
   const exact = data.bands[String(size)];
   if (exact) return exact;
   // Bands are mined for 360/450/540/720. Smaller pods (180/270) reuse the
@@ -75,7 +83,10 @@ export function targetsForSize(size: CubeSize): BandTargets {
   // ABSOLUTE count, so it must scale with the cube — otherwise a 180-card cube is
   // judged against 360-card fixing counts (29 lands flagged "short of 39–70" even
   // though that's a healthy ~16% land density at either size).
-  const base = data.bands['360'];
+  return scaled(data.bands['360'], size);
+}
+
+function scaled(base: BandTargets, size: CubeSize): BandTargets {
   const k = size / base.size;
   return {
     ...base,

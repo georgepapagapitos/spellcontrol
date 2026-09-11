@@ -10,6 +10,7 @@ import { useCubeStore } from '../../store/cube';
 import { buildAllocationMap, type AllocationInfo } from '../../lib/allocations';
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import { CUBE_SIZES, SIZE_INFO, type ColorBucket, type CubeSize } from '../../lib/cube/targets';
+import { CUBE_FORMATS, FORMAT_INFO, type CubeFormat } from '../../lib/cube/play-format';
 import type { GeneratedCube } from '../../lib/cube/generate';
 import type { Ownership } from '../../lib/cube/import';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -307,16 +308,39 @@ export function CubeEmptyState({
   );
 }
 
-/** The cube-size segmented picker plus its descriptive note. */
+/** The play-format + cube-size pickers plus their descriptive notes. Format
+ *  sits with size because together they say what the cube is FOR — a 4-player
+ *  draft pod or a Commander night — and both feed the same corpus lookup
+ *  (`targetsForSize(size, format)`). Same rect-option row as size
+ *  (STYLE_GUIDE: in-panel selector options are rects). */
 export function CubeSizePicker({
   size,
   onSize,
+  format,
+  onFormat,
 }: {
   size: CubeSize;
   onSize: (s: CubeSize) => void;
+  format: CubeFormat;
+  onFormat: (f: CubeFormat) => void;
 }) {
   return (
     <div className="cube-size">
+      <div className="cube-size-picker" role="group" aria-label="Play format">
+        {CUBE_FORMATS.map((f) => (
+          <button
+            key={f}
+            type="button"
+            className={`cube-size-opt cube-format-opt${f === format ? ' active' : ''}`}
+            aria-pressed={f === format}
+            onClick={() => onFormat(f)}
+          >
+            <span className="cube-size-n">{FORMAT_INFO[f].label}</span>
+            <span className="cube-size-sub">{FORMAT_INFO[f].sub}</span>
+          </button>
+        ))}
+      </div>
+      <p className="cube-size-note">{FORMAT_INFO[format].note}</p>
       <div className="cube-size-picker" role="group" aria-label="Cube size">
         {CUBE_SIZES.map((s) => (
           <button
