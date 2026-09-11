@@ -31,10 +31,10 @@ import {
   AvailableToggle,
   CubeLoadingBlock,
   CubeErrorBlock,
-  namesToCubePool,
   pickToPreviewCard,
   groupPicksByBucket,
 } from './shared';
+import { namesToCubePool } from '../../lib/cube/pool';
 
 import { userMessage } from '@/lib/user-error';
 const MAX_FRIENDS = 3;
