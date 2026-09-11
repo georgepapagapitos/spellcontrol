@@ -3,6 +3,7 @@ import type { CubeCard } from './generate';
 import { byQuality } from './generate';
 import { cubeRole } from '@/deck-builder/services/tagger/client';
 import { synergyTags } from './synergy-tags';
+import { cubeSignalOf } from './signal';
 import type { OracleFacts } from './oracle';
 import type { EnrichedCard } from '@/types';
 
@@ -145,6 +146,7 @@ export function mergePools(
         typeLine: fc.typeLine,
         role: null,
         rank: fc.edhrecRank,
+        ...cubeSignalOf(fc.name),
         synergyProducers: fc.synergyProducers,
         synergyPayoffs: fc.synergyPayoffs,
       };
@@ -205,6 +207,7 @@ export function namesToCubePool(
       typeLine: s?.type_line ?? card?.typeLine ?? '',
       role: cubeRole(name),
       rank: s?.edhrec_rank ?? card?.edhrecRank,
+      ...cubeSignalOf(name),
       ...synergyTags(s ?? { name }),
     };
   });

@@ -177,20 +177,52 @@ export function computeRankP80(pool: CubeCard[]): number {
 }
 
 /**
- * Composite power signal in [0, 1]: 60% pool-relative EDHREC rank + 40% mana
- * efficiency. Resolves the "popularity ≠ power" gap — a cheap, interactive,
- * flash card scores high on tempo even when its rank is middling, and a
- * rank-inflated 7-drop doesn't dominate. (EDHREC's `game_changer`/salt flags are
- * not populated in our offline bundle, so they're deliberately not used here.)
+ * Cube popularity at the 80th percentile of the pool — the "good enough" ceiling
+ * that normalizes the cube signal into a 0..1 power component. Pool-relative for
+ * the same reason as the rank floor. Cards without a signal don't count; a pool
+ * with none at all gets 1 (every card then takes the rank fallback anyway).
  */
-export function rawPower(c: CubeCard, rankP80: number): number {
-  const rankScore = 1 - Math.min(c.rank ?? rankP80, rankP80) / rankP80;
+export function computePopP80(pool: CubeCard[]): number {
+  const pops = pool
+    .map((c) => c.cubePop)
+    .filter((p): p is number => typeof p === 'number' && Number.isFinite(p))
+    .sort((a, b) => b - a);
+  if (pops.length === 0) return 1;
+  const idx = Math.floor((pops.length - 1) * 0.2); // top-20% boundary = P80 of popularity
+  return Math.max(0.01, pops[idx]);
+}
+
+/** Pool-constant normalizers for `rawPower` — compute once, pass into hot loops. */
+export interface PowerBasis {
+  popP80: number;
+  rankP80: number;
+}
+export const computePowerBasis = (pool: CubeCard[]): PowerBasis => ({
+  popP80: computePopP80(pool),
+  rankP80: computeRankP80(pool),
+});
+
+/**
+ * Composite power signal in [0, 1]: 60% pool-relative CUBE popularity + 40%
+ * mana efficiency. Resolves the "popularity ≠ power" gap — a cheap, interactive,
+ * flash card scores high on tempo even when its signal is middling, and a
+ * signal-inflated 7-drop doesn't dominate. A card CubeCobra has never seen falls
+ * back to pool-relative EDHREC rank at HALF credit: unproven in a cube, not
+ * bad. (EDHREC's `game_changer`/salt flags are not populated in our offline
+ * bundle, so they're deliberately not used here.)
+ */
+export function rawPower(c: CubeCard, basis: PowerBasis): number {
+  const { popP80, rankP80 } = basis;
+  const signalScore =
+    c.cubePop != null
+      ? Math.min(c.cubePop, popP80) / popP80
+      : 0.5 * (1 - Math.min(c.rank ?? rankP80, rankP80) / rankP80);
   const cmc = Math.max(0, c.cmc ?? 0);
   const tempo =
     Math.max(0, (4 - cmc) / 4) +
     (/\b(instant|flash)\b/i.test(c.typeLine) ? 0.15 : 0) +
     (c.role === 'removal' || c.role === 'cardDraw' ? 0.1 : 0);
-  return 0.6 * rankScore + 0.4 * Math.min(1, tempo);
+  return 0.6 * signalScore + 0.4 * Math.min(1, tempo);
 }
 
 function contributes(c: CubeCard, ax: AxisKey): boolean {
@@ -216,7 +248,7 @@ export function draftablePoolAxes(pool: CubeCard[]): AxisKey[] {
 
 /**
  * Score a cube. Pure; safe to call on every candidate during refinement.
- * `rankP80` is pool-constant — pass the precomputed value in hot loops (the
+ * `basis` is pool-constant — pass the precomputed value in hot loops (the
  * refiner does) to skip re-sorting the whole pool on every call.
  */
 export function scoreCube(
@@ -224,7 +256,7 @@ export function scoreCube(
   pool: CubeCard[],
   band: BandTargets,
   size: number,
-  rankP80: number = computeRankP80(pool),
+  basis: PowerBasis = computePowerBasis(pool),
   synergyLevel = 1
 ): CubeScore {
   const cards = picks.map((p) => p.card);
@@ -397,7 +429,7 @@ export function scoreCube(
   // ── Term F: power consistency ───────────────────────────────────────────
   // M8 — penalize a weak bottom decile, not high variance (so a few legit
   // high-CMC bombs that widen the band aren't ejected).
-  const powers = cards.map((c) => rawPower(c, rankP80)).sort((a, b) => a - b);
+  const powers = cards.map((c) => rawPower(c, basis)).sort((a, b) => a - b);
   const p10 = powers.length ? powers[Math.floor((powers.length - 1) * 0.1)] : 1;
   const power = Math.max(0, 1 - 0.5 * Math.max(0, 0.35 - p10));
 

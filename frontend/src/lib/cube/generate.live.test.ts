@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import type { EnrichedCard } from '@/types';
 import { loadTaggerData } from '@/deck-builder/services/tagger/client';
+import { loadCubeSignal } from './signal';
 import { generateCube, type CubeCard, type GeneratedCube, type Pick } from './generate';
 import { namesToCubePool } from './pool';
 import { filterPool, DEFAULT_POOL_FILTERS, type PoolFilters } from './pool-filters';
@@ -56,6 +57,8 @@ interface Row {
   interaction: number;
   removalCount: number;
   creatureShare: number;
+  /** Ramp picks as a share of NONLAND picks — the corpus basis for role targets. */
+  rampShare: number;
   swaps: number;
 }
 
@@ -64,6 +67,10 @@ const removalCount = (picks: Pick[]) =>
   picks.filter((p) => p.card.role === 'removal' || p.card.role === 'boardwipe').length;
 const creatureShare = (picks: Pick[]) =>
   picks.filter((p) => /\bcreature\b/i.test(p.card.typeLine)).length / picks.length;
+const rampShare = (picks: Pick[]) => {
+  const nonland = picks.filter((p) => !/\bland\b/i.test(p.card.typeLine));
+  return nonland.filter((p) => p.card.role === 'ramp').length / Math.max(1, nonland.length);
+};
 
 /** Deterministic shuffle (LCG) — same-pool → same-cube must hold in ANY input order. */
 function shuffled<T>(xs: T[], seed = 42): T[] {
@@ -90,14 +97,20 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
     const taggerData = JSON.parse(
       readFileSync(resolve(here, '..', '..', '..', 'public', 'tagger-tags.json'), 'utf8')
     ) as unknown;
+    const signalData = JSON.parse(
+      readFileSync(resolve(here, '..', '..', '..', 'public', 'cube-signal.json'), 'utf8')
+    ) as unknown;
     vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
       if (url.endsWith('/tagger-tags.json')) {
         return { ok: true, status: 200, json: async () => taggerData } as Response;
       }
+      if (url.endsWith('/cube-signal.json')) {
+        return { ok: true, status: 200, json: async () => signalData } as Response;
+      }
       throw new Error(`[live-cube] unexpected fetch ${url}`);
     });
-    await loadTaggerData();
+    await Promise.all([loadTaggerData(), loadCubeSignal()]);
     const file = JSON.parse(readFileSync(resolve(POOL_PATH!), 'utf8')) as {
       cards: EnrichedCard[];
       facts: OracleFacts[];
@@ -126,16 +139,19 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
       removal: pool.filter((c) => c.role === 'removal' || c.role === 'boardwipe').length,
       draftableAxes: draftablePoolAxes(pool),
     };
-    writeFileSync(out, JSON.stringify({ ...summary, rows }, null, 2));
+    const goodstuffPicks = Object.fromEntries(
+      [...goodstuffBySize].map(([size, cube]) => [size, names(cube)])
+    );
+    writeFileSync(out, JSON.stringify({ ...summary, rows, goodstuffPicks }, null, 2));
     const fmt = (n: number) => n.toFixed(3);
     console.log(
-      ['size  level  ms     total  arch   inter  removal creature swaps']
+      ['size  level  pool     ms     total  arch   inter  removal creature ramp   swaps']
         .concat(
           rows.map(
             (r) =>
               `${String(r.size).padEnd(5)} ${String(r.level).padEnd(6)} ${(r.pool ?? '').padEnd(8)} ${String(r.ms).padEnd(6)} ` +
               `${fmt(r.total)}  ${fmt(r.archetype)}  ${fmt(r.interaction)}  ${String(r.removalCount).padEnd(7)} ` +
-              `${(r.creatureShare * 100).toFixed(1)}%    ${r.swaps}`
+              `${(r.creatureShare * 100).toFixed(1)}%    ${(r.rampShare * 100).toFixed(1)}%  ${r.swaps}`
           )
         )
         .join('\n') + `\n→ ${out}`
@@ -153,6 +169,10 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
     expect(roled).toBeGreaterThan(100);
     expect(tagged).toBeGreaterThan(100);
     expect(draftablePoolAxes(pool).length).toBeGreaterThanOrEqual(5);
+    // The cube signal is the ranking's primary key — it must cover most of a
+    // real collection, or the EDHREC fallback is silently doing the ranking.
+    const signalled = pool.filter((c) => c.cubePop != null).length / pool.length;
+    expect(signalled).toBeGreaterThan(0.75);
   });
 
   // Pool filters (lib/cube/pool-filters): a peasant / pauper / spares cube is
@@ -198,6 +218,7 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
             interaction: s.interaction,
             removalCount: removalCount(cube.picks),
             creatureShare: creatureShare(cube.picks),
+            rampShare: rampShare(cube.picks),
             swaps: 0,
           });
         }
@@ -228,6 +249,9 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
         // the corpus p25 — before any refinement.
         expect(s.interaction).toBeGreaterThanOrEqual(0.9);
         expect(creatureShare(cube.picks)).toBeGreaterThanOrEqual(band.type.creature.p25 - 0.01);
+        // E288 guard: roles are capped at the corpus p75 — quality order alone
+        // filled 15–18% of a cube with ramp against an 8% corpus median.
+        expect(rampShare(cube.picks)).toBeLessThanOrEqual(band.role.ramp.p75 + 0.01);
         rows.push({
           size,
           level: 0,
@@ -237,6 +261,7 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
           interaction: s.interaction,
           removalCount: removalCount(cube.picks),
           creatureShare: creatureShare(cube.picks),
+          rampShare: rampShare(cube.picks),
           swaps: 0,
         });
       });
@@ -283,6 +308,8 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
           // the corpus p25 floor (the seed lands at the median now).
           const creatures = creatureShare(cube.picks);
           expect(creatures).toBeGreaterThanOrEqual(band.type.creature.p25 - 0.01);
+          // E288 guard: refinement must not re-inflate a capped role either.
+          expect(rampShare(cube.picks)).toBeLessThanOrEqual(band.role.ramp.p75 + 0.01);
 
           // Same pool in any order → same cube (only checked at max synergy, the
           // slowest path; the seed is already checked above).
@@ -302,6 +329,7 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
             interaction: score.interaction,
             removalCount: removalCount(cube.picks),
             creatureShare: creatures,
+            rampShare: rampShare(cube.picks),
             swaps: cube.picks.filter((p) => !seedNames.has(p.card.name)).length,
           });
         });

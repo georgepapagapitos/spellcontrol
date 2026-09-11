@@ -20,6 +20,10 @@ export interface CubeCard {
   typeLine: string;
   role: Role | null; // precomputed via the shared tagger
   rank?: number; // edhrecRank — lower is more-played; undefined = unknown
+  /** CubeCobra cube popularity, % of cubes holding the card (see ./signal). undefined = never cubed / unknown. */
+  cubePop?: number;
+  /** CubeCobra draft Elo (see ./signal). */
+  cubeElo?: number;
   synergyProducers?: AxisKey[]; // archetype axes this card enables (see synergy-tags)
   synergyPayoffs?: AxisKey[]; // archetype axes this card pays off
 }

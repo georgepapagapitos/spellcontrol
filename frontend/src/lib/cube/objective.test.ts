@@ -5,6 +5,8 @@ import {
   scoreCube,
   rawPower,
   computeRankP80,
+  computePopP80,
+  computePowerBasis,
   targetArchetypeCount,
   fit,
   type CubeScore,
@@ -20,6 +22,8 @@ function card(p: Partial<CubeCard>): CubeCard {
     typeLine: p.typeLine ?? 'Creature — Human',
     role: p.role ?? null,
     rank: p.rank,
+    cubePop: p.cubePop,
+    cubeElo: p.cubeElo,
     synergyProducers: p.synergyProducers,
     synergyPayoffs: p.synergyPayoffs,
   };
@@ -43,12 +47,14 @@ function richPool(): CubeCard[] {
 }
 
 describe('rawPower', () => {
+  const p80 = { popP80: 10, rankP80: 1000 };
   it('is bounded to [0,1]', () => {
-    const p80 = 1000;
     for (const c of [
       card({ rank: 1, cmc: 0 }),
       card({ rank: 9999, cmc: 9 }),
       card({ rank: undefined, cmc: 3 }),
+      card({ cubePop: 40, cmc: 0 }),
+      card({ cubePop: 0, cmc: 9 }),
     ]) {
       const v = rawPower(c, p80);
       expect(v).toBeGreaterThanOrEqual(0);
@@ -57,17 +63,45 @@ describe('rawPower', () => {
   });
 
   it('rewards an efficient instant over an identical sorcery (flash/tempo)', () => {
-    const p80 = 1000;
     const instant = card({ rank: 500, cmc: 1, typeLine: 'Instant' });
     const sorcery = card({ rank: 500, cmc: 1, typeLine: 'Sorcery' });
     expect(rawPower(instant, p80)).toBeGreaterThan(rawPower(sorcery, p80));
   });
 
-  it('weights a top-rank card above a fringe-rank one at equal cmc', () => {
-    const p80 = 1000;
+  it('weights a top-rank card above a fringe-rank one at equal cmc (rank fallback)', () => {
     expect(rawPower(card({ rank: 1, cmc: 3 }), p80)).toBeGreaterThan(
       rawPower(card({ rank: 999, cmc: 3 }), p80)
     );
+  });
+
+  it('reads the cube signal, not EDHREC rank, when a card has one (E288)', () => {
+    // Arcane Signet: EDHREC #3, in 4% of cubes. Mind Stone: EDHREC #32, in 15%.
+    const signet = card({ rank: 3, cubePop: 4.25, cmc: 2, typeLine: 'Artifact' });
+    const mindStone = card({ rank: 32, cubePop: 14.94, cmc: 2, typeLine: 'Artifact' });
+    expect(rawPower(mindStone, p80)).toBeGreaterThan(rawPower(signet, p80));
+    // A pool-P80 card scores full signal credit; more popularity is not more power.
+    expect(rawPower(card({ cubePop: 10, cmc: 3 }), p80)).toBe(
+      rawPower(card({ cubePop: 30, cmc: 3 }), p80)
+    );
+  });
+
+  it('gives a never-cubed card at most half the signal credit of a cubed one', () => {
+    const unknownTop = card({ rank: 1, cmc: 3 }); // best possible rank, no signal
+    const cubedP80 = card({ cubePop: 10, cmc: 3 });
+    // 0.6 × (0.5 × ~1) vs 0.6 × 1 → 0.3 apart (rank 1 of 1000 leaves a 0.001 sliver).
+    expect(rawPower(unknownTop, p80)).toBeCloseTo(rawPower(cubedP80, p80) - 0.3, 2);
+  });
+});
+
+describe('computePopP80 / computePowerBasis', () => {
+  it('returns the popularity at the top-20% boundary of the pool', () => {
+    // pops 1..10; sorted desc, idx floor(9*0.2)=1 → 9
+    const pool = Array.from({ length: 10 }, (_, i) => card({ cubePop: i + 1 }));
+    expect(computePopP80(pool)).toBe(9);
+    expect(computePowerBasis(pool)).toEqual({ popP80: 9, rankP80: 5000 });
+  });
+  it('is 1 when no card carries a signal (every card then takes the rank path)', () => {
+    expect(computePopP80([card({ rank: 5 }), card({ rank: 9 })])).toBe(1);
   });
 });
 

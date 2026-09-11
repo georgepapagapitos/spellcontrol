@@ -87,6 +87,9 @@ jobs:
       - name: Refresh Secret Lair drops (MTGJSON)
         working-directory: frontend
         run: node scripts/refresh-sld-drops.mjs
+      - name: Refresh cube power signal (CubeCobra)
+        working-directory: frontend
+        run: node scripts/refresh-cube-signal.mjs
 
       # Gate quality BEFORE opening a PR — mirrors refresh-card-similar.yml. The
       # scripts' own shrink guard catches a collapsed tag pool; this catches the
@@ -101,6 +104,7 @@ jobs:
               ["public/otag-index.json", (d) => Object.keys(d.tags || d.index || {}).length > 0],
               ["public/comprehensive-rules.json", (d) => !!d.meta],
               ["public/sld-drops.json", (d) => !!d.generatedAt],
+              ["public/cube-signal.json", (d) => Object.keys(d.cards || {}).length > 20000],
             ];
             let bad = 0;
             for (const [file, ok] of checks) {
@@ -145,6 +149,7 @@ jobs:
               ["public/otag-index.json", "scripts/refresh-otag-index.mjs"],
               ["public/comprehensive-rules.json", "scripts/refresh-rules.mjs"],
               ["public/sld-drops.json", "scripts/refresh-sld-drops.mjs"],
+              ["public/cube-signal.json", "scripts/refresh-cube-signal.mjs"],
             ];
             let stale = 0;
             for (const [file, script] of targets) {
@@ -187,6 +192,7 @@ jobs:
             frontend/public/otag-index.json
             frontend/public/comprehensive-rules.json
             frontend/public/sld-drops.json
+            frontend/public/cube-signal.json
           body: |
             Automated refresh of the age-gated build snapshots, via the **Refresh build snapshots** workflow.
 

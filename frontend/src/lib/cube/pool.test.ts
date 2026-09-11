@@ -4,6 +4,7 @@ import { mergePools, fetchFriendCollection, namesToCubePool } from './pool';
 import type { CubeCard } from './generate';
 import type { FriendCard } from './pool';
 import type { EnrichedCard } from '@/types';
+import { loadCubeSignal, resetCubeSignalForTests } from './signal';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -252,5 +253,44 @@ describe('namesToCubePool', () => {
   it('falls back to a lowercase-name id for a card in neither source', () => {
     const [ghost] = namesToCubePool(['Ghost Card'], [], new Map());
     expect(ghost).toMatchObject({ oracleId: 'ghost card', colors: [], cmc: 0, typeLine: '' });
+  });
+});
+
+describe('cube signal on the pool', () => {
+  beforeEach(async () => {
+    vi.stubGlobal('fetch', async () => ({
+      ok: true,
+      json: async () => ({
+        generatedAt: '2026-09-11T00:00:00.000Z',
+        cards: { 'Arcane Signet': [4.25, 1655], 'Lightning Bolt': [26.41, 1658] },
+      }),
+    }));
+    await loadCubeSignal();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    resetCubeSignalForTests();
+  });
+
+  it('namesToCubePool attaches cubePop/cubeElo when the snapshot knows the card', () => {
+    const [signet, unknown] = namesToCubePool(['Arcane Signet', 'Homemade Card'], [], new Map());
+    expect(signet).toMatchObject({ cubePop: 4.25, cubeElo: 1655 });
+    expect(unknown.cubePop).toBeUndefined();
+    expect(unknown.cubeElo).toBeUndefined();
+  });
+
+  it('mergePools attaches the signal to friend cards and prefers the more-cubed copy', () => {
+    const mine = [makeCard('o1', 'Lightning Bolt', 158)];
+    const { pool } = mergePools(mine, 'me', [
+      {
+        username: 'pal',
+        cards: [
+          makeFriendCard('o1', 'Lightning Bolt', 158),
+          makeFriendCard('o2', 'Arcane Signet', 3),
+        ],
+      },
+    ]);
+    const signet = pool.find((c) => c.oracleId === 'o2');
+    expect(signet).toMatchObject({ cubePop: 4.25, cubeElo: 1655, rank: 3 });
   });
 });

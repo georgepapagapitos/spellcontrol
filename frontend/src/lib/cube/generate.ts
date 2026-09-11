@@ -84,11 +84,18 @@ const ROLE_NAME: Record<Role, string> = {
 
 const isBasic = (c: CubeCard) => /basic/i.test(c.typeLine) && isLand(c);
 
-/** quality: lower edhrecRank = better; unknown rank sorts last. oracleId breaks
- *  ties so every sort (and thus the whole cube) is deterministic regardless of
- *  the pool's incoming order. */
+/** quality: the cube-native signal first — higher CubeCobra popularity (share
+ *  of cubes holding the card), then higher draft Elo — and EDHREC rank only for
+ *  cards CubeCobra has never seen, which sort after every cubed card (lower rank
+ *  = better; unknown last). EDHREC rank alone is Commander popularity: it put
+ *  Command Tower and Arcane Signet at the top of a draft cube's colorless
+ *  section (E288). oracleId breaks ties so every sort (and thus the whole cube)
+ *  is deterministic regardless of the pool's incoming order. */
 export const byQuality = (a: CubeCard, b: CubeCard) =>
-  (a.rank ?? Infinity) - (b.rank ?? Infinity) || a.oracleId.localeCompare(b.oracleId);
+  (b.cubePop ?? -1) - (a.cubePop ?? -1) ||
+  (b.cubeElo ?? -1) - (a.cubeElo ?? -1) ||
+  (a.rank ?? Infinity) - (b.rank ?? Infinity) ||
+  a.oracleId.localeCompare(b.oracleId);
 
 /** Largest-remainder apportionment so bucket targets sum exactly to `size`. */
 function apportion(shares: Record<ColorBucket, number>, size: number): Record<ColorBucket, number> {
@@ -162,6 +169,21 @@ function cubeQuotas(band: BandTargets, nonlandTarget: number): Record<Quota, num
     creature: Math.round(creatureOfNonland * nonlandTarget),
   };
 }
+
+/**
+ * A role's quota is ALSO its ceiling. A floor alone let quality order over-fill
+ * a role — EDHREC rank filled 15–18% of a cube with ramp against a corpus 8%
+ * (E288), and the cube-native signal does the same with removal (cube staples
+ * skew to interaction: with a p75 ceiling the seed sat at 29–31% removal and
+ * the interaction term, centred on the median with a half-IQR tolerance, fell
+ * to 0.6). So the seed lands each role on the corpus MEDIAN whenever the pool
+ * can supply it, and the quality order decides only which non-role cards fill
+ * the rest. Past its quota a role card is filler of last resort: deferred while
+ * anything else can fill the slot, admitted only by the backfills so a cube
+ * still fills. Creatures have no ceiling — the type term pulls them to the
+ * median from both sides.
+ */
+const ROLES: Role[] = ['removal', 'boardwipe', 'ramp', 'cardDraw'];
 
 /**
  * Split one cube-level quota across the nonland buckets. Each bucket's NATURAL
@@ -251,24 +273,37 @@ function selectBucket(
   };
 
   // Fill slots by quality: a card owed by an unmet quota is always taken;
-  // anything else only while the slots left exceed what the quotas still need,
-  // and only into an open curve slot.
+  // anything else only while the slots left exceed what the quotas still need
+  // and only into an open curve slot. A role card past its quota is neither —
+  // not even for the creature quota (a removal creature is still removal).
+  const overCap = (c: CubeCard) => c.role != null && fill[c.role] >= quota[c.role];
   for (const card of sorted) {
     if (picks.length >= target) {
       deferred.push(card);
       continue;
     }
-    const wanted = quotasOf(card).some((k) => fill[k] < quota[k]);
+    const wanted = !overCap(card) && quotasOf(card).some((k) => fill[k] < quota[k]);
     const fillsCurve = curveFill[curveSlotOf(card.cmc)] < curveCap[curveSlotOf(card.cmc)];
-    if (wanted || (fillsCurve && target - picks.length > deficit())) {
+    if (wanted || (fillsCurve && !overCap(card) && target - picks.length > deficit())) {
       take(card);
     } else {
       deferred.push(card);
     }
   }
-  // If curve caps left us short, backfill from deferred (still quality-ordered).
-  while (picks.length < target && deferred.length) {
-    picks.push(deferred.shift()!);
+  // If curve caps left us short, backfill from deferred (still quality-ordered):
+  // anything under its role ceiling first, capped role cards only as a last
+  // resort — otherwise the highest-signal deferred cards, which are exactly the
+  // capped ones, would walk straight back in.
+  for (const allowCapped of [false, true]) {
+    for (let i = 0; i < deferred.length && picks.length < target; ) {
+      const c = deferred[i];
+      if (overCap(c) && !allowCapped) {
+        i++;
+        continue;
+      }
+      take(c);
+      deferred.splice(i, 1);
+    }
   }
   return { picks, deferred };
 }
@@ -335,7 +370,25 @@ export function generateCube(
   const filled = picks.length;
   if (filled < size) {
     const need = size - filled;
-    const extra = leftovers.sort(byQuality).slice(0, need);
+    // Cube-level ceilings hold here too: the best leftovers are exactly the
+    // role cards the buckets just capped, so take anything under its ceiling
+    // first and capped role cards only as a last resort.
+    const roleCount = {} as Record<Role, number>;
+    for (const k of ROLES) roleCount[k] = 0;
+    for (const p of picks) if (p.card.role) roleCount[p.card.role]++;
+    const ordered = leftovers.sort(byQuality);
+    const extra: CubeCard[] = [];
+    const chosen = new Set<CubeCard>();
+    for (const allowCapped of [false, true]) {
+      for (const c of ordered) {
+        if (extra.length >= need) break;
+        if (chosen.has(c)) continue;
+        if (!allowCapped && c.role != null && roleCount[c.role] >= totals[c.role]) continue;
+        chosen.add(c);
+        extra.push(c);
+        if (c.role) roleCount[c.role]++;
+      }
+    }
     for (const c of extra) {
       const b = bucketOf(c);
       byBucket[b]++;
@@ -375,7 +428,8 @@ export function generateCube(
       pool,
       band,
       size,
-      synergyLevel
+      synergyLevel,
+      totals
     );
     finalPicks = refined.picks;
     finalByBucket = refined.byBucket;

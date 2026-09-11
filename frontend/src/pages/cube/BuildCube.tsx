@@ -27,6 +27,7 @@ import type { AllocationInfo } from '../../lib/allocations';
 import { getCardsByNames } from '../../deck-builder/services/scryfall/client';
 import { fetchCubeOracle } from '../../lib/cube/oracle';
 import { loadTaggerData } from '../../deck-builder/services/tagger/client';
+import { loadCubeSignal } from '../../lib/cube/signal';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
 import { CubeSize, SIZE_INFO, ColorBucket, provenance } from '../../lib/cube/targets';
@@ -114,7 +115,8 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
     setEnrichedMap(new Map());
     cubeStore.clear();
     try {
-      await loadTaggerData(); // ensures cubeRole is populated; cached/deduped
+      // Roles (cubeRole) and the cube power signal; both cached/deduped.
+      await Promise.all([loadTaggerData(), loadCubeSignal()]);
       // Pool ranking reads oracle facts for the WHOLE collection — a bulk-data
       // workload Scryfall doesn't want walked card-by-card from a browser, so
       // it comes from our own cache-backed endpoint. Card previews are filled
