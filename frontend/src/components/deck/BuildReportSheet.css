@@ -177,9 +177,21 @@
 
 /* ── Body ──────────────────────────────────────────────────────────────── */
 .build-report-sheet-body {
+  display: flex;
+  flex-direction: column;
+  /* The body stacks the build report and the AI refine slot. Neither owns a
+     top margin (the Coach-tab mount gets its gap from the bento grid), so
+     without this the refine panel sits flush against the last role-pill row. */
+  gap: var(--space-4);
   padding: var(--space-4);
   flex: 1;
   overflow-y: auto;
+}
+
+/* The collapsed strip carries a margin-bottom for its Coach-tab mount; here
+   the body gap already separates siblings and the padding closes the bottom. */
+.build-report-sheet-body > .deck-ai-strip {
+  margin-bottom: 0;
 }
 
 /* ── Footer ────────────────────────────────────────────────────────────── */
