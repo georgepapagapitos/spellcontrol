@@ -25,6 +25,7 @@ import type { EnrichedCard } from '@/types';
 import { loadTaggerData } from '@/deck-builder/services/tagger/client';
 import { generateCube, type CubeCard, type GeneratedCube, type Pick } from './generate';
 import { namesToCubePool } from './pool';
+import { filterPool, DEFAULT_POOL_FILTERS, type PoolFilters } from './pool-filters';
 import type { OracleFacts } from './oracle';
 import { CUBE_SIZES, targetsForSize, type CubeSize } from './targets';
 import { draftablePoolAxes, scoreCube, type CubeScore } from './objective';
@@ -47,6 +48,8 @@ const TERMS = [
 interface Row {
   size: CubeSize;
   level: number;
+  /** Pool filter preset for the filtered-pool panel; absent = the whole collection. */
+  pool?: string;
   ms: number;
   total: number;
   archetype: number;
@@ -76,6 +79,10 @@ function shuffled<T>(xs: T[], seed = 42): T[] {
 
 describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () => {
   let pool: CubeCard[];
+  /** The owned collection expanded to one row per copy (the dump carries a
+   *  per-name `copies` count), so `filterPool`'s spares rule sees real counts. */
+  let collection: EnrichedCard[];
+  let facts: Map<string, OracleFacts>;
   const rows: Row[] = [];
   const goodstuffBySize = new Map<CubeSize, GeneratedCube>();
 
@@ -95,7 +102,11 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
       cards: EnrichedCard[];
       facts: OracleFacts[];
     };
-    const facts = new Map(file.facts.map((f) => [f.name, f]));
+    facts = new Map(file.facts.map((f) => [f.name, f]));
+    collection = file.cards.flatMap((c) => {
+      const copies = Math.max(1, (c as unknown as { copies?: number }).copies ?? 1);
+      return Array.from({ length: copies }, (_, i) => ({ ...c, copyId: `${c.name}#${i}` }));
+    });
     pool = namesToCubePool(
       file.cards.map((c) => c.name),
       file.cards,
@@ -122,7 +133,7 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
         .concat(
           rows.map(
             (r) =>
-              `${String(r.size).padEnd(5)} ${String(r.level).padEnd(6)} ${String(r.ms).padEnd(6)} ` +
+              `${String(r.size).padEnd(5)} ${String(r.level).padEnd(6)} ${(r.pool ?? '').padEnd(8)} ${String(r.ms).padEnd(6)} ` +
               `${fmt(r.total)}  ${fmt(r.archetype)}  ${fmt(r.interaction)}  ${String(r.removalCount).padEnd(7)} ` +
               `${(r.creatureShare * 100).toFixed(1)}%    ${r.swaps}`
           )
@@ -142,6 +153,56 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
     expect(roled).toBeGreaterThan(100);
     expect(tagged).toBeGreaterThan(100);
     expect(draftablePoolAxes(pool).length).toBeGreaterThanOrEqual(5);
+  });
+
+  // Pool filters (lib/cube/pool-filters): a peasant / pauper / spares cube is
+  // built from a thinner, weaker pool — the generator must still fill it and
+  // hold the corpus shape wherever the pool can, and every filter must leave
+  // enough to build from on a real collection.
+  describe('filtered pools', () => {
+    const PRESETS: Record<string, Partial<PoolFilters>> = {
+      peasant: { source: 'all', rarity: 'peasant' },
+      pauper: { source: 'all', rarity: 'pauper' },
+      spares: { source: 'all' },
+    };
+    for (const [preset, partial] of Object.entries(PRESETS)) {
+      it(`${preset} pool builds a full 360 at both ends of the slider`, () => {
+        const all = new Set(collection.map((c) => c.name));
+        const filtered = filterPool(collection, all, {
+          ...DEFAULT_POOL_FILTERS,
+          ...partial,
+          ...(preset === 'spares' ? { source: 'spares' as const } : {}),
+        });
+        // Each preset must leave a real pool on this collection.
+        expect(filtered.names.length).toBeGreaterThan(360);
+        const sub = namesToCubePool(filtered.names, collection, facts);
+        const band = targetsForSize(360);
+        for (const level of [0, 1]) {
+          const t = Date.now();
+          const cube = generateCube(sub, 360, { synergyLevel: level });
+          const ms = Date.now() - t;
+          expect(cube.shortfall).toBe(0);
+          expect(new Set(cube.picks.map((p) => p.card.oracleId)).size).toBe(360);
+          const s = cube.score ?? scoreCube(cube.picks, sub, band, 360);
+          for (const k of TERMS) {
+            expect(s[k]).toBeGreaterThanOrEqual(0);
+            expect(s[k]).toBeLessThanOrEqual(1);
+          }
+          rows.push({
+            size: 360,
+            level,
+            pool: preset,
+            ms,
+            total: s.total,
+            archetype: s.archetype,
+            interaction: s.interaction,
+            removalCount: removalCount(cube.picks),
+            creatureShare: creatureShare(cube.picks),
+            swaps: 0,
+          });
+        }
+      });
+    }
   });
 
   for (const size of CUBE_SIZES) {
