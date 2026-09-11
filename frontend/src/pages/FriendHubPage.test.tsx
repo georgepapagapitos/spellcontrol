@@ -12,6 +12,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FriendCard } from '../lib/cube/pool';
+import type { TradeOffer } from '../lib/trades-client';
 import type { EnrichedCard } from '../types';
 
 vi.mock('../store/auth', () => ({
@@ -64,6 +65,21 @@ vi.mock('../lib/friends-client', async () => {
     await vi.importActual<typeof import('../lib/friends-client')>('../lib/friends-client');
   return { ...actual, fetchFriendWants: (...args: unknown[]) => fetchFriendWants(...args) };
 });
+
+// The trade thread. Defaults to empty so the existing tests see what they
+// always saw (a real fetch that failed → no offers).
+const listTrades = vi.fn(
+  (_opts?: unknown): Promise<{ offers: TradeOffer[]; truncated: boolean }> =>
+    Promise.resolve({ offers: [], truncated: false })
+);
+vi.mock('../lib/trades-client', async () => {
+  const actual =
+    await vi.importActual<typeof import('../lib/trades-client')>('../lib/trades-client');
+  return { ...actual, listTrades: (opts?: unknown) => listTrades(opts) };
+});
+// The composer's per-printing binder badges and tag search — not under test.
+vi.mock('../lib/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
+vi.mock('../lib/card-tags', () => ({ getCardTags: () => [], useCardTagsReady: () => false }));
 
 import { FriendHubPage } from './FriendHubPage';
 
@@ -278,5 +294,64 @@ describe('FriendHubPage — "They’re looking for" (the reciprocal radar)', () 
 
     fireEvent.click(within(alert).getByRole('button', { name: /try again/i }));
     expect(await screen.findByRole('list', { name: /cards you own that .* wants/i })).toBeTruthy();
+  });
+});
+
+describe('FriendHubPage — ?counter=<offerId> from /trades', () => {
+  beforeEach(() => {
+    fetchFriendCollection.mockReset();
+    fetchFriendCollection.mockResolvedValue({ ownerUsername: 'friendo', cards: [] });
+    fetchFriendWants.mockReset();
+    fetchFriendWants.mockResolvedValue({ ownerUsername: 'friendo', wants: [] });
+    listTrades.mockReset();
+    listTrades.mockResolvedValue({ offers: [], truncated: false });
+    myCards = [];
+  });
+
+  const incoming: TradeOffer = {
+    id: 't1',
+    mine: false,
+    counterpartyId: 'friend-1',
+    counterpartyUsername: 'friendo',
+    counterpartyDisplayName: null,
+    status: 'proposed',
+    note: '',
+    give: [{ oracleId: 'o-sol', name: 'Sol Ring', quantity: 1, copies: [] }],
+    receive: [],
+    settled: false,
+    createdAt: 1,
+    updatedAt: 1,
+    resolvedAt: null,
+  };
+
+  function renderWithCounter(id: string) {
+    return render(
+      <MemoryRouter initialEntries={[`/friends/friend-1?counter=${id}`]}>
+        <Routes>
+          <Route path="/friends/:friendId" element={<FriendHubPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+  }
+
+  it('lands on the Trades tab with the composer open, prefilled with what they asked for', async () => {
+    listTrades.mockResolvedValue({ offers: [incoming], truncated: false });
+    renderWithCounter('t1');
+
+    const dialog = await screen.findByRole('dialog', { name: /Trade with/ });
+    const basket = within(dialog).getByRole('list', { name: /You get: chosen cards/i });
+    expect(within(basket).getByText('Sol Ring')).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /Trades/ }).getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('ignores a counter link for an offer that is no longer open', async () => {
+    listTrades.mockResolvedValue({
+      offers: [{ ...incoming, status: 'declined' }],
+      truncated: false,
+    });
+    renderWithCounter('t1');
+
+    await screen.findByRole('tab', { name: /Trades/ });
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

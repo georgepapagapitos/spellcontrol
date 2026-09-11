@@ -203,3 +203,24 @@ export async function markTradeSettled(offerId: string): Promise<TradeOffer> {
   );
   return data.offer;
 }
+
+/**
+ * Remove a finished trade from the caller's own list. A per-side hide on the
+ * server, never a delete: the other person keeps their copy. The server 409s
+ * for an offer still open or still settling.
+ */
+export async function removeTrade(offerId: string): Promise<void> {
+  const res = await fetch(apiUrl(`/api/trades/${encodeURIComponent(offerId)}`), {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (res.status === 204) return;
+  await handle<unknown>(res, "Couldn't remove the trade. Try again.");
+}
+
+/** Remove every finished trade from the caller's list. Returns how many went. */
+export async function clearTradeHistory(): Promise<number> {
+  const res = await fetch(apiUrl('/api/trades'), { method: 'DELETE', credentials: 'include' });
+  const data = await handle<{ hidden: number }>(res, "Couldn't clear your trades. Try again.");
+  return data.hidden;
+}

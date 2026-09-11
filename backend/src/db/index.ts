@@ -509,6 +509,13 @@ export async function ensureSchema(): Promise<void> {
       ON trade_offers(recipient_id, status);
     CREATE INDEX IF NOT EXISTS trade_offers_proposer_idx
       ON trade_offers(proposer_id, status);
+    -- "Remove from my trades" is a PER-SIDE hide, never a delete: the row is
+    -- two people's record and the other side keeps theirs. Only a resolved
+    -- offer can be hidden (an accepted one only once this side has settled),
+    -- because the listing skips hidden rows and the settlement sweep reads
+    -- the listing. See routes/trades.ts DELETE.
+    ALTER TABLE trade_offers ADD COLUMN IF NOT EXISTS proposer_hidden_at BIGINT;
+    ALTER TABLE trade_offers ADD COLUMN IF NOT EXISTS recipient_hidden_at BIGINT;
 
     -- Private playgroups (pods): name + owner, owner auto-membered at creation.
     CREATE TABLE IF NOT EXISTS pods (

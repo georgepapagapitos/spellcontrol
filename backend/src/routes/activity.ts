@@ -330,7 +330,7 @@ async function loadTradeResolved(callerId: string): Promise<TradeResolvedActivit
        FROM trade_offers t
        JOIN users u ON u.id = t.recipient_id
       WHERE t.proposer_id = $1 AND t.status IN ('accepted', 'declined')
-        AND t.resolved_at IS NOT NULL
+        AND t.resolved_at IS NOT NULL AND t.proposer_hidden_at IS NULL
       ORDER BY t.resolved_at DESC
       LIMIT $2`,
     [callerId, RECENT_SOURCE_CAP]

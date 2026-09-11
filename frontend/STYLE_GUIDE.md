@@ -1122,6 +1122,33 @@ The full card name must remain reachable: expose it with `title` on the name
 element for desktop hover, and keep any existing tap-to-preview/card carousel
 affordance for touch. `title` is never the sole path to the full name.
 
+## Trade offer rows (T120)
+
+The offer card (`TradeOfferList`) is one object that reads as two things
+depending on whether it is still a decision:
+
+- **The status pill answers "whose move is it?"** `Your call` (incoming, open)
+  and `Waiting on them` (outgoing, open), then `Accepted` / `Declined` /
+  `Withdrawn`. Never a bare `Waiting`: on the friend hub, where rows are not
+  grouped by what you have to do, it put the same word on opposite situations
+  one row apart.
+- **The net is stated once, under the two side totals**, as the subtraction
+  the reader was doing in their head: `You come out about $40.00 ahead` /
+  `They come out about $8.00 ahead` / `About even`. "about" only when a side
+  is a floor (an oracle-level ask). It is omitted entirely while a side
+  cannot be priced (`+?`), because a subtraction with a missing term is a lie
+  with a dollar sign.
+- **A finished trade is a ledger line, not a decision.** Declined, withdrawn
+  and settled rows render `.is-compact`: tighter padding, flat `--surface`,
+  no note, no net, the two sides collapsed to two ledger rows (`You give ·
+  chips · value` over `You get · chips · value`, no arrow, at every width),
+  and a `Remove` icon button in the head. The chips stay and stay tappable
+  (the record of what changed hands). Anything still in
+  motion, including an accepted trade that has not settled here, keeps the
+  full card and has no Remove.
+- **Remove is per-side.** The other person keeps their copy, so a single row
+  needs no confirm; the bulk `Clear history` on `/trades` does confirm.
+
 ## Binder pages — a page labels itself; a header never repeats it
 
 When binder page-filling (`packSections`) merges several groups onto shared

@@ -1,13 +1,20 @@
 import './TradesPage.css';
 import { SocialHubTabs } from '../components/SocialHubTabs';
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
 import { useAuth } from '../store/auth';
+import { toast } from '../store/toasts';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { SearchPill } from '../components/SearchPill';
 import { TradeOfferList } from '../components/trade/TradeOfferList';
-import { listTrades, subscribeTradesChanged, type TradeOffer } from '../lib/trades-client';
+import {
+  clearTradeHistory,
+  listTrades,
+  subscribeTradesChanged,
+  type TradeOffer,
+} from '../lib/trades-client';
 
 import { userMessage } from '@/lib/user-error';
 /**
@@ -21,7 +28,8 @@ import { userMessage } from '@/lib/user-error';
  * come here is "what's waiting on me", and a per-friend grouping just rebuilds
  * the hunt one level up. Proposing still lives on the friend hub — it needs
  * that friend's collection — so this page has no composer; every row links to
- * the hub, which is also where Counter lives.
+ * the hub. Counter is reachable from here too: it sends you to the hub with
+ * `?counter=<offerId>`, which opens the composer prefilled.
  */
 
 const GROUPS = [
@@ -88,11 +96,14 @@ export function TradesPage() {
 function TradesPageBody() {
   const status = useAuth((s) => s.status);
   const signInHref = useSignInPath();
+  const navigate = useNavigate();
   const [offers, setOffers] = useState<TradeOffer[] | null>(null);
   const [truncated, setTruncated] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [query, setQuery] = useState('');
+  // The "Clear history" confirm is open.
+  const [clearing, setClearing] = useState(false);
   // Offers are server-authoritative (two parties, no last-write-wins), so
   // every transition re-fetches rather than patching local state — same
   // contract the friend hub's own thread view keeps.
@@ -178,6 +189,29 @@ function TradesPageBody() {
   const visible = searchable ? all.filter((o) => matchesQuery(o, query)) : all;
   const noMatches = searchable && query.trim() !== '' && visible.length === 0;
 
+  // History is the one group that only grows, and the server caps it at 100;
+  // one write hides every finished trade rather than a row at a time under the
+  // write limiter. Per-side on the server: the other person keeps theirs.
+  async function clearHistory() {
+    setClearing(false);
+    try {
+      const n = await clearTradeHistory();
+      toast.show({
+        message:
+          n === 0
+            ? 'Nothing to clear yet. A trade still being added to your collection stays until it lands.'
+            : `Removed ${n} ${n === 1 ? 'trade' : 'trades'} from your list.`,
+        tone: n === 0 ? 'info' : 'success',
+      });
+    } catch (err) {
+      toast.show({
+        message: userMessage(err, "Couldn't clear your trades. Try again."),
+        tone: 'error',
+      });
+    }
+    refresh();
+  }
+
   return (
     <div className="trades-page social-page-shell social-page-shell--wide">
       <header className="binder-hero">
@@ -236,17 +270,28 @@ function TradesPageBody() {
           const rows = visible.filter(group.match);
           return (
             <section className="trades-section" key={group.id} aria-labelledby={`${group.id}-head`}>
-              <h2 className="trades-section-title" id={`${group.id}-head`}>
-                {group.title}
-                {/* aria-hidden like .friends-nav-link-badge: a bare "3" in the
-                    section's accessible name reads as noise, and the row count
-                    is already carried by the list itself. */}
-                {rows.length > 0 && (
-                  <span className="trades-section-count" aria-hidden="true">
-                    {rows.length}
-                  </span>
+              <div className="trades-section-head">
+                <h2 className="trades-section-title" id={`${group.id}-head`}>
+                  {group.title}
+                  {/* aria-hidden like .friends-nav-link-badge: a bare "3" in the
+                      section's accessible name reads as noise, and the row count
+                      is already carried by the list itself. */}
+                  {rows.length > 0 && (
+                    <span className="trades-section-count" aria-hidden="true">
+                      {rows.length}
+                    </span>
+                  )}
+                </h2>
+                {group.id === 'past' && rows.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn-link trades-section-action"
+                    onClick={() => setClearing(true)}
+                  >
+                    Clear history
+                  </button>
                 )}
-              </h2>
+              </div>
               {rows.length === 0 ? (
                 // Per-group empty — text only, no brand mark. The page-level
                 // empty state above owns that treatment (STYLE_GUIDE § Empty
@@ -256,6 +301,9 @@ function TradesPageBody() {
                 <TradeOfferList
                   offers={rows}
                   onChanged={refresh}
+                  onCounter={(offer) =>
+                    navigate(`/friends/${offer.counterpartyId}?counter=${offer.id}`)
+                  }
                   linkCounterparty
                   label={group.title}
                 />
@@ -274,6 +322,17 @@ function TradesPageBody() {
             </section>
           );
         })}
+
+      {clearing && (
+        <ConfirmDialog
+          title="Clear your trade history?"
+          body="Every answered trade comes off your list. Trades still being added to your collection stay, and the other person keeps their own copy."
+          confirmLabel="Clear history"
+          danger
+          onConfirm={() => void clearHistory()}
+          onCancel={() => setClearing(false)}
+        />
+      )}
     </div>
   );
 }
