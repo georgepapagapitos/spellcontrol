@@ -126,12 +126,100 @@ function countAxes(cards: CubeCard[]): Map<AxisKey, AxisCount> {
   return counts;
 }
 
-/** Select up to `target` cards from a bucket pool, shaping toward curve & role sub-targets. */
+/**
+ * What the seed RESERVES before admitting filler: the four tagger roles plus
+ * creatures — the one type share real cubes hold (≈46% of all cards, ≈54% of
+ * nonland) that EDHREC rank order does not deliver. Commander's most-played
+ * cards skew to noncreature staples, so a pure rank fill lands a 180-card cube
+ * at 25% creatures (E285) — and treats role targets as mere permission, so
+ * top-ranked filler takes every slot before a color's lower-ranked removal is
+ * even reached (green picked 1 of a 7-card removal target from a pool of 86,
+ * E286). A quota is a floor a card counts toward; a card can satisfy several.
+ */
+type Quota = Role | 'creature';
+const QUOTAS: Quota[] = ['removal', 'boardwipe', 'ramp', 'cardDraw', 'creature'];
+const isCreature = (c: CubeCard) => /\bcreature\b/i.test(c.typeLine);
+function quotasOf(c: CubeCard): Quota[] {
+  const q: Quota[] = [];
+  if (c.role) q.push(c.role);
+  if (isCreature(c)) q.push('creature');
+  return q;
+}
+const fills = (c: CubeCard, k: Quota) => (k === 'creature' ? isCreature(c) : c.role === k);
+
+/**
+ * Cube-level quota (a count of NONLAND picks) per key. Roles are mined as
+ * fractions of nonland cards; the creature share is mined over ALL cards, land
+ * included, so it is re-based onto the nonland part here.
+ */
+function cubeQuotas(band: BandTargets, nonlandTarget: number): Record<Quota, number> {
+  const creatureOfNonland = band.type.creature.median / Math.max(0.01, 1 - band.type.land.median);
+  return {
+    removal: Math.round(band.role.removal.median * nonlandTarget),
+    boardwipe: Math.round(band.role.boardwipe.median * nonlandTarget),
+    ramp: Math.round(band.role.ramp.median * nonlandTarget),
+    cardDraw: Math.round(band.role.cardDraw.median * nonlandTarget),
+    creature: Math.round(creatureOfNonland * nonlandTarget),
+  };
+}
+
+/**
+ * Split one cube-level quota across the nonland buckets. Each bucket's NATURAL
+ * count (its own pool share of the key × its target size) is scaled by one
+ * common factor so the buckets sum to `total` — a section keeps the shape of
+ * the collection behind it, just denser or thinner as the corpus asks: a
+ * colorless section that is a third creatures in the pool is asked for a
+ * third-ish, not the cube-wide half; a green section short on removal carries
+ * less of it, while W/B/R carry more. A bucket that would exceed its supply (or
+ * its size) is pinned there and the remainder re-scaled over the rest, so the
+ * cube-level total is still reached whenever the pool can reach it.
+ */
+function distributeQuota(
+  total: number,
+  buckets: Record<ColorBucket, CubeCard[]>,
+  targetByBucket: Record<ColorBucket, number>,
+  key: Quota
+): Record<ColorBucket, number> {
+  const out = {} as Record<ColorBucket, number>;
+  const natural = {} as Record<ColorBucket, number>;
+  const cap = {} as Record<ColorBucket, number>;
+  let open: ColorBucket[] = [];
+  for (const b of BUCKETS) {
+    out[b] = 0;
+    const supply = b === 'land' ? 0 : buckets[b].filter((c) => fills(c, key)).length;
+    natural[b] = buckets[b].length > 0 ? (supply / buckets[b].length) * targetByBucket[b] : 0;
+    cap[b] = Math.min(supply, targetByBucket[b]);
+    if (cap[b] > 0 && natural[b] > 0) open.push(b);
+  }
+  let remaining = total;
+  // Water-fill: pin any bucket the common factor would push past its cap, then
+  // re-scale the rest. Terminates in ≤ BUCKETS.length rounds.
+  for (let round = 0; round < BUCKETS.length && open.length > 0 && remaining > 0; round++) {
+    const naturalSum = open.reduce((s, b) => s + natural[b], 0);
+    const f = remaining / naturalSum;
+    const pinned = open.filter((b) => natural[b] * f >= cap[b]);
+    if (pinned.length === 0) {
+      for (const b of open) out[b] = Math.round(natural[b] * f);
+      break;
+    }
+    for (const b of pinned) {
+      out[b] = cap[b];
+      remaining -= cap[b];
+    }
+    open = open.filter((b) => !pinned.includes(b));
+  }
+  return out;
+}
+
+/** Select up to `target` cards from a bucket pool: quota cards (roles, creatures)
+ *  are reserved as they come in rank order; filler is admitted only while enough
+ *  slots remain for the quotas still unmet, shaped toward the curve targets. */
 function selectBucket(
   pool: CubeCard[],
   target: number,
   band: BandTargets,
-  isLandBucket: boolean
+  isLandBucket: boolean,
+  quota: Record<Quota, number>
 ): { picks: CubeCard[]; deferred: CubeCard[] } {
   const sorted = [...pool].sort(byQuality);
   if (isLandBucket || sorted.length <= target) {
@@ -147,32 +235,32 @@ function selectBucket(
     );
     curveFill[String(s) as CurveSlot] = 0;
   }
-  const roleTarget: Record<Role, number> = {
-    removal: Math.round(band.role.removal.median * target),
-    boardwipe: Math.round(band.role.boardwipe.median * target),
-    ramp: Math.round(band.role.ramp.median * target),
-    cardDraw: Math.round(band.role.cardDraw.median * target),
-  };
-  const roleFill: Record<Role, number> = { removal: 0, boardwipe: 0, ramp: 0, cardDraw: 0 };
+  const fill = {} as Record<Quota, number>;
+  for (const k of QUOTAS) fill[k] = 0;
+  // Slots still owed to unmet quotas. A card that fills two quotas is counted
+  // twice here, so this over-reserves slightly — filler waits a little longer,
+  // and the quality backfill below still fills every slot.
+  const deficit = () => QUOTAS.reduce((s, k) => s + Math.max(0, quota[k] - fill[k]), 0);
 
   const picks: CubeCard[] = [];
   const deferred: CubeCard[] = [];
   const take = (card: CubeCard) => {
     picks.push(card);
     curveFill[curveSlotOf(card.cmc)]++;
-    if (card.role) roleFill[card.role]++;
+    for (const k of quotasOf(card)) fill[k]++;
   };
 
-  // Fill slots by quality, shaping toward curve & role sub-targets.
+  // Fill slots by quality: a card owed by an unmet quota is always taken;
+  // anything else only while the slots left exceed what the quotas still need,
+  // and only into an open curve slot.
   for (const card of sorted) {
     if (picks.length >= target) {
       deferred.push(card);
       continue;
     }
-    const slot = curveSlotOf(card.cmc);
-    const fillsCurve = curveFill[slot] < curveCap[slot];
-    const fillsRole = card.role != null && roleFill[card.role] < roleTarget[card.role];
-    if (fillsCurve || fillsRole) {
+    const wanted = quotasOf(card).some((k) => fill[k] < quota[k]);
+    const fillsCurve = curveFill[curveSlotOf(card.cmc)] < curveCap[curveSlotOf(card.cmc)];
+    if (wanted || (fillsCurve && target - picks.length > deficit())) {
       take(card);
     } else {
       deferred.push(card);
@@ -221,13 +309,21 @@ export function generateCube(
   for (const b of BUCKETS) shares[b] = band.color[b].median;
   const targetByBucket = apportion(shares, size);
 
+  // Cube-level role + creature quotas, split across the color buckets by where
+  // the pool's supply lives (see distributeQuota).
+  const totals = cubeQuotas(band, size - targetByBucket.land);
+  const quotaByKey = {} as Record<Quota, Record<ColorBucket, number>>;
+  for (const k of QUOTAS) quotaByKey[k] = distributeQuota(totals[k], buckets, targetByBucket, k);
+
   // Select per bucket, capping at what's owned.
   const picks: Pick[] = [];
   const byBucket = {} as Record<ColorBucket, number>;
   const leftovers: CubeCard[] = [];
   for (const b of BUCKETS) {
     const want = Math.min(targetByBucket[b], buckets[b].length);
-    const { picks: sel, deferred } = selectBucket(buckets[b], want, band, b === 'land');
+    const quota = {} as Record<Quota, number>;
+    for (const k of QUOTAS) quota[k] = quotaByKey[k][b];
+    const { picks: sel, deferred } = selectBucket(buckets[b], want, band, b === 'land', quota);
     byBucket[b] = sel.length;
     for (const c of sel) picks.push({ card: c, bucket: b, reason: reasonFor(c, b) });
     leftovers.push(...deferred);

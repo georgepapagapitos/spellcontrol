@@ -89,16 +89,22 @@ function bestSwapForAxis(
     .slice(0, CANDIDATES_PER_AXIS);
   if (ins.length === 0) return null;
 
-  // Weakest-first cuttable picks. We only cut pure goodstuff filler or dead-axis
-  // cards (see isCuttable) — never a card carrying a live archetype, so the
-  // refiner can't rob one strategy (or a greedy-reserved floor, or a multi-axis
-  // glue card) to feed another. It only converts spare/dead slots into synergy.
+  // Cuttable picks, role-less filler first and weakest-first within each group.
+  // We only cut pure goodstuff filler or dead-axis cards (see isCuttable) —
+  // never a card carrying a live archetype, so the refiner can't rob one
+  // strategy (or a multi-axis glue card) to feed another. Role cards (removal,
+  // wipes, ramp, draw) come last: the seed reserved them for the corpus shape,
+  // and cutting them is exactly how #1408's interaction gutting happened —
+  // once a cube sits at its removal target the objective's gradient defends
+  // them, but a role card should never be the FIRST thing offered up.
   const outs = picks
     .map((p, idx) => ({ p, idx }))
     .filter(({ p }) => bucketOf(p.card) !== 'land' && isCuttable(p.card, draftable))
     .sort(
       (a, b) =>
-        power(a.p.card) - power(b.p.card) || a.p.card.oracleId.localeCompare(b.p.card.oracleId)
+        Number(a.p.card.role != null) - Number(b.p.card.role != null) ||
+        power(a.p.card) - power(b.p.card) ||
+        a.p.card.oracleId.localeCompare(b.p.card.oracleId)
     );
 
   let best: { picks: Pick[]; out: CubeCard; in: CubeCard; newScore: number } | null = null;
