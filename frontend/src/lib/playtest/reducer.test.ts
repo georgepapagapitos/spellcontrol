@@ -960,6 +960,27 @@ describe('RESOLVE_TOP (scry / surveil / mill)', () => {
     expect(next.zones.graveyard).toHaveLength(0);
   });
 
+  it('shuffles the library afterward when asked (Ponder), keeping every card', () => {
+    const s = init(20);
+    const [a, b, c] = s.zones.library;
+    const next = applyAction(s, {
+      type: 'RESOLVE_TOP',
+      mode: 'scry',
+      top: [c.id, a.id],
+      bottom: [b.id],
+      shuffle: true,
+    });
+    expect(next.rngSeed).not.toBe(s.rngSeed);
+    expect(next.zones.library).toHaveLength(s.zones.library.length);
+    expect(allCardIds(next)).toEqual(allCardIds(s));
+    expect(next.zones.library.map((x) => x.id)).not.toEqual([
+      c.id,
+      a.id,
+      ...s.zones.library.slice(3).map((x) => x.id),
+      b.id,
+    ]);
+  });
+
   it('mills into the graveyard in the given order', () => {
     const s = init(20);
     const [a, b] = s.zones.library;

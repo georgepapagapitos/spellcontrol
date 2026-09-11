@@ -94,10 +94,10 @@ describe('ActionBar — back button (B6-04)', () => {
       expect(screen.getByRole('button', { name: 'Next turn' })).toBeTruthy();
     });
 
-    it('never folds Scry / Create token — they stay inline even when the bar folds', () => {
+    it('never folds Top cards / Create token — they stay inline even when the bar folds', () => {
       viewport(1440);
       render(<ActionBar {...baseProps()} />);
-      expect(screen.getByRole('button', { name: 'Scry' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Top cards' })).toBeTruthy();
       expect(screen.getByRole('button', { name: 'Create token' })).toBeTruthy();
     });
   });

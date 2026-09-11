@@ -36,6 +36,7 @@ export interface ScryResolution {
   top: string[];
   bottom?: string[];
   graveyard?: string[];
+  shuffle?: boolean;
 }
 
 interface Props {
@@ -91,7 +92,10 @@ export function ScrySheet({ library, initialMode = 'scry', onClose, onResolve }:
 
   const maxPeek = Math.min(MAX_PEEK, library.length);
   const [mode, setMode] = useState<ScryMode>(initialMode);
+  // Always opens on 1: the sheet shows card faces, so remembering a larger
+  // count from last time would reveal cards the player didn't ask to see.
   const [count, setCount] = useState(() => Math.min(1, maxPeek));
+  const [shuffleAfter, setShuffleAfter] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const peeked = useMemo(() => library.slice(0, count), [library, count]);
@@ -168,17 +172,21 @@ export function ScrySheet({ library, initialMode = 'scry', onClose, onResolve }:
     });
   }
 
+  // Only sent when set, so a plain scry stays the same dispatch it always was.
+  const shuffle = (mode !== 'mill' && shuffleAfter) || undefined;
+
   function handleConfirm() {
     onResolve(
       mode === 'scry'
-        ? { mode, top: columns.top, bottom: columns.away }
-        : { mode, top: columns.top, graveyard: columns.away }
+        ? { mode, top: columns.top, bottom: columns.away, shuffle }
+        : { mode, top: columns.top, graveyard: columns.away, shuffle }
     );
     beginClose();
   }
 
   const confirmLabel =
-    mode === 'mill' ? `Mill ${columns.away.length}` : `${MODE_LABEL[mode]} ${peeked.length}`;
+    (mode === 'mill' ? `Mill ${columns.away.length}` : `${MODE_LABEL[mode]} ${peeked.length}`) +
+    (shuffle ? ', then shuffle' : '');
   const activeCard = activeId ? byId.get(activeId) : undefined;
 
   return (
@@ -221,9 +229,18 @@ export function ScrySheet({ library, initialMode = 'scry', onClose, onResolve }:
             >
               <Minus width={16} height={16} aria-hidden />
             </button>
-            <span className="playtest-scry-count__value" aria-live="polite">
-              {peeked.length} card{peeked.length === 1 ? '' : 's'}
-            </span>
+            <select
+              className="playtest-scry-count__value"
+              aria-label="Number of cards to look at"
+              value={peeked.length}
+              onChange={(e) => setCount(Number(e.target.value))}
+            >
+              {Array.from({ length: maxPeek }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>
+                  {n} card{n === 1 ? '' : 's'}
+                </option>
+              ))}
+            </select>
             <button
               type="button"
               className="playtest-scry-step"
@@ -235,6 +252,16 @@ export function ScrySheet({ library, initialMode = 'scry', onClose, onResolve }:
             </button>
           </div>
           <p className="playtest-scry-hint">{MODE_HINT[mode]}</p>
+          {mode !== 'mill' && (
+            <label className="playtest-opening-variant">
+              <input
+                type="checkbox"
+                checked={shuffleAfter}
+                onChange={(e) => setShuffleAfter(e.target.checked)}
+              />
+              <span>Shuffle your library afterward</span>
+            </label>
+          )}
         </div>
 
         {peeked.length === 0 ? (

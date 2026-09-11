@@ -171,12 +171,14 @@ export type PlaytestAction =
        *  given order, `graveyard` mills them. Cards in the peeked window that
        *  appear in none of the lists simply stay where they were. `mode` is
        *  carried for the game log only — the reducer treats all three the
-       *  same way. */
+       *  same way. `shuffle` shuffles the library after the cards are placed
+       *  (Ponder's "you may shuffle"). */
       type: 'RESOLVE_TOP';
       mode: ScryMode;
       top: string[];
       bottom?: string[];
       graveyard?: string[];
+      shuffle?: boolean;
     }
   | {
       type: 'MOVE_TO_BATTLEFIELD';
