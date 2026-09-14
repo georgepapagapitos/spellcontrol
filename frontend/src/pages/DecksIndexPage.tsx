@@ -337,7 +337,7 @@ export function DecksIndexPage() {
       if (hasSourceFilter && !sourceFilter.has(d.source)) return false;
       if (hasColorFilter) {
         // "C" means colorless — match decks whose effective identity is empty.
-        // colorMode picks AND (every selected color in the identity, the
+        // colorMode picks AND (identity is exactly the selection, the
         // long-standing default here) vs OR (any selected color).
         const deckColors = effectiveDeckColors(d);
         const key = deckColors.size === 0 ? 'C' : '';

@@ -12,9 +12,10 @@ export {
 } from '@spellcontrol/binder-routing';
 
 /**
- * How a multi-color pip selection combines: `'any'` (OR — a card matches if it
- * shows any selected color; the historical default) or `'all'` (AND — a card
- * must show every selected color, so R + W means Boros cards).
+ * How a color pip selection combines: `'any'` (OR — a card matches if it shows
+ * any selected color; the historical default) or `'all'` (AND — the card's
+ * colors are exactly the selection, so U means mono-blue and R + W means Boros,
+ * not Naya).
  */
 export type ColorMatchMode = 'any' | 'all';
 
@@ -42,6 +43,10 @@ export const FILTER_COLOR_OPTIONS: ReadonlyArray<{ key: string; label: string }>
  * basic-land name), 'M' for multicolor. Selecting 'C' means "colorless"; in
  * 'all' mode combining it with a color is unsatisfiable and correctly matches
  * nothing.
+ *
+ * 'all' is an *exact* match, not a superset one: a card carrying a color the
+ * user didn't pick is excluded, so a lone Blue pip lists mono-blue cards rather
+ * than every card that happens to contain blue.
  */
 export function colorSelectionMatches(
   key: string,
@@ -52,5 +57,7 @@ export function colorSelectionMatches(
   if (selected.size === 0) return true;
   const has = (c: string) => (c === 'C' ? key === 'C' : colorIdentity.includes(c) || key === c);
   const picks = [...selected];
-  return mode === 'all' ? picks.every(has) : picks.some(has);
+  if (mode === 'any') return picks.some(has);
+  const cardColors = key === 'C' ? ['C'] : colorIdentity.length > 0 ? colorIdentity : [key];
+  return picks.every(has) && cardColors.every((c) => selected.has(c));
 }

@@ -11,8 +11,8 @@ export interface ColorMatchModeToggleProps {
  * AND / OR mode chip for a color pip row — the same joiner-pill language as
  * ChipExpressionBuilder's between-chip toggle, so flipping combine semantics
  * looks identical everywhere it appears. OR (default) keeps the historical
- * "shows any selected color" behavior; AND narrows to cards showing every
- * selected color (R + W = Boros cards, not all red plus all white).
+ * "shows any selected color" behavior; AND narrows to cards whose colors are
+ * exactly the selection (Blue alone = mono-blue, R + W = Boros only).
  *
  * The visible hint spells out the current semantics because — unlike the
  * expression builder — this pill doesn't sit between two value chips that
@@ -28,19 +28,19 @@ export function ColorMatchModeToggle({ mode, onChange, className }: ColorMatchMo
         onClick={() => onChange(all ? 'any' : 'all')}
         title={
           all
-            ? 'AND: cards must show every selected color. Click for OR.'
+            ? 'AND: cards in exactly these colors and no others. Click for OR.'
             : 'OR: cards showing any selected color match. Click for AND.'
         }
         aria-label={
           all
-            ? 'Color match mode: all selected colors (AND); click to switch to any (OR)'
+            ? 'Color match mode: exactly these colors (AND); click to switch to any (OR)'
             : 'Color match mode: any selected color (OR); click to switch to all (AND)'
         }
       >
         {all ? 'AND' : 'OR'}
       </button>
       <span className="color-mode-toggle-hint" aria-hidden>
-        {all ? 'all selected colors' : 'any selected color'}
+        {all ? 'only these colors' : 'any selected color'}
       </span>
     </span>
   );

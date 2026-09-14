@@ -122,12 +122,15 @@ describe('colorMatches', () => {
     expect(colorMatches(solRing, new Set(['U']))).toBe(false);
   });
 
-  it("'all' mode requires every selected color", () => {
+  it("'all' mode matches the selection exactly", () => {
     const boros = publicCardToEnriched(card({ colorIdentity: ['R', 'W'] }));
     const bolt = publicCardToEnriched(card({ colorIdentity: ['R'] }));
     expect(colorMatches(boros, new Set(['R', 'W']), 'all')).toBe(true);
     expect(colorMatches(bolt, new Set(['R', 'W']), 'all')).toBe(false);
     expect(colorMatches(bolt, new Set(['R', 'W']), 'any')).toBe(true);
+    // One pip in 'all' mode means mono — Boros carries a color that wasn't picked.
+    expect(colorMatches(bolt, new Set(['R']), 'all')).toBe(true);
+    expect(colorMatches(boros, new Set(['R']), 'all')).toBe(false);
   });
 });
 
