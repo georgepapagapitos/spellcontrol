@@ -170,8 +170,14 @@ vi.mock('../components/deck/DeckVisibilityChip', () => ({
 vi.mock('../components/deck/DeckPublishNudge', () => ({
   DeckPublishNudge: () => null,
 }));
+// Records the props the page hands the search panel so the zone-dependent
+// commander exclusion can be asserted without mounting the real panel.
+const searchPanelProps: { commanderNames?: string[] }[] = [];
 vi.mock('../components/deck/CardSearchPanel', () => ({
-  CardSearchPanel: () => <div />,
+  CardSearchPanel: (props: { commanderNames?: string[] }) => {
+    searchPanelProps.push(props);
+    return <div />;
+  },
 }));
 vi.mock('../components/deck/DeckCombosPanel', () => ({
   DeckCombosPanel: () => <div />,
@@ -635,5 +641,32 @@ describe('DeckEditorPage — cold-load hydration gate (B6-01)', () => {
 
     expect(screen.getByText('That deck no longer exists.')).toBeTruthy();
     expect(screen.queryByText('Loading deck…')).toBeNull();
+  });
+});
+
+describe('DeckEditorPage — commander exclusion is mainboard-only', () => {
+  beforeEach(() => {
+    mockDecks = [mockDeck];
+    mockHydrated = true;
+    searchPanelProps.length = 0;
+    localStorage.clear();
+  });
+  afterEach(() => localStorage.clear());
+
+  const latestProps = () => searchPanelProps[searchPanelProps.length - 1];
+
+  it('hides the commander from search while the add targets the mainboard', () => {
+    renderEditor();
+    fireEvent.click(screen.getAllByRole('button', { name: /Add cards/ })[0]);
+
+    expect(latestProps().commanderNames).toEqual(['Atraxa']);
+  });
+
+  it('stops hiding it once the add targets an out-of-deck zone — a second physical copy belongs there', () => {
+    renderEditor();
+    fireEvent.click(screen.getAllByRole('button', { name: /Add cards/ })[0]);
+    fireEvent.click(screen.getAllByRole('radio', { name: 'Considering' })[0]);
+
+    expect(latestProps().commanderNames).toBeUndefined();
   });
 });
