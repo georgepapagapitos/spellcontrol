@@ -392,6 +392,41 @@ describe('card printing-group reject-stale (E129)', () => {
     expect(live.map((r) => r.id).sort()).toEqual(['c-1', 'c-2', 'c-3', 'c-4', 'c-5']);
   });
 
+  it('checks many groups in one request independently — one stale group does not taint the rest', async () => {
+    // A collection-wide delete sends up to 500 checks per batch, resolved by a
+    // single grouped query. Every group must still be judged on its own
+    // baseline, and a group the client under-claims must not spill staleness
+    // onto its neighbours.
+    const cookie = await registerAndGetCookie('card_group_many');
+    const sid = (n: number) => `aaaaaaaa-0000-0000-0000-0000000000${String(n).padStart(2, '0')}`;
+    await push(cookie, {
+      upserts: [
+        cardRow('a-1', sid(1)),
+        cardRow('a-2', sid(1)),
+        cardRow('b-1', sid(2)),
+        cardRow('c-1', sid(3)),
+      ],
+    });
+    const res = await push(cookie, {
+      deletions: [
+        { kind: 'card', id: 'a-1' },
+        { kind: 'card', id: 'b-1' },
+        { kind: 'card', id: 'c-1' },
+      ],
+      cardGroupChecks: [
+        // Under-claims: the server also holds a-2.
+        { scryfallId: sid(1), finish: 'nonfoil', baseline: ['a-1'] },
+        { scryfallId: sid(2), finish: 'nonfoil', baseline: ['b-1'] },
+        { scryfallId: sid(3), finish: 'nonfoil', baseline: ['c-1'] },
+      ],
+    });
+    expect(res.conflicts.map((c) => c.id)).toEqual(['a-1']);
+    expect(res.applied.map((r) => r.id).sort()).toEqual(['b-1', 'c-1']);
+    const view = await pull(cookie);
+    const live = view.rows.filter((r) => r.kind === 'card' && r.deletedAt == null);
+    expect(live.map((r) => r.id).sort()).toEqual(['a-1', 'a-2']);
+  });
+
   it('applies normally when the asserted baseline still matches (no concurrent change)', async () => {
     const cookie = await registerAndGetCookie('card_group_ok');
     await push(cookie, { upserts: [cardRow('c-1', SCRYFALL_ID), cardRow('c-2', SCRYFALL_ID)] });

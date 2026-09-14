@@ -144,6 +144,39 @@ export async function peekBatch(limit: number): Promise<QueuedMutation[]> {
   return out;
 }
 
+/**
+ * Every queued card delete that removed a CONFIRMED (server-known) row, in
+ * FIFO order, stripped to the fields the E129 printing-group baseline needs.
+ *
+ * A bulk clear hard-deletes every row from the entity-store up front and then
+ * enqueues one delete per copy, so by the time the batches are built the local
+ * "live" rows that would reveal a printing group's other copies are gone. A
+ * baseline computed from one 500-op batch alone therefore under-claims for any
+ * group whose copies land in different batches, the server reads the group as
+ * changed-on-another-device, and the whole batch's deletes bounce back. Reading
+ * the WHOLE pending queue is what makes the client's assertion match the set the
+ * server actually still holds.
+ */
+export async function pendingCardDeletes(): Promise<Mutation[]> {
+  const db = await getDB();
+  const out: Mutation[] = [];
+  let cursor = await db.transaction(STORE_NAME, 'readonly').store.openCursor();
+  while (cursor) {
+    const { m } = cursor.value as QueuedMutation;
+    if (m.op === 'delete' && m.kind === 'card' && m.cardGroup && (m.syncedRev ?? 0) > 0) {
+      out.push({
+        op: 'delete',
+        kind: m.kind,
+        id: m.id,
+        cardGroup: m.cardGroup,
+        syncedRev: m.syncedRev,
+      });
+    }
+    cursor = await cursor.continue();
+  }
+  return out;
+}
+
 /** Remove the named seq entries (drained on a successful push). */
 export async function ack(seqs: number[]): Promise<void> {
   if (seqs.length === 0) return;

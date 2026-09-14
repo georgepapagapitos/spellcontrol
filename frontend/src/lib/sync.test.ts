@@ -1169,6 +1169,47 @@ describe('card printing-group reject-stale (E129)', () => {
     const toasts = useToastsStore.getState().toasts;
     expect(toasts.some((t) => /card quantity changed/i.test(t.message))).toBe(true);
   });
+
+  it('a whole-collection clear spanning several push batches keeps each group baseline whole', async () => {
+    // The bug that made "Delete entire collection" impossible: the clear
+    // hard-deletes every row from IDB, then drains 500 deletes at a time. A
+    // baseline built from one batch alone named only the copies in THAT batch,
+    // so any printing with copies in two batches read as changed-on-another-
+    // device, the server bounced the deletes and handed the rows straight back.
+    // 501 rows puts the two copies of group S either side of the boundary.
+    const rows = Array.from({ length: 501 }, (_, i) => {
+      const id = `c-${String(i).padStart(3, '0')}`;
+      const first = i === 0;
+      const last = i === 500;
+      return {
+        id,
+        data: {
+          copyId: id,
+          scryfallId: first || last ? 'S' : `s-${id}`,
+          finish: 'nonfoil',
+        },
+        rev: 5,
+        syncedRev: 5,
+        deletedAt: null,
+      };
+    });
+    await estore.putMany('card', rows);
+    await persistCardsState([] as Array<{ copyId: string; importId?: string }>);
+    mockPush.mockResolvedValue({ applied: [], cursor: 9 });
+    await startSync('user-1');
+
+    type Body = {
+      cardGroupChecks?: Array<{ scryfallId: string; finish: string; baseline: string[] }>;
+    };
+    const groupS = (call: number) =>
+      (mockPush.mock.calls[call][0] as Body).cardGroupChecks?.find((c) => c.scryfallId === 'S');
+    // Batch 1 holds only c-000, but the server still holds c-500 too — the
+    // assertion has to name both or the group reads stale.
+    expect(groupS(0)?.baseline).toEqual(['c-000', 'c-500']);
+    // Batch 2: c-000 is acked and gone from the server, so it drops out.
+    expect(groupS(1)?.baseline).toEqual(['c-500']);
+    expect(await queue.size()).toBe(0);
+  });
 });
 
 describe('legibility signals', () => {
