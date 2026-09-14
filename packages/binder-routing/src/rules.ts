@@ -165,7 +165,13 @@ export function cardMatchesCompiled(
   }
 
   if (f.setCodesLower) {
-    const sc = card.setCode.toLowerCase();
+    // `|| ''` matches the crash guards the 2026-09-08 sort audit added for
+    // name / rarity / collectorNumber. `setCode` is typed required but real
+    // synced rows can omit it (the dev collection has a copy with no setCode,
+    // typeLine, cmc, layout OR legalities), and this was the last unguarded
+    // read of it in the filter path. A set-less copy then simply matches no
+    // set code, rather than taking the whole binder down with a TypeError.
+    const sc = (card.setCode || '').toLowerCase();
     if (!f.setCodesLower.includes(sc)) return false;
   }
 
@@ -422,13 +428,19 @@ export function exactMatchesExpression(
  * (finishes, treatments, etc.). Within a group: every `is` must be present in
  * the card's set, no `not` may be present. Any group matches → expression
  * matches.
+ *
+ * Both input shapes are lowercased on the way in. Chip values are always
+ * lowercased by `compileExpression`, so a caller handing this a pre-built `Set`
+ * of mixed-case values would otherwise match NOTHING, silently — the previous
+ * `cardSet instanceof Set ? cardSet : …` skipped normalization for exactly the
+ * shape that can't be normalized after the fact. Spreading covers Set and array
+ * alike, so there is no branch left to get wrong.
  */
 export function setMatchesExpression(
   cardSet: Set<string> | string[] | undefined,
   expr: CompiledExpression
 ): boolean {
-  const set =
-    cardSet instanceof Set ? cardSet : new Set((cardSet ?? []).map((s) => s.toLowerCase()));
+  const set = new Set([...(cardSet ?? [])].map((s) => s.toLowerCase()));
   return expr.groups.some((g) => {
     for (const want of g.is) if (!set.has(want)) return false;
     for (const reject of g.not) if (set.has(reject)) return false;
