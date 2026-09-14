@@ -136,9 +136,11 @@ interface Props {
   binderByCardName?: Map<string, BinderInfo[]>;
   /**
    * Names already seated in the command zone (commander + partner). Hidden
-   * from every result list: adding them again puts a second copy into the
-   * 99 — a singleton violation the Stats tab then flags, and a phantom
-   * "missing" copy when the only owned one is the commander itself.
+   * from every result list while the add targets the mainboard: adding them
+   * again puts a second copy into the 99 — a singleton violation the Stats
+   * tab then flags, and a phantom "missing" copy when the only owned one is
+   * the commander itself. The caller passes nothing when the add targets the
+   * sideboard or Considering, where a second physical copy is legitimate.
    */
   commanderNames?: string[];
 }
