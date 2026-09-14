@@ -249,7 +249,7 @@ export function GameBoard({
             strips the board down to the damage question. */}
         {showClock && !cmdFocus && (
           <div
-            className="game-board-clock"
+            className={`game-board-clock ${'col' in board.seam ? 'is-col-seam' : 'is-row-seam'}`}
             style={{
               ['--seam-top-pct' as never]:
                 'row' in board.seam ? `${(board.seam.row / board.rows) * 100}%` : '50%',

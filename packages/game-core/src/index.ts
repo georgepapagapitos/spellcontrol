@@ -14,8 +14,11 @@
  * are rendered — the game logic is layout-agnostic.
  *
  * Each layout id maps (per-count) to a CSS-grid template plus an array of
- * per-seat rotations (0° or 180°, never 90°). The mapping lives in the
- * client-side layout registry — the server only persists the id.
+ * per-seat rotations. The mapping lives in the client-side layout registry —
+ * the server only persists the id. Rotations are 0°, 90°, 180° or 270°: the
+ * `*-sides` layouts (e.g. `4p-sides`) seat players along the left and right
+ * edges of a device lying flat, so those panels genuinely read sideways.
+ * Anything positioning itself against a seat must handle all four.
  *
  *  - `pod`     — across-the-table. Panels split between two sides of the
  *    device; the "far" side reads upside-down so a passed phone faces

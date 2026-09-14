@@ -654,6 +654,31 @@
   }
 }
 
+/* Same ghost technique for the seat-name button. It's a text label styled as
+   a button (padding: 0), so its box is the line box — ~23px tall, well under
+   the coarse floor. The `⋯` corner button opens the same seat menu and does
+   meet the floor, so this is a second route rather than the only one, but a
+   miss here falls through to the ±1 tap zone and silently changes life —
+   which is the wrong outcome for a tap aimed at a menu.
+   `position: relative` is required: unlike the step buttons this element is
+   not already its own positioning context. */
+@media (pointer: coarse) {
+  .player-panel-name {
+    position: relative;
+  }
+
+  .player-panel-name::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    min-width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
 @media (max-height: 480px) {
   .player-panel-content {
     padding: 0.4rem 0.55rem;

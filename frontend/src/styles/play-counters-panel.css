@@ -727,6 +727,15 @@
     padding-inline: var(--space-3); /* widen the pill proportionally */
   }
 
+  /* A chip carrying only an icon (the add-counter "+") has no text to widen
+     it, so padding-inline alone leaves it ~39px across — the floor has to be
+     stated on BOTH axes, not just the one the text-bearing chips happen to
+     satisfy. Measured, not assumed: board-touch-probe.mjs. */
+  .pp-counter-chip.is-add {
+    min-width: 2.75rem;
+    justify-content: center;
+  }
+
   /* Add-counter form: the field and its button are the only text entry on the
      board, so they take the same floor as every other control here. */
   .pp-counters-add-input,
