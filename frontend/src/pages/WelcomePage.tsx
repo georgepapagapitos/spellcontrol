@@ -20,16 +20,22 @@
  * live rails:
  *   1. Import my collection → /collection?add=list (AddCardsSheet) — the
  *      hero's own primary CTA; WelcomeHero owns this door's handler.
- *   2. Browse public decks  → /decks/discover — the hero's secondary CTA.
- *   3. Try sample cards     → loads the sample pack via loadSampleBinders,
+ *   2. Start a game        → /play?new=1 — the hero's second CTA. Local play
+ *      needs no account and no collection, and PlayPage reads `new=1` to open
+ *      on a running table rather than a setup form, so this is genuinely one
+ *      tap from the landing to a life counter.
+ *   3. Browse public decks  → /decks/discover — the hero's last CTA.
+ *   4. Try sample cards     → loads the sample pack via loadSampleBinders,
  *      then navigates to /collection — stays here (below the rails) since it
  *      needs this page's own async load state.
- *   4. Sign in              → /auth (the existing AuthPage, unchanged) —
- *      alongside door 3.
+ *   5. Sign in              → /auth (the existing AuthPage, unchanged) —
+ *      alongside door 4.
  *
- * Doors 1 and 3 dismiss the first-run gate permanently via markEverVisited();
- * door 4 defers to AuthPage's own completion handlers, so abandoning /auth
- * without finishing still reshows the welcome next boot.
+ * Doors 1, 2 and 4 dismiss the first-run gate permanently via
+ * markEverVisited() — each is an intentional first action, and door 2 in
+ * particular must not bounce the visitor back here next boot and hide the game
+ * they left running. Door 5 defers to AuthPage's own completion handlers, so
+ * abandoning /auth without finishing still reshows the welcome next boot.
  */
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
