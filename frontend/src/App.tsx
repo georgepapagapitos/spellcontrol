@@ -40,7 +40,7 @@ import { AutoLinkBanner } from './components/AutoLinkBanner';
 import { useFirstRunGate } from './lib/use-first-run-gate';
 import { useTradeSettlement } from './lib/use-trade-settlement';
 import { hasEverVisited } from './lib/first-run';
-import { track } from './lib/analytics';
+import { setUsageSuppressed, track } from './lib/analytics';
 
 /** Named-export adapter for React.lazy (every page below exports by name). */
 function lazyPage<K extends string, T extends Record<K, ComponentType>>(
@@ -235,11 +235,22 @@ export default function App() {
     void bootstrap();
   }, [bootstrap]);
 
+  // Keep the app's own admin out of the usage counters. The beacon holds no
+  // identity by design, so this is the only way to tell the owner's browsing
+  // from a visitor's; errors and vitals still report either way.
+  useEffect(() => {
+    setUsageSuppressed(isAdmin);
+  }, [isAdmin]);
+
   // First-party, cookieless page-view counter (lib/analytics). Path only,
   // ids/tokens collapsed client-side, so the server holds nothing per-person.
+  // Held until auth resolves, so an admin's first view of a session isn't
+  // counted before we know who they are; bootstrap always lands on 'authed'
+  // or 'guest', even offline, so no view is dropped.
   useEffect(() => {
+    if (status === 'unknown' || status === 'loading') return;
     track('pageview', pathname);
-  }, [pathname]);
+  }, [pathname, status]);
 
   // First-run gate: on a brand-new install, send the user to /auth before
   // dropping them into the app. The gate flips off as soon as any

@@ -1,6 +1,13 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { clsSessionMax, describeError, normalizePath, reportError } from './analytics';
+import {
+  clsSessionMax,
+  describeError,
+  normalizePath,
+  reportError,
+  setUsageSuppressed,
+  track,
+} from './analytics';
 
 describe('normalizePath', () => {
   it('collapses ids, tokens and slugs', () => {
@@ -113,5 +120,50 @@ describe('clsSessionMax', () => {
     ];
     expect(clsSessionMax(shifts)).toBeCloseTo(0.25);
     expect(clsSessionMax([])).toBe(0);
+  });
+});
+
+describe('track', () => {
+  let sent: string[];
+  beforeEach(() => {
+    sent = [];
+    Object.defineProperty(navigator, 'sendBeacon', {
+      configurable: true,
+      value: (_url: string, blob: Blob) => {
+        void blob.text().then((t) => sent.push(t));
+        return true;
+      },
+    });
+  });
+  afterEach(() => {
+    setUsageSuppressed(false);
+    vi.unstubAllGlobals();
+  });
+
+  it('beacons the event name and the normalized current path', async () => {
+    window.history.pushState({}, '', '/collection/binders/b1');
+    track('binder_created');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sent.map((t) => JSON.parse(t))).toEqual([
+      { name: 'binder_created', path: '/collection/binders/:id' },
+    ]);
+  });
+
+  it('sends nothing at all while usage is suppressed', async () => {
+    setUsageSuppressed(true);
+    track('play_started');
+    track('deck_created');
+    track('register_completed');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sent).toEqual([]);
+  });
+
+  it('resumes once suppression is lifted', async () => {
+    setUsageSuppressed(true);
+    track('play_started');
+    setUsageSuppressed(false);
+    track('play_started');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sent).toHaveLength(1);
   });
 });

@@ -23,7 +23,15 @@ export type EventName =
   | 'sample_loaded'
   | 'browse_decks'
   | 'sign_in'
-  | 'guide_cta';
+  | 'guide_cta'
+  // Everything above fires on the landing page. These four are the first
+  // events past it, so a traffic spike reads as a funnel instead of a cliff:
+  // a local game needs no account and otherwise writes nothing server-side,
+  // which made anonymous play unmeasurable by construction.
+  | 'play_started'
+  | 'register_completed'
+  | 'deck_created'
+  | 'binder_created';
 
 const ID_ROUTES =
   /^\/(s|d|u|gn|pods|friends|decks\/cube|decks|collection\/(?:binders|lists|sets))\/([^/]+)(\/.*)?$/;
@@ -57,8 +65,25 @@ function send(payload: Record<string, unknown>): void {
   }
 }
 
-export function track(name: EventName, path: string = window.location.pathname): void {
-  send({ name, path: normalizePath(path) });
+/**
+ * Usage counters are suppressed for the app's own admin. With a handful of
+ * accounts in production the owner's own browsing was indistinguishable from
+ * a visitor's, which made every count an upper bound and the totals
+ * uninterpretable. Errors and vitals are deliberately NOT suppressed — the
+ * owner's crashes and slow pages are the signal we least want to lose.
+ */
+let usageSuppressed = false;
+
+export function setUsageSuppressed(suppressed: boolean): void {
+  usageSuppressed = suppressed;
+}
+
+export function track(name: EventName, path?: string): void {
+  // Guarded here rather than at each call site: the store actions that fire
+  // these events also run under the node-environment tests, where there is
+  // no `window` to read a path from.
+  if (usageSuppressed || typeof window === 'undefined') return;
+  send({ name, path: normalizePath(path ?? window.location.pathname) });
 }
 
 // ---------------------------------------------------------------------------
