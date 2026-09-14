@@ -1189,9 +1189,16 @@
 }
 
 /* Portaled to <body> by ToolbarPopover and positioned `fixed` via inline styles
-   (with viewport flip/clamp) — this rule is the visual surface only. */
+   (with viewport flip/clamp) — this rule is the visual surface only.
+   Deliberately NO z-index: this class is always composed with a second class
+   that owns the layer (`.overflow-menu-popover` at --z-menu, or
+   `.toolbar-popover-panel--fixed` whose caller sets --z-portal-popover inline).
+   Both were same-specificity (0,1,0), so a bare z-index here won or lost purely
+   on stylesheet order — and in the production bundle OverflowMenu's chunk is
+   linked BEFORE index.css, so this rule silently pinned every kebab and the
+   account menu to 50, under all sticky chrome (--z-popover: 60). See
+   styles/z-index-ownership.test.ts. */
 .deck-row-menu-popover {
-  z-index: var(--z-dropdown);
   min-width: 11rem;
   padding: var(--space-1);
   background: var(--surface);
