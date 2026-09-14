@@ -1177,6 +1177,10 @@ async function push(): Promise<void> {
   // Highest rev the server reports while draining. Used only as a cross-tab
   // broadcast hint — never adopted as our own pull cursor (see below).
   let serverRevHint = cursor;
+  // Did this drain actually send anything? A drain that finds an empty queue
+  // has proved nothing about connectivity, so it must not clear `pushError` —
+  // see the guard below.
+  let pushedSomething = false;
   try {
     // Every confirmed card delete still queued, read ONCE for this drain rather
     // than per batch (a 13k-card clear would otherwise re-walk the whole queue
@@ -1197,6 +1201,7 @@ async function push(): Promise<void> {
       if (hint > serverRevHint) serverRevHint = hint;
 
       await queue.ack(batch.map((b) => b.seq));
+      pushedSomething = true;
       const sent = new Set(batch.map((b) => b.m.id));
       pendingDeletes = pendingDeletes.filter((m) => !sent.has(m.id));
       void refreshPending();
@@ -1216,8 +1221,18 @@ async function push(): Promise<void> {
     // Nudge peer tabs to pull (we wrote new revs), but pass the server hint
     // explicitly rather than our own cursor — our cursor intentionally lags.
     broadcastCursor(serverRevHint);
-    pushError = false;
-    recomputeError();
+    // Only a drain that actually sent something may clear the error. An empty
+    // queue is not evidence the last write succeeded: on web the durable queue
+    // is ALWAYS empty (writes go straight through in `webPushInner`), so a
+    // debounced no-op drain used to wipe out the error a failed write-through
+    // had just raised — the header SyncIndicator and mobile tab-bar dot both
+    // read `hasSyncError()`, so the user's "couldn't save" signal disappeared
+    // while their change was still unsaved. It also made `sync.test.ts` flake
+    // on loaded CI, where the 500ms debounce lands mid-assertion.
+    if (pushedSomething) {
+      pushError = false;
+      recomputeError();
+    }
     if (pushPending) {
       pushPending = false;
       schedulePush();
@@ -1232,7 +1247,31 @@ async function push(): Promise<void> {
   }
 }
 
+/**
+ * Test-only: suppress the debounced auto-push so a test drains only when it
+ * says so (`flushSync` / `refreshNow` / `startSync` still push normally).
+ *
+ * `sync.test.ts` stages queue state by writing to `mutation-queue` directly and
+ * then asserts on it. The 500ms debounce `startSync` legitimately leaves
+ * scheduled would fire mid-test on a loaded machine and drain that state out
+ * from under the assertion — three different tests failed that way on CI, each
+ * looking like an unrelated bug (an empty queue, a missing mock call, a cleared
+ * error flag), which is why this file had a reputation for flaking rather than
+ * one traceable cause. Same spirit as `_resetDbPromiseForTests` in
+ * `entity-store` / `mutation-queue`: a seam so tests control the async, not a
+ * behavior change. Never called from app code.
+ */
+export function _setAutoPushEnabledForTests(enabled: boolean): void {
+  autoPushEnabled = enabled;
+  if (!enabled && pushTimer) {
+    clearTimeout(pushTimer);
+    pushTimer = null;
+  }
+}
+let autoPushEnabled = true;
+
 function schedulePush(): void {
+  if (!autoPushEnabled) return;
   if (pushTimer) {
     clearTimeout(pushTimer);
     pushTimer = null;
