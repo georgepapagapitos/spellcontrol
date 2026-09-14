@@ -170,11 +170,12 @@ vi.mock('../components/deck/DeckVisibilityChip', () => ({
 vi.mock('../components/deck/DeckPublishNudge', () => ({
   DeckPublishNudge: () => null,
 }));
-// Records the props the page hands the search panel so the zone-dependent
-// commander exclusion can be asserted without mounting the real panel.
-const searchPanelProps: { commanderNames?: string[] }[] = [];
+// Records the props the page hands the search panel, so the zone it reports
+// can be asserted without mounting the real panel. Which filters that zone
+// lifts is the panel's own business — see CardSearchPanel.zones.test.tsx.
+const searchPanelProps: { addZone?: string }[] = [];
 vi.mock('../components/deck/CardSearchPanel', () => ({
-  CardSearchPanel: (props: { commanderNames?: string[] }) => {
+  CardSearchPanel: (props: { addZone?: string }) => {
     searchPanelProps.push(props);
     return <div />;
   },
@@ -644,7 +645,7 @@ describe('DeckEditorPage — cold-load hydration gate (B6-01)', () => {
   });
 });
 
-describe('DeckEditorPage — commander exclusion is mainboard-only', () => {
+describe('DeckEditorPage — the zone toggle reaches the search panel', () => {
   beforeEach(() => {
     mockDecks = [mockDeck];
     mockHydrated = true;
@@ -655,18 +656,18 @@ describe('DeckEditorPage — commander exclusion is mainboard-only', () => {
 
   const latestProps = () => searchPanelProps[searchPanelProps.length - 1];
 
-  it('hides the commander from search while the add targets the mainboard', () => {
+  it('reports the mainboard while the zone toggle sits on Mainboard', () => {
     renderEditor();
     fireEvent.click(screen.getAllByRole('button', { name: /Add cards/ })[0]);
 
-    expect(latestProps().commanderNames).toEqual(['Atraxa']);
+    expect(latestProps().addZone).toBe('main');
   });
 
-  it('stops hiding it once the add targets an out-of-deck zone — a second physical copy belongs there', () => {
+  it('reports the out-of-deck zone once the toggle moves — that is what lifts the mainboard-only filters', () => {
     renderEditor();
     fireEvent.click(screen.getAllByRole('button', { name: /Add cards/ })[0]);
     fireEvent.click(screen.getAllByRole('radio', { name: 'Considering' })[0]);
 
-    expect(latestProps().commanderNames).toBeUndefined();
+    expect(latestProps().addZone).toBe('considering');
   });
 });
