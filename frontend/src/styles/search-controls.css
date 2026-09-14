@@ -423,9 +423,16 @@
    computePopoverPlacement() — positioning coords come from inline styles. */
 .sort-popover-panel {
   z-index: var(--z-popover);
-  width: max-content;
-  min-width: min(22rem, calc(100vw - 2rem));
-  max-width: min(26rem, calc(100vw - 2rem));
+  /* An EXPLICIT width, not `max-content`. The editor inside declares
+     `container-type: inline-size`, which brings inline-axis size containment
+     with it — a `max-content` parent then measures a child that reports as
+     empty and collapses to its min-width. Sizing the panel outright also means
+     the container query below it measures a width that doesn't depend on the
+     layout the query itself selects. 30rem seats the four-track row (which
+     needs ~411px, the field track pinned to the 10rem dropdown min-width) with
+     headroom; narrower screens clamp and the editor's own container query
+     folds each row onto two lines. */
+  width: min(30rem, calc(100vw - 2rem));
   background: var(--surface);
   border: 0.5px solid var(--border-strong);
   border-radius: var(--radius);
@@ -435,8 +442,7 @@
 
 @media (max-width: 640px) {
   .sort-popover-panel {
-    min-width: min(20rem, calc(100vw - 1.5rem));
-    max-width: calc(100vw - 1.5rem);
+    width: calc(100vw - 1.5rem);
   }
 }
 
