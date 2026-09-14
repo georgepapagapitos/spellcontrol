@@ -221,14 +221,101 @@ describe('injectShareHead', () => {
     const ogIdx = out.indexOf('og:title');
     expect(ogIdx).toBeGreaterThan(0);
     expect(ogIdx).toBeLessThan(headerEnd);
-    // The original title tag must still be present (we add to the head, not replace it).
-    expect(out).toContain('<title>SpellControl</title>');
+    // The document title is now the share's own — a search result's headline
+    // comes from <title>, never from og:title.
+    expect(out).toContain('<title>Deck</title>');
+    expect(out).not.toContain('<title>SpellControl</title>');
   });
 
-  it('still injects noindex for unknown shares', () => {
+  it('still injects noindex for unknown shares, and leaves the shell alone', () => {
     const out = injectShareHead(shell, null);
     expect(out).toContain('<meta name="robots" content="noindex,nofollow"');
     expect(out).not.toContain('og:title');
+    // Nothing better to describe the page with, so the shell's own card stays.
+    expect(out).toContain('<title>SpellControl</title>');
+  });
+
+  // E309. The shell carries a static homepage card (canonical + a full og:/
+  // twitter: set) because an SPA can't vary those per route. Appending ours
+  // after it left BOTH on the page: Google discards conflicting canonicals, so
+  // public deck pages never ranked as themselves, and share previews took
+  // whichever og:title their consumer happened to pick first.
+  describe('shell homepage tags are replaced, not duplicated', () => {
+    const richShell = `<!doctype html>
+<html>
+  <head>
+    <title>SpellControl — Organize MTG binders</title>
+    <meta name="description" content="Site description stays." />
+    <link rel="canonical" href="https://spellcontrol.com/" />
+    <meta property="og:title" content="SpellControl" />
+    <meta
+      property="og:description"
+      content="Homepage card."
+    />
+    <meta property="og:image" content="https://spellcontrol.com/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="SpellControl" />
+  </head>
+  <body></body>
+</html>
+`;
+    const deck = {
+      title: 'atraxa — commander deck',
+      description: '100 cards',
+      url: 'https://spellcontrol.com/d/atraxa-6007356a',
+      indexable: true,
+    };
+
+    const count = (h: string, needle: string) => h.split(needle).length - 1;
+
+    it('leaves exactly one canonical, and it is the page itself', () => {
+      const out = injectShareHead(richShell, deck);
+      expect(count(out, 'rel="canonical"')).toBe(1);
+      expect(out).toContain(`<link rel="canonical" href="${deck.url}" />`);
+      expect(out).not.toContain('href="https://spellcontrol.com/" />');
+    });
+
+    it('leaves exactly one of each social tag, describing the deck', () => {
+      const out = injectShareHead(richShell, deck);
+      expect(count(out, 'property="og:title"')).toBe(1);
+      expect(count(out, 'property="og:description"')).toBe(1);
+      expect(count(out, 'property="og:image"')).toBe(1);
+      expect(count(out, 'name="twitter:card"')).toBe(1);
+      expect(count(out, 'name="twitter:title"')).toBe(1);
+      expect(out).toContain(`content="${deck.title}"`);
+      expect(out).not.toContain('content="Homepage card."');
+    });
+
+    it('rewrites the document title and keeps the non-social description', () => {
+      const out = injectShareHead(richShell, deck);
+      expect(out).toContain(`<title>${deck.title}</title>`);
+      expect(count(out, '<title>')).toBe(1);
+      // Only og:/twitter:/canonical are shell-owned; a plain meta description
+      // is not ours to remove.
+      expect(out).toContain('content="Site description stays."');
+    });
+
+    it('strips for a non-indexable share too — a preview is not a ranking surface', () => {
+      const out = injectShareHead(richShell, { ...deck, indexable: false });
+      expect(count(out, 'property="og:title"')).toBe(1);
+      expect(out).toContain('<meta name="robots" content="noindex,nofollow"');
+      // noindex, so no canonical at all rather than a contradictory one.
+      expect(count(out, 'rel="canonical"')).toBe(0);
+    });
+
+    // The regex has to survive the REAL shell's multi-line attribute
+    // formatting, which a hand-written fixture would not catch drifting.
+    it('handles the real frontend/index.html', () => {
+      const real = path.join(__dirname, '..', '..', '..', 'frontend', 'index.html');
+      const html = fs.readFileSync(real, 'utf8');
+      expect(count(html, 'rel="canonical"')).toBe(1); // the shell's own
+      const out = injectShareHead(html, deck);
+      expect(count(out, 'rel="canonical"')).toBe(1);
+      expect(out).toContain(`<link rel="canonical" href="${deck.url}" />`);
+      expect(count(out, 'property="og:title"')).toBe(1);
+      expect(count(out, 'name="twitter:title"')).toBe(1);
+      expect(out).toContain(`<title>${deck.title}</title>`);
+    });
   });
 
   it('falls back to the original HTML when the template has no </head>', () => {
