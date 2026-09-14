@@ -440,6 +440,23 @@ export async function pullSync(
  * Callers reflect the returned `applied[]` revs onto their local rows so
  * subsequent pulls don't re-deliver them.
  */
+/**
+ * Server-authoritative "empty the collection". Returns how many rows of each
+ * kind were tombstoned. Used instead of enqueuing one delete per card: the
+ * client can only enumerate rows it has locally, which may be a fraction of
+ * what the server holds.
+ */
+export async function clearCollectionSync(): Promise<{
+  cleared: { card: number; import: number; list: number };
+  cursor: number;
+}> {
+  const res = await authedFetch('/api/sync/clear-collection', { method: 'POST' });
+  return handleResponse<{
+    cleared: { card: number; import: number; list: number };
+    cursor: number;
+  }>(res);
+}
+
 export async function pushSync(input: {
   upserts: SyncUpsert[];
   deletions: SyncDeletion[];

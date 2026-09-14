@@ -333,6 +333,80 @@ describe('deck reject-stale (optimistic concurrency)', () => {
   });
 });
 
+describe('POST /api/sync/clear-collection', () => {
+  const SID = 'bbbbbbbb-0000-0000-0000-000000000001';
+
+  it('requires auth', async () => {
+    const res = await request(app).post('/api/sync/clear-collection');
+    expect(res.status).toBe(401);
+  });
+
+  it('tombstones every card, import and list, and leaves decks and binders alone', async () => {
+    const cookie = await registerAndGetCookie('clear_collection');
+    await push(cookie, {
+      upserts: [
+        cardRow('c-1', SID),
+        cardRow('c-2', SID),
+        cardRow('c-3', SID),
+        { kind: 'import', id: 'imp-1', data: { id: 'imp-1' } },
+        { kind: 'list', id: 'l-1', data: { id: 'l-1' } },
+        { kind: 'deck', id: 'd-1', data: { id: 'd-1', cards: [] } },
+        { kind: 'binder', id: 'b-1', data: { id: 'b-1' } },
+      ],
+    });
+
+    const res = await request(app).post('/api/sync/clear-collection').set('Cookie', cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.cleared).toEqual({ card: 3, import: 1, list: 1 });
+
+    const view = await pull(cookie);
+    const live = view.rows.filter((r) => r.deletedAt == null);
+    // The collection is gone; the account's decks and binders are not.
+    expect(live.map((r) => `${r.kind}:${r.id}`).sort()).toEqual(['binder:b-1', 'deck:d-1']);
+  });
+
+  it('clears rows this device could never have enumerated, and is idempotent', async () => {
+    // The whole point: the client does not name the rows. Whatever the account
+    // holds goes, including rows below any client's cursor.
+    const cookie = await registerAndGetCookie('clear_collection_blind');
+    await push(cookie, { upserts: [cardRow('c-1', SID), cardRow('c-2', SID)] });
+    const first = await request(app).post('/api/sync/clear-collection').set('Cookie', cookie);
+    expect(first.body.cleared.card).toBe(2);
+    // Nothing left to clear — a repeat is a no-op, not an error.
+    const second = await request(app).post('/api/sync/clear-collection').set('Cookie', cookie);
+    expect(second.status).toBe(200);
+    expect(second.body.cleared).toEqual({ card: 0, import: 0, list: 0 });
+  });
+
+  it('gives each tombstone its own rev so a delta pull delivers them in order', async () => {
+    const cookie = await registerAndGetCookie('clear_collection_revs');
+    await push(cookie, {
+      upserts: [cardRow('c-1', SID), cardRow('c-2', SID), cardRow('c-3', SID)],
+    });
+    const before = await pull(cookie);
+    const res = await request(app).post('/api/sync/clear-collection').set('Cookie', cookie);
+    // Every tombstone is newer than the pre-clear cursor, so a device sitting at
+    // that cursor picks the whole clear up as a normal delta.
+    const delta = await pull(cookie, before.cursor);
+    expect(delta.rows).toHaveLength(3);
+    expect(delta.rows.every((r) => r.deletedAt != null && r.data == null)).toBe(true);
+    const revs = delta.rows.map((r) => r.rev);
+    expect([...revs].sort((a, b) => a - b)).toEqual(revs);
+    expect(new Set(revs).size).toBe(3);
+    expect(res.body.cursor).toBe(Math.max(...revs));
+  });
+
+  it("does not touch another user's collection", async () => {
+    const mine = await registerAndGetCookie('clear_collection_mine');
+    const theirs = await registerAndGetCookie('clear_collection_theirs');
+    await push(mine, { upserts: [cardRow('c-1', SID)] });
+    await push(theirs, { upserts: [cardRow('c-1', SID)] });
+    await request(app).post('/api/sync/clear-collection').set('Cookie', mine);
+    const view = await pull(theirs);
+    expect(view.rows.filter((r) => r.deletedAt == null)).toHaveLength(1);
+  });
+});
+
 describe('card printing-group reject-stale (E129)', () => {
   // Card rows are per-copy (one row per copyId); quantity is derived row
   // cardinality for a (scryfallId, finish) group. These cover the audit's

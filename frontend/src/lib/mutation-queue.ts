@@ -192,6 +192,24 @@ export async function size(): Promise<number> {
   return db.count(STORE_NAME);
 }
 
+/**
+ * Drop every queued mutation targeting the named kinds. After a server-side
+ * clear, a queued upsert for a card that no longer exists would resurrect it on
+ * the next drain — the clear is authoritative, so those ops are obsolete.
+ */
+export async function dropKinds(kinds: EntityKind[]): Promise<void> {
+  if (kinds.length === 0) return;
+  const set = new Set<EntityKind>(kinds);
+  const db = await getDB();
+  const tx = db.transaction(STORE_NAME, 'readwrite');
+  let cursor = await tx.store.openCursor();
+  while (cursor) {
+    if (set.has((cursor.value as QueuedMutation).m.kind)) await cursor.delete();
+    cursor = await cursor.continue();
+  }
+  await tx.done;
+}
+
 /** Drop the entire queue. Logout, account switch, boot wipe. */
 export async function clear(): Promise<void> {
   const db = await getDB();

@@ -133,6 +133,16 @@ export async function deleteMany(kind: EntityKind, ids: string[]): Promise<void>
   await tx.done;
 }
 
+/** Drop every row of the named kinds. Used by the server-side collection clear. */
+export async function wipeKinds(kinds: EntityKind[]): Promise<void> {
+  if (kinds.length === 0) return;
+  const db = await getDB();
+  const names = kinds.map(storeName);
+  const tx = db.transaction(names as unknown as string[], 'readwrite');
+  await Promise.all(names.map((n) => tx.objectStore(n).clear()));
+  await tx.done;
+}
+
 /** Drop every row in every store. Used by logout / boot wipe. */
 export async function wipeAll(): Promise<void> {
   const db = await getDB();
