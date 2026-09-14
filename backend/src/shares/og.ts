@@ -81,15 +81,58 @@ export function buildShareHeadTags(meta: ShareLandingMeta | null): string {
 }
 
 /**
+ * The shell's own homepage head tags, which must come OUT whenever we splice a
+ * real share's tags in. `frontend/index.html` carries a static homepage card —
+ * a canonical pointing at the site root plus a full og:/twitter: set — because
+ * a client-rendered SPA cannot vary those per route. Appending ours after them
+ * left BOTH on the page, and a duplicated `og:title` / `rel=canonical` is not
+ * "the later one wins": it is undefined, and consumers genuinely differ.
+ *
+ * Two measured consequences, which is why this is a strip and not a tidy-up:
+ *
+ *  - Search. Google discards conflicting canonicals, so every public deck and
+ *    profile page was telling it "I am the homepage" and never ranked as
+ *    itself. Search Console, three months: ~1,200 impressions and 5 clicks,
+ *    every click on a static guide page, none on a deck — while the top
+ *    queries ("mono black devotion", "atraxa", "xenagos") were real archetype
+ *    demand that Google had already matched to those deck pages.
+ *  - Sharing. Every share link — collection, deck, game-night invite — carried
+ *    the homepage card first, so previews were at best non-deterministic and
+ *    at worst generic. That is the app's main organic loop previewing as a
+ *    stranger.
+ */
+const SHELL_HOMEPAGE_TAGS =
+  /[ \t]*<(?:link\s[^>]*rel="canonical"|meta\s[^>]*(?:property="og:|name="twitter:))[^>]*>\s*\n?/gi;
+
+/**
  * Splice the OG/robots block in just before `</head>`. Returns the
  * original HTML unchanged if `</head>` isn't found — defensive against a
  * malformed template; we'd rather serve the SPA without OG than 500.
+ *
+ * When we have a real share to describe, the shell's homepage tags are
+ * stripped first (see SHELL_HOMEPAGE_TAGS) and the document `<title>` is
+ * rewritten — a search result's headline comes from `<title>`, never from
+ * `og:title`, so leaving the shell's meant every page in the index presented
+ * as the same generic string. `buildShareHeadTags` emits a superset of what is
+ * removed, so nothing is lost.
+ *
+ * With no meta (an unknown or revoked share) the shell is left exactly as it
+ * was and only the noindex is added: there is nothing better to describe the
+ * page with, and the homepage card is a reasonable fallback.
  */
 export function injectShareHead(html: string, meta: ShareLandingMeta | null): string {
   const idx = html.lastIndexOf('</head>');
   if (idx === -1) return html;
+  let head = html.slice(0, idx);
+  if (meta) {
+    head = head.replace(SHELL_HOMEPAGE_TAGS, '');
+    head = head.replace(
+      /<title>[\s\S]*?<\/title>/i,
+      `<title>${escapeHtmlAttr(meta.title)}</title>`
+    );
+  }
   const block = buildShareHeadTags(meta);
-  return `${html.slice(0, idx)}    ${block}\n  ${html.slice(idx)}`;
+  return `${head}    ${block}\n  ${html.slice(idx)}`;
 }
 
 function countCollectionCards(collection: unknown): number {
