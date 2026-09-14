@@ -26,6 +26,12 @@ export interface SyncPullPage {
   rows: SyncRow[];
   cursor: number;
   hasMore: boolean;
+  /**
+   * Live row count per kind, sent only on the LAST page of a pull. The client
+   * checks its local store against this rather than trusting that the delta
+   * stream kept it complete — see the reconcile in sync.ts (E291).
+   */
+  counts?: Partial<Record<SyncKind, number>>;
 }
 
 export interface SyncUpsert {

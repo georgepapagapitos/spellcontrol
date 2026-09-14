@@ -91,6 +91,25 @@ export async function getAllLive(kind: EntityKind): Promise<StoredRow[]> {
   return rows.filter((r) => r.deletedAt == null);
 }
 
+/**
+ * Number of live rows for a kind, without materializing any of them.
+ *
+ * IndexedDB does not index a record whose key-path value is null, so the
+ * `deletedAt` index contains exactly the tombstones — total minus that is the
+ * live count. Two counts instead of deserializing a 13k-row store, which
+ * matters because this runs on every completed pull.
+ */
+export async function countLive(kind: EntityKind): Promise<number> {
+  const db = await getDB();
+  const tx = db.transaction(storeName(kind), 'readonly');
+  const [total, tombstones] = await Promise.all([
+    tx.store.count(),
+    tx.store.index('deletedAt').count(),
+  ]);
+  await tx.done;
+  return total - tombstones;
+}
+
 /** Read a single row by id, including tombstones (rare; mostly for tests). */
 export async function getById(kind: EntityKind, id: string): Promise<StoredRow | undefined> {
   const db = await getDB();

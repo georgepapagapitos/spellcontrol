@@ -58,6 +58,12 @@ const mockAddListener = CapacitorApp.addListener as unknown as ReturnType<typeof
 // A generous ceiling costs nothing when the condition settles promptly.
 const SETTLE = { timeout: 10_000 };
 
+/** Seed the persisted cursor so a test starts as a device mid-stream, not a
+ *  fresh install (cursor 0 means "bootstrap", which skips the drift check). */
+function saveCursorForTest(v: number): void {
+  localStorage.setItem('spellcontrol-sync-cursor', String(v));
+}
+
 async function waitForLifecycleSyncToSettle(): Promise<void> {
   await vi.waitFor(async () => {
     const before = mockPull.mock.calls.length;
@@ -1212,6 +1218,123 @@ describe('card printing-group reject-stale (E129)', () => {
     // Batch 2: c-000 is acked and gone from the server, so it drops out.
     expect(groupS(1)?.baseline).toEqual(['c-500']);
     expect(await queue.size()).toBe(0);
+  });
+});
+
+describe('drift reconcile (E291)', () => {
+  // A delta pull only returns rows newer than the cursor, so a row left at an
+  // old rev is invisible to this device forever. The server's live row counts
+  // are the only way to notice; a full refetch is the only way back.
+
+  it('refetches from scratch when the local row count disagrees with the server', async () => {
+    // Local holds one stranded card the server does not have, and is missing
+    // two the server does — exactly the shape that stranded a real account.
+    await estore.putMany('card', [
+      { id: 'stale-1', data: { copyId: 'stale-1' }, rev: 5, syncedRev: 5, deletedAt: null },
+    ]);
+    saveCursorForTest(900);
+
+    // Delta pull: nothing new, but the server says it holds 2 cards.
+    mockPull.mockResolvedValueOnce({ rows: [], cursor: 900, hasMore: false, counts: { card: 2 } });
+    // Refetch after the wipe delivers the real contents.
+    mockPull.mockResolvedValueOnce({
+      rows: [
+        {
+          kind: 'card',
+          id: 'real-1',
+          data: { copyId: 'real-1' },
+          rev: 10,
+          deletedAt: null,
+          importId: '',
+        },
+        {
+          kind: 'card',
+          id: 'real-2',
+          data: { copyId: 'real-2' },
+          rev: 11,
+          deletedAt: null,
+          importId: '',
+        },
+      ],
+      cursor: 11,
+      hasMore: false,
+      counts: { card: 2 },
+    });
+
+    await startSync('user-1');
+
+    const ids = (await estore.getAllLive('card')).map((r) => r.id).sort();
+    expect(ids).toEqual(['real-1', 'real-2']);
+    // Second pull went out from a zeroed cursor — a real bootstrap, not a delta.
+    expect(mockPull.mock.calls[1][0]).toBe(0);
+  });
+
+  it('leaves a device that already agrees with the server alone', async () => {
+    await estore.putMany('card', [
+      { id: 'c-1', data: { copyId: 'c-1' }, rev: 5, syncedRev: 5, deletedAt: null },
+    ]);
+    saveCursorForTest(900);
+    mockPull.mockResolvedValue({ rows: [], cursor: 900, hasMore: false, counts: { card: 1 } });
+
+    await startSync('user-1');
+
+    expect(mockPull).toHaveBeenCalledTimes(1); // no refetch
+    expect((await estore.getAllLive('card')).map((r) => r.id)).toEqual(['c-1']);
+  });
+
+  it('does not count tombstones as live rows', async () => {
+    await estore.putMany('card', [
+      { id: 'c-1', data: { copyId: 'c-1' }, rev: 5, syncedRev: 5, deletedAt: null },
+      { id: 'c-2', data: null, rev: 6, deletedAt: 1 },
+    ]);
+    saveCursorForTest(900);
+    mockPull.mockResolvedValue({ rows: [], cursor: 900, hasMore: false, counts: { card: 1 } });
+
+    await startSync('user-1');
+    expect(mockPull).toHaveBeenCalledTimes(1);
+  });
+
+  it('holds off while local writes are still queued — they SHOULD differ', async () => {
+    mockIsNative.mockReturnValue(true); // durable queue is native-only
+    await estore.putMany('card', [{ id: 'c-1', data: { copyId: 'c-1' }, rev: 0, deletedAt: null }]);
+    await queue.enqueue({ op: 'upsert', kind: 'card', id: 'c-1', data: { copyId: 'c-1' } });
+    saveCursorForTest(900);
+    // Push fails, so the mutation stays queued and the server still has 0 cards.
+    mockPush.mockRejectedValue(new Error('offline'));
+    mockPull.mockResolvedValue({ rows: [], cursor: 900, hasMore: false, counts: { card: 0 } });
+
+    await startSync('user-1');
+
+    expect(mockPull).toHaveBeenCalledTimes(1); // no refetch
+    // The unpushed row survives — wiping here would have destroyed it.
+    expect((await estore.getAllLive('card')).map((r) => r.id)).toEqual(['c-1']);
+  });
+
+  it('refetches at most once, so a persistent disagreement cannot loop', async () => {
+    await estore.putMany('card', [
+      { id: 'c-1', data: { copyId: 'c-1' }, rev: 5, syncedRev: 5, deletedAt: null },
+    ]);
+    saveCursorForTest(900);
+    // The server keeps claiming a count the refetch never produces.
+    mockPull.mockResolvedValue({ rows: [], cursor: 900, hasMore: false, counts: { card: 7 } });
+
+    await startSync('user-1');
+    expect(mockPull).toHaveBeenCalledTimes(2); // the delta + ONE refetch
+
+    await refreshNow();
+    expect(mockPull).toHaveBeenCalledTimes(3); // the new delta only
+  });
+
+  it('skips the check against a server build that sends no counts', async () => {
+    await estore.putMany('card', [
+      { id: 'c-1', data: { copyId: 'c-1' }, rev: 5, syncedRev: 5, deletedAt: null },
+    ]);
+    saveCursorForTest(900);
+    mockPull.mockResolvedValue({ rows: [], cursor: 900, hasMore: false });
+
+    await startSync('user-1');
+    expect(mockPull).toHaveBeenCalledTimes(1);
+    expect((await estore.getAllLive('card')).map((r) => r.id)).toEqual(['c-1']);
   });
 });
 

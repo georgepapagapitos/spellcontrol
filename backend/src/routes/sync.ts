@@ -256,6 +256,17 @@ syncRouter.get('/', requireAuth, syncLimiter, async (req: Request, res: Response
 
   const hasMore = rows.length > limit;
   const page = hasMore ? rows.slice(0, limit) : rows;
+
+  // On the LAST page only, report how many live rows the account actually holds
+  // per kind, so the client can check its local store against the truth instead
+  // of assuming a delta stream kept it complete. It cannot verify that itself: a
+  // delta pull returns only rows newer than the cursor, so anything whose rev
+  // fell below it (an earlier push the server rejected, say) is never
+  // re-delivered and silently disappears from that device. One account carried
+  // 36,883 live cards while its app showed 500 (E291). Counting on every page of
+  // a multi-page bootstrap would be wasted work — the client only reconciles
+  // once the stream is drained.
+  const counts = hasMore ? undefined : await liveCountsByKind(userId);
   const out = page.map((r) => ({
     kind: r.kind,
     id: r.id,
@@ -265,8 +276,33 @@ syncRouter.get('/', requireAuth, syncLimiter, async (req: Request, res: Response
     ...(r.kind === 'card' ? { importId: r.import_id ?? '' } : {}),
   }));
   const cursor = out.length > 0 ? out[out.length - 1].rev : since;
-  res.json({ rows: out, cursor, hasMore });
+  res.json({ rows: out, cursor, hasMore, ...(counts ? { counts } : {}) });
 });
+
+/** Live (non-tombstoned) row count per kind, in one round trip. */
+async function liveCountsByKind(userId: string): Promise<Record<Kind, number>> {
+  const { rows } = await getPool().query<{ kind: Kind; n: string }>(
+    `
+    SELECT 'import'::text AS kind, count(*) AS n FROM user_imports WHERE user_id = $1 AND deleted_at IS NULL
+    UNION ALL
+    SELECT 'card'::text,   count(*) FROM user_cards   WHERE user_id = $1 AND deleted_at IS NULL
+    UNION ALL
+    SELECT 'binder'::text, count(*) FROM user_binders WHERE user_id = $1 AND deleted_at IS NULL
+    UNION ALL
+    SELECT 'deck'::text,   count(*) FROM user_decks   WHERE user_id = $1 AND deleted_at IS NULL
+    UNION ALL
+    SELECT 'game'::text,   count(*) FROM user_games   WHERE user_id = $1 AND deleted_at IS NULL
+    UNION ALL
+    SELECT 'list'::text,   count(*) FROM user_lists   WHERE user_id = $1 AND deleted_at IS NULL
+    UNION ALL
+    SELECT 'cube'::text,   count(*) FROM user_cubes   WHERE user_id = $1 AND deleted_at IS NULL
+    `,
+    [userId]
+  );
+  const out = {} as Record<Kind, number>;
+  for (const r of rows) out[r.kind] = Number(r.n);
+  return out;
+}
 
 /**
  * Apply a delta batch. One transaction; each operation gets a fresh `rev`
