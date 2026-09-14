@@ -61,6 +61,22 @@ const RULE_GROUP_TIP = (
 const defaultFixedCapacity = (pocket: PocketSize, doubleSided: boolean): number =>
   pocket * (doubleSided ? 40 : 20);
 
+/**
+ * "Staples", "Staples and Rares", or "Staples and 3 others" — names the binders
+ * outbidding this one instead of the anonymous "binders above this one" (E298).
+ * Two names is the readable ceiling for an inline sentence; beyond that the
+ * count carries it and the binder list itself shows the order.
+ */
+function formatCaughtBy(
+  caughtBy: { binderName: string; count: number }[],
+  fallback = 'binders above this one'
+): string {
+  if (caughtBy.length === 0) return fallback;
+  if (caughtBy.length === 1) return caughtBy[0].binderName;
+  if (caughtBy.length === 2) return `${caughtBy[0].binderName} and ${caughtBy[1].binderName}`;
+  return `${caughtBy[0].binderName} and ${caughtBy.length - 1} others`;
+}
+
 export function BinderEditor() {
   const editingBinder = useCollectionStore((s) => s.editingBinder);
   const editingBinderSeed = useCollectionStore((s) => s.editingBinderSeed);
@@ -902,8 +918,8 @@ export function BinderEditor() {
                     {effectiveLanding.caughtAbove > 0 && (
                       <>
                         {' '}
-                        · {effectiveLanding.caughtAbove.toLocaleString()} caught by binders above
-                        this one
+                        · {effectiveLanding.caughtAbove.toLocaleString()} caught by{' '}
+                        {formatCaughtBy(effectiveLanding.caughtBy)}
                       </>
                     )}
                     {effectiveLanding.pulledIn > 0 && (
@@ -920,8 +936,9 @@ export function BinderEditor() {
                   effectiveLanding.matches > 0 &&
                   effectiveLanding.lands === 0 && (
                     <div className="warn-banner" style={{ marginTop: '0.5rem' }}>
-                      Every matching card is caught by a binder above this one. This binder will be
-                      empty. Move it up, or tighten the rules of the binders above.
+                      Every matching card is caught by{' '}
+                      {formatCaughtBy(effectiveLanding.caughtBy, 'a binder above this one')}. This
+                      binder will be empty. Move it up, or tighten the rules there.
                     </div>
                   )}
 

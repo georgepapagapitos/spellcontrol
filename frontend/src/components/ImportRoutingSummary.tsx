@@ -13,34 +13,43 @@ interface Props {
  * list: the host (`UploadPanel`'s `.import-review` container) owns the box
  * chrome and the single overall dismiss.
  *
- * Cards that matched no binder (the Uncategorized remainder) are intentionally
- * not shown — falling through just means "still in your collection, unrouted",
- * a no-op default not worth surfacing (E11). So the section is hidden entirely
- * when nothing matched a real binder (or for binder-mode imports that pin every
- * card to a single new binder) — the review surface's success line already
- * confirms the import landed.
+ * Cards that matched no binder get one final row of their own (E296): they are
+ * the signal that a rule is missing, and until this existed the panel said
+ * "Routed 312 cards" and nothing at all about the other 88 — reachable only via
+ * a Collection filter the user had to already know about. The row has no binder
+ * to open, so it deep-links to the Collection filtered to Uncategorized.
+ *
+ * The whole section hides only when the import produced no routing story at
+ * all (nothing matched a binder AND nothing fell through) — the review
+ * surface's success line already confirms the import landed.
  */
 export function ImportRoutingSummary({ summary }: Props) {
   const navigate = useNavigate();
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
 
-  if (summary.entries.length === 0) return null;
+  if (summary.entries.length === 0 && summary.unroutedCount === 0) return null;
 
   const handleOpen = (binderId: string) => {
     setActiveTab(binderId);
     navigate(`/collection/binders/${binderId}`);
   };
 
+  // No binder to open: hand the Collection page a pre-seeded binder filter so
+  // the user lands on exactly the cards that escaped, ready to act on.
+  const handleOpenUnrouted = () => navigate('/collection?binder=__uncategorized');
+
   return (
     <>
-      <div className="import-routing-header">
-        <span>
-          <strong>
-            Routed {summary.totalRouted} card{summary.totalRouted === 1 ? '' : 's'}
-          </strong>{' '}
-          to:
-        </span>
-      </div>
+      {summary.entries.length > 0 && (
+        <div className="import-routing-header">
+          <span>
+            <strong>
+              Routed {summary.totalRouted} card{summary.totalRouted === 1 ? '' : 's'}
+            </strong>{' '}
+            to:
+          </span>
+        </div>
+      )}
       <ul className="import-routing-list">
         {summary.entries.map((entry) => (
           <li key={entry.binderId}>
@@ -61,6 +70,26 @@ export function ImportRoutingSummary({ summary }: Props) {
             </button>
           </li>
         ))}
+        {summary.unroutedCount > 0 && (
+          <li>
+            <button
+              type="button"
+              className="import-routing-row import-routing-row--unrouted"
+              onClick={handleOpenUnrouted}
+            >
+              <span className="import-routing-pip import-routing-pip--empty" aria-hidden="true" />
+              <span className="import-routing-name">
+                Matched no binder
+                <span className="import-routing-hint">
+                  {summary.unroutedCount === 1 ? 'Review it' : 'Review them'} and add a rule
+                </span>
+              </span>
+              <span className="import-routing-count">
+                {summary.unroutedCount} card{summary.unroutedCount === 1 ? '' : 's'}
+              </span>
+            </button>
+          </li>
+        )}
       </ul>
     </>
   );

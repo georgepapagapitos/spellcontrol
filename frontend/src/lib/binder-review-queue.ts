@@ -28,10 +28,15 @@ export interface RemovedGroup {
 }
 
 /** Where an incoming card is physically sitting right now — the other end of
- *  the move the group header renders (`source → here`). */
+ *  the move the group header renders (`source → here`).
+ *
+ *  `import` is a cause, not a place (the cardboard is in whatever pile the
+ *  user just opened), and it is split out from `uncategorized` on purpose —
+ *  see the grouping note in `buildReviewQueue`. */
 export type AddedSource =
   | { kind: 'binder'; binderId: string; binderName: string }
-  | { kind: 'uncategorized' };
+  | { kind: 'uncategorized' }
+  | { kind: 'import'; importName: string };
 
 export interface AddedGroup {
   source: AddedSource;
@@ -60,7 +65,9 @@ export function destinationKey(d: RemovedDestination): string {
 
 /** Stable identity for an added group — used as its React list key. */
 export function sourceKey(s: AddedSource): string {
-  return s.kind === 'binder' ? `binder:${s.binderId}` : s.kind;
+  if (s.kind === 'binder') return `binder:${s.binderId}`;
+  if (s.kind === 'import') return `import:${s.importName}`;
+  return s.kind;
 }
 
 /**
@@ -76,7 +83,11 @@ export function sourceKey(s: AddedSource): string {
  *   exclusion-fall-through fix — mirrors `materializeBinders` exactly):
  *   another binder, uncategorized, or "not owned" for a card that left the
  *   collection entirely (no live card to route).
- * - Added rows are grouped by where the cardboard sits right now (`X → here`):
+ * - Added rows caused by an import are grouped by that import's source file
+ *   (`<file> → here`) regardless of where the cardboard sits, and sort last.
+ *   They are bulk-confirmed as a unit; see the note at the grouping site.
+ * - Every other added row is grouped by where the cardboard sits right now
+ *   (`X → here`):
  *   the binder whose last-reviewed snapshot still holds the key is where the
  *   user last confirmed it physically lives (that binder's own queue shows
  *   the matching outbound row). No snapshot holds it → it was never filed
@@ -157,10 +168,28 @@ export function buildReviewQueue(
 
   const addedBySource = new Map<string, AddedGroup>();
   for (const dc of drift.added) {
-    const holder = holders.find((h) => h.keys.has(dc.key));
-    const source: AddedSource = holder
-      ? { kind: 'binder', binderId: holder.def.id, binderName: holder.def.name }
-      : { kind: 'uncategorized' };
+    // Cause beats place for a freshly imported card (E297). Before this split,
+    // every import landed in the generic "from Uncategorized" group alongside
+    // the cards that moved because a price crossed a threshold or a format
+    // banned something — so a 200-card import buried the handful of rows the
+    // queue exists to surface, and the group's "Added all" silently checked
+    // those off too. An import is its own group, named by its source file, and
+    // is the one case where a single bulk confirm is the RIGHT interaction:
+    // the user knows what they just imported, and no per-card judgement is
+    // being asked for.
+    const importName =
+      dc.reason.kind === 'imported'
+        ? // `||` not `??`: an import history entry can carry an empty name
+          // (a paste with no filename), which would render an empty chip.
+          dc.reason.detail?.importName || 'a recent import'
+        : null;
+    const holder = importName === null ? holders.find((h) => h.keys.has(dc.key)) : undefined;
+    const source: AddedSource =
+      importName !== null
+        ? { kind: 'import', importName }
+        : holder
+          ? { kind: 'binder', binderId: holder.def.id, binderName: holder.def.name }
+          : { kind: 'uncategorized' };
     const sk = sourceKey(source);
     let group = addedBySource.get(sk);
     if (!group) {
@@ -170,12 +199,25 @@ export function buildReviewQueue(
     group.rows.push(toRow(dc, inBinderByKey.get(dc.key) ?? []));
   }
 
-  // Same physical-walk order as removed groups: binders by position, then
-  // the unsorted pile last.
+  // Same physical-walk order as removed groups: binders by position, then the
+  // unsorted pile, then imports LAST. Imports sort last because they are the
+  // rows carrying the least information — the user already knows they imported
+  // a file — so the price/legality/ban rows they came to read stay at the top
+  // of the queue instead of being pushed off it.
   const addedGroups = [...addedBySource.values()].sort((a, b) => {
     const rank = (s: AddedSource) =>
-      s.kind === 'binder' ? (positionByBinderId.get(s.binderId) ?? Infinity) : 1e9;
-    return rank(a.source) - rank(b.source);
+      s.kind === 'binder'
+        ? (positionByBinderId.get(s.binderId) ?? Infinity)
+        : s.kind === 'uncategorized'
+          ? 1e9
+          : 1e10;
+    const d = rank(a.source) - rank(b.source);
+    if (d !== 0) return d;
+    // Several imports in one review window: stable, name-ordered.
+    if (a.source.kind === 'import' && b.source.kind === 'import') {
+      return a.source.importName.localeCompare(b.source.importName);
+    }
+    return 0;
   });
 
   return { removedGroups, addedGroups };
@@ -197,7 +239,9 @@ export function formatDestinationLabel(d: RemovedDestination): string {
 /** Short "from …" phrase for an added group's route — mirrors
  *  `formatDestinationLabel`. */
 export function formatSourceLabel(s: AddedSource): string {
-  return s.kind === 'binder' ? `from ${s.binderName}` : 'from Uncategorized';
+  if (s.kind === 'binder') return `from ${s.binderName}`;
+  if (s.kind === 'import') return `from ${s.importName}`;
+  return 'from Uncategorized';
 }
 
 /**

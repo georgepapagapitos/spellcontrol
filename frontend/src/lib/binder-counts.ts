@@ -83,6 +83,12 @@ export interface EffectiveLandingCounts {
   lands: number;
   /** How many of `matches` were claimed by a higher-priority binder instead. */
   caughtAbove: number;
+  /** WHICH binders took them, biggest share first. `caughtAbove` alone told
+   *  the user their rules were being outbid without saying by whom, which
+   *  left the only fix ("move this binder up, or tighten the one that's
+   *  catching them") a guess — first-match-wins is the single most common
+   *  cause of "why isn't this card in here" (E298). */
+  caughtBy: { binderId: string; binderName: string; count: number }[];
   /** How many of `lands` arrived via `keepPrintingsTogether` promotion rather
    *  than matching this binder's own rules. */
   pulledIn: number;
@@ -137,17 +143,39 @@ export function countEffectiveLanding(
       : allBinders.map((b, i) => (i === existingIdx ? draftDef : b));
   };
 
-  const landingFor = (defs: BinderDef[]): number =>
-    materializeBinders(cards, defs, { search: '' }).binders.find((b) => b.def.id === draftId)
-      ?.totalCards ?? 0;
+  const materializeFor = (defs: BinderDef[]) => materializeBinders(cards, defs, { search: '' });
+  const landsIn = (result: ReturnType<typeof materializeFor>): number =>
+    result.binders.find((b) => b.def.id === draftId)?.totalCards ?? 0;
 
-  const rulesOnlyLands = landingFor(buildDefs(false));
-  const lands = draft.keepPrintingsTogether ? landingFor(buildDefs(true)) : rulesOnlyLands;
+  const rulesOnly = materializeFor(buildDefs(false));
+  const rulesOnlyLands = landsIn(rulesOnly);
+  const lands = draft.keepPrintingsTogether
+    ? landsIn(materializeFor(buildDefs(true)))
+    : rulesOnlyLands;
+
+  // Attribute the shortfall: walk the rules-only materialization and count, per
+  // OTHER binder, the cards sitting there that the draft's own rules match.
+  // Read off the same pass the counts come from, so the attribution can never
+  // disagree with the `caughtAbove` total it explains.
+  const compiled = compileFilterGroups(draft.groups);
+  const caughtBy: EffectiveLandingCounts['caughtBy'] = [];
+  for (const b of rulesOnly.binders) {
+    if (b.def.id === draftId) continue;
+    let count = 0;
+    for (const section of b.sections) {
+      for (const c of section.cards) {
+        if (compiled.some((g) => cardMatchesCompiled(c, g))) count++;
+      }
+    }
+    if (count > 0) caughtBy.push({ binderId: b.def.id, binderName: b.def.name, count });
+  }
+  caughtBy.sort((a, b) => b.count - a.count || a.binderName.localeCompare(b.binderName));
 
   return {
     matches,
     lands,
     caughtAbove: Math.max(0, matches - rulesOnlyLands),
     pulledIn: Math.max(0, lands - rulesOnlyLands),
+    caughtBy,
   };
 }

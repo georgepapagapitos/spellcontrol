@@ -25,6 +25,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useScrollContainer } from '../lib/scroll-container';
 import { formatMoney } from '../lib/format-money';
@@ -449,10 +450,29 @@ export function CardListTable({
   const [gridCaptionPrefs, setGridCaptionPrefs] = useGridCaptionPrefs();
   // Rendered caption lines per tile — scales the virtualizer row estimate.
   const gridCaptionLines = (gridCaptionPrefs.sortValue ? 1 : 0) + (gridCaptionPrefs.set ? 1 : 0);
-  const [binderExpr, setBinderExpr] = useState<ChipExpression>({
-    chips: [],
-    joiners: [],
+  // Deep-link: /collection?binder=<name> seeds the binder filter at mount.
+  // `__uncategorized` is the value the filter dialog itself uses for the
+  // fallthrough pile, so the post-import "matched no binder" row (E296) can
+  // hand the user straight to the cards that escaped every rule. Captured in
+  // the lazy initialiser (like CollectionPage's `?add=`) so it survives the
+  // param being stripped from the URL on the next line.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [binderExpr, setBinderExpr] = useState<ChipExpression>(() => {
+    const seed = searchParams.get('binder');
+    return seed
+      ? { chips: [{ value: seed, negate: false }], joiners: [] }
+      : { chips: [], joiners: [] };
   });
+  useEffect(() => {
+    if (searchParams.get('binder') === null) return;
+    // Strip without a history entry so a refresh doesn't silently re-apply a
+    // filter the user has since cleared.
+    const next = new URLSearchParams(searchParams);
+    next.delete('binder');
+    setSearchParams(next, { replace: true });
+    // Mount only — the value is already captured in state above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Default ON: a collection reads as "what printings do I own and how
   // many?" — the rolled-up qty pill matches that mental model. Power
   // users who want to see every physical copy individually can toggle.

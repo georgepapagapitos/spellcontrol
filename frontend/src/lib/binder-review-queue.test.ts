@@ -340,6 +340,100 @@ describe('buildReviewQueue', () => {
     const kinds = queue.removedGroups.map((g) => g.destination.kind);
     expect(kinds).toEqual(['binder', 'uncategorized', 'not-owned']);
   });
+  it('splits imported arrivals into their own group, keyed by source file (E297)', () => {
+    // The defect this guards: before the split, every freshly imported card
+    // joined the generic "from Uncategorized" group next to the cards that
+    // moved because a price crossed a threshold — so a big import buried the
+    // signal rows AND that group's single "Added all" checked them off too.
+    const imported1 = makeCard({ copyId: 'i1', scryfallId: 'sf1', name: 'A', rarity: 'rare' });
+    const imported2 = makeCard({ copyId: 'i2', scryfallId: 'sf2', name: 'B', rarity: 'rare' });
+    const moved = makeCard({ copyId: 'm1', scryfallId: 'sf3', name: 'C', rarity: 'rare' });
+    imported1.importId = 'imp-1';
+    imported2.importId = 'imp-1';
+
+    const rares = makeBinder({
+      id: 'rares',
+      name: 'Rares',
+      position: 0,
+      filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
+      lastReviewedSnapshot: { at: 1, keys: [], cardSnapshots: {} },
+    });
+    const cards = [imported1, imported2, moved];
+    const { binders: live } = materializeBinders(cards, [rares], {
+      globalPocketSize: 9,
+      search: '',
+    });
+    const raresLive = live[0];
+    const drift = computeDrift(raresLive, cards, [
+      { id: 'imp-1', name: 'manabox.csv', count: 2, format: 'manabox', addedAt: 2 },
+    ]);
+    expect(drift.added).toHaveLength(3);
+
+    const queue = buildReviewQueue(drift, raresLive, cards, [rares]);
+    // Two groups, and the import sorts LAST so the one row carrying real
+    // information stays at the top of the queue.
+    expect(queue.addedGroups.map((g) => sourceKey(g.source))).toEqual([
+      'uncategorized',
+      'import:manabox.csv',
+    ]);
+    const importGroup = queue.addedGroups[1];
+    expect(importGroup.rows.map((r) => r.name).sort()).toEqual(['A', 'B']);
+    // The non-import row is untouched by a bulk confirm on the import group.
+    expect(queue.addedGroups[0].rows.map((r) => r.name)).toEqual(['C']);
+    expect(formatSourceLabel(importGroup.source)).toBe('from manabox.csv');
+  });
+
+  it('keeps separate imports in separate groups, name-ordered', () => {
+    const fromB = makeCard({ copyId: 'b1', scryfallId: 'sfb', name: 'B card', rarity: 'rare' });
+    const fromA = makeCard({ copyId: 'a1', scryfallId: 'sfa', name: 'A card', rarity: 'rare' });
+    fromB.importId = 'imp-b';
+    fromA.importId = 'imp-a';
+
+    const rares = makeBinder({
+      id: 'rares',
+      name: 'Rares',
+      position: 0,
+      filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
+      lastReviewedSnapshot: { at: 1, keys: [], cardSnapshots: {} },
+    });
+    const cards = [fromB, fromA];
+    const { binders: live } = materializeBinders(cards, [rares], {
+      globalPocketSize: 9,
+      search: '',
+    });
+    const drift = computeDrift(live[0], cards, [
+      { id: 'imp-b', name: 'zeta.csv', count: 1, format: 'manabox', addedAt: 2 },
+      { id: 'imp-a', name: 'alpha.csv', count: 1, format: 'manabox', addedAt: 3 },
+    ]);
+    const queue = buildReviewQueue(drift, live[0], cards, [rares]);
+    expect(queue.addedGroups.map((g) => sourceKey(g.source))).toEqual([
+      'import:alpha.csv',
+      'import:zeta.csv',
+    ]);
+  });
+
+  it('falls back to a generic import group when the history entry has no name', () => {
+    const card = makeCard({ copyId: 'c1', scryfallId: 'sf1', name: 'A', rarity: 'rare' });
+    card.importId = 'imp-1';
+    const rares = makeBinder({
+      id: 'rares',
+      name: 'Rares',
+      position: 0,
+      filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
+      lastReviewedSnapshot: { at: 1, keys: [], cardSnapshots: {} },
+    });
+    const { binders: live } = materializeBinders([card], [rares], {
+      globalPocketSize: 9,
+      search: '',
+    });
+    const drift = computeDrift(
+      live[0],
+      [card],
+      [{ id: 'imp-1', name: '', count: 1, format: 'plain', addedAt: 2 }]
+    );
+    const queue = buildReviewQueue(drift, live[0], [card], [rares]);
+    expect(queue.addedGroups.map((g) => sourceKey(g.source))).toEqual(['import:a recent import']);
+  });
 });
 
 describe('formatDestinationLabel / formatSourceLabel', () => {
