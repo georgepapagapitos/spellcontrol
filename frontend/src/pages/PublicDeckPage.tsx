@@ -7,7 +7,7 @@ import {
   type PublicDeckPage as PublicDeckPageData,
 } from '../lib/share-client';
 import { SharedShell } from '../components/share/SharedShell';
-import { SharedDeckView } from '../components/share/SharedDeckView';
+import { SharedDeckSurface } from '../components/share/SharedDeckSurface';
 import { BrandMark } from '../components/shared/BrandMark';
 import { NotFoundView, ErrorView } from '../components/share/SharedShell';
 import { useAuth } from '../store/auth';
@@ -150,7 +150,7 @@ function PublicDeckPageInner({ slug }: { slug: string }) {
   const { payload } = state;
   return (
     <SharedShell>
-      <SharedDeckView
+      <SharedDeckSurface
         lead={
           <OwnershipLensStrip
             lens={lens}
@@ -160,6 +160,7 @@ function PublicDeckPageInner({ slug }: { slug: string }) {
           />
         }
         data={payload.deck}
+        sourceKey={payload.slug}
         publicMeta={{
           slug: payload.slug,
           deckId: payload.deck.id,

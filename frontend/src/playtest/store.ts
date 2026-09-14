@@ -30,7 +30,7 @@ import {
   type SessionAggregates,
 } from '@/lib/playtest/session-record';
 import { appendSessionRecord } from '@/lib/playtest/session-history';
-import { useDecksStore } from '@/store/decks';
+import { useDecksStore, type Deck } from '@/store/decks';
 import {
   applyResistance,
   createResistanceState,
@@ -58,10 +58,18 @@ export function tryRecordSession(
   state: Omit<PlaytestState, 'past'> | null,
   gameLog: readonly GameLogEntry[],
   mulliganCount: number,
-  resistance: boolean
+  resistance: boolean,
+  /**
+   * The deck being played, when it isn't one of the viewer's own — a shared or
+   * public deck goldfished at /d/:slug/playtest. Without it the decks-store
+   * lookup below misses and the record loses its land set and deck size, so
+   * every derived stat (lands in opener, mana screw) reads as if the deck had
+   * no lands. Omit for your own decks; the store lookup is correct there.
+   */
+  deckOverride?: Deck
 ): { record: PlaytestSessionRecord; aggregates: SessionAggregates } | null {
   if (!deckId || !state || !isMeaningfulSession(state)) return null;
-  const deck = useDecksStore.getState().decks.find((d) => d.id === deckId);
+  const deck = deckOverride ?? useDecksStore.getState().decks.find((d) => d.id === deckId);
   const landNames = buildLandNameSet(deck);
   const record = deriveSessionRecord({
     deckId,
@@ -115,6 +123,16 @@ function saveFreeMulligan(on: boolean): void {
 interface PlaytestStore {
   state: PlaytestState | null;
   deckId: string | null;
+  /**
+   * The deck being played, when it is NOT one of the viewer's own — a shared or
+   * public deck goldfished at `/d/:slug/playtest`. `tryRecordSession` resolves
+   * the deck from the decks store by id, which misses for these, and the
+   * session record then loses its land set and deck size (every derived stat —
+   * lands in opener, mana screw — reads as if the deck had no lands). Set by
+   * `init`/`hydrate`, cleared on teardown. Null for your own decks, where the
+   * store lookup is correct.
+   */
+  externalDeck: Deck | null;
   phase: PlaytestPhase;
   mulliganCount: number;
   /** Free-mulligan variant: mulligans redraw a full seven and the
@@ -175,9 +193,9 @@ interface PlaytestStore {
   /** Aggregates snapshot at the moment `lastSessionRecord` was captured, for
    *  the summary's "vs your average" line. */
   lastSessionAggregates: SessionAggregates | null;
-  init(deckId: string, init: PlaytestInit): void;
+  init(deckId: string, init: PlaytestInit, externalDeck?: Deck): void;
   /** Restore a previously-saved session in place of `init` (E137 resume). */
-  hydrate(deckId: string, snapshot: PlaytestSnapshot): void;
+  hydrate(deckId: string, snapshot: PlaytestSnapshot, externalDeck?: Deck): void;
   dispatch(action: PlaytestAction): void;
   /** Switch difficulty (or turn it off); persists the choice as the device's
    *  "last used" preference and appends a game-log entry when armed. */
@@ -209,6 +227,7 @@ function pushedEntries(oldPast: readonly unknown[], newPast: readonly unknown[])
 export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
   state: null,
   deckId: null,
+  externalDeck: null,
   phase: 'opening',
   mulliganCount: 0,
   freeMulligan: loadFreeMulligan(),
@@ -224,7 +243,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
   sessionRecordedForDefeat: false,
   lastSessionRecord: null,
   lastSessionAggregates: null,
-  init(deckId, init) {
+  init(deckId, init, externalDeck) {
     // A live, meaningfully-played game being replaced by a fresh one (e.g.
     // navigating straight to a different deck's playtest) is itself a session
     // boundary (E141) — capture it before it's overwritten, same as RESET.
@@ -236,10 +255,12 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
           prev.state,
           prev.gameLog,
           prev.mulliganCount,
-          prev.resistanceLevel !== 'off'
+          prev.resistanceLevel !== 'off',
+          prev.externalDeck ?? undefined
         );
     set({
       deckId,
+      externalDeck: externalDeck ?? null,
       state: createPlaytestState(init),
       phase: 'opening',
       mulliganCount: 0,
@@ -256,13 +277,17 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       lastSessionAggregates: captured?.aggregates ?? null,
     });
   },
-  hydrate(deckId, snapshot) {
+  hydrate(deckId, snapshot, externalDeck) {
     // Older snapshots (pre-E138) have no life/opponents fields — backfill
     // format-aware defaults rather than crash the reducer on undefined life.
-    const deck = useDecksStore.getState().decks.find((d) => d.id === deckId);
+    // A shared/public deck isn't in the decks store, so it arrives explicitly;
+    // without it the migration would fall back to non-commander defaults and
+    // resume a 40-life Commander game at 20.
+    const deck = externalDeck ?? useDecksStore.getState().decks.find((d) => d.id === deckId);
     const migrated = migrateSnapshotState(snapshot.state, deck);
     set({
       deckId,
+      externalDeck: externalDeck ?? null,
       // `commanderTax` postdates the original snapshot shape (E139) — backfill
       // so a pre-existing localStorage session from before that change doesn't
       // crash the reducer the first time a commander leaves the command zone.
@@ -307,7 +332,14 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       // defeat, which already captured it) is E141's other session boundary.
       const captured = sessionRecordedForDefeat
         ? null
-        : tryRecordSession(deckId, current, gameLog, mulliganCount, resistanceLevel !== 'off');
+        : tryRecordSession(
+            deckId,
+            current,
+            gameLog,
+            mulliganCount,
+            resistanceLevel !== 'off',
+            get().externalDeck ?? undefined
+          );
       set({
         state: next,
         phase: 'opening',
@@ -381,7 +413,14 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
     ): { record: PlaytestSessionRecord; aggregates: SessionAggregates } | null {
       if (get().sessionRecordedForDefeat) return null;
       if (!wasUndefeated || finalState.tableDefeatedTurn === null) return null;
-      return tryRecordSession(deckId, finalState, finalLog, mulliganCount, resistanceOn);
+      return tryRecordSession(
+        deckId,
+        finalState,
+        finalLog,
+        mulliganCount,
+        resistanceOn,
+        get().externalDeck ?? undefined
+      );
     }
     const config = configFor(resistanceLevel);
     if (config && resistanceState) {
@@ -614,12 +653,14 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
         prev.state,
         prev.gameLog,
         prev.mulliganCount,
-        prev.resistanceLevel !== 'off'
+        prev.resistanceLevel !== 'off',
+        prev.externalDeck ?? undefined
       );
     }
     set({
       state: null,
       deckId: null,
+      externalDeck: null,
       phase: 'opening',
       mulliganCount: 0,
       resistanceLevel: 'off',

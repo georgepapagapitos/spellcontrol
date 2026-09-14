@@ -9,14 +9,14 @@ import { submitFeedback, type DraftSuggestion } from '../../lib/feedback-client'
 import { imageFromCard } from '../../lib/card-thumbs';
 import { formatIdentity } from '../../lib/display-name';
 import { renderMarkdownLite } from '../../lib/markdown-lite';
-import { publicCardToEnriched } from '../../lib/shared-filter';
+import { publicCardToEnriched, deckCardToPublicCard } from '../../lib/shared-filter';
 import { useAuth } from '../../store/auth';
 import { CardPreview, type CardPreviewAction } from '../CardPreview';
 import { ManaCost } from '../ManaCost';
 import { SearchPill } from '../SearchPill';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { SharedCardTile } from './SharedCardTile';
-import { deckCardToPublicCard } from './SharedDeckView';
+
 import { useSharedFilters } from './use-shared-filters';
 import type { ScryfallCard } from '@/deck-builder/types';
 

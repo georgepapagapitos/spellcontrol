@@ -233,6 +233,26 @@
   font-size: var(--text-sm);
 }
 
+/* Playtest entry on a shared/public deck — the single most useful thing a
+   reader can do with someone else's list, so it's a primary action in the
+   header rather than a link under a tab. Hidden for an empty deck (nothing
+   to draw). */
+.shared-view-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+}
+
+.shared-view-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  /* Primary action on a page a stranger lands on cold — meet the coarse
+     pointer floor outright rather than relying on a ::after ghost. */
+  min-height: 44px;
+}
+
 /* View/copy counts + Report action — public /d/:slug page only. Plain
    inline text (STYLE_GUIDE § Toolbars: short elements that wrap naturally),
    placed after the title/subtitle in document order per the a11y ruling. */

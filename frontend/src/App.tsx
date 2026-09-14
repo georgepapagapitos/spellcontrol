@@ -88,6 +88,10 @@ const AdminPage = lazyPage(() => import('./pages/AdminPage'), 'AdminPage');
 const SharedView = lazyPage(() => import('./pages/SharedView'), 'SharedView');
 const PublicProfilePage = lazyPage(() => import('./pages/PublicProfilePage'), 'PublicProfilePage');
 const PublicDeckPage = lazyPage(() => import('./pages/PublicDeckPage'), 'PublicDeckPage');
+const PublicDeckPlaytestPage = lazyPage(
+  () => import('./pages/PublicDeckPlaytestPage'),
+  'PublicDeckPlaytestPage'
+);
 const GameNightView = lazyPage(() => import('./pages/GameNightView'), 'GameNightView');
 const GameNightSeriesView = lazyPage(
   () => import('./pages/GameNightSeriesView'),
@@ -355,8 +359,10 @@ export default function App() {
       <Suspense fallback={<BootSplash />}>
         <Routes>
           <Route path="/s/:token" element={<SharedView />} />
+          <Route path="/s/:token/playtest" element={<PublicDeckPlaytestPage />} />
           <Route path="/u/:username" element={<PublicProfilePage />} />
           <Route path="/d/:slug" element={<PublicDeckPage />} />
+          <Route path="/d/:slug/playtest" element={<PublicDeckPlaytestPage />} />
           <Route path="/gn/s/:token" element={<GameNightSeriesView />} />
           <Route path="/gn/i/:token" element={<GameNightInviteView />} />
           <Route path="/gn/:token" element={<GameNightView />} />
@@ -377,8 +383,10 @@ export default function App() {
       <Suspense fallback={<BootSplash />}>
         <Routes>
           <Route path="/s/:token" element={<SharedView />} />
+          <Route path="/s/:token/playtest" element={<PublicDeckPlaytestPage />} />
           <Route path="/u/:username" element={<PublicProfilePage />} />
           <Route path="/d/:slug" element={<PublicDeckPage />} />
+          <Route path="/d/:slug/playtest" element={<PublicDeckPlaytestPage />} />
           <Route path="/gn/s/:token" element={<GameNightSeriesView />} />
           <Route path="/gn/i/:token" element={<GameNightInviteView />} />
           <Route path="/gn/:token" element={<GameNightView />} />

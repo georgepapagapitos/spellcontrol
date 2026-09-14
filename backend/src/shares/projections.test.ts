@@ -290,6 +290,131 @@ describe('projectDeck', () => {
     ).toBeUndefined();
     expect(projectDeck(ALICE, { id: 'd1', name: 'X' })?.forkedFrom).toBeUndefined();
   });
+
+  // ── Unified deck view: what the analysis split does and does not ship ────
+  //
+  // A visitor gets the same Deck / Stats / Power tabs the owner does, so the
+  // deck-describing half of the analysis is projected. The owner's coaching
+  // half is not: those fields rank cards the OWNER should buy or cut against
+  // the OWNER's collection, and leaking them would publish a shopping list
+  // nobody agreed to share. The two tests below are the contract.
+
+  /** Every deck-describing field the Stats/Power tabs read. */
+  const ANALYSIS_DECK = {
+    id: 'd1',
+    name: 'Korvold',
+    format: 'commander',
+    planScore: { total: 72, strategy: 80, roles: 70, curve: 65, cardFit: 73 },
+    synergyAnalysis: { axes: [{ label: 'Sacrifice', producers: 12, payoffs: 9 }], warnings: [] },
+    winConditions: { primary: [{ name: 'Korvold' }], noClearWinCondition: false },
+    winConTags: ['Korvold, Fae-Cursed King'],
+    roleCounts: { ramp: 12, removal: 9 },
+    roleTargets: { ramp: 10, removal: 8 },
+    rampSubtypeCounts: { rock: 5, dork: 4 },
+    removalSubtypeCounts: { spot: 6 },
+    boardwipeSubtypeCounts: { symmetric: 3 },
+    cardDrawSubtypeCounts: { engine: 4 },
+    cardInclusionMap: { 'Sol Ring': 92.4 },
+    edhrecNumDecks: 18432,
+    archetypeOverride: 'aristocrats',
+    buildReport: { archetype: 'aristocrats', filled: 99 },
+    categoryTargets: { ramp: 10 },
+    saltiestCards: [{ name: 'Cyclonic Rift', salt: 3.2 }],
+    sourceProduct: { code: 'ELD', fileName: 'eld.json', name: 'Throne of Eldraine' },
+    bracketOverride: 4,
+    averageSalt: 1.1,
+  };
+
+  it('projects the deck-describing analysis the Stats and Power tabs render', () => {
+    const out = projectDeck(ALICE, ANALYSIS_DECK);
+    expect(out?.planScore).toEqual(ANALYSIS_DECK.planScore);
+    expect(out?.synergyAnalysis).toEqual(ANALYSIS_DECK.synergyAnalysis);
+    expect(out?.winConditions).toEqual(ANALYSIS_DECK.winConditions);
+    expect(out?.winConTags).toEqual(['Korvold, Fae-Cursed King']);
+    expect(out?.roleCounts).toEqual({ ramp: 12, removal: 9 });
+    expect(out?.roleTargets).toEqual({ ramp: 10, removal: 8 });
+    expect(out?.rampSubtypeCounts).toEqual({ rock: 5, dork: 4 });
+    expect(out?.removalSubtypeCounts).toEqual({ spot: 6 });
+    expect(out?.boardwipeSubtypeCounts).toEqual({ symmetric: 3 });
+    expect(out?.cardDrawSubtypeCounts).toEqual({ engine: 4 });
+    expect(out?.cardInclusionMap).toEqual({ 'Sol Ring': 92.4 });
+    expect(out?.edhrecNumDecks).toBe(18432);
+    expect(out?.archetypeOverride).toBe('aristocrats');
+    expect(out?.buildReport).toEqual(ANALYSIS_DECK.buildReport);
+    expect(out?.categoryTargets).toEqual({ ramp: 10 });
+    expect(out?.saltiestCards).toEqual([{ name: 'Cyclonic Rift', salt: 3.2 }]);
+    expect(out?.sourceProduct).toEqual({
+      code: 'ELD',
+      fileName: 'eld.json',
+      name: 'Throne of Eldraine',
+    });
+    expect(out?.bracketOverride).toBe(4);
+  });
+
+  it('never projects the owner-private coaching fields', () => {
+    // The projection is an allowlist, so these are absent by construction.
+    // This pins that: a future `...deck` spread, or someone adding a coaching
+    // field to the list above by reflex, fails here instead of in production.
+    const out = projectDeck(ALICE, {
+      ...ANALYSIS_DECK,
+      gapAnalysis: [{ name: 'Dockside Extortionist', owned: false }],
+      hiddenGems: [{ name: 'Blood Artist' }],
+      optimizeSwaps: { removals: [{ name: 'Lightning Bolt' }], additions: [] },
+      costPlan: { swaps: [{ from: 'Mana Crypt', to: 'Arcane Signet', saves: 180 }] },
+      bracketFit: { direction: 'down', moves: [{ cut: "Thassa's Oracle" }] },
+      misfits: [{ name: 'Llanowar Elves', reasons: ['off-curve'] }],
+      aiScope: 'owned',
+      gradeBracketSignature: 'abc123',
+      lastArrivalReviewAt: 1700000000000,
+      generationContext: { collectionMode: true, selectedThemes: [], targetBracket: 4 },
+    });
+    for (const field of [
+      'gapAnalysis',
+      'hiddenGems',
+      'optimizeSwaps',
+      'costPlan',
+      'bracketFit',
+      'misfits',
+      'aiScope',
+      'gradeBracketSignature',
+      'lastArrivalReviewAt',
+      'generationContext',
+    ]) {
+      expect(out).not.toHaveProperty(field);
+    }
+  });
+
+  it('drops malformed analysis rather than passing a broken shape through', () => {
+    const out = projectDeck(ALICE, {
+      id: 'd1',
+      name: 'X',
+      roleCounts: { ramp: 'twelve', removal: 9 },
+      saltiestCards: [{ name: 'Rhystic Study' }, { salt: 2 }, { name: 'Ad Nauseam', salt: 2.8 }],
+      bracketOverride: 9,
+      sourceProduct: { code: 'ELD' },
+      winConTags: [],
+    });
+    expect(out?.roleCounts).toEqual({ removal: 9 });
+    expect(out?.saltiestCards).toEqual([{ name: 'Ad Nauseam', salt: 2.8 }]);
+    expect(out?.bracketOverride).toBeUndefined();
+    expect(out?.sourceProduct).toBeUndefined();
+    expect(out?.winConTags).toBeUndefined();
+  });
+
+  it('omits every analysis field on a deck that has never been analyzed', () => {
+    const out = projectDeck(ALICE, { id: 'd1', name: 'X', cards: [], sideboard: [] });
+    for (const field of [
+      'planScore',
+      'synergyAnalysis',
+      'winConditions',
+      'roleCounts',
+      'cardInclusionMap',
+      'buildReport',
+      'saltiestCards',
+    ]) {
+      expect(out?.[field as keyof typeof out]).toBeUndefined();
+    }
+  });
 });
 
 describe('findListById / findDeckById / findBinderById', () => {

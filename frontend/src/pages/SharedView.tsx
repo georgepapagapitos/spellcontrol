@@ -7,7 +7,7 @@ import type { PublicShareResponse } from '../lib/shared-types';
 import { useDocumentTitle } from '../lib/use-document-title';
 import { SharedCollectionView } from '../components/share/SharedCollectionView';
 import { SharedBinderView } from '../components/share/SharedBinderView';
-import { SharedDeckView } from '../components/share/SharedDeckView';
+import { SharedDeckSurface } from '../components/share/SharedDeckSurface';
 import { SharedListView } from '../components/share/SharedListView';
 import { SharedCubeView } from '../components/share/SharedCubeView';
 import { SharedShell, NotFoundView, ErrorView } from '../components/share/SharedShell';
@@ -150,7 +150,7 @@ function SharedViewInner({ token }: { token: string }) {
   if (payload.kind === 'deck') {
     return (
       <SharedShell action={<CopyDeckButton data={payload.data} variant="bar" />}>
-        <SharedDeckView data={payload.data} />
+        <SharedDeckSurface data={payload.data} sourceKey={token} />
       </SharedShell>
     );
   }

@@ -129,9 +129,38 @@ export interface PublicDeck {
   cards: PublicDeckCard[];
   sideboard: PublicDeckCard[];
   color: string;
+  /**
+   * Deck-describing analysis — mirrors `backend/src/shares/projections.ts`.
+   * The blobs stay `unknown` here (as `bracketEstimation` always has) so this
+   * leaf module never imports `@/deck-builder/types`; `lib/public-deck-to-deck.ts`
+   * is the one place that casts them into their real shapes.
+   *
+   * The owner's coaching fields (gapAnalysis / hiddenGems / optimizeSwaps /
+   * costPlan / bracketFit / misfits / aiScope) are deliberately NOT here — see
+   * the projection's doc and its `never projects the owner-private coaching
+   * fields` test.
+   */
   averageSalt?: number;
   bracketEstimation?: unknown;
+  bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
   deckGrade?: { letter: string; headline: string };
+  planScore?: unknown;
+  synergyAnalysis?: unknown;
+  winConditions?: unknown;
+  winConTags?: string[];
+  roleCounts?: Record<string, number>;
+  roleTargets?: Record<string, number>;
+  rampSubtypeCounts?: Record<string, number>;
+  removalSubtypeCounts?: Record<string, number>;
+  boardwipeSubtypeCounts?: Record<string, number>;
+  cardDrawSubtypeCounts?: Record<string, number>;
+  cardInclusionMap?: Record<string, number>;
+  edhrecNumDecks?: number | null;
+  archetypeOverride?: string | null;
+  buildReport?: unknown;
+  categoryTargets?: unknown;
+  saltiestCards?: Array<{ name: string; salt: number }>;
+  sourceProduct?: { code: string; fileName: string; name: string };
   /** Long-form strategy notes — render via `lib/markdown-lite.ts`. Capped to
    *  5000 chars server-side; absent when the owner never wrote one. */
   primer?: string;
