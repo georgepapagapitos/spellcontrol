@@ -987,10 +987,19 @@ export function DeckDisplay({
   // it rendered before this feature existed.
   const cardProvenance = buildReport?.cardProvenance;
 
+  // "Missing" is a claim about the VIEWER's collection, so it is only
+  // answerable when a collection was supplied. Without one, every slot reads
+  // as unallocated and the deck reports its own full card count as missing —
+  // which is what a shared/public deck did on first ship: "99 missing ($450)"
+  // to a guest who has no collection at all, and, for a signed-in visitor, a
+  // second number contradicting the ownership-lens strip directly above it.
+  // An owner whose collection is genuinely empty still passes a (empty) map
+  // and still correctly sees everything as missing.
   // Missing summary — cards in the deck that aren't allocated to a collection
   // copy (i.e. status !== 'allocated'). Surfaces buy-list info inline so we
   // don't need a separate banner above the deck.
   const missing = useMemo(() => {
+    if (!collectionByCopyId) return { count: 0, price: 0 };
     let count = 0;
     let price = 0;
     for (const dc of cards) {
@@ -1020,6 +1029,7 @@ export function DeckDisplay({
   // Tally of the unallocated (missing) cards — the tappable "missing" stat opens
   // a carousel of these so the count doubles as a shopping list.
   const missingTally = useMemo(() => {
+    if (!collectionByCopyId) return tallyNames([]);
     const list: ScryfallCard[] = [];
     for (const dc of cards) {
       const status = classifyAllocation(dc.allocatedCopyId ?? null, collectionByCopyId);

@@ -11,7 +11,8 @@
  */
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { useAuth } from '../../store/auth';
 import type { PublicDeck, PublicDeckCard } from '../../lib/shared-types';
 import { SharedDeckSurface } from './SharedDeckSurface';
 
@@ -43,7 +44,19 @@ function renderSurface(deck: PublicDeck = makeDeck()) {
   );
 }
 
+function signInAs(username: string | null) {
+  useAuth.setState({
+    user: username ? { id: 'u1', username, role: 'user' } : null,
+    status: username ? 'authed' : 'guest',
+    error: null,
+    autoLinkedAt: null,
+    profile: null,
+  });
+}
+
 describe('SharedDeckSurface', () => {
+  afterEach(() => signInAs(null));
+
   it('renders the deck through the real deck display', () => {
     renderSurface();
     // The name is the page heading. DeckDisplay's toolbar also carries it in
@@ -87,6 +100,38 @@ describe('SharedDeckSurface', () => {
   it('drops Copy for a cardless deck — nothing to take', () => {
     renderSurface(makeDeck({ cards: [], sideboard: [] }));
     expect(screen.queryByText('Copy this deck')).toBeNull();
+  });
+
+  it('never claims cards are missing from a collection it cannot see', () => {
+    // Shipped broken in #1913: every slot on a public deck has a null
+    // allocatedCopyId, so DeckDisplay's missing-count counted the WHOLE deck
+    // and rendered "N missing ($X)" — nonsense to a guest with no collection,
+    // and a second, contradictory number next to the ownership-lens strip for
+    // a signed-in visitor. Guarded at the root in DeckDisplay: no collection
+    // supplied, no missing claim.
+    renderSurface();
+    expect(document.querySelector('.deck-stat-missing')).toBeNull();
+  });
+
+  it('gives the owner a way back to editing their own published deck', () => {
+    // The owner sees the VISITOR's view on purpose — it's the only way to see
+    // what you actually published — so this link is the only route back to
+    // editing. Without it the owner is stranded on a read-only page.
+    signInAs('alice'); // makeDeck()'s ownerUsername
+    renderSurface();
+    const edit = screen.getByRole('link', { name: /Edit this deck/i });
+    expect(edit.getAttribute('href')).toBe('/decks/deck-1');
+  });
+
+  it('offers no edit link to someone else looking at the deck', () => {
+    signInAs('bob');
+    renderSurface();
+    expect(screen.queryByRole('link', { name: /Edit this deck/i })).toBeNull();
+  });
+
+  it('offers no edit link to a signed-out guest', () => {
+    renderSurface();
+    expect(screen.queryByRole('link', { name: /Edit this deck/i })).toBeNull();
   });
 
   it('offers no playtest entry for a deck with nothing to draw', () => {

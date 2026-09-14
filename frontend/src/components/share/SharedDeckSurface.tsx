@@ -10,7 +10,7 @@ import '@/styles/deck-builder-combos-list.css';
 import '@/styles/deck-builder-row-qty.css';
 import '@/styles/deck-builder-analysis-panel.css';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Swords } from 'lucide-react';
+import { Pencil, Swords } from 'lucide-react';
 import type { PublicDeck } from '../../lib/shared-types';
 import { publicDeckToDeck } from '../../lib/public-deck-to-deck';
 import { formatIdentity } from '../../lib/display-name';
@@ -95,6 +95,7 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
   const [searchParams, setSearchParams] = useSearchParams();
   const [reportOpen, setReportOpen] = useState(false);
   const authed = useAuth((s) => s.status === 'authed');
+  const authUsername = useAuth((s) => s.user?.username);
 
   // One normalization boundary: the payload becomes the same `Deck` the owner's
   // surfaces consume, so every downstream component takes its real types.
@@ -207,6 +208,11 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
   // deck, /s/:token for a share link. Both resolve to the same playtest page.
   const basePath = publicMeta ? `/d/${publicMeta.slug}` : `/s/${sourceKey}`;
 
+  // This deck is the viewer's own. Compared by username — the payload never
+  // carries the owner's user id, and the deck id here is the owner's row id,
+  // which is exactly what /decks/:id needs.
+  const isOwnDeck = !!authUsername && authUsername === data.ownerUsername;
+
   const mainboardCount =
     data.cards.length + (data.commander ? 1 : 0) + (data.partnerCommander ? 1 : 0);
 
@@ -252,12 +258,24 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
         <p className="shared-view-subtitle">
           {data.format} · {mainboardCount.toLocaleString()} cards
         </p>
-        {mainboardCount > 0 && (
+        {(mainboardCount > 0 || isOwnDeck) && (
           <p className="shared-view-actions">
-            <Link className="btn btn-primary" to={`${basePath}/playtest`}>
-              <Swords width={15} height={15} strokeWidth={2} aria-hidden />
-              Playtest this deck
-            </Link>
+            {mainboardCount > 0 && (
+              <Link className="btn btn-primary" to={`${basePath}/playtest`}>
+                <Swords width={15} height={15} strokeWidth={2} aria-hidden />
+                Playtest this deck
+              </Link>
+            )}
+            {/* Viewing your OWN published deck. You get the visitor's view on
+                purpose — it's the only way to see what you're actually
+                publishing — but without this there is no route back to
+                editing it, which strands the owner on a read-only page. */}
+            {isOwnDeck && (
+              <Link className="btn" to={`/decks/${data.id}`}>
+                <Pencil width={15} height={15} strokeWidth={2} aria-hidden />
+                Edit this deck
+              </Link>
+            )}
           </p>
         )}
         {publicMeta && (
