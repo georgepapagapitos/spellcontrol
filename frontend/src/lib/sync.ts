@@ -5,6 +5,7 @@ import { isNativePlatform } from './platform';
 import {
   pullSync,
   pushSync,
+  clearCollectionSync,
   type SyncRow,
   type SyncUpsert,
   type SyncDeletion,
@@ -376,6 +377,34 @@ async function stopSyncAndWipeLocalInternal(): Promise<void> {
   syncError = false;
   // Reset in-memory stores. Imported here to avoid a top-level cycle.
   await resetInMemoryStores();
+}
+
+/**
+ * Empty the collection for a signed-in user by asking the SERVER to tombstone
+ * every card, import and list row, rather than enqueuing one delete per row.
+ *
+ * The queue-per-row path cannot do this reliably: it deletes only what this
+ * device has locally, and a device's local view can be a small subset of the
+ * account. Rows whose rev sits below the local cursor are never re-delivered by
+ * a delta pull, so they are invisible here and survive every attempt. One
+ * account held 36,883 live cards while the app could see 500.
+ *
+ * Returns false for a guest (no account to clear) so the caller falls back to
+ * the local-only path. Throws if the request fails, so the caller can report it
+ * rather than claiming a wipe that never happened.
+ */
+export async function clearCollectionRemote(): Promise<boolean> {
+  if (!currentOwnerId) return false;
+  await clearCollectionSync();
+  // Queued card/import/list ops are now obsolete and would resurrect rows on
+  // the next drain; the local rows are gone server-side, so drop both.
+  await queue.dropKinds(['card', 'import', 'list']);
+  await estore.wipeKinds(['card', 'import', 'list']);
+  await refreshPending();
+  // Pull the tombstones so the cursor advances past them — otherwise the next
+  // pull replays the whole clear as a delta.
+  await pull();
+  return true;
 }
 
 /**

@@ -149,6 +149,11 @@ export async function loadCollection(): Promise<StoredCollection | null> {
  * `saveCollection` with empty `cards`/`importHistory`/`lists`.
  */
 export async function clearCollection(): Promise<void> {
+  // Signed in: the server empties the account in one statement per table. A
+  // per-row delete queue can only remove what THIS device happens to hold, and
+  // that can be a fraction of the account — see clearCollectionRemote.
+  if (await sync.clearCollectionRemote()) return;
+  // Guest: no account, so the local entity-store is the whole truth.
   await Promise.all([
     sync.persistCardsState([]),
     sync.persistImportsState([]),

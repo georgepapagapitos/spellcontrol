@@ -644,6 +644,71 @@ syncRouter.post('/', requireAuth, syncLimiter, async (req: Request, res: Respons
   res.json({ applied, conflicts, cursor });
 });
 
+/**
+ * Empty the collection server-side: tombstone every live card, import and list
+ * row in one statement per table, each row taking its own fresh rev so peers
+ * pull the deletion normally.
+ *
+ * This exists because the client CANNOT do this job by enumerating rows. It can
+ * only delete what it has locally, and a client's local view can be an
+ * arbitrarily small subset of what the server holds — a delta pull only ever
+ * returns rows newer than the client's cursor, so rows whose rev fell below it
+ * (say, because an earlier push was rejected and never re-delivered) are
+ * invisible to that client forever. One account reached 36,883 live rows while
+ * its app could see 500, and "Delete entire collection" could not touch the
+ * rest no matter how many times it ran.
+ *
+ * Binders, decks, games and cubes are deliberately untouched — this is the
+ * collection, not the account.
+ */
+syncRouter.post('/clear-collection', requireAuth, syncLimiter, async (req, res) => {
+  const userId = req.user!.id;
+  const now = Date.now();
+  const client = await getPool().connect();
+  let rollbackFailed: Error | undefined;
+  try {
+    await client.query('BEGIN');
+    const cleared: Record<string, number> = {};
+    let cursor = 0;
+    for (const [kind, table] of [
+      ['card', 'user_cards'],
+      ['import', 'user_imports'],
+      ['list', 'user_lists'],
+    ] as const) {
+      // nextval() is evaluated per updated row, so each tombstone gets its own
+      // increasing rev — same ordering guarantee the batched POST path relies on.
+      const { rows } = await client.query<{ rev: string }>(
+        `UPDATE ${table}
+            SET data = NULL,
+                deleted_at = $2,
+                updated_at = $2,
+                rev = nextval('user_data_rev_seq')
+          WHERE user_id = $1 AND deleted_at IS NULL
+        RETURNING rev`,
+        [userId, now]
+      );
+      cleared[kind] = rows.length;
+      for (const r of rows) cursor = Math.max(cursor, Number(r.rev));
+    }
+    await client.query('COMMIT');
+    logger.debug(
+      `[sync] clear-collection user=${userId} cards=${cleared.card} ` +
+        `imports=${cleared.import} lists=${cleared.list} cursor=${cursor}`
+    );
+    res.json({ cleared, cursor });
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rbErr) {
+      rollbackFailed = rbErr as Error;
+    }
+    logger.warn(`[sync] clear-collection failed user=${userId}`, err);
+    res.status(500).json({ error: "Couldn't clear the collection." });
+  } finally {
+    client.release(rollbackFailed);
+  }
+});
+
 interface QueryClient {
   query<T extends Record<string, unknown> = Record<string, unknown>>(
     sql: string,

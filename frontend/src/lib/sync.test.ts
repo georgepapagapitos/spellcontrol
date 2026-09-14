@@ -7,6 +7,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('./auth-api', () => ({
   pullSync: vi.fn(),
   pushSync: vi.fn(),
+  clearCollectionSync: vi.fn(),
 }));
 
 // Default to web; the native-resume test flips isNativePlatform to true.
@@ -35,8 +36,9 @@ import {
   getPendingCount,
   isOnline,
   hasSyncError,
+  clearCollectionRemote,
 } from './sync';
-import { pullSync, pushSync } from './auth-api';
+import { pullSync, pushSync, clearCollectionSync } from './auth-api';
 import { isNativePlatform } from './platform';
 import { App as CapacitorApp } from '@capacitor/app';
 import * as estore from './entity-store';
@@ -46,6 +48,7 @@ import type { Deck } from '../store/decks';
 
 const mockPull = pullSync as unknown as ReturnType<typeof vi.fn>;
 const mockPush = pushSync as unknown as ReturnType<typeof vi.fn>;
+const mockClear = clearCollectionSync as unknown as ReturnType<typeof vi.fn>;
 const mockIsNative = isNativePlatform as unknown as ReturnType<typeof vi.fn>;
 const mockAddListener = CapacitorApp.addListener as unknown as ReturnType<typeof vi.fn>;
 
@@ -1209,6 +1212,71 @@ describe('card printing-group reject-stale (E129)', () => {
     // Batch 2: c-000 is acked and gone from the server, so it drops out.
     expect(groupS(1)?.baseline).toEqual(['c-500']);
     expect(await queue.size()).toBe(0);
+  });
+});
+
+describe('server-side collection clear', () => {
+  it('asks the server to empty the account instead of enqueuing a delete per row', async () => {
+    // The client holds 2 of the account's cards. A per-row delete queue could
+    // only ever remove those 2; the server owns the real extent of the wipe.
+    await estore.putMany('card', [
+      { id: 'c-1', data: { copyId: 'c-1' }, rev: 5, syncedRev: 5, deletedAt: null },
+      { id: 'c-2', data: { copyId: 'c-2' }, rev: 5, syncedRev: 5, deletedAt: null },
+    ]);
+    await estore.putMany('import', [
+      { id: 'i-1', data: { id: 'i-1' }, rev: 5, syncedRev: 5, deletedAt: null },
+    ]);
+    await estore.putMany('binder', [
+      { id: 'b-1', data: { id: 'b-1' }, rev: 5, syncedRev: 5, deletedAt: null },
+    ]);
+    mockPush.mockResolvedValue({ applied: [], cursor: 5 });
+    await startSync('user-1');
+
+    mockClear.mockResolvedValueOnce({ cleared: { card: 900, import: 3, list: 0 }, cursor: 40 });
+    mockPull.mockResolvedValueOnce({ rows: [], cursor: 40, hasMore: false });
+    const handled = await clearCollectionRemote();
+
+    expect(handled).toBe(true);
+    expect(mockClear).toHaveBeenCalledTimes(1);
+    expect(await estore.getAllLive('card')).toEqual([]);
+    expect(await estore.getAllLive('import')).toEqual([]);
+    // Binders are not part of the collection — untouched.
+    expect(await estore.getAllLive('binder')).toHaveLength(1);
+  });
+
+  it('drops queued card ops so the next drain cannot resurrect a cleared row', async () => {
+    mockIsNative.mockReturnValue(true); // durable queue is native-only
+    await queue.enqueue({ op: 'upsert', kind: 'card', id: 'c-1', data: { copyId: 'c-1' } });
+    await queue.enqueue({ op: 'upsert', kind: 'binder', id: 'b-1', data: { id: 'b-1' } });
+    mockPush.mockResolvedValue({ applied: [], cursor: 1 });
+    await startSync('user-1');
+    await queue.enqueue({ op: 'upsert', kind: 'card', id: 'c-2', data: { copyId: 'c-2' } });
+    await queue.enqueue({ op: 'upsert', kind: 'binder', id: 'b-2', data: { id: 'b-2' } });
+
+    mockClear.mockResolvedValueOnce({ cleared: { card: 1, import: 0, list: 0 }, cursor: 9 });
+    mockPull.mockResolvedValueOnce({ rows: [], cursor: 9, hasMore: false });
+    await clearCollectionRemote();
+
+    const left = await queue.peekBatch(10);
+    expect(left.map((q) => `${q.m.kind}:${q.m.id}`)).toEqual(['binder:b-2']);
+  });
+
+  it('declines for a guest so the caller keeps the local-only path', async () => {
+    await hydrateLocal(); // guest boot — no owner
+    expect(await clearCollectionRemote()).toBe(false);
+    expect(mockClear).not.toHaveBeenCalled();
+  });
+
+  it('propagates a failure instead of reporting a wipe that never happened', async () => {
+    mockPush.mockResolvedValue({ applied: [], cursor: 1 });
+    await startSync('user-1');
+    await estore.putMany('card', [
+      { id: 'c-1', data: { copyId: 'c-1' }, rev: 5, syncedRev: 5, deletedAt: null },
+    ]);
+    mockClear.mockRejectedValueOnce(new Error('offline'));
+    await expect(clearCollectionRemote()).rejects.toThrow('offline');
+    // Local rows survive — the collection is still there, and the UI says so.
+    expect(await estore.getAllLive('card')).toHaveLength(1);
   });
 });
 
