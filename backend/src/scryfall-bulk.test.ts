@@ -59,6 +59,14 @@ describe('projectBulkCard', () => {
     });
   });
 
+  // The binder Release-date sort dates each printing from this, not from its
+  // set. Dropping it here silently fell back to set dates, which are years off
+  // for every rolling container set (SLD/PLST/PRM/SLP/SLC).
+  it('keeps the printing-level released_at', () => {
+    const out = projectBulkCard(bulk({ released_at: '2020-11-20' }) as never);
+    expect(out?.released_at).toBe('2020-11-20');
+  });
+
   it('defaults missing rarity / set_name', () => {
     const out = projectBulkCard(bulk({ rarity: undefined, set_name: undefined }) as never);
     expect(out?.rarity).toBe('common');

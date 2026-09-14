@@ -27,6 +27,7 @@ import {
   type StoredCollection,
 } from '../lib/local-cards';
 import { applyPrices, getPrice, setPrices, priceKey, type PriceEntry } from '../lib/card-prices';
+import { setReleaseDates } from '../lib/card-release-dates';
 import { getCurrency } from '../lib/currency';
 import type { Backup } from '../lib/backup';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
@@ -906,7 +907,20 @@ export const useCollectionStore = create<CollectionState>()(
                 await sleep(PRICE_RETRY_DELAYS_MS[attempt]);
                 continue;
               }
-              if (res.ok) return ((await res.json()) as { prices: FinishPrices }).prices;
+              if (res.ok) {
+                const json = (await res.json()) as {
+                  prices: FinishPrices;
+                  releasedAt?: Record<string, string>;
+                };
+                // Per-printing release dates ride along on this response (see
+                // the route). They need none of the reconciliation prices do —
+                // immutable, device-local, absent-means-unknown — so they land
+                // in their own cache here and the rest of this flow ignores
+                // them. Absent from a pre-release-date server: those cards just
+                // keep dating from their set/drop.
+                if (json.releasedAt) setReleaseDates(json.releasedAt);
+                return json.prices;
+              }
               const body = (await res.json().catch(() => ({}))) as { error?: string };
               const err = new Error(
                 body.error || "The price service isn't responding. Try again in a moment."

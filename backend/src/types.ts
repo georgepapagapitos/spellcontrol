@@ -29,6 +29,13 @@ export interface ScryfallCard {
   set: string;
   set_name: string;
   collector_number: string;
+  /**
+   * YYYY-MM-DD this PRINTING was released. Distinct from its set's date, which
+   * is only the day the set's FIRST card shipped — for a rolling container set
+   * (`SLD`, `PLST`, `PRM`, `SLP`, `SLC`) that is years off for most printings.
+   * Feeds the binder Release-date sort via `EnrichedCard.releasedAt`.
+   */
+  released_at?: string;
   layout?: string;
   /** Per-format legality. Each value is "legal" | "not_legal" | "restricted" | "banned". */
   legalities?: Record<string, string>;

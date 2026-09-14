@@ -132,6 +132,22 @@ export interface EnrichedCard {
   sldDrop?: string;
   /** YYYY-MM-DD release date of `sldDrop`, used to order drop sections. */
   sldDropReleasedAt?: string;
+  /**
+   * YYYY-MM-DD date THIS PRINTING was released, per Scryfall's per-card
+   * `released_at`. The truth the `setReleaseDate` sort wants, and the only thing
+   * that dates a rolling container set correctly — see `releaseDateOf`, which
+   * prefers it over both the drop map and the set date.
+   *
+   * Reference data, exactly like `tags` / `sldDrop` / prices: global, identical
+   * for everyone, **never persisted or synced**. It's decorated on just before
+   * materializing from a device-local cache (frontend `lib/card-release-dates.ts`,
+   * backend `shares/card-release-dates.ts` for shared-binder projections). It
+   * lives off-row for the same reason prices do — a synced-row field re-pushes
+   * every card in the collection, which is what caused the sync churn and the
+   * boot OOM. Absent means "not looked up yet", and `releaseDateOf` falls back;
+   * it never means "released on no date".
+   */
+  releasedAt?: string;
 }
 
 export type SortField =

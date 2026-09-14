@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { pickEurForFinish, pickUsdForFinish, pickUsdFromPrices } from './scryfall-cache';
+import {
+  buildPriceRefreshPayload,
+  pickEurForFinish,
+  pickUsdForFinish,
+  pickUsdFromPrices,
+} from './scryfall-cache';
 import type { ScryfallCard } from './types';
 
 const card = (prices: Record<string, string | null> | undefined): ScryfallCard =>
@@ -68,5 +73,44 @@ describe('pickEurForFinish', () => {
   it('returns 0 when Scryfall has no EUR price', () => {
     expect(pickEurForFinish(card({ usd: '5', eur: null, eur_foil: null }), 'nonfoil')).toBe(0);
     expect(pickEurForFinish(card(undefined))).toBe(0);
+  });
+});
+
+describe('buildPriceRefreshPayload', () => {
+  const printing = (id: string, over: Partial<ScryfallCard> = {}): ScryfallCard =>
+    ({ id, ...over }) as unknown as ScryfallCard;
+
+  it('emits per-finish prices only for printings that have one', () => {
+    const { prices } = buildPriceRefreshPayload(
+      [
+        printing('priced', { prices: { usd: '3.00', usd_foil: '9.00' } }),
+        printing('unpriced', { prices: { usd: null, usd_foil: null, usd_etched: null } }),
+        printing('no-prices-at-all'),
+      ],
+      1234
+    );
+    expect(prices.priced).toMatchObject({ usd: 3, usdFoil: 9, pricedAt: 1234 });
+    expect(prices.unpriced).toBeUndefined();
+    expect(prices['no-prices-at-all']).toBeUndefined();
+  });
+
+  // The release date must NOT inherit the price gate. Gating it would starve
+  // exactly the unpriced printings — which then keep dating from their set, and
+  // for a rolling container set that is years off.
+  it('emits a release date whether or not the printing is priced', () => {
+    const { prices, releasedAt } = buildPriceRefreshPayload(
+      [
+        printing('priced', { released_at: '2024-02-23', prices: { usd: '3.00' } }),
+        printing('unpriced', { released_at: '2026-09-11', prices: { usd: null } }),
+        printing('dateless', { prices: { usd: '1.00' } }),
+      ],
+      1234
+    );
+    expect(releasedAt).toEqual({ priced: '2024-02-23', unpriced: '2026-09-11' });
+    expect(prices.unpriced).toBeUndefined();
+  });
+
+  it('returns empty maps for no cards', () => {
+    expect(buildPriceRefreshPayload([], 1)).toEqual({ prices: {}, releasedAt: {} });
   });
 });

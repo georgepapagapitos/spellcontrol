@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getSectionMeta, ALL_SECTION } from './sections.js';
+import { getSectionMeta, ALL_SECTION, UNKNOWN_ORDER } from './sections.js';
 import type { EnrichedCard, SortField } from './types.js';
 
 function card(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
@@ -59,6 +59,30 @@ describe('getSectionMeta', () => {
     expect(meta.key).toBe('CMM');
     expect(meta.label).toBe('Commander Masters');
     expect(meta.order).toBe(new Date('2023-08-04').getTime());
+  });
+
+  // The header's `order` and its cards' sort value both come from
+  // `releaseDateOf`, so they can't disagree — these pin the two inputs that
+  // used to make them disagree.
+  it('setReleaseDate bucket orders by the PRINTING date when the card carries one', () => {
+    const setMap = {
+      SLP: { code: 'SLP', name: 'Secret Lair Promo', iconSvgUri: '', releasedAt: '2023-02-17' },
+    };
+    const meta = getSectionMeta(
+      card({ setCode: 'SLP', setName: 'Secret Lair Promo', releasedAt: '2026-09-11' }),
+      'setReleaseDate',
+      { setMap }
+    );
+    expect(meta.order).toBe(new Date('2026-09-11').getTime());
+  });
+
+  it('setReleaseDate bucket treats a blank set date as unknown, sorting it last', () => {
+    const meta = getSectionMeta(
+      card({ setCode: 'ZZZ', setName: 'Undated Set' }),
+      'setReleaseDate',
+      { setMap: { ZZZ: { code: 'ZZZ', name: 'Undated Set', iconSvgUri: '', releasedAt: '' } } }
+    );
+    expect(meta.order).toBe(UNKNOWN_ORDER);
   });
 
   it('setName bucket sorts alphabetically (order=0, label tiebreak)', () => {
