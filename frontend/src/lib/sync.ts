@@ -168,6 +168,12 @@ let resumeListener: ReturnType<typeof CapacitorApp.addListener> | null = null;
  * withSuspendedHydration scopes don't prematurely re-enable rehydration.
  */
 let hydrationSuspendDepth = 0;
+/**
+ * One drift-triggered refetch per session (E291). A second one would mean the
+ * refetch itself did not converge, which is not a staleness problem and would
+ * turn into a pull loop.
+ */
+let reconciledThisSession = false;
 
 // The applyingServer flag lives in its own module so subscribers can read it
 // synchronously without an import cycle. Re-exported so existing
@@ -375,6 +381,7 @@ async function stopSyncAndWipeLocalInternal(): Promise<void> {
   pushError = false;
   pullError = false;
   syncError = false;
+  reconciledThisSession = false;
   // Reset in-memory stores. Imported here to avoid a top-level cycle.
   await resetInMemoryStores();
 }
@@ -747,35 +754,100 @@ export async function backfillOracleIds(): Promise<void> {
 
 // ── Pull / push ─────────────────────────────────────────────────────────────
 
-async function pull(): Promise<void> {
-  if (isPulling || !currentOwnerId) return;
-  isPulling = true;
+/**
+ * Drain the delta stream from the current cursor. Returns whether anything was
+ * applied, plus the server's live row counts (only present on the last page).
+ *
+ * Suspends per-page store rehydration for the whole (possibly many-page) pull
+ * so the in-memory stores rebuild exactly ONCE at the end. Without this, a
+ * bootstrap pull of a large collection (~12k cards over 6 pages) rebuilt +
+ * re-materialized the entire collection on every page — O(pages) full fat-array
+ * copies + binder materializations that OOM'd the native WebView on load.
+ * applyServerRows still writes each page to IDB per-page; only the expensive
+ * in-memory hydration is deferred.
+ */
+async function pullPages(): Promise<{
+  appliedAny: boolean;
+  counts?: Partial<Record<EntityKind, number>>;
+}> {
   // A cursor of 0 means we have no local rows yet (cursor + IDB are wiped
   // together), so there's nothing to delete — tell the server to skip every
   // historical tombstone and send only live rows. Captured once: it applies to
   // every page of this bootstrap pull even as the cursor advances.
   const fresh = cursor === 0;
-  try {
-    // Suspend per-page store rehydration for the whole (possibly many-page)
-    // pull and rehydrate the in-memory stores exactly ONCE at the end. Without
-    // this, a bootstrap pull of a large collection (~12k cards over 6 pages)
-    // rebuilt + re-materialized the entire collection on every page —
-    // O(pages) full fat-array copies + binder materializations that OOM'd the
-    // native WebView on load. applyServerRows still writes each page to IDB
-    // per-page; only the expensive in-memory hydration is deferred.
-    let appliedAny = false;
-    await withSuspendedHydration(async () => {
-      while (true) {
-        const page = await pullSync(cursor, undefined, fresh);
-        if (page.rows.length > 0) {
-          await applyServerRows(page.rows, true);
-          saveCursor(page.cursor);
-          markSynced();
-          appliedAny = true;
-        }
-        if (!page.hasMore) break;
+  let appliedAny = false;
+  let counts: Partial<Record<EntityKind, number>> | undefined;
+  await withSuspendedHydration(async () => {
+    while (true) {
+      const page = await pullSync(cursor, undefined, fresh);
+      if (page.rows.length > 0) {
+        await applyServerRows(page.rows, true);
+        saveCursor(page.cursor);
+        markSynced();
+        appliedAny = true;
       }
-    });
+      if (!page.hasMore) {
+        counts = page.counts;
+        break;
+      }
+    }
+  });
+  return { appliedAny, counts };
+}
+
+/**
+ * Has this device drifted out of agreement with the account? (E291)
+ *
+ * A delta pull only ever returns rows newer than the cursor, so a row that
+ * stayed at its old rev while the cursor moved past it — an earlier push the
+ * server rejected, for instance — is never re-delivered and vanishes from this
+ * device with no way back. One account held 36,883 live cards while its app
+ * showed 500 and could not act on the rest. Nothing detected it, because
+ * nothing ever compared the two. This does.
+ *
+ * Skipped while the outbound queue is non-empty: unpushed local writes mean the
+ * counts SHOULD differ, and re-bootstrapping then would throw them away.
+ */
+async function hasDriftedFromServer(
+  serverCounts: Partial<Record<EntityKind, number>>
+): Promise<boolean> {
+  if ((await queue.size()) > 0) return false;
+  for (const kind of estore.ALL_KINDS) {
+    const server = serverCounts[kind];
+    if (server === undefined) continue; // older server build — nothing to check
+    if ((await estore.countLive(kind)) !== server) {
+      logger.warn(
+        `[sync] local ${kind} count disagrees with the server ` +
+          `(local ${await estore.countLive(kind)}, server ${server})`
+      );
+      return true;
+    }
+  }
+  return false;
+}
+
+async function pull(): Promise<void> {
+  if (isPulling || !currentOwnerId) return;
+  isPulling = true;
+  try {
+    const first = await pullPages();
+    const counts = first.counts;
+    let appliedAny = first.appliedAny;
+
+    // Drift means the delta stream can no longer describe the account, so a
+    // second delta would be just as blind. Throw the local rows and the cursor
+    // away and refetch from scratch. Once per session: if the counts still
+    // disagree after a clean refetch the cause is not staleness, and looping
+    // would only hammer the server.
+    if (counts && !reconciledThisSession && (await hasDriftedFromServer(counts))) {
+      reconciledThisSession = true;
+      logger.warn('[sync] refetching from scratch to resync with the server');
+      await estore.wipeAll();
+      clearCursor();
+      const again = await pullPages();
+      appliedAny = appliedAny || again.appliedAny;
+    }
+
     if (appliedAny) await rehydrateStoresFromIdb();
     broadcastCursor();
     pullError = false;

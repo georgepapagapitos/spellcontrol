@@ -58,6 +58,7 @@ async function pull(cookie: string, since = 0, limit = 5000, fresh = false) {
     }>;
     cursor: number;
     hasMore: boolean;
+    counts?: Record<string, number>;
   };
 }
 
@@ -330,6 +331,62 @@ describe('deck reject-stale (optimistic concurrency)', () => {
       .set('Cookie', cookie)
       .send({ upserts: [{ kind: 'deck', id: 'd-1', data: {}, clientRev: 'nope' }] });
     expect(res.status).toBe(400);
+  });
+});
+
+describe('live row counts on the pull (E291 drift detection)', () => {
+  const SID = 'cccccccc-0000-0000-0000-000000000001';
+
+  it('reports live rows per kind so a client can check itself against the account', async () => {
+    const cookie = await registerAndGetCookie('pull_counts');
+    await push(cookie, {
+      upserts: [
+        cardRow('c-1', SID),
+        cardRow('c-2', SID),
+        { kind: 'deck', id: 'd-1', data: { id: 'd-1', cards: [] } },
+        { kind: 'binder', id: 'b-1', data: { id: 'b-1' } },
+      ],
+    });
+    const view = await pull(cookie);
+    expect(view.counts).toMatchObject({ card: 2, deck: 1, binder: 1, list: 0, cube: 0 });
+  });
+
+  it('counts live rows only — tombstones do not inflate it', async () => {
+    const cookie = await registerAndGetCookie('pull_counts_tombstones');
+    await push(cookie, { upserts: [cardRow('c-1', SID), cardRow('c-2', SID)] });
+    await push(cookie, { deletions: [{ kind: 'card', id: 'c-1' }] });
+    const view = await pull(cookie);
+    expect(view.counts?.card).toBe(1);
+  });
+
+  it('reports the account total, not what this delta happened to carry', async () => {
+    // The whole point: a client that pulled nothing still learns the real size.
+    const cookie = await registerAndGetCookie('pull_counts_delta');
+    await push(cookie, { upserts: [cardRow('c-1', SID), cardRow('c-2', SID)] });
+    const first = await pull(cookie);
+    const delta = await pull(cookie, first.cursor);
+    expect(delta.rows).toHaveLength(0);
+    expect(delta.counts?.card).toBe(2);
+  });
+
+  it('omits counts on a page that has more to come', async () => {
+    // Counting on every page of a bootstrap would be wasted work.
+    const cookie = await registerAndGetCookie('pull_counts_paged');
+    await push(cookie, {
+      upserts: [cardRow('c-1', SID), cardRow('c-2', SID), cardRow('c-3', SID)],
+    });
+    const page = await pull(cookie, 0, 2);
+    expect(page.hasMore).toBe(true);
+    expect(page.counts).toBeUndefined();
+  });
+
+  it("counts only the requesting user's rows", async () => {
+    const mine = await registerAndGetCookie('pull_counts_mine');
+    const theirs = await registerAndGetCookie('pull_counts_theirs');
+    await push(mine, { upserts: [cardRow('c-1', SID)] });
+    await push(theirs, { upserts: [cardRow('c-1', SID), cardRow('c-2', SID)] });
+    expect((await pull(mine)).counts?.card).toBe(1);
+    expect((await pull(theirs)).counts?.card).toBe(2);
   });
 });
 
