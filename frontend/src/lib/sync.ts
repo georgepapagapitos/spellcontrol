@@ -889,7 +889,10 @@ async function applyPushResult(result: SyncPushResult): Promise<number> {
  * same printing asserts against this device's latest confirmed view instead
  * of a value that would already be stale by the time it's sent.
  */
-async function buildOutbound(muts: queue.Mutation[]): Promise<{
+async function buildOutbound(
+  muts: queue.Mutation[],
+  pendingDeletes: readonly queue.Mutation[] = muts
+): Promise<{
   upserts: SyncUpsert[];
   deletions: SyncDeletion[];
   cardGroupChecks?: SyncCardGroupCheck[];
@@ -897,14 +900,30 @@ async function buildOutbound(muts: queue.Mutation[]): Promise<{
   const upserts: SyncUpsert[] = [];
   const deletions: SyncDeletion[] = [];
   const candidateGroups = new Map<string, queue.CardGroup>();
-  // Confirmed copies this batch deletes, per group. They are already gone from
-  // live IDB (persistKind hard-deletes before enqueueing), but the server still
-  // has them — so the baseline the server compares against must include them,
-  // or removing ONE of two copies always reads as stale: the client asserted
-  // [c-2], the server held [c-1, c-2], and the delete bounced with "A card
-  // quantity changed on another device" while both copies came back. That is
-  // how a settled trade silently un-settled itself on the accepting device.
+  // Confirmed copies still waiting to be deleted, per group. They are already
+  // gone from live IDB (persistKind hard-deletes before enqueueing), but the
+  // server still has them — so the baseline the server compares against must
+  // include them, or removing ONE of two copies always reads as stale: the
+  // client asserted [c-2], the server held [c-1, c-2], and the delete bounced
+  // with "A card quantity changed on another device" while both copies came
+  // back. That is how a settled trade silently un-settled itself on the
+  // accepting device.
+  //
+  // `pendingDeletes` spans the WHOLE outstanding queue, not just this batch
+  // (see queue.pendingCardDeletes). Scoping it to the batch is what made
+  // "Delete entire collection" unable to finish: a 13k-card clear drains 500
+  // ops at a time, almost every printing group has copies in more than one
+  // batch, so every batch under-claimed its baseline, the server rejected the
+  // deletes as stale and handed the rows straight back.
   const deletedConfirmedByGroup = new Map<string, string[]>();
+  for (const m of pendingDeletes) {
+    if (m.op !== 'delete' || m.kind !== 'card' || !m.cardGroup) continue;
+    if ((m.syncedRev ?? 0) <= 0) continue;
+    const key = cardGroupKeyStr(m.cardGroup);
+    const arr = deletedConfirmedByGroup.get(key) ?? [];
+    arr.push(m.id);
+    deletedConfirmedByGroup.set(key, arr);
+  }
   for (const m of muts) {
     if (m.op === 'upsert') {
       const upsert: SyncUpsert = {
@@ -923,13 +942,7 @@ async function buildOutbound(muts: queue.Mutation[]): Promise<{
       upserts.push(upsert);
     } else {
       if (m.kind === 'card' && m.cardGroup) {
-        const key = cardGroupKeyStr(m.cardGroup);
-        candidateGroups.set(key, m.cardGroup);
-        if ((m.syncedRev ?? 0) > 0) {
-          const arr = deletedConfirmedByGroup.get(key) ?? [];
-          arr.push(m.id);
-          deletedConfirmedByGroup.set(key, arr);
-        }
+        candidateGroups.set(cardGroupKeyStr(m.cardGroup), m.cardGroup);
       }
       deletions.push({ kind: m.kind, id: m.id });
     }
@@ -941,14 +954,20 @@ async function buildOutbound(muts: queue.Mutation[]): Promise<{
     const checks: SyncCardGroupCheck[] = [];
     for (const g of candidateGroups.values()) {
       const key = cardGroupKeyStr(g);
-      const baseline = liveCards
-        .filter((row) => {
-          const identity = cardGroupIdentity(row.data);
-          return baseRevFor(row) > 0 && identity != null && cardGroupKeyStr(identity) === key;
-        })
-        .map((row) => row.id)
-        .concat(deletedConfirmedByGroup.get(key) ?? [])
-        .sort();
+      // Set, not concat: a row restored by an earlier conflict can be live in
+      // IDB while its delete is still queued, and a duplicated id would fail
+      // the server's exact set comparison for no reason.
+      const baseline = [
+        ...new Set(
+          liveCards
+            .filter((row) => {
+              const identity = cardGroupIdentity(row.data);
+              return baseRevFor(row) > 0 && identity != null && cardGroupKeyStr(identity) === key;
+            })
+            .map((row) => row.id)
+            .concat(deletedConfirmedByGroup.get(key) ?? [])
+        ),
+      ].sort();
       // An empty baseline means the group has no confirmed members yet (a
       // first-time add) — nothing for the server to compare against, so skip
       // sending a check for it at all (it can only ever match trivially).
@@ -1004,7 +1023,9 @@ async function webPushInner(
   try {
     for (let start = 0; start < muts.length; start += WEB_PUSH_CHUNK) {
       const slice = muts.slice(start, start + WEB_PUSH_CHUNK);
-      const { upserts, deletions, cardGroupChecks } = await buildOutbound(slice);
+      // Everything from `start` on is still outstanding on the server, so that
+      // remainder — not the 500-op slice — is the printing-group baseline.
+      const { upserts, deletions, cardGroupChecks } = await buildOutbound(slice, muts.slice(start));
       const result = await pushSync({ upserts, deletions, cardGroupChecks });
       committed = start + slice.length;
       const hint = await applyPushResult(result);
@@ -1056,17 +1077,27 @@ async function push(): Promise<void> {
   // broadcast hint — never adopted as our own pull cursor (see below).
   let serverRevHint = cursor;
   try {
+    // Every confirmed card delete still queued, read ONCE for this drain rather
+    // than per batch (a 13k-card clear would otherwise re-walk the whole queue
+    // 26 times). Acked ids are dropped below, so each batch's printing-group
+    // baseline names exactly the copies the server still holds.
+    let pendingDeletes = await queue.pendingCardDeletes();
     while (true) {
       const batch = await queue.peekBatch(500);
       if (batch.length === 0) break;
 
-      const { upserts, deletions, cardGroupChecks } = await buildOutbound(batch.map((b) => b.m));
+      const { upserts, deletions, cardGroupChecks } = await buildOutbound(
+        batch.map((b) => b.m),
+        pendingDeletes
+      );
 
       const result = await pushSync({ upserts, deletions, cardGroupChecks });
       const hint = await applyPushResult(result);
       if (hint > serverRevHint) serverRevHint = hint;
 
       await queue.ack(batch.map((b) => b.seq));
+      const sent = new Set(batch.map((b) => b.m.id));
+      pendingDeletes = pendingDeletes.filter((m) => !sent.has(m.id));
       void refreshPending();
 
       // NEVER do `saveCursor(result.cursor)` here. The POST response's cursor is

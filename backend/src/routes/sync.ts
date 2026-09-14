@@ -322,19 +322,45 @@ syncRouter.post('/', requireAuth, syncLimiter, async (req: Request, res: Respons
     //    Absent/empty cardGroupChecks (old clients, or a batch with no
     //    cardinality-changing card op) leaves staleGroups empty and every
     //    branch below is a no-op — unconditional LWW, unchanged. ──
+    //    ONE query for every group in the batch, not one per group: a
+    //    collection-wide delete sends 500 checks per batch, and 500 sequential
+    //    round-trips is what made a single POST take the better part of a
+    //    minute.
     const staleGroups = new Set<string>();
-    for (const chk of cardGroupChecks.value) {
-      const { rows: liveRows } = await client.query<{ id: string }>(
-        `SELECT id FROM user_cards
+    if (cardGroupChecks.value.length > 0) {
+      const { rows: liveRows } = await client.query<{
+        sid: string;
+        finish: string;
+        id: string;
+      }>(
+        `SELECT data->>'scryfallId' AS sid,
+                COALESCE(data->>'finish', 'nonfoil') AS finish,
+                id
+         FROM user_cards
          WHERE user_id = $1 AND deleted_at IS NULL
-           AND data->>'scryfallId' = $2 AND COALESCE(data->>'finish', 'nonfoil') = $3`,
-        [userId, chk.scryfallId, chk.finish]
+           AND (data->>'scryfallId', COALESCE(data->>'finish', 'nonfoil'))
+               IN (SELECT * FROM unnest($2::text[], $3::text[]))`,
+        [
+          userId,
+          cardGroupChecks.value.map((c) => c.scryfallId),
+          cardGroupChecks.value.map((c) => c.finish),
+        ]
       );
-      const liveIds = liveRows.map((r) => r.id).sort();
-      const baseline = [...chk.baseline].sort();
-      const same =
-        liveIds.length === baseline.length && liveIds.every((id, i) => id === baseline[i]);
-      if (!same) staleGroups.add(cardGroupKey(chk.scryfallId, chk.finish));
+      const liveByGroup = new Map<string, string[]>();
+      for (const r of liveRows) {
+        const k = cardGroupKey(r.sid, r.finish);
+        const arr = liveByGroup.get(k);
+        if (arr) arr.push(r.id);
+        else liveByGroup.set(k, [r.id]);
+      }
+      for (const chk of cardGroupChecks.value) {
+        const key = cardGroupKey(chk.scryfallId, chk.finish);
+        const liveIds = (liveByGroup.get(key) ?? []).sort();
+        const baseline = [...chk.baseline].sort();
+        const same =
+          liveIds.length === baseline.length && liveIds.every((id, i) => id === baseline[i]);
+        if (!same) staleGroups.add(key);
+      }
     }
 
     // Current server state for every card id this batch touches — needed only
