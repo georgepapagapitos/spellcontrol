@@ -836,7 +836,7 @@ export function DeckEditorPage() {
   }, [binderByCopyId, collectionCards]);
 
   // The command zone's names, kept out of the add-cards result lists when the
-  // add targets the mainboard (see commanderNames below).
+  // add targets the mainboard (the panel gates this on `addZone`).
   const commanderName = deck?.commander?.name;
   const partnerCommanderName = deck?.partnerCommander?.name;
   const commanderNames = useMemo(() => {
@@ -1463,10 +1463,8 @@ export function DeckEditorPage() {
         ref={searchPanelRef}
         deckId={deck.id}
         commanderColorIdentity={commanderColorIdentity}
-        // Mainboard only: a second copy of the commander is a singleton
-        // violation there, but the sideboard and Considering are exactly where
-        // a second physical printing belongs, so don't hide it from search.
-        commanderNames={addZone === 'main' ? commanderNames : undefined}
+        commanderNames={commanderNames}
+        addZone={addZone}
         existingCardCounts={existingCardCounts}
         binderByCardName={binderByCardName}
         onAdd={({ card }) => {

@@ -139,10 +139,20 @@ interface Props {
    * from every result list while the add targets the mainboard: adding them
    * again puts a second copy into the 99 — a singleton violation the Stats
    * tab then flags, and a phantom "missing" copy when the only owned one is
-   * the commander itself. The caller passes nothing when the add targets the
-   * sideboard or Considering, where a second physical copy is legitimate.
+   * the commander itself.
    */
   commanderNames?: string[];
+  /**
+   * Which zone the add lands in. The mainboard is the only zone the format's
+   * deckbuilding rules govern, so it alone gets the commander exclusion above
+   * and the colour-identity/legality filter on the Collection tab. The
+   * sideboard and Considering are swap piles and park lists: an off-colour
+   * card, a card illegal in the format, or a second printing of the commander
+   * are all legitimate there, and filtering them out of search just makes
+   * cards that are physically in the box unfindable. Defaults to the
+   * mainboard's stricter rules.
+   */
+  addZone?: 'main' | 'side' | 'considering';
 }
 
 type Mode = 'collection' | 'scryfall' | 'suggestions';
@@ -316,15 +326,18 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     binderByCardName,
     aiSlot,
     commanderNames,
+    addZone = 'main',
   },
   ref
 ) {
   // Keyed on the joined names so a parent re-render with an equal array
   // doesn't churn every result memo below.
   const commanderNamesKey = (commanderNames ?? []).join('\u0000');
+  // Mainboard rules apply to the mainboard only — see the `addZone` prop.
+  const mainboardRules = addZone === 'main';
   const excludeNames = useMemo(
-    () => new Set(commanderNamesKey ? commanderNamesKey.split('\u0000') : []),
-    [commanderNamesKey]
+    () => new Set(mainboardRules && commanderNamesKey ? commanderNamesKey.split('\u0000') : []),
+    [commanderNamesKey, mainboardRules]
   );
   // Open smart: commander decks land on Suggestions ("here's what fits") so
   // the panel never opens blank; typing or switching tabs takes over from there.
@@ -703,7 +716,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             topCardCounts={effectiveTopCardCounts}
             sort={sort}
             binderByCardName={binderByCardName}
-            enforceCommander={!!enableSuggestions}
+            enforceCommander={!!enableSuggestions && mainboardRules}
             onSearchScryfall={() => setMode('scryfall')}
           />
         ) : activeMode === 'suggestions' ? (
