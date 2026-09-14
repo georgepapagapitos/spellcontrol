@@ -326,7 +326,11 @@ syncRouter.post('/', requireAuth, syncLimiter, async (req: Request, res: Respons
     //    collection-wide delete sends 500 checks per batch, and 500 sequential
     //    round-trips is what made a single POST take the better part of a
     //    minute.
-    const staleGroups = new Set<string>();
+    // Two verdicts per group, because adds and removes assert different things
+    // (see the comments where they are filled in below).
+    const staleForUpserts = new Set<string>();
+    const staleForDeletes = new Set<string>();
+    const staleGroups = new Set<string>(); // union — only gates the lookup below
     if (cardGroupChecks.value.length > 0) {
       const { rows: liveRows } = await client.query<{
         sid: string;
@@ -346,20 +350,32 @@ syncRouter.post('/', requireAuth, syncLimiter, async (req: Request, res: Respons
           cardGroupChecks.value.map((c) => c.finish),
         ]
       );
-      const liveByGroup = new Map<string, string[]>();
+      const liveByGroup = new Map<string, Set<string>>();
       for (const r of liveRows) {
         const k = cardGroupKey(r.sid, r.finish);
-        const arr = liveByGroup.get(k);
-        if (arr) arr.push(r.id);
-        else liveByGroup.set(k, [r.id]);
+        const set = liveByGroup.get(k);
+        if (set) set.add(r.id);
+        else liveByGroup.set(k, new Set([r.id]));
       }
       for (const chk of cardGroupChecks.value) {
         const key = cardGroupKey(chk.scryfallId, chk.finish);
-        const liveIds = (liveByGroup.get(key) ?? []).sort();
-        const baseline = [...chk.baseline].sort();
-        const same =
-          liveIds.length === baseline.length && liveIds.every((id, i) => id === baseline[i]);
-        if (!same) staleGroups.add(key);
+        const live = liveByGroup.get(key) ?? new Set<string>();
+        const baseline = new Set(chk.baseline);
+        // An ADD needs the group's true size: the client is expressing "make
+        // this N copies" from a believed count, so any difference at all means
+        // its intended total is not the one this batch would produce.
+        if (live.size !== baseline.size || [...baseline].some((id) => !live.has(id))) {
+          staleForUpserts.add(key);
+        }
+        // A REMOVE names specific copies, so it only conflicts when one of the
+        // copies the client believes it is removing from is already gone —
+        // that is the two-devices-decrementing-a-shared-count race. Copies the
+        // server holds that the client has never heard of are NOT a conflict:
+        // deleting the named rows is exactly what the user asked for and the
+        // extras are untouched. Requiring an exact match here is what made
+        // deletion impossible for any client whose view of the account is
+        // partial, which a delta-pull client can be permanently (E291).
+        if ([...baseline].some((id) => !live.has(id))) staleForDeletes.add(key);
       }
     }
 
@@ -367,6 +383,9 @@ syncRouter.post('/', requireAuth, syncLimiter, async (req: Request, res: Respons
     // when a group turned out stale, both to identify which specific
     // upserts/deletions belong to it (a deletion carries no data of its own to
     // derive a group from) and to hand the client back what to self-heal to.
+    for (const k of staleForUpserts) staleGroups.add(k);
+    for (const k of staleForDeletes) staleGroups.add(k);
+
     let staleCardServerRows = new Map<string, { data: unknown; rev: number; importId: string }>();
     if (staleGroups.size > 0) {
       const touchedCardIds = [
@@ -420,9 +439,9 @@ syncRouter.post('/', requireAuth, syncLimiter, async (req: Request, res: Respons
         });
         continue;
       }
-      if (u.kind === 'card' && staleGroups.size > 0) {
+      if (u.kind === 'card' && staleForUpserts.size > 0) {
         const gk = cardGroupOfData(u.data);
-        if (gk && staleGroups.has(gk)) {
+        if (gk && staleForUpserts.has(gk)) {
           const server = staleCardServerRows.get(u.id);
           conflicts.push({
             kind: 'card',
@@ -526,10 +545,10 @@ syncRouter.post('/', requireAuth, syncLimiter, async (req: Request, res: Respons
     const delByKind = new Map<Kind, Map<string, number>>();
     for (const d of deletions.value) {
       const r = revs[ri++];
-      if (d.kind === 'card' && staleGroups.size > 0) {
+      if (d.kind === 'card' && staleForDeletes.size > 0) {
         const server = staleCardServerRows.get(d.id);
         const gk = server ? cardGroupOfData(server.data) : undefined;
-        if (server && gk && staleGroups.has(gk)) {
+        if (server && gk && staleForDeletes.has(gk)) {
           conflicts.push({
             kind: 'card',
             id: d.id,

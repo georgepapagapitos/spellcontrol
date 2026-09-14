@@ -1296,8 +1296,16 @@ export function CardListTable({
       if (removed.length === 0) return;
       const removedIds = new Set(removed.map((c) => c.copyId));
       replaceAllCards(allCards.filter((c) => !removedIds.has(c.copyId)));
+      // Naming a card only reads correctly when they are all the same card —
+      // the per-row and RemoveCopiesDialog paths. A bulk selection spans many
+      // printings, and "Removed 500 copies of Finch Formation" is simply wrong.
+      const names = new Set(removed.map((c) => c.name));
+      const what =
+        names.size === 1
+          ? `${removed.length} ${removed.length === 1 ? 'copy' : 'copies'} of ${removed[0].name}`
+          : `${removed.length} cards`;
       pushToast({
-        message: `Removed ${removed.length} ${removed.length === 1 ? 'copy' : 'copies'} of ${removed[0].name}`,
+        message: `Removed ${what}`,
         tone: 'success',
         actionLabel: 'Undo',
         onAction: () => replaceAllCards([...useCollectionStore.getState().cards, ...removed]),

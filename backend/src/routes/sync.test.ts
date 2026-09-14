@@ -481,6 +481,9 @@ describe('card printing-group reject-stale (E129)', () => {
         cardRow('c-1', sid(3)),
       ],
     });
+    // Another device already removed a-2, so group 1 is genuinely stale for a
+    // client that still believes in it. Groups 2 and 3 are untouched.
+    await push(cookie, { deletions: [{ kind: 'card', id: 'a-2' }] });
     const res = await push(cookie, {
       deletions: [
         { kind: 'card', id: 'a-1' },
@@ -488,8 +491,7 @@ describe('card printing-group reject-stale (E129)', () => {
         { kind: 'card', id: 'c-1' },
       ],
       cardGroupChecks: [
-        // Under-claims: the server also holds a-2.
-        { scryfallId: sid(1), finish: 'nonfoil', baseline: ['a-1'] },
+        { scryfallId: sid(1), finish: 'nonfoil', baseline: ['a-1', 'a-2'] },
         { scryfallId: sid(2), finish: 'nonfoil', baseline: ['b-1'] },
         { scryfallId: sid(3), finish: 'nonfoil', baseline: ['c-1'] },
       ],
@@ -498,7 +500,7 @@ describe('card printing-group reject-stale (E129)', () => {
     expect(res.applied.map((r) => r.id).sort()).toEqual(['b-1', 'c-1']);
     const view = await pull(cookie);
     const live = view.rows.filter((r) => r.kind === 'card' && r.deletedAt == null);
-    expect(live.map((r) => r.id).sort()).toEqual(['a-1', 'a-2']);
+    expect(live.map((r) => r.id).sort()).toEqual(['a-1']);
   });
 
   it('applies normally when the asserted baseline still matches (no concurrent change)', async () => {
@@ -512,14 +514,14 @@ describe('card printing-group reject-stale (E129)', () => {
     expect(res.applied).toHaveLength(1);
   });
 
-  it('rejects a delete whose group changed elsewhere and leaves the server row untouched', async () => {
+  it('rejects a delete when a copy the client believes in was already removed elsewhere', async () => {
     const cookie = await registerAndGetCookie('card_group_delete_race');
     await push(cookie, { upserts: [cardRow('c-1', SCRYFALL_ID), cardRow('c-2', SCRYFALL_ID)] });
-    // Another device adds a third copy this device doesn't know about yet.
-    await push(cookie, { upserts: [cardRow('c-3', SCRYFALL_ID)] });
+    // Another device already took c-1 (its intended quantity: 2 -> 1).
+    await push(cookie, { deletions: [{ kind: 'card', id: 'c-1' }] });
 
-    // This device still believes the group is just {c-1, c-2} and tries to
-    // delete c-2 (its intended quantity: 2 -> 1).
+    // This device still believes the group is {c-1, c-2} and drops c-2, also
+    // meaning 2 -> 1. Applying both would land on 0, which neither intended.
     const del = await push(cookie, {
       deletions: [{ kind: 'card', id: 'c-2' }],
       cardGroupChecks: [{ scryfallId: SCRYFALL_ID, finish: 'nonfoil', baseline: ['c-1', 'c-2'] }],
@@ -532,7 +534,77 @@ describe('card printing-group reject-stale (E129)', () => {
     // c-2 is still live server-side — the delete never landed.
     const view = await pull(cookie);
     const live = view.rows.filter((r) => r.kind === 'card' && r.deletedAt == null);
-    expect(live.map((r) => r.id).sort()).toEqual(['c-1', 'c-2', 'c-3']);
+    expect(live.map((r) => r.id).sort()).toEqual(['c-2']);
+  });
+
+  it('applies a delete from a client that only knows SOME of the group', async () => {
+    // The user reported this as "select all, delete, it repopulates". A client
+    // whose local view is a subset of the account named copies it really owns;
+    // rejecting because the server holds others it never heard of made deleting
+    // impossible, and a delta-pull client can be permanently partial (E291).
+    const cookie = await registerAndGetCookie('card_group_partial_view');
+    await push(cookie, {
+      upserts: [
+        cardRow('c-1', SCRYFALL_ID),
+        cardRow('c-2', SCRYFALL_ID),
+        cardRow('c-3', SCRYFALL_ID),
+        cardRow('c-4', SCRYFALL_ID),
+      ],
+    });
+    const del = await push(cookie, {
+      deletions: [
+        { kind: 'card', id: 'c-1' },
+        { kind: 'card', id: 'c-2' },
+      ],
+      // Knows only the two it is deleting.
+      cardGroupChecks: [{ scryfallId: SCRYFALL_ID, finish: 'nonfoil', baseline: ['c-1', 'c-2'] }],
+    });
+    expect(del.conflicts).toEqual([]);
+    expect(del.applied.map((r) => r.id).sort()).toEqual(['c-1', 'c-2']);
+    const view = await pull(cookie);
+    const live = view.rows.filter((r) => r.kind === 'card' && r.deletedAt == null);
+    expect(live.map((r) => r.id).sort()).toEqual(['c-3', 'c-4']);
+  });
+
+  it('still rejects an ADD from that same partial view', async () => {
+    // Adds are unchanged: the client is expressing a total, so an incomplete
+    // view genuinely cannot compute the one it means.
+    const cookie = await registerAndGetCookie('card_group_partial_add');
+    await push(cookie, {
+      upserts: [
+        cardRow('c-1', SCRYFALL_ID),
+        cardRow('c-2', SCRYFALL_ID),
+        cardRow('c-3', SCRYFALL_ID),
+      ],
+    });
+    const add = await push(cookie, {
+      upserts: [cardRow('c-4', SCRYFALL_ID)],
+      cardGroupChecks: [{ scryfallId: SCRYFALL_ID, finish: 'nonfoil', baseline: ['c-1', 'c-2'] }],
+    });
+    expect(add.applied).toEqual([]);
+    expect(add.conflicts.map((c) => c.id)).toEqual(['c-4']);
+  });
+
+  it('judges an add and a delete in the same batch on their own terms', async () => {
+    const cookie = await registerAndGetCookie('card_group_mixed_batch');
+    await push(cookie, {
+      upserts: [
+        cardRow('c-1', SCRYFALL_ID),
+        cardRow('c-2', SCRYFALL_ID),
+        cardRow('c-3', SCRYFALL_ID),
+      ],
+    });
+    const res = await push(cookie, {
+      upserts: [cardRow('c-9', SCRYFALL_ID)],
+      deletions: [{ kind: 'card', id: 'c-1' }],
+      // Partial view: fine for the delete, fatal for the add.
+      cardGroupChecks: [{ scryfallId: SCRYFALL_ID, finish: 'nonfoil', baseline: ['c-1', 'c-2'] }],
+    });
+    expect(res.conflicts.map((c) => c.id)).toEqual(['c-9']);
+    expect(res.applied.map((r) => r.id)).toEqual(['c-1']);
+    const view = await pull(cookie);
+    const live = view.rows.filter((r) => r.kind === 'card' && r.deletedAt == null);
+    expect(live.map((r) => r.id).sort()).toEqual(['c-2', 'c-3']);
   });
 
   it('absent cardGroupChecks keeps unconditional last-write-wins (back-compat)', async () => {
