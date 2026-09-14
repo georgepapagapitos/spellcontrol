@@ -122,10 +122,48 @@ export interface PublicDeck {
   cards: PublicDeckCard[];
   sideboard: PublicDeckCard[];
   color: string;
-  /** Optional generator stats — kept because they're useful display, not sensitive. */
+  /**
+   * Deck-describing analysis, projected so a visitor sees the same Stats and
+   * Power tabs the owner does (unified deck view). Everything here describes
+   * the DECK. The owner's coaching surfaces — `gapAnalysis`, `hiddenGems`,
+   * `optimizeSwaps`, `costPlan`, `bracketFit`, `misfits`, `aiScope` — describe
+   * what the OWNER should do next against their OWN collection, and are
+   * deliberately withheld. That split is the contract; `projections.test.ts`
+   * asserts the withheld half never appears in a payload.
+   */
   averageSalt?: number;
   bracketEstimation?: unknown;
+  /** Owner's self-declared bracket; wins over the estimate on every surface. */
+  bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
   deckGrade?: { letter: string; headline: string };
+  /** 0-100 PlanScore with sub-scores — the Power tab's headline number. */
+  planScore?: unknown;
+  /** Producer↔payoff axis balance; drives the Power tab's Engine panel. */
+  synergyAnalysis?: unknown;
+  /** Detected win paths; drives the Power tab's Win conditions panel. */
+  winConditions?: unknown;
+  /** Card names the owner hand-marked as a win condition (display-only). */
+  winConTags?: string[];
+  /** Role have/want counts + per-role subtype tallies (Stats breakdowns). */
+  roleCounts?: Record<string, number>;
+  roleTargets?: Record<string, number>;
+  rampSubtypeCounts?: Record<string, number>;
+  removalSubtypeCounts?: Record<string, number>;
+  boardwipeSubtypeCounts?: Record<string, number>;
+  cardDrawSubtypeCounts?: Record<string, number>;
+  /** Per-card EDHREC inclusion % — the "why this card" row chip. */
+  cardInclusionMap?: Record<string, number>;
+  /** EDHREC's sample size for this commander (its own `numDecks`). */
+  edhrecNumDecks?: number | null;
+  /** Owner-pinned archetype; wins over the live derivation on the identity card. */
+  archetypeOverride?: string | null;
+  /** Generated decks only: how the build measured up to its intent. */
+  buildReport?: unknown;
+  /** Generated decks only: per-category target counts for the section gauges. */
+  categoryTargets?: unknown;
+  saltiestCards?: Array<{ name: string; salt: number }>;
+  /** Provenance when the deck came from a known MTG product (a precon). */
+  sourceProduct?: { code: string; fileName: string; name: string };
   /** Long-form strategy notes (rendered client-side via markdown-lite). Capped
    *  to 5000 chars on this public projection only — the owner's own local
    *  copy has no such cap. Absent when the owner never wrote one. */
@@ -228,6 +266,41 @@ function asStringArray(x: unknown): string[] | undefined {
   if (!Array.isArray(x)) return undefined;
   const out = x.filter((s): s is string => typeof s === 'string');
   return out.length > 0 ? out : undefined;
+}
+
+/**
+ * Coerce a `Record<string, number>` tally (role counts, subtype counts,
+ * inclusion percentages). Drops non-numeric values rather than trusting a
+ * synced blob's shape; returns undefined for an empty/absent map so the field
+ * is omitted from the payload entirely.
+ */
+function asCountMap(x: unknown): Record<string, number> | undefined {
+  const r = asRecord(x);
+  if (!r) return undefined;
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(r)) {
+    if (typeof v === 'number' && Number.isFinite(v)) out[k] = v;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** Coerce the `{ name, salt }[]` saltiest-cards list. */
+function asSaltList(x: unknown): Array<{ name: string; salt: number }> | undefined {
+  if (!Array.isArray(x)) return undefined;
+  const out: Array<{ name: string; salt: number }> = [];
+  for (const entry of x) {
+    const r = asRecord(entry);
+    if (!r) continue;
+    const name = asString(r.name);
+    const salt = asNumber(r.salt);
+    if (name && salt !== undefined) out.push({ name, salt });
+  }
+  return out.length > 0 ? out : undefined;
+}
+
+/** Coerce the 1-5 bracket scale; anything else reads as "not set". */
+function asBracket(x: unknown): 1 | 2 | 3 | 4 | 5 | undefined {
+  return x === 1 || x === 2 || x === 3 || x === 4 || x === 5 ? x : undefined;
 }
 
 function asFinish(x: unknown): 'nonfoil' | 'foil' | 'etched' {
@@ -433,12 +506,42 @@ export function projectDeck(owner: ShareOwner, deckRaw: unknown): PublicDeck | n
     color: asString(r.color) ?? '#888',
     averageSalt: asNumber(r.averageSalt),
     bracketEstimation: r.bracketEstimation,
+    bracketOverride: asBracket(r.bracketOverride),
     deckGrade: (() => {
       const g = asRecord(r.deckGrade);
       if (!g) return undefined;
       const letter = asString(g.letter);
       const headline = asString(g.headline);
       return letter && headline ? { letter, headline } : undefined;
+    })(),
+    // Deck-describing analysis (see the PublicDeck doc). The owner's coaching
+    // fields — gapAnalysis / hiddenGems / optimizeSwaps / costPlan /
+    // bracketFit / misfits / aiScope — are absent by omission: this projection
+    // is an allowlist, so a new Deck field is withheld until someone adds it
+    // here on purpose.
+    planScore: r.planScore ?? undefined,
+    synergyAnalysis: r.synergyAnalysis ?? undefined,
+    winConditions: r.winConditions ?? undefined,
+    winConTags: asStringArray(r.winConTags),
+    roleCounts: asCountMap(r.roleCounts),
+    roleTargets: asCountMap(r.roleTargets),
+    rampSubtypeCounts: asCountMap(r.rampSubtypeCounts),
+    removalSubtypeCounts: asCountMap(r.removalSubtypeCounts),
+    boardwipeSubtypeCounts: asCountMap(r.boardwipeSubtypeCounts),
+    cardDrawSubtypeCounts: asCountMap(r.cardDrawSubtypeCounts),
+    cardInclusionMap: asCountMap(r.cardInclusionMap),
+    edhrecNumDecks: typeof r.edhrecNumDecks === 'number' ? r.edhrecNumDecks : undefined,
+    archetypeOverride: asString(r.archetypeOverride),
+    buildReport: r.buildReport ?? undefined,
+    categoryTargets: r.categoryTargets ?? undefined,
+    saltiestCards: asSaltList(r.saltiestCards),
+    sourceProduct: (() => {
+      const sp = asRecord(r.sourceProduct);
+      if (!sp) return undefined;
+      const code = asString(sp.code);
+      const fileName = asString(sp.fileName);
+      const name = asString(sp.name);
+      return code && fileName && name ? { code, fileName, name } : undefined;
     })(),
     primer,
     primerTruncated: rawPrimer !== undefined && rawPrimer.length > PRIMER_MAX ? true : undefined,

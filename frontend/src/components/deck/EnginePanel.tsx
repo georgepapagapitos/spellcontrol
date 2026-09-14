@@ -19,8 +19,13 @@ export interface EnginePanelProps {
   analysis: SynergyAnalysis;
   /** Card names the player already owns — surfaces an "Owned" badge. */
   ownedNames?: Set<string>;
-  /** Add a single suggested card by name. */
-  onAdd: (cardName: string) => void | Promise<void>;
+  /**
+   * Add a single suggested card by name. Omitted on a read-only surface (a
+   * shared/public deck, where the viewer has no deck to add to) — the Add
+   * button is then not rendered at all rather than rendered disabled, since
+   * "disabled" would imply the action exists for this viewer.
+   */
+  onAdd?: (cardName: string) => void | Promise<void>;
   /** Names currently being added (disables their button). */
   addingNames?: Set<string>;
   /**
@@ -113,7 +118,7 @@ function SuggestionTile({
   suggestion: SynergySuggestion;
   owned: boolean;
   adding: boolean;
-  onAdd: () => void;
+  onAdd?: () => void;
   onPreview: () => void;
 }): JSX.Element {
   const sideWord = suggestion.side === 'payoff' ? 'payoff' : 'producer';
@@ -145,16 +150,18 @@ function SuggestionTile({
           <OwnershipBadge owned={owned} />
         </span>
       </button>
-      <button
-        type="button"
-        className="engine-suggestion-add"
-        onClick={onAdd}
-        disabled={adding}
-        aria-label={`Add ${suggestion.cardName}`}
-      >
-        <Plus width={14} height={14} aria-hidden />
-        {adding ? 'Adding…' : 'Add'}
-      </button>
+      {onAdd && (
+        <button
+          type="button"
+          className="engine-suggestion-add"
+          onClick={onAdd}
+          disabled={adding}
+          aria-label={`Add ${suggestion.cardName}`}
+        >
+          <Plus width={14} height={14} aria-hidden />
+          {adding ? 'Adding…' : 'Add'}
+        </button>
+      )}
     </li>
   );
 }
@@ -280,7 +287,7 @@ export function EnginePanel({
                       suggestion={s}
                       owned={owned.has(s.cardName)}
                       adding={adding.has(s.cardName)}
-                      onAdd={() => onAdd(s.cardName)}
+                      onAdd={onAdd ? () => onAdd(s.cardName) : undefined}
                       onPreview={() => void carousel.open(previewEntries, s.cardName)}
                     />
                   ))}

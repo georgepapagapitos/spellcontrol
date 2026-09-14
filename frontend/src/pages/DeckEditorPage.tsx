@@ -122,6 +122,7 @@ import { useTaggerReady } from '../lib/use-tagger-ready';
 import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { useDeckCombos } from '../lib/use-deck-combos';
+import { buildWinConditionSummary } from '../lib/win-condition-summary';
 import { useCommanderBracketAnalysis } from '../lib/use-commander-bracket-analysis';
 import { useEscapeKey } from '../lib/use-escape-key';
 import { useUndoRedoKeyboard } from '../lib/use-undo-redo-keyboard';
@@ -175,23 +176,7 @@ import { getCardPrice, getCardByName, searchCards } from '../deck-builder/servic
 // merit engine ranks and filters what's returned.
 const fetchFixingLands = (identityKey: string): Promise<ScryfallCard[]> =>
   searchCards('t:land -t:basic', identityKey.split(''), { order: 'edhrec' }).then((r) => r.data);
-import type { WinConditionAnalysis } from '@/deck-builder/services/winConditions/types';
 import { getSyncState, onSyncedChange } from '@/lib/sync';
-
-/**
- * Build a one-line win-condition summary for the PowerHero Gameplan pillar.
- * e.g. "Wins via Infinite combo · backup: Mill, Aristocrats"
- */
-function buildWinConditionSummary(wc: WinConditionAnalysis | undefined): string | undefined {
-  if (!wc) return undefined;
-  if (wc.noClearWinCondition) return 'No clear win condition';
-  if (!wc.primary) return undefined;
-  const parts: string[] = [`Wins via ${wc.primary.label}`];
-  if (wc.secondary.length > 0) {
-    parts.push(`backup: ${wc.secondary.map((s) => s.label).join(', ')}`);
-  }
-  return parts.join(' · ');
-}
 
 /** Functional role key → display label (the four roles the tagger classifies). */
 const ROLE_LABEL: Record<string, string> = {

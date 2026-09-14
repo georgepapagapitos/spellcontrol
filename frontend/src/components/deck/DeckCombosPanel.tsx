@@ -38,7 +38,12 @@ interface Props {
   /** Deck color identity — hides one-away combos whose missing piece could
    *  never legally join the deck (see useDeckCombos). Omit = no restriction. */
   colorIdentity?: readonly string[];
-  onAdd: (card: ScryfallCard, allocatedCopyId: string | null) => void;
+  /**
+   * Add the missing piece of a one-away combo. Omitted on a read-only surface
+   * (a shared/public deck) — `ComboRow` then renders no Add button at all, and
+   * the combo lists stay pure information.
+   */
+  onAdd?: (card: ScryfallCard, allocatedCopyId: string | null) => void;
   /**
    * Render without the collapsible header chrome (always-open body), for use
    * inside the tabbed analysis surface.
@@ -198,6 +203,7 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
       setAnnounce(`Couldn't find a printing for ${card.cardName}.`);
       return;
     }
+    if (!onAdd) return;
     const claim = pickCollectionCopy(card.cardName, collection, allocations, resolved.id);
     onAdd(resolved, claim?.copyId ?? null);
     setAnnounce(`Added ${card.cardName} to complete combo.`);
@@ -384,7 +390,7 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
                 edhrec={statFor(match)}
                 cardImageIndex={cardImageIndex}
                 ownedOracleIds={ownedOracleIdSet}
-                onAddMissing={() => void handleAddMissing(match)}
+                onAddMissing={onAdd ? () => void handleAddMissing(match) : undefined}
                 onCardTap={(tapped) => void preview.open(match.combo.cards, tapped)}
               />
             ))}

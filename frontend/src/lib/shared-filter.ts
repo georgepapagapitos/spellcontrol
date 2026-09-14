@@ -13,7 +13,7 @@
  *
  * Kept store-agnostic: shared views must not touch zustand stores.
  */
-import type { PublicCard } from './shared-types';
+import type { PublicCard, PublicDeckCard } from './shared-types';
 import type { BinderFilter, ChipExpression, EnrichedCard } from '../types';
 import { getCardTags } from './card-tags';
 import { colorSelectionMatches, getColorKey, type ColorMatchMode } from './colors';
@@ -153,4 +153,58 @@ export function countActiveSharedFilters(s: SharedFilterState): number {
     (s.priceMin !== undefined || s.priceMax !== undefined ? 1 : 0) +
     (s.cmcMin !== undefined || s.cmcMax !== undefined ? 1 : 0)
   );
+}
+
+/**
+ * Coerces a deck slot's stored `card: ScryfallCard`-shaped value into the
+ * `PublicCard` shape the shared tile/list components use. Best-effort — fields
+ * a deck card doesn't carry (purchasePrice, condition, …) default to safe
+ * placeholders.
+ *
+ * Lives beside `publicCardToEnriched` because it is the same kind of thing: a
+ * boundary coercion between the public payload's card shape and a renderer's.
+ * Its last remaining caller is `DeckFeedbackView` — the per-card commenting
+ * surface, which is genuinely its own view. The deck VIEW no longer needs it:
+ * `/d/:slug` and `/s/:token` render the owner's own `DeckDisplay` via
+ * `lib/public-deck-to-deck.ts`.
+ */
+export function deckCardToPublicCard(slot: PublicDeckCard): PublicCard {
+  const c = slot.card;
+  // Scryfall's card shape uses snake_case (image_uris, type_line, mana_cost).
+  // EnrichedCards persisted on the owner's side use camelCase. The deck slot's
+  // `card` is a ScryfallCard, so prefer snake_case fields with camelCase fallback.
+  // Front-face fallback for transform/modal_dfc layouts, whose top-level
+  // image_uris can be absent (the faces carry them instead).
+  const img = (c.image_uris ?? c.card_faces?.[0]?.image_uris ?? {}) as {
+    small?: string;
+    normal?: string;
+    large?: string;
+  };
+  return {
+    name: String(c.name ?? '(unknown)'),
+    scryfallId: typeof c.id === 'string' ? c.id : '',
+    oracleId: typeof c.oracle_id === 'string' ? c.oracle_id : undefined,
+    setCode: typeof c.set === 'string' ? c.set : '',
+    setName: typeof c.set_name === 'string' ? c.set_name : '',
+    collectorNumber: typeof c.collector_number === 'string' ? c.collector_number : '',
+    rarity: typeof c.rarity === 'string' ? c.rarity : '',
+    finish: 'nonfoil',
+    foil: false,
+    purchasePrice: 0,
+    cmc: typeof c.cmc === 'number' ? c.cmc : undefined,
+    typeLine: typeof c.type_line === 'string' ? c.type_line : undefined,
+    colorIdentity: Array.isArray(c.color_identity) ? (c.color_identity as string[]) : undefined,
+    colors: Array.isArray(c.colors) ? (c.colors as string[]) : undefined,
+    imageSmall: img.small,
+    imageNormal: img.normal ?? img.large,
+    manaCost: typeof c.mana_cost === 'string' ? c.mana_cost : undefined,
+    oracleText: typeof c.oracle_text === 'string' ? c.oracle_text : undefined,
+    legalities:
+      c.legalities && typeof c.legalities === 'object'
+        ? (c.legalities as Record<string, string>)
+        : undefined,
+    frameEffects: Array.isArray(c.frame_effects) ? (c.frame_effects as string[]) : undefined,
+    fullArt: typeof c.full_art === 'boolean' ? c.full_art : undefined,
+    borderColor: typeof c.border_color === 'string' ? c.border_color : undefined,
+  };
 }
