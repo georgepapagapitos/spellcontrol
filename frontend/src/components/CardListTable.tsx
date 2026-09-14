@@ -73,6 +73,7 @@ import { SelectMenu } from './SelectMenu';
 import { CollectionFiltersDialog } from './CollectionFiltersDialog';
 import { SaveToListDialog } from './SaveToListDialog';
 import { useCardsWithTags, cardTagLabel } from '../lib/card-tags';
+import { useCardsWithReleaseDates } from '../lib/card-release-dates';
 import { InlineCardSearch } from './InlineCardSearch';
 import { SortMenu, type SortMenuOption } from './SortMenu';
 import { useDebouncedValue } from '../lib/use-debounced-value';
@@ -689,7 +690,14 @@ export function CardListTable({
   // tag chip — otherwise this is a zero-cost pass-through (the snapshot isn't
   // even loaded). Needed because the collection matcher reads `card.tags`, and
   // CollectionPage only decorates when an existing binder uses tags.
-  const cardsForMatch = useCardsWithTags(cards, !isExpressionEmpty(oracleTagExpr));
+  const taggedCards = useCardsWithTags(cards, !isExpressionEmpty(oracleTagExpr));
+  // Then each printing's own release date, so the Release sort and the Set
+  // grouping date a rolling container set (SLD/PLST/PRM/SLP/SLC) per printing
+  // rather than from the set. Decorated HERE, upstream of `rows`/`filtered`,
+  // so the sort and the section header read the same date — decorating inside
+  // the sort memo alone would order rows by printing date under headers still
+  // ordered by set date. Pass-through until a price refresh has cached dates.
+  const cardsForMatch = useCardsWithReleaseDates(taggedCards, true);
 
   // Hoisted ahead of `rows`/`filtered` (below, other collection-store reads
   // stay near their non-filter usages further down) so the surplus predicate

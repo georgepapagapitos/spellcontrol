@@ -24,6 +24,7 @@ import { materializeBinders } from '../lib/materialize';
 import { findRedundantPins } from '../lib/binder-pin-dissolve';
 import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
 import { useCardsWithSldDrops, bindersUseSldDrops } from '../lib/sld-drops';
+import { useCardsWithReleaseDates, bindersUseReleaseDates } from '../lib/card-release-dates';
 import { buildQtyByPrintingKey } from '../lib/sorting';
 import { useAllocations } from '../lib/allocations';
 import { useDebouncedValue } from '../lib/use-debounced-value';
@@ -51,7 +52,12 @@ export function BinderPage() {
   const taggedCards = useCardsWithTags(rawCards, bindersUseTags(binders));
   // Decorate with the Secret Lair drop each printing came from, so the set sorts
   // can section by drop. Same deal: no-op unless a binder sorts by set.
-  const cards = useCardsWithSldDrops(taggedCards, bindersUseSldDrops(binders));
+  const droppedCards = useCardsWithSldDrops(taggedCards, bindersUseSldDrops(binders));
+  // Decorate with each printing's OWN release date, so a Release-date sort
+  // dates a rolling container set (SLD/PLST/PRM/SLP/SLC) per printing instead
+  // of from the set. No-op unless a binder sorts by release date, or until the
+  // price refresh has cached dates for this device.
+  const cards = useCardsWithReleaseDates(droppedCards, bindersUseReleaseDates(binders));
   const hydrating = useCollectionStore((s) => s.hydrating);
   const search = useCollectionStore((s) => s.search);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);

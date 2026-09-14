@@ -69,3 +69,51 @@ function firstPositive(order: Array<string | null | undefined>): number {
 export function pickUsdFromPrices(card: ScryfallCard): number {
   return pickUsdForFinish(card, 'nonfoil');
 }
+
+export interface FinishPriceEntry {
+  usd: number;
+  usdFoil: number;
+  usdEtched: number;
+  eur: number;
+  eurFoil: number;
+  eurEtched: number;
+  pricedAt: number;
+}
+
+/**
+ * Body of `POST /api/refresh-prices`. Extracted from the route so its two
+ * different emit rules are unit-testable — the route module exports nothing, so
+ * nothing in it can be driven by supertest.
+ *
+ * `prices` carries a value per FINISH, because one printing serves
+ * nonfoil + foil + etched copies and a foil must never show the non-foil price.
+ * An entry is emitted only when SOME finish in SOME currency has a price, so a
+ * genuinely unpriced printing stays "stale" on the client and gets retried
+ * rather than freezing at $0.
+ *
+ * `releasedAt` is each printing's own release date, and is deliberately NOT
+ * gated that way: an unpriced printing still has a release date, and applying
+ * the price gate to it would permanently starve exactly those cards. It rides
+ * this response because this is already the one request that walks a whole
+ * collection by printing id — see `frontend/src/lib/card-release-dates.ts`.
+ */
+export function buildPriceRefreshPayload(
+  cards: ScryfallCard[],
+  now: number
+): { prices: Record<string, FinishPriceEntry>; releasedAt: Record<string, string> } {
+  const prices: Record<string, FinishPriceEntry> = {};
+  const releasedAt: Record<string, string> = {};
+  for (const card of cards) {
+    if (card.released_at) releasedAt[card.id] = card.released_at;
+    const usd = pickUsdForFinish(card, 'nonfoil');
+    const usdFoil = pickUsdForFinish(card, 'foil');
+    const usdEtched = pickUsdForFinish(card, 'etched');
+    const eur = pickEurForFinish(card, 'nonfoil');
+    const eurFoil = pickEurForFinish(card, 'foil');
+    const eurEtched = pickEurForFinish(card, 'etched');
+    if (usd > 0 || usdFoil > 0 || usdEtched > 0 || eur > 0 || eurFoil > 0 || eurEtched > 0) {
+      prices[card.id] = { usd, usdFoil, usdEtched, eur, eurFoil, eurEtched, pricedAt: now };
+    }
+  }
+  return { prices, releasedAt };
+}

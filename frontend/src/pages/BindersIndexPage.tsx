@@ -23,6 +23,7 @@ import { computeDrift } from '../lib/binder-drift';
 import { binderCoverArt } from '../lib/binder-cover';
 import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
 import { useCardsWithSldDrops, bindersUseSldDrops } from '../lib/sld-drops';
+import { useCardsWithReleaseDates, bindersUseReleaseDates } from '../lib/card-release-dates';
 import { formatMoney } from '../lib/format-money';
 import { useSetMap } from '../lib/api';
 import { useConfirm } from '../lib/use-confirm';
@@ -77,7 +78,10 @@ export function BindersIndexPage() {
   const taggedCards = useCardsWithTags(rawCards, bindersUseTags(binders));
   // Secret Lair drop decoration, same as BinderPage — without it a drop-sectioned
   // binder's page count here would disagree with the detail page's.
-  const cards = useCardsWithSldDrops(taggedCards, bindersUseSldDrops(binders));
+  const droppedCards = useCardsWithSldDrops(taggedCards, bindersUseSldDrops(binders));
+  // Per-printing release dates, same as BinderPage — without it a
+  // date-sectioned binder's page count here would disagree with the detail page's.
+  const cards = useCardsWithReleaseDates(droppedCards, bindersUseReleaseDates(binders));
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const deleteBinder = useCollectionStore((s) => s.deleteBinder);
   const deleteBinders = useCollectionStore((s) => s.deleteBinders);

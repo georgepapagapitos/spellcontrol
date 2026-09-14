@@ -27,6 +27,7 @@ import {
 import type { GameEvent } from '@spellcontrol/game-core';
 import { anyBinderUsesTagRules, decorateCardsWithTags } from './card-tags';
 import { anyBinderUsesSetSorts, decorateCardsWithSldDrops } from './card-sld-drops';
+import { anyBinderUsesReleaseDateSort, decorateCardsWithReleaseDates } from './card-release-dates';
 
 /** Owner identity passed to every project* function — same shape everywhere
  *  so a display-name preference propagates uniformly across share kinds. */
@@ -576,7 +577,13 @@ export function projectBinder(
     : (rawCards as EnrichedCard[]);
   // Same again for Secret Lair drops: a Set / Release-date sort sections an SLD
   // card by its drop, and only decorated cards carry one.
-  const cards = anyBinderUsesSetSorts(binders) ? decorateCardsWithSldDrops(tagged) : tagged;
+  const dropped = anyBinderUsesSetSorts(binders) ? decorateCardsWithSldDrops(tagged) : tagged;
+  // And again for each printing's own release date: a Release-date sort dates a
+  // rolling container set (SLD/PLST/PRM/SLP/SLC) per printing, so without this
+  // the shared view orders those cards differently from the owner's.
+  const cards = anyBinderUsesReleaseDateSort(binders)
+    ? decorateCardsWithReleaseDates(dropped)
+    : dropped;
 
   let materialized;
   try {

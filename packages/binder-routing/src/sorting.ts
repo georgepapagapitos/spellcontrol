@@ -315,17 +315,34 @@ const SLD_CODE = 'SLD';
 /**
  * The release date that actually describes this printing.
  *
- * A Secret Lair dates from its **drop**, never from the `SLD` set: that set's
- * date is the day the first drop ever shipped (2019-12-02), which is a lie for
- * all ~2,300 cards filed under it. A drop MTGJSON hasn't mapped therefore has
- * *no* date rather than a wrong one — otherwise a handful of unattributed bonus
- * cards anchor themselves to 2019 and lead a chronological binder. Other sets
- * (including `SLC` / `SLP`, which are real sets with real dates) are unaffected.
+ * `card.releasedAt` — the printing's OWN date, straight off Scryfall — wins
+ * whenever we have it, because a set-level date only ever approximates it and
+ * is flatly wrong for a rolling container set. Those are not the edge case they
+ * look like: `SLD` files 2,755 printings under 2019-12-02, `PLST` (The List)
+ * 5,663 under 2020-09-26, `PRM` 3,094, and `SLP` / `SLC` likewise date years of
+ * Secret Lair promos from their first day.
+ *
+ * The fallbacks below cover a card the per-printing lookup hasn't reached yet
+ * (it's device-local reference data, like prices and tags — see
+ * `EnrichedCard.releasedAt`):
+ *
+ *   - a Secret Lair falls back to its **drop** date, never to the `SLD` set —
+ *     an unmapped drop has *no* date rather than a wrong one, or a handful of
+ *     unattributed bonus cards anchor to 2019 and lead a chronological binder;
+ *   - anything else falls back to its set's date.
+ *
+ * Every branch returns `undefined`, never `''`, for "no date". A blank string is
+ * a truthy sort value that sorts FIRST ascending while its own section header
+ * takes `UNKNOWN_ORDER` and sorts LAST — precisely the header/content
+ * disagreement `UNKNOWN_VALUE` exists to prevent. `SetSummary.releasedAt` is
+ * `''` (not optional) for a set Scryfall gave no date for, so the trailing `||`
+ * is load-bearing rather than defensive.
  */
 export function releaseDateOf(card: EnrichedCard, setMap?: SetMap): string | undefined {
+  if (card.releasedAt) return card.releasedAt;
   const code = (card.setCode || '').toUpperCase();
   if (code === SLD_CODE) return card.sldDropReleasedAt || undefined;
-  return setMap?.[code]?.releasedAt;
+  return setMap?.[code]?.releasedAt || undefined;
 }
 
 /**

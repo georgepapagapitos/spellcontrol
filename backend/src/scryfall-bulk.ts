@@ -307,6 +307,7 @@ export function projectBulkCard(card: BulkCard): ScryfallCard | null {
     set: card.set,
     set_name: card.set_name ?? '',
     collector_number: card.collector_number,
+    released_at: card.released_at,
     layout: card.layout,
     legalities: card.legalities,
     oracle_text: card.oracle_text,

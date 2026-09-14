@@ -10,7 +10,7 @@ import path from 'path';
 import { Worker } from 'node:worker_threads';
 import { existsSync } from 'fs';
 import { gzip } from 'node:zlib';
-import { DB_PATH, getScryfallCache, pickEurForFinish, pickUsdForFinish } from './scryfall-cache';
+import { DB_PATH, getScryfallCache, buildPriceRefreshPayload } from './scryfall-cache';
 import { resolveOracleFacts, ORACLE_REQUEST_LIMIT, type OracleRequest } from './oracle-facts';
 import { closeDb, ensureSchema } from './db';
 import { testAwareLimiter } from './route-utils';
@@ -1018,42 +1018,10 @@ app.post('/api/refresh-prices', priceLimiter, async (req: Request, res: Response
     }
     const cards = [...cached.values(), ...fetched];
 
-    const now = Date.now();
-    // Return the price for EACH finish (the client picks the one matching the
-    // owned copy). The request is per-printing (scryfallId) and finish-agnostic
-    // because a single printing serves nonfoil + foil + etched copies; sending
-    // all three avoids a foil silently showing the non-foil price. `usd` is the
-    // non-foil baseline; a client that ignores the foil fields degrades to the
-    // old behaviour. EUR (Cardmarket) rides along per finish for the display
-    // currency setting — 0 means "Scryfall has no EUR price for this finish",
-    // which the client stores as fetched-but-unpriced (an honest dash), never
-    // as never-fetched. Emit an entry if ANY finish in EITHER currency has a
-    // price.
-    const prices: Record<
-      string,
-      {
-        usd: number;
-        usdFoil: number;
-        usdEtched: number;
-        eur: number;
-        eurFoil: number;
-        eurEtched: number;
-        pricedAt: number;
-      }
-    > = {};
-    for (const card of cards) {
-      const usd = pickUsdForFinish(card, 'nonfoil');
-      const usdFoil = pickUsdForFinish(card, 'foil');
-      const usdEtched = pickUsdForFinish(card, 'etched');
-      const eur = pickEurForFinish(card, 'nonfoil');
-      const eurFoil = pickEurForFinish(card, 'foil');
-      const eurEtched = pickEurForFinish(card, 'etched');
-      if (usd > 0 || usdFoil > 0 || usdEtched > 0 || eur > 0 || eurFoil > 0 || eurEtched > 0) {
-        prices[card.id] = { usd, usdFoil, usdEtched, eur, eurFoil, eurEtched, pricedAt: now };
-      }
-    }
-
-    res.json({ prices });
+    // `prices` (per finish, emitted only when priced) + `releasedAt` (per
+    // printing, emitted whether or not it's priced). Both rules, and why they
+    // differ, live on buildPriceRefreshPayload.
+    res.json(buildPriceRefreshPayload(cards, Date.now()));
   } catch (err) {
     logger.error('[refresh-prices] error:', err);
     res.status(500).json({ error: 'Price refresh failed.' });

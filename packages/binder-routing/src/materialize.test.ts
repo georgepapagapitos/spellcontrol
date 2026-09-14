@@ -1262,6 +1262,34 @@ describe('Secret Lair drop sections + packSections', () => {
 
   const twelve = { globalPocketSize: 12 as const, search: '' };
 
+  // A rolling container set (The List, SLP, SLC, PRM) is ONE group whose cards
+  // carry DIFFERENT per-printing dates. The section must sit at its earliest
+  // card's date, not at whichever card happened to be first in the collection
+  // array — otherwise the section's position moves as cards are added.
+  it('orders a multi-date group by its EARLIEST printing, whatever the array order', () => {
+    const listCard = (name: string, releasedAt: string) =>
+      makeCard({ name, setCode: 'PLST', setName: 'The List', releasedAt });
+    const cmm = makeCard({ name: 'Cmm', setCode: 'CMM', setName: 'Commander Masters' });
+    const setMap = {
+      CMM: { code: 'CMM', name: 'Commander Masters', iconSvgUri: '', releasedAt: '2023-08-04' },
+      PLST: { code: 'PLST', name: 'The List', iconSvgUri: '', releasedAt: '2020-09-26' },
+    };
+    const binder = makeBinder({
+      filter: {},
+      sorts: [{ field: 'setReleaseDate', dir: 'asc' }],
+    });
+    // The List holds a 2021 and a 2026 printing; it must land BEFORE Commander
+    // Masters (2023) either way round, because its oldest card is from 2021.
+    for (const order of [
+      [listCard('Late', '2026-01-01'), listCard('Early', '2021-01-01'), cmm],
+      [listCard('Early', '2021-01-01'), listCard('Late', '2026-01-01'), cmm],
+      [cmm, listCard('Late', '2026-01-01'), listCard('Early', '2021-01-01')],
+    ]) {
+      const { binders } = materializeBinders(order, [binder], { ...twelve, setMap });
+      expect(binders[0].sections.map((s) => s.label)).toEqual(['The List', 'Commander Masters']);
+    }
+  });
+
   it('makes one section per drop, newest drop first', () => {
     const cards = [
       ...drop('Cats of Chaos', 5, '2026-06-16'),

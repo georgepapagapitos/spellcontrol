@@ -137,6 +137,27 @@ describe('cardSortValue', () => {
     expect(sorted.map((c) => c.setCode)).toEqual(['CMM', 'ZZZ']);
   });
 
+  // A set present in the map but carrying a BLANK date. `SetSummary.releasedAt`
+  // is `''` (not optional) when Scryfall gave no date, and `''` is a truthy
+  // sort value that sorts FIRST ascending — while the matching section header
+  // reads it as falsy and takes UNKNOWN_ORDER, i.e. LAST. The test above covers
+  // only a set ABSENT from the map, which was never the broken case.
+  it('setReleaseDate: a set with a blank release date sorts to the end, not the front', () => {
+    const known = makeCard({ setCode: 'CMM', setName: 'Commander Masters' });
+    const blank = makeCard({ setCode: 'ZZZ', setName: 'Undated Set' });
+    const ctx = {
+      setMap: {
+        CMM: { code: 'CMM', name: 'Commander Masters', iconSvgUri: '', releasedAt: '2023-08-04' },
+        ZZZ: { code: 'ZZZ', name: 'Undated Set', iconSvgUri: '', releasedAt: '' },
+      },
+    };
+    expect(cardSortValue(blank, 'setReleaseDate', ctx)).toBe(UNKNOWN_VALUE);
+    for (const dir of ['asc', 'desc'] as const) {
+      const sorted = sortCards([blank, known], [{ field: 'setReleaseDate', dir }], ctx);
+      expect(sorted.map((c) => c.setCode)).toEqual(['CMM', 'ZZZ']);
+    }
+  });
+
   it('setReleaseDate: sorts chronologically by release date', () => {
     const blb = makeCard({ setName: 'Bloomburrow', setCode: 'BLB' });
     const fin = makeCard({ setName: 'Final Fantasy', setCode: 'FIN' });
@@ -365,8 +386,55 @@ describe('releaseDateOf — a Secret Lair dates from its drop, never the flat se
     expect(releaseDateOf(card, ctx)).toBeUndefined();
   });
 
-  it('leaves ordinary sets — including SLC/SLP — on their own set date', () => {
+  it('falls back to the set date for an ordinary set', () => {
     expect(releaseDateOf(makeCard({ setCode: 'CMM' }), ctx)).toBe('2023-08-04');
+  });
+
+  // The printing's OWN date is the truth; the drop map and the set date are
+  // only fallbacks for a card the per-printing lookup hasn't reached yet.
+  describe('a printing that carries its own date', () => {
+    it('beats the flat set date', () => {
+      const card = makeCard({ setCode: 'CMM', releasedAt: '2023-09-01' });
+      expect(releaseDateOf(card, ctx)).toBe('2023-09-01');
+    });
+
+    it('beats the Secret Lair drop date', () => {
+      const card = makeCard({
+        setCode: 'SLD',
+        sldDrop: 'Goblin Storm',
+        sldDropReleasedAt: '2026-05-22',
+        releasedAt: '2026-05-25',
+      });
+      expect(releaseDateOf(card, ctx)).toBe('2026-05-25');
+    });
+
+    it('dates an unmapped Secret Lair that would otherwise have no date', () => {
+      const card = makeCard({ setCode: 'SLD', releasedAt: '2024-07-29' });
+      expect(releaseDateOf(card, ctx)).toBe('2024-07-29');
+    });
+
+    // The reason this field exists. SLP/SLC/PLST/PRM are rolling containers:
+    // Scryfall dates the SET from its first card, so every later printing in it
+    // inherits a date that can be years early. SLP alone spans 2023→2026 under
+    // a 2023-02-17 set date.
+    it('separates printings that share one rolling container set', () => {
+      const slp = {
+        SLP: { code: 'SLP', name: 'Secret Lair Promo', iconSvgUri: '', releasedAt: '2023-02-17' },
+      };
+      const early = makeCard({ name: 'Early', setCode: 'SLP', releasedAt: '2023-02-19' });
+      const late = makeCard({ name: 'Late', setCode: 'SLP', releasedAt: '2026-09-11' });
+      const sorted = sortCards([late, early], [{ field: 'setReleaseDate', dir: 'asc' }], {
+        setMap: slp,
+      });
+      expect(sorted.map((c) => c.name)).toEqual(['Early', 'Late']);
+      // Without the per-printing date both collapse onto the set date and the
+      // sort can't tell them apart at all.
+      const undecorated = [
+        makeCard({ name: 'Early', setCode: 'SLP' }),
+        makeCard({ name: 'Late', setCode: 'SLP' }),
+      ];
+      expect(undecorated.map((c) => releaseDateOf(c, slp))).toEqual(['2023-02-17', '2023-02-17']);
+    });
   });
 });
 
