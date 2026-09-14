@@ -84,6 +84,34 @@ export function PlayPage() {
     });
   };
 
+  // Deep link from the landing page's "Start a game" door (`/play?new=1`):
+  // start a table on arrival, so the promise is one tap rather than a tap plus
+  // a form. The values are exactly what an untouched LocalSetup would submit,
+  // so the door and the form can never disagree. The param is stripped with
+  // `replace` first — before any early return — so a refresh or a Back never
+  // restarts a game, and an already-running game always wins over the deep
+  // link rather than being silently clobbered.
+  useEffect(() => {
+    if (params.get('new') !== '1') return;
+    setParams(
+      (p) => {
+        p.delete('new');
+        return p;
+      },
+      { replace: true }
+    );
+    if (usePlayStore.getState().local) return;
+    const fmt = FORMAT_OPTIONS[0];
+    startLocal({
+      format: fmt.value,
+      startingLife: fmt.defaultLife,
+      commanderDamageEnabled: fmt.cmdDmg,
+      poisonEnabled: false,
+      players: Array.from({ length: MIN_LOCAL_PLAYERS }, (_, i) => blankPlayer(`Player ${i + 1}`)),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Re-attach polling on mount if we have an active online game in store.
   useEffect(() => {
     if (online) {

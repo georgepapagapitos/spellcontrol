@@ -1,7 +1,7 @@
 import './WelcomeHero.css';
 import { useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowRight, Import } from 'lucide-react';
+import { ArrowRight, Import, Swords } from 'lucide-react';
 import { BrandMark } from '../shared/BrandMark';
 import { SearchPill } from '../SearchPill';
 import { useCardThumb } from '../../lib/card-thumbs';
@@ -95,6 +95,24 @@ export function WelcomeHero() {
           >
             <Import width={14} height={14} strokeWidth={1.8} aria-hidden />
             Import your collection
+          </Link>
+          {/* The life-counter door. A local game needs no account and no
+              collection, so this goes straight to a running table rather than
+              a setup form (PlayPage reads `new=1`) — someone who arrived for a
+              life counter should not have to pretend to care about a
+              collection first. markEverVisited for the same reason the Import
+              door calls it: starting a game is an intentional first action, so
+              the first-run gate must not bounce them back here next boot and
+              hide the game they left running. No track() call — `play_started`
+              fires from the store when the game actually starts, which is the
+              honest event. */}
+          <Link
+            to="/play?new=1"
+            className="pill-btn welcome-hero-cta-secondary"
+            onClick={markEverVisited}
+          >
+            <Swords width={14} height={14} strokeWidth={1.8} aria-hidden />
+            Start a game
           </Link>
           <Link
             to="/decks/discover"

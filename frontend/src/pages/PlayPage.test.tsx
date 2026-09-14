@@ -2,9 +2,10 @@
 import 'fake-indexeddb/auto';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { PlayPage } from './PlayPage';
 import { useRulesReferenceStore } from '../store/rules-reference';
+import { usePlayStore } from '../store/play';
 
 function renderPage(initialEntry = '/play') {
   return render(
@@ -75,5 +76,55 @@ describe('PlayPage rules button', () => {
     expect(useRulesReferenceStore.getState().isOpen).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: 'Rules' }));
     expect(useRulesReferenceStore.getState().isOpen).toBe(true);
+  });
+});
+
+// E300 — the landing page's "Start a game" door deep-links here with `new=1`
+// and must land on a RUNNING table, not the setup form. If this regresses the
+// door silently becomes "one tap to a form", which is the thing it existed to
+// fix.
+describe('PlayPage — ?new=1 deep link', () => {
+  const seat = (name: string) => ({
+    name,
+    deckId: null,
+    deckName: null,
+    commander: null,
+    partner: null,
+    colorIdentity: [],
+  });
+
+  beforeEach(() => {
+    usePlayStore.setState({ local: null });
+  });
+
+  it('opens a running table on the Commander defaults, skipping the setup form', () => {
+    renderPage('/play?new=1');
+    expect(screen.queryByText('New local game')).toBeNull();
+    // Exactly what an untouched LocalSetup would submit: 2 seats, blank names
+    // falling back to "Player N", 40 life.
+    expect(screen.getByText('Player 1')).toBeTruthy();
+    expect(screen.getByText('Player 2')).toBeTruthy();
+    expect(screen.queryByText('Player 3')).toBeNull();
+    expect(screen.getAllByText('40').length).toBeGreaterThan(0);
+  });
+
+  it('never clobbers a game already in progress', () => {
+    usePlayStore.getState().startLocal({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+      players: [seat('Alice'), seat('Bob')],
+    });
+    renderPage('/play?new=1');
+    expect(screen.getByText('Alice')).toBeTruthy();
+    expect(screen.getByText('Bob')).toBeTruthy();
+    expect(screen.queryByText('Player 1')).toBeNull();
+  });
+
+  it('leaves a plain /play on the setup form — no accidental auto-start', () => {
+    renderPage('/play');
+    expect(screen.getByText('New local game')).toBeTruthy();
+    expect(usePlayStore.getState().local).toBeNull();
   });
 });
