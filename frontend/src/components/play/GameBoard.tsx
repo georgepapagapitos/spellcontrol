@@ -1,9 +1,14 @@
-import { Compass, Crown, MoreHorizontal, Undo2 } from 'lucide-react';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Compass, Crown, MoreHorizontal, Plus, Trash2, Undo2 } from 'lucide-react';
+import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { GameAction, GamePlayer, GameState } from '../../lib/game-state';
 import { cmdDamageKey } from '../../lib/game-state';
 import type { EmptyCell, SeatSlot } from '../../lib/board-layouts';
-import { isCustomLayout, resolveLayout, undoButtonParams } from '../../lib/board-layouts';
+import {
+  isCustomLayout,
+  resolveLayout,
+  seamOffset,
+  undoButtonParams,
+} from '../../lib/board-layouts';
 import { paletteForSeat } from '../../lib/seat-palette';
 import { useAnimatedNumber } from '../../lib/use-animated-number';
 import { useFloatingDelta } from '../../lib/use-floating-delta';
@@ -15,9 +20,17 @@ import { capture, clearUndo, peekLabel, popRestore, runSuppressed } from '../../
 import { useCardThumb } from '../../lib/card-thumbs';
 import { scryfallArtCrop } from '../../lib/offline/slim-to-scryfall';
 import { cmdDamageFillRatio, cmdDamageToLethal } from '../../lib/cmd-damage';
+import {
+  MAX_COUNTERS_PER_SCOPE,
+  MAX_COUNTER_NAME_LENGTH,
+  normalizeCounterName,
+  seatCounters,
+} from '../../lib/game-state';
+import { usePlayStore } from '../../store/play';
 import { useTapAndHold } from '../../lib/tap-and-hold';
 import { LifeKeypad } from './LifeKeypad';
 import { SeatMenu } from './SeatMenu';
+import { GameClock } from './GameClock';
 import { GameMenu } from './GameMenu';
 import { GameRecap } from './GameRecap';
 
@@ -74,6 +87,7 @@ export function GameBoard({
   // layout ids fall back to the count's default.
   const board = resolveLayout(total, game.layout);
   const [menuOpen, setMenuOpen] = useState(false);
+  const showClock = usePlayStore((st) => st.showClock);
   // Commander-damage focus mode: the seat currently asking "how much has each
   // of you hit me for?". Null = normal board. Held here (not per panel)
   // because entering it changes every OTHER panel's meaning.
@@ -228,6 +242,28 @@ export function GameBoard({
         >
           <MoreHorizontal width={22} height={22} strokeWidth={2} aria-hidden />
         </button>
+
+        {/* Clock sits on the far side of the seam hub from undo, so the two
+            never collide and the hub stays the board's one control cluster.
+            Hidden in commander-damage focus mode: that mode deliberately
+            strips the board down to the damage question. */}
+        {showClock && !cmdFocus && (
+          <div
+            className="game-board-clock"
+            style={{
+              ['--seam-top-pct' as never]:
+                'row' in board.seam ? `${(board.seam.row / board.rows) * 100}%` : '50%',
+              ['--seam-left-pct' as never]:
+                'col' in board.seam ? `${(board.seam.col / board.cols) * 100}%` : '50%',
+              ['--clock-tx' as never]: seamOffset(board.seam, '3.4rem', 1).tx,
+              ['--clock-ty' as never]: seamOffset(board.seam, '3.4rem', 1).ty,
+              ['--clock-tx-lg' as never]: seamOffset(board.seam, '4rem', 1).tx,
+              ['--clock-ty-lg' as never]: seamOffset(board.seam, '4rem', 1).ty,
+            }}
+          >
+            <GameClock game={game} />
+          </div>
+        )}
 
         {undoLabel && (
           <button
@@ -792,7 +828,7 @@ function PlayerPanel({
             </div>
           )}
 
-          {!cmdFocus && (game.poisonEnabled || game.commanderDamageEnabled) && (
+          {!cmdFocus && (
             <div className="player-panel-counters">
               {game.poisonEnabled && (
                 <button
@@ -829,6 +865,41 @@ function PlayerPanel({
                   {maxCmdDmg}
                 </button>
               )}
+              {/* One chip per free-form counter this seat is tracking. They
+                  read on the board itself rather than only inside the
+                  popover — a counter you have to open a drawer to see is a
+                  counter nobody trusts mid-game. */}
+              {Object.entries(seatCounters(player)).map(([name, value]) => (
+                <button
+                  key={name}
+                  type="button"
+                  className="pp-counter-chip is-custom"
+                  aria-label={`${name} ${value}. Open counters`}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDrawerOpen(true);
+                  }}
+                >
+                  <span className="pp-counter-chip-name">{name}</span>
+                  {value}
+                </button>
+              ))}
+              {/* The always-present way in. Without it a table with poison off
+                  and no counters yet has no route to the popover at all. */}
+              <button
+                type="button"
+                className="pp-counter-chip is-add"
+                aria-label="Counters"
+                title="Counters"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDrawerOpen(true);
+                }}
+              >
+                <Plus width={13} height={13} strokeWidth={2.6} aria-hidden />
+              </button>
             </div>
           )}
 
@@ -1018,6 +1089,11 @@ function CountersPopover({
   });
   const panelRef = useRef<HTMLDivElement>(null);
   useOverlayDismiss(onClose, panelRef);
+  const [draft, setDraft] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const errorId = useId();
+  const counters = Object.entries(seatCounters(player));
+  const atCap = counters.length >= MAX_COUNTERS_PER_SCOPE;
   return (
     <div
       ref={panelRef}
@@ -1054,7 +1130,100 @@ function CountersPopover({
               }
             />
           )}
+          {counters.map(([name, value]) => (
+            <CounterRow
+              key={name}
+              label={name}
+              value={value}
+              disabled={disabled}
+              lethal={false}
+              onChange={(d) =>
+                dispatch({
+                  type: 'counter',
+                  seat: player.seat,
+                  name,
+                  delta: d,
+                  actorSeat: player.seat,
+                })
+              }
+              onRemove={
+                disabled
+                  ? undefined
+                  : () =>
+                      dispatch({
+                        type: 'counter-remove',
+                        seat: player.seat,
+                        name,
+                        actorSeat: player.seat,
+                      })
+              }
+            />
+          ))}
+          {!game.poisonEnabled && counters.length === 0 && (
+            <p className="pp-counters-empty">
+              Nothing tracked yet. Add whatever this table counts.
+            </p>
+          )}
         </div>
+        {!disabled &&
+          (atCap ? (
+            <p className="pp-counters-cap" role="status">
+              {MAX_COUNTERS_PER_SCOPE} counters is the limit. Remove one to add another.
+            </p>
+          ) : (
+            <form
+              className="pp-counters-add"
+              onSubmit={(e) => {
+                e.preventDefault();
+                let name: string;
+                try {
+                  name = normalizeCounterName(draft);
+                } catch {
+                  setError('Give the counter a name.');
+                  return;
+                }
+                if (name in seatCounters(player)) {
+                  setError(`${name} is already here.`);
+                  return;
+                }
+                // Delta 0 creates it at zero — the reducer has no separate
+                // "add" action precisely so this stays one dispatch.
+                dispatch({
+                  type: 'counter',
+                  seat: player.seat,
+                  name,
+                  delta: 0,
+                  actorSeat: player.seat,
+                });
+                setDraft('');
+                setError(null);
+              }}
+            >
+              <label className="pp-counters-add-field">
+                <span className="visually-hidden">New counter name</span>
+                <input
+                  className="pp-counters-add-input"
+                  value={draft}
+                  onChange={(e) => {
+                    setDraft(e.target.value);
+                    setError(null);
+                  }}
+                  maxLength={MAX_COUNTER_NAME_LENGTH}
+                  placeholder="Energy"
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? errorId : undefined}
+                />
+              </label>
+              <button type="submit" className="pp-counters-add-btn">
+                Add
+              </button>
+            </form>
+          ))}
+        {error && (
+          <p id={errorId} className="pp-counters-error" role="alert">
+            {error}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -1144,12 +1313,15 @@ function CounterRow({
   disabled,
   lethal,
   onChange,
+  onRemove,
 }: {
   label: string;
   value: number;
   disabled: boolean;
   lethal: boolean;
   onChange: (delta: number) => void;
+  /** Free-form counters can be deleted; poison is a rule and cannot. */
+  onRemove?: () => void;
 }) {
   const tapHandlers = useTapAndHold({
     onTap: onChange,
@@ -1179,6 +1351,16 @@ function CounterRow({
         >
           +
         </button>
+        {onRemove && (
+          <button
+            type="button"
+            className="counter-row-remove"
+            aria-label={`Remove ${label}`}
+            onClick={onRemove}
+          >
+            <Trash2 width={14} height={14} aria-hidden />
+          </button>
+        )}
       </div>
     </div>
   );

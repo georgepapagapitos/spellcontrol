@@ -104,6 +104,20 @@ export const THEMES: ThemeDef[] = [
     scheme: 'light',
     swatch: ['#88c060', '#6fa3d8'],
   },
+  /**
+   * The one non-guild theme, and the one with a job rather than a vibe: a
+   * true-black ground so an OLED panel lights no pixel it doesn't have to.
+   * That matters on exactly one surface — the play board, which sits face-up
+   * on a table for three hours — and the ten material palettes all paint a
+   * real background by design, so none of them could serve it.
+   */
+  {
+    id: 'obsidian',
+    name: 'Obsidian',
+    guild: 'True black · OLED',
+    scheme: 'dark',
+    swatch: ['#000000', '#7d9bf0'],
+  },
 ];
 
 export function isValidTheme(id: string): boolean {

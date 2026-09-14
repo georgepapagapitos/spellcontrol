@@ -643,7 +643,7 @@ export function YouPage() {
         <SettingsSection
           id="settings-appearance-title"
           title="Theme"
-          hint="Theme re-skins the whole app to a guild palette."
+          hint="Theme re-skins the whole app. Obsidian is true black, for OLED screens."
         >
           <fieldset className="settings-theme-grid" aria-label="Choose theme">
             {THEMES.map((t) => (

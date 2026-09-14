@@ -186,6 +186,27 @@
   --on-accent: #180d0e;
 }
 
+/* Obsidian — not a guild and not a material: a true-black ground for OLED
+   panels. The play board sits face-up on a table for hours, and a lit pixel
+   is battery; #000 is the only value where an OLED actually switches the
+   subpixel off, so --bg is exactly that rather than a near-black. Surfaces
+   step up in tiny increments so panels still separate from the ground
+   without reintroducing a lit field behind everything. */
+[data-theme='obsidian'] {
+  --bg: #000000;
+  --surface: #0a0a0c;
+  --surface-raised: #141418;
+  --border: #2a2a30;
+  --border-strong: #3d3d46;
+  --text-primary: #e8e8ea;
+  --text-secondary: #b0b0b8;
+  --text-muted: #a0a0a8;
+  --accent: #7d9bf0;
+  --accent-hover: #94aef5;
+  --accent-light: color-mix(in srgb, #7d9bf0 18%, transparent);
+  --on-accent: #05050a;
+}
+
 /**
  * Status colors for light themes. The :root defaults are tuned for dark
  * surfaces (pale text on dark bg); on light surfaces they read as
@@ -250,6 +271,16 @@
 
   /* Match native form controls to the dark surface. */
   color-scheme: dark;
+}
+
+/* Obsidian opts out of the pebbled-leather grain. Grain is lit pixels painted
+   across the whole ground, which is precisely what a true-black theme exists
+   to avoid — and on #000 the flecks read as sensor noise rather than texture.
+   This sits AFTER [data-scheme='dark'] deliberately: the two selectors carry
+   equal specificity, so source order is the only thing that makes this win.
+   It declares no palette tokens, so themes-contrast.test.ts skips it. */
+[data-theme='obsidian'] {
+  --grain: transparent;
 }
 
 /* ── prefers-contrast: more ───────────────────────────────────────────────

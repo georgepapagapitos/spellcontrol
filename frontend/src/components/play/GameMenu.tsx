@@ -7,6 +7,7 @@ import { usePlayStore } from '../../store/play';
 import { useRulesReferenceStore } from '../../store/rules-reference';
 import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
 import { GameHistory } from './GameHistory';
+import { TurnTimes } from './TurnTimes';
 import { GameTools } from './GameTools';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { Tabs } from '../Tabs';
@@ -43,6 +44,8 @@ export function GameMenu({
   const hapticsEnabled = usePlayStore((s) => s.hapticsEnabled);
   const setHaptics = usePlayStore((s) => s.setHaptics);
   const preferredLayouts = usePlayStore((s) => s.preferredLayouts);
+  const showClock = usePlayStore((s) => s.showClock);
+  const setShowClock = usePlayStore((s) => s.setShowClock);
   const setPreferredLayout = usePlayStore((s) => s.setPreferredLayout);
   const openRules = useRulesReferenceStore((s) => s.open);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -248,6 +251,7 @@ export function GameMenu({
                 {game.poisonEnabled && <span className="game-menu-chip">Poison</span>}
                 <span className="game-menu-chip is-mode">{game.mode}</span>
               </div>
+              <TurnTimes game={game} />
               <GameHistory game={game} />
             </>
           )}
@@ -295,6 +299,18 @@ export function GameMenu({
                   <span className="game-menu-setting-label">Haptic feedback</span>
                   <span className="game-menu-setting-state" aria-hidden="true">
                     {hapticsEnabled ? 'On' : 'Off'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={showClock}
+                  className={`game-menu-setting ${showClock ? 'is-on' : ''}`}
+                  onClick={() => setShowClock(!showClock)}
+                >
+                  <span className="game-menu-setting-label">Table clock</span>
+                  <span className="game-menu-setting-state" aria-hidden="true">
+                    {showClock ? 'On' : 'Off'}
                   </span>
                 </button>
               </section>

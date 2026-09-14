@@ -36,6 +36,8 @@ import { FriendsLeaderboard } from '../components/play/FriendsLeaderboard';
 import { GameNightsTab, pendingInviteCount, useGameNights } from '../components/play/GameNights';
 import { aggregateMatchupRecords } from '../lib/matchup-records';
 import { FORMAT_OPTIONS, MAX_LOCAL_PLAYERS, MIN_LOCAL_PLAYERS } from '../lib/game-formats';
+import { MAX_COUNTERS_PER_SCOPE, MAX_COUNTER_NAME_LENGTH } from '../lib/game-state';
+import { TableProfiles } from '../components/play/TableProfiles';
 import type { GameAction, GameFormat, GamePlayer, GameRecord, GameState } from '../lib/game-state';
 import type { PublicBoard } from '../lib/playtest/projection';
 
@@ -418,6 +420,51 @@ function LocalSetup({
   const [players, setPlayers] = useState<LocalGameSetup['players']>(() =>
     Array.from({ length: MAX_LOCAL_PLAYERS }, (_, i) => blankPlayer(seed?.players[i] ?? ''))
   );
+  // Free-form counter names every seat starts with. Empty for most tables;
+  // a pod that always tracks energy sets it once and saves it in a profile.
+  const [counters, setCounters] = useState<string[]>([]);
+  const [counterDraft, setCounterDraft] = useState('');
+
+  /** The form's current values as a startable setup. Shared by submit and by
+   *  "save as profile", so a saved profile is exactly what would have run. */
+  function buildSetup(): LocalGameSetup {
+    return {
+      format,
+      startingLife,
+      commanderDamageEnabled,
+      poisonEnabled,
+      counters,
+      players: players
+        .slice(0, count)
+        .map((p, i) => ({ ...p, name: p.name.trim() || `Player ${i + 1}` })),
+    };
+  }
+
+  /** Load a profile over the form. A genuine reset: every field is replaced,
+   *  including the seats beyond the profile's own count, so nothing from the
+   *  previous setup survives underneath. */
+  function applySetup(setup: LocalGameSetup) {
+    setFormat(setup.format);
+    setStartingLife(setup.startingLife);
+    setCmdDmg(setup.commanderDamageEnabled);
+    setPoison(setup.poisonEnabled);
+    setCounters(setup.counters ?? []);
+    setCounterDraft('');
+    const next = Math.max(MIN_LOCAL_PLAYERS, Math.min(setup.players.length, MAX_LOCAL_PLAYERS));
+    setCount(next);
+    setPlayers(
+      Array.from({ length: MAX_LOCAL_PLAYERS }, (_, i) => setup.players[i] ?? blankPlayer(''))
+    );
+  }
+
+  function addCounter() {
+    const name = counterDraft.replace(/\s+/g, ' ').trim().slice(0, MAX_COUNTER_NAME_LENGTH);
+    if (!name) return;
+    setCounters((prev) =>
+      prev.some((c) => c.toLowerCase() === name.toLowerCase()) ? prev : [...prev, name]
+    );
+    setCounterDraft('');
+  }
 
   function applyFormat(next: GameFormat) {
     const cfg = FORMAT_OPTIONS.find((f) => f.value === next) ?? FORMAT_OPTIONS[0];
@@ -453,15 +500,7 @@ function LocalSetup({
       className="play-setup play-setup-form-grid"
       onSubmit={(e) => {
         e.preventDefault();
-        onStart({
-          format,
-          startingLife,
-          commanderDamageEnabled,
-          poisonEnabled,
-          players: players
-            .slice(0, count)
-            .map((p, i) => ({ ...p, name: p.name.trim() || `Player ${i + 1}` })),
-        });
+        onStart(buildSetup());
       }}
     >
       <header className="play-setup-header">
@@ -469,6 +508,8 @@ function LocalSetup({
           {hasActive ? 'Start a different game' : 'New local game'}
         </h2>
       </header>
+
+      <TableProfiles current={buildSetup} onLoad={applySetup} />
 
       <section className="play-setup-game" aria-labelledby="play-setup-game-label">
         <h3 id="play-setup-game-label" className="play-setup-section-title">
@@ -515,6 +556,58 @@ function LocalSetup({
           label="Poison counters"
           hint="Lose at 10 poison counters."
         />
+
+        {/* Free-form counters every seat starts with. Nothing here is a rule:
+            these never cause a loss, they are just what this table counts. */}
+        <div className="play-setup-counters">
+          <span id="setup-counters-label" className="play-setup-counters-label">
+            Counters on every seat
+          </span>
+          {counters.length > 0 && (
+            <ul className="play-setup-counter-chips" aria-labelledby="setup-counters-label">
+              {counters.map((name) => (
+                <li key={name}>
+                  <button
+                    type="button"
+                    className="play-setup-counter-chip"
+                    aria-label={`Remove ${name}`}
+                    onClick={() => setCounters((prev) => prev.filter((c) => c !== name))}
+                  >
+                    {name}
+                    <span aria-hidden="true">✕</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {counters.length < MAX_COUNTERS_PER_SCOPE && (
+            <div className="play-setup-counter-add">
+              <input
+                className="play-setup-counter-input"
+                value={counterDraft}
+                onChange={(e) => setCounterDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  // Enter inside a form submits it, which would start the
+                  // game instead of adding the counter.
+                  if (e.key !== 'Enter') return;
+                  e.preventDefault();
+                  addCounter();
+                }}
+                maxLength={MAX_COUNTER_NAME_LENGTH}
+                placeholder="Energy"
+                aria-label="New counter name"
+              />
+              <button
+                type="button"
+                className="play-setup-counter-btn"
+                disabled={!counterDraft.trim()}
+                onClick={addCounter}
+              >
+                Add
+              </button>
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="play-setup-roster" aria-label="Players">

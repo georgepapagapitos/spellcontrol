@@ -303,6 +303,24 @@ export function homeSlotIndex(layout: BoardLayout): number {
  * @param offset  Distance from the hub centre to the undo button centre.
  *                Defaults to "3.4rem" (mobile). Pass "4rem" for the ≥600px size.
  */
+export function seamOffset(
+  seam: BoardLayout['seam'],
+  offset: string,
+  side: -1 | 1
+): {
+  /** Full CSS translate() X argument. */
+  tx: string;
+  /** Full CSS translate() Y argument. */
+  ty: string;
+} {
+  const sign = side < 0 ? '-' : '+';
+  // The seam runs along one axis, so a satellite always moves along the other:
+  // a col-seam is vertical, so its satellites sit above/below; a row-seam is
+  // horizontal, so its satellites sit left/right.
+  if ('col' in seam) return { tx: '-50%', ty: `calc(-50% ${sign} ${offset})` };
+  return { tx: `calc(-50% ${sign} ${offset})`, ty: '-50%' };
+}
+
 export function undoButtonParams(
   seam: BoardLayout['seam'],
   offset = '3.4rem'
@@ -314,12 +332,8 @@ export function undoButtonParams(
   /** Icon rotation in degrees (0 for row-seam, 90 for col-seam). */
   iconRot: 0 | 90;
 } {
-  if ('col' in seam) {
-    // Col-seam: offset above the hub, rotate icon 90° for sideways reading.
-    return { tx: '-50%', ty: `calc(-50% - ${offset})`, iconRot: 90 };
-  }
-  // Row-seam: offset to the left of the hub, icon default (0°).
-  return { tx: `calc(-50% - ${offset})`, ty: '-50%', iconRot: 0 };
+  // Undo is the "before" satellite: left of a row seam, above a col seam.
+  return { ...seamOffset(seam, offset, -1), iconRot: 'col' in seam ? 90 : 0 };
 }
 
 // ── Custom layouts ─────────────────────────────────────────────────────────
