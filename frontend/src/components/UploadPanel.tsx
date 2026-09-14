@@ -761,7 +761,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
 
           {successMsg && <p className="import-review-line">{successMsg}</p>}
 
-          {routingSummary.entries.length > 0 && (
+          {(routingSummary.entries.length > 0 || routingSummary.unroutedCount > 0) && (
             <div className="import-review-section import-review-section--routing">
               <ImportRoutingSummary summary={routingSummary} />
             </div>

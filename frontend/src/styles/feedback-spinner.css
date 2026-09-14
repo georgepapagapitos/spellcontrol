@@ -69,6 +69,32 @@
   color: var(--text-muted);
 }
 
+/* The "matched no binder" fallthrough row (E296). Same row mechanics as a
+   binder destination, but it is a prompt rather than a report — it earns a
+   hairline separator above it and a hollow pip, because there is no binder
+   colour to show and a filled neutral dot would read as just another binder. */
+.import-routing-row--unrouted {
+  align-items: flex-start;
+  margin-top: 2px;
+  padding-top: calc(6px + var(--space-1));
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.import-routing-pip--empty {
+  background: none;
+  border: 1px dashed var(--text-muted);
+}
+
+/* Sits under the row label as a second line: says what to DO with the count,
+   so the row is actionable rather than just a number the user has to interpret. */
+.import-routing-hint {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
 /* Global crash fallback (ErrorBoundary) — the same full-viewport
    self-scrolling centered-card pattern as .auth-page/.auth-card (STYLE_GUIDE
    § Full-viewport centered pages): body has overflow:hidden and #root has no

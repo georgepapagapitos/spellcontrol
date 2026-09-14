@@ -112,6 +112,54 @@ describe('countEffectiveLanding', () => {
     expect(r.lands).toBe(0);
     expect(r.caughtAbove).toBe(2);
     expect(r.pulledIn).toBe(0);
+    // ...and WHICH binder took them, so the editor can name it (E298).
+    expect(r.caughtBy).toEqual([{ binderId: 'binder-Earlier', binderName: 'Earlier', count: 2 }]);
+  });
+
+  it('caughtBy attributes the shortfall per binder, biggest share first', () => {
+    // Two binders above the draft, each claiming a different slice of what the
+    // draft's rules match: the editor names the bigger thief first.
+    const cheap = makeBinder('Cheap', { priceMax: 1 }, 0);
+    const pricey1 = makeBinder('Pricey', { priceMin: 2 }, 1);
+    const cards = [pricey(), pricey(), pricey(), bulk()];
+    const r = countEffectiveLanding(cards, [cheap, pricey1], {
+      id: null,
+      // Matches everything, so every card is visible to the draft's rules and
+      // the whole collection is accounted for across the two binders above.
+      groups: [{ filter: {} }],
+      keepPrintingsTogether: false,
+    });
+    expect(r.lands).toBe(0);
+    expect(r.caughtBy).toEqual([
+      { binderId: 'binder-Pricey', binderName: 'Pricey', count: 3 },
+      { binderId: 'binder-Cheap', binderName: 'Cheap', count: 1 },
+    ]);
+    // The attribution sums to the shortfall it explains.
+    expect(r.caughtBy.reduce((n, c) => n + c.count, 0)).toBe(r.caughtAbove);
+  });
+
+  it('caughtBy is empty when nothing is caught above', () => {
+    const r = countEffectiveLanding([pricey()], [], {
+      id: null,
+      groups: priceRule,
+      keepPrintingsTogether: false,
+    });
+    expect(r.caughtAbove).toBe(0);
+    expect(r.caughtBy).toEqual([]);
+  });
+
+  it('caughtBy ignores binders holding cards the draft rules do not match', () => {
+    // "Cheap" holds the bulk printing, which the draft's priceMin rule never
+    // wanted — it is not stealing anything and must not be blamed.
+    const cheap = makeBinder('Cheap', { priceMax: 1 }, 0);
+    const r = countEffectiveLanding([pricey(), bulk()], [cheap], {
+      id: null,
+      groups: priceRule,
+      keepPrintingsTogether: false,
+    });
+    expect(r.lands).toBe(1);
+    expect(r.caughtAbove).toBe(0);
+    expect(r.caughtBy).toEqual([]);
   });
 
   it('editing an existing binder keeps its position instead of appending last', () => {

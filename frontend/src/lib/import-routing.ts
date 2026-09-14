@@ -3,8 +3,8 @@ import { materializeBinders } from './materialize';
 
 /**
  * Where the cards from a particular import ended up after rule routing.
- * Only real binder destinations are reported — the uncategorized remainder is
- * deliberately not surfaced (see `summarizeImportRouting`).
+ * The uncategorized remainder is reported separately as a count, not as an
+ * entry — it has no binder to open (see `summarizeImportRouting`).
  */
 export interface ImportRoutingEntry {
   binderId: string;
@@ -14,15 +14,21 @@ export interface ImportRoutingEntry {
 }
 
 export interface ImportRoutingSummary {
-  /** Per-binder breakdown, sorted by count desc. Cards that matched no binder
-   *  (the "Uncategorized" remainder) are intentionally omitted — falling
-   *  through to Uncategorized just means "still in your collection, unrouted",
-   *  which isn't worth surfacing as a where-did-my-cards-go destination (E11). */
+  /** Per-binder breakdown, sorted by count desc. Never contains the
+   *  uncategorized remainder — that has no binder id to open, so it rides
+   *  along as `unroutedCount` instead. */
   entries: ImportRoutingEntry[];
   /** Total cards from the import that landed in a binder. Same as
    *  `entries.reduce(+ count)` — surfaced separately so callers don't need
    *  to recompute it. Excludes the uncategorized remainder. */
   totalRouted: number;
+  /** Cards from this import that matched NO binder's rules and fell through to
+   *  Uncategorized. E11 originally suppressed this as "a no-op default not
+   *  worth surfacing", which left the panel reporting "Routed 312 cards" and
+   *  saying nothing about the other 88 — the user's only route to them was a
+   *  Collection-page filter they had to know existed. It is the signal that a
+   *  rule is missing, so it is now reported (E296). */
+  unroutedCount: number;
 }
 
 /**
@@ -31,10 +37,10 @@ export interface ImportRoutingSummary {
  * "where did my cards go?"
  *
  * Cards that matched no binder fall through to the Uncategorized remainder and
- * are NOT reported (E11): "uncategorized" is just "still in the collection,
- * unrouted", a no-op default not worth surfacing. When nothing matched a real
- * binder the summary is empty and the caller hides the panel entirely (the
- * import success banner already confirms the import landed).
+ * are counted into `unroutedCount` (E296, reversing E11's suppression). That
+ * count is the one number that tells the user a rule is missing — without it
+ * the panel confirms what landed and stays silent about what escaped, which
+ * is exactly the half the user needs in order to act.
  *
  * We materialize the *current* binder layout once and walk the per-binder
  * card lists, so the result agrees with what the user will see when they
@@ -48,13 +54,13 @@ export function summarizeImportRouting(
   cards: EnrichedCard[],
   binderDefs: BinderDef[]
 ): ImportRoutingSummary {
-  if (importIds.size === 0) return { entries: [], totalRouted: 0 };
+  if (importIds.size === 0) return { entries: [], totalRouted: 0, unroutedCount: 0 };
 
   // Run the same routing the BinderView uses. We don't care about pocket size
   // or sorts here — only which cards landed where — but we still go through
   // the official path so quirks like deck-allocation hiding and printing
   // promotion stay consistent with the user-visible layout.
-  const { binders } = materializeBinders(cards, binderDefs, {
+  const { binders, uncategorized } = materializeBinders(cards, binderDefs, {
     globalPocketSize: 9,
     search: '',
   });
@@ -77,14 +83,22 @@ export function summarizeImportRouting(
     }
   }
 
-  // Binders sort by count desc, name asc on ties. The uncategorized remainder
-  // isn't collected at all — it's the "fell through, still in the collection"
-  // pile, not a destination worth reporting.
+  // The uncategorized remainder, walked the same way — it is a count rather
+  // than an entry because there is no binder to open, only a Collection view
+  // filtered to it.
+  let unroutedCount = 0;
+  for (const section of uncategorized.sections) {
+    for (const c of section.cards) {
+      if (c.importId && importIds.has(c.importId)) unroutedCount++;
+    }
+  }
+
+  // Binders sort by count desc, name asc on ties.
   entries.sort((a, b) => {
     if (a.count !== b.count) return b.count - a.count;
     return a.binderName.localeCompare(b.binderName);
   });
 
   const totalRouted = entries.reduce((s, e) => s + e.count, 0);
-  return { entries, totalRouted };
+  return { entries, totalRouted, unroutedCount };
 }

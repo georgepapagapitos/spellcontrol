@@ -232,6 +232,14 @@ export function BinderDriftBanner({ binder }: Props) {
         message: `Added ${rows.length} cards, checked off in ${source.binderName} too`,
         tone: 'success',
       });
+    } else if (source.kind === 'import') {
+      // No counterpart queue to mention, but a bulk confirm that clears a
+      // whole import needs to say what it just did — the rows vanishing is
+      // the same visual as a misclick.
+      toast.show({
+        message: `Filed ${rows.length} card${rows.length === 1 ? '' : 's'} from ${source.importName}`,
+        tone: 'success',
+      });
     }
   };
 
@@ -307,12 +315,21 @@ export function BinderDriftBanner({ binder }: Props) {
 function RouteTitle({
   direction,
   endpoint,
+  importName,
 }: {
   direction: 'in' | 'out';
   /** The varying end of the move; null = Uncategorized (the unsorted pile). */
   endpoint: { name: string; color: string } | null;
+  /** Set instead of `endpoint` when the other end is an import rather than a
+   *  place — the chip then names the source file the cards arrived in. */
+  importName?: string;
 }) {
-  const chip = endpoint ? (
+  const chip = importName ? (
+    <span className="binder-drift-chip binder-drift-chip--import">
+      <span className="binder-drift-chip-dot binder-drift-chip-dot--none" aria-hidden />
+      {importName}
+    </span>
+  ) : endpoint ? (
     <span className="binder-drift-chip">
       <span className="binder-drift-chip-dot" style={{ background: endpoint.color }} aria-hidden />
       {endpoint.name}
@@ -359,6 +376,15 @@ function AddedGroupBlock({
   onAcknowledgeAll: (rows: ReviewQueueRow[], group: AddedGroup) => void;
   onDontAdd: (row: ReviewQueueRow) => void;
 }) {
+  // An import group is collapsed by default (E297): its rows carry no
+  // per-card judgement — the user knows what they just imported — so the
+  // default interaction is the single bulk confirm, and the cards stay one
+  // click away for anyone who wants to read them. Every other group renders
+  // its rows open, because there the per-card reason IS the content.
+  const isImport = group.source.kind === 'import';
+  const [showRows, setShowRows] = useState(!isImport);
+  const listId = `drift-added-${sourceKey(group.source).replace(/[^a-z0-9]/gi, '-')}`;
+
   return (
     <div className="binder-drift-queue-group">
       <div className="binder-drift-queue-group-header">
@@ -370,9 +396,21 @@ function AddedGroupBlock({
                 ? { name: group.source.binderName, color: colorFor(group.source.binderId) }
                 : null
             }
+            importName={group.source.kind === 'import' ? group.source.importName : undefined}
           />{' '}
           ({group.rows.length})
         </span>
+        {isImport && (
+          <button
+            type="button"
+            className="btn-link binder-drift-rows-toggle"
+            aria-expanded={showRows}
+            aria-controls={listId}
+            onClick={() => setShowRows((v) => !v)}
+          >
+            {showRows ? 'Hide cards' : `Show ${group.rows.length} cards`}
+          </button>
+        )}
         {group.rows.length > 1 && (
           <button
             type="button"
@@ -380,11 +418,16 @@ function AddedGroupBlock({
             aria-label={`Added all: ${formatSourceLabel(group.source)}`}
             onClick={() => onAcknowledgeAll(group.rows, group)}
           >
-            Added all
+            {isImport ? 'Filed all' : 'Added all'}
           </button>
         )}
       </div>
-      <ul className="binder-drift-queue-list">
+      {isImport && (
+        <p className="binder-drift-group-note">
+          Newly imported, so they file here by rule. Confirm once you have slotted them in.
+        </p>
+      )}
+      <ul className="binder-drift-queue-list" id={listId} hidden={!showRows}>
         {group.rows.map((row) => (
           <QueueRow
             key={row.key}
