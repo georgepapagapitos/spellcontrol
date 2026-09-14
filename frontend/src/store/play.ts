@@ -2,6 +2,7 @@ import { logger } from '@/lib/logger';
 import { create } from 'zustand';
 import { isApplyingServer } from '../lib/applying-server';
 import { genId } from '../lib/id';
+import { track } from '../lib/analytics';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import {
   applyAction,
@@ -747,6 +748,9 @@ export const usePlayStore = create<PlayState>()(
         });
         const started = applyAction(game, { type: 'start' });
         set({ local: started, boardVisible: true });
+        // A local game is fully anonymous and syncs nothing, so this beacon is
+        // the only evidence it ever happened. rematchLocal routes through here.
+        track('play_started');
       },
 
       rematchLocal: (template) => {

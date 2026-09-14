@@ -2,6 +2,7 @@ import { logger } from '@/lib/logger';
 import { useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import { isApplyingServer } from '../lib/applying-server';
+import { track } from '../lib/analytics';
 import { isApplyingAnalysis } from '../lib/applying-analysis';
 import type { AiScope } from '../lib/ai-scope';
 import { persist, createJSONStorage } from 'zustand/middleware';
@@ -602,6 +603,7 @@ export const useDecksStore = create<DecksState>()(
       hydrated: false,
 
       createDeck: (input) => {
+        track('deck_created');
         const id = genId('deck');
         const now = Date.now();
         const deck: Deck = {

@@ -3,6 +3,7 @@ import * as authApi from '../lib/auth-api';
 import type { AuthUser, Profile } from '../lib/auth-api';
 import { flushSync, stopSyncAndWipeLocal } from '../lib/sync';
 import { markEverVisited } from '../lib/first-run';
+import { track } from '../lib/analytics';
 
 import { userMessage } from '@/lib/user-error';
 export type AuthStatus = 'unknown' | 'loading' | 'authed' | 'guest';
@@ -230,6 +231,7 @@ export const useAuth = create<AuthState>((set, get) => {
       try {
         const user = await authApi.register(username, password);
         signInAs(user);
+        track('register_completed');
         return true;
       } catch (err) {
         set({ error: userMessage(err, "Couldn't create your account. Try again.") });

@@ -1,5 +1,6 @@
 import { logger } from '@/lib/logger';
 import { isApplyingServer } from '../lib/applying-server';
+import { track } from '../lib/analytics';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -1653,6 +1654,7 @@ export const useCollectionStore = create<CollectionState>()(
           updatedAt: now,
         };
         set((s) => ({ binders: [...s.binders, created], activeTab: created.id }));
+        track('binder_created');
         return created;
       },
 
