@@ -138,6 +138,42 @@
   text-overflow: ellipsis;
 }
 
+/* ── Clock orientation follows the seam ──
+   The seam is the only gutter on the board, and it runs along one axis: a
+   ROW seam is a horizontal gutter (a wide pill fits), a COL seam is a
+   vertical one (a wide pill does not — it spills sideways onto the panels
+   either side and lands on their name labels). So the pill stacks and
+   narrows on a col seam, giving it roughly the hub button's footprint
+   instead of three times its width. */
+.game-board-clock.is-col-seam {
+  max-width: 5rem;
+  padding-inline: 0.4rem;
+}
+
+.game-board-clock.is-col-seam .game-clock {
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.game-board-clock.is-col-seam .game-clock-turn {
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  max-width: 100%;
+  /* The divider rotates with the stack: a left border would now cut the
+     pill in half the wrong way. */
+  border-left: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  padding-left: 0;
+  padding-top: 0.15rem;
+  margin-top: 0.15rem;
+}
+
+.game-board-clock.is-col-seam .game-clock-turn-name {
+  max-width: 100%;
+}
+
 @media (min-width: 600px) {
   .game-board-clock {
     transform: translate(
