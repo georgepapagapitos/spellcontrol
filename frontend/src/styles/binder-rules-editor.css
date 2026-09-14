@@ -84,6 +84,14 @@
    line up down the panel. Per-row grids let each row size its own columns, so
    a "WUBRG" direction chip and an "A → Z" one sat at different x positions —
    a ragged edge on a control column that reads as three stacked one-offs. */
+/* Layout container for the row grid below. The sort editor renders in two
+   hosts of very different widths — the binder-rules MODAL (roomy) and the
+   in-view sort POPOVER (hard-capped at 26rem) — so the row layout has to
+   respond to the space it is actually given, not to the screen. */
+.sort-editor {
+  container-type: inline-size;
+}
+
 .sort-editor-list {
   display: grid;
   /* The slack goes to the LAST track, not the picker's: with the picker on
@@ -156,11 +164,20 @@
   color: var(--accent);
 }
 
-/* Below 600px four columns don't fit, so each sort takes two lines: the
-   field and its direction on the first, the reorder/remove cluster tucked
-   under them on the second. The direction keeps its words — a bare arrow is
-   the asc/desc ambiguity the direction label exists to remove. */
-@media (max-width: 600px) {
+/* Under ~26rem of CONTAINER width four columns don't fit, so each sort takes
+   two lines: the field and its direction on the first, the reorder/remove
+   cluster tucked under them on the second. The direction keeps its words — a
+   bare arrow is the asc/desc ambiguity the direction label exists to remove.
+
+   ⚠️ This was a `@media (max-width: 600px)` VIEWPORT query, which asked the
+   wrong question. The popover host is capped at `min(26rem, 100vw - 2rem)`, so
+   its content box is ~387px at EVERY viewport ≥ 600px — the four-track grid
+   needs ~411px, the trailing `1fr` track got starved to 79px, and the
+   103px-wide reorder cluster overflowed it and spilled past the panel's
+   border. Measured identically (23.1px over) at 1024px, 1440px and 717px: a
+   desktop-wide bug that a viewport breakpoint could never catch, and that
+   only looked like a mobile concern because 599px happened to be clean (E299). */
+@container (max-width: 26rem) {
   .sort-editor-list {
     grid-template-columns: auto minmax(0, 1fr) auto;
     row-gap: 0.45rem;

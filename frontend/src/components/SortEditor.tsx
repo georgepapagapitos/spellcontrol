@@ -61,118 +61,125 @@ export function SortEditor({
           after yours.
         </p>
       )}
-      <div className="sort-editor-list">
-        {sorts.map((s, i) => {
-          const isCustomizable = CUSTOMIZABLE_VALUE_ORDER_FIELDS.includes(s.field);
-          // The picker's own label ("Release date"), not `sortEntryLabel` —
-          // that one appends a ↑/↓ glyph, which a screen reader either spells
-          // out or drops, and the direction is already its own control here.
-          const fieldLabel = SORT_FIELDS.find((f) => f.value === s.field)?.label ?? s.field;
-          const dirLabel = sortDirectionLabel(s.field, s.dir);
-          const DirIcon = s.dir === 'asc' ? ArrowUp : ArrowDown;
-          return (
-            // Keyed by field, not index. A chain that reorders and removes rows
-            // reuses component instances by POSITION under an index key, so an
-            // open field dropdown reattached itself to whichever row slid into
-            // that slot. Fields are unique because the picker hides taken ones.
-            <div key={s.field} className="sort-editor-row">
-              <span className="sort-editor-num">{i + 1}.</span>
-              <SelectMenu
-                ariaLabel={`Sort ${i + 1} field`}
-                value={s.field}
-                // Only fields not already in the chain (plus this row's own).
-                // Sorting by the same field twice does nothing — the second
-                // pass has no ties left to break — and allowing it was also
-                // what stopped the field from being a usable React key.
-                options={SORT_FIELDS.filter(
-                  (f) => f.value === s.field || !sorts.some((x) => x.field === f.value)
-                ).map((f) => ({ value: f.value, label: f.label }))}
-                onChange={(field) => {
-                  if (field === s.field) return; // re-picking your own field is a no-op
-                  onSortsChange(
-                    sorts.map((x, j) => {
-                      if (j !== i) return x;
-                      const defaultDir =
-                        SORT_FIELDS.find((f) => f.value === field)?.defaultDir ?? 'asc';
-                      return { field: field as SortField, dir: defaultDir };
-                    })
-                  );
-                }}
-              />
-              <button
-                type="button"
-                className="sort-editor-dir"
-                aria-label={`Sort ${i + 1} direction: ${dirLabel}. Activate to reverse.`}
-                title={`${dirLabel}, click to reverse`}
-                onClick={() =>
-                  onSortsChange(
-                    sorts.map((x, j) =>
-                      j === i ? { ...x, dir: x.dir === 'asc' ? 'desc' : 'asc' } : x
-                    )
-                  )
-                }
-              >
-                <DirIcon width={13} height={13} strokeWidth={2} aria-hidden />
-                <span className="sort-editor-dir-label">{dirLabel}</span>
-              </button>
-              <div className="tab-actions sort-editor-actions">
-                <button
-                  type="button"
-                  className="tab-action"
-                  onClick={() => onSortsChange(swap(sorts, i, i - 1))}
-                  disabled={i === 0}
-                  title="Move up"
-                  aria-label={`Move ${fieldLabel} earlier in the sort order`}
-                >
-                  ▲
-                </button>
-                <button
-                  type="button"
-                  className="tab-action"
-                  onClick={() => onSortsChange(swap(sorts, i, i + 1))}
-                  disabled={i === sorts.length - 1}
-                  title="Move down"
-                  aria-label={`Move ${fieldLabel} later in the sort order`}
-                >
-                  ▼
-                </button>
-                <button
-                  type="button"
-                  className="tab-action"
-                  onClick={() => onSortsChange(sorts.filter((_, j) => j !== i))}
-                  disabled={sorts.length === 1}
-                  title={
-                    sorts.length === 1 ? 'A binder needs at least one sort' : 'Remove this sort'
-                  }
-                  aria-label={`Remove the ${fieldLabel} sort`}
-                >
-                  <X width={13} height={13} strokeWidth={2.2} aria-hidden />
-                </button>
-              </div>
-              {isCustomizable && (
-                <SortValueOrderEditor
-                  field={s.field}
-                  value={valueOrders[s.field]}
-                  onChange={(next) => {
-                    const copy = { ...valueOrders };
-                    if (next === undefined) delete copy[s.field];
-                    else copy[s.field] = next;
-                    onValueOrdersChange(copy);
+      {/* Container for the sort rows' layout query. The row grid's breakpoint
+          has to key off THIS element's width, not the viewport's: the popover
+          host is capped at 26rem no matter how wide the screen is, so a
+          viewport media query was asking the wrong question and never fired
+          where the constraint actually bit (E299). */}
+      <div className="sort-editor">
+        <div className="sort-editor-list">
+          {sorts.map((s, i) => {
+            const isCustomizable = CUSTOMIZABLE_VALUE_ORDER_FIELDS.includes(s.field);
+            // The picker's own label ("Release date"), not `sortEntryLabel` —
+            // that one appends a ↑/↓ glyph, which a screen reader either spells
+            // out or drops, and the direction is already its own control here.
+            const fieldLabel = SORT_FIELDS.find((f) => f.value === s.field)?.label ?? s.field;
+            const dirLabel = sortDirectionLabel(s.field, s.dir);
+            const DirIcon = s.dir === 'asc' ? ArrowUp : ArrowDown;
+            return (
+              // Keyed by field, not index. A chain that reorders and removes rows
+              // reuses component instances by POSITION under an index key, so an
+              // open field dropdown reattached itself to whichever row slid into
+              // that slot. Fields are unique because the picker hides taken ones.
+              <div key={s.field} className="sort-editor-row">
+                <span className="sort-editor-num">{i + 1}.</span>
+                <SelectMenu
+                  ariaLabel={`Sort ${i + 1} field`}
+                  value={s.field}
+                  // Only fields not already in the chain (plus this row's own).
+                  // Sorting by the same field twice does nothing — the second
+                  // pass has no ties left to break — and allowing it was also
+                  // what stopped the field from being a usable React key.
+                  options={SORT_FIELDS.filter(
+                    (f) => f.value === s.field || !sorts.some((x) => x.field === f.value)
+                  ).map((f) => ({ value: f.value, label: f.label }))}
+                  onChange={(field) => {
+                    if (field === s.field) return; // re-picking your own field is a no-op
+                    onSortsChange(
+                      sorts.map((x, j) => {
+                        if (j !== i) return x;
+                        const defaultDir =
+                          SORT_FIELDS.find((f) => f.value === field)?.defaultDir ?? 'asc';
+                        return { field: field as SortField, dir: defaultDir };
+                      })
+                    );
                   }}
                 />
-              )}
-            </div>
-          );
-        })}
-        {sorts.length < MAX_SORTS && (
-          <button
-            type="button"
-            className="btn btn-add-group"
-            onClick={() => onSortsChange([...sorts, nextDefaultSort(sorts)])}
-          >
-            + Add sort
-          </button>
-        )}
+                <button
+                  type="button"
+                  className="sort-editor-dir"
+                  aria-label={`Sort ${i + 1} direction: ${dirLabel}. Activate to reverse.`}
+                  title={`${dirLabel}, click to reverse`}
+                  onClick={() =>
+                    onSortsChange(
+                      sorts.map((x, j) =>
+                        j === i ? { ...x, dir: x.dir === 'asc' ? 'desc' : 'asc' } : x
+                      )
+                    )
+                  }
+                >
+                  <DirIcon width={13} height={13} strokeWidth={2} aria-hidden />
+                  <span className="sort-editor-dir-label">{dirLabel}</span>
+                </button>
+                <div className="tab-actions sort-editor-actions">
+                  <button
+                    type="button"
+                    className="tab-action"
+                    onClick={() => onSortsChange(swap(sorts, i, i - 1))}
+                    disabled={i === 0}
+                    title="Move up"
+                    aria-label={`Move ${fieldLabel} earlier in the sort order`}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    className="tab-action"
+                    onClick={() => onSortsChange(swap(sorts, i, i + 1))}
+                    disabled={i === sorts.length - 1}
+                    title="Move down"
+                    aria-label={`Move ${fieldLabel} later in the sort order`}
+                  >
+                    ▼
+                  </button>
+                  <button
+                    type="button"
+                    className="tab-action"
+                    onClick={() => onSortsChange(sorts.filter((_, j) => j !== i))}
+                    disabled={sorts.length === 1}
+                    title={
+                      sorts.length === 1 ? 'A binder needs at least one sort' : 'Remove this sort'
+                    }
+                    aria-label={`Remove the ${fieldLabel} sort`}
+                  >
+                    <X width={13} height={13} strokeWidth={2.2} aria-hidden />
+                  </button>
+                </div>
+                {isCustomizable && (
+                  <SortValueOrderEditor
+                    field={s.field}
+                    value={valueOrders[s.field]}
+                    onChange={(next) => {
+                      const copy = { ...valueOrders };
+                      if (next === undefined) delete copy[s.field];
+                      else copy[s.field] = next;
+                      onValueOrdersChange(copy);
+                    }}
+                  />
+                )}
+              </div>
+            );
+          })}
+          {sorts.length < MAX_SORTS && (
+            <button
+              type="button"
+              className="btn btn-add-group"
+              onClick={() => onSortsChange([...sorts, nextDefaultSort(sorts)])}
+            >
+              + Add sort
+            </button>
+          )}
+        </div>
       </div>
       <ImplicitTiebreakerHint sorts={sorts} valueOrders={valueOrders} />
     </>
