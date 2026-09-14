@@ -15,12 +15,12 @@ describe('ColorMatchModeToggle', () => {
     expect(onChange).toHaveBeenCalledWith('all');
   });
 
-  it("renders AND with the 'all' hint and flips back to 'any'", () => {
+  it("renders AND with the exact-colors hint and flips back to 'any'", () => {
     const onChange = vi.fn();
     render(<ColorMatchModeToggle mode="all" onChange={onChange} />);
     const btn = screen.getByRole('button');
     expect(btn.textContent).toBe('AND');
-    expect(screen.getByText('all selected colors')).toBeTruthy();
+    expect(screen.getByText('only these colors')).toBeTruthy();
     fireEvent.click(btn);
     expect(onChange).toHaveBeenCalledWith('any');
   });

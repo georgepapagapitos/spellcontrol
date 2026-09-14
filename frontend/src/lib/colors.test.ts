@@ -19,12 +19,22 @@ describe('colorSelectionMatches', () => {
     expect(colorSelectionMatches('U', ['U'], rw)).toBe(false);
   });
 
-  it("'all' requires every selected color — R+W means Boros, not mono-red", () => {
+  it("'all' is exact — R+W means Boros, not mono-red and not Naya", () => {
     const rw = new Set(['R', 'W']);
     expect(colorSelectionMatches(boros.key, boros.ci, rw, 'all')).toBe(true);
-    expect(colorSelectionMatches(naya.key, naya.ci, rw, 'all')).toBe(true);
+    // Naya carries green, which wasn't picked — an exact match excludes it.
+    expect(colorSelectionMatches(naya.key, naya.ci, rw, 'all')).toBe(false);
     expect(colorSelectionMatches(monoRed.key, monoRed.ci, rw, 'all')).toBe(false);
     expect(colorSelectionMatches('W', ['W'], rw, 'all')).toBe(false);
+  });
+
+  it("'all' with one pip means mono — a lone Blue excludes every card carrying another color", () => {
+    const u = new Set(['U']);
+    expect(colorSelectionMatches('U', ['U'], u, 'all')).toBe(true);
+    expect(colorSelectionMatches('M', ['U', 'R'], u, 'all')).toBe(false);
+    expect(colorSelectionMatches('M', ['W', 'U', 'B', 'R', 'G'], u, 'all')).toBe(false);
+    // 'any' still means "anything containing blue".
+    expect(colorSelectionMatches('M', ['U', 'R'], u)).toBe(true);
   });
 
   it("treats 'C' as colorless in both modes", () => {

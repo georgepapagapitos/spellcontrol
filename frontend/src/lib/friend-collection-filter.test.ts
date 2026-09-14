@@ -38,13 +38,28 @@ describe('filterFriendCollection', () => {
     expect(result.map((c) => c.name).sort()).toEqual(['Naya Charm', 'Wrath of God']);
   });
 
-  it("'all' mode requires every selected color", () => {
+  it("'all' mode matches the selection exactly — Naya's green excludes it from R+W", () => {
     const { cards: result } = filterFriendCollection(cards, {
+      query: '',
+      colors: new Set(['R', 'G', 'W']),
+      colorMode: 'all',
+    });
+    expect(result.map((c) => c.name)).toEqual(['Naya Charm']);
+    const { cards: rw } = filterFriendCollection(cards, {
       query: '',
       colors: new Set(['R', 'W']),
       colorMode: 'all',
     });
-    expect(result.map((c) => c.name)).toEqual(['Naya Charm']);
+    expect(rw).toEqual([]);
+  });
+
+  it("'all' mode with one color means mono", () => {
+    const { cards: result } = filterFriendCollection(cards, {
+      query: '',
+      colors: new Set(['R']),
+      colorMode: 'all',
+    });
+    expect(result.map((c) => c.name)).toEqual(['Lightning Bolt']);
   });
 
   it('treats an empty colors array as colorless, matched by C', () => {

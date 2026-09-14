@@ -1198,7 +1198,7 @@ Every WUBRG+C color pip row that filters _cards or decks by their own colors_
 (collection dialog, lists, deck add-cards, shared views, decks index, friend
 collection) carries `ColorMatchModeToggle`
 (`components/shared/ColorMatchModeToggle.tsx`): a `chip-joiner`-styled AND/OR
-pill plus a plain-language hint ("any selected color" / "all selected
+pill plus a plain-language hint ("any selected color" / "only these
 colors"). One combine-operator language app-wide — the pill is the same one
 `ChipExpressionBuilder` renders between chips, so AND is always the
 accent-filled variant and OR the muted one.
@@ -1215,8 +1215,11 @@ accent-filled variant and OR the muted one.
   itself; standing alone it doesn't — never render the bare pill without the
   hint text.
 - **Semantics:** OR = card shows any selected color (`colorSelectionMatches`
-  in `lib/colors.ts`, the single predicate); AND = every selected color
-  (R + W = Boros). Card surfaces default to OR; the decks index defaults to
+  in `lib/colors.ts`, the single predicate); AND = the card's colors are
+  **exactly** the selection (Blue alone = mono-blue, R + W = Boros only, not
+  Naya). AND is an exact match, not a superset one: a lone pip reading as
+  "every card that happens to contain blue" is the bug that made the mode
+  useless for picking a mono color. Card surfaces default to OR; the decks index defaults to
   AND (its pre-existing behavior). Filter chips echo the mode: "White, Red"
   (OR) vs "White + Red" (AND) via `colorChipLabel`.
 - **Deliberate exceptions — no toggle:** combos ("fits inside these colors",
