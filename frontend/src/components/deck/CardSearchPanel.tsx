@@ -716,7 +716,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             topCardCounts={effectiveTopCardCounts}
             sort={sort}
             binderByCardName={binderByCardName}
-            enforceCommander={!!enableSuggestions && mainboardRules}
+            commanderRules={!enableSuggestions ? 'off' : mainboardRules ? 'filter' : 'badge'}
             onSearchScryfall={() => setMode('scryfall')}
           />
         ) : activeMode === 'suggestions' ? (
@@ -773,6 +773,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             topCardCounts={effectiveTopCardCounts}
             sort={sort}
             ownershipFor={ownershipFor}
+            mainboardRules={mainboardRules}
           />
         )}
       </div>
@@ -814,7 +815,14 @@ interface CollectionResultsProps extends ResultsProps, FitProps {
   /** Commander deck: enforce color identity + commander legality. A deck with
    *  no commander concept (60-card formats) skips both gates — an empty
    *  `colorIdentity` there means "unrestricted", not "colorless commander". */
-  enforceCommander: boolean;
+  /**
+   * How the commander deck's colour-identity + legality rule applies to these
+   * rows. 'filter' hides the offenders (mainboard, where they'd be illegal),
+   * 'badge' shows them labelled (sideboard / Considering, where parking an
+   * off-colour or illegal card is legitimate but still worth naming), 'off' is
+   * a format with no commander to check against.
+   */
+  commanderRules: 'filter' | 'badge' | 'off';
   /** Jump to the Scryfall tab keeping the query (zero-result escape hatch). */
   onSearchScryfall: () => void;
   // Optional pre-compiled chip expressions + the color/set sets.
@@ -864,7 +872,7 @@ function CollectionResults({
   topCardCounts,
   binderByCardName,
   sort,
-  enforceCommander,
+  commanderRules,
   onSearchScryfall,
   excludeNames,
 }: CollectionResultsProps) {
@@ -891,7 +899,7 @@ function CollectionResults({
     for (const c of collection) {
       if (excludeNames.has(c.name)) continue;
       const ci = c.colorIdentity ?? [];
-      if (enforceCommander) {
+      if (commanderRules === 'filter') {
         if (!ci.every((k) => colorIdentity.includes(k))) continue;
         const legality = c.legalities?.commander;
         if (legality && legality !== 'legal' && legality !== 'restricted') continue;
@@ -946,7 +954,7 @@ function CollectionResults({
   }, [
     collection,
     colorIdentity,
-    enforceCommander,
+    commanderRules,
     excludeNames,
     search,
     sort,
@@ -1064,19 +1072,31 @@ function CollectionResults({
           const active = i === activeIndex;
           const nameKey = c.name.toLowerCase();
           const binders = binderByCardName?.get(c.name) ?? [];
+          // Only ever true in the badge state: the filter state removed these
+          // rows upstream, and 'off' has no commander to measure against.
+          const offColor = commanderRules === 'badge' && isOffColor(c.colorIdentity, colorIdentity);
+          const legality = c.legalities?.commander;
+          const notLegal =
+            commanderRules === 'badge' &&
+            !!legality &&
+            legality !== 'legal' &&
+            legality !== 'restricted';
+          const flagNote = offColor ? ' (off-color)' : notLegal ? ' (not legal)' : '';
           return (
             <li
               key={c.scryfallId}
               id={`card-search-result-${i}`}
               role="option"
               aria-selected={active}
-              className={`card-search-row has-thumb${active ? ' active' : ''}`}
+              className={`card-search-row has-thumb${active ? ' active' : ''}${offColor || notLegal ? ' is-off-color' : ''}`}
               onMouseEnter={() => onActiveChange(i)}
             >
               <button
                 type="button"
                 className="card-search-add"
-                aria-label={inDeck > 0 ? `Add another ${c.name}` : `Add ${c.name}`}
+                aria-label={
+                  inDeck > 0 ? `Add another ${c.name}${flagNote}` : `Add ${c.name}${flagNote}`
+                }
                 onClick={() => addAtIndex(i)}
               >
                 +
@@ -1089,6 +1109,22 @@ function CollectionResults({
               <span className="card-search-name">{c.name}</span>
               {c.manaCost && <ManaCost cost={c.manaCost} className="card-search-mana" />}
               <span className="card-search-meta">
+                {offColor && (
+                  <span
+                    className="card-search-badge card-search-badge--warn"
+                    title="Outside your commander's color identity"
+                  >
+                    Off-color
+                  </span>
+                )}
+                {notLegal && (
+                  <span
+                    className="card-search-badge card-search-badge--warn"
+                    title="Not legal in this format"
+                  >
+                    Not legal
+                  </span>
+                )}
                 owned {ownedCount}
                 {binders.length > 0 && (
                   <BinderBadge
@@ -1452,6 +1488,8 @@ function SuggestionsResults({
 interface ScryfallResultsProps extends ResultsProps, FitProps {
   /** Live tri-state ownership lookup (the deck page's `ownershipFor`). */
   ownershipFor?: (name: string) => ChangeOwnership;
+  /** Mainboard adds get the warning tone; out-of-deck zones get a note. */
+  mainboardRules: boolean;
 }
 
 function ScryfallResults({
@@ -1471,6 +1509,7 @@ function ScryfallResults({
   sort,
   ownershipFor,
   excludeNames,
+  mainboardRules,
 }: ScryfallResultsProps) {
   const collection = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
@@ -1560,10 +1599,17 @@ function ScryfallResults({
     onAdd({ card: c, allocatedCopyId: claim?.copyId ?? null });
     onAnnounce(`Added ${c.name}`);
     if (isOffColor(c.color_identity, colorIdentity)) {
-      pushToast({
-        message: `${c.name} is outside your commander's color identity.`,
-        tone: 'warn',
-      });
+      // Off-color is a problem in the 99 and a normal thing to park outside it,
+      // so the tone follows the zone rather than scolding either way. The deck
+      // view flags the card in both (validateDeck covers main + sideboard).
+      pushToast(
+        mainboardRules
+          ? { message: `${c.name} is outside your commander's color identity.`, tone: 'warn' }
+          : {
+              message: `${c.name} is outside your commander's color identity. It can sit here, but not in the mainboard.`,
+              tone: 'info',
+            }
+      );
     }
   };
 

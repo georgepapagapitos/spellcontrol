@@ -83,6 +83,20 @@ describe('CardSearchPanel — out-of-deck zones accept any card', () => {
     expect(screen.getByText('Black Lotus')).toBeTruthy();
   });
 
+  it('labels what it now lets through, so the card is named as unplayable in the 99', () => {
+    renderPanel('side');
+    // Scoped to the row, not the document: a stray badge elsewhere would
+    // otherwise satisfy a bare getByText.
+    const offColorRow = screen.getByText('Counterspell').closest('li');
+    expect(offColorRow?.textContent).toContain('Off-color');
+    const illegalRow = screen.getByText('Black Lotus').closest('li');
+    expect(illegalRow?.textContent).toContain('Not legal');
+
+    const fineRow = screen.getByText('Lightning Bolt').closest('li');
+    expect(fineRow?.textContent).not.toContain('Off-color');
+    expect(fineRow?.textContent).not.toContain('Not legal');
+  });
+
   it('lifts all three on Considering too', () => {
     renderPanel('considering');
     expect(screen.getByText('Lightning Bolt')).toBeTruthy();
