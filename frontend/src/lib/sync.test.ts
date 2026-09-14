@@ -21,6 +21,7 @@ import {
   stopSyncAndWipeLocal,
   hydrateLocal,
   flushSync,
+  _setAutoPushEnabledForTests,
   isApplyingServer,
   getSyncState,
   getLastSyncedAt,
@@ -73,6 +74,10 @@ async function waitForLifecycleSyncToSettle(): Promise<void> {
 }
 
 beforeEach(async () => {
+  // Drains happen only where a test asks for one. See the hook's doc comment:
+  // the debounced auto-push racing directly-staged queue state is the single
+  // root cause behind this file's CI flake.
+  _setAutoPushEnabledForTests(false);
   vi.clearAllMocks();
   estore._resetDbPromiseForTests();
   queue._resetDbPromiseForTests();
@@ -88,6 +93,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await stopSyncAndWipeLocal();
+  _setAutoPushEnabledForTests(true);
 });
 
 describe('lifecycle', () => {
@@ -1583,6 +1589,30 @@ describe('web write-through (no durable outbox)', () => {
     expect(sizes).toEqual([500, 500, 100]); // 1100 split into 500/500/100
     expect(Math.max(...sizes)).toBeLessThanOrEqual(500);
     expect(hasSyncError()).toBe(false);
+  });
+
+  it('keeps the save error set when a later no-op drain finds nothing to push', async () => {
+    // ROOT CAUSE of this file's long-standing flake, and a real product bug.
+    //
+    // In web write-through mode nothing goes through the durable queue, so the
+    // queue is always empty. `push()` on an empty queue used to fall straight
+    // out of its drain loop into `pushError = false` — reporting success for
+    // having done nothing — which silently cleared the error a failed
+    // write-through had just raised. The header SyncIndicator and the mobile
+    // tab-bar dot both read `hasSyncError()`, so the user's "couldn't save"
+    // signal vanished while the change was still unsaved.
+    //
+    // The flake was this same race: the 500ms push debounce firing inside the
+    // assertions while the machine was loaded, which is why it only ever
+    // reproduced on busy CI and never on a quiet local run.
+    mockPush.mockReset();
+    mockPush.mockRejectedValueOnce(new Error('offline'));
+    await recordUpsert('binder', 'b-err', { id: 'b-err' });
+    expect(hasSyncError()).toBe(true);
+
+    // A drain with an empty queue pushes nothing — it must not claim success.
+    await flushSync();
+    expect(hasSyncError()).toBe(true);
   });
 
   it('a mid-collection push failure reverts only the un-pushed chunk', async () => {
