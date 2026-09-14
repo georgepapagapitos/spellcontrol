@@ -4,6 +4,8 @@ import {
   gameToRematch,
   recordToRematch,
   usePlayStore,
+  MAX_PROFILE_NAME_LENGTH,
+  type LocalGameSetup,
   type RematchTemplate,
   type TickerItem,
 } from './play';
@@ -93,8 +95,15 @@ function resetStore() {
     boardVisible: true,
     hapticsEnabled: true,
     preferredLayouts: {},
+    showClock: true,
+    tableProfiles: [],
     hydrated: true,
   });
+}
+
+/** One seat of a LocalGameSetup, with only the name filled in. */
+function blankSeat(name: string): LocalGameSetup['players'][number] {
+  return { name, deckId: null, deckName: null, commander: null, colorIdentity: [] };
 }
 
 /** A started (active) online game at the given version. */
@@ -323,6 +332,131 @@ describe('usePlayStore — board / haptics / layout', () => {
     expect(usePlayStore.getState().preferredLayouts[3]).toBe('triangle');
     usePlayStore.getState().setPreferredLayout(3, null);
     expect(usePlayStore.getState().preferredLayouts[3]).toBeUndefined();
+  });
+
+  it('setShowClock updates the persisted flag', () => {
+    usePlayStore.getState().setShowClock(false);
+    expect(usePlayStore.getState().showClock).toBe(false);
+    usePlayStore.getState().setShowClock(true);
+    expect(usePlayStore.getState().showClock).toBe(true);
+  });
+});
+
+describe('usePlayStore — table profiles', () => {
+  beforeEach(() => resetStore());
+
+  const setup = (over: Partial<LocalGameSetup> = {}): LocalGameSetup => ({
+    format: 'commander',
+    startingLife: 40,
+    commanderDamageEnabled: true,
+    poisonEnabled: false,
+    players: [blankSeat('Alice'), blankSeat('Bo')],
+    ...over,
+  });
+
+  it('saves a named profile carrying the whole setup', () => {
+    usePlayStore.getState().saveTableProfile('Thursday pod', setup({ counters: ['Energy'] }));
+    const [row] = usePlayStore.getState().tableProfiles;
+    expect(row.name).toBe('Thursday pod');
+    expect(row.setup.players.map((p) => p.name)).toEqual(['Alice', 'Bo']);
+    expect(row.setup.counters).toEqual(['Energy']);
+    expect(row.savedAt).toBeGreaterThan(0);
+  });
+
+  it('overwrites by name rather than creating a second row for the same table', () => {
+    const store = usePlayStore.getState();
+    store.saveTableProfile('Thursday pod', setup());
+    const firstId = usePlayStore.getState().tableProfiles[0].id;
+    store.saveTableProfile('  thursday   POD ', setup({ startingLife: 20 }));
+    const rows = usePlayStore.getState().tableProfiles;
+    expect(rows).toHaveLength(1);
+    // Same row, updated in place — the id is what a UI keys off.
+    expect(rows[0].id).toBe(firstId);
+    expect(rows[0].setup.startingLife).toBe(20);
+    expect(rows[0].name).toBe('thursday POD');
+  });
+
+  it('keeps distinct names as separate profiles', () => {
+    const store = usePlayStore.getState();
+    store.saveTableProfile('Thursday pod', setup());
+    store.saveTableProfile('Sunday two-player', setup());
+    expect(usePlayStore.getState().tableProfiles).toHaveLength(2);
+  });
+
+  it('ignores a blank name instead of saving an unidentifiable row', () => {
+    usePlayStore.getState().saveTableProfile('   ', setup());
+    expect(usePlayStore.getState().tableProfiles).toEqual([]);
+  });
+
+  it('truncates an over-long name', () => {
+    usePlayStore.getState().saveTableProfile('x'.repeat(200), setup());
+    expect(usePlayStore.getState().tableProfiles[0].name).toHaveLength(MAX_PROFILE_NAME_LENGTH);
+  });
+
+  it('deletes by id and leaves the rest alone', () => {
+    const store = usePlayStore.getState();
+    store.saveTableProfile('A', setup());
+    store.saveTableProfile('B', setup());
+    const [a] = usePlayStore.getState().tableProfiles;
+    store.deleteTableProfile(a.id);
+    expect(usePlayStore.getState().tableProfiles.map((p) => p.name)).toEqual(['B']);
+  });
+});
+
+describe('startLocal — starting counters', () => {
+  beforeEach(() => resetStore());
+
+  it("seeds every seat with the profile's counters at zero", () => {
+    usePlayStore.getState().startLocal({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+      counters: ['Energy', 'Experience'],
+      players: [blankSeat('Alice'), blankSeat('Bo')],
+    });
+    for (const p of usePlayStore.getState().local!.players) {
+      expect(p.counters).toEqual({ Energy: 0, Experience: 0 });
+    }
+  });
+
+  it('normalizes and de-duplicates counter names from a stored profile', () => {
+    usePlayStore.getState().startLocal({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+      counters: ['  Energy ', 'Energy', 'Rad  counters'],
+      players: [blankSeat('Alice')],
+    });
+    expect(usePlayStore.getState().local!.players[0].counters).toEqual({
+      Energy: 0,
+      'Rad counters': 0,
+    });
+  });
+
+  it('drops an unnamed counter rather than failing the game start', () => {
+    usePlayStore.getState().startLocal({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+      counters: ['   ', 'Energy'],
+      players: [blankSeat('Alice')],
+    });
+    expect(usePlayStore.getState().local).not.toBeNull();
+    expect(usePlayStore.getState().local!.players[0].counters).toEqual({ Energy: 0 });
+  });
+
+  it('leaves counters empty when the setup names none', () => {
+    usePlayStore.getState().startLocal({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+      players: [blankSeat('Alice')],
+    });
+    expect(usePlayStore.getState().local!.players[0].counters).toEqual({});
   });
 });
 

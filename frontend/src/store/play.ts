@@ -8,6 +8,7 @@ import {
   createGameState,
   gameToRecord,
   makePlayer,
+  normalizeCounterName,
   type GameAction,
   type GameFormat,
   type GamePlayer,
@@ -59,7 +60,34 @@ export interface LocalGameSetup {
     partner?: string | null;
     colorIdentity: string[];
   }>;
+  /**
+   * Free-form counter names every seat starts with, at zero — a pod that
+   * always tracks energy shouldn't create it by hand each game. Optional
+   * because this is an input draft: absent means "no counters", the same as
+   * an empty list, and every caller predating the field keeps working.
+   */
+  counters?: string[];
 }
+
+/**
+ * A named, reloadable table setup.
+ *
+ * Saving is EXPLICIT and loading is a genuine reset — the whole form is
+ * replaced by the profile. The obvious-looking alternative, auto-saving the
+ * live setup back into its profile, is the trap: it makes "load my profile"
+ * stop being a way to get a clean slate, which is the main reason anyone
+ * reaches for one.
+ */
+export interface TableProfile {
+  id: string;
+  name: string;
+  /** When it was last saved — shown so an old profile is recognisable as old. */
+  savedAt: number;
+  setup: LocalGameSetup;
+}
+
+/** Longest a profile name may be; it renders in a one-line list row. */
+export const MAX_PROFILE_NAME_LENGTH = 40;
 
 /** Minimal shape needed to re-seed a game from a finished one. */
 export interface RematchTemplate {
@@ -191,6 +219,15 @@ interface PlayState {
   boardVisible: boolean;
   /** Vibration feedback on taps / lethal hits. Persisted; default on. */
   hapticsEnabled: boolean;
+  /** Show the table clock on the board. Persisted; default on. */
+  showClock: boolean;
+  /**
+   * Saved table setups — a pod that plays the same four people every week
+   * shouldn't retype the roster each session. Persisted locally only: this is
+   * a property of one device's regular table, not of the account, and it is
+   * deliberately not part of the per-row user-data sync.
+   */
+  tableProfiles: TableProfile[];
   /**
    * Remembered board layout per player count (keyed by count). New local
    * games of that size start in this arrangement instead of the built-in
@@ -209,6 +246,10 @@ interface PlayState {
   hideBoard(): void;
   showBoard(): void;
   setHaptics(enabled: boolean): void;
+  setShowClock(enabled: boolean): void;
+  /** Save (or overwrite, by name) a setup as a reusable table profile. */
+  saveTableProfile(name: string, setup: LocalGameSetup): void;
+  deleteTableProfile(id: string): void;
   /** Remember (or clear, with null) the default layout for `count` seats. */
   setPreferredLayout(count: number, layout: string | null): void;
 
@@ -604,6 +645,8 @@ export const usePlayStore = create<PlayState>()(
       onlinePolling: false,
       boardVisible: true,
       hapticsEnabled: true,
+      showClock: true,
+      tableProfiles: [],
       preferredLayouts: {},
       gameNightSeed: null,
 
@@ -613,6 +656,32 @@ export const usePlayStore = create<PlayState>()(
         setHapticsEnabled(enabled);
         set({ hapticsEnabled: enabled });
       },
+      setShowClock: (enabled) => set({ showClock: enabled }),
+      saveTableProfile: (name, setup) => {
+        const trimmed = name.replace(/\s+/g, ' ').trim().slice(0, MAX_PROFILE_NAME_LENGTH);
+        if (!trimmed) return;
+        set((s) => {
+          // Same name = the same table, updated. Two rows reading "Thursday
+          // pod" would be unusable, and re-saving a tweaked roster under its
+          // existing name is the common case.
+          const existing = s.tableProfiles.find(
+            (p) => p.name.toLowerCase() === trimmed.toLowerCase()
+          );
+          const row: TableProfile = {
+            id: existing?.id ?? genId('profile'),
+            name: trimmed,
+            savedAt: Date.now(),
+            setup,
+          };
+          return {
+            tableProfiles: existing
+              ? s.tableProfiles.map((p) => (p.id === existing.id ? row : p))
+              : [...s.tableProfiles, row],
+          };
+        });
+      },
+      deleteTableProfile: (id) =>
+        set((s) => ({ tableProfiles: s.tableProfiles.filter((p) => p.id !== id) })),
       setPreferredLayout: (count, layout) => {
         set((s) => {
           const nextLayouts = { ...s.preferredLayouts };
@@ -647,6 +716,22 @@ export const usePlayStore = create<PlayState>()(
             isHost: i === 0,
           })
         );
+        // Pre-seed the table's regular counters at zero on every seat. Names
+        // go through the reducer's normalizer so a profile saved with sloppy
+        // whitespace can't create two counters that render identically, and a
+        // bad name is dropped rather than failing the whole game start.
+        const counterNames = (setup.counters ?? []).reduce<string[]>((acc, raw) => {
+          try {
+            const name = normalizeCounterName(raw);
+            if (!acc.includes(name)) acc.push(name);
+          } catch {
+            /* unnamed counter in a stored profile — skip it, don't block play */
+          }
+          return acc;
+        }, []);
+        for (const p of players) {
+          p.counters = Object.fromEntries(counterNames.map((n) => [n, 0]));
+        }
         const game = createGameState({
           id: genId('game'),
           code: '',
@@ -1040,6 +1125,8 @@ export const usePlayStore = create<PlayState>()(
         online: s.online,
         boardVisible: s.boardVisible,
         hapticsEnabled: s.hapticsEnabled,
+        showClock: s.showClock,
+        tableProfiles: s.tableProfiles,
         preferredLayouts: s.preferredLayouts,
       }),
     }

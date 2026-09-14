@@ -74,7 +74,7 @@ function collectThemes(): Palette[] {
 describe('theme contrast (UX-103)', () => {
   const themes = collectThemes();
 
-  it('discovers all ten guild themes', () => {
+  it('discovers every palette block: the ten guilds plus obsidian', () => {
     expect(themes.map((t) => t.name).sort()).toEqual(
       [
         'azorius',
@@ -83,6 +83,7 @@ describe('theme contrast (UX-103)', () => {
         'golgari',
         'gruul',
         'izzet',
+        'obsidian',
         'orzhov',
         'rakdos',
         'selesnya',

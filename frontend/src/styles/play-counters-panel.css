@@ -135,10 +135,14 @@
   cursor: pointer;
 }
 
-/* Body fills the panel instead of scrolling: the commander-damage tile grid
-   takes the slack, poison keeps its natural row height beneath it. */
+/* Rows take their natural height and the slack falls BELOW them.
+   This used to be `flex: 1 1 auto`, from when the commander-damage tile grid
+   lived here and needed the slack — that moved to the board-level focus mode,
+   and a growing body then opened a dead gap between the last counter and the
+   add-counter form, which read as a rendering bug on a table with one
+   counter and poison off. */
 .pp-counters-body {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -155,6 +159,135 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ── Free-form counters ──
+   A table tracks whatever it tracks — energy, experience, rad, a token count.
+   The chips read on the board itself, not only inside this cover: a counter
+   you must open a drawer to see is one nobody trusts mid-game. */
+
+/* A named counter's chip carries its label, so it needs a smaller numeral
+   than the icon-only poison / commander chips beside it. */
+.pp-counter-chip.is-custom {
+  font-size: var(--text-sm);
+  gap: 0.3rem;
+  max-width: 9rem;
+}
+
+.pp-counter-chip-name {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--text-xs, 0.72rem);
+  opacity: 0.85;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The always-present way into the cover. Deliberately quieter than a counter
+   that holds a value — it is an affordance, not board state. */
+.pp-counter-chip.is-add {
+  background: rgba(0, 0, 0, 0.18);
+  border-style: dashed;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.pp-counters-empty {
+  margin: 0;
+  padding: 0.4rem 0.55rem;
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.66);
+}
+
+.pp-counters-add {
+  display: flex;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+  margin-top: 0.35rem;
+}
+
+.pp-counters-add-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+}
+
+.pp-counters-add-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.35rem 0.55rem;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(0, 0, 0, 0.32);
+  color: #fff;
+  font-size: var(--text-sm);
+  /* 16px floor: anything smaller makes iOS Safari zoom the board on focus,
+     and the board is a fullscreen overlay it cannot zoom back out of. */
+  font-size: max(var(--text-sm), 16px);
+}
+
+.pp-counters-add-input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.pp-counters-add-btn {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 650;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pp-counters-add-btn:hover {
+    background: rgba(255, 255, 255, 0.22);
+  }
+}
+
+.pp-counters-error,
+.pp-counters-cap {
+  margin: 0.3rem 0 0;
+  font-size: var(--text-xs, 0.72rem);
+  line-height: 1.35;
+  color: rgba(255, 210, 210, 0.92);
+}
+
+.pp-counters-cap {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.counter-row-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.15rem;
+  padding: var(--space-1);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .counter-row-remove:hover {
+    color: rgba(255, 190, 190, 0.95);
+    background: rgba(220, 38, 38, 0.22);
+  }
+}
+
+.counter-row-remove:focus-visible,
+.pp-counters-add-btn:focus-visible,
+.pp-counters-add-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -592,6 +725,19 @@
   .pp-counter-chip {
     min-height: 2.75rem;
     padding-inline: var(--space-3); /* widen the pill proportionally */
+  }
+
+  /* Add-counter form: the field and its button are the only text entry on the
+     board, so they take the same floor as every other control here. */
+  .pp-counters-add-input,
+  .pp-counters-add-btn {
+    min-height: 2.75rem;
+  }
+
+  /* Per-counter delete. Icon-only, so the floor is the whole target. */
+  .counter-row-remove {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
   }
 
   /* Seat-menu close button (no explicit size in base rule) */

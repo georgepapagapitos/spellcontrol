@@ -78,6 +78,87 @@
   }
 }
 
+/* ── Table clock — the seam hub's other satellite ──
+   Mirrors .game-board-undo-btn exactly, offset to the OPPOSITE side of the
+   hub (seamOffset(seam, …, +1) in GameBoard.tsx): right of a row seam, below
+   a col seam. Screen-relative and never rotated — how long the table has been
+   playing is a fact about the table, not about a seat (same ruling as the win
+   celebration). A readout, not a control: no hover, no press, no tap target. */
+.game-board-clock {
+  position: absolute;
+  top: var(--seam-top-pct, 50%);
+  left: var(--seam-left-pct, 50%);
+  transform: translate(var(--clock-tx, calc(-50% + 3.4rem)), var(--clock-ty, -50%));
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(14, 17, 24, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #fff;
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.45),
+    0 0 0 4px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  pointer-events: none;
+  white-space: nowrap;
+  animation: pp-fade-in 160ms ease-out;
+}
+
+.game-clock {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  /* Tabular figures so the digits don't jitter sideways once a second. */
+  font-variant-numeric: tabular-nums;
+}
+
+.game-clock-total {
+  font-size: var(--text-base);
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.game-clock-turn {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.72);
+  padding-left: var(--space-2);
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.game-clock-turn-name {
+  max-width: 6ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 600px) {
+  .game-board-clock {
+    transform: translate(
+      var(--clock-tx-lg, var(--clock-tx, calc(-50% + 4rem))),
+      var(--clock-ty-lg, var(--clock-ty, -50%))
+    );
+  }
+
+  .game-clock-total {
+    font-size: var(--text-md);
+  }
+
+  .game-clock-turn {
+    font-size: var(--text-sm);
+  }
+
+  .game-clock-turn-name {
+    max-width: 10ch;
+  }
+}
+
 /* ── Low-life ambient pulse — alive but in topdeck range ── */
 .player-panel.is-low-life::before {
   content: '';
@@ -527,4 +608,64 @@
 .play-history-rematch:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* ── Time on turn (game menu) ──
+   Per-seat turn totals, longest first. Bars normalise to the longest holder,
+   not to the game, because the question is relative pace. */
+.turn-times {
+  margin-top: var(--space-3);
+}
+
+.turn-times-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 650;
+  color: var(--text-secondary);
+}
+
+.turn-times-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.turn-times-row {
+  display: grid;
+  grid-template-columns: minmax(0, 7rem) 1fr auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.turn-times-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+}
+
+.turn-times-bar {
+  display: block;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.turn-times-bar-fill {
+  display: block;
+  height: 100%;
+  width: calc(var(--fill, 0) * 100%);
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.turn-times-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
 }

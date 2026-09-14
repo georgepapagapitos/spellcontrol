@@ -5,8 +5,14 @@ import {
   createGameState,
   gameToRecord,
   makePlayer,
+  normalizeCounterName,
+  seatCounters,
   selectNotableEvents,
+  tableCounters,
+  MAX_COUNTERS_PER_SCOPE,
+  MAX_COUNTER_NAME_LENGTH,
   type GameEvent,
+  type GamePlayer,
   type GameState,
 } from './index';
 
@@ -767,5 +773,179 @@ describe('selectNotableEvents', () => {
   it('returns [] when none of the input events are notable', () => {
     const events: GameEvent[] = [ev('start'), ev('join'), ev('life'), ev('note')];
     expect(selectNotableEvents(events)).toEqual([]);
+  });
+});
+
+// ── Free-form counters ─────────────────────────────────────────────────────
+
+describe('free-form counters', () => {
+  function active(players = 2) {
+    return applyAction(lobby(players), { type: 'start' });
+  }
+
+  it('springs a seat counter into existence on first use', () => {
+    const s = applyAction(active(), {
+      type: 'counter',
+      seat: 0,
+      name: 'Energy',
+      delta: 3,
+      actorSeat: 0,
+    });
+    expect(seatCounters(s.players[0])).toEqual({ Energy: 3 });
+    // Only the acting seat gets it — a counter is not a table-wide schema.
+    expect(seatCounters(s.players[1])).toEqual({});
+  });
+
+  it('creates at zero with a zero delta, so "add counter" needs no second action', () => {
+    const s = applyAction(active(), {
+      type: 'counter',
+      seat: 0,
+      name: 'Rad',
+      delta: 0,
+      actorSeat: 0,
+    });
+    expect(seatCounters(s.players[0])).toEqual({ Rad: 0 });
+  });
+
+  it('accumulates and clamps at zero rather than going negative', () => {
+    let s = active();
+    for (const delta of [2, 2, -10]) {
+      s = applyAction(s, { type: 'counter', seat: 0, name: 'Energy', delta, actorSeat: 0 });
+    }
+    expect(seatCounters(s.players[0]).Energy).toBe(0);
+  });
+
+  it('keys a table counter separately from an identically named seat counter', () => {
+    let s = applyAction(active(), {
+      type: 'counter',
+      seat: null,
+      name: 'Storm',
+      delta: 4,
+      actorSeat: 0,
+    });
+    s = applyAction(s, { type: 'counter', seat: 0, name: 'Storm', delta: 1, actorSeat: 0 });
+    expect(tableCounters(s)).toEqual({ Storm: 4 });
+    expect(seatCounters(s.players[0])).toEqual({ Storm: 1 });
+  });
+
+  it('normalizes the name so whitespace variants are one counter, not two', () => {
+    let s = applyAction(active(), {
+      type: 'counter',
+      seat: 0,
+      name: '  Rad  counters ',
+      delta: 1,
+      actorSeat: 0,
+    });
+    s = applyAction(s, { type: 'counter', seat: 0, name: 'Rad counters', delta: 1, actorSeat: 0 });
+    expect(seatCounters(s.players[0])).toEqual({ 'Rad counters': 2 });
+  });
+
+  it('rejects an empty or whitespace-only name instead of keying on ""', () => {
+    expect(() => normalizeCounterName('   ')).toThrow();
+    expect(() =>
+      applyAction(active(), { type: 'counter', seat: 0, name: '', delta: 1, actorSeat: 0 })
+    ).toThrow();
+  });
+
+  it('truncates an over-long name to the cap', () => {
+    const name = normalizeCounterName('x'.repeat(MAX_COUNTER_NAME_LENGTH + 40));
+    expect(name).toHaveLength(MAX_COUNTER_NAME_LENGTH);
+  });
+
+  it('caps the number of counters per scope but still allows adjusting existing ones', () => {
+    let s = active();
+    for (let i = 0; i < MAX_COUNTERS_PER_SCOPE; i++) {
+      s = applyAction(s, { type: 'counter', seat: 0, name: `C${i}`, delta: 1, actorSeat: 0 });
+    }
+    expect(() =>
+      applyAction(s, { type: 'counter', seat: 0, name: 'one-too-many', delta: 1, actorSeat: 0 })
+    ).toThrow(/maximum/i);
+    // The cap is on distinct counters, not on using them.
+    const bumped = applyAction(s, { type: 'counter', seat: 0, name: 'C0', delta: 5, actorSeat: 0 });
+    expect(seatCounters(bumped.players[0]).C0).toBe(6);
+  });
+
+  it('remove deletes the counter outright, distinct from decrementing to zero', () => {
+    let s = applyAction(active(), {
+      type: 'counter',
+      seat: 0,
+      name: 'Energy',
+      delta: 2,
+      actorSeat: 0,
+    });
+    s = applyAction(s, { type: 'counter', seat: 0, name: 'Energy', delta: -2, actorSeat: 0 });
+    expect(seatCounters(s.players[0])).toEqual({ Energy: 0 });
+    s = applyAction(s, { type: 'counter-remove', seat: 0, name: 'Energy', actorSeat: 0 });
+    expect(seatCounters(s.players[0])).toEqual({});
+  });
+
+  it('removing a counter that was never there is a no-op, not a throw', () => {
+    const s = applyAction(active(), {
+      type: 'counter-remove',
+      seat: 0,
+      name: 'Nope',
+      actorSeat: 0,
+    });
+    expect(seatCounters(s.players[0])).toEqual({});
+  });
+
+  it('throws for an unknown seat', () => {
+    expect(() =>
+      applyAction(active(), { type: 'counter', seat: 9, name: 'Energy', delta: 1, actorSeat: 0 })
+    ).toThrow(/No player at seat 9/);
+  });
+
+  it('never causes a loss, even for a counter a user names "poison"', () => {
+    let s = applyAction(lobby(2, { poisonEnabled: true }), { type: 'start' });
+    s = applyAction(s, { type: 'counter', seat: 0, name: 'poison', delta: 50, actorSeat: 0 });
+    expect(s.players[0].eliminated).toBe(false);
+    expect(s.status).toBe('active');
+  });
+
+  it('logs a counter event carrying the normalized name and delta', () => {
+    const s = applyAction(active(), {
+      type: 'counter',
+      seat: 1,
+      name: ' Experience ',
+      delta: 2,
+      actorSeat: 0,
+    });
+    const last = s.events[s.events.length - 1];
+    expect(last.kind).toBe('counter');
+    expect(last.message).toBe('Experience');
+    expect(last.delta).toBe(2);
+    expect(last.targetSeat).toBe(1);
+  });
+
+  it('reset clears seat and table counters along with poison', () => {
+    let s = active();
+    s = applyAction(s, { type: 'counter', seat: 0, name: 'Energy', delta: 5, actorSeat: 0 });
+    s = applyAction(s, { type: 'counter', seat: null, name: 'Storm', delta: 5, actorSeat: 0 });
+    s = applyAction(s, { type: 'reset' });
+    expect(seatCounters(s.players[0])).toEqual({});
+    expect(tableCounters(s)).toEqual({});
+  });
+
+  it('reads a legacy state with no counters fields as empty and writes into it', () => {
+    // A row persisted before this feature: neither field exists on the JSON.
+    const legacy = active();
+    const stripped: GameState = {
+      ...legacy,
+      tableCounters: undefined,
+      players: legacy.players.map((p) => {
+        const { counters: _drop, ...rest } = p;
+        return rest as GamePlayer;
+      }),
+    };
+    expect(seatCounters(stripped.players[0])).toEqual({});
+    expect(tableCounters(stripped)).toEqual({});
+    const s = applyAction(stripped, {
+      type: 'counter',
+      seat: 0,
+      name: 'Energy',
+      delta: 1,
+      actorSeat: 0,
+    });
+    expect(seatCounters(s.players[0])).toEqual({ Energy: 1 });
   });
 });

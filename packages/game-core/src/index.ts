@@ -96,6 +96,22 @@ export interface GamePlayer {
    * plus 10 from its partner is 21 total and kills nobody.
    */
   commanderDamage: Record<string, number>;
+  /**
+   * Free-form named counters for this seat — energy, experience, rad, tickets,
+   * a token count, whatever the table is actually tracking. Deliberately
+   * untyped beyond `name -> count`: the whole point is that a pod never waits
+   * on us to ship a specific counter.
+   *
+   * OPTIONAL by design: every persisted row written before this field reads as
+   * `undefined`, which means "this seat has no counters" — identical in
+   * meaning to `{}`, so nothing needed migrating. Read it through
+   * `seatCounters()` rather than dereferencing it.
+   *
+   * Never a loss condition. Poison and commander damage kill; a counter named
+   * "poison" by a user does not, because the reducer must not infer rules from
+   * a free-text label.
+   */
+  counters?: Record<string, number>;
   eliminated: boolean;
   isHost: boolean;
   /** Server-set presence flag for online games. Local games leave this true. */
@@ -121,7 +137,8 @@ export interface GameEvent {
     | 'settings'
     | 'turn'
     | 'designation'
-    | 'phase';
+    | 'phase'
+    | 'counter';
   actorSeat: number | null;
   targetSeat: number | null;
   delta?: number;
@@ -195,6 +212,12 @@ export interface GameState {
    * Persisted per game; legacy states default to both null via the resolver.
    */
   designations: GameDesignations;
+  /**
+   * Free-form counters that belong to the TABLE rather than to a seat — storm
+   * count, the turn number, a shared timer of some kind. Same shape and same
+   * optionality as `GamePlayer.counters`; see that field's note.
+   */
+  tableCounters?: Record<string, number>;
   /**
    * Advisory phase clock. OPTIONAL: persisted JSONB rows predate this field,
    * and absent means "the clock hasn't been started" — the UI shows nothing
@@ -298,7 +321,34 @@ export type GameAction =
    * validation — a table correcting itself (combat back to main1) is a
    * normal use, and advisory means the reducer never says no.
    */
-  | { type: 'phase'; phase: GamePhase; actorSeat: number | null; ts?: number };
+  | { type: 'phase'; phase: GamePhase; actorSeat: number | null; ts?: number }
+  /**
+   * Adjust a free-form counter. `seat` is the owning seat, or `null` for a
+   * table-level counter. A counter springs into existence on its first
+   * `counter` action (delta 0 creates it at zero), so there is no separate
+   * "add" action to keep in step with this one.
+   *
+   * The name is normalized (`normalizeCounterName`) before it is used as a
+   * key, so "  Energy " and "Energy" are the same counter rather than two
+   * rows that look identical in the UI.
+   */
+  | {
+      type: 'counter';
+      seat: number | null;
+      name: string;
+      delta: number;
+      actorSeat: number | null;
+      ts?: number;
+    }
+  /** Delete a free-form counter outright. Distinct from decrementing it to
+   *  zero, which is a legitimate value a table may want to keep on the board. */
+  | {
+      type: 'counter-remove';
+      seat: number | null;
+      name: string;
+      actorSeat: number | null;
+      ts?: number;
+    };
 
 const MAX_EVENTS = 500;
 
@@ -390,6 +440,77 @@ export function cmdDamageKey(fromSeat: number, fromPartner = false): string {
   return fromPartner ? `${fromSeat}#p` : `${fromSeat}`;
 }
 
+/**
+ * Longest a free-form counter name may be. Long enough for "Experience" or
+ * "Rad counters", short enough that a chip stays a chip on a 4-up board.
+ */
+export const MAX_COUNTER_NAME_LENGTH = 24;
+
+/**
+ * Most free-form counters one scope (a seat, or the table) may hold at once.
+ * This is a storage bound, not a taste judgement: an online game's whole state
+ * is one JSONB row, and an unbounded user-named map is the one field here a
+ * bored table could grow without limit.
+ */
+export const MAX_COUNTERS_PER_SCOPE = 12;
+
+/**
+ * Canonical form of a user-supplied counter name, and the trust boundary for
+ * this field: the name is persisted, synced to every other device in an online
+ * game, and rendered. Collapses internal whitespace (so "Rad  counters" can't
+ * masquerade as a second, distinct "Rad counters") and caps the length.
+ *
+ * Throws on an empty result rather than silently inventing a name — the caller
+ * is a form that can show the error, and a counter keyed on "" would be
+ * unreachable in the UI.
+ */
+export function normalizeCounterName(raw: string): string {
+  const name = String(raw ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_COUNTER_NAME_LENGTH)
+    .trim();
+  if (!name) throw new Error('A counter needs a name.');
+  return name;
+}
+
+/** A seat's counters, tolerating the legacy `undefined`. Never returns null. */
+export function seatCounters(player: GamePlayer): Record<string, number> {
+  return player.counters ?? {};
+}
+
+/** The table's counters, tolerating the legacy `undefined`. */
+export function tableCounters(state: GameState): Record<string, number> {
+  return state.tableCounters ?? {};
+}
+
+/**
+ * Apply a delta to one counter inside a scope's map. Clamped at zero, like
+ * poison — every counter Magic actually uses is non-negative, and a stray tap
+ * that reads "-1" looks broken rather than permissive.
+ *
+ * ponytail: clamped at 0. If a table ever genuinely needs a signed tally, the
+ * upgrade is a per-counter `signed` flag, not removing the clamp for everyone.
+ */
+function withCounterDelta(
+  map: Record<string, number>,
+  name: string,
+  delta: number
+): Record<string, number> {
+  const cur = map[name];
+  if (cur === undefined && Object.keys(map).length >= MAX_COUNTERS_PER_SCOPE) {
+    throw new Error(`A maximum of ${MAX_COUNTERS_PER_SCOPE} counters can be tracked at once.`);
+  }
+  return { ...map, [name]: Math.max(0, (cur ?? 0) + delta) };
+}
+
+function withoutCounter(map: Record<string, number>, name: string): Record<string, number> {
+  if (!(name in map)) return map;
+  const next = { ...map };
+  delete next[name];
+  return next;
+}
+
 function checkLossConditions(player: GamePlayer, state: GameState): boolean {
   if (player.eliminated) return true;
   if (player.life <= 0) return true;
@@ -470,6 +591,7 @@ export function createGameState(input: {
     activeSeat: null,
     startingSeat: null,
     designations: { monarch: null, initiative: null },
+    tableCounters: {},
     players: input.players,
     events: [],
     winnerSeat: null,
@@ -509,6 +631,7 @@ export function makePlayer(input: {
     life: input.startingLife,
     poison: 0,
     commanderDamage: {},
+    counters: {},
     eliminated: false,
     isHost: input.isHost ?? false,
     connected: input.connected ?? true,
@@ -534,6 +657,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
     activeSeat: prev.activeSeat ?? null,
     startingSeat: prev.startingSeat ?? null,
     designations: resolveDesignations(prev.designations),
+    tableCounters: prev.tableCounters ?? {},
   };
 
   switch (action.type) {
@@ -585,11 +709,15 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
         activeSeat: null,
         startingSeat: null,
         designations: { monarch: null, initiative: null },
+        tableCounters: {},
         players: prev.players.map((p) => ({
           ...p,
           life: prev.startingLife,
           poison: 0,
           commanderDamage: {},
+          // A reset is a fresh game at the same table: last game's energy /
+          // experience / storm count is stale, exactly like its poison.
+          counters: {},
           eliminated: false,
         })),
         events: pushEvent(next, { kind: 'reset', actorSeat: null, targetSeat: null, ts }),
@@ -819,6 +947,57 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
           // fromSeat = previous holder (null if unclaimed)
           fromSeat: next.designations[action.designation] ?? undefined,
           message: action.designation,
+          ts,
+        }),
+      };
+      break;
+    }
+    case 'counter': {
+      const name = normalizeCounterName(action.name);
+      if (action.seat !== null) requireSeat(prev.players, action.seat);
+      next =
+        action.seat === null
+          ? { ...next, tableCounters: withCounterDelta(tableCounters(next), name, action.delta) }
+          : {
+              ...next,
+              players: updatePlayer(next, action.seat, (p) => ({
+                ...p,
+                counters: withCounterDelta(seatCounters(p), name, action.delta),
+              })),
+            };
+      next = {
+        ...next,
+        events: pushEvent(next, {
+          kind: 'counter',
+          actorSeat: action.actorSeat,
+          targetSeat: action.seat,
+          delta: action.delta,
+          message: name,
+          ts,
+        }),
+      };
+      break;
+    }
+    case 'counter-remove': {
+      const name = normalizeCounterName(action.name);
+      if (action.seat !== null) requireSeat(prev.players, action.seat);
+      next =
+        action.seat === null
+          ? { ...next, tableCounters: withoutCounter(tableCounters(next), name) }
+          : {
+              ...next,
+              players: updatePlayer(next, action.seat, (p) => ({
+                ...p,
+                counters: withoutCounter(seatCounters(p), name),
+              })),
+            };
+      next = {
+        ...next,
+        events: pushEvent(next, {
+          kind: 'counter',
+          actorSeat: action.actorSeat,
+          targetSeat: action.seat,
+          message: name,
           ts,
         }),
       };
