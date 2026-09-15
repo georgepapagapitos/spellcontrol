@@ -53,6 +53,17 @@ import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import type { CardPreviewAction } from '../CardPreview';
 
 import { userMessage } from '@/lib/user-error';
+/**
+ * Can this owned card go in the mainboard of a commander deck? The two rules
+ * the mainboard enforces and the out-of-deck zones don't: the commander's
+ * colour identity, and legality in the format.
+ */
+function isMainboardLegal(c: EnrichedCard, commanderCI: string[]): boolean {
+  if (!(c.colorIdentity ?? []).every((k) => commanderCI.includes(k))) return false;
+  const legality = c.legalities?.commander;
+  return !legality || legality === 'legal' || legality === 'restricted';
+}
+
 function isOffColor(cardCI: string[] | undefined, commanderCI: string[]): boolean {
   if (commanderCI.length === 0) return false;
   const set = new Set(commanderCI);
@@ -893,17 +904,24 @@ function CollectionResults({
     [query, tagsReady]
   );
 
-  const filtered = useMemo(() => {
+  // Revealing is per-search: a new query is a new question, and carrying the
+  // reveal over would quietly re-flood the default (empty-query) list. Stored
+  // as the search it belongs to rather than reset by an effect, so a changed
+  // query simply stops matching.
+  const revealKey = `${commanderRules}\u0000${query}`;
+  const [revealedFor, setRevealedFor] = useState<string | null>(null);
+  const revealBlocked = revealedFor === revealKey;
+
+  const { allowed, blocked } = useMemo(() => {
     const seenNames = new Set<string>();
-    const out: Array<{ card: EnrichedCard; nameHit: boolean }> = [];
+    const out: Array<{ card: EnrichedCard; nameHit: boolean; blocked: boolean }> = [];
     for (const c of collection) {
       if (excludeNames.has(c.name)) continue;
       const ci = c.colorIdentity ?? [];
-      if (commanderRules === 'filter') {
-        if (!ci.every((k) => colorIdentity.includes(k))) continue;
-        const legality = c.legalities?.commander;
-        if (legality && legality !== 'legal' && legality !== 'restricted') continue;
-      }
+      // Mainboard-illegal cards are held back rather than dropped, so the
+      // panel can say how many its own rule hid instead of leaving an owned
+      // card silently missing from a search that should have found it.
+      const blockedByRules = commanderRules === 'filter' && !isMainboardLegal(c, colorIdentity);
       const m = search.match(c);
       if (!m.hit) continue;
 
@@ -936,10 +954,11 @@ function CollectionResults({
 
       if (seenNames.has(c.name)) continue;
       seenNames.add(c.name);
-      out.push({ card: c, nameHit: m.nameHit });
+      out.push({ card: c, nameHit: m.nameHit, blocked: blockedByRules });
     }
-    const keyed = out.map(({ card, nameHit }) => ({
+    const keyed = out.map(({ card, nameHit, blocked }) => ({
       card,
+      blocked,
       key: {
         name: card.name,
         nameHit,
@@ -950,7 +969,16 @@ function CollectionResults({
       },
     }));
     keyed.sort((a, b) => compareResults(a.key, b.key, sort));
-    return keyed.map((k) => k.card).slice(0, 200);
+    return {
+      allowed: keyed
+        .filter((k) => !k.blocked)
+        .map((k) => k.card)
+        .slice(0, 200),
+      blocked: keyed
+        .filter((k) => k.blocked)
+        .map((k) => k.card)
+        .slice(0, 200),
+    };
   }, [
     collection,
     colorIdentity,
@@ -972,6 +1000,10 @@ function CollectionResults({
     colorMatchMode,
     setFilter,
   ]);
+
+  // Blocked rows only join the list once the user asks for them, and they sit
+  // after the playable ones so revealing never buries what they can use.
+  const filtered = revealBlocked ? [...allowed, ...blocked] : allowed;
 
   const addByName = async (name: string, preferPrintingId?: string) => {
     const full = await getCardByNameResilient(name);
@@ -1046,10 +1078,31 @@ function CollectionResults({
       </p>
     ) : null;
 
+  // The mainboard's own rules hid owned cards that otherwise matched. Say so
+  // rather than leaving a card the user can see in their binder missing from
+  // the results, which is indistinguishable from not owning it.
+  const blockedNote =
+    blocked.length === 0 ? null : (
+      <p className="card-search-tag-note" role="status">
+        {blocked.length === 1
+          ? '1 card you own matches but cannot go in the mainboard.'
+          : `${blocked.length} cards you own match but cannot go in the mainboard.`}{' '}
+        <button
+          type="button"
+          className="card-search-fit"
+          aria-expanded={revealBlocked}
+          onClick={() => setRevealedFor(revealBlocked ? null : revealKey)}
+        >
+          {revealBlocked ? 'Hide them' : 'Show them'}
+        </button>
+      </p>
+    );
+
   if (filtered.length === 0) {
     return (
       <>
         {tagNote}
+        {blockedNote}
         <div className="card-search-empty-wrap">
           <p className="card-search-empty">No matches in your collection.</p>
           {query.trim().length >= 2 && (
@@ -1065,6 +1118,7 @@ function CollectionResults({
   return (
     <>
       {tagNote}
+      {blockedNote}
       <ul className="card-search-results" id="card-search-results" role="listbox">
         {filtered.map((c, i) => {
           const ownedCount = collection.filter((x) => x.name === c.name).length;
@@ -1074,10 +1128,10 @@ function CollectionResults({
           const binders = binderByCardName?.get(c.name) ?? [];
           // Only ever true in the badge state: the filter state removed these
           // rows upstream, and 'off' has no commander to measure against.
-          const offColor = commanderRules === 'badge' && isOffColor(c.colorIdentity, colorIdentity);
+          const offColor = commanderRules !== 'off' && isOffColor(c.colorIdentity, colorIdentity);
           const legality = c.legalities?.commander;
           const notLegal =
-            commanderRules === 'badge' &&
+            commanderRules !== 'off' &&
             !!legality &&
             legality !== 'legal' &&
             legality !== 'restricted';

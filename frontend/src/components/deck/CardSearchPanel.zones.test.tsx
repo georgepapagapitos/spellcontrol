@@ -75,6 +75,34 @@ describe('CardSearchPanel — out-of-deck zones accept any card', () => {
     expect(screen.queryByText('Black Lotus')).toBeNull();
   });
 
+  it('says how many owned cards the mainboard rules hid, instead of leaving them silently missing', () => {
+    renderPanel('main');
+    // Counterspell (off-colour) + Black Lotus (banned). The commander is not
+    // counted: it is excluded by name, not by the mainboard legality rules.
+    expect(screen.getByText(/2 cards you own match but cannot go in the mainboard/)).toBeTruthy();
+    expect(screen.queryByText('Counterspell')).toBeNull();
+  });
+
+  it('reveals the hidden cards on demand, badged, without burying the playable ones', () => {
+    renderPanel('main');
+    fireEvent.click(screen.getByRole('button', { name: 'Show them' }));
+
+    const rows = Array.from(document.querySelectorAll('.card-search-row'));
+    const names = rows.map((r) => r.querySelector('.card-search-name')?.textContent);
+    expect(names).toContain('Counterspell');
+    // Playable cards stay ahead of the ones that cannot be played.
+    expect(names.indexOf('Lightning Bolt')).toBeLessThan(names.indexOf('Counterspell'));
+
+    const revealed = screen.getByText('Counterspell').closest('li');
+    expect(revealed?.textContent).toContain('Off-color');
+    expect(screen.getByRole('button', { name: 'Hide them' })).toBeTruthy();
+  });
+
+  it('shows no such note in the out-of-deck zones, where nothing is held back', () => {
+    renderPanel('side');
+    expect(screen.queryByText(/cannot go in the mainboard/)).toBeNull();
+  });
+
   it('lifts all three on Sideboard — they are legitimate swap-pile cards', () => {
     renderPanel('side');
     expect(screen.getByText('Lightning Bolt')).toBeTruthy();
