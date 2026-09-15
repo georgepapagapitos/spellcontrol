@@ -6,7 +6,7 @@ import type { EmptyCell, SeatSlot } from '../../lib/board-layouts';
 import {
   isCustomLayout,
   resolveLayout,
-  seamOffset,
+  seamSatellite,
   undoButtonParams,
 } from '../../lib/board-layouts';
 import { paletteForSeat } from '../../lib/seat-palette';
@@ -165,6 +165,12 @@ export function GameBoard({
   // Lock body scroll while the board is mounted — it's a fullscreen overlay.
   useLockBodyScroll();
 
+  // Seam satellite placement, at both size steps the CSS switches between.
+  const undoPlace = seamSatellite(board.seam, board.rows, -1, '3.4rem');
+  const undoPlaceLg = seamSatellite(board.seam, board.rows, -1, '4rem');
+  const clockPlace = seamSatellite(board.seam, board.rows, 1, '3.4rem');
+  const clockPlaceLg = seamSatellite(board.seam, board.rows, 1, '4rem');
+
   return (
     <div
       className={`game-board game-board-${Math.min(total, 6)} layout-${
@@ -243,22 +249,23 @@ export function GameBoard({
           <MoreHorizontal width={22} height={22} strokeWidth={2} aria-hidden />
         </button>
 
-        {/* Clock sits on the far side of the seam hub from undo, so the two
-            never collide and the hub stays the board's one control cluster.
-            Hidden in commander-damage focus mode: that mode deliberately
-            strips the board down to the damage question. */}
+        {/* Clock and undo are the seam's two satellites. On a row seam they sit
+            either side of the hub, over the gutter. On a column seam the hub is
+            a four-corner crossing, so they take the middle of an adjacent
+            panel's edge instead — see `seamSatellite`. Hidden in
+            commander-damage focus mode: that mode deliberately strips the board
+            down to the damage question. */}
         {showClock && !cmdFocus && (
           <div
             className={`game-board-clock ${'col' in board.seam ? 'is-col-seam' : 'is-row-seam'}`}
             style={{
-              ['--seam-top-pct' as never]:
-                'row' in board.seam ? `${(board.seam.row / board.rows) * 100}%` : '50%',
+              ['--seam-top-pct' as never]: clockPlace.topPct,
               ['--seam-left-pct' as never]:
                 'col' in board.seam ? `${(board.seam.col / board.cols) * 100}%` : '50%',
-              ['--clock-tx' as never]: seamOffset(board.seam, '3.4rem', 1).tx,
-              ['--clock-ty' as never]: seamOffset(board.seam, '3.4rem', 1).ty,
-              ['--clock-tx-lg' as never]: seamOffset(board.seam, '4rem', 1).tx,
-              ['--clock-ty-lg' as never]: seamOffset(board.seam, '4rem', 1).ty,
+              ['--clock-tx' as never]: clockPlace.tx,
+              ['--clock-ty' as never]: clockPlace.ty,
+              ['--clock-tx-lg' as never]: clockPlaceLg.tx,
+              ['--clock-ty-lg' as never]: clockPlaceLg.ty,
             }}
           >
             <GameClock game={game} dispatch={dispatchTracked} canEdit={canControlAll} />
@@ -270,17 +277,18 @@ export function GameBoard({
             type="button"
             className="game-board-undo-btn"
             style={{
-              ['--seam-top-pct' as never]:
-                'row' in board.seam ? `${(board.seam.row / board.rows) * 100}%` : '50%',
+              ['--seam-top-pct' as never]: undoPlace.topPct,
               ['--seam-left-pct' as never]:
                 'col' in board.seam ? `${(board.seam.col / board.cols) * 100}%` : '50%',
-              // undoButtonParams drives offset direction (row-seam=left, col-seam=above)
-              // and icon rotation (0° for row, 90° for col). Two size variants let the
-              // CSS media query pick the right offset at ≥600px without recalculating.
-              ['--undo-tx' as never]: undoButtonParams(board.seam).tx,
-              ['--undo-ty' as never]: undoButtonParams(board.seam).ty,
-              ['--undo-tx-lg' as never]: undoButtonParams(board.seam, '4rem').tx,
-              ['--undo-ty-lg' as never]: undoButtonParams(board.seam, '4rem').ty,
+              // seamSatellite drives the placement (row-seam = left of the hub,
+              // col-seam = a quarter down the seam); undoButtonParams still
+              // supplies the icon rotation (0° for row, 90° for col). Two size
+              // variants let the CSS media query pick the right offset at ≥600px
+              // without recalculating.
+              ['--undo-tx' as never]: undoPlace.tx,
+              ['--undo-ty' as never]: undoPlace.ty,
+              ['--undo-tx-lg' as never]: undoPlaceLg.tx,
+              ['--undo-ty-lg' as never]: undoPlaceLg.ty,
               ['--undo-rot' as never]: `${undoButtonParams(board.seam).iconRot}deg`,
             }}
             aria-label={`Undo ${undoLabel}`}
@@ -930,7 +938,10 @@ function PlayerPanel({
                   }}
                 >
                   <FastForward width={13} height={13} strokeWidth={2.2} aria-hidden />
-                  Turn
+                  {/* The word is dropped on a panel too narrow to hold it and
+                      the seat name (see play-counters-panel.css); the chip's
+                      aria-label carries the meaning either way. */}
+                  <span className="pp-turn-chip-label">Turn</span>
                 </button>
               )}
               {isMonarch && (

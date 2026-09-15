@@ -5,6 +5,7 @@ import {
   homeSlotIndex,
   isCustomLayout,
   resolveLayout,
+  seamSatellite,
   undoButtonParams,
   type SeatSlot,
 } from './board-layouts';
@@ -132,6 +133,61 @@ describe('undoButtonParams', () => {
       expect(p.tx).toContain('calc');
       expect(p.ty).toBe('-50%');
     }
+  });
+});
+
+describe('seamSatellite', () => {
+  it('row seam: satellites flank the hub over the gutter', () => {
+    const before = seamSatellite({ row: 1 }, 2, -1, '3.4rem');
+    expect(before.tx).toBe('calc(-50% - 3.4rem)');
+    expect(before.ty).toBe('-50%');
+    // The "after" side is the wide clock and anchors by its edge instead —
+    // pinned in its own case below.
+    // The seam's own row still drives how far down the board they sit.
+    expect(before.topPct).toBe('50%');
+    expect(seamSatellite({ row: 1 }, 4, -1, '3.4rem').topPct).toBe('25%');
+  });
+
+  it('column seam: satellites take the quarter points instead of hugging the hub', () => {
+    // The hub is a four-corner crossing on a column seam, so anything offset a
+    // few rem from it lands on a name — measured at 766px² on 4p-sides before
+    // this rule. A quarter of the way along the seam is the middle of an
+    // adjacent panel's edge, which is clear by construction.
+    const before = seamSatellite({ col: 1 }, 2, -1, '3.4rem');
+    const after = seamSatellite({ col: 1 }, 2, 1, '3.4rem');
+    expect(before.topPct).toBe('25%');
+    expect(after.topPct).toBe('75%');
+    // Centred on that point — no hub-relative offset left to apply.
+    for (const p of [before, after]) {
+      expect(p.tx).toBe('-50%');
+      expect(p.ty).toBe('-50%');
+    }
+  });
+
+  it('row seam: the wide satellite is anchored by its edge, not its centre', () => {
+    // Centring a 133px pill 3.4rem from a 44px hub put 1357px² of the hub
+    // underneath it — the ⋯ glyph was invisible on every row-seam board. An
+    // edge anchor keeps the gap fixed however wide the pill gets.
+    const clock = seamSatellite({ row: 1 }, 2, 1, '3.4rem');
+    expect(clock.tx).not.toContain('-50%');
+    expect(clock.tx).toBe('2rem');
+    // The small icon satellite still centres — it is narrower than the gap.
+    expect(seamSatellite({ row: 1 }, 2, -1, '3.4rem').tx).toContain('-50%');
+  });
+
+  it('row-seam edge anchor does not grow with the offset step', () => {
+    // Both size steps must clear the same hub, which is one size.
+    expect(seamSatellite({ row: 1 }, 2, 1, '3.4rem').tx).toBe(
+      seamSatellite({ row: 1 }, 2, 1, '4rem').tx
+    );
+  });
+
+  it('column-seam placement ignores the offset it is handed', () => {
+    // Both size steps (3.4rem / 4rem) must resolve to the same quarter points,
+    // or the ≥600px media query would shift the satellites off them.
+    expect(seamSatellite({ col: 1 }, 2, 1, '3.4rem')).toEqual(
+      seamSatellite({ col: 1 }, 2, 1, '4rem')
+    );
   });
 });
 

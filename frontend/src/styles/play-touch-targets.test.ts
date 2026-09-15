@@ -144,6 +144,56 @@ describe('play board touch targets', () => {
 });
 
 /**
+ * Seam keep-out (E299/E310). The board's seam furniture — hub, undo, clock —
+ * sits on a boundary that runs along a panel EDGE, and every panel puts a
+ * cluster at its corners, so the two collide unless the panels hold back.
+ * `.claude/tools/seam-geometry-scratch.mjs` measured it across all 16 preset
+ * layouts: the clock covered 766px² of a name on `4p-sides`, 383px² on
+ * `4p-pod` (the default four-player board), the hub nicked two names at 76px²
+ * each, and the turn chip lost 447px² on `3p-tr-bb`.
+ */
+describe('panel corners hold back from the seam', () => {
+  it('both corner rails inset by the keep-out, on both axes', () => {
+    // Both axes, because at a corner either edge leads away from it — a
+    // single-axis inset cleared the hub and left the clock overlapping.
+    expect(board).toMatch(/\.player-panel\s*\{[^}]*--seam-keepout:\s*[\d.]+rem/);
+    const corner = board.match(/\.player-panel-corner\s*\{([^}]*)\}/)?.[1];
+    expect(corner).toMatch(/top:\s*calc\([^;]*--seam-keepout/);
+    expect(board).toMatch(
+      /\.player-panel-corner\.is-tl\s*\{[^}]*left:\s*calc\([^;]*--seam-keepout/
+    );
+    const chips = counters.match(/\.pp-designation-chips\s*\{([^}]*)\}/)?.[1];
+    expect(chips, 'the chip rail carries the turn chip and sits at a corner too').toBeTruthy();
+    expect(chips).toMatch(/top:\s*calc\([^;]*--seam-keepout/);
+    expect(chips).toMatch(/right:\s*calc\([^;]*--seam-keepout/);
+  });
+
+  it('the edge-anchored clock is capped against the board edge', () => {
+    // Anchoring by the near edge pushed the pill 5px off a 320px screen. The
+    // cap plus min-width:0 down the flex chain lets the name ellipsis absorb
+    // it instead — without the min-width:0 the nowrap children refuse to
+    // shrink and the cap does nothing.
+    const pill = enhancements.match(/\.game-board-clock\.is-row-seam\s*\{([^}]*)\}/)?.[1];
+    expect(pill, 'the row-seam clock needs a width cap').toBeTruthy();
+    expect(pill).toMatch(/max-width:\s*calc\(50%/);
+    for (const sel of ['.game-clock', '.game-clock-turn', '.game-clock-turn-name']) {
+      const body = enhancements.match(
+        new RegExp(`${sel.replace('.', '\\.')}\\s*\\{([^}]*)\\}`)
+      )?.[1];
+      expect(body, `${sel} must allow shrinking`).toMatch(/min-width:\s*0/);
+    }
+  });
+
+  it('applies on every layout, not only the grid ones', () => {
+    // An earlier attempt gated this on `cols > 1`, which reads as "grid boards
+    // only" but silently included 2p-stacked (its seats span both columns) —
+    // and 2p-stacked genuinely needs it (98px² clock-on-name). The token is
+    // declared unconditionally on the panel; nothing may reset it to 0.
+    expect(board).not.toMatch(/--seam-keepout:\s*0(px)?\s*;/);
+  });
+});
+
+/**
  * The seam is the board's only gutter and it runs along ONE axis. A wide pill
  * fits a row seam's horizontal gutter and spills onto the panels either side
  * of a column seam's vertical one — where it landed on a seat's name label

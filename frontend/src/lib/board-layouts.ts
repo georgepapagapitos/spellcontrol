@@ -321,6 +321,67 @@ export function seamOffset(
   return { tx: `calc(-50% ${sign} ${offset})`, ty: '-50%' };
 }
 
+/**
+ * How far from the seam a wide satellite's near edge starts: the hub button's
+ * radius (it is 2.75rem across at the coarse-pointer size) plus a small gap.
+ */
+const HUB_CLEARANCE = '2rem';
+
+/**
+ * Where a seam satellite (undo, clock) actually sits — the placement rule, as
+ * opposed to `seamOffset`'s raw direction.
+ *
+ * On a ROW seam, the seam is a horizontal gutter with a panel above and below;
+ * a satellite offset left or right of the hub sits over that gutter and clears
+ * everything. That is the original behaviour and is unchanged.
+ *
+ * On a COLUMN seam it is different, and this is the part that kept producing
+ * collisions (E299/E310): a col-seam board is a grid, so the hub sits where
+ * FOUR panel corners meet — and every panel puts its name button in a corner.
+ * Anything hung a few rem from the hub therefore lands on somebody's name; the
+ * measured worst case was the clock covering 766px² of a seat's name button on
+ * `4p-sides`, and it collides in BOTH directions because the corners are
+ * symmetric about the crossing. Shuffling the offset only moves which name it
+ * lands on, and the corner cluster cannot yield either — the satellite stack is
+ * ~180px long, so the name would have to move further than the panel is deep.
+ *
+ * So a col-seam satellite stops being hub-relative and takes the **midpoint of
+ * an adjacent panel's inner edge** instead: a quarter of the way down the seam
+ * for the "before" satellite, three quarters for the "after" one. Panels put
+ * their furniture at corners and their ± zones at the middle of the panel, so
+ * the middle of an edge is clear *by construction* rather than by a magic
+ * number tuned to one viewport — which is what makes this hold at every board
+ * size instead of only the one it was measured at.
+ *
+ * All three stay on the seam line, so they still read as the boundary's
+ * furniture rather than as any seat's.
+ */
+export function seamSatellite(
+  seam: BoardLayout['seam'],
+  rows: number,
+  side: -1 | 1,
+  offset: string
+): { topPct: string; tx: string; ty: string } {
+  if ('col' in seam) {
+    return { topPct: side < 0 ? '25%' : '75%', tx: '-50%', ty: '-50%' };
+  }
+  const topPct = `${(seam.row / rows) * 100}%`;
+  if (side > 0) {
+    // The "after" satellite on a row seam is the clock, a WIDE pill, and the
+    // offset is applied to its centre — so half its width (66px at phone size)
+    // swallowed the hub button, which is only 22px in radius. Measured at
+    // 1357px² of the hub covered, with the clock painting last at the same
+    // z-index: the ⋯ glyph was simply invisible on every row-seam board,
+    // including the default `4p-pod` and `2p-stacked`.
+    //
+    // So this one is anchored by its NEAR EDGE instead of its centre — no
+    // `-50%` — which makes the gap independent of how wide the pill gets when
+    // a long player name lands in it.
+    return { topPct, tx: HUB_CLEARANCE, ty: '-50%' };
+  }
+  return { topPct, ...seamOffset(seam, offset, side) };
+}
+
 export function undoButtonParams(
   seam: BoardLayout['seam'],
   offset = '3.4rem'

@@ -5226,3 +5226,28 @@ shows it?
   The clock reads upright for whoever holds the device (how long the table has
   played is a table fact, the same ruling the win celebration carries); the
   turn chip rotates with its seat. That split is the rule, not a one-off.
+- **The seam is shared ground: panels hold back from it, and satellites sit at
+  the middle of an edge, never at a corner** (E299/E310). Three rules, each
+  from a measured collision rather than an eyeball:
+  1. Every panel insets its corner clusters by `--seam-keepout` on **both**
+     axes — at a corner, either edge leads away from it, and a single-axis
+     inset cleared the hub while leaving the clock overlapping. Unconditional:
+     the seam runs along a panel edge in every layout, so there is none where
+     the risk is absent.
+  2. A satellite on a **column** seam takes the quarter points of the seam
+     (`seamSatellite`), because the hub there is a four-panel crossing and
+     anything hung a few rem from it lands on a name in either direction. The
+     middle of a panel edge is clear by construction, which is why this holds
+     at every board size rather than only the one it was tuned at.
+  3. A **wide** satellite is anchored by its near edge, never centred at an
+     offset — half of a 133px pill swallowed the 44px hub button and hid the ⋯
+     glyph entirely on every row-seam board. Cap its width against the board
+     edge too, so a narrow phone or a long player name shrinks the pill instead
+     of pushing it off-screen.
+
+  Verify with `.claude/tools/seam-geometry-scratch.mjs`, which drives all 16
+  preset layouts through the menu's Setup tab and reports every satellite ∩
+  panel-furniture overlap in px². **Measure, don't read the CSS** — the
+  collisions this caught were 7–10px slivers invisible in a static read, and
+  two of them were on layouts (`4p-pod`, the default four-player board, and
+  `2p-stacked`) that a previous audit had recorded as clean.

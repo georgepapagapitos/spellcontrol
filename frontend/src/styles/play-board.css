@@ -207,9 +207,29 @@
 
 /* Corner overlays float on top of the centered life row. They sit at the
    panel edges and never compete with the headline number. */
+/**
+ * Seam keep-out: how far a panel's corner cluster stays clear of its own
+ * corners, so the board's seam furniture (hub, undo, clock) never lands on a
+ * name. Measured, not guessed — `.claude/tools/seam-geometry-scratch.mjs`
+ * reported the collisions this clears: on `4p-sides` the hub nicked two names
+ * (76px² each, E299) and the clock covered 766px² of one (E310); on `4p-pod`,
+ * the DEFAULT four-player board, undo covered 366px² and the clock 383px²; on
+ * `2p-stacked` the clock clipped a name by 98px².
+ *
+ * Unconditional on purpose. The seam runs along a panel edge in every layout
+ * and every panel puts a cluster at its corners, so there is no layout where
+ * the risk is absent — an earlier attempt to apply this only to "grid" boards
+ * keyed off `cols > 1`, which quietly included `2p-stacked` (its seats span
+ * both columns) and excluded nothing. Both axes get the inset because at a
+ * corner either edge leads away from it.
+ */
+.player-panel {
+  --seam-keepout: 0.9rem;
+}
+
 .player-panel-corner {
   position: absolute;
-  top: var(--space-2);
+  top: calc(var(--space-2) + var(--seam-keepout));
   max-width: calc(100% - 3.5rem);
   display: flex;
   flex-direction: column;
@@ -218,15 +238,15 @@
 }
 
 .player-panel-corner.is-tl {
-  left: 0.65rem;
+  left: calc(0.65rem + var(--seam-keepout));
 }
 
 @media (min-width: 600px) {
   .player-panel-corner {
-    top: 0.7rem;
+    top: calc(0.7rem + var(--seam-keepout));
   }
   .player-panel-corner.is-tl {
-    left: 0.85rem;
+    left: calc(0.85rem + var(--seam-keepout));
   }
 }
 
