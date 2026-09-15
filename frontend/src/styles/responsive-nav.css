@@ -511,6 +511,15 @@
   box-shadow: inset 0 -2px 0 var(--accent);
 }
 
+/* Phone/tablet density: the strip already ends in a hairline border, which
+   does the separating a 16px gap was doing. Half of it is enough under the
+   border and buys a line of the page back on the viewports that need it. */
+@media (max-width: 1023px) {
+  .collection-hub-tabs {
+    margin-bottom: var(--space-2);
+  }
+}
+
 /* ── Mobile bottom tab bar ─────────────────────────────────────────────── */
 .mobile-tab-bar {
   display: none;

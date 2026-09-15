@@ -27,7 +27,11 @@
      (no top header, a tab bar), which only holds below the 1024 desktop
      tier. */
   .decks-index-page {
-    gap: var(--space-4);
+    /* Tighter than the desktop rhythm on purpose. Below 1024 the hero, the
+       search row, the sort row and the insight strips all stack, so this gap
+       is charged five times over before the first deck — measured, it put the
+       first card at 73% of a 780px phone screen and 70% of a tablet's. */
+    gap: var(--space-2);
     min-height: calc(var(--vh-safe) - 8.5rem - var(--safe-top));
   }
   .decks-index-actions > .pill-btn {

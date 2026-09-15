@@ -12,6 +12,7 @@ import { useSetMap } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
 import { BrandMark } from '../components/shared/BrandMark';
 import { AddCardsSheet } from '../components/AddCardsSheet';
+import { OverflowMenu } from '../components/OverflowMenu';
 import { StatsBar } from '../components/StatsBar';
 import { CardListTable } from '../components/CardListTable';
 import { ShareDialog } from '../components/ShareDialog';
@@ -219,11 +220,16 @@ export function CollectionPage() {
                 <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
                 <span>Add cards</span>
               </button>
+              {/* Export + Share are secondary: full pills on desktop/tablet,
+                  collapsed into the ⋮ kebab on phones, where three pills wrap
+                  onto a second row and push the collection further down a
+                  screen that only had room for two card rows. Mirrors the
+                  decks and binder heroes. */}
               {!isEmpty && (
                 <>
                   <button
                     type="button"
-                    className="pill-btn collection-hero-action"
+                    className="pill-btn collection-hero-action collection-hero-action-secondary"
                     onClick={handleExportCsv}
                     title="Download a CSV of your collection"
                   >
@@ -232,7 +238,7 @@ export function CollectionPage() {
                   </button>
                   <button
                     type="button"
-                    className="pill-btn collection-hero-action"
+                    className="pill-btn collection-hero-action collection-hero-action-secondary"
                     aria-haspopup="dialog"
                     onClick={() => setShareOpen(true)}
                     title="Share a read-only link to this collection"
@@ -240,6 +246,15 @@ export function CollectionPage() {
                     <Share2 width={14} height={14} strokeWidth={1.8} aria-hidden />
                     <span>Share</span>
                   </button>
+                  <OverflowMenu
+                    className="collection-hero-actions-overflow"
+                    triggerClassName="pill-btn collection-hero-actions-kebab"
+                    ariaLabel="More collection actions"
+                    items={[
+                      { label: 'Export CSV', icon: Download, onClick: handleExportCsv },
+                      { label: 'Share', icon: Share2, onClick: () => setShareOpen(true) },
+                    ]}
+                  />
                 </>
               )}
             </div>

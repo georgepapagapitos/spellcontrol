@@ -141,6 +141,30 @@
   color: var(--text-muted);
 }
 
+/* Phone density: a control-row label that gives way once the row runs out of
+   width. A phone toolbar has ~344px; the decks row (sort 129 + view modes 142
+   + Select 87) and the collection row (Select 80 + group 138 + sort 99 + view
+   95) both overflowed it and wrapped a second row of chrome above the content
+   — 40-50px of a 780px screen spent on one orphaned control.
+   The controls that opt in are the ones whose icon already says what they are
+   and whose state is elsewhere (the Select toggle's mode shows as checkboxes
+   on every card). They keep their accessible name via `aria-label`, and an
+   ACTIVE toggle keeps its visible label: "Done" is the way out of select mode
+   and must never be a bare glyph. Same trade as the grouped collection
+   toolbar's Collapse-all, which went icon-only here for this exact reason. */
+@media (max-width: 600px) {
+  :is(.toolbar-pill, .pill-btn):not([aria-pressed='true']) > .toolbar-label-compact {
+    display: none;
+  }
+
+  /* Side padding pays for itself on a wide row and costs a wrap on a narrow
+     one: four pills spend 25px of a 304px row on it. Vertical padding and
+     the 2.1rem height are untouched, so the tap target doesn't move. */
+  .toolbar-pill {
+    padding-inline: 0.6rem;
+  }
+}
+
 .toolbar-popover {
   position: relative;
   display: inline-flex;
