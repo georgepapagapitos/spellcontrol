@@ -20,6 +20,12 @@ const here = dirname(fileURLToPath(import.meta.url));
  * thing a base rule removes the need for, and they hid the hole: the routes
  * anyone checks first looked correct.
  *
+ * `.toolbar-pill` joined the list after the sweep measured it at 34px — ten
+ * pixels under, the worst shortfall found — which is the honest limitation of a
+ * CURATED list: it only guards what someone remembered to add. The nightly
+ * journey's real-browser check (scripts/journey.mjs, undersizedTouchTargets)
+ * is what finds the ones this list does not know about.
+ *
  * Note the failure this CANNOT catch: a floor that is declared but inert.
  * `.btn`'s own base rule carries a comment about exactly that — `min-height`
  * is silently ignored on an inline box, so 34 `.btn` anchors measured 29px
@@ -27,7 +33,7 @@ const here = dirname(fileURLToPath(import.meta.url));
  * assertion sees the declaration, not the computed box, so both halves are
  * asserted here: the floor, and the display mode that lets it land.
  */
-const SHARED_CONTROLS = ['.btn', '.tab', '.pill-btn', '.search-pill'];
+const SHARED_CONTROLS = ['.btn', '.tab', '.pill-btn', '.search-pill', '.toolbar-pill'];
 
 /** Every `@media (pointer: coarse)` body across the stylesheet directory. */
 function allCoarseBlocks(): string {

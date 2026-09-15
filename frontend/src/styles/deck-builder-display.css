@@ -111,6 +111,19 @@
     background var(--motion-fast) ease;
 }
 
+/* Coarse-pointer floor. The pill's `height: 2.1rem` above is a density choice
+   that lands at 34px — TEN pixels under the touch floor, the worst shortfall
+   the playtest sweep has measured. `min-height` clamps the fixed height, so
+   the desktop density is untouched. Measured
+   (.claude/tools/btn-floor-probe.mjs, phone/coarse): 7 pills at 34px across
+   /collection, /collection/lists, /collection/binders and /decks, while
+   /collection/sets read 44 because that surface floors its own. */
+@media (pointer: coarse) {
+  .toolbar-pill {
+    min-height: 44px;
+  }
+}
+
 .toolbar-pill:focus-visible {
   border-color: var(--accent);
   outline: 2px solid var(--accent);
