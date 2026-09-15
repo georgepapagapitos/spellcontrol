@@ -70,7 +70,9 @@ function renderTable(c: EnrichedCard[]) {
 }
 
 function openViewPopover() {
-  fireEvent.click(screen.getByRole('button', { name: 'View' }));
+  // Icon-only at phone width (its label is what wrapped the control row), so
+  // the trigger is addressed by its aria-label rather than visible text.
+  fireEvent.click(screen.getByRole('button', { name: 'View options' }));
   return screen.getByRole('dialog', { name: 'View options' });
 }
 

@@ -12,9 +12,11 @@
 //   - a missing document title
 //   - two stacked blocks that touch (a host that forgot its gap — see
 //     touchingSiblings below)
+//   - a primary control row wrapped onto a second line at phone width (see
+//     NO_WRAP_AT_PHONE below)
 //   - a screenshot, so a failure comes with the picture
 //
-// Any of the first five fails the run. Screenshots + report.json land in
+// Any of the first six fails the run. Screenshots + report.json land in
 // --out. Run by .github/workflows/nightly-journey.yml against a production
 // build served by the backend; locally:
 //
@@ -199,6 +201,47 @@ const TOUCHING_BY_DESIGN = new Set([
   'div.playtest-board › div.playtest-trackers | div.playtest-main',
   'div.playtest-board › div.playtest-main | div.playtest-hand',
 ]);
+/**
+ * The primary control rows, which must stay ONE row at phone width.
+ *
+ * `control-row-budget.test.tsx` already counts the controls in these rows, but
+ * a count is not the invariant — width is. The collection's row was inside its
+ * budget at four controls and still spent 412px in a 344px row, so the "View"
+ * popover wrapped onto a line of its own and pushed the cards down a screen
+ * that had room for two rows of them. Nothing caught it; a phone screenshot
+ * from the user did.
+ *
+ * A row here is wrapped when it is taller than its tallest child. Fold the new
+ * control into the row's "View" popover or its kebab rather than delisting the
+ * row (STYLE_GUIDE § "Toolbars & action rows").
+ */
+const NO_WRAP_AT_PHONE = [
+  '.decks-index-sort-bar',
+  '.decks-index-actions',
+  '.card-list-summary-actions',
+  '.collection-hero-actions',
+];
+
+function wrappedControlRows(selectors) {
+  const out = [];
+  for (const sel of selectors) {
+    for (const el of document.querySelectorAll(sel)) {
+      const r = el.getBoundingClientRect();
+      if (!r.height) continue;
+      const kids = [...el.children]
+        .map((c) => c.getBoundingClientRect())
+        .filter((k) => k.height > 0);
+      if (kids.length < 2) continue;
+      const tallest = Math.max(...kids.map((k) => k.height));
+      // 4px of slack for sub-pixel rounding between the row and its children.
+      if (r.height > tallest + 4) {
+        out.push(`${sel} wrapped — ${Math.round(r.height)}px row of ${Math.round(tallest)}px controls`);
+      }
+    }
+  }
+  return out;
+}
+
 const slug = (s) =>
   s
     .replace(/^\//, '')
@@ -302,6 +345,10 @@ async function main() {
               .map((t) => [`${t.key} — ${t.detail}`, t])
           ).keys(),
         ];
+        // Width-budget check, phone only — a desktop row has the room to
+        // spread and is expected to.
+        const wrapped =
+          tierName === 'phone' ? await page.evaluate(wrappedControlRows, NO_WRAP_AT_PHONE) : [];
         const errs = consoleErrors.filter((e) => !IGNORED_CONSOLE.test(e));
         const file = `${slug(label)}__${tierName}.png`;
         await page.screenshot({ path: path.join(OUT, file) }).catch(() => {});
@@ -315,20 +362,27 @@ async function main() {
           emptyBody: m.emptyBody,
           consoleErrors: errs.slice(0, 5),
           touching: touching.slice(0, 8),
+          wrapped,
           file,
         };
         rec.fail =
-          rec.overflow > 0 || rec.emptyBody || !rec.title || errs.length > 0 || touching.length > 0;
+          rec.overflow > 0 ||
+          rec.emptyBody ||
+          !rec.title ||
+          errs.length > 0 ||
+          touching.length > 0 ||
+          wrapped.length > 0;
         results.push(rec);
         console.log(
           `${rec.fail ? 'FAIL' : ' ok '} ${BROWSER.padEnd(7)} ${tierName.padEnd(7)} ${label.padEnd(36)} ` +
-            `overflow=${rec.overflow} empty=${rec.emptyBody} errors=${errs.length} touching=${touching.length}` +
+            `overflow=${rec.overflow} empty=${rec.emptyBody} errors=${errs.length} touching=${touching.length} wrapped=${wrapped.length}` +
             (rec.landed !== label.split('?')[0] && !label.includes('{')
               ? ` landed=${rec.landed}`
               : '')
         );
         if (errs.length) for (const e of errs) console.log(`        ${e}`);
         if (touching.length) for (const t of rec.touching) console.log(`        touching: ${t}`);
+        if (wrapped.length) for (const w of wrapped) console.log(`        ${w}`);
         return rec;
       };
 
@@ -577,7 +631,7 @@ async function main() {
   console.log(
     `\n${BROWSER}: ${results.length} screens, ${failed.length} failed` +
       (failed.length
-        ? `\n${failed.map((r) => `  - ${r.viewport} ${r.label}: ${r.emptyBody ? 'empty body; ' : ''}${r.overflow ? `overflow ${r.overflow}px; ` : ''}${!r.title ? 'no title; ' : ''}${r.touching.length ? `touching ${r.touching.join(', ')}; ` : ''}${r.consoleErrors.join(' | ')}`).join('\n')}`
+        ? `\n${failed.map((r) => `  - ${r.viewport} ${r.label}: ${r.emptyBody ? 'empty body; ' : ''}${r.overflow ? `overflow ${r.overflow}px; ` : ''}${!r.title ? 'no title; ' : ''}${r.touching.length ? `touching ${r.touching.join(', ')}; ` : ''}${r.wrapped?.length ? `${r.wrapped.join(', ')}; ` : ''}${r.consoleErrors.join(' | ')}`).join('\n')}`
         : '')
   );
   process.exit(failed.length ? 1 : 0);

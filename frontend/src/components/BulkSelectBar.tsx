@@ -18,10 +18,15 @@ export function SelectToggle({ active, onToggle }: { active: boolean; onToggle: 
       type="button"
       className="pill-btn bulk-select-toggle"
       aria-pressed={active}
+      // On phones the idle label is hidden (`.toolbar-label-compact`, styles/
+      // deck-builder-display.css) so the toolbar it sits in stays one row —
+      // the accessible name has to come from here, not the text node.
+      aria-label={active ? 'Done selecting' : 'Select'}
+      title={active ? 'Done selecting' : 'Select'}
       onClick={onToggle}
     >
       <CheckSquare width={14} height={14} strokeWidth={2} aria-hidden />
-      <span>{active ? 'Done' : 'Select'}</span>
+      <span className="toolbar-label-compact">{active ? 'Done' : 'Select'}</span>
     </button>
   );
 }

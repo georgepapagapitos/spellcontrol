@@ -66,6 +66,10 @@
   .decks-index-hero,
   .binder-hero--with-actions {
     align-items: stretch;
+    /* The row gap becomes a VERTICAL gap once these stack, and 16px of empty
+       hero is 2% of a phone screen that was already spending 40%+ on chrome
+       before the first card. */
+    gap: var(--space-2);
   }
 
   .collection-hero-actions,
@@ -84,6 +88,34 @@
   .binder-hero-actions > .pill-btn {
     flex: 1 1 0;
     justify-content: center;
+  }
+}
+
+/* Collection hero ⋮ — the same phone collapse the binder and decks heroes do
+   (Export CSV + Share fold in, "Add cards" keeps the row). Scoped to the
+   `.collection-hero-actions` ancestor for the same reason the binder rule
+   below is: `.pill-btn`'s unconditional `display: inline-flex` is declared
+   later in this file and out-specifies a bare class at every viewport. */
+.collection-hero-actions .collection-hero-actions-overflow {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .collection-hero-actions .collection-hero-action-secondary {
+    display: none;
+  }
+
+  .collection-hero-actions .collection-hero-actions-overflow {
+    display: inline-flex;
+    flex: 0 0 auto; /* stay compact; the primary CTA takes the rest of the row */
+  }
+}
+
+/* Free-standing icon control — grows its own box rather than ghosting. */
+@media (pointer: coarse) {
+  .collection-hero-actions-kebab {
+    min-height: 44px;
+    min-width: 44px;
   }
 }
 

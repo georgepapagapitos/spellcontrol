@@ -947,6 +947,20 @@
   }
 }
 
+/* Phone/tablet density: the two bars between the hero and the first card
+   carry a 12px + 10px trailing gap each, on top of the page's own rhythm.
+   Halving them is ~14px back on a screen where the grid used to start at
+   y=416 of 780. Desktop keeps the roomier rhythm. */
+@media (max-width: 1023px) {
+  .collection-toolbar-row {
+    margin-bottom: var(--space-1);
+  }
+
+  .card-list-summary-line {
+    margin-bottom: var(--space-1);
+  }
+}
+
 /* Sticky section overlay — floats below the sticky controls and swaps its label
    as the active section changes on scroll. Pinned below the sticky controls row
    via an inline `top` measured from getBoundingClientRect; the CSS fallback is

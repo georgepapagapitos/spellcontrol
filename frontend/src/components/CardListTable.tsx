@@ -2058,16 +2058,28 @@ export function CardListTable({
               type="button"
               className="toolbar-pill card-list-select-toggle"
               aria-pressed={selectMode}
+              // Idle label hides on phones (`.toolbar-label-compact`) — see
+              // SelectToggle in BulkSelectBar.tsx, same control, same reason.
+              aria-label={selectMode ? 'Done selecting' : 'Select'}
+              title={selectMode ? 'Done selecting' : 'Select'}
               onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
             >
               <CheckSquare width={14} height={14} strokeWidth={2} aria-hidden />
-              <span>{selectMode ? 'Done' : 'Select'}</span>
+              <span className="toolbar-label-compact">{selectMode ? 'Done' : 'Select'}</span>
             </button>
           )}
           <SelectMenu<GroupKey>
             ariaLabel="Group by"
             value={groupKey}
-            options={GROUP_FIELDS.map((f) => ({ value: f.key, label: f.label }))}
+            options={GROUP_FIELDS.map((f) => ({
+              value: f.key,
+              label: f.label,
+              // On phones the trigger for the default state says what the
+              // control DOES rather than restating that nothing is set — the
+              // menu row still reads "No grouping", and the 43px saved is
+              // what keeps this toolbar on one row at 360px.
+              triggerLabel: isNarrow && f.key === 'none' ? 'Group' : undefined,
+            }))}
             onChange={setGroupKey}
             leadingIcon={<Layers width={14} height={14} strokeWidth={2} aria-hidden />}
           />
@@ -2124,11 +2136,14 @@ export function CardListTable({
           {!isNarrow && <Legend context="collection" align="right" variant="pill" />}
           {/* ≤640px: the display controls above (zoom, Details, layout, key)
               collapse into one "View" popover so the sticky toolbar stays a
-              single row — see STYLE_GUIDE "Toolbars & action rows". */}
+              single row — see STYLE_GUIDE "Toolbars & action rows". Icon-only:
+              with the label it was 95px on a 344px row and the row wrapped,
+              which put this one control on a line of its own above the cards. */}
           {isNarrow && (
             <ToolbarPopover
-              label="View"
               icon={<Eye width={14} height={14} strokeWidth={2} aria-hidden />}
+              triggerAriaLabel="View options"
+              triggerTitle="View options"
               haspopup="dialog"
               panelRole="dialog"
               panelAriaLabel="View options"

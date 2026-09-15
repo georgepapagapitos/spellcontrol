@@ -1062,6 +1062,20 @@ report. When you write that idiom, write the third line too.
      test with the actual vs. budgeted count — raise the budget only after
      genuinely re-collapsing the row, never as a way to let one more control
      through.
+   - **A count is not the invariant — width is.** A row inside its control
+     budget still wraps if the labels are long: the collection toolbar spent
+     412px of a 344px row on four controls, so "View" took a line of its own
+     above the cards, and the decks sort bar did the same with three. The
+     budget test can't see that (no layout in happy-dom), so the nightly
+     journey measures it in a real browser — `NO_WRAP_AT_PHONE` in
+     `scripts/journey.mjs` fails any listed row that renders taller than its
+     tallest child at the phone tier. When a row is over width, shorten before
+     you wrap: a `SelectMenu`'s default-state trigger can name what the control
+     _does_ ("Group") rather than restate that nothing is set ("No grouping"),
+     and a toggle whose state is legible elsewhere on the screen can drop its
+     idle label to the glyph (`.toolbar-label-compact` at ≤600px, with
+     `aria-label` + `title` carrying the name). The ACTIVE label stays visible:
+     "Done" is the way out of select mode and must never be a bare glyph.
 
 3. **Card action rows** — actions in the footer of a list card (the game-night
    cards are the reference). A card earns **at most ~3 visible controls**, at
