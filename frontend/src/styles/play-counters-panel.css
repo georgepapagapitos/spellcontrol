@@ -889,8 +889,14 @@
  */
 .pp-designation-chips {
   position: absolute;
-  top: var(--space-2);
-  right: 0.6rem;
+  /* Both axes, like the name corner: on `3p-tr-bb` the turn chip's edge dipped
+     7px into the clock pill, which straddles the seam and reaches ~19px into
+     the panel either side. */
+  top: calc(var(--space-2) + var(--seam-keepout, 0px));
+  /* Same seam keep-out the name corner takes (defined on .player-panel): this
+     rail sits at a panel corner too, and on `4p-sides` the turn chip was
+     landing 84px² under the hub button. */
+  right: calc(0.6rem + var(--seam-keepout, 0px));
   z-index: 3;
   display: flex;
   flex-direction: column;
@@ -977,6 +983,43 @@
 @media (prefers-reduced-motion: reduce) {
   .pp-turn-chip {
     transition: none;
+  }
+}
+
+/**
+ * Narrow panels: the chip keeps its icon and drops its word.
+ *
+ * A seat name and a labelled turn pill need ~178px of panel to sit at opposite
+ * corners of the same edge; `4p-pod` on a 320px phone gives them 148px, and
+ * they overlapped by 719px². Icon-only plus a slightly tighter name is the
+ * pair that fits — and the chip's `aria-label` is what a screen reader reads
+ * either way, so nothing is lost but the glyph's caption.
+ *
+ * The query is on `.player-panel-cell` (already `container-type: size`), and
+ * it has to ask about the right axis: a sideways panel's WIDTH is its cell's
+ * height, because it is sized `100cqh` and then rotated.
+ */
+@container (max-width: 11rem) {
+  .player-panel:not([data-sideways]) .pp-turn-chip-label {
+    display: none;
+  }
+
+  /* The name yields the last few pixels rather than the keep-out: halving the
+     inset instead put the seam furniture back on the names (undo 67px²), and
+     a name trimmed to "Player…" on the narrowest phone beats overlapping
+     text. At 360px and up nothing truncates — the panel is wide enough. */
+  .player-panel:not([data-sideways]) .player-panel-corner.is-tl {
+    max-width: calc(100% - 5.5rem);
+  }
+}
+
+@container (max-height: 11rem) {
+  .player-panel[data-sideways] .pp-turn-chip-label {
+    display: none;
+  }
+
+  .player-panel[data-sideways] .player-panel-corner.is-tl {
+    max-width: calc(100% - 5.5rem);
   }
 }
 

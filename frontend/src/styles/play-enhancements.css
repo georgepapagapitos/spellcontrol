@@ -111,10 +111,22 @@
   animation: pp-fade-in 160ms ease-out;
 }
 
+/* Anchored by its near edge (see `seamSatellite`), so the room it has is
+   whatever is left between the seam and the board edge. Cap it there and let
+   the name ellipsis absorb the difference — at 320px the pill would otherwise
+   run 5px off-screen, and a long player name would push it further. */
+.game-board-clock.is-row-seam {
+  max-width: calc(50% - 2.5rem);
+}
+
 .game-clock {
   display: inline-flex;
   align-items: baseline;
   gap: var(--space-2);
+  /* min-width:0 down the chain, or the nowrap children refuse to shrink and
+     the cap above does nothing. */
+  min-width: 0;
+  overflow: hidden;
   /* Tabular figures so the digits don't jitter sideways once a second. */
   font-variant-numeric: tabular-nums;
 }
@@ -129,6 +141,7 @@
   display: inline-flex;
   align-items: baseline;
   gap: 0.3rem;
+  min-width: 0;
   font-size: var(--text-xs);
   color: rgba(255, 255, 255, 0.72);
   padding-left: var(--space-2);
@@ -137,6 +150,7 @@
 
 .game-clock-turn-name {
   max-width: 6ch;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
