@@ -72,4 +72,14 @@ coverage/
 # Agent-generated brainstorming/spec/plan docs — keep them out of the repo.
 # (`docs/` itself stays usable for real project docs.)
 docs/superpowers/
-backend/.vitest/
+
+# Vitest run artifacts (the JSON reporter's output). Ignored EVERYWHERE, not
+# just under backend/: `frontend/.vitest/json/output.json` was tracked, so every
+# test run dirtied the working tree and the report's contents showed up in
+# commits and PR diffs as noise.
+#
+# Tracking it is also an active false-green hazard. The report persists from the
+# previous run, so a run that crashes or never starts leaves a stale "all
+# passed" report on disk — which is exactly how a crashed suite got read as 98
+# passing tests during the 2026-09-14 filter audit. Read exit codes, not this.
+.vitest/
