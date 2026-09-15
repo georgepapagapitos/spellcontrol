@@ -16,6 +16,10 @@
 //     NO_WRAP_AT_PHONE below)
 //   - a screenshot, so a failure comes with the picture
 //
+// It also REPORTS (without failing) every touch target under 44px at phone
+// width — see undersizedTouchTargets below for why that one is reported rather
+// than gated, and what has to be true before it becomes a gate.
+//
 // Any of the first six fails the run. Screenshots + report.json land in
 // --out. Run by .github/workflows/nightly-journey.yml against a production
 // build served by the backend; locally:
@@ -222,6 +226,95 @@ const NO_WRAP_AT_PHONE = [
   '.collection-hero-actions',
 ];
 
+/**
+ * Touch targets below the 44px floor, at phone width only.
+ *
+ * ⚠️ REPORTED, NOT FAILED — deliberately, and this is the honest reason:
+ * the first full run of this check found **21 distinct undersized classes
+ * across 16 of 38 screens** (93 `.deck-row`, 30 `.deck-analysis-suggest-add`,
+ * 16 `.role-badge-btn`, 12 `.commander-color-pip`, …), overwhelmingly in the
+ * deck editor and deck-creation surfaces. Failing the nightly on that would
+ * make it permanently red, which is worse than no check at all — a red run is
+ * supposed to be a board row, not the status quo. Allowlisting 21 classes
+ * would not be "debt made visible" either; it would be switching the check off
+ * while looking like it is on.
+ *
+ * So it publishes a count per screen and the offending selectors into
+ * report.json every night. The inventory is board row E317, owned by the
+ * playtest sweep's remaining batches. **Flip this into `rec.fail` once that
+ * inventory is empty** — one line, below.
+ *
+ * It exists because a *static* CSS guard structurally cannot find this family
+ * of defect, and the 2026-09-15 sweep found four in three batches — every one
+ * a floor that existed on paper and was defeated in the rendered box:
+ *   - `.auth-forgot-link` (101x23) — the coarse block floored the two controls
+ *     beside it and skipped this one.
+ *   - `.btn` (41px) — floored, then silently undercut by the phone density
+ *     pass declaring `min-height: 36px` at equal specificity, later in the
+ *     bundle.
+ *   - `.pill-btn` (39px) and `.toolbar-pill` (34px) — no base floor at all,
+ *     papered over per-surface, so the routes anyone checks first read 44.
+ * A curated list of shared classes missed `.toolbar-pill` outright. Measuring
+ * the rendered box in a real browser is the only check that generalizes.
+ *
+ * This check exists because a *static* CSS guard structurally cannot find this
+ * family of defect, and the 2026-09-15 playtest sweep found four of them in
+ * three batches — every one a floor that existed on paper and was defeated in
+ * the rendered box:
+ *   - `.auth-forgot-link` (101x23) — the coarse block floored the two controls
+ *     beside it and skipped this one.
+ *   - `.btn` (41px) — floored, then silently undercut by the phone density
+ *     pass declaring `min-height: 36px` at equal specificity, later in the
+ *     bundle.
+ *   - `.pill-btn` (39px) and `.toolbar-pill` (34px) — no base floor at all,
+ *     papered over per-surface, so the routes anyone checks first read 44.
+ * A curated list of shared classes missed `.toolbar-pill` outright. Measuring
+ * the rendered box in a real browser is the only check that generalizes.
+ *
+ * Exemptions, each matching a real non-defect:
+ *   - `pointer-events: none` — a visually-hidden input whose <label> tile is
+ *     the real target (`.settings-theme-radio` is 1x1 by design).
+ *   - inside a >=44px <label> — same shape; the label forwards the click.
+ *   - an inline <a> — WCAG 2.5.8's "Inline" exception: a link in a sentence is
+ *     sized by the line-height of the prose around it ("Privacy Policy",
+ *     "Fan Content Policy" on /you).
+ */
+function undersizedTouchTargets() {
+  const out = [];
+  const seen = new Set();
+  const sel = 'button,a[href],input,select,textarea,[role="button"],[role="tab"],[role="switch"]';
+  for (const el of document.querySelectorAll(sel)) {
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) continue;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === 'hidden' || cs.display === 'none') continue;
+    if (cs.pointerEvents === 'none') continue;
+    const label = el.closest('label');
+    if (label && label !== el) {
+      const lr = label.getBoundingClientRect();
+      if (lr.width >= 44 && lr.height >= 44) continue;
+    }
+    if (el.tagName === 'A' && cs.display === 'inline') continue;
+    const after = getComputedStyle(el, '::after');
+    const gw = after.content !== 'none' ? parseFloat(after.width) || 0 : 0;
+    const gh = after.content !== 'none' ? parseFloat(after.height) || 0 : 0;
+    const w = Math.round(Math.max(r.width, gw));
+    const h = Math.round(Math.max(r.height, gh));
+    if (w >= 44 && h >= 44) continue;
+    const first = String(el.className || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)[0];
+    const key = first ? `.${first}` : el.tagName.toLowerCase();
+    const name = (el.getAttribute('aria-label') || el.textContent.trim() || '').slice(0, 30);
+    const line = `${key} ${w}x${h}${name ? ` "${name}"` : ''}`;
+    if (seen.has(line)) continue;
+    seen.add(line);
+    out.push(line);
+  }
+  return out;
+}
+
 function wrappedControlRows(selectors) {
   const out = [];
   for (const sel of selectors) {
@@ -235,7 +328,9 @@ function wrappedControlRows(selectors) {
       const tallest = Math.max(...kids.map((k) => k.height));
       // 4px of slack for sub-pixel rounding between the row and its children.
       if (r.height > tallest + 4) {
-        out.push(`${sel} wrapped — ${Math.round(r.height)}px row of ${Math.round(tallest)}px controls`);
+        out.push(
+          `${sel} wrapped — ${Math.round(r.height)}px row of ${Math.round(tallest)}px controls`
+        );
       }
     }
   }
@@ -376,6 +471,10 @@ async function main() {
                 ...(await page.evaluate(stackedInsightStrips)),
               ]
             : [];
+        // Touch floor is a phone concern: a fine pointer only needs WCAG
+        // 2.5.8's 24px, and every desktop-only control clears that.
+        const smallTargets =
+          tierName === 'phone' ? await page.evaluate(undersizedTouchTargets) : [];
         const errs = consoleErrors.filter((e) => !IGNORED_CONSOLE.test(e));
         const file = `${slug(label)}__${tierName}.png`;
         await page.screenshot({ path: path.join(OUT, file) }).catch(() => {});
@@ -390,6 +489,7 @@ async function main() {
           consoleErrors: errs.slice(0, 5),
           touching: touching.slice(0, 8),
           wrapped,
+          smallTargets,
           file,
         };
         rec.fail =
@@ -402,7 +502,7 @@ async function main() {
         results.push(rec);
         console.log(
           `${rec.fail ? 'FAIL' : ' ok '} ${BROWSER.padEnd(7)} ${tierName.padEnd(7)} ${label.padEnd(36)} ` +
-            `overflow=${rec.overflow} empty=${rec.emptyBody} errors=${errs.length} touching=${touching.length} wrapped=${wrapped.length}` +
+            `overflow=${rec.overflow} empty=${rec.emptyBody} errors=${errs.length} touching=${touching.length} wrapped=${wrapped.length} small=${smallTargets.length}` +
             (rec.landed !== label.split('?')[0] && !label.includes('{')
               ? ` landed=${rec.landed}`
               : '')
@@ -658,7 +758,7 @@ async function main() {
   console.log(
     `\n${BROWSER}: ${results.length} screens, ${failed.length} failed` +
       (failed.length
-        ? `\n${failed.map((r) => `  - ${r.viewport} ${r.label}: ${r.emptyBody ? 'empty body; ' : ''}${r.overflow ? `overflow ${r.overflow}px; ` : ''}${!r.title ? 'no title; ' : ''}${r.touching.length ? `touching ${r.touching.join(', ')}; ` : ''}${r.wrapped?.length ? `${r.wrapped.join(', ')}; ` : ''}${r.consoleErrors.join(' | ')}`).join('\n')}`
+        ? `\n${failed.map((r) => `  - ${r.viewport} ${r.label}: ${r.emptyBody ? 'empty body; ' : ''}${r.overflow ? `overflow ${r.overflow}px; ` : ''}${!r.title ? 'no title; ' : ''}${r.touching.length ? `touching ${r.touching.join(', ')}; ` : ''}${r.wrapped?.length ? `${r.wrapped.join(', ')}; ` : ''}${r.smallTargets?.length ? `under 44px: ${r.smallTargets.join(', ')}; ` : ''}${r.consoleErrors.join(' | ')}`).join('\n')}`
         : '')
   );
   process.exit(failed.length ? 1 : 0);
