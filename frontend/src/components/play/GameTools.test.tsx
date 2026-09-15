@@ -64,6 +64,24 @@ describe('GameTools — first player', () => {
     expect(notes[0].message).toContain(seat === 0 ? 'Alice' : 'Bob');
   });
 
+  it('lights up the turn marker on the seat it picked', () => {
+    const dispatch = vi.fn();
+    render(
+      <GameTools game={makeGame([player(0, 'Alice'), player(1, 'Bob')])} dispatch={dispatch} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /First player/ }));
+
+    const calls = dispatch.mock.calls.map(
+      ([a]) => a as { type: string; toSeat?: number | null; patch?: { startingSeat?: number } }
+    );
+    const turn = calls.filter((a) => a.type === 'pass-turn');
+    expect(turn).toHaveLength(1);
+    // The same seat, not an independent draw: "on the play" and "whose turn is
+    // it" are one fact on turn one, and two RNG calls would sometimes disagree.
+    expect(turn[0].toSeat).toBe(calls.find((a) => a.type === 'settings')!.patch!.startingSeat);
+  });
+
   it('leaves coin and dice ephemeral — they touch no state', () => {
     const dispatch = vi.fn();
     render(

@@ -1,4 +1,4 @@
-import { Compass, Crown, MoreHorizontal, Plus, Trash2, Undo2 } from 'lucide-react';
+import { Compass, Crown, FastForward, MoreHorizontal, Plus, Trash2, Undo2 } from 'lucide-react';
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { GameAction, GamePlayer, GameState } from '../../lib/game-state';
 import { cmdDamageKey } from '../../lib/game-state';
@@ -261,7 +261,7 @@ export function GameBoard({
               ['--clock-ty-lg' as never]: seamOffset(board.seam, '4rem', 1).ty,
             }}
           >
-            <GameClock game={game} />
+            <GameClock game={game} dispatch={dispatchTracked} canEdit={canControlAll} />
           </div>
         )}
 
@@ -588,6 +588,12 @@ function PlayerPanel({
   // that actually matters (lethal at 21 from one commander).
   const cmdDmgValues = Object.values(player.commanderDamage);
   const maxCmdDmg = cmdDmgValues.length > 0 ? Math.max(...cmdDmgValues) : 0;
+  // The turn marker, as a control. The ring alone says whose turn it is; this
+  // says what to do about it, on the seat that owns the decision and rotated
+  // with their panel so it faces them across the table. Suppressed in
+  // commander-damage focus mode for the same reason the clock is: that mode
+  // strips the board down to the damage question.
+  const showTurnChip = isActiveTurn && !player.eliminated && !cmdFocus && canEdit;
   return (
     <div
       className="player-panel-cell"
@@ -903,11 +909,30 @@ function PlayerPanel({
             </div>
           )}
 
-          {/* Designation chips — shown at top-right so they don't collide with
-              counters (bottom-left). They render inside the rotated panel so they
-              always read upright for that seat. */}
-          {(isMonarch || isInitiative) && (
+          {/* Turn + designation chips — shown at top-right so they don't collide
+              with counters (bottom-left). They render inside the rotated panel so
+              they always read upright for that seat, which is what makes the turn
+              chip tappable by the player whose turn it actually is. */}
+          {(showTurnChip || isMonarch || isInitiative) && (
             <div className="pp-designation-chips">
+              {showTurnChip && (
+                <button
+                  type="button"
+                  className="pp-turn-chip"
+                  aria-label={`${player.name}'s turn. Pass to the next player`}
+                  title="Pass turn"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onPointerUp={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    haptics.tap();
+                    dispatch({ type: 'pass-turn', actorSeat: player.seat });
+                  }}
+                >
+                  <FastForward width={13} height={13} strokeWidth={2.2} aria-hidden />
+                  Turn
+                </button>
+              )}
               {isMonarch && (
                 <span className="pp-designation-chip is-monarch" role="img" aria-label="Monarch">
                   <Crown width={14} height={14} aria-hidden />

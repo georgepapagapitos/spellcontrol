@@ -768,7 +768,16 @@ export const usePlayStore = create<PlayState>()(
       dispatchLocal: (action) => {
         const cur = get().local;
         if (!cur) return;
-        const next = applyAction(cur, action);
+        let next = applyAction(cur, action);
+        // A reset drops the game back to `lobby`. That is right for an online
+        // table — the host re-starts it from a real lobby screen — but the
+        // local board has no lobby, so a reset used to strand the table there
+        // for good: the clock vanished (no `startedAt` to derive from) and,
+        // worse, loss conditions stopped firing, because the reducer only
+        // evaluates auto-elimination and auto-win while a game is `active`.
+        // Start the fresh game in the same breath, which is what "reset" means
+        // at a physical table anyway.
+        if (action.type === 'reset') next = applyAction(next, { type: 'start' });
         set({ local: next });
         recordIfFinished(next, set);
       },

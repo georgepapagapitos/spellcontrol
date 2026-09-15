@@ -5139,3 +5139,34 @@ Model-written text always says so. The rulings:
   `/rules`, seeding the ask box with the search that came up short (a seed
   only; nothing sends until Ask). Self-hiding like every AI surface: without
   AI the sheet is exactly today's sheet.
+
+---
+
+## Play board — a state mark carries its own control (2026-09-15)
+
+The board's turn marker settled a question that recurs for every board-level
+state: where does the _action_ on a state live, relative to the _mark_ that
+shows it?
+
+- **The mark and its control belong on the thing they describe, rotated with
+  it.** Whose turn it is is a fact about a seat, so the active panel carries
+  both the ring and a `.pp-turn-chip` — a white pill reading "Turn" that passes
+  on tap. It sits in the panel's existing chip rail (`.pp-designation-chips`,
+  top-right) and inherits the panel's rotation, so it faces the player whose
+  decision it is across a physical table. That rail is `pointer-events: none`;
+  a chip that does something opts itself back in.
+- **A mark with no control is a mark nobody finds.** Turn tracking shipped
+  ring-only, reachable only through a seat's ⋯ menu, and stayed invisible: the
+  ring needs a seat to be active and nothing made a seat active. If a state has
+  an "off" that hides its own mark, ship the affordance that turns it on in the
+  board's own chrome, not behind a menu.
+- **The seam hub is the board's one control cluster — grow it inward, not
+  outward.** A fourth floating satellite beside the hub, undo and clock lands
+  on panel name labels at column-seam layouts (`4p-sides`, `2p-side`). New
+  board-level controls go _inside_ an existing satellite. The turn cold-start
+  (`.game-clock-start`, icon-only) renders only while the clock's turn segment
+  is absent, so the chip's widest state never grows.
+- **Table-level readouts stay screen-relative; seat-level controls rotate.**
+  The clock reads upright for whoever holds the device (how long the table has
+  played is a table fact, the same ruling the win celebration carries); the
+  turn chip rotates with its seat. That split is the rule, not a one-off.

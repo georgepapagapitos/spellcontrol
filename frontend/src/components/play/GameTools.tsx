@@ -67,6 +67,11 @@ export function GameTools({ game, dispatch }: Props) {
     // carries into the on-the-play win-rate rollup. Unlike coin/dice — genuinely
     // ephemeral — who went first is a fact about the game worth aggregating.
     dispatch({ type: 'settings', patch: { startingSeat: pick.seat } });
+    // …and move the turn marker there. "On the play" and "whose turn is it"
+    // are the same fact on turn one, so the tool that decides it is the honest
+    // place to light the marker up — otherwise turn tracking stays invisible
+    // until someone digs into a seat menu, which most tables never do.
+    dispatch({ type: 'pass-turn', actorSeat: null, toSeat: pick.seat });
   };
 
   return (
