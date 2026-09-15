@@ -36,6 +36,21 @@
   .tab {
     min-height: 44px;
   }
+
+  /* `.btn` — the shared button — computed 41px from its own padding, three
+     pixels under the floor, everywhere no surface happened to add one of its
+     own. Measured (.claude/tools/btn-floor-probe.mjs, phone/coarse): 42 of 43
+     visible `.btn` on /you and 1 on /rules sat at 41px, while every other
+     route's measured 44 because that surface floored them locally — which is
+     exactly the pattern a base rule is supposed to make unnecessary.
+     The base rule below already did the hard half of this: it sets
+     `display: inline-flex` specifically so a min-height LANDS on the 34 call
+     sites that put `.btn` on a react-router <Link> (an inline <a> silently
+     ignores min-height). That groundwork shipped without the floor it was
+     for. This is it. */
+  .btn {
+    min-height: 44px;
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {

@@ -176,9 +176,15 @@
     font-size: var(--text-base);
   }
 
+  /* The phone density pass. Its `min-height` used to be 36px — BELOW the 44px
+     touch floor, on the one viewport where the floor matters most. It is
+     `.btn` at the same specificity as the base coarse floor and lands later in
+     the bundle, so it silently won: every plain `.btn` measured 41px on a
+     phone (42 of 43 on /you, 1 on /rules) while the floor rule sat a few files
+     away looking correct. Tighten density above the floor, never through it. */
   .btn {
     padding: var(--space-2) 14px;
-    min-height: 36px;
+    min-height: 44px;
   }
 
   /* Section header on mobile: let the chip + count sit inline next to
