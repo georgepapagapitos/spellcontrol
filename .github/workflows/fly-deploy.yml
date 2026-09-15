@@ -53,11 +53,19 @@ jobs:
           CI_RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
           echo "::error title=main is NOT deployed::CI concluded '${CI_CONCLUSION}' on main, so the Fly deploy was skipped. Production is still running the previous build."
-          echo "Recover by re-running the failed CI jobs — a green CI re-fires this deploy on its own:"
-          echo "  gh run rerun ${CI_RUN_ID} --failed"
+          echo "READ THE FAILING JOB'S LOG FIRST — do not re-run on reflex:"
+          echo "  gh run view ${CI_RUN_ID} --log-failed"
           echo ""
-          echo "If the CI failure is the vitest teardown flake (every test passes, job still exits 1"
-          echo "on a single unhandled rejection), the re-run is the whole fix."
+          echo "A re-run is the whole fix for ONE failure only: the vitest teardown flake"
+          echo "(every test passes, job still exits 1 on 'EnvironmentTeardownError: Closing rpc"
+          echo "while \"onUserConsoleLog\" was pending'). If you do not see that exact string,"
+          echo "the failure is real and a re-run will either fail again or, worse, pass and bury"
+          echo "it — a genuinely flaky test can be racing a genuine product bug. That happened on"
+          echo "2026-09-14: a sync.test.ts race here was a no-op push drain clearing the user's"
+          echo "\"couldn't save\" error (#1920), and a reflex re-run would have hidden it."
+          echo ""
+          echo "Once you have confirmed it is the teardown flake:"
+          echo "  gh run rerun ${CI_RUN_ID} --failed"
           exit 1
 
   deploy:
