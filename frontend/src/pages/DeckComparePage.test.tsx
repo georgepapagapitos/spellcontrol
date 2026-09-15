@@ -22,8 +22,6 @@ vi.mock('../lib/build-mana-data', () => ({
     cardsByColor: {},
   })),
 }));
-vi.mock('../components/deck/DeckCurvePhases', () => ({ DeckCurvePhases: () => null }));
-vi.mock('../components/deck/DeckColorPanel', () => ({ DeckColorPanel: () => null }));
 
 import { DeckComparePage } from './DeckComparePage';
 import { useDecksStore } from '../store/decks';
@@ -84,6 +82,26 @@ const emptyDiff = {
   },
 };
 
+const cardDelta = (i: number) => ({
+  card: {
+    id: `c${i}`,
+    oracle_id: `o${i}`,
+    name: `Card ${i}`,
+    cmc: 1,
+    type_line: 'Creature',
+    color_identity: [],
+    keywords: [],
+    rarity: 'common',
+    set: 'tst',
+    set_name: 'Test',
+    legalities: { commander: 'legal' },
+    prices: {},
+  },
+  isCommander: false,
+  fromQty: 0,
+  toQty: 1,
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
   mockUseDecksStore.mockImplementation(
@@ -114,13 +132,38 @@ describe('DeckComparePage', () => {
 
   it('does not render diff when only one deck selected', () => {
     renderPage('?a=a');
-    expect(screen.queryByText(/added/i)).toBeNull();
+    expect(screen.queryByText(/in both decks/i)).toBeNull();
   });
 
-  it('shows summary bar when both decks selected', () => {
+  it('leads with how much of the two lists overlaps', () => {
     renderPage('?a=a&b=b');
-    expect(screen.getByText(/0 added/i)).toBeTruthy();
-    expect(screen.getByText(/0 removed/i)).toBeTruthy();
+    // 5 unchanged + 0 changed in both; nothing on either side alone.
+    expect(screen.getByText(/run exactly the same cards/i)).toBeTruthy();
+    expect(screen.getByText(/in both/i)).toBeTruthy();
+  });
+
+  it('names the deck each card-list group belongs to', () => {
+    mockDiffDecks.mockReturnValue({
+      ...emptyDiff,
+      cards: { added: [cardDelta(0)], removed: [cardDelta(1)], changed: [], unchangedCount: 4 },
+    });
+    renderPage('?a=a&b=b');
+    expect(screen.getByText(/only in Deck B \(1\)/i)).toBeTruthy();
+    expect(screen.getByText(/only in Deck A \(1\)/i)).toBeTruthy();
+  });
+
+  it('heads every value column with the deck it belongs to', () => {
+    renderPage('?a=a&b=b');
+    // A number on this page is meaningless without the deck name above it.
+    expect(screen.getAllByRole('columnheader', { name: 'Deck A' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('columnheader', { name: 'Deck B' }).length).toBeGreaterThan(0);
+  });
+
+  it('reads an unchanged stat as "same", never a signed zero', () => {
+    renderPage('?a=a&b=b');
+    // size 10 vs 10, avg 0 vs 0 — "−0.0" was the old rendering.
+    expect(screen.queryByText(/−0(\.0)?$/)).toBeNull();
+    expect(screen.getAllByText('same').length).toBeGreaterThan(0);
   });
 
   it('prefills pickers from URL params', () => {
@@ -131,25 +174,7 @@ describe('DeckComparePage', () => {
   });
 
   it('shows Show N more button when added list exceeds 8 and clicking expands', () => {
-    const manyCards = Array.from({ length: 10 }, (_, i) => ({
-      card: {
-        id: `c${i}`,
-        oracle_id: `o${i}`,
-        name: `Card ${i}`,
-        cmc: 1,
-        type_line: 'Creature',
-        color_identity: [],
-        keywords: [],
-        rarity: 'common',
-        set: 'tst',
-        set_name: 'Test',
-        legalities: { commander: 'legal' },
-        prices: {},
-      },
-      isCommander: false,
-      fromQty: 0,
-      toQty: 1,
-    }));
+    const manyCards = Array.from({ length: 10 }, (_, i) => cardDelta(i));
     mockDiffDecks.mockReturnValue({
       ...emptyDiff,
       cards: { added: manyCards, removed: [], changed: [], unchangedCount: 0 },

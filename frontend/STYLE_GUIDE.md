@@ -1152,7 +1152,7 @@ depending on whether it is still a decision:
 - **A finished trade is a ledger line, not a decision.** Declined, withdrawn
   and settled rows render `.is-compact`: tighter padding, flat `--surface`,
   no note, no net, the two sides collapsed to two ledger rows (`You give ·
-  chips · value` over `You get · chips · value`, no arrow, at every width),
+chips · value` over `You get · chips · value`, no arrow, at every width),
   and a `Remove` icon button in the head. The chips stay and stay tappable
   (the record of what changed hands). Anything still in
   motion, including an accepted trade that has not settled here, keeps the
@@ -2561,6 +2561,36 @@ app can't fetch from either, so a "which site" answer has nothing to do
 with. Don't add a picker for information the UI can't use; the hint copy
 names both sites as examples of where to paste from instead ("Moxfield,
 Archidekt, anywhere").
+
+## Comparing two of anything (2026-09-15)
+
+`/decks/compare` shipped as two deck-detail panels stacked side by side, which
+left the reader doing the comparison. The rules that replaced it apply to any
+A-vs-B surface:
+
+- **A value never appears without the name of the side it belongs to.** The
+  compare table's `thead` carries the two deck names over the two value
+  columns; a bare `19 → 16` is unreadable. Where a `A → B` row shape survives
+  (the changed-copies diff group), a small caption under the heading names the
+  direction (`DiffGroup`'s `caption` prop).
+- **The app computes the difference; the reader doesn't.** Every paired number
+  gets a third "Difference" column, and paired charts draw both sides in one
+  chart (the compare page's mana curve is one histogram with two bars per mana
+  value, keyed by color to the deck names) rather than two charts to eyeball
+  against each other.
+- **A delta is computed from the DISPLAYED values, not the raw ones.** Avg mana
+  value rounded to `3.2 → 3.1` but subtracted raw printed `−0.0`, which is
+  nothing. Round first, subtract second; a zero delta reads as the word
+  `same` (§ Money deltas' "zero reads as a word", generalized).
+- **"Added" / "Removed" is version language.** Two sibling decks are not a
+  revision of each other — the compare page titles its diff groups
+  `Only in <deck name>`; `DiffGroup`'s default tone words stay for the resync
+  surface, where one list genuinely IS a revision of the other.
+- **Don't render a row that is zero on both sides.** The old two-up mana
+  panels showed `White · Demand 0 · Sources 5` on a Golgari deck. Filter to
+  the colors/types/roles at least one side actually has.
+- **A missing value says what to do about it**, not `—`: "Not estimated yet —
+  open the deck to analyze it."
 
 ## Public shared views (/s/:token)
 
