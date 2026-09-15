@@ -207,6 +207,23 @@ input[type='search'] {
   outline: none;
 }
 
+/* E321: 6px of padding plus a text-base line box computes 42px — two under the
+   floor — so every unclassed form control in the app shipped short. Found on
+   the binder editor's "Binder name" field, but that field is a bare
+   `<input type="text">` with no class of its own, which is exactly why the
+   floor belongs here and not on the one surface that happened to notice.
+   A ghost is not an option on a text control: the caret, the selection and
+   native tap-to-focus all live on the real box. */
+@media (pointer: coarse) {
+  select,
+  input[type='number'],
+  input[type='text'],
+  input[type='url'],
+  input[type='search'] {
+    min-height: 44px;
+  }
+}
+
 /* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
 .btn-link:focus-visible {
   outline: 2px solid var(--accent);
