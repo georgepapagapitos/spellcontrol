@@ -595,6 +595,18 @@
     transform var(--motion-fast);
 }
 
+/* Coarse-pointer floor. `.pill-btn` computed 39px from its own padding — five
+   under — in every hero/toolbar that did not add a local floor. Measured
+   (.claude/tools/btn-floor-probe.mjs, phone/coarse): 9 instances at 39px
+   across /collection, /collection/binders, /decks and /home, including the
+   collection hero's primary "Add cards" CTA. `display: inline-flex` above is
+   what lets this land on the call sites that put `.pill-btn` on an <a>. */
+@media (pointer: coarse) {
+  .pill-btn {
+    min-height: 44px;
+  }
+}
+
 .pill-btn:focus-visible {
   background: var(--accent-light);
   border-color: var(--accent);
