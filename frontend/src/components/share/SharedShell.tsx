@@ -12,9 +12,15 @@ interface Props {
 }
 
 /**
- * Brand chrome wrapper for all shared (/s/:token) views. Adds a sticky brand
- * bar above and a footer CTA below without pulling in any auth-coupled store
- * (unlike <Header> and <Footer> which depend on auth/collection/play stores).
+ * Brand chrome for the public surfaces that deliberately sit OUTSIDE the app
+ * shell: the game-night pages and the public playtest table. Both are
+ * full-screen, chrome-owning surfaces where the app header/nav would be in the
+ * way. Everything else public — /s/:token, /d/:slug, /u/:username — renders as
+ * a normal page inside <Layout> instead, so a reader gets the same navigation
+ * they'd have anywhere else in the app.
+ *
+ * Owns the page's <main> landmark (the views it wraps render a plain <div>),
+ * exactly as <Layout> does for in-app pages.
  */
 export function SharedShell({ children, action, ctaLabel }: Props) {
   return (
@@ -27,7 +33,7 @@ export function SharedShell({ children, action, ctaLabel }: Props) {
         {action && <div className="shared-brandbar-action">{action}</div>}
       </header>
 
-      {children}
+      <main className="shared-shell-main">{children}</main>
 
       <footer className="shared-footer">
         <Link className="shared-footer-cta" to="/">
@@ -70,13 +76,13 @@ export function NotFoundView({
   message = 'This share link is invalid or has been revoked.',
 }: NotFoundViewProps) {
   return (
-    <main className="shared-view shared-view--missing">
+    <div className="shared-view shared-view--missing">
       <h1>{title}</h1>
       <p>{message}</p>
       <Link to="/" className="btn btn-primary shared-copy-btn">
         Go to SpellControl
       </Link>
-    </main>
+    </div>
   );
 }
 
@@ -88,12 +94,12 @@ interface ErrorViewProps {
  *  page. Same reuse rationale as `NotFoundView` above. */
 export function ErrorView({ message }: ErrorViewProps) {
   return (
-    <main className="shared-view shared-view--error">
+    <div className="shared-view shared-view--error">
       <h1>Something went wrong</h1>
       <p>{message}</p>
       <Link to="/" className="btn btn-primary shared-copy-btn">
         Go to SpellControl
       </Link>
-    </main>
+    </div>
   );
 }

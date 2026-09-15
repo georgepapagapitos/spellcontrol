@@ -1,7 +1,7 @@
-/* Shared-view styles for /s/:token public pages.
- * Self-contained so the share page doesn't depend on the rest of the app's
- * layout chrome (Layout component is gated by auth). Uses the same CSS
- * variables as the rest of the app for consistent theming.
+/* Public-read styles: the shared/published views (/s/:token, /d/:slug,
+ * /u/:username), which render as normal pages inside <Layout>, plus the
+ * .shared-shell brand chrome still used by the two surfaces that sit outside
+ * the app shell (game night, public playtest).
  */
 
 /* ── Shell wrapper (brand bar + footer) ───────────────────────────────── */
@@ -25,6 +25,15 @@
   overflow-x: hidden;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+}
+
+/* The shell's landmark: a flex column so its .shared-view child's `flex: 1`
+   still fills the space between the brand bar and the footer. */
+.shared-shell-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 /* Brand bar — sticky so the Copy button stays reachable while scrolling. */
@@ -152,24 +161,19 @@
     calc(var(--space-4) + var(--safe-left));
   color: var(--text-primary);
   background: var(--bg);
-  /* When wrapped in .shared-shell the shell itself is the scroll root (flex
-     column, min-height 100dvh). The view grows to fill the available space
-     between the brand bar and the footer. Without the shell (legacy/fallback),
-     this element was its own scroll container — the height/overflow below
-     preserve that behaviour via the :not selector. */
+  /* Inside .shared-shell the shell is the scroll root (flex column, 100dvh)
+     and the view grows to fill the space between brand bar and footer. */
   flex: 1;
   box-sizing: border-box;
 }
 
-/* Fallback: if .shared-view is rendered without .shared-shell wrapping it,
-   keep the old self-scrolling behaviour so the page doesn't clip. */
-.shared-view:not(.shared-shell *) {
-  height: 100vh;
-  height: 100dvh;
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
+/* Inside the app shell, .app-main is the scroll container and .container
+   already applies the page gutter, max-width and top padding — the view is
+   just a page like any other, so it hands all of that back. */
+.app-main .shared-view {
+  max-width: none;
+  padding: 0;
+  background: none;
 }
 
 .shared-view-header {
@@ -218,6 +222,25 @@
   border-radius: var(--radius);
 }
 
+/* In the deck hero the owner line is a byline under the title: one line, in
+   sentence case, rather than the shouted section caption (and stacked handle)
+   the standalone share headers use. */
+.deck-editor-hero .shared-view-owner {
+  margin: var(--space-1) 0 0;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.deck-editor-hero .shared-view-owner-handle,
+.deck-editor-hero .shared-view-owner-link {
+  display: inline;
+  margin: 0;
+}
+
+.deck-editor-hero .shared-view-owner-handle::before {
+  content: ' ';
+}
+
 .shared-view-title {
   margin: 0 0 var(--space-1);
   font-family: var(--font-display);
@@ -242,6 +265,20 @@
   flex-wrap: wrap;
   gap: var(--space-2);
   margin: var(--space-3) 0 0;
+}
+
+/* Host owns the gap (STYLE_GUIDE): the deck surface spaces its own header
+   away from the tabs below it. */
+.shared-deck-surface > .shared-deck-header {
+  margin-bottom: var(--space-5);
+}
+
+/* In the deck hero the actions are the header row's second column (they wrap
+   below the hero once they no longer fit beside it), so the top margin that
+   separates them from a stacked title block would only push them out of
+   alignment with it. */
+.shared-deck-header .shared-view-actions {
+  margin: 0;
 }
 
 .shared-view-actions .btn {

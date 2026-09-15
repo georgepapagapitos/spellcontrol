@@ -39,7 +39,7 @@ export function SharedGameSummaryView({ data, token }: Props) {
   const participants = [...data.participants].sort((a, b) => a.seat - b.seat);
 
   return (
-    <main className="shared-view game-summary-view">
+    <div className="shared-view game-summary-view">
       <header className="shared-view-header">
         {winner ? (
           <div className="game-summary-winner">
@@ -101,6 +101,6 @@ export function SharedGameSummaryView({ data, token }: Props) {
       {reportOpen && (
         <ReportDialog kind="game-result" targetId={token} onClose={() => setReportOpen(false)} />
       )}
-    </main>
+    </div>
   );
 }

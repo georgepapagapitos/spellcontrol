@@ -354,14 +354,18 @@ export default function App() {
   if (status === 'unknown' || status === 'loading') {
     // Public share links must remain reachable while auth bootstraps and
     // when no user is signed in — render the SharedView routes outside the
-    // auth gate so a friend with a link doesn't get bounced to /auth.
+    // auth gate so a friend with a link doesn't get bounced to /auth. They
+    // render inside <Layout> here too, so the app chrome doesn't pop in a
+    // beat later when auth resolves.
     return (
       <Suspense fallback={<BootSplash />}>
         <Routes>
-          <Route path="/s/:token" element={<SharedView />} />
+          <Route element={<Layout />}>
+            <Route path="/s/:token" element={<SharedView />} />
+            <Route path="/u/:username" element={<PublicProfilePage />} />
+            <Route path="/d/:slug" element={<PublicDeckPage />} />
+          </Route>
           <Route path="/s/:token/playtest" element={<PublicDeckPlaytestPage />} />
-          <Route path="/u/:username" element={<PublicProfilePage />} />
-          <Route path="/d/:slug" element={<PublicDeckPage />} />
           <Route path="/d/:slug/playtest" element={<PublicDeckPlaytestPage />} />
           <Route path="/gn/s/:token" element={<GameNightSeriesView />} />
           <Route path="/gn/i/:token" element={<GameNightInviteView />} />
@@ -382,10 +386,13 @@ export default function App() {
           (share views, game night). Layout has its own inner fallback. */}
       <Suspense fallback={<BootSplash />}>
         <Routes>
-          <Route path="/s/:token" element={<SharedView />} />
+          {/* Someone else's deck/collection/profile is a normal page of this
+              app, not a separate microsite: same header, nav and tab bar, so a
+              reader can go from a shared link straight into their own
+              collection instead of hitting a dead end. The playtest and
+              game-night surfaces stay outside the shell — both are full-screen
+              tables with their own chrome. */}
           <Route path="/s/:token/playtest" element={<PublicDeckPlaytestPage />} />
-          <Route path="/u/:username" element={<PublicProfilePage />} />
-          <Route path="/d/:slug" element={<PublicDeckPage />} />
           <Route path="/d/:slug/playtest" element={<PublicDeckPlaytestPage />} />
           <Route path="/gn/s/:token" element={<GameNightSeriesView />} />
           <Route path="/gn/i/:token" element={<GameNightInviteView />} />
@@ -416,6 +423,12 @@ export default function App() {
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/oauth/callback" element={<OAuthCallbackLanding />} />
           <Route element={<Layout />}>
+            {/* Public reads — someone else's shared link, published deck, or
+              profile. In the shell like every other page (see the note above
+              the playtest routes). */}
+            <Route path="/s/:token" element={<SharedView />} />
+            <Route path="/u/:username" element={<PublicProfilePage />} />
+            <Route path="/d/:slug" element={<PublicDeckPage />} />
             {/* The default landing for authed users (w3-nav-activation) — the "/"
               and catch-all routes below send them here. Still reachable by
               direct URL for guests, who are never auto-routed here. */}

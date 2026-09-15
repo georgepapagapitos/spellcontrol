@@ -258,21 +258,18 @@ const CASES: RouteCase[] = [
   },
   {
     path: '/d/some-deck',
-    bare: true,
     guest: true,
     routes: <Route path="/d/:slug" element={<PublicDeckPage />} />,
     ready: /deck|couldn|found/i,
   },
   {
     path: '/u/goblinjoe',
-    bare: true,
     guest: true,
     routes: <Route path="/u/:username" element={<PublicProfilePage />} />,
     ready: /went wrong|profile|couldn|found/i,
   },
   {
     path: '/s/tok',
-    bare: true,
     guest: true,
     routes: <Route path="/s/:token" element={<SharedView />} />,
     ready: /went wrong|shared|couldn|found|sign in/i,
