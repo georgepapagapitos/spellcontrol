@@ -105,6 +105,38 @@
   flex-wrap: wrap;
 }
 
+/* The insight strips' shared slot. It owns the gap between them (the strips
+   carry no outer margin of their own) and collapses to nothing when both
+   have been dismissed, so an empty wrapper can't leave a phantom row of page
+   gap behind. */
+.decks-index-insights {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.decks-index-insights:empty {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .decks-index-insights {
+    gap: var(--space-2);
+  }
+}
+
+/* ONE insight at a time on a phone. Two stacked strips cost 108px of a 780px
+   screen before a single deck — a suggestion surface that pushes the thing
+   it's suggesting about off the fold. The second isn't lost: each strip
+   unmounts when dismissed (or when it has nothing to say), so whatever is
+   left becomes the first child and shows. Desktop has the room for both.
+   See STYLE_GUIDE § "Index-page insight strips". */
+@media (max-width: 600px) {
+  .decks-index-insights > :nth-child(n + 2) {
+    display: none;
+  }
+}
+
 /* Push the view toggle to the right edge of the sort bar so it visually
    pairs with the deck list it controls — same pattern the collection
    page uses on its summary line. */

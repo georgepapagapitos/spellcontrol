@@ -5,7 +5,11 @@
   display: flex;
   align-items: stretch;
   width: 100%;
-  margin-bottom: var(--space-4);
+  /* No outer margin — the host declares the gap (STYLE_GUIDE § Color &
+     spacing; guarded by styles/spacing-ownership.test.ts). This was charging
+     the decks page twice: 8px of the page's own rhythm plus 16px of its own,
+     above a first deck card that already started past the half-way line on a
+     phone. */
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);

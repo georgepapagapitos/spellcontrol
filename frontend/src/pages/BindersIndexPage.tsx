@@ -444,10 +444,18 @@ export function BindersIndexPage() {
             </BulkSelectBar>
           )}
           {sortField === 'position' && sortDir === 'asc' && (
-            <p className="muted" style={{ marginBottom: 'var(--space-2)' }}>
-              Cards file into the first binder whose rules match, top to{' '}
+            // Phones get the short form: the full sentence is permanent
+            // chrome there — two muted lines above the binders on every
+            // visit — and the tip it hangs off carries the whole rule
+            // anyway. Long/short span pair per STYLE_GUIDE's shrink-the-label
+            // ruling; the page's own gap owns the space below it.
+            <p className="muted binders-index-hint">
+              <span className="binders-index-hint-long">
+                Cards file into the first binder whose rules match, top to{' '}
+              </span>
               <span className="binders-index-hint-tail">
-                bottom.{' '}
+                <span className="binders-index-hint-long">bottom. </span>
+                <span className="binders-index-hint-short">Priority order </span>
                 <InfoTip
                   label="binder priority order"
                   text={
