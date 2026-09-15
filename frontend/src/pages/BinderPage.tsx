@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
+import { useAuth } from '../store/auth';
+import { getSyncState, hasSyncError, onSyncedChange } from '../lib/sync';
 import { useDocumentTitle } from '../lib/use-document-title';
 import { AddCardSheet } from '../components/AddCardSheet';
 import { BackLink } from '../components/BackLink';
@@ -59,6 +61,25 @@ export function BinderPage() {
   // price refresh has cached dates for this device.
   const cards = useCardsWithReleaseDates(droppedCards, bindersUseReleaseDates(binders));
   const hydrating = useCollectionStore((s) => s.hydrating);
+  // A signed-in device that has never cached this account still has an EMPTY
+  // local store when `hydrating` flips false — that flag only covers reading
+  // IndexedDB, and on a fresh browser there is nothing in it. The account's
+  // rows arrive later, from the first pull. Without this, the empty-state
+  // redirect below fires in that window and a binder deep link lands on the
+  // index instead of the binder (measured: bounced in under 0.7s on a cold
+  // context; the same id opened fine once the cache was warm).
+  const isAuthed = useAuth((s) => s.status === 'authed');
+  const [, forceSyncRender] = useState(0);
+  useEffect(() => onSyncedChange(() => forceSyncRender((n) => n + 1)), []);
+  // CollectionPage:124 carries the sibling of this guard and waits only on
+  // `=== 'syncing'`. This one also covers the 'idle' window before startSync
+  // has set 'syncing', because the stakes differ: there the choice is between
+  // a loader and an empty state, here it is between a loader and navigating
+  // the user away from the page they asked for.
+  // `hasSyncError()` is the bail: a pull that fails leaves the state at
+  // 'syncing' forever, and waiting on it would spin instead of falling back to
+  // the pre-existing behaviour.
+  const awaitingFirstPull = isAuthed && getSyncState() !== 'ready' && !hasSyncError();
   const search = useCollectionStore((s) => s.search);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const setSearch = useCollectionStore((s) => s.setSearch);
@@ -223,7 +244,10 @@ export function BinderPage() {
     for (const copyId of redundant) removeCardFromBinder(activeId, copyId, false);
   }, [activeId, cards, binders, removeCardFromBinder]);
 
-  if (hydrating) {
+  // `hydrating` covers reading the local cache; `awaitingFirstPull` covers the
+  // window after that where a signed-in device's rows are still on their way.
+  // Both must clear before the empty-state redirect below can be trusted.
+  if (hydrating || (awaitingFirstPull && binders.length === 0)) {
     return (
       <div className="page-loader" role="status" aria-live="polite">
         <span className="spinner" aria-hidden="true" />
