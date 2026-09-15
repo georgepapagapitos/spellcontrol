@@ -1007,8 +1007,13 @@
   /* The name yields the last few pixels rather than the keep-out: halving the
      inset instead put the seam furniture back on the names (undo 67px²), and
      a name trimmed to "Player…" on the narrowest phone beats overlapping
-     text. At 360px and up nothing truncates — the panel is wide enough. */
-  .player-panel:not([data-sideways]) .player-panel-corner.is-tl {
+     text. At 360px and up nothing truncates — the panel is wide enough.
+     
+     Scoped to the seat actually holding the turn: only that panel carries the
+     wide chip, and reserving room for it on all four made every seat pay for
+     something one of them has. The designation chips are 28px circles and
+     clear the name on their own. */
+  .player-panel.is-active-turn:not([data-sideways]) .player-panel-corner.is-tl {
     max-width: calc(100% - 5.5rem);
   }
 }
@@ -1018,7 +1023,7 @@
     display: none;
   }
 
-  .player-panel[data-sideways] .player-panel-corner.is-tl {
+  .player-panel.is-active-turn[data-sideways] .player-panel-corner.is-tl {
     max-width: calc(100% - 5.5rem);
   }
 }
