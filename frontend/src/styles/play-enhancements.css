@@ -83,7 +83,10 @@
    hub (seamOffset(seam, …, +1) in GameBoard.tsx): right of a row seam, below
    a col seam. Screen-relative and never rotated — how long the table has been
    playing is a fact about the table, not about a seat (same ruling as the win
-   celebration). A readout, not a control: no hover, no press, no tap target. */
+   celebration). The chip itself stays pass-through — taps fall to the panels
+   beneath it — with one exception: `.game-clock-start`, the cold-start control
+   for turn tracking, opts back into pointer events. See GameClock.tsx for why
+   that reverses the older "readout, never a control" note. */
 .game-board-clock {
   position: absolute;
   top: var(--seam-top-pct, 50%);
@@ -172,6 +175,65 @@
 
 .game-board-clock.is-col-seam .game-clock-turn-name {
   max-width: 100%;
+}
+
+/* Cold start for turn tracking. Icon-only and narrow: it only ever renders
+   while the turn segment is absent, so the chip's widest state is unchanged
+   and a column seam gains no width from it. */
+.game-clock-start {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  border: none;
+  color: #12151c;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform var(--motion-base) var(--ease-out-soft);
+}
+
+.game-clock-start:active {
+  transform: scale(0.92);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .game-clock-start:hover {
+    background: #fff;
+  }
+}
+
+.game-clock-start:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-clock-start {
+    transition: none;
+  }
+}
+
+/* Touch floor via a centred invisible ghost (the UX-320 pattern): the chip
+   stays visually compact while the hit box meets 44px. The button is already
+   a positioning context for it. */
+@media (pointer: coarse) {
+  .game-clock-start {
+    position: relative;
+  }
+
+  .game-clock-start::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2.75rem;
+    height: 2.75rem;
+    transform: translate(-50%, -50%);
+  }
 }
 
 @media (min-width: 600px) {

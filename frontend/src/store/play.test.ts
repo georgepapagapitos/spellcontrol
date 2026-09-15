@@ -16,6 +16,7 @@ import {
   type GameRecord,
   type GameState,
 } from '../lib/game-state';
+import { gameElapsed } from '../lib/game-clock';
 import type { PublicBoard, TickerEntry } from '../lib/playtest/projection';
 import * as gamesBoard from '../lib/games-board';
 
@@ -307,6 +308,48 @@ describe('usePlayStore — local game flow', () => {
     usePlayStore.getState().discardLocal();
     expect(usePlayStore.getState().local).toBeNull();
     expect(usePlayStore.getState().boardVisible).toBe(true);
+  });
+
+  // Reset used to hand the local board back a game in `lobby` — the state the
+  // ONLINE flow wants, because its host re-starts from a real lobby screen.
+  // The local board has no lobby, so the table was stranded there: the clock
+  // had no `startedAt` to derive from and vanished, and (the part nobody would
+  // have noticed until someone died and the board shrugged) the reducer only
+  // evaluates loss conditions while a game is `active`.
+  describe('dispatchLocal — reset restarts the table', () => {
+    const start = () =>
+      usePlayStore.getState().startLocal({
+        format: 'commander',
+        startingLife: 40,
+        commanderDamageEnabled: false,
+        poisonEnabled: false,
+        players: [
+          { name: 'A', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+          { name: 'B', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+        ],
+      });
+
+    it('leaves the game running, with a clock to read', () => {
+      start();
+      usePlayStore.getState().dispatchLocal({ type: 'reset' });
+
+      const after = usePlayStore.getState().local!;
+      expect(after.status).toBe('active');
+      expect(after.startedAt).not.toBeNull();
+      expect(gameElapsed(after, Date.now())).not.toBeNull();
+      // The reset itself still did its job: life is back to the starting total.
+      expect(after.players.every((p) => p.life === 40)).toBe(true);
+    });
+
+    it('still eliminates a player who dies after the reset', () => {
+      start();
+      usePlayStore.getState().dispatchLocal({ type: 'reset' });
+      usePlayStore.getState().dispatchLocal({ type: 'life', seat: 1, delta: -40, actorSeat: 1 });
+
+      const after = usePlayStore.getState().local!;
+      expect(after.players.find((p) => p.seat === 1)!.eliminated).toBe(true);
+      expect(after.winnerSeat).toBe(0);
+    });
   });
 });
 

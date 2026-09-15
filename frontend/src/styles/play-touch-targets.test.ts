@@ -90,6 +90,47 @@ describe('play board touch targets', () => {
     ).toBeGreaterThan(-1);
   });
 
+  it('the turn chip takes the floor the way every other pill does', () => {
+    // The active seat's pass-turn control. A pill with text, so min-height +
+    // a wider inline pad is the whole floor — the same shape .pp-counter-chip
+    // takes, rather than a ghost.
+    const body = ruleBody(counters, '.pp-turn-chip');
+    expect(body, '.pp-turn-chip is missing').toBeTruthy();
+    expect(body).toMatch(/min-height:\s*2\.75rem/);
+    const at = counters.indexOf(
+      'min-height: 2.75rem',
+      counters.indexOf('.pp-turn-chip {\n    min-height')
+    );
+    const coarseBefore = counters.lastIndexOf('@media (pointer: coarse)', at);
+    expect(coarseBefore, 'the turn-chip floor must not inflate the desktop board').toBeGreaterThan(
+      -1
+    );
+  });
+
+  it('the clock cold-start button carries a ghost, being icon-only', () => {
+    const body = ruleBody(enhancements, '.game-clock-start::after');
+    expect(
+      body,
+      '.game-clock-start is a 1.5rem icon button inside a pill that must not grow — it needs a ghost, not a bigger box.'
+    ).toBeTruthy();
+    expect(body).toMatch(/width:\s*2\.75rem/);
+    expect(body).toMatch(/height:\s*2\.75rem/);
+    expect(body).toContain('position: absolute');
+    expect(body).toContain('translate(-50%, -50%)');
+    // The ghost centres only against a positioned button, and the floor is
+    // coarse-only so a mouse board keeps its compact chip.
+    const at = enhancements.indexOf('.game-clock-start::after');
+    expect(enhancements.lastIndexOf('@media (pointer: coarse)', at)).toBeGreaterThan(-1);
+    expect(enhancements).toMatch(/\.game-clock-start\s*\{[^}]*position:\s*relative/);
+  });
+
+  it('the clock stays pass-through except for the control inside it', () => {
+    // The pill sits over the panels; taps must fall through to them. The one
+    // button in it opts back in, and nothing else may.
+    expect(ruleBody(enhancements, '.game-board-clock')).toContain('pointer-events: none');
+    expect(ruleBody(enhancements, '.game-clock-start')).toContain('pointer-events: auto');
+  });
+
   it('every board touch floor lives inside a coarse-pointer block', () => {
     // A floor applied unconditionally would inflate the desktop board, where
     // a mouse needs no 44px. Each of these selectors must appear only after a

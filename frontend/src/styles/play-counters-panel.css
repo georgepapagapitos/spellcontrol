@@ -775,6 +775,13 @@
     min-height: 2.75rem;
     padding-inline: var(--space-4);
   }
+
+  /* Turn chip — a pill with text, so the floor comes off min-height plus a
+     wider inline pad, the same shape .pp-counter-chip takes. */
+  .pp-turn-chip {
+    min-height: 2.75rem;
+    padding-inline: var(--space-3);
+  }
 }
 
 /* ── UX-321/325: Elimination beat ── */
@@ -911,6 +918,65 @@
 @media (prefers-reduced-motion: no-preference) {
   .pp-designation-chip {
     animation: pp-fade-in var(--motion-base) var(--ease-out-soft);
+  }
+}
+
+/**
+ * Turn chip — the active seat's "pass the turn" control, sharing the
+ * designation column so the panel keeps one chip rail rather than two.
+ *
+ * A pill with a word, not a bare icon: this is the only chip here that DOES
+ * something, and the whole point of it is that a table finds turn tracking
+ * without being told. It sits in a container with `pointer-events: none`, so
+ * it opts itself back in.
+ *
+ * Brighter than a designation chip on purpose — it pairs with the white
+ * active-turn ring on the same panel and the two should read as one mark.
+ */
+.pp-turn-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0.2rem var(--space-2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  border: none;
+  color: #12151c;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  transition: transform var(--motion-base) var(--ease-out-soft);
+}
+
+.pp-turn-chip:active {
+  transform: scale(0.94);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pp-turn-chip:hover {
+    background: #fff;
+  }
+}
+
+/* Always-dark panel surface — white ring per STYLE_GUIDE, not --accent. */
+.pp-turn-chip:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pp-turn-chip {
+    animation: pp-fade-in var(--motion-base) var(--ease-out-soft);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pp-turn-chip {
+    transition: none;
   }
 }
 
