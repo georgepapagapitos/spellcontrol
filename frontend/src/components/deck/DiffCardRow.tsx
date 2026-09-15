@@ -45,7 +45,21 @@ export function DiffCardRow({ delta, tone }: { delta: CardDelta; tone: Tone }) {
 
 const COLLAPSE_AT = 8;
 
-export function DiffGroup({ tone, deltas }: { tone: Tone; deltas: CardDelta[] }) {
+export function DiffGroup({
+  tone,
+  deltas,
+  title,
+  caption,
+}: {
+  tone: Tone;
+  deltas: CardDelta[];
+  /** Replaces the default tone word ("Added"). The compare page names the deck
+   *  instead ("Only in morcant") — "added" implies one list is a revision of
+   *  the other, which is only true on the resync surface. */
+  title?: string;
+  /** Small line under the title — e.g. which side each number belongs to. */
+  caption?: string;
+}) {
   const [expanded, setExpanded] = useState(false);
   const listId = useId();
   if (deltas.length === 0) return null;
@@ -56,8 +70,9 @@ export function DiffGroup({ tone, deltas }: { tone: Tone; deltas: CardDelta[] })
   return (
     <div className="deck-diff-group">
       <h3 className="deck-diff-group-title">
-        {t.word} ({deltas.length})
+        {title ?? t.word} ({deltas.length})
       </h3>
+      {caption && <p className="deck-diff-group-caption">{caption}</p>}
       <ul className="deck-diff-list" id={listId} role="list">
         {visible.map((d) => (
           <DiffCardRow key={d.card.oracle_id || d.card.name} delta={d} tone={tone} />
