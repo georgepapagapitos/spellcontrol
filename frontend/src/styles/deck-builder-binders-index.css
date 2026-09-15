@@ -297,6 +297,29 @@
   white-space: nowrap;
 }
 
+/* The hint shows whenever the list is in priority order, i.e. permanently for
+   most users — on a phone that was two muted lines of standing chrome above
+   the binders on every visit. The short form keeps the affordance and the tip
+   (which holds the actual rule) at one line. The page's gap owns the space
+   below it; the hint carries no margin of its own. */
+.binders-index-hint {
+  margin: 0;
+}
+
+.binders-index-hint-short {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .binders-index-hint-long {
+    display: none;
+  }
+
+  .binders-index-hint-short {
+    display: inline;
+  }
+}
+
 .binders-index-card-tag {
   display: inline-block;
   padding: 0.05rem 0.45rem;

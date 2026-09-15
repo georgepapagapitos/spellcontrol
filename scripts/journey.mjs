@@ -242,6 +242,28 @@ function wrappedControlRows(selectors) {
   return out;
 }
 
+/**
+ * Insight strips stack one-at-a-time on a phone (STYLE_GUIDE § Index-page
+ * insight strips). Two of them showing costs 108px of a 780px screen above the
+ * page's first row — the displacement that ruling exists to prevent, arrived at
+ * by two lanes both having something to say rather than by one tall strip. The
+ * rule is CSS-only (`:nth-child(n + 2)`), so only a real browser can check it.
+ */
+function stackedInsightStrips() {
+  const out = [];
+  for (const slot of document.querySelectorAll('.decks-index-insights')) {
+    const shown = [...slot.children].filter((c) => c.getBoundingClientRect().height > 0);
+    if (shown.length > 1) {
+      out.push(
+        `${shown.length} insight strips visible at once (${shown
+          .map((c) => c.className.split(' ')[0])
+          .join(', ')}) — one at a time below 600px`
+      );
+    }
+  }
+  return out;
+}
+
 const slug = (s) =>
   s
     .replace(/^\//, '')
@@ -348,7 +370,12 @@ async function main() {
         // Width-budget check, phone only — a desktop row has the room to
         // spread and is expected to.
         const wrapped =
-          tierName === 'phone' ? await page.evaluate(wrappedControlRows, NO_WRAP_AT_PHONE) : [];
+          tierName === 'phone'
+            ? [
+                ...(await page.evaluate(wrappedControlRows, NO_WRAP_AT_PHONE)),
+                ...(await page.evaluate(stackedInsightStrips)),
+              ]
+            : [];
         const errs = consoleErrors.filter((e) => !IGNORED_CONSOLE.test(e));
         const file = `${slug(label)}__${tierName}.png`;
         await page.screenshot({ path: path.join(OUT, file) }).catch(() => {});

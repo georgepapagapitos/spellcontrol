@@ -649,8 +649,14 @@ export function DecksIndexPage() {
           </div>
         )}
 
-        <ReadinessSpotlight />
-        <BetweenYourDecks />
+        {/* Insight strips share one slot so a phone shows ONE at a time (the
+            CSS rule lives with `.decks-index-insights`). Each strip renders
+            null when it has nothing to say or has been dismissed, so the
+            second surfaces on its own once the first is gone. */}
+        <div className="decks-index-insights">
+          <ReadinessSpotlight />
+          <BetweenYourDecks />
+        </div>
 
         {showImport && <ImportDeckDialog onClose={() => setShowImport(false)} />}
         {showProductSearch && <ProductSearchDialog onClose={() => setShowProductSearch(false)} />}

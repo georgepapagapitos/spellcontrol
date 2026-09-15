@@ -2269,6 +2269,18 @@ implementation (`components/deck/BetweenYourDecks.tsx`):
 - **Zero visible items → render nothing.** No empty state on the index itself
   (a "you're all caught up" message, if ever needed, lives inside the sheet,
   not as a permanent fixture on the page).
+- **One strip at a time on a phone, and a strip carries no outer margin.** Two
+  lanes both having something to say is normal, and stacked they cost 108px of
+  a 780px screen before the page's first row — the same "displaces the primary
+  content" failure this ruling exists for, reached by addition rather than by
+  one tall strip. Strips therefore share one wrapper slot
+  (`.decks-index-insights` is the reference): the wrapper owns the gap between
+  them, collapses via `:empty`, and hides `:nth-child(n + 2)` at ≤600px.
+  Nothing is lost — a strip unmounts when dismissed or when it has nothing to
+  say, so whatever is left becomes the first child and surfaces. Desktop shows
+  them all. The strips themselves declare no `margin-top`/`-bottom`: the host
+  supplies the gap, and a strip that owns one charges it twice
+  (`spacing-ownership.test.ts` guards both roots).
 - **Tap opens the existing `card-picker` sheet shell** (§ Overlays) with the
   full suggestion cards — same accept/dismiss/undo behavior, just re-housed.
   Dismissing the last item inside the sheet closes it and removes the strip.
