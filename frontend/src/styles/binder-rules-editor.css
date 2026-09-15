@@ -747,6 +747,15 @@
   color: var(--text-primary);
 }
 
+/* E321: computes 38px. A text input is the one control a ghost can't help —
+   the caret, the selection and the native tap-to-focus all live on the real
+   box — so this grows, unlike `.section-header-toggle` next door. */
+@media (pointer: coarse) {
+  .filter-group-name {
+    min-height: 44px;
+  }
+}
+
 /* On a phone the auto-summary owns the whole first line and the count and
    actions sit under it — an <input> can't wrap, so anything less clips it. */
 @media (max-width: 600px) {

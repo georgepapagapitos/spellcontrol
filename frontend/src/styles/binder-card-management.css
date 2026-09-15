@@ -200,6 +200,34 @@
   cursor: grabbing;
 }
 
+/* E322/E323: the editor's two per-row controls compute 17x15 (remove) and
+   22x14 (drag), 627 of each in one binder. Both have to GROW rather than take
+   a ::after ghost:
+     - the drag handle because a drag listener lives on the real box — the
+       ruling `.sort-value-order-chip` above already carries, for the very same
+       reason, and this second drag target in the same file never got it;
+     - the remove button because the rows butt together with zero gap, so a
+       44px ghost would overhang into the NEXT row's remove button, and two
+       DESTRUCTIVE hit areas must not overlap.
+   The floor goes on the ROW, with the controls stretching into it. Putting a
+   `min-height` on the controls alone stacks 44px on top of the row's own
+   0.55rem block padding and blows the row out to 63px — measured — which is
+   ~13,000px of extra scroll across 627 rows. Flooring the row instead takes it
+   42px -> 44px: ~1,250px, the honest price of two legal targets. */
+@media (pointer: coarse) {
+  .binder-card-editor-row {
+    min-height: 44px;
+    padding-block: 0;
+  }
+
+  .binder-card-editor-drag,
+  .binder-card-editor-remove {
+    min-width: 44px;
+    align-self: stretch;
+    justify-content: center;
+  }
+}
+
 .binder-card-editor-status-dot {
   width: 8px;
   height: 8px;

@@ -43,6 +43,29 @@
   padding: var(--space-1) var(--space-1) var(--space-2);
   border-radius: var(--radius) var(--radius) 0 0;
   transition: background var(--motion-fast);
+  /* The ghost below centres on this box, so it must be a containing block. */
+  position: relative;
+}
+
+/* E320: these compute 40px — four under the floor — and a binder page carries
+   66 of them. A `min-height` would be the shorter rule and the worse one: four
+   pixels times 66 sections is ~264px of extra scroll on the page this product
+   is about. The ghost costs nothing: the toggles are separated by ~312px of
+   section content (measured, phone, dev account), so a 44px hit area has
+   nowhere to collide. `min-height` on the ghost rather than a flat `height`
+   keeps the 12 sections that already compute 57px at their full size instead
+   of shrinking their target down to 44. */
+@media (pointer: coarse) {
+  .section-header-toggle::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 100%;
+    min-height: 44px;
+    transform: translateY(-50%);
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {

@@ -230,6 +230,41 @@ describe('CollectionCombosPage', () => {
     expect(screen.getByText(/Showing 1 of 8,294 combos one card away/)).toBeTruthy();
   });
 
+  it('the hero counts the one-away TOTAL, not the display cap it contradicted', () => {
+    // Playtest batch 4, P1. The hero read "1,005 complete · 200 one away" while
+    // the panel twelve lines below read "Showing 200 of 8,409" — the page
+    // understated its own answer by 40x in the line a reader hits first. 200 is
+    // ALMOST_LIMIT, a display cap, and was never a count.
+    setResult({
+      almostInCollection: [combo('c2', 'Near Miss', ['ox'])],
+      almostInCollectionTotal: 8409,
+    });
+    renderPage();
+
+    expect(screen.getByText('0 complete · 8,409 one away')).toBeTruthy();
+    // And the hero must agree with the note below it, which is the whole point.
+    fireEvent.click(screen.getByRole('tab', { name: /One card away/ }));
+    expect(screen.getByText(/Showing 1 of 8,409 combos one card away/)).toBeTruthy();
+  });
+
+  it('the hero counts the NARROWED list once a search is applied', async () => {
+    // The total is only the honest answer to "how many am I one card from".
+    // Once a search narrows the list, the narrowed count is what was asked.
+    setResult({
+      almostInCollection: [combo('c2', 'Near Miss', ['ox']), combo('c3', 'Other Miss', ['ox'])],
+      almostInCollectionTotal: 8409,
+    });
+    renderPage();
+    expect(screen.getByText('0 complete · 8,409 one away')).toBeTruthy();
+
+    fireEvent.change(screen.getByRole('textbox', { name: /Search combos/ }), {
+      target: { value: 'Near' },
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('0 complete · 8,409 one away')).toBeNull();
+    });
+  });
+
   it('shows no truncation note when the true total fits the returned bucket', () => {
     setResult({
       almostInCollection: [combo('c2', 'Near Miss', ['ox'])],
