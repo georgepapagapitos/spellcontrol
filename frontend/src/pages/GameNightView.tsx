@@ -76,13 +76,13 @@ export function GameNightView() {
 
 function NotFoundView() {
   return (
-    <main className="shared-view shared-view--missing">
+    <div className="shared-view shared-view--missing">
       <h1>Link not found</h1>
       <p>This game night link is invalid or no longer exists.</p>
       <Link to="/" className="btn btn-primary shared-copy-btn">
         Go to SpellControl
       </Link>
-    </main>
+    </div>
   );
 }
 
@@ -121,10 +121,10 @@ function GameNightViewInner({ token }: { token: string }) {
   if (state.status === 'loading') {
     return (
       <SharedShell ctaLabel="Plan your own game nights">
-        <main className="shared-view shared-view--loading" aria-busy="true">
+        <div className="shared-view shared-view--loading" aria-busy="true">
           <BrandMark size={64} motion="busy" aria-hidden />
           <p>Loading…</p>
-        </main>
+        </div>
       </SharedShell>
     );
   }
@@ -138,13 +138,13 @@ function GameNightViewInner({ token }: { token: string }) {
   if (state.status === 'error') {
     return (
       <SharedShell ctaLabel="Plan your own game nights">
-        <main className="shared-view shared-view--error">
+        <div className="shared-view shared-view--error">
           <h1>Something went wrong</h1>
           <p>{state.message}</p>
           <Link to="/" className="btn btn-primary shared-copy-btn">
             Go to SpellControl
           </Link>
-        </main>
+        </div>
       </SharedShell>
     );
   }
@@ -254,7 +254,7 @@ function NightBody({
   };
 
   return (
-    <main className="shared-view game-night-view">
+    <div className="shared-view game-night-view">
       <header className="shared-view-header">
         <p className="shared-view-owner">Game night hosted by {night.hostUsername}</p>
         <h1 className={`shared-view-title${cancelled ? ' is-cancelled' : ''}`}>{night.title}</h1>
@@ -415,7 +415,7 @@ function NightBody({
       )}
 
       {!polling && <AttendeeList rsvps={rsvps} />}
-    </main>
+    </div>
   );
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { SharedShell, NotFoundView, ErrorView } from '../components/share/SharedShell';
+import { NotFoundView, ErrorView } from '../components/share/SharedShell';
 import { UserAvatar } from '../components/UserAvatar';
 import { ColorPip } from '../components/shared/ManaSymbol';
 import { ReportDialog } from '../components/share/ReportDialog';
@@ -78,7 +78,7 @@ function ResponsiveAvatar({ imageUrl, name }: { imageUrl: string | null; name: s
 
 function ProfileSkeleton() {
   return (
-    <main className="shared-view public-profile-view" aria-busy="true" aria-label="Loading profile">
+    <div className="shared-view public-profile-view" aria-busy="true" aria-label="Loading profile">
       <header className="public-profile-header">
         <span className="public-profile-skeleton public-profile-skeleton-avatar" />
         <div className="public-profile-header-text">
@@ -93,7 +93,7 @@ function ProfileSkeleton() {
           </li>
         ))}
       </ul>
-    </main>
+    </div>
   );
 }
 
@@ -205,11 +205,7 @@ function DeckGrid({ decks, username }: { decks: PublicProfileDeck[]; username: s
 export function PublicProfilePage() {
   const { username } = useParams<{ username: string }>();
   if (!username) {
-    return (
-      <SharedShell>
-        <NotFoundView title="Profile not found" message={NOT_FOUND_MESSAGE} />
-      </SharedShell>
-    );
+    return <NotFoundView title="Profile not found" message={NOT_FOUND_MESSAGE} />;
   }
   // Remount on username change so per-profile state is fresh and the effect runs once.
   return <PublicProfilePageInner key={username} username={username} />;
@@ -252,25 +248,13 @@ function PublicProfilePageInner({ username }: { username: string }) {
   }, [state]);
 
   if (state.status === 'loading') {
-    return (
-      <SharedShell>
-        <ProfileSkeleton />
-      </SharedShell>
-    );
+    return <ProfileSkeleton />;
   }
   if (state.status === 'notFound') {
-    return (
-      <SharedShell>
-        <NotFoundView title="Profile not found" message={NOT_FOUND_MESSAGE} />
-      </SharedShell>
-    );
+    return <NotFoundView title="Profile not found" message={NOT_FOUND_MESSAGE} />;
   }
   if (state.status === 'error') {
-    return (
-      <SharedShell>
-        <ErrorView message={state.message} />
-      </SharedShell>
-    );
+    return <ErrorView message={state.message} />;
   }
 
   const { profile } = state;
@@ -280,35 +264,35 @@ function PublicProfilePageInner({ username }: { username: string }) {
   );
 
   return (
-    <SharedShell
-      action={
-        profile.isOwner ? (
-          // Your own profile: the way back to the editor on /you replaces
-          // Report (nobody reports themselves). Closes the round trip the
-          // Profile card's "public profile" link opens.
-          <Link to="/you?section=profile" className="btn-link public-profile-report-btn">
-            Edit profile
-          </Link>
-        ) : (
-          <button
-            type="button"
-            className="btn-link public-profile-report-btn"
-            aria-label="Report this profile"
-            onClick={() => setReporting(true)}
-          >
-            Report
-          </button>
-        )
-      }
-    >
-      <main className="shared-view public-profile-view">
+    <>
+      <div className="shared-view public-profile-view">
         <header className="public-profile-header">
           <ResponsiveAvatar imageUrl={profile.avatarImageUrl} name={heading} />
           <div className="public-profile-header-text">
             <h1 className="public-profile-name">{heading}</h1>
             {handle && <p className="public-profile-handle">{handle}</p>}
             {profile.bio && <p className="public-profile-bio">{profile.bio}</p>}
-            <p className="public-profile-joined">Joined {joined}</p>
+            <p className="public-profile-joined">
+              Joined {joined}
+              {' · '}
+              {profile.isOwner ? (
+                // Your own profile: the way back to the editor on /you replaces
+                // Report (nobody reports themselves). Closes the round trip the
+                // Profile card's "public profile" link opens.
+                <Link to="/you?section=profile" className="btn-link public-profile-report-btn">
+                  Edit profile
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-link public-profile-report-btn"
+                  aria-label="Report this profile"
+                  onClick={() => setReporting(true)}
+                >
+                  Report
+                </button>
+              )}
+            </p>
           </div>
         </header>
 
@@ -335,7 +319,7 @@ function PublicProfilePageInner({ username }: { username: string }) {
         ) : (
           <DeckGrid decks={profile.decks} username={profile.username} />
         )}
-      </main>
+      </div>
 
       {reporting && (
         <ReportDialog
@@ -344,6 +328,6 @@ function PublicProfilePageInner({ username }: { username: string }) {
           onClose={() => setReporting(false)}
         />
       )}
-    </SharedShell>
+    </>
   );
 }

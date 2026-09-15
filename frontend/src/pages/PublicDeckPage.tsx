@@ -6,7 +6,6 @@ import {
   recordDeckView,
   type PublicDeckPage as PublicDeckPageData,
 } from '../lib/share-client';
-import { SharedShell } from '../components/share/SharedShell';
 import { SharedDeckSurface } from '../components/share/SharedDeckSurface';
 import { BrandMark } from '../components/shared/BrandMark';
 import { NotFoundView, ErrorView } from '../components/share/SharedShell';
@@ -40,18 +39,15 @@ function markViewedThisSession(slug: string): void {
 /**
  * Public read-only page for a published deck at /d/:slug. Fetches via the
  * unauthenticated public-reads endpoint (no audience gating, unlike
- * /s/:token) and renders the same SharedShell/SharedDeckView chrome that
- * page uses, threading the additive `publicMeta` prop for the owner-profile
- * link, view/copy counts, and Report action.
+ * /s/:token) and renders the same deck surface that page uses, threading the
+ * additive `publicMeta` prop for the owner-profile link, view/copy counts, and
+ * Report action. Like /s/:token it is a normal page inside <Layout> — a
+ * published deck is part of the app, not a separate microsite.
  */
 export function PublicDeckPage() {
   const { slug } = useParams<{ slug: string }>();
   if (!slug) {
-    return (
-      <SharedShell>
-        <NotFoundView />
-      </SharedShell>
-    );
+    return <NotFoundView />;
   }
   // Remount on slug change so per-page state (and the view-beacon dedupe
   // effect) is fresh, mirroring SharedView.tsx's token-keyed remount.
@@ -121,54 +117,44 @@ function PublicDeckPageInner({ slug }: { slug: string }) {
 
   if (state.status === 'loading') {
     return (
-      <SharedShell>
-        <main className="shared-view shared-view--loading" aria-busy="true">
-          <BrandMark size={64} motion="busy" aria-hidden />
-          <p>Loading…</p>
-        </main>
-      </SharedShell>
+      <div className="shared-view shared-view--loading" aria-busy="true">
+        <BrandMark size={64} motion="busy" aria-hidden />
+        <p>Loading…</p>
+      </div>
     );
   }
   if (state.status === 'notFound') {
     return (
-      <SharedShell>
-        <NotFoundView
-          title="Deck not found"
-          message="This deck isn't public anymore, or the link is wrong."
-        />
-      </SharedShell>
+      <NotFoundView
+        title="Deck not found"
+        message="This deck isn't public anymore, or the link is wrong."
+      />
     );
   }
   if (state.status === 'error') {
-    return (
-      <SharedShell>
-        <ErrorView message={state.message} />
-      </SharedShell>
-    );
+    return <ErrorView message={state.message} />;
   }
 
   const { payload } = state;
   return (
-    <SharedShell>
-      <SharedDeckSurface
-        lead={
-          <OwnershipLensStrip
-            lens={lens}
-            missingCost={missingCost}
-            missingCardPrices={missingCardPrices}
-            loading={lensLoading}
-          />
-        }
-        data={payload.deck}
-        sourceKey={payload.slug}
-        publicMeta={{
-          slug: payload.slug,
-          deckId: payload.deck.id,
-          viewCount: payload.viewCount,
-          copyCount: payload.copyCount,
-        }}
-        ownership={lens?.perCard}
-      />
-    </SharedShell>
+    <SharedDeckSurface
+      lead={
+        <OwnershipLensStrip
+          lens={lens}
+          missingCost={missingCost}
+          missingCardPrices={missingCardPrices}
+          loading={lensLoading}
+        />
+      }
+      data={payload.deck}
+      sourceKey={payload.slug}
+      publicMeta={{
+        slug: payload.slug,
+        deckId: payload.deck.id,
+        viewCount: payload.viewCount,
+        copyCount: payload.copyCount,
+      }}
+      ownership={lens?.perCard}
+    />
   );
 }

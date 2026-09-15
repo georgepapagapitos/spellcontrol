@@ -10,11 +10,10 @@ import { SharedBinderView } from '../components/share/SharedBinderView';
 import { SharedDeckSurface } from '../components/share/SharedDeckSurface';
 import { SharedListView } from '../components/share/SharedListView';
 import { SharedCubeView } from '../components/share/SharedCubeView';
-import { SharedShell, NotFoundView, ErrorView } from '../components/share/SharedShell';
+import { NotFoundView, ErrorView } from '../components/share/SharedShell';
 import { DeckFeedbackView } from '../components/share/DeckFeedbackView';
 import { SharedGameSummaryView } from '../components/share/SharedGameSummaryView';
 import { BrandMark } from '../components/shared/BrandMark';
-import { CopyDeckButton } from '../components/share/CopyDeckButton';
 import { CopyCubeButton } from '../components/share/CopyCubeButton';
 
 import { userMessage } from '@/lib/user-error';
@@ -43,11 +42,7 @@ function sharedViewTitle(payload: PublicShareResponse): string {
 export function SharedView() {
   const { token } = useParams<{ token: string }>();
   if (!token) {
-    return (
-      <SharedShell>
-        <NotFoundView />
-      </SharedShell>
-    );
+    return <NotFoundView />;
   }
   // Remount on token change so per-link state is fresh and the effect runs once.
   return <SharedViewInner key={token} token={token} />;
@@ -96,88 +91,48 @@ function SharedViewInner({ token }: { token: string }) {
 
   if (state.status === 'loading') {
     return (
-      <SharedShell>
-        <main className="shared-view shared-view--loading" aria-busy="true">
-          <BrandMark size={64} motion="busy" aria-hidden />
-          <p>Loading…</p>
-        </main>
-      </SharedShell>
+      <div className="shared-view shared-view--loading" aria-busy="true">
+        <BrandMark size={64} motion="busy" aria-hidden />
+        <p>Loading…</p>
+      </div>
     );
   }
   if (state.status === 'notFound') {
-    return (
-      <SharedShell>
-        <NotFoundView />
-      </SharedShell>
-    );
+    return <NotFoundView />;
   }
   if (state.status === 'authRequired') {
     return (
-      <SharedShell>
-        <main className="shared-view shared-view--missing">
-          <h1>Friends only</h1>
-          <p>The owner shared this with their friends. Sign in to view it.</p>
-          <Link to={signInHref} className="btn btn-primary shared-copy-btn">
-            Sign in
-          </Link>
-        </main>
-      </SharedShell>
+      <div className="shared-view shared-view--missing">
+        <h1>Friends only</h1>
+        <p>The owner shared this with their friends. Sign in to view it.</p>
+        <Link to={signInHref} className="btn btn-primary shared-copy-btn">
+          Sign in
+        </Link>
+      </div>
     );
   }
   if (state.status === 'error') {
-    return (
-      <SharedShell>
-        <ErrorView message={state.message} />
-      </SharedShell>
-    );
+    return <ErrorView message={state.message} />;
   }
 
   const { payload } = state;
   if (payload.kind === 'collection') {
-    return (
-      <SharedShell>
-        <SharedCollectionView data={payload.data} />
-      </SharedShell>
-    );
+    return <SharedCollectionView data={payload.data} />;
   }
   if (payload.kind === 'binder') {
-    return (
-      <SharedShell>
-        <SharedBinderView data={payload.data} />
-      </SharedShell>
-    );
+    return <SharedBinderView data={payload.data} />;
   }
   if (payload.kind === 'deck') {
-    return (
-      <SharedShell action={<CopyDeckButton data={payload.data} variant="bar" />}>
-        <SharedDeckSurface data={payload.data} sourceKey={token} />
-      </SharedShell>
-    );
+    return <SharedDeckSurface data={payload.data} sourceKey={token} />;
   }
   if (payload.kind === 'feedback') {
-    return (
-      <SharedShell>
-        <DeckFeedbackView data={payload.data} token={token} />
-      </SharedShell>
-    );
+    return <DeckFeedbackView data={payload.data} token={token} />;
   }
   if (payload.kind === 'cube') {
-    return (
-      <SharedShell action={<CopyCubeButton data={payload.data} />}>
-        <SharedCubeView data={payload.data} />
-      </SharedShell>
-    );
+    return <SharedCubeView data={payload.data} action={<CopyCubeButton data={payload.data} />} />;
   }
   if (payload.kind === 'game-result') {
-    return (
-      <SharedShell>
-        <SharedGameSummaryView data={payload.data} token={token} />
-      </SharedShell>
-    );
+    return <SharedGameSummaryView data={payload.data} token={token} />;
   }
-  return (
-    <SharedShell>
-      <SharedListView data={payload.data} />
-    </SharedShell>
-  );
+  return <SharedListView data={payload.data} />;
 }

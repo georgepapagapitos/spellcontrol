@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import type { PublicCube, PublicCubeCard } from '../../lib/shared-types';
 import { normalizeForSearch } from '../../lib/normalize-search';
 import { formatIdentity } from '../../lib/display-name';
@@ -7,6 +7,8 @@ import { SharedEmptyState } from './SharedEmptyState';
 
 interface Props {
   data: PublicCube;
+  /** Copy-this-cube action, rendered in the header beside the title. */
+  action?: ReactNode;
 }
 
 /** Color-bucket section order + labels, mirroring the cube generator's BUCKETS. */
@@ -26,7 +28,7 @@ const BUCKET_LABEL: Record<string, string> = {
  * Read-only view for a shared cube. Cube cards are oracle-level (no set/image),
  * so this is a sectioned text list grouped by color bucket — not an image grid.
  */
-export function SharedCubeView({ data }: Props) {
+export function SharedCubeView({ data, action }: Props) {
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(() => {
@@ -56,7 +58,7 @@ export function SharedCubeView({ data }: Props) {
   });
 
   return (
-    <main className="shared-view">
+    <div className="shared-view">
       <header className="shared-view-header">
         <p className="shared-view-owner">
           Shared by {owner.primary}
@@ -68,6 +70,7 @@ export function SharedCubeView({ data }: Props) {
           {data.size}-card cube
           {data.shortfall > 0 && ` · ${data.shortfall} short`}
         </p>
+        {action && <p className="shared-view-actions">{action}</p>}
       </header>
 
       {data.gaps.length > 0 && (
@@ -122,6 +125,6 @@ export function SharedCubeView({ data }: Props) {
           ))}
         </div>
       )}
-    </main>
+    </div>
   );
 }

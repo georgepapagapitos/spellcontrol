@@ -101,10 +101,10 @@ function PublicDeckPlaytestInner({ sourceKey, isSlug }: { sourceKey: string; isS
   if (state.status === 'loading') {
     return (
       <SharedShell>
-        <main className="shared-view shared-view--loading" aria-busy="true">
+        <div className="shared-view shared-view--loading" aria-busy="true">
           <BrandMark size={64} motion="busy" aria-hidden />
           <p>Loading deck…</p>
-        </main>
+        </div>
       </SharedShell>
     );
   }

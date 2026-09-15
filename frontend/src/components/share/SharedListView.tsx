@@ -70,7 +70,7 @@ export function SharedListView({ data }: Props) {
   });
 
   return (
-    <main className="shared-view">
+    <div className="shared-view">
       <header className="shared-view-header">
         <p className="shared-view-owner">
           Shared by {owner.primary}
@@ -154,7 +154,7 @@ export function SharedListView({ data }: Props) {
           </table>
         </div>
       )}
-    </main>
+    </div>
   );
 }
 

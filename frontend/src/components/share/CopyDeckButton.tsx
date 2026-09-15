@@ -7,7 +7,7 @@ import type { PublicDeck } from '../../lib/shared-types';
 
 interface Props {
   data: PublicDeck;
-  variant?: 'bar' | 'block';
+  variant?: 'header' | 'block';
   /** The deck_publications slug, present when copying from `/d/:slug`
    *  (`w1-public-deck-page`), absent from a `/s/:token` share. Stamps the
    *  copy's `forkedFrom` lineage and bumps the public copy counter — a
@@ -20,7 +20,7 @@ interface Props {
  * and navigates to the new deck. Works for logged-out visitors — the decks
  * store has no auth check and the sync subscriber no-ops for guests.
  */
-export function CopyDeckButton({ data, variant = 'bar', slug }: Props) {
+export function CopyDeckButton({ data, variant = 'header', slug }: Props) {
   const navigate = useNavigate();
 
   function handleCopy() {
@@ -36,6 +36,7 @@ export function CopyDeckButton({ data, variant = 'bar', slug }: Props) {
     void navigate(`/decks/${id}`, { state: { promptVisibility: true } });
   }
 
+  // Block: the full-width echo at the end of the deck content.
   if (variant === 'block') {
     return (
       <button
@@ -49,10 +50,13 @@ export function CopyDeckButton({ data, variant = 'bar', slug }: Props) {
     );
   }
 
+  // Header: sits in the deck hero's action row beside Playtest, so it carries
+  // that row's sizing (.shared-view-actions .btn) and names its destination —
+  // "Copy" alone made sense beside a brand bar, not beside a verb.
   return (
-    <button type="button" className="btn btn-primary shared-copy-btn" onClick={handleCopy}>
-      <Copy width={14} height={14} strokeWidth={2} aria-hidden />
-      Copy
+    <button type="button" className="btn shared-copy-btn" onClick={handleCopy}>
+      <Copy width={15} height={15} strokeWidth={2} aria-hidden />
+      Copy to my decks
     </button>
   );
 }

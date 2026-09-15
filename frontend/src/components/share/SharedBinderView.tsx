@@ -91,7 +91,7 @@ export function SharedBinderView({ data }: Props) {
   });
 
   return (
-    <main className="shared-view">
+    <div className="shared-view">
       <header className="shared-view-header">
         <p className="shared-view-owner">
           Shared by {owner.primary}
@@ -193,6 +193,6 @@ export function SharedBinderView({ data }: Props) {
           onClose={() => setPreviewIndex(null)}
         />
       )}
-    </main>
+    </div>
   );
 }

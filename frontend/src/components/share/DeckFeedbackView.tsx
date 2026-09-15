@@ -266,7 +266,7 @@ export function DeckFeedbackView({ data, token }: Props) {
 
   if (submitState.status === 'sent') {
     return (
-      <main className="shared-view feedback-view">
+      <div className="shared-view feedback-view">
         <div className="feedback-sent" role="status">
           <h1>Feedback sent</h1>
           <p>
@@ -281,7 +281,7 @@ export function DeckFeedbackView({ data, token }: Props) {
             Try SpellControl
           </Link>
         </div>
-      </main>
+      </div>
     );
   }
 
@@ -301,7 +301,7 @@ export function DeckFeedbackView({ data, token }: Props) {
   ].filter(Boolean);
 
   return (
-    <main className="shared-view feedback-view">
+    <div className="shared-view feedback-view">
       <header className="shared-view-header">
         <p className="shared-view-owner">
           {owner.primary} is asking for feedback
@@ -619,6 +619,6 @@ export function DeckFeedbackView({ data, token }: Props) {
           onClose={() => setPreviewIndex(null)}
         />
       )}
-    </main>
+    </div>
   );
 }

@@ -195,4 +195,44 @@ describe('SharedDeckSurface', () => {
     // Report stays reachable regardless of how quiet the deck is.
     expect(screen.getByRole('button', { name: 'Report this deck' })).toBeTruthy();
   });
+
+  it('wears the same hero the owner\u2019s deck page does', () => {
+    // The visitor used to get a plain caption + title block while the owner got
+    // the art-backed hero with the format/commander/count meta line \u2014 the same
+    // deck dressed as two different products. Pinned by structure, not by CSS.
+    renderSurface(
+      makeDeck({
+        commander: {
+          name: 'Atraxa, Praetors\u2019 Voice',
+          type_line: 'Legendary Creature',
+          image_uris: { art_crop: 'https://cards.scryfall.io/art_crop/atraxa.jpg' },
+        } as PublicDeck['commander'],
+      })
+    );
+    const hero = document.querySelector('.deck-editor-hero');
+    expect(hero).toBeTruthy();
+    expect(hero!.querySelector('.deck-editor-hero-art')).toBeTruthy();
+    const meta = hero!.querySelector('.binder-hero-meta')!.textContent ?? '';
+    expect(meta).toContain('Commander');
+    expect(meta).toContain('Atraxa');
+    // 2 cards + the commander.
+    expect(meta).toContain('3');
+    // The byline stays, inside the hero rather than shouted above the title.
+    expect(hero!.querySelector('.shared-view-owner')).toBeTruthy();
+  });
+
+  it('puts taking the deck next to playing it', () => {
+    // "You can't edit my deck, but you can duplicate it" \u2014 so the copy sits in
+    // the hero actions beside Playtest, not only as a footnote under the list.
+    signInAs('bob');
+    renderSurface();
+    expect(screen.getByRole('button', { name: /Copy to my decks/i })).toBeTruthy();
+  });
+
+  it('gives the owner Edit in that slot instead of a copy of their own deck', () => {
+    signInAs('alice');
+    renderSurface();
+    expect(screen.queryByRole('button', { name: /Copy to my decks/i })).toBeNull();
+    expect(screen.getByRole('link', { name: /Edit this deck/i })).toBeTruthy();
+  });
 });

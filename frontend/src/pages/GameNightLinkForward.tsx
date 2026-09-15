@@ -60,35 +60,35 @@ export function GameNightLinkForward({
   if (!token || state.status === 'notFound') {
     return (
       <SharedShell ctaLabel="Plan your own game nights">
-        <main className="shared-view shared-view--missing">
+        <div className="shared-view shared-view--missing">
           <h1>Link not found</h1>
           <p>{notFoundMessage}</p>
           <Link to="/" className="btn btn-primary shared-copy-btn">
             Go to SpellControl
           </Link>
-        </main>
+        </div>
       </SharedShell>
     );
   }
   if (state.status === 'error') {
     return (
       <SharedShell ctaLabel="Plan your own game nights">
-        <main className="shared-view shared-view--error">
+        <div className="shared-view shared-view--error">
           <h1>Something went wrong</h1>
           <p>{state.message}</p>
           <Link to="/" className="btn btn-primary shared-copy-btn">
             Go to SpellControl
           </Link>
-        </main>
+        </div>
       </SharedShell>
     );
   }
   return (
     <SharedShell ctaLabel="Plan your own game nights">
-      <main className="shared-view shared-view--loading" aria-busy="true">
+      <div className="shared-view shared-view--loading" aria-busy="true">
         <BrandMark size={64} motion="busy" aria-hidden />
         <p>Loading…</p>
-      </main>
+      </div>
     </SharedShell>
   );
 }
