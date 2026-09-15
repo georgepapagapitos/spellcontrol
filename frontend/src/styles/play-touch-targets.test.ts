@@ -184,6 +184,19 @@ describe('panel corners hold back from the seam', () => {
     }
   });
 
+  it('only the seat holding the turn pays for the turn chip', () => {
+    // The narrow-panel name cap reserves room for the wide chip, and exactly
+    // one panel has one. Applying it to every panel made all four seats
+    // truncate at 320px for something only the active seat carries.
+    const narrow = counters.match(/@container \(max-width: 11rem\)\s*\{([\s\S]*?)\n\}/)?.[1];
+    expect(narrow, 'the narrow-panel container query is missing').toBeTruthy();
+    expect(narrow).toMatch(
+      /\.player-panel\.is-active-turn[^{]*\.player-panel-corner\.is-tl\s*\{[^}]*max-width/
+    );
+    // The label drop needs no such scope — it only matters where a chip is.
+    expect(narrow).toMatch(/\.pp-turn-chip-label\s*\{\s*display:\s*none/);
+  });
+
   it('applies on every layout, not only the grid ones', () => {
     // An earlier attempt gated this on `cols > 1`, which reads as "grid boards
     // only" but silently included 2p-stacked (its seats span both columns) —
