@@ -168,8 +168,16 @@ function LayoutShell() {
 
   return (
     <div className="app-shell">
+      {/* WCAG 2.4.1 Bypass Blocks. The header carries the brand, five nav
+          links, card search and the account menu — eight tab stops a keyboard
+          user crossed on every route before reaching content. Visually hidden
+          until focused. `<main>` takes tabIndex={-1} so the jump moves focus,
+          not just the viewport (and the shell's scroll container IS <main>). */}
+      <a className="skip-link" href="#app-main">
+        Skip to content
+      </a>
       <Header />
-      <main className="app-main" ref={setScrollEl}>
+      <main className="app-main" id="app-main" tabIndex={-1} ref={setScrollEl}>
         {isTouchDevice() && <PullToRefresh scrollEl={scrollEl} onRefresh={refreshNow} />}
         <ScrollContainerContext.Provider value={scrollEl}>
           <div className="container">

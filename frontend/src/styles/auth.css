@@ -401,6 +401,13 @@
    only. */
 .auth-forgot-link {
   align-self: center;
+  /* WCAG 2.5.8 Target Size (Minimum) is 24x24 for EVERY pointer type, not just
+     touch — this link measured 101x23 with a mouse, one pixel under. The 44px
+     coarse floor below covers thumbs; this covers the rest. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
   color: var(--text-secondary);
   font-size: var(--text-sm);
   text-decoration: none;
@@ -422,7 +429,16 @@
 /* Dismiss link — guests can use the app without an account, so the auth
    screen is always escapable. */
 .auth-back {
-  align-self: center;
+  /* `align-self` was inert here — the parent is `.auth-card`, which is
+     `display: block`. (Its sibling `.auth-forgot-link` centres because ITS
+     parent `.auth-form` is a flex container.) Centring needs a mechanism that
+     works inside a block parent, or the dismiss link sits ~70px left of every
+     other element in the card. */
+  display: flex;
+  width: fit-content;
+  margin-inline: auto;
+  align-items: center;
+  justify-content: center;
   margin-top: var(--space-3);
   padding: var(--space-1);
   background: transparent;
@@ -445,7 +461,11 @@
 }
 
 /* a11y (UX-cohesion): 44px touch targets on coarse pointers. The reveal toggle
-   keeps its 32px visual size but gets a 44px ghost hit area. */
+   keeps its 32px visual size but gets a 44px ghost hit area.
+   EVERY interactive control on the auth surface belongs in this block —
+   `auth-touch-targets.test.ts` reads the auth pages' TSX and fails if one is
+   missing. `.auth-forgot-link` was the one that slipped: a bare 101×23 text
+   link, on the account-recovery door, at both tiers. */
 @media (pointer: coarse) {
   .auth-reveal::after {
     content: '';
@@ -456,8 +476,15 @@
     height: 44px;
     transform: translate(-50%, -50%);
   }
+  .auth-submit,
+  .auth-google,
+  .auth-forgot-link,
   .auth-back {
     min-height: 44px;
+  }
+  /* The two text links have no padding of their own, so the box has to grow
+     around the text for the floor to mean anything. */
+  .auth-forgot-link {
     display: inline-flex;
     align-items: center;
     justify-content: center;

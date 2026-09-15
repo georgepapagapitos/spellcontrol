@@ -42,6 +42,38 @@ body {
   padding-top: var(--safe-top);
 }
 
+/* Skip-to-content (WCAG 2.4.1). Off-screen until focused, then it lands as a
+   normal pill at the top-left of the shell. Not `display: none` / `hidden` —
+   either would take it out of the tab order and defeat the point. */
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 10;
+  padding: var(--space-2) var(--space-3);
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  text-decoration: none;
+  transform: translateY(calc(-100% - var(--space-2) - var(--safe-top)));
+}
+
+.skip-link:focus-visible {
+  transform: none;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The jump target takes focus programmatically; it must never paint a ring
+   around the whole scroll container. */
+.app-main:focus {
+  outline: none;
+}
+
 .app-main {
   flex: 1 1 auto;
   /* min-height:0 lets this flex child shrink below its content so it can
