@@ -131,6 +131,14 @@ interface CardGridCellProps {
   badges?: ReactNode;
   /** Appended to the tile's aria-label (e.g. surplus copies). */
   ariaExtra?: string;
+  /**
+   * Say nothing about how many copies this tile stands for: no ×qty chip, and
+   * no "quantity N" in the accessible name. A friend's collection withholds
+   * quantity by contract, and the aria-label states it unconditionally — so
+   * passing `qty={1}` would still have announced "quantity 1", which is a
+   * count the surface is not allowed to report.
+   */
+  hideQty?: boolean;
 }
 
 /**
@@ -153,6 +161,7 @@ export function CardGridCell({
   cornerExtras,
   badges,
   ariaExtra,
+  hideQty = false,
 }: CardGridCellProps) {
   const foilStyle = classifyFoil(card);
   const foilClass = foilStyle !== 'none' ? ` is-foil foil-${foilStyle}` : '';
@@ -177,7 +186,7 @@ export function CardGridCell({
             onActivate();
           }
         }}
-        aria-label={`${card.name}, quantity ${qty}${card.foil ? ', foil' : ''}${
+        aria-label={`${card.name}${hideQty ? '' : `, quantity ${qty}`}${card.foil ? ', foil' : ''}${
           card.proxy ? ', proxy' : ''
         }${card.priceOverride !== undefined ? ', manually priced' : ''}${
           caption && caption !== '—' ? `, ${caption}` : ''
@@ -215,9 +224,9 @@ export function CardGridCell({
             )}
           </div>
         )}
-        {(qty > 1 || cornerExtras) && (
+        {((qty > 1 && !hideQty) || cornerExtras) && (
           <div className="collection-grid-corner">
-            {qty > 1 && (
+            {qty > 1 && !hideQty && (
               <span className="collection-grid-qty">
                 <span className="collection-grid-qty-x" aria-hidden="true">
                   ×

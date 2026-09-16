@@ -147,10 +147,16 @@ describe('FriendHubPage — Collection browser', () => {
     expect(panel.textContent).not.toMatch(/\$\d/);
   });
 
-  it('makes every card an openable control, not inert markup', async () => {
-    // The tile was a plain <li>: you could look at a friend's binder but not
-    // open a card in it, while the public share views opened the same carousel
-    // from the same kind of grid.
+  it('renders the app-wide grid tile — an openable control, naming no quantity', async () => {
+    // Two regressions in one assertion. The tile was a plain <li> (look at a
+    // friend's binder, but never open a card in it), and then briefly its own
+    // bespoke button — while every other grid in the app rendered
+    // `CardGridCell`. It now renders that, which is why the accessible name is
+    // the bare card name, exactly as in the owner's own collection.
+    //
+    // And `CardGridCell` states "quantity N" unconditionally, so the friend
+    // surface passes `hideQty`: a count is the privacy line here, and
+    // "quantity 1" would announce one the endpoint never sent.
     fetchFriendCollection.mockResolvedValue({
       ownerUsername: 'friendo',
       cards: [makeCard({ name: 'Sol Ring', oracleId: 'sol' })],
@@ -159,7 +165,9 @@ describe('FriendHubPage — Collection browser', () => {
     await openCollectionTab();
 
     const panel = document.getElementById('friend-hub-panel-collection')!;
-    expect(await within(panel).findByRole('button', { name: /view sol ring/i })).toBeTruthy();
+    const tile = await within(panel).findByRole('button', { name: /sol ring/i });
+    expect(tile.className).toContain('collection-grid-item');
+    expect(tile.getAttribute('aria-label')).not.toMatch(/quantity/i);
   });
 
   it('shows the contract line and the empty state when the friend owns nothing', async () => {
