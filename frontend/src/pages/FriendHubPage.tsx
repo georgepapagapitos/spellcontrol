@@ -34,6 +34,8 @@ import { TradeOfferList } from '../components/trade/TradeOfferList';
 import { isTrackingList } from '../lib/lists';
 import { useCardThumb } from '../lib/card-thumbs';
 import { resolveFriendPreview } from '../lib/friend-preview';
+import { fetchFriendDecks, type FriendDeck } from '../lib/friend-decks-client';
+import { DeckLibrary, type LibraryDeck } from '../components/decks/DeckLibrary';
 import { CardPreview } from '../components/CardPreview';
 import { toast } from '../store/toasts';
 import type { EnrichedCard } from '../types';
@@ -72,7 +74,7 @@ const COLLECTION_SORT_OPTIONS: SortMenuOption<FriendSortKey>[] = [
   { value: 'rarity', label: 'Rarity', dirLabels: ['Common first', 'Mythic first'] },
 ];
 
-type HubTab = 'overview' | 'collection' | 'trades';
+type HubTab = 'overview' | 'decks' | 'collection' | 'trades';
 /** Grid/list, matching the shared collection view's own toggle. */
 type FriendViewKind = 'grid' | 'list';
 
@@ -148,6 +150,58 @@ export function FriendHubPage() {
     error: boolean;
   } | null>(null);
   const collectionKey = `${friendId ?? ''}:${collectionAttempt}`;
+
+  // ── The friend's deck library ───────────────────────────────────────
+  // Published + friends-rung, merged server-side. Keyed the same way the
+  // collection fetch is, so a friend switch or a retry reads as loading
+  // rather than briefly showing the previous friend's shelf.
+  const [decksAttempt, setDecksAttempt] = useState(0);
+  const [decksResult, setDecksResult] = useState<{
+    key: string;
+    decks: FriendDeck[] | null;
+    error: boolean;
+  } | null>(null);
+  const decksKey = `${friendId ?? ''}:${decksAttempt}`;
+  const friendDecks = decksResult?.key === decksKey ? decksResult.decks : null;
+  const decksError = decksResult?.key === decksKey && decksResult.error;
+  const retryDecks = () => setDecksAttempt((n) => n + 1);
+
+  useEffect(() => {
+    if (status !== 'authed' || !friendId) return;
+    let cancelled = false;
+    const key = `${friendId}:${decksAttempt}`;
+    fetchFriendDecks(friendId)
+      .then((res) => {
+        if (!cancelled) setDecksResult({ key, decks: res.decks, error: false });
+      })
+      .catch(() => {
+        if (!cancelled) setDecksResult({ key, decks: null, error: true });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [friendId, status, decksAttempt]);
+
+  const libraryDecks: LibraryDeck[] = useMemo(
+    () =>
+      (friendDecks ?? []).map((d) => ({
+        id: d.deckId,
+        href: d.href,
+        name: d.name,
+        format: d.format,
+        commanderName: d.commanderName,
+        commanderImage: d.commanderImage,
+        colorIdentity: d.colorIdentity,
+        bracket: d.bracket,
+        updatedAt: d.updatedAt,
+        // No views/copies on this surface — those are publication stats, and
+        // half these decks were never published.
+        statsLine: null,
+        // Says WHY you can see it: "anyone can" vs "they showed you".
+        badge: d.visibility === 'friends' ? 'Friends only' : null,
+      })),
+    [friendDecks]
+  );
 
   useEffect(() => {
     if (status !== 'authed' || !friendId) return;
@@ -488,6 +542,7 @@ export function FriendHubPage() {
 
   const hubTabs: TabItem<HubTab>[] = [
     { id: 'overview', label: 'Overview', controls: 'friend-hub-panel-overview' },
+    { id: 'decks', label: 'Decks', controls: 'friend-hub-panel-decks' },
     { id: 'collection', label: 'Collection', controls: 'friend-hub-panel-collection' },
     {
       id: 'trades',
@@ -691,6 +746,35 @@ export function FriendHubPage() {
               </section>
             );
           })
+        )}
+      </div>
+
+      <div
+        role="tabpanel"
+        id="friend-hub-panel-decks"
+        aria-labelledby="sc-tab-decks"
+        hidden={tab !== 'decks'}
+      >
+        {decksError ? (
+          <p className="friend-hub-radar-note" role="alert">
+            Couldn't load {who}'s decks.{' '}
+            <button type="button" className="btn-link friend-hub-radar-retry" onClick={retryDecks}>
+              Try again
+            </button>
+          </p>
+        ) : friendDecks === null ? (
+          <div
+            className="friend-hub-collection-skeleton"
+            aria-label={`Loading ${who}'s decks`}
+            aria-busy="true"
+          />
+        ) : (
+          <DeckLibrary
+            decks={libraryDecks}
+            ariaLabel={`${who}'s decks`}
+            emptyTagline={`${who} hasn't shared any decks yet.`}
+            emptyHint="Decks they publish, or share with friends, show up here."
+          />
         )}
       </div>
 

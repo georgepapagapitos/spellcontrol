@@ -1445,3 +1445,193 @@ describe('GET /api/friends/activity', () => {
     expect(res.body.items).toEqual([]);
   });
 });
+
+// ─── GET /api/friends/:friendId/decks (friend hub deck library) ───────────────
+
+/**
+ * A deck row rich enough for `extractListingFields` to make a real tile.
+ *
+ * ⚠️ `image_uris.art_crop` is REQUIRED, not decoration. `cardArtUrl`
+ * (shares/og.ts) reads that key and nothing else — deriving a crop by
+ * string-replacing `/normal/` is explicitly forbidden there — so a fixture
+ * carrying only `normal` produces a null tile image and reads as a bug in the
+ * route. It isn't one: every commander-bearing deck in the dev database (37 of
+ * 37, checked 2026-09-16) stores the full Scryfall `image_uris`, `art_crop`
+ * included. The fixture matches that, rather than the assertion being loosened
+ * to accept the thinner shape.
+ */
+async function seedRichDeck(userId: string, id: string, name: string, commander: string) {
+  await pool.query(
+    `INSERT INTO user_decks (user_id, id, data, rev, updated_at)
+     VALUES ($1, $2, $3, nextval('user_data_rev_seq'), $4)`,
+    [
+      userId,
+      id,
+      JSON.stringify({
+        id,
+        name,
+        format: 'commander',
+        commander: {
+          name: commander,
+          color_identity: ['R'],
+          image_uris: {
+            normal: `https://cards.scryfall.io/normal/front/a/b/${id}.jpg`,
+            art_crop: `https://cards.scryfall.io/art_crop/front/a/b/${id}.jpg`,
+          },
+        },
+        cards: [{ card: { name: 'Sol Ring' } }, { card: { name: 'Lightning Bolt' } }],
+      }),
+      Date.now(),
+    ]
+  );
+}
+
+describe('GET /api/friends/:friendId/decks', () => {
+  it('rejects an unauthenticated caller (401)', async () => {
+    const owner = await makeUserFull('dl-anon-owner');
+    const res = await request(app).get(`/api/friends/${owner.id}/decks`);
+    expect(res.status).toBe(401);
+  });
+
+  it('403s when the caller is not a friend', async () => {
+    const owner = await makeUserFull('dl-stranger-owner');
+    const viewer = await makeUserFull('dl-stranger-viewer');
+    const res = await request(app)
+      .get(`/api/friends/${owner.id}/decks`)
+      .set('Cookie', viewer.cookie);
+    expect(res.status).toBe(403);
+  });
+
+  it('merges PUBLISHED and FRIENDS-rung decks — a friend must not see less than a stranger', async () => {
+    // The bug this endpoint exists for: published decks are visible to a
+    // logged-OUT stranger at /u/:username, but the friend hub only ever read
+    // the `shares` table, so a friend saw strictly less than a stranger.
+    const owner = await makeUserFull('dl-merge-owner');
+    const viewer = await makeUserFull('dl-merge-viewer');
+    await befriend(owner, viewer);
+
+    await seedRichDeck(owner.id, 'deck-pub', 'Published Deck', 'Krenko, Mob Boss');
+    await seedDeckPublication(owner.id, 'deck-pub', {
+      slug: 'published-deck',
+      deckName: 'Published Deck',
+    });
+
+    await seedRichDeck(owner.id, 'deck-friends', 'Friends Deck', 'Yuriko');
+    await createShare(owner.cookie, {
+      kind: 'deck',
+      resourceId: 'deck-friends',
+      audience: 'friends',
+    });
+
+    const res = await request(app)
+      .get(`/api/friends/${owner.id}/decks`)
+      .set('Cookie', viewer.cookie);
+    expect(res.status).toBe(200);
+
+    const byId = Object.fromEntries(
+      (res.body.decks as { deckId: string; href: string }[]).map((d) => [d.deckId, d])
+    );
+    expect(Object.keys(byId).sort()).toEqual(['deck-friends', 'deck-pub']);
+    expect(byId['deck-pub']).toMatchObject({
+      href: '/d/published-deck',
+      visibility: 'published',
+    });
+    expect(byId['deck-friends']).toMatchObject({ visibility: 'friends' });
+    expect(byId['deck-friends'].href).toMatch(/^\/s\/.+/);
+  });
+
+  it('builds a friends-rung tile from the deck itself, via the publish-time extractor', async () => {
+    // Only publishing precomputes the listing columns, so the friends half has
+    // to derive them — through the SAME extractor, so one deck cannot describe
+    // itself differently depending on which rung it is visible through.
+    const owner = await makeUserFull('dl-fields-owner');
+    const viewer = await makeUserFull('dl-fields-viewer');
+    await befriend(owner, viewer);
+
+    await seedRichDeck(owner.id, 'deck-fields', 'Goblin Pile', 'Krenko, Mob Boss');
+    await createShare(owner.cookie, {
+      kind: 'deck',
+      resourceId: 'deck-fields',
+      audience: 'friends',
+    });
+
+    const res = await request(app)
+      .get(`/api/friends/${owner.id}/decks`)
+      .set('Cookie', viewer.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.decks[0]).toMatchObject({
+      name: 'Goblin Pile',
+      format: 'commander',
+      commanderName: 'Krenko, Mob Boss',
+      colorIdentity: ['R'],
+      // commander + 2 mainboard cards
+      cardCount: 3,
+    });
+    // The art crop specifically — `cardArtUrl` reads `image_uris.art_crop`
+    // and never derives one from the normal-res URL.
+    expect(res.body.decks[0].commanderImage).toContain('art_crop');
+  });
+
+  it('does NOT widen the ladder — link-rung and unshared decks stay invisible', async () => {
+    // The load-bearing assertion. This endpoint is a UNION of two rungs the
+    // friend can already see, never an ambient "friends see everything".
+    const owner = await makeUserFull('dl-ladder-owner');
+    const viewer = await makeUserFull('dl-ladder-viewer');
+    await befriend(owner, viewer);
+
+    await seedRichDeck(owner.id, 'deck-link', 'Link Only', 'Atraxa');
+    await createShare(owner.cookie, { kind: 'deck', resourceId: 'deck-link', audience: 'link' });
+    await seedRichDeck(owner.id, 'deck-private', 'Never Shared', 'Edgar Markov');
+
+    const res = await request(app)
+      .get(`/api/friends/${owner.id}/decks`)
+      .set('Cookie', viewer.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.decks).toEqual([]);
+  });
+
+  it('omits an unpublished deck and a revoked friends share', async () => {
+    const owner = await makeUserFull('dl-gone-owner');
+    const viewer = await makeUserFull('dl-gone-viewer');
+    await befriend(owner, viewer);
+
+    await seedRichDeck(owner.id, 'deck-unpub', 'Retired', 'Atraxa');
+    await seedDeckPublication(owner.id, 'deck-unpub', {
+      slug: 'retired-deck',
+      unpublishedAt: Date.now(),
+    });
+
+    await seedRichDeck(owner.id, 'deck-revoked', 'Revoked', 'Yuriko');
+    const { token } = await createShare(owner.cookie, {
+      kind: 'deck',
+      resourceId: 'deck-revoked',
+      audience: 'friends',
+    });
+    await pool.query('UPDATE shares SET revoked_at = $1 WHERE token = $2', [Date.now(), token]);
+
+    const res = await request(app)
+      .get(`/api/friends/${owner.id}/decks`)
+      .set('Cookie', viewer.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.decks).toEqual([]);
+  });
+
+  it('lists a deck once when it is somehow on both rungs, preferring the slug URL', async () => {
+    // `retireLesserRungs` should make this unreachable; the dedupe is
+    // belt-and-braces, and a duplicated tile would be the visible symptom.
+    const owner = await makeUserFull('dl-dupe-owner');
+    const viewer = await makeUserFull('dl-dupe-viewer');
+    await befriend(owner, viewer);
+
+    await seedRichDeck(owner.id, 'deck-both', 'Both Rungs', 'Krenko, Mob Boss');
+    await createShare(owner.cookie, { kind: 'deck', resourceId: 'deck-both', audience: 'friends' });
+    await seedDeckPublication(owner.id, 'deck-both', { slug: 'both-rungs' });
+
+    const res = await request(app)
+      .get(`/api/friends/${owner.id}/decks`)
+      .set('Cookie', viewer.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.decks).toHaveLength(1);
+    expect(res.body.decks[0]).toMatchObject({ href: '/d/both-rungs', visibility: 'published' });
+  });
+});

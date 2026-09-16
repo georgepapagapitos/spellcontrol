@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { NotFoundView, ErrorView } from '../components/share/SharedShell';
 import { UserAvatar } from '../components/UserAvatar';
-import { ColorPip } from '../components/shared/ManaSymbol';
 import { ReportDialog } from '../components/share/ReportDialog';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { formatIdentity } from '../lib/display-name';
@@ -10,27 +9,12 @@ import { formatSocialCount } from '../lib/social-proof';
 import { formatRelativeTime } from '../lib/format-time';
 import { fetchPublicProfile, ProfileNotFoundError } from '../lib/profile-client';
 import type { PublicProfile, PublicProfileDeck } from '../lib/profile-client';
-import { usePanelCascade, panelCascadeClass } from '../lib/use-panel-cascade';
-import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
-import type { DeckFormat } from '../deck-builder/types';
+import { DeckLibrary, type LibraryDeck } from '../components/decks/DeckLibrary';
 import './PublicProfilePage.css';
 
 import { userMessage } from '@/lib/user-error';
 const NOT_FOUND_MESSAGE = "This profile doesn't exist or has no public decks to show.";
-// Platform counts (views/copies) below this read as noise on a brand-new
-// publisher's profile, so each is hidden individually rather than showing a
-// discouraging "1 view" — see PLAN.md's ghost-town-proofing rationale.
-const GHOST_TOWN_THRESHOLD = 5;
 const SKELETON_TILE_COUNT = 6;
-
-function formatLabel(format: string): string {
-  return DECK_FORMAT_CONFIGS[format as DeckFormat]?.label ?? format;
-}
-
-function colorSummary(colorIdentity: string[]): string {
-  if (colorIdentity.length === 0) return 'Colorless';
-  return `${colorIdentity.length} color${colorIdentity.length === 1 ? '' : 's'}`;
-}
 
 /** displayName-or-@username for the page heading/title — deliberately NOT
  *  `formatIdentity(...).primary` (which returns a bare, un-prefixed
@@ -45,14 +29,6 @@ function pageHeading(profile: Pick<PublicProfile, 'username' | 'displayName'>): 
     heading: identity.secondary ? identity.primary : `@${profile.username}`,
     handle: identity.secondary,
   };
-}
-
-function deckTileAriaLabel(deck: PublicProfileDeck): string {
-  const parts = [deck.name, formatLabel(deck.format), colorSummary(deck.colorIdentity)];
-  if (deck.bracket != null) parts.push(`Bracket ${deck.bracket}`);
-  if (deck.viewCount >= GHOST_TOWN_THRESHOLD) parts.push(`${deck.viewCount} views`);
-  if (deck.copyCount >= GHOST_TOWN_THRESHOLD) parts.push(`${deck.copyCount} copies`);
-  return parts.join(', ');
 }
 
 /**
@@ -114,91 +90,42 @@ function tileStatsLine(deck: PublicProfileDeck): string {
   return parts.join(' · ');
 }
 
-function DeckTile({
-  deck,
-  index,
-  animating,
-}: {
-  deck: PublicProfileDeck;
-  index: number;
-  animating: boolean;
-}) {
-  const colors = deck.colorIdentity.slice(0, 5);
-  const cascadeCls = panelCascadeClass(index, animating);
-  return (
-    <li className={`decks-index-card public-profile-tile${cascadeCls ? ` ${cascadeCls}` : ''}`}>
-      <Link
-        to={`/d/${deck.slug}`}
-        className="decks-index-card-link"
-        aria-label={deckTileAriaLabel(deck)}
-      >
-        <span className="public-profile-tile-banner">
-          {deck.commanderImage ? (
-            <img
-              className="decks-index-card-art"
-              src={deck.commanderImage}
-              alt=""
-              aria-hidden="true"
-              loading="lazy"
-            />
-          ) : (
-            <span className="decks-index-card-banner" aria-hidden="true">
-              {colors.length > 0 && (
-                <span className="decks-index-card-banner-pips">
-                  {colors.map((c) => (
-                    <ColorPip key={c} color={c} pip="lg" />
-                  ))}
-                </span>
-              )}
-            </span>
-          )}
-          <span className="public-profile-tile-banner-stats" aria-hidden="true">
-            {tileStatsLine(deck)}
-          </span>
-        </span>
-        <span className="public-profile-tile-colorbar" aria-hidden="true">
-          {(colors.length > 0 ? colors : ['C']).map((c, i) => (
-            <span
-              key={`${c}-${i}`}
-              className={`public-profile-tile-colorbar-seg public-profile-tile-colorbar-seg--${c.toLowerCase()}`}
-            />
-          ))}
-        </span>
-        <div className="decks-index-card-body">
-          <div className="decks-index-card-name">
-            <span>{deck.name}</span>
-          </div>
-          <div className="decks-index-card-meta">
-            {colors.length > 0 && (
-              <span className="decks-index-card-pips">
-                {colors.map((c) => (
-                  <ColorPip key={c} color={c} />
-                ))}
-              </span>
-            )}
-            <span className="deck-format-badge">{formatLabel(deck.format)}</span>
-            {deck.bracket != null && (
-              <span className="deck-format-badge">Bracket {deck.bracket}</span>
-            )}
-          </div>
-        </div>
-      </Link>
-    </li>
-  );
-}
-
 function DeckGrid({ decks, username }: { decks: PublicProfileDeck[]; username: string }) {
-  // Keyed per-username (a "computation identity", STYLE_GUIDE § Motion) rather
-  // than a single static page key — each profile's grid is different data, so
-  // browsing from one profile to another should cascade again, unlike the
-  // decks-index page's single always-your-own-decks key.
-  const cascade = usePanelCascade(decks.length > 0 ? `public-profile:${username}` : null);
+  // The tiles, cascade and (new) search/sort/filters all live in the shared
+  // `DeckLibrary` — the same component the friend hub's Decks tab renders, so
+  // a person's shelf reads identically whether you are their friend or a
+  // stranger. Before this, THIS page had tiles and no controls at all, while
+  // the friend hub had neither.
+  const libraryDecks: LibraryDeck[] = useMemo(
+    () =>
+      decks.map((deck) => ({
+        id: deck.slug,
+        href: `/d/${deck.slug}`,
+        name: deck.name,
+        format: deck.format,
+        commanderName: deck.commanderName,
+        commanderImage: deck.commanderImage,
+        colorIdentity: deck.colorIdentity,
+        bracket: deck.bracket,
+        updatedAt: deck.publishedAt,
+        // Publication stats — this surface has them, a friend's library does not.
+        statsLine: tileStatsLine(deck),
+        badge: null,
+      })),
+    [decks]
+  );
+
   return (
-    <ul className="decks-index-list is-grid" role="list">
-      {decks.map((deck, i) => (
-        <DeckTile key={deck.slug} deck={deck} index={i} animating={cascade.animating} />
-      ))}
-    </ul>
+    <DeckLibrary
+      decks={libraryDecks}
+      ariaLabel="Public decks"
+      emptyTagline="No public decks yet."
+      emptyHint="Publish a deck from its share menu to feature it here."
+      // Keyed per-username (a "computation identity", STYLE_GUIDE § Motion)
+      // rather than a single static page key — each profile's grid is different
+      // data, so browsing from one to another should cascade again.
+      cascadeKey={decks.length > 0 ? `public-profile:${username}` : null}
+    />
   );
 }
 
