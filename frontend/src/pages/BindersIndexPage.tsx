@@ -49,6 +49,7 @@ import { sampleCardsAsCsv, SAMPLE_BINDERS, SAMPLE_CARDS } from '../lib/samples';
 import { ProgressBar } from '../components/ProgressBar';
 
 import { userMessage } from '@/lib/user-error';
+import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
 type BinderSortField = 'position' | 'name' | 'cards' | 'pages';
 type SortDir = 'asc' | 'desc';
 type BindersViewMode = 'grid' | 'list' | 'compact';
@@ -73,6 +74,7 @@ const SORT_DEFAULT_DIR: Record<BinderSortField, SortDir> = {
 export function BindersIndexPage() {
   const rawCards = useCollectionStore((s) => s.cards);
   const binders = useCollectionStore((s) => s.binders);
+  const awaitingFirstPull = useAwaitingFirstPull();
   const importHistory = useCollectionStore((s) => s.importHistory);
   // Decorate with Scryfall oracle tags (no-op unless a binder uses a tag rule).
   const taggedCards = useCardsWithTags(rawCards, bindersUseTags(binders));
@@ -354,7 +356,15 @@ export function BindersIndexPage() {
         </div>
       )}
 
-      {binders.length === 0 ? (
+      {binders.length === 0 && awaitingFirstPull ? (
+        /* Same first-pull window #1935 fixed on the binder DETAIL page. That
+           fix was page-local, so the index still asserted "No binders yet" for
+           1106ms on a cold device that owns four. */
+        <div className="page-loader" role="status" aria-live="polite">
+          <span className="spinner" aria-hidden="true" />
+          <span className="sr-only">Loading your binders…</span>
+        </div>
+      ) : binders.length === 0 ? (
         cards.length === 0 ? (
           <div className="empty-state">
             <EmptyStateMark />

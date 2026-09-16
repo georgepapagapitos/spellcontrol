@@ -490,6 +490,17 @@
   }
 }
 
+/* The label IS the target (a 14x14 checkbox sits inside it), and it measured
+   340x23 — a real hit area of 275x24, the shortest control on the page that
+   ties deck-building to the collection. `.field-checkbox` in forms-banners.css
+   carries exactly this floor for the identical pattern; this is that rule,
+   applied to the one label that never picked up the class. */
+@media (pointer: coarse) {
+  .commander-owned-toggle {
+    min-height: 44px;
+  }
+}
+
 .commander-owned-count {
   color: var(--text-muted);
 }
