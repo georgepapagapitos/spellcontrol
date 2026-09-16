@@ -404,6 +404,19 @@
 
 /* ── Card grid ────────────────────────────────────────────────────────── */
 
+/* "Show more" for the paged shared collection — same control the friend hub's
+   browser uses, including the coarse-pointer touch floor. */
+.shared-collection-more {
+  display: block;
+  margin: var(--space-3) auto 0;
+}
+
+@media (pointer: coarse) {
+  .shared-collection-more {
+    min-height: 2.75rem;
+  }
+}
+
 .shared-card-grid {
   list-style: none;
   margin: 0;
@@ -428,103 +441,6 @@
   }
 }
 
-.shared-tile {
-  position: relative;
-  aspect-ratio: 488 / 680;
-  border-radius: 4.5% / 3.2%;
-  overflow: hidden;
-  background: var(--surface);
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  width: 100%;
-  display: block;
-}
-
-.shared-tile:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.shared-tile-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.shared-tile-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-2);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  text-align: center;
-  background: var(--surface-raised);
-  box-sizing: border-box;
-  /* Same as .collection-grid-placeholder: break inside an unbreakable name
-     rather than overflow the tile on both sides. */
-  overflow-wrap: anywhere;
-  min-width: 0;
-}
-
-.shared-tile-qty {
-  position: absolute;
-  bottom: 5px;
-  left: 5px;
-  background: var(--art-scrim);
-  color: var(--art-scrim-text);
-  font-size: var(--text-sm);
-  font-weight: 800;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  letter-spacing: 0.02em;
-  line-height: 1;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-}
-
-.shared-tile-qty-x {
-  opacity: 0.7;
-  margin-right: 0.15em;
-  font-weight: 600;
-}
-
-/* Subtle foil tint — distinguishes foil/etched copies in the grid. */
-.shared-tile.is-foil::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--foil-tile-wash);
-  pointer-events: none;
-}
-
-/* ── Ownership lens corner badges (w1-ownership-lens) ─────────────────────
-   Bottom-right cluster — the opposite corner from the qty badge
-   (.shared-tile-qty, bottom-left) — mirrors CardListTable's own
-   .collection-grid-badges corner-overlay pattern for card-art badges. The
-   wrap is a plain positioning box the same size as `.shared-tile` (a block
-   child sizes its block parent); badges render as its siblings, never nested
-   inside `.shared-tile` itself (that's a <button> here, and BinderBadge's
-   single-binder case is also a real <button> — nesting would be invalid). */
-.shared-tile-ownership-wrap {
-  position: relative;
-  display: block;
-}
-
-.shared-tile-badges {
-  position: absolute;
-  bottom: 5px;
-  right: 5px;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
 .shared-tile-owned-dot {
   display: inline-flex;
   flex-shrink: 0;
@@ -544,20 +460,6 @@
 
 .shared-tile-owned-dot::before {
   content: '✓';
-}
-
-/* BinderBadge sized down to fit the corner cluster — same treatment as the
-   collection grid's .collection-grid-badges .card-list-binder-badge. */
-.shared-tile-badges .card-list-binder-badge {
-  margin-left: 0;
-  padding: 0.22rem;
-  background: var(--art-scrim);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-}
-
-.shared-tile-badges svg {
-  width: 11px;
-  height: 11px;
 }
 
 /* List-view inline ownership badges (Name cell). */
@@ -1233,13 +1135,16 @@
   position: relative;
 }
 
-.feedback-tile.is-cut .shared-tile {
+/* SharedCardTile renders CardGridCell, so the dimmed element is the grid
+   item itself — not the retired `.shared-tile`. */
+.feedback-tile.is-cut .collection-grid-item {
   opacity: 0.45;
   filter: grayscale(0.5);
 }
 
-/* Corner map: qty badge bottom-left (shared-tile), scissors bottom-right,
-   Cut chip top-left — no overlap at the smallest (96px) tile width. */
+/* Corner map: qty badge bottom-left (.collection-grid-corner), scissors
+   bottom-right, Cut chip top-left — no overlap at the smallest (96px) tile
+   width. */
 .feedback-tile-cut {
   position: absolute;
   right: 5px;

@@ -3,7 +3,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
 import { BackLink } from '../components/BackLink';
-import { BookOpen, Box, FolderOpen, Layers, ListChecks } from 'lucide-react';
+import {
+  BookOpen,
+  Box,
+  FolderOpen,
+  Layers,
+  LayoutGrid,
+  List as ListIcon,
+  ListChecks,
+} from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 import { formatMoney } from '../lib/format-money';
@@ -41,10 +49,13 @@ import { H2HSummary } from '../components/play/H2HSummary';
 import { Tabs, type TabItem } from '../components/Tabs';
 import { SearchPill } from '../components/SearchPill';
 import { SortMenu, type SortMenuOption } from '../components/SortMenu';
+import { ViewModeToggle } from '../components/ViewModeToggle';
 import { useSharedFilters } from '../components/share/use-shared-filters';
+import { SharedCardTile } from '../components/share/SharedCardTile';
+import { SharedCardList } from '../components/share/SharedCardList';
 import { SharedEmptyState } from '../components/share/SharedEmptyState';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
-import type { ShareKind } from '../lib/shared-types';
+import type { PublicCard, ShareKind } from '../lib/shared-types';
 
 import { userMessage } from '@/lib/user-error';
 /** How many collection cards render before "Show more" — the friend's real
@@ -62,6 +73,8 @@ const COLLECTION_SORT_OPTIONS: SortMenuOption<FriendSortKey>[] = [
 ];
 
 type HubTab = 'overview' | 'collection' | 'trades';
+/** Grid/list, matching the shared collection view's own toggle. */
+type FriendViewKind = 'grid' | 'list';
 
 /** A counter is just a new offer the other way, prefilled with the first card
  *  they asked for so the composer opens with the conversation already in it. */
@@ -286,10 +299,19 @@ export function FriendHubPage() {
   const [collectionSort, setCollectionSort] = useState<FriendSortKey>('popularity');
   const [collectionDir, setCollectionDir] = useState<'asc' | 'desc'>('asc');
   const [collectionVisible, setCollectionVisible] = useState(COLLECTION_PAGE_SIZE);
+  const [collectionView, setCollectionView] = useState<FriendViewKind>('grid');
   const friendPublicCards = useMemo(
     () => (friendCards ?? []).map(friendCardToPublic),
     [friendCards]
   );
+  // The same projection keyed BY CARD, so the tile and the filter pipeline
+  // share one object per card. Rebuilding it per render would hand
+  // `SharedCardTile` a new `card` identity every time and defeat its memo.
+  const friendPublicByCard = useMemo(() => {
+    const m = new Map<FriendCard, PublicCard>();
+    (friendCards ?? []).forEach((c, i) => m.set(c, friendPublicCards[i]));
+    return m;
+  }, [friendCards, friendPublicCards]);
   // Rules text and legality ride the payload only since the endpoint started
   // sending them; probe what this payload actually has so the dialog and the
   // `o:` / `f:` search agree on what can be answered.
@@ -326,21 +348,12 @@ export function FriendHubPage() {
   // matching against each card's public-card projection (by index, so the
   // conversion runs once per payload rather than once per keystroke).
   const filteredFriendCards = useMemo(() => {
-    const publicByCard = new Map<FriendCard, (typeof friendPublicCards)[number]>();
-    (friendCards ?? []).forEach((c, i) => publicByCard.set(c, friendPublicCards[i]));
     const kept = friendSearchResult.cards.filter((c) => {
-      const pc = publicByCard.get(c);
+      const pc = friendPublicByCard.get(c);
       return pc ? collectionMatches(pc) : true;
     });
     return sortFriendCollection(kept, collectionSort, collectionDir);
-  }, [
-    friendCards,
-    friendPublicCards,
-    friendSearchResult,
-    collectionMatches,
-    collectionSort,
-    collectionDir,
-  ]);
+  }, [friendPublicByCard, friendSearchResult, collectionMatches, collectionSort, collectionDir]);
 
   // A friend switch, a retry, a search, a filter, or a sort change all
   // invalidate the current "show more" depth — reset to the first page. The
@@ -726,6 +739,23 @@ export function FriendHubPage() {
                 options={COLLECTION_SORT_OPTIONS}
                 onChange={toggleCollectionSort}
               />
+              <ViewModeToggle<FriendViewKind>
+                ariaLabel="Collection view mode"
+                value={collectionView}
+                onChange={setCollectionView}
+                options={[
+                  {
+                    value: 'grid',
+                    label: 'Grid view',
+                    icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+                  },
+                  {
+                    value: 'list',
+                    label: 'List view',
+                    icon: <ListIcon width={14} height={14} strokeWidth={2} aria-hidden />,
+                  },
+                ]}
+              />
             </div>
 
             {friendSearchResult.ignored.length > 0 && (
@@ -757,19 +787,33 @@ export function FriendHubPage() {
               </div>
             ) : (
               <>
-                <ul
-                  className="shared-card-grid shared-card-grid--small friend-hub-collection-grid"
-                  aria-label={`${who}'s collection`}
-                >
-                  {visibleFriendCards.map((c) => (
-                    <FriendCollectionTile
-                      key={c.oracleId}
-                      card={c}
-                      onOpen={() => inspectFriendCard(c)}
-                      opening={openingCard === c.name}
-                    />
-                  ))}
-                </ul>
+                {collectionView === 'grid' ? (
+                  <ul
+                    className="shared-card-grid shared-card-grid--small friend-hub-collection-grid"
+                    aria-label={`${who}'s collection`}
+                  >
+                    {visibleFriendCards.map((c) => (
+                      <li key={c.oracleId} aria-busy={openingCard === c.name || undefined}>
+                        <SharedCardTile
+                          card={friendPublicByCard.get(c)!}
+                          onClick={() => inspectFriendCard(c)}
+                          hideValue
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <SharedCardList
+                    items={visibleFriendCards.map((c) => ({
+                      key: c.oracleId,
+                      card: friendPublicByCard.get(c)!,
+                      quantity: 1,
+                    }))}
+                    onPreview={(i) => inspectFriendCard(visibleFriendCards[i])}
+                    showPrice={false}
+                    showQty={false}
+                  />
+                )}
                 {hasMoreFriendCards && (
                   <button
                     type="button"
@@ -948,51 +992,6 @@ function WantCardTile({ match }: { match: WantMatch }) {
       <span className="friend-hub-radar-sub" title={sub}>
         {sub}
       </span>
-    </li>
-  );
-}
-
-/** One tile in the Collection browser grid — thumbnail (CDN via useCardThumb)
- *  + name only. No quantity, no price: FriendCard never carries either (see
- *  backend/src/routes/friends.ts), so there's nothing to accidentally render. */
-function FriendCollectionTile({
-  card,
-  onOpen,
-  opening,
-}: {
-  card: FriendCard;
-  onOpen: () => void;
-  opening: boolean;
-}) {
-  const thumb = useCardThumb(card.name, 'small');
-  return (
-    <li className="friend-hub-collection-tile">
-      {/* The whole tile is the target — art and name are one control, as on
-          every other card grid in the app. The name carries the accessible
-          name, so the art stays decorative. */}
-      <button
-        type="button"
-        className="friend-hub-collection-tile-btn"
-        onClick={onOpen}
-        aria-busy={opening || undefined}
-        aria-label={`View ${card.name}`}
-      >
-        {thumb ? (
-          <img
-            className="friend-hub-radar-thumb"
-            src={thumb}
-            alt=""
-            aria-hidden
-            loading="lazy"
-            draggable={false}
-          />
-        ) : (
-          <span className="friend-hub-radar-thumb is-placeholder" aria-hidden />
-        )}
-        <span className="friend-hub-radar-name" title={card.name}>
-          {card.name}
-        </span>
-      </button>
     </li>
   );
 }

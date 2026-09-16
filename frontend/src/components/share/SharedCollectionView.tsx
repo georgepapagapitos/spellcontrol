@@ -26,6 +26,9 @@ interface Props {
 
 type ViewKind = 'grid' | 'list';
 
+/** Rows rendered before "Show more" — the friend hub's own page size. */
+const PAGE_SIZE = 60;
+
 // Public read-only page — it can't import the collection's sort machinery
 // (its keys are this projection's own), so the direction wording is authored
 // here to match the private surfaces word for word.
@@ -55,6 +58,30 @@ export function SharedCollectionView({ data }: Props) {
   );
 
   const sorted = useMemo(() => sortGrouped(filtered, sort, dir), [filtered, sort, dir]);
+
+  // Render a page at a time, exactly as the friend hub's browser does.
+  //
+  // This view used to render EVERY row at once — 5,811 tiles on the dev
+  // account, and a big collection runs to 11k+. That was already slow before
+  // these tiles became the app's real `CardGridCell` (measured on that
+  // collection: 21.6k DOM nodes and 2.8s to first tile). The richer tile costs
+  // ~10 nodes instead of ~4, which took the same page to 60k nodes, 4.1s, and
+  // doubled the cost of a scroll — so paging is what makes one shared tile
+  // affordable here, not a nice-to-have. The owner's own collection solves
+  // this with virtualization; this view is read-only and far simpler, so it
+  // borrows the cheaper of the two answers.
+  //
+  // Paging the RENDERED rows only. `previewCards` still spans the whole sorted
+  // list and a tile's index is still its carousel index, so opening the last
+  // visible card and swiping onward walks the full collection.
+  const [visible, setVisible] = useState(PAGE_SIZE);
+  const [lastSorted, setLastSorted] = useState(sorted);
+  if (sorted !== lastSorted) {
+    setLastSorted(sorted);
+    setVisible(PAGE_SIZE);
+  }
+  const shown = sorted.slice(0, visible);
+  const hasMore = sorted.length > visible;
 
   // Flat card list for the shared carousel — parallel to `sorted`, so a tile's
   // index is its carousel index. Rebuilds only when the sorted result changes.
@@ -139,20 +166,33 @@ export function SharedCollectionView({ data }: Props) {
           filteredTagline="No cards match your search or filters."
           onClearSearch={search ? () => setSearch('') : undefined}
         />
-      ) : view === 'grid' ? (
-        <ul className="shared-card-grid">
-          {sorted.map((g, i) => (
-            <li key={g.key}>
-              <SharedCardTile
-                card={g.card}
-                quantity={g.quantity}
-                onClick={() => setPreviewIndex(i)}
-              />
-            </li>
-          ))}
-        </ul>
       ) : (
-        <SharedCardList items={sorted} onPreview={setPreviewIndex} />
+        <>
+          {view === 'grid' ? (
+            <ul className="shared-card-grid">
+              {shown.map((g, i) => (
+                <li key={g.key}>
+                  <SharedCardTile
+                    card={g.card}
+                    quantity={g.quantity}
+                    onClick={() => setPreviewIndex(i)}
+                  />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <SharedCardList items={shown} onPreview={setPreviewIndex} />
+          )}
+          {hasMore && (
+            <button
+              type="button"
+              className="btn shared-collection-more"
+              onClick={() => setVisible((n) => n + PAGE_SIZE)}
+            >
+              Show more ({sorted.length - visible} left)
+            </button>
+          )}
+        </>
       )}
 
       {previewIndex !== null && previewCards[previewIndex] && (

@@ -19,6 +19,12 @@ interface Props {
   onPreview: (index: number) => void;
   /** Deck cards carry no real price (placeholder 0), so the column is hidden there. */
   showPrice?: boolean;
+  /**
+   * A friend's collection is oracle-level and reports no counts by contract
+   * ("contents yes, value no"). The column goes entirely rather than printing
+   * a placeholder 1 on every row, which would read as a real quantity.
+   */
+  showQty?: boolean;
 }
 
 /**
@@ -27,13 +33,13 @@ interface Props {
  * styling (already used by the shared binder/list views) so collection, binder,
  * and deck all share one table look. Each row opens the card preview modal.
  */
-export function SharedCardList({ items, onPreview, showPrice = true }: Props) {
+export function SharedCardList({ items, onPreview, showPrice = true, showQty = true }: Props) {
   return (
     <div className="shared-table-scroll">
       <table className="shared-list-table shared-list-table--clickable">
         <thead>
           <tr>
-            <th>Qty</th>
+            {showQty && <th>Qty</th>}
             <th>Name</th>
             <th>Set</th>
             <th>Finish</th>
@@ -54,7 +60,7 @@ export function SharedCardList({ items, onPreview, showPrice = true }: Props) {
                 }
               }}
             >
-              <td data-label="Qty">{it.quantity}</td>
+              {showQty && <td data-label="Qty">{it.quantity}</td>}
               <td data-label="Name">
                 {it.card.name}
                 {it.ownership?.owned && (
