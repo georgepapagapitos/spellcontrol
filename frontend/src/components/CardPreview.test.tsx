@@ -87,7 +87,7 @@ function mk(o: Partial<EnrichedCard>): EnrichedCard {
   } as EnrichedCard;
 }
 
-function renderPreview(card: EnrichedCard) {
+function renderPreview(card: EnrichedCard, props: { hidePrice?: boolean } = {}) {
   return render(
     <MemoryRouter>
       <CardPreview
@@ -99,10 +99,31 @@ function renderPreview(card: EnrichedCard) {
         totalPages={0}
         onIndexChange={() => {}}
         onClose={() => {}}
+        {...props}
       />
     </MemoryRouter>
   );
 }
+
+describe('CardPreview hidePrice (friend-surface value contract)', () => {
+  // The preview portals to document.body, so `container` is empty — asserting
+  // against it would make the hidePrice case pass vacuously.
+  it('shows the price by default', () => {
+    renderPreview(mk({ purchasePrice: 12.5, pricedAt: Date.now() }));
+    expect(document.body.textContent).toContain('$12.50');
+  });
+
+  it('renders NO money at all with hidePrice — not even the unknown-price dash', () => {
+    // A friend's collection endpoint withholds price by contract, and
+    // `formatMoney(undefined)` renders `—`, which is the placeholder that
+    // ruling refuses. The whole monetary run has to go: amount, override
+    // badge and the "Prices updated" stamp.
+    renderPreview(mk({ purchasePrice: 12.5, pricedAt: Date.now() }), { hidePrice: true });
+    expect(document.body.textContent).not.toMatch(/\$|—|Prices updated/);
+    // The rest of the meta line survives — this hides value, not identity.
+    expect(screen.getByText('rare')).toBeTruthy();
+  });
+});
 
 describe('CardPreview printing identity (T36)', () => {
   it('appends the collector number to the set line', () => {
