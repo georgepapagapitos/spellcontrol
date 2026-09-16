@@ -23,6 +23,14 @@ const BUDGET_OPTIONS = (
 interface Props {
   filters: DiscoverFilters;
   onChange: (next: DiscoverFilters) => void;
+  /**
+   * Drop the Budget section. A person's deck library (`DeckLibrary`, used by
+   * the friend hub and `/u/:username`) lists decks from summaries that carry no
+   * estimated value — only Discover's listing computes one — so offering the
+   * filter there would silently match nothing. Omitting the control is honest;
+   * a dead filter is not.
+   */
+  hideBudget?: boolean;
 }
 
 /**
@@ -39,14 +47,14 @@ interface Props {
  * family that vanished mid-edit, and it punished the common case: narrowing by
  * format and budget together meant reopening the panel to set the second one.
  */
-export function DiscoverFiltersPopover({ filters, onChange }: Props) {
+export function DiscoverFiltersPopover({ filters, onChange, hideBudget }: Props) {
   const { open, toggle, triggerRef, panelRef, panelStyle } = useAnchoredPanel();
 
   const activeCount =
     (filters.format ? 1 : 0) +
     filters.colors.length +
     filters.brackets.length +
-    (filters.budget ? 1 : 0);
+    (!hideBudget && filters.budget ? 1 : 0);
   const hasActive = activeCount > 0;
 
   const setFormat = (format: DeckFormat | null) => onChange({ ...filters, format });
@@ -152,31 +160,33 @@ export function DiscoverFiltersPopover({ filters, onChange }: Props) {
               </div>
             </fieldset>
 
-            <fieldset className="discover-filters-section">
-              <legend className="discover-filters-legend">Budget</legend>
-              <div className="discover-filters-chips">
-                <label className="discover-filter-chip">
-                  <input
-                    type="radio"
-                    name="discover-budget"
-                    checked={filters.budget === null}
-                    onChange={() => setBudget(null)}
-                  />
-                  <span>Any</span>
-                </label>
-                {BUDGET_OPTIONS.map((b) => (
-                  <label key={b.key} className="discover-filter-chip">
+            {!hideBudget && (
+              <fieldset className="discover-filters-section">
+                <legend className="discover-filters-legend">Budget</legend>
+                <div className="discover-filters-chips">
+                  <label className="discover-filter-chip">
                     <input
                       type="radio"
                       name="discover-budget"
-                      checked={filters.budget === b.key}
-                      onChange={() => setBudget(b.key)}
+                      checked={filters.budget === null}
+                      onChange={() => setBudget(null)}
                     />
-                    <span>{b.label}</span>
+                    <span>Any</span>
                   </label>
-                ))}
-              </div>
-            </fieldset>
+                  {BUDGET_OPTIONS.map((b) => (
+                    <label key={b.key} className="discover-filter-chip">
+                      <input
+                        type="radio"
+                        name="discover-budget"
+                        checked={filters.budget === b.key}
+                        onChange={() => setBudget(b.key)}
+                      />
+                      <span>{b.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )}
 
             {hasActive && (
               <div className="deck-filters-footer">
