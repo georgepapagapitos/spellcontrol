@@ -389,3 +389,18 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Picker rows carry a second line so same-named decks are distinguishable —
+   generation names a deck after its commander, so duplicates are the norm.
+   Popover-only (SelectMenu's `itemLabel`), so the closed trigger stays a name. */
+.deck-compare-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.deck-compare-option-meta {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}

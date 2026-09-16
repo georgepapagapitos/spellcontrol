@@ -25,6 +25,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { DecksHubTabs } from '../components/DecksHubTabs';
 import { useDecksStore } from '../store/decks';
 import { formatRelativeTime } from '../lib/format-time';
+import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
 import { ReadinessSpotlight } from '../components/deck/ReadinessSpotlight';
 import { BetweenYourDecks } from '../components/deck/BetweenYourDecks';
@@ -192,6 +193,7 @@ function deckSortValue(deck: Deck, field: DeckSortField): number | string {
 
 export function DecksIndexPage() {
   const decks = useDecksStore((s) => s.decks);
+  const awaitingFirstPull = useAwaitingFirstPull();
   const deleteDeck = useDecksStore((s) => s.deleteDeck);
   const deleteDecks = useDecksStore((s) => s.deleteDecks);
   const deleteAllDecks = useDecksStore((s) => s.deleteAllDecks);
@@ -698,7 +700,16 @@ export function DecksIndexPage() {
           />
         )}
 
-        {decks.length === 0 ? (
+        {decks.length === 0 && awaitingFirstPull ? (
+          /* A signed-in device that has never cached this account has an EMPTY
+             store while the first pull is in flight, so the empty state below
+             would assert "No decks yet" to someone with decks. Measured at
+             1380ms on the dev account before this guard. */
+          <div className="page-loader" role="status" aria-live="polite">
+            <span className="spinner" aria-hidden="true" />
+            <span className="sr-only">Loading your decks…</span>
+          </div>
+        ) : decks.length === 0 ? (
           /* Three-door empty state (UX-317) — mirrors the Binders gold standard:
            a tagline, a plain-English hint, then ALL three entry points so the
            user knows what the page can do before they've done anything. */

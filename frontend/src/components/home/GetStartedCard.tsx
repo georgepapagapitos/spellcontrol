@@ -6,6 +6,7 @@ import { useDecksStore } from '../../store/decks';
 import { useLoadSamples } from '../../lib/use-load-samples';
 import { track } from '../../lib/analytics';
 import { HomeCard } from './HomeCard';
+import { useAwaitingFirstPull } from '../../lib/use-awaiting-first-pull';
 
 interface Step {
   label: string;
@@ -26,6 +27,7 @@ export function GetStartedCard() {
   const hydrating = useCollectionStore((s) => s.hydrating);
   const deckCount = useDecksStore((s) => s.decks.length);
   const decksHydrated = useDecksStore((s) => s.hydrated);
+  const awaitingFirstPull = useAwaitingFirstPull();
   const navigate = useNavigate();
   const { load: loadSamples, loading: loadingSamples, error: sampleError } = useLoadSamples();
 
@@ -36,7 +38,11 @@ export function GetStartedCard() {
   // account's hydration is a fast local IndexedDB read, so the brief
   // absence there isn't noticeable. Upgrade to a remembered-shape skeleton
   // (lib/home-shape) if that ever measures otherwise.
-  if (hydrating || !decksHydrated) return null;
+  // `awaitingFirstPull` is the same case one step later: a device that has
+  // never cached this account finishes hydrating against an EMPTY store, so
+  // every step reads "not done" and a set-up account is told to import a
+  // collection it already has.
+  if (hydrating || !decksHydrated || awaitingFirstPull) return null;
 
   const steps: Step[] = [
     { label: 'Import your collection', href: '/collection?add=list', done: cardCount > 0 },

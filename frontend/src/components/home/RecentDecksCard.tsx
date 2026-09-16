@@ -9,6 +9,7 @@ import { formatRelativeTime } from '../../lib/format-time';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { DeckFormat } from '@/deck-builder/types';
 import { HomeCard } from './HomeCard';
+import { useAwaitingFirstPull } from '../../lib/use-awaiting-first-pull';
 
 const RECENT_LIMIT = 5;
 
@@ -57,6 +58,7 @@ function DeckThumb({ deck }: { deck: Deck }) {
 export function RecentDecksCard() {
   const decks = useDecksStore((s) => s.decks);
   const hydrated = useDecksStore((s) => s.hydrated);
+  const awaitingFirstPull = useAwaitingFirstPull();
 
   const recent = [...decks].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, RECENT_LIMIT);
   const empty = recent.length === 0;
@@ -65,7 +67,10 @@ export function RecentDecksCard() {
     <HomeCard
       title="Recent decks"
       icon={Layers}
-      loading={!hydrated}
+      /* `hydrated` only covers the local IndexedDB read. On a device that has
+         never cached this account that read finds nothing, so without the
+         second clause the card says "No decks yet." to someone with nine. */
+      loading={!hydrated || (empty && awaitingFirstPull)}
       empty={empty}
       emptyText="No decks yet."
       viewAllHref={empty ? '/decks/new' : '/decks'}

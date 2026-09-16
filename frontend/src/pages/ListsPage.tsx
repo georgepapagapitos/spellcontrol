@@ -35,6 +35,7 @@ import { dynamicListCount } from '../lib/dynamic-list';
 import { isTrackingList } from '../lib/lists';
 import { useCardsWithTags, groupsUseTags } from '../lib/card-tags';
 import type { ListDef, ListKind } from '../types';
+import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
 
 type ListSortField = 'order' | 'name' | 'entries';
 type SortDir = 'asc' | 'desc';
@@ -59,6 +60,7 @@ const SORT_DEFAULT_DIR: Record<ListSortField, SortDir> = {
 
 export function ListsPage() {
   const lists = useCollectionStore((s) => s.lists);
+  const awaitingFirstPull = useAwaitingFirstPull();
   const cards = useCollectionStore((s) => s.cards);
   const createList = useCollectionStore((s) => s.createList);
   const setListKind = useCollectionStore((s) => s.setListKind);
@@ -306,7 +308,15 @@ export function ListsPage() {
         </div>
       )}
 
-      {lists.length === 0 ? (
+      {lists.length === 0 && awaitingFirstPull ? (
+        /* The store is empty while the first pull is in flight on a device that
+           has never cached this account — asserting "No lists yet" there tells
+           the user they own nothing. Measured at 1049ms before this guard. */
+        <div className="page-loader" role="status" aria-live="polite">
+          <span className="spinner" aria-hidden="true" />
+          <span className="sr-only">Loading your lists…</span>
+        </div>
+      ) : lists.length === 0 ? (
         <div className="empty-state">
           <EmptyStateMark />
           <p className="empty-state-tagline">No lists yet.</p>

@@ -53,8 +53,10 @@ import {
 import { namesToCubePool } from '../../lib/cube/pool';
 
 import { userMessage } from '@/lib/user-error';
+import { useAwaitingFirstPull } from '../../lib/use-awaiting-first-pull';
 export function BuildCube({ highlightId }: { highlightId?: string }) {
   const collectionCards = useCollectionStore((s) => s.cards);
+  const awaitingFirstPull = useAwaitingFirstPull();
   const decks = useDecksStore((s) => s.decks);
   const pushToast = useToastsStore((s) => s.push);
   // What the cube may draw from. Default = available copies only: a physical
@@ -246,6 +248,17 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
     });
     setPhysicalTarget(null);
   };
+
+  // Telling a returning user "You haven't imported a collection yet" while
+  // their 11.5k cards are still arriving is the worst version of this lie.
+  if (collectionCards.length === 0 && awaitingFirstPull) {
+    return (
+      <div className="page-loader" role="status" aria-live="polite">
+        <span className="spinner" aria-hidden="true" />
+        <span className="sr-only">Loading your collection…</span>
+      </div>
+    );
+  }
 
   if (collectionCards.length === 0) {
     return (

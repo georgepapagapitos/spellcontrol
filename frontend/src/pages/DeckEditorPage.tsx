@@ -3503,7 +3503,12 @@ export function DeckEditorPage() {
       {confirmDelete && (
         <ConfirmDialog
           title={`Delete "${deck.name}"?`}
-          body="This can't be undone."
+          /* `deleteDeck` ALWAYS shows an undo toast that re-inserts the captured
+             deck (store/decks.ts), so the finality clause was simply untrue —
+             the dialog said "This can't be undone." and the toast one second
+             later offered Undo. The /decks index bulk delete, same store and
+             same toast, already words it correctly; this matches it. */
+          body="The deck will be removed. You can undo from the toast."
           confirmLabel="Delete"
           danger
           onConfirm={handleConfirmDelete}

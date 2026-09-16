@@ -10,6 +10,7 @@ import { MeterBar, StackedBar } from '../components/shared/MeterBar';
 import { InfoTip } from '../components/InfoTip';
 import { DiffGroup } from '../components/deck/DiffCardRow';
 import { diffDecks, type DeckDiff } from '@/lib/deck-diff';
+import { formatRelativeTime } from '../lib/format-time';
 import { buildManaData, type DeckManaData } from '@/lib/build-mana-data';
 import { gradeCurve, type CurveGrading } from '@/deck-builder/services/deckBuilder/curveGrading';
 import { useCurrency } from '@/lib/currency';
@@ -212,6 +213,36 @@ function DeckKey({ aName, bName }: { aName: string; bName: string }) {
 
 const NONE_OPTION: SelectOption<string> = { value: '', label: 'Select a deck' };
 
+/**
+ * A picker row carries the deck's size and when it was last edited, not just
+ * its name. Generation names a deck after its commander, so building two
+ * Krenko decks is the ordinary result of using the feature twice — the dev
+ * account's ten decks are 4x "Abigale", 3x "Thassa", 2x "Krenko". By name alone
+ * this list is four identical rows: you cannot tell which deck you are picking,
+ * and the result header ("Abigale vs Krenko") cannot tell you afterwards either.
+ *
+ * The commander is deliberately NOT the discriminator — same-named decks all
+ * share it, which is the very reason the duplicates exist. Size and edited-time
+ * are what actually differ.
+ *
+ * `label` stays the bare name so the closed trigger reads "Abigale"; the meta
+ * line rides on `itemLabel`, which SelectMenu renders only inside the popover.
+ */
+function deckOption(d: Deck): SelectOption<string> {
+  return {
+    value: d.id,
+    label: d.name,
+    itemLabel: (
+      <span className="deck-compare-option">
+        <span className="deck-compare-option-name">{d.name}</span>
+        <span className="deck-compare-option-meta">
+          {d.cards.length} cards · Edited {formatRelativeTime(d.updatedAt)}
+        </span>
+      </span>
+    ),
+  };
+}
+
 const TYPE_LABEL: Record<string, string> = {
   creatures: 'Creatures',
   instants: 'Instants',
@@ -269,18 +300,24 @@ export function DeckComparePage() {
 
   // Each picker excludes the deck already chosen on the other side, so you
   // can't compare a deck against itself. The leading sentinel clears a side.
+  // A picker row carries the deck's size and when it was last edited, not just
+  // its name. Generation names a deck after its commander, so building two
+  // Krenko decks is the ordinary result of using the feature twice — the dev
+  // account's ten decks are 4x "Abigale", 3x "Thassa", 2x "Krenko". By name
+  // alone this list is four identical rows and you cannot know which deck you
+  // are comparing, nor which two the result refers to. The commander is NOT a
+  // useful discriminator here for exactly the reason the duplicates exist: the
+  // same-named decks all share it.
+  //
+  // `label` stays the bare name so the closed trigger reads "Abigale"; the
+  // meta line rides on `itemLabel`, which SelectMenu renders only inside the
+  // popover.
   const optionsA = useMemo(
-    () => [
-      NONE_OPTION,
-      ...decks.filter((d) => d.id !== bId).map((d) => ({ value: d.id, label: d.name })),
-    ],
+    () => [NONE_OPTION, ...decks.filter((d) => d.id !== bId).map(deckOption)],
     [decks, bId]
   );
   const optionsB = useMemo(
-    () => [
-      NONE_OPTION,
-      ...decks.filter((d) => d.id !== aId).map((d) => ({ value: d.id, label: d.name })),
-    ],
+    () => [NONE_OPTION, ...decks.filter((d) => d.id !== aId).map(deckOption)],
     [decks, aId]
   );
 

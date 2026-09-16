@@ -80,6 +80,10 @@ const mockSyncState = vi.hoisted(() => ({ state: 'idle' as string }));
 vi.mock('../lib/sync', () => ({
   getSyncState: () => mockSyncState.state,
   onSyncedChange: () => () => {},
+  // GetStartedCard and RecentDecksCard read `useAwaitingFirstPull`, which bails
+  // on a failed pull so a broken sync falls back to the empty state instead of
+  // spinning forever. Without this the whole file throws on mount.
+  hasSyncError: () => false,
   // Both stores' persist subscribers call this SYNCHRONOUSLY on any
   // `cards`/`binders`/`decks` write, so seeding a store below throws without
   // it — the scale-line tests are the first in this file to write real rows.
