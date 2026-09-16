@@ -25,6 +25,10 @@ import { TradeComposer } from '../components/trade/TradeComposer';
 import { TradeOfferList } from '../components/trade/TradeOfferList';
 import { isTrackingList } from '../lib/lists';
 import { useCardThumb } from '../lib/card-thumbs';
+import { resolveFriendPreview } from '../lib/friend-preview';
+import { CardPreview } from '../components/CardPreview';
+import { toast } from '../store/toasts';
+import type { EnrichedCard } from '../types';
 import {
   filterFriendCollection,
   friendCardToPublic,
@@ -352,6 +356,37 @@ export function FriendHubPage() {
 
   const visibleFriendCards = filteredFriendCards.slice(0, collectionVisible);
   const hasMoreFriendCards = filteredFriendCards.length > collectionVisible;
+
+  // ── Collection browser: the card inspector ──────────────────────────
+  // Tapping a tile opens the same carousel every other collection surface
+  // opens, spanning the cards currently on screen so a browse keeps browsing
+  // — swiping walks the grid in its sorted order rather than stopping at the
+  // one card that was tapped. Slides resolve by name on demand (not up front:
+  // the filtered set can run to thousands) and the lookup is normally warm,
+  // since each visible tile already resolved the same name for its thumbnail.
+  const [collectionPreview, setCollectionPreview] = useState<{
+    cards: EnrichedCard[];
+    index: number;
+  } | null>(null);
+  const [openingCard, setOpeningCard] = useState<string | null>(null);
+
+  async function inspectFriendCard(card: FriendCard) {
+    setOpeningCard(card.name);
+    try {
+      const { cards, indexOf } = await resolveFriendPreview(visibleFriendCards);
+      if (cards.length === 0) {
+        toast.show({ message: "Couldn't load these cards right now.", tone: 'warn' });
+        return;
+      }
+      // A card whose own lookup failed is not in the carousel; open at the
+      // nearest slide rather than refusing, so one bad card can't block the
+      // rest (same fallback as the trade carousel).
+      const at = indexOf(card);
+      setCollectionPreview({ cards, index: at >= 0 ? at : 0 });
+    } finally {
+      setOpeningCard(null);
+    }
+  }
 
   // Mirrors the collection's sort behavior: re-picking the active field
   // flips direction (SortMenu's Reverse action), a new field resets to asc.
@@ -727,7 +762,12 @@ export function FriendHubPage() {
                   aria-label={`${who}'s collection`}
                 >
                   {visibleFriendCards.map((c) => (
-                    <FriendCollectionTile key={c.oracleId} card={c} />
+                    <FriendCollectionTile
+                      key={c.oracleId}
+                      card={c}
+                      onOpen={() => inspectFriendCard(c)}
+                      opening={openingCard === c.name}
+                    />
                   ))}
                 </ul>
                 {hasMoreFriendCards && (
@@ -802,6 +842,26 @@ export function FriendHubPage() {
             setTab('trades');
             refreshTrades();
           }}
+        />
+      )}
+
+      {collectionPreview && (
+        <CardPreview
+          // `search`, not `collection`: these are not the viewer's rows and
+          // there is no binder, page or section to report — the same call the
+          // trade carousel makes for the same reason. `hidePrice` holds the
+          // friend-surface contract; the slide is a default printing resolved
+          // by name, so its market price is no part of what was shared.
+          source="search"
+          hidePrice
+          cards={collectionPreview.cards}
+          index={collectionPreview.index}
+          binderName=""
+          sectionLabels={[]}
+          pageNumbers={[]}
+          totalPages={0}
+          onIndexChange={(i) => setCollectionPreview((p) => (p ? { ...p, index: i } : p))}
+          onClose={() => setCollectionPreview(null)}
         />
       )}
     </div>
@@ -895,25 +955,44 @@ function WantCardTile({ match }: { match: WantMatch }) {
 /** One tile in the Collection browser grid — thumbnail (CDN via useCardThumb)
  *  + name only. No quantity, no price: FriendCard never carries either (see
  *  backend/src/routes/friends.ts), so there's nothing to accidentally render. */
-function FriendCollectionTile({ card }: { card: FriendCard }) {
+function FriendCollectionTile({
+  card,
+  onOpen,
+  opening,
+}: {
+  card: FriendCard;
+  onOpen: () => void;
+  opening: boolean;
+}) {
   const thumb = useCardThumb(card.name, 'small');
   return (
     <li className="friend-hub-collection-tile">
-      {thumb ? (
-        <img
-          className="friend-hub-radar-thumb"
-          src={thumb}
-          alt=""
-          aria-hidden
-          loading="lazy"
-          draggable={false}
-        />
-      ) : (
-        <span className="friend-hub-radar-thumb is-placeholder" aria-hidden />
-      )}
-      <span className="friend-hub-radar-name" title={card.name}>
-        {card.name}
-      </span>
+      {/* The whole tile is the target — art and name are one control, as on
+          every other card grid in the app. The name carries the accessible
+          name, so the art stays decorative. */}
+      <button
+        type="button"
+        className="friend-hub-collection-tile-btn"
+        onClick={onOpen}
+        aria-busy={opening || undefined}
+        aria-label={`View ${card.name}`}
+      >
+        {thumb ? (
+          <img
+            className="friend-hub-radar-thumb"
+            src={thumb}
+            alt=""
+            aria-hidden
+            loading="lazy"
+            draggable={false}
+          />
+        ) : (
+          <span className="friend-hub-radar-thumb is-placeholder" aria-hidden />
+        )}
+        <span className="friend-hub-radar-name" title={card.name}>
+          {card.name}
+        </span>
+      </button>
     </li>
   );
 }

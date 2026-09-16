@@ -147,6 +147,21 @@ describe('FriendHubPage — Collection browser', () => {
     expect(panel.textContent).not.toMatch(/\$\d/);
   });
 
+  it('makes every card an openable control, not inert markup', async () => {
+    // The tile was a plain <li>: you could look at a friend's binder but not
+    // open a card in it, while the public share views opened the same carousel
+    // from the same kind of grid.
+    fetchFriendCollection.mockResolvedValue({
+      ownerUsername: 'friendo',
+      cards: [makeCard({ name: 'Sol Ring', oracleId: 'sol' })],
+    });
+    renderPage();
+    await openCollectionTab();
+
+    const panel = document.getElementById('friend-hub-panel-collection')!;
+    expect(await within(panel).findByRole('button', { name: /view sol ring/i })).toBeTruthy();
+  });
+
   it('shows the contract line and the empty state when the friend owns nothing', async () => {
     fetchFriendCollection.mockResolvedValue({ ownerUsername: 'friendo', cards: [] });
     renderPage();

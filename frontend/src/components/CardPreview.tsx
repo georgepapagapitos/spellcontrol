@@ -135,6 +135,16 @@ interface Props {
    */
   renderPanelMeta?: (i: number) => ReactNode;
   /**
+   * Suppress every monetary line in the panel — the price, its override badge
+   * and the "Prices updated" stamp. For a surface where the card is real but
+   * its value is deliberately not the viewer's business: a friend's collection,
+   * whose endpoint withholds quantity and price by contract ("contents yes,
+   * value no"). Needed rather than simply leaving the field unset, because
+   * `formatMoney` renders an unknown price as `—` — exactly the placeholder
+   * that ruling refuses.
+   */
+  hidePrice?: boolean;
+  /**
    * Which surface opened the preview. Exposed as `data-source` on the panel so
    * each view can tune its own panel presentation; also documents intent at the
    * call site. The panel always shows its full content (it scrolls when tall),
@@ -195,6 +205,7 @@ export function CardPreview({
   showRole,
   renderPanelExtra,
   renderPanelMeta,
+  hidePrice,
   source,
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -789,9 +800,13 @@ export function CardPreview({
                 const finish = foilFinishLabel(current);
                 return finish ? <span className="card-preview-foil">{finish}</span> : null;
               })()}
-              {' · '}
-              {formatMoney(current.purchasePrice)}
-              <PriceOverrideBadge card={current} />
+              {!hidePrice && (
+                <>
+                  {' · '}
+                  {formatMoney(current.purchasePrice)}
+                  <PriceOverrideBadge card={current} />
+                </>
+              )}
               {(() => {
                 const qty = getStackQty?.(selected) ?? 1;
                 return qty > 1 ? (
@@ -838,7 +853,7 @@ export function CardPreview({
             {(() => {
               // Price freshness on demand — the always-on collection "Prices as
               // of" line was retired; the card inspector is one of its homes.
-              const updated = formatPricedDate(current.pricedAt);
+              const updated = hidePrice ? null : formatPricedDate(current.pricedAt);
               return updated ? (
                 <div className="card-preview-priced-at">Prices updated {updated}</div>
               ) : null;
