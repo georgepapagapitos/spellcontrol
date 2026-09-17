@@ -115,3 +115,55 @@ describe('CardRow', () => {
     expect(normal.container.querySelector('.price-override-badge')).toBeNull();
   });
 });
+
+describe('CardRow on a read-only shared surface', () => {
+  function renderWith(
+    props: { hidePrice?: boolean; hideQty?: boolean },
+    o: Partial<EnrichedCard> = {}
+  ) {
+    return render(
+      <MemoryRouter>
+        <CardRow
+          card={card(o)}
+          qty={3}
+          allocations={[]}
+          menu={null}
+          onActivate={() => {}}
+          {...props}
+        />
+      </MemoryRouter>
+    );
+  }
+
+  it('shows price and ×qty by default', () => {
+    const { container } = renderWith({});
+    expect(container.querySelector('.collection-list-price')).toBeTruthy();
+    expect(container.querySelector('.collection-list-qty')?.textContent).toBe('×3');
+  });
+
+  it('hidePrice removes the whole price cell, not just the number', () => {
+    // A friend's projection carries `purchasePrice: 0`, which would render as
+    // "$0.00" — the placeholder the contents-yes-value-no ruling refuses.
+    const { container } = renderWith({ hidePrice: true });
+    expect(container.querySelector('.collection-list-price')).toBeNull();
+    expect(container.textContent).not.toMatch(/\$/);
+  });
+
+  it('hideQty removes the count entirely', () => {
+    const { container } = renderWith({ hideQty: true });
+    expect(container.querySelector('.collection-list-qty')).toBeNull();
+    expect(container.textContent).not.toMatch(/×3/);
+  });
+
+  it('omits the set chip and collector number when the card has no printing identity', () => {
+    // An oracle-level projection (a friend's collection) has neither.
+    // Rendering them anyway gave an empty set chip and a bare "#".
+    const { container } = renderWith(
+      { hidePrice: true, hideQty: true },
+      { setCode: '', collectorNumber: '', setName: '' }
+    );
+    expect(container.querySelector('.card-list-set-code')).toBeNull();
+    expect(container.querySelector('.card-list-cn')).toBeNull();
+    expect(container.textContent).not.toMatch(/#/);
+  });
+});

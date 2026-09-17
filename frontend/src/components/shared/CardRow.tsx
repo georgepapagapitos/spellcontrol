@@ -14,6 +14,7 @@ import { CONDITION_OPTIONS, LANGUAGE_OPTIONS } from '../PrintingPicker';
 import { getCardType } from '../../lib/card-types';
 import { getColorKey, COLOR_INFO } from '../../lib/colors';
 import { formatMoney } from '../../lib/format-money';
+import { useCardThumb } from '../../lib/card-thumbs';
 
 /** 'damaged' abbreviates to DMG for the row chip; the rest are already short. */
 export function conditionShort(condition: Condition): string {
@@ -84,6 +85,19 @@ interface CardRowProps {
   ownedBadge?: ReactNode;
   /** Lists' inline target-price editor (E163) — undefined everywhere else. */
   targetPriceSlot?: ReactNode;
+  /**
+   * Suppress the price cell entirely (amount + override badge + the pending
+   * shimmer). Sibling of `CardPreview`'s `hidePrice` and `SharedCardTile`'s
+   * `hideValue`: a friend's collection withholds price by contract, and its
+   * projection carries `purchasePrice: 0`, which would render as `$0.00`.
+   */
+  hidePrice?: boolean;
+  /**
+   * Say nothing about how many copies this row stands for. Same reason as
+   * `CardGridCell`'s `hideQty` — a count is the privacy line on a friend
+   * surface, and the price cell multiplies BY qty, so the two travel together.
+   */
+  hideQty?: boolean;
 }
 
 /**
@@ -112,8 +126,16 @@ export function CardRow({
   priceTitle = 'Purchase cost recorded at import',
   ownedBadge,
   targetPriceSlot,
+  hidePrice = false,
+  hideQty = false,
 }: CardRowProps) {
   const colorKey = getColorKey(card);
+  // Name-keyed CDN thumb is only a fallback, exactly as in `CardGridCell`: a
+  // shared/friend projection can arrive with no image at all, and a colour
+  // block where the grid shows real art reads as a broken row. No-ops (no
+  // fetch) whenever the row already carries its own art.
+  const nameThumb = useCardThumb(card.imageSmall ? undefined : card.name, 'small');
+  const thumb = card.imageSmall ?? nameThumb;
   const type = getCardType({ typeLine: card.typeLine } as Parameters<typeof getCardType>[0]);
   const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
 
@@ -138,8 +160,8 @@ export function CardRow({
           {selected && <Check width={13} height={13} strokeWidth={3} />}
         </span>
       )}
-      {card.imageSmall ? (
-        <img src={card.imageSmall} alt="" loading="lazy" className="collection-list-thumb" />
+      {thumb ? (
+        <img src={thumb} alt="" loading="lazy" className="collection-list-thumb" />
       ) : (
         <div
           className="collection-list-thumb collection-list-thumb-placeholder"
@@ -159,10 +181,15 @@ export function CardRow({
         <div className="collection-list-meta">
           <TypeIcon type={type} label={typeLabel} className="card-list-type" />
           <RarityBadge rarity={card.rarity} />
-          <span className="card-list-set-code" title={setName ?? card.setName}>
-            {card.setCode.toUpperCase()}
-          </span>
-          <span className="card-list-cn">#{card.collectorNumber}</span>
+          {/* An oracle-level projection (a friend's collection) carries no
+              printing identity; rendering these anyway gives an empty set chip
+              and a bare "#". */}
+          {card.setCode && (
+            <span className="card-list-set-code" title={setName ?? card.setName}>
+              {card.setCode.toUpperCase()}
+            </span>
+          )}
+          {card.collectorNumber && <span className="card-list-cn">#{card.collectorNumber}</span>}
           {pageNum !== undefined && pageNum > 0 && (
             <span className="card-list-page" title={`Page ${pageNum}`}>
               p.{pageNum}
@@ -197,25 +224,29 @@ export function CardRow({
             {surplusCount} free
           </span>
         )}
-        <div className="collection-list-qty" aria-hidden={qty <= 1}>
-          {qty > 1 ? `×${qty}` : ''}
-        </div>
-        <div
-          className="collection-list-price"
-          title={pricePending ? 'Updating price…' : priceTitle}
-        >
-          {pricePending ? (
-            <span className="collection-list-price-pending" aria-label="Price updating">
-              —
-            </span>
-          ) : (
-            <>
-              {/* Shared projections are server-stamped USD — pin the symbol. */}
-              {formatMoney(card.purchasePrice * qty, { currency: 'USD' })}
-              <PriceOverrideBadge card={card} />
-            </>
-          )}
-        </div>
+        {!hideQty && (
+          <div className="collection-list-qty" aria-hidden={qty <= 1}>
+            {qty > 1 ? `×${qty}` : ''}
+          </div>
+        )}
+        {!hidePrice && (
+          <div
+            className="collection-list-price"
+            title={pricePending ? 'Updating price…' : priceTitle}
+          >
+            {pricePending ? (
+              <span className="collection-list-price-pending" aria-label="Price updating">
+                —
+              </span>
+            ) : (
+              <>
+                {/* Shared projections are server-stamped USD — pin the symbol. */}
+                {formatMoney(card.purchasePrice * qty, { currency: 'USD' })}
+                <PriceOverrideBadge card={card} />
+              </>
+            )}
+          </div>
+        )}
         {targetPriceSlot}
       </div>
     </div>
