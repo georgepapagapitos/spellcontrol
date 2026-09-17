@@ -567,3 +567,67 @@ describe('DeckAiRefine', () => {
     expect(localStorage.getItem('sc-ai-refine-dismissed:deck-a')).toBeNull();
   });
 });
+
+/**
+ * A pass runs ~16s against a pool of 10 a day, so the reader needs a way out of
+ * one they can already see is wrong (wrong sources scope, wrong deck). The
+ * server has always handled this: `backend/src/routes/ai.test.ts` asserts "an
+ * aborted request stores no row and spends no quota". Only the affordance was
+ * missing — measured in the playtest sweep (batch 6): `cancel=false` at every
+ * 500ms sample across a whole stream, and zero `AbortController` in either AI
+ * component.
+ */
+describe('DeckAiRefine — stopping a pass', () => {
+  it('passes an abort signal and returns to idle when the reader stops, with no error card', async () => {
+    let captured: AbortSignal | undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url === '/api/ai/deck-refine') {
+          captured = init?.signal ?? undefined;
+          // Never settles on its own: the only way out is the abort.
+          return new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => {
+              const err = new Error('The user aborted a request.');
+              err.name = 'AbortError';
+              reject(err);
+            });
+          });
+        }
+        return new Response(JSON.stringify({ optIn: true, used: 0, limit: 10 }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      })
+    );
+
+    render(
+      <DeckAiRefine
+        deckId="d1"
+        format="commander"
+        commander={card('Meren of Clan Nel Toth')}
+        partnerCommander={null}
+        mainboard={[{ slotId: 's1', card: card('Necrogen Mists') }]}
+        pool={[{ name: "Hell's Caretaker", oracleId: 'p1', qty: 1 }]}
+        scope="any"
+        onApplyMove={() => {}}
+      />
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Refine this build' }));
+
+    // The escape is offered while the pass is in flight.
+    const stop = await screen.findByRole('button', { name: 'Stop' });
+    expect(captured).toBeInstanceOf(AbortSignal);
+    expect(captured!.aborted).toBe(false);
+
+    fireEvent.click(stop);
+    expect(captured!.aborted).toBe(true);
+
+    // Back to idle: the action is offered again and no error is shown. A
+    // stopped pass is not a failure.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Refine this build' })).toBeTruthy()
+    );
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+});

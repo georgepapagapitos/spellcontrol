@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, RefreshCw, X } from 'lucide-react';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import type { Change } from '@/lib/deck-change';
@@ -138,6 +138,14 @@ export function DeckAiRefine({
         : '';
   const status = useAiStatus();
   const [phase, setPhase] = useState<'idle' | 'working' | 'error'>('idle');
+  /**
+   * Lets the reader stop a pass mid-stream. The server treats a client
+   * disconnect as an abort and, per `backend/src/routes/ai.test.ts` ("an
+   * aborted request stores no row and spends no quota"), charges nothing for
+   * it — so the cheap escape already existed server-side and only the
+   * affordance was missing. A pass runs ~16s against a pool of 10 a day.
+   */
+  const abortRef = useRef<AbortController | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [streamed, setStreamed] = useState('');
   const [strategy, setStrategy] = useState<string | null>(null);
@@ -181,6 +189,9 @@ export function DeckAiRefine({
   const remaining = status ? Math.max(0, status.limit - status.used) : 0;
 
   const run = () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setPhase('working');
     setError(null);
     setStreamed('');
@@ -206,7 +217,8 @@ export function DeckAiRefine({
         currency: aiPriceCurrency(),
         analysis,
       },
-      setStreamed
+      setStreamed,
+      controller.signal
     )
       .then((result) => {
         setStrategy(result.content);
@@ -219,12 +231,22 @@ export function DeckAiRefine({
         if (!result.cached) noteAiSpend();
       })
       .catch((err: Error & { status?: number }) => {
+        // A pass the reader stopped is not a failure: return to idle with no
+        // error card, and nothing has been spent.
+        if (err.name === 'AbortError' || controller.signal.aborted) {
+          setStreamed('');
+          setPhase('idle');
+          return;
+        }
         if (err.status === 429) noteAiExhausted();
         setStreamed('');
         setError(userMessage(err, "Couldn't generate the refine pass. Try again."));
         setPhase('error');
       });
   };
+
+  /** Abort the in-flight pass. The `.catch` above returns to idle silently. */
+  const stop = () => abortRef.current?.abort();
 
   // A re-rolled row shows a different card than the AI proposed, so any
   // apply path — single accept or the bulk "Apply all" — must move on the
@@ -566,6 +588,14 @@ export function DeckAiRefine({
             Reading the build…
           </span>
           <RefineProse content={streamed} cardsByName={cardsByName} streaming />
+        </div>
+      )}
+
+      {phase === 'working' && (
+        <div className="deck-ai-idle-actions">
+          <button type="button" className="btn btn-sm" onClick={stop}>
+            Stop
+          </button>
         </div>
       )}
 

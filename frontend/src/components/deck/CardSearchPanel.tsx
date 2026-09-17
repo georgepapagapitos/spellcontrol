@@ -96,6 +96,14 @@ interface Props {
    * basic lands).
    */
   existingCardCounts: Map<string, number>;
+  /**
+   * True when this name is already at its legal copy limit for the zone being
+   * added to, so the add affordance must refuse. The deck row's own menu
+   * already gates "Add another copy" on `atCap`; without the same gate here the
+   * search panel happily built an illegal deck (2x Sol Ring in Commander), which
+   * the Stats tab then flagged as a Singleton failure.
+   */
+  atCopyLimit: (name: string) => boolean;
   onAdd: (choice: AddCardChoice) => void;
   /** Audition a card's fit before adding (E20). Opens the fit-preview panel with
    *  the resolved card. Omit to hide the per-row "Fit & cut" affordance. */
@@ -322,6 +330,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     deckId,
     commanderColorIdentity,
     existingCardCounts,
+    atCopyLimit,
     onAdd,
     onPreviewFit,
     onClose,
@@ -698,6 +707,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             deckId={deckId}
             colorIdentity={commanderColorIdentity}
             existingCardCounts={existingCardCounts}
+            atCopyLimit={atCopyLimit}
             excludeNames={excludeNames}
             query={query}
             activeIndex={activeIndex}
@@ -739,6 +749,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
               deckId={deckId}
               colorIdentity={commanderColorIdentity}
               existingCardCounts={existingCardCounts}
+              atCopyLimit={atCopyLimit}
               excludeNames={excludeNames}
               query={query}
               activeIndex={activeIndex}
@@ -767,6 +778,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             deckId={deckId}
             colorIdentity={commanderColorIdentity}
             existingCardCounts={existingCardCounts}
+            atCopyLimit={atCopyLimit}
             excludeNames={excludeNames}
             query={query}
             activeIndex={activeIndex}
@@ -800,6 +812,7 @@ interface ResultsProps {
   deckId: string;
   colorIdentity: string[];
   existingCardCounts: Map<string, number>;
+  atCopyLimit: (name: string) => boolean;
   query: string;
   activeIndex: number;
   onActiveChange: (i: number) => void;
@@ -856,6 +869,7 @@ interface CollectionResultsProps extends ResultsProps, FitProps {
 
 // ── Collection results ───────────────────────────────────────────────────
 function CollectionResults({
+  atCopyLimit,
   deckId: _deckId,
   colorIdentity,
   existingCardCounts,
@@ -1006,6 +1020,10 @@ function CollectionResults({
   const filtered = revealBlocked ? [...allowed, ...blocked] : allowed;
 
   const addByName = async (name: string, preferPrintingId?: string) => {
+    // The button is disabled at the cap, but the row is also reachable by the
+    // list's Enter handler and by the preview carousel's add action, so the
+    // refusal lives at the one choke point every path goes through.
+    if (atCopyLimit(name)) return;
     const full = await getCardByNameResilient(name);
     if (!full) {
       pushToast({ message: `Couldn't load ${name}. Try again.`, tone: 'error' });
@@ -1148,8 +1166,13 @@ function CollectionResults({
               <button
                 type="button"
                 className="card-search-add"
+                disabled={atCopyLimit(c.name)}
                 aria-label={
-                  inDeck > 0 ? `Add another ${c.name}${flagNote}` : `Add ${c.name}${flagNote}`
+                  atCopyLimit(c.name)
+                    ? `${c.name} is already at its copy limit`
+                    : inDeck > 0
+                      ? `Add another ${c.name}${flagNote}`
+                      : `Add ${c.name}${flagNote}`
                 }
                 onClick={() => addAtIndex(i)}
               >
@@ -1242,6 +1265,7 @@ interface SuggestionsResultsProps extends ResultsProps {
 
 function SuggestionsResults({
   existingCardCounts,
+  atCopyLimit,
   query,
   activeIndex,
   onActiveChange,
@@ -1296,6 +1320,10 @@ function SuggestionsResults({
   // Suggestion rows carry only a name; resolve the full card on add (same as
   // the Collection tab) so the deck gets a real ScryfallCard.
   const addByName = async (name: string) => {
+    // The button is disabled at the cap, but the row is also reachable by the
+    // list's Enter handler and by the preview carousel's add action, so the
+    // refusal lives at the one choke point every path goes through.
+    if (atCopyLimit(name)) return;
     const full = await getCardByNameResilient(name);
     if (!full) {
       pushToast({ message: `Couldn't load ${name}. Try again.`, tone: 'error' });
@@ -1433,7 +1461,14 @@ function SuggestionsResults({
         <button
           type="button"
           className="card-search-add"
-          aria-label={inDeckCount > 0 ? `Add another ${row.name}` : `Add ${row.name}`}
+          disabled={atCopyLimit(row.name)}
+          aria-label={
+            atCopyLimit(row.name)
+              ? `${row.name} is already at its copy limit`
+              : inDeckCount > 0
+                ? `Add another ${row.name}`
+                : `Add ${row.name}`
+          }
           onClick={() => void addAtIndex(i)}
         >
           +
@@ -1547,6 +1582,7 @@ interface ScryfallResultsProps extends ResultsProps, FitProps {
 }
 
 function ScryfallResults({
+  atCopyLimit,
   deckId: _deckId,
   colorIdentity,
   existingCardCounts,
@@ -1648,6 +1684,10 @@ function ScryfallResults({
   }, [results, sort, gapByName]);
 
   const addCard = (c: ScryfallCard) => {
+    // The button is disabled at the cap, but the row is also reachable by the
+    // list's Enter handler and by the preview carousel's add action, so the
+    // refusal lives at the one choke point every path goes through.
+    if (atCopyLimit(c.name)) return;
     const owned = ownedNames.has(c.name);
     const claim = owned ? pickCollectionCopy(c.name, collection, allocations, c.id) : null;
     onAdd({ card: c, allocatedCopyId: claim?.copyId ?? null });
@@ -1722,12 +1762,15 @@ function ScryfallResults({
               <button
                 type="button"
                 className="card-search-add"
+                disabled={atCopyLimit(c.name)}
                 aria-label={
-                  offColor
-                    ? `Add ${c.name} (off-color)`
-                    : inDeck > 0
-                      ? `Add another ${c.name}`
-                      : `Add ${c.name}`
+                  atCopyLimit(c.name)
+                    ? `${c.name} is already at its copy limit`
+                    : offColor
+                      ? `Add ${c.name} (off-color)`
+                      : inDeck > 0
+                        ? `Add another ${c.name}`
+                        : `Add ${c.name}`
                 }
                 onClick={() => addAtIndex(i)}
               >

@@ -61,12 +61,14 @@ export interface DeckRefinePayload {
  */
 export async function requestDeckRefine(
   payload: DeckRefinePayload,
-  onText?: (textSoFar: string) => void
+  onText?: (textSoFar: string) => void,
+  signal?: AbortSignal
 ): Promise<DeckRefineResult> {
   const res = await authedFetch('/api/ai/deck-refine', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    signal,
   });
   if (!res.ok) await handleResponse<never>(res);
 

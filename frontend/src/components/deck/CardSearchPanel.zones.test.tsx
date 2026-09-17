@@ -36,12 +36,16 @@ const COMMANDER = 'Zada, Hedron Grinder';
 
 // The panel opens on Suggestions for a commander deck; these assertions are
 // about the Collection tab, so switch to it.
-function renderPanel(addZone: 'main' | 'side' | 'considering') {
+function renderPanel(
+  addZone: 'main' | 'side' | 'considering',
+  atCopyLimit: (name: string) => boolean = () => false
+) {
   const r = render(
     <CardSearchPanel
       deckId="deck-1"
       commanderColorIdentity={['R']}
       existingCardCounts={new Map()}
+      atCopyLimit={atCopyLimit}
       onAdd={() => {}}
       onClose={() => {}}
       enableSuggestions
@@ -131,5 +135,34 @@ describe('CardSearchPanel — out-of-deck zones accept any card', () => {
     expect(screen.getByText(COMMANDER)).toBeTruthy();
     expect(screen.getByText('Counterspell')).toBeTruthy();
     expect(screen.getByText('Black Lotus')).toBeTruthy();
+  });
+});
+
+/**
+ * The deck row's overflow menu already refuses "Add another copy" at the copy
+ * limit (`DeckMainboardRow`: `disabled={atCap}`, with the comment "add
+ * affordances agree by construction, not by convention"). The Add cards panel
+ * did not, so it would build an illegal deck — measured in the playtest sweep
+ * (batch 6): adding Sol Ring to a Commander deck that already had one produced
+ * a server row reading `[['Island', 28], ['Sol Ring', 2]]`, which the Stats tab
+ * then reported as "Singleton — 1 duplicate name".
+ */
+describe('CardSearchPanel — the copy limit', () => {
+  beforeEach(() => {
+    useCollectionStore.setState({ cards: [card('Lightning Bolt', ['R'])] });
+  });
+
+  it('refuses a card already at its copy limit, and says why', () => {
+    renderPanel('main', (name) => name === 'Lightning Bolt');
+    const add = screen.getByRole('button', {
+      name: 'Lightning Bolt is already at its copy limit',
+    });
+    expect((add as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('adds normally when the card is below its limit', () => {
+    renderPanel('main');
+    const add = screen.getByRole('button', { name: 'Add Lightning Bolt' });
+    expect((add as HTMLButtonElement).disabled).toBe(false);
   });
 });
