@@ -604,6 +604,28 @@ export function DeckEditorPage() {
     return m;
   }, [deck]);
 
+  /**
+   * Is this name already at its legal copy limit for the zone being added to?
+   * The deck row's own menu gates "Add another copy" on the same question
+   * (`DeckMainboardRow`: `disabled={atCap}`, "add affordances agree by
+   * construction, not by convention") — the Add cards panel did not, so it
+   * would happily put a 2nd Sol Ring in a Commander deck and the Stats tab
+   * would then flag the Singleton failure the panel had just created.
+   *
+   * Considering is a staging area with no ceiling, exactly as the quantity
+   * path already rules (see `maxCopies` in the qty handler below).
+   */
+  const atCopyLimit = useCallback(
+    (name: string) => {
+      if (!deck || addZone === 'considering') return false;
+      const zone = addZone === 'side' ? deck.sideboard : deck.cards;
+      const copies = zone.filter((c) => c.card.name === name);
+      if (copies.length === 0) return false;
+      return copies.length >= getMaxCopies(copies[0].card, !!formatConfig?.isSingleton);
+    },
+    [deck, addZone, formatConfig]
+  );
+
   // Name → the actual deck printing. Feeds Optimize's Remove column so its card
   // preview shows the printing in the deck (matching the thumbnail) instead of
   // the default printing the carousel would otherwise fetch by name.
@@ -1451,6 +1473,7 @@ export function DeckEditorPage() {
         commanderNames={commanderNames}
         addZone={addZone}
         existingCardCounts={existingCardCounts}
+        atCopyLimit={atCopyLimit}
         binderByCardName={binderByCardName}
         onAdd={({ card }) => {
           if (addZone === 'side' || addZone === 'considering') {

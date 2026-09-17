@@ -201,12 +201,14 @@ export async function setAiOptIn(enabled: boolean): Promise<boolean> {
  */
 export async function requestDeckReview(
   payload: DeckReviewPayload,
-  onText?: (textSoFar: string) => void
+  onText?: (textSoFar: string) => void,
+  signal?: AbortSignal
 ): Promise<DeckReviewResult> {
   const res = await authedFetch('/api/ai/deck-review', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    signal,
   });
   // Anything that fails before the first byte still answers with a status code
   // and a JSON body; handleResponse always throws for those.

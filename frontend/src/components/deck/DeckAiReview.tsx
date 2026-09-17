@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
@@ -91,6 +91,14 @@ export function DeckAiReview({
     () => !!(location.state as { openAiReview?: boolean } | null)?.openAiReview
   );
   const [phase, setPhase] = useState<'idle' | 'reading' | 'error'>('idle');
+  /**
+   * Lets the reader stop a reading mid-stream. The server treats a client
+   * disconnect as an abort and, per `backend/src/routes/ai.test.ts` ("an
+   * aborted request stores no row and spends no quota"), charges nothing —
+   * the cheap escape already existed server-side, only the affordance was
+   * missing. A reading runs ~16s against a pool of 10 a day.
+   */
+  const abortRef = useRef<AbortController | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [review, setReview] = useState<HeldReview | null>(null);
   /** Prose received so far while the model is still writing (T102 streaming). */
@@ -166,6 +174,9 @@ export function DeckAiReview({
 
   const read = () => {
     const requestKey = currentKey;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setPhase('reading');
     setError(null);
     setStreamed('');
@@ -179,7 +190,8 @@ export function DeckAiReview({
     );
     requestDeckReview(
       { deckId, commander: commanderName, cards, scope, currency: aiPriceCurrency(), analysis },
-      setStreamed
+      setStreamed,
+      controller.signal
     )
       .then((result) => {
         setReview({ content: result.content, key: requestKey, fetched: result.fetched });
@@ -188,6 +200,13 @@ export function DeckAiReview({
         if (!result.cached) noteAiSpend();
       })
       .catch((err: Error & { status?: number }) => {
+        // A reading the reader stopped is not a failure: back to idle with no
+        // error card, and nothing has been spent.
+        if (err.name === 'AbortError' || controller.signal.aborted) {
+          setStreamed('');
+          setPhase('idle');
+          return;
+        }
         if (err.status === 429) noteAiExhausted();
         // A partial reading is worth nothing — it was never stored, and half a
         // finding reads as a finding. Drop it and offer the retry.
@@ -196,6 +215,9 @@ export function DeckAiReview({
         setPhase('error');
       });
   };
+
+  /** Abort the in-flight reading. The `.catch` above returns to idle silently. */
+  const stop = () => abortRef.current?.abort();
 
   // Dismissed for good without consent: nothing at all (self-hiding rule).
   if (!status.optIn && inviteDismissed) return null;
@@ -319,6 +341,14 @@ export function DeckAiReview({
           aria-label="Checking for past readings"
         >
           <span className="deck-ai-skeleton-line deck-ai-skeleton-line--short" />
+        </div>
+      )}
+
+      {phase === 'reading' && (
+        <div className="deck-ai-idle-actions">
+          <button type="button" className="btn btn-sm" onClick={stop}>
+            Stop
+          </button>
         </div>
       )}
 
