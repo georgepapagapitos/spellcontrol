@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import type { PublicCard } from '../../lib/shared-types';
-import { formatMoney } from '../../lib/format-money';
+import { publicCardToEnriched } from '../../lib/shared-filter';
 import { BinderBadge } from '../BinderBadge';
+import { CardRow } from '../shared/CardRow';
 import { ownedAriaSuffix, type CardOwnership } from './SharedCardTile';
 
 export interface SharedCardListItem {
@@ -21,71 +23,75 @@ interface Props {
   showPrice?: boolean;
   /**
    * A friend's collection is oracle-level and reports no counts by contract
-   * ("contents yes, value no"). The column goes entirely rather than printing
-   * a placeholder 1 on every row, which would read as a real quantity.
+   * ("contents yes, value no"). The count goes entirely rather than printing a
+   * placeholder 1 on every row, which would read as a real quantity.
    */
   showQty?: boolean;
 }
 
 /**
- * Read-only "list" rendering of grouped cards for the shared views — the lean
- * counterpart to the SharedCardTile grid. Reuses the existing `.shared-list-table`
- * styling (already used by the shared binder/list views) so collection, binder,
- * and deck all share one table look. Each row opens the card preview modal.
+ * List rendering of grouped cards for the shared and friend views — a thin
+ * adapter over `CardRow`, the app's single card row.
+ *
+ * It used to be its own `<table class="shared-list-table">`, which is the last
+ * place someone else's collection didn't look like yours. `SharedCardTile`
+ * became `CardGridCell` in #1939, so the GRID matched everywhere while the list
+ * view stayed a four-column table with none of the row's information hierarchy
+ * — no foil treatment, no type glyph, no rarity chip, no mana cost, no proxy or
+ * price-override badges. `CardRow`'s own doc had called itself "a candidate for
+ * shared views" since it was written; this is that.
+ *
+ * Converting HERE rather than at the call sites converts all three at once
+ * (shared collection, shared binder, friend hub), because each passes the same
+ * `items`/`onPreview` shape.
+ *
+ * ⚠️ `.shared-list-table` does NOT go away with this — `SharedListView` (want
+ * lists) still uses it, and those rows are unowned printing references with a
+ * target-price editor, not collection cards. Deleting the class because this
+ * component stopped using it would break that surface.
  */
 export function SharedCardList({ items, onPreview, showPrice = true, showQty = true }: Props) {
+  // One conversion per card, not per render — `CardRow` compares by identity.
+  const rows = useMemo(
+    () => items.map((it) => ({ ...it, enriched: publicCardToEnriched(it.card) })),
+    [items]
+  );
+
   return (
-    <div className="shared-table-scroll">
-      <table className="shared-list-table shared-list-table--clickable">
-        <thead>
-          <tr>
-            {showQty && <th>Qty</th>}
-            <th>Name</th>
-            <th>Set</th>
-            <th>Finish</th>
-            {showPrice && <th>Price</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((it, i) => (
-            <tr
-              key={it.key}
-              onClick={() => onPreview(i)}
-              tabIndex={0}
-              aria-label={`Preview ${it.card.name}${ownedAriaSuffix(it.ownership)}`}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onPreview(i);
-                }
-              }}
-            >
-              {showQty && <td data-label="Qty">{it.quantity}</td>}
-              <td data-label="Name">
-                {it.card.name}
-                {it.ownership?.owned && (
-                  <span className="shared-list-owned-badges">
-                    <span className="shared-tile-owned-dot" aria-hidden="true" />
-                    {it.ownership.binders.length > 0 && (
-                      <BinderBadge binders={it.ownership.binders} />
-                    )}
-                  </span>
-                )}
-              </td>
-              <td data-label="Set">
-                {it.card.setCode.toUpperCase()} {it.card.collectorNumber}
-              </td>
-              <td data-label="Finish">{it.card.finish}</td>
-              {/* Shared projections are server-stamped USD — pin the symbol. */}
-              {showPrice && (
-                <td data-label="Price">
-                  {formatMoney(it.card.purchasePrice, { currency: 'USD' })}
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="collection-list">
+      {rows.map((it, i) => (
+        <CardRow
+          key={it.key}
+          card={it.enriched}
+          qty={it.quantity}
+          // Read-only surfaces: no deck allocations to show, and no per-row
+          // action menu (nothing here is the viewer's to edit).
+          allocations={[]}
+          menu={null}
+          onActivate={() => onPreview(i)}
+          isLastRow={i === rows.length - 1}
+          hidePrice={!showPrice}
+          hideQty={!showQty}
+          // Shared projections are server-stamped market values, not the
+          // viewer's own cost basis — so the price cell says so on hover.
+          priceTitle="Market price at the time this was shared"
+          ownedBadge={
+            it.ownership?.owned ? (
+              <span className="shared-list-owned-badges">
+                <span className="shared-tile-owned-dot" aria-hidden="true" />
+                {/* The dot is decorative and `CardRow` has no aria-label (its
+                    accessible name is its content), so without this the
+                    ownership fact — which the old table spelled out in a
+                    per-row label — would reach a screen reader only by
+                    accident, via BinderBadge, and not at all for a card owned
+                    in no binder. */}
+                <span className="sr-only">{ownedAriaSuffix(it.ownership)}</span>
+                {it.ownership.binders.length > 0 && <BinderBadge binders={it.ownership.binders} />}
+              </span>
+            ) : undefined
+          }
+        />
+      ))}
     </div>
   );
 }
