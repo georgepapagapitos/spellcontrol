@@ -71,9 +71,15 @@
   color: var(--accent);
 }
 
+/* The floor on the REAL box, not a ghost: `.coach-feed-filters` wraps, so a
+   44px ghost would overlap the chip beside it and toggle the wrong filter —
+   the same call `.trade-offer-chip` makes for the same reason. `min-width`
+   only moves the short chips ("All" measured 37x36); a long label is already
+   wider. Wrapping to another line is this row's documented behaviour. */
 @media (pointer: coarse) {
   .coach-feed-filter-chip {
-    min-height: 36px;
+    min-height: 44px;
+    min-width: 44px;
   }
 }
 

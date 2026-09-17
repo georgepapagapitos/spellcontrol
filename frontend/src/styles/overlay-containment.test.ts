@@ -219,6 +219,17 @@ describe('coarse-pointer touch floor', () => {
   // ghost in that case so the floor is still enforced.
   const CONTROLS: Array<[string, string]> = [
     ['styles/modals-dialogs.css', '.modal-close'],
+    // Coach-tab filter row (E326). The row WRAPS, so these take the floor on
+    // their real box — a ghost would overlap the chip beside it and toggle the
+    // wrong filter. Measured 37x36 before the fix, and it is the tab's primary
+    // filter control.
+    ['components/deck/CoachFeed.css', '.coach-feed-filter-chip'],
+    // The cut-card thumb and the tier-2 row action, both in a dense swap row,
+    // so both ghost (E326). ⚠️ `.deck-card-row-out` needed its `overflow:
+    // hidden` moved onto the IMG first — a button that clips its overflow also
+    // clips its own ::after, which is a silent way for a ghost to do nothing.
+    ['components/deck/DeckCardRow.css', '.deck-card-row-out::after'],
+    ['components/deck/DeckCardRow.css', '.deck-card-row-secondary-act::after'],
     ['styles/deck-builder-card-list.css', '.deck-row-menu-trigger::after'],
     ['styles/auth.css', '.auth-reveal'],
     ['styles/tooltip-legend.css', '.banner-dismiss'],
