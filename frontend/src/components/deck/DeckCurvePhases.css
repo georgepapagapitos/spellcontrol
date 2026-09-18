@@ -168,6 +168,33 @@
   border-radius: 3px 3px 0 0;
 }
 
+/* The drill-down target: transparent, covers the WHOLE track, so every mana
+   slot has the same hit area regardless of how many cards it holds. The bar
+   fill beside it carries the value. Hover/focus lifts the sibling fill so the
+   affordance still reads as "this bar". */
+.deck-curve-phases-bar-hit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.deck-curve-phases-bar-hit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deck-curve-phases-bar-hit:hover + .deck-curve-phases-bar-fill,
+  .deck-curve-phases-bar-fill:has(+ .deck-curve-phases-bar-hit:hover) {
+    filter: brightness(1.12);
+  }
+}
+
 .deck-curve-phases-bar-fill-btn {
   border: none;
   padding: 0;

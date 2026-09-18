@@ -714,4 +714,29 @@
     height: 36px;
     transform: translate(-50%, -50%);
   }
+
+  /* …EXCEPT on a deck-list row, where it collides with the quantity editor's
+     own 44px ghost. The two controls sit 24px apart in a 36px row, so two
+     44px ghosts cannot both fit: the badge paints later and wins the overlap,
+     which left the qty editor with a 25x28 hit area instead of the 44 its own
+     rule intends — and a tap 13px right of the quantity digit opened the ROLE
+     FILTER rather than the editor. Measured per-pixel in the playtest sweep
+     (batch 6, `.claude/tools/b6-rowscan.mjs`): 17px qty | 45px badge | 253px
+     row | 30px kebab, on 43 of the deck's 71 rows.
+
+     The quantity editor wins the contested space: it is a primary inline edit
+     with no other in-row path, while the badge is a filter shortcut that keeps
+     its visible box. Grid tiles keep the ghost — nothing collides there.
+
+     MEASURED after this change, same probe, same rows: the qty hit area goes
+     25x28 -> 37x28 on badged rows (45 on unbadged, unchanged), and a tap 13px
+     right of the digit now lands on the EDITOR instead of the role filter —
+     the wrong-action tap, which was the real defect, is gone. It stops at 37
+     rather than 44 because the badge's own VISIBLE box still occupies the last
+     7px; reaching a full 44 would mean widening the leading cluster and taking
+     that width from the card name, which is a different call than the one made
+     here. Do not "fix" the 37 by re-ghosting the badge — that is the bug. */
+  .role-badge-btn.deck-row-role-badge::after {
+    content: none;
+  }
 }

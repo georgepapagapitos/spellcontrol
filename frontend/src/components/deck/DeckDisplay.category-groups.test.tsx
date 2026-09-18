@@ -185,4 +185,32 @@ describe('DeckDisplay category groups (E124)', () => {
     titles = sectionTitles(container);
     expect(titles).toEqual(expect.arrayContaining(['Ramp', 'Synergy']));
   });
+
+  /**
+   * Category grouping is a strict PARTITION — `classifyCardCategory` files each
+   * card under exactly one heading, type first, so a creature that ramps sits
+   * under Creatures and never under Ramp, and the buckets sum to the deck.
+   *
+   * The Stats tab's Roles panel answers a different question with the same
+   * words: it counts every role a card serves, so it overlaps and does not sum.
+   * The playtest sweep (batch 6) measured them side by side on one page for one
+   * deck — Roles said Ramp 14 / Removal 17, category said RAMP 10 / REMOVAL 6 —
+   * with nothing on screen to reconcile them. Both were right; neither said
+   * which it was.
+   *
+   * The caption is the fix, so it is what this pins.
+   */
+  it('says the category list files each card once, so its counts can be told from the Roles panel', () => {
+    localStorage.setItem('mtg-decks-group-by', 'category');
+    const { container } = renderDeck(slots([forest(), bear(), opt()]));
+    const caption = container.querySelector('.deck-group-caption');
+    expect(caption, 'category grouping rendered no counting-rule caption').toBeTruthy();
+    expect(caption!.textContent).toMatch(/filed under one category/i);
+  });
+
+  it('shows no such caption when grouping by type, where the question does not arise', () => {
+    localStorage.setItem('mtg-decks-group-by', 'type');
+    const { container } = renderDeck(slots([forest(), bear(), opt()]));
+    expect(container.querySelector('.deck-group-caption')).toBeNull();
+  });
 });

@@ -1705,6 +1705,15 @@ export function DeckDisplay({
                     </button>
                   </div>
                 )}
+                {/* Category grouping is a strict PARTITION — `classifyCardCategory`
+                    files each card under exactly one heading, type first, so the
+                    buckets sum to the deck. The Stats tab's Roles panel counts
+                    every role a card serves, so it reports larger numbers for the
+                    same words. Both are right; this line is what lets a reader
+                    reconcile them (playtest batch 6, E330). */}
+                {groupBy === 'category' && visibleGroups.length > 0 && (
+                  <p className="deck-group-caption">Each card is filed under one category.</p>
+                )}
                 {viewMode === 'list' && visibleGroups.length > 0 && (
                   <div
                     className="deck-card-list"
