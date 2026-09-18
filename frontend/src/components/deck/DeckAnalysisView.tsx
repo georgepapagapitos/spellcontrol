@@ -503,14 +503,22 @@ function RolesPanel({
 
   return (
     <>
-      {densityEntries.length > 0 && (
-        <div className="deck-roles-density">
+      {/* The note is UNCONDITIONAL, not tied to the density line: these counts
+          tally every role a card serves, so they overlap and do not sum to the
+          deck. The Group-by-category layout answers a different question — each
+          card filed once, summing to the deck — and reports smaller numbers for
+          the same words (Ramp 14 here vs RAMP 10 there). Both are right; saying
+          which is which is the whole fix (playtest batch 6, E330). */}
+      <div className="deck-roles-density">
+        {densityEntries.length > 0 && (
           <span className="deck-roles-density-line">
             {densityEntries.map(([k, v]) => `${v} ${densityLabels[k] ?? k}`).join(' · ')}
           </span>
-          <span className="deck-roles-density-note">cards fill multiple roles</span>
-        </div>
-      )}
+        )}
+        <span className="deck-roles-density-note">
+          counts every role a card fills, so these overlap
+        </span>
+      </div>
       <ul className="deck-roles">
         {items.map((it) => {
           const hasTarget = typeof it.want === 'number';

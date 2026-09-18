@@ -83,9 +83,49 @@ describe('DeckCurvePhases', () => {
     const { container } = render(<DeckCurvePhases manaCurve={manaCurve} averageCmc={3.1} />);
     // No bar-fill or phase buttons (drill-down interactions) — but the InfoTip
     // button is always present as a UI control and is not a drill-down.
-    expect(container.querySelectorAll('.deck-curve-phases-bar-fill-btn').length).toBe(0);
+    expect(container.querySelectorAll('.deck-curve-phases-bar-hit').length).toBe(0);
     expect(container.querySelectorAll('.deck-curve-phases-seg-btn').length).toBe(0);
     expect(container.querySelectorAll('.deck-curve-phases-phase-btn').length).toBe(0);
+  });
+
+  /**
+   * The bar renders the DATA; a separate transparent overlay is the TARGET.
+   * They used to be the same element — `style={{ height: <value>% }}` on the
+   * button — so the tap height WAS the value it encoded, and a mana slot
+   * holding one card was a 32x4 button (hit-tested 33x4 at phone in the
+   * playtest sweep, batch 6). That made the rarest mana values, the ones a
+   * curve reader most wants to drill into, the hardest to hit, and the target
+   * shrank as the deck got better balanced.
+   *
+   * What this pins: the drill-down is NOT the sized element. If someone moves
+   * the click handler back onto the fill, the fill regains an inline height and
+   * this fails.
+   */
+  it('puts the drill-down on an unsized overlay, never on the height-encoded bar', () => {
+    const cardsByCmc = {
+      2: [{ name: 'Counterspell', count: 1 }],
+      3: [{ name: 'Cultivate', count: 1 }],
+    };
+    const { container } = render(
+      <DeckCurvePhases manaCurve={manaCurve} averageCmc={3.1} cardsByCmc={cardsByCmc} />
+    );
+
+    const hits = container.querySelectorAll('.deck-curve-phases-bar-hit');
+    expect(hits.length).toBeGreaterThan(0);
+
+    // The target carries no inline height — it fills its track.
+    for (const hit of hits) {
+      expect((hit as HTMLElement).style.height).toBe('');
+      expect(hit.tagName).toBe('BUTTON');
+    }
+
+    // The sized bars are inert: no bar that encodes a value is also a button.
+    const fills = container.querySelectorAll('.deck-curve-phases-bar-fill');
+    expect(fills.length).toBeGreaterThan(0);
+    for (const fill of fills) {
+      expect((fill as HTMLElement).style.height).not.toBe('');
+      expect(fill.tagName).not.toBe('BUTTON');
+    }
   });
 
   it('handles an empty curve without dividing by zero', () => {

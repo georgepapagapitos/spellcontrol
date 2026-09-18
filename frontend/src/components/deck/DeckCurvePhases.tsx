@@ -296,13 +296,25 @@ export function DeckCurvePhases({
                     )}
                   </div>
                 ) : interactive ? (
-                  <button
-                    type="button"
-                    className="deck-curve-phases-bar-fill deck-curve-phases-bar-fill-btn"
-                    style={{ height: `${heightPct}%` }}
-                    onClick={() => showTally(cards, `${slot.label} mana value`)}
-                    aria-label={`Show the ${slot.count} cards at mana value ${slot.label}`}
-                  />
+                  /* The bar renders the DATA; a transparent overlay covering the
+                     whole track is the TARGET. They used to be the same element,
+                     so the tap height was the value it encoded — a mana slot
+                     holding one card was a 32x4 button (hit-tested 33x4 in the
+                     playtest sweep, batch 6), making the rarest values the
+                     hardest to drill into. Splitting them gives every column the
+                     same full-height target without touching the encoding. */
+                  <>
+                    <div
+                      className="deck-curve-phases-bar-fill"
+                      style={{ height: `${heightPct}%` }}
+                    />
+                    <button
+                      type="button"
+                      className="deck-curve-phases-bar-hit"
+                      onClick={() => showTally(cards, `${slot.label} mana value`)}
+                      aria-label={`Show the ${slot.count} cards at mana value ${slot.label}`}
+                    />
+                  </>
                 ) : (
                   <div className="deck-curve-phases-bar-fill" style={{ height: `${heightPct}%` }} />
                 )}
