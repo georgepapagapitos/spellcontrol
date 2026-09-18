@@ -299,6 +299,7 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
         <p className="cube-pool-note">
           {uniqueNames.length.toLocaleString()} cards to draw from
           {[
+            hidden.basics > 0 && `${hidden.basics.toLocaleString()} basic lands left out`,
             hidden.committed > 0 &&
               `${hidden.committed.toLocaleString()} committed to a deck or cube`,
             hidden.singles > 0 && `${hidden.singles.toLocaleString()} single copies`,

@@ -57,4 +57,13 @@ describe('security headers', () => {
     // break rather than a report-only warning.
     expect(SERVER_TS).toContain(origin);
   });
+
+  it('lets the cube import show CubeCobra thumbnails', () => {
+    // ImportCube renders `details.image_small` straight from the CubeCobra
+    // payload, which lives on assets.cubecobra.com. Playtest batch 8 found all
+    // 519 rows of an imported cube with a broken image because img-src only
+    // allowed Scryfall. The entry must sit inside the img-src list.
+    const imgSrc = SERVER_TS.match(/'img-src':\s*\[([\s\S]*?)\]/)?.[1] ?? '';
+    expect(imgSrc).toContain("'https://assets.cubecobra.com'");
+  });
 });

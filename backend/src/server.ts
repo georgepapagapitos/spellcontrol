@@ -176,6 +176,10 @@ app.use(
           'blob:',
           'https://*.scryfall.io',
           'https://*.scryfall.com',
+          // Cube import renders each card's thumbnail from the CubeCobra
+          // payload (`details.image_small`); without this every imported row
+          // showed a broken image (playtest batch 8: 519/519 blocked).
+          'https://assets.cubecobra.com',
           // Drive picker chrome: file thumbnails and Google's own icons.
           'https://*.googleusercontent.com',
           'https://ssl.gstatic.com',
