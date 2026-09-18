@@ -31,6 +31,7 @@ describe('filterPool', () => {
       'Mystery Card',
     ]);
     expect(hidden).toEqual({
+      basics: 0,
       committed: 1,
       singles: 0,
       rarity: 0,
@@ -39,6 +40,20 @@ describe('filterPool', () => {
       commanderOnly: 0,
       politics: 0,
     });
+  });
+
+  it('leaves basic lands out and says so, under every source', () => {
+    // The generator never draws basics, so counting them as "cards to draw
+    // from" put the pool note 7 ahead of the result's "drawn from" on the dev
+    // account (playtest batch 8).
+    const withBasics = [...collection, copy('Plains'), copy('Plains'), copy('Snow-Covered Plains')];
+    const avail = new Set(withBasics.map((c) => c.name).filter((x) => x !== 'Committed Card'));
+    for (const source of ['available', 'spares', 'all'] as const) {
+      const { names, hidden } = filterPool(withBasics, avail, { ...DEFAULT_POOL_FILTERS, source });
+      expect(names).not.toContain('Plains');
+      expect(names).not.toContain('Snow-Covered Plains');
+      expect(hidden.basics).toBe(2);
+    }
   });
 
   it('all = every owned name, nothing hidden', () => {

@@ -1,5 +1,6 @@
 import type { EnrichedCard } from '@/types';
 import { getCardTags } from '@/lib/card-tags';
+import { isBasicLandName } from '@/lib/allocations-core';
 import { formatExclusion, type CubeFormat } from './play-format';
 
 /**
@@ -40,6 +41,13 @@ export const DEFAULT_POOL_FILTERS: PoolFilters = {
 
 /** Why each hidden name was left out — one reason per name, in filter order. */
 export interface PoolHidden {
+  /**
+   * Basic lands: a cube never draws them (the generator skips them, and a
+   * draft supplies its own). Counted here so the pool note and the result's
+   * "drawn from N" agree — the dev collection's 7 basics used to be the whole
+   * gap between "4,193 cards to draw from" and "drawn from 4,186".
+   */
+  basics: number;
   /** Every copy is committed to a deck or another physical cube. */
   committed: number;
   /** `spares`: only one copy owned. */
@@ -77,6 +85,7 @@ export function filterPool(
     else byName.set(c.name, [c]);
   }
   const hidden: PoolHidden = {
+    basics: 0,
     committed: 0,
     singles: 0,
     rarity: 0,
@@ -87,6 +96,10 @@ export function filterPool(
   };
   const names: string[] = [];
   for (const [name, rows] of byName) {
+    if (isBasicLandName(name)) {
+      hidden.basics++;
+      continue;
+    }
     if (filters.source !== 'all' && !availableNames.has(name)) {
       hidden.committed++;
       continue;
