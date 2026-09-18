@@ -1430,8 +1430,7 @@ is the reference modifier). A hero with no art must not inherit the
 `min-height` — an empty tall slab is worse than the plain hero.
 
 **The same two treatments apply to every commander-art header, not only page
-heroes.** The generation takeover (`GenerationTakeover.css`) and the
-post-build report sheet (`BuildReportSheet.css`) both shipped the naive
+heroes.** The post-build report sheet (`BuildReportSheet.css`) shipped the naive
 version first — a ~4:3 `art_crop` stretched edge-to-edge with `object-fit:
 cover` across a wide, short box, which on any desktop width shows a random
 horizontal slice with the title over the busiest art. Two details that differ
@@ -1448,6 +1447,16 @@ from the page hero:
 
 `responsive-primitives.test.ts` pins the `≥600px` right-anchored, width-bounded
 panel for each adopter; add a new header there when you build one.
+
+**A waiting surface shows the card, not a crop.** The generation takeover
+(`GenerationTakeover.css`) was an art-crop header and is no longer one: while a
+deck builds, the commander — and its partner, when there is one — renders as the
+real card (`useCardThumb(name, 'normal')` through `CardThumb`, 5:7 at
+`var(--radius)`), sat beside the progress column. The distinction is what the
+surface is for: a *header* labels a page you are about to read, so a crop under
+a scrim is right; a *wait* has nothing else to look at, so give the full card,
+which is the thing the deck is being built around. Cards stack above the text on
+phones and move to the right of it at ≥600px.
 
 ## Charts (line / trend)
 

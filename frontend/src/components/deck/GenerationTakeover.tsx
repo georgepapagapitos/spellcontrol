@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCardThumb } from '@/lib/card-thumbs';
+import { CardThumb } from '../CardThumb';
 import { ProgressBar } from '../ProgressBar';
 import { SealBurst } from '../shared/SealBurst';
 import './GenerationTakeover.css';
 
 interface Props {
   commanderName?: string;
+  /** Full card image (`normal`), not an art crop — the takeover shows the card. */
   commanderImageUrl?: string;
+  partnerName?: string;
+  partnerImageUrl?: string;
   message: string;
   percent: number;
   isExiting?: boolean;
@@ -231,15 +235,19 @@ const CELEBRATE_MS = 1050;
 /**
  * Full-page takeover shown while commander-deck generation is running.
  * Replaces the small inline progress strip so the build event feels
- * deliberate — commander art anchors the wait and keeps the user oriented.
+ * deliberate — the commander (and partner, when there is one) is shown as the
+ * real card, so the wait is spent looking at what the deck is being built
+ * around.
  *
- * Reduced-motion safe: the fade-in and art overlay are CSS-only and
- * gated with prefers-reduced-motion. No new keyframes — reuses the
- * shared `fade-in` from styles/footer-card-preview.css.
+ * Reduced-motion safe: the fade-in is CSS-only and gated with
+ * prefers-reduced-motion. No new keyframes — reuses the shared `fade-in`
+ * from styles/footer-card-preview.css.
  */
 export function GenerationTakeover({
   commanderName,
   commanderImageUrl,
+  partnerName,
+  partnerImageUrl,
   message,
   percent,
   isExiting = false,
@@ -247,8 +255,13 @@ export function GenerationTakeover({
   colorIdentity = [],
 }: Props) {
   // Resolve from CDN if we only have a name; direct URL wins immediately.
-  const resolvedThumb = useCardThumb(commanderImageUrl ? undefined : commanderName, 'art_crop');
-  const artUrl = commanderImageUrl ?? resolvedThumb;
+  const resolvedCommander = useCardThumb(commanderImageUrl ? undefined : commanderName, 'normal');
+  const resolvedPartner = useCardThumb(partnerImageUrl ? undefined : partnerName, 'normal');
+  const cards = [
+    { name: commanderName, url: commanderImageUrl ?? resolvedCommander },
+    { name: partnerName, url: partnerImageUrl ?? resolvedPartner },
+  ].filter((c): c is { name: string; url: string } => Boolean(c.name && c.url));
+  const heading = [commanderName, partnerName].filter(Boolean).join(' & ');
 
   const [flavorIndex, setFlavorIndex] = useState(0);
   const [visible, setVisible] = useState(true);
@@ -324,19 +337,27 @@ export function GenerationTakeover({
       onAnimationEnd={handleAnimationEnd}
     >
       <div className="gen-takeover-hero">
-        {artUrl && (
-          <div className="gen-takeover-art" aria-hidden>
-            <img src={artUrl} alt="" className="gen-takeover-art-img" />
-            <div className="gen-takeover-art-fade" aria-hidden />
+        {cards.length > 0 && (
+          <div className="gen-takeover-cards">
+            {cards.map((c) => (
+              <CardThumb
+                key={c.name}
+                src={c.url}
+                alt={c.name}
+                className="gen-takeover-card"
+                loading="eager"
+                decorative
+              />
+            ))}
           </div>
         )}
         {/* The deck is done — the seal flares and sheds mana sparks in its
             colours during the completion beat, then the takeover fades. */}
         {isFinishing && <SealBurst colors={colorIdentity} />}
         <div className="gen-takeover-body">
-          {commanderName && (
+          {heading && (
             <p className="gen-takeover-commander" aria-hidden>
-              {commanderName}
+              {heading}
             </p>
           )}
           {/* During the completion beat the build chatter clears — the

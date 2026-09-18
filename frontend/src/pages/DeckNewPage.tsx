@@ -17,6 +17,7 @@ import { GenerationModePicker } from '../components/deck/GenerationModePicker';
 import { GenerationTakeover } from '../components/deck/GenerationTakeover';
 import { useDeckGeneration } from '../lib/use-deck-generation';
 import { useGenerationTakeoverExit } from '../lib/use-generation-takeover-exit';
+import { imageFromCard } from '@/lib/card-thumbs';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { buildAllocationMap, pickCollectionCopy } from '../lib/allocations';
@@ -295,9 +296,9 @@ export function DeckNewPage() {
             ? 'Builds a full 100 from Pauper Commander–legal cards, chosen by card function (EDHREC has no PDH data).'
             : 'Generate uses EDHREC data to draft a full 100.';
 
-  // Commander art for the takeover panel.
-  const commanderArtUrl =
-    commander?.image_uris?.art_crop ?? commander?.card_faces?.[0]?.image_uris?.art_crop;
+  // Full card images for the takeover panel — it shows the actual card(s).
+  const commanderCardUrl = commander ? imageFromCard(commander, 'normal') : undefined;
+  const partnerCardUrl = partnerCommander ? imageFromCard(partnerCommander, 'normal') : undefined;
 
   // ── Visibility fieldset — shared by both manual-create action sections
   // below (commander formats' "Start blank" and non-commander formats'
@@ -385,7 +386,9 @@ export function DeckNewPage() {
         <div ref={progressRef} className="guided-takeover-wrap">
           <GenerationTakeover
             commanderName={commander?.name}
-            commanderImageUrl={commanderArtUrl}
+            commanderImageUrl={commanderCardUrl}
+            partnerName={partnerCommander?.name}
+            partnerImageUrl={partnerCardUrl}
             message={progress.message}
             percent={progress.percent}
             isExiting={takeoverExiting}

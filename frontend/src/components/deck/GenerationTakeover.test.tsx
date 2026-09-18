@@ -26,23 +26,38 @@ describe('GenerationTakeover', () => {
     expect(screen.queryByText('Atraxa')).toBeNull();
   });
 
-  it('renders the art img when a direct URL is supplied', () => {
+  it('renders the commander card when a direct URL is supplied', () => {
     render(
       <GenerationTakeover
         commanderName="Atraxa"
-        commanderImageUrl="https://cards.scryfall.io/art_crop/atraxa.jpg"
+        commanderImageUrl="https://cards.scryfall.io/normal/atraxa.jpg"
         message="Building…"
         percent={75}
       />
     );
-    const img = document.querySelector('.gen-takeover-art-img') as HTMLImageElement | null;
-    expect(img).toBeTruthy();
-    expect(img?.src).toBe('https://cards.scryfall.io/art_crop/atraxa.jpg');
+    const imgs = document.querySelectorAll('.gen-takeover-card img');
+    expect(imgs.length).toBe(1);
+    expect((imgs[0] as HTMLImageElement).src).toBe('https://cards.scryfall.io/normal/atraxa.jpg');
   });
 
-  it('does not render the art block when no URL is available', () => {
+  it('renders both cards and both names when a partner is supplied', () => {
+    render(
+      <GenerationTakeover
+        commanderName="Thrasios"
+        commanderImageUrl="https://cards.scryfall.io/normal/thrasios.jpg"
+        partnerName="Tymna"
+        partnerImageUrl="https://cards.scryfall.io/normal/tymna.jpg"
+        message="Building…"
+        percent={40}
+      />
+    );
+    expect(document.querySelectorAll('.gen-takeover-card img').length).toBe(2);
+    expect(screen.getByText('Thrasios & Tymna')).toBeTruthy();
+  });
+
+  it('does not render the card block when no URL is available', () => {
     render(<GenerationTakeover message="Building…" percent={30} />);
-    expect(document.querySelector('.gen-takeover-art')).toBeNull();
+    expect(document.querySelector('.gen-takeover-cards')).toBeNull();
   });
 
   it('has role=status and aria-live=polite for screen readers', () => {
