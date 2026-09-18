@@ -3300,7 +3300,7 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
 | **Mobile**     | `≤ 600`        | **320** · 375 · 414 · 480 · 600 | base styles; phone layouts, bottom sheets. **320 = hard no-overflow floor.** 480 = cramped-phone refinement.                                                                 |
 | **Tablet**     | `601 – 1023`   | 640 · 768 · 820 · 1023          | the gap between the two poles. 640 = deck-bento 2-col **container**-query trigger (not viewport).                                                                            |
 | **Desktop**    | `1024 – 1399`  | **1024** · 1101 · 1280          | sticky panels, multi-column, hover-peek (`≥1024`). 1101 = deck-editor layout shift.                                                                                          |
-| **XL desktop** | `≥ 1400`       | 1440 · 1920                     | content **stops growing** and centers: deck-analysis caps at `--analysis-max` (1320), pages at `--page-max` (1400). Test for balanced gutters / no dead space, not a reflow. |
+| **XL desktop** | `≥ 1400`       | 1440 · 1920                     | content **stops growing** and centers: deck-analysis caps at `--analysis-max` (1320), pages at `--page-max` (1400), and the card-grid routes (collection hub, decks index, deck editor) at `--page-max-wide` (1920) via the `.app-shell:has(…)` opt-in in base-layout.css. Test for balanced gutters / no dead space, not a reflow; the wide routes also at 1920 · 2560. |
 
 - **The two real breakpoints:** `max-width: 600px` (mobile) and `min-width: 1024px`
   (desktop). Use **600**, not 599 — the codebase tolerates the 1px overlap with
@@ -3356,6 +3356,12 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
   (the DeckIdentityCard cascade-wrapper trap).
 - **Width caps:** `--page-max: 1400px` (page containers), `--analysis-max: 1320px`
   (deck-analysis boards) — both `margin-inline: auto`. These define the XL tier.
+  Card-grid routes widen to `--page-max-wide: 1920px` by overriding `--page-max`
+  on `.app-shell:has(<route root class>)` (base-layout.css), so the header widens
+  with the page. Opt a route in only when its content is an auto-fill grid or a
+  width-derived column layout; prose and form routes stay at 1400, and nothing
+  goes uncapped — past ~1920 density hurts scanning and browser zoom serves the
+  reader better than a wider app.
 
 ### Other responsive rules
 
