@@ -1,4 +1,5 @@
-Name,Set code,Set name,Collector number,Foil,Rarity,Quantity,Scryfall ID,Purchase price,Condition,Language,Binder name
-Sol Ring,CMR,Commander Legends,1,normal,uncommon,2,sf-a,1.50,nm,en,Commander
-Lightning Bolt,LEA,Limited Edition Alpha,161,foil,common,1,sf-b,,lp,en,Modern
-"Atraxa, Grand Unifier",ONE,Phyrexia: All Will Be One,240,etched,mythic,1,sf-c,,,ja,
+Name,Set code,Set name,Collector number,Foil,Rarity,Quantity,Scryfall ID,Purchase price,Purchase currency,Condition,Language,Binder name,Altered,Proxy,Misprint,Price override,Price override currency,Market price (USD),Oracle ID,Type line,Mana value,Color identity,Last edited,Copy ID
+Sol Ring,CMR,Commander Legends,1,normal,uncommon,1,sf-a,1.50,USD,near_mint,en,Commander,FALSE,FALSE,FALSE,,,4.00,,,,,,a1
+Sol Ring,CMR,Commander Legends,1,normal,uncommon,1,sf-a,1.50,USD,near_mint,en,Commander,FALSE,FALSE,FALSE,,,4.00,,,,,,a2
+Lightning Bolt,LEA,Limited Edition Alpha,161,foil,common,1,sf-b,,,lightly_played,en,Modern,TRUE,FALSE,FALSE,12.00,USD,4.00,,,,,,b1
+"Atraxa, Grand Unifier",ONE,Phyrexia: All Will Be One,240,etched,mythic,1,sf-c,,,,ja,,FALSE,TRUE,FALSE,,,4.00,,,,,,c1
