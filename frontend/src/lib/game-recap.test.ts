@@ -173,4 +173,26 @@ describe('buildGameRecap', () => {
     const stats = buildGameRecap(game);
     expect(stats.some((s) => s.id.startsWith('designation-'))).toBe(false);
   });
+
+  it('tells no story about a hit that was taken back', () => {
+    // Measured in playtest batch 7: −1 on Priya, Undo, End game → the recap
+    // read "Priya took the game's first hit, for 1" / "Priya took 1 in one swing".
+    const maya = player(0, 'Maya', 40);
+    const priya = player(1, 'Priya', 40);
+    let game = play([maya, priya], 40, [{ type: 'start', ts: 0 }]);
+    const anchor = game.events[game.events.length - 1].id;
+    game = applyAction(game, { type: 'life', seat: 1, delta: -1, actorSeat: 1, ts: 1_000 });
+    game = applyAction(game, {
+      type: 'set-life',
+      seat: 1,
+      value: 40,
+      actorSeat: 1,
+      ts: 2_000,
+      undoOf: anchor,
+    });
+    game = applyAction(game, { type: 'end', winnerSeat: 0, ts: 10_000 });
+    const byId = Object.fromEntries(buildGameRecap(game).map((s) => [s.id, s.detail]));
+    expect(byId['first-blood']).toBeUndefined();
+    expect(byId['biggest-hit']).toBeUndefined();
+  });
 });

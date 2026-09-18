@@ -79,6 +79,64 @@ describe('PlayPage rules button', () => {
   });
 });
 
+describe('History — removing a game asks first', () => {
+  // Playtest batch 7: the × on every history row removed the record on one
+  // tap, with no confirmation and no undo, and it never came back.
+  beforeEach(() => {
+    usePlayStore.setState({
+      history: [
+        {
+          id: 'rec-1',
+          code: '',
+          format: 'commander',
+          startingLife: 40,
+          players: [
+            {
+              seat: 0,
+              userId: null,
+              name: 'Ana',
+              deckId: null,
+              deckName: null,
+              commander: null,
+              finalLife: 40,
+              eliminated: false,
+            },
+            {
+              seat: 1,
+              userId: null,
+              name: 'Ben',
+              deckId: null,
+              deckName: null,
+              commander: null,
+              finalLife: 0,
+              eliminated: true,
+            },
+          ],
+          winnerSeat: 0,
+          startedAt: 1_000,
+          endedAt: 61_000,
+          durationMs: 60_000,
+          mode: 'local',
+        },
+      ],
+    });
+  });
+
+  it('keeps the row on Cancel and removes it only on confirm', () => {
+    renderPage('/play?tab=history');
+    expect(screen.getByText('Winner: Ana')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /^Remove game:/ }));
+    expect(screen.getByText('Remove this game?')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByText('Winner: Ana')).toBeTruthy();
+    expect(usePlayStore.getState().history).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: /^Remove game:/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+    expect(usePlayStore.getState().history).toHaveLength(0);
+    expect(screen.queryByText('Winner: Ana')).toBeNull();
+  });
+});
+
 // E300 — the landing page's "Start a game" door deep-links here with `new=1`
 // and must land on a RUNNING table, not the setup form. If this regresses the
 // door silently becomes "one tap to a form", which is the thing it existed to

@@ -12,6 +12,7 @@ import { GameTools } from './GameTools';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { Tabs } from '../Tabs';
 import { CustomLayoutEditor, LayoutPicker } from './LayoutEditor';
+import { ConfirmDialog } from '../ConfirmDialog';
 
 // ── Center game menu (actions / log + stats / board setup) ─────────────────
 
@@ -49,6 +50,9 @@ export function GameMenu({
   const setPreferredLayout = usePlayStore((s) => s.setPreferredLayout);
   const openRules = useRulesReferenceStore((s) => s.open);
   const [editorOpen, setEditorOpen] = useState(false);
+  // Reset wipes every life total, counter and elimination and clears Undo —
+  // one tap next to "End game" on the Now tab. It asks, like Discard does.
+  const [confirmReset, setConfirmReset] = useState(false);
   const [tab, setTab] = useState<MenuTab>('now');
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -86,6 +90,20 @@ export function GameMenu({
             ✕
           </button>
         </header>
+        {confirmReset && (
+          <ConfirmDialog
+            title="Reset the game?"
+            body="Every life total, counter and elimination goes back to the start, and Undo can't bring them back."
+            confirmLabel="Reset"
+            danger
+            onCancel={() => setConfirmReset(false)}
+            onConfirm={() => {
+              setConfirmReset(false);
+              dispatch({ type: 'reset' });
+              onClose();
+            }}
+          />
+        )}
 
         {/* Split by when you reach for it: `now` is the mid-game surface,
             `game` is the log + derived stats, `setup` is set-and-forget board
@@ -214,10 +232,7 @@ export function GameMenu({
                         <button
                           type="button"
                           className="game-menu-btn"
-                          onClick={() => {
-                            dispatch({ type: 'reset' });
-                            onClose();
-                          }}
+                          onClick={() => setConfirmReset(true)}
                         >
                           Reset
                         </button>

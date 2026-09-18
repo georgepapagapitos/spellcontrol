@@ -83,6 +83,25 @@ function openMenu(game: GameState, canControlAll = true) {
 
 const tab = (name: string) => screen.getByRole('tab', { name });
 
+describe('Reset asks first', () => {
+  // Playtest batch 7: Reset sat one tap from "End game" and wiped every life
+  // total (and the undo stack) with no confirmation — the playtest table's
+  // Reset already asked, the board's did not.
+  it('confirms before dispatching reset, and Cancel dispatches nothing', () => {
+    const dispatch = vi.fn();
+    render(<GameBoard game={activeGame()} dispatch={dispatch} canControlAll />);
+    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    expect(screen.getByText('Reset the game?')).toBeTruthy();
+    expect(dispatch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(dispatch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Reset' }).at(-1)!);
+    expect(dispatch).toHaveBeenCalledWith({ type: 'reset' });
+  });
+});
+
 describe('game menu tabs', () => {
   it('opens on Now with the mid-game actions and no log or board setup mounted', () => {
     openMenu(activeGame());

@@ -949,3 +949,61 @@ describe('free-form counters', () => {
     expect(seatCounters(s.players[0])).toEqual({ Energy: 1 });
   });
 });
+
+describe('undoOf — the log knows what an Undo took back', () => {
+  it('flags the events after the anchor as undone and the compensating event as undo', () => {
+    let g = applyAction(lobby(), { type: 'start' });
+    const anchor = g.events[g.events.length - 1].id;
+    g = applyAction(g, { type: 'life', seat: 0, delta: -3, actorSeat: 0 });
+    g = applyAction(g, { type: 'life', seat: 0, delta: -2, actorSeat: 0 });
+    g = applyAction(g, { type: 'set-life', seat: 0, value: 40, actorSeat: 0, undoOf: anchor });
+    expect(g.players[0].life).toBe(40);
+    const tail = g.events.slice(-3);
+    expect(tail.map((e) => e.kind)).toEqual(['life', 'life', 'set-life']);
+    expect(tail[0].undone).toBe(true);
+    expect(tail[1].undone).toBe(true);
+    expect(tail[2].undo).toBe(true);
+    expect(tail[2].undone).toBeUndefined();
+    // the anchor itself and everything before it stand
+    expect(g.events.find((e) => e.id === anchor)?.undone).toBeUndefined();
+  });
+
+  it('a second compensating action of the same Undo keeps the first one marked undo, not undone', () => {
+    let g = applyAction(lobby(), { type: 'start' });
+    const anchor = g.events[g.events.length - 1].id;
+    g = applyAction(g, { type: 'cmd-dmg', seat: 1, fromSeat: 0, delta: 4, actorSeat: 0 });
+    g = applyAction(g, {
+      type: 'cmd-dmg',
+      seat: 1,
+      fromSeat: 0,
+      delta: -4,
+      actorSeat: 1,
+      undoOf: anchor,
+    });
+    g = applyAction(g, { type: 'set-life', seat: 1, value: 40, actorSeat: 1, undoOf: anchor });
+    const marks = g.events.slice(-3).map((e) => [e.kind, !!e.undone, !!e.undo]);
+    expect(marks).toEqual([
+      ['cmd-dmg', true, false],
+      ['cmd-dmg', false, true],
+      ['set-life', false, true],
+    ]);
+  });
+
+  it('an anchor the bounded log no longer holds voids nothing but the compensating event', () => {
+    let g = applyAction(lobby(), { type: 'start' });
+    g = applyAction(g, { type: 'life', seat: 0, delta: -3, actorSeat: 0 });
+    g = applyAction(g, { type: 'set-life', seat: 0, value: 40, actorSeat: 0, undoOf: 'evt_gone' });
+    expect(g.events.slice(-2).map((e) => !!e.undone)).toEqual([false, false]);
+    expect(g.events[g.events.length - 1].undo).toBe(true);
+  });
+
+  it('actions without undoOf leave the log untouched, and notable events drop undone ones', () => {
+    let g = applyAction(lobby(), { type: 'start' });
+    g = applyAction(g, { type: 'life', seat: 0, delta: -3, actorSeat: 0 });
+    expect(g.events.some((e) => e.undo || e.undone)).toBe(false);
+    const anchor = g.events[g.events.length - 1].id;
+    g = applyAction(g, { type: 'eliminate', seat: 1, eliminated: true });
+    g = applyAction(g, { type: 'eliminate', seat: 1, eliminated: false, undoOf: anchor });
+    expect(selectNotableEvents(g.events).map((e) => e.kind)).not.toContain('eliminate');
+  });
+});

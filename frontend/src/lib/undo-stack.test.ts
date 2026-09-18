@@ -54,6 +54,24 @@ describe('undo-stack', () => {
     expect(canUndo('g1')).toBe(false);
   });
 
+  it('names the last standing event on every compensating action, so the log can void the burst', () => {
+    let g = applyAction(game(), { type: 'start' });
+    const anchor = g.events[g.events.length - 1].id; // the 'start' event
+    const hit = { type: 'life', seat: 0, delta: -1, actorSeat: 0 } as const;
+    capture('g1', g, hit);
+    g = applyAction(g, hit);
+    const restore = popRestore('g1', g);
+    expect(restore.length).toBeGreaterThan(0);
+    for (const a of restore) expect(a).toMatchObject({ undoOf: anchor });
+    for (const a of restore) g = applyAction(g, a);
+    // Measured in playtest batch 7: without this, an undone −1 was still the
+    // game's "first blood" and "biggest hit" in the recap.
+    const kinds = g.events.map(
+      (e) => `${e.kind}${e.undone ? ':undone' : ''}${e.undo ? ':undo' : ''}`
+    );
+    expect(kinds).toEqual(['start', 'life:undone', 'set-life:undo']);
+  });
+
   it('coalesces a rapid burst into one undo', () => {
     let g = applyAction(game(), { type: 'start' });
     for (let i = 0; i < 5; i++) {

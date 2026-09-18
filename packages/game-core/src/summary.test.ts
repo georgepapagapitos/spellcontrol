@@ -254,6 +254,42 @@ describe('applyAction settings logging', () => {
   });
 });
 
+describe('summarizeGame ignores what an Undo took back', () => {
+  // Playtest batch 7: a −1 mis-tap that was undone was still "first blood" and
+  // the "biggest hit" of a game in which nothing else happened.
+  it('an undone hit is neither first blood nor damage taken, and the Undo is not a heal', () => {
+    let g = run(lobby(), [{ type: 'start' }]);
+    const anchor = g.events[g.events.length - 1].id;
+    g = run(g, [
+      { type: 'life', seat: 1, delta: -1, actorSeat: 0 },
+      { type: 'set-life', seat: 1, value: 40, actorSeat: 1, undoOf: anchor },
+      { type: 'life', seat: 2, delta: -6, actorSeat: 2 },
+    ]);
+    const s = summarizeGame(g, 99_000);
+    expect(s.firstBlood).toMatchObject({ seat: 2, amount: 6 });
+    expect(seat(s, 1)).toMatchObject({
+      damageTaken: 0,
+      biggestHit: 0,
+      lifeGained: 0,
+      lowestLife: 40,
+    });
+  });
+
+  it('an undone elimination scores no placement', () => {
+    let g = run(lobby(3), [{ type: 'start' }]);
+    const anchor = g.events[g.events.length - 1].id;
+    g = run(g, [
+      { type: 'eliminate', seat: 2, eliminated: true },
+      { type: 'eliminate', seat: 2, eliminated: false, undoOf: anchor },
+      { type: 'eliminate', seat: 1, eliminated: true },
+      { type: 'end', winnerSeat: 0 },
+    ]);
+    const s = summarizeGame(g, 99_000);
+    expect(seat(s, 1).placement).toBe(3);
+    expect(seat(s, 2).placement).toBeNull();
+  });
+});
+
 describe('isKeyMoment', () => {
   it('keeps structural moments and drops turn passes', () => {
     expect(isKeyMoment({ kind: 'eliminate' })).toBe(true);
