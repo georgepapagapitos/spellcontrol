@@ -278,6 +278,18 @@ select {
   padding-top: var(--space-5);
 }
 
+/* Grid-heavy routes opt into the wider ceiling (STYLE_GUIDE § Device tiers).
+   Overriding the token on the shell widens the header with the page, so the
+   brand and account menu stay flush with the content edges. Text-and-form
+   routes (home, settings, auth, share views) keep --page-max: 1400 — their
+   line lengths and sticky panels were tuned against 1280–1440. The marker is
+   each route's existing root class; add one here to widen a route. (Card
+   search is not here on purpose: its results grid sits on its own 1100px
+   rail, SearchPage.css, so a wider shell would change nothing there.) */
+.app-shell:has(.collection-hub-tabs, .decks-index-page, .deck-editor-page) {
+  --page-max: var(--page-max-wide);
+}
+
 .site-header {
   flex: 0 0 auto;
   /* Leather chrome (T53 Phase 2): the header is the binder's cover, not a

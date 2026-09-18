@@ -186,6 +186,10 @@
 
   /* ── Layout ───────────────────────────────────────────────────────────── */
   --page-max: 1400px;
+  /* Ceiling for the card-grid routes (collection hub, decks index, deck
+     editor) — see base-layout.css `.app-shell:has(…)`. Still a
+     cap: an ultrawide gets balanced gutters, not a 30-card row. */
+  --page-max-wide: 1920px;
   /* Height of the sticky Collection hub-tabs strip — also the offset the
      Collection search row pins below, so the two stack flush. Single
      source of truth for both rules. */
