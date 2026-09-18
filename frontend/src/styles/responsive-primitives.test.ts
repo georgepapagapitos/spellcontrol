@@ -161,23 +161,24 @@ describe('responsive primitives (E68 cross-device guard)', () => {
   });
 
   // STYLE_GUIDE § Page hero art: a ~4:3 art_crop stretched edge-to-edge across
-  // a wide, short hero only ever shows a random horizontal slice (the deck-gen
-  // takeover and the build report sheet both shipped exactly that). ≥600px the
+  // a wide, short hero only ever shows a random horizontal slice (the build
+  // report sheet shipped exactly that; the deck-gen takeover did too, and now
+  // shows the real commander card instead of an art header). ≥600px the
   // art must be a bounded, right-anchored panel; ≤599px it goes full-bleed
   // under a vertical scrim. Every commander-art header that isn't the
   // deck-editor hero (which has its own artwrap contract) is listed here.
-  it.each([
-    ['GenerationTakeover.css', '.gen-takeover-art'],
-    ['BuildReportSheet.css', '.build-report-sheet-art'],
-  ])('keeps the %s commander art as a right-anchored panel at ≥600px', (file, selector) => {
-    const f = byFile.find((x) => x.file.endsWith(file));
-    expect(f, `${file} should exist`).toBeTruthy();
-    const idx = f!.css.search(/@media \(min-width: 600px\)\s*\{/);
-    expect(idx, `${file} needs a min-width: 600px block`).toBeGreaterThan(-1);
-    const block = balancedBlock(f!.css, f!.css.indexOf('{', idx));
-    const art = block.match(new RegExp(`${selector.replace('.', '\\.')}\\s*\\{([^}]*)\\}`));
-    expect(art, `${selector} must be restyled at ≥600px`).toBeTruthy();
-    expect(/inset:\s*0 0 0 auto/.test(art![1]), 'art panel must be right-anchored').toBe(true);
-    expect(/width:\s*min\(/.test(art![1]), 'art panel width must be bounded').toBe(true);
-  });
+  it.each([['BuildReportSheet.css', '.build-report-sheet-art']])(
+    'keeps the %s commander art as a right-anchored panel at ≥600px',
+    (file, selector) => {
+      const f = byFile.find((x) => x.file.endsWith(file));
+      expect(f, `${file} should exist`).toBeTruthy();
+      const idx = f!.css.search(/@media \(min-width: 600px\)\s*\{/);
+      expect(idx, `${file} needs a min-width: 600px block`).toBeGreaterThan(-1);
+      const block = balancedBlock(f!.css, f!.css.indexOf('{', idx));
+      const art = block.match(new RegExp(`${selector.replace('.', '\\.')}\\s*\\{([^}]*)\\}`));
+      expect(art, `${selector} must be restyled at ≥600px`).toBeTruthy();
+      expect(/inset:\s*0 0 0 auto/.test(art![1]), 'art panel must be right-anchored').toBe(true);
+      expect(/width:\s*min\(/.test(art![1]), 'art panel width must be bounded').toBe(true);
+    }
+  );
 });
