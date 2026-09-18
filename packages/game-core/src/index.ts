@@ -149,6 +149,19 @@ export interface GameEvent {
   /** cmd-dmg only: the damage came from that seat's partner, not its primary. */
   fromPartner?: boolean;
   message?: string;
+  /**
+   * Set on a compensating event dispatched by Undo (see `GameAction.undoOf`).
+   * The life/poison/damage it pins are real state; the *event* is bookkeeping
+   * and must not read as a hit, a heal or a concession in any derived stat.
+   */
+  undo?: true;
+  /**
+   * Set on an event a later Undo reversed. Every consumer that derives a
+   * story from the log — first blood, biggest hit, damage taken, the life
+   * chart — skips these together with the `undo` events that cancelled them,
+   * so a mis-tap that was taken back never becomes a fact about the game.
+   */
+  undone?: true;
 }
 
 export type GameStatus = 'lobby' | 'active' | 'finished';
@@ -263,9 +276,36 @@ export type GameAction =
       >;
       ts?: number;
     }
-  | { type: 'life'; seat: number; delta: number; actorSeat: number | null; ts?: number }
-  | { type: 'set-life'; seat: number; value: number; actorSeat: number | null; ts?: number }
-  | { type: 'poison'; seat: number; delta: number; actorSeat: number | null; ts?: number }
+  // The five undoable kinds accept `undoOf`: the id of the last event that
+  // stands. Undo dispatches ordinary compensating actions (the reducer has no
+  // "undo" — it is shared with the server), and this is how the log learns
+  // that everything after `undoOf` was taken back: the reducer flags those
+  // events `undone` and the compensating event itself `undo`. Optional, so
+  // every existing dispatch and every persisted online action is untouched.
+  | {
+      type: 'life';
+      seat: number;
+      delta: number;
+      actorSeat: number | null;
+      ts?: number;
+      undoOf?: string;
+    }
+  | {
+      type: 'set-life';
+      seat: number;
+      value: number;
+      actorSeat: number | null;
+      ts?: number;
+      undoOf?: string;
+    }
+  | {
+      type: 'poison';
+      seat: number;
+      delta: number;
+      actorSeat: number | null;
+      ts?: number;
+      undoOf?: string;
+    }
   | {
       type: 'cmd-dmg';
       seat: number;
@@ -279,8 +319,9 @@ export type GameAction =
       delta: number;
       actorSeat: number | null;
       ts?: number;
+      undoOf?: string;
     }
-  | { type: 'eliminate'; seat: number; eliminated: boolean; ts?: number }
+  | { type: 'eliminate'; seat: number; eliminated: boolean; ts?: number; undoOf?: string }
   | { type: 'note'; actorSeat: number | null; message: string; ts?: number }
   | {
       type: 'settings';
@@ -384,6 +425,24 @@ function pushEvent(
   const next = [...state.events, full];
   // Keep the log bounded so a long online session can't bloat the DB row.
   return next.length > MAX_EVENTS ? next.slice(next.length - MAX_EVENTS) : next;
+}
+
+/**
+ * An Undo just appended its compensating event (the last one): flag it `undo`,
+ * and flag every event after `anchorId` — the last event that still stands —
+ * as `undone`. Earlier compensating events of the same Undo keep their `undo`
+ * mark. An anchor the bounded log has already trimmed away flags nothing
+ * beyond the compensating event itself: better to under-report an undo than to
+ * void the whole game.
+ */
+function markUndone(events: GameEvent[], anchorId: string): GameEvent[] {
+  const last = events.length - 1;
+  const anchor = events.findIndex((e) => e.id === anchorId);
+  return events.map((e, i) => {
+    if (i === last) return { ...e, undo: true };
+    if (anchor === -1 || i <= anchor || e.undo || e.undone) return e;
+    return { ...e, undone: true };
+  });
 }
 
 function updatePlayer(
@@ -1022,6 +1081,10 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
     }
   }
 
+  if ('undoOf' in action && typeof action.undoOf === 'string' && next.events !== prev.events) {
+    next = { ...next, events: markUndone(next.events, action.undoOf) };
+  }
+
   // Apply auto-elimination + auto-win only while the game is in progress so
   // that a 'reset' or a lobby tweak doesn't immediately flip the game to
   // finished. The reducer leaves elimination flags as the user (or the player
@@ -1122,7 +1185,8 @@ const NOTABLE_KINDS: ReadonlySet<GameEvent['kind']> = new Set(['eliminate', 'end
  *  MAX_NOTABLE_EVENTS if more qualify, so a pathological game with hundreds
  *  of eliminations/designation-flips doesn't bloat the persisted row. */
 export function selectNotableEvents(events: GameEvent[]): GameEvent[] {
-  const notable = events.filter((e) => NOTABLE_KINDS.has(e.kind));
+  // An undone tap (and the Undo that cancelled it) is not a moment of the game.
+  const notable = events.filter((e) => NOTABLE_KINDS.has(e.kind) && !e.undone && !e.undo);
   return notable.length > MAX_NOTABLE_EVENTS ? notable.slice(-MAX_NOTABLE_EVENTS) : notable;
 }
 

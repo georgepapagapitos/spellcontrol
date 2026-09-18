@@ -565,6 +565,11 @@
     min-width: 44px;
     min-height: 44px;
   }
+  /* Measured 110x39 under a coarse pointer at every width (playtest batch 7);
+     its siblings in this form all sit on the floor. */
+  .play-setup-roster .play-setup-roster-add {
+    min-height: 44px;
+  }
 }
 
 .play-setup-roster-add {

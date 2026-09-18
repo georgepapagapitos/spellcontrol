@@ -9,6 +9,7 @@ const read = (f: string) => readFileSync(join(here, f), 'utf8');
 const board = read('play-board.css');
 const counters = read('play-counters-panel.css');
 const enhancements = read('play-enhancements.css');
+const setup = read('play-setup.css');
 
 /**
  * The play board is the one surface driven entirely by thumbs on a device
@@ -67,6 +68,16 @@ describe('play board touch targets', () => {
     // absolutely positioned); `.player-panel-name` is not, so it must be
     // made one explicitly.
     expect(board).toMatch(/\.player-panel-name\s*\{[^}]*position:\s*relative/);
+  });
+
+  it('the setup form\'s "Add player" button takes the coarse floor its siblings have', () => {
+    // Measured 110x39 with a coarse pointer at 390 and 820 (playtest batch 7)
+    // while the seat remove/clear buttons beside it sat at 44.
+    const body = ruleBody(setup, '.play-setup-roster .play-setup-roster-add');
+    expect(body, 'no coarse floor for .play-setup-roster-add').toBeTruthy();
+    expect(body).toMatch(/min-height:\s*44px/);
+    const at = setup.indexOf('.play-setup-roster .play-setup-roster-add');
+    expect(setup.lastIndexOf('@media (pointer: coarse)', at)).toBeGreaterThan(-1);
   });
 
   it('the icon-only counter chip states the floor on BOTH axes', () => {

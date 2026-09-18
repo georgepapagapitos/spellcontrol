@@ -31,6 +31,13 @@ interface Snapshot {
   /** Kind + target used to coalesce rapid bursts into one undo step. */
   groupKey: string;
   ts: number;
+  /**
+   * Id of the last event in the log when the snapshot was taken — i.e. the
+   * last event that still stands once this snapshot is restored. Handed to the
+   * reducer as `undoOf` so the log can flag everything after it `undone`
+   * (otherwise a taken-back mis-tap still reads as first blood in the recap).
+   */
+  anchor: string | null;
 }
 
 const MAX_DEPTH = 30;
@@ -100,7 +107,8 @@ export function capture(gameId: string, game: GameState, action: GameAction): vo
     top.ts = now; // extend the burst window; keep the original pre-burst snapshot
     return;
   }
-  stack.push({ players: snap(game), label, groupKey, ts: now });
+  const anchor = game.events.length > 0 ? game.events[game.events.length - 1].id : null;
+  stack.push({ players: snap(game), label, groupKey, ts: now, anchor });
   if (stack.length > MAX_DEPTH) stack.shift();
   stacks.set(gameId, stack);
 }
@@ -127,6 +135,9 @@ export function popRestore(gameId: string, current: GameState): GameAction[] {
   stacks.set(gameId, stack);
 
   const actions: GameAction[] = [];
+  // Every compensating action names the event the log rolls back to, so the
+  // reducer marks the reversed events (and these) as bookkeeping.
+  const undoOf = snapshot.anchor ?? undefined;
   for (const before of snapshot.players) {
     const now = current.players.find((p) => p.seat === before.seat);
     if (!now) continue;
@@ -138,6 +149,7 @@ export function popRestore(gameId: string, current: GameState): GameAction[] {
         seat: before.seat,
         delta: before.poison - now.poison,
         actorSeat: before.seat,
+        undoOf,
       });
     }
 
@@ -160,6 +172,7 @@ export function popRestore(gameId: string, current: GameState): GameAction[] {
           fromSeat: from,
           delta: b - n,
           actorSeat: before.seat,
+          undoOf,
         });
       }
     }
@@ -172,13 +185,19 @@ export function popRestore(gameId: string, current: GameState): GameAction[] {
         seat: before.seat,
         value: before.life,
         actorSeat: before.seat,
+        undoOf,
       });
     }
 
     // 4. Restore the eliminated flag last (reviving after life is back ≥1
     //    so the reducer's auto-eliminate doesn't immediately re-kill).
     if (now.eliminated !== before.eliminated) {
-      actions.push({ type: 'eliminate', seat: before.seat, eliminated: before.eliminated });
+      actions.push({
+        type: 'eliminate',
+        seat: before.seat,
+        eliminated: before.eliminated,
+        undoOf,
+      });
     }
   }
   return actions;

@@ -172,6 +172,9 @@ export function summarizeGame(state: GameState, now: number = Date.now()): GameS
   };
 
   for (const ev of state.events) {
+    // A hit that was taken back is not a hit, and the compensating event that
+    // took it back is not a heal — Undo is bookkeeping, not play.
+    if (ev.undone || ev.undo) continue;
     switch (ev.kind) {
       case 'reset':
         // A reset starts a fresh game on the same log — everything before it

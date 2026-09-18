@@ -61,6 +61,8 @@ interface HitCandidate {
 function findBiggestHit(game: GameState): HitCandidate | null {
   let best: HitCandidate | null = null;
   for (const ev of game.events) {
+    // Taken back = never happened; the compensating event is not a swing either.
+    if (ev.undone || ev.undo) continue;
     if (ev.kind === 'cmd-dmg' && typeof ev.delta === 'number' && ev.delta > 0) {
       if (ev.targetSeat == null || ev.fromSeat == null) continue;
       if (!best || ev.delta > best.amount) {

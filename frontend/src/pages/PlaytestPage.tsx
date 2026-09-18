@@ -2,6 +2,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useDecksStore } from '@/store/decks';
 import { usePlayStore } from '@/store/play';
 import { useAuth } from '@/store/auth';
+import { useAwaitingFirstPull } from '@/lib/use-awaiting-first-pull';
+import { useDocumentTitle } from '@/lib/use-document-title';
 import { PlaytestSession } from '@/playtest/components/PlaytestSession';
 import '@/styles/playtest.css';
 
@@ -24,8 +26,13 @@ export function PlaytestPage() {
   const tableCode = online && online.players.some((p) => p.userId === userId) ? online.code : null;
 
   const deck = id ? decks.find((d) => d.id === id) : undefined;
+  // A cold device has an empty store while the first pull is in flight —
+  // that is not "deck not found" (same class as #1937; measured at ~1s of
+  // "It may have been deleted" with a live Back door, playtest batch 7).
+  const awaitingFirstPull = useAwaitingFirstPull();
+  useDocumentTitle(deck ? `Playtest · ${deck.name}` : undefined);
 
-  if (!hydrated) {
+  if (!hydrated || (awaitingFirstPull && !deck)) {
     return (
       <div className="page-loader page-loader--message" role="status" aria-live="polite">
         <span className="spinner" aria-hidden="true" />

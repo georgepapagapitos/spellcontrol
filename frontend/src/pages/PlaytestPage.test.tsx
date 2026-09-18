@@ -67,6 +67,12 @@ vi.mock('@/store/play', () => ({
 vi.mock('@/store/auth', () => ({
   useAuth: (selector: (s: { user: { id: string } }) => unknown) => selector({ user: { id: 'me' } }),
 }));
+// The first-pull window: a cold device's store is empty while the account's
+// rows are still on their way. Flipped per test.
+const firstPull = { awaiting: false };
+vi.mock('@/lib/use-awaiting-first-pull', () => ({
+  useAwaitingFirstPull: () => firstPull.awaiting,
+}));
 
 import { PlaytestPage } from './PlaytestPage';
 
@@ -110,5 +116,29 @@ describe('PlaytestPage', () => {
     fakePlay.setState({ online: { code: 'JRA4', players: [{ userId: 'someone-else' }] } });
     renderAt('/decks/deck-1/playtest');
     expect(await screen.findByRole('button', { name: '← Krenko' })).toBeTruthy();
+  });
+
+  it('keeps loading, not "Deck not found", while the first pull is in flight (same class as #1937)', async () => {
+    // Measured in playtest batch 7: ~1s of "It may have been deleted" with a
+    // live "Back to decks" door on every cold deep link.
+    firstPull.awaiting = true;
+    try {
+      renderAt('/decks/not-here-yet/playtest');
+      expect(screen.getByRole('status')).toBeTruthy();
+      expect(screen.queryByText('Deck not found.')).toBeNull();
+    } finally {
+      firstPull.awaiting = false;
+    }
+  });
+
+  it('still reaches "Deck not found" once sync has settled', () => {
+    renderAt('/decks/not-here-at-all/playtest');
+    expect(screen.getByText('Deck not found.')).toBeTruthy();
+  });
+
+  it('names the deck in the tab title', async () => {
+    renderAt('/decks/deck-1/playtest');
+    await screen.findByTestId('board');
+    expect(document.title).toBe('Playtest · Krenko · SpellControl');
   });
 });

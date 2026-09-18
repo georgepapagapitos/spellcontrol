@@ -29,6 +29,7 @@ import { OnlineGameView } from '../components/play/OnlineGameView';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Modal } from '../components/Modal';
 import { SelectMenu } from '../components/SelectMenu';
+import { deckPickerLabels } from '../lib/deck-picker-labels';
 import { Tabs } from '../components/Tabs';
 import { StackedBar } from '../components/shared/MeterBar';
 import { ColorPip } from '../components/shared/ManaSymbol';
@@ -856,12 +857,9 @@ function DeckPicker({
   value: string | null;
   onChange: (deck: Deck | null) => void;
 }) {
-  // B7-04: same-named decks behind the same commander (a common "rebuilding
-  // around a favorite commander" scenario) otherwise render identical rows —
-  // append the card count only to labels that actually collide.
-  const baseLabels = decks.map((d) => (d.commander ? `${d.name} · ${d.commander.name}` : d.name));
-  const labelCounts = new Map<string, number>();
-  for (const label of baseLabels) labelCounts.set(label, (labelCounts.get(label) ?? 0) + 1);
+  // Same-named decks behind the same commander are the common case for
+  // generated decks — the labels are made distinct in deckPickerLabels.
+  const labels = deckPickerLabels(decks);
   return (
     <SelectMenu<string>
       ariaLabel="Deck"
@@ -871,13 +869,7 @@ function DeckPicker({
       }
       options={[
         { value: DECK_PICKER_NONE, label: 'None' },
-        ...decks.map((d, i) => ({
-          value: d.id,
-          label:
-            (labelCounts.get(baseLabels[i]) ?? 0) > 1
-              ? `${baseLabels[i]} · ${d.cards.length} cards`
-              : baseLabels[i],
-        })),
+        ...decks.map((d, i) => ({ value: d.id, label: labels[i] })),
       ]}
     />
   );
@@ -1249,6 +1241,10 @@ function HistoryTab({
   onRematch: (rec: GameRecord) => void;
 }) {
   const removeHistory = usePlayStore((s) => s.removeHistory);
+  // The × sits on every row of a list a thumb scrolls past, and a removed
+  // record is gone for good (no undo, no server copy of a local game) — so it
+  // asks first, like every other destructive exit on this page.
+  const [pendingRemove, setPendingRemove] = useState<GameRecord | null>(null);
   const deckRows = useMemo(() => aggregateDeckRecords(history, userId), [history, userId]);
   const matchupRows = useMemo(() => aggregateMatchupRecords(history, userId), [history, userId]);
 
@@ -1374,7 +1370,7 @@ function HistoryTab({
                     type="button"
                     className="play-history-remove"
                     aria-label={`Remove game: ${new Date(rec.endedAt).toLocaleString()}`}
-                    onClick={() => removeHistory(rec.id)}
+                    onClick={() => setPendingRemove(rec)}
                   >
                     ×
                   </button>
@@ -1404,6 +1400,19 @@ function HistoryTab({
           })}
         </ul>
       </section>
+      {pendingRemove && (
+        <ConfirmDialog
+          title="Remove this game?"
+          body="It leaves your history and the deck records built from it. This can't be undone."
+          confirmLabel="Remove"
+          danger
+          onCancel={() => setPendingRemove(null)}
+          onConfirm={() => {
+            removeHistory(pendingRemove.id);
+            setPendingRemove(null);
+          }}
+        />
+      )}
     </div>
   );
 }

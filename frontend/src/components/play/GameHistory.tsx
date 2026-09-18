@@ -172,6 +172,8 @@ interface TimelineRow {
 function groupEvents(events: readonly GameEvent[]): TimelineRow[] {
   const rows: TimelineRow[] = [];
   for (const ev of events) {
+    // An undone tap and the Undo that cancelled it are one non-event.
+    if (ev.undone || ev.undo) continue;
     const last = rows[rows.length - 1];
     if (
       last &&
@@ -430,6 +432,7 @@ function buildLifeSeries(game: GameState): LifeSeriesData {
   let min = game.startingLife;
   let max = game.startingLife;
   for (const ev of game.events) {
+    if (ev.undone || ev.undo) continue;
     let changed = false;
     if (ev.kind === 'life' && ev.targetSeat != null && typeof ev.delta === 'number') {
       const cur = life.get(ev.targetSeat);
