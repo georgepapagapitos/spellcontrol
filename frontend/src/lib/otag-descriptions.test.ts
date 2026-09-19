@@ -37,8 +37,10 @@ describe('describeOtag', () => {
     expect(describeOtag('boardwipe')).toBe('Destroys or removes many permanents at once');
   });
 
-  it('falls back to a humanized label for unknown keys', () => {
-    expect(describeOtag('repeatable-creature-tokens')).toBe('Repeatable creature tokens');
-    expect(describeOtag('stax')).toBe('Stax');
+  it('returns nothing for a tag with no description, never its own label (playtest batch 10)', () => {
+    // A title-cased slug IS the label the row already shows; repeating it as
+    // the description read as "Triggered ability · Triggered ability".
+    expect(describeOtag('repeatable-creature-tokens')).toBe('');
+    expect(describeOtag('stax')).toBe('');
   });
 });

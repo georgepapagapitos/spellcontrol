@@ -62,7 +62,11 @@ export function useSearchCards<T = ScryfallCard>(
   } = opts;
 
   const [results, setResults] = useState<T[]>([]);
-  const [loading, setLoading] = useState(false);
+  // Born pending when the first query is already searchable (a deep link):
+  // the effect below runs AFTER the first paint, and that one frame of
+  // `loading: false` + no results printed "No cards on Scryfall match" for
+  // 44ms on /search?q=… (playtest batch 10, after the effect-side fix).
+  const [loading, setLoading] = useState(() => enabled && query.trim().length >= minLength);
   const [error, setError] = useState<string | null>(null);
   // Cancels the in-flight debounce wait: clears its timer AND settles its
   // promise, so a superseded `run()` exits through `if (cancelled) return`
@@ -81,6 +85,14 @@ export function useSearchCards<T = ScryfallCard>(
         }
         return;
       }
+      // Pending from the first keystroke, not from the end of the debounce:
+      // every consumer renders "no matches" off `!loading && results.length
+      // === 0`, so a query still waiting out its 300ms read as a query with
+      // no results — on /search a deep link said "No cards on Scryfall match"
+      // for 300ms before its first request, and while typing the line re-lied
+      // after every keystroke (playtest batch 10).
+      setLoading(true);
+      setError(null);
       debounceRef.current?.();
       await new Promise<void>((resolve) => {
         const timer = window.setTimeout(resolve, debounceMs);

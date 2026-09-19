@@ -62,6 +62,30 @@ describe('useSearchCards', () => {
     expect(result.current.error).toBeNull();
   });
 
+  it('is loading from the first keystroke, so a query waiting out the debounce never reads as "no matches" (playtest batch 10)', async () => {
+    mockSearchCards.mockResolvedValue({ data: [] });
+    // Every render's `loading`, in order — the FIRST one is the frame a deep
+    // link paints before any effect has run.
+    const seen: boolean[] = [];
+    const { result } = renderHook(() => {
+      const r = useSearchCards('lightning');
+      seen.push(r.loading);
+      return r;
+    });
+    expect(seen[0]).toBe(true);
+    await act(async () => {
+      vi.advanceTimersByTime(0);
+    });
+    expect(result.current.loading).toBe(true);
+    await act(async () => {
+      vi.advanceTimersByTime(299);
+    });
+    // Still inside the debounce: no request yet, still pending.
+    expect(mockSearchCards).not.toHaveBeenCalled();
+    expect(result.current.loading).toBe(true);
+    expect(seen).not.toContain(false);
+  });
+
   it('debounces the search by 300ms', async () => {
     mockSearchCards.mockResolvedValue({ data: [] });
     renderHook(() => useSearchCards('lightning'));
