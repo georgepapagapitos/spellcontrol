@@ -121,6 +121,10 @@ export function useOnlineTable(state: PlaytestState): OnlineTable | null {
   // in the table feed exactly as its opponents see them — one projection,
   // two destinations.
   const gameLog = usePlaytestStore((s) => s.gameLog);
+  // Whether this seat has kept its opening hand. Lives in the store's UI
+  // phase, not in `PlaytestState`, so `toPublicBoard` can't see it — it gets
+  // spread in here alongside the ticker.
+  const keptHand = usePlaytestStore((s) => s.phase === 'playing');
   useEffect(() => {
     if (code == null || mySeat == null || !mine) return;
     const ticker = toPublicTicker(gameLog);
@@ -128,9 +132,9 @@ export function useOnlineTable(state: PlaytestState): OnlineTable | null {
     // total for this seat — `toPublicBoard` only knows the local playtest
     // state, which is a second, disconnected life counter while seated (see
     // the OnlineTable.me doc comment).
-    publishBoard(code, { ...toPublicBoard(state, mySeat), life: mine.life, ticker });
+    publishBoard(code, { ...toPublicBoard(state, mySeat), life: mine.life, ticker, keptHand });
     usePlayStore.getState().ingestTicker(mySeat, ticker);
-  }, [code, mySeat, mine, state, gameLog]);
+  }, [code, mySeat, mine, state, gameLog, keptHand]);
 
   const dispatchOnline = usePlayStore((s) => s.dispatchOnline);
   const dispatch = useCallback(

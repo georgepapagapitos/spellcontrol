@@ -1862,6 +1862,62 @@ Untap):
   two bordered chrome rows above the board were 45px of battlefield at every
   tier; below 1024px they wrap to two rows again.
 
+### Opening hand — a takeover at 1024px and up, a sheet below
+
+Keeping or mulliganing is the one decision in a game where nothing else on
+screen matters, so from 1024px up the opening hand stops being a sheet docked
+over the board and becomes the screen (`OpeningHandSheet`,
+`OpeningHandSheet.css`, the `is-takeover` class). Below 1024px the bottom
+sheet is unchanged — a phone has no room for the fan.
+
+- **The table dims, it does not disappear.** The scrim is
+  `color-mix(in oklab, var(--bg) 82%, transparent)` with a 6px backdrop blur:
+  the battlefield stays faintly readable behind, so the takeover reads as a
+  layer over your game rather than a different screen.
+- **The hand is a fan, and the fan is geometry, not art.** Each card sits in
+  a `.playtest-opening-slot`: the slot carries the fan transform (rotation
+  `(i - (n - 1) / 2) * 4deg`, a squared-falloff `--oh-lift` arc computed in
+  JS because CSS `abs()` isn't safe to rely on yet, `z-index: var(--oh-i)`,
+  35% overlap), the card inside carries dnd-kit's drag transform. One
+  transform per element is the rule — a drag must never fight the fan. The
+  slot is `display: contents` in the sheet tier, so the phone layout is
+  exactly what it was before slots existed. Hover or keyboard focus takes a
+  card fully out of the fan: straight, lifted 24px, scaled 1.06, in front.
+  Cards deal in on mount and after every mulligan, 16ms apart, under 300ms
+  total, and not at all under `prefers-reduced-motion`.
+- **The fan is bounded by the height budget, not just the width.**
+  `clamp(150px, min(16vw, (100vh - 380px) / 1.4), 300px)` — 16vw is the share
+  of the screen the cards want, `(100vh - 380px) / 1.4` is what is left once
+  heading, hint, actions, status and toggles have been paid for (1.4 is the
+  5/7 card aspect). A layout that can push the actions off a short slab is a
+  bug, not a trade: the actions carry their own `z-index` so the arc's outer
+  cards tuck behind them rather than over them.
+- **A wrapper breaks dnd-kit's parent-relative helpers.** Adding the fan slot
+  silently killed drag-to-reorder at every width: `restrictToParentElement`
+  clamps to the dragged node's parent, which became a box exactly the card's
+  size (and no box at all in the sheet tier, where the slot is
+  `display: contents`). It is replaced by a modifier that clamps to the hand
+  container. Collision is `pointerWithin` first, `closestCenter` only as the
+  fallback — overlapping rotated cards make nearest-centre a guess, and the
+  card under the pointer is the one the player means. Prove a reorder in a
+  real browser with stepped `mouse.move` after touching any of this; no unit
+  test sees it.
+- **Three actions, one row, in rising commitment:** View battlefield (ghost),
+  Mulligan (warn tone), Keep hand (primary, and where focus lands on open).
+  "View battlefield" is a _peek_: the whole takeover goes
+  `visibility: hidden` behind a transparent scrim with one "Back to hand"
+  pill top-centre, and Esc returns. Esc does nothing else — the opening hand
+  is non-dismissable, you leave it by keeping, mulliganing or exiting.
+- **Online, keeping does not start the game.** The takeover stays up as a
+  smaller "Waiting for Bo and Cy" curtain (`is-waiting`: cards shrink, the
+  actions go) until every seat's published board carries `keptHand`, then
+  counts the table in — "Game starts in 3s", 2, 1, "Game has started" for
+  800ms — and lifts. The countdown line is `aria-live="polite"`. A seat with
+  no board yet, or one published by a client predating the field, reads as
+  still choosing: absent is never "ready". Seated alone, the curtain says
+  "Waiting for players to join" and never counts down — `every()` over no
+  opponents is `true`, so the count is checked first.
+
 ### Opponent rail — never hide a seat
 
 The opponent presence rail (`playtest/components/OpponentRail.tsx`) is the

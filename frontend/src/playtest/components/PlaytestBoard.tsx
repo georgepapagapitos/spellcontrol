@@ -685,6 +685,22 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     tapSelection,
   ]);
 
+  // Online, keeping your opening hand doesn't start the game — the takeover
+  // stays up until every other seat has kept too. A seat with no published
+  // board, or one whose board predates `keptHand`, reads as still choosing.
+  // `every()` on an empty list is true, so the count must be checked: seated
+  // alone, the table waits for someone to join rather than counting itself in.
+  const openingOnline = onlineTable
+    ? {
+        waitingOn: onlineTable.opponents
+          .filter((o) => o.board.keptHand !== true)
+          .map((o) => o.name),
+        allKept:
+          onlineTable.opponents.length > 0 &&
+          onlineTable.opponents.every((o) => o.board.keptHand === true),
+      }
+    : undefined;
+
   return (
     <div
       className={`playtest-board${isNarrow ? ' playtest-board--narrow' : ''}${
@@ -1204,9 +1220,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         />
       )}
 
-      {phase !== 'playing' && (
+      {(phase !== 'playing' || openingOnline) && (
         <OpeningHandSheet
           phase={phase}
+          online={openingOnline}
           hand={state.zones.hand}
           mulliganCount={mulliganCount}
           cardLookup={cardLookup}

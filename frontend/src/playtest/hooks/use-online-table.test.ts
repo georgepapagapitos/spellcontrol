@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createPlaytestState, type PlaytestCard, type PlaytestState } from '@/lib/playtest';
 import { toPublicBoard } from '@/lib/playtest/projection';
@@ -67,7 +67,7 @@ function resetStores() {
   // suppresses this test's own-line ingestion.
   usePlayStore.getState().clearOnline();
   usePlayStore.setState({ online: null, onlineBoards: {}, onlineTicker: [] });
-  usePlaytestStore.setState({ gameLog: [] });
+  usePlaytestStore.setState({ gameLog: [], phase: 'opening' });
   useAuth.setState({ user: null, status: 'unknown' });
 }
 
@@ -97,6 +97,20 @@ describe('useOnlineTable', () => {
     signIn('me-id');
     renderHook(() => useOnlineTable(state()));
     expect(startPolling).toHaveBeenCalled();
+  });
+
+  // The opening-hand takeover's "waiting for the table" curtain reads this
+  // off every opponent's board, so it has to ride every publish — the phase
+  // lives in the playtest store, which `toPublicBoard` can't see.
+  it('publishes whether this seat has kept its opening hand', () => {
+    usePlayStore.setState({ online: onlineGame(), onlineBoards: {} });
+    signIn('me-id');
+    const { rerender } = renderHook(() => useOnlineTable(state()));
+    expect(mockPublish.mock.calls.at(-1)![1].keptHand).toBe(false);
+
+    act(() => usePlaytestStore.setState({ phase: 'playing' }));
+    rerender();
+    expect(mockPublish.mock.calls.at(-1)![1].keptHand).toBe(true);
   });
 
   it('does not start the realtime transport in solo playtest', () => {
@@ -165,6 +179,7 @@ describe('useOnlineTable', () => {
       ...toPublicBoard(s1, 0),
       life: 40,
       ticker: [],
+      keptHand: false,
     });
   });
 
@@ -205,6 +220,7 @@ describe('useOnlineTable', () => {
       ...toPublicBoard(s2, 0),
       life: 40,
       ticker: [],
+      keptHand: false,
     });
     // The publish payload is the redacted projection, never the raw state —
     // a hand card's name/id must not be reachable from what got sent.
