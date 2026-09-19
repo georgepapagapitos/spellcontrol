@@ -425,6 +425,26 @@
   min-width: 0;
 }
 
+/* Who sits here — guest, you, or a friend. A compact trigger beside the seat
+   number; the name field keeps the room. */
+.play-setup-seat-who {
+  flex-shrink: 0;
+}
+
+/* One tap seats a whole pod. Pills, like the hero's Rules button. */
+.play-setup-pods {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+}
+
+.play-setup-pods-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
 .play-setup-seat-num {
   display: inline-flex;
   align-items: center;
