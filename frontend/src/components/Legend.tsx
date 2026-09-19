@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
 import { TYPE_ORDER } from '@/lib/card-types';
@@ -52,17 +52,21 @@ interface LegendProps {
 }
 
 /**
- * Placement of the portaled popover. Same model as InfoTip (the defined
- * pattern for floating explainers): fixed coordinates from the trigger rect,
- * clamped to the viewport horizontally, below the trigger when there's room
- * and flipped above (bottom-anchored) when there isn't. Hosts like the deck
- * bento establish `container-type` / clip contexts that trap or cut off an
- * in-flow popover — the body portal escapes them.
+ * Placement of the portaled popover. Same model as OverflowMenu (the defined
+ * pattern for floating panels): fixed coordinates from the trigger rect via
+ * `computePopoverPlacement`, which hands back EITHER `left` or `right` (a
+ * right-aligned trigger anchors by its right edge) and either `top` or
+ * `bottom` (flipped above when there's no room below). Every coordinate it
+ * returns is forwarded as-is — dropping `right` is what once parked the binder
+ * Key at the far left of a wide screen. Hosts like the deck bento establish
+ * `container-type` / clip contexts that trap or cut off an in-flow popover —
+ * the body portal escapes them.
  */
 interface KeyPos {
-  left: number;
   width: number;
   maxHeight: number;
+  left?: number;
+  right?: number;
   top?: number;
   bottom?: number;
 }
@@ -73,24 +77,58 @@ export function Legend({ context, align = 'left', variant = 'link' }: LegendProp
   const [pos, setPos] = useState<KeyPos | null>(null);
   const open = pos !== null;
 
-  const place = useCallback(() => {
-    const el = triggerRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const safe = getSafeViewport();
-    const width = Math.min(320, safe.right - 16);
-    const placement = computePopoverPlacement(r, { width, height: 240 }, safe, align, 6);
-    const maxHeight = placement.opensAbove
-      ? Math.min(r.top - safe.top - 14, 480)
-      : Math.min(safe.bottom - r.bottom - 14, 480);
-    setPos({
-      left: placement.left ?? 8,
-      width,
-      top: placement.top,
-      bottom: placement.bottom,
-      maxHeight: Math.max(0, maxHeight),
-    });
-  }, [align]);
+  const place = useCallback(
+    (contentHeight = 240) => {
+      const el = triggerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const safe = getSafeViewport();
+      const width = Math.min(320, safe.right - safe.left - 16);
+      // First pass picks the side; the panel is then capped to the room on
+      // that side so a tall key scrolls internally instead of being shoved up
+      // over its trigger by the helper's overflow clamp.
+      const side = computePopoverPlacement(r, { width, height: contentHeight }, safe, align, 6);
+      const room = side.opensAbove ? r.top - safe.top - 14 : safe.bottom - r.bottom - 14;
+      const maxHeight = Math.max(0, Math.min(room, 480));
+      const placement = computePopoverPlacement(
+        r,
+        { width, height: Math.min(contentHeight, maxHeight) },
+        safe,
+        align,
+        6
+      );
+      setPos({
+        width,
+        maxHeight,
+        left: placement.left,
+        right: placement.right,
+        top: placement.top,
+        bottom: placement.bottom,
+      });
+    },
+    [align]
+  );
+
+  // The opening click places the key against an estimate; once it has
+  // rendered, re-place it against its real content height — each context's
+  // key is a different size, and the side/cap decisions depend on it.
+  useLayoutEffect(() => {
+    if (!open || !popRef.current) return;
+    place(popRef.current.scrollHeight);
+  }, [open, place]);
+
+  // Viewport changes (rotation, window resize, the native keyboard) move the
+  // trigger and the safe box together — follow them rather than dismiss.
+  useEffect(() => {
+    if (!open) return;
+    const follow = () => popRef.current && place(popRef.current.scrollHeight);
+    window.addEventListener('resize', follow);
+    window.visualViewport?.addEventListener('resize', follow);
+    return () => {
+      window.removeEventListener('resize', follow);
+      window.visualViewport?.removeEventListener('resize', follow);
+    };
+  }, [open, place]);
 
   useEffect(() => {
     if (!open) return;
@@ -111,12 +149,10 @@ export function Legend({ context, align = 'left', variant = 'link' }: LegendProp
       if (e.key === 'Escape') close();
     };
     window.addEventListener('scroll', onScroll, true);
-    window.addEventListener('resize', close);
     document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('scroll', onScroll, true);
-      window.removeEventListener('resize', close);
       document.removeEventListener('pointerdown', onPointerDown);
       document.removeEventListener('keydown', onKey);
     };
@@ -129,9 +165,10 @@ export function Legend({ context, align = 'left', variant = 'link' }: LegendProp
       role="dialog"
       aria-label="Symbol key"
       style={{
-        left: pos.left,
         width: pos.width,
         maxHeight: pos.maxHeight,
+        left: pos.left,
+        right: pos.right,
         top: pos.top,
         bottom: pos.bottom,
       }}

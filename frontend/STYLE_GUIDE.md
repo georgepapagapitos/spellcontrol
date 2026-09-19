@@ -1336,6 +1336,13 @@ the underlined-text `variant="link"` (that was the binder's old outlier). To
 right-anchor it, make it the **last** flex child after the view-mode toggle so
 it rides the existing trailing auto-margins — don't add a competing
 `margin-left: auto` (multiple autos split the free space and break the grouping).
+The popover itself must land **on its trigger**: it portals to `<body>` and
+forwards every coordinate `computePopoverPlacement` returns (`right` for a
+right-aligned trigger, `bottom` when flipped above), then re-measures its real
+content height after the first paint so the side and height cap match the
+context's actual sections. Reading only `left`/`top` out of the helper is what
+once parked the binder Key at the far-left edge of a wide screen —
+`Legend.test.tsx` guards both anchors.
 
 ## Blend controls — N axes that must always sum to 1 (E234)
 

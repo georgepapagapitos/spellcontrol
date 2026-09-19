@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Legend, type LegendContext } from './Legend';
 
 // DeckBadge/BinderBadge samples render a real Link/useNavigate, so the key
@@ -180,5 +180,67 @@ describe('Legend (context-aware symbol key)', () => {
     expect(screen.getByRole('dialog', { name: 'Symbol key' })).toBeTruthy();
     fireEvent.scroll(window);
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  // Placement guards: the helper hands back `right` for a right-aligned trigger
+  // (and `bottom` for a flipped one); the key must forward whichever coordinate
+  // it gets. Dropping `right` once parked the binder Key at the far-left edge of
+  // a wide screen, nowhere near its trigger.
+  function mountAt(rect: { top: number; bottom: number; left: number; right: number }) {
+    window.innerWidth = 2000;
+    window.innerHeight = 1000;
+    render(
+      <MemoryRouter>
+        <Legend context="binder" align="right" variant="pill" />
+      </MemoryRouter>
+    );
+    const btn = screen.getByRole('button', { name: 'Show symbol key' });
+    vi.spyOn(btn, 'getBoundingClientRect').mockReturnValue({
+      ...rect,
+      width: rect.right - rect.left,
+      height: rect.bottom - rect.top,
+      x: rect.left,
+      y: rect.top,
+      toJSON: () => ({}),
+    });
+    fireEvent.click(btn);
+    return screen.getByRole('dialog', { name: 'Symbol key' });
+  }
+
+  it('anchors a right-aligned Key to its trigger, not the viewport edge', () => {
+    const dialog = mountAt({ top: 300, bottom: 330, left: 1700, right: 1750 });
+    expect(dialog.style.right).toBe('250px');
+    expect(dialog.style.left).toBe('');
+    expect(dialog.style.top).toBe('336px');
+    expect(dialog.style.bottom).toBe('');
+  });
+
+  it('flips above a trigger near the bottom and caps its height to the room there', () => {
+    const dialog = mountAt({ top: 900, bottom: 930, left: 1700, right: 1750 });
+    expect(dialog.style.bottom).toBe('106px');
+    expect(dialog.style.top).toBe('');
+    expect(dialog.style.right).toBe('250px');
+    expect(dialog.style.maxHeight).toBe('480px');
+  });
+
+  it('follows the trigger through a resize or rotation instead of closing', () => {
+    const dialog = mountAt({ top: 300, bottom: 330, left: 1700, right: 1750 });
+    const btn = screen.getByRole('button', { name: 'Show symbol key' });
+    // Rotated to a 1000-wide viewport: the same pill now sits at its right end.
+    window.innerWidth = 1000;
+    vi.mocked(btn.getBoundingClientRect).mockReturnValue({
+      top: 300,
+      bottom: 330,
+      left: 700,
+      right: 750,
+      width: 50,
+      height: 30,
+      x: 700,
+      y: 300,
+      toJSON: () => ({}),
+    });
+    fireEvent(window, new Event('resize'));
+    expect(screen.getByRole('dialog', { name: 'Symbol key' })).toBe(dialog);
+    expect(dialog.style.right).toBe('250px');
   });
 });
