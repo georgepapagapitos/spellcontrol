@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { getPushProgress, onSyncedChange, type PushProgress } from './sync';
 
 /**
@@ -7,10 +7,5 @@ import { getPushProgress, onSyncedChange, type PushProgress } from './sync';
  * the surface showing it advances with each /api/sync round trip.
  */
 export function usePushProgress(): PushProgress | null {
-  const [progress, setProgress] = useState<PushProgress | null>(() => getPushProgress());
-  useEffect(() => {
-    setProgress(getPushProgress());
-    return onSyncedChange(() => setProgress(getPushProgress()));
-  }, []);
-  return progress;
+  return useSyncExternalStore(onSyncedChange, getPushProgress, getPushProgress);
 }
