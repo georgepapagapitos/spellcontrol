@@ -3,11 +3,9 @@ import {
   extractCommanderCandidates,
   isPdhCommanderCandidate,
   computeReadiness,
-  sortCommanderCandidates,
   READINESS_POOL_SIZE,
   MAX_OWNED_SAMPLES,
   type ReadinessStaple,
-  type ReadinessScore,
 } from './commander-readiness';
 import type { EnrichedCard } from '../types';
 
@@ -163,74 +161,6 @@ describe('computeReadiness', () => {
   it('renders a compact N-of-M explainer line with no commander name', () => {
     const score = computeReadiness(staples(['Sol Ring', 99]), owned);
     expect(score.explainerLine).toBe('1 of 1 staples owned');
-  });
-});
-
-describe('sortCommanderCandidates', () => {
-  const atraxa = commander('Atraxa', { importId: 'imp_c' });
-  const krenko = commander('Krenko', { importId: 'imp_a' });
-  const yuriko = commander('Yuriko', { importId: 'imp_b' });
-  const candidates = [krenko, atraxa, yuriko];
-  // addedAt order (newest → oldest): atraxa, yuriko, krenko — independent of id order.
-  const recency = new Map([
-    ['imp_c', 300],
-    ['imp_b', 200],
-    ['imp_a', 100],
-  ]);
-
-  function score(percent: number, available = true): ReadinessScore {
-    return {
-      available,
-      ownedCount: percent,
-      totalCount: 100,
-      percent,
-      explainerLine: '',
-      ownedSamples: [],
-    };
-  }
-
-  it('sorts by name A→Z', () => {
-    const result = sortCommanderCandidates(candidates, new Map(), 'name');
-    expect(result.map((c) => c.name)).toEqual(['Atraxa', 'Krenko', 'Yuriko']);
-  });
-
-  it('sorts by most recently added (addedAt desc), missing recency last', () => {
-    const noImport = commander('Zedruu');
-    const result = sortCommanderCandidates(
-      [...candidates, noImport],
-      new Map(),
-      'recentlyAdded',
-      recency
-    );
-    expect(result.map((c) => c.name)).toEqual(['Atraxa', 'Yuriko', 'Krenko', 'Zedruu']);
-  });
-
-  it('sorts by readiness desc, sinking unscored and unavailable to the end', () => {
-    const scores = new Map<string, ReadinessScore>([
-      ['Krenko', score(80)],
-      ['Atraxa', score(20)],
-      ['Yuriko', score(0, false)], // unavailable
-    ]);
-    // Zedruu has no score entry at all
-    const zedruu = commander('Zedruu');
-    const result = sortCommanderCandidates([...candidates, zedruu], scores, 'readiness');
-    expect(result.map((c) => c.name)).toEqual(['Krenko', 'Atraxa', 'Yuriko', 'Zedruu']);
-  });
-
-  it('breaks readiness ties by name for stable ordering while scores stream in', () => {
-    const scores = new Map<string, ReadinessScore>([
-      ['Atraxa', score(50)],
-      ['Krenko', score(50)],
-      ['Yuriko', score(50)],
-    ]);
-    const result = sortCommanderCandidates(candidates, scores, 'readiness');
-    expect(result.map((c) => c.name)).toEqual(['Atraxa', 'Krenko', 'Yuriko']);
-  });
-
-  it('does not mutate the input array', () => {
-    const input = [...candidates];
-    sortCommanderCandidates(input, new Map(), 'name');
-    expect(input).toEqual(candidates);
   });
 });
 

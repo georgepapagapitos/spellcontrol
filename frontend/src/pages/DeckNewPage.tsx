@@ -29,7 +29,7 @@ import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 /**
  * Router-state seed for a build. Two shapes share it:
  *
- *  - **Regenerate** (ReadinessSpotlight / DecksIndexPage) replays a saved
+ *  - **Regenerate** (DecksIndexPage) replays a saved
  *    deck's settings, so it supplies the full set.
  *  - **Combo seed** (the collection combos view) knows only a commander and
  *    the cards that must survive, and wants this page's own defaults for
@@ -59,7 +59,13 @@ interface PrefillState {
 export function DeckNewPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const prefill = (location.state as { prefill?: PrefillState } | null)?.prefill;
+  const routerState = location.state as {
+    prefill?: PrefillState;
+    /** The Decks index's "From my binder" door: open the picker on that tab. */
+    commanderSource?: 'binder';
+  } | null;
+  const prefill = routerState?.prefill;
+  const commanderSource = routerState?.commanderSource;
 
   const setCommander = useDeckBuilderStore((s) => s.setCommander);
   const updateCustomizationStore = useDeckBuilderStore((s) => s.updateCustomization);
@@ -492,6 +498,7 @@ export function DeckNewPage() {
             value={commander}
             onSelect={selectCommander}
             format={selectedFormat}
+            initialSearchMode={commanderSource}
             onSelectFromBinder={(card) => {
               // E283: a "From my binder" pick is a build-from-what-I-own
               // intent, so land with collection mode on and "Only my cards".
