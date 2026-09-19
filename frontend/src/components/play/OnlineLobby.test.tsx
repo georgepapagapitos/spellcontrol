@@ -133,3 +133,56 @@ describe('OnlineLobby', () => {
     });
   });
 });
+
+// Guest seats: someone at the table with no device. The host names them into
+// an open seat; the server already allows add-player for the host and lets
+// anyone seated adjust a seat with no account once the game runs.
+describe('guest seats', () => {
+  it('only the host can seat a guest in an open seat', () => {
+    renderLobby(table(2), 'u1');
+    expect(screen.queryByRole('button', { name: /Seat a guest/ })).toBeNull();
+  });
+
+  it('naming a guest dispatches add-player with no account behind the seat', () => {
+    const dispatch = renderLobby(table(2), 'u0');
+    fireEvent.click(screen.getByRole('button', { name: 'Seat a guest in seat 3' }));
+    const input = screen.getByRole('textbox', { name: "Guest's name" });
+    fireEvent.change(input, { target: { value: '  Walk-up   Wally ' } });
+    fireEvent.submit(input.closest('form')!);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    const action = dispatch.mock.calls[0][0];
+    expect(action.type).toBe('add-player');
+    expect(action.player).toMatchObject({
+      userId: null,
+      seat: 2,
+      name: 'Walk-up Wally',
+      life: 40,
+    });
+  });
+
+  it('a guest seat says so, counts as ready, and the host can manage or remove it', () => {
+    const game = applyAction(table(2), {
+      type: 'add-player',
+      player: makePlayer({ id: 'g', userId: null, seat: 2, name: 'Wally', startingLife: 40 }),
+    });
+    const dispatch = renderLobby(game, 'u0');
+    const seats = within(screen.getByRole('list', { name: 'Seats' })).getAllByRole('listitem');
+    expect(within(seats[2]).getByText('Guest')).toBeTruthy();
+    expect(within(seats[2]).getByText('Seated by the host')).toBeTruthy();
+    // Two account seats not ready, one guest: the guest never holds it up.
+    expect(screen.getByText('1 of 3 ready')).toBeTruthy();
+    fireEvent.click(within(seats[2]).getByRole('button', { name: 'Remove Wally' }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'remove-player', seat: 2 });
+  });
+
+  it('a non-host sees the guest but no controls for it', () => {
+    const game = applyAction(table(2), {
+      type: 'add-player',
+      player: makePlayer({ id: 'g', userId: null, seat: 2, name: 'Wally', startingLife: 40 }),
+    });
+    renderLobby(game, 'u1');
+    const seats = within(screen.getByRole('list', { name: 'Seats' })).getAllByRole('listitem');
+    expect(within(seats[2]).getByText('Guest')).toBeTruthy();
+    expect(within(seats[2]).queryByRole('button', { name: 'Remove Wally' })).toBeNull();
+  });
+});
