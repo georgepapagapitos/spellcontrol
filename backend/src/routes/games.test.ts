@@ -1588,6 +1588,52 @@ describe('POST /api/games/:code/join + PATCH /:code', () => {
   });
 });
 
+describe('set-ready', () => {
+  it('readies your own seat and coerces a non-boolean flag to false', async () => {
+    const { code, joiners } = await setupTable('games_ready_ok', ['games_ready_ok_j']);
+    const joiner = joiners[0]; // seat 1
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', joiner);
+    const ok = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiner)
+      .send({
+        baseVersion: current.body.game.version,
+        actions: [{ type: 'set-ready', actorSeat: 1, ready: true }],
+      });
+    expect(ok.status).toBe(200);
+    expect(ok.body.game.players[1].ready).toBe(true);
+
+    const coerced = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiner)
+      .send({
+        baseVersion: ok.body.game.version,
+        actions: [{ type: 'set-ready', actorSeat: 1, ready: 'no' }],
+      });
+    expect(coerced.status).toBe(200);
+    expect(coerced.body.game.players[1].ready).toBe(false);
+  });
+
+  it('nobody readies another seat — not a peer, not the host', async () => {
+    const { code, host, joiners } = await setupTable('games_ready_403', ['games_ready_403_j']);
+    for (const [cookie, actorSeat] of [
+      [joiners[0], 0],
+      [host, 1],
+    ] as const) {
+      const current = await request(app).get(`/api/games/${code}`).set('Cookie', cookie);
+      const res = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', cookie)
+        .send({
+          baseVersion: current.body.game.version,
+          actions: [{ type: 'set-ready', actorSeat, ready: true }],
+        });
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('Can only ready your own seat.');
+    }
+  });
+});
+
 /**
  * T99: per-device online surface — each player adjusts only their own seat's
  * life/poison/commander-damage, including the host (who otherwise keeps an

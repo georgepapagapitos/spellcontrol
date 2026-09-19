@@ -611,6 +611,48 @@ describe('phase', () => {
   });
 });
 
+describe('set-ready', () => {
+  it("flips only the actor's own seat and announces it as a system note", () => {
+    const s = applyAction(lobby(3), { type: 'set-ready', actorSeat: 1, ready: true, ts: 2000 });
+    expect(s.players.map((p) => p.ready === true)).toEqual([false, true, false]);
+    const ev = s.events[s.events.length - 1];
+    expect(ev.kind).toBe('note');
+    // actorSeat null = a system line, not something P1 typed.
+    expect(ev.actorSeat).toBeNull();
+    expect(ev.targetSeat).toBe(1);
+    expect(ev.message).toBe('P1 is ready');
+  });
+
+  it('un-readies and says so', () => {
+    let s = applyAction(lobby(2), { type: 'set-ready', actorSeat: 0, ready: true });
+    s = applyAction(s, { type: 'set-ready', actorSeat: 0, ready: false });
+    expect(s.players[0].ready).toBe(false);
+    expect(s.events[s.events.length - 1].message).toBe('P0 is not ready');
+  });
+
+  it('is a no-op when the flag already reads that way — no duplicate log rows', () => {
+    const s = applyAction(lobby(2), { type: 'set-ready', actorSeat: 0, ready: true });
+    expect(applyAction(s, { type: 'set-ready', actorSeat: 0, ready: true })).toBe(s);
+    // Legacy rows read `undefined`, which must mean the same as `false`.
+    const legacy = lobby(2);
+    expect(legacy.players[0].ready).toBeUndefined();
+    expect(applyAction(legacy, { type: 'set-ready', actorSeat: 0, ready: false })).toBe(legacy);
+  });
+
+  it('throws on an unknown seat', () => {
+    expect(() => applyAction(lobby(2), { type: 'set-ready', actorSeat: 7, ready: true })).toThrow();
+  });
+
+  it('clears on start and on reset', () => {
+    let s = applyAction(lobby(2), { type: 'set-ready', actorSeat: 0, ready: true });
+    s = applyAction(s, { type: 'start' });
+    expect(s.players.every((p) => p.ready === false)).toBe(true);
+    s = applyAction(s, { type: 'set-ready', actorSeat: 1, ready: true });
+    s = applyAction(s, { type: 'reset' });
+    expect(s.players.every((p) => p.ready === false)).toBe(true);
+  });
+});
+
 describe('set-designation', () => {
   it('claims monarch — single holder', () => {
     let s = applyAction(lobby(3), { type: 'start' });
