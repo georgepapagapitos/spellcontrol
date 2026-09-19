@@ -47,7 +47,9 @@ import type { GameAction, GameFormat, GamePlayer, GameRecord, GameState } from '
 import type { PublicBoard } from '../lib/playtest/projection';
 
 import { userMessage } from '@/lib/user-error';
-type Tab = 'local' | 'online' | 'nights' | 'history';
+import { PlayHome, type PlayHomeTarget } from '../components/play/PlayHome';
+type Tab = 'home' | 'local' | 'online' | 'nights' | 'history';
+const TABS: ReadonlySet<string> = new Set(['home', 'local', 'online', 'nights', 'history']);
 
 export function PlayPage() {
   const [params, setParams] = useSearchParams();
@@ -87,15 +89,39 @@ export function PlayPage() {
       ? (online.players.find((p) => p.userId === user.id) ?? null)
       : null;
 
-  const initialTab = (params.get('tab') as Tab) || (local ? 'local' : online ? 'online' : 'local');
+  // Where the page opens: the tab you asked for; else the table you're in the
+  // middle of (a board on screen, or a live online seat); else the landing.
+  // The landing page's "Start a game" door (`?new=1`) starts a local table
+  // below, so it lands on the board, not on a dashboard offering to start one.
+  const requested = params.get('tab');
+  const initialTab: Tab =
+    requested && TABS.has(requested)
+      ? (requested as Tab)
+      : params.get('new') === '1' || (local && boardVisible)
+        ? 'local'
+        : online
+          ? 'online'
+          : 'home';
   const [tab, setTabRaw] = useState<Tab>(initialTab);
   const setTab = (t: Tab) => {
     setTabRaw(t);
     setParams((p) => {
       p.set('tab', t);
+      p.delete('mode');
       return p;
     });
   };
+  // A dashboard door that opens Online can also say which form: host or join.
+  const openFromHome = (target: PlayHomeTarget) => {
+    setTabRaw(target.tab);
+    setParams((p) => {
+      p.set('tab', target.tab);
+      if (target.tab === 'online' && target.mode) p.set('mode', target.mode);
+      else p.delete('mode');
+      return p;
+    });
+  };
+  const onlineMode: 'host' | 'join' = params.get('mode') === 'join' ? 'join' : 'host';
 
   // Deep link from the landing page's "Start a game" door (`/play?new=1`):
   // start a table on arrival, so the promise is one tap rather than a tap plus
@@ -197,6 +223,7 @@ export function PlayPage() {
           value={tab}
           onChange={setTab}
           tabs={[
+            { id: 'home', label: 'Play' },
             {
               id: 'local',
               label: (
@@ -232,6 +259,23 @@ export function PlayPage() {
           ]}
         />
       </header>
+
+      {tab === 'home' && (
+        <PlayHome
+          local={local}
+          online={online}
+          history={history}
+          userId={user?.id ?? null}
+          isGuest={isGuest}
+          nights={gameNights.nights}
+          nightsLoading={gameNights.loading}
+          go={openFromHome}
+          resumeLocal={() => {
+            showBoard();
+            openFromHome({ tab: 'local' });
+          }}
+        />
+      )}
 
       {tab === 'local' && (
         <>
@@ -357,6 +401,7 @@ export function PlayPage() {
           ) : (
             <>
               <OnlineSetup
+                key={onlineMode}
                 decks={decks}
                 onHost={(opts) =>
                   void hostOnline(opts).catch((err) =>
@@ -382,6 +427,7 @@ export function PlayPage() {
                 }
                 defaultName={user?.username ?? ''}
                 hasActive={!!online}
+                initialMode={onlineMode}
               />
             </>
           )}
@@ -1012,6 +1058,7 @@ function OnlineSetup({
   onJoin,
   defaultName,
   hasActive,
+  initialMode,
 }: {
   decks: Deck[];
   onHost: (opts: {
@@ -1039,8 +1086,10 @@ function OnlineSetup({
   ) => void;
   defaultName: string;
   hasActive: boolean;
+  /** Which form opens first — the dashboard's doors pick one. */
+  initialMode?: 'host' | 'join';
 }) {
-  const [mode, setMode] = useState<'host' | 'join'>('host');
+  const [mode, setMode] = useState<'host' | 'join'>(initialMode ?? 'host');
   const [format, setFormat] = useState<GameFormat>('commander');
   const cfg = FORMAT_OPTIONS.find((f) => f.value === format) ?? FORMAT_OPTIONS[0];
   const [startingLife, setStartingLife] = useState(cfg.defaultLife);
@@ -1407,7 +1456,7 @@ function HistoryTab({
       <div className="empty-state">
         <EmptyStateMark />
         <p className="empty-state-tagline">No games yet.</p>
-        <p className="empty-state-hint">Head to Local or Online to start your first game.</p>
+        <p className="empty-state-hint">Pick a door on the Play tab to start your first game.</p>
       </div>
     );
   }
@@ -1419,7 +1468,7 @@ function HistoryTab({
         <div className="empty-state">
           <EmptyStateMark />
           <p className="empty-state-tagline">No games yet.</p>
-          <p className="empty-state-hint">Head to Local or Online to start your first game.</p>
+          <p className="empty-state-hint">Pick a door on the Play tab to start your first game.</p>
         </div>
       )}
       {hasBothModes && (
