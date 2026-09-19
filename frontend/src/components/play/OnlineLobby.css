@@ -1,0 +1,490 @@
+/* The seated pre-start table (STYLE_GUIDE § "Lobby: sidebar + seat grid").
+   Two regions at >=1024px: a settings/chat rail and the seats themselves.
+   Below that the same pieces stack, seat card and all, so a phone reads the
+   same table state. */
+
+.lobby {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.lobby-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Stacked, the seats are the subject and the rail is reference: settings and
+   chat read AFTER the table rather than pushing it below the fold. */
+.lobby-main {
+  order: 1;
+}
+
+.lobby-rail {
+  order: 2;
+}
+
+@media (min-width: 1024px) {
+  .lobby-body {
+    display: grid;
+    grid-template-columns: 22rem minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .lobby-main,
+  .lobby-rail {
+    order: 0;
+  }
+
+  /* Clears the rail so the bar reads as the footer of the seats, not of the
+     page. Same track width as the grid's second column. */
+  .lobby-bar {
+    margin-left: calc(22rem + var(--space-4));
+  }
+}
+
+/* ── Rail ─────────────────────────────────────────────────────────────── */
+
+.lobby-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.lobby-code {
+  margin: 0;
+}
+
+.lobby-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.lobby-section-label {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.lobby-setting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2rem;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.lobby-setting > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lobby-setting-value {
+  flex: 0 0 auto;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.lobby-randomize {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+}
+
+.lobby-rules {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* ── Chat ─────────────────────────────────────────────────────────────── */
+
+.lobby-chat {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.lobby-feed {
+  flex: 1 1 auto;
+  min-height: 9rem;
+  max-height: 22rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-2);
+  list-style: none;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.lobby-feed-empty {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.lobby-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+.lobby-line-time {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.lobby-line-who {
+  flex: 0 0 auto;
+  font-weight: 700;
+}
+
+.lobby-line-who::after {
+  content: ':';
+}
+
+.lobby-line-text {
+  flex: 1 1 8rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lobby-line.is-system .lobby-line-who,
+.lobby-line.is-system .lobby-line-text {
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.lobby-composer {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.lobby-composer-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--space-2);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.lobby-composer-input::placeholder {
+  color: var(--text-muted);
+}
+
+.lobby-composer-send {
+  flex: 0 0 auto;
+}
+
+/* ── Main: title, seats, hint, bar ────────────────────────────────────── */
+
+.lobby-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.lobby-title {
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+@media (min-width: 1024px) {
+  .lobby-title {
+    font-size: var(--text-3xl);
+  }
+}
+
+.lobby-seats {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 1024px) {
+  .lobby-seats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* Capped and centred, not stretched: a seat card is a fixed-ish object
+       with a proportion, and letting two of them fill a 1600px column makes
+       each one taller than a laptop viewport can hold along with the footer. */
+    max-width: 54rem;
+    margin-inline: auto;
+  }
+}
+
+.lobby-seat {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: 11rem;
+  overflow: hidden;
+  background-color: var(--surface);
+  background-position: center 28%;
+  background-size: cover;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.lobby-seat[data-art='on']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    var(--art-scrim) 0%,
+    rgba(0, 0, 0, 0.6) 45%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+}
+
+.lobby-seat.is-me {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.lobby-seat.is-open {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+.lobby-seat-avatar {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  color: var(--text-muted);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+
+.lobby-seat-openlabel {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.lobby-seat-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-3);
+}
+
+.lobby-seat-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.lobby-seat-name > span:first-of-type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lobby-seat-you {
+  flex: 0 0 auto;
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-light);
+  border-radius: var(--radius);
+}
+
+.lobby-seat-deck {
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.lobby-seat-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.lobby-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0.1rem var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.lobby-chip.is-ready {
+  color: #0e2b1c;
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.lobby-seat-bracket {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+/* On art the card sits on its own always-dark scrim, so its text takes the
+   scrim's fixed palette rather than the theme's (see tokens.css § on-art). */
+.lobby-seat[data-art='on'] .lobby-seat-name,
+.lobby-seat[data-art='on'] .lobby-seat-deck,
+.lobby-seat[data-art='on'] .lobby-seat-bracket {
+  color: var(--art-scrim-text);
+}
+
+.lobby-seat[data-art='on'] .lobby-seat-you {
+  color: var(--art-scrim-text);
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.lobby-seat[data-art='on'] .lobby-chip {
+  color: var(--art-scrim-text);
+  background: rgba(0, 0, 0, 0.55);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.lobby-seat[data-art='on'] .lobby-chip.is-ready {
+  color: #0e2b1c;
+  background: var(--art-scrim-success);
+  border-color: var(--art-scrim-success);
+}
+
+.lobby-hint {
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* The table's footer. It follows the scroll at every tier, so Ready / Start /
+   Leave are one thumb (or one glance) away however tall the table gets.
+   Opaque, not translucent: seat art scrolls under it and would otherwise show
+   through the controls. */
+.lobby-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  box-shadow: 0 -6px 18px rgb(0 0 0 / 22%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.lobby-bar-group {
+  display: flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.lobby-ready-btn.is-ready {
+  color: #0e2b1c;
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.lobby-ready-count,
+.lobby-waiting {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.lobby-leave-btn {
+  color: var(--err-text);
+  border-color: var(--err-border);
+}
+
+/* The deck label carries commander, count and edit date; unclamped it pushes
+   the rest of the bar off the row. */
+.lobby-bar-group .toolbar-pill {
+  max-width: 22rem;
+}
+
+.lobby-bar-group .toolbar-pill-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Two rows, not three: unclamped, the deck label alone fills the row and
+   pushes "Open board" onto a line of its own, costing a third of the bar's
+   height on the tier that can least afford it. */
+@media (max-width: 1023.98px) {
+  .lobby-bar-group .toolbar-pill {
+    max-width: 14rem;
+  }
+}
+
+@media (pointer: coarse) {
+  .lobby-bar-btn,
+  .lobby-composer-send,
+  .lobby-composer-input,
+  .lobby-randomize {
+    min-height: 44px;
+  }
+}

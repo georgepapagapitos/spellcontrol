@@ -119,6 +119,17 @@ export interface GamePlayer {
   isHost: boolean;
   /** Server-set presence flag for online games. Local games leave this true. */
   connected: boolean;
+  /**
+   * Lobby readiness — "I have my deck, go whenever you like". Advisory: it
+   * never blocks `start` (the host still decides), it just tells the table
+   * who is still shuffling.
+   *
+   * OPTIONAL by design: every `game_sessions.state` row written before this
+   * field reads `undefined`, which means exactly what `false` means, so
+   * nothing needed migrating. Read it as `p.ready === true`. Cleared on
+   * `start` and `reset` — last game's readiness says nothing about this one.
+   */
+  ready?: boolean;
 }
 
 export interface GameEvent {
@@ -323,6 +334,17 @@ export type GameAction =
     }
   | { type: 'eliminate'; seat: number; eliminated: boolean; ts?: number; undoOf?: string }
   | { type: 'note'; actorSeat: number | null; message: string; ts?: number }
+  /**
+   * Flip the actor's own lobby-ready flag. `actorSeat` is deliberately the
+   * ONLY seat this can touch — readiness is a statement about yourself, so
+   * there is no `seat` field for one player to mark another ready (the route
+   * enforces the same rule against a forged `actorSeat`).
+   *
+   * Announces itself into the log as a system note (`actorSeat: null`), the
+   * same shape the table tools use, so the lobby chat shows it as a system
+   * line rather than as something the player typed.
+   */
+  | { type: 'set-ready'; actorSeat: number; ready: boolean; ts?: number }
   | {
       type: 'settings';
       patch: Partial<
@@ -729,6 +751,9 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
         ...next,
         status: 'active',
         startedAt: ts,
+        // Readiness is a lobby-only statement; it means nothing once the game
+        // is live, and a stale `true` would come back on a later `reset`.
+        players: prev.players.map((p) => ({ ...p, ready: false })),
         events: pushEvent(next, { kind: 'start', actorSeat: null, targetSeat: null, ts }),
       };
       break;
@@ -781,6 +806,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
           // experience / storm count is stale, exactly like its poison.
           counters: {},
           eliminated: false,
+          ready: false,
         })),
         events: pushEvent(next, { kind: 'reset', actorSeat: null, targetSeat: null, ts }),
       };
@@ -931,6 +957,22 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
           actorSeat: action.actorSeat,
           targetSeat: null,
           message: action.message,
+          ts,
+        }),
+      };
+      break;
+    }
+    case 'set-ready': {
+      const target = requireSeat(prev.players, action.actorSeat);
+      if ((target.ready ?? false) === action.ready) return prev;
+      next = {
+        ...next,
+        players: updatePlayer(next, action.actorSeat, (p) => ({ ...p, ready: action.ready })),
+        events: pushEvent(next, {
+          kind: 'note',
+          actorSeat: null,
+          targetSeat: action.actorSeat,
+          message: `${target.name} is ${action.ready ? 'ready' : 'not ready'}`,
           ts,
         }),
       };

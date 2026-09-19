@@ -213,7 +213,10 @@ beforeEach(() => {
 
 describe('Open-your-board door — visibility', () => {
   it('renders for a seated player and links to their own deck playtest', () => {
+    // Active, not lobby: a seated player before the start now gets the lobby
+    // (OnlineLobby), which carries its own compact board link.
     mockState.online = makeOnlineGame({
+      status: 'active',
       players: [
         makePlayer({
           id: 'p1',
@@ -261,6 +264,7 @@ describe('Open-your-board door — no deck picked', () => {
   it('prompts to pick a deck instead of linking to a broken URL', () => {
     mockState.decks = [makeDeck({ id: 'deck-1', name: 'My Deck' })];
     mockState.online = makeOnlineGame({
+      status: 'active',
       players: [
         makePlayer({ id: 'p1', userId: 'user_1', seat: 0, name: 'Alice', isHost: true }),
         makePlayer({ id: 'p2', userId: 'user_2', seat: 1, name: 'Bob' }),
@@ -373,11 +377,13 @@ describe('Open-your-board door — nudge recedes once open', () => {
     expect(screen.queryByRole('link', { name: 'Open your board' })).toBeNull();
   });
 
-  it('is not urgent in the lobby even without a board open', () => {
+  it('does not render at all in the lobby — OnlineLobby owns that surface', () => {
     mockState.online = makeOnlineGame({ status: 'lobby', players });
     renderOnlineTab();
 
-    const link = screen.getByRole('link', { name: 'Open your board' });
-    expect(link.classList.contains('btn-primary')).toBe(false);
+    expect(screen.queryByRole('link', { name: 'Open your board' })).toBeNull();
+    expect(screen.queryByText(/boards open/)).toBeNull();
+    // The lobby is what a seated player sees before the host starts.
+    expect(screen.getByRole('list', { name: 'Seats' })).toBeTruthy();
   });
 });

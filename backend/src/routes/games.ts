@@ -561,6 +561,12 @@ function sanitizeAction(action: GameAction): GameAction {
     const message = typeof action.message === 'string' ? action.message : '';
     return { ...action, message: message.trim().slice(0, MAX_NOTE_MESSAGE_LEN) };
   }
+  if (action.type === 'set-ready') {
+    // Boolean-coerced rather than trusted: the reducer stores this verbatim,
+    // so a `"no"` string would land in the JSONB row and read as truthy
+    // everywhere. Only an explicit `true` counts as ready.
+    return { ...action, ready: (action.ready as unknown) === true };
+  }
   if (action.type === 'add-player' && action.player) {
     return { ...action, player: sanitizeAddedPlayer(action.player) };
   }
@@ -1632,6 +1638,18 @@ function actionIsAllowed(action: GameAction, state: GameState, userId: string): 
       const target = state.players.find((p) => p.seat === action.seat);
       if (target && target.userId !== userId && target.userId !== null) {
         return 'Can only adjust your own seat.';
+      }
+      break;
+    }
+    // Readiness is a statement about yourself: nobody — host included — marks
+    // another player ready. Enforced here, before the isHost bypass, because
+    // the reducer trusts `actorSeat` outright. A host-added guest seat (no
+    // userId, no device of its own) stays adjustable by any seated player,
+    // same carve-out as the life controls above.
+    case 'set-ready': {
+      const target = state.players.find((p) => p.seat === action.actorSeat);
+      if (target && target.userId !== userId && target.userId !== null) {
+        return 'Can only ready your own seat.';
       }
       break;
     }

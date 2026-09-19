@@ -26,18 +26,18 @@ import { useRulesReferenceStore } from '../store/rules-reference';
 import { toast } from '../store/toasts';
 import { GameBoard } from '../components/play/GameBoard';
 import { OnlineGameView } from '../components/play/OnlineGameView';
+import { OnlineLobby } from '../components/play/OnlineLobby';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Modal } from '../components/Modal';
 import { SelectMenu } from '../components/SelectMenu';
-import { deckPickerLabels } from '../lib/deck-picker-labels';
 import { Tabs } from '../components/Tabs';
 import { StackedBar } from '../components/shared/MeterBar';
-import { ColorPip } from '../components/shared/ManaSymbol';
 import { FriendsLeaderboard } from '../components/play/FriendsLeaderboard';
 import { GameNightsTab, pendingInviteCount, useGameNights } from '../components/play/GameNights';
 import { aggregateMatchupRecords } from '../lib/matchup-records';
 import { FORMAT_OPTIONS, MAX_LOCAL_PLAYERS, MIN_LOCAL_PLAYERS } from '../lib/game-formats';
 import { MAX_COUNTERS_PER_SCOPE, MAX_COUNTER_NAME_LENGTH } from '../lib/game-state';
+import { DeckPicker, RulePill, SeatPips, Stepper } from '../components/play/SetupControls';
 import { TableProfiles } from '../components/play/TableProfiles';
 import type { GameAction, GameFormat, GamePlayer, GameRecord, GameState } from '../lib/game-state';
 import type { PublicBoard } from '../lib/playtest/projection';
@@ -74,6 +74,14 @@ export function PlayPage() {
 
   const hideBoard = usePlayStore((s) => s.hideBoard);
   const showBoard = usePlayStore((s) => s.showBoard);
+
+  // The lobby replaces the board only for a SEATED player before the host
+  // starts. A spectator (no seat in this session) still gets the board view,
+  // which is the only thing that has anything to show them.
+  const onlineLobbySeat =
+    online && online.status === 'lobby' && user?.id
+      ? (online.players.find((p) => p.userId === user.id) ?? null)
+      : null;
 
   const initialTab = (params.get('tab') as Tab) || (local ? 'local' : online ? 'online' : 'local');
   const [tab, setTabRaw] = useState<Tab>(initialTab);
@@ -241,64 +249,80 @@ export function PlayPage() {
       {tab === 'online' && (
         <>
           {online ? (
-            <>
-              {/* UX-323: only show the join-code banner while the game is still
-                  in lobby/waiting. Once the game is active or finished, the
-                  code has served its purpose. */}
-              {online.status === 'lobby' && codeHiddenFor !== online.code && (
-                <div className="play-code-banner">
-                  <span className="play-code-label">Join code</span>
-                  <span className="play-code-value">{online.code}</span>
-                  <button
-                    type="button"
-                    className="play-code-copy"
-                    aria-label={codeCopied ? 'Join code copied' : 'Copy join code'}
-                    onClick={() => void copyJoinCode(online.code)}
-                  >
-                    {codeCopied ? (
-                      <>
-                        <Check width={14} height={14} strokeWidth={2.5} aria-hidden /> Copied
-                      </>
-                    ) : (
-                      <>
-                        <Copy width={14} height={14} strokeWidth={2} aria-hidden /> Copy
-                      </>
-                    )}
-                  </button>
-                  <span className="play-code-hint">
-                    Players go to Play → Online → Join, then enter this code.
-                  </span>
-                  <button
-                    type="button"
-                    className="play-code-dismiss"
-                    aria-label="Hide join code"
-                    onClick={() => setCodeHiddenFor(online.code)}
-                  >
-                    <X width={16} height={16} strokeWidth={2} aria-hidden />
-                  </button>
-                </div>
-              )}
-              <OnlineBoardDoor
+            onlineLobbySeat ? (
+              /* Seated and not started yet: the lobby owns the whole surface.
+                 The board (life totals, opponent tiles) answers a question
+                 nobody has before a game begins, and the join code, deck
+                 pick and Start button all live in the lobby instead. */
+              <OnlineLobby
                 game={online}
                 decks={decks}
                 userId={user?.id ?? null}
-                onlineBoards={onlineBoards}
-                dispatchOnline={dispatchOnline}
-              />
-              {/* No boardVisible gating here — minimize/show-board is a
-                  local-game concept; navigating away from Online is just
-                  switching tabs (T99). */}
-              <OnlineGameView
-                game={online}
+                mySeat={onlineLobbySeat}
                 errorMessage={onlineError}
-                onEnd={() => setPendingEnd('online')}
+                dispatch={(action) => void dispatchOnline(action)}
                 onLeave={() => void leaveOnline()}
-                onRematch={() => {
-                  rematchLocal(gameToRematch(online));
-                  setTab('local');
-                }}
               />
-            </>
+            ) : (
+              <>
+                {/* UX-323: only show the join-code banner while the game is still
+                    in lobby/waiting. Once the game is active or finished, the
+                    code has served its purpose. */}
+                {online.status === 'lobby' && codeHiddenFor !== online.code && (
+                  <div className="play-code-banner">
+                    <span className="play-code-label">Join code</span>
+                    <span className="play-code-value">{online.code}</span>
+                    <button
+                      type="button"
+                      className="play-code-copy"
+                      aria-label={codeCopied ? 'Join code copied' : 'Copy join code'}
+                      onClick={() => void copyJoinCode(online.code)}
+                    >
+                      {codeCopied ? (
+                        <>
+                          <Check width={14} height={14} strokeWidth={2.5} aria-hidden /> Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy width={14} height={14} strokeWidth={2} aria-hidden /> Copy
+                        </>
+                      )}
+                    </button>
+                    <span className="play-code-hint">
+                      Players go to Play → Online → Join, then enter this code.
+                    </span>
+                    <button
+                      type="button"
+                      className="play-code-dismiss"
+                      aria-label="Hide join code"
+                      onClick={() => setCodeHiddenFor(online.code)}
+                    >
+                      <X width={16} height={16} strokeWidth={2} aria-hidden />
+                    </button>
+                  </div>
+                )}
+                <OnlineBoardDoor
+                  game={online}
+                  decks={decks}
+                  userId={user?.id ?? null}
+                  onlineBoards={onlineBoards}
+                  dispatchOnline={dispatchOnline}
+                />
+                {/* No boardVisible gating here — minimize/show-board is a
+                    local-game concept; navigating away from Online is just
+                    switching tabs (T99). */}
+                <OnlineGameView
+                  game={online}
+                  errorMessage={onlineError}
+                  onEnd={() => setPendingEnd('online')}
+                  onLeave={() => void leaveOnline()}
+                  onRematch={() => {
+                    rematchLocal(gameToRematch(online));
+                    setTab('local');
+                  }}
+                />
+              </>
+            )
           ) : isGuest ? (
             <div className="empty-state">
               <p className="empty-state-tagline">Online games need an account.</p>
@@ -711,78 +735,6 @@ function LocalSetup({
 
 // ── Sub-components: stepper, rule pill, per-seat deck affordance ──────────
 
-function Stepper({
-  value,
-  min,
-  max,
-  step = 1,
-  ariaLabelledBy,
-  onChange,
-}: {
-  value: number;
-  min: number;
-  max: number;
-  step?: number;
-  ariaLabelledBy?: string;
-  onChange: (next: number) => void;
-}) {
-  const dec = () => onChange(Math.max(min, value - step));
-  const inc = () => onChange(Math.min(max, value + step));
-  return (
-    <div className="play-stepper" role="group" aria-labelledby={ariaLabelledBy}>
-      <button
-        type="button"
-        className="play-stepper-btn"
-        onClick={dec}
-        aria-label="Decrease"
-        disabled={value <= min}
-      >
-        −
-      </button>
-      <span className="play-stepper-value" aria-live="polite">
-        {value}
-      </span>
-      <button
-        type="button"
-        className="play-stepper-btn"
-        onClick={inc}
-        aria-label="Increase"
-        disabled={value >= max}
-      >
-        +
-      </button>
-    </div>
-  );
-}
-
-function RulePill({
-  on,
-  onChange,
-  label,
-  hint,
-}: {
-  on: boolean;
-  onChange: (next: boolean) => void;
-  label: string;
-  hint: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      className={`play-rule-pill ${on ? 'is-on' : ''}`}
-      onClick={() => onChange(!on)}
-    >
-      <span className="play-rule-pill-label">{label}</span>
-      <span className="play-rule-pill-hint">{hint}</span>
-      <span className="play-rule-pill-state" aria-hidden="true">
-        {on ? 'On' : 'Off'}
-      </span>
-    </button>
-  );
-}
-
 function SeatDeck({
   decks,
   value,
@@ -829,50 +781,6 @@ function SeatDeck({
 
 function blankPlayer(name: string): LocalGameSetup['players'][number] {
   return { name, deckId: null, deckName: null, commander: null, partner: null, colorIdentity: [] };
-}
-
-// A seat's color-identity pips — the deck's colors are game information, so
-// the roster shows them the moment a deck is picked. WUBRG order, always.
-const WUBRG_ORDER = ['W', 'U', 'B', 'R', 'G'];
-function SeatPips({ ci }: { ci: string[] }) {
-  if (ci.length === 0) return null;
-  const sorted = [...ci].sort((a, b) => WUBRG_ORDER.indexOf(a) - WUBRG_ORDER.indexOf(b));
-  return (
-    <span className="play-seat-ci" aria-hidden="true">
-      {sorted.map((c) => (
-        <ColorPip key={c} color={c} />
-      ))}
-    </span>
-  );
-}
-
-const DECK_PICKER_NONE = '__none__';
-
-function DeckPicker({
-  decks,
-  value,
-  onChange,
-}: {
-  decks: Deck[];
-  value: string | null;
-  onChange: (deck: Deck | null) => void;
-}) {
-  // Same-named decks behind the same commander are the common case for
-  // generated decks — the labels are made distinct in deckPickerLabels.
-  const labels = deckPickerLabels(decks);
-  return (
-    <SelectMenu<string>
-      ariaLabel="Deck"
-      value={value ?? DECK_PICKER_NONE}
-      onChange={(next) =>
-        onChange(next === DECK_PICKER_NONE ? null : (decks.find((d) => d.id === next) ?? null))
-      }
-      options={[
-        { value: DECK_PICKER_NONE, label: 'None' },
-        ...decks.map((d, i) => ({ value: d.id, label: labels[i] })),
-      ]}
-    />
-  );
 }
 
 // ── Online setup ────────────────────────────────────────────────────────────

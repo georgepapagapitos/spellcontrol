@@ -1711,6 +1711,53 @@ works for the bottom seat and is backwards for the top one.
   {host} to start". A bare "Waiting to start" beside a life counter that
   already syncs read as stale state.
 
+### Lobby: sidebar + seat grid
+
+The seated pre-start table (`OnlineLobby`, `.lobby-*`) is its own surface, not
+the live board with a Start button in its header. Two regions at >=1024px
+(`grid-template-columns: 22rem minmax(0, 1fr)`):
+
+- **Rail** (left): the join-code ticket at the top, then `GAME SETTINGS`, then
+  `CHAT`. Small-caps section labels. Every settings row is a real field of
+  `GameState` the reducer honours (format, starting life, starting player,
+  commander damage, poison) — host-editable, read-only values for everyone
+  else. A setting the engine can't honour (a mulligan rule, a sideboard, a
+  turn timer) is not drawn: this is a life pad with a shared log, and a
+  toggle that changes nothing is worse than no toggle.
+- **Main** (right): the table name as a centred heading, a 2-up seat grid
+  (one column below 1024) capped at `54rem` and centred, and the bracket hint.
+  The grid is capped rather than stretched: a seat card is an object with a
+  proportion, and two of them filling a 1600px column grow taller than a
+  laptop viewport can hold alongside the footer.
+- **Stacked, the seats come first.** Below 1024 the rail is `order: 2`: the
+  settings block is tall, and putting it above the grid buries the one thing
+  a player opened the lobby to look at.
+- **The bottom bar is a sticky footer at every tier** (`position: sticky;
+bottom: 0`), carrying the deck picker, the board link, Ready, Start and
+  Leave. It is a sibling of the two-column body, not a cell inside it: a
+  sticky element is constrained by its containing block, and a grid cell is
+  only as tall as its own row, so a bar nested in the grid cannot follow the
+  scroll. At >=1024 a `margin-left` of the rail's track puts it back under the
+  seats. Opaque, never translucent, because seat art scrolls under it.
+
+A **seat card** is the seat's commander art (`useCardThumb(name,
+'art_crop')`, never a new fetch path) under the always-dark
+`--art-scrim` gradient, with the name (crown for the host), the deck, a
+status chip, the colour-identity pips and the bracket italic at the right.
+Your own seat carries the accent ring (`.is-me`). An empty seat is a dashed
+card with a grey avatar and "Open seat"; the grid always draws a full pod,
+so a table of two shows two open seats.
+
+- **A status chip says its state in words** ("Ready", "Not ready", "Choosing a
+  deck"), never in colour alone.
+- **A bracket is shown only where one exists.** Your own seat resolves it
+  through `effectiveBracket(deck)`; the game state carries no bracket for
+  anyone else's deck, so those cards omit the line rather than estimate one
+  the table would then argue about.
+- **Readiness never blocks Start.** `set-ready` is advisory: the host's button
+  stays live and carries a count ("1 of 3 ready") until everyone is in. The
+  host decides when a game starts; the lobby only reports.
+
 ### Board modes — per-player data belongs on that player's seat
 
 When a surface answers "what has each _other_ player done to me?"
