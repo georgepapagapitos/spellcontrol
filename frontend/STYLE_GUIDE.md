@@ -74,18 +74,19 @@ primitives directory.
 
 ### Feedback, state & identity
 
-| Reach for                                    | Instead of                          | Ruling                                        |
-| -------------------------------------------- | ----------------------------------- | --------------------------------------------- |
-| `components/shared/MeterBar`                 | a hand-rolled bar track             | § Bars & meters — **never hand-roll a track** |
-| `components/InfoTip`                         | inline hand-holding prose           | § Info tooltips                               |
-| `components/shared/EmptyStateMark`           | a bare "nothing here" line          | § Empty states                                |
-| `components/share/SharedEmptyState`          | a bare `<p>` in a share/friend view | § Empty states                                |
-| `components/shared/ThinDataNote`             | inventing a sample-size caveat      | § Deck-analysis band words                    |
-| `components/deck/VerdictBadge`               | a bespoke pass/fail pill            | § Verdict badges · § One scoring vocabulary   |
-| `components/shared/SealBurst` / `SealMoment` | confetti                            | § Completion moments (the seal)               |
-| `components/shared/BrandMark`                | an inline logo SVG                  | § Brand mark motion                           |
-| `components/UserAvatar`                      | a bespoke initials circle           | § Icon scale                                  |
-| `playtest/components/OpponentRail`           | a bespoke multiplayer sidebar       | § Opponent rail — never hide a seat           |
+| Reach for                                    | Instead of                          | Ruling                                          |
+| -------------------------------------------- | ----------------------------------- | ----------------------------------------------- |
+| `components/shared/MeterBar`                 | a hand-rolled bar track             | § Bars & meters — **never hand-roll a track**   |
+| `components/InfoTip`                         | inline hand-holding prose           | § Info tooltips                                 |
+| `components/shared/EmptyStateMark`           | a bare "nothing here" line          | § Empty states                                  |
+| `components/share/SharedEmptyState`          | a bare `<p>` in a share/friend view | § Empty states                                  |
+| `components/shared/ThinDataNote`             | inventing a sample-size caveat      | § Deck-analysis band words                      |
+| `components/deck/VerdictBadge`               | a bespoke pass/fail pill            | § Verdict badges · § One scoring vocabulary     |
+| `components/shared/SealBurst` / `SealMoment` | confetti                            | § Completion moments (the seal)                 |
+| `components/shared/BrandMark`                | an inline logo SVG                  | § Brand mark motion                             |
+| `components/UserAvatar`                      | a bespoke initials circle           | § Icon scale                                    |
+| `playtest/components/OpponentRail`           | a bespoke multiplayer sidebar       | § Opponent rail — never hide a seat             |
+| `playtest/components/OpponentQuadrant`       | a bespoke opponent board panel      | § Desktop table with opponents: 2x2, not a rail |
 
 **Adding a primitive?** Add its row here _and_ its ruling to the relevant section
 below. A primitive nobody can find gets re-implemented — that is what this table
@@ -2060,6 +2061,73 @@ CSS-hidden while mounted) — its card art resolves through the shared
 `useCardThumb` CDN cache per entry, and gating the mount avoids firing that
 resolution for opponents a phone-portrait viewer will never see tiles for.
 
+### Desktop table with opponents: 2x2, not a rail
+
+Settled 2026-09-18 against EDHPlay, and it **reverses the rule above for one
+tier only**. From **1440px** up, at an online table seating one to three
+opponents, `.playtest-main` stops being "your board plus a rail" and becomes a
+**grid of equal boards, one per seat** — yours bottom-left, the others filling
+the row above (`PlaytestBoard`'s `gridMode`, `OpponentQuadrant.tsx`). Two seats
+are two columns in one row; three seats are a 2x2 with a quiet "Open seat"
+placeholder; four seats fill it. Below 1440px, on phones, and at a five-seat
+pod the rail is still the answer, untouched — its presence and glance densities
+are exactly what they were.
+
+**Why equal boards are right here and wrong everywhere else.** The rail ruling
+says an opponent's actual cards are unreadable at glance size and that reading
+them is a future promotion interaction. That held while the only way to read a
+card was to make it big _in place_. The **fixed hover slot** (§ Playtest board)
+is that promotion, and it costs no layout: rest on any card in any quadrant and
+its full face lands in the one pane at the table's edge. So a quadrant only has
+to carry **shape, position, tapped state, counters and count** — which it does
+at ~57px cards on a 960px quadrant — and legibility is handed back on demand.
+Below 1440 there is no quadrant big enough for that trade, which is why the
+reversal is scoped to one gate and not argued as a general improvement.
+
+- **Your quadrant is the real board, not a bigger tile.** It is the same
+  `.playtest-battlefield-wrap` with the same corner chrome. What anchors where
+  is decided by whose it is: the **life panel, hand fan, zone piles and log
+  dock stay inside your quadrant** (they are yours), while the **turn/menu
+  stack and the floating banners go `position: fixed` at the viewport's
+  corners** (they are the table's). Nothing between the wrap and the viewport
+  establishes a containing block, which is what makes that `fixed` legal —
+  never put `container-type` on the wrap.
+- **An opponent quadrant is a live board, and the inspector is still the deep
+  dive.** Name pill top-centre with the seat's colour dot, life top-left with
+  designations and the "N new" chip, the battlefield laid out from the same
+  0..1 fractions with tapped rotation and counters, `handCount` face-down backs
+  fanned bottom-centre, the four zone piles bottom-right. The pill and every
+  pile open `OpponentBoardModal` — the quadrant is the glance, the modal is
+  still where a pile gets browsed.
+- **Density is container-driven, never viewport-driven.** The quadrant is a
+  `container-type: inline-size` container and its inner surface sizes
+  `--pt-card-w` off `cqi`: the same 1920px viewport holds a half-width quadrant
+  at two seats and a quarter-width one at four, so a width media query is the
+  wrong signal by construction. Your own quadrant gets the same treatment by
+  arithmetic (half the viewport term), because 7vw is 7% of a full-bleed table
+  and 14% of a half-width one — at the original density the fan landed under
+  your own pile row. **Whenever `--pt-card-w` is redeclared, redeclare
+  `--pt-card-h` and `--pt-edge` with it**: they are inheriting registered
+  properties, so a lone width redeclaration inherits the ancestor's already
+  computed height and every card comes out the wrong shape.
+- **The fan spreads into its container, not the window.** `Hand` measures the
+  battlefield wrap with a `ResizeObserver` (it used `window.innerWidth`, which
+  was the same number until a quadrant stopped being the whole table). In the
+  grid it is re-centred in the space left of the pile row, and the log dock is
+  lifted one extra rem clear of its top edge.
+- **Chrome never covers a seat it had somewhere else to go.** The play ticker
+  loses the rail column it lived in, and lands at the top-right of **your own**
+  quadrant rather than the viewport's — parked in the screen corner it would
+  sit over an opponent's board. The turn/menu stack is the one exception, and
+  it is the exception the benchmark makes too.
+- **The active seat wears the same gold ring your own felt wears**, and the
+  turn-pass sweep the rail used to flash fires on the quadrant instead
+  (`useTurnSweep`, shared by both surfaces so they can't drift). A point at a
+  seat (`useTablePointer`) lights the quadrant.
+- **Each quadrant is a `section` whose `aria-label` says what the rail entry
+  said** — name, life, turn, permanents, hand, library, designations, points
+  and unseen changes. A bigger screen never buys less information.
+
 ### Play ticker — narrative is public-only, ambient, and never displaces the board (E242)
 
 The play ticker (`playtest/components/TableTicker.tsx`) projects each seat's
@@ -3484,11 +3552,11 @@ _within_ a tier, not a tier wall. "XL desktop" is **not** a breakpoint: it's whe
 content hits its `max-width` cap and centers with side gutters (`--analysis-max:
 1320px` for deck-analysis boards, `--page-max: 1400px` for page containers).
 
-| Tier           | Viewport range | Test at (px)                    | What defines it                                                                                                                                                              |
-| -------------- | -------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Mobile**     | `≤ 600`        | **320** · 375 · 414 · 480 · 600 | base styles; phone layouts, bottom sheets. **320 = hard no-overflow floor.** 480 = cramped-phone refinement.                                                                 |
-| **Tablet**     | `601 – 1023`   | 640 · 768 · 820 · 1023          | the gap between the two poles. 640 = deck-bento 2-col **container**-query trigger (not viewport).                                                                            |
-| **Desktop**    | `1024 – 1399`  | **1024** · 1101 · 1280          | sticky panels, multi-column, hover-peek (`≥1024`). 1101 = deck-editor layout shift.                                                                                          |
+| Tier           | Viewport range | Test at (px)                    | What defines it                                                                                                                                                                                                                                                                                                                                                          |
+| -------------- | -------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Mobile**     | `≤ 600`        | **320** · 375 · 414 · 480 · 600 | base styles; phone layouts, bottom sheets. **320 = hard no-overflow floor.** 480 = cramped-phone refinement.                                                                                                                                                                                                                                                             |
+| **Tablet**     | `601 – 1023`   | 640 · 768 · 820 · 1023          | the gap between the two poles. 640 = deck-bento 2-col **container**-query trigger (not viewport).                                                                                                                                                                                                                                                                        |
+| **Desktop**    | `1024 – 1399`  | **1024** · 1101 · 1280          | sticky panels, multi-column, hover-peek (`≥1024`). 1101 = deck-editor layout shift.                                                                                                                                                                                                                                                                                      |
 | **XL desktop** | `≥ 1400`       | 1440 · 1920                     | content **stops growing** and centers: deck-analysis caps at `--analysis-max` (1320), pages at `--page-max` (1400), and the card-grid routes (collection hub, decks index, deck editor) at `--page-max-wide` (1920) via the `.app-shell:has(…)` opt-in in base-layout.css. Test for balanced gutters / no dead space, not a reflow; the wide routes also at 1920 · 2560. |
 
 - **The two real breakpoints:** `max-width: 600px` (mobile) and `min-width: 1024px`

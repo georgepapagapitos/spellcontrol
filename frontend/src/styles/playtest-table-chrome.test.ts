@@ -160,3 +160,93 @@ describe('the narrow tier keeps everything it had', () => {
     }
   });
 });
+
+describe('the desktop seat grid', () => {
+  it('lays the seats out as equal quadrants with a gutter, off a class not a media query', () => {
+    const grid = block('.playtest-main--grid {');
+    expect(grid).toContain('display: grid');
+    expect(grid).toContain('grid-template-columns: 1fr 1fr');
+    // The gap IS the dark gutter between boards.
+    expect(grid).toContain('gap: 2px');
+    expect(grid).toContain('background: var(--border)');
+    // Two seats are one row, not a 2x2 with two holes.
+    expect(block('.playtest-main--seats-2 {')).toContain('grid-template-rows: 1fr');
+    // The grid is gated in JS (PlaytestBoard's `gridMode`), so the rules must
+    // not be buried in a width query that would double-gate it.
+    const gridStart = css.indexOf('.playtest-main--grid {');
+    const enclosingMedia = css.lastIndexOf('@media', gridStart);
+    const enclosingClose = css.indexOf('\n}\n', enclosingMedia);
+    expect(enclosingClose, 'the grid block sits inside a media query').toBeLessThan(gridStart);
+  });
+
+  it('redeclares the derived card vars wherever it redeclares the width', () => {
+    // `--pt-card-h`/`--pt-edge` are inheriting registered properties: a
+    // `--pt-card-w` redeclared alone inherits the ancestor's computed height
+    // and every card comes out the wrong shape.
+    for (const sel of [
+      '.playtest-main--grid > .playtest-battlefield-wrap {',
+      '.playtest-main--seats-2 > .playtest-battlefield-wrap {',
+    ]) {
+      const rule = block(sel);
+      expect(rule, sel).toContain('--pt-card-w:');
+      expect(rule, sel).toContain('--pt-card-h: calc(var(--pt-card-w) * 1.4)');
+      expect(rule, sel).toContain('--pt-edge:');
+    }
+  });
+
+  it('pins the turn stack and the banners to the viewport, and nothing else', () => {
+    expect(block('.playtest-main--grid .playtest-corner--tr {')).toContain('position: fixed');
+    expect(block('.playtest-main--grid .playtest-banners {')).toContain('position: fixed');
+    // The life panel, the fan and the piles stay inside your own quadrant.
+    for (const sel of [
+      '.playtest-main--grid .playtest-trackers--corner',
+      '.playtest-main--grid .playtest-piles',
+    ]) {
+      expect(css, `${sel} must not be lifted out of the quadrant`).not.toContain(sel);
+    }
+  });
+
+  it('re-centres the fan clear of the pile row and lifts the log dock off it', () => {
+    expect(block('.playtest-main--grid .playtest-hand--fan {')).toContain(
+      'left: calc((100% - 21rem) / 2)'
+    );
+    const dock = readFileSync(join(here, '../playtest/components/LogDock.css'), 'utf8');
+    // Below the grid the rail owns a 15rem column and the dock docked over it.
+    expect(dock).toContain(
+      '.playtest-board:has(.playtest-main > .opponent-rail) .playtest-log-dock'
+    );
+    expect(dock).toContain('left: calc(15rem + var(--space-4))');
+    const gridDock = dock.slice(dock.indexOf('.playtest-board:has(.playtest-main--grid)'));
+    expect(gridDock).toContain('width: 18rem');
+    expect(gridDock).toContain('bottom: calc(var(--pt-card-h) + 5rem)');
+  });
+
+  it("keeps the top-right seat's board out from under the fixed turn stack", () => {
+    const quad = readFileSync(join(here, '../playtest/components/OpponentQuadrant.css'), 'utf8');
+    const start = quad.indexOf('.opponent-quadrant--under-stack .opponent-quadrant__felt {');
+    expect(start, 'the under-stack inset is missing').toBeGreaterThan(-1);
+    expect(quad.slice(start, quad.indexOf('}', start))).toContain(
+      'right: calc(14rem + var(--space-3) + var(--pt-edge))'
+    );
+    // The inset IS the stack's own ceiling, so a longer label or an extra
+    // control can never reach past it.
+    expect(block('.playtest-main--grid .playtest-corner--tr {')).toContain('max-width: 14rem');
+    // And it has to come after the `inset` shorthand, which sets `right` too.
+    expect(start).toBeGreaterThan(quad.indexOf('.opponent-quadrant__felt {'));
+  });
+
+  it('sizes an opponent quadrant off its own container, never the viewport', () => {
+    const quad = readFileSync(join(here, '../playtest/components/OpponentQuadrant.css'), 'utf8');
+    expect(quad).toContain('container-type: inline-size');
+    // `cqi`, not `vw`: the same viewport holds a half-width quadrant at two
+    // seats and a quarter-width one at four.
+    expect(quad).toMatch(/--pt-card-w: clamp\([^)]*cqi/);
+    expect(quad).not.toContain('vw');
+    // The card vars are declared on the INNER element: an element cannot size
+    // itself off its own container.
+    const inner = quad.slice(quad.indexOf('.opponent-quadrant__inner {'));
+    expect(inner.slice(0, inner.indexOf('}'))).toContain(
+      '--pt-card-h: calc(var(--pt-card-w) * 1.4)'
+    );
+  });
+});

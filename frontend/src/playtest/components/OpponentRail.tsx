@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { joinClasses } from '@/lib/join-classes';
 import { useCardThumb } from '@/lib/card-thumbs';
 import { paletteForIndex } from '@/lib/seat-palette';
@@ -8,14 +8,9 @@ import { useNewCardIds } from '../hooks/use-new-card-ids';
 import { useUnseenChanges } from '../hooks/use-unseen-changes';
 import { useMediaQuery } from '../hooks/use-media-query';
 import { useTablePointer } from '../hooks/use-table-pointer';
+import { useTurnSweep } from '../hooks/use-turn-sweep';
 import { OpponentBoardModal } from './OpponentBoardModal';
 import './OpponentRail.css';
-
-/** Turn-sweep highlight duration — the opponent-rail half of the turn-pass
- *  moment (the stronger "Your turn" beat for the local seat lives in
- *  `TableMoments.tsx`, which isn't in this roster at all — a seat's own turn
- *  never appears in `opponents`). */
-const SWEEP_MS = 600;
 
 export interface OpponentSeat {
   /** Display name for this seat — `PublicBoard` carries no identity beyond a
@@ -89,21 +84,12 @@ export function OpponentRail({ opponents, activeSeat, children }: OpponentRailPr
   const inspectingOpp = opponents.find((o) => o.board.seat === inspecting) ?? null;
 
   // Turn-pass moment (opponent half): a brief highlight sweep on whichever
-  // seat's chip just became active, in that seat's own color. Edge-triggered
-  // off `activeSeat` CHANGING — never on mount, never re-firing while it
-  // holds the same value — mirroring PlaytestBoard's `tableDefeatedTurn`
-  // transition guard. `activeSeat` becoming the local seat (not present in
-  // `opponents` at all) is simply a no-op here since no entry matches it.
-  const [sweepSeat, setSweepSeat] = useState<number | null>(null);
-  const prevActiveSeatRef = useRef(activeSeat);
-  useEffect(() => {
-    const prev = prevActiveSeatRef.current;
-    prevActiveSeatRef.current = activeSeat;
-    if (activeSeat === undefined || activeSeat === prev) return;
-    setSweepSeat(activeSeat);
-    const t = setTimeout(() => setSweepSeat(null), SWEEP_MS);
-    return () => clearTimeout(t);
-  }, [activeSeat]);
+  // seat's chip just became active, in that seat's own color. The edge
+  // detection is shared with the desktop seat grid (`useTurnSweep`), which
+  // flashes the same moment on the quadrant instead. `activeSeat` becoming
+  // the local seat (not present in `opponents` at all) is simply a no-op
+  // here since no entry matches it.
+  const sweepSeat = useTurnSweep(activeSeat);
 
   // A point at an opponent's board lights their rail entry, so it registers
   // without the pointed-at card's own sheet being open. A point at the LOCAL

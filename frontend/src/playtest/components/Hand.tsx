@@ -48,23 +48,36 @@ function fanStyle(i: number, n: number, overlap: number): React.CSSProperties {
   };
 }
 
-/** Viewport width, tracked so the fan re-spreads when the window resizes. */
-function useViewportWidth(): number {
+/**
+ * The width the fan actually has: its CONTAINER (the battlefield wrap), not
+ * the viewport. They were the same thing until the desktop seat grid gave the
+ * wrap half the screen — a viewport-wide fan then reached across into the
+ * neighbouring seat's board and under your own pile row. Observed rather than
+ * listened for on `resize`, so a layout change that isn't a window resize
+ * (the rail giving way to the grid) re-spreads too.
+ */
+function useContainerWidth(ref: React.RefObject<HTMLDivElement | null>): number {
   const [width, setWidth] = useState(() =>
     typeof window === 'undefined' ? 1440 : window.innerWidth
   );
   useEffect(() => {
-    const onResize = () => setWidth(window.innerWidth);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
+    const el = ref.current?.parentElement;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    setWidth(el.clientWidth);
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width;
+      if (w && w > 0) setWidth(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref]);
   return width;
 }
 
 export function Hand({ cards, fan = false, onCardClick, onCardMenu }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: 'hand' });
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const viewportW = useViewportWidth();
+  const containerW = useContainerWidth(rootRef);
   const [cardW, setCardW] = useState(FALLBACK_CARD_W);
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -86,9 +99,9 @@ export function Hand({ cards, fan = false, onCardClick, onCardMenu }: Props) {
     if (!el) return;
     const w = parseFloat(getComputedStyle(el).getPropertyValue('--pt-card-w'));
     if (w > 0) setCardW(w);
-  }, [fan, viewportW]);
+  }, [fan, containerW]);
 
-  const overlap = fanOverlap(cards.length, cardW, viewportW);
+  const overlap = fanOverlap(cards.length, cardW, containerW);
 
   function toggle() {
     setCollapsed((prev) => {

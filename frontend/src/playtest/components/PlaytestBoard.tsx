@@ -17,11 +17,20 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { useDecksStore } from '@/store/decks';
 import { usePlaytestStore } from '../store';
 import { useNarrowViewport } from '../hooks/use-narrow-viewport';
+import { useTurnSweep } from '../hooks/use-turn-sweep';
+import { useTablePointer } from '../hooks/use-table-pointer';
 import { useRegisterShortcuts } from '@/lib/shortcut-registry';
 import { useOnlineTable } from '../hooks/use-online-table';
 import { usePlayStore } from '@/store/play';
 import { useTakeback } from '../hooks/use-takeback';
 import { OpponentRail } from './OpponentRail';
+import {
+  OpenSeatQuadrant,
+  OpponentQuadrant,
+  MAX_GRID_OPPONENTS,
+  TABLE_GRID_QUERY,
+  opponentPreviewId,
+} from './OpponentQuadrant';
 import { OpponentBoardModal } from './OpponentBoardModal';
 import { TableMoments } from './TableMoments';
 import { TableTicker, tickerSeatName } from './TableTicker';
@@ -33,6 +42,7 @@ import { autoPlace } from '../lib/auto-place';
 import { makePlaytestCollision } from '../lib/attach-drop';
 import { hostFromDroppableId } from '../lib/zones';
 import { haptics } from '@/lib/haptics';
+import { cachedCardThumb } from '@/lib/card-thumbs';
 import { Battlefield } from './Battlefield';
 import { Hand } from './Hand';
 import { HandCardMenu } from './HandCardMenu';
@@ -102,6 +112,10 @@ const FALLBACK_CARD_H = 126;
 /** Near-top-left placement used when a drop lands on the battlefield but
  *  dnd-kit couldn't report a translated rect (e.g. a keyboard-sensor drop) —
  *  the fraction-space analogue of the old fixed `x: 40, y: 40` pixel default. */
+/** Stable empty roster: a fresh `[]` per render would re-run every memo that
+ *  depends on the opponent list on every render of a solo board. */
+const NO_OPPONENTS: readonly [] = [];
+
 const FALLBACK_DROP_POS = { x: 0.05, y: 0.05 };
 
 /** B6-16: the desktop keydown handler below is the actual implementation —
@@ -227,6 +241,19 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // one hook call, and null here means the rail below never renders.
   const onlineTable = useOnlineTable(state);
   const takeback = useTakeback(onlineTable);
+  // Desktop seat grid (STYLE_GUIDE "Desktop table with opponents: 2x2, not a
+  // rail"): at 1440px and up, an online table with opponents lays every seat
+  // out as an equal quadrant instead of a board plus a rail. Capped at three
+  // opponents — a 2x2 grid holds four seats, and a fifth would have to hide
+  // one, which the rail exists precisely never to do. Below 1440, on phones,
+  // and at a five-seat pod, the rail is still the answer.
+  const wideTable = useMediaQuery(TABLE_GRID_QUERY);
+  const opponents = onlineTable?.opponents ?? NO_OPPONENTS;
+  const gridMode =
+    !isNarrow && wideTable && opponents.length > 0 && opponents.length <= MAX_GRID_OPPONENTS;
+  // Both signals the rail carries today, lit on the quadrant instead.
+  const sweepSeat = useTurnSweep(onlineTable?.activeSeat ?? undefined);
+  const tablePointer = useTablePointer();
   // The merged play-ticker feed, for the Log sheet's Table tab. Costs no
   // extra renders in practice: ticker lines ride the same board frames the
   // `useOnlineTable` subscription above already re-renders on.
@@ -499,9 +526,28 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     for (const c of state.zones.hand) if (c.imageUrl) m.set(c.id, c.imageUrl);
     return m;
   }, [state.battlefield, state.zones.hand]);
+  // The opponents' permanents, by the seat-scoped id their quadrant publishes
+  // as `data-preview-id`. Names, not URLs: `PublicBoard` never carries image
+  // URLs (projection.ts), so the quadrant resolves art through the shared CDN
+  // cache and this reads the same cache back. Safe to read synchronously
+  // because `resolve` runs at POINTER time, long after the card painted.
+  const opponentPreviewNames = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const opp of opponents) {
+      for (const bf of opp.board.battlefield) {
+        if (bf.faceDown || !bf.card.name) continue;
+        m.set(opponentPreviewId(opp.board.seat, bf.card.id), bf.card.name);
+      }
+    }
+    return m;
+  }, [opponents]);
   const resolvePreview = useCallback(
-    (cardId: string) => previewSrcs.get(cardId) ?? null,
-    [previewSrcs]
+    (cardId: string) => {
+      const opponentCard = opponentPreviewNames.get(cardId);
+      if (opponentCard) return cachedCardThumb(opponentCard, 'normal') ?? null;
+      return previewSrcs.get(cardId) ?? null;
+    },
+    [opponentPreviewNames, previewSrcs]
   );
 
   const handleHandCardMenu = useCallback((cardId: string, x: number, y: number) => {
@@ -991,6 +1037,24 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     />
   );
 
+  // Whoever holds the TOP-RIGHT cell sits under the viewport-fixed turn/menu
+  // stack: the right column at two seats, the second of the upper pair at
+  // three or four. That quadrant insets its battlefield so no permanent of
+  // theirs can render beneath the stack (see OpponentQuadrant.css).
+  const topRightSeat = (opponents.length === 1 ? opponents[0] : opponents[1])?.board.seat;
+  const renderQuadrant = (opp: (typeof opponents)[number]) => (
+    <OpponentQuadrant
+      key={opp.board.seat}
+      opp={opp}
+      active={onlineTable?.activeSeat === opp.board.seat}
+      sweeping={sweepSeat === opp.board.seat}
+      pointed={tablePointer?.targetSeat === opp.board.seat}
+      watching={viewingBoardSeat === opp.board.seat}
+      underTurnStack={opp.board.seat === topRightSeat}
+      onOpen={() => setViewingBoardSeat(opp.board.seat)}
+    />
+  );
+
   const cornerActions = (
     <div className="playtest-corner playtest-corner--tr">
       <OverflowMenu
@@ -1185,8 +1249,12 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         onDragEnd={handleDragEnd}
         onDragCancel={() => setActiveId(null)}
       >
-        <div className="playtest-main">
-          {onlineTable && (
+        <div
+          className={`playtest-main${gridMode ? ' playtest-main--grid' : ''}${
+            gridMode && opponents.length === 1 ? ' playtest-main--seats-2' : ''
+          }`}
+        >
+          {onlineTable && !gridMode && (
             <OpponentRail
               opponents={onlineTable.opponents}
               activeSeat={onlineTable.activeSeat ?? undefined}
@@ -1194,6 +1262,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               <TableTicker onlineTable={onlineTable} />
             </OpponentRail>
           )}
+          {/* Grid order is the table's seating: your own board is bottom-left,
+              so with two seats the single opponent sits beside you and with
+              three or four the others fill the row above. */}
+          {gridMode && opponents.length > 1 && opponents.slice(0, 2).map(renderQuadrant)}
           <div
             ref={battlefieldRef}
             className={`playtest-battlefield-wrap${myTurn ? ' is-my-turn' : ''}`}
@@ -1257,6 +1329,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                 </div>
                 {trackers}
                 {cornerActions}
+                {/* The ticker's home when there is no rail to hold it: the top
+                    right of your own quadrant, so the feed stays visible
+                    without parking chrome over somebody else's board. */}
+                {gridMode && onlineTable && (
+                  <div className="playtest-ticker-dock">
+                    <TableTicker onlineTable={onlineTable} />
+                  </div>
+                )}
                 {piles}
                 <Hand
                   cards={state.zones.hand}
@@ -1267,6 +1347,11 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               </>
             )}
           </div>
+          {gridMode &&
+            (opponents.length === 1
+              ? opponents.map(renderQuadrant)
+              : opponents.slice(2).map(renderQuadrant))}
+          {gridMode && opponents.length === 2 && <OpenSeatQuadrant />}
         </div>
         {isNarrow &&
           (shortLandscape ? (
