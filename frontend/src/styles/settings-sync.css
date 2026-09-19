@@ -415,6 +415,9 @@
   background: var(--surface);
   /* Never outrun a narrow settings row (the guide flagged this clipping). */
   max-width: 100%;
+  /* .settings-card-body is a column flexbox, which stretches every child to
+     the row — a two-segment track spanning the card read as an empty field. */
+  align-self: flex-start;
 }
 
 .settings-currency-option {
