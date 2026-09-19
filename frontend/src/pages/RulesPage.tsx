@@ -307,123 +307,130 @@ function RulesAsk() {
     <div className="rules-ask-section">
       <RulesAskHeader />
 
-      <form
-        className="rules-ask"
-        onSubmit={(e) => {
-          e.preventDefault();
-          ask(question);
-        }}
-      >
-        <label className="sr-only" htmlFor="rules-question">
-          Your rules question
-        </label>
-        <textarea
-          id="rules-question"
-          ref={inputRef}
-          className="rules-ask-input"
-          rows={2}
-          maxLength={500}
-          placeholder="Ask a rules question"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              ask(question);
-            }
+      {/* The box and its starters — the side column on a wide screen. */}
+      <div className="rules-ask-compose">
+        <form
+          className="rules-ask"
+          onSubmit={(e) => {
+            e.preventDefault();
+            ask(question);
           }}
-        />
-        <div className="rules-ask-actions">
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={!question.trim() || phase === 'asking' || remaining === 0}
-          >
-            Ask
-          </button>
-          <span className="rules-ask-remaining">
-            {remaining === 0
-              ? 'Daily limit reached. Resets at midnight UTC.'
-              : `${remaining} of ${status.limit} left today`}
-          </span>
-        </div>
-      </form>
-
-      {/* Starters, only while there's nothing else on the page to read. */}
-      {phase === 'idle' && !answer && history !== null && (
-        <div className="rules-samples" aria-label="Example questions">
-          {SAMPLE_QUESTIONS.map((sample) => (
-            <button
-              key={sample}
-              type="button"
-              className="rules-sample"
-              onClick={() => {
-                setQuestion(sample);
-                inputRef.current?.focus();
-              }}
-            >
-              {sample}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* First visit: a beat while past questions are checked, so the samples
-          never flash in front of an answer about to restore. */}
-      {phase === 'idle' && !answer && history === null && (
-        <div
-          className="deck-ai-skeleton"
-          role="status"
-          aria-live="polite"
-          aria-label="Checking for past questions"
         >
-          <span className="deck-ai-skeleton-line deck-ai-skeleton-line--short" />
-        </div>
-      )}
-
-      {phase === 'asking' && !streamed && (
-        <div
-          className="deck-ai-skeleton"
-          role="status"
-          aria-live="polite"
-          aria-label="Writing the answer"
-        >
-          <span className="deck-ai-skeleton-line" />
-          <span className="deck-ai-skeleton-line" />
-          <span className="deck-ai-skeleton-line deck-ai-skeleton-line--short" />
-        </div>
-      )}
-
-      {phase === 'error' && error && (
-        <div className="deck-ai-error" role="alert">
-          <span>{error}</span>
-          <button type="button" className="btn" onClick={() => ask(lastAsked)}>
-            Try again
-          </button>
-        </div>
-      )}
-
-      {(answer || streamed) && (
-        <article className="rules-answer" aria-live="polite">
-          <h2 className="rules-answer-question">{answer ? answer.question : lastAsked}</h2>
-          {answer?.askedAt != null && (
-            <p className="rules-answer-when">
-              Asked {formatRelativeTime(answer.askedAt, { verbose: true })}
-            </p>
-          )}
-          {!answer && (
-            <span className="sr-only" role="status">
-              Writing the answer…
-            </span>
-          )}
-          <AnswerBody
-            content={answer ? answer.content : streamed}
-            rules={answer?.rules ?? []}
-            fetched={answer?.fetched}
-            streaming={!answer}
+          <label className="sr-only" htmlFor="rules-question">
+            Your rules question
+          </label>
+          <textarea
+            id="rules-question"
+            ref={inputRef}
+            className="rules-ask-input"
+            rows={2}
+            maxLength={500}
+            placeholder="Ask a rules question"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                ask(question);
+              }
+            }}
           />
-        </article>
-      )}
+          <div className="rules-ask-actions">
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={!question.trim() || phase === 'asking' || remaining === 0}
+            >
+              Ask
+            </button>
+            <span className="rules-ask-remaining">
+              {remaining === 0
+                ? 'Daily limit reached. Resets at midnight UTC.'
+                : `${remaining} of ${status.limit} left today`}
+            </span>
+          </div>
+        </form>
+
+        {/* Starters, only while there's nothing else on the page to read. */}
+        {phase === 'idle' && !answer && history !== null && (
+          <div className="rules-samples" aria-label="Example questions">
+            {SAMPLE_QUESTIONS.map((sample) => (
+              <button
+                key={sample}
+                type="button"
+                className="rules-sample"
+                onClick={() => {
+                  setQuestion(sample);
+                  inputRef.current?.focus();
+                }}
+              >
+                {sample}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* First visit: a beat while past questions are checked, so the samples
+          never flash in front of an answer about to restore. */}
+        {phase === 'idle' && !answer && history === null && (
+          <div
+            className="deck-ai-skeleton"
+            role="status"
+            aria-live="polite"
+            aria-label="Checking for past questions"
+          >
+            <span className="deck-ai-skeleton-line deck-ai-skeleton-line--short" />
+          </div>
+        )}
+      </div>
+
+      {/* The answer and its in-flight states — the main column on a wide
+          screen; empty (and hidden) until something is asked. */}
+      <div className="rules-ask-result">
+        {phase === 'asking' && !streamed && (
+          <div
+            className="deck-ai-skeleton"
+            role="status"
+            aria-live="polite"
+            aria-label="Writing the answer"
+          >
+            <span className="deck-ai-skeleton-line" />
+            <span className="deck-ai-skeleton-line" />
+            <span className="deck-ai-skeleton-line deck-ai-skeleton-line--short" />
+          </div>
+        )}
+
+        {phase === 'error' && error && (
+          <div className="deck-ai-error" role="alert">
+            <span>{error}</span>
+            <button type="button" className="btn" onClick={() => ask(lastAsked)}>
+              Try again
+            </button>
+          </div>
+        )}
+
+        {(answer || streamed) && (
+          <article className="rules-answer" aria-live="polite">
+            <h2 className="rules-answer-question">{answer ? answer.question : lastAsked}</h2>
+            {answer?.askedAt != null && (
+              <p className="rules-answer-when">
+                Asked {formatRelativeTime(answer.askedAt, { verbose: true })}
+              </p>
+            )}
+            {!answer && (
+              <span className="sr-only" role="status">
+                Writing the answer…
+              </span>
+            )}
+            <AnswerBody
+              content={answer ? answer.content : streamed}
+              rules={answer?.rules ?? []}
+              fetched={answer?.fetched}
+              streaming={!answer}
+            />
+          </article>
+        )}
+      </div>
 
       {/* Past questions, newest first — reopening one is a local swap. */}
       {history !== null && history.length > 1 && phase !== 'asking' && (
