@@ -67,12 +67,17 @@ export function AdminPage() {
   // once when the tab is first opened. null = not loaded yet.
   const [events, setEvents] = useState<BeaconRows | null>(null);
   const [eventsError, setEventsError] = useState<string | null>(null);
+  // Bumped by Retry so the effect re-runs (mirrors AdminPanel's reload keys).
+  const [eventsReloadKey, setEventsReloadKey] = useState(0);
   useEffect(() => {
     if (tab !== 'analytics' || events !== null) return;
     listEvents(30)
-      .then(setEvents)
+      .then((rows) => {
+        setEvents(rows);
+        setEventsError(null);
+      })
       .catch((err) => setEventsError(userMessage(err, "Couldn't load the usage counters.")));
-  }, [tab, events]);
+  }, [tab, events, eventsReloadKey]);
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
 
   // Shared hydration-aware index (undefined while the store hydrates → empty map).
@@ -263,7 +268,16 @@ export function AdminPage() {
 
       {hydrating && <p className="admin-warn">Collection store still hydrating from IndexedDB…</p>}
 
-      {tab === 'analytics' && <AnalyticsTab events={events} error={eventsError} />}
+      {tab === 'analytics' && (
+        <AnalyticsTab
+          events={events}
+          error={eventsError}
+          onRetry={() => {
+            setEventsError(null);
+            setEventsReloadKey((k) => k + 1);
+          }}
+        />
+      )}
 
       {tab === 'users' && userId && (
         <section className="admin-section admin-section--cards">
@@ -818,11 +832,22 @@ function CountTable({ caption, rows }: { caption: string; rows: [string, number]
  * by band. Aggregates client-side from the raw daily rows so the API stays
  * one trivial query per table.
  */
-function AnalyticsTab({ events, error }: { events: BeaconRows | null; error: string | null }) {
+function AnalyticsTab({
+  events,
+  error,
+  onRetry,
+}: {
+  events: BeaconRows | null;
+  error: string | null;
+  onRetry: () => void;
+}) {
   if (error) {
     return (
       <p className="admin-warn" role="alert">
-        {error}
+        {error}{' '}
+        <button type="button" className="btn-link" onClick={onRetry}>
+          Retry
+        </button>
       </p>
     );
   }

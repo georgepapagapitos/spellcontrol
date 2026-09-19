@@ -51,8 +51,8 @@ import {
 } from '../oauth/google';
 import { logger } from '../logger';
 import { getDb } from '../db';
-import { authIdentities, authTokens, deckPublications, users } from '../db/schema';
-import { invalidateDeckPublicationCache, invalidatePublicUserCache } from '../publications/cache';
+import { authIdentities, authTokens, users } from '../db/schema';
+import { purgeUserPublicCaches } from '../publications/purge';
 import { sendMail } from '../mail';
 
 /**
@@ -849,10 +849,10 @@ authRouter.patch('/profile', profileLimiter, requireAuth, async (req: Request, r
   const db = getDb();
   if (Object.keys(updates).length > 0) {
     await db.update(users).set(updates).where(eq(users.id, req.user!.id));
-    // displayName/bio/avatar are now served straight off the public-profile
-    // cache (w1-public-profile-page) — without this, an edit wouldn't show
-    // up on the user's own /u/:username page for up to the cache's TTL.
-    invalidatePublicUserCache(req.user!.username);
+    // displayName/bio/avatar are served straight off the public-read caches
+    // (the profile page AND every deck page's byline) — without this, an edit
+    // wouldn't show up on /u/:username or /d/:slug for up to the cache's TTL.
+    await purgeUserPublicCaches(req.user!.id, req.user!.username);
   }
 
   const rows = await db
@@ -881,20 +881,12 @@ authRouter.delete('/me', requireAuth, profileLimiter, async (req: Request, res: 
   const db = getDb();
   const userId = req.user!.id;
 
-  // Enumerate published slugs before the FK cascade removes them below, so
-  // the public-read caches (publications/cache.ts) can be purged too — the
-  // cascade only deletes the DB rows, it doesn't know about the in-memory
-  // caches, and those are what first makes these deck/profile pages
-  // indexable, raising the stakes on a stale-cache window post-deletion.
-  const published = await db
-    .select({ slug: deckPublications.slug })
-    .from(deckPublications)
-    .where(eq(deckPublications.userId, userId));
-
+  // Purge the public-read caches BEFORE the FK cascade removes the rows they
+  // were read from — the cascade only deletes DB rows, it doesn't know about
+  // the in-memory caches, and those are what first makes these deck/profile
+  // pages indexable, raising the stakes on a stale-cache window post-deletion.
+  await purgeUserPublicCaches(userId, req.user!.username);
   await db.delete(users).where(eq(users.id, userId));
-
-  for (const { slug } of published) invalidateDeckPublicationCache(slug);
-  invalidatePublicUserCache(req.user!.username);
 
   clearSessionCookie(res);
   res.json({ ok: true });

@@ -6,6 +6,7 @@ import { getDb, getPool } from '../db';
 import { users } from '../db/schema';
 import { invalidateDeckPublicationCache, invalidatePublicUserCache } from '../publications/cache';
 import { invalidateShareContext } from '../shares/context';
+import { purgeUserPublicCaches } from '../publications/purge';
 import { AI_MODEL, estimateUsd, type AiTokenCounts } from '../ai/client';
 
 export const adminRouter: Router = Router();
@@ -246,10 +247,17 @@ adminRouter.delete(
         .json({ error: 'You cannot delete your own account from the admin panel.' });
     }
     const db = getDb();
-    const deleted = await db.delete(users).where(eq(users.id, id)).returning({ id: users.id });
-    if (deleted.length === 0) {
+    const target = await db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1);
+    if (target.length === 0) {
       return res.status(404).json({ error: 'User not found.' });
     }
+    // Before the cascade takes the slugs and tokens with it.
+    await purgeUserPublicCaches(id, target[0].username);
+    await db.delete(users).where(eq(users.id, id));
     res.json({ ok: true });
   }
 );
@@ -281,10 +289,11 @@ adminRouter.post(
         avatarImageUrl: null,
       })
       .where(eq(users.id, id))
-      .returning({ id: users.id });
+      .returning({ id: users.id, username: users.username });
     if (cleared.length === 0) {
       return res.status(404).json({ error: 'User not found.' });
     }
+    await purgeUserPublicCaches(id, cleared[0].username);
     res.json({ ok: true });
   }
 );
