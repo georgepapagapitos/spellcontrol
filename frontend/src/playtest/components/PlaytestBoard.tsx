@@ -67,6 +67,7 @@ import {
   type ShortcutOverrides,
 } from '../lib/shortcuts';
 import { ShortcutsSheet } from './ShortcutsSheet';
+import { TableSettingsSheet } from './TableSettingsSheet';
 import { TableArrows } from './TableArrows';
 import { PhaseChip } from '@/components/play/PhaseChip';
 import { ReactionPicker } from './ReactionPicker';
@@ -207,6 +208,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const [lastSeenLogSeq, setLastSeenLogSeq] = useState(0);
   const [showDice, setShowDice] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showTableSettings, setShowTableSettings] = useState(false);
   // Card size on the wide tier: a multiplier on the density-driven card box,
   // persisted per device and applied on <body> (where `--pt-card-w` lives so
   // the drag overlay inherits it). 1 is the density the tier computes.
@@ -225,9 +227,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       return next;
     });
   }, []);
-  const resetZoom = useCallback(() => {
-    setZoom(1);
-    writeZoom(1);
+  const setZoomTo = useCallback((z: number) => {
+    const next = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z)) * 10) / 10;
+    writeZoom(next);
+    setZoom(next);
   }, []);
   // Rebindable keys, persisted per device (lib/shortcuts). Every place that
   // prints a key — the corner buttons, the table menu, the sheet — reads the
@@ -679,6 +682,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     tableMenu !== null ||
     showDice ||
     showShortcuts ||
+    showTableSettings ||
     showResistancePicker ||
     showDesignations ||
     showTakebackSettings ||
@@ -1081,12 +1085,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       onClick: () => setShowTakebackSettings(true),
     },
     { label: 'Keyboard shortcuts', onClick: () => setShowShortcuts(true) },
-    // The narrow tier sizes cards for a thumb; only the wide tier zooms.
+    // The narrow tier sizes cards for a thumb; only the wide tier has a size
+    // to set (the sheet's slider, or = and − on the keys).
     ...(!isNarrow
       ? [
-          { label: 'Bigger cards', onClick: () => stepZoom(1), disabled: zoom >= ZOOM_MAX },
-          { label: 'Smaller cards', onClick: () => stepZoom(-1), disabled: zoom <= ZOOM_MIN },
-          ...(zoom !== 1 ? [{ label: 'Reset card size', onClick: resetZoom }] : []),
+          {
+            label: `Card size: ${Math.round(zoom * 100)}%`,
+            onClick: () => setShowTableSettings(true),
+          },
         ]
       : []),
     // Fullscreen is offered only where the browser offers it (not inside the
@@ -1880,6 +1886,16 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       )}
 
       {showDice && <DiceRoller onClose={() => setShowDice(false)} />}
+      {showTableSettings && (
+        <TableSettingsSheet
+          zoom={zoom}
+          min={ZOOM_MIN}
+          max={ZOOM_MAX}
+          step={ZOOM_STEP}
+          onZoom={setZoomTo}
+          onClose={() => setShowTableSettings(false)}
+        />
+      )}
       {showShortcuts && (
         <ShortcutsSheet
           overrides={shortcutOverrides}
