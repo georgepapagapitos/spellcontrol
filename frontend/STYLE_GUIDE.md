@@ -5589,11 +5589,30 @@ Model-written text always says so. The rulings:
   live in the URL (`?tab=`, `?q=`) so a rule lookup is a linkable address.
   Its doors are utility-shaped, never a fifth primary tab: the header's
   utility cluster beside Search, the ⌘K Navigate group, and You › Help. The
-  sheet (`RulesReferenceSheet.tsx`) stays for the two places you must not
-  leave — Play's hero and the in-game menu — and is never the target of a
-  link. Don't reintroduce a header sheet trigger or a tab-bar slot: the nav
-  redesign that removed them was right about the bar, wrong to leave Rules
-  reachable only from Play.
+  sheet (`RulesReferenceSheet.tsx`) stays for the one place you must not
+  leave, the in-game menu, and is never the target of a link. Don't
+  reintroduce a header sheet trigger or a tab-bar slot: the nav redesign
+  that removed them was right about the bar, wrong to leave Rules reachable
+  only from Play.
+- **A Rules door lives in three kinds of places, never on a page** (settled
+  2026-09-19): the global utility slot (the header, every width), the place
+  you can't leave (the game menu), and a contextual escalation (the sheet's
+  "Ask a rules question" when a search came up short; a row's "Ask AI about
+  this"). The Play hero's own Rules pill sat one row under the header door
+  and was removed for that reason. The same shape as Search, which is
+  header-only and does not repeat on Collection.
+- **Every reference row has a menu** (`RulesEntryMenu`, on the shared
+  `OverflowMenu`): Copy text (the number and the official text, for the
+  group chat), Share link (the row's own `/rules?tab=…&q=…` address; the
+  native share sheet where there is one, else the clipboard), and for
+  keyword abilities only, "Cards with this keyword" (`/search?q=keyword:…`)
+  and "Search Scryfall"; keyword actions get neither, since `keyword:`
+  matches abilities and an empty result page answers nothing. "Ask AI about
+  this" seeds the Ask tab and self-hides without AI. The ⋮ is the visible
+  affordance on every pointer; right-click, the Context Menu key and
+  Shift+F10 on the row open the same menu (`openEntryMenu`). On a fine
+  pointer the ⋮ rests hidden and shows on row hover/focus, the deck list's
+  ruling; touch keeps it visible.
 - **The Rules hub uses a wide screen; the sheet never does** (settled
   2026-09-19). Below 1024px `/rules` is the 640px reading column its social
   siblings use. From 1024px it widens to the 1100px cap Search / Compare /

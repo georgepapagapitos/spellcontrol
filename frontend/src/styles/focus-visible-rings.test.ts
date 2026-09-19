@@ -41,6 +41,9 @@ const ALLOWLIST = new Set([
   '.new-arrivals-row',
   '.trade-result-row',
   '.deck-combos-row',
+  // Non-focusable head row of a keyword card: its hover only reveals the ⋮,
+  // and both the head button and the ⋮ carry their own rings.
+  '.rules-ref-keyword-row',
 ]);
 
 function cssFiles(dir: string): string[] {

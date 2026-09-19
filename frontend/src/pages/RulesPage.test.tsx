@@ -63,6 +63,7 @@ vi.mock('../lib/comprehensive-rules', async (importOriginal) => {
         keywords: [
           { name: 'Deathtouch', kind: 'ability', rule: '702.2' },
           { name: 'Flying', kind: 'ability', rule: '702.9' },
+          { name: 'Destroy', kind: 'action', rule: '701.8' },
         ],
         glossary: [{ term: 'Deathtouch', definition: 'A keyword ability. See rule 702.2.' }],
         rules: [
@@ -234,5 +235,77 @@ describe('RulesPage', () => {
     });
     expect((screen.getByRole('button', { name: 'Ask' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/Daily limit reached/)).toBeTruthy();
+  });
+});
+
+describe('RulesPage — every row has a menu', () => {
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  beforeEach(() => {
+    writeText.mockClear();
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+  });
+
+  const openMenu = (label: string) =>
+    fireEvent.click(screen.getByRole('button', { name: `Actions for ${label}` }));
+
+  it('copies the number and the official text, and copies the row address', async () => {
+    renderPage(undefined, '?tab=rules&q=702.2b');
+    await screen.findByText('Any nonzero amount of combat damage is lethal.');
+    openMenu('Rule 702.2b');
+    fireEvent.click(screen.getByText('Copy text'));
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(
+        '702.2b Any nonzero amount of combat damage is lethal.'
+      )
+    );
+    openMenu('Rule 702.2b');
+    fireEvent.click(screen.getByText('Copy link'));
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/rules?tab=rules&q=702.2b`)
+    );
+  });
+
+  it('opens from a right-click on the row too', async () => {
+    renderPage(undefined, '?tab=rules&q=702.2b');
+    const text = await screen.findByText('Any nonzero amount of combat damage is lethal.');
+    fireEvent.contextMenu(text.closest('.rules-ref-rule')!);
+    expect(screen.getByText('Copy text')).toBeTruthy();
+  });
+
+  it('offers the card searches for a keyword ability, never for a keyword action', async () => {
+    renderPage(undefined, '');
+    await screen.findByText('Deathtouch');
+    openMenu('Deathtouch');
+    expect(screen.getByText('Cards with this keyword')).toBeTruthy();
+    expect(screen.getByText('Search Scryfall')).toBeTruthy();
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    openMenu('Destroy');
+    expect(screen.getByText('Copy text')).toBeTruthy();
+    expect(screen.queryByText('Cards with this keyword')).toBeNull();
+    expect(screen.queryByText('Search Scryfall')).toBeNull();
+  });
+
+  it('"Ask AI about this" opens the Ask tab seeded, sends nothing, and the strip clears the seed', async () => {
+    renderPage(undefined, '?tab=rules&q=702.2b');
+    await screen.findByText('Any nonzero amount of combat damage is lethal.');
+    openMenu('Rule 702.2b');
+    fireEvent.click(screen.getByText('Ask AI about this'));
+    expect(screen.getByRole('tab', { name: /Ask/ }).getAttribute('aria-selected')).toBe('true');
+    expect((screen.getByLabelText('Your rules question') as HTMLTextAreaElement).value).toBe(
+      'Explain rule 702.2b.'
+    );
+    expect(requestRulesAnswer).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('tab', { name: 'Rules' }));
+    fireEvent.click(screen.getByRole('tab', { name: /Ask/ }));
+    expect((screen.getByLabelText('Your rules question') as HTMLTextAreaElement).value).toBe('');
+  });
+
+  it('has no Ask item when AI is off', async () => {
+    aiState.status = null;
+    renderPage(undefined, '?tab=rules&q=702.2b');
+    await screen.findByText('Any nonzero amount of combat damage is lethal.');
+    openMenu('Rule 702.2b');
+    expect(screen.getByText('Copy text')).toBeTruthy();
+    expect(screen.queryByText('Ask AI about this')).toBeNull();
   });
 });
