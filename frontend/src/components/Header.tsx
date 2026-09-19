@@ -1,4 +1,4 @@
-import { Link2, LogOut, Search, Settings, UserRound } from 'lucide-react';
+import { BookOpen, Link2, LogOut, Search, Settings, UserRound } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
 import { useCollectionStore } from '../store/collection';
@@ -128,6 +128,22 @@ export function Header() {
           >
             <Search width={18} height={18} strokeWidth={1.6} aria-hidden />
             <span className="site-nav-settings-label">Search</span>
+          </NavLink>
+          {/* Rules is a utility, not a hub — a lookup you reach for from any
+              page — so it sits in the utility cluster beside Search rather
+              than among the four primary links. The in-game menu and Play's
+              hero keep their quick-look sheet; this is the door to the
+              linkable /rules page (keywords, glossary, rules, Ask). */}
+          <NavLink
+            viewTransition
+            to="/rules"
+            className={({ isActive }) =>
+              isActive ? 'site-nav-settings active' : 'site-nav-settings'
+            }
+            aria-label="Rules"
+          >
+            <BookOpen width={18} height={18} strokeWidth={1.6} aria-hidden />
+            <span className="site-nav-settings-label">Rules</span>
           </NavLink>
           {isAuthed ? (
             <OverflowMenu

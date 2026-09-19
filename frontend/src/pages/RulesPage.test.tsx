@@ -52,22 +52,96 @@ beforeEach(() => {
     .mockResolvedValue({ effectiveDate: 'August 7, 2026', questions: [] });
 });
 
-const renderPage = (state?: Record<string, unknown>) =>
+vi.mock('../lib/comprehensive-rules', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('../lib/comprehensive-rules')>();
+  return {
+    ...mod,
+    loadRulesBundle: () =>
+      Promise.resolve({
+        meta: { effective: 'August 7, 2026', source: 'test' },
+        sections: [],
+        keywords: [
+          { name: 'Deathtouch', kind: 'ability', rule: '702.2' },
+          { name: 'Flying', kind: 'ability', rule: '702.9' },
+        ],
+        glossary: [{ term: 'Deathtouch', definition: 'A keyword ability. See rule 702.2.' }],
+        rules: [
+          { number: '702.2', text: 'Deathtouch is a static ability.' },
+          { number: '702.2b', text: 'Any nonzero amount of combat damage is lethal.' },
+          { number: '704.5g', text: 'A creature dealt lethal damage is destroyed.' },
+        ],
+      }),
+  };
+});
+
+/** The Ask tab — the AI Q&A's own tests open the page straight onto it. */
+const renderPage = (state?: Record<string, unknown>, search = '?tab=ask') =>
   render(
-    <MemoryRouter initialEntries={[{ pathname: '/rules', state }]}>
+    <MemoryRouter initialEntries={[{ pathname: '/rules', search, state }]}>
       <RulesPage />
     </MemoryRouter>
   );
 
-describe('RulesPage', () => {
-  it('renders the unavailable note when AI is off for the account', () => {
-    aiState.status = null;
-    renderPage();
-    expect(screen.getByText(/isn't available for you right now/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Open the rules reference' })).toBeTruthy();
+describe('RulesPage — the Rules hub', () => {
+  it('opens on the Keywords reference by default, with the Ask tab beside the three sections', async () => {
+    renderPage(undefined, '');
+    expect(screen.getByRole('heading', { level: 1, name: 'Rules' })).toBeTruthy();
+    const tabs = screen.getAllByRole('tab').map((t) => t.textContent);
+    expect(tabs).toEqual(['Keywords', 'Glossary', 'Rules', 'Ask']);
+    expect(screen.getByRole('tab', { name: 'Keywords' }).getAttribute('aria-selected')).toBe(
+      'true'
+    );
+    expect(await screen.findByText('Deathtouch')).toBeTruthy();
     expect(screen.queryByLabelText('Your rules question')).toBeNull();
   });
 
+  it('is exactly the reference when AI is off — no Ask tab, and ?tab=ask falls back to Keywords', async () => {
+    aiState.status = null;
+    renderPage();
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+      'Keywords',
+      'Glossary',
+      'Rules',
+    ]);
+    expect(screen.getByRole('tab', { name: 'Keywords' }).getAttribute('aria-selected')).toBe(
+      'true'
+    );
+    expect(await screen.findByText('Deathtouch')).toBeTruthy();
+    expect(screen.queryByLabelText('Your rules question')).toBeNull();
+    expect(screen.queryByText(/isn't available/)).toBeNull();
+  });
+
+  it('reads the section and search from the URL so a rule lookup is a linkable address', async () => {
+    renderPage(undefined, '?tab=rules&q=704.5g');
+    expect(screen.getByRole('tab', { name: 'Rules' }).getAttribute('aria-selected')).toBe('true');
+    expect((screen.getByLabelText('Search rules reference') as HTMLInputElement).value).toBe(
+      '704.5g'
+    );
+    expect(await screen.findByText('A creature dealt lethal damage is destroyed.')).toBeTruthy();
+    expect(screen.queryByText('Deathtouch is a static ability.')).toBeNull();
+  });
+
+  it('a "see rule" link jumps to the Rules section with that number searched', async () => {
+    renderPage(undefined, '?tab=glossary');
+    fireEvent.click(await screen.findByRole('button', { name: '702.2' }));
+    expect(screen.getByRole('tab', { name: 'Rules' }).getAttribute('aria-selected')).toBe('true');
+    expect((screen.getByLabelText('Search rules reference') as HTMLInputElement).value).toBe(
+      '702.2'
+    );
+    expect(await screen.findByText('Deathtouch is a static ability.')).toBeTruthy();
+  });
+
+  it('opens on Ask when the sheet door sends a question along, even without ?tab', () => {
+    renderPage({ question: 'deathtouch indestructible' }, '');
+    expect(screen.getByRole('tab', { name: /Ask/ }).getAttribute('aria-selected')).toBe('true');
+    expect((screen.getByLabelText('Your rules question') as HTMLTextAreaElement).value).toBe(
+      'deathtouch indestructible'
+    );
+    expect(requestRulesAnswer).not.toHaveBeenCalled();
+  });
+});
+
+describe('RulesPage', () => {
   it('gates the ask box behind in-place consent', () => {
     aiState.status = { optIn: false, used: 0, limit: 10 };
     renderPage();
