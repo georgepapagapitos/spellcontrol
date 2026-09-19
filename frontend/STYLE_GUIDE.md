@@ -3685,11 +3685,15 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
 - **Width caps:** `--page-max: 1400px` (page containers), `--analysis-max: 1320px`
   (deck-analysis boards) — both `margin-inline: auto`. These define the XL tier.
   Card-grid routes widen to `--page-max-wide: 1920px` by overriding `--page-max`
-  on `.app-shell:has(<route root class>)` (base-layout.css), so the header widens
-  with the page. Opt a route in only when its content is an auto-fill grid or a
-  width-derived column layout; prose and form routes stay at 1400, and nothing
-  goes uncapped — past ~1920 density hurts scanning and browser zoom serves the
-  reader better than a wider app.
+  on `.app-shell:has(<route root class>)` (base-layout.css). **The header does
+  not follow the page**: `.site-header-inner` sits on its own `--header-max`
+  (1400px) rail that no route overrides, so the brand, nav and account menu
+  are in the same place on every route and at every width — a widened page
+  grows past the header's edges, not the other way round (guard:
+  `styles/header-fixed-rail.test.ts`). Opt a route in only when its content
+  is an auto-fill grid or a width-derived column layout; prose and form
+  routes stay at 1400, and nothing goes uncapped — past ~1920 density hurts
+  scanning and browser zoom serves the reader better than a wider app.
 
 ### Other responsive rules
 
