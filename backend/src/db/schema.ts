@@ -399,6 +399,13 @@ export const gameNights = pgTable(
     /** Optional play format (e.g. 'commander'); NULL = undecided. Powers the
      *  host's "Start game" action, which seeds the Play tab's local setup. */
     format: text('format'),
+    /**
+     * Where the night is played: 'table' (one device tracks the table — the
+     * host's "Start game" seeds the local setup with the RSVPs) or 'online'
+     * (everyone on their own device — "Start game" hosts an online session).
+     * Every night before this column was at a table, hence the default.
+     */
+    venue: text('venue').notNull().default('table').$type<'table' | 'online'>(),
   },
   (t) => ({
     hostIdx: index('game_nights_host_idx').on(t.hostUserId),

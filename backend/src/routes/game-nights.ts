@@ -39,6 +39,15 @@ const LOCATION_MAX = 120;
 const NOTES_MAX = 500;
 const NAME_MAX = 40;
 const FORMAT_MAX = 40;
+
+/** Where a night is played. Not free text: the two values drive "Start game". */
+export type NightVenue = 'table' | 'online';
+const VENUE_ERROR = "venue must be 'table' or 'online'.";
+/** Absent means the table (every night before venues existed was one); anything else must be one of the two. */
+function cleanVenue(x: unknown): NightVenue | null {
+  if (x === undefined) return 'table';
+  return x === 'table' || x === 'online' ? x : null;
+}
 const MAX_INVITES = 32;
 /** Abuse bound on a public link; no real table fits more people than this. */
 const MAX_RSVPS = 64;
@@ -427,8 +436,9 @@ async function ensureNextOccurrence(seriesId: string): Promise<void> {
       cancelled_at: string | null;
       invite_only: boolean;
       format: string | null;
+      venue: NightVenue;
     }>(
-      `SELECT id, host_user_id, title, starts_at, timezone, location, notes, cancelled_at, invite_only, format
+      `SELECT id, host_user_id, title, starts_at, timezone, location, notes, cancelled_at, invite_only, format, venue
          FROM game_nights WHERE series_id = $1 ORDER BY starts_at DESC LIMIT 1`,
       [seriesId]
     );
@@ -441,8 +451,8 @@ async function ensureNextOccurrence(seriesId: string): Promise<void> {
       t = plusWeek(t, latest.timezone);
     } while (t <= now);
     const inserted = await pool.query<{ id: string }>(
-      `INSERT INTO game_nights (id, token, host_user_id, title, starts_at, timezone, location, notes, created_at, cancelled_at, series_id, invite_only, format)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, $10, $11, $12)
+      `INSERT INTO game_nights (id, token, host_user_id, title, starts_at, timezone, location, notes, created_at, cancelled_at, series_id, invite_only, format, venue)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, $10, $11, $12, $13)
        ON CONFLICT (series_id, starts_at) WHERE series_id IS NOT NULL DO NOTHING
        RETURNING id`,
       [
@@ -458,6 +468,7 @@ async function ensureNextOccurrence(seriesId: string): Promise<void> {
         seriesId,
         latest.invite_only,
         latest.format,
+        latest.venue,
       ]
     );
     if (inserted.rows.length === 0) continue; // slot already exists (race, or cancelled) — re-read
@@ -520,6 +531,7 @@ interface NightView {
   inviteOnly: boolean;
   /** Optional play format (e.g. 'commander'); null = undecided. */
   format: string | null;
+  venue: NightVenue;
   hostUsername: string;
   isHost: boolean;
   myStatus: RsvpStatus | null;
@@ -698,6 +710,7 @@ function toNightView(
     cancelledAt: night.cancelledAt,
     inviteOnly: night.inviteOnly,
     format: night.format,
+    venue: night.venue,
     hostUsername,
     isHost,
     myStatus: mine?.status ?? null,
@@ -777,6 +790,8 @@ gameNightsRouter.post('/', requireAuth, hostWriteLimiter, async (req: Request, r
   const location = cleanOptional(body.location, LOCATION_MAX) ?? null;
   const notes = cleanOptional(body.notes, NOTES_MAX) ?? null;
   const format = cleanOptional(body.format, FORMAT_MAX) ?? null;
+  const venue = cleanVenue(body.venue);
+  if (venue === null) return res.status(400).json({ error: VENUE_ERROR });
   const invitees = await cleanInvitees(req.user!.id, body.inviteUserIds);
   if (typeof invitees === 'string') {
     const status = invitees === 'You can only invite friends.' ? 403 : 400;
@@ -810,6 +825,7 @@ gameNightsRouter.post('/', requireAuth, hostWriteLimiter, async (req: Request, r
     seriesId: series?.id ?? null,
     inviteOnly: body.inviteOnly === true,
     format,
+    venue,
   };
   await db.insert(gameNights).values(night);
   if (optionSlots.length > 0) {
@@ -906,6 +922,7 @@ gameNightsRouter.get('/', requireAuth, publicLimiter, async (req: Request, res: 
     series_id: string | null;
     invite_only: boolean;
     format: string | null;
+    venue: NightVenue;
     host_username: string;
     host_display_name: string | null;
     series_token: string | null;
@@ -944,6 +961,7 @@ gameNightsRouter.get('/', requireAuth, publicLimiter, async (req: Request, res: 
         seriesId: r.series_id,
         inviteOnly: r.invite_only,
         format: r.format,
+        venue: r.venue,
       },
       r.host_display_name ?? r.host_username,
       req.user!.id,
@@ -1013,6 +1031,11 @@ gameNightsRouter.patch(
       patch.location = cleanOptional(body.location, LOCATION_MAX) ?? null;
     if (body.notes !== undefined) patch.notes = cleanOptional(body.notes, NOTES_MAX) ?? null;
     if (body.format !== undefined) patch.format = cleanOptional(body.format, FORMAT_MAX) ?? null;
+    if (body.venue !== undefined) {
+      const venue = cleanVenue(body.venue);
+      if (venue === null) return res.status(400).json({ error: VENUE_ERROR });
+      patch.venue = venue;
+    }
     if (body.inviteOnly !== undefined) {
       if (typeof body.inviteOnly !== 'boolean') {
         return res.status(400).json({ error: 'inviteOnly must be a boolean.' });
@@ -1574,6 +1597,7 @@ async function findNightByToken(
     series_id: string | null;
     invite_only: boolean;
     format: string | null;
+    venue: NightVenue;
     host_username: string;
     series_token: string | null;
     series_ended_at: string | null;
@@ -1602,6 +1626,7 @@ async function findNightByToken(
       seriesId: r.series_id,
       inviteOnly: r.invite_only,
       format: r.format,
+      venue: r.venue,
     },
     // Live-read (not a seed default): every consumer of this shared lookup —
     // the /gn/:token landing view and the OG unfurl title — prefers the
@@ -1679,6 +1704,7 @@ gameNightsRouter.get(
         cancelledAt: night.cancelledAt,
         inviteOnly: night.inviteOnly,
         format: night.format,
+        venue: night.venue,
         hostUsername,
         series,
       },

@@ -142,6 +142,7 @@ export function PlayHome({
                   minute: '2-digit',
                 })}
                 {nextNight.format ? ` · ${gameFormatLabel(nextNight.format)}` : ''}
+                {nextNight.venue === 'online' ? ' · Online' : ''}
                 {nextNight.isHost ? ' · You host' : ` · ${nextNight.hostUsername} hosts`}
               </span>
             </div>

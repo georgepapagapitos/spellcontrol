@@ -30,6 +30,7 @@ function gameNight(overrides: Partial<GameNight> & { startsAt: number }): GameNi
     cancelledAt: null,
     inviteOnly: false,
     format: null,
+    venue: 'table',
     hostUsername: 'host',
     isHost: false,
     myStatus: null,
