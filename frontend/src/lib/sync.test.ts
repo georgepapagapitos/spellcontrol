@@ -256,9 +256,8 @@ describe('native drain progress', () => {
     await flushSync();
     unsub();
 
-    const steps = [
-      ...new Set(seen.filter((p): p is NonNullable<typeof p> => p != null).map((p) => p.done)),
-    ];
+    const dones = seen.flatMap((p) => (p ? [p.done] : []));
+    const steps = [...new Set(dones)];
     expect(steps).toEqual([0, 1, 2, 3]); // 1100 ops = 500/500/100
     expect(seen.find((p) => p != null)).toMatchObject({ total: 3, ops: 1100 });
     expect(mockPush).toHaveBeenCalledTimes(3);
@@ -1657,9 +1656,10 @@ describe('web write-through (no durable outbox)', () => {
     expect(hasSyncError()).toBe(true);
     await vi.waitFor(() => expect(getPendingCount()).toBe(1), SETTLE);
     // The toast offers a retry rather than announcing a revert.
-    const toasts = useToastsStore.getState().toasts;
-    expect(toasts.some((t) => /kept on this device/i.test(t.message))).toBe(true);
-    expect(toasts.find((t) => /kept on this device/i.test(t.message))?.actionLabel).toBe('Retry');
+    const { toasts } = useToastsStore.getState();
+    const kept = toasts.find((t) => /kept on this device/i.test(t.message));
+    expect(kept).toBeDefined();
+    expect(kept?.actionLabel).toBe('Retry');
   });
 
   it('a failed write keeps an optimistically-added new row and re-sends it on retry', async () => {
@@ -1738,9 +1738,8 @@ describe('web write-through (no durable outbox)', () => {
     unsub();
     // Other emits (markSynced, pending refresh) repeat the latest snapshot, so
     // compare the distinct sequence.
-    const steps = [
-      ...new Set(seen.filter((p): p is NonNullable<typeof p> => p != null).map((p) => p.done)),
-    ];
+    const dones = seen.flatMap((p) => (p ? [p.done] : []));
+    const steps = [...new Set(dones)];
     expect(steps).toEqual([0, 1, 2, 3]);
     expect(seen.find((p) => p != null)).toMatchObject({ total: 3, ops: 4100 });
     expect(getPushProgress()).toBeNull();
@@ -1754,10 +1753,10 @@ describe('web write-through (no durable outbox)', () => {
   });
 
   it('detachPush resolves once the rows are on the device, before the push lands', async () => {
-    let release: (v: { applied: never[]; cursor: number }) => void = () => {};
-    mockPush.mockImplementationOnce(
-      () => new Promise<{ applied: never[]; cursor: number }>((r) => (release = r))
-    );
+    type Ack = { applied: never[]; cursor: number };
+    let release: (v: Ack) => void = () => {};
+    const held = new Promise<Ack>((r) => (release = r));
+    mockPush.mockImplementationOnce(() => held);
     const cards = [{ copyId: 'c-detached' }];
     await persistCardsState(cards, { detachPush: true });
     // Resolved while the server is still holding the request.
@@ -1962,12 +1961,14 @@ describe('web unsynced rows across sessions', () => {
 
     expect(mockPush).toHaveBeenCalledTimes(1);
     const body = mockPush.mock.calls[0][0] as {
-      upserts: Array<{ id: string; importId?: string }>;
+      upserts: Array<{ id: string; importId?: string; data: unknown }>;
     };
     expect(body.upserts.map((u) => u.id).sort()).toEqual(['left-1', 'left-2']);
     expect(body.upserts[0].importId).toBe('imp');
     // Sent before the delta pull went out.
-    expect(mockPush.mock.invocationCallOrder[0]).toBeLessThan(mockPull.mock.invocationCallOrder[0]);
+    const pushOrder = mockPush.mock.invocationCallOrder[0];
+    const pullOrder = mockPull.mock.invocationCallOrder[0];
+    expect(pushOrder).toBeLessThan(pullOrder);
     expect(await estore.getById('card', 'left-1')).toMatchObject({ rev: 901 });
     expect(mockPull).toHaveBeenCalledTimes(1); // no drift refetch
     expect(getPendingCount()).toBe(0);
@@ -1988,10 +1989,8 @@ describe('web unsynced rows across sessions', () => {
     await startSync('user-1');
 
     expect(mockPull).toHaveBeenCalledTimes(1); // no refetch
-    expect((await estore.getAllLive('card')).map((r) => r.id).sort()).toEqual([
-      'left-1',
-      'synced',
-    ]);
+    const ids = (await estore.getAllLive('card')).map((r) => r.id).sort();
+    expect(ids).toEqual(['left-1', 'synced']);
     expect(getPendingCount()).toBe(1);
     expect(hasSyncError()).toBe(true);
 
