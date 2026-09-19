@@ -142,7 +142,6 @@ describe('RulesPage — the Rules hub', () => {
 });
 
 describe('RulesPage', () => {
-
   it('gates the ask box behind in-place consent', () => {
     aiState.status = { optIn: false, used: 0, limit: 10 };
     renderPage();
