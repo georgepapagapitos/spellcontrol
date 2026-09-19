@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlayPage } from './PlayPage';
@@ -22,6 +22,56 @@ vi.mock('../lib/game-results-client', async (importOriginal) => {
     deleteGameResult: vi.fn(() => Promise.resolve()),
   };
 });
+
+// Signed in, the page also polls game nights; not under test here.
+vi.mock('../components/play/GameNights', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../components/play/GameNights')>();
+  return {
+    ...actual,
+    useGameNights: () => ({ nights: [], loading: false, error: null, refresh: () => {} }),
+  };
+});
+
+// The people a signed-in table can seat: two friends and one pod.
+vi.mock('../lib/friends-client', () => ({
+  listFriends: vi.fn(() =>
+    Promise.resolve([
+      { id: 'u-bob', username: 'bob', displayName: 'Bobby', friendedAt: 1, cardCount: 0 },
+      { id: 'u-cal', username: 'cal', displayName: null, friendedAt: 1, cardCount: 0 },
+    ])
+  ),
+}));
+vi.mock('../lib/pods-client', () => ({
+  listPods: vi.fn(() =>
+    Promise.resolve([
+      {
+        id: 'pod-1',
+        name: 'Thursday',
+        ownerUserId: 'me',
+        ownerUsername: 'georg',
+        createdAt: 1,
+        myStatus: 'member',
+        memberCount: 3,
+      },
+    ])
+  ),
+  getPod: vi.fn(() =>
+    Promise.resolve({
+      id: 'pod-1',
+      name: 'Thursday',
+      ownerUserId: 'me',
+      ownerUsername: 'georg',
+      createdAt: 1,
+      myStatus: 'member',
+      members: [
+        { userId: 'u-bob', username: 'bob', status: 'member', joinedAt: 2 },
+        { userId: 'me', username: 'georg', status: 'member', joinedAt: 1 },
+        { userId: 'u-cal', username: 'cal', status: 'member', joinedAt: 3 },
+        { userId: 'u-dan', username: 'dan', status: 'invited', joinedAt: null },
+      ],
+    })
+  ),
+}));
 
 function renderPage(initialEntry = '/play') {
   return render(
@@ -150,6 +200,96 @@ describe('History — removing a game asks first', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
     expect(usePlayStore.getState().history).toHaveLength(0);
     expect(screen.queryByText('Winner: Ana')).toBeNull();
+  });
+});
+
+// Seats are people: signed in, a seat is a guest, you, or a friend, and a pod
+// fills the roster in one tap. Guests' tables (every test above) are names.
+describe('Local setup — seats are people', () => {
+  beforeEach(() => {
+    usePlayStore.setState({ local: null, history: [], pendingResults: [] });
+    useAuth.setState({
+      user: { id: 'me', username: 'georg', role: 'user' },
+      status: 'authed',
+      profile: null,
+    });
+  });
+  afterEach(() => {
+    useAuth.setState({ user: null, status: 'guest', profile: null });
+    usePlayStore.setState({ local: null });
+  });
+
+  it('seats a friend: the name fills in and the started game carries their account', async () => {
+    renderPage();
+    const who = await screen.findByRole('button', { name: 'Who is in seat 2' });
+    fireEvent.click(who);
+    fireEvent.click(screen.getByRole('option', { name: 'Bobby' }));
+    const seat2 = screen.getByRole('textbox', { name: 'Player 2 name' }) as HTMLInputElement;
+    expect(seat2.value).toBe('Bobby');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Who is in seat 1' }));
+    fireEvent.click(screen.getByRole('option', { name: 'You' }));
+    expect((screen.getByRole('textbox', { name: 'Player 1 name' }) as HTMLInputElement).value).toBe(
+      'georg'
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
+    const players = usePlayStore.getState().local!.players;
+    expect(players.map((p) => [p.name, p.userId])).toEqual([
+      ['georg', 'me'],
+      ['Bobby', 'u-bob'],
+    ]);
+  });
+
+  it('never offers an account that already holds another seat', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Who is in seat 1' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Bobby' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Who is in seat 2' }));
+    expect(screen.queryByRole('option', { name: 'Bobby' })).toBeNull();
+    expect(screen.getByRole('option', { name: 'You' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Guest' })).toBeTruthy();
+  });
+
+  it('seats a whole pod in one tap, you first', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Thursday' }));
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: 'Player 3 name' })).toBeTruthy()
+    );
+    const names = [1, 2, 3].map(
+      (n) => (screen.getByRole('textbox', { name: `Player ${n} name` }) as HTMLInputElement).value
+    );
+    expect(names).toEqual(['georg', 'Bobby', 'cal']);
+    fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
+    expect(usePlayStore.getState().local!.players.map((p) => p.userId)).toEqual([
+      'me',
+      'u-bob',
+      'u-cal',
+    ]);
+  });
+
+  it("resolves a game night's account-backed seats once the friends list loads", async () => {
+    usePlayStore.getState().seedGameSetup(
+      [
+        { name: 'Bobby', username: 'bob' },
+        { name: 'Walk-up', username: null },
+      ],
+      'commander'
+    );
+    renderPage();
+    // The seat shows the account once the friends list has resolved it.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Who is in seat 1' }).textContent).toContain(
+        'Bobby'
+      )
+    );
+    expect(screen.getByRole('button', { name: 'Who is in seat 2' }).textContent).toContain('Guest');
+    fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
+    expect(usePlayStore.getState().local!.players.map((p) => [p.name, p.userId])).toEqual([
+      ['Bobby', 'u-bob'],
+      ['Walk-up', null],
+    ]);
   });
 });
 

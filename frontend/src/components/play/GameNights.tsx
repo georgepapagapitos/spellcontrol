@@ -318,7 +318,11 @@ function NightCard({
   // format, then jump to Play → Local to review and start. Caps the roster at
   // the local setup's player limit — a game night can outgrow it.
   function startGame() {
-    const names = night.rsvps.filter((r) => r.status === 'going').map((r) => r.displayName);
+    // Account-backed RSVPs carry a handle; the form seats the account behind
+    // it (so the game credits them), and a link guest just keeps their name.
+    const names = night.rsvps
+      .filter((r) => r.status === 'going')
+      .map((r) => ({ name: r.displayName, username: r.username ?? null }));
     const seeded = names.slice(0, MAX_LOCAL_PLAYERS);
     seedGameSetup(seeded, night.format);
     if (names.length > seeded.length) {

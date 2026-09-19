@@ -57,6 +57,17 @@ export interface LocalGameSetup {
   poisonEnabled: boolean;
   players: Array<{
     name: string;
+    /**
+     * The account in this seat — you, or a friend — so the finished game
+     * credits their record (see `flushPendingResults`). Absent or null is a
+     * guest: a named seat with no account, which is most seats at most
+     * tables. Optional because this is an input draft and every caller
+     * predating the field keeps working.
+     */
+    userId?: string | null;
+    /** The account's handle, kept beside `name` so a profile or rematch can
+     *  re-resolve the seat if the display name has changed since. */
+    username?: string | null;
     deckId: string | null;
     deckName: string | null;
     commander: string | null;
@@ -97,6 +108,16 @@ export interface TableProfile {
 /** Longest a profile name may be; it renders in a one-line list row. */
 export const MAX_PROFILE_NAME_LENGTH = 40;
 
+/**
+ * One seat handed to the local setup form by a game night's "Start game":
+ * the RSVP's display name, plus the handle when the RSVP is account-backed so
+ * the form can seat the account (and credit it) rather than just the name.
+ */
+export interface SeatSeed {
+  name: string;
+  username?: string | null;
+}
+
 /** Minimal shape needed to re-seed a game from a finished one. */
 export interface RematchTemplate {
   format: GameFormat;
@@ -115,6 +136,7 @@ export function gameToRematch(game: GameState): RematchTemplate {
     poisonEnabled: game.poisonEnabled,
     players: game.players.map((p) => ({
       name: p.name,
+      userId: p.userId,
       deckId: p.deckId,
       deckName: p.deckName,
       commander: p.commander,
@@ -135,6 +157,7 @@ export function recordToRematch(rec: GameRecord): RematchTemplate {
     poisonEnabled: false,
     players: rec.players.map((p) => ({
       name: p.name,
+      userId: p.userId,
       deckId: p.deckId,
       deckName: p.deckName,
       commander: p.commander,
@@ -260,7 +283,7 @@ interface PlayState {
    * names + format, then clears it. Not persisted — it's a one-shot handoff
    * to the next Play tab render, same tab in the same session.
    */
-  gameNightSeed: { players: string[]; format: GameFormat | null } | null;
+  gameNightSeed: { players: SeatSeed[]; format: GameFormat | null } | null;
 
   // ── Board visibility ────────────────────────────────────────────────────
   hideBoard(): void;
@@ -275,7 +298,7 @@ interface PlayState {
 
   // ── Game night hand-off ─────────────────────────────────────────────────
   /** Seed the local setup form with attendee names + an optional format id. */
-  seedGameSetup(names: string[], format?: string | null): void;
+  seedGameSetup(players: SeatSeed[], format?: string | null): void;
   clearGameSeed(): void;
 
   // ── Local game ──────────────────────────────────────────────────────────
@@ -747,11 +770,11 @@ export const usePlayStore = create<PlayState>()(
         });
       },
 
-      seedGameSetup: (names, format) => {
+      seedGameSetup: (players, format) => {
         const gameFormat = FORMAT_OPTIONS.some((f) => f.value === format)
           ? (format as GameFormat)
           : null;
-        set({ gameNightSeed: { players: names, format: gameFormat } });
+        set({ gameNightSeed: { players, format: gameFormat } });
       },
       clearGameSeed: () => set({ gameNightSeed: null }),
 
@@ -760,7 +783,7 @@ export const usePlayStore = create<PlayState>()(
         const players: GamePlayer[] = setup.players.map((p, i) =>
           makePlayer({
             id: `local_${i}`,
-            userId: null,
+            userId: p.userId ?? null,
             seat: i,
             name: p.name,
             deckId: p.deckId,
