@@ -344,12 +344,26 @@ app.post('/api/cards/oracle-ids', priceLimiter, (req: Request, res: Response) =>
 });
 
 /**
+ * Gzipped JSON by hand (node:zlib, the same thing `offline/bulk-cache` does)
+ * because there's no compression middleware in this app and a card-scale answer
+ * is worth ~4x on the wire. Not worth a new dependency.
+ */
+function sendGzippedJson(res: Response, payload: unknown, tag: string): void {
+  const body = Buffer.from(JSON.stringify(payload), 'utf-8');
+  gzip(body, (err, gzipped) => {
+    if (err) {
+      logger.warn(`[${tag}] gzip failed, sending uncompressed:`, err);
+      return res.type('application/json').send(body);
+    }
+    res
+      .set({ 'Content-Type': 'application/json; charset=utf-8', 'Content-Encoding': 'gzip' })
+      .send(gzipped);
+  });
+}
+
+/**
  * Bulk oracle facts by name — the collection-scale read behind cube generation.
  * See `oracle-facts.ts` for why this exists and what it deliberately omits.
- *
- * Gzipped by hand (node:zlib, the same thing `offline/bulk-cache` does) because
- * there's no compression middleware in this app and a 10k-card answer is worth
- * ~4x on the wire. Not worth a new dependency.
  */
 app.post('/api/cards/oracle-facts', priceLimiter, async (req: Request, res: Response) => {
   const raw = (req.body && (req.body as { cards?: unknown }).cards) as unknown;
@@ -372,20 +386,7 @@ app.post('/api/cards/oracle-facts', priceLimiter, async (req: Request, res: Resp
   }
 
   try {
-    const cards = await resolveOracleFacts(requests, cache);
-    const body = Buffer.from(JSON.stringify({ cards }), 'utf-8');
-    gzip(body, (err, gzipped) => {
-      if (err) {
-        logger.warn('[oracle-facts] gzip failed, sending uncompressed:', err);
-        return res.type('application/json').send(body);
-      }
-      res
-        .set({
-          'Content-Type': 'application/json; charset=utf-8',
-          'Content-Encoding': 'gzip',
-        })
-        .send(gzipped);
-    });
+    sendGzippedJson(res, { cards: await resolveOracleFacts(requests, cache) }, 'oracle-facts');
   } catch (err) {
     logger.error('[oracle-facts] failed:', err);
     res.status(502).json({ error: 'Failed to resolve card data.' });
@@ -983,6 +984,43 @@ app.get(
     const exact = typeof req.query.exact === 'string' ? req.query.exact.trim() : '';
     if (!exact) return res.status(400).json({ error: 'exact is required.' });
     res.json({ card: cache.getCheapestByName(exact, PRICE_MAX_AGE_MS) });
+  }
+);
+
+/**
+ * Batch card lookup answered from the nightly bulk dump — the many-name,
+ * many-id sibling of `/api/cards/named`, for the deck builder's batched
+ * resolves (`getCardsByNames` / `getCardsByIds`). Before this, those were
+ * always live `POST /cards/collection` batches from the browser, and every
+ * name the batch dropped became a per-name `/cards/search` from the user's IP
+ * — E333 counted 23 of them, all CORS-blocked 429s, after ONE cube build.
+ *
+ * Same rule as `/api/cards/named`: **cache-only, never a live Scryfall fetch.**
+ * A miss is simply absent from the answer and the browser keeps its own live
+ * path for it. Gated at PRICE_MAX_AGE_MS because the answer carries prices.
+ *
+ * Body: { names?: string[], ids?: string[] } (each de-duplicated, capped at
+ * LOOKUP_LIMIT). Response: { byName: Record<name as sent, card>, byId:
+ * Record<id, card> }, gzipped like oracle-facts.
+ */
+const LOOKUP_LIMIT = 500;
+app.post(
+  '/api/cards/lookup',
+  testAwareLimiter({ windowMs: 60_000, max: 240 }),
+  (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as { names?: unknown; ids?: unknown };
+    const strings = (v: unknown): string[] =>
+      Array.isArray(v)
+        ? Array.from(
+            new Set(v.filter((x): x is string => typeof x === 'string' && x.trim().length > 0))
+          ).slice(0, LOOKUP_LIMIT)
+        : [];
+    const names = strings(body.names);
+    const ids = strings(body.ids).filter((id) => UUID_RE.test(id));
+    if (names.length === 0 && ids.length === 0) {
+      return res.status(400).json({ error: 'Body must be { names?: string[], ids?: string[] }.' });
+    }
+    sendGzippedJson(res, cache.lookupCards(names, ids, PRICE_MAX_AGE_MS), 'cards/lookup');
   }
 );
 
