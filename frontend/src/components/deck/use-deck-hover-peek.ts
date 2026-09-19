@@ -51,6 +51,12 @@ export interface HoverPeekState {
  */
 export function useDeckHoverPeek({ minViewport = 0, anchor = 'pointer' }: HoverPeekOptions = {}) {
   const [peek, setPeek] = useState<HoverPeekState | null>(null);
+  // The most recent non-null peek. Survives the dismissals above (leaving a
+  // row, scrolling) so a pinned consumer — the deck's card rail — can keep
+  // showing the last card the pointer rested on instead of blinking back to
+  // a default between rows. Set in the same handler as `peek`, never in an
+  // effect (react-hooks/set-state-in-effect).
+  const [lastPeek, setLastPeek] = useState<HoverPeekState | null>(null);
   // Mirror in a ref (synced via effect, never written during render) so the
   // stable handlers can dedupe against the current peek without re-subscribing.
   const peekRef = useRef<HoverPeekState | null>(null);
@@ -113,7 +119,9 @@ export function useDeckHoverPeek({ minViewport = 0, anchor = 'pointer' }: HoverP
         anchor === 'pointer'
           ? computePointerPlacement(e.clientX, e.clientY, viewport, width, height)
           : computePeekPlacement(el.getBoundingClientRect(), viewport, width, height);
-      setPeek({ name, img, left, top, width });
+      const next = { name, img, left, top, width };
+      setPeek(next);
+      setLastPeek(next);
     },
     [minViewport, anchor]
   );
@@ -129,5 +137,5 @@ export function useDeckHoverPeek({ minViewport = 0, anchor = 'pointer' }: HoverP
 
   const onMouseLeave = useCallback(() => setPeek(null), []);
 
-  return { peek, clear, listHandlers: { onMouseOver, onMouseOut, onMouseLeave } };
+  return { peek, lastPeek, clear, listHandlers: { onMouseOver, onMouseOut, onMouseLeave } };
 }

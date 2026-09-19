@@ -2832,6 +2832,55 @@ three times on one screen, so these rulings now hold:
   re-introduce `break-inside: avoid` masonry for sections of wildly unequal
   height.
 
+## Deck list on a wide screen (2026-09-19)
+
+A 100-card Commander deck on a ~2000px display used to render as six 280px
+columns — one section each, five of them mostly empty below the fold — while
+every card name was ellipsised to ~90px behind a role code, a combo chip, a
+foil glyph, four mana pips, a price and a kebab. Compared against Moxfield's
+text view (`qty · name · ✓ · ⌄`, everything else opt-in or in a pinned
+preview) and Archidekt's static-card panel, these rulings now hold:
+
+- **Columns come from the row count, not just the width.** `listColumnCount`
+  (`deck-display-rows.ts`) takes as many columns as fit at a 320px floor,
+  capped at `ceil(rows / 30)`. A Commander deck stops at four; the leftover
+  width goes to the names. A 400-card cube still fans out. Never raise the
+  cap to "use the space" — empty columns are the failure this replaced.
+- **A deck row reads as a table.** Mana cost and price sit in fixed,
+  right-aligned slots at the trailing edge (`.deck-row .mana-cost-row`,
+  `.deck-row-price`) so the eye runs down a column of names and a column of
+  costs. Pips that float at a different x per row are what "crammed icons"
+  actually means.
+- **At rest, a row is qty · name · mana · price.** Roles default off in
+  `DEFAULT_SHOW_PREFS` (the Category lens's heading already says "Removal";
+  the tap-to-reveal badge, the Key and Show → Roles all remain, and a stored
+  preference wins). Foil and combo chips join the allocation/synergy/EDHREC
+  hints in `.deck-row-hovermeta` — hover-revealed on a fine pointer, inline
+  on touch. The ⋮ kebab keeps its slot but rests at `opacity: 0` on a fine
+  pointer and shows on row hover/focus. Add a new always-on glyph to the row
+  only by trading one out.
+- **Wide + fine pointer gets a pinned card rail, not a floating peek.**
+  `DeckCardRail` (co-located CSS) is a sticky column beside the list at
+  `(min-width: 1280px) and (hover: hover) and (pointer: fine)` showing the
+  last card the pointer rested on — the commander until then — with name,
+  mana, type line and price; clicking the art opens the preview. The
+  floating hover-peek (`DeckHoverPeek`) is suppressed while the rail shows
+  and unchanged elsewhere; the touch long-press peek is untouched. The rail
+  never owns hover state — it remembers `useDeckHoverPeek`'s last non-null
+  answer, so it doesn't blink back to the commander between rows.
+- **The group lens is a labelled dropdown.** "Group · Type ▾" (`SelectMenu`,
+  same as the collection toolbar's Group by), not three unlabelled icons.
+  A display control whose options can't be told apart at a glance gets a
+  word, not a tooltip.
+- **Stacks is the third view, and it is the grid's tile in another
+  geometry.** `DeckCardGrid layout="stacks"` renders each group as one column
+  of overlapped tiles (`.deck-card-stack`, `--stack-peek` ≈ 11% of the card
+  height so the name strip reads), the hovered/focused tile lifting by
+  z-order only — no transform, nothing below moves. Card width is the zoom
+  ladder × 1.4 (`stackWidth`), driven by the same −/+ control as the grid.
+  Toggle order is grid → stacks → list. Never fork the tile for stacks: every
+  pip, badge and allocation cue must stay shared with the grid.
+
 ## Deck diff rows (T22/E173)
 
 Any surface that shows "what changed" between two card lists — the compare

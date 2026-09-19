@@ -8,17 +8,17 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  GalleryVerticalEnd,
   Hand,
+  Layers,
   LayoutGrid,
   List as ListIconLucide,
   Share2,
-  Shapes,
-  Tag as TagIcon,
-  Tags,
 } from 'lucide-react';
 import { Legend, LegendContent } from '../Legend';
 import { OverflowMenu } from '../OverflowMenu';
 import { SearchPill } from '../SearchPill';
+import { SelectMenu } from '../SelectMenu';
 import { SortMenu, type SortMenuOption } from '../SortMenu';
 import { ViewModeToggle as SharedViewModeToggle } from '../ViewModeToggle';
 import { ZoomControl } from '../ZoomControl';
@@ -235,9 +235,9 @@ function DeckViewPopoverPanel({
       </div>
       <div className="view-popover-row">
         <span className="view-popover-row-label">Group by</span>
-        <DeckGroupByToggle value={groupBy} onChange={onGroupByChange} />
+        <DeckGroupByMenu value={groupBy} onChange={onGroupByChange} labelled={false} />
       </div>
-      {viewMode === 'grid' && (
+      {viewMode !== 'list' && (
         <div className="view-popover-row">
           <span className="view-popover-row-label">Card size</span>
           <ZoomControl
@@ -368,9 +368,9 @@ export function DeckToolbar({
 
         {!isNarrowGrid && <DeckViewModeToggle value={viewMode} onChange={onViewModeChange} />}
 
-        {!isNarrowGrid && <DeckGroupByToggle value={groupBy} onChange={onGroupByChange} />}
+        {!isNarrowGrid && <DeckGroupByMenu value={groupBy} onChange={onGroupByChange} />}
 
-        {!isNarrowGrid && viewMode === 'grid' && (
+        {!isNarrowGrid && viewMode !== 'list' && (
           <ZoomControl
             zoom={gridZoom}
             width={gridWidth}
@@ -463,7 +463,9 @@ export function DeckToolbar({
 
 // ── View mode segmented control ──────────────────────────────────────────
 // Thin wrapper around the shared <SharedViewModeToggle /> with deck-specific
-// options (grid / list / text). No 'compact' — see the type declaration.
+// options, richest → sparsest per STYLE_GUIDE: grid (every card in full) →
+// stacks (name strips, hover to lift) → list. No 'compact' — see the type
+// declaration.
 function DeckViewModeToggle({
   value,
   onChange,
@@ -483,6 +485,11 @@ function DeckViewModeToggle({
           icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
         },
         {
+          value: 'stacks',
+          label: 'Stacks view',
+          icon: <GalleryVerticalEnd width={14} height={14} strokeWidth={2} aria-hidden />,
+        },
+        {
           value: 'list',
           label: 'List view',
           icon: <ListIconLucide width={14} height={14} strokeWidth={2} aria-hidden />,
@@ -492,40 +499,39 @@ function DeckViewModeToggle({
   );
 }
 
-// ── Group-by segmented control (E124) ────────────────────────────────────
-// Thin wrapper around <SharedViewModeToggle />, same family as
-// DeckViewModeToggle above — 'type' (canonical card type, the long-standing
-// default) or 'category' (the generator's 8-bucket DeckCategory shape, with
-// target gauges).
-function DeckGroupByToggle({
+// ── Group-by menu (E124, +'tag' E171; a labelled dropdown since 2026-09-19) ──
+// 'type' (canonical card type, the long-standing default), 'category' (the
+// generator's 8-bucket DeckCategory shape, with target gauges) or 'tag' (user
+// tags). This was a three-icon segmented toggle (Shapes / Tags / Tag) — three
+// near-identical unlabelled glyphs that nobody could read; Moxfield and
+// Archidekt both spell it out as "Group: Type ▾", and so does the collection
+// toolbar's own Group by menu (CardListTable), which this now matches.
+const GROUP_BY_LABEL: Record<DeckGroupBy, string> = {
+  type: 'Type',
+  category: 'Category',
+  tag: 'Tags',
+};
+const GROUP_BY_ORDER: DeckGroupBy[] = ['type', 'category', 'tag'];
+
+function DeckGroupByMenu({
   value,
   onChange,
+  labelled = true,
 }: {
   value: DeckGroupBy;
   onChange: (g: DeckGroupBy) => void;
+  /** The narrow "View" panel already captions the row "Group by", so its
+   *  trigger drops the visible label and keeps only the aria one. */
+  labelled?: boolean;
 }) {
   return (
-    <SharedViewModeToggle<DeckGroupBy>
+    <SelectMenu<DeckGroupBy>
       ariaLabel="Group cards by"
+      label={labelled ? 'Group' : undefined}
       value={value}
+      options={GROUP_BY_ORDER.map((g) => ({ value: g, label: GROUP_BY_LABEL[g] }))}
       onChange={onChange}
-      options={[
-        {
-          value: 'type',
-          label: 'Group by type',
-          icon: <Shapes width={14} height={14} strokeWidth={2} aria-hidden />,
-        },
-        {
-          value: 'category',
-          label: 'Group by category',
-          icon: <Tags width={14} height={14} strokeWidth={2} aria-hidden />,
-        },
-        {
-          value: 'tag',
-          label: 'Group by tag',
-          icon: <TagIcon width={14} height={14} strokeWidth={2} aria-hidden />,
-        },
-      ]}
+      leadingIcon={<Layers width={14} height={14} strokeWidth={2} aria-hidden />}
     />
   );
 }

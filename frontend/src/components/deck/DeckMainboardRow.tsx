@@ -683,8 +683,6 @@ function DeckCardRow({
             </span>
           )}
           {legalityIssue && <LegalityBadge issue={legalityIssue} className="deck-row-illegal" />}
-          {row.foil && <FoilBadge card={row} />}
-          {row.card.oracle_id && <ComboBadge oracleId={row.card.oracle_id} matches={combos} />}
           {/* User tags (E171) — always visible when set (never hover-gated,
               unlike the system-derived hints below): a card's own tags are
               user-authored content, and staying visible is exactly what
@@ -708,6 +706,13 @@ function DeckCardRow({
               full-width. Allocation status is still conveyed at rest via the
               dimmed qty cell (deck-row-qty-missing) and the deck-level banner. */}
           <span className="deck-row-hovermeta">
+            {/* Foil and combo membership moved in here (2026-09-19): both are
+                facts about the card, not the list, and each was one more glyph
+                between the name and its mana cost on every row. They still
+                read at rest on touch, and the foil is on the printing
+                sub-rows and the preview; combos have their own panel. */}
+            {row.foil && <FoilBadge card={row} />}
+            {row.card.oracle_id && <ComboBadge oracleId={row.card.oracle_id} matches={combos} />}
             <AllocationChip row={row} />
             {/* S2: per-card pick provenance folds into whichever of these two
                 tooltips already renders for this row, as an extra "Why it's
