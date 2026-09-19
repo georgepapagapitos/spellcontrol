@@ -104,6 +104,9 @@ export async function fetchPublicShare(token: string): Promise<PublicShareRespon
   if (res.status === 401) {
     throw new ShareAuthRequiredError();
   }
+  if (res.status === 403) {
+    throw new ShareForbiddenError();
+  }
   if (!res.ok) {
     throw new Error(
       await readError(res, "Couldn't load this shared page. Check the link and try again.")
@@ -156,6 +159,16 @@ export class ShareAuthRequiredError extends Error {
   constructor() {
     super('Sign in to view this shared content.');
     this.name = 'ShareAuthRequiredError';
+  }
+}
+
+/** Thrown when a signed-in viewer opens a friends-only share of someone who
+ *  is not their friend (403). An expected outcome of the audience gate, not a
+ *  failure — the pages render "Friends only", never "Something went wrong". */
+export class ShareForbiddenError extends Error {
+  constructor() {
+    super('This share is only visible to the owner’s friends.');
+    this.name = 'ShareForbiddenError';
   }
 }
 

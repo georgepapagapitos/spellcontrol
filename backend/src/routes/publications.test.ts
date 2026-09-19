@@ -525,3 +525,69 @@ describe('publishing retires the lesser visibility rungs', () => {
     expect(await revokedAt(linkToken)).not.toBeNull();
   });
 });
+
+describe('the ladder is exclusive both ways: minting a link or friends share retires a live publication', () => {
+  // Playtest batch 11: the share dialog minted a link share on a published
+  // deck and reported "Anyone with link" while /d/:slug and the profile shelf
+  // stayed live — a deck carrying link + friends + public at once.
+  it('a link share unpublishes the deck (frozen slug, so a republish is the same URL)', async () => {
+    const cookie = await makeUser('pub-stepdown');
+    await setDisplayName(cookie, 'Step Down');
+    await setSnapshotViaSyncApi(request(app), cookie, { decks: [makeDeck('deck-stepdown')] });
+    const pub = await request(app)
+      .post('/api/publications/decks/deck-stepdown')
+      .set('Cookie', cookie);
+    expect(pub.status).toBe(201);
+    const slug = pub.body.publication.slug as string;
+    expect((await request(app).get(`/api/public/decks/${slug}`)).status).toBe(200);
+
+    const mint = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'deck', resourceId: 'deck-stepdown' });
+    expect(mint.status).toBe(201);
+
+    const status = await request(app)
+      .get('/api/publications/decks/deck-stepdown')
+      .set('Cookie', cookie);
+    expect(status.body.publication.unpublishedAt).not.toBeNull();
+    // The public read cache was purged with it, not left to its TTL.
+    expect((await request(app).get(`/api/public/decks/${slug}`)).status).toBe(404);
+
+    const again = await request(app)
+      .post('/api/publications/decks/deck-stepdown')
+      .set('Cookie', cookie);
+    expect(again.status).toBe(200);
+    expect(again.body.publication.slug).toBe(slug);
+  });
+
+  it('a friends share does too; a direct share (not a rung) does not', async () => {
+    const cookie = await makeUser('pub-stepdown2');
+    await setDisplayName(cookie, 'Step Down Two');
+    await setSnapshotViaSyncApi(request(app), cookie, { decks: [makeDeck('deck-stepdown2')] });
+    expect(
+      (await request(app).post('/api/publications/decks/deck-stepdown2').set('Cookie', cookie))
+        .status
+    ).toBe(201);
+    // direct needs a friend; a bare direct mint fails validation before the
+    // ladder step, so assert on the publication after a friends mint only,
+    // and that a failed direct mint leaves a live publication alone.
+    const direct = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'deck', resourceId: 'deck-stepdown2', audience: 'direct' });
+    expect(direct.status).toBe(400);
+    let status = await request(app)
+      .get('/api/publications/decks/deck-stepdown2')
+      .set('Cookie', cookie);
+    expect(status.body.publication.unpublishedAt).toBeNull();
+
+    const friends = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'deck', resourceId: 'deck-stepdown2', audience: 'friends' });
+    expect(friends.status).toBe(201);
+    status = await request(app).get('/api/publications/decks/deck-stepdown2').set('Cookie', cookie);
+    expect(status.body.publication.unpublishedAt).not.toBeNull();
+  });
+});

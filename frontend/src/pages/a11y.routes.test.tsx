@@ -115,6 +115,7 @@ import { FriendHubPage } from './FriendHubPage';
 import { PublicDeckPage } from './PublicDeckPage';
 import { PublicProfilePage } from './PublicProfilePage';
 import { SharedView } from './SharedView';
+import { PublicDeckPlaytestPage } from './PublicDeckPlaytestPage';
 import { GameNightView } from './GameNightView';
 
 const runAxe = configureAxe({
@@ -273,6 +274,12 @@ const CASES: RouteCase[] = [
     guest: true,
     routes: <Route path="/s/:token" element={<SharedView />} />,
     ready: /went wrong|shared|couldn|found|sign in/i,
+  },
+  {
+    path: '/d/some-deck/playtest',
+    guest: true,
+    routes: <Route path="/d/:slug/playtest" element={<PublicDeckPlaytestPage />} />,
+    ready: /deck|couldn|found/i,
   },
   {
     path: '/gn/tok',

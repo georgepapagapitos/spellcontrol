@@ -372,6 +372,55 @@ describe('ShareDialog — Public supersedes the lesser rungs', () => {
   });
 });
 
+describe('ShareDialog — stepping down from Public', () => {
+  // Playtest batch 11: picking "Anyone with link" on a published deck minted
+  // the link while the deck stayed public; picking Public again then merely
+  // "reviewed" the stale publication instead of republishing. The server now
+  // retires the publication on the mint (routes/shares.ts), and the dialog
+  // must not keep believing the deck is live.
+  it('after minting a link share, picking Public again goes through the confirm and republishes', async () => {
+    getPublicationMock.mockResolvedValue({
+      slug: 'test-deck',
+      url: 'https://spellcontrol.com/d/test-deck',
+      publishedAt: 1,
+      updatedAt: 1,
+      unpublishedAt: null,
+      viewCount: 5,
+      copyCount: 2,
+    });
+    createShareMock.mockResolvedValue({
+      token: 'tok-link',
+      userId: 'u1',
+      kind: 'deck',
+      resourceId: 'd1',
+      audience: 'link',
+      addresseeId: null,
+      createdAt: 1,
+      revokedAt: null,
+    });
+    publishDeckMock.mockResolvedValue({
+      slug: 'test-deck',
+      url: 'https://spellcontrol.com/d/test-deck',
+      publishedAt: 1,
+      updatedAt: 2,
+      unpublishedAt: null,
+      viewCount: 5,
+      copyCount: 2,
+    });
+
+    renderDialog({ resourceId: 'd1', resourceLabel: 'Test Deck', onClose: () => {} });
+    await screen.findByRole('button', { name: 'Unpublish' });
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Anyone with link' }));
+    await waitFor(() => expect(createShareMock).toHaveBeenCalledTimes(1));
+    await screen.findByDisplayValue('https://spellcontrol.com/s/tok-link');
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Make it public' }));
+    await waitFor(() => expect(publishDeckMock).toHaveBeenCalledWith('d1'));
+  });
+});
+
 describe('ShareDialog — reopening an already-published deck', () => {
   it('pre-selects Public with no extraneous createShare call', async () => {
     getPublicationMock.mockResolvedValue({

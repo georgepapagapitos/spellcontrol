@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
-import { fetchPublicShare, ShareAuthRequiredError, ShareNotFoundError } from '../lib/share-client';
+import {
+  fetchPublicShare,
+  ShareAuthRequiredError,
+  ShareForbiddenError,
+  ShareNotFoundError,
+} from '../lib/share-client';
 import type { PublicShareResponse } from '../lib/shared-types';
 import { useDocumentTitle } from '../lib/use-document-title';
 import { SharedCollectionView } from '../components/share/SharedCollectionView';
@@ -54,6 +59,7 @@ function SharedViewInner({ token }: { token: string }) {
     | { status: 'loading' }
     | { status: 'notFound' }
     | { status: 'authRequired' }
+    | { status: 'forbidden' }
     | { status: 'error'; message: string }
     | { status: 'ready'; payload: PublicShareResponse }
   >({ status: 'loading' });
@@ -70,6 +76,8 @@ function SharedViewInner({ token }: { token: string }) {
           setState({ status: 'notFound' });
         } else if (err instanceof ShareAuthRequiredError) {
           setState({ status: 'authRequired' });
+        } else if (err instanceof ShareForbiddenError) {
+          setState({ status: 'forbidden' });
         } else {
           setState({
             status: 'error',
@@ -107,6 +115,19 @@ function SharedViewInner({ token }: { token: string }) {
         <p>The owner shared this with their friends. Sign in to view it.</p>
         <Link to={signInHref} className="btn btn-primary shared-copy-btn">
           Sign in
+        </Link>
+      </div>
+    );
+  }
+  if (state.status === 'forbidden') {
+    // A signed-in stranger. Nothing went wrong — the gate did its job — so
+    // the page says what the gate means and where a friendship starts.
+    return (
+      <div className="shared-view shared-view--missing">
+        <h1>Friends only</h1>
+        <p>The owner shared this with their friends, and you aren’t on their list yet.</p>
+        <Link to="/friends" className="btn btn-primary shared-copy-btn">
+          Go to Friends
         </Link>
       </div>
     );
