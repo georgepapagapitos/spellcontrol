@@ -141,6 +141,19 @@ describe('OpeningHandSheet online curtain', () => {
     expect(root()).toBeNull();
   });
 
+  it('waits for arrivals, never counts itself in, when nobody else is seated', () => {
+    vi.useFakeTimers();
+    stubViewport(true);
+    // PlaytestBoard checks the opponent COUNT before `every()` — an empty
+    // table would otherwise report itself all-kept and start the countdown.
+    renderSheet({ phase: 'playing', online: { waitingOn: [], allKept: false } });
+    expect(screen.getByText('Waiting for players to join')).toBeTruthy();
+
+    act(() => void vi.advanceTimersByTime(5000));
+    expect(screen.getByText('Waiting for players to join')).toBeTruthy();
+    expect(root()).toBeTruthy();
+  });
+
   it('is nothing at all once the phase moves on solo', () => {
     stubViewport(true);
     renderSheet({ phase: 'playing' });

@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   DndContext,
   KeyboardSensor,
   PointerSensor,
   closestCenter,
+  pointerWithin,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
+  type Modifier,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -15,7 +18,6 @@ import {
   sortableKeyboardCoordinates,
   useSortable,
 } from '@dnd-kit/sortable';
-import { restrictToParentElement } from '@dnd-kit/modifiers';
 import { CSS } from '@dnd-kit/utilities';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useMediaQuery } from '@/lib/use-media-query';
@@ -94,6 +96,17 @@ function nameList(names: string[]): string {
   if (names.length <= 1) return names[0] ?? '';
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
+
+/** In the fan, a card's axis-aligned box covers a third of its neighbour's, so
+ *  box-vs-box collision is guesswork: `closestCenter` alone hands the drop to
+ *  whichever centre happens to be nearest rather than the card under the
+ *  pointer. `pointerWithin` answers with the card you are actually pointing at;
+ *  `closestCenter` only covers the gap when the pointer is over no card at all
+ *  (the arc leaves wedges between them, and the sheet tier has row gaps). */
+const fanCollision: CollisionDetection = (args) => {
+  const pointed = pointerWithin(args);
+  return pointed.length > 0 ? pointed : closestCenter(args);
+};
 
 export function OpeningHandSheet({
   phase,
@@ -294,6 +307,26 @@ export function OpeningHandSheet({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  // dnd-kit's `restrictToParentElement` clamps to the dragged node's PARENT.
+  // Since each card gained a fan slot, that parent is a box exactly the card's
+  // own size, which pinned every drag to zero movement (and in the sheet tier
+  // the slot is `display: contents`, so it has no box at all). Clamp to the
+  // hand container instead — same intent, the right box. An axis is left alone
+  // when the container isn't bigger than the card on it, so a rotated card
+  // whose bounding box overhangs the row can't invert the bounds.
+  const cardsRef = useRef<HTMLDivElement>(null);
+  const restrictToHand = useCallback<Modifier>(({ draggingNodeRect, transform }) => {
+    const box = cardsRef.current?.getBoundingClientRect();
+    if (!draggingNodeRect || !box) return transform;
+    const clamp = (v: number, lo: number, hi: number) =>
+      lo > hi ? v : Math.min(Math.max(v, lo), hi);
+    return {
+      ...transform,
+      x: clamp(transform.x, box.left - draggingNodeRect.left, box.right - draggingNodeRect.right),
+      y: clamp(transform.y, box.top - draggingNodeRect.top, box.bottom - draggingNodeRect.bottom),
+    };
+  }, []);
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -327,7 +360,9 @@ export function OpeningHandSheet({
     : countdown == null
       ? onlineWaiting.waitingOn.length > 0
         ? `Waiting for ${nameList(onlineWaiting.waitingOn)}`
-        : 'Waiting for the table'
+        : // Nobody left to name and nobody has kept: this is the only seat at
+          // the table, so the game is waiting on arrivals, not a decision.
+          'Waiting for players to join'
       : countdown > 0
         ? `Game starts in ${countdown}s`
         : 'Game has started';
@@ -391,15 +426,16 @@ export function OpeningHandSheet({
 
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={fanCollision}
           onDragEnd={handleDragEnd}
-          modifiers={[restrictToParentElement]}
+          modifiers={[restrictToHand]}
         >
           {/* `rectSortingStrategy` (not the horizontal one) and no horizontal-
               axis restriction: the hand wraps to two rows on phones, and a
               horizontal-only drag can't move a card between rows. */}
           <SortableContext items={order} strategy={rectSortingStrategy}>
             <div
+              ref={cardsRef}
               className="playtest-opening-cards"
               // Card width is a share of this container (see the sheet rules
               // above); the live count keeps that exact for a short hand too.

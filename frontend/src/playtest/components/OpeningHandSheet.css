@@ -483,9 +483,22 @@
 }
 
 .is-takeover .playtest-opening-cards {
-  /* Card width; height follows from the 5/7 aspect. ~336px tall on a 2000px
-     screen, ~210px on a 1024px tablet — readable at both. */
-  --oh-w: clamp(150px, 12vw, 240px);
+  /* Card width. Height follows from the 5/7 aspect, so height = width * 1.4,
+     and the fan is the only thing here that can push the actions off-screen.
+     Two bounds, whichever is smaller:
+
+       width  = clamp(150px, min(16vw, (100vh - 380px) / 1.4), 300px)
+
+     - 16vw is the benchmark's share of the screen.
+     - 380px is everything the column spends outside the cards: heading up to
+       64 + hint 20 + the fan's own 24 top / 48 bottom padding + actions 56 +
+       status 24 + toggles 44 + four 16px column gaps + 2 x 32 page padding.
+     - 150px floor, 300px cap.
+
+     Lands at 164px on a 1024x768 tablet (vw-bound), 230px at 1440x900
+     (vw-bound), 300px at 1920x1080 (capped) and 157px on a 1024x600 slab,
+     where the height term is what saves the buttons. */
+  --oh-w: clamp(150px, min(16vw, (100vh - 380px) / 1.4), 300px);
   flex-wrap: nowrap;
   align-items: flex-start;
   gap: 0;
@@ -563,7 +576,13 @@
 
 /* ── Actions, status, settings ────────────────────────────────────────── */
 
+/* The actions are always on top of the fan. On a short slab (1024x600) the
+   card width bottoms out at its 150px floor and the arc's outer cards reach
+   the actions row; the slots carry a z-index, so without this they would paint
+   over the buttons AND swallow taps on their top edge. */
 .is-takeover .playtest-opening-footer {
+  position: relative;
+  z-index: 30;
   justify-content: center;
   gap: var(--space-3);
 }

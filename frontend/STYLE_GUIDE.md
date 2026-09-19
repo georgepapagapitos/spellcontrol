@@ -1838,6 +1838,23 @@ sheet is unchanged — a phone has no room for the fan.
   card fully out of the fan: straight, lifted 24px, scaled 1.06, in front.
   Cards deal in on mount and after every mulligan, 16ms apart, under 300ms
   total, and not at all under `prefers-reduced-motion`.
+- **The fan is bounded by the height budget, not just the width.**
+  `clamp(150px, min(16vw, (100vh - 380px) / 1.4), 300px)` — 16vw is the share
+  of the screen the cards want, `(100vh - 380px) / 1.4` is what is left once
+  heading, hint, actions, status and toggles have been paid for (1.4 is the
+  5/7 card aspect). A layout that can push the actions off a short slab is a
+  bug, not a trade: the actions carry their own `z-index` so the arc's outer
+  cards tuck behind them rather than over them.
+- **A wrapper breaks dnd-kit's parent-relative helpers.** Adding the fan slot
+  silently killed drag-to-reorder at every width: `restrictToParentElement`
+  clamps to the dragged node's parent, which became a box exactly the card's
+  size (and no box at all in the sheet tier, where the slot is
+  `display: contents`). It is replaced by a modifier that clamps to the hand
+  container. Collision is `pointerWithin` first, `closestCenter` only as the
+  fallback — overlapping rotated cards make nearest-centre a guess, and the
+  card under the pointer is the one the player means. Prove a reorder in a
+  real browser with stepped `mouse.move` after touching any of this; no unit
+  test sees it.
 - **Three actions, one row, in rising commitment:** View battlefield (ghost),
   Mulligan (warn tone), Keep hand (primary, and where focus lands on open).
   "View battlefield" is a _peek_: the whole takeover goes
@@ -1850,7 +1867,9 @@ sheet is unchanged — a phone has no room for the fan.
   counts the table in — "Game starts in 3s", 2, 1, "Game has started" for
   800ms — and lifts. The countdown line is `aria-live="polite"`. A seat with
   no board yet, or one published by a client predating the field, reads as
-  still choosing: absent is never "ready".
+  still choosing: absent is never "ready". Seated alone, the curtain says
+  "Waiting for players to join" and never counts down — `every()` over no
+  opponents is `true`, so the count is checked first.
 
 ### Opponent rail — never hide a seat
 
