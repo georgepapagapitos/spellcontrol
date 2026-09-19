@@ -75,8 +75,12 @@
     transform 0.15s ease;
 }
 
-.play-home-door:hover {
-  border-color: var(--border-strong);
+/* Hover only where a hover exists — a touch tap must not leave the door
+   stuck in its hover state (the E68 cross-device guard). */
+@media (hover: hover) and (pointer: fine) {
+  .play-home-door:hover {
+    border-color: var(--border-strong);
+  }
 }
 
 .play-home-door:focus-visible {
