@@ -16,9 +16,13 @@ vi.mock('../lib/card-tags', () => ({
   listCardTagsRanked: () => [
     { slug: 'removal', count: 6258 },
     { slug: 'mana-rock', count: 369 },
+    // A corpus tag with no description anywhere (not curated, none from Scryfall).
+    { slug: 'typal', count: 4102 },
   ],
-  cardTagLabel: (tag: string) => (tag === 'mana-rock' ? 'Mana rock' : 'Removal'),
+  cardTagLabel: (tag: string) =>
+    tag === 'mana-rock' ? 'Mana rock' : tag === 'typal' ? 'Typal' : 'Removal',
   cardTagDescription: () => '',
+  cardTagsGeneratedAt: () => '2026-09-01T15:12:06.395Z',
 }));
 
 const searchQueries: string[] = [];
@@ -49,6 +53,18 @@ describe('TagsPage', () => {
     expect(screen.getByRole('button', { name: /Removal/ }).textContent).toContain('6,258 cards');
     expect(screen.queryByTestId('results')).toBeNull();
     expect(screen.getByText('Pick a tag to see what it finds.')).toBeTruthy();
+  });
+
+  it("never prints a row's label as its own description, and dates the counts (playtest batch 10)", () => {
+    renderPage();
+    // "Typal · 4,102 cards" and nothing more — not "Typal · 4,102 cards · Typal".
+    const row = screen.getByRole('button', { name: /Typal/ });
+    expect(row.textContent).toBe('Typal4,102 cards');
+    expect(row.querySelector('.tags-row-desc')).toBeNull();
+    // The count is the snapshot's, and the page says so.
+    expect(
+      screen.getByText(/Card counts are from Scryfall's tag data as of Sep 1, 2026\./)
+    ).toBeTruthy();
   });
 
   it("collapses the browser on the first pick so results aren't pushed off-screen", () => {

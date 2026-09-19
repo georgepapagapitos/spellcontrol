@@ -60,6 +60,8 @@ let tagMeta: Map<string, { label: string; description: string }> = new Map();
 /** slug → how many corpus cards carry it, most-used first (the tag explorer's
  *  default ordering). Counted during load — the walk is already happening. */
 let rankedTags: TagCount[] = [];
+/** The snapshot's own build stamp — the date its card counts are true of. */
+let generatedAt: string | null = null;
 let loadPromise: Promise<void> | null = null;
 
 const listeners = new Set<() => void>();
@@ -98,6 +100,7 @@ export async function ensureCardTags(): Promise<void> {
           "Couldn't load card tags. Binder tag rules may not match anything right now."
         );
       const data: OtagIndex = await res.json();
+      generatedAt = typeof data.generatedAt === 'string' ? data.generatedAt : null;
 
       const slugs = data.tags.map((t) => t.s);
       tagMeta = new Map(data.tags.map((t) => [t.s, { label: t.l, description: t.d }]));
@@ -160,6 +163,12 @@ export function listCardTags(): string[] {
 /** Corpus tags with card counts, most-used first. Empty until loaded. */
 export function listCardTagsRanked(): TagCount[] {
   return rankedTags;
+}
+
+/** ISO stamp of the loaded snapshot (its counts are true as of then), or null
+ *  until loaded. */
+export function cardTagsGeneratedAt(): string | null {
+  return generatedAt;
 }
 
 /** Scryfall's own description for a tag, or '' when it has none / isn't loaded.
