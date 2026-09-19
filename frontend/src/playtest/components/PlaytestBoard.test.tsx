@@ -361,3 +361,41 @@ describe('PlaytestBoard — rebindable shortcuts', () => {
     expect(screen.getByRole('menuitem', { name: /Draw/ }).textContent).toContain('W');
   });
 });
+
+// Card size on the wide tier: = and − zoom when nothing is selected, the
+// value lives on <body> so the drag overlay inherits it, and it is remembered.
+describe('PlaytestBoard — card size', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('= and − step the zoom with nothing selected, and the menu offers a reset once it moved', () => {
+    const { unmount } = render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(document.body.style.getPropertyValue('--pt-zoom')).toBe('1');
+    fireEvent.keyDown(window, { key: '=' });
+    expect(document.body.style.getPropertyValue('--pt-zoom')).toBe('1.1');
+    fireEvent.keyDown(window, { key: '-' });
+    fireEvent.keyDown(window, { key: '-' });
+    expect(document.body.style.getPropertyValue('--pt-zoom')).toBe('0.9');
+    expect(localStorage.getItem('playtest-zoom-v1')).toBe('0.9');
+    // No counter was ever asked for: nothing selected means the keys zoom.
+    expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_COUNTER' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Reset card size' }));
+    expect(document.body.style.getPropertyValue('--pt-zoom')).toBe('1');
+    unmount();
+    expect(document.body.style.getPropertyValue('--pt-zoom')).toBe('');
+  });
+
+  it('remembers the size across mounts', () => {
+    localStorage.setItem('playtest-zoom-v1', '1.3');
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(document.body.style.getPropertyValue('--pt-zoom')).toBe('1.3');
+  });
+});

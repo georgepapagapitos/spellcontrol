@@ -125,3 +125,45 @@ describe('LogDock', () => {
     expect(screen.queryByRole('button', { name: 'Open the log in its own window' })).toBeNull();
   });
 });
+
+// The phase strip: five icons, the current one lit; buttons on your turn only.
+describe('LogDock — phase strip', () => {
+  it('is absent off the table and read-only on someone else’s turn', () => {
+    const { unmount } = render(<LogDock log={log} onClose={() => {}} />);
+    expect(screen.queryByLabelText(/^Phase:/)).toBeNull();
+    unmount();
+    render(
+      <LogDock
+        log={log}
+        onClose={() => {}}
+        phase={{ current: 'combat', mine: false, onSet: () => {} }}
+      />
+    );
+    const strip = screen.getByRole('status', { name: 'Phase: Combat phase' });
+    expect(strip).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Combat phase' })).toBeNull();
+    expect(screen.getByRole('img', { name: 'Combat phase' }).className).toContain('is-current');
+  });
+
+  it('on your turn each icon sets the clock to that phase', () => {
+    const onSet = vi.fn();
+    render(
+      <LogDock log={log} onClose={() => {}} phase={{ current: 'main1', mine: true, onSet }} />
+    );
+    const main1 = screen.getByRole('button', { name: 'First main phase' });
+    expect(main1.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'End phase' }));
+    expect(onSet).toHaveBeenCalledWith('end');
+  });
+
+  it('reads as unlit before the clock starts', () => {
+    render(
+      <LogDock
+        log={log}
+        onClose={() => {}}
+        phase={{ current: undefined, mine: false, onSet: () => {} }}
+      />
+    );
+    expect(screen.getByRole('status', { name: 'The phase clock has not started' })).toBeTruthy();
+  });
+});
