@@ -857,6 +857,15 @@ export function YouPage() {
 
         <SettingsSection id="settings-help-title" title="Help">
           <SettingsRow
+            value="Rules reference"
+            hint="Keywords, the glossary, and every rule by number from the Comprehensive Rules."
+            actions={
+              <Link to="/rules" className="btn">
+                Open rules
+              </Link>
+            }
+          />
+          <SettingsRow
             value="Help & guides"
             hint="Import walkthroughs, binder setup, and format comparisons."
             actions={

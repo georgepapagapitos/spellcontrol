@@ -46,6 +46,12 @@ const ROUTES: ReadonlyArray<{ label: string; path: string; hint?: string; keywor
   { label: 'Trades', path: '/trades' },
   { label: 'Pods', path: '/pods' },
   { label: 'Search', path: '/search', keywords: ['find', 'scryfall'] },
+  {
+    label: 'Rules',
+    path: '/rules',
+    hint: 'Comprehensive Rules',
+    keywords: ['keyword', 'glossary', 'reference', 'comprehensive', 'lookup'],
+  },
   { label: 'Tags', path: '/tags' },
   { label: 'You', path: '/you', keywords: ['profile', 'settings', 'account'] },
 ];
@@ -151,7 +157,7 @@ export function buildCommands({ decks, go, aiAvailable, deckPage }: BuildCommand
         group: 'AI',
         hint: 'Cites the Comprehensive Rules',
         keywords: ['rules', 'judge', 'ruling', 'interaction', 'stack'],
-        run: () => go('/rules'),
+        run: () => go('/rules?tab=ask'),
       },
       {
         id: 'ai:settings',

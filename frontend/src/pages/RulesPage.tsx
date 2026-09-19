@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import { ChevronDown } from 'lucide-react';
+import { useLocation, useSearchParams } from 'react-router-dom';
+import { ChevronDown, Sparkles } from 'lucide-react';
 import { AiMarker, DeckAiConsent } from '../components/deck/DeckAiConsent';
+import {
+  isRulesReferenceTab,
+  RulesReference,
+  RulesReferenceFoot,
+  useRulesBundle,
+  type RulesReferenceTab,
+} from '../components/RulesReference';
+import { Tabs } from '../components/Tabs';
 // The answer's skeleton, inline error and card chips reuse the review panel's
 // classes by name; this page is its own lazy chunk, so it has to load the
 // stylesheet it borrows from (css-chunk-ownership.test.ts).
@@ -17,7 +25,6 @@ import {
 import { stripEmphasis, tokenizeCardNames } from '../lib/ai-review';
 import { noteAiExhausted, noteAiSpend, useAiStatus } from '../lib/use-ai-status';
 import { formatRelativeTime } from '../lib/format-time';
-import { useRulesReferenceStore } from '../store/rules-reference';
 import './RulesPage.css';
 
 import { userMessage } from '@/lib/user-error';
@@ -38,8 +45,133 @@ interface HeldAnswer {
   askedAt?: number;
 }
 
+type PageTab = RulesReferenceTab | 'ask';
+
 /**
- * `/rules` — the AI rules Q&A (E261, "Ask a judge"). Ask a Magic rules
+ * `/rules` — the Rules hub, the linkable home of everything rules-shaped:
+ *
+ * - **Keywords / Glossary / Rules** — the offline Comprehensive Rules
+ *   reference (the same lists the in-game Rules Reference sheet shows; the
+ *   sheet stays the quick look for mid-game, this page is the place you can
+ *   link, bookmark and search from the header, the palette, and You › Help).
+ * - **Ask** — the AI rules Q&A (E261, "Ask a judge"), self-hiding like every
+ *   AI surface: without AI the page is exactly the reference.
+ *
+ * The section and search live in the URL (`?tab=`, `?q=`) so a rule lookup
+ * is a shareable address; the sheet's AI door lands on `?tab=ask` with the
+ * search that came up short as location state (a seed, never auto-sent).
+ */
+export function RulesPage() {
+  const [params, setParams] = useSearchParams();
+  const location = useLocation();
+  const status = useAiStatus();
+  const bundle = useRulesBundle();
+
+  // Where the page opens: the tab you asked for; else Ask when the sheet's AI
+  // door sent a question along; else Keywords.
+  const requested = params.get('tab');
+  const seededQuestion = !!(location.state as { question?: string } | null)?.question;
+  const initialTab: PageTab =
+    requested === 'ask'
+      ? 'ask'
+      : isRulesReferenceTab(requested)
+        ? requested
+        : seededQuestion
+          ? 'ask'
+          : 'keywords';
+  const [tabRaw, setTabRaw] = useState<PageTab>(initialTab);
+  const [query, setQueryRaw] = useState(() => params.get('q') ?? '');
+
+  // Mirror both into the URL with `replace` — typing a search is one visit,
+  // not a Back-button trail. `q` belongs to the reference only.
+  const setTab = (t: PageTab) => {
+    setTabRaw(t);
+    setParams(
+      (p) => {
+        p.set('tab', t);
+        if (t === 'ask') p.delete('q');
+        return p;
+      },
+      { replace: true }
+    );
+  };
+  const setQuery = (q: string) => {
+    setQueryRaw(q);
+    setParams(
+      (p) => {
+        if (q.trim()) p.set('q', q);
+        else p.delete('q');
+        return p;
+      },
+      { replace: true }
+    );
+  };
+
+  // The Ask tab exists while AI might be available (undefined = still
+  // checking, so the strip doesn't flicker); a null status hides it and drops
+  // a requested `?tab=ask` onto the reference.
+  const askAvailable = status !== null;
+  const tab: PageTab = tabRaw === 'ask' && !askAvailable ? 'keywords' : tabRaw;
+
+  const tabs = [
+    { id: 'keywords' as const, label: 'Keywords', controls: 'rules-ref-panel' },
+    { id: 'glossary' as const, label: 'Glossary', controls: 'rules-ref-panel' },
+    { id: 'rules' as const, label: 'Rules', controls: 'rules-ref-panel' },
+    ...(askAvailable
+      ? [
+          {
+            id: 'ask' as const,
+            label: 'Ask',
+            icon: <Sparkles width={14} height={14} aria-hidden />,
+            ariaLabel: 'Ask a rules question (AI)',
+            controls: 'rules-ask-panel',
+          },
+        ]
+      : []),
+  ];
+
+  return (
+    <div className="rules-page">
+      <header className="rules-page-header">
+        <h1 className="rules-page-heading">Rules</h1>
+        <p className="rules-page-sub">
+          Look up a keyword, a glossary term, or a rule by number in the official Comprehensive
+          Rules.
+        </p>
+      </header>
+
+      <Tabs<PageTab>
+        tabs={tabs}
+        value={tab}
+        onChange={setTab}
+        ariaLabel="Rules sections"
+        variant="underline"
+        className="rules-page-tabs"
+      />
+
+      {tab === 'ask' ? (
+        <div role="tabpanel" id="rules-ask-panel" aria-labelledby="sc-tab-ask">
+          <RulesAsk />
+        </div>
+      ) : (
+        <>
+          <RulesReference
+            bundle={bundle}
+            tab={tab}
+            query={query}
+            onTabChange={setTab}
+            onQueryChange={setQuery}
+            showTabs={false}
+          />
+          <RulesReferenceFoot bundle={bundle} />
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The Ask tab — the AI rules Q&A (E261, "Ask a judge"). Ask a Magic rules
  * question; the answer is grounded in the Comprehensive Rules index and the
  * card database, streams in as it is written, and cites the exact rules it
  * relies on — each citation expandable to the official text below the answer.
@@ -48,7 +180,7 @@ interface HeldAnswer {
  * sent until the Ask button, consent granted in place, streaming shows the
  * prose never the plumbing, past answers restore for free.
  */
-export function RulesPage() {
+function RulesAsk() {
   const status = useAiStatus();
   const location = useLocation();
   // The Rules Reference sheet's "Ask AI" door seeds the box with the search
@@ -105,22 +237,14 @@ export function RulesPage() {
     };
   }, [status?.optIn, phase]);
 
-  // The built-in Comprehensive Rules reference (keywords, glossary, rule
-  // numbers) is the door out of this page when the AI Q&A isn't available —
-  // a guest who followed Play's "Rules" button here should still get rules.
-  const openRulesReference = useRulesReferenceStore((s) => s.open);
-
+  // Unavailable (null) never renders here — the page hides the Ask tab. Loading
+  // (undefined) shows a skeleton line rather than flashing the ask box at
+  // someone who may not be able to use it.
   if (!status) {
-    // Loading (undefined) shows a skeleton line rather than flashing the ask
-    // box at someone who can't use it. Unavailable (null) is one signal with
-    // several causes — no key on the backend, an account the feature isn't
-    // open to, signed out, or the status call failed — so the copy names
-    // none of them (STYLE_GUIDE § Voice, rule 3) and offers the door that is
-    // always open: the built-in Comprehensive Rules reference.
     return (
-      <div className="rules-page">
-        <RulesPageHeader />
-        {status === undefined ? (
+      <div className="rules-ask-section">
+        <RulesAskHeader />
+        {status === undefined && (
           <div
             className="deck-ai-skeleton"
             role="status"
@@ -128,16 +252,6 @@ export function RulesPage() {
             aria-label="Checking whether the rules Q&A is available"
           >
             <span className="deck-ai-skeleton-line deck-ai-skeleton-line--short" />
-          </div>
-        ) : (
-          <div className="rules-unavailable">
-            <p>
-              The AI rules Q&amp;A isn't available for you right now. The rules themselves are still
-              here: look up a keyword, a glossary term, or a rule number in the reference.
-            </p>
-            <button type="button" className="btn" onClick={openRulesReference}>
-              Open the rules reference
-            </button>
           </div>
         )}
       </div>
@@ -179,8 +293,8 @@ export function RulesPage() {
 
   if (!status.optIn) {
     return (
-      <div className="rules-page">
-        <RulesPageHeader />
+      <div className="rules-ask-section">
+        <RulesAskHeader />
         <DeckAiConsent
           title="Ask a rules question"
           blurb={`AI answers Magic rules questions, grounded in the Comprehensive Rules and the cards involved, and cites its sources. Turning this on sends your question to Anthropic when you press Ask. You get ${status.limit} uses a day, shared across AI features, and can turn it off anytime in Settings.`}
@@ -190,8 +304,8 @@ export function RulesPage() {
   }
 
   return (
-    <div className="rules-page">
-      <RulesPageHeader />
+    <div className="rules-ask-section">
+      <RulesAskHeader />
 
       <form
         className="rules-ask"
@@ -352,13 +466,13 @@ export function RulesPage() {
   );
 }
 
-function RulesPageHeader() {
+function RulesAskHeader() {
   return (
-    <header className="rules-page-header">
-      <h1 className="rules-page-heading">
-        Rules Q&amp;A
+    <header className="rules-ask-header">
+      <h2 className="rules-ask-heading">
+        Ask a rules question
         <AiMarker label="AI-written" />
-      </h1>
+      </h2>
       <p className="rules-page-sub">
         Ask how an interaction works. Answers are grounded in the Comprehensive Rules and the exact
         text of the cards involved, and cite the rules they rely on.

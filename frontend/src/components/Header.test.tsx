@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 /**
- * Header — desktop nav-links (Home/Collection/Decks/Play/Friends), Search,
- * and the right cluster's authed-only avatar account menu vs.
- * the guest "Sign in" link. Rules is removed entirely from this surface (see
- * w3-mobile-native-nav for its PlayPage relocation, out of this PR's scope).
+ * Header — desktop nav-links (Home/Collection/Decks/Play/Friends), the
+ * Search + Rules utility links, and the right cluster's authed-only avatar
+ * account menu vs. the guest "Sign in" link. Rules is a link to the /rules
+ * page here (the quick-look sheet stays on Play and the in-game menu).
  */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -130,10 +130,16 @@ describe('Header — nav links', () => {
     expect(screen.getByRole('link', { name: 'Home, 1 notification' })).toBeTruthy();
   });
 
-  it('renders no Rules control', () => {
+  it('renders Rules as a utility link to /rules beside Search, not a sheet button', () => {
     renderHeader();
+    const rules = screen.getByRole('link', { name: 'Rules' });
+    expect(rules.getAttribute('href')).toBe('/rules');
+    expect(rules.className).toContain('site-nav-settings');
+    // A link to the page, never the old in-header sheet trigger.
     expect(screen.queryByRole('button', { name: /rules/i })).toBeNull();
-    expect(screen.queryByText(/^rules$/i)).toBeNull();
+    // Still not a primary hub link.
+    const primary = screen.getByRole('navigation', { name: 'Primary' });
+    expect(primary.textContent).not.toMatch(/Rules/);
   });
 });
 

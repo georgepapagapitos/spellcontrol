@@ -1,6 +1,7 @@
-/* Rules Q&A (E261, "Ask a judge") — a reading-width column like /friends.
-   The AI chrome (marker pill, skeleton, error, card chips) reuses the shared
-   deck-ai primitives; everything page-shaped is defined here. */
+/* The Rules hub (/rules) — a reading-width column like /friends. The
+   reference lists come from RulesReference.css (shared with the in-game
+   sheet); the Ask tab's AI chrome (marker pill, skeleton, error, card chips)
+   reuses the shared deck-ai primitives. Everything page-shaped is here. */
 
 .rules-page {
   max-width: 640px;
@@ -32,30 +33,43 @@
   line-height: 1.5;
 }
 
-.rules-unavailable {
+/* ── Section strip + the reference, page-shaped ── */
+.rules-page-tabs {
+  margin: 0;
+}
+
+/* The sheet's search/body carry the modal's gutters; on the page the column
+   already has them. */
+.rules-page .rules-ref-search {
+  padding: 0;
+}
+
+.rules-page .rules-ref-body {
+  padding-top: 0;
+}
+
+.rules-page .rules-ref-foot {
+  padding-inline: 0;
+}
+
+/* ── The Ask tab ── */
+.rules-ask-section {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-3);
-  margin: 0;
-  padding: var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-raised);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
+  gap: var(--space-4);
 }
 
-/* Free-standing CTA — lets the label wrap instead of overflowing the panel
-   at large font scales (.btn is nowrap by default). */
-.rules-unavailable .btn {
-  white-space: normal;
-  height: auto;
-  max-width: 100%;
+.rules-ask-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
-.rules-unavailable p {
+.rules-ask-heading {
   margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 /* ── Ask box ── */

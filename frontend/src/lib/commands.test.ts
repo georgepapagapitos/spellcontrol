@@ -109,6 +109,20 @@ describe('buildCommands', () => {
     expect(go).toHaveBeenCalledWith('/decks/d1?view=tune', { openAiReview: true });
   });
 
+  it('navigates to the Rules page unconditionally, and the AI ask lands on its Ask tab', () => {
+    const go = vi.fn();
+    const plain = buildCommands({ decks: [], go });
+    const rules = plain.find((c) => c.id === 'nav:/rules');
+    expect(rules?.group).toBe('Navigate');
+    expect(rules?.keywords).toContain('glossary');
+    rules?.run();
+    expect(go).toHaveBeenCalledWith('/rules');
+
+    const withAi = buildCommands({ decks: [], go, aiAvailable: true });
+    withAi.find((c) => c.id === 'ai:rules-question')?.run();
+    expect(go).toHaveBeenCalledWith('/rules?tab=ask');
+  });
+
   it('never emits the Cards group — that lane is async and palette-owned', () => {
     const commands = buildCommands({
       decks: [deck('d1', 'Cards')],
