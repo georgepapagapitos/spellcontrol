@@ -262,6 +262,49 @@ describe('ScryfallCache identifier lookups', () => {
   });
 });
 
+describe('ScryfallCache.lookupCards', () => {
+  function printing(id: string, name: string, set: string, usd: string): ScryfallCard {
+    const c: ScryfallCard = {
+      id,
+      name,
+      rarity: 'rare',
+      set,
+      set_name: set.toUpperCase(),
+      collector_number: '1',
+      prices: { usd },
+    };
+    cache.setMany([c]);
+    // Aliases live under the FRONT face, as cardAliasKeys stores them.
+    const front = name.split(' // ')[0].toLowerCase();
+    cache.setLookups([{ key: `ns:${front}|${set}`, scryfallId: id }]);
+    return c;
+  }
+
+  it('answers names and ids from the cache, keyed as requested, and omits misses', () => {
+    printing('id-bro', 'Arena Rector', 'bro', '18.99');
+    printing('id-2xm', 'Arena Rector', '2xm', '24.50');
+    printing('id-fire', 'Fire // Ice', 'apc', '1.00');
+
+    const { byName, byId } = cache.lookupCards(
+      ['arena rector', 'Fire // Ice', 'Nope Card'],
+      ['id-2xm', 'id-missing']
+    );
+    expect(byName['arena rector']?.id).toBe('id-bro');
+    expect(byName['Fire // Ice']?.id).toBe('id-fire');
+    expect('Nope Card' in byName).toBe(false);
+    expect(byId['id-2xm']?.name).toBe('Arena Rector');
+    expect('id-missing' in byId).toBe(false);
+  });
+
+  // The route serves prices, so a row older than the ingest window must read
+  // as a miss — the same bar `/api/cards/named` and refresh-prices apply.
+  it('applies maxAgeMs to both halves', () => {
+    printing('id-old', 'Old Card', 'unk', '1.00');
+    expect(cache.lookupCards(['Old Card'], ['id-old'], 60_000).byName['Old Card']).toBeDefined();
+    expect(cache.lookupCards(['Old Card'], ['id-old'], -1)).toEqual({ byName: {}, byId: {} });
+  });
+});
+
 describe('ScryfallCache.getCheapestByName', () => {
   /** Store a printing the way the bulk ingest does: card row + `ns:`/`nsc:` aliases. */
   function printing(

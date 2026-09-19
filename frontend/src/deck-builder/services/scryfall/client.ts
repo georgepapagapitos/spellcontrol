@@ -30,6 +30,9 @@ function offlineActive(): boolean {
 }
 
 const COLLECTION_BATCH_SIZE = 75; // Scryfall /cards/collection max per request
+// Names/ids per POST to our own bulk-backed lookup (server caps at 500; 200
+// keeps one gzipped answer well under a megabyte).
+const BULK_LOOKUP_BATCH_SIZE = 200;
 // Ceiling on the per-card follow-up requests a single batch resolve may fire
 // after the batched pass (see the tail of liveGetCardsByNames).
 const FOLLOWUP_REQUEST_BUDGET = 100;
@@ -329,6 +332,32 @@ async function bulkGetCardByName(name: string): Promise<ScryfallCard | null> {
 }
 
 /**
+ * Batch sibling of {@link bulkGetCardByName}: `POST /api/cards/lookup` answers
+ * many names and ids in one round trip from the same nightly dump. Misses are
+ * absent from the answer; any failure reads as "nothing resolved", and the
+ * caller's live batch path picks up whatever is left. Names come back keyed
+ * exactly as sent.
+ */
+async function bulkLookup(body: {
+  names?: string[];
+  ids?: string[];
+}): Promise<{ byName: Record<string, ScryfallCard>; byId: Record<string, ScryfallCard> }> {
+  const empty = { byName: {}, byId: {} };
+  try {
+    const res = await fetch(apiUrl('/api/cards/lookup'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return empty;
+    const json = (await res.json()) as Partial<typeof empty> | null;
+    return { byName: json?.byName ?? {}, byId: json?.byId ?? {} };
+  } catch {
+    return empty;
+  }
+}
+
+/**
  * Resolve a card by its EXACT name. Every caller feeds this a name that is
  * already canonical — EDHREC picks, combo references, existing deck entries,
  * staple/basic-land constants — so there is deliberately no fuzzy mode.
@@ -529,8 +558,19 @@ export async function getCardsByIds(ids: string[]): Promise<Map<string, Scryfall
     else uncached.push(id);
   }
 
-  for (let i = 0; i < uncached.length; i += COLLECTION_BATCH_SIZE) {
-    const batch = uncached.slice(i, i + COLLECTION_BATCH_SIZE);
+  // Our own bulk dump first; only ids it lacks go to Scryfall.
+  for (let i = 0; i < uncached.length; i += BULK_LOOKUP_BATCH_SIZE) {
+    const { byId } = await bulkLookup({ ids: uncached.slice(i, i + BULK_LOOKUP_BATCH_SIZE) });
+    for (const card of Object.values(byId)) {
+      if (!isPlayableCard(card) || !card.id) continue;
+      cardCache.set(card.id, card);
+      result.set(card.id, freshCopy(card));
+    }
+  }
+  const live = uncached.filter((id) => !result.has(id));
+
+  for (let i = 0; i < live.length; i += COLLECTION_BATCH_SIZE) {
+    const batch = live.slice(i, i + COLLECTION_BATCH_SIZE);
     const data = await postCollection(batch.map((id) => ({ id })));
     if (!data) continue;
     for (const card of data.data) {
@@ -651,6 +691,27 @@ async function fetchCheapestArenaPrintings(names: string[]): Promise<Map<string,
   return found;
 }
 
+/**
+ * Admit one batch-resolved card: cache it and expose it under its canonical
+ * name (and, for a DFC/split card, its front face so EDHREC names match). With
+ * a preferred set the cache keys carry the set suffix, as the reads do.
+ */
+function admitResolvedCard(
+  card: ScryfallCard,
+  result: Map<string, ScryfallCard>,
+  preferredSet?: string
+): void {
+  const keyFor = (name: string) => (preferredSet ? `${name}|${preferredSet}` : name);
+  const copy = freshCopy(card);
+  cardCache.set(keyFor(card.name), card);
+  result.set(card.name, copy);
+  if (card.name.includes(' // ')) {
+    const frontFace = frontFaceName(card.name);
+    cardCache.set(keyFor(frontFace), card);
+    result.set(frontFace, copy);
+  }
+}
+
 /** Split requested names into already-cached results and the names still to fetch. */
 function partitionCachedCards(
   names: string[],
@@ -716,8 +777,36 @@ async function liveGetCardsByNames(
   const { result, uncachedNames } = partitionCachedCards(names, preferredSet, arenaOnly);
   if (uncachedNames.length === 0) return result;
 
+  // Our own bulk dump first, in one POST per BULK_LOOKUP_BATCH_SIZE names. It
+  // hands back each name's cheapest paper printing, so a hit here also needs
+  // no price-sharpening follow-up (a hit without a USD price means no printing
+  // has one). Skipped with a preferred set: the dump route picks by price, not
+  // by set. Whatever it lacks goes to Scryfall below, exactly as before.
+  const bulkResolved = new Set<string>();
+  if (!preferredSet) {
+    for (let i = 0; i < uncachedNames.length; i += BULK_LOOKUP_BATCH_SIZE) {
+      const chunk = uncachedNames.slice(i, i + BULK_LOOKUP_BATCH_SIZE);
+      const { byName } = await bulkLookup({ names: chunk });
+      for (const [name, card] of Object.entries(byName)) {
+        if (!isPlayableCard(card)) continue;
+        admitResolvedCard(card, result);
+        if (name !== card.name) {
+          result.set(name, freshCopy(card));
+          cardCache.set(name, card);
+        }
+        bulkResolved.add(name);
+      }
+    }
+  }
+  const liveNames = uncachedNames.filter((name) => !bulkResolved.has(name));
+  // Progress counts the whole request, so a caller's bar still reaches its
+  // total when the dump answered everything and Scryfall is never asked.
+  const done = (live: number) => onProgress?.(bulkResolved.size + live, uncachedNames.length);
+  done(0);
+  if (liveNames.length === 0 && !arenaOnly) return result;
+
   logger.debug(
-    `[Scryfall] Fetching ${uncachedNames.length} cards via /cards/collection${preferredSet ? ` (set: ${preferredSet})` : ''}...`
+    `[Scryfall] Fetching ${liveNames.length} cards via /cards/collection${preferredSet ? ` (set: ${preferredSet})` : ''}...`
   );
 
   // Track names not found in the preferred set for a fallback pass
@@ -729,8 +818,8 @@ async function liveGetCardsByNames(
   const unanswered = new Set<string>();
 
   // Use Scryfall's /cards/collection endpoint (up to 75 per request)
-  for (let i = 0; i < uncachedNames.length; i += COLLECTION_BATCH_SIZE) {
-    const batch = uncachedNames.slice(i, i + COLLECTION_BATCH_SIZE);
+  for (let i = 0; i < liveNames.length; i += COLLECTION_BATCH_SIZE) {
+    const batch = liveNames.slice(i, i + COLLECTION_BATCH_SIZE);
     const identifiers = preferredSet
       ? batch.map((name) => ({ name, set: preferredSet }))
       : batch.map((name) => ({ name }));
@@ -741,18 +830,7 @@ async function liveGetCardsByNames(
     else {
       for (const card of data.data) {
         if (!isPlayableCard(card)) continue;
-        const cacheKey = preferredSet ? `${card.name}|${preferredSet}` : card.name;
-        cardCache.set(cacheKey, card);
-        if (!preferredSet) cardCache.set(card.name, card); // also cache under plain name when no set preference
-        const copy = freshCopy(card);
-        result.set(card.name, copy);
-        // For DFCs, also store under front-face name so EDHREC lookups match
-        if (card.name.includes(' // ')) {
-          const frontFace = frontFaceName(card.name);
-          result.set(frontFace, copy);
-          if (preferredSet) cardCache.set(`${frontFace}|${preferredSet}`, card);
-          else cardCache.set(frontFace, card);
-        }
+        admitResolvedCard(card, result, preferredSet);
       }
       if (data.not_found.length > 0) {
         if (preferredSet) {
@@ -766,7 +844,7 @@ async function liveGetCardsByNames(
       }
     }
 
-    onProgress?.(Math.min(i + COLLECTION_BATCH_SIZE, uncachedNames.length), uncachedNames.length);
+    done(Math.min(i + COLLECTION_BATCH_SIZE, liveNames.length));
   }
 
   // Fallback pass: re-fetch cards not found in the preferred set without set constraint
@@ -783,14 +861,7 @@ async function liveGetCardsByNames(
       }
       for (const card of data.data) {
         if (!isPlayableCard(card)) continue;
-        cardCache.set(card.name, card);
-        const copy = freshCopy(card);
-        result.set(card.name, copy);
-        if (card.name.includes(' // ')) {
-          const frontFace = frontFaceName(card.name);
-          result.set(frontFace, copy);
-          cardCache.set(frontFace, card);
-        }
+        admitResolvedCard(card, result);
       }
     }
   }
@@ -816,7 +887,7 @@ async function liveGetCardsByNames(
   // Callers resolving a recommendation pool (deck analysis) opt out of the
   // price tail: see GetCardsByNamesOptions.priceTail.
   if (!preferredSet && opts?.priceTail !== false) {
-    const noPriceNames = uncachedNames.filter((name) => {
+    const noPriceNames = liveNames.filter((name) => {
       const card = result.get(name);
       return card && !card.prices?.usd;
     });
@@ -837,7 +908,7 @@ async function liveGetCardsByNames(
   }
 
   // For any names not found via collection, try individual fallback
-  const notFound = uncachedNames.filter((name) => !result.has(name) && !unanswered.has(name));
+  const notFound = liveNames.filter((name) => !result.has(name) && !unanswered.has(name));
   if (notFound.length > 0) {
     const pass = notFound.slice(0, followupBudget);
     followupBudget -= pass.length;

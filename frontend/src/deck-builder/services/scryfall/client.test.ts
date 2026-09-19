@@ -24,6 +24,7 @@ import {
   getCardById,
   getCardByName,
   getCardsByNames,
+  getCardsByIds,
   getOwnedPrinting,
   getCardByNameResilient,
   searchCards,
@@ -1086,6 +1087,113 @@ describe('getCardByName arenaOnly (E271)', () => {
     const arenaResultAgain = await getCardByName(name, true);
     expect(arenaResultAgain.id).toBe('arena-print-3');
     expect(fetchMock.mock.calls.length).toBe(callsAfterFirst);
+  });
+});
+
+// The batched resolves ask our own bulk-backed `/api/cards/lookup` before
+// Scryfall. A hit there is the card's cheapest paper printing already, so it
+// must also stay out of the per-name price-sharpening tail — that tail is the
+// per-name `/cards/search` E333 counted 23 of, all 429s, after one cube build.
+describe('getCardsByNames / getCardsByIds bulk-first resolve', () => {
+  const resolved = makeCard({
+    id: 'bulk-batch-hit',
+    name: 'Bulk Batch Hit',
+    layout: 'normal',
+    prices: { usd: null },
+  });
+
+  function stubFetch(lookup: (body: { names?: string[]; ids?: string[] }) => unknown) {
+    const seen = { lookups: 0, collections: 0, searches: 0 };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes('/api/cards/lookup')) {
+          seen.lookups += 1;
+          const answer = lookup(JSON.parse(String(init?.body)));
+          if (answer instanceof Error) throw answer;
+          return { ok: true, json: async () => answer };
+        }
+        if (url.includes('/cards/collection')) {
+          seen.collections += 1;
+          const body = JSON.parse(String(init?.body)) as {
+            identifiers: Array<{ name?: string; id?: string }>;
+          };
+          return {
+            ok: true,
+            json: async () => ({
+              data: body.identifiers.map(({ name, id }) =>
+                makeCard({
+                  id: id ?? `live-${name}`,
+                  name: name ?? 'Live By Id',
+                  layout: 'normal',
+                  prices: { usd: '1.00' },
+                })
+              ),
+              not_found: [],
+            }),
+          };
+        }
+        if (url.includes('/cards/search')) seen.searches += 1;
+        return { ok: false, status: 404, statusText: 'Not Found' };
+      })
+    );
+    return seen;
+  }
+
+  beforeEach(() => {
+    gate.offline = false;
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('answers from the bulk lookup, keyed as requested, with no Scryfall traffic at all', async () => {
+    const seen = stubFetch(({ names }) => ({ byName: { [names![0]]: resolved }, byId: {} }));
+
+    const progress: Array<[number, number]> = [];
+    const result = await getCardsByNames(['bulk batch hit'], (n, total) =>
+      progress.push([n, total])
+    );
+
+    expect(result.get('bulk batch hit')?.id).toBe('bulk-batch-hit');
+    expect(result.get('Bulk Batch Hit')?.id).toBe('bulk-batch-hit');
+    expect(seen).toEqual({ lookups: 1, collections: 0, searches: 0 });
+    // The caller's progress bar still reaches its total with Scryfall never asked.
+    expect(progress.at(-1)).toEqual([1, 1]);
+  });
+
+  it('sends only the names the bulk lookup lacked to Scryfall', async () => {
+    const seen = stubFetch(() => ({ byName: { 'Bulk Batch Hit': resolved }, byId: {} }));
+
+    const result = await getCardsByNames(['Bulk Batch Hit', 'Bulk Batch Miss']);
+
+    expect(result.get('Bulk Batch Hit')?.id).toBe('bulk-batch-hit');
+    expect(result.get('Bulk Batch Miss')?.id).toBe('live-Bulk Batch Miss');
+    expect(seen.collections).toBe(1);
+    expect(seen.searches).toBe(0);
+  });
+
+  it('falls through to the live batch when the lookup fails', async () => {
+    const seen = stubFetch(() => new Error('backend down'));
+
+    const result = await getCardsByNames(['Bulk Batch Fallthrough']);
+
+    expect(result.get('Bulk Batch Fallthrough')?.id).toBe('live-Bulk Batch Fallthrough');
+    expect(seen.collections).toBe(1);
+  });
+
+  it('resolves ids from the bulk lookup before the collection endpoint', async () => {
+    const byIdCard = makeCard({ id: 'bulk-id-hit', name: 'Bulk Id Hit', layout: 'normal' });
+    const seen = stubFetch(({ ids }) =>
+      ids?.includes('bulk-id-hit') ? { byName: {}, byId: { 'bulk-id-hit': byIdCard } } : {}
+    );
+
+    const result = await getCardsByIds(['bulk-id-hit', 'live-id-miss']);
+
+    expect(result.get('bulk-id-hit')?.name).toBe('Bulk Id Hit');
+    expect(result.get('live-id-miss')?.name).toBe('Live By Id');
+    expect(seen).toEqual({ lookups: 1, collections: 1, searches: 0 });
   });
 });
 

@@ -524,6 +524,27 @@ export class ScryfallCache {
   }
 
   /**
+   * Batch lookup for the browser's `/api/cards/lookup` route: every id through
+   * {@link getMany}, every name through {@link getCheapestByName}, both under
+   * the same `maxAgeMs` money bar. `byName` is keyed by the name AS REQUESTED
+   * (the caller matches its own list against it), `byId` by Scryfall id; a miss
+   * is simply absent. Cache-only by construction — there is no live path in
+   * here to fall back to, which is the whole point (see the route).
+   */
+  lookupCards(
+    names: string[],
+    ids: string[],
+    maxAgeMs: number = TTL_MS
+  ): { byName: Record<string, ScryfallCard>; byId: Record<string, ScryfallCard> } {
+    const byName: Record<string, ScryfallCard> = {};
+    for (const name of names) {
+      const card = this.getCheapestByName(name, maxAgeMs);
+      if (card) byName[name] = card;
+    }
+    return { byName, byId: Object.fromEntries(this.getMany(ids, false, maxAgeMs)) };
+  }
+
+  /**
    * Records identifier-key -> scryfall_id aliases so a future name/set/collector
    * lookup can resolve from cache. Call after the corresponding cards have been
    * persisted via {@link setMany}.
