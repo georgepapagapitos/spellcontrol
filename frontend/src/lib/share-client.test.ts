@@ -11,6 +11,7 @@ import {
   recordDeckView,
   revokeShare,
   ShareAuthRequiredError,
+  ShareForbiddenError,
   ShareNotFoundError,
   shareUrl,
 } from './share-client';
@@ -126,6 +127,11 @@ describe('fetchPublicShare', () => {
   it('throws ShareAuthRequiredError on 401 (friends-only share, no auth)', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 401 }));
     await expect(fetchPublicShare('tok')).rejects.toBeInstanceOf(ShareAuthRequiredError);
+  });
+
+  it('throws ShareForbiddenError on 403 (friends-only share, signed in but not a friend)', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 403 }));
+    await expect(fetchPublicShare('tok')).rejects.toBeInstanceOf(ShareForbiddenError);
   });
 });
 

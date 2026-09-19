@@ -667,6 +667,12 @@ describe('friends-audience shares', () => {
     const friendRes = await request(app).get(`/api/shares/public/${token}`).set('Cookie', friend);
     expect(friendRes.status).toBe(200);
     expect(friendRes.body.kind).toBe('collection');
+
+    // The owner is nobody's friend, but it is their link — Settings → Share
+    // links hands it to them (playtest batch 11 read "Something went wrong").
+    const ownerRes = await request(app).get(`/api/shares/public/${token}`).set('Cookie', owner);
+    expect(ownerRes.status).toBe(200);
+    expect(ownerRes.body.kind).toBe('collection');
   });
 
   it('loses friend access after unfriending (re-checked per read)', async () => {
@@ -818,6 +824,10 @@ describe('game-result shares', () => {
     ).toBe(404);
     expect(
       (await request(app).get(`/api/shares/public/${token}`).set('Cookie', friend)).status
+    ).toBe(200);
+    // The sender can open what they sent.
+    expect(
+      (await request(app).get(`/api/shares/public/${token}`).set('Cookie', owner)).status
     ).toBe(200);
   });
 });

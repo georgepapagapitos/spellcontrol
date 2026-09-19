@@ -8,6 +8,7 @@ import { shares } from '../db/schema';
 import { areFriends } from '../friends/relations';
 import type { ShareDataView } from '../shares/cache';
 import { invalidateShareContext, loadShareContext } from '../shares/context';
+import { invalidateDeckPublicationCache, invalidatePublicUserCache } from '../publications/cache';
 import { resolveShareLabels } from '../shares/labels';
 import { getSetMap } from '../sets';
 import {
@@ -67,6 +68,28 @@ function isShareAudience(x: unknown): x is ShareAudience {
 function newToken(): string {
   // 24 bytes → 32 url-safe chars. Unguessable; collision-resistant.
   return crypto.randomBytes(24).toString('base64url');
+}
+
+/**
+ * The visibility ladder is exclusive in BOTH directions. Publishing retires a
+ * deck's link/friends shares (`retireLesserRungs`, routes/publications.ts);
+ * minting a link or friends share must retire a live publication the same
+ * way — otherwise the dialog reports "Anyone with link" while the deck stays
+ * discoverable on the profile and live at /d/:slug (playtest batch 11 found
+ * exactly that: a link share minted 35ms after a publish, and a deck carrying
+ * link + friends + public at once). Lives here, where every mint converges,
+ * not in the dialog that surfaced it. Unpublish keeps the frozen slug and the
+ * counters, so a later republish is the same URL. 'direct' is not a rung.
+ */
+async function retirePublication(userId: string, username: string, deckId: string): Promise<void> {
+  const result = await getPool().query<{ slug: string }>(
+    `UPDATE deck_publications SET unpublished_at = $3
+       WHERE user_id = $1 AND deck_id = $2 AND unpublished_at IS NULL
+     RETURNING slug`,
+    [userId, deckId, Date.now()]
+  );
+  for (const row of result.rows) invalidateDeckPublicationCache(row.slug);
+  if (result.rows.length > 0) invalidatePublicUserCache(username);
 }
 
 /**
@@ -131,6 +154,10 @@ sharesRouter.post('/', requireAuth, writeLimiter, async (req: Request, res: Resp
       return res.status(403).json({ error: 'You can only send a direct share to a friend.' });
     }
     addresseeId = target;
+  }
+
+  if (kind === 'deck' && audience !== 'direct') {
+    await retirePublication(req.user!.id, req.user!.username, resourceId);
   }
 
   const db = getDb();
@@ -277,7 +304,13 @@ sharesRouter.get(
     }
     const { share, data, ownerUsername, ownerDisplayName } = ctx;
 
-    if (share.audience === 'friends') {
+    // The owner is nobody's friend and nobody's addressee, but it is their
+    // link: Settings → Share links and the share dialog both hand it to them,
+    // and opening it read as "Something went wrong" (playtest batch 11).
+    const isOwner = req.user?.id === share.userId;
+    if (isOwner) {
+      // fall through to the projection
+    } else if (share.audience === 'friends') {
       if (!req.user) {
         return res.status(401).json({ error: 'Sign in to view this shared content.' });
       }

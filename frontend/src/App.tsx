@@ -365,9 +365,9 @@ export default function App() {
             <Route path="/s/:token" element={<SharedView />} />
             <Route path="/u/:username" element={<PublicProfilePage />} />
             <Route path="/d/:slug" element={<PublicDeckPage />} />
+            <Route path="/s/:token/playtest" element={<PublicDeckPlaytestPage />} />
+            <Route path="/d/:slug/playtest" element={<PublicDeckPlaytestPage />} />
           </Route>
-          <Route path="/s/:token/playtest" element={<PublicDeckPlaytestPage />} />
-          <Route path="/d/:slug/playtest" element={<PublicDeckPlaytestPage />} />
           <Route path="/gn/s/:token" element={<GameNightSeriesView />} />
           <Route path="/gn/i/:token" element={<GameNightInviteView />} />
           <Route path="/gn/:token" element={<GameNightView />} />
@@ -390,11 +390,11 @@ export default function App() {
           {/* Someone else's deck/collection/profile is a normal page of this
               app, not a separate microsite: same header, nav and tab bar, so a
               reader can go from a shared link straight into their own
-              collection instead of hitting a dead end. The playtest and
-              game-night surfaces stay outside the shell — both are full-screen
-              tables with their own chrome. */}
-          <Route path="/s/:token/playtest" element={<PublicDeckPlaytestPage />} />
-          <Route path="/d/:slug/playtest" element={<PublicDeckPlaytestPage />} />
+              collection instead of hitting a dead end. The game-night surfaces
+              stay outside the shell (their own chrome); the public playtest
+              lives inside it like the owner's /decks/:id/playtest — the board
+              is position:fixed over the chrome either way, and Layout is what
+              gives the page its <main> landmark. */}
           <Route path="/gn/s/:token" element={<GameNightSeriesView />} />
           <Route path="/gn/i/:token" element={<GameNightInviteView />} />
           <Route path="/gn/:token" element={<GameNightView />} />
@@ -430,6 +430,8 @@ export default function App() {
             <Route path="/s/:token" element={<SharedView />} />
             <Route path="/u/:username" element={<PublicProfilePage />} />
             <Route path="/d/:slug" element={<PublicDeckPage />} />
+            <Route path="/s/:token/playtest" element={<PublicDeckPlaytestPage />} />
+            <Route path="/d/:slug/playtest" element={<PublicDeckPlaytestPage />} />
             {/* The default landing for authed users (w3-nav-activation) — the "/"
               and catch-all routes below send them here. Still reachable by
               direct URL for guests, who are never auto-routed here. */}

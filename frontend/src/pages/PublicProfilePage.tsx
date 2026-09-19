@@ -79,6 +79,13 @@ function ProfileSkeleton() {
  * `GHOST_TOWN_THRESHOLD`) plus recency. Mirrors DiscoverDeckTile's grid
  * banner overlay so the app's two art-banner tile families read
  * identically. Never empty — `formatRelativeTime` always returns something.
+ *
+ * Recency is the deck's last UPDATE, the same fact the shelf sorts by (the
+ * server orders by updated_at, the library's sort is labelled "Updated"). It
+ * used to be the publish date — a deck edited an hour ago read "4d ago" and
+ * sorted under a newer publish (playtest batch 11). Discover's rail keeps
+ * publishedAt on purpose: that surface is "fresh decks", and its payload
+ * carries no updatedAt.
  */
 function tileStatsLine(deck: PublicProfileDeck): string {
   const views = formatSocialCount(deck.viewCount);
@@ -86,7 +93,7 @@ function tileStatsLine(deck: PublicProfileDeck): string {
   const parts = [views && `${views} views`, copies && `${copies} copies`].filter(
     (s): s is string => s != null
   );
-  parts.push(formatRelativeTime(deck.publishedAt));
+  parts.push(formatRelativeTime(deck.updatedAt));
   return parts.join(' · ');
 }
 
@@ -107,7 +114,7 @@ function DeckGrid({ decks, username }: { decks: PublicProfileDeck[]; username: s
         commanderImage: deck.commanderImage,
         colorIdentity: deck.colorIdentity,
         bracket: deck.bracket,
-        updatedAt: deck.publishedAt,
+        updatedAt: deck.updatedAt,
         // Publication stats — this surface has them, a friend's library does not.
         statsLine: tileStatsLine(deck),
         badge: null,

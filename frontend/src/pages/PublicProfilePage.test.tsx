@@ -7,7 +7,7 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { PublicProfile } from '../lib/profile-client';
+import type { PublicProfile, PublicProfileDeck } from '../lib/profile-client';
 
 const { fetchPublicProfileMock } = vi.hoisted(() => ({ fetchPublicProfileMock: vi.fn() }));
 vi.mock('../lib/profile-client', async (importOriginal) => {
@@ -15,7 +15,7 @@ vi.mock('../lib/profile-client', async (importOriginal) => {
   return { ...real, fetchPublicProfile: fetchPublicProfileMock };
 });
 vi.mock('../lib/use-panel-cascade', () => ({
-  usePanelCascade: () => null,
+  usePanelCascade: () => ({ animating: false }),
   panelCascadeClass: () => '',
 }));
 
@@ -49,6 +49,63 @@ function renderProfile() {
 
 afterEach(() => {
   fetchPublicProfileMock.mockReset();
+});
+
+function deck(
+  over: Partial<PublicProfileDeck> & { slug: string; name: string }
+): PublicProfileDeck {
+  return {
+    format: 'commander',
+    commanderName: null,
+    commanderImage: null,
+    colorIdentity: [],
+    cardCount: 100,
+    bracket: null,
+    viewCount: 0,
+    copyCount: 0,
+    publishedAt: 0,
+    updatedAt: 0,
+    ...over,
+  };
+}
+
+describe('PublicProfilePage — the shelf reads the deck’s last update, not its publish date', () => {
+  // Playtest batch 11: a deck edited 17 hours earlier read "4d ago" (its
+  // publish date) and the "Updated" sort put a newer publish above it.
+  it('stamps each tile with updatedAt and sorts by it', async () => {
+    const HOUR = 60 * 60 * 1000;
+    const DAY = 24 * HOUR;
+    const now = Date.now();
+    fetchPublicProfileMock.mockResolvedValue(
+      profile({
+        deckCount: 2,
+        decks: [
+          deck({
+            slug: 'newer-publish',
+            name: 'Newer publish',
+            publishedAt: now - DAY,
+            updatedAt: now - DAY,
+          }),
+          deck({
+            slug: 'older-publish-edited',
+            name: 'Older publish edited',
+            publishedAt: now - 30 * DAY,
+            updatedAt: now - 2 * HOUR,
+          }),
+        ],
+      })
+    );
+    renderProfile();
+    await screen.findByRole('link', { name: /Older publish edited/ });
+    const names = [...document.querySelectorAll('.deck-library-tile .decks-index-card-name')].map(
+      (n) => n.textContent?.trim()
+    );
+    expect(names).toEqual(['Older publish edited', 'Newer publish']);
+    const stamps = [...document.querySelectorAll('.public-profile-tile-banner-stats')].map((s) =>
+      s.textContent?.trim()
+    );
+    expect(stamps).toEqual(['2h ago', '1d ago']);
+  });
 });
 
 describe('PublicProfilePage — brand-bar action', () => {

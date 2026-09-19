@@ -4,6 +4,7 @@ import type { Server } from 'node:http';
 import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie, setSnapshotViaSyncApi } from '../test-helpers';
 import { deckPublicationCache, publicUserCache } from '../publications/cache';
+import { lookupPublicUserLandingMeta } from './public';
 
 let app: Server;
 let pool: Pool;
@@ -387,5 +388,22 @@ describe('cache warm state (sanity for the invalidation tests in publications.te
     expect(publicUserCache.get('pub-cache-sanity')).toBeNull();
     await request(app).get('/api/public/users/pub-cache-sanity');
     expect(publicUserCache.get('pub-cache-sanity')).not.toBeNull();
+  });
+});
+
+describe('lookupPublicUserLandingMeta', () => {
+  // Playtest batch 11: /u/TradePal served a canonical of .../u/TradePal while
+  // /u/tradepal served .../u/tradepal — two canonical URLs for one profile.
+  it('emits the normalized handle as the canonical URL whatever case the visitor typed', async () => {
+    await publishDeck('landingcase', 'deck-landing-case');
+    const meta = await lookupPublicUserLandingMeta('LandingCase');
+    expect(meta?.url).toBe('https://spellcontrol.com/u/landingcase');
+    expect(meta?.indexable).toBe(true);
+  });
+
+  it('is null for a user with nothing live (noindex, matching the JSON 404)', async () => {
+    const cookie = await makeUser('landingquiet');
+    await setDisplayName(cookie, 'Quiet');
+    expect(await lookupPublicUserLandingMeta('LandingQuiet')).toBeNull();
   });
 });

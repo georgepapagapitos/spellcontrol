@@ -5,12 +5,13 @@ import {
   fetchPublicShare,
   PublicDeckNotFoundError,
   ShareAuthRequiredError,
+  ShareForbiddenError,
   ShareNotFoundError,
 } from '../lib/share-client';
 import type { PublicDeck } from '../lib/shared-types';
 import { publicDeckToDeck } from '../lib/public-deck-to-deck';
 import { PlaytestSession } from '@/playtest/components/PlaytestSession';
-import { SharedShell, NotFoundView, ErrorView } from '../components/share/SharedShell';
+import { NotFoundView, ErrorView } from '../components/share/SharedShell';
 import { BrandMark } from '../components/shared/BrandMark';
 import { useDocumentTitle } from '../lib/use-document-title';
 import { userMessage } from '@/lib/user-error';
@@ -25,7 +26,10 @@ type LoadState =
 
 /**
  * Goldfish a deck you don't own, at `/d/:slug/playtest` and
- * `/s/:token/playtest`.
+ * `/s/:token/playtest`. A normal page inside <Layout>, exactly like the
+ * owner's /decks/:id/playtest: the board is position:fixed over the chrome
+ * either way, and the host is what gives the page its <main> landmark — a
+ * bare mount had none (playtest batch 11).
  *
  * Trying out a deck is the single most useful thing a shared link can offer a
  * reader, and it's what every comparable site lets you do. The session runs
@@ -41,11 +45,7 @@ export function PublicDeckPlaytestPage() {
   const { slug, token } = useParams<{ slug?: string; token?: string }>();
   const sourceKey = slug ?? token;
   if (!sourceKey) {
-    return (
-      <SharedShell>
-        <NotFoundView />
-      </SharedShell>
-    );
+    return <NotFoundView />;
   }
   // Remount per link so the load + session start fresh, mirroring the
   // token/slug-keyed remount the deck pages themselves use.
@@ -73,7 +73,7 @@ function PublicDeckPlaytestInner({ sourceKey, isSlug }: { sourceKey: string; isS
         if (cancelled) return;
         if (err instanceof PublicDeckNotFoundError || err instanceof ShareNotFoundError) {
           setState({ status: 'notFound' });
-        } else if (err instanceof ShareAuthRequiredError) {
+        } else if (err instanceof ShareAuthRequiredError || err instanceof ShareForbiddenError) {
           setState({ status: 'authRequired' });
         } else {
           setState({
@@ -100,40 +100,30 @@ function PublicDeckPlaytestInner({ sourceKey, isSlug }: { sourceKey: string; isS
 
   if (state.status === 'loading') {
     return (
-      <SharedShell>
-        <div className="shared-view shared-view--loading" aria-busy="true">
-          <BrandMark size={64} motion="busy" aria-hidden />
-          <p>Loading deck…</p>
-        </div>
-      </SharedShell>
+      <div className="shared-view shared-view--loading" aria-busy="true">
+        <BrandMark size={64} motion="busy" aria-hidden />
+        <p>Loading deck…</p>
+      </div>
     );
   }
   if (state.status === 'notFound') {
     return (
-      <SharedShell>
-        <NotFoundView
-          title="Deck not found"
-          message="This deck isn't shared anymore, or the link is wrong."
-        />
-      </SharedShell>
+      <NotFoundView
+        title="Deck not found"
+        message="This deck isn't shared anymore, or the link is wrong."
+      />
     );
   }
   if (state.status === 'authRequired') {
     return (
-      <SharedShell>
-        <NotFoundView
-          title="Friends only"
-          message="The owner shared this with their friends. Sign in to play it."
-        />
-      </SharedShell>
+      <NotFoundView
+        title="Friends only"
+        message="The owner shared this with their friends. Sign in as one of them to play it."
+      />
     );
   }
   if (state.status === 'error') {
-    return (
-      <SharedShell>
-        <ErrorView message={state.message} />
-      </SharedShell>
-    );
+    return <ErrorView message={state.message} />;
   }
 
   return (
