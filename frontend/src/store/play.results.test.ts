@@ -36,7 +36,7 @@ vi.mock('../lib/game-results-client', async (importOriginal) => {
   };
 });
 
-import { usePlayStore } from './play';
+import { gameToRematch, recordToRematch, usePlayStore } from './play';
 import { useAuth } from './auth';
 import { postLocalResult, fetchMyResults, deleteGameResult } from '../lib/game-results-client';
 
@@ -212,6 +212,35 @@ describe('a finished local game and the server record', () => {
     const game = playAGame();
     await flush();
     expect(usePlayStore.getState().pendingResults.map((g) => g.id)).toEqual([game.id]);
+  });
+});
+
+describe('seats are people', () => {
+  it('startLocal seats the account behind a seat, and a rematch keeps it', () => {
+    usePlayStore.getState().startLocal({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+      players: [
+        {
+          name: 'Georg',
+          userId: 'me',
+          username: 'georg',
+          deckId: null,
+          deckName: null,
+          commander: null,
+          colorIdentity: [],
+        },
+        { name: 'Walk-up', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+      ],
+    });
+    const local = usePlayStore.getState().local!;
+    expect(local.players.map((p) => p.userId)).toEqual(['me', null]);
+    expect(gameToRematch(local).players.map((p) => p.userId)).toEqual(['me', null]);
+    usePlayStore.getState().endLocal(0);
+    const rec = usePlayStore.getState().history[0];
+    expect(recordToRematch(rec).players.map((p) => p.userId)).toEqual(['me', null]);
   });
 });
 

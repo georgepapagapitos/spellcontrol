@@ -21,7 +21,11 @@ import {
   recordToRematch,
   usePlayStore,
   type LocalGameSetup,
+  type SeatSeed,
 } from '../store/play';
+import { listFriends, type Friend } from '../lib/friends-client';
+import { getPod, listPods, type Pod } from '../lib/pods-client';
+import { formatIdentity } from '../lib/display-name';
 import { useRulesReferenceStore } from '../store/rules-reference';
 import { toast } from '../store/toasts';
 import { GameBoard } from '../components/play/GameBoard';
@@ -485,8 +489,98 @@ function LocalSetup({
   // instead) means typing over it can't concatenate into "Player 1Alice"
   // (B7-05).
   const [players, setPlayers] = useState<LocalGameSetup['players']>(() =>
-    Array.from({ length: MAX_LOCAL_PLAYERS }, (_, i) => blankPlayer(seed?.players[i] ?? ''))
+    Array.from({ length: MAX_LOCAL_PLAYERS }, (_, i) => seededPlayer(seed?.players[i]))
   );
+
+  // Seats are people. Signed in, the form knows who "you" are and can seat
+  // friends and whole pods; a guest's table is names only, as before.
+  const user = useAuth((s) => s.user);
+  const profile = useAuth((s) => s.profile);
+  const me: SeatPerson | null = user
+    ? { id: user.id, username: user.username, displayName: profile?.displayName ?? null }
+    : null;
+  const [friends, setFriends] = useState<Friend[] | null>(null);
+  const [pods, setPods] = useState<Pod[]>([]);
+  const [seatingPod, setSeatingPod] = useState<string | null>(null);
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    listFriends()
+      .then((list) => {
+        if (cancelled) return;
+        setFriends(list);
+        // A game night seeds handles, not ids (its RSVPs never carry account
+        // ids). Now that the list is here, seat the account behind each
+        // handle so the game credits them; a handle nobody recognises stays
+        // a guest.
+        setPlayers((prev) =>
+          prev.map((p) => {
+            if (p.userId || !p.username) return p;
+            const who =
+              p.username === user.username ? user : list.find((f) => f.username === p.username);
+            return who ? { ...p, userId: who.id } : p;
+          })
+        );
+      })
+      .catch(() => {
+        // No friends list ≠ no form: seats stay guests until it loads.
+        if (!cancelled) setFriends([]);
+      });
+    listPods()
+      .then((list) => {
+        if (!cancelled) setPods(list.filter((p) => p.myStatus === 'member'));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  /** Fill the roster with a pod's members — you first, then the rest. */
+  async function seatPod(pod: Pod) {
+    if (!me || seatingPod) return;
+    setSeatingPod(pod.id);
+    try {
+      const detail = await getPod(pod.id);
+      const members = detail.members.filter((m) => m.status === 'member');
+      const ordered = [
+        ...members.filter((m) => m.userId === me.id),
+        ...members.filter((m) => m.userId !== me.id),
+      ];
+      const seated = ordered.slice(0, MAX_LOCAL_PLAYERS);
+      const next = Array.from({ length: MAX_LOCAL_PLAYERS }, (_, i) => {
+        const m = seated[i];
+        if (!m) return blankPlayer('');
+        const person: SeatPerson =
+          m.userId === me.id
+            ? me
+            : (friends?.find((f) => f.id === m.userId) ?? {
+                id: m.userId,
+                username: m.username,
+                displayName: null,
+              });
+        return {
+          ...blankPlayer(formatIdentity(person).primary),
+          userId: person.id,
+          username: person.username,
+        };
+      });
+      setPlayers(next);
+      setCount(Math.max(MIN_LOCAL_PLAYERS, seated.length));
+      if (ordered.length > seated.length) {
+        toast.show({
+          message: `Seated the first ${MAX_LOCAL_PLAYERS} of ${pod.name}. The rest need a second table.`,
+        });
+      }
+    } catch (err) {
+      toast.show({
+        message: userMessage(err, "Couldn't load that pod's roster. Try again in a moment."),
+        tone: 'error',
+      });
+    } finally {
+      setSeatingPod(null);
+    }
+  }
   // Free-form counter names every seat starts with. Empty for most tables;
   // a pod that always tracks energy sets it once and saves it in a profile.
   const [counters, setCounters] = useState<string[]>([]);
@@ -682,12 +776,57 @@ function LocalSetup({
           <h3 className="play-setup-section-title">Players</h3>
           <span className="play-setup-roster-count">{count}</span>
         </header>
+        {me && pods.length > 0 && (
+          <div className="play-setup-pods" role="group" aria-label="Seat a pod">
+            <span className="play-setup-pods-label">Seat a pod</span>
+            {pods.map((pod) => (
+              <button
+                key={pod.id}
+                type="button"
+                className="pill-btn play-setup-pod-btn"
+                disabled={seatingPod !== null}
+                aria-busy={seatingPod === pod.id}
+                onClick={() => void seatPod(pod)}
+              >
+                {pod.name}
+              </button>
+            ))}
+          </div>
+        )}
         <ul className="play-setup-roster-list">
           {players.slice(0, count).map((p, i) => (
             <li key={i} className="play-setup-seat">
               <span className="play-setup-seat-num" aria-hidden="true">
                 {i + 1}
               </span>
+              {me && (
+                <SeatWho
+                  seatIndex={i}
+                  value={p.userId ?? null}
+                  me={me}
+                  friends={friends ?? []}
+                  taken={
+                    new Set(
+                      players
+                        .slice(0, count)
+                        .filter((q, idx) => idx !== i && q.userId)
+                        .map((q) => q.userId as string)
+                    )
+                  }
+                  onChange={(person) =>
+                    setPlayer(
+                      i,
+                      person
+                        ? {
+                            userId: person.id,
+                            username: person.username,
+                            name: formatIdentity(person).primary,
+                          }
+                        : { userId: null, username: null }
+                    )
+                  }
+                />
+              )}
               <input
                 className="play-setup-seat-name"
                 value={p.name}
@@ -794,7 +933,75 @@ function SeatDeck({
 }
 
 function blankPlayer(name: string): LocalGameSetup['players'][number] {
-  return { name, deckId: null, deckName: null, commander: null, partner: null, colorIdentity: [] };
+  return {
+    name,
+    userId: null,
+    username: null,
+    deckId: null,
+    deckName: null,
+    commander: null,
+    partner: null,
+    colorIdentity: [],
+  };
+}
+
+/** A seat from a game night's seed: the name now, the account once friends load. */
+function seededPlayer(seed: SeatSeed | undefined): LocalGameSetup['players'][number] {
+  return { ...blankPlayer(seed?.name ?? ''), username: seed?.username ?? null };
+}
+
+/** Someone who can hold a seat: the signed-in user or one of their friends. */
+interface SeatPerson {
+  id: string;
+  username: string;
+  displayName: string | null;
+}
+
+const SEAT_GUEST = '__guest__';
+
+/**
+ * Who sits here: a guest (a name, no account — most seats at most tables),
+ * you, or a friend. Picking an account fills the name with how they present
+ * themselves and credits their record when the game ends; the name stays
+ * editable because a table has its own nicknames. An account already in
+ * another seat isn't offered twice.
+ */
+function SeatWho({
+  seatIndex,
+  value,
+  me,
+  friends,
+  taken,
+  onChange,
+}: {
+  seatIndex: number;
+  value: string | null;
+  me: SeatPerson;
+  friends: Friend[];
+  taken: Set<string>;
+  onChange: (person: SeatPerson | null) => void;
+}) {
+  const people: SeatPerson[] = [me, ...friends];
+  const options = [
+    { value: SEAT_GUEST, label: 'Guest' },
+    ...people
+      .filter((p) => p.id === value || !taken.has(p.id))
+      .map((p) => ({
+        value: p.id,
+        label: p.id === me.id ? 'You' : formatIdentity(p).primary,
+      })),
+  ];
+  return (
+    <SelectMenu<string>
+      ariaLabel={`Who is in seat ${seatIndex + 1}`}
+      className="play-setup-seat-who"
+      value={value ?? SEAT_GUEST}
+      options={options}
+      onChange={(next) =>
+        onChange(next === SEAT_GUEST ? null : (people.find((p) => p.id === next) ?? null))
+      }
+    />
+  );
 }
 
 // ── Online setup ────────────────────────────────────────────────────────────
