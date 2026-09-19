@@ -2005,6 +2005,17 @@ sheet is unchanged — a phone has no room for the fan.
   "Waiting for players to join" and never counts down — `every()` over no
   opponents is `true`, so the count is checked first.
 
+- **The log can leave the table.** The docked log's pop-out opens
+  `/decks/:id/playtest/log` as a named popup window; that page renders the same
+  `LogDock` in its `page` variant from the deck's saved session and re-reads it
+  on every `storage` event for that key, so it follows the game on a second
+  screen with no channel of its own. The table never depends on the window
+  being open, and the page has no pop-out of its own.
+- **A resumed session shows the same cost badges as a fresh deal.**
+  `backfillManaCost` (session-snapshot.ts) fills `PlaytestCard.manaCost` by
+  name from the deck on hydrate; a saved session from before the badge shipped
+  is not a different experience.
+
 ### Opponent rail — never hide a seat
 
 The opponent presence rail (`playtest/components/OpponentRail.tsx`) is the

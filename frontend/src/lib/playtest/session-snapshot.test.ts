@@ -10,6 +10,7 @@ import {
   type PlaytestSnapshot,
 } from './session-snapshot';
 import type { PlaytestState } from './types';
+import { backfillManaCost } from './session-snapshot';
 
 function baseState(
   overrides: Partial<Omit<PlaytestState, 'past'>> = {}
@@ -389,5 +390,44 @@ describe('designation fields — backward compat with pre-designations snapshots
     expect(loaded?.state.monarch).toBe(true);
     expect(loaded?.state.initiative).toBe(false);
     expect(loaded?.state.citysBlessing).toBe(true);
+  });
+});
+
+describe('backfillManaCost', () => {
+  const deck = {
+    cards: [
+      { card: { name: 'Sol Ring', mana_cost: '{1}' } },
+      { card: { name: 'Mountain', mana_cost: '' } },
+    ],
+    commander: { name: 'Krenko, Mob Boss', mana_cost: '{2}{R}{R}' },
+    partnerCommander: null,
+  } as unknown as Parameters<typeof backfillManaCost>[1];
+  const state = {
+    zones: {
+      hand: [
+        { id: 'a', name: 'Sol Ring' },
+        { id: 'b', name: 'Mountain' },
+      ],
+      library: [{ id: 'c', name: 'Sol Ring', manaCost: '{9}' }],
+      graveyard: [],
+      exile: [],
+      command: [{ id: 'k', name: 'Krenko, Mob Boss' }],
+    },
+    battlefield: [{ card: { id: 'd', name: 'Sol Ring' }, tapped: false }],
+  } as unknown as Pick<PlaytestState, 'zones' | 'battlefield'>;
+
+  it('fills a missing cost by name from the deck, incl. the commander, and keeps existing ones', () => {
+    const out = backfillManaCost(state, deck);
+    expect(out.zones.hand[0].manaCost).toBe('{1}');
+    expect(out.zones.hand[1].manaCost).toBeUndefined(); // a land has no cost to show
+    expect(out.zones.library[0].manaCost).toBe('{9}'); // already set: untouched
+    expect(out.zones.command[0].manaCost).toBe('{2}{R}{R}');
+    expect(out.battlefield[0].card.manaCost).toBe('{1}');
+  });
+
+  it('is a no-op without a deck and preserves card identity when nothing changes', () => {
+    expect(backfillManaCost(state, undefined)).toBe(state);
+    const out = backfillManaCost(state, deck);
+    expect(out.zones.library[0]).toBe(state.zones.library[0]);
   });
 });

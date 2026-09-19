@@ -103,4 +103,25 @@ describe('LogDock', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
     expect(screen.getByText('No table activity yet.')).toBeTruthy();
   });
+
+  it('offers a pop-out window only when given the route, and opens it as a named popup', () => {
+    const open = vi.fn();
+    Object.defineProperty(window, 'open', { value: open, configurable: true });
+    const { rerender } = render(<LogDock log={log} onClose={() => {}} />);
+    expect(screen.queryByRole('button', { name: 'Open the log in its own window' })).toBeNull();
+    rerender(<LogDock log={log} onClose={() => {}} popoutHref="/decks/d1/playtest/log" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open the log in its own window' }));
+    expect(open).toHaveBeenCalledWith(
+      '/decks/d1/playtest/log',
+      'spellcontrol-playtest-log',
+      expect.stringContaining('popup')
+    );
+  });
+
+  it('renders the page variant as a full-window panel with no pop-out of its own', () => {
+    render(<LogDock log={log} onClose={() => {}} variant="page" />);
+    const region = screen.getByRole('region', { name: 'Game log' });
+    expect(region.className).toContain('playtest-log-dock--page');
+    expect(screen.queryByRole('button', { name: 'Open the log in its own window' })).toBeNull();
+  });
 });

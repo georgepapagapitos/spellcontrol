@@ -15,7 +15,7 @@
  */
 
 import { playtestLifeConfig } from './life-config';
-import type { BattlefieldCard, PlaytestState } from './types';
+import type { BattlefieldCard, PlaytestCard, PlaytestState } from './types';
 import type { GameLogEntry } from './game-log';
 import {
   RESISTANCE_LEVELS,
@@ -150,6 +150,40 @@ function migrateBattlefieldCoords(battlefield: BattlefieldCard[]): BattlefieldCa
  * Never throws — worst case a snapshot that's missing `deck` context falls
  * back to the generic 1v1/20-life config.
  */
+/**
+ * `PlaytestCard.manaCost` (the hand fan's cost badge) postdates most saved
+ * sessions, so a resumed game showed the bare mana value where a fresh deal
+ * shows the real pips. The deck still knows every card's cost; fill the gap
+ * by name on resume and leave cards that already carry one alone. Pure.
+ */
+export function backfillManaCost<S extends Pick<PlaytestState, 'zones' | 'battlefield'>>(
+  state: S,
+  deck: Pick<Deck, 'cards' | 'commander' | 'partnerCommander'> | undefined
+): S {
+  if (!deck) return state;
+  const costs = new Map<string, string>();
+  for (const slot of deck.cards) {
+    if (slot.card.mana_cost) costs.set(slot.card.name, slot.card.mana_cost);
+  }
+  for (const c of [deck.commander, deck.partnerCommander]) {
+    if (c?.mana_cost) costs.set(c.name, c.mana_cost);
+  }
+  if (costs.size === 0) return state;
+  const fill = (card: PlaytestCard): PlaytestCard => {
+    if (card.manaCost !== undefined) return card;
+    const cost = costs.get(card.name);
+    return cost === undefined ? card : { ...card, manaCost: cost };
+  };
+  const zones = Object.fromEntries(
+    Object.entries(state.zones).map(([zone, cards]) => [zone, cards.map(fill)])
+  ) as S['zones'];
+  const battlefield = state.battlefield.map((bf) => {
+    const card = fill(bf.card);
+    return card === bf.card ? bf : { ...bf, card };
+  });
+  return { ...state, zones, battlefield };
+}
+
 export function migrateSnapshotState(
   state: Omit<PlaytestState, 'past'>,
   deck: Pick<Deck, 'format'> | undefined
