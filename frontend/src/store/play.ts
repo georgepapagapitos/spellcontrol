@@ -1,6 +1,5 @@
 import { logger } from '@/lib/logger';
 import { create } from 'zustand';
-import { isApplyingServer } from '../lib/applying-server';
 import { genId } from '../lib/id';
 import { track } from '../lib/analytics';
 import { persist, createJSONStorage } from 'zustand/middleware';
@@ -39,6 +38,14 @@ import { setHapticsEnabled } from '../lib/haptics';
 import { clearUndo } from '../lib/undo-stack';
 import { FORMAT_OPTIONS } from '../lib/game-formats';
 import type { PublicBoard, TickerEntry } from '../lib/playtest/projection';
+import {
+  deleteGameResult,
+  fetchMyResults,
+  postLocalResult,
+  resultToRecord,
+} from '../lib/game-results-client';
+import { useAuth } from './auth';
+import { toast } from './toasts';
 
 import { userMessage } from '@/lib/user-error';
 const POLL_INTERVAL_MS = 2500;
@@ -205,8 +212,20 @@ interface PlayState {
    * `onlineBoards`.
    */
   onlineTicker: TickerItem[];
-  /** Per-user game history (synced via the user-data sync). */
+  /**
+   * The user's game history, both modes in one list. Signed in, this is a
+   * read of the server's canonical `game_results` table (`loadHistory`),
+   * with any local game still waiting to post layered on top; a guest's is
+   * device-only. Persisted so the tab opens on the last known list offline.
+   */
   history: GameRecord[];
+  /**
+   * Finished local games that haven't reached the server yet — recorded
+   * offline, or the post failed. Flushed in order on boot, on Play mount and
+   * right after a game ends; a permanent rejection (4xx) drops the entry so
+   * a bad game can't jam the queue. Persisted. Empty for guests.
+   */
+  pendingResults: GameState[];
   hydrated: boolean;
   /** Last error from an online action; surfaced in the UI. */
   onlineError: string | null;
@@ -298,7 +317,16 @@ interface PlayState {
   // ── History ─────────────────────────────────────────────────────────────
   /** Replace history (used by sync hydration). */
   setHistory(records: GameRecord[]): void;
+  /**
+   * Drop a game from the list, and from the server when the caller recorded
+   * it there (a local game they posted). An online row is the table's shared
+   * record and is never deleted — callers hide the control for those.
+   */
   removeHistory(id: string): void;
+  /** Signed in: replace `history` with the server's list. Guests: no-op. */
+  loadHistory(): Promise<void>;
+  /** Post every queued local result, oldest first. No-op for guests. */
+  flushPendingResults(): Promise<void>;
 }
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -624,12 +652,38 @@ function recordIfFinished(
   set: (fn: (s: PlayState) => Partial<PlayState>) => void
 ) {
   if (state.status === 'finished' && state.endedAt) {
+    let queued = false;
     set((s) => {
       if (s.history.some((r) => r.id === state.id)) return {};
-      return { history: [gameToRecord(state, state.endedAt!), ...s.history].slice(0, 500) };
+      const next: Partial<PlayState> = {
+        history: [gameToRecord(state, state.endedAt!), ...s.history].slice(0, 500),
+      };
+      // A finished ONLINE game already has its canonical row (the server
+      // wrote it when the session flipped); a LOCAL one exists only on this
+      // device until it's posted. Queue it here, flush below — once, outside
+      // the setter, so a rehydrated queue and this one never double-post.
+      if (state.mode === 'local' && !s.pendingResults.some((g) => g.id === state.id)) {
+        next.pendingResults = [...s.pendingResults, state];
+        queued = true;
+      }
+      return next;
     });
+    if (queued) void usePlayStore.getState().flushPendingResults();
   }
 }
+
+/** True when a signed-in account can post to / read from the server record. */
+function signedIn(): boolean {
+  return useAuth.getState().status === 'authed';
+}
+
+/** A 4xx other than 429 is a verdict, not a hiccup — retrying can't change it. */
+function isPermanentRejection(err: unknown): boolean {
+  const status = (err as { status?: number } | null)?.status;
+  return typeof status === 'number' && status >= 400 && status < 500 && status !== 429;
+}
+
+let flushInFlight: Promise<void> | null = null;
 
 export const usePlayStore = create<PlayState>()(
   persist(
@@ -641,6 +695,7 @@ export const usePlayStore = create<PlayState>()(
       onlineSignal: null,
       onlineTicker: [],
       history: [],
+      pendingResults: [],
       hydrated: false,
       onlineError: null,
       onlinePolling: false,
@@ -1099,7 +1154,83 @@ export const usePlayStore = create<PlayState>()(
       // ── History ───────────────────────────────────────────────────────────
       setHistory: (records) => set({ history: records }),
       removeHistory: (id) => {
-        set((s) => ({ history: s.history.filter((r) => r.id !== id) }));
+        const rec = get().history.find((r) => r.id === id);
+        const wasPending = get().pendingResults.some((g) => g.id === id);
+        set((s) => ({
+          history: s.history.filter((r) => r.id !== id),
+          pendingResults: s.pendingResults.filter((g) => g.id !== id),
+        }));
+        // Only a local game this account posted has a server row to remove
+        // (the server refuses anything else anyway). A game still queued
+        // never reached it, so dropping it from the queue is the whole delete.
+        const me = useAuth.getState().user?.id ?? null;
+        if (!wasPending && rec?.mode === 'local' && me && rec.recordedByUserId === me) {
+          deleteGameResult(id).catch((err) =>
+            logger.warn('[store] Failed to remove game from the server record:', err)
+          );
+        }
+      },
+
+      loadHistory: async () => {
+        if (!signedIn()) return;
+        const { results } = await fetchMyResults({ limit: 200 });
+        const fromServer = results.map(resultToRecord);
+        set((s) => {
+          // A game still waiting to post is real history the server doesn't
+          // know yet — keep its on-device record ahead of the server's list.
+          const serverIds = new Set(fromServer.map((r) => r.id));
+          const waiting = s.history.filter(
+            (r) => !serverIds.has(r.id) && s.pendingResults.some((g) => g.id === r.id)
+          );
+          const merged = [...waiting, ...fromServer].sort((a, b) => b.endedAt - a.endedAt);
+          return { history: merged.slice(0, 500), hydrated: true };
+        });
+      },
+
+      flushPendingResults: () => {
+        if (flushInFlight) return flushInFlight;
+        if (!signedIn() || get().pendingResults.length === 0) return Promise.resolve();
+        flushInFlight = (async () => {
+          try {
+            while (signedIn()) {
+              const game = get().pendingResults[0];
+              if (!game) break;
+              try {
+                const result = await postLocalResult(game);
+                const record = resultToRecord(result);
+                set((s) => ({
+                  pendingResults: s.pendingResults.filter((g) => g.id !== game.id),
+                  // Swap in the server's copy so the row now carries who
+                  // recorded it (and the friends' usernames it resolved).
+                  history: s.history.some((r) => r.id === record.id)
+                    ? s.history.map((r) => (r.id === record.id ? record : r))
+                    : [record, ...s.history].slice(0, 500),
+                }));
+              } catch (err) {
+                if (isPermanentRejection(err)) {
+                  // Say so once: the game stays on this device's list, but
+                  // the server's next read won't carry it, and a silent drop
+                  // would read as a game that never happened.
+                  logger.warn(`[store] Server refused local game ${game.id}; dropping it:`, err);
+                  toast.show({
+                    message: userMessage(err, "Couldn't save a game to your record."),
+                    tone: 'error',
+                  });
+                  set((s) => ({
+                    pendingResults: s.pendingResults.filter((g) => g.id !== game.id),
+                  }));
+                  continue;
+                }
+                // Offline or a server hiccup: leave the queue for next time.
+                logger.warn('[store] Could not post a local game yet; will retry:', err);
+                break;
+              }
+            }
+          } finally {
+            flushInFlight = null;
+          }
+        })();
+        return flushInFlight;
       },
     }),
     {
@@ -1130,12 +1261,17 @@ export const usePlayStore = create<PlayState>()(
       // is still the source of truth on next poll; persisted state is just a
       // hint that we *were* in a game.
       //
-      // `history` (synced game records) is intentionally NOT in the partialize
-      // list anymore — it lives in entity-store and is rehydrated by sync.ts.
-      // Persisting it here would race the sync-driven setState on boot.
+      // `history` is persisted here (not via the per-row user-data sync any
+      // more): signed in, `loadHistory` replaces it from the canonical server
+      // table on the next Play visit, so this copy is just what the tab shows
+      // before that read lands, or offline; for a guest it is the whole
+      // record. `pendingResults` must survive a reload or nothing recorded
+      // offline would ever post.
       partialize: (s) => ({
         local: s.local,
         online: s.online,
+        history: s.history,
+        pendingResults: s.pendingResults,
         boardVisible: s.boardVisible,
         hapticsEnabled: s.hapticsEnabled,
         showClock: s.showClock,
@@ -1146,22 +1282,29 @@ export const usePlayStore = create<PlayState>()(
   )
 );
 
+// Play history is deliberately NOT part of the per-row user-data sync: a
+// finished game is one shared, immutable record in `game_results` (server
+// truth for both modes), not a per-user document to reconcile. `local` and
+// `online` aren't synced either — a local game is a single-device session
+// and an online game is owned by the game_sessions API.
+
 /**
- * Sync subscriber: every in-memory change to the play history flows through
- * the per-row sync layer. See store/collection.ts for the broader pattern.
- * `local` and `online` are intentionally NOT synced — local games are a
- * single-device session and online games are owned by the game_sessions
- * REST API (separate from the per-row user-data sync).
+ * A result recorded while signed out (or before the account existed) posts
+ * the moment the account is there: queue flush on every guest → authed
+ * transition, plus a fresh read of the server's list.
  */
-usePlayStore.subscribe((state, prev) => {
-  if (state.history === prev.history) return;
-  // Synchronous guard — see store/collection.ts.
-  if (isApplyingServer()) return;
-  void import('../lib/sync')
-    .then((sync) => sync.persistGamesState(state.history))
-    // See store/cube.ts — a swallowed persist rejection is invisible data loss.
-    .catch((err) => logger.warn('[store] Failed to persist game history:', err));
-});
+// Guarded like lib/use-ai-status.ts: component tests stand in a bare selector
+// for `useAuth`, which has no `subscribe`.
+if (typeof useAuth.subscribe === 'function') {
+  useAuth.subscribe((state, prev) => {
+    if (state.status !== 'authed' || prev.status === 'authed') return;
+    const play = usePlayStore.getState();
+    void play
+      .flushPendingResults()
+      .then(() => play.loadHistory())
+      .catch(() => {});
+  });
+}
 
 // ── Per-deck win/loss aggregation ───────────────────────────────────────────
 

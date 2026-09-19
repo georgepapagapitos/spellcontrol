@@ -13,9 +13,10 @@ import './FriendsLeaderboard.css';
 
 import { userMessage } from '@/lib/user-error';
 /**
- * Server-authoritative "Friends leaderboard": W/L over online games you played
- * with each friend, expandable to a head-to-head detail. Social data is fetched
- * online (not via the local-first sync queue), refreshed on tab focus.
+ * Server-authoritative "Friends leaderboard": W/L over every game you and a
+ * friend both sat in — at the table or online, one record per game —
+ * expandable to a head-to-head detail. Social data is fetched online (not via
+ * the local-first sync queue), refreshed on tab focus.
  */
 export function FriendsLeaderboard() {
   const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null);
@@ -70,7 +71,7 @@ export function FriendsLeaderboard() {
       <section className="play-records">
         <h2 className="play-records-title">Friends leaderboard</h2>
         <p className="leaderboard-empty">
-          Play online games with friends to see head-to-head records.{' '}
+          Seat a friend at your table, or play online together, to see head-to-head records.{' '}
           <Link to="/friends">Add friends</Link>.
         </p>
       </section>

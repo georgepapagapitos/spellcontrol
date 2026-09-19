@@ -468,6 +468,12 @@
   text-transform: capitalize;
 }
 
+/* All / Local / Online — one list, one record per game, split on demand. */
+.play-history-filter {
+  max-width: 24rem;
+  margin: var(--space-4) 0 var(--space-2);
+}
+
 .play-history-date {
   flex: 1;
 }

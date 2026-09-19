@@ -131,6 +131,20 @@ export function PlayPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Signed in, the history is the server's record: post anything recorded
+  // while offline first, then read the list back so both modes show up in
+  // one place. Keyed on the user so a sign-in on this page reloads too.
+  useEffect(() => {
+    if (!user) return;
+    const play = usePlayStore.getState();
+    void play
+      .flushPendingResults()
+      .then(() => play.loadHistory())
+      .catch(() => {
+        /* the persisted list stays on screen; the next visit retries */
+      });
+  }, [user]);
+
   const gameNights = useGameNights(!isGuest);
   const inviteCount = pendingInviteCount(gameNights.nights);
 
@@ -1139,6 +1153,20 @@ function OnlineBoardDoor({
 
 // ── History ─────────────────────────────────────────────────────────────────
 
+type HistoryFilter = 'all' | 'local' | 'online';
+
+/**
+ * Whether the × may remove this record. A local game is deletable by the
+ * device that holds it (a guest's device-only record) or the account that
+ * posted it; an online game is the table's shared record and nobody's to
+ * remove. A record read back from the server without a recorder is the same.
+ */
+function canRemoveRecord(rec: GameRecord, userId: string | null): boolean {
+  if (rec.mode !== 'local') return false;
+  if (userId === null) return true;
+  return rec.recordedByUserId === undefined || rec.recordedByUserId === userId;
+}
+
 function HistoryTab({
   history,
   userId,
@@ -1150,14 +1178,23 @@ function HistoryTab({
 }) {
   const removeHistory = usePlayStore((s) => s.removeHistory);
   // The × sits on every row of a list a thumb scrolls past, and a removed
-  // record is gone for good (no undo, no server copy of a local game) — so it
-  // asks first, like every other destructive exit on this page.
+  // record is gone for good (no undo) — so it asks first, like every other
+  // destructive exit on this page.
   const [pendingRemove, setPendingRemove] = useState<GameRecord | null>(null);
-  const deckRows = useMemo(() => aggregateDeckRecords(history, userId), [history, userId]);
-  const matchupRows = useMemo(() => aggregateMatchupRecords(history, userId), [history, userId]);
+  // Both modes live in one list on purpose (one record per game, wherever it
+  // was played); the filter is how you look at just one of them.
+  const [filter, setFilter] = useState<HistoryFilter>('all');
+  const shown = useMemo(
+    () => (filter === 'all' ? history : history.filter((r) => r.mode === filter)),
+    [history, filter]
+  );
+  const deckRows = useMemo(() => aggregateDeckRecords(shown, userId), [shown, userId]);
+  const matchupRows = useMemo(() => aggregateMatchupRecords(shown, userId), [shown, userId]);
+  const hasBothModes =
+    history.some((r) => r.mode === 'local') && history.some((r) => r.mode === 'online');
 
   // Authed users always get the server-authoritative Friends leaderboard, even
-  // before any local games are recorded on this device.
+  // before any games are recorded.
   if (history.length === 0 && userId === null) {
     return (
       <div className="empty-state">
@@ -1174,9 +1211,23 @@ function HistoryTab({
       {history.length === 0 && (
         <div className="empty-state">
           <EmptyStateMark />
-          <p className="empty-state-tagline">No games on this device yet.</p>
+          <p className="empty-state-tagline">No games yet.</p>
           <p className="empty-state-hint">Head to Local or Online to start your first game.</p>
         </div>
+      )}
+      {hasBothModes && (
+        <Tabs<HistoryFilter>
+          ariaLabel="Which games"
+          variant="fitted"
+          className="play-history-filter"
+          value={filter}
+          onChange={setFilter}
+          tabs={[
+            { id: 'all', label: 'All games' },
+            { id: 'local', label: 'Local' },
+            { id: 'online', label: 'Online' },
+          ]}
+        />
       )}
       {deckRows.length > 0 && (
         <section className="play-records">
@@ -1254,8 +1305,11 @@ function HistoryTab({
       )}
       <section className="play-records">
         <h2 className="play-records-title">Games</h2>
+        {shown.length === 0 && history.length > 0 && (
+          <p className="empty-state-hint">No {filter} games yet.</p>
+        )}
         <ul className="play-history-list">
-          {history.map((rec) => {
+          {shown.map((rec) => {
             const winner =
               rec.winnerSeat != null ? rec.players.find((p) => p.seat === rec.winnerSeat) : null;
             return (
@@ -1274,14 +1328,16 @@ function HistoryTab({
                   >
                     Rematch
                   </button>
-                  <button
-                    type="button"
-                    className="play-history-remove"
-                    aria-label={`Remove game: ${new Date(rec.endedAt).toLocaleString()}`}
-                    onClick={() => setPendingRemove(rec)}
-                  >
-                    ×
-                  </button>
+                  {canRemoveRecord(rec, userId) && (
+                    <button
+                      type="button"
+                      className="play-history-remove"
+                      aria-label={`Remove game: ${new Date(rec.endedAt).toLocaleString()}`}
+                      onClick={() => setPendingRemove(rec)}
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
                 <div className="play-history-winner">
                   {winner ? `Winner: ${winner.name}` : 'No winner recorded'}
