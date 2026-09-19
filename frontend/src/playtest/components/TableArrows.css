@@ -1,0 +1,29 @@
+/* Arrows drawn on the table — a viewport overlay nothing can click through
+   to, above the boards and under every sheet. */
+
+.table-arrows {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: var(--z-table-banner);
+  pointer-events: none;
+  overflow: visible;
+}
+
+.table-arrows__halo {
+  stroke: rgba(0, 0, 0, 0.55);
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.table-arrows__line {
+  stroke-width: 3;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+
+.table-arrows .is-mine .table-arrows__line {
+  opacity: 1;
+  stroke-width: 3.5;
+}

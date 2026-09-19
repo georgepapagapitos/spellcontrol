@@ -61,6 +61,8 @@ export type ShortcutId =
   | 'focus-4'
   | 'focus-5'
   | 'focus-6'
+  | 'arrow'
+  | 'arrows-clear'
   | 'shortcuts'
   | 'menu';
 
@@ -115,6 +117,18 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
   { id: 'to-library-bottom', key: 'b', label: 'Move to bottom of library', group: 'selection' },
   { id: 'copy', key: 'mod+c', label: 'Copy', group: 'selection' },
   { id: 'paste', key: 'mod+v', label: 'Paste as token copies', group: 'selection' },
+  {
+    id: 'arrow',
+    key: 'w',
+    label: 'Draw an arrow from the selected card (online)',
+    group: 'selection',
+  },
+  {
+    id: 'arrows-clear',
+    key: 'shift+w',
+    label: 'Remove every arrow you drew (online)',
+    group: 'selection',
+  },
   {
     id: 'focus-1',
     key: '1',
@@ -254,9 +268,10 @@ export function chordOf(e: KeyboardEvent): string | null {
   const parts: string[] = [];
   if (e.ctrlKey || e.metaKey) parts.push('mod');
   if (e.altKey) parts.push('alt');
-  // Shift matters only for keys that don't already change with it: a typed
-  // `?` is its own key, so `shift+/` would never match what people press.
-  if (e.shiftKey && raw.length !== 1) parts.push('shift');
+  // Shift is part of the chord for letters (`shift+w` is its own key) and
+  // for named keys, but not for punctuation that already changes with it: a
+  // typed `?` is its own key, so `shift+/` would never match what people press.
+  if (e.shiftKey && (raw.length !== 1 || /[a-z]/i.test(raw))) parts.push('shift');
   parts.push(key === ' ' ? 'space' : key);
   return parts.join('+');
 }

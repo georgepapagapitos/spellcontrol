@@ -211,7 +211,7 @@ const MAX_CHAT_LEN = 240;
  * and lose it on reload, exactly like the rest of the table's ephemera.
  */
 interface GameSignal {
-  kind: 'reaction' | 'roll' | 'chat' | 'point';
+  kind: 'reaction' | 'roll' | 'chat' | 'point' | 'arrow';
   seat: number;
   ts: number;
   emote?: string;
@@ -224,6 +224,13 @@ interface GameSignal {
   /** point only: the specific card being pointed at on that seat's board.
    *  Absent means the point is at the seat/player as a whole. */
   cardId?: string;
+  /** arrow only: `add` draws one, `clear` removes every arrow this seat drew. */
+  op?: 'add' | 'clear';
+  /** arrow add only: the two ends. A missing card id means the seat as a whole. */
+  fromSeat?: number;
+  fromCardId?: string;
+  toSeat?: number;
+  toCardId?: string;
 }
 
 /**
@@ -1217,6 +1224,11 @@ gamesRouter.post(
       text?: unknown;
       targetSeat?: unknown;
       cardId?: unknown;
+      op?: unknown;
+      fromSeat?: unknown;
+      fromCardId?: unknown;
+      toSeat?: unknown;
+      toCardId?: unknown;
     };
     let signal: GameSignal;
     if (body.kind === 'reaction') {
@@ -1254,6 +1266,44 @@ gamesRouter.post(
         targetSeat,
         ...(cardId !== undefined && { cardId }),
       };
+    } else if (body.kind === 'arrow') {
+      // An arrow is a point that stays: two ends, either end a seat or a card
+      // on that seat's board. Same trust boundary as `point` — seats are
+      // checked against the roster, card ids are opaque, length-capped render
+      // keys a receiver degrades to the seat when nothing matches. `clear`
+      // carries nothing else: it removes every arrow THIS seat drew.
+      if (body.op === 'clear') {
+        signal = { kind: 'arrow', seat: me.seat, ts: nextSignalTs(), op: 'clear' };
+      } else if (body.op === 'add') {
+        const seated = (s: unknown): s is number =>
+          typeof s === 'number' && Number.isInteger(s) && state.players.some((p) => p.seat === s);
+        if (!seated(body.fromSeat) || !seated(body.toSeat)) {
+          return res.status(400).json({ error: 'Invalid arrow seat.' });
+        }
+        const cardOk = (c: unknown) =>
+          c === undefined || (typeof c === 'string' && c.length <= 128);
+        if (!cardOk(body.fromCardId) || !cardOk(body.toCardId)) {
+          return res.status(400).json({ error: 'Invalid card.' });
+        }
+        const fromCardId =
+          typeof body.fromCardId === 'string' && body.fromCardId.length > 0
+            ? body.fromCardId
+            : undefined;
+        const toCardId =
+          typeof body.toCardId === 'string' && body.toCardId.length > 0 ? body.toCardId : undefined;
+        signal = {
+          kind: 'arrow',
+          seat: me.seat,
+          ts: nextSignalTs(),
+          op: 'add',
+          fromSeat: body.fromSeat,
+          toSeat: body.toSeat,
+          ...(fromCardId !== undefined && { fromCardId }),
+          ...(toCardId !== undefined && { toCardId }),
+        };
+      } else {
+        return res.status(400).json({ error: 'Invalid arrow.' });
+      }
     } else if (body.kind === 'roll') {
       const die = body.die;
       if (typeof die !== 'string' || !(SIGNAL_DICE as readonly string[]).includes(die)) {

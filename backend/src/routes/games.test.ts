@@ -2497,6 +2497,57 @@ describe('POST /api/games/:code/signal (ephemeral table signals)', () => {
     }
   });
 
+  it('echoes an arrow between two seated ends, with or without cards, and a clear carries nothing else', async () => {
+    const { code, host, joiners } = await setupTable('games_sig_arrow_h', ['games_sig_arrow_j']);
+    const cards = await request(app)
+      .post(`/api/games/${code}/signal`)
+      .set('Cookie', joiners[0])
+      .send({ kind: 'arrow', op: 'add', fromSeat: 1, fromCardId: 'c1', toSeat: 0, toCardId: 'c2' });
+    expect(cards.status).toBe(200);
+    expect(cards.body.signal).toMatchObject({
+      kind: 'arrow',
+      op: 'add',
+      seat: 1,
+      fromSeat: 1,
+      fromCardId: 'c1',
+      toSeat: 0,
+      toCardId: 'c2',
+    });
+    const seats = await request(app)
+      .post(`/api/games/${code}/signal`)
+      .set('Cookie', host)
+      .send({ kind: 'arrow', op: 'add', fromSeat: 0, toSeat: 1, extra: 'nope' });
+    expect(seats.status).toBe(200);
+    expect(seats.body.signal.fromCardId).toBeUndefined();
+    expect(seats.body.signal.toCardId).toBeUndefined();
+    expect(seats.body.signal.extra).toBeUndefined();
+    const clear = await request(app)
+      .post(`/api/games/${code}/signal`)
+      .set('Cookie', host)
+      .send({ kind: 'arrow', op: 'clear', fromSeat: 5 });
+    expect(clear.status).toBe(200);
+    expect(clear.body.signal).toEqual({
+      kind: 'arrow',
+      seat: 0,
+      ts: expect.any(Number),
+      op: 'clear',
+    });
+  });
+
+  it('rejects an arrow at an empty seat, an over-long card id, or an unknown op', async () => {
+    const { code, host } = await setupTable('games_sig_arrow_bad', []);
+    const post = (body: object) =>
+      request(app).post(`/api/games/${code}/signal`).set('Cookie', host).send(body);
+    expect((await post({ kind: 'arrow', op: 'add', fromSeat: 0, toSeat: 3 })).status).toBe(400);
+    expect((await post({ kind: 'arrow', op: 'add', fromSeat: '0', toSeat: 0 })).status).toBe(400);
+    expect(
+      (await post({ kind: 'arrow', op: 'add', fromSeat: 0, toSeat: 0, toCardId: 'x'.repeat(129) }))
+        .status
+    ).toBe(400);
+    expect((await post({ kind: 'arrow', op: 'erase' })).status).toBe(400);
+    expect((await post({ kind: 'arrow' })).status).toBe(400);
+  });
+
   it('echoes a reaction signal with the server-stamped seat, ignoring a spoofed seat in the body', async () => {
     const { code, joiners } = await setupTable('games_sig_echo_h', ['games_sig_echo_j']);
     const res = await request(app)

@@ -67,7 +67,9 @@ export function TableSignals() {
     // A chat message is NOT a moment here: it lands in the ticker feed as a
     // readable line (store/play.ts `applyServerSignal`), and flashing it as
     // an ambient bubble too would show the same message twice.
-    if (signal.kind === 'chat') return;
+    // An arrow is durable table state too (store `onlineArrows`, drawn by
+    // TableArrows), not a moment to flash.
+    if (signal.kind === 'chat' || signal.kind === 'arrow') return;
 
     let moment: Moment;
     if (signal.kind === 'reaction') {
