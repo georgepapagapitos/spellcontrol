@@ -5576,6 +5576,17 @@ Model-written text always says so. The rulings:
   link. Don't reintroduce a header sheet trigger or a tab-bar slot: the nav
   redesign that removed them was right about the bar, wrong to leave Rules
   reachable only from Play.
+- **The Rules hub uses a wide screen; the sheet never does** (settled
+  2026-09-19). Below 1024px `/rules` is the 640px reading column its social
+  siblings use. From 1024px it widens to the 1100px cap Search / Compare /
+  Tags share and lays the reference out for the room: the section strip and
+  the search share one toolbar row over a single hairline; keyword cards and
+  glossary terms, which are short, go two abreast (a grid that reads across,
+  never CSS `columns`, which would send a long list down one column and back
+  up the next); numbered rules and the AI answer are prose and keep a ~44rem
+  measure; the Ask tab seats the box, its starters and past questions beside
+  the answer instead of above it. Every desktop rule is scoped under
+  `.rules-page` so the in-game sheet stays the single-column quick look.
 
 ---
 

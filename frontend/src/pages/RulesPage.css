@@ -1,7 +1,11 @@
-/* The Rules hub (/rules) — a reading-width column like /friends. The
-   reference lists come from RulesReference.css (shared with the in-game
-   sheet); the Ask tab's AI chrome (marker pill, skeleton, error, card chips)
-   reuses the shared deck-ai primitives. Everything page-shaped is here. */
+/* The Rules hub (/rules) — a reading-width column like /friends on phones
+   and tablets; from 1024px it widens to the 1100px cap the Search / Compare /
+   Tags pages share and lays the reference out for the room (see the desktop
+   block at the end). The reference lists come from RulesReference.css
+   (shared with the in-game sheet, which stays single-column — every desktop
+   rule below is scoped under .rules-page); the Ask tab's AI chrome (marker
+   pill, skeleton, error, card chips) reuses the shared deck-ai primitives.
+   Everything page-shaped is here. */
 
 .rules-page {
   max-width: 640px;
@@ -57,6 +61,26 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+}
+
+/* The box with its starters, and the answer with its states, are one wrapper
+   each so the desktop grid can seat them side by side; on a phone they are
+   invisible. An empty result wrapper (idle, nothing asked yet) must not
+   charge the column its gap. */
+.rules-ask-compose {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.rules-ask-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.rules-ask-result:empty {
+  display: none;
 }
 
 .rules-ask-header {
@@ -392,4 +416,92 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
   line-height: 1.5;
+}
+
+/* ── Desktop (≥1024px): use the room ──────────────────────────────────────
+   The page widens to 1100px. The section strip and the search share one
+   toolbar row over a single hairline (the strip's own underline plus the
+   search cell's, flush at the row's bottom edge). Keywords and glossary
+   terms, which are short, go two abreast; rule text and the AI answer are
+   prose and keep a reading measure — the Ask tab seats the question box and
+   past questions beside the answer instead of stacking them. */
+@media (min-width: 1024px) {
+  .rules-page {
+    max-width: 1100px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: stretch;
+  }
+
+  .rules-page > * {
+    grid-column: 1 / -1;
+  }
+
+  .rules-page-tabs {
+    grid-column: 1;
+    align-self: end;
+  }
+
+  .rules-page .rules-ref-search {
+    grid-column: 2;
+    width: 20rem;
+    align-items: center;
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Cards are a name, a tag and a one-line summary — two abreast at ~530px
+     each, the same measure the phone column gives them. An open card grows
+     in place (align-items: start keeps its neighbour from stretching). */
+  .rules-page .rules-ref-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: var(--space-3);
+  }
+
+  /* Dictionary rows two abreast; rows share a height so the hairlines line
+     up across the columns, and the last row keeps its line on both sides. */
+  .rules-page .rules-ref-glossary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-8);
+  }
+
+  .rules-page .rules-ref-glossary-entry:last-child {
+    border-bottom: 0.5px solid var(--border);
+  }
+
+  /* Numbered rules are sequential prose: one column at a reading measure
+     (on the row, not the list, so the class stays owned by RulesReference.css
+     per css-chunk-ownership.test.ts). */
+  .rules-page .rules-ref-rule {
+    max-width: 44rem;
+  }
+
+  /* Ask: the box, its starters and past questions on the left; the answer,
+     at a reading measure, on the right. The result wrapper spans the side
+     column's rows so a long answer never pushes past questions down. */
+  .rules-ask-section:has(.rules-ask-compose) {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    grid-auto-flow: row dense;
+    column-gap: var(--space-8);
+    align-items: start;
+  }
+
+  .rules-ask-section:has(.rules-ask-compose) > .rules-ask-header {
+    grid-column: 1 / -1;
+  }
+
+  .rules-ask-section:has(.rules-ask-compose) > .rules-ask-compose,
+  .rules-ask-section:has(.rules-ask-compose) > .rules-history,
+  .rules-ask-section:has(.rules-ask-compose) > .rules-disclaimer {
+    grid-column: 1;
+  }
+
+  .rules-ask-section:has(.rules-ask-compose) > .rules-ask-result {
+    grid-column: 2;
+    grid-row: 2 / span 3;
+  }
 }
