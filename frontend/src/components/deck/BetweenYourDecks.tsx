@@ -300,9 +300,8 @@ function BetweenYourDecksStrip({
  *
  * UX-334 follow-up: the first ship rendered the full suggestion list inline,
  * pushing the deck grid below the fold. This collapses to a one-row strip
- * (mirroring `ReadinessSpotlight`'s self-contained-data pattern, but only the
- * summary, not the cards) that opens the same suggestion cards in a sheet on
- * tap. Zero visible suggestions (none found, or all dismissed) renders
+ * (self-contained data, only the summary, not the cards) that opens the same
+ * suggestion cards in a sheet on tap. Zero visible suggestions (none found, or all dismissed) renders
  * nothing at all — no empty state on the index itself.
  */
 export function BetweenYourDecks(): JSX.Element | null {

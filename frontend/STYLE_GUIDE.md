@@ -2565,11 +2565,15 @@ implementation (`components/deck/BetweenYourDecks.tsx`):
   should be near-identical to what an inline surface would have shown, just
   gated behind one tap instead of always-on real estate.
 
-**Known instances (sweep-3).** `BetweenYourDecks` (reference), `BuildTimeCoachStrip` /
-`WedgeHintStrip` (navigating variant), and `ReadinessSpotlight` (migrated in #1748; it
-had rendered three full cards and pushed the first deck card to y=934 on a 780px
-phone). Any advisor surface renders as a collapsed 44px row and reserves its height,
-so an async fetch never shifts the grid when it resolves.
+**Known instances (sweep-3).** `BetweenYourDecks` (reference) and `BuildTimeCoachStrip` /
+`WedgeHintStrip` (navigating variant). The Decks-index "Build another" readiness
+spotlight was a third (migrated in #1748 after it rendered three full cards and pushed
+the first deck card to y=934 on a 780px phone) and was later removed outright: it
+scored only the eight most recently imported legends, so its "closest to done" picks
+were effectively alphabetical, and New deck's "From my binder" ranking already answers
+the question properly at the moment it is asked. Any advisor surface renders as a
+collapsed 44px row and reserves its height, so an async fetch never shifts the grid
+when it resolves.
 
 ## Empty states (E182)
 

@@ -2,7 +2,7 @@ import type { EnrichedCard } from '../types';
 import { isCommanderEligible } from './commanders';
 
 /**
- * Commander Spotlight readiness scoring — pure, network-free logic.
+ * Commander readiness scoring — pure, network-free logic.
  *
  * "Readiness" answers an explainable question: of a commander's most-played
  * staples (EDHREC `allNonLand`, sorted by inclusion %), how many do you already
@@ -17,11 +17,9 @@ import { isCommanderEligible } from './commanders';
 export const READINESS_POOL_SIZE = 100;
 
 /** Below this collection size a readiness or coverage % is too noisy to be a
- *  useful "what to build" signal. Shared by the spotlight and the binder ranking. */
+ *  useful "what to build" signal. Shared by the commander picker and the
+ *  binder ranking. */
 export const MIN_COLLECTION_SIZE = 20;
-
-/** How many commanders the spotlight fetches readiness for (carousel cap). */
-export const SPOTLIGHT_TOP_N = 8;
 
 /** Max owned-staple names carried for the explainer tooltip. */
 export const MAX_OWNED_SAMPLES = 3;
@@ -49,13 +47,11 @@ export interface ReadinessScore {
   ownedSamples: string[];
 }
 
-export type CommanderSortKey = 'readiness' | 'name' | 'recentlyAdded';
-
 /**
- * Import recency lookup: importId → import timestamp (ms). Dedupe and the
- * "recently added" sort key off this because prod importIds are random UUIDs
- * (`crypto.randomUUID`, store/collection.ts), NOT time-ordered — an importId
- * string compare picks an arbitrary copy/order. Build it from the collection's
+ * Import recency lookup: importId → import timestamp (ms). Dedupe keys off
+ * this because prod importIds are random UUIDs (`crypto.randomUUID`,
+ * store/collection.ts), NOT time-ordered — an importId string compare picks
+ * an arbitrary copy/order. Build it from the collection's
  * `importHistory` (`{ id, addedAt }`). A card with no importId, or one absent
  * from the map, counts as the oldest.
  */
@@ -139,43 +135,4 @@ export function computeReadiness(
   const explainerLine = `${ownedCount} of ${totalCount} staples owned`;
 
   return { available: true, ownedCount, totalCount, percent, explainerLine, ownedSamples };
-}
-
-/**
- * Sort commander candidates for the carousel/grid. Returns a new array.
- *
- * - `readiness`: highest percent first; unscored/unavailable sink to the end.
- * - `name`: A→Z.
- * - `recentlyAdded`: newest import first (by `recency`); cards with no recency
- *   sink to the end.
- *
- * All keys break ties by name so ordering is stable while scores stream in.
- */
-export function sortCommanderCandidates(
-  candidates: EnrichedCard[],
-  scores: Map<string, ReadinessScore>,
-  key: CommanderSortKey,
-  recency?: ImportRecency
-): EnrichedCard[] {
-  const out = [...candidates];
-  if (key === 'name') {
-    out.sort((a, b) => a.name.localeCompare(b.name));
-  } else if (key === 'recentlyAdded') {
-    out.sort((a, b) => {
-      const ra = recencyOf(a, recency);
-      const rb = recencyOf(b, recency);
-      if (ra !== rb) return rb - ra;
-      return a.name.localeCompare(b.name);
-    });
-  } else {
-    out.sort((a, b) => {
-      const sa = scores.get(a.name);
-      const sb = scores.get(b.name);
-      const ra = sa?.available ? sa.percent : -1;
-      const rb = sb?.available ? sb.percent : -1;
-      if (rb !== ra) return rb - ra;
-      return a.name.localeCompare(b.name);
-    });
-  }
-  return out;
 }
