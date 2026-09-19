@@ -10,6 +10,13 @@ import type { FriendCard } from './cube/pool';
 
 export type RsvpStatus = 'going' | 'maybe' | 'declined';
 
+/** Where a night is played — see `GameNight.venue`. */
+export type NightVenue = 'table' | 'online';
+export const NIGHT_VENUES: ReadonlyArray<{ value: NightVenue; label: string; hint: string }> = [
+  { value: 'table', label: 'At the table', hint: 'One device tracks every seat.' },
+  { value: 'online', label: 'Online', hint: 'Everyone on their own device, with a join code.' },
+];
+
 export interface NightRsvp {
   /** Removal handle, present only in the host's own view of their night. */
   id?: string;
@@ -63,6 +70,9 @@ export interface GameNight {
   inviteOnly: boolean;
   /** Optional play format (e.g. 'commander'); null = undecided. */
   format: string | null;
+  /** Where it's played: at one table (one device tracks it) or online (a
+   *  join code, everyone on their own device). Drives "Start game". */
+  venue: NightVenue;
   hostUsername: string;
   isHost: boolean;
   myStatus: RsvpStatus | null;
@@ -110,6 +120,7 @@ export interface PublicGameNight {
     inviteOnly: boolean;
     /** Optional play format (e.g. 'commander'); null = undecided. */
     format: string | null;
+    venue: NightVenue;
     hostUsername: string;
     series: NightSeries | null;
   };
@@ -149,6 +160,8 @@ export interface GameNightInput {
   notes?: string;
   /** Optional play format (e.g. 'commander'); omitted/undecided = null. */
   format?: string;
+  /** Omitted = 'table'. */
+  venue?: NightVenue;
   inviteUserIds?: string[];
   /** Repeat weekly (E125): the next occurrence materializes as the date passes. */
   repeatsWeekly?: boolean;

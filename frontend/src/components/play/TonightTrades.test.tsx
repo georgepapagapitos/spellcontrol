@@ -28,6 +28,7 @@ function makeNight(overrides: Partial<GameNight> = {}): GameNight {
     cancelledAt: null,
     inviteOnly: false,
     format: null,
+    venue: 'table',
     hostUsername: 'me',
     isHost: true,
     myStatus: 'going',

@@ -375,6 +375,7 @@ export async function createTestEnv(): Promise<TestEnv> {
     );
     CREATE INDEX game_night_blocks_user_idx ON game_night_blocks(user_id);
     ALTER TABLE game_nights ADD COLUMN format TEXT;
+    ALTER TABLE game_nights ADD COLUMN venue TEXT NOT NULL DEFAULT 'table';
     CREATE TABLE game_night_guest_invites (
       id TEXT PRIMARY KEY,
       night_id TEXT REFERENCES game_nights(id) ON DELETE CASCADE,

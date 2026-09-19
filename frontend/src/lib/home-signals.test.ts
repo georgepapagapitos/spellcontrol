@@ -441,6 +441,7 @@ describe('upcomingGameNights', () => {
       cancelledAt: null,
       inviteOnly: false,
       format: null,
+      venue: 'table',
       hostUsername: 'host',
       isHost: true,
       myStatus: null,

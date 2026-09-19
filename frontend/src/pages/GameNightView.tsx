@@ -283,6 +283,12 @@ function NightBody({
             <dd>{gameFormatLabel(night.format)}</dd>
           </div>
         )}
+        {night.venue === 'online' && (
+          <div className="game-night-fact">
+            <dt>Played</dt>
+            <dd>Online. Everyone plays from their own device and the host shares a join code.</dd>
+          </div>
+        )}
         {night.location && (
           <div className="game-night-fact">
             <dt>Where</dt>

@@ -169,13 +169,27 @@
   line-height: 1.6;
 }
 
-.game-night-format-pill {
+.game-night-format-pill,
+.game-night-online-pill {
   font-size: var(--text-xs);
   color: var(--accent);
   border: 1px solid currentColor;
   border-radius: 999px;
   padding: 0 var(--space-2);
   line-height: 1.6;
+}
+
+/* Where it's played — the second line under each venue radio. */
+.game-night-venue legend {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  padding: 0;
+  margin-bottom: var(--space-1);
+}
+
+.game-night-venue-hint {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
 }
 
 .game-night-card-when {
