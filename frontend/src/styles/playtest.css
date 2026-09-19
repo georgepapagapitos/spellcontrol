@@ -764,14 +764,10 @@ body:has(.playtest-page) {
 
 .playtest-pile__stack {
   position: relative;
-  /* A fixed art height now that the tiles sit in a bottom-right ROW rather
-     than a full-height column: the old `100cqh` share (and the column's
-     `container-type: size`) existed only to divide a column's leftover
-     height between four stacked tiles, which no longer exist at any tier —
-     the narrow tier hides `.playtest-piles` entirely. */
-  width: auto;
-  height: 72px;
-  aspect-ratio: 70 / 96;
+  /* One card, the same size as a card in hand or on the battlefield, so the
+     piles read as the same objects and follow the card-size setting. */
+  width: var(--pt-card-w);
+  height: var(--pt-card-h);
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--surface-raised);
@@ -3219,11 +3215,15 @@ body:has(.playtest-page) {
   gap: var(--space-2);
 }
 
-/* ── Bottom-centre hand fan ─────────────────────────────────────────────── */
+/* ── Bottom hand fan ────────────────────────────────────────────────────── */
+/* Centred in the width the zone-pile row leaves free (the row is four
+   card-width tiles: `pilesWidth` in lib/fan-layout.ts is the same sum), and
+   tucked so the lower part of every card hangs below the table edge: the
+   name and art show, the hover lift brings the whole card up. */
 .playtest-hand--fan {
   position: absolute;
-  left: 50%;
-  bottom: var(--space-3);
+  left: calc((100% - (4 * (var(--pt-card-w) + 13px) + 36px)) / 2);
+  bottom: calc(var(--pt-card-h) * -0.38);
   transform: translateX(-50%);
   z-index: 3;
   display: flex;
@@ -3257,21 +3257,40 @@ body:has(.playtest-page) {
   transition: transform var(--motion-fast) ease;
 }
 
-/* The lift is on the CARD, so the slot keeps the fan rotation and the
-   neighbours never move. */
+/* The lift is on the card's wrapper (card + cost badge together), so the
+   slot keeps the fan rotation and the neighbours never move. */
 .playtest-hand--fan .playtest-hand__slot:hover,
 .playtest-hand--fan .playtest-hand__slot:focus-within {
   z-index: 60;
 }
 
+.playtest-hand__lift {
+  position: relative;
+  transition: transform var(--motion-fast) ease;
+}
+
+/* Up by what was tucked below the edge, plus a little clear air, and an
+   accent ring so the card under the pointer reads as the active one. */
 @media (hover: hover) and (pointer: fine) {
+  .playtest-hand--fan .playtest-hand__slot:hover .playtest-hand__lift {
+    transform: translateY(calc(var(--pt-card-h) * -0.38 - 12px));
+  }
+
   .playtest-hand--fan .playtest-hand__slot:hover .playtest-card {
-    transform: translateY(-16px) scale(1.04);
+    box-shadow:
+      0 0 0 2px var(--accent),
+      var(--shadow-modal);
   }
 }
 
-.playtest-hand--fan .playtest-hand__slot .playtest-card:focus-visible {
-  transform: translateY(-16px) scale(1.04);
+.playtest-hand--fan .playtest-hand__slot:focus-within .playtest-hand__lift {
+  transform: translateY(calc(var(--pt-card-h) * -0.38 - 12px));
+}
+
+.playtest-hand--fan .playtest-hand__slot:focus-within .playtest-card {
+  box-shadow:
+    0 0 0 2px var(--accent),
+    var(--shadow-modal);
 }
 
 /* Mana value, top-left of the card the way a physical card carries its cost. */
@@ -3306,7 +3325,8 @@ body:has(.playtest-page) {
 .playtest-hand--fan .playtest-hand__toggle {
   position: absolute;
   right: 0;
-  bottom: 0;
+  /* The fan hangs below the edge; the toggle stays on the table. */
+  bottom: calc(var(--pt-card-h) * 0.38 + var(--space-2));
   /* Above every slot: the fan gives each card an ascending z-index, so a
      z-index of 1 here left the toggle painted under most of the hand. */
   z-index: 20;
@@ -3333,6 +3353,7 @@ body:has(.playtest-page) {
 .playtest-hand--fan.is-collapsed {
   /* Still a drop target, still shows the count, just the pill. */
   padding: 0;
+  bottom: var(--space-3);
 }
 
 .playtest-hand--fan.is-collapsed.is-over .playtest-hand__toggle {
@@ -3393,25 +3414,9 @@ body:has(.playtest-page) {
   }
 }
 
-/* A 1024–1150px table is the one width where a seven-card fan centred on the
-   viewport reaches under the bottom-right pile row. Re-centre it in the space
-   left of the piles rather than shrinking the cards below their 90px floor or
-   letting two clusters overlap. */
-@media (min-width: 1024px) and (max-width: 1150px) {
-  .playtest-hand--fan {
-    left: calc(50% - 6rem);
-  }
-}
-
-/* Same squeeze, different cause: at an online table below the seat grid the
-   opponent rail takes 15rem off the board, so a 1280px viewport leaves the
-   fan the same cramped width a 1150px one does. Keyed on the rail being
-   there, not on the viewport, because that is what actually narrows it. */
-@media (min-width: 1151px) and (max-width: 1439px) {
-  .playtest-main:has(> .opponent-rail) .playtest-hand--fan {
-    left: calc(50% - 6rem);
-  }
-}
+/* The fan re-centres itself in whatever the pile row leaves free (see its
+   `left`), so neither the 1024–1150px table nor the rail tier needs a shove
+   any more. */
 
 /* ── Desktop table with opponents: a 2x2 seat grid, not a rail ───────────── */
 /*  STYLE_GUIDE "Desktop table with opponents: 2x2, not a rail". At 1440px and
@@ -3586,4 +3591,69 @@ body:has(.playtest-page) {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.35));
   font-size: var(--text-sm);
+}
+
+/* ── Table settings sheet ──────────────────────────────────────────────── */
+.playtest-settings__row {
+  display: grid;
+  grid-template-columns: auto 1fr 3.5rem;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.playtest-settings__value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.playtest-settings__hint {
+  margin: var(--space-2) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.playtest-settings__range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  margin: 0;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0%,
+    var(--accent) var(--range-progress, 50%),
+    var(--surface-raised) var(--range-progress, 50%),
+    var(--surface-raised) 100%
+  );
+  cursor: pointer;
+}
+
+.playtest-settings__range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--accent);
+  box-shadow: var(--shadow-tooltip);
+  cursor: pointer;
+}
+
+.playtest-settings__range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--accent);
+  box-shadow: var(--shadow-tooltip);
+  cursor: pointer;
+}
+
+.playtest-settings__range:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
 }

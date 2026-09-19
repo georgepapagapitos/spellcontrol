@@ -368,7 +368,7 @@ describe('PlaytestBoard — rebindable shortcuts', () => {
 describe('PlaytestBoard — card size', () => {
   beforeEach(() => localStorage.clear());
 
-  it('= and − step the zoom with nothing selected, and the menu offers a reset once it moved', () => {
+  it('= and − step the zoom with nothing selected, and the settings sheet shows and sets it', () => {
     const { unmount } = render(
       <MemoryRouter>
         <PlaytestBoard state={seededState()} />
@@ -384,8 +384,15 @@ describe('PlaytestBoard — card size', () => {
     // No counter was ever asked for: nothing selected means the keys zoom.
     expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_COUNTER' }));
     fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Reset card size' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Card size: 90%' }));
+    const slider = screen.getByRole('slider', { name: 'Card size' });
+    expect(slider.getAttribute('aria-valuetext')).toBe('90%');
+    fireEvent.change(slider, { target: { value: '1.3' } });
+    expect(document.body.style.getPropertyValue('--pt-zoom')).toBe('1.3');
+    expect(localStorage.getItem('playtest-zoom-v1')).toBe('1.3');
+    fireEvent.click(screen.getByRole('button', { name: 'Reset to default' }));
     expect(document.body.style.getPropertyValue('--pt-zoom')).toBe('1');
+    expect(localStorage.getItem('playtest-zoom-v1')).toBeNull();
     unmount();
     expect(document.body.style.getPropertyValue('--pt-zoom')).toBe('');
   });

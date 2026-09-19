@@ -39,15 +39,33 @@ describe('table chrome at the wide tier', () => {
     // custom property instead of a per-breakpoint pixel guess.
     expect(css).toContain('.playtest-hand--fan');
     expect(block('.playtest-hand__slot {')).toContain('transform-origin: bottom center');
-    // The lift is on the CARD inside the slot — putting it on the slot would
-    // fight the inline fan rotation and shove the neighbours.
-    expect(css).toContain('.playtest-hand--fan .playtest-hand__slot:hover .playtest-card {');
+    // The lift is on the card's wrapper inside the slot (the card AND its cost
+    // badge rise together) — putting it on the slot would fight the inline
+    // fan rotation and shove the neighbours; putting it on the card alone left
+    // the badge behind on the felt.
+    expect(css).toContain('.playtest-hand--fan .playtest-hand__slot:hover .playtest-hand__lift {');
     expect(css).toContain(
-      '.playtest-hand--fan .playtest-hand__slot .playtest-card:focus-visible {'
+      '.playtest-hand--fan .playtest-hand__slot:focus-within .playtest-hand__lift {'
     );
-    // Keyboard users get the same lift, and the slot still raises above its
-    // neighbours when anything inside it takes focus.
-    expect(css).toContain('.playtest-hand--fan .playtest-hand__slot:focus-within');
+    // The card under the pointer reads as the active one.
+    expect(block('.playtest-hand--fan .playtest-hand__slot:hover .playtest-card {')).toContain(
+      'var(--accent)'
+    );
+    // Tucked: the lower part of each card hangs below the table edge, and the
+    // lift brings exactly that much back up.
+    expect(block('.playtest-hand--fan {')).toContain('bottom: calc(var(--pt-card-h) * -0.38)');
+    expect(
+      block('.playtest-hand--fan .playtest-hand__slot:focus-within .playtest-hand__lift {')
+    ).toContain('var(--pt-card-h) * -0.38');
+    // The fan centres itself left of the pile row rather than on the viewport.
+    expect(block('.playtest-hand--fan {')).not.toContain('left: 50%');
+  });
+
+  it('sizes each zone pile as one hand-sized card', () => {
+    const stack = block('.playtest-pile__stack {');
+    expect(stack).toContain('width: var(--pt-card-w)');
+    expect(stack).toContain('height: var(--pt-card-h)');
+    expect(stack).not.toContain('height: 72px');
   });
 
   it('makes your own life the panel headline, with the others demoted and mana folded in', () => {
@@ -65,7 +83,8 @@ describe('table chrome at the wide tier', () => {
 
   it('bottom-anchors the hand toggle instead of floating it above the cards', () => {
     const toggle = lastBlock('.playtest-hand--fan .playtest-hand__toggle {');
-    expect(toggle).toContain('bottom: 0');
+    // Anchored at the table edge while the fan itself hangs below it.
+    expect(toggle).toContain('bottom: calc(var(--pt-card-h) * 0.38 + var(--space-2))');
     expect(toggle).not.toContain('bottom: 100%');
   });
 
