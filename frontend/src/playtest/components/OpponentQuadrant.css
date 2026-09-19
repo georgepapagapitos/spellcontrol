@@ -361,3 +361,19 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+
+/* Arrow-drawing mode: each permanent becomes a target. The button carries
+   the card's absolute placement itself, so the face inside stays put. */
+.opponent-quadrant__pick {
+  display: contents;
+}
+
+.opponent-quadrant__pick > .opponent-quadrant__card {
+  cursor: crosshair;
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+}
+
+.opponent-quadrant__pick:focus-visible > .opponent-quadrant__card {
+  outline-style: solid;
+}

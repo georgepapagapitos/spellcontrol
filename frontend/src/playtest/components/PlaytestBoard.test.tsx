@@ -3,7 +3,8 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { createPlaytestState } from '@/lib/playtest';
+import { applyAction, createPlaytestState } from '@/lib/playtest';
+import { usePlayStore } from '@/store/play';
 import { usePlaytestStore } from '../store';
 import type { OnlineTable } from '../hooks/use-online-table';
 import type { OpponentSeat } from './OpponentRail';
@@ -346,7 +347,7 @@ describe('PlaytestBoard — rebindable shortcuts', () => {
   });
 
   it('honours a saved rebinding: W draws and D no longer does', () => {
-    localStorage.setItem('playtest-shortcuts-v1', JSON.stringify({ draw: 'w' }));
+    localStorage.setItem('playtest-shortcuts-v1', JSON.stringify({ draw: 'j' }));
     render(
       <MemoryRouter>
         <PlaytestBoard state={seededState()} />
@@ -354,11 +355,11 @@ describe('PlaytestBoard — rebindable shortcuts', () => {
     );
     fireEvent.keyDown(window, { key: 'd' });
     expect(dispatch).not.toHaveBeenCalledWith({ type: 'DRAW', n: 1 });
-    fireEvent.keyDown(window, { key: 'w' });
+    fireEvent.keyDown(window, { key: 'j' });
     expect(dispatch).toHaveBeenCalledWith({ type: 'DRAW', n: 1 });
     // The table menu prints the live key, not the default.
     fireEvent.keyDown(window, { key: 'F10', shiftKey: true });
-    expect(screen.getByRole('menuitem', { name: /Draw/ }).textContent).toContain('W');
+    expect(screen.getByRole('menuitem', { name: /Draw/ }).textContent).toContain('J');
   });
 });
 
@@ -397,5 +398,93 @@ describe('PlaytestBoard — card size', () => {
       </MemoryRouter>
     );
     expect(document.body.style.getPropertyValue('--pt-zoom')).toBe('1.3');
+  });
+});
+
+// Drawn arrows (online only): W with one card selected arms an arrow from
+// it, the next tap on a card is where it lands (sent as an `arrow` signal),
+// and Shift+W clears the ones you drew.
+describe('PlaytestBoard — arrows', () => {
+  const sendSignal = vi.fn(async () => {});
+  const banner = () => document.querySelector('.playtest-arrow-mode');
+
+  function withTwoOnBattlefield() {
+    let s = seededState();
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: 'card-0', x: 0.2, y: 0.3 });
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: 'card-1', x: 0.6, y: 0.3 });
+    return s;
+  }
+
+  beforeEach(() => {
+    localStorage.clear();
+    sendSignal.mockClear();
+    usePlayStore.setState({ sendSignal, onlineArrows: [] });
+  });
+
+  it('W with one selected card arms the arrow, and the next card tap sends it', () => {
+    onlineTable = seatedTable([opponent(1)]);
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={withTwoOnBattlefield()} />
+      </MemoryRouter>
+    );
+    // Nothing selected: W explains itself rather than arming.
+    fireEvent.keyDown(window, { key: 'w' });
+    expect(banner()).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Card 0' }), { ctrlKey: true });
+    fireEvent.keyDown(window, { key: 'w' });
+    expect(banner()?.textContent).toContain('Arrow from Card 0');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Card 1' }));
+    expect(sendSignal).toHaveBeenCalledWith({
+      kind: 'arrow',
+      op: 'add',
+      fromSeat: 0,
+      fromCardId: 'card-0',
+      toSeat: 0,
+      toCardId: 'card-1',
+    });
+    // The landing tap was the arrow's end, not a tap of the card.
+    expect(dispatch).not.toHaveBeenCalledWith({ type: 'TAP', cardId: 'card-1' });
+    expect(banner()).toBeNull();
+  });
+
+  it('Esc cancels an armed arrow, and Shift+W clears my arrows once I have any', () => {
+    onlineTable = seatedTable([opponent(1)]);
+    usePlayStore.setState({
+      onlineArrows: [{ id: '0:1', seat: 0, fromSeat: 0, fromCardId: 'card-0', toSeat: 1 }],
+    });
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={withTwoOnBattlefield()} />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Card 0' }), { ctrlKey: true });
+    fireEvent.keyDown(window, { key: 'w' });
+    expect(banner()).toBeTruthy();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(banner()).toBeNull();
+    expect(sendSignal).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(window, { key: 'W', shiftKey: true });
+    expect(sendSignal).toHaveBeenCalledWith({ kind: 'arrow', op: 'clear' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    expect(screen.getByRole('menuitem', { name: 'Clear my arrows (1)' })).toBeTruthy();
+  });
+
+  it('offline, W and the arrow menu item do nothing', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={withTwoOnBattlefield()} />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Card 0' }), { ctrlKey: true });
+    fireEvent.keyDown(window, { key: 'w' });
+    expect(banner()).toBeNull();
+    expect(sendSignal).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    expect(screen.queryByRole('menuitem', { name: /Clear my arrows/ })).toBeNull();
   });
 });

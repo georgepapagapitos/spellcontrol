@@ -27,6 +27,9 @@ interface Props {
   /** Whose turn it currently is at the table — highlights the header. */
   active: boolean;
   onClose(): void;
+  /** While the viewer is drawing an arrow, tapping a permanent here finishes
+   *  the arrow on it instead of inspecting it. Absent otherwise. */
+  onArrowTarget?: (cardId: string) => void;
 }
 
 /** A resolvable card projects into a `ListEntry` so it can ride the same
@@ -62,7 +65,7 @@ function toListEntry(pc: ProjectedCard): ListEntry {
  * redacted to `{ id }` upstream in `toPublicBoard` — see projection.ts), so
  * there is no lookup, no click handler, and no path to their identity here.
  */
-export function OpponentBoardModal({ opp, active, onClose }: Props) {
+export function OpponentBoardModal({ opp, active, onClose, onArrowTarget }: Props) {
   const { name, board, pending } = opp;
   const labelId = useId();
   const palette = paletteForIndex(board.seat);
@@ -268,6 +271,7 @@ export function OpponentBoardModal({ opp, active, onClose }: Props) {
                         isNew={newBattlefieldIds.has(bf.card.id)}
                         isPointed={pointedCardId === bf.card.id}
                         onInspect={(id) => inspect('battlefield', id)}
+                        onArrow={onArrowTarget ? () => onArrowTarget(bf.card.id) : undefined}
                         onPoint={linked ? () => point(bf.card.id) : undefined}
                       />
                     ))}
@@ -318,6 +322,7 @@ function BattlefieldTile({
   isPointed,
   onInspect,
   onPoint,
+  onArrow,
 }: {
   bf: PublicBattlefieldCard;
   isNew: boolean;
@@ -326,6 +331,8 @@ function BattlefieldTile({
   onInspect: (cardId: string) => void;
   /** Absent in solo playtest, where there is no table to point for. */
   onPoint?: () => void;
+  /** The viewer is drawing an arrow: tapping this tile finishes it here. */
+  onArrow?: () => void;
 }) {
   const art = useCardThumb(bf.faceDown ? undefined : bf.card.name, 'normal');
   const card: PlaytestCard = {
@@ -373,14 +380,15 @@ function BattlefieldTile({
       style={{ transform: bf.tapped ? 'rotate(90deg) scale(0.71)' : undefined }}
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
-      aria-label={interactive ? card.name : 'Face-down card'}
-      onClick={interactive ? () => onInspect(bf.card.id) : undefined}
+      aria-label={onArrow ? `Point the arrow at ${label}` : label}
+      onClick={onArrow ?? (interactive ? () => onInspect(bf.card.id) : undefined)}
       onKeyDown={
         interactive
           ? (e) => {
               if (e.key !== 'Enter' && e.key !== ' ') return;
               e.preventDefault();
-              onInspect(bf.card.id);
+              if (onArrow) onArrow();
+              else onInspect(bf.card.id);
             }
           : undefined
       }

@@ -24,9 +24,9 @@ describe('ShortcutsSheet', () => {
     const { onChange } = renderSheet();
     fireEvent.click(screen.getByRole('button', { name: 'Draw a card: D. Change' }));
     expect(screen.getByRole('button', { name: /Draw a card: press a key/ })).toBeTruthy();
-    fireEvent.keyDown(window, { key: 'w' });
-    expect(onChange).toHaveBeenCalledWith({ draw: 'w' });
-    expect(screen.getByRole('status').textContent).toBe('W is now Draw a card.');
+    fireEvent.keyDown(window, { key: 'j' });
+    expect(onChange).toHaveBeenCalledWith({ draw: 'j' });
+    expect(screen.getByRole('status').textContent).toBe('J is now Draw a card.');
   });
 
   it('Esc cancels a rebind without closing the sheet', () => {
@@ -62,8 +62,8 @@ describe('ShortcutsSheet', () => {
   });
 
   it('shows an override and resets everything in one tap', () => {
-    const { onChange } = renderSheet({ draw: 'w' });
-    expect(screen.getByRole('button', { name: 'Draw a card: W. Change' })).toBeTruthy();
+    const { onChange } = renderSheet({ draw: 'j' });
+    expect(screen.getByRole('button', { name: 'Draw a card: J. Change' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Reset to defaults' }));
     expect(onChange).toHaveBeenCalledWith({});
   });

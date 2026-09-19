@@ -67,6 +67,7 @@ import {
   type ShortcutOverrides,
 } from '../lib/shortcuts';
 import { ShortcutsSheet } from './ShortcutsSheet';
+import { TableArrows } from './TableArrows';
 import { PhaseChip } from '@/components/play/PhaseChip';
 import { ReactionPicker } from './ReactionPicker';
 import { HoldButton } from './HoldButton';
@@ -285,6 +286,51 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // Publishes `state` internally; solo playtest never touches it beyond this
   // one hook call, and null here means the rail below never renders.
   const onlineTable = useOnlineTable(state);
+
+  // Arrows: a point that stays. W with one card selected starts one from it;
+  // the next card tapped — yours, a quadrant's, or one in an opponent's
+  // inspector — is where it lands. Everyone at the table sees it until its
+  // author clears theirs (Shift+W, or the game menu). Online only: an arrow
+  // with nobody to see it is a note to yourself, and the log already is one.
+  const sendSignal = usePlayStore((s) => s.sendSignal);
+  const onlineArrows = usePlayStore((s) => s.onlineArrows);
+  const [arrowFrom, setArrowFrom] = useState<{ seat: number; cardId: string } | null>(null);
+  const beginArrow = useCallback(
+    (cardIds: ReadonlySet<string>) => {
+      if (!onlineTable) return false;
+      if (cardIds.size !== 1) {
+        toast.show({ message: 'Select the one card the arrow starts from, then press W.' });
+        return;
+      }
+      setArrowFrom({ seat: onlineTable.mySeat, cardId: [...cardIds][0] });
+      haptics.tap();
+    },
+    [onlineTable]
+  );
+  const finishArrow = useCallback(
+    (toSeat: number, toCardId?: string) => {
+      if (!arrowFrom) return;
+      void sendSignal({
+        kind: 'arrow',
+        op: 'add',
+        fromSeat: arrowFrom.seat,
+        fromCardId: arrowFrom.cardId,
+        toSeat,
+        ...(toCardId !== undefined && { toCardId }),
+      });
+      setArrowFrom(null);
+      haptics.tap();
+    },
+    [arrowFrom, sendSignal]
+  );
+  const clearMyArrows = useCallback(() => {
+    if (!onlineTable) return false;
+    void sendSignal({ kind: 'arrow', op: 'clear' });
+    setArrowFrom(null);
+  }, [onlineTable, sendSignal]);
+  const myArrowCount = onlineTable
+    ? onlineArrows.filter((a) => a.seat === onlineTable.mySeat).length
+    : 0;
   const takeback = useTakeback(onlineTable);
   // Desktop seat grid (STYLE_GUIDE "Desktop table with opponents: 2x2, not a
   // rail"): at 1440px and up, an online table with opponents lays every seat
@@ -418,6 +464,11 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // and drops any selection, so nothing lingers invisibly after you move on.
   const handleCardClick = useCallback(
     (cardId: string, e: React.MouseEvent | React.KeyboardEvent) => {
+      // Drawing an arrow: this tap is where it lands, not a tap of the card.
+      if (arrowFrom && onlineTable) {
+        finishArrow(onlineTable.mySeat, cardId);
+        return;
+      }
       if (selectMode || e.shiftKey || e.metaKey || e.ctrlKey) {
         setSelected((prev) => {
           const next = new Set(prev);
@@ -429,7 +480,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       setSelected((prev) => (prev.size === 0 ? prev : new Set()));
       dispatch({ type: 'TAP', cardId });
     },
-    [dispatch, selectMode]
+    [dispatch, selectMode, arrowFrom, onlineTable, finishArrow]
   );
 
   // Leaving select mode drops the selection with it, so nothing lingers
@@ -874,7 +925,12 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       // the browser (so ⌘C over real text still copies text, and Space on a
       // focused button still presses it).
       const handlers: Record<ShortcutId, () => boolean | void> = {
-        menu: () => clearSelection(),
+        menu: () => {
+          if (arrowFrom) setArrowFrom(null);
+          else clearSelection();
+        },
+        arrow: () => beginArrow(selected),
+        'arrows-clear': () => (myArrowCount > 0 ? clearMyArrows() : false),
         shortcuts: () => setShowShortcuts(true),
         'pass-turn': () => {
           if (e.target instanceof HTMLElement && e.target.closest('button')) return false;
@@ -963,6 +1019,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     isNarrow,
     state.battlefield,
     stepZoom,
+    arrowFrom,
+    beginArrow,
+    clearMyArrows,
+    myArrowCount,
   ]);
 
   // Online, keeping your opening hand doesn't start the game — the takeover
@@ -1048,6 +1108,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     // truth, not this device's, so they go through the session.
     ...(onlineTable
       ? [
+          ...(myArrowCount > 0
+            ? [{ label: `Clear my arrows (${myArrowCount})`, onClick: () => void clearMyArrows() }]
+            : []),
           { label: 'Concede', danger: true, onClick: () => void concedeOnline() },
           { label: 'Leave the table', danger: true, onClick: () => void leaveTable() },
         ]
@@ -1227,6 +1290,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       watching={viewingBoardSeat === opp.board.seat}
       underTurnStack={opp.board.seat === topRightSeat}
       onOpen={() => setViewingBoardSeat(opp.board.seat)}
+      onPickCard={arrowFrom ? (cardId) => finishArrow(opp.board.seat, cardId) : undefined}
     />
   );
 
@@ -1413,10 +1477,34 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               opp={opp}
               active={onlineTable.activeSeat === viewingBoardSeat}
               onClose={() => setViewingBoardSeat(null)}
+              onArrowTarget={
+                arrowFrom
+                  ? (cardId) => {
+                      finishArrow(opp.board.seat, cardId);
+                      setViewingBoardSeat(null);
+                    }
+                  : undefined
+              }
             />
           ) : null;
         })()}
       {isNarrow && pendingBanner}
+      {arrowFrom && (
+        <div className="playtest-arrow-mode" role="status">
+          <span>
+            Arrow from{' '}
+            <b>
+              {state.battlefield.find((b) => b.card.id === arrowFrom.cardId)?.card.name ??
+                'your card'}
+            </b>
+            . Tap the card it points to.
+          </span>
+          <button type="button" className="btn" onClick={() => setArrowFrom(null)}>
+            Cancel
+          </button>
+        </div>
+      )}
+      {onlineTable && <TableArrows mySeat={onlineTable.mySeat} />}
       <DndContext
         sensors={sensors}
         collisionDetection={collisionDetection}
@@ -1444,6 +1532,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           <div
             ref={battlefieldRef}
             className={`playtest-battlefield-wrap${myTurn ? ' is-my-turn' : ''}`}
+            data-seat-anchor={onlineTable?.mySeat}
           >
             <Battlefield
               cards={state.battlefield}

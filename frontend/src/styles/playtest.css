@@ -3566,3 +3566,24 @@ body:has(.playtest-page) {
   justify-content: flex-end;
   padding-top: var(--space-3);
 }
+
+/* ── Arrow-drawing mode banner ─────────────────────────────────────────── */
+
+.playtest-arrow-mode {
+  position: fixed;
+  top: var(--space-3);
+  left: 50%;
+  z-index: var(--z-table-banner);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: min(32rem, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-2) var(--space-3);
+  transform: translateX(-50%);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.35));
+  font-size: var(--text-sm);
+}

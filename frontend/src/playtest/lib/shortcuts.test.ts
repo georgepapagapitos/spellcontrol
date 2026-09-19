@@ -42,7 +42,8 @@ describe('the binding table', () => {
 describe('chordOf', () => {
   it('spells a chord modifiers-first, in the table’s vocabulary', () => {
     expect(chordOf(key({ key: 'd' }))).toBe('d');
-    expect(chordOf(key({ key: 'D', shiftKey: true }))).toBe('d');
+    expect(chordOf(key({ key: 'D', shiftKey: true }))).toBe('shift+d');
+    expect(chordOf(key({ key: '?', shiftKey: true }))).toBe('?');
     expect(chordOf(key({ key: ' ' }))).toBe('space');
     expect(chordOf(key({ key: 'ArrowUp' }))).toBe('arrowup');
     expect(chordOf(key({ key: 'a', ctrlKey: true }))).toBe('mod+a');
@@ -60,8 +61,8 @@ describe('chordOf', () => {
 
 describe('shortcutFor', () => {
   it('resolves through overrides, not defaults', () => {
-    const b = resolveBindings({ draw: 'w' });
-    expect(shortcutFor(key({ key: 'w' }), b)).toBe('draw');
+    const b = resolveBindings({ draw: 'j' });
+    expect(shortcutFor(key({ key: 'j' }), b)).toBe('draw');
     expect(shortcutFor(key({ key: 'd' }), b)).toBeNull();
   });
 
@@ -73,15 +74,15 @@ describe('shortcutFor', () => {
 
 describe('rebind', () => {
   it('records only what differs from the default', () => {
-    const { next } = rebind({}, 'draw', 'w');
-    expect(next).toEqual({ draw: 'w' });
+    const { next } = rebind({}, 'draw', 'j');
+    expect(next).toEqual({ draw: 'j' });
     expect(rebind(next, 'draw', 'd').next).toEqual({});
   });
 
   it('moves a required shortcut off a taken key back to its default, and names it', () => {
-    const { next, displaced } = rebind({ draw: 'w' }, 'shuffle', 'w');
+    const { next, displaced } = rebind({ draw: 'j' }, 'shuffle', 'j');
     expect(displaced).toBe('draw');
-    expect(next).toEqual({ shuffle: 'w' });
+    expect(next).toEqual({ shuffle: 'j' });
     expect(resolveBindings(next)['draw']).toBe('d');
   });
 
@@ -102,8 +103,8 @@ describe('persistence', () => {
   beforeEach(() => localStorage.clear());
 
   it('round-trips overrides and drops junk', () => {
-    saveOverrides({ draw: 'w', 'focus-2': '' });
-    expect(loadOverrides()).toEqual({ draw: 'w', 'focus-2': '' });
+    saveOverrides({ draw: 'j', 'focus-2': '' });
+    expect(loadOverrides()).toEqual({ draw: 'j', 'focus-2': '' });
     localStorage.setItem('playtest-shortcuts-v1', JSON.stringify({ draw: 5, nope: 'x' }));
     expect(loadOverrides()).toEqual({});
     localStorage.setItem('playtest-shortcuts-v1', '{not json');
@@ -111,7 +112,7 @@ describe('persistence', () => {
   });
 
   it('an empty override set clears the stored key', () => {
-    saveOverrides({ draw: 'w' });
+    saveOverrides({ draw: 'j' });
     saveOverrides({});
     expect(localStorage.getItem('playtest-shortcuts-v1')).toBeNull();
   });

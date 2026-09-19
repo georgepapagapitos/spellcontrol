@@ -38,6 +38,9 @@ export function opponentPreviewId(seat: number, cardId: string): string {
 
 interface Props {
   opp: OpponentSeat;
+  /** While the viewer is drawing an arrow, every permanent here is a target:
+   *  tap one to finish the arrow on it. Absent otherwise. */
+  onPickCard?: (cardId: string) => void;
   /** This seat holds the turn — the quadrant wears the gold ring. */
   active: boolean;
   /** This seat's turn just began — the one-shot sweep (`useTurnSweep`). */
@@ -76,6 +79,7 @@ export function OpponentQuadrant({
   watching,
   underTurnStack = false,
   onOpen,
+  onPickCard,
 }: Props) {
   const { name, board, pending } = opp;
   const palette = paletteForIndex(board.seat);
@@ -118,6 +122,7 @@ export function OpponentQuadrant({
         underTurnStack && 'opponent-quadrant--under-stack'
       )}
       aria-label={ariaLabel}
+      data-seat-anchor={board.seat}
       style={{
         ['--opp-base' as never]: palette.base,
         ['--opp-edge' as never]: palette.edge,
@@ -135,6 +140,7 @@ export function OpponentQuadrant({
                 seat={board.seat}
                 bf={bf}
                 isNew={newIds.has(bf.card.id)}
+                onPick={onPickCard ? () => onPickCard(bf.card.id) : undefined}
               />
             ))}
           </div>
@@ -243,10 +249,13 @@ function QuadrantCard({
   seat,
   bf,
   isNew,
+  onPick,
 }: {
   seat: number;
   bf: PublicBattlefieldCard;
   isNew: boolean;
+  /** Arrow-drawing mode: this card is a target. */
+  onPick?: () => void;
 }) {
   const art = useCardThumb(bf.faceDown ? undefined : bf.card.name, 'normal');
   // `PlaytestCardFace` publishes `card.id` as `data-preview-id`, so the
@@ -275,7 +284,7 @@ function QuadrantCard({
     attachedTo: bf.attachedTo,
     phased: bf.phased,
   };
-  return (
+  const face = (
     <PlaytestCardFace
       card={card}
       bf={adapted}
@@ -291,6 +300,23 @@ function QuadrantCard({
         transformOrigin: 'center center',
       }}
     />
+  );
+  if (!onPick) return face;
+  // A real button over the card while an arrow is being drawn: keyboard-
+  // reachable, announced as the target it is, gone the moment the mode ends.
+  const what = bf.faceDown ? 'a face-down card' : (bf.card.name ?? 'this card');
+  return (
+    <button
+      type="button"
+      className="opponent-quadrant__pick"
+      aria-label={`Point the arrow at ${what}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onPick();
+      }}
+    >
+      {face}
+    </button>
   );
 }
 

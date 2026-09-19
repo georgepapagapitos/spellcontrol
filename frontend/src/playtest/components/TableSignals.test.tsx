@@ -189,4 +189,12 @@ describe('TableSignals', () => {
     });
     expect(screen.queryByRole('status')).toBeNull();
   });
+
+  it('an arrow is table state (drawn by TableArrows), not a moment', async () => {
+    render(<TableSignals />);
+    await act(async () => {
+      withSignal(1, { kind: 'arrow', seat: 1, ts: 1, op: 'add', fromSeat: 1, toSeat: 0 });
+    });
+    expect(screen.queryByRole('status')).toBeNull();
+  });
 });
