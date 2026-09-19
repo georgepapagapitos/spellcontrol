@@ -115,7 +115,10 @@ import {
   type CrossDeckCtx,
   type TypedGroup,
   packSections,
+  listColumnCount,
+  sectionRowCount,
 } from './deck-display-rows';
+import { DeckCardRail, type DeckCardRailCard } from './DeckCardRail';
 import { PartnerHeaderButton } from './deck-display-icons';
 import { DeckToolbar } from './DeckToolbar';
 import { DeckCardGrid } from './DeckCardGrid';
@@ -128,10 +131,10 @@ import { DeckAnalysisView } from './DeckAnalysisView';
 const celebratedDeckComplete = new Set<string>();
 
 const GRID_SIZE_STORAGE_KEY = 'mtg-decks-grid-size';
-// List-view column sizing — mirrors the retired `column-width: 280px` /
-// `column-gap: var(--space-4)` (1rem) so the column count is unchanged.
-const LIST_COL_MIN_PX = 280;
-const LIST_COL_GAP_PX = 16;
+// The pinned card rail (DeckCardRail) is a hover surface that needs room
+// beside the list: wide desktop AND a fine pointer. Below/without that, the
+// floating hover-peek and the touch long-press peek carry on unchanged.
+const RAIL_QUERY = '(min-width: 1280px) and (hover: hover) and (pointer: fine)';
 
 // ── Props ─────────────────────────────────────────────────────────────────
 export interface DeckDisplayCard {
@@ -1297,30 +1300,51 @@ export function DeckDisplay({
     [previewIndex]
   );
 
-  // List view columns. Width-derived like the old CSS multi-column (280px min),
-  // but sections are PLACED by size (packSections) rather than flowed in
-  // document order, and the ≤1100px flat single panel stays one column.
+  // List view columns: as many as the measured width allows, capped by the
+  // deck's own row count so a 100-card deck stops at four columns and the
+  // remaining width goes to the card names (listColumnCount). Sections are
+  // PLACED by size (packSections) rather than flowed in document order, and
+  // the ≤1100px flat single panel stays one column.
   const [listRef, listWidth] = useElementWidth<HTMLDivElement>();
   const narrowList = useMediaQuery('(max-width: 1100px)');
-  const listCols =
-    narrowList || listWidth === 0
-      ? 1
-      : Math.max(
-          1,
-          Math.floor((listWidth + LIST_COL_GAP_PX) / (LIST_COL_MIN_PX + LIST_COL_GAP_PX))
-        );
   const commandGroups = useMemo(
     () => visibleGroups.filter((g) => g.icon === 'commander'),
     [visibleGroups]
   );
-  const listColumns = useMemo(
-    () =>
-      packSections(
-        visibleGroups.filter((g) => g.icon !== 'commander'),
-        listCols
-      ),
-    [visibleGroups, listCols]
+  const columnGroups = useMemo(
+    () => visibleGroups.filter((g) => g.icon !== 'commander'),
+    [visibleGroups]
   );
+  const listCols = narrowList ? 1 : listColumnCount(listWidth, sectionRowCount(columnGroups));
+  const listColumns = useMemo(() => packSections(columnGroups, listCols), [columnGroups, listCols]);
+
+  // Pinned card rail (2026-09-19): on a wide, hover-capable screen the list
+  // gets a sticky preview column that shows the last card the pointer rested
+  // on — the commander until then — instead of the floating hover-peek. The
+  // hover hook still owns "which row is under the pointer"; the rail only
+  // remembers the last non-null answer so it doesn't blink back to the
+  // commander in the gaps between rows.
+  const railActive = useMediaQuery(RAIL_QUERY) && viewMode === 'list';
+  const [railKey, setRailKey] = useState<{ name: string; img?: string } | null>(null);
+  useEffect(() => {
+    if (hoverPeek.peek) setRailKey({ name: hoverPeek.peek.name, img: hoverPeek.peek.img });
+  }, [hoverPeek.peek]);
+  const railCard = useMemo<DeckCardRailCard | null>(() => {
+    if (!railActive) return null;
+    const key = railKey ?? (commander ? { name: commander.name } : null);
+    if (!key) return null;
+    const i = flat.indexByName.get(key.name);
+    if (i === undefined) return null;
+    const row = flat.rows[i];
+    const enriched = flat.cards[i];
+    return {
+      name: row.name,
+      card: row.card,
+      imageUrl: key.img || enriched?.imageLarge || enriched?.imageNormal,
+      price: row.price,
+      qty: row.qty,
+    };
+  }, [railActive, railKey, commander, flat]);
   const renderListSection = (g: TypedGroup) => (
     <CategorySection
       key={g.title}
@@ -1715,35 +1739,41 @@ export function DeckDisplay({
                   <p className="deck-group-caption">Each card is filed under one category.</p>
                 )}
                 {viewMode === 'list' && visibleGroups.length > 0 && (
-                  <div
-                    className="deck-card-list"
-                    ref={listRef}
-                    style={{ '--deck-cols': listCols } as CSSProperties}
-                    {...hoverPeek.listHandlers}
-                    {...touchPeek.listHandlers}
-                  >
-                    {/* Command zone — the commander (and partner) as a full-width
-                        strip ABOVE the type columns, rendered with the same
-                        CategorySection/DeckMainboardRow as every other card so the
-                        interactions are identical. It never occupies a column: a
-                        1-row section at the top of a column stranded a 30-row hole
-                        under it. Its rows align to the column grid below. */}
-                    {commandGroups.length > 0 && (
-                      <div className="deck-command-zone">
-                        {commandGroups.map(renderListSection)}
-                      </div>
-                    )}
-                    <div className="deck-card-columns">
-                      {listColumns.map((column, i) => (
-                        <div key={i} className="deck-card-column">
-                          {column.map(renderListSection)}
+                  <div className={railActive ? 'deck-list-layout' : undefined}>
+                    <div
+                      className="deck-card-list"
+                      ref={listRef}
+                      style={{ '--deck-cols': listCols } as CSSProperties}
+                      {...hoverPeek.listHandlers}
+                      {...touchPeek.listHandlers}
+                    >
+                      {/* Command zone — the commander (and partner) as a full-width
+                          strip ABOVE the type columns, rendered with the same
+                          CategorySection/DeckMainboardRow as every other card so the
+                          interactions are identical. It never occupies a column: a
+                          1-row section at the top of a column stranded a 30-row hole
+                          under it. Its rows align to the column grid below. */}
+                      {commandGroups.length > 0 && (
+                        <div className="deck-command-zone">
+                          {commandGroups.map(renderListSection)}
                         </div>
-                      ))}
+                      )}
+                      <div className="deck-card-columns">
+                        {listColumns.map((column, i) => (
+                          <div key={i} className="deck-card-column">
+                            {column.map(renderListSection)}
+                          </div>
+                        ))}
+                      </div>
                     </div>
+                  {railActive && (
+                    <DeckCardRail card={railCard} currency={currency} onOpen={openPreview} />
+                  )}
                   </div>
                 )}
-                {viewMode === 'grid' && visibleGroups.length > 0 && (
+                {(viewMode === 'grid' || viewMode === 'stacks') && visibleGroups.length > 0 && (
                   <DeckCardGrid
+                    layout={viewMode}
                     groups={visibleGroups}
                     onRowClick={openPreview}
                     legalityBySlot={legalityBySlot}
@@ -1957,6 +1987,7 @@ export function DeckDisplay({
         {/* Desktop-only floating hover-peek: a transient card-art preview in the
             gutter beside the list while hovering a row. No-op on touch/native. */}
         {hoverPeek.peek &&
+          !railActive &&
           (() => {
             // A printing sub-row carries its own art (data-peek-img); use it so
             // each expanded printing peeks its real card. Otherwise resolve the
