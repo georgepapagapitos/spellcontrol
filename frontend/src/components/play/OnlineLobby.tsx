@@ -1,5 +1,5 @@
 import { Check, Copy, Crown, Shuffle, UserRound, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { SelectMenu } from '../SelectMenu';
@@ -78,7 +78,7 @@ export function OnlineLobby({
         </div>
       )}
 
-      <div className="lobby-grid">
+      <div className="lobby-body">
         <LobbyRail game={game} isHost={isHost} mySeat={mySeat} dispatch={dispatch} />
 
         <div className="lobby-main">
@@ -110,79 +110,84 @@ export function OnlineLobby({
           <p className="lobby-hint">
             Bracket numbers are estimates. Talk them over with your playgroup before starting.
           </p>
+        </div>
+      </div>
 
-          <div className="lobby-bar">
-            <div className="lobby-bar-group">
-              <DeckPicker
-                decks={decks}
-                value={mySeat.deckId}
-                onChange={(deck) =>
-                  dispatch({
-                    type: 'update-player',
-                    seat: mySeat.seat,
-                    patch: {
-                      deckId: deck?.id ?? null,
-                      deckName: deck?.name ?? null,
-                      commander: deck?.commander?.name ?? null,
-                      partner: deck?.partnerCommander?.name ?? null,
-                      colorIdentity: deck?.commander?.color_identity ?? [],
-                    },
-                  })
-                }
-              />
-              {mySeat.deckId && (
-                <Link to={`/decks/${mySeat.deckId}/playtest`} className="btn lobby-bar-btn">
-                  Open board
-                </Link>
-              )}
-            </div>
+      {/* Outside the two-column body on purpose. `position: sticky` measures
+          against its containing block, and a grid cell is only as tall as its
+          own row, so the bar can only follow the scroll if it hangs off the
+          full-height `.lobby`. At >=1024 a left margin puts it back under the
+          seats. */}
+      <div className="lobby-bar">
+        <div className="lobby-bar-group">
+          <DeckPicker
+            decks={decks}
+            value={mySeat.deckId}
+            onChange={(deck) =>
+              dispatch({
+                type: 'update-player',
+                seat: mySeat.seat,
+                patch: {
+                  deckId: deck?.id ?? null,
+                  deckName: deck?.name ?? null,
+                  commander: deck?.commander?.name ?? null,
+                  partner: deck?.partnerCommander?.name ?? null,
+                  colorIdentity: deck?.commander?.color_identity ?? [],
+                },
+              })
+            }
+          />
+          {mySeat.deckId && (
+            <Link to={`/decks/${mySeat.deckId}/playtest`} className="btn lobby-bar-btn">
+              Open board
+            </Link>
+          )}
+        </div>
 
-            <div className="lobby-bar-group">
-              <button
-                type="button"
-                className={`btn lobby-bar-btn lobby-ready-btn ${mySeat.ready === true ? 'is-ready' : ''}`}
-                aria-pressed={mySeat.ready === true}
-                onClick={() =>
-                  dispatch({
-                    type: 'set-ready',
-                    actorSeat: mySeat.seat,
-                    ready: mySeat.ready !== true,
-                  })
-                }
-              >
-                {mySeat.ready === true ? 'Ready' : "I'm ready"}
-              </button>
+        <div className="lobby-bar-group">
+          <button
+            type="button"
+            className={`btn lobby-bar-btn lobby-ready-btn ${mySeat.ready === true ? 'is-ready' : ''}`}
+            aria-pressed={mySeat.ready === true}
+            onClick={() =>
+              dispatch({
+                type: 'set-ready',
+                actorSeat: mySeat.seat,
+                ready: mySeat.ready !== true,
+              })
+            }
+          >
+            {mySeat.ready === true ? 'Ready' : "I'm ready"}
+          </button>
 
-              {isHost ? (
-                <>
-                  {!allReady && (
-                    <span className="lobby-ready-count" aria-live="polite">
-                      {readyCount} of {game.players.length} ready
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    className="btn btn-primary lobby-bar-btn"
-                    onClick={() => dispatch({ type: 'start' })}
-                  >
-                    Start game
-                  </button>
-                </>
-              ) : (
-                <span className="lobby-waiting" aria-live="polite">
-                  Waiting for {hostName(game)} to start
+          {isHost ? (
+            <>
+              {!allReady && (
+                <span className="lobby-ready-count" aria-live="polite">
+                  {readyCount} of {game.players.length} ready
                 </span>
               )}
-
               <button
                 type="button"
-                className="btn lobby-bar-btn lobby-leave-btn"
-                onClick={() => (isHost ? setConfirmLeave(true) : onLeave())}
+                className="btn btn-primary lobby-bar-btn"
+                onClick={() => dispatch({ type: 'start' })}
               >
-                Leave
+                Start game
               </button>
-            </div>
-          </div>
+            </>
+          ) : (
+            <span className="lobby-waiting" aria-live="polite">
+              Waiting for {hostName(game)} to start
+            </span>
+          )}
+
+          <button
+            type="button"
+            className="btn lobby-bar-btn lobby-leave-btn"
+            onClick={() => (isHost ? setConfirmLeave(true) : onLeave())}
+          >
+            Leave
+          </button>
         </div>
       </div>
 
@@ -456,12 +461,6 @@ function LobbyChat({
   }, [lines.length]);
 
   const trimmed = draft.trim();
-  const send = (e: FormEvent) => {
-    e.preventDefault();
-    if (!trimmed) return;
-    setDraft('');
-    dispatch({ type: 'note', actorSeat: mySeat.seat, message: trimmed.slice(0, MAX_CHAT_LEN) });
-  };
 
   return (
     <section className="lobby-section lobby-chat" aria-labelledby="lobby-chat-label">
@@ -478,7 +477,19 @@ function LobbyChat({
           </li>
         ))}
       </ol>
-      <form className="lobby-composer" onSubmit={send}>
+      <form
+        className="lobby-composer"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!trimmed) return;
+          setDraft('');
+          dispatch({
+            type: 'note',
+            actorSeat: mySeat.seat,
+            message: trimmed.slice(0, MAX_CHAT_LEN),
+          });
+        }}
+      >
         <label className="sr-only" htmlFor="lobby-chat-input">
           Message the table
         </label>

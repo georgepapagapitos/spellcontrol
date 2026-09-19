@@ -9,11 +9,10 @@
   gap: var(--space-3);
 }
 
-.lobby-grid {
-  display: grid;
+.lobby-body {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-4);
-  min-height: 32rem;
-  align-items: stretch;
 }
 
 /* Stacked, the seats are the subject and the rail is reference: settings and
@@ -27,13 +26,21 @@
 }
 
 @media (min-width: 1024px) {
-  .lobby-grid {
+  .lobby-body {
+    display: grid;
     grid-template-columns: 22rem minmax(0, 1fr);
+    align-items: start;
   }
 
   .lobby-main,
   .lobby-rail {
     order: 0;
+  }
+
+  /* Clears the rail so the bar reads as the footer of the seats, not of the
+     page. Same track width as the grid's second column. */
+  .lobby-bar {
+    margin-left: calc(22rem + var(--space-4));
   }
 }
 
@@ -230,9 +237,11 @@
 @media (min-width: 1024px) {
   .lobby-seats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    /* Equal rows only once the grid is 2-up: stacked, it would stretch every
-       card to the tallest one and turn four seats into four screenfuls. */
-    grid-auto-rows: 1fr;
+    /* Capped and centred, not stretched: a seat card is a fixed-ish object
+       with a proportion, and letting two of them fill a 1600px column makes
+       each one taller than a laptop viewport can hold along with the footer. */
+    max-width: 54rem;
+    margin-inline: auto;
   }
 }
 
@@ -404,13 +413,20 @@
   color: var(--text-muted);
 }
 
+/* The table's footer. It follows the scroll at every tier, so Ready / Start /
+   Leave are one thumb (or one glance) away however tall the table gets.
+   Opaque, not translucent: seat art scrolls under it and would otherwise show
+   through the controls. */
 .lobby-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  box-shadow: 0 -6px 18px rgb(0 0 0 / 22%);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  margin-top: auto;
   padding: var(--space-3);
   background: var(--surface);
   border: 1px solid var(--border);
@@ -453,6 +469,15 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Two rows, not three: unclamped, the deck label alone fills the row and
+   pushes "Open board" onto a line of its own, costing a third of the bar's
+   height on the tier that can least afford it. */
+@media (max-width: 1023.98px) {
+  .lobby-bar-group .toolbar-pill {
+    max-width: 14rem;
+  }
 }
 
 @media (pointer: coarse) {

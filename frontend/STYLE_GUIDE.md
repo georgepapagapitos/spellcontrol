@@ -1725,11 +1725,20 @@ the live board with a Start button in its header. Two regions at >=1024px
   turn timer) is not drawn: this is a life pad with a shared log, and a
   toggle that changes nothing is worse than no toggle.
 - **Main** (right): the table name as a centred heading, a 2-up seat grid
-  (one column below 1024), the bracket hint, and one bottom bar with
-  everything you do before a game starts.
+  (one column below 1024) capped at `54rem` and centred, and the bracket hint.
+  The grid is capped rather than stretched: a seat card is an object with a
+  proportion, and two of them filling a 1600px column grow taller than a
+  laptop viewport can hold alongside the footer.
 - **Stacked, the seats come first.** Below 1024 the rail is `order: 2`: the
   settings block is tall, and putting it above the grid buries the one thing
   a player opened the lobby to look at.
+- **The bottom bar is a sticky footer at every tier** (`position: sticky;
+bottom: 0`), carrying the deck picker, the board link, Ready, Start and
+  Leave. It is a sibling of the two-column body, not a cell inside it: a
+  sticky element is constrained by its containing block, and a grid cell is
+  only as tall as its own row, so a bar nested in the grid cannot follow the
+  scroll. At >=1024 a `margin-left` of the rail's track puts it back under the
+  seats. Opaque, never translucent, because seat art scrolls under it.
 
 A **seat card** is the seat's commander art (`useCardThumb(name,
 'art_crop')`, never a new fetch path) under the always-dark
