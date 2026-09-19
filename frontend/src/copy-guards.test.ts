@@ -83,7 +83,8 @@ function walk(dir: string, out: string[]): string[] {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);
     if (e.isDirectory()) walk(p, out);
-    else if (/\.tsx?$/.test(e.name) && !SKIP_FILE.test(p)) out.push(p);
+    // Match on posix separators so the `/src/test/` skip also holds on Windows.
+    else if (/\.tsx?$/.test(e.name) && !SKIP_FILE.test(p.split(path.sep).join('/'))) out.push(p);
   }
   return out;
 }
@@ -128,7 +129,7 @@ function scan(file: string): Violation[] {
     true,
     file.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
   );
-  const rel = path.relative(ROOT, file);
+  const rel = path.relative(ROOT, file).split(path.sep).join('/');
   const out: Violation[] = [];
   const line = (n: ts.Node) => sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1;
   const check = (n: ts.Node, kind: string, text: string) => {
