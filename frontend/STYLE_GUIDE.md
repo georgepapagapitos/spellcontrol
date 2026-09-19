@@ -5501,9 +5501,21 @@ Model-written text always says so. The rulings:
 - **The Rules Reference sheet carries the AI escalation door** (E261): one
   quiet insight-strip row above its footer — "Ask a rules question", Sparkles
   glyph, "AI — cites the rules" hint — that closes the sheet and navigates to
-  `/rules`, seeding the ask box with the search that came up short (a seed
-  only; nothing sends until Ask). Self-hiding like every AI surface: without
-  AI the sheet is exactly today's sheet.
+  `/rules?tab=ask`, seeding the ask box with the search that came up short (a
+  seed only; nothing sends until Ask). Self-hiding like every AI surface:
+  without AI the sheet is exactly today's sheet.
+- **Rules is a place, and the sheet is its quick look** (settled 2026-09-19).
+  `/rules` is the Rules hub: Keywords / Glossary / Rules (the offline
+  Comprehensive Rules, `components/RulesReference.tsx`, the same lists the
+  sheet shows) plus an Ask tab that self-hides without AI. Section and search
+  live in the URL (`?tab=`, `?q=`) so a rule lookup is a linkable address.
+  Its doors are utility-shaped, never a fifth primary tab: the header's
+  utility cluster beside Search, the ⌘K Navigate group, and You › Help. The
+  sheet (`RulesReferenceSheet.tsx`) stays for the two places you must not
+  leave — Play's hero and the in-game menu — and is never the target of a
+  link. Don't reintroduce a header sheet trigger or a tab-bar slot: the nav
+  redesign that removed them was right about the bar, wrong to leave Rules
+  reachable only from Play.
 
 ---
 

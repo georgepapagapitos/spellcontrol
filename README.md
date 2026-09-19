@@ -18,7 +18,7 @@ Plan your Magic: The Gathering collection. Import a collection export from any p
 - **Play with friends** — friend requests and per-friend hubs, pods for your regular table, and trades that settle both collections when an offer is accepted. A friend request, trade offer or game-night invite also emails you when your account has a verified email (switch it off under Settings → Sign-in methods), unseen badges agree across devices, and a want-list card that drops under your target price raises an alert.
 - **Publish and discover decks** — share a deck at a public link, browse and save other people's public decks, and keep a public profile.
 - **Find cards** — card search with owned-copy badges, browse-by-tag discovery over Scryfall's oracle-tag corpus, and a combo finder over what you own.
-- **Look up rules** — a built-in Comprehensive Rules reference: keywords, glossary, and rule-number search, available from anywhere in the app.
+- **Look up rules** — a built-in Comprehensive Rules reference: keywords, glossary, and rule-number search at `/rules` (header, ⌘K, and You › Help), plus a quick-look sheet from the Play page and the in-game menu. With AI on, the same page answers rules questions with citations.
 - **Scan paper cards** (Android app) — add cards to the collection by pointing the phone camera at them.
 - **Browse your collection** in a sortable, filterable table with breakdowns by color, type, rarity, and price.
 - **Export it all** — the collection (or one binder) as a one-row-per-copy CSV for SpellControl/ManaBox, Moxfield or Archidekt, or an Arena text list, a JSON backup that carries binders, lists and every deck, decks as Arena / Moxfield / MTGO `.dek` text, and a printable checklist of any deck or binder.
