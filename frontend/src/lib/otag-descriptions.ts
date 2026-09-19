@@ -39,13 +39,12 @@ export const OTAG_DESCRIPTIONS: Record<string, string> = {
 
 /**
  * Description for a tag key: our curated copy first, then Scryfall's own
- * description from the corpus, then a humanized label ("some-new-tag" → "Some
- * new tag") when neither exists.
+ * description from the corpus, else '' — callers render nothing. There is
+ * deliberately no third fallback: ~70% of the corpus carries no description,
+ * and a title-cased slug is the row's LABEL, so 30 of the 120 top rows on
+ * /tags read "Triggered ability · 17,138 cards · Triggered ability"
+ * (playtest batch 10).
  */
 export function describeOtag(key: string): string {
-  return (
-    OTAG_DESCRIPTIONS[key] ||
-    cardTagDescription(key) ||
-    key.charAt(0).toUpperCase() + key.slice(1).replace(/-/g, ' ')
-  );
+  return OTAG_DESCRIPTIONS[key] || cardTagDescription(key) || '';
 }

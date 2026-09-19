@@ -8,6 +8,7 @@ import { InlineCardSearch, type InlineCardSearchView } from '../components/Inlin
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import {
   cardTagLabel,
+  cardTagsGeneratedAt,
   ensureCardTags,
   listCardTagsRanked,
   useCardTagsError,
@@ -54,6 +55,18 @@ export function TagsPage() {
     [ready, tagQuery]
   );
   const total = ready ? listCardTagsRanked().length : 0;
+  // The per-row "N cards" is the bundled snapshot's count, not a live total:
+  // against Scryfall it ran 1–3% high or low per tag, and the results below
+  // cap at 60 regardless (playtest batch 10). Naming the snapshot's date
+  // makes the number an honest one.
+  const generatedAt = ready ? cardTagsGeneratedAt() : null;
+  const snapshotDate = generatedAt
+    ? new Date(generatedAt).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : null;
 
   const setSelected = (next: string[]) => {
     setParams(next.length ? { t: next.join(',') } : {}, { replace: true });
@@ -92,6 +105,11 @@ export function TagsPage() {
         onChange={onTagQueryChange}
         ariaLabel="Search card tags"
       />
+      {snapshotDate && (
+        <p className="tags-page-snapshot">
+          Card counts are from Scryfall's tag data as of {snapshotDate}.
+        </p>
+      )}
 
       {selected.length > 0 && (
         <div className="tags-selected">
@@ -177,7 +195,9 @@ export function TagsPage() {
                           <span className="tags-row-label">{cardTagLabel(slug)}</span>
                           <span className="tags-row-count">{count.toLocaleString()} cards</span>
                         </span>
-                        <span className="tags-row-desc">{describeOtag(slug)}</span>
+                        {describeOtag(slug) && (
+                          <span className="tags-row-desc">{describeOtag(slug)}</span>
+                        )}
                       </button>
                     </li>
                   );
