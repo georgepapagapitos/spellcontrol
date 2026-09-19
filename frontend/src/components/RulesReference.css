@@ -71,8 +71,16 @@
   overflow: hidden;
 }
 
+/* Head + its ⋮: the head is a button, so the menu sits beside it, not in it. */
+.rules-ref-keyword-row {
+  display: flex;
+  align-items: center;
+  padding-right: var(--space-2);
+}
+
 .rules-ref-keyword-head {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -157,9 +165,17 @@
 }
 
 .rules-ref-glossary-term {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   font-weight: 500;
   color: var(--text-primary);
   font-size: var(--text-base);
+}
+
+.rules-ref-glossary-term > span {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .rules-ref-glossary-def {
@@ -187,7 +203,36 @@
 }
 
 .rules-ref-rule-text {
+  flex: 1 1 auto;
+  min-width: 0;
   color: var(--text-secondary);
+}
+
+/* ── The row menu ─────────────────────────────────────────────────────
+   Every row carries a ⋮ (copy, share, card searches, Ask). On a fine pointer
+   it rests hidden and shows on row hover/focus, the deck list's ruling: a
+   hundred identical glyphs down the edge say nothing a hover can't. Touch
+   keeps it visible, since it is the row's only menu affordance there. */
+.rules-ref-entry-menu {
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rules-ref-entry-menu .overflow-menu-trigger {
+    opacity: 0;
+    transition: opacity var(--motion-fast) ease;
+  }
+
+  .rules-ref-keyword-row:hover .overflow-menu-trigger,
+  .rules-ref-keyword-row:focus-within .overflow-menu-trigger,
+  .rules-ref-glossary-entry:hover .overflow-menu-trigger,
+  .rules-ref-glossary-entry:focus-within .overflow-menu-trigger,
+  .rules-ref-rule:hover .overflow-menu-trigger,
+  .rules-ref-rule:focus-within .overflow-menu-trigger,
+  .rules-ref-entry-menu .overflow-menu-trigger[data-open] {
+    opacity: 1;
+  }
 }
 
 /* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */

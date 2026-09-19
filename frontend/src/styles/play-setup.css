@@ -39,22 +39,6 @@
   transform: translateY(-0.45em);
 }
 
-/* Title + Rules trigger, inline beside the hero h1. This labeled pill is the
-   only Rules entry point outside an active game (the standalone MobileTabBar
-   button is gone), so it reads as "Rules", not a bare book glyph. */
-.play-page-title-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-@media (pointer: coarse) {
-  .play-page-rules-btn {
-    min-height: 44px;
-  }
-}
-
 .play-page-hero-sub {
   margin: 0.2rem 0 0;
   font-size: var(--text-sm);

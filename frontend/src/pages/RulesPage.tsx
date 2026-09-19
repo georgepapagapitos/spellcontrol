@@ -81,6 +81,8 @@ export function RulesPage() {
           : 'keywords';
   const [tabRaw, setTabRaw] = useState<PageTab>(initialTab);
   const [query, setQueryRaw] = useState(() => params.get('q') ?? '');
+  /** A row's "Ask AI about this": the question the Ask tab opens with. */
+  const [askSeed, setAskSeed] = useState<string | null>(null);
 
   // Mirror both into the URL with `replace` — typing a search is one visit,
   // not a Back-button trail. `q` belongs to the reference only.
@@ -143,7 +145,10 @@ export function RulesPage() {
       <Tabs<PageTab>
         tabs={tabs}
         value={tab}
-        onChange={setTab}
+        onChange={(t) => {
+          setAskSeed(null);
+          setTab(t);
+        }}
         ariaLabel="Rules sections"
         variant="underline"
         className="rules-page-tabs"
@@ -151,7 +156,7 @@ export function RulesPage() {
 
       {tab === 'ask' ? (
         <div role="tabpanel" id="rules-ask-panel" aria-labelledby="sc-tab-ask">
-          <RulesAsk />
+          <RulesAsk seed={askSeed ?? undefined} />
         </div>
       ) : (
         <>
@@ -162,6 +167,14 @@ export function RulesPage() {
             onTabChange={setTab}
             onQueryChange={setQuery}
             showTabs={false}
+            onAsk={
+              askAvailable
+                ? (q) => {
+                    setAskSeed(q);
+                    setTab('ask');
+                  }
+                : undefined
+            }
           />
           <RulesReferenceFoot bundle={bundle} />
         </>
@@ -180,14 +193,15 @@ export function RulesPage() {
  * sent until the Ask button, consent granted in place, streaming shows the
  * prose never the plumbing, past answers restore for free.
  */
-function RulesAsk() {
+function RulesAsk({ seed }: { seed?: string }) {
   const status = useAiStatus();
   const location = useLocation();
-  // The Rules Reference sheet's "Ask AI" door seeds the box with the search
-  // that came up short — an initializer (setState-in-effect is an ERROR here),
-  // and only a seed: nothing is sent until Ask (never auto-spend).
+  // A row's "Ask AI about this" (`seed`) or the Rules Reference sheet's door
+  // (the search that came up short, as location state) seeds the box — an
+  // initializer (setState-in-effect is an ERROR here), and only a seed:
+  // nothing is sent until Ask (never auto-spend).
   const [question, setQuestion] = useState(
-    () => (location.state as { question?: string } | null)?.question ?? ''
+    () => seed ?? (location.state as { question?: string } | null)?.question ?? ''
   );
   const [phase, setPhase] = useState<'idle' | 'asking' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -203,6 +217,11 @@ function RulesAsk() {
    *  State, not a ref: it is read during render (react-hooks/refs is an ERROR
    *  here). */
   const [lastAsked, setLastAsked] = useState('');
+
+  // A row handed its question over: the box is the next thing to touch.
+  useEffect(() => {
+    if (seed) inputRef.current?.focus();
+  }, [seed]);
 
   // Restoring past answers is a DB read of the user's own content — free,
   // never a model call. Keyed on the idle phase so it can never race a stream,
