@@ -445,10 +445,17 @@ export async function createTestEnv(): Promise<TestEnv> {
       participants JSONB NOT NULL,
       notable_events JSONB,
       summary JSONB,
-      created_at BIGINT NOT NULL
+      created_at BIGINT NOT NULL,
+      mode TEXT NOT NULL DEFAULT 'online',
+      recorded_by_user_id TEXT
     );
     CREATE INDEX game_results_participants_idx ON game_results USING GIN (participants);
     CREATE INDEX game_results_ended_idx ON game_results(ended_at DESC);
+    CREATE INDEX game_results_recorded_by_idx ON game_results(recorded_by_user_id);
+    CREATE TABLE app_migrations (
+      name TEXT PRIMARY KEY,
+      applied_at BIGINT NOT NULL
+    );
     CREATE TABLE deck_publications (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       deck_id TEXT NOT NULL,

@@ -1142,6 +1142,13 @@ export interface GameRecord {
   durationMs: number;
   mode: 'local' | 'online';
   /**
+   * The account that posted a local result to the server, when this record
+   * came back from the canonical `game_results` table; only they may delete
+   * it there. Absent on a record built on-device (`gameToRecord`) and on
+   * every online record.
+   */
+  recordedByUserId?: string | null;
+  /**
    * Derived stats, computed once here so history rollups never re-walk a log
    * the record doesn't even carry. **Optional by design**: records written
    * before this field read as `undefined` — "no data captured" — and must

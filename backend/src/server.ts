@@ -12,7 +12,8 @@ import { existsSync } from 'fs';
 import { gzip } from 'node:zlib';
 import { DB_PATH, getScryfallCache, buildPriceRefreshPayload } from './scryfall-cache';
 import { resolveOracleFacts, ORACLE_REQUEST_LIMIT, type OracleRequest } from './oracle-facts';
-import { closeDb, ensureSchema } from './db';
+import { closeDb, ensureSchema, getPool } from './db';
+import { backfillResultsFromUserGames } from './games/backfill-results';
 import { testAwareLimiter } from './route-utils';
 import { parseMarkAllAsProxies } from './import-proxy-flag';
 import { fetchImportLink, ImportLinkError } from './import-link';
@@ -1366,6 +1367,9 @@ function afterBoot(label: string, offsetMs: number, fn: () => void): void {
 
 async function start() {
   await ensureSchema();
+  // One-shot fold of the old per-user game history into game_results, gated
+  // by app_migrations — see games/backfill-results.ts.
+  await backfillResultsFromUserGames(getPool());
   await promoteAdminsAtBoot();
   warnIfMultiMachine();
   const server = app.listen(PORT, () => {

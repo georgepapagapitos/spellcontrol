@@ -1,11 +1,27 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlayPage } from './PlayPage';
 import { useRulesReferenceStore } from '../store/rules-reference';
 import { usePlayStore } from '../store/play';
+import { useAuth } from '../store/auth';
+import type { GameRecord } from '../lib/game-state';
+
+// Signed in, the History tab reads the server record and the leaderboard;
+// neither is under test here, and an offline read must leave the persisted
+// list on screen — which is exactly what a rejection exercises.
+vi.mock('../lib/game-results-client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/game-results-client')>();
+  return {
+    ...actual,
+    fetchMyResults: vi.fn(() => Promise.reject(new Error('offline'))),
+    fetchLeaderboard: vi.fn(() => Promise.reject(new Error('offline'))),
+    postLocalResult: vi.fn(),
+    deleteGameResult: vi.fn(() => Promise.resolve()),
+  };
+});
 
 function renderPage(initialEntry = '/play') {
   return render(
@@ -134,6 +150,82 @@ describe('History — removing a game asks first', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
     expect(usePlayStore.getState().history).toHaveLength(0);
     expect(screen.queryByText('Winner: Ana')).toBeNull();
+  });
+});
+
+// One record per game, both modes in one list: the filter splits them on
+// demand, and the × only exists where a removal is actually possible.
+describe('History tab — local and online records together', () => {
+  function rec(
+    id: string,
+    mode: GameRecord['mode'],
+    winner: string,
+    extra: Partial<GameRecord> = {}
+  ) {
+    return {
+      id,
+      code: mode === 'online' ? 'ABCD' : '',
+      format: 'commander',
+      startingLife: 40,
+      players: [
+        {
+          seat: 0,
+          userId: null,
+          name: winner,
+          deckId: null,
+          deckName: null,
+          commander: null,
+          finalLife: 40,
+          eliminated: false,
+        },
+      ],
+      winnerSeat: 0,
+      startedAt: 1_000,
+      endedAt: 61_000,
+      durationMs: 60_000,
+      mode,
+      ...extra,
+    } as GameRecord;
+  }
+
+  afterEach(() => {
+    useAuth.setState({ user: null, status: 'guest' });
+  });
+
+  it('shows the All / Local / Online filter only when both kinds exist, and it narrows the list', () => {
+    usePlayStore.setState({ history: [rec('l', 'local', 'Ana')] });
+    const { unmount } = renderPage('/play?tab=history');
+    expect(screen.queryByRole('tablist', { name: 'Which games' })).toBeNull();
+    unmount();
+
+    usePlayStore.setState({ history: [rec('l', 'local', 'Ana'), rec('o', 'online', 'Ben')] });
+    renderPage('/play?tab=history');
+    expect(screen.getByText('Winner: Ana')).toBeTruthy();
+    expect(screen.getByText('Winner: Ben')).toBeTruthy();
+    // The page's own Local/Online tabs share these names — scope to the filter.
+    const filter = within(screen.getByRole('tablist', { name: 'Which games' }));
+    fireEvent.click(filter.getByRole('tab', { name: 'Online' }));
+    expect(screen.queryByText('Winner: Ana')).toBeNull();
+    expect(screen.getByText('Winner: Ben')).toBeTruthy();
+    fireEvent.click(filter.getByRole('tab', { name: 'Local' }));
+    expect(screen.getByText('Winner: Ana')).toBeTruthy();
+    expect(screen.queryByText('Winner: Ben')).toBeNull();
+  });
+
+  it('offers removal for a local game you hold, never for an online game or one a friend recorded', () => {
+    useAuth.setState({ user: { id: 'me', username: 'me', role: 'user' }, status: 'authed' });
+    usePlayStore.setState({
+      history: [
+        rec('mine', 'local', 'Ana', { recordedByUserId: 'me' }),
+        rec('theirs', 'local', 'Cal', { recordedByUserId: 'friend' }),
+        rec('online', 'online', 'Ben'),
+      ],
+    });
+    renderPage('/play?tab=history');
+    const removes = screen.getAllByRole('button', { name: /^Remove game:/ });
+    expect(removes).toHaveLength(1);
+    // The one × sits on Ana's (mine) row.
+    expect(removes[0].closest('.play-history-item')?.textContent).toContain('Winner: Ana');
   });
 });
 

@@ -423,7 +423,7 @@ function removeSubscriber(code: string, sub: Subscriber): void {
   if (subs.size === 0) subscribers.delete(code);
 }
 
-const VALID_FORMATS: ReadonlyArray<GameFormat> = [
+export const VALID_FORMATS: ReadonlyArray<GameFormat> = [
   'commander',
   'standard',
   'modern',

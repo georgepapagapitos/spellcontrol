@@ -1589,13 +1589,15 @@ async function rehydrateStoresFromIdb(): Promise<void> {
   // so they're part of the hydrated set (no flash, and guests — who have no pull
   // to restore them — don't lose them). Idempotent + self-disabling.
   await migrateLegacyCubes();
-  const [cards, imports, lists, binders, decks, games, cubes] = await Promise.all([
+  // Play history is no longer read here: a finished game's record is the
+  // server's `game_results` row (store/play.ts loadHistory), not a per-user
+  // synced entity. The 'game' kind stays in the store/schema for old rows.
+  const [cards, imports, lists, binders, decks, cubes] = await Promise.all([
     estore.getAllLive('card'),
     estore.getAllLive('import'),
     estore.getAllLive('list'),
     estore.getAllLive('binder'),
     estore.getAllLive('deck'),
-    estore.getAllLive('game'),
     estore.getAllLive('cube'),
   ]);
 
@@ -1613,12 +1615,10 @@ async function rehydrateStoresFromIdb(): Promise<void> {
   const listData = liveData(lists);
   const binderData = liveData(binders);
   const deckData = liveData(decks);
-  const gameData = liveData(games);
   const cubeData = liveData(cubes);
 
   const { useCollectionStore } = await import('../store/collection');
   const { useDecksStore } = await import('../store/decks');
-  const { usePlayStore } = await import('../store/play');
   const { useCubeStore } = await import('../store/cube');
 
   setApplyingServer(true);
@@ -1637,9 +1637,6 @@ async function rehydrateStoresFromIdb(): Promise<void> {
     } as unknown as Parameters<typeof useCollectionStore.setState>[0]);
     useDecksStore.setState({ decks: deckData, hydrated: true } as unknown as Parameters<
       typeof useDecksStore.setState
-    >[0]);
-    usePlayStore.setState({ history: gameData, hydrated: true } as unknown as Parameters<
-      typeof usePlayStore.setState
     >[0]);
     useCubeStore.setState({ saved: cubeData } as unknown as Parameters<
       typeof useCubeStore.setState
@@ -1690,9 +1687,11 @@ async function resetInMemoryStores(): Promise<void> {
     useDecksStore.setState({ decks: [], hydrated: true } as unknown as Parameters<
       typeof useDecksStore.setState
     >[0]);
-    usePlayStore.setState({ history: [], hydrated: true } as unknown as Parameters<
-      typeof usePlayStore.setState
-    >[0]);
+    usePlayStore.setState({
+      history: [],
+      pendingResults: [],
+      hydrated: true,
+    } as unknown as Parameters<typeof usePlayStore.setState>[0]);
   } finally {
     setApplyingServer(false);
   }

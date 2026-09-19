@@ -136,6 +136,8 @@ const storeActions = {
   leaveOnline: vi.fn(async () => {}),
   refreshOnline: vi.fn(async () => {}),
   removeHistory: vi.fn(),
+  flushPendingResults: vi.fn(async () => {}),
+  loadHistory: vi.fn(async () => {}),
   setHaptics: vi.fn(),
   setPreferredLayout: vi.fn(),
   hideBoard: vi.fn(),
