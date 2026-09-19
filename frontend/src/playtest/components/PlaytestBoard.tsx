@@ -19,7 +19,7 @@ import { usePlaytestStore } from '../store';
 import { useNarrowViewport } from '../hooks/use-narrow-viewport';
 import { useTurnSweep } from '../hooks/use-turn-sweep';
 import { useTablePointer } from '../hooks/use-table-pointer';
-import { useRegisterShortcuts } from '@/lib/shortcut-registry';
+import { isTypingTarget, useRegisterShortcuts } from '@/lib/shortcut-registry';
 import { useOnlineTable } from '../hooks/use-online-table';
 import { usePlayStore } from '@/store/play';
 import { useTakeback } from '../hooks/use-takeback';
@@ -55,6 +55,18 @@ import { ActionBar } from './ActionBar';
 import { TableContextMenu, type TableMenuItem } from './TableContextMenu';
 import { LogDock } from './LogDock';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
+import { GAME_PHASES } from '@/lib/game-state';
+import {
+  SHORTCUTS,
+  formatChord,
+  loadOverrides,
+  resolveBindings,
+  saveOverrides,
+  shortcutFor,
+  type ShortcutId,
+  type ShortcutOverrides,
+} from '../lib/shortcuts';
+import { ShortcutsSheet } from './ShortcutsSheet';
 import { PhaseChip } from '@/components/play/PhaseChip';
 import { ReactionPicker } from './ReactionPicker';
 import { HoldButton } from './HoldButton';
@@ -120,19 +132,8 @@ const FALLBACK_DROP_POS = { x: 0.05, y: 0.05 };
 
 /** B6-16: the desktop keydown handler below is the actual implementation —
  *  this just makes those shortcuts discoverable via the app's `?` overlay. */
-const PLAYTEST_SHORTCUTS = [
-  { keys: ['D'], description: 'Draw a card' },
-  { keys: ['N'], description: 'Next turn' },
-  { keys: ['Space'], description: 'Pass turn (online)' },
-  { keys: ['U'], description: 'Untap all' },
-  { keys: ['K'], description: 'Create a token' },
-  { keys: ['L'], description: 'Open the log' },
-  { keys: ['M'], description: 'Show the mana tracker' },
-  { keys: ['Z'], description: 'Take back' },
-  { keys: ['Ctrl/⌘+C'], description: 'Copy selected cards' },
-  { keys: ['Ctrl/⌘+V'], description: 'Paste copied cards' },
-  { keys: ['T'], description: 'Tap / untap the selected cards' },
-  { keys: ['Esc'], description: 'Clear selection' },
+/** The two keys the binding table doesn't own: they open menus, not actions. */
+const FIXED_SHORTCUTS = [
   { keys: ['Shift+Enter'], description: 'Open the focused card’s menu' },
   { keys: ['Shift+F10'], description: 'Open the table menu' },
 ];
@@ -204,6 +205,28 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // dot; not persisted, a soft nice-to-have that resets on remount.
   const [lastSeenLogSeq, setLastSeenLogSeq] = useState(0);
   const [showDice, setShowDice] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  // Rebindable keys, persisted per device (lib/shortcuts). Every place that
+  // prints a key — the corner buttons, the table menu, the sheet — reads the
+  // same table, so a rebound key never lies on screen.
+  const [shortcutOverrides, setShortcutOverrides] = useState<ShortcutOverrides>(() =>
+    loadOverrides()
+  );
+  const bindings = useMemo(() => resolveBindings(shortcutOverrides), [shortcutOverrides]);
+  const keyFor = (id: ShortcutId) => (bindings[id] ? formatChord(bindings[id]) : undefined);
+  const changeShortcuts = useCallback((next: ShortcutOverrides) => {
+    setShortcutOverrides(next);
+    saveOverrides(next);
+  }, []);
+  // Fullscreen is the browser's state, not ours; mirror it for the menu label.
+  const [isFullscreen, setIsFullscreen] = useState(
+    () => typeof document !== 'undefined' && document.fullscreenElement !== null
+  );
+  useEffect(() => {
+    const sync = () => setIsFullscreen(document.fullscreenElement !== null);
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
   const [showResistancePicker, setShowResistancePicker] = useState(false);
   const [showDesignations, setShowDesignations] = useState(false);
   const [showTakebackSettings, setShowTakebackSettings] = useState(false);
@@ -582,6 +605,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     (showLog && isNarrow) ||
     tableMenu !== null ||
     showDice ||
+    showShortcuts ||
     showResistancePicker ||
     showDesignations ||
     showTakebackSettings ||
@@ -665,6 +689,56 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     });
     if (ok) dispatch({ type: 'RESET' });
   }, [confirm, dispatch]);
+  const concedeOnline = useCallback(async () => {
+    if (!onlineTable) return;
+    const ok = await confirm({
+      title: 'Concede this game?',
+      body: 'Your seat is marked out for everyone at the table. The game goes on without you.',
+      confirmLabel: 'Concede',
+      danger: true,
+    });
+    if (ok) {
+      onlineTable.dispatch({ type: 'eliminate', seat: onlineTable.mySeat, eliminated: true });
+    }
+  }, [confirm, onlineTable]);
+  const leaveOnline = usePlayStore((s) => s.leaveOnline);
+  const leaveTable = useCallback(async () => {
+    if (!onlineTable) return;
+    const ok = await confirm({
+      title: 'Leave the table?',
+      body: 'You give up your seat. If you host, the table ends for everyone.',
+      confirmLabel: 'Leave',
+      danger: true,
+    });
+    if (!ok) return;
+    await leaveOnline();
+    navigate('/play');
+  }, [confirm, onlineTable, leaveOnline, navigate]);
+  // Life, at the table's own counter when seated online (the local playtest
+  // life is a stand-in there — see LifeStrip's online mode).
+  const adjustMyLife = useCallback(
+    (delta: number) => {
+      haptics.tap();
+      if (onlineTable) {
+        onlineTable.dispatch({
+          type: 'life',
+          seat: onlineTable.mySeat,
+          delta,
+          actorSeat: onlineTable.mySeat,
+        });
+      } else {
+        dispatch({ type: 'ADJUST_LIFE', player: 'self', delta });
+      }
+    },
+    [dispatch, onlineTable]
+  );
+  const advancePhase = useCallback(() => {
+    if (!onlineTable) return;
+    const cur = onlineTable.phase;
+    const next = cur === undefined ? GAME_PHASES[0] : GAME_PHASES[GAME_PHASES.indexOf(cur) + 1];
+    if (!next) return;
+    onlineTable.dispatch({ type: 'phase', phase: next, actorSeat: onlineTable.mySeat });
+  }, [onlineTable]);
 
   // City's Blessing is a genuine one-time accomplishment (never lost this
   // game) — a stronger haptic cue than the routine tap monarch/initiative get.
@@ -730,40 +804,28 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     prevTableDefeatedRef.current = tableDefeatedTurn;
   }, [tableDefeatedTurn, deck, fireSealMoment]);
 
-  useRegisterShortcuts('Playtest', PLAYTEST_SHORTCUTS);
+  // The app-wide `?` overlay, where one is mounted, reads the live bindings so
+  // a rebound key is what it prints.
+  const registeredShortcuts = useMemo(
+    () => [
+      ...SHORTCUTS.filter((d) => bindings[d.id]).map((d) => ({
+        keys: [formatChord(bindings[d.id])],
+        description: d.label,
+      })),
+      ...FIXED_SHORTCUTS,
+    ],
+    [bindings]
+  );
+  useRegisterShortcuts('Playtest', registeredShortcuts);
 
-  // Desktop keyboard shortcuts (Moxfield parity): D draw, N next turn, U untap
-  // all, Z / Ctrl+Z undo, Ctrl/⌘+C / +V copy-paste the selection, Esc clears
-  // it. Ignored while typing or while any sheet/modal/context menu is open;
-  // harmless if it never fires on touch (the context menu's Duplicate is the
-  // keyboard-free path to the same clone).
+  // Keyboard shortcuts — one handler, driven by the rebindable table in
+  // lib/shortcuts. Ignored while typing or while any sheet/modal/context menu
+  // is open; harmless if it never fires on touch (every action here is also
+  // a button or a menu item). Keys the board doesn't know fall through so the
+  // browser keeps them.
   useEffect(() => {
-    function isTypingTarget(target: EventTarget | null) {
-      if (!(target instanceof HTMLElement)) return false;
-      return (
-        target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA'
-      );
-    }
     function onKeyDown(e: KeyboardEvent) {
       if (anySheetOpen || isTypingTarget(e.target)) return;
-      const key = e.key.toLowerCase();
-      if (key === 'escape') {
-        clearSelection();
-        return;
-      }
-      if (e.ctrlKey || e.metaKey) {
-        // Only intercept when there's something to act on, so ⌘C over a real
-        // text selection elsewhere on the page still copies text.
-        if (key === 'c' && selected.size > 0) {
-          e.preventDefault();
-          setClipboard([...selected]);
-        } else if (key === 'v' && clipboard.length > 0) {
-          e.preventDefault();
-          const made = cloneCards(clipboard);
-          if (made) setClipboard(made);
-        }
-      }
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
       // Keyboard route to the table menu: the physical Context Menu key, or
       // Shift+F10 on keyboards without one. Anchored at the board's centre,
       // since a keyboard has no cursor to open at.
@@ -772,50 +834,91 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         setTableMenu({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
         return;
       }
-      if (key === ' ') {
-        // A focused button already activates on Space; firing pass-turn too
-        // would double-act.
-        if (e.target instanceof HTMLElement && e.target.closest('button')) return;
-        if (!canPassTurn) return;
-        e.preventDefault();
-        doPassTurn();
-        return;
-      }
-      if (key === 'z') {
-        e.preventDefault();
-        handleTakebackClick();
-        return;
-      }
-      if (key === 't' && selected.size > 0) {
-        e.preventDefault();
-        tapSelection();
-        return;
-      }
-      if (key === 'd') {
-        if (libraryCount === 0) return;
-        e.preventDefault();
-        doDraw();
-      } else if (key === 'n') {
-        e.preventDefault();
-        doNextTurn();
-      } else if (key === 'u') {
-        e.preventDefault();
-        doUntapAll();
-      } else if (key === 'k') {
-        e.preventDefault();
-        setTokenCreator(true);
-      } else if (key === 'l') {
-        e.preventDefault();
-        handleOpenLog();
-      } else if (key === 'm') {
-        e.preventDefault();
-        setManaOpen((open) => !open);
-      }
+      const id = shortcutFor(e, bindings);
+      if (id === null) return;
+      const hasSelection = selected.size > 0;
+      const moveSelectionToLibrary = (top: boolean) => {
+        for (const cardId of selected) {
+          dispatch({ type: 'MOVE_TO_ZONE', cardId, to: 'library', ...(top ? { toIndex: 0 } : {}) });
+        }
+        setSelected(new Set());
+        haptics.tap();
+      };
+      const focus = (n: number) => {
+        const opp = onlineTable?.opponents[n - 1];
+        if (opp) setViewingBoardSeat(opp.board.seat);
+      };
+      // `false` from a handler means "nothing to act on": the key is left to
+      // the browser (so ⌘C over real text still copies text, and Space on a
+      // focused button still presses it).
+      const handlers: Record<ShortcutId, () => boolean | void> = {
+        menu: () => clearSelection(),
+        shortcuts: () => setShowShortcuts(true),
+        'pass-turn': () => {
+          if (e.target instanceof HTMLElement && e.target.closest('button')) return false;
+          if (!canPassTurn) return false;
+          doPassTurn();
+        },
+        'next-turn': doNextTurn,
+        draw: () => (libraryCount === 0 ? false : doDraw()),
+        'untap-all': doUntapAll,
+        'advance-phase': () => (onlineTable ? advancePhase() : false),
+        'life-up': () => adjustMyLife(1),
+        'life-down': () => adjustMyLife(-1),
+        shuffle: () => dispatch({ type: 'SHUFFLE_LIBRARY' }),
+        scry: () => (libraryCount === 0 ? false : setShowScry(true)),
+        dice: () => setShowDice(true),
+        token: () => setTokenCreator(true),
+        mana: () => setManaOpen((open) => !open),
+        log: () => (showLog && !isNarrow ? setShowLog(false) : handleOpenLog()),
+        undo: handleTakebackClick,
+        'select-all': () => {
+          if (state.battlefield.length === 0) return false;
+          setSelected(new Set(state.battlefield.map((b) => b.card.id)));
+          setSelectMode(true);
+        },
+        'tap-selection': () => (hasSelection ? tapSelection() : false),
+        copy: () => (hasSelection ? setClipboard([...selected]) : false),
+        paste: () => {
+          if (clipboard.length === 0) return false;
+          const made = cloneCards(clipboard);
+          if (made) setClipboard(made);
+        },
+        clone: () => (hasSelection ? void cloneCards([...selected]) : false),
+        transform: () => {
+          if (!hasSelection) return false;
+          for (const cardId of selected) dispatch({ type: 'TRANSFORM', cardId });
+        },
+        'counter-plus': () => {
+          if (!hasSelection) return false;
+          for (const cardId of selected)
+            dispatch({ type: 'SET_COUNTER', cardId, counter: '+1/+1', delta: 1 });
+        },
+        'counter-minus': () => {
+          if (!hasSelection) return false;
+          for (const cardId of selected)
+            dispatch({ type: 'SET_COUNTER', cardId, counter: '-1/-1', delta: 1 });
+        },
+        'to-hand': () => (hasSelection ? moveSelection('hand') : false),
+        'to-graveyard': () => (hasSelection ? moveSelection('graveyard') : false),
+        'to-exile': () => (hasSelection ? moveSelection('exile') : false),
+        'to-library-top': () => (hasSelection ? moveSelectionToLibrary(true) : false),
+        'to-library-bottom': () => (hasSelection ? moveSelectionToLibrary(false) : false),
+        'focus-1': () => focus(1),
+        'focus-2': () => focus(2),
+        'focus-3': () => focus(3),
+        'focus-4': () => focus(4),
+        'focus-5': () => focus(5),
+        'focus-6': () => focus(6),
+      };
+      if (handlers[id]() === false) return;
+      e.preventDefault();
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [
     anySheetOpen,
+    bindings,
     handleTakebackClick,
     handleOpenLog,
     canPassTurn,
@@ -823,12 +926,20 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     doNextTurn,
     doPassTurn,
     doUntapAll,
+    advancePhase,
+    adjustMyLife,
     libraryCount,
     selected,
     clipboard,
     cloneCards,
     clearSelection,
     tapSelection,
+    moveSelection,
+    dispatch,
+    onlineTable,
+    showLog,
+    isNarrow,
+    state.battlefield,
   ]);
 
   // Online, keeping your opening hand doesn't start the game — the takeover
@@ -886,21 +997,54 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       label: `Takeback rule: ${TAKEBACK_MODE_LABEL[takeback.mode]}`,
       onClick: () => setShowTakebackSettings(true),
     },
+    { label: 'Keyboard shortcuts', onClick: () => setShowShortcuts(true) },
+    // Fullscreen is offered only where the browser offers it (not inside the
+    // native shell, and not in every embedded WebView).
+    ...(typeof document !== 'undefined' && document.fullscreenEnabled
+      ? [
+          {
+            label: isFullscreen ? 'Exit fullscreen' : 'Fullscreen',
+            onClick: () => {
+              if (document.fullscreenElement) void document.exitFullscreen();
+              else void document.documentElement.requestFullscreen();
+            },
+          },
+        ]
+      : []),
     { label: 'Reset', onClick: () => void doReset(), danger: true },
+    // Online, the table is shared: conceding marks this seat out for everyone
+    // and leaving gives the seat up. Both ask first; both are the game's
+    // truth, not this device's, so they go through the session.
+    ...(onlineTable
+      ? [
+          { label: 'Concede', danger: true, onClick: () => void concedeOnline() },
+          { label: 'Leave the table', danger: true, onClick: () => void leaveTable() },
+        ]
+      : []),
   ];
 
   const tableMenuItems: TableMenuItem[] = [
-    { label: 'Draw', shortcut: 'D', onClick: doDraw, disabled: libraryCount === 0 },
+    { label: 'Draw', shortcut: keyFor('draw'), onClick: doDraw, disabled: libraryCount === 0 },
     canPassTurn
-      ? { label: 'Pass turn', shortcut: 'Space', onClick: doPassTurn }
-      : { label: 'Next turn', shortcut: 'N', onClick: doNextTurn },
-    { label: 'Untap all', shortcut: 'U', onClick: doUntapAll },
-    { label: 'Top cards', onClick: () => setShowScry(true), disabled: libraryCount === 0 },
-    { label: 'Create token', shortcut: 'K', onClick: () => setTokenCreator(true) },
-    { label: 'Roll dice', onClick: () => setShowDice(true) },
+      ? { label: 'Pass turn', shortcut: keyFor('pass-turn'), onClick: doPassTurn }
+      : { label: 'Next turn', shortcut: keyFor('next-turn'), onClick: doNextTurn },
+    { label: 'Untap all', shortcut: keyFor('untap-all'), onClick: doUntapAll },
+    {
+      label: 'Top cards',
+      shortcut: keyFor('scry'),
+      onClick: () => setShowScry(true),
+      disabled: libraryCount === 0,
+    },
+    { label: 'Create token', shortcut: keyFor('token'), onClick: () => setTokenCreator(true) },
+    { label: 'Roll dice', shortcut: keyFor('dice'), onClick: () => setShowDice(true) },
     { label: selectMode ? 'Done selecting' : 'Select cards', onClick: toggleSelectMode },
     ...(onlineTable ? [{ label: 'Reactions', onClick: () => setReactionToken((t) => t + 1) }] : []),
-    { label: 'Log', shortcut: 'L', onClick: handleOpenLog },
+    { label: 'Log', shortcut: keyFor('log'), onClick: handleOpenLog },
+    {
+      label: 'Keyboard shortcuts',
+      shortcut: keyFor('shortcuts'),
+      onClick: () => setShowShortcuts(true),
+    },
   ];
 
   // Takeback copy, shared with the ActionBar's own (narrow) button.
@@ -1077,7 +1221,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       {onlineTable ? (
         canPassTurn ? (
           <button type="button" className="playtest-corner-btn is-primary" onClick={doPassTurn}>
-            Pass turn <kbd>Space</kbd>
+            Pass turn {keyFor('pass-turn') && <kbd>{keyFor('pass-turn')}</kbd>}
           </button>
         ) : (
           <span className="playtest-corner-waiting" aria-live="polite">
@@ -1086,7 +1230,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         )
       ) : (
         <button type="button" className="playtest-corner-btn is-primary" onClick={doNextTurn}>
-          Next turn <kbd>N</kbd>
+          Next turn {keyFor('next-turn') && <kbd>{keyFor('next-turn')}</kbd>}
         </button>
       )}
       {onlineTable && (
@@ -1602,6 +1746,13 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       )}
 
       {showDice && <DiceRoller onClose={() => setShowDice(false)} />}
+      {showShortcuts && (
+        <ShortcutsSheet
+          overrides={shortcutOverrides}
+          onChange={changeShortcuts}
+          onClose={() => setShowShortcuts(false)}
+        />
+      )}
 
       {showResistancePicker && (
         <ResistancePicker

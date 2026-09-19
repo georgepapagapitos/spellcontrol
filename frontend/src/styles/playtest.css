@@ -3517,3 +3517,52 @@ body:has(.playtest-page) {
   top: var(--space-3);
   z-index: var(--z-table-banner);
 }
+
+/* ── Keyboard shortcuts sheet: rebindable key chips ─────────────────────── */
+
+.playtest-shortcuts-help,
+.playtest-shortcuts-notice {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.playtest-shortcuts-notice {
+  min-height: 1.4em;
+  color: var(--text-primary);
+}
+
+.playtest-shortcut-key {
+  min-width: 5.5rem;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.playtest-shortcut-key.is-off {
+  color: var(--text-muted);
+  border-style: dashed;
+}
+
+.playtest-shortcut-key.is-listening {
+  color: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.playtest-shortcut-key:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.playtest-shortcuts-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--space-3);
+}
