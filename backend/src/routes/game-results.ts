@@ -3,17 +3,35 @@ import { requireAuth } from '../auth';
 import { getPool } from '../db';
 import { testAwareLimiter } from '../route-utils';
 import { areFriends } from '../friends/relations';
-import type { GameResultParticipant, PublicGameResult } from '../games/result-types';
+import type {
+  GameResultMode,
+  GameResultParticipant,
+  PublicGameResult,
+} from '../games/result-types';
 import { rollupForUser, killEdges } from '../games/rollup';
+import { buildGameResultRow, insertGameResult } from '../games/persist-result';
+import { MAX_LOCAL_RESULT_BYTES, parseLocalResult } from '../games/local-result';
 import type { GameEvent, GameSummary } from '@spellcontrol/game-core';
 
 export const gameResultsRouter: Router = Router();
 
 const readLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 });
+const writeLimiter = testAwareLimiter({ windowMs: 60_000, max: 30 });
 
 /** JSONB containment operand matching any row where `userId` holds a seat. */
 function participantFilter(userId: string): string {
   return JSON.stringify([{ userId }]);
+}
+
+/**
+ * Optional `?mode=local|online` on every read. Absent means both — the whole
+ * point of one table is that stats aggregate across modes by default and
+ * split only when asked. Anything else is a 400, not a silent "both".
+ */
+function modeFilter(raw: unknown): { mode: GameResultMode | null } | { error: string } {
+  if (raw === undefined || raw === '') return { mode: null };
+  if (raw === 'local' || raw === 'online') return { mode: raw };
+  return { error: "mode must be 'local' or 'online'." };
 }
 
 // Exported for pod-stats.ts's toPublicForPod() — the pod hub's shared-history
@@ -22,6 +40,8 @@ function participantFilter(userId: string): string {
 export interface ResultRow {
   session_id: string;
   code: string;
+  mode: GameResultMode;
+  recorded_by_user_id: string | null;
   format: string;
   starting_life: number;
   winner_seat: number | null;
@@ -38,6 +58,8 @@ export function toPublic(r: ResultRow): PublicGameResult {
   return {
     sessionId: r.session_id,
     code: r.code,
+    mode: r.mode,
+    recordedByUserId: r.recorded_by_user_id,
     format: r.format,
     startingLife: r.starting_life,
     winnerSeat: r.winner_seat,
@@ -54,13 +76,135 @@ export function toPublic(r: ResultRow): PublicGameResult {
 /** Columns every read route selects. Keeps the SELECT list and `ResultRow` in
  *  step — adding a column in one place and not the other silently yields
  *  `undefined` at runtime with no type error. */
-const RESULT_COLUMNS = `session_id, code, format, starting_life, winner_seat, winner_user_id,
-            started_at, ended_at, duration_ms, participants, notable_events, summary`;
+export const RESULT_COLUMNS = `session_id, code, mode, recorded_by_user_id, format, starting_life,
+            winner_seat, winner_user_id, started_at, ended_at, duration_ms, participants,
+            notable_events, summary`;
+
+/** Accepted-friend ids of `userId`, both directions. */
+async function friendIdsOf(userId: string): Promise<Set<string>> {
+  const r = await getPool().query<{ friend_id: string }>(
+    `SELECT CASE WHEN requester_id = $1 THEN addressee_id ELSE requester_id END AS friend_id
+       FROM friendships
+      WHERE status = 'accepted' AND (requester_id = $1 OR addressee_id = $1)`,
+    [userId]
+  );
+  return new Set(r.rows.map((x) => x.friend_id));
+}
 
 // ────────────────────────────────────────────────
-// GET /api/game-results/leaderboard
-// Friends you've played online games with, and your W/L against each. Scoped
-// to games where the caller and an accepted friend both participated.
+// POST /api/game-results
+// Record a finished LOCAL game. The device that tracked the table is the only
+// witness, so the caller is trusted for what happened; the server enforces
+// shape/size (parseLocalResult) and WHO may be credited: a seat's userId must
+// be the caller or an accepted friend, so nobody can pad a stranger's record
+// or plant a loss on them. Idempotent on the game id: a retry after a dropped
+// response returns the existing row; a different account claiming the same
+// id is a 409.
+// ────────────────────────────────────────────────
+gameResultsRouter.post('/', requireAuth, writeLimiter, async (req: Request, res: Response) => {
+  const callerId = req.user!.id;
+  if (JSON.stringify(req.body ?? null).length > MAX_LOCAL_RESULT_BYTES) {
+    return res.status(413).json({ error: 'That game is too large to record.' });
+  }
+  const parsed = parseLocalResult(req.body);
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+  const state = parsed.state;
+
+  const credited = state.players.map((p) => p.userId).filter((id): id is string => id !== null);
+  if (credited.some((id) => id !== callerId)) {
+    const friends = await friendIdsOf(callerId);
+    if (credited.some((id) => id !== callerId && !friends.has(id))) {
+      return res.status(400).json({ error: 'You can only credit yourself or your friends.' });
+    }
+  }
+  if (new Set(credited).size !== credited.length) {
+    return res.status(400).json({ error: 'An account can hold only one seat.' });
+  }
+
+  const pool = getPool();
+  const row = await buildGameResultRow(state, pool, callerId);
+  const inserted = await insertGameResult(row, pool);
+  const stored = await pool.query<ResultRow>(
+    `SELECT ${RESULT_COLUMNS} FROM game_results WHERE session_id = $1`,
+    [state.id]
+  );
+  const existing = stored.rows[0];
+  if (!existing) return res.status(500).json({ error: "Couldn't record the game." });
+  if (!inserted && existing.recorded_by_user_id !== callerId) {
+    return res.status(409).json({ error: 'That game id is already recorded.' });
+  }
+  return res.status(inserted ? 201 : 200).json({ result: toPublic(existing) });
+});
+
+// ────────────────────────────────────────────────
+// GET /api/game-results/mine?mode=&limit=&before=
+// The caller's own history, both modes: every game they held a seat in, plus
+// every local game they recorded (a recorder needn't have been seated).
+// Newest first, keyset-paged on (ended_at, session_id).
+// ────────────────────────────────────────────────
+gameResultsRouter.get('/mine', requireAuth, readLimiter, async (req: Request, res: Response) => {
+  const callerId = req.user!.id;
+  const mf = modeFilter(req.query.mode);
+  if ('error' in mf) return res.status(400).json({ error: mf.error });
+  const limitRaw = Number(req.query.limit);
+  const limit = Number.isInteger(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 200) : 100;
+  // Cursor: "<endedAt>:<sessionId>" of the last row seen.
+  let beforeEnded: number | null = null;
+  let beforeId: string | null = null;
+  if (typeof req.query.before === 'string' && req.query.before.length > 0) {
+    const idx = req.query.before.indexOf(':');
+    const n = Number(req.query.before.slice(0, idx));
+    if (idx <= 0 || !Number.isInteger(n)) return res.status(400).json({ error: 'Bad cursor.' });
+    beforeEnded = n;
+    beforeId = req.query.before.slice(idx + 1);
+  }
+
+  const rows = await getPool().query<ResultRow>(
+    `SELECT ${RESULT_COLUMNS}
+       FROM game_results
+      WHERE (participants @> $1::jsonb OR recorded_by_user_id = $2)
+        AND ($3::text IS NULL OR mode = $3)
+        AND ($4::bigint IS NULL OR (ended_at, session_id) < ($4, $5))
+      ORDER BY ended_at DESC, session_id DESC
+      LIMIT $6`,
+    [participantFilter(callerId), callerId, mf.mode, beforeEnded, beforeId ?? '', limit + 1]
+  );
+  const page = rows.rows.slice(0, limit);
+  const last = page[page.length - 1];
+  res.json({
+    results: page.map(toPublic),
+    nextCursor: rows.rows.length > limit && last ? `${last.ended_at}:${last.session_id}` : null,
+  });
+});
+
+// ────────────────────────────────────────────────
+// DELETE /api/game-results/:sessionId
+// Only the account that recorded a LOCAL game may remove it — an online row
+// is the table's shared truth and nobody owns it. Uniform 404 for "not
+// yours", "not local" and "no such row" (no existence oracle).
+// ────────────────────────────────────────────────
+gameResultsRouter.delete(
+  '/:sessionId',
+  requireAuth,
+  writeLimiter,
+  async (req: Request, res: Response) => {
+    const callerId = req.user!.id;
+    const sessionId = String(req.params.sessionId ?? '');
+    const r = await getPool().query(
+      `DELETE FROM game_results
+        WHERE session_id = $1 AND mode = 'local' AND recorded_by_user_id = $2`,
+      [sessionId, callerId]
+    );
+    if ((r.rowCount ?? 0) === 0) return res.status(404).json({ error: 'No such game.' });
+    res.json({ ok: true });
+  }
+);
+
+// ────────────────────────────────────────────────
+// GET /api/game-results/leaderboard?mode=
+// Friends you've played with, and your W/L against each. Scoped to games
+// where the caller and an accepted friend both participated — local or
+// online, unless `mode` narrows it.
 // ────────────────────────────────────────────────
 gameResultsRouter.get(
   '/leaderboard',
@@ -68,6 +212,8 @@ gameResultsRouter.get(
   readLimiter,
   async (req: Request, res: Response) => {
     const callerId = req.user!.id;
+    const mf = modeFilter(req.query.mode);
+    if ('error' in mf) return res.status(400).json({ error: mf.error });
     const result = await getPool().query<{
       friend_id: string;
       friend_username: string;
@@ -86,6 +232,7 @@ gameResultsRouter.get(
          SELECT session_id, ended_at, winner_user_id, participants
          FROM game_results
          WHERE participants @> $2::jsonb
+           AND ($3::text IS NULL OR mode = $3)
        ),
        shared AS (
          SELECT g.session_id, g.ended_at, g.winner_user_id, fi.friend_id
@@ -104,7 +251,7 @@ gameResultsRouter.get(
        JOIN users u ON u.id = s.friend_id
        GROUP BY s.friend_id, u.username, u.display_name
        ORDER BY games_played DESC, friend_username ASC`,
-      [callerId, participantFilter(callerId)]
+      [callerId, participantFilter(callerId), mf.mode]
     );
 
     res.json({
@@ -133,6 +280,8 @@ gameResultsRouter.get(
   async (req: Request, res: Response) => {
     const callerId = req.user!.id;
     const friendId = String(req.params.friendId ?? '');
+    const mf = modeFilter(req.query.mode);
+    if ('error' in mf) return res.status(400).json({ error: mf.error });
 
     // Uniform 403 for both non-friends and unknown ids (no existence oracle).
     if (!(await areFriends(callerId, friendId))) {
@@ -152,9 +301,10 @@ gameResultsRouter.get(
       `SELECT ${RESULT_COLUMNS}
        FROM game_results
        WHERE participants @> $1::jsonb AND participants @> $2::jsonb
+         AND ($3::text IS NULL OR mode = $3)
        ORDER BY ended_at DESC
        LIMIT 100`,
-      [participantFilter(callerId), participantFilter(friendId)]
+      [participantFilter(callerId), participantFilter(friendId), mf.mode]
     );
 
     const results = rows.rows.map(toPublic);

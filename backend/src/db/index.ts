@@ -570,6 +570,22 @@ export async function ensureSchema(): Promise<void> {
     -- nobody drew first blood — which would drag every rate toward 0 and then
     -- read as a fact.
     ALTER TABLE game_results ADD COLUMN IF NOT EXISTS summary JSONB;
+    -- One record for BOTH modes. 'online' rows are written by the games PATCH
+    -- when a session flips to finished; 'local' rows are posted by the device
+    -- that tracked the table (POST /api/game-results). Every pre-migration row
+    -- was online, hence the default.
+    ALTER TABLE game_results ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 'online';
+    -- Who posted a local result: the only account allowed to delete it. Null
+    -- for online rows (the server wrote them). Backfilled rows carry the
+    -- user_games owner.
+    ALTER TABLE game_results ADD COLUMN IF NOT EXISTS recorded_by_user_id TEXT;
+    CREATE INDEX IF NOT EXISTS game_results_recorded_by_idx ON game_results(recorded_by_user_id);
+    -- One-shot data migrations, keyed by name. ensureSchema runs on every
+    -- boot, so anything that scans DATA (not just DDL) checks in here first.
+    CREATE TABLE IF NOT EXISTS app_migrations (
+      name TEXT PRIMARY KEY,
+      applied_at BIGINT NOT NULL
+    );
 
     -- Public deck publish state (social program W0). Dedicated table rather
     -- than a 4th shares.audience value (see PLAN.md §A1) so the public URL

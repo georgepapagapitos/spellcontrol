@@ -23,10 +23,18 @@ export interface GameResultParticipant {
   eliminated: boolean;
 }
 
+export type GameResultMode = 'local' | 'online';
+
 /** Public projection of a `game_results` row returned by the read routes. */
 export interface PublicGameResult {
   sessionId: string;
   code: string;
+  /** 'online' (server-written when the session finished) or 'local' (posted
+   *  by the device that tracked the table). Both live in one table so every
+   *  stats read counts both and can split by this field. */
+  mode: GameResultMode;
+  /** Who posted a local result; null for online rows. Only they may delete it. */
+  recordedByUserId: string | null;
   format: string;
   startingLife: number;
   winnerSeat: number | null;

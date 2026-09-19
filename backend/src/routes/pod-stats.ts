@@ -3,7 +3,7 @@ import { requireAuth } from '../auth';
 import { getPool } from '../db';
 import { testAwareLimiter } from '../route-utils';
 import { podMembershipStatus } from '../pods/relations';
-import { toPublic, type ResultRow } from './game-results';
+import { RESULT_COLUMNS, toPublic, type ResultRow } from './game-results';
 import { killEdges, rollupForUser } from '../games/rollup';
 import type { GameResultParticipant, PublicGameResult } from '../games/result-types';
 
@@ -61,13 +61,17 @@ type PodParticipant = Omit<GameResultParticipant, 'userId' | 'username'> & {
  *    free-text `note` messages typed at the table. */
 type PodGameResult = Omit<
   PublicGameResult,
-  'code' | 'winnerUserId' | 'participants' | 'notableEvents' | 'summary'
+  'code' | 'winnerUserId' | 'recordedByUserId' | 'participants' | 'notableEvents' | 'summary'
 > & { participants: PodParticipant[] };
 
 function toPublicForPod(r: ResultRow): PodGameResult {
   const pub = toPublic(r);
   return {
     sessionId: pub.sessionId,
+    // `mode` is table-level fact (local vs online), not identity — the hub
+    // may split the pod's record by it. `recordedByUserId` is an account id
+    // and stays out for the same reason `winnerUserId` does.
+    mode: pub.mode,
     format: pub.format,
     startingLife: pub.startingLife,
     winnerSeat: pub.winnerSeat,
@@ -105,8 +109,7 @@ function toPublicForPod(r: ResultRow): PodGameResult {
  */
 async function fetchPodGames(memberIds: string[]): Promise<ResultRow[]> {
   const result = await getPool().query<ResultRow>(
-    `SELECT session_id, code, format, starting_life, winner_seat, winner_user_id,
-            started_at, ended_at, duration_ms, participants, notable_events, summary
+    `SELECT ${RESULT_COLUMNS}
        FROM game_results g
       WHERE (
         SELECT COUNT(*) FROM unnest($1::text[]) AS m(uid)

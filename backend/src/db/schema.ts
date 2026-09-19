@@ -757,12 +757,15 @@ export const podMembers = pgTable(
 );
 
 /**
- * Canonical record of a finished *online* game, keyed by the live session id.
- * Unlike `user_games` (per-user, synced, one divergent copy each), this is a
- * single shared row every participant reads, so head-to-head and leaderboards
- * have one source of truth. Written once when an online game flips to
- * 'finished' (see `games/persist-result.ts`); never swept. Local games (no
- * authed participants) are not recorded.
+ * Canonical record of a finished game, either mode, keyed by the game id (the
+ * live session id for online games; the device-minted id for local ones).
+ * One shared row every participant reads, so head-to-head, leaderboards, pod
+ * stats and each player's own history have one source of truth. Online rows
+ * are written once when a session flips to 'finished' (games PATCH →
+ * `games/persist-result.ts`); local rows are posted by the device that tracked
+ * the table (`POST /api/game-results`) and carry `recorded_by_user_id`. Never
+ * swept. The old per-user `user_games` copies were folded in once by
+ * `games/backfill-results.ts` and are no longer written.
  */
 export const gameResults = pgTable(
   'game_results',
@@ -796,11 +799,37 @@ export const gameResults = pgTable(
      */
     summary: jsonb('summary').$type<GameSummary | null>(),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    /**
+     * Which surface produced the row. 'online' rows are written by the games
+     * PATCH when a session flips to finished; 'local' rows are posted by the
+     * device that tracked the table. One table for both so every stats read
+     * (leaderboard, head-to-head, pod, personal history) sees one record per
+     * game and can filter by mode instead of joining two shapes.
+     */
+    mode: text('mode').notNull().default('online').$type<'local' | 'online'>(),
+    /**
+     * The account that posted a local result — the only one allowed to
+     * delete it. Null for online rows (nobody "recorded" a server-written
+     * game). Soft reference, no FK: the row outlives the account like
+     * `participants[].userId` does.
+     */
+    recordedByUserId: text('recorded_by_user_id'),
   },
   (t) => ({
     endedIdx: index('game_results_ended_idx').on(t.endedAt),
+    recordedByIdx: index('game_results_recorded_by_idx').on(t.recordedByUserId),
   })
 );
+
+/**
+ * One-shot data migrations that `ensureSchema` must not repeat on every boot
+ * (it is idempotent DDL; anything that scans rows checks in here first).
+ * See `games/backfill-results.ts`.
+ */
+export const appMigrations = pgTable('app_migrations', {
+  name: text('name').primaryKey(),
+  appliedAt: bigint('applied_at', { mode: 'number' }).notNull(),
+});
 
 /**
  * Public deck publish state (social program W0). A dedicated table rather
