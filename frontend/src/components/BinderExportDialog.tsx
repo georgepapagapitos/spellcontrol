@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { Modal } from './Modal';
@@ -10,7 +11,7 @@ import {
   binderBackupFileName,
   allBindersBackupFileName,
 } from '../lib/backup';
-import { collectionToCsv, binderCsvFileName, downloadCsv } from '../lib/collection-export';
+import { CollectionExportDialog } from './CollectionExportDialog';
 import { isNativePlatform } from '../lib/platform';
 
 interface Props {
@@ -28,17 +29,20 @@ export function BinderExportDialog({ binders, activeId, onClose }: Props) {
 
   const active = binders.find((b) => b.def.id === activeId) ?? null;
   const allBinderCards = collectCards(binders);
+  // "This binder as a file" hands off to the format picker in place.
+  const [fileStep, setFileStep] = useState(false);
 
   const handlePick = (kind: ExportKind) => {
+    if (kind === 'binder-csv') {
+      // Stays open: swaps this chooser for the format picker (below).
+      if (active) setFileStep(true);
+      return;
+    }
     try {
       if (kind === 'binder') {
         if (!active) return;
         const cards = collectCards([active]);
         downloadBackup(buildBinderBackup(active.def, cards), binderBackupFileName(active.def.name));
-      } else if (kind === 'binder-csv') {
-        if (!active) return;
-        const cards = collectCards([active]);
-        downloadCsv(collectionToCsv(cards), binderCsvFileName(active.def.name));
       } else if (kind === 'binder-print') {
         if (!active) return;
         // Closes below (the finally), then the print stylesheet renders the
@@ -61,6 +65,16 @@ export function BinderExportDialog({ binders, activeId, onClose }: Props) {
       onClose();
     }
   };
+
+  if (fileStep && active) {
+    return (
+      <CollectionExportDialog
+        cards={collectCards([active])}
+        binderName={active.def.name}
+        onClose={onClose}
+      />
+    );
+  }
 
   return (
     <Modal onClose={onClose} labelledBy="binder-export-title">
@@ -95,10 +109,11 @@ export function BinderExportDialog({ binders, activeId, onClose }: Props) {
           disabled={!active}
         >
           <span className="choice-dialog-option-title">
-            {active ? `This binder as CSV: ${active.def.name}` : 'This binder as CSV'}
+            {active ? `This binder as a file: ${active.def.name}` : 'This binder as a file'}
           </span>
           <span className="choice-dialog-option-desc">
-            Cards only, for spreadsheets or other collection tools. No rule definitions.
+            Cards only, one row per copy, as a SpellControl, Moxfield or Archidekt CSV or an Arena
+            list. No rule definitions.
           </span>
         </button>
         {!isNativePlatform() && (

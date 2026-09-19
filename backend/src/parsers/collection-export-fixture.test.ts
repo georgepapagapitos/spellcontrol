@@ -4,11 +4,12 @@ import { describe, it, expect } from 'vitest';
 import { detectCsvFormat, detectDelimiter, parseCsvAuto } from './csv';
 
 /**
- * Round-trip guard for the frontend's ManaBox-compatible collection CSV
- * exporter (`frontend/src/lib/collection-export.ts`). This fixture is that
- * exporter's own output for a small fixed collection (see
+ * Round-trip guard for the frontend's SpellControl (ManaBox-compatible)
+ * collection CSV exporter (`frontend/src/lib/collection-export.ts`). This
+ * fixture is that exporter's own output for a small fixed collection (see
  * `collection-export.test.ts`'s "backend round-trip fixture" case) — proving
- * a downloaded export parses straight back into the same cards.
+ * a downloaded export parses straight back into the same cards: one row per
+ * physical copy, with the per-copy flags (altered/proxy) intact.
  */
 describe('collection CSV export round-trip', () => {
   it('parses the exported fixture back into the source cards', () => {
@@ -18,19 +19,25 @@ describe('collection CSV export round-trip', () => {
     expect(detectCsvFormat(headers)).toBe('manabox');
 
     const { rows } = parseCsvAuto(text, 'manabox');
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(4);
 
-    expect(rows[0]).toMatchObject({
-      name: 'Sol Ring',
-      setCode: 'CMR',
-      collectorNumber: '1',
-      finish: 'nonfoil',
-      quantity: 2,
-      condition: 'nm',
-      language: 'en',
-      sourceCategory: 'Commander',
-    });
-    expect(rows[1]).toMatchObject({
+    // Two copies of one printing are two rows, each quantity 1 — nothing merges.
+    for (const row of rows.slice(0, 2)) {
+      expect(row).toMatchObject({
+        name: 'Sol Ring',
+        setCode: 'CMR',
+        collectorNumber: '1',
+        finish: 'nonfoil',
+        quantity: 1,
+        condition: 'nm',
+        language: 'en',
+        sourceCategory: 'Commander',
+        purchasePrice: 1.5,
+        altered: false,
+        proxy: false,
+      });
+    }
+    expect(rows[2]).toMatchObject({
       name: 'Lightning Bolt',
       setCode: 'LEA',
       collectorNumber: '161',
@@ -39,8 +46,9 @@ describe('collection CSV export round-trip', () => {
       condition: 'lp',
       language: 'en',
       sourceCategory: 'Modern',
+      altered: true,
     });
-    expect(rows[2]).toMatchObject({
+    expect(rows[3]).toMatchObject({
       name: 'Atraxa, Grand Unifier',
       setCode: 'ONE',
       collectorNumber: '240',
@@ -48,6 +56,7 @@ describe('collection CSV export round-trip', () => {
       quantity: 1,
       condition: undefined,
       language: 'ja',
+      proxy: true,
     });
   });
 });

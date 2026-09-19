@@ -111,6 +111,20 @@
   }
 }
 
+/* Collection export: what the chosen format carries + the file name. */
+.export-dialog-hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  flex: 0 0 auto;
+}
+
+.export-dialog-hint code {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
 .export-dialog-preview {
   flex: 1;
   /* Comfortable default that scales with viewport — short decks still fit

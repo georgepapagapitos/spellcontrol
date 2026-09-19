@@ -14,7 +14,7 @@ import { useDecksStore } from '../store/decks';
 import { THEMES } from '../lib/themes';
 import { toast } from '../store/toasts';
 import { buildBackup, downloadBackup } from '../lib/backup';
-import { collectionToCsv, collectionCsvFileName, downloadCsv } from '../lib/collection-export';
+import { CollectionExportDialog } from '../components/CollectionExportDialog';
 import { Modal } from '../components/Modal';
 import { formatPricedDate, newestPricedAt } from '../lib/price-freshness';
 import { useCurrencyStore, type Currency } from '../lib/currency';
@@ -388,10 +388,7 @@ export function YouPage() {
     toast.show({ message: 'Backup downloaded.', tone: 'success' });
   }
 
-  function handleExportCsv() {
-    downloadCsv(collectionToCsv(cards), collectionCsvFileName());
-    toast.show({ message: 'CSV downloaded.', tone: 'success' });
-  }
+  const [exportOpen, setExportOpen] = useState(false);
 
   function openSignOut() {
     // Snapshot the unsynced-change count now so the dialog copy is accurate.
@@ -741,23 +738,25 @@ export function YouPage() {
                       <br />
                       <br />
                       The JSON backup includes binders, lists, and every deck; a re-import restores
-                      all of it. The CSV is cards only, for use with other collection tools.
+                      all of it. Export is cards only, one row per copy, as a SpellControl, Moxfield
+                      or Archidekt CSV or an Arena text list.
                     </>
                   }
                 />
               </>
             }
             valueWithTip
-            hint="Download a JSON backup (every card, binder, list, and deck) or a plain CSV (cards only)."
+            hint="Download a JSON backup (every card, binder, list, and deck) or a cards-only file for another tool."
             actions={
               <div className="settings-row-action-group">
                 <button
                   type="button"
                   className="btn"
-                  onClick={handleExportCsv}
+                  aria-haspopup="dialog"
+                  onClick={() => setExportOpen(true)}
                   disabled={cardCount === 0}
                 >
-                  Export CSV
+                  Export
                 </button>
                 <button
                   type="button"
@@ -968,6 +967,8 @@ export function YouPage() {
           onSaved={() => void refreshIdentities()}
         />
       )}
+
+      {exportOpen && <CollectionExportDialog cards={cards} onClose={() => setExportOpen(false)} />}
 
       {signOutOpen && (
         <ConfirmDialog

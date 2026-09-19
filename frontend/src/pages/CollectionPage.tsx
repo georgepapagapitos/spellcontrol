@@ -16,8 +16,7 @@ import { OverflowMenu } from '../components/OverflowMenu';
 import { StatsBar } from '../components/StatsBar';
 import { CardListTable } from '../components/CardListTable';
 import { ShareDialog } from '../components/ShareDialog';
-import { collectionToCsv, collectionCsvFileName, downloadCsv } from '../lib/collection-export';
-import { toast } from '../store/toasts';
+import { CollectionExportDialog } from '../components/CollectionExportDialog';
 
 export function CollectionPage() {
   const rawCards = useCollectionStore((s) => s.cards);
@@ -66,10 +65,7 @@ export function CollectionPage() {
 
   const [shareOpen, setShareOpen] = useState(false);
 
-  function handleExportCsv() {
-    downloadCsv(collectionToCsv(cards), collectionCsvFileName());
-    toast.show({ message: 'CSV downloaded.', tone: 'success' });
-  }
+  const [exportOpen, setExportOpen] = useState(false);
 
   const [statsOpen, setStatsOpen] = useState(false);
 
@@ -230,11 +226,12 @@ export function CollectionPage() {
                   <button
                     type="button"
                     className="pill-btn collection-hero-action collection-hero-action-secondary"
-                    onClick={handleExportCsv}
-                    title="Download a CSV of your collection"
+                    aria-haspopup="dialog"
+                    onClick={() => setExportOpen(true)}
+                    title="Download your collection for another tool"
                   >
                     <Download width={14} height={14} strokeWidth={1.8} aria-hidden />
-                    <span>Export CSV</span>
+                    <span>Export</span>
                   </button>
                   <button
                     type="button"
@@ -251,7 +248,7 @@ export function CollectionPage() {
                     triggerClassName="pill-btn collection-hero-actions-kebab"
                     ariaLabel="More collection actions"
                     items={[
-                      { label: 'Export CSV', icon: Download, onClick: handleExportCsv },
+                      { label: 'Export', icon: Download, onClick: () => setExportOpen(true) },
                       { label: 'Share', icon: Share2, onClick: () => setShareOpen(true) },
                     ]}
                   />
@@ -266,6 +263,9 @@ export function CollectionPage() {
             onAddCards={() => setAddCardsOpen(true)}
           />
           <StatsBar open={statsOpen} onClose={() => setStatsOpen(false)} />
+          {exportOpen && (
+            <CollectionExportDialog cards={cards} onClose={() => setExportOpen(false)} />
+          )}
           {shareOpen && (
             <ShareDialog
               kind="collection"

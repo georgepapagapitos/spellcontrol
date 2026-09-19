@@ -21,7 +21,7 @@ Plan your Magic: The Gathering collection. Import a collection export from any p
 - **Look up rules** — a built-in Comprehensive Rules reference: keywords, glossary, and rule-number search, available from anywhere in the app.
 - **Scan paper cards** (Android app) — add cards to the collection by pointing the phone camera at them.
 - **Browse your collection** in a sortable, filterable table with breakdowns by color, type, rarity, and price.
-- **Export it all** — the collection (or one binder) as a ManaBox-compatible CSV that re-imports cleanly, a JSON backup that carries binders, lists and every deck, decks as Arena / Moxfield / MTGO `.dek` text, and a printable checklist of any deck or binder.
+- **Export it all** — the collection (or one binder) as a one-row-per-copy CSV for SpellControl/ManaBox, Moxfield or Archidekt, or an Arena text list, a JSON backup that carries binders, lists and every deck, decks as Arena / Moxfield / MTGO `.dek` text, and a printable checklist of any deck or binder.
 - **Sign in and sync** — create an account to store your collection, binders, and decks on the server. Changes push automatically and pull on login. Add a verified email and you can reset a forgotten password, set a password on a Google-only account, or change either from Settings.
 - **Skin the app** with a guild theme — accents, surfaces, and warning / error colors all re-tint per theme.
 
