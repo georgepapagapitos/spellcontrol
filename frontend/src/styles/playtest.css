@@ -3402,3 +3402,118 @@ body:has(.playtest-page) {
     left: calc(50% - 6rem);
   }
 }
+
+/* Same squeeze, different cause: at an online table below the seat grid the
+   opponent rail takes 15rem off the board, so a 1280px viewport leaves the
+   fan the same cramped width a 1150px one does. Keyed on the rail being
+   there, not on the viewport, because that is what actually narrows it. */
+@media (min-width: 1151px) and (max-width: 1439px) {
+  .playtest-main:has(> .opponent-rail) .playtest-hand--fan {
+    left: calc(50% - 6rem);
+  }
+}
+
+/* ── Desktop table with opponents: a 2x2 seat grid, not a rail ───────────── */
+/*  STYLE_GUIDE "Desktop table with opponents: 2x2, not a rail". At 1440px and
+ *  up an online table with one to three opponents replaces the rail column
+ *  with equal quadrants, one per seat, yours bottom-left. The gate is made in
+ *  JS (PlaytestBoard's `gridMode`), so every rule here hangs off a class only
+ *  that markup carries — no media query, the same contract the rest of this
+ *  section follows. */
+.playtest-main--grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 1fr;
+  /* The thin dark gutter between boards IS the gap: one background behind a
+     grid that has no other way to draw a separator per seat. */
+  gap: 2px;
+  background: var(--border);
+}
+
+/* Two seats: one row, yours on the left. */
+.playtest-main--seats-2 {
+  grid-auto-rows: auto;
+  grid-template-rows: 1fr;
+}
+
+/* The wrap is `flex: 1` in the rail layout; as a grid cell it needs to be
+   allowed to shrink or a wide board pushes its column past its share. And its
+   density is no longer the viewport's: the same 7vw that is 7% of a full-bleed
+   table is 14% of a half-width quadrant, which put the hand fan under the pile
+   row. Halve the width term and pay the height out of the row the quadrant
+   actually has. (A `container-type` here would be the tidier read and is
+   forbidden: it would trap the viewport-fixed corner stack above.) */
+.playtest-main--grid > .playtest-battlefield-wrap {
+  min-width: 0;
+  min-height: 0;
+  /* All three, together: `--pt-card-h` and `--pt-edge` are registered,
+     inheriting custom properties, so a `--pt-card-w` redeclared on its own
+     inherits the ANCESTOR's already-computed height and every card comes out
+     66x188. Redeclare the derived pair wherever the width is redeclared. */
+  --pt-card-w: clamp(64px, min(5vw, (50vh - 40px) / 7.6), 120px);
+  --pt-card-h: calc(var(--pt-card-w) * 1.4);
+  --pt-edge: calc((var(--pt-card-h) - var(--pt-card-w)) / 2);
+}
+
+/* Two seats: one row, so the height budget is the whole viewport again. */
+.playtest-main--seats-2 > .playtest-battlefield-wrap {
+  --pt-card-w: clamp(64px, min(5vw, (100vh - 40px) / 7.6), 140px);
+  --pt-card-h: calc(var(--pt-card-w) * 1.4);
+  --pt-edge: calc((var(--pt-card-h) - var(--pt-card-w)) / 2);
+}
+
+/* Your fan is centred on your quadrant, and your quadrant is half a table: at
+   that width the pile row's real footprint (~21rem) reaches into the fan's
+   right end and swallowed the Library tile. Centre the fan in the space LEFT
+   of the piles instead — the same answer the 1024-1150px tier already uses,
+   rather than shrinking the cards below what a hand has to be readable at. */
+.playtest-main--grid .playtest-hand--fan {
+  left: calc((100% - 21rem) / 2);
+}
+
+/* The play ticker's home once there is no rail column to hold it: the top
+   right of YOUR OWN quadrant. It is your feed and it covers your own felt —
+   parked in the viewport's corner it would sit over an opponent's board, and
+   no seat is ever covered by chrome that had somewhere else to go. */
+.playtest-ticker-dock {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 3;
+  width: 17rem;
+  max-width: calc(50% - var(--space-4));
+}
+
+.playtest-ticker-dock .table-ticker {
+  margin-top: 0;
+  padding: var(--space-2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklab, var(--surface) 88%, transparent);
+  box-shadow: var(--shadow-tooltip);
+  backdrop-filter: blur(6px);
+}
+
+.playtest-ticker-dock .table-ticker__list {
+  max-height: 7rem;
+}
+
+/* Two clusters anchor to the VIEWPORT, not to your quadrant: the turn/menu
+   stack and the floating banners are table-wide chrome and belong in the
+   screen's corners, not squeezed into the bottom-left board. Everything else
+   the corners carry (life panel, hand fan, zone piles) stays inside your own
+   quadrant, because it is yours. Nothing between here and the viewport
+   establishes a containing block, so `fixed` resolves to the viewport. */
+.playtest-main--grid .playtest-corner--tr {
+  position: fixed;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: var(--z-table-chrome);
+  max-width: 14rem;
+}
+
+.playtest-main--grid .playtest-banners {
+  position: fixed;
+  top: var(--space-3);
+  z-index: var(--z-table-banner);
+}

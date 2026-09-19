@@ -27,6 +27,27 @@
   }
 }
 
+/* The opponent rail owns a 15rem column at the board's left edge from 1024px
+   up, and the dock's bottom-left anchor put it straight over the seats. Shift
+   it clear of the column rather than shrinking it. */
+@media (min-width: 1024px) {
+  .playtest-board:has(.playtest-main > .opponent-rail) .playtest-log-dock {
+    left: calc(15rem + var(--space-4));
+  }
+}
+
+/* The seat grid (STYLE_GUIDE "Desktop table with opponents"): bottom-left is
+   now YOUR quadrant, half as wide and half as tall. The dock stays where the
+   table ruling put it and shrinks to fit that box, rather than reaching over
+   the seat above or across your own hand fan. */
+.playtest-board:has(.playtest-main--grid) .playtest-log-dock {
+  width: 18rem;
+  max-height: min(26vh, 16rem);
+  /* One card height plus the chrome leaves the dock's bottom edge exactly on
+     the re-centred fan's top edge in a half-width quadrant. Lift it clear. */
+  bottom: calc(var(--pt-card-h) + 5rem);
+}
+
 .playtest-log-dock__header {
   display: flex;
   align-items: center;

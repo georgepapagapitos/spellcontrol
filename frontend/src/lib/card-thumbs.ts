@@ -72,7 +72,16 @@ export async function loadCard(name: string): Promise<ScryfallCard | null> {
   return cache.get(key) ?? null;
 }
 
-function cachedThumb(name: string, version: ThumbVersion): string | undefined {
+/**
+ * Synchronous cache read: the image URL already resolved for `name`, or
+ * undefined. Exported because some callers are not renders — the playtest
+ * hover preview resolves a card id at POINTER time, long after the surface
+ * that rendered it (and warmed this cache through `useCardThumb`) painted.
+ */
+export function cachedCardThumb(
+  name: string,
+  version: ThumbVersion = 'normal'
+): string | undefined {
   const card = cache.get(name.toLowerCase());
   return card ? imageFromCard(card, version) : undefined;
 }
@@ -89,7 +98,7 @@ export function useCardThumb(
 ): string | undefined {
   // Synchronous cache hit, derived during render — a warm cache paints art on
   // the first frame with no effect round-trip or flash.
-  const cached = name ? cachedThumb(name, version) : undefined;
+  const cached = name ? cachedCardThumb(name, version) : undefined;
   const [resolved, setResolved] = useState<string | undefined>(undefined);
   useEffect(() => {
     if (!name || cached) return;

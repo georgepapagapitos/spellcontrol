@@ -1,11 +1,28 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { createPlaytestState } from '@/lib/playtest';
 import { usePlaytestStore } from '../store';
+import type { OnlineTable } from '../hooks/use-online-table';
+import type { OpponentSeat } from './OpponentRail';
+import { opponentPreviewId } from './OpponentQuadrant';
 import { PlaytestBoard } from './PlaytestBoard';
+
+// The seat grid needs a seated online table. `useOnlineTable` is the one seam
+// between playtest and an online game (see its doc comment), so mocking it is
+// mocking the whole multiplayer world; `onlineTable` below is what the tests
+// hand the board.
+let onlineTable: OnlineTable | null = null;
+vi.mock('../hooks/use-online-table', () => ({
+  useOnlineTable: () => onlineTable,
+}));
+// Art resolution for the quadrants' cards — see OpponentQuadrant.test.tsx.
+vi.mock('@/lib/card-thumbs', () => ({
+  useCardThumb: (name?: string) => (name ? `https://cards.example/${name}.jpg` : undefined),
+  cachedCardThumb: (name: string) => `https://cards.example/${name}.jpg`,
+}));
 
 // PlaytestPage.test.tsx mocks PlaytestBoard wholesale (it's testing the
 // page's init/resume flow, not the board), so the board itself has never
@@ -23,8 +40,80 @@ function seededState() {
   });
 }
 
+function opponent(seat: number): OpponentSeat {
+  return {
+    name: `Player ${seat}`,
+    board: {
+      seat,
+      turn: 3,
+      life: 34,
+      commanderTax: {},
+      monarch: false,
+      initiative: false,
+      citysBlessing: false,
+      battlefield: [
+        {
+          card: { id: 'sol', name: 'Sol Ring' },
+          tapped: false,
+          counters: {},
+          stickers: [],
+          x: 0.2,
+          y: 0.3,
+          faceDown: false,
+        },
+      ],
+      graveyard: [],
+      exile: [],
+      command: [],
+      handCount: 4,
+      libraryCount: 88,
+    },
+  };
+}
+
+function seatedTable(opponents: OpponentSeat[]): OnlineTable {
+  return {
+    activeSeat: 0,
+    opponents,
+    mySeat: 0,
+    me: { seat: 0, name: 'Dev', life: 40 } as OnlineTable['me'],
+    players: [{ seat: 0, name: 'Dev', life: 40 } as OnlineTable['me']],
+    phase: undefined,
+    poisonEnabled: false,
+    commanderDamageEnabled: false,
+    designations: { monarch: null, initiative: null },
+    dispatch: () => {},
+  };
+}
+
+/** Evaluate the board's real media queries against a width, the way
+ *  OpponentRail.test.tsx does, so the seat grid's own `(min-width: 1440px)`
+ *  gate is exercised rather than stubbed away. */
+function stubWidth(width: number, finePointer = false) {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: (query: string) => {
+      const min = /min-width:\s*(\d+)px/.exec(query);
+      const max = /max-width:\s*(\d+)px/.exec(query);
+      const matches =
+        (!min || width >= Number(min[1])) &&
+        (!max || width <= Number(max[1])) &&
+        (finePointer || !/hover|pointer/.test(query)) &&
+        !/orientation/.test(query);
+      return {
+        matches,
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      };
+    },
+  });
+}
+
 beforeEach(() => {
   dispatch.mockReset();
+  onlineTable = null;
   usePlaytestStore.setState({ phase: 'playing', dispatch });
   // Force the desktop layout — happy-dom's default viewport width matches
   // the board's own "narrow" (<=1024px) breakpoint, which would otherwise
@@ -126,5 +215,80 @@ describe('PlaytestBoard', () => {
     fireEvent.keyDown(window, { key: 'd' });
 
     expect(dispatch).toHaveBeenCalledWith({ type: 'DRAW', n: 1 });
+  });
+
+  it('lays every seat out as a quadrant at 1440px and up, and keeps the rail below it', () => {
+    onlineTable = seatedTable([opponent(1), opponent(2), opponent(3)]);
+    stubWidth(1920);
+    const { container, unmount } = render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(container.querySelector('.playtest-main--grid')).toBeTruthy();
+    expect(container.querySelectorAll('.opponent-quadrant')).toHaveLength(3);
+    expect(container.querySelector('.opponent-rail')).toBeNull();
+    unmount();
+
+    // One pixel under the gate, the rail is still the answer.
+    stubWidth(1439);
+    const below = render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(below.container.querySelector('.playtest-main--grid')).toBeNull();
+    expect(below.container.querySelector('.opponent-rail')).toBeTruthy();
+  });
+
+  it('fills the fourth quadrant with an open seat at a three-player table', () => {
+    onlineTable = seatedTable([opponent(1), opponent(2)]);
+    stubWidth(1920);
+    const { container } = render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(container.querySelectorAll('.opponent-quadrant--open')).toHaveLength(1);
+    expect(screen.getByText('Open seat')).toBeTruthy();
+  });
+
+  it('never grids a table it would have to hide a seat from', () => {
+    onlineTable = seatedTable([opponent(1), opponent(2), opponent(3), opponent(4)]);
+    stubWidth(1920);
+    const { container } = render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(container.querySelector('.playtest-main--grid')).toBeNull();
+    expect(container.querySelector('.opponent-rail')).toBeTruthy();
+  });
+
+  it('resolves an opponent permanent for the hover preview off its seat-scoped id', () => {
+    onlineTable = seatedTable([opponent(1)]);
+    stubWidth(1920, true);
+    vi.useFakeTimers();
+    try {
+      const { container } = render(
+        <MemoryRouter>
+          <PlaytestBoard state={seededState()} />
+        </MemoryRouter>
+      );
+      const id = opponentPreviewId(1, 'sol');
+      const card = container.querySelector(`[data-preview-id="${id}"]`);
+      expect(card, 'the quadrant publishes a seat-scoped preview id').toBeTruthy();
+
+      // The board's own `resolvePreview` is what turns that prefixed id back
+      // into a face — nothing else in the app knows the prefix.
+      fireEvent.pointerOver(card!);
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      const shown = document.querySelector('.playtest-hover-preview img');
+      expect(shown?.getAttribute('src')).toBe('https://cards.example/Sol Ring.jpg');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
