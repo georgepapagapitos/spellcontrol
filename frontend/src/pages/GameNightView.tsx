@@ -286,7 +286,7 @@ function NightBody({
         {night.venue === 'online' && (
           <div className="game-night-fact">
             <dt>Played</dt>
-            <dd>Online — everyone on their own device; the host shares a join code</dd>
+            <dd>Online. Everyone plays from their own device and the host shares a join code.</dd>
           </div>
         )}
         {night.location && (
