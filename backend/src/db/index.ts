@@ -182,6 +182,11 @@ export async function ensureSchema(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS user_cards_rev_idx ON user_cards(user_id, rev);
     CREATE INDEX IF NOT EXISTS user_cards_import_idx ON user_cards(user_id, import_id);
+    -- The per-friend unique-card count (routes/friends.ts) reads only this
+    -- expression; without the index every friend of an 11.5k-card account
+    -- costs a full detoast of their JSONB (3.7s measured, playtest batch 9).
+    CREATE INDEX IF NOT EXISTS user_cards_oracle_idx
+      ON user_cards (user_id, (data->>'oracleId')) WHERE deleted_at IS NULL;
     CREATE TABLE IF NOT EXISTS user_binders (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       id TEXT NOT NULL,

@@ -30,16 +30,24 @@ export function SocialHubTabs() {
   const [pods, setPods] = useState<Pod[] | null>(null);
   const pendingPodInvites = pods ? pendingPodInviteCount(pods) : 0;
 
+  // Refetched on window focus, like the activity feed feeding the Trades
+  // chip: an invite that lands while a social page sits open otherwise never
+  // reaches this chip until a reload (playtest batch 9).
   useEffect(() => {
     if (!username) return;
     let cancelled = false;
-    listPods()
-      .then((r) => {
-        if (!cancelled) setPods(r);
-      })
-      .catch(() => {});
+    const load = () => {
+      listPods()
+        .then((r) => {
+          if (!cancelled) setPods(r);
+        })
+        .catch(() => {});
+    };
+    load();
+    window.addEventListener('focus', load);
     return () => {
       cancelled = true;
+      window.removeEventListener('focus', load);
     };
   }, [username]);
 

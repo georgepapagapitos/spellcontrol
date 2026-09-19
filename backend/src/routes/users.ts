@@ -44,7 +44,11 @@ usersRouter.get('/search', requireAuth, searchLimiter, async (req: Request, res:
     return res.status(400).json({ error: 'q must be 32 characters or fewer.' });
   }
   if (!/^[a-z0-9_-]+$/.test(rawQ)) {
-    return res.status(400).json({ error: 'q must match [a-z0-9_-].' });
+    // Rendered verbatim as the search error on /friends (userMessage passes a
+    // 4xx message through), so it has to read as a sentence, not a regex.
+    return res
+      .status(400)
+      .json({ error: 'Usernames only use lowercase letters, digits, _ and -.' });
   }
 
   const pool = getPool();

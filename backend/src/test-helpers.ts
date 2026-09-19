@@ -185,6 +185,8 @@ export async function createTestEnv(): Promise<TestEnv> {
     );
     CREATE INDEX user_cards_rev_idx ON user_cards(user_id, rev);
     CREATE INDEX user_cards_import_idx ON user_cards(user_id, import_id);
+    CREATE INDEX user_cards_oracle_idx
+      ON user_cards (user_id, (data->>'oracleId')) WHERE deleted_at IS NULL;
     CREATE TABLE user_binders (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       id TEXT NOT NULL,

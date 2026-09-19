@@ -53,9 +53,15 @@
   outline-offset: 2px;
 }
 
-/* Coarse-pointer floor on the width axis too — the trigger measured 34×44. */
+/* Coarse-pointer floor on BOTH axes. The width half came from a trigger that
+   measured 34×44 inside a 44px row; the pod hub's header trigger sits beside a
+   36px button and measured 44×20 at phone width — a probe 18px above or below
+   its centre hit the wrapper, not the button (playtest batch 9). The trigger
+   is its own thing, not a control crowded into a dense row, so it takes the
+   floor on its real box rather than a ghost. */
 @media (pointer: coarse) {
   .overflow-menu-trigger {
     min-width: 44px;
+    min-height: 44px;
   }
 }

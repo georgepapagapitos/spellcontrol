@@ -6,6 +6,7 @@ import { getCardById } from './api';
 import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { logger } from './logger';
 import { waitForCollectionHydration } from './local-cards';
+import { waitForPullQuiescent } from './sync';
 import { planSettlement, describeSettlement } from './trade-settlement';
 import {
   listTrades,
@@ -76,7 +77,11 @@ async function applySettlement(offer: TradeOffer): Promise<boolean> {
   // The persist layer gates every write on hydration (local-cards.ts), but
   // the PLAN is computed here from store.cards — planning against a store
   // that has not loaded yet reads every owed card as "no longer owned".
+  // `hydrating` only covers the IDB read: on a fresh device it flips false
+  // against an EMPTY store while the first pull is still landing pages, so
+  // the plan must also wait for the pull to settle (playtest batch 9).
   await waitForCollectionHydration();
+  await waitForPullQuiescent();
   const store = useCollectionStore.getState();
   const plan = planSettlement(offer.give, offer.receive, store.cards);
 
@@ -209,6 +214,7 @@ export function useTradeSettlement(): void {
         // waitForCollectionHydration. Mount and window focus both fire this
         // while a fresh page load is still reading IndexedDB.
         await waitForCollectionHydration();
+        await waitForPullQuiescent();
         if (cancelled) return;
         // Re-list before EVERY settle rather than iterating one snapshot: a
         // settle takes real time (one lookup per received copy), and another

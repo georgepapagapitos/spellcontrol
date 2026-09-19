@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
+import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
 import { formatMoney } from '../lib/format-money';
 import { getFriendShares, type FriendShareRow } from '../lib/share-client';
 import { formatIdentity } from '../lib/display-name';
@@ -275,6 +276,13 @@ export function FriendHubPage() {
   // keeps the tradeability rules (proxies excluded, printings stacked under
   // one oracle identity) in one place.
   const myCards = useCollectionStore((s) => s.cards);
+  // `hydrating` is not "I know what you own": on a device that has never
+  // cached the account, the store is EMPTY until the first pull settles (42s
+  // for a 12k-card account, measured in playtest batch 9). Both radar sections
+  // read the store, so until then they may only say they are still checking —
+  // never "Nothing you own is on their want lists", and never no section.
+  const awaitingFirstPull = useAwaitingFirstPull();
+  const collectionUnknown = awaitingFirstPull && myCards.length === 0 && lists.length === 0;
   const allocations = useAllocations();
   const ownedLines = useMemo(() => groupOwnedForTrade(myCards), [myCards]);
   const surplusByName = useMemo(
@@ -595,7 +603,7 @@ export function FriendHubPage() {
           )
         )}
 
-        {wantsAnything && (
+        {(wantsAnything || collectionUnknown) && (
           <section className="friend-hub-section" aria-label="Trade radar">
             <h2 className="friend-hub-section-head">Trade radar</h2>
             {radarError ? (
@@ -609,7 +617,7 @@ export function FriendHubPage() {
                   Try again
                 </button>
               </p>
-            ) : radar === null ? (
+            ) : collectionUnknown || radar === null ? (
               <div
                 className="friend-hub-radar-skeleton"
                 aria-label="Checking your want lists"
@@ -660,7 +668,7 @@ export function FriendHubPage() {
                   Try again
                 </button>
               </p>
-            ) : wantRadar === null ? (
+            ) : collectionUnknown || wantRadar === null ? (
               <div
                 className="friend-hub-radar-skeleton"
                 aria-label={`Checking ${who}'s want lists`}

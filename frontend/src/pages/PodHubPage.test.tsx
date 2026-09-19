@@ -42,6 +42,7 @@ vi.mock('../lib/pods-client', () => {
     getPod: vi.fn(),
     renamePod: vi.fn(),
     deletePod: vi.fn(),
+    leavePod: vi.fn(() => Promise.resolve()),
     removePodMember: vi.fn(),
     acceptPodInvite: vi.fn(() => Promise.resolve()),
     declinePodInvite: vi.fn(() => Promise.resolve()),
@@ -70,6 +71,7 @@ import {
   fetchPodLeaderboard,
   getPod,
   invitePodMembers,
+  leavePod,
   removePodMember,
   renamePod,
   PodNotFoundError,
@@ -176,6 +178,60 @@ describe('PodHubPage — owner vs member vs invited controls', () => {
     expect(screen.getByRole('menuitem', { name: /delete pod/i })).toBeTruthy();
     expect(screen.getByTitle('Rename pod')).toBeTruthy();
     expect(screen.getByRole('button', { name: /remove bob from pod/i })).toBeTruthy();
+  });
+
+  it('refetches the roster on window focus, so an acceptance made elsewhere lands (playtest batch 9)', async () => {
+    authState.user = { id: 'owner1', username: 'sam', role: 'user' };
+    vi.mocked(getPod)
+      .mockResolvedValueOnce(
+        podDetail({
+          members: [
+            { userId: 'owner1', username: 'sam', status: 'member', joinedAt: 1 },
+            { userId: 'pal', username: 'pal', status: 'invited', joinedAt: null },
+          ],
+        })
+      )
+      .mockResolvedValue(
+        podDetail({
+          members: [
+            { userId: 'owner1', username: 'sam', status: 'member', joinedAt: 1 },
+            { userId: 'pal', username: 'pal', status: 'member', joinedAt: 2 },
+          ],
+        })
+      );
+    renderPage();
+    expect((await screen.findAllByText('Invited')).length).toBeGreaterThan(0);
+
+    fireEvent(window, new Event('focus'));
+
+    await waitFor(() => expect(screen.queryAllByText('Invited')).toHaveLength(0));
+    expect(screen.getAllByText('pal').length).toBeGreaterThan(0);
+  });
+
+  it('a plain member can leave: confirm, then the API, then back to /pods (playtest batch 9)', async () => {
+    // leavePod and DELETE …/members/me existed from the start; no surface
+    // ever offered them, so a member stayed until the owner removed them.
+    authState.user = { id: 'bob1', username: 'bob', role: 'user' };
+    vi.mocked(getPod).mockResolvedValue(
+      podDetail({
+        members: [
+          { userId: 'owner1', username: 'sam', status: 'member', joinedAt: 1 },
+          { userId: 'bob1', username: 'bob', status: 'member', joinedAt: 2 },
+        ],
+      })
+    );
+    renderPage();
+    expect(await screen.findByText('Friday crew')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /options for friday crew/i }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: /leave pod/i }));
+    expect(await screen.findByText(/leave "friday crew"\?/i)).toBeTruthy();
+    expect(vi.mocked(leavePod)).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /^leave$/i }));
+
+    await waitFor(() => expect(vi.mocked(leavePod)).toHaveBeenCalledWith('pod1'));
+    expect(await screen.findByTestId('pods-index-stub')).toBeTruthy();
   });
 
   it('a plain member sees none of the owner controls', async () => {

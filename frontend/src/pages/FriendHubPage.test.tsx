@@ -59,6 +59,12 @@ vi.mock('../lib/cube/pool', async () => {
   };
 });
 
+// The first-pull window: flipped on by the test that models a fresh device.
+const firstPull = vi.hoisted(() => ({ awaiting: false }));
+vi.mock('../lib/use-awaiting-first-pull', () => ({
+  useAwaitingFirstPull: () => firstPull.awaiting,
+}));
+
 const fetchFriendWants = vi.fn();
 vi.mock('../lib/friends-client', async () => {
   const actual =
@@ -290,6 +296,33 @@ describe('FriendHubPage — "They’re looking for" (the reciprocal radar)', () 
     renderPage();
 
     expect(await within(overview()).findByText(/nothing you own is on .*want lists/i)).toBeTruthy();
+  });
+
+  it('keeps both radars on their skeletons while the first pull is still landing (playtest batch 9)', async () => {
+    // A fresh device: the store is empty because nothing has ARRIVED yet, not
+    // because the viewer owns nothing. Measured: this said "Nothing you own is
+    // on their want lists" for the whole 42s first pull of a 12k-card account,
+    // and the Trade radar section was missing outright, then both popped in.
+    firstPull.awaiting = true;
+    try {
+      myCards = [];
+      fetchFriendWants.mockResolvedValue({
+        ownerUsername: 'friendo',
+        wants: [{ name: 'Sol Ring', oracleId: 'o-sol' }],
+      });
+      renderPage();
+
+      const looking = await screen.findByRole('region', {
+        name: /what this friend is looking for/i,
+      });
+      expect(within(looking).getByLabelText(/checking .*want lists/i)).toBeTruthy();
+      expect(within(looking).queryByText(/nothing you own/i)).toBeNull();
+      const radar = screen.getByRole('region', { name: 'Trade radar' });
+      expect(within(radar).getByLabelText(/checking your want lists/i)).toBeTruthy();
+      expect(within(radar).queryByText(/nothing on your want lists/i)).toBeNull();
+    } finally {
+      firstPull.awaiting = false;
+    }
   });
 
   it('hides the section entirely when the friend has no want lists', async () => {

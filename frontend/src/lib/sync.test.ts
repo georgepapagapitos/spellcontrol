@@ -38,6 +38,9 @@ import {
   isOnline,
   hasSyncError,
   clearCollectionRemote,
+  isPullApplying,
+  waitForPullQuiescent,
+  withSuspendedHydration,
 } from './sync';
 import { pullSync, pushSync, clearCollectionSync } from './auth-api';
 import { isNativePlatform } from './platform';
@@ -718,6 +721,60 @@ describe('persistKind helpers', () => {
   // The durable mutation queue is native-only; web write-through is covered in
   // its own describe below.
   beforeEach(() => mockIsNative.mockReturnValue(true));
+
+  it('never tombstones a row a pull landed in IDB before the stores rehydrated (playtest batch 9)', async () => {
+    // A multi-page pull writes page 1 to IDB and rehydrates the stores only
+    // after the last page. A persist that runs in between — the trade
+    // settlement sweep on a fresh device did — hands persistKind a snapshot
+    // that has never seen page 1. That diff tombstoned 2,001 live rows of an
+    // 11.5k-card account on the server. The pulled row must survive the diff.
+    await estore.putMany('binder', [
+      { id: 'b-1', data: { id: 'b-1', name: 'mine' }, rev: 1, deletedAt: null },
+    ]);
+    await startSync('user-1');
+    mockPull
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            kind: 'binder',
+            id: 'b-2',
+            data: { id: 'b-2', name: 'pulled' },
+            rev: 900,
+            deletedAt: null,
+          },
+        ],
+        cursor: 900,
+        hasMore: true,
+      })
+      .mockImplementationOnce(async () => {
+        // Between pages: a snapshot from a store that only knows b-1.
+        expect(isPullApplying()).toBe(true);
+        await persistBindersState([{ id: 'b-1', name: 'mine' } as { id: string }]);
+        return { rows: [], cursor: 900, hasMore: false };
+      });
+    await refreshNow();
+    expect((await estore.getAllLive('binder')).map((r) => r.id).sort()).toEqual(['b-1', 'b-2']);
+    const ops = (await queue.peekBatch(10)).map((b) => `${b.m.op}:${b.m.id}`);
+    expect(ops).not.toContain('delete:b-2');
+    expect(isPullApplying()).toBe(false);
+    // Once the stores have rehydrated, a snapshot that omits b-2 is a real removal again.
+    await persistBindersState([{ id: 'b-1', name: 'mine' } as { id: string }]);
+    expect((await estore.getAllLive('binder')).map((r) => r.id)).toEqual(['b-1']);
+  });
+
+  it('waitForPullQuiescent resolves only after a suspended pull releases', async () => {
+    let release: () => void = () => {};
+    const held = withSuspendedHydration(() => new Promise<void>((r) => (release = r)));
+    expect(isPullApplying()).toBe(true);
+    let resolved = false;
+    const wait = waitForPullQuiescent().then(() => (resolved = true));
+    await new Promise((r) => setTimeout(r, 250));
+    expect(resolved).toBe(false);
+    release();
+    await held;
+    await wait;
+    expect(resolved).toBe(true);
+  });
 
   it('persistBindersState writes upserts for each row and tombstones the missing ones', async () => {
     await estore.putMany('binder', [

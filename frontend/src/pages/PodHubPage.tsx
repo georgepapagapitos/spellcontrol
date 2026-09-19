@@ -22,6 +22,7 @@ import {
   fetchPodLeaderboard,
   getPod,
   invitePodMembers,
+  leavePod,
   removePodMember,
   renamePod,
   PodNotFoundError,
@@ -155,6 +156,8 @@ export function PodHubPage() {
   const [removeBusy, setRemoveBusy] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [leaveBusy, setLeaveBusy] = useState(false);
 
   const [gamesFetch, setGamesFetch] = useState<GamesFetch>({ status: 'loading' });
   const [leaderboardFetch, setLeaderboardFetch] = useState<LeaderboardFetch>({ status: 'loading' });
@@ -188,6 +191,14 @@ export function PodHubPage() {
 
   useEffect(() => {
     loadPod();
+  }, [loadPod]);
+
+  // The roster is fetched once on mount, so an invite accepted on the other
+  // person's phone left the owner's open hub reading "Invited" through a
+  // focus nudge (playtest batch 9). Same window-focus cadence as /trades.
+  useEffect(() => {
+    window.addEventListener('focus', loadPod);
+    return () => window.removeEventListener('focus', loadPod);
   }, [loadPod]);
 
   const isMember = pod?.myStatus === 'member';
@@ -380,6 +391,26 @@ export function PodHubPage() {
     }
   }
 
+  // A member's only exit. The API (DELETE …/members/me) and its client
+  // (leavePod) existed from the start; no surface ever called them, so a
+  // member stayed in a pod until the owner removed them (playtest batch 9).
+  async function handleLeavePod() {
+    if (!pod) return;
+    setLeaveBusy(true);
+    try {
+      await leavePod(pod.id);
+      toast.show({ message: `You left ${pod.name}.`, tone: 'info' });
+      navigate('/pods');
+    } catch (err) {
+      toast.show({
+        message: userMessage(err, "Couldn't leave the pod."),
+        tone: 'error',
+      });
+      setLeaveBusy(false);
+      setLeaveConfirmOpen(false);
+    }
+  }
+
   function handleInvited(count: number) {
     setInviteOpen(false);
     toast.show({
@@ -496,6 +527,16 @@ export function PodHubPage() {
               ariaLabel={`Manage ${pod.name}`}
               items={[
                 { label: 'Delete pod', onClick: () => setDeleteConfirmOpen(true), danger: true },
+              ]}
+            />
+          </div>
+        )}
+        {isMember && !isOwner && (
+          <div className="pod-hub-header-actions">
+            <OverflowMenu
+              ariaLabel={`Options for ${pod.name}`}
+              items={[
+                { label: 'Leave pod', onClick: () => setLeaveConfirmOpen(true), danger: true },
               ]}
             />
           </div>
@@ -758,6 +799,17 @@ export function PodHubPage() {
           danger
           onConfirm={() => void handleDeletePod()}
           onCancel={() => setDeleteConfirmOpen(false)}
+        />
+      )}
+
+      {leaveConfirmOpen && (
+        <ConfirmDialog
+          title={`Leave "${pod.name}"?`}
+          body="You'll drop off its roster and leaderboard. The owner can invite you back."
+          confirmLabel={leaveBusy ? 'Leaving…' : 'Leave'}
+          danger
+          onConfirm={() => void handleLeavePod()}
+          onCancel={() => setLeaveConfirmOpen(false)}
         />
       )}
     </div>
