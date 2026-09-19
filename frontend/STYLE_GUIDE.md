@@ -1453,8 +1453,8 @@ panel for each adopter; add a new header there when you build one.
 deck builds, the commander — and its partner, when there is one — renders as the
 real card (`useCardThumb(name, 'normal')` through `CardThumb`, 5:7 at
 `var(--radius)`), sat beside the progress column. The distinction is what the
-surface is for: a *header* labels a page you are about to read, so a crop under
-a scrim is right; a *wait* has nothing else to look at, so give the full card,
+surface is for: a _header_ labels a page you are about to read, so a crop under
+a scrim is right; a _wait_ has nothing else to look at, so give the full card,
 which is the thing the deck is being built around. Cards stack above the text on
 phones and move to the right of it at ≥600px.
 
@@ -4095,8 +4095,34 @@ trading one out, not by squeezing:
 | Density            | Fields                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **List** (66px)    | thumb · name · foil · deck/binder badges · type glyph · rarity chip + set code + CN · mana · qty · value · condition + language chips (deviations only — detail-when-present, like the page chip)                                                                                                                                                                                                                                                                                                       |
-| **Compact** (32px) | name · type glyph · rarity chip · set code · mana · qty · value — CN returns ≥768px; foil/deck/binder badges return ≥1024px; condition/language follow CN (return ≥768px)                                                                                                                                                                                                                                                                                                                               |
+| **Compact** (32px) | **<768px:** name · type glyph · rarity chip · set code · mana · qty · value. **≥768px it is the table** (below): qty · name (glyph + rarity chip + name + foil/proxy/deck badges) · set · # · condition · language · binder · notes · mana · price · total, under a sticky sortable header                                                                                                                                                                                                              |
 | **Grid** (tile)    | art + qty badge + corner deck/binder badges + the **"Details" caption plate** under the card (price/sort-value line + rarity-tinted `SetSymbol` · set code · CN; per-line toggleable, default on). That set line carries the printing identity, so while it shows, the on-card **rarity chip** and duplicate-name **set-code chip** are suppressed; with it off both return — rarity top-right on every tile, the set chip bottom-left only when the same card name has >1 printing in the current rows |
+
+**Table density (compact view, ≥768px) — the Moxfield-style collection table.**
+Compact is not a fourth view mode: from tablet width up the same `compact`
+setting renders `CardRow` in `table` mode — one grid cell per column on the
+shared `--collection-table-cols` template (`styles/collection.css`), under a
+sticky header of sort buttons (`CardListTable`, `.collection-table-head`) that
+pins at the measured chrome bottom exactly like the section overlay, which in
+turn pins below it. Rulings: (1) rows are independent grids (virtualized,
+absolutely positioned), so every non-text track is a **fixed** width — that is
+what keeps twelve columns aligned without subgrid; (2) column tiers drop by
+**container** width, header and cells together via `data-col` (binder + mana
+go first <1100px, then language + notes <900px), never by hiding a cell alone;
+(3) **Price is the unit price and Total is price × qty** — only the table
+earns the split, because the column label carries the meaning; for the same
+reason **condition and language show for every copy there**, NM and English
+included, while the flow rows keep their deviations-only rule; (4) the
+printing-identity floor still holds — type glyph + rarity chip ride in the Name
+cell, the set code has its own column; (5) header buttons wire into the
+existing sort keys (`toggleSort`) and the SortMenu stays, as the accessible and
+phone path — a header without a sort key is a label, not a dead button; (6)
+below 768px the compact flow row is unchanged; a phone never sees the header.
+**Notes** is a per-copy free-text field (`EnrichedCard.notes`, trimmed, absent
+when blank, ≤500 chars, imported from a CSV "Notes"/"My Notes" column), edited
+in `CardEditDialog` under Language with the same mixed-stack handling as cost
+basis, shown only in the table's Notes column, and never projected onto a
+public or friend share.
 
 **One row, one tile — both are shared primitives.** A card row is
 `components/shared/CardRow`; a grid tile is `components/shared/CardGridCell`.

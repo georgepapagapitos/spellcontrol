@@ -118,7 +118,7 @@ describe('CardRow', () => {
 
 describe('CardRow on a read-only shared surface', () => {
   function renderWith(
-    props: { hidePrice?: boolean; hideQty?: boolean },
+    props: { hidePrice?: boolean; hideQty?: boolean; table?: boolean },
     o: Partial<EnrichedCard> = {}
   ) {
     return render(
@@ -153,6 +153,38 @@ describe('CardRow on a read-only shared surface', () => {
     const { container } = renderWith({ hideQty: true });
     expect(container.querySelector('.collection-list-qty')).toBeNull();
     expect(container.textContent).not.toMatch(/×3/);
+  });
+
+  it('table mode renders one cell per column, splitting unit price from the line total', () => {
+    const { container } = renderWith(
+      { table: true },
+      { condition: 'nm', language: 'ja', notes: 'signed at the prerelease', purchasePrice: 1.5 }
+    );
+    const cols = [...container.querySelectorAll('.collection-table-row > [data-col]')].map((el) =>
+      el.getAttribute('data-col')
+    );
+    expect(cols).toEqual([
+      'qty',
+      'name',
+      'set',
+      'cn',
+      'cond',
+      'lang',
+      'binder',
+      'notes',
+      'mana',
+      'price',
+      'total',
+      'menu',
+    ]);
+    const cell = (col: string) => container.querySelector(`[data-col="${col}"]`)?.textContent;
+    expect(cell('qty')).toBe('3');
+    expect(cell('price')).toBe('$1.50');
+    expect(cell('total')).toBe('$4.50');
+    // The column label carries the meaning, so NM shows here (the flow rows hide it).
+    expect(cell('cond')).toBe('NM');
+    expect(cell('lang')).toBe('JA');
+    expect(cell('notes')).toBe('signed at the prerelease');
   });
 
   it('omits the set chip and collector number when the card has no printing identity', () => {

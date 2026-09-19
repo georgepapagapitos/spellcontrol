@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from 'react';
+import type { ComponentProps, KeyboardEvent, ReactNode } from 'react';
 import { Check } from 'lucide-react';
 import type { Condition, EnrichedCard } from '../../types';
 import type { AllocationInfo } from '../../lib/allocations';
@@ -98,6 +98,17 @@ interface CardRowProps {
    * surface, and the price cell multiplies BY qty, so the two travel together.
    */
   hideQty?: boolean;
+  /**
+   * Table density (collection compact view at tablet+): one grid cell per
+   * column — qty · name · set · # · condition · language · binder · notes ·
+   * mana · price · total · menu — sized by the shared `--collection-table-cols`
+   * template so every row lines up under `CardListTable`'s sticky header.
+   * Price is the unit price here and Total is price × qty (the list/compact
+   * rows show only the total). Condition and language show for every copy,
+   * NM and English included: the column label carries the meaning, so the
+   * "deviations only" rule of the flow rows doesn't apply.
+   */
+  table?: boolean;
 }
 
 /**
@@ -128,6 +139,7 @@ export function CardRow({
   targetPriceSlot,
   hidePrice = false,
   hideQty = false,
+  table = false,
 }: CardRowProps) {
   const colorKey = getColorKey(card);
   // Name-keyed CDN thumb is only a fallback, exactly as in `CardGridCell`: a
@@ -139,27 +151,113 @@ export function CardRow({
   const type = getCardType({ typeLine: card.typeLine } as Parameters<typeof getCardType>[0]);
   const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
 
-  return (
-    <div
-      className={`collection-list-row${isLastRow ? ' is-last-row' : ''}${
-        selectMode ? ' is-selectable' : ''
-      }${selected ? ' is-selected' : ''}`}
-      role="button"
-      tabIndex={0}
-      aria-pressed={selectMode ? selected : undefined}
-      onClick={onActivate}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onActivate();
-        }
-      }}
-    >
-      {selectMode && (
-        <span className="collection-list-check" data-checked={selected} aria-hidden>
-          {selected && <Check width={13} height={13} strokeWidth={3} />}
+  const rowClass = `collection-list-row${isLastRow ? ' is-last-row' : ''}${
+    selectMode ? ' is-selectable' : ''
+  }${selected ? ' is-selected' : ''}`;
+  const rowInteraction = {
+    role: 'button' as const,
+    tabIndex: 0,
+    'aria-pressed': selectMode ? selected : undefined,
+    onClick: onActivate,
+    onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onActivate();
+      }
+    },
+  };
+  const check = selectMode && (
+    <span className="collection-list-check" data-checked={selected} aria-hidden>
+      {selected && <Check width={13} height={13} strokeWidth={3} />}
+    </span>
+  );
+
+  if (table) {
+    const langLabel = card.language
+      ? ((LANGUAGE_OPTIONS.find((o) => o.value === card.language)?.label as string) ??
+        card.language.toUpperCase())
+      : undefined;
+    const money = (amount: number) =>
+      pricePending ? (
+        <span className="collection-list-price-pending" aria-label="Price updating">
+          —
         </span>
-      )}
+      ) : (
+        formatMoney(amount, { currency: 'USD' })
+      );
+    return (
+      <div className={`${rowClass} collection-table-row`} {...rowInteraction}>
+        {check}
+        <div className="collection-list-qty" data-col="qty">
+          {hideQty ? '' : qty}
+        </div>
+        <div className="collection-table-name" data-col="name">
+          <TypeIcon type={type} label={typeLabel} className="card-list-type" />
+          <RarityBadge rarity={card.rarity} />
+          <span className="collection-list-name">
+            {card.name}
+            {card.foil && <FoilBadge card={card} />}
+            <ProxyBadge card={card} />
+            <DeckBadge allocations={allocations} />
+            {ownedBadge}
+          </span>
+        </div>
+        <div data-col="set">
+          {card.setCode && (
+            <span className="card-list-set-code" title={setName ?? card.setName}>
+              {card.setCode.toUpperCase()}
+            </span>
+          )}
+        </div>
+        <div className="card-list-cn" data-col="cn">
+          {card.collectorNumber}
+        </div>
+        <div data-col="cond">{card.condition && <ConditionChip condition={card.condition} />}</div>
+        <div className="card-list-language" data-col="lang" title={langLabel}>
+          {card.language?.toUpperCase()}
+        </div>
+        <div className="collection-table-binder" data-col="binder">
+          <BinderBadge binders={binders ?? []} />
+          {!!surplusCount && (
+            <span
+              className="collection-list-surplus"
+              title={`${surplusCount} unallocated ${surplusCount === 1 ? 'copy' : 'copies'} beyond your kept copy`}
+            >
+              {surplusCount} free
+            </span>
+          )}
+        </div>
+        <div className="collection-table-notes" data-col="notes" title={card.notes}>
+          {card.notes}
+        </div>
+        <div data-col="mana">
+          {card.manaCost && <ManaCost cost={card.manaCost} className="mana-cost-row" />}
+        </div>
+        <div
+          className="collection-list-price"
+          data-col="price"
+          title={pricePending ? 'Updating price…' : priceTitle}
+        >
+          {!hidePrice && (
+            <>
+              {money(card.purchasePrice)}
+              <PriceOverrideBadge card={card} />
+            </>
+          )}
+        </div>
+        <div className="collection-list-price" data-col="total">
+          {!hidePrice && !hideQty && money(card.purchasePrice * qty)}
+        </div>
+        <div className="collection-table-menu" data-col="menu">
+          {menu}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={rowClass} {...rowInteraction}>
+      {check}
       {thumb ? (
         <img src={thumb} alt="" loading="lazy" className="collection-list-thumb" />
       ) : (

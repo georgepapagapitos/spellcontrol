@@ -12,6 +12,8 @@ import type { ImportRow } from './parsers/types';
  * realistic single collection is well under 200k physical cards.
  */
 export const MAX_QTY_PER_ROW = 2000;
+/** Per-copy free-text note cap — a sentence or two, never a document, and the row is synced whole. */
+export const MAX_NOTES_LENGTH = 500;
 export const MAX_TOTAL_CARDS = 200_000;
 
 export class ImportTooLargeError extends Error {

@@ -47,6 +47,7 @@ export function mergeCard(row: ImportRow, scryfall?: ScryfallCard): EnrichedCard
   };
   if (row.condition !== undefined) base.condition = row.condition;
   if (row.language !== undefined) base.language = row.language;
+  if (row.notes !== undefined) base.notes = row.notes;
   if (row.altered !== undefined) base.altered = row.altered;
   if (row.proxy !== undefined) base.proxy = row.proxy;
   if (row.misprint !== undefined) base.misprint = row.misprint;

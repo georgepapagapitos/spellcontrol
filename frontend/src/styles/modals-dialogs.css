@@ -867,6 +867,11 @@
   width: 100%;
 }
 
+.card-edit-notes .card-edit-paid-input {
+  /* Prose, not a number — the money inputs above it are mono on purpose. */
+  font-family: inherit;
+}
+
 .card-edit-paid-label {
   font-size: var(--text-xs);
   color: var(--text-muted);

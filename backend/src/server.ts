@@ -71,7 +71,12 @@ import { getSetMap, getSetCards, SetNotFoundError } from './sets';
 import { parseImport } from './parsers';
 import type { ImportRow, ImportFormat, Finish, Condition } from './parsers/types';
 import { resolveDeckRows } from './deck-import';
-import { ImportTooLargeError, MAX_QTY_PER_ROW, MAX_TOTAL_CARDS } from './import-limits';
+import {
+  ImportTooLargeError,
+  MAX_NOTES_LENGTH,
+  MAX_QTY_PER_ROW,
+  MAX_TOTAL_CARDS,
+} from './import-limits';
 import {
   searchProducts,
   getProductDeck,
@@ -1120,6 +1125,8 @@ function sanitizeImportRow(raw: unknown): ImportRow | null {
   if (CONDITIONS.has(r.condition as Condition)) row.condition = r.condition as Condition;
   const language = str(r.language);
   if (language) row.language = language;
+  const notes = str(r.notes);
+  if (notes) row.notes = notes.slice(0, MAX_NOTES_LENGTH);
   if (r.altered === true) row.altered = true;
   if (r.proxy === true) row.proxy = true;
   if (r.misprint === true) row.misprint = true;

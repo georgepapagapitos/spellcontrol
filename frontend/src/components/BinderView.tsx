@@ -507,6 +507,7 @@ function SectionList({
           details={{
             condition: editingCard.condition,
             language: editingCard.language,
+            notes: editingCard.notes,
             altered: editingCard.altered,
             proxy: editingCard.proxy,
             misprint: editingCard.misprint,

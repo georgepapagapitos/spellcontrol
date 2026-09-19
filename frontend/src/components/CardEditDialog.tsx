@@ -36,6 +36,8 @@ const AVAILABILITY_BADGE: Record<
 export interface CardDetails {
   condition?: Condition;
   language?: string;
+  /** Free-text per-copy note. Absent (or blank) means none; the applier trims and drops blanks. */
+  notes?: string;
   /** Physical card has custom/altered art. */
   altered?: boolean;
   /** Copy is a proxy rather than a real printing. */
@@ -85,6 +87,7 @@ export interface PrintingSelection {
   details?: CardDetails & {
     conditionTouched?: boolean;
     languageTouched?: boolean;
+    notesTouched?: boolean;
     acquiredPriceTouched?: boolean;
     priceOverrideTouched?: boolean;
   };
@@ -138,6 +141,7 @@ interface Props {
   mixedDetails?: {
     condition?: string;
     language?: string;
+    notes?: string;
     acquiredPrice?: string;
     priceOverride?: string;
   };
@@ -251,6 +255,10 @@ export function CardEditDialog({
   const [language, setLanguage] = useState<string>(
     languageMixed ? MIXED : (details?.language ?? '')
   );
+  // Notes: plain text, trimmed at save. A mixed stack starts blank behind a
+  // "Mixed (…)" placeholder for the same reason as the fields above.
+  const notesMixed = !!mixedDetails?.notes;
+  const [notesText, setNotesText] = useState(notesMixed ? '' : (details?.notes ?? ''));
   const [flags, setFlags] = useState<Record<CardFlag, boolean>>({
     altered: details?.altered ?? false,
     proxy: details?.proxy ?? false,
@@ -422,6 +430,10 @@ export function CardEditDialog({
   const languageChanged = languageMixed
     ? language !== MIXED
     : language !== (details?.language ?? '');
+  // On a mixed stack any typed text is the change (blank = leave each copy alone).
+  const notesChanged = notesMixed
+    ? notesText.trim() !== ''
+    : notesText.trim() !== (details?.notes?.trim() ?? '');
   // Compared numerically, so re-typing "4" as "4.00" isn't a change. On a mixed
   // stack any actual entry is the change (blank stays "leave each copy alone",
   // so a mixed stack can't be bulk-cleared from here — clear per copy in the
@@ -442,6 +454,7 @@ export function CardEditDialog({
     (details !== undefined &&
       (conditionChanged ||
         languageChanged ||
+        notesChanged ||
         acquiredChanged ||
         overrideChanged ||
         FLAG_OPTIONS.some(({ key }) => flags[key] !== (details[key] ?? false))));
@@ -457,6 +470,7 @@ export function CardEditDialog({
             details: {
               ...(condition && condition !== MIXED ? { condition: condition as Condition } : {}),
               ...(language && language !== MIXED ? { language } : {}),
+              ...(notesText.trim() ? { notes: notesText.trim() } : {}),
               ...(flags.altered ? { altered: true } : {}),
               ...(flags.proxy ? { proxy: true } : {}),
               ...(flags.misprint ? { misprint: true } : {}),
@@ -467,6 +481,7 @@ export function CardEditDialog({
               // keeps its always-write behavior byte-identical to before.
               ...(conditionMixed ? { conditionTouched: conditionChanged } : {}),
               ...(languageMixed ? { languageTouched: languageChanged } : {}),
+              ...(notesMixed ? { notesTouched: notesChanged } : {}),
               ...(acquiredMixed ? { acquiredPriceTouched: acquiredChanged } : {}),
               ...(overrideMixed ? { priceOverrideTouched: overrideChanged } : {}),
             },
@@ -582,6 +597,25 @@ export function CardEditDialog({
                     className="card-edit-details-select"
                     placeholder={languageMixed ? `Mixed (${mixedDetails?.language})` : undefined}
                   />
+                  <div className="card-edit-paid card-edit-notes">
+                    <label className="card-edit-paid-label" htmlFor="card-edit-notes-input">
+                      Notes
+                    </label>
+                    <input
+                      id="card-edit-notes-input"
+                      type="text"
+                      className="card-edit-paid-input"
+                      value={notesText}
+                      maxLength={500}
+                      placeholder={notesMixed ? `Mixed (${mixedDetails?.notes})` : '—'}
+                      onChange={(e) => setNotesText(e.target.value)}
+                      aria-describedby="card-edit-notes-hint"
+                    />
+                    <span id="card-edit-notes-hint" className="card-edit-paid-hint">
+                      Anything about this copy: signed, for trade, which box it lives in. Blank to
+                      clear.
+                    </span>
+                  </div>
                   <div className="card-edit-paid">
                     <label className="card-edit-paid-label" htmlFor="card-edit-paid-input">
                       Paid ({currencySymbol(currency)})

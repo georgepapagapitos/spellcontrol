@@ -140,6 +140,14 @@ describe('parseCsvAuto', () => {
     });
   });
 
+  it('captures a per-copy Notes column under its common headers', () => {
+    const csv =
+      'Count,Name,Edition,My Notes\n1,Sol Ring,CMR,  signed by the artist  \n1,Lightning Bolt,M11,';
+    const out = parseCsvAuto(csv, 'moxfield').rows;
+    expect(out[0].notes).toBe('signed by the artist');
+    expect(out[1].notes).toBeUndefined();
+  });
+
   it('captures condition, language, finish from Archidekt-style CSV', () => {
     const csv =
       'Quantity,Name,Finish,Condition,Language,Edition Code\n' + '1,Sol Ring,Etched,NM,EN,CMR';

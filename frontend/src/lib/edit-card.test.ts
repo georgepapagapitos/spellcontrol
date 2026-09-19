@@ -258,6 +258,31 @@ describe('buildEditedCards', () => {
     expect(fresh?.condition).toBe('nm');
   });
 
+  it('notes: written trimmed, blank clears, and a mixed stack keeps every note untouched', () => {
+    const a = enriched({ copyId: 'a', notes: 'signed' });
+    const b = enriched({ copyId: 'b' });
+    expect(stackDetailMix([a, b]).notes).toBe('2 different');
+    expect(stackDetailMix([a, enriched({ copyId: 'c', notes: 'signed' })]).notes).toBeUndefined();
+
+    const written = buildEditedCards(a, selection({ details: { notes: '  for trade  ' } }), [a, b]);
+    expect(written.every((c) => c.notes === 'for trade')).toBe(true);
+
+    const cleared = buildEditedCards(a, selection({ details: { notes: '   ' } }), [a, b]);
+    expect(cleared.every((c) => c.notes === undefined)).toBe(true);
+
+    const untouched = buildEditedCards(a, selection({ details: { notesTouched: false } }), [a, b]);
+    expect(untouched.find((c) => c.copyId === 'a')?.notes).toBe('signed');
+    expect(untouched.find((c) => c.copyId === 'b')?.notes).toBeUndefined();
+
+    const same = { ...sc({}), id: 'old' } as ScryfallCard;
+    expect(isNoOpCardEdit(a, selection({ card: same, details: { notes: 'signed ' } }), 1)).toBe(
+      true
+    );
+    expect(isNoOpCardEdit(a, selection({ card: same, details: { notes: 'for trade' } }), 1)).toBe(
+      false
+    );
+  });
+
   it('mixed stack + explicit condition change: every copy gets the new value', () => {
     const a = enriched({ copyId: 'a', condition: 'nm' });
     const b = enriched({ copyId: 'b', condition: 'hp' });
