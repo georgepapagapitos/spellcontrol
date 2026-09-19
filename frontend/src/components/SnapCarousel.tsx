@@ -182,7 +182,19 @@ export const SnapCarousel = forwardRef<SnapCarouselHandle, Props>(function SnapC
       let next: number | null = null;
       if (e.key === 'ArrowLeft') next = Math.max(0, cur - 1);
       else if (e.key === 'ArrowRight') next = Math.min(count - 1, cur + 1);
-      if (next === null || next === cur) return;
+      if (next === null) return;
+      const t = e.target;
+      if (
+        t instanceof HTMLElement &&
+        (t.isContentEditable || /^(INPUT|TEXTAREA)$/.test(t.tagName))
+      ) {
+        return;
+      }
+      // Focus sits inside the sheet, so the browser's default arrow-key scroll
+      // lands on the snap track and advances it one snap point on its own —
+      // stacked on `scrollTo` below that skipped a card on every desktop press.
+      e.preventDefault();
+      if (next === cur) return;
       scrollTo(next);
     };
     // Capture: the sheet is the topmost overlay, so a host page's own
