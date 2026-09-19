@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { useAuth } from '../store/auth';
+import { useAwaitingFirstPull } from './use-awaiting-first-pull';
 import { getCurrency } from './currency';
 import { loadCard } from './card-thumbs';
 import { computeOwnershipLens, type OwnershipLens } from './ownership-lens';
@@ -42,8 +43,14 @@ export function useOwnershipLens(deckCards: PublicDeckCard[]): UseOwnershipLensR
 
   // Still hydrating the collection/binders from IndexedDB counts as loading
   // too — computing against an empty just-booted store would flash a false
-  // "0% owned" before the real cards arrive.
-  const ready = authed && !hydrating;
+  // "0% owned" before the real cards arrive. So does the first-pull window:
+  // on a device that has never cached this account, `hydrating` flips false
+  // against an EMPTY store while the rows are still on their way, and the
+  // strip told a 12k-card owner "0% owned · ~$441 to build" for ~1.8s
+  // (playtest batch 11). Paired with the emptiness test, as the hook's own
+  // doc requires, so a genuinely empty collection still gets its answer.
+  const awaitingFirstPull = useAwaitingFirstPull();
+  const ready = authed && !hydrating && !(awaitingFirstPull && cards.length === 0);
 
   const lens = useMemo(
     () => (ready ? computeOwnershipLens(deckCards, cards, binders) : null),

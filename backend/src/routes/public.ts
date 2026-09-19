@@ -346,6 +346,10 @@ export async function lookupPublicDeckLandingMeta(slug: string): Promise<ShareLa
 export async function lookupPublicUserLandingMeta(
   username: string
 ): Promise<ShareLandingMeta | null> {
+  // The URL segment is whatever the visitor typed; the canonical must be the
+  // one normalized handle, or /u/TradePal and /u/tradepal each claim to be
+  // the canonical page of the same profile (playtest batch 11).
+  const handle = username.toLowerCase();
   const { rows } = await getPool().query<{
     display_name: string | null;
     profile_hidden_at: string | null;
@@ -355,14 +359,14 @@ export async function lookupPublicUserLandingMeta(
             EXISTS(SELECT 1 FROM deck_publications dp
                    WHERE dp.user_id = u.id AND dp.unpublished_at IS NULL) AS has_live
        FROM users u WHERE u.username = $1`,
-    [username.toLowerCase()]
+    [handle]
   );
   const row = rows[0];
   if (!row || row.profile_hidden_at !== null || !row.has_live) return null;
   return {
-    title: `${row.display_name ?? username} on SpellControl`,
-    description: `View ${row.display_name ?? username}'s public decks on SpellControl.`,
-    url: `${ORIGIN}/u/${username}`,
+    title: `${row.display_name ?? handle} on SpellControl`,
+    description: `View ${row.display_name ?? handle}'s public decks on SpellControl.`,
+    url: `${ORIGIN}/u/${handle}`,
     indexable: true,
   };
 }

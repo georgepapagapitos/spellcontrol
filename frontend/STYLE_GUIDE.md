@@ -4936,6 +4936,20 @@ themselves get a bare `/auth` (nothing to return to, and no redirect loop).
 `GuestActionPopover` was the reference implementation; the helper just makes
 it the only way to build the link.
 
+**A refused door is a state, not an error (2026-09-19, playtest batch 11).**
+When a gate turns someone away on purpose — a signed-in stranger on a
+friends-only share (403), a guest on the same (401), an invite-only night — the
+page renders that outcome under its own heading ("Friends only") with the
+next door (Sign in with `returnTo`, or Friends), never the generic "Something
+went wrong" + "Go to SpellControl". Nothing went wrong; the gate did its job,
+and an error heading teaches the reader the app is broken. `share-client.ts`
+throws a typed error per outcome (`ShareAuthRequiredError`,
+`ShareForbiddenError`, `ShareNotFoundError`) so a view can branch on the
+outcome rather than on a message string. The same rule closes a surface that
+has _ended_: a game night past its reply window says "This game night has
+already happened" up front instead of offering Going / Maybe / Can't and
+refusing after the tap.
+
 **A share door says "Sharing" on its face.** The deck editor's visibility
 chip is the page's only share entry (§ Overlays keeps it that way — no second
 Share button to compete with it), so it reads `Sharing: Private`, not just the

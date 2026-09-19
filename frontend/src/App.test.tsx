@@ -80,6 +80,10 @@ vi.mock('./pages/WelcomePage', () => ({
   WelcomePage: () => <div data-testid="welcome-page" />,
 }));
 
+vi.mock('./pages/PublicDeckPlaytestPage', () => ({
+  PublicDeckPlaytestPage: () => <div data-testid="public-playtest" />,
+}));
+
 import App from './App';
 
 function renderAt(path: string) {
@@ -168,6 +172,26 @@ describe('App — "*" (unmatched path) route resolution', () => {
 // here" state — every other branch (including errored, which can arrive
 // with no code/signup payload at all) still describes something to resume
 // or retry, so the fallback link stays.
+describe('App — the public playtest is a page of the app', () => {
+  // Playtest batch 11: mounted bare, /d/:slug/playtest had no <main>
+  // landmark at all; the owner's /decks/:id/playtest has always been inside
+  // Layout, and the fixed board covers the chrome either way.
+  it('guest: /d/:slug/playtest and /s/:token/playtest render inside Layout', async () => {
+    authState.status = 'guest';
+    hasEverVisitedMock.mockReturnValue(true);
+    renderAt('/d/some-deck/playtest');
+    expect(await screen.findByTestId('public-playtest')).toBeTruthy();
+    expect(screen.getByTestId('layout').contains(screen.getByTestId('public-playtest'))).toBe(true);
+  });
+
+  it('while auth bootstraps (the second route tree), the same', async () => {
+    authState.status = 'unknown' as never;
+    renderAt('/s/tok/playtest');
+    expect(await screen.findByTestId('public-playtest')).toBeTruthy();
+    expect(screen.getByTestId('layout').contains(screen.getByTestId('public-playtest'))).toBe(true);
+  });
+});
+
 describe('App — /oauth/callback landing', () => {
   beforeEach(() => {
     authState.status = 'guest';

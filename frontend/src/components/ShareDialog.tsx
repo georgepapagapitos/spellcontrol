@@ -143,7 +143,17 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
     let cancelled = false;
     createShare({ kind, resourceId, audience, addresseeId: addresseeId || undefined })
       .then((row) => {
-        if (!cancelled) setShare(row);
+        if (cancelled) return;
+        setShare(row);
+        // The ladder is exclusive both ways: minting a link/friends share for
+        // a deck retires its live publication on the server (routes/shares.ts),
+        // so a still-"live" publication here is stale — and picking Public
+        // again would have "reviewed" it instead of republishing.
+        if (kind === 'deck') {
+          setPublication((pub) =>
+            pub && pub.unpublishedAt === null ? { ...pub, unpublishedAt: Date.now() } : pub
+          );
+        }
       })
       .catch((err) => {
         if (!cancelled) setError(userMessage(err, "Couldn't create the share link. Try again."));

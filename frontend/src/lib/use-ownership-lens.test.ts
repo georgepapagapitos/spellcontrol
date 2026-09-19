@@ -14,6 +14,11 @@ vi.mock('../store/auth', () => ({
   useAuth: <T>(selector: (s: { status: string }) => T): T => selector({ status: authStatus }),
 }));
 
+let awaitingFirstPull = false;
+vi.mock('./use-awaiting-first-pull', () => ({
+  useAwaitingFirstPull: () => awaitingFirstPull,
+}));
+
 let storeState: { hydrating: boolean; cards: EnrichedCard[]; binders: BinderDef[] } = {
   hydrating: false,
   cards: [],
@@ -49,11 +54,38 @@ function owned(over: Partial<EnrichedCard> = {}): EnrichedCard {
 
 beforeEach(() => {
   authStatus = 'authed';
+  awaitingFirstPull = false;
   storeState = { hydrating: false, cards: [], binders: [] };
   loadCardMock.mockReset();
 });
 
 describe('useOwnershipLens', () => {
+  // Playtest batch 11: a 12k-card owner on a cold device read "0% owned ·
+  // ~$441 to build" for ~1.8s — `hydrating` was already false against the
+  // empty store while the first pull was still landing.
+  it('first-pull window: an empty store while the first pull is in flight is loading, not "0% owned"', () => {
+    awaitingFirstPull = true;
+    storeState = { hydrating: false, cards: [], binders: [] };
+    const { result } = renderHook(() => useOwnershipLens([deckCard('Sol Ring', 'oracle-sol')]));
+    expect(result.current.loading).toBe(true);
+    expect(result.current.lens).toBeNull();
+    expect(loadCardMock).not.toHaveBeenCalled();
+  });
+
+  it('first-pull window: a store that already has rows is not held back by the pull', () => {
+    awaitingFirstPull = true;
+    storeState = { hydrating: false, cards: [owned({ name: 'Sol Ring' })], binders: [] };
+    const { result } = renderHook(() => useOwnershipLens([deckCard('Sol Ring')]));
+    expect(result.current.lens?.ownedCount).toBe(1);
+  });
+
+  it('a genuinely empty collection still gets its "0% owned" once the pull has settled', () => {
+    awaitingFirstPull = false;
+    storeState = { hydrating: false, cards: [], binders: [] };
+    const { result } = renderHook(() => useOwnershipLens([deckCard('Sol Ring', 'oracle-sol')]));
+    expect(result.current.lens?.ownedCount).toBe(0);
+  });
+
   it('guest: resolves immediately with lens:null and never fires the price batch', () => {
     authStatus = 'guest';
     storeState = { hydrating: false, cards: [], binders: [] };

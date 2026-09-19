@@ -24,6 +24,13 @@ import { OverflowMenu } from '../components/OverflowMenu';
 import './GameNightView.css';
 
 import { userMessage } from '@/lib/user-error';
+/** Mirrors the server's GRACE_MS (routes/game-nights.ts): a night takes
+ *  replies until a day after it starts, then every write is refused with
+ *  "This game night has already happened." The page used to keep offering
+ *  Going / Maybe / Can't and a calendar entry for a night three days gone,
+ *  and only the 400 after the tap said so (playtest batch 11). */
+const REPLY_GRACE_MS = 24 * 60 * 60 * 1000;
+
 const STATUS_LABELS: Array<{ status: RsvpStatus; label: string }> = [
   { status: 'going', label: 'Going' },
   { status: 'maybe', label: 'Maybe' },
@@ -174,6 +181,12 @@ function NightBody({
 }) {
   const { night, rsvps, myRsvp, options, canRsvp } = payload;
   const cancelled = night.cancelledAt !== null;
+  // Read the clock once, on mount: whether the night is over is decided when
+  // the page opens (a reply that then crosses the line is refused server-side).
+  const [openedAt] = useState(() => Date.now());
+  const over = !cancelled && night.startsAt < openedAt - REPLY_GRACE_MS;
+  // No replies, votes or calendar entries once the night is cancelled or over.
+  const closed = cancelled || over;
   const polling = options.length > 0;
   const when = useMemo(
     () =>
@@ -264,6 +277,12 @@ function NightBody({
             This game night was cancelled.
           </p>
         )}
+        {over && (
+          <p className="game-night-cancelled" role="status">
+            <span className="game-night-cancelled-badge">Over</span>
+            This game night has already happened.
+          </p>
+        )}
       </header>
 
       <dl className="game-night-facts">
@@ -318,7 +337,7 @@ function NightBody({
         )}
       </dl>
 
-      {!cancelled && !canRsvp && (
+      {!closed && !canRsvp && (
         <section
           className="game-night-reply"
           aria-label={night.inviteOnly ? 'Invite only' : "Can't reply"}
@@ -335,7 +354,7 @@ function NightBody({
         </section>
       )}
 
-      {!cancelled && canRsvp && polling && (
+      {!closed && canRsvp && polling && (
         <section className="game-night-reply" aria-label="Vote on a date">
           <h2 className="game-night-section-title">
             {myRsvp ? 'Your votes · change them any time' : 'Which times can you make?'}
@@ -357,7 +376,7 @@ function NightBody({
         </section>
       )}
 
-      {!cancelled && canRsvp && !polling && (
+      {!closed && canRsvp && !polling && (
         <section className="game-night-reply" aria-label="Your reply">
           <h2 className="game-night-section-title">
             {myRsvp ? 'Your reply · change it any time' : 'Can you make it?'}
@@ -389,7 +408,7 @@ function NightBody({
         </section>
       )}
 
-      {!cancelled && !polling && (
+      {!closed && !polling && (
         <section className="game-night-calendar" aria-label="Add to calendar">
           <h2 className="game-night-section-title">Add it to your calendar</h2>
           <div className="game-night-calendar-btns">
