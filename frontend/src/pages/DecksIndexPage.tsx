@@ -2,6 +2,7 @@
 import '@/styles/deck-builder-import-dialog.css';
 import {
   AlignJustify,
+  BookOpen,
   CircleAlert,
   Download,
   GitCompareArrows,
@@ -27,7 +28,6 @@ import { useDecksStore } from '../store/decks';
 import { formatRelativeTime } from '../lib/format-time';
 import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
-import { ReadinessSpotlight } from '../components/deck/ReadinessSpotlight';
 import { BetweenYourDecks } from '../components/deck/BetweenYourDecks';
 import { ProductSearchDialog } from '../components/ProductSearchDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -54,6 +54,7 @@ import {
 import { useSelection } from '../lib/use-selection';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { useCollectionStore } from '../store/collection';
+import { MIN_COLLECTION_SIZE } from '../lib/commander-readiness';
 import { useAllocations } from '../lib/allocations';
 import { useSetMap } from '../lib/api';
 import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
@@ -205,6 +206,8 @@ export function DecksIndexPage() {
   const collectionCards = useCardsWithTags(rawCollectionCards, bindersUseTags(binderDefs));
   const allocations = useAllocations();
   const setMap = useSetMap();
+  // Gate for the "From my binder" door — mirrors the tab's own empty state.
+  const canBuildFromBinder = rawCollectionCards.length >= MIN_COLLECTION_SIZE;
 
   // Pull-readiness per deck for the card badge ("58 of 100 pullable") — the
   // same derivation as the deck editor's Pull list sheet. The expensive step,
@@ -554,6 +557,21 @@ export function DecksIndexPage() {
                 <span>Compare</span>
               </Link>
             )}
+            {/* Door to the new-deck picker's "From my binder" tab: every
+                owned commander ranked by how much of its deck you already
+                own. It replaced the Decks-index readiness strip, which only
+                scored a handful of legends. Same gate as the tab's own empty
+                state — below MIN_COLLECTION_SIZE the ranking has nothing to say. */}
+            {canBuildFromBinder && (
+              <Link
+                to="/decks/new"
+                state={{ commanderSource: 'binder' }}
+                className="pill-btn decks-index-action-secondary"
+              >
+                <BookOpen width={14} height={14} strokeWidth={1.8} aria-hidden />
+                <span>From my binder</span>
+              </Link>
+            )}
             <OverflowMenu
               className="decks-index-actions-overflow"
               triggerClassName="pill-btn decks-index-actions-kebab"
@@ -571,6 +589,16 @@ export function DecksIndexPage() {
                         label: 'Compare decks',
                         icon: GitCompareArrows,
                         onClick: () => navigate('/decks/compare'),
+                      },
+                    ]
+                  : []),
+                ...(canBuildFromBinder
+                  ? [
+                      {
+                        label: 'New deck from my binder',
+                        icon: BookOpen,
+                        onClick: () =>
+                          navigate('/decks/new', { state: { commanderSource: 'binder' } }),
                       },
                     ]
                   : []),
@@ -652,11 +680,10 @@ export function DecksIndexPage() {
         )}
 
         {/* Insight strips share one slot so a phone shows ONE at a time (the
-            CSS rule lives with `.decks-index-insights`). Each strip renders
-            null when it has nothing to say or has been dismissed, so the
-            second surfaces on its own once the first is gone. */}
+            CSS rule lives with `.decks-index-insights`). A strip renders null
+            when it has nothing to say or has been dismissed. One lane today;
+            the slot stays so a second one lands in the same rhythm. */}
         <div className="decks-index-insights">
-          <ReadinessSpotlight />
           <BetweenYourDecks />
         </div>
 

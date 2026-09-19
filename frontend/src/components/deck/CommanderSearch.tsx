@@ -104,6 +104,13 @@ interface Props {
    * settings. Only the new-deck page wires it; every other picker is unchanged.
    */
   onSelectFromBinder?: (card: ScryfallCard) => void;
+  /**
+   * Tab to open on first render, overriding the remembered one. A caller that
+   * arrives with intent (the Decks index's "From my binder" door) uses this;
+   * it does not write the preference, so the remembered tab still wins on the
+   * next plain visit. 'binder' still needs `onSelectFromBinder` to exist.
+   */
+  initialSearchMode?: SearchMode;
 }
 
 const WUBRG_ORDER = 'WUBRGC';
@@ -240,6 +247,7 @@ export function CommanderSearch({
   onSelect,
   format = 'commander',
   onSelectFromBinder,
+  initialSearchMode,
 }: Props) {
   const pdh = format === 'paupercommander';
   const [query, setQuery] = useState('');
@@ -593,6 +601,7 @@ export function CommanderSearch({
   // A second facet alongside name search: pick a playstyle (aristocrats,
   // tokens, voltron, …) and browse the commanders that do it best.
   const [searchMode, setSearchMode] = useState<SearchMode>(() => {
+    if (initialSearchMode) return initialSearchMode;
     try {
       const stored = localStorage.getItem(SEARCH_MODE_KEY);
       return stored === 'playstyle' || stored === 'binder' ? stored : 'name';
