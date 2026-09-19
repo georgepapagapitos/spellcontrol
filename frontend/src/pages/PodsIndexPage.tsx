@@ -107,6 +107,15 @@ function PodsIndexPageBody() {
     };
   }, [status]);
 
+  // Same cadence as /trades and /friends: an invite that lands while this
+  // page sits open never showed — the strip's badge (its own fetch) could
+  // say 1 over an index still reading "No pods yet" (playtest batch 9).
+  useEffect(() => {
+    if (status !== 'authed') return;
+    window.addEventListener('focus', loadPods);
+    return () => window.removeEventListener('focus', loadPods);
+  }, [status, loadPods]);
+
   async function handleAccept(pod: Pod) {
     setBusy(pod.id, true);
     try {

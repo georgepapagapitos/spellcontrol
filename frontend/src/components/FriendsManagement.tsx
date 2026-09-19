@@ -207,6 +207,17 @@ export function FriendsManagement() {
     };
   }, [status]);
 
+  // /trades refetches on window focus (#1538) so a page can't disagree with
+  // the badge that sent you there. This page did not, and it measured stale:
+  // a request landing while it sat open left the nav badge at 1 over a
+  // Requests tab still reading "No pending requests", and an acceptance made
+  // on another device never reached the Friends tab (playtest batch 9).
+  useEffect(() => {
+    if (status !== 'authed') return;
+    window.addEventListener('focus', loadData);
+    return () => window.removeEventListener('focus', loadData);
+  }, [status, loadData]);
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     const q = query.trim();

@@ -3,6 +3,7 @@ import request from 'supertest';
 import type { Server } from 'node:http';
 import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
+import { uniqueCardCountSql } from './friends';
 
 // Wiring check only (does the route call notifyUser with the right
 // recipient/kind) — the verified/opted-in/throws branches are unit-tested
@@ -36,6 +37,37 @@ async function makeUser(username: string): Promise<string> {
   expect(reg.status, `register(${username}) → ${JSON.stringify(reg.body)}`).toBe(201);
   return extractSessionCookie(reg.headers['set-cookie'])!;
 }
+
+// ─── the per-friend unique-card count ─────────────────────────────────────────
+
+describe('uniqueCardCountSql — the query shape behind every friend list', () => {
+  it('dedupes the oracle key off its index, never by sorting the JSONB rows (playtest batch 9)', async () => {
+    // COUNT(DISTINCT data->>'oracleId') sorted every full 1.6 KB row of an
+    // 11.5k-card friend to disk — 3.7s per friend, on /friends, both pod
+    // dialogs, the share dialog and the cube picker. The rewrite hash-dedupes
+    // the key alone, and user_cards_oracle_idx serves that key without the
+    // JSONB. Seq scans are switched off so the planner has to show its hand
+    // on an empty table: no index → no index in the plan; the old shape → a
+    // bare Aggregate with no dedupe node under it.
+    const client = await pool.connect();
+    try {
+      // SET LOCAL inside a transaction: the setting dies with the ROLLBACK, so
+      // a pooled connection never leaks seqscan-off into the rest of the suite.
+      await client.query('BEGIN');
+      await client.query('SET LOCAL enable_seqscan = off');
+      const { rows } = await client.query(`EXPLAIN SELECT ${uniqueCardCountSql('$1')} AS n`, [
+        'someone',
+      ]);
+      await client.query('ROLLBACK');
+      const plan = rows.map((r: { 'QUERY PLAN': string }) => r['QUERY PLAN']).join('\n');
+      expect(plan, plan).toContain('user_cards_oracle_idx');
+      expect(plan, plan).toMatch(/HashAggregate|Unique/);
+      expect(plan, plan).not.toMatch(/Sort Key: \(\(.*data ->> 'oracleId'/);
+    } finally {
+      client.release();
+    }
+  });
+});
 
 // ─── POST /api/friends/requests ───────────────────────────────────────────────
 

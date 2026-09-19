@@ -72,6 +72,7 @@ vi.mock('../store/collection', () => ({
 }));
 
 import { settleTrade, useTradeSettlement } from './use-trade-settlement';
+import { withSuspendedHydration } from './sync';
 
 function owned(over: Partial<EnrichedCard> & { copyId: string; name: string }): EnrichedCard {
   return {
@@ -185,6 +186,24 @@ describe('settleTrade', () => {
     expect(await settleTrade(offer({ status: 'proposed' }))).toBe(false);
     expect(replaceAllCardsMock).not.toHaveBeenCalled();
     expect(markTradeSettledMock).not.toHaveBeenCalled();
+  });
+
+  it('plans nothing while a pull is still landing rows (playtest batch 9)', async () => {
+    // `hydrating` is false the moment IDB has been read — on a fresh device
+    // that is an EMPTY store with the first pull still in flight. Planning
+    // then reads every owed card as "no longer owned" and the persist that
+    // follows tombstoned 2,001 pulled rows. The plan must wait the pull out.
+    getCardByIdMock.mockResolvedValue({ id: 'scry-jud' } as ScryfallCard);
+    let release: () => void = () => {};
+    const held = withSuspendedHydration(() => new Promise<void>((r) => (release = r)));
+    const settling = settleTrade(offer());
+    await new Promise((r) => setTimeout(r, 250));
+    expect(replaceAllCardsMock).not.toHaveBeenCalled();
+    expect(markTradeSettledMock).not.toHaveBeenCalled();
+    release();
+    await held;
+    expect(await settling).toBe(true);
+    expect(replaceAllCardsMock).toHaveBeenCalledWith([]);
   });
 
   it('does nothing for an offer this device already settled', async () => {

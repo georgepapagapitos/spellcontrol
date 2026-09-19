@@ -169,6 +169,18 @@ let resumeListener: ReturnType<typeof CapacitorApp.addListener> | null = null;
  */
 let hydrationSuspendDepth = 0;
 /**
+ * `kind:id` of every row a pull has written to IDB that the in-memory stores
+ * have not been rebuilt from yet. A pull lands each page in IDB first and the
+ * stores catch up only at rehydrateStoresFromIdb() — for a multi-page pull,
+ * once at the very end — so in between, a store snapshot is NOT the account:
+ * it is missing every row in this set. persistKind diffs a snapshot against
+ * IDB and tombstones the difference; handed a mid-pull snapshot it deleted
+ * 2,001 of an 11.5k-card account on the server (playtest batch 9: an accepted
+ * trade settling on a fresh device, 30s into its first pull). Rows in this set
+ * are never tombstoned by a snapshot diff. Cleared by every rehydration.
+ */
+const unhydratedIds = new Set<string>();
+/**
  * One drift-triggered refetch per session (E291). A second one would mean the
  * refetch itself did not converge, which is not a staleness problem and would
  * turn into a pull loop.
@@ -382,6 +394,7 @@ async function stopSyncAndWipeLocalInternal(): Promise<void> {
   pullError = false;
   syncError = false;
   reconciledThisSession = false;
+  unhydratedIds.clear();
   // Reset in-memory stores. Imported here to avoid a top-level cycle.
   await resetInMemoryStores();
 }
@@ -591,7 +604,23 @@ async function persistKind<T>(
   if (changedRows.length > 0) await estore.putMany(kind, changedRows);
 
   const toDelete: string[] = [];
-  for (const id of localById.keys()) if (!desiredIds.has(id)) toDelete.push(id);
+  let unhydratedKept = 0;
+  for (const id of localById.keys()) {
+    if (desiredIds.has(id)) continue;
+    // Absent from the snapshot because the stores never saw it, not because
+    // the user removed it — see unhydratedIds. Skipping is never lossy: the
+    // row is live on the server and reaches the store at the next rehydrate.
+    if (unhydratedIds.has(`${kind}:${id}`)) {
+      unhydratedKept++;
+      continue;
+    }
+    toDelete.push(id);
+  }
+  if (unhydratedKept > 0) {
+    logger.warn(
+      `[sync] ${kind} persisted while a pull was landing rows; kept ${unhydratedKept} pulled rows the snapshot had not seen`
+    );
+  }
   if (toDelete.length > 0) await estore.deleteMany(kind, toDelete);
   for (const id of toDelete) {
     // Removing a copy is always a cardinality change; read its group from the
@@ -1344,7 +1373,10 @@ async function applyServerRows(rows: SyncRow[], notifyForeignDeckEdits = false):
     }
   }
 
-  for (const [kind, rows] of upsertsByKind) await estore.putMany(kind, rows);
+  for (const [kind, rows] of upsertsByKind) {
+    await estore.putMany(kind, rows);
+    for (const r of rows) unhydratedIds.add(`${kind}:${r.id}`);
+  }
   // Write a tombstone row (data: null, deletedAt set) rather than hard-removing
   // the key, so a re-delivered tombstone on a lagging cursor stays deleted
   // instead of resurrecting as a live row. getAllLive filters these out.
@@ -1402,6 +1434,27 @@ export function withSuspendedHydration<T>(fn: () => Promise<T>): Promise<T> {
   return fn().finally(() => {
     hydrationSuspendDepth--;
   });
+}
+
+/**
+ * True while the in-memory stores may lag IDB: a pull is in flight, a
+ * multi-page pull holds rehydration suspended, pulled rows await a rehydrate,
+ * or the session's first pull has not settled (bails on a sync error, like
+ * useAwaitingFirstPull). A collection snapshot taken now is not the account —
+ * plan nothing against it. Guests (no owner) never wait.
+ */
+export function isPullApplying(): boolean {
+  return (
+    isPulling ||
+    hydrationSuspendDepth > 0 ||
+    unhydratedIds.size > 0 ||
+    (currentOwnerId !== null && syncedState === 'syncing' && !syncError)
+  );
+}
+
+/** Resolves once isPullApplying() is false. */
+export async function waitForPullQuiescent(): Promise<void> {
+  while (isPullApplying()) await new Promise((r) => setTimeout(r, 100));
 }
 
 // ── Cross-tab + lifecycle listeners ────────────────────────────────────────
@@ -1647,6 +1700,8 @@ async function rehydrateStoresFromIdb(): Promise<void> {
   } finally {
     setApplyingServer(false);
   }
+  // The stores now hold everything IDB holds.
+  unhydratedIds.clear();
 
   // Release allocatedCopyId pointers orphaned by the collection/decks state
   // just applied above (E133) — without this, a stale pointer sits until the

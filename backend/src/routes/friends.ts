@@ -19,6 +19,28 @@ const friendReadLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 });
 const friendCollectionLimiter = testAwareLimiter({ windowMs: 60_000, max: 30 });
 const friendWriteLimiter = testAwareLimiter({ windowMs: 60_000, max: 20 });
 
+/**
+ * Unique cards (by oracle id) a user owns, as a scalar subquery over `userId`
+ * (a SQL expression). Matches how the cube collab pool dedupes, so the picker
+ * count == what the friend can bring.
+ *
+ * Shape matters: `COUNT(DISTINCT expr)` sorts every matching ROW — with the
+ * full ~1.6 KB JSONB `data` riding along — before it can dedupe, which for one
+ * 11.5k-card friend was a 3.7s parallel external-merge sort (playtest batch 9;
+ * every friend of a big account saw a multi-second skeleton on /friends, the
+ * pod dialogs, the share dialog and the cube picker). `DISTINCT` in a derived
+ * table hash-aggregates the 32-byte key instead, and `user_cards_oracle_idx`
+ * (db/index.ts) supplies that key without touching the JSONB at all.
+ */
+export const uniqueCardCountSql = (userId: string): string =>
+  `(SELECT COUNT(*) FROM (
+      SELECT DISTINCT uc.data->>'oracleId'
+        FROM user_cards uc
+       WHERE uc.user_id = ${userId}
+         AND uc.deleted_at IS NULL
+         AND uc.data->>'oracleId' IS NOT NULL
+    ) d)`;
+
 // ────────────────────────────────────────────────
 // GET /api/friends
 // ────────────────────────────────────────────────
@@ -33,22 +55,14 @@ friendsRouter.get('/', requireAuth, friendReadLimiter, async (req: Request, res:
     accepted_at: string;
     card_count: string;
   }>(
-    // card_count is unique cards by oracle id — matches how the cube collab
-    // pool dedupes (so the picker count == what the friend can bring). The
-    // correlated subquery runs once per friend (a handful) and hits the
-    // user_cards(user_id, …) index, so it stays cheap.
     `SELECT
        CASE WHEN f.requester_id = $1 THEN f.addressee_id ELSE f.requester_id END AS id,
        CASE WHEN f.requester_id = $1 THEN u2.username ELSE u1.username END AS username,
        CASE WHEN f.requester_id = $1 THEN u2.display_name ELSE u1.display_name END AS display_name,
        f.accepted_at,
-       COALESCE((
-         SELECT COUNT(DISTINCT uc.data->>'oracleId')
-         FROM user_cards uc
-         WHERE uc.user_id = CASE WHEN f.requester_id = $1 THEN f.addressee_id ELSE f.requester_id END
-           AND uc.deleted_at IS NULL
-           AND uc.data->>'oracleId' IS NOT NULL
-       ), 0) AS card_count
+       COALESCE(${uniqueCardCountSql(
+         'CASE WHEN f.requester_id = $1 THEN f.addressee_id ELSE f.requester_id END'
+       )}, 0) AS card_count
      FROM friendships f
      JOIN users u1 ON u1.id = f.requester_id
      JOIN users u2 ON u2.id = f.addressee_id

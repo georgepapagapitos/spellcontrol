@@ -364,6 +364,16 @@ describe('coarse-pointer touch floor', () => {
     ['styles/collection.css', '.card-list-bulk-toolbar .toolbar-pill'],
   ];
 
+  // The shared kebab trigger is its own control, not one crowded into a dense
+  // row: it takes the floor on its REAL box, on BOTH axes. The width half alone
+  // let the pod hub's header trigger ship at 44×20 (playtest batch 9), and the
+  // generic check below is satisfied by either axis — so this one names both.
+  it('.overflow-menu-trigger takes the 44px coarse floor on both axes', () => {
+    const found = blocks(read('components/OverflowMenu.css'), '.overflow-menu-trigger');
+    expect(found.some((b) => /min-width:\s*(?:44px|2\.75rem)/.test(b))).toBe(true);
+    expect(found.some((b) => /min-height:\s*(?:44px|2\.75rem)/.test(b))).toBe(true);
+  });
+
   for (const [file, selector] of CONTROLS) {
     it(`${selector} reaches 44px on touch`, () => {
       const found = blocks(read(file), selector);

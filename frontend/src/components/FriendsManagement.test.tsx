@@ -199,6 +199,42 @@ describe('FriendsManagement — Activity tab', () => {
   });
 });
 
+describe('FriendsManagement — window focus', () => {
+  it('refetches friends and requests on focus, like /trades (playtest batch 9)', async () => {
+    // A request that lands while the page sits open: the nav badge (which
+    // refetches on focus) said 1 over a Requests tab still saying "No pending
+    // requests", and a friendship accepted on another device never reached
+    // the Friends tab. Coming back to the tab must refresh both lists.
+    await renderPage();
+    expect(await screen.findByText(/no friends yet/i)).toBeTruthy();
+
+    vi.mocked(listFriends).mockResolvedValue([
+      { ...STUB_FRIEND, id: 'rae', username: 'rae', displayName: 'Rival Rae' },
+    ]);
+    vi.mocked(listRequests).mockResolvedValue({
+      incoming: [
+        {
+          requesterId: 'pal',
+          requesterUsername: 'pal',
+          requesterDisplayName: null,
+          addresseeId: 'me',
+          addresseeUsername: 'viewer',
+          addresseeDisplayName: null,
+          createdAt: Date.now(),
+        },
+      ],
+      outgoing: [],
+    });
+    fireEvent(window, new Event('focus'));
+
+    expect(await screen.findByText('Rival Rae')).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: /requests/i }));
+    expect(
+      await screen.findByRole('button', { name: /accept friend request from pal/i })
+    ).toBeTruthy();
+  });
+});
+
 describe('FriendsManagement — guest gate', () => {
   it('renders the sign-in prompt instead of the tabs, unchanged from FriendsPage', () => {
     authState.status = 'guest';

@@ -49,6 +49,16 @@ describe('GET /api/users/search', () => {
     expect(res.status).toBe(400);
   });
 
+  it('rejects other characters with a sentence, not a regex (the UI shows it verbatim)', async () => {
+    const alice = await makeUser('search-chars-alice');
+    const res = await request(app)
+      .get(`/api/users/search?q=${encodeURIComponent('<script>')}`)
+      .set('Cookie', alice);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Usernames only use lowercase letters, digits, _ and -.');
+    expect(res.body.error).not.toMatch(/\[a-z0-9_-\]|\bq\b/);
+  });
+
   it('finds users by prefix', async () => {
     const alice = await makeUser('search-prefix-alice');
     await makeUser('search-prefix-bob');

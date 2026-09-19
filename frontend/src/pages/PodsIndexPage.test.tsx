@@ -102,6 +102,20 @@ describe('PodsIndexPage — mixed list render', () => {
     const podLink = screen.getByRole('link', { name: /my pod/i });
     expect(podLink.getAttribute('href')).toBe('/pods/member1');
   });
+
+  it('refetches on window focus so an invite that landed meanwhile shows up (playtest batch 9)', async () => {
+    renderPage();
+    expect(await screen.findByText(/no pods yet/i)).toBeTruthy();
+
+    vi.mocked(listPods).mockResolvedValue([
+      pod({ id: 'late', name: 'Late invite', myStatus: 'invited', memberCount: 1 }),
+    ]);
+    fireEvent(window, new Event('focus'));
+
+    expect(
+      await screen.findByRole('button', { name: /accept invite to late invite/i })
+    ).toBeTruthy();
+  });
 });
 
 describe('PodsIndexPage — create flow', () => {
