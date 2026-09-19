@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import {
   DndContext,
   KeyboardSensor,
@@ -18,6 +18,7 @@ import {
 import { restrictToParentElement } from '@dnd-kit/modifiers';
 import { CSS } from '@dnd-kit/utilities';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
+import { useMediaQuery } from '@/lib/use-media-query';
 import type { PlaytestCard } from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { scryfallToEnrichedCard } from '@/lib/scryfall-to-enriched';
@@ -26,9 +27,21 @@ import { isLand, toSimCard } from '@/lib/hand-classify';
 import { CardPreview } from '@/components/CardPreview';
 import { useLongPress } from '@/lib/use-long-press';
 import type { PlaytestPhase } from '../store';
+import './OpeningHandSheet.css';
+
+/** Online: who at the table still hasn't kept, and whether everyone has. */
+export interface OpeningHandOnline {
+  /** Display names of the seats still choosing (own seat excluded). */
+  waitingOn: string[];
+  allKept: boolean;
+}
 
 interface Props {
-  phase: Extract<PlaytestPhase, 'opening' | 'mulligan-bottom'>;
+  /** `playing` only ever arrives online, and only after this device kept:
+   *  the takeover stays up as a "waiting for the table" curtain until every
+   *  seat has kept and the countdown runs out. Solo, the board unmounts this
+   *  the moment the phase flips. */
+  phase: PlaytestPhase;
   hand: PlaytestCard[];
   mulliganCount: number;
   /**
@@ -47,6 +60,8 @@ interface Props {
    *  default (no draw before turn 1) — this is the opt-in for the other seat. */
   onDraw: boolean;
   onOnDrawChange(on: boolean): void;
+  /** Present only when this playtest is seated at an online table. */
+  online?: OpeningHandOnline;
   /** Leave playtest and return to the deck. The sheet is otherwise
    *  non-dismissable (Keep / Mulligan), so this is the only way out. */
   /** Where `onExit` goes (deck name, or the online table). */
@@ -59,6 +74,27 @@ interface Props {
 
 const MAX_MULLIGANS = 6;
 
+/** Tablet and up gets the full-screen takeover; phones keep the sheet. */
+export const TAKEOVER_QUERY = '(min-width: 1024px)';
+
+/** Seconds the table counts down once every seat has kept, then a beat on
+ *  "Game has started" before the curtain lifts. */
+const COUNTDOWN_FROM = 3;
+const STARTED_HOLD_MS = 800;
+
+/** How far each card sits below the middle of the fan, in px — squared falloff
+ *  so the arc reads as a curve, not a V. Computed here rather than in CSS
+ *  because `abs()` isn't safe to rely on in stylesheets yet. */
+function arcLift(index: number, count: number): number {
+  return Math.round(Math.abs(index - (count - 1) / 2) ** 2 * 4);
+}
+
+/** "Ana", "Ana and Bo", "Ana, Bo and Cy" — a list a person reads, not a join. */
+function nameList(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? '';
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
 export function OpeningHandSheet({
   phase,
   hand,
@@ -69,19 +105,74 @@ export function OpeningHandSheet({
   onFreeMulliganChange,
   onDraw,
   onOnDrawChange,
+  online,
   exitLabel,
   onExit,
   onKeep,
   onMulligan,
   onConfirmBottom,
 }: Props) {
-  useLockBodyScroll();
+  const takeover = useMediaQuery(TAKEOVER_QUERY);
   const [selected, setSelected] = useState<string[]>([]);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [peeking, setPeeking] = useState(false);
 
   const isMulliganBottom = phase === 'mulligan-bottom';
   const requiredBottom = isMulliganBottom ? mulliganCount : 0;
   const canConfirm = isMulliganBottom && selected.length === requiredBottom;
+
+  // Online only (see the `phase` prop doc): this device has kept and the
+  // curtain is waiting on the rest of the table.
+  const onlineWaiting = phase === 'playing' ? online : undefined;
+  const waiting = onlineWaiting != null;
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [curtainDone, setCurtainDone] = useState(false);
+  // Render-phase reset (same pattern as `order` below) so a fresh game — the
+  // phase leaving `playing` — puts the curtain back to its start.
+  const [trackedWaiting, setTrackedWaiting] = useState(waiting);
+  if (trackedWaiting !== waiting) {
+    setTrackedWaiting(waiting);
+    if (!waiting) {
+      setCountdown(null);
+      setCurtainDone(false);
+    }
+  }
+
+  // The countdown seeds in the render the table goes all-kept, not from an
+  // effect (`react-hooks/set-state-in-effect`) — same render-phase sync the
+  // rest of this file uses. Only the tick itself is a timer.
+  const allKept = onlineWaiting?.allKept === true;
+  const [trackedAllKept, setTrackedAllKept] = useState(allKept);
+  if (trackedAllKept !== allKept) {
+    setTrackedAllKept(allKept);
+    setCountdown(allKept ? COUNTDOWN_FROM : null);
+  }
+
+  useEffect(() => {
+    if (countdown == null || countdown <= 0) return;
+    const tick = setTimeout(() => setCountdown((c) => (c != null && c > 0 ? c - 1 : c)), 1000);
+    return () => clearTimeout(tick);
+  }, [countdown]);
+
+  useEffect(() => {
+    if (countdown !== 0) return;
+    const lift = setTimeout(() => setCurtainDone(true), STARTED_HOLD_MS);
+    return () => clearTimeout(lift);
+  }, [countdown]);
+
+  // Esc ends a peek. It does nothing else on purpose: the opening hand is
+  // non-dismissable, you leave it by keeping, mulliganing or exiting.
+  useEffect(() => {
+    if (!peeking) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPeeking(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [peeking]);
+
+  const hidden = curtainDone || (phase === 'playing' && !waiting);
+  useLockBodyScroll(!hidden);
 
   // Local visual order for drag-to-reorder — independent of the prop's order.
   // PlaytestCard.id is the per-instance id from the reducer and stays stable
@@ -214,9 +305,51 @@ export function OpeningHandSheet({
     });
   }
 
+  // The curtain has lifted (or the phase moved on solo) — the board owns the
+  // screen again. Rendered as nothing rather than unmounted by the board so
+  // the countdown above can finish on its own schedule.
+  if (hidden) return null;
+
+  // The sheet's titles are unchanged; the takeover names the thing you're
+  // looking at, since it has the room and nothing else on screen says it.
+  const title = isMulliganBottom
+    ? takeover
+      ? `Put ${requiredBottom} on the bottom`
+      : 'Bottom of library'
+    : takeover
+      ? online
+        ? 'Your opening hand'
+        : (deckName ?? 'Opening hand')
+      : 'Opening hand';
+
+  const status = !onlineWaiting
+    ? null
+    : countdown == null
+      ? onlineWaiting.waitingOn.length > 0
+        ? `Waiting for ${nameList(onlineWaiting.waitingOn)}`
+        : 'Waiting for the table'
+      : countdown > 0
+        ? `Game starts in ${countdown}s`
+        : 'Game has started';
+
+  const rootClass = [
+    'card-picker-root',
+    'playtest-opening-root',
+    takeover && 'is-takeover',
+    takeover && peeking && 'is-peeking',
+    waiting && 'is-waiting',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div className="card-picker-root playtest-opening-root" role="presentation">
+    <div className={rootClass} role="presentation">
       <div className="card-picker-backdrop" />
+      {takeover && peeking && (
+        <button type="button" className="playtest-opening-peek" onClick={() => setPeeking(false)}>
+          Back to hand
+        </button>
+      )}
       <div
         className="card-picker-sheet playtest-opening-sheet"
         role="dialog"
@@ -228,15 +361,20 @@ export function OpeningHandSheet({
             the mulligan-bottom phase). Showing the swipe-affordance handle
             here was misleading users into trying to drag-down to dismiss. */}
         <div className="card-picker-header">
+          {takeover && onExit && !waiting && (
+            <button type="button" className="playtest-opening-back" onClick={onExit}>
+              ← {exitLabel ?? 'Back to deck'}
+            </button>
+          )}
           <div className="playtest-opening-titleRow">
             <h2 id="playtest-opening-title" className="card-picker-title">
-              {isMulliganBottom ? 'Bottom of library' : 'Opening hand'}
+              {waiting ? 'Hand kept' : title}
             </h2>
-            {mulliganCount > 0 && (
+            {mulliganCount > 0 && !waiting && (
               <span className="playtest-opening-badge">Mulligan {mulliganCount}</span>
             )}
           </div>
-          {isMulliganBottom ? (
+          {waiting ? null : isMulliganBottom ? (
             <p className="playtest-opening-hint">
               Tap {requiredBottom} card{requiredBottom === 1 ? '' : 's'} to send to the bottom, in
               order. Long-press to preview, drag to reorder.{' '}
@@ -263,8 +401,8 @@ export function OpeningHandSheet({
           <SortableContext items={order} strategy={rectSortingStrategy}>
             <div
               className="playtest-opening-cards"
-              // Card width is a share of this container (see playtest.css); the
-              // live count keeps that exact for a short hand too.
+              // Card width is a share of this container (see the sheet rules
+              // above); the live count keeps that exact for a short hand too.
               style={{ '--hand-n': orderedHand.length } as CSSProperties}
               aria-label={
                 isMulliganBottom
@@ -278,25 +416,87 @@ export function OpeningHandSheet({
                 const hasPreview = previewable.some((p) => p.cardId === c.id);
                 const tappable = isMulliganBottom || hasPreview;
                 return (
-                  <SortableHandCard
+                  // The slot carries the fan geometry, the card inside carries
+                  // dnd-kit's drag transform — see OpeningHandSheet.css. It is
+                  // `display: contents` in the sheet, so the phone layout is
+                  // exactly what it was before the slot existed.
+                  <div
                     key={c.id}
-                    card={c}
-                    visualIndex={i}
-                    isSelected={isSel}
-                    selectedOrdinal={idx}
-                    tappable={tappable}
-                    isMulliganBottom={isMulliganBottom}
-                    longPressEnabled={hasPreview}
-                    onTap={handleCardTap}
-                    onLongPress={openPreview}
-                  />
+                    className="playtest-opening-slot"
+                    style={
+                      {
+                        '--oh-i': i,
+                        '--oh-n': orderedHand.length,
+                        '--oh-lift': `${arcLift(i, orderedHand.length)}px`,
+                      } as CSSProperties
+                    }
+                  >
+                    <SortableHandCard
+                      card={c}
+                      visualIndex={i}
+                      isSelected={isSel}
+                      selectedOrdinal={idx}
+                      tappable={tappable}
+                      isMulliganBottom={isMulliganBottom}
+                      longPressEnabled={hasPreview}
+                      onTap={handleCardTap}
+                      onLongPress={openPreview}
+                    />
+                  </div>
                 );
               })}
             </div>
           </SortableContext>
         </DndContext>
 
-        {handStats && (
+        {!waiting && (
+          <div className="card-picker-footer playtest-opening-footer">
+            {!takeover && onExit && (
+              <button type="button" className="playtest-opening-back" onClick={onExit}>
+                ← {exitLabel ?? 'Back to deck'}
+              </button>
+            )}
+            {takeover && (
+              <button type="button" className="btn" onClick={() => setPeeking(true)}>
+                View battlefield
+              </button>
+            )}
+            {isMulliganBottom ? (
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={!canConfirm}
+                onClick={() => onConfirmBottom(selected)}
+              >
+                Send {selected.length}/{requiredBottom} to bottom
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="btn playtest-opening-mulligan"
+                  onClick={onMulligan}
+                  disabled={mulliganCount >= MAX_MULLIGANS}
+                >
+                  Mulligan
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  // Focus starts on the action the hand is usually answered
+                  // with; jsx-a11y's no-autofocus is off for exactly this
+                  // (a modal that owns the screen).
+                  autoFocus={takeover}
+                  onClick={onKeep}
+                >
+                  {takeover ? 'Keep hand' : 'Keep this hand'}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {handStats && !waiting && (
           <p className="playtest-opening-stats">
             <strong>{handStats.lands}</strong> {handStats.lands === 1 ? 'land' : 'lands'} ·{' '}
             <span
@@ -315,10 +515,16 @@ export function OpeningHandSheet({
           </p>
         )}
 
+        {status && (
+          <p className="playtest-opening-status" aria-live="polite">
+            {status}
+          </p>
+        )}
+
         {/* Both variants are only meaningful while play hasn't started, so
             they live on the opening step and disappear once you're
             bottoming (mulligan-bottom) or the choice is already locked in. */}
-        {!isMulliganBottom && (
+        {!isMulliganBottom && !waiting && (
           <div className="playtest-opening-variants">
             <label className="playtest-opening-variant">
               <input
@@ -350,38 +556,6 @@ export function OpeningHandSheet({
             </label>
           </div>
         )}
-
-        <div className="card-picker-footer playtest-opening-footer">
-          {onExit && (
-            <button type="button" className="playtest-opening-back" onClick={onExit}>
-              ← {exitLabel ?? 'Back to deck'}
-            </button>
-          )}
-          {isMulliganBottom ? (
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={!canConfirm}
-              onClick={() => onConfirmBottom(selected)}
-            >
-              Send {selected.length}/{requiredBottom} to bottom
-            </button>
-          ) : (
-            <>
-              <button
-                type="button"
-                className="btn"
-                onClick={onMulligan}
-                disabled={mulliganCount >= MAX_MULLIGANS}
-              >
-                Mulligan
-              </button>
-              <button type="button" className="btn btn-primary" onClick={onKeep}>
-                Keep this hand
-              </button>
-            </>
-          )}
-        </div>
       </div>
 
       {previewIndex !== null && previewCards[previewIndex] && (

@@ -136,6 +136,15 @@ export interface PublicBoard {
    *  lives at the store layer, not in `PlaytestState` — the publisher
    *  spreads it in; see use-online-table.ts). */
   ticker?: TickerEntry[];
+  /** True once this seat has kept its opening hand (its playtest phase left
+   *  `opening` / `mulligan-bottom`). The opening-hand takeover reads it to
+   *  decide who the table is still waiting on. Optional like `ticker`, and
+   *  for the same two reasons: boards published by clients predating it
+   *  arrive without one, and `toPublicBoard` can't see the phase — that
+   *  lives at the store layer, so the publisher spreads it in (see
+   *  use-online-table.ts). Absent reads as "still choosing", which is the
+   *  safe default. */
+  keptHand?: boolean;
 }
 
 /** Slim a `PlaytestCard` down to its projected shape — the one place that
