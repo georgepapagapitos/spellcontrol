@@ -98,14 +98,22 @@ export async function waitForCollectionHydration(): Promise<void> {
   });
 }
 
-export async function saveCollection(data: StoredCollection): Promise<void> {
+/**
+ * @param opts `detachPush` resolves once the rows are in IDB, leaving the
+ *   server push to finish in the background (see sync.PersistOptions). Used by
+ *   the bulk import so the panel stops blocking on a many-request push.
+ */
+export async function saveCollection(
+  data: StoredCollection,
+  opts?: sync.PersistOptions
+): Promise<void> {
   await waitForCollectionHydration();
   // allSettled (not Promise.all): a single kind's failure must not mask that
   // the others persisted — otherwise the caller wrongly reports total loss.
   const results = await Promise.allSettled([
-    sync.persistCardsState(data.cards),
-    sync.persistImportsState(data.importHistory),
-    sync.persistListsState(data.lists),
+    sync.persistCardsState(data.cards, opts),
+    sync.persistImportsState(data.importHistory, opts),
+    sync.persistListsState(data.lists, opts),
   ]);
   const kinds = ['cards', 'imports', 'lists'];
   const failed = results

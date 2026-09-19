@@ -656,6 +656,10 @@ export const useCollectionStore = create<CollectionState>()(
         remapCollectionDependents(existing, newCards);
 
         try {
+          // detachPush: resolve once the rows are on the device. A big import
+          // is a many-request server push; it finishes in the background and
+          // reports through the sync layer (header pill, push progress, toast)
+          // so the panel can hand the collection back right away.
           await saveCollection(
             buildStored({
               cards: newCards,
@@ -665,7 +669,8 @@ export const useCollectionStore = create<CollectionState>()(
               uploadedAt,
               importHistory,
               lists: get().lists,
-            })
+            }),
+            { detachPush: true }
           );
         } catch (err) {
           logger.warn('[store] Failed to persist collection:', err);
@@ -1226,7 +1231,9 @@ export const useCollectionStore = create<CollectionState>()(
 
         if (collection) {
           try {
-            await saveCollection(buildStored({ ...get() }));
+            // Same bulk path as importCards: on the device now, server push
+            // in the background.
+            await saveCollection(buildStored({ ...get() }), { detachPush: true });
           } catch (err) {
             logger.warn('[store] Failed to persist restored collection:', err);
             set({

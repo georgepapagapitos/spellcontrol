@@ -20,6 +20,8 @@ import {
 } from 'react';
 import { formatRelativeTime } from '../lib/format-time';
 import { haptics } from '../lib/haptics';
+import { usePushProgress } from '../lib/use-push-progress';
+import type { PushProgress } from '../lib/sync';
 import { useCollectionStore, type ImportMode } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import {
@@ -196,6 +198,10 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const [pendingReimportGate, setPendingReimportGate] = useState<PendingReimportGate | null>(null);
   const [importProgress, setImportProgress] = useState<ImportProgressState | null>(null);
+  /** Parsing is done and the cards are being written to the device. */
+  const [savingLocally, setSavingLocally] = useState(false);
+  /** Slice progress of the background server push, once the panel has let go. */
+  const pushProgress = usePushProgress();
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<Set<string>>(new Set());
   const [confirmingDeleteImports, setConfirmingDeleteImports] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -370,6 +376,8 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     // Sequential batch: one history entry per file. For 'replace' the
     // first file wipes the collection and the rest append, so the net
     // result is the union of every file rather than just the last.
+    setImportProgress(null);
+    setSavingLocally(true);
     const newImportIds = new Set<string>();
     for (let i = 0; i < parsedFiles.length; i++) {
       const { file, result } = parsedFiles[i];
@@ -425,6 +433,8 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     p: PendingImport,
     binderName?: string
   ) {
+    setImportProgress(null);
+    setSavingLocally(true);
     const id = await importCards(result, p.label, mode, {
       isSample: p.isSample,
       binderName,
@@ -551,6 +561,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     } finally {
       setLoading(false);
       setImportProgress(null);
+      setSavingLocally(false);
     }
   }
 
@@ -577,6 +588,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     } finally {
       setLoading(false);
       setImportProgress(null);
+      setSavingLocally(false);
     }
   }
 
@@ -725,22 +737,36 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   return (
     <div className="upload-panel">
       {confirmDialog}
-      {/* While the collection import / backup restore is running we
-          surface a progress strip at the top of the panel. If the
-          import was big enough to be chunked we show determinate
-          progress per batch; otherwise (single small upload, backup
-          restore) we fall back to the indeterminate animation. */}
-      {isLoading && (
+      {/* A progress strip at the top of the panel for each phase of an import:
+          1. Parsing — determinate per batch when the file was big enough to
+             be chunked, otherwise (small upload, backup restore) indeterminate.
+          2. Saving to the device — indeterminate; short.
+          3. Saving to the account — the server push. The panel has already
+             let go by then (the store returns once the rows are on the
+             device), so this strip stays up without blocking, advancing per
+             /api/sync round trip, and disappears when the push settles. */}
+      {isLoading ? (
         <div className="upload-progress" role="status" aria-live="polite">
-          {importProgress && importProgress.totalChunks > 1 ? (
+          {savingLocally ? (
+            <ProgressBar indeterminate message="Saving your cards to this device…" />
+          ) : importProgress && importProgress.totalChunks > 1 ? (
             <ProgressBar
-              percent={((importProgress.chunkIndex - 1) / importProgress.totalChunks) * 100}
+              percent={(importProgress.chunkIndex / importProgress.totalChunks) * 100}
               message={formatImportProgressMessage(importProgress)}
             />
           ) : (
             <ProgressBar indeterminate message="Importing your collection…" />
           )}
         </div>
+      ) : (
+        pushProgress && (
+          <div className="upload-progress" role="status" aria-live="polite">
+            <ProgressBar
+              percent={(pushProgress.done / pushProgress.total) * 100}
+              message={formatPushProgressMessage(pushProgress)}
+            />
+          </div>
+        )
       )}
       {sealMoment}
       {!error && showImportReview && (
@@ -1624,12 +1650,19 @@ function prettyImportName(name: string, format: string): string {
 }
 
 function formatImportProgressMessage(p: ImportProgressState): string {
-  const batch = `batch ${p.chunkIndex} of ${p.totalChunks}`;
+  // chunkIndex counts batches COMPLETED, so the one in flight is the next.
+  const current = Math.min(p.chunkIndex + 1, p.totalChunks);
+  const batch = `batch ${current} of ${p.totalChunks}`;
   if (p.totalFiles && p.totalFiles > 1 && p.fileLabel) {
     return `Importing ${p.fileLabel} (file ${p.fileIndex} of ${p.totalFiles}) · ${batch}…`;
   }
   if (p.fileLabel) return `Importing ${p.fileLabel} · ${batch}…`;
   return `Importing your collection · ${batch}…`;
+}
+
+function formatPushProgressMessage(p: PushProgress): string {
+  const current = Math.min(p.done + 1, p.total);
+  return `Saving to your account · ${current} of ${p.total}…`;
 }
 
 function formatRelative(timestamp: number): string {
