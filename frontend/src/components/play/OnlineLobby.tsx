@@ -311,7 +311,9 @@ function OpenSeat({
             placeholder="Who's sitting here?"
           />
         </label>
-        <span className="lobby-seat-guest-hint">No account or device needed. The table tracks them.</span>
+        <span className="lobby-seat-guest-hint">
+          No account or device needed. The table tracks them.
+        </span>
         <div className="lobby-seat-guest-actions">
           <button type="button" className="btn" onClick={() => setNaming(false)}>
             Cancel
