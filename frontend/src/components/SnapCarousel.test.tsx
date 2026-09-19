@@ -97,4 +97,33 @@ describe('SnapCarousel', () => {
     expect(spy.mock.calls[1][0]).toMatchObject({ inline: 'center', behavior: 'instant' });
     spy.mockRestore();
   });
+
+  it('arrow keys swallow the browser default so the snap track is not scrolled twice', () => {
+    // Focus lives inside the sheet, so an un-prevented arrow press also runs the
+    // browser's native scroll on the snap track: one snap point from that, one
+    // from scrollTo — two cards per press on desktop.
+    render(<Harness index={1} />);
+    const right = new KeyboardEvent('keydown', { key: 'ArrowRight', cancelable: true });
+    window.dispatchEvent(right);
+    expect(right.defaultPrevented).toBe(true);
+    const other = new KeyboardEvent('keydown', { key: 'a', cancelable: true });
+    window.dispatchEvent(other);
+    expect(other.defaultPrevented).toBe(false);
+  });
+
+  it('leaves arrow keys alone while a text field has focus', () => {
+    render(
+      <>
+        <input aria-label="note" />
+        <Harness index={1} />
+      </>
+    );
+    const spy = vi.spyOn(Element.prototype, 'scrollIntoView').mockClear();
+    const input = screen.getByLabelText('note');
+    const ev = new KeyboardEvent('keydown', { key: 'ArrowRight', cancelable: true, bubbles: true });
+    input.dispatchEvent(ev);
+    expect(ev.defaultPrevented).toBe(false);
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
 });
