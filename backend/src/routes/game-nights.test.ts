@@ -180,6 +180,49 @@ describe('POST /api/game-nights', () => {
     expect(res.body.night.format).toBeNull();
   });
 
+  it("venue defaults to the table, accepts 'online', round-trips through view, public payload and patch, and rejects anything else", async () => {
+    const host = await makeUser('gn-create-venue');
+    const table = await request(app)
+      .post('/api/game-nights')
+      .set('Cookie', host)
+      .send({ title: 'at the table', startsAt: IN_A_WEEK() });
+    expect(table.status).toBe(201);
+    expect(table.body.night.venue).toBe('table');
+
+    const online = await request(app)
+      .post('/api/game-nights')
+      .set('Cookie', host)
+      .send({ title: 'online night', startsAt: IN_A_WEEK(), venue: 'online' });
+    expect(online.status).toBe(201);
+    expect(online.body.night.venue).toBe('online');
+    const pub = await request(app).get(`/api/game-nights/public/${online.body.night.token}`);
+    expect(pub.body.night.venue).toBe('online');
+    const listed = await request(app).get('/api/game-nights').set('Cookie', host);
+    expect(
+      listed.body.nights.find((n: { id: string }) => n.id === online.body.night.id).venue
+    ).toBe('online');
+
+    const moved = await request(app)
+      .patch(`/api/game-nights/${online.body.night.id}`)
+      .set('Cookie', host)
+      .send({ venue: 'table' });
+    expect(moved.status).toBe(200);
+    expect(moved.body.night.venue).toBe('table');
+
+    // Unlike format (free text, dropped when malformed), venue drives what
+    // "Start game" does, so a value that isn't one of the two is refused.
+    const bad = await request(app)
+      .post('/api/game-nights')
+      .set('Cookie', host)
+      .send({ title: 'bad venue', startsAt: IN_A_WEEK(), venue: 'discord' });
+    expect(bad.status).toBe(400);
+    const badPatch = await request(app)
+      .patch(`/api/game-nights/${online.body.night.id}`)
+      .set('Cookie', host)
+      .send({ venue: 42 });
+    expect(badPatch.status).toBe(400);
+  });
+
   it('rejects inviting a non-friend (403)', async () => {
     const host = await makeUser('gn-invite-stranger-a');
     const strangerCookie = await makeUser('gn-invite-stranger-b');
@@ -975,6 +1018,7 @@ interface NightBody {
   awaiting: string[];
   location: string | null;
   format: string | null;
+  venue: 'table' | 'online';
   options: Array<{ id: string; startsAt: number }>;
   series: { id: string; token: string; endedAt: number | null } | null;
   blocked: string[];
@@ -1035,6 +1079,7 @@ describe('recurring game nights (E125)', () => {
       startsAt: anchor,
       inviteUserIds: [guestId],
       format: 'commander',
+      venue: 'online',
     });
     // The template evolves by editing the current night.
     await request(app)
@@ -1052,6 +1097,7 @@ describe('recurring game nights (E125)', () => {
     expect(occurrence!.title).toBe('Renamed weekly');
     expect(occurrence!.location).toBe('New spot');
     expect(occurrence!.format).toBe('commander');
+    expect(occurrence!.venue).toBe('online');
     expect(occurrence!.awaiting).toEqual(['gn-rec-mat-guest']);
     expect(occurrence!.myStatus).toBe('going');
 

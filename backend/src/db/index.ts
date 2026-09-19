@@ -424,6 +424,9 @@ export async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS game_night_blocks_user_idx ON game_night_blocks(user_id);
     -- Optional play format (e.g. 'commander'); powers the "Start game" seed.
     ALTER TABLE game_nights ADD COLUMN IF NOT EXISTS format TEXT;
+    -- Where the night is played: 'table' (one device tracks it) or 'online'
+    -- (everyone on their own device). Every earlier night was at a table.
+    ALTER TABLE game_nights ADD COLUMN IF NOT EXISTS venue TEXT NOT NULL DEFAULT 'table';
     -- Named guest invite links (E208): one unguessable token per invited
     -- person, so a host can include someone with no SpellControl account on an
     -- invite-only night. The token IS the reply credential; the label is the

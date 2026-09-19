@@ -33,6 +33,8 @@ import {
   type NightOption,
   type NightRsvp,
   type RsvpStatus,
+  NIGHT_VENUES,
+  type NightVenue,
 } from '../../lib/game-nights-api';
 import { CalendarPlus, ChevronDown, ChevronRight } from 'lucide-react';
 import { downloadIcs, googleCalendarUrl, type CalendarEvent } from '../../lib/calendar-links';
@@ -314,10 +316,39 @@ function NightCard({
   const maybe = night.rsvps.filter((r) => r.status === 'maybe').length;
   const tally = [`${going} going`, maybe > 0 ? `${maybe} maybe` : null].filter(Boolean).join(' · ');
 
-  // Host payoff: seed the local setup with the going roster + this night's
-  // format, then jump to Play → Local to review and start. Caps the roster at
-  // the local setup's player limit — a game night can outgrow it.
+  // Host payoff, by venue. At the table: seed the local setup with the going
+  // roster + this night's format, then jump to Play → Local to review and
+  // start (capped at the local setup's player limit — a night can outgrow
+  // it). Online: host the session with the night's format and land in its
+  // lobby; the others join with the code from their own devices.
+  const hostOnline = usePlayStore((s) => s.hostOnline);
+  const [startingOnline, setStartingOnline] = useState(false);
+  async function startOnline() {
+    if (startingOnline) return;
+    setStartingOnline(true);
+    try {
+      const fmt = FORMAT_OPTIONS.find((f) => f.value === night.format) ?? FORMAT_OPTIONS[0];
+      await hostOnline({
+        format: fmt.value,
+        startingLife: fmt.defaultLife,
+        commanderDamageEnabled: fmt.cmdDmg,
+        poisonEnabled: false,
+      });
+      navigate('/play?tab=online');
+    } catch (err) {
+      toast.show({
+        message: userMessage(err, "Couldn't open the online table. Check your connection."),
+        tone: 'error',
+      });
+    } finally {
+      setStartingOnline(false);
+    }
+  }
   function startGame() {
+    if (night.venue === 'online') {
+      void startOnline();
+      return;
+    }
     // Account-backed RSVPs carry a handle; the form seats the account behind
     // it (so the game credits them), and a link guest just keeps their name.
     const names = night.rsvps
@@ -410,6 +441,7 @@ function NightCard({
             "at a glance" cancelled-cue ruling). */}
         {cancelled && <span className="game-night-cancelled-pill">Cancelled</span>}
         {formatLabel && <span className="game-night-format-pill">{formatLabel}</span>}
+        {night.venue === 'online' && <span className="game-night-online-pill">Online</span>}
         {weekly && <span className="game-night-weekly-pill">Weekly</span>}
         {night.inviteOnly && <span className="game-night-invite-pill">Invite only</span>}
         {hostItems.length > 0 && (
@@ -559,9 +591,11 @@ function NightCard({
             type="button"
             className="btn btn-primary"
             aria-label={`Start a game for ${night.title}`}
+            aria-busy={startingOnline}
+            disabled={startingOnline}
             onClick={startGame}
           >
-            Start game
+            {night.venue === 'online' ? 'Open the online table' : 'Start game'}
           </button>
         )}
       </div>
@@ -913,6 +947,7 @@ function NightDialog({
   const [inviteOnly, setInviteOnly] = useState(night?.inviteOnly ?? false);
   const [optionInputs, setOptionInputs] = useState<string[]>(['', '']);
   const [format, setFormat] = useState(night?.format ?? '');
+  const [venue, setVenue] = useState<NightVenue>(night?.venue ?? 'table');
   const [location, setLocation] = useState(night?.location ?? '');
   const [placeOptions, setPlaceOptions] = useState<string[]>([]);
   const [placeOpen, setPlaceOpen] = useState(false);
@@ -1217,6 +1252,7 @@ function NightDialog({
           location: location.trim(),
           notes: notes.trim(),
           format,
+          venue,
           inviteOnly,
           addInviteUserIds: inviteIds,
         });
@@ -1229,6 +1265,7 @@ function NightDialog({
           location: location.trim() || undefined,
           notes: notes.trim() || undefined,
           format: format || undefined,
+          venue,
           inviteUserIds: inviteIds,
           inviteOnly,
           ...(repeatWeekly ? { repeatsWeekly: true } : {}),
@@ -1372,6 +1409,26 @@ function NightDialog({
               />
             </label>
           )}
+
+          {/* Where it's played decides what "Start game" does: one device
+              tracking the table, or an online session everyone joins. */}
+          <fieldset className="game-night-dialog-field game-night-venue">
+            <legend>Where it's played</legend>
+            <div className="game-night-dialog-options">
+              {NIGHT_VENUES.map((v) => (
+                <label key={v.value} className="game-night-dialog-option-toggle">
+                  <input
+                    type="radio"
+                    name="game-night-venue"
+                    checked={venue === v.value}
+                    onChange={() => setVenue(v.value)}
+                  />
+                  <span>{v.label}</span>
+                  <span className="game-night-venue-hint">{v.hint}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
 
           <label className="game-night-dialog-field">
             <span>Format (optional)</span>
