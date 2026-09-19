@@ -1390,6 +1390,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       {showLog && !isNarrow && (
         <LogDock
           log={gameLog}
+          popoutHref={playtestDeckId ? `/decks/${playtestDeckId}/playtest/log` : undefined}
           table={
             onlineTable
               ? { items: onlineTicker, nameFor: (seat) => tickerSeatName(onlineTable, seat) }

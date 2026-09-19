@@ -252,3 +252,16 @@
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
+
+/* The pop-out window: the same panel, but it IS the page. */
+.playtest-log-dock--page {
+  position: static;
+  width: auto;
+  max-height: none;
+  height: 100dvh;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  background: var(--bg);
+}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Copy, X } from 'lucide-react';
+import { Copy, ExternalLink, X } from 'lucide-react';
 import './LogDock.css';
 import {
   formatLogForClipboard,
@@ -17,6 +17,12 @@ interface Props {
   /** Present only when seated at an online table. */
   table?: { items: TickerItem[]; nameFor(seat: number): string };
   onClose(): void;
+  /** Route that renders this same log alone (`/decks/:id/playtest/log`); when
+   *  given, the header offers "Open in its own window". Absent in the page
+   *  variant, which IS that window. */
+  popoutHref?: string;
+  /** `dock` floats over the table; `page` fills its window (the pop-out). */
+  variant?: 'dock' | 'page';
 }
 
 type Filter = 'all' | 'cards' | 'life' | 'turns' | 'table';
@@ -85,7 +91,7 @@ function formatTime(ts: number): string {
   return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
-export function LogDock({ log, table, onClose }: Props) {
+export function LogDock({ log, table, onClose, popoutHref, variant = 'dock' }: Props) {
   const [saved, setFilter] = useState<Filter>(readFilter);
   const filter = saved === 'table' && !table ? 'all' : saved;
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -160,7 +166,9 @@ export function LogDock({ log, table, onClose }: Props) {
 
   return (
     <aside
-      className={`playtest-log-dock${showTable ? ' is-chatting' : ''}`}
+      className={`playtest-log-dock${showTable ? ' is-chatting' : ''}${
+        variant === 'page' ? ' playtest-log-dock--page' : ''
+      }`}
       role="region"
       aria-label="Game log"
       ref={dockRef}
@@ -176,6 +184,21 @@ export function LogDock({ log, table, onClose }: Props) {
         >
           <Copy aria-hidden size={16} />
         </button>
+        {popoutHref && (
+          <button
+            type="button"
+            className="playtest-log-dock__btn"
+            aria-label="Open the log in its own window"
+            onClick={() => {
+              // A sibling window on the same origin: it reads the same saved
+              // session and follows it through `storage` events, so the log
+              // can live on a second screen while the table keeps the first.
+              window.open(popoutHref, 'spellcontrol-playtest-log', 'popup,width=440,height=680');
+            }}
+          >
+            <ExternalLink aria-hidden size={16} />
+          </button>
+        )}
         <button
           type="button"
           className="playtest-log-dock__btn"

@@ -17,6 +17,7 @@ import {
 } from './lib/takeback';
 import {
   fingerprintDeck,
+  backfillManaCost,
   migrateSnapshotState,
   savePlaytestSnapshot,
   type PlaytestSnapshot,
@@ -284,7 +285,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
     // without it the migration would fall back to non-commander defaults and
     // resume a 40-life Commander game at 20.
     const deck = externalDeck ?? useDecksStore.getState().decks.find((d) => d.id === deckId);
-    const migrated = migrateSnapshotState(snapshot.state, deck);
+    const migrated = backfillManaCost(migrateSnapshotState(snapshot.state, deck), deck);
     set({
       deckId,
       externalDeck: externalDeck ?? null,
