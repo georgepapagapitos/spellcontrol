@@ -15,7 +15,11 @@ import type {
   GamePlayer,
   GameState,
 } from '../../lib/game-state';
+import { makePlayer } from '../../lib/game-state';
 import './OnlineLobby.css';
+
+/** Same cap as the create/join paths and the local setup's seat names. */
+const MAX_GUEST_NAME = 40;
 
 /** Seats an online table shows before anyone joins. The server seats up to 8;
  *  a pod is four, so four is what the grid promises and it grows from there. */
@@ -66,7 +70,9 @@ export function OnlineLobby({
     return Array.from({ length: count }, (_, i) => game.players.find((p) => p.seat === i) ?? null);
   }, [game.players]);
 
-  const readyCount = game.players.filter((p) => p.ready === true).length;
+  // A guest seat has no device to press "I'm ready" on; the host who seated
+  // them vouches for it, so it never holds the count up.
+  const readyCount = game.players.filter((p) => p.ready === true || p.userId === null).length;
   const allReady = readyCount === game.players.length;
   const myDeck = mySeat.deckId ? (decks.find((d) => d.id === mySeat.deckId) ?? null) : null;
 
@@ -95,14 +101,28 @@ export function OnlineLobby({
                   bracket={
                     player.seat === mySeat.seat && myDeck ? effectiveBracket(myDeck) : undefined
                   }
+                  // A guest seat is the host's to manage: it has no device of
+                  // its own, so its deck and its removal both happen here.
+                  manage={isHost && player.userId === null ? { decks, dispatch } : undefined}
                 />
               ) : (
-                <li key={`open-${i}`} className="lobby-seat is-open">
-                  <span className="lobby-seat-avatar" aria-hidden="true">
-                    <UserRound width={22} height={22} strokeWidth={1.6} />
-                  </span>
-                  <span className="lobby-seat-openlabel">Open seat</span>
-                </li>
+                <OpenSeat
+                  key={`open-${i}`}
+                  seat={i}
+                  canSeatGuest={isHost}
+                  onSeatGuest={(name) =>
+                    dispatch({
+                      type: 'add-player',
+                      player: makePlayer({
+                        id: `guest_${i}_${Date.now()}`,
+                        userId: null,
+                        seat: i,
+                        name,
+                        startingLife: game.startingLife,
+                      }),
+                    })
+                  }
+                />
               )
             )}
           </ul>
@@ -222,11 +242,95 @@ function hostName(game: GameState): string {
 
 // ── Seat card ───────────────────────────────────────────────────────────────
 
+/**
+ * An empty seat. For the host it is also the door for someone at the table
+ * without a device of their own: name them and they hold the seat as a guest
+ * — anyone seated can adjust their life once the game starts, and the record
+ * carries the name with no account behind it.
+ */
+function OpenSeat({
+  seat,
+  canSeatGuest,
+  onSeatGuest,
+}: {
+  seat: number;
+  canSeatGuest: boolean;
+  onSeatGuest: (name: string) => void;
+}) {
+  const [naming, setNaming] = useState(false);
+  const [name, setName] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (naming) inputRef.current?.focus();
+  }, [naming]);
+
+  if (!naming) {
+    return (
+      <li className="lobby-seat is-open">
+        <span className="lobby-seat-avatar" aria-hidden="true">
+          <UserRound width={22} height={22} strokeWidth={1.6} />
+        </span>
+        <span className="lobby-seat-openlabel">Open seat</span>
+        {canSeatGuest && (
+          <button
+            type="button"
+            className="lobby-seat-guest-btn"
+            onClick={() => setNaming(true)}
+            aria-label={`Seat a guest in seat ${seat + 1}`}
+          >
+            Seat a guest
+          </button>
+        )}
+      </li>
+    );
+  }
+  return (
+    <li className="lobby-seat is-open is-naming">
+      <form
+        className="lobby-seat-guest-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const trimmed = name.replace(/\s+/g, ' ').trim().slice(0, MAX_GUEST_NAME);
+          if (!trimmed) return;
+          onSeatGuest(trimmed);
+          setName('');
+          setNaming(false);
+        }}
+      >
+        <label className="lobby-seat-guest-label">
+          <span>Guest's name</span>
+          <input
+            ref={inputRef}
+            className="lobby-seat-guest-input"
+            value={name}
+            maxLength={MAX_GUEST_NAME}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setNaming(false);
+            }}
+            placeholder="Who's sitting here?"
+          />
+        </label>
+        <span className="lobby-seat-guest-hint">No account or device — the table tracks them.</span>
+        <div className="lobby-seat-guest-actions">
+          <button type="button" className="btn" onClick={() => setNaming(false)}>
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={!name.trim()}>
+            Seat them
+          </button>
+        </div>
+      </form>
+    </li>
+  );
+}
+
 function SeatCard({
   player,
   isHost,
   isMe,
   bracket,
+  manage,
 }: {
   player: GamePlayer;
   isHost: boolean;
@@ -234,25 +338,63 @@ function SeatCard({
   /** Only ever set for your own seat: the state carries no bracket for anyone
    *  else's deck, and a guessed one would be a number the table argues over. */
   bracket?: number;
+  /** Set when the viewer is the host and this is a guest seat they manage. */
+  manage?: { decks: Deck[]; dispatch: (action: GameAction) => void };
 }) {
   const art = useCardThumb(player.commander ?? undefined, 'art_crop');
   const ready = player.ready === true;
+  const isGuest = player.userId === null;
   return (
     <li
-      className={`lobby-seat ${isMe ? 'is-me' : ''}`}
+      className={`lobby-seat ${isMe ? 'is-me' : ''} ${isGuest ? 'is-guest' : ''}`}
       data-art={art ? 'on' : undefined}
       style={art ? { backgroundImage: `url(${art})` } : undefined}
     >
+      {manage && (
+        <button
+          type="button"
+          className="lobby-seat-remove"
+          aria-label={`Remove ${player.name}`}
+          onClick={() => manage.dispatch({ type: 'remove-player', seat: player.seat })}
+        >
+          <X width={16} height={16} strokeWidth={2} aria-hidden />
+        </button>
+      )}
       <div className="lobby-seat-body">
         <p className="lobby-seat-name">
           {isHost && <Crown width={15} height={15} strokeWidth={2} aria-label="Host" />}
           <span>{player.name}</span>
           {isMe && <span className="lobby-seat-you">You</span>}
+          {isGuest && <span className="lobby-seat-guest">Guest</span>}
         </p>
-        <p className="lobby-seat-deck">{player.deckName ?? 'No deck yet'}</p>
+        {manage ? (
+          <div className="lobby-seat-manage-deck">
+            <DeckPicker
+              decks={manage.decks}
+              value={player.deckId}
+              onChange={(deck) =>
+                manage.dispatch({
+                  type: 'update-player',
+                  seat: player.seat,
+                  patch: {
+                    deckId: deck?.id ?? null,
+                    deckName: deck?.name ?? null,
+                    commander: deck?.commander?.name ?? null,
+                    partner: deck?.partnerCommander?.name ?? null,
+                    colorIdentity: deck?.commander?.color_identity ?? [],
+                  },
+                })
+              }
+            />
+          </div>
+        ) : (
+          <p className="lobby-seat-deck">{player.deckName ?? 'No deck yet'}</p>
+        )}
         <div className="lobby-seat-foot">
-          <span className={`lobby-chip ${ready ? 'is-ready' : ''}`}>
-            {ready ? (
+          <span className={`lobby-chip ${ready || isGuest ? 'is-ready' : ''}`}>
+            {isGuest ? (
+              'Seated by the host'
+            ) : ready ? (
               <>
                 <Check width={13} height={13} strokeWidth={2.5} aria-hidden /> Ready
               </>
