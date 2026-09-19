@@ -136,6 +136,14 @@ describe('OpponentQuadrant', () => {
     expect(screen.getByRole('region').getAttribute('aria-label')).toContain('34 life');
   });
 
+  it('insets its battlefield only when it holds the cell the turn stack floats over', () => {
+    const { container, rerender } = render(<OpponentQuadrant {...props} opp={seat(1)} />);
+    expect(container.querySelector('.opponent-quadrant--under-stack')).toBeNull();
+
+    rerender(<OpponentQuadrant {...props} opp={seat(1)} underTurnStack />);
+    expect(container.querySelector('.opponent-quadrant--under-stack')).toBeTruthy();
+  });
+
   it('draws the empty seat as a placeholder, not a seat', () => {
     render(<OpenSeatQuadrant />);
     expect(screen.queryByRole('region')).toBeNull();

@@ -221,6 +221,20 @@ describe('the desktop seat grid', () => {
     expect(gridDock).toContain('bottom: calc(var(--pt-card-h) + 5rem)');
   });
 
+  it("keeps the top-right seat's board out from under the fixed turn stack", () => {
+    const quad = readFileSync(join(here, '../playtest/components/OpponentQuadrant.css'), 'utf8');
+    const start = quad.indexOf('.opponent-quadrant--under-stack .opponent-quadrant__felt {');
+    expect(start, 'the under-stack inset is missing').toBeGreaterThan(-1);
+    expect(quad.slice(start, quad.indexOf('}', start))).toContain(
+      'right: calc(14rem + var(--space-3) + var(--pt-edge))'
+    );
+    // The inset IS the stack's own ceiling, so a longer label or an extra
+    // control can never reach past it.
+    expect(block('.playtest-main--grid .playtest-corner--tr {')).toContain('max-width: 14rem');
+    // And it has to come after the `inset` shorthand, which sets `right` too.
+    expect(start).toBeGreaterThan(quad.indexOf('.opponent-quadrant__felt {'));
+  });
+
   it('sizes an opponent quadrant off its own container, never the viewport', () => {
     const quad = readFileSync(join(here, '../playtest/components/OpponentQuadrant.css'), 'utf8');
     expect(quad).toContain('container-type: inline-size');

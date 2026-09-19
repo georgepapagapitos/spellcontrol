@@ -1037,6 +1037,11 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     />
   );
 
+  // Whoever holds the TOP-RIGHT cell sits under the viewport-fixed turn/menu
+  // stack: the right column at two seats, the second of the upper pair at
+  // three or four. That quadrant insets its battlefield so no permanent of
+  // theirs can render beneath the stack (see OpponentQuadrant.css).
+  const topRightSeat = (opponents.length === 1 ? opponents[0] : opponents[1])?.board.seat;
   const renderQuadrant = (opp: (typeof opponents)[number]) => (
     <OpponentQuadrant
       key={opp.board.seat}
@@ -1045,6 +1050,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       sweeping={sweepSeat === opp.board.seat}
       pointed={tablePointer?.targetSeat === opp.board.seat}
       watching={viewingBoardSeat === opp.board.seat}
+      underTurnStack={opp.board.seat === topRightSeat}
       onOpen={() => setViewingBoardSeat(opp.board.seat)}
     />
   );

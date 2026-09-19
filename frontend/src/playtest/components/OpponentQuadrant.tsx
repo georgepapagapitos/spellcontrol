@@ -46,6 +46,10 @@ interface Props {
   pointed: boolean;
   /** This seat's full-board inspector is open — every arrival is being seen. */
   watching: boolean;
+  /** This quadrant holds the grid's top-right cell, which is where the
+   *  viewport-fixed turn/menu stack floats. Insets the battlefield so the
+   *  stack can never cover one of their permanents. */
+  underTurnStack?: boolean;
   /** Open the inspector (`OpponentBoardModal`) for this seat. */
   onOpen(): void;
 }
@@ -64,7 +68,15 @@ interface Props {
  * the local board uses, off the same custom properties, so an opponent's
  * layout arrives exactly as they arranged it.
  */
-export function OpponentQuadrant({ opp, active, sweeping, pointed, watching, onOpen }: Props) {
+export function OpponentQuadrant({
+  opp,
+  active,
+  sweeping,
+  pointed,
+  watching,
+  underTurnStack = false,
+  onOpen,
+}: Props) {
   const { name, board, pending } = opp;
   const palette = paletteForIndex(board.seat);
   const held = DESIGNATIONS.filter((d) => board[d.key]);
@@ -102,7 +114,8 @@ export function OpponentQuadrant({ opp, active, sweeping, pointed, watching, onO
         'opponent-quadrant',
         active && 'is-active-turn',
         sweeping && 'opponent-quadrant--turn-sweep',
-        pointed && 'is-pointed'
+        pointed && 'is-pointed',
+        underTurnStack && 'opponent-quadrant--under-stack'
       )}
       aria-label={ariaLabel}
       style={{

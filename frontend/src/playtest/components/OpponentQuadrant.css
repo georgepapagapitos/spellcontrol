@@ -87,6 +87,19 @@
   inset: 0 var(--pt-edge);
 }
 
+/* The grid's top-right cell is where the viewport-fixed turn/menu stack
+   floats (playtest.css, `.playtest-main--grid .playtest-corner--tr`). Narrow
+   THIS quadrant's battlefield box by the stack's full width plus a gutter
+   rather than letting the stack sit on top of a board: the 0..1 x fractions
+   then resolve inside the narrower box, so no permanent of theirs can land
+   under it at any position. The stack's own `max-width` is the number, so an
+   extra control or a longer label can never reach past the inset. A height
+   inset is not needed — nothing of the quadrant's own chrome or cards renders
+   above the box, and the box no longer reaches the stack's column at all. */
+.opponent-quadrant--under-stack .opponent-quadrant__felt {
+  right: calc(14rem + var(--space-3) + var(--pt-edge));
+}
+
 .opponent-quadrant__card {
   cursor: default;
 }

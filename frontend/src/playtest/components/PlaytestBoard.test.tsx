@@ -265,6 +265,35 @@ describe('PlaytestBoard', () => {
     expect(container.querySelector('.opponent-rail')).toBeTruthy();
   });
 
+  it('insets the top-right cell at every seat count, so the turn stack covers no board', () => {
+    stubWidth(1920);
+    // Four seats: the second of the upper pair holds the top-right cell.
+    onlineTable = seatedTable([opponent(1), opponent(2), opponent(3)]);
+    const four = render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    let inset = four.container.querySelectorAll('.opponent-quadrant--under-stack');
+    expect(inset).toHaveLength(1);
+    expect(
+      inset[0].getAttribute('aria-label'),
+      'the top-right cell is the SECOND opponent'
+    ).toContain('Player 2');
+    four.unmount();
+
+    // Two seats: the single opponent IS the right column, top corner included.
+    onlineTable = seatedTable([opponent(1)]);
+    const two = render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    inset = two.container.querySelectorAll('.opponent-quadrant--under-stack');
+    expect(inset).toHaveLength(1);
+    expect(inset[0].getAttribute('aria-label')).toContain('Player 1');
+  });
+
   it('resolves an opponent permanent for the hover preview off its seat-scoped id', () => {
     onlineTable = seatedTable([opponent(1)]);
     stubWidth(1920, true);
