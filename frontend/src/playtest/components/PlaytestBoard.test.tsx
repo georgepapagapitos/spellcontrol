@@ -321,3 +321,43 @@ describe('PlaytestBoard', () => {
     }
   });
 });
+
+// Rebindable shortcuts (lib/shortcuts): the board's one handler resolves keys
+// through the saved bindings, so a rebound key acts and the old one doesn't.
+describe('PlaytestBoard — rebindable shortcuts', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('S shuffles, ↑ adjusts life, and I opens the shortcuts sheet', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    fireEvent.keyDown(window, { key: 's' });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SHUFFLE_LIBRARY' });
+    fireEvent.keyDown(window, { key: 'ArrowUp' });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'ADJUST_LIFE', player: 'self', delta: 1 });
+    fireEvent.keyDown(window, { key: 'i' });
+    expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeTruthy();
+    // With the sheet open the board's keys are off — the sheet owns the keyboard.
+    dispatch.mockClear();
+    fireEvent.keyDown(window, { key: 'd' });
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('honours a saved rebinding: W draws and D no longer does', () => {
+    localStorage.setItem('playtest-shortcuts-v1', JSON.stringify({ draw: 'w' }));
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    fireEvent.keyDown(window, { key: 'd' });
+    expect(dispatch).not.toHaveBeenCalledWith({ type: 'DRAW', n: 1 });
+    fireEvent.keyDown(window, { key: 'w' });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'DRAW', n: 1 });
+    // The table menu prints the live key, not the default.
+    fireEvent.keyDown(window, { key: 'F10', shiftKey: true });
+    expect(screen.getByRole('menuitem', { name: /Draw/ }).textContent).toContain('W');
+  });
+});
