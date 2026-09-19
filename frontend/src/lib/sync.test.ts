@@ -35,6 +35,8 @@ import {
   recordUpsert,
   refreshNow,
   getPendingCount,
+  getPushProgress,
+  pushUnsyncedRows,
   isOnline,
   hasSyncError,
   clearCollectionRemote,
@@ -236,6 +238,42 @@ describe('refreshNow', () => {
     await refreshNow(); // never started sync
     expect(mockPush).not.toHaveBeenCalled();
     expect(mockPull).not.toHaveBeenCalled();
+  });
+});
+
+describe('native drain progress', () => {
+  it('reports slice progress while draining a multi-batch queue, then clears it', async () => {
+    // Same signal the web write-through reports, so a queued bulk import on
+    // native shows "Saving 3/7…" in the header instead of a bare spinner.
+    mockIsNative.mockReturnValue(true);
+    await startSync('user-1');
+    const cards = Array.from({ length: 1100 }, (_, i) => ({ copyId: `c-${i}` }));
+    await persistCardsState(cards); // queued; auto-push is off in tests
+    expect(getPushProgress()).toBeNull();
+
+    const seen: Array<ReturnType<typeof getPushProgress>> = [];
+    const unsub = onSyncedChange(() => seen.push(getPushProgress()));
+    await flushSync();
+    unsub();
+
+    const dones = seen.flatMap((p) => (p ? [p.done] : []));
+    const steps = [...new Set(dones)];
+    expect(steps).toEqual([0, 1, 2, 3]); // 1100 ops = 500/500/100
+    expect(seen.find((p) => p != null)).toMatchObject({ total: 3, ops: 1100 });
+    expect(mockPush).toHaveBeenCalledTimes(3);
+    expect(getPushProgress()).toBeNull();
+    expect(await queue.size()).toBe(0);
+  });
+
+  it('a single-batch drain reports nothing', async () => {
+    mockIsNative.mockReturnValue(true);
+    await startSync('user-1');
+    await recordUpsert('binder', 'b-1', { id: 'b-1' });
+    const seen: Array<ReturnType<typeof getPushProgress>> = [];
+    const unsub = onSyncedChange(() => seen.push(getPushProgress()));
+    await flushSync();
+    unsub();
+    expect(seen.every((p) => p == null)).toBe(true);
   });
 });
 
@@ -1599,23 +1637,64 @@ describe('web write-through (no durable outbox)', () => {
     expect(body.deletions).toEqual([]);
   });
 
-  it('a failed write reverts an edited row to its pre-edit value and flags the error', async () => {
+  it('a failed write keeps the edited row on the device as unsynced and flags the error', async () => {
+    // Web has no durable outbox, so the rev-0 row in IDB IS the outbox: it is
+    // kept (not reverted), counted as pending in the header, and re-sent by
+    // pushUnsyncedRows. Its base rev survives so a deck-style reject-stale
+    // check on the retry still compares against the right server rev.
+    const { useToastsStore } = await import('../store/toasts');
+    useToastsStore.getState().clear();
     await estore.putMany('binder', [
       { id: 'b-1', data: { id: 'b-1', name: 'old' }, rev: 3, deletedAt: null },
     ]);
-    mockPush.mockRejectedValueOnce(new Error('offline'));
+    mockPush.mockRejectedValueOnce(new Error('server error'));
     await recordUpsert('binder', 'b-1', { id: 'b-1', name: 'new' });
     const row = await estore.getById('binder', 'b-1');
-    expect(row?.data).toEqual({ id: 'b-1', name: 'old' }); // reverted
-    expect(row?.rev).toBe(3);
+    expect(row?.data).toEqual({ id: 'b-1', name: 'new' }); // kept
+    expect(row).toMatchObject({ rev: 0, syncedRev: 3 });
     expect(await queue.peekBatch(10)).toHaveLength(0);
     expect(hasSyncError()).toBe(true);
+    await vi.waitFor(() => expect(getPendingCount()).toBe(1), SETTLE);
+    // The toast offers a retry rather than announcing a revert.
+    const { toasts } = useToastsStore.getState();
+    const kept = toasts.find((t) => /kept on this device/i.test(t.message));
+    expect(kept).toBeDefined();
+    expect(kept?.actionLabel).toBe('Retry');
   });
 
-  it('a failed write removes an optimistically-added new row', async () => {
+  it('a failed write keeps an optimistically-added new row and re-sends it on retry', async () => {
     mockPush.mockRejectedValueOnce(new Error('offline'));
     await recordUpsert('binder', 'b-new', { id: 'b-new' });
-    expect(await estore.getById('binder', 'b-new')).toBeUndefined();
+    expect(await estore.getById('binder', 'b-new')).toMatchObject({ rev: 0 });
+    await vi.waitFor(() => expect(getPendingCount()).toBe(1), SETTLE);
+
+    mockPush.mockResolvedValueOnce({
+      applied: [{ kind: 'binder', id: 'b-new', rev: 7, deletedAt: null }],
+      cursor: 7,
+    });
+    await pushUnsyncedRows();
+    expect(mockPush).toHaveBeenCalledTimes(2);
+    const body = mockPush.mock.calls[1][0] as PushBody;
+    expect(body.upserts.map((u) => u.id)).toEqual(['b-new']);
+    expect(await estore.getById('binder', 'b-new')).toMatchObject({ rev: 7, syncedRev: 7 });
+    expect(hasSyncError()).toBe(false);
+    await vi.waitFor(() => expect(getPendingCount()).toBe(0), SETTLE);
+    // Nothing left to retry — a second call sends nothing.
+    await pushUnsyncedRows();
+    expect(mockPush).toHaveBeenCalledTimes(2);
+  });
+
+  it('a failed delete is still reverted (a hard-deleted row has nothing to re-send)', async () => {
+    await estore.putMany('binder', [
+      { id: 'b-2', data: { id: 'b-2', name: 'keep me' }, rev: 2, deletedAt: null },
+    ]);
+    mockPush.mockRejectedValueOnce(new Error('offline'));
+    await persistBindersState([]);
+    const row = await estore.getById('binder', 'b-2');
+    expect(row?.data).toEqual({ id: 'b-2', name: 'keep me' });
+    expect(row?.rev).toBe(2);
+    expect(hasSyncError()).toBe(true);
+    await vi.waitFor(() => expect(getPendingCount()).toBe(0), SETTLE);
   });
 
   it('persistKind sends the whole delta (upsert + tombstone) in one POST', async () => {
@@ -1634,17 +1713,60 @@ describe('web write-through (no durable outbox)', () => {
     expect(await queue.peekBatch(10)).toHaveLength(0);
   });
 
-  it('chunks a big collection into <=500-op POSTs (no 413)', async () => {
+  it('chunks a big collection into <=2000-op POSTs (no 413)', async () => {
     // Regression: an un-chunked web push of a large import sent every card in one
     // POST, blowing past the server's 5000-op cap → 413 → "Change could not be
-    // saved" and the collection never synced on mobile web.
-    const cards = Array.from({ length: 1100 }, (_, i) => ({ copyId: `c-${i}` }));
+    // saved" and the collection never synced on mobile web. 2000 (not the native
+    // drain's 500) keeps a 13k-card import to 7 round trips with headroom.
+    const cards = Array.from({ length: 4100 }, (_, i) => ({ copyId: `c-${i}` }));
     await persistCardsState(cards as Array<{ copyId: string; importId?: string }>);
     const sizes = (mockPush.mock.calls as Array<[PushBody]>).map(
       ([b]) => b.upserts.length + b.deletions.length
     );
-    expect(sizes).toEqual([500, 500, 100]); // 1100 split into 500/500/100
-    expect(Math.max(...sizes)).toBeLessThanOrEqual(500);
+    expect(sizes).toEqual([2000, 2000, 100]); // 4100 split into 2000/2000/100
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(2000);
+    expect(hasSyncError()).toBe(false);
+  });
+
+  it('reports slice progress for a chunked push and clears it when done', async () => {
+    // The import panel and header pill read this; a single-request push never
+    // reports (it is over before anyone could read it).
+    const seen: Array<ReturnType<typeof getPushProgress>> = [];
+    const unsub = onSyncedChange(() => seen.push(getPushProgress()));
+    const cards = Array.from({ length: 4100 }, (_, i) => ({ copyId: `c-${i}` }));
+    await persistCardsState(cards as Array<{ copyId: string; importId?: string }>);
+    unsub();
+    // Other emits (markSynced, pending refresh) repeat the latest snapshot, so
+    // compare the distinct sequence.
+    const dones = seen.flatMap((p) => (p ? [p.done] : []));
+    const steps = [...new Set(dones)];
+    expect(steps).toEqual([0, 1, 2, 3]);
+    expect(seen.find((p) => p != null)).toMatchObject({ total: 3, ops: 4100 });
+    expect(getPushProgress()).toBeNull();
+    expect(seen[seen.length - 1]).toBeNull();
+
+    seen.length = 0;
+    const unsub2 = onSyncedChange(() => seen.push(getPushProgress()));
+    await recordUpsert('binder', 'b-1', { id: 'b-1' });
+    unsub2();
+    expect(seen.every((p) => p == null)).toBe(true);
+  });
+
+  it('detachPush resolves once the rows are on the device, before the push lands', async () => {
+    type Ack = { applied: never[]; cursor: number };
+    let release: (v: Ack) => void = () => {};
+    const held = new Promise<Ack>((r) => (release = r));
+    mockPush.mockImplementationOnce(() => held);
+    const cards = [{ copyId: 'c-detached' }];
+    await persistCardsState(cards, { detachPush: true });
+    // Resolved while the server is still holding the request.
+    expect(await estore.getById('card', 'c-detached')).toMatchObject({ rev: 0 });
+    await vi.waitFor(() => expect(mockPush).toHaveBeenCalledTimes(1), SETTLE);
+    expect(await estore.getById('card', 'c-detached')).toMatchObject({ rev: 0 });
+    release({ applied: [], cursor: 1 });
+    // The push is still serialized behind the chain: a later awaited write
+    // waits for it and observes its outcome.
+    await flushSync();
     expect(hasSyncError()).toBe(false);
   });
 
@@ -1663,7 +1785,9 @@ describe('web write-through (no durable outbox)', () => {
     // assertions while the machine was loaded, which is why it only ever
     // reproduced on busy CI and never on a quiet local run.
     mockPush.mockReset();
-    mockPush.mockRejectedValueOnce(new Error('offline'));
+    // Persistently failing: flushSync also retries the unsynced row, and that
+    // retry failing must leave the error set just the same.
+    mockPush.mockRejectedValue(new Error('offline'));
     await recordUpsert('binder', 'b-err', { id: 'b-err' });
     expect(hasSyncError()).toBe(true);
 
@@ -1672,18 +1796,43 @@ describe('web write-through (no durable outbox)', () => {
     expect(hasSyncError()).toBe(true);
   });
 
-  it('a mid-collection push failure reverts only the un-pushed chunk', async () => {
-    // First chunk lands; second 413s. The 500 rows already accepted must keep
-    // their stamped state — only the unsent tail reverts.
-    const cards = Array.from({ length: 600 }, (_, i) => ({ copyId: `c-${i}` }));
+  it('flushSync retries unsynced rows and clears the error once they land', async () => {
+    mockPush.mockRejectedValueOnce(new Error('offline'));
+    await recordUpsert('binder', 'b-late', { id: 'b-late' });
+    expect(hasSyncError()).toBe(true);
+    mockPush.mockResolvedValueOnce({
+      applied: [{ kind: 'binder', id: 'b-late', rev: 4, deletedAt: null }],
+      cursor: 4,
+    });
+    await flushSync();
+    expect(hasSyncError()).toBe(false);
+    expect(await estore.getById('binder', 'b-late')).toMatchObject({ rev: 4 });
+  });
+
+  it('a mid-collection push failure keeps the unsent tail as unsynced rows and retries only those', async () => {
+    // First chunk lands; second fails. The 2000 rows already accepted keep
+    // their stamped state; the 100-row tail stays on the device as unsynced
+    // (it used to be reverted, which made a backgrounded import silently lose
+    // its last chunk) and is the only thing the retry re-sends.
+    const cards = Array.from({ length: 2100 }, (_, i) => ({ copyId: `c-${i}` }));
     mockPush.mockReset();
     mockPush
       .mockResolvedValueOnce({ applied: [], cursor: 1 })
-      .mockRejectedValueOnce(new Error('413'));
+      .mockRejectedValueOnce(new Error('503'));
     await persistCardsState(cards as Array<{ copyId: string; importId?: string }>);
     expect(await estore.getById('card', 'c-0')).toBeDefined(); // first chunk survived
-    expect(await estore.getById('card', 'c-500')).toBeUndefined(); // tail reverted
+    expect(await estore.getById('card', 'c-2000')).toMatchObject({ rev: 0 }); // tail kept
     expect(hasSyncError()).toBe(true);
+    await vi.waitFor(() => expect(getPendingCount()).toBe(100), SETTLE);
+
+    mockPush.mockResolvedValueOnce({ applied: [], cursor: 2 });
+    await pushUnsyncedRows();
+    expect(mockPush).toHaveBeenCalledTimes(3);
+    const retry = mockPush.mock.calls[2][0] as PushBody;
+    expect(retry.upserts).toHaveLength(100);
+    expect(retry.upserts[0].id).toBe('c-2000');
+    expect(hasSyncError()).toBe(false);
+    await vi.waitFor(() => expect(getPendingCount()).toBe(0), SETTLE);
   });
 
   it('does not revert a server-committed chunk when the local rev-stamp throws (F19)', async () => {
@@ -1782,6 +1931,78 @@ describe('web write-through (no durable outbox)', () => {
     // it sent our pre-edit base rev as clientRev so the server could reject-stale
     const body = mockPush.mock.calls[0][0] as PushBody;
     expect(body.upserts[0].clientRev).toBe(4);
+  });
+});
+
+describe('web unsynced rows across sessions', () => {
+  // A tab closed mid-import (or a failed write-through) leaves rows in IDB at
+  // rev 0 with nothing else recording them — web has no durable queue. The
+  // next startSync must find and send them BEFORE the pull, whose drift check
+  // would otherwise read them as a count mismatch and wipe them.
+
+  it('startSync re-sends rows a previous session left unsynced, before pulling', async () => {
+    await estore.putMany('card', [
+      { id: 'synced', data: { copyId: 'synced' }, rev: 5, syncedRev: 5, deletedAt: null },
+      { id: 'left-1', data: { copyId: 'left-1' }, rev: 0, deletedAt: null, importId: 'imp' },
+      { id: 'left-2', data: { copyId: 'left-2' }, rev: 0, deletedAt: null, importId: 'imp' },
+    ]);
+    saveCursorForTest(900);
+    mockPush.mockResolvedValueOnce({
+      applied: [
+        { kind: 'card', id: 'left-1', rev: 901, deletedAt: null },
+        { kind: 'card', id: 'left-2', rev: 902, deletedAt: null },
+      ],
+      cursor: 902,
+    });
+    // The server now holds all three, so counts agree — no refetch.
+    mockPull.mockResolvedValue({ rows: [], cursor: 902, hasMore: false, counts: { card: 3 } });
+
+    await startSync('user-1');
+
+    expect(mockPush).toHaveBeenCalledTimes(1);
+    const body = mockPush.mock.calls[0][0] as {
+      upserts: Array<{ id: string; importId?: string; data: unknown }>;
+    };
+    expect(body.upserts.map((u) => u.id).sort()).toEqual(['left-1', 'left-2']);
+    expect(body.upserts[0].importId).toBe('imp');
+    // Sent before the delta pull went out.
+    const pushOrder = mockPush.mock.invocationCallOrder[0];
+    const pullOrder = mockPull.mock.invocationCallOrder[0];
+    expect(pushOrder).toBeLessThan(pullOrder);
+    expect(await estore.getById('card', 'left-1')).toMatchObject({ rev: 901 });
+    expect(mockPull).toHaveBeenCalledTimes(1); // no drift refetch
+    expect(getPendingCount()).toBe(0);
+    expect(hasSyncError()).toBe(false);
+  });
+
+  it('a count mismatch does not wipe unsynced rows when the re-send fails', async () => {
+    await estore.putMany('card', [
+      { id: 'synced', data: { copyId: 'synced' }, rev: 5, syncedRev: 5, deletedAt: null },
+      { id: 'left-1', data: { copyId: 'left-1' }, rev: 0, deletedAt: null, importId: 'imp' },
+    ]);
+    saveCursorForTest(900);
+    mockPush.mockRejectedValue(new Error('offline'));
+    // Server holds only the synced row: local has one more, which is NOT drift
+    // while that row is still waiting to be sent.
+    mockPull.mockResolvedValue({ rows: [], cursor: 900, hasMore: false, counts: { card: 1 } });
+
+    await startSync('user-1');
+
+    expect(mockPull).toHaveBeenCalledTimes(1); // no refetch
+    const ids = (await estore.getAllLive('card')).map((r) => r.id).sort();
+    expect(ids).toEqual(['left-1', 'synced']);
+    expect(getPendingCount()).toBe(1);
+    expect(hasSyncError()).toBe(true);
+
+    // Connectivity returns: the retry lands and the row is stamped.
+    mockPush.mockResolvedValue({
+      applied: [{ kind: 'card', id: 'left-1', rev: 901, deletedAt: null }],
+      cursor: 901,
+    });
+    await pushUnsyncedRows();
+    expect(await estore.getById('card', 'left-1')).toMatchObject({ rev: 901 });
+    await vi.waitFor(() => expect(getPendingCount()).toBe(0), SETTLE);
+    expect(hasSyncError()).toBe(false);
   });
 });
 

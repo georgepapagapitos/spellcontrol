@@ -51,6 +51,15 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
   searchCards: vi.fn(),
 }));
 
+// The background server push (a big import saving to the account after the
+// panel has let go) reports through this hook; null = nothing in flight.
+const pushProgressMock = vi.fn<() => { done: number; total: number; ops: number } | null>(
+  () => null
+);
+vi.mock('../lib/use-push-progress', () => ({
+  usePushProgress: () => pushProgressMock(),
+}));
+
 interface MockState {
   cards: EnrichedCard[];
   binders: never[];
@@ -167,6 +176,7 @@ beforeEach(() => {
   importCardsMock.mockClear();
   addCardMock.mockClear();
   mockSearchCards.mockReset();
+  pushProgressMock.mockReturnValue(null);
   mockState.cards = [];
   mockState.importHistory = [];
   mockState.unresolvedNames = [];
@@ -256,6 +266,27 @@ describe('UploadPanel reimport gate (content-based)', () => {
     await waitFor(() => expect(importCardsMock).toHaveBeenCalledTimes(1));
     expect(importCardsMock.mock.calls[0][2]).toBe('merge');
     expect(screen.queryByText('This looks like a re-import')).toBeNull();
+  });
+});
+
+describe('UploadPanel background save progress', () => {
+  // After a big import the store hands the collection back as soon as the
+  // rows are on the device; the server push carries on in the background and
+  // the panel keeps a non-blocking strip up until it settles.
+  it('shows the account-save strip while a chunked push is in flight, without loading', () => {
+    mockState.isLoading = false;
+    pushProgressMock.mockReturnValue({ done: 2, total: 7, ops: 13000 });
+    const { container } = render(<UploadPanel />);
+    expect(screen.getByText('Saving to your account · 3 of 7…')).toBeTruthy();
+    const bar = container.querySelector('.upload-progress [role="progressbar"]');
+    expect(Number(bar?.getAttribute('aria-valuenow'))).toBeCloseTo((2 / 7) * 100, 5);
+  });
+
+  it('shows no strip when nothing is in flight', () => {
+    mockState.isLoading = false;
+    render(<UploadPanel />);
+    expect(screen.queryByText(/Saving to your account/)).toBeNull();
+    expect(document.querySelector('.upload-progress')).toBeNull();
   });
 });
 

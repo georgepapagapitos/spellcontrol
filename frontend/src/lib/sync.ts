@@ -121,6 +121,14 @@ function seedCardPrices(cards: ReadonlyArray<EnrichedCardish>): void {
  *      clients skip the durable queue and write through immediately via
  *      webPush; native + logged-out guests keep the debounced queue.)
  *
+ * Web has no durable queue, so its outbox is the IDB rows themselves: a row
+ * still at rev 0 after a failed write-through (or a tab closed mid-push) is
+ * kept, counted as pending, and re-sent on the next start / online / focus /
+ * Retry (see `webUnsyncedIds`, `pushUnsyncedRows`). A bulk import detaches
+ * its push (`PersistOptions.detachPush`) so the UI can hand the collection
+ * back while the many-request push finishes in the background, reporting
+ * slice progress through `getPushProgress`.
+ *
  * Every pull is paged delta `GET /api/sync?since=<cursor>`; tombstones in
  * the response remove the row locally so a deletion on one device shows up
  * on every other device the next time it pulls. No whole-blob PUT, no
@@ -146,6 +154,8 @@ const BROADCAST_CHANNEL_NAME = 'spellcontrol-sync-v2';
 const BROADCAST_STORAGE_KEY = 'spellcontrol-sync-v2-broadcast';
 
 const PUSH_DEBOUNCE_MS = 500;
+/** Ops per /api/sync request when the native durable queue drains. */
+const NATIVE_DRAIN_BATCH = 500;
 const FOCUS_PULL_THROTTLE_MS = 3000;
 
 let cursor = 0;
@@ -237,6 +247,45 @@ export function hasSyncError(): boolean {
   return syncError;
 }
 
+/**
+ * Slice-level progress of a multi-request web push (a big import saving to the
+ * account). `done`/`total` count /api/sync requests; `ops` is the row count the
+ * whole push carries. null when no chunked push is running — a single-request
+ * push is over before anyone could read it, so it never reports.
+ */
+export interface PushProgress {
+  done: number;
+  total: number;
+  ops: number;
+}
+let pushProgress: PushProgress | null = null;
+
+export function getPushProgress(): PushProgress | null {
+  return pushProgress;
+}
+function setPushProgress(p: PushProgress | null): void {
+  pushProgress = p;
+  emit();
+}
+
+/**
+ * Web's stand-in for the native durable outbox: `kind:id` of every live IDB
+ * row that is local-only (rev 0) and NOT currently in flight — a write-through
+ * that failed, or rows a closed tab left half-pushed. They stay on the device
+ * (never reverted), count as pending in the header, block the drift wipe in
+ * `pull()`, and are re-sent by `pushUnsyncedRows` on start / online / focus /
+ * the toast's Retry. Native never populates it: its queue plays this role.
+ */
+const webUnsyncedIds = new Set<string>();
+/** Web pushes in flight (serialized, so 0 or 1 in practice). */
+let webPushActive = 0;
+/**
+ * `kind:id` of every rev-0 row the LAST `rehydrateStoresFromIdb` read. A
+ * by-product of a read that happens anyway, so `startSync` can seed
+ * `webUnsyncedIds` without a second full pass over IDB.
+ */
+let hydratedUnsyncedIds = new Set<string>();
+
 function emit(): void {
   for (const fn of syncedListeners) fn();
 }
@@ -245,10 +294,10 @@ function markSynced(): void {
   emit();
 }
 
-/** Re-read the durable queue depth; emit only when it changed. */
+/** Re-read the outstanding local work (durable queue + web unsynced rows). */
 async function refreshPending(): Promise<void> {
   try {
-    const n = await queue.size();
+    const n = (await queue.size()) + webUnsyncedIds.size;
     if (n !== pendingCount) {
       pendingCount = n;
       emit();
@@ -365,6 +414,13 @@ export async function startSync(userId?: string): Promise<void> {
   // before we ask for deltas; then pull whatever the server has newer than
   // our cursor.
   await push();
+  // Web: rows a previous session left local-only (a tab closed mid-import, a
+  // failed write-through) are still in IDB at rev 0. Send them BEFORE the
+  // pull — the drift check there compares row counts with the server, and
+  // unsent rows would read as drift and be wiped. Scanned after push() so a
+  // guest's just-drained queue rows (now stamped with a rev) aren't re-sent.
+  await scanUnsyncedRows();
+  await pushUnsyncedRows();
   await pull();
 
   syncedState = 'ready';
@@ -395,6 +451,9 @@ async function stopSyncAndWipeLocalInternal(): Promise<void> {
   syncError = false;
   reconciledThisSession = false;
   unhydratedIds.clear();
+  webUnsyncedIds.clear();
+  hydratedUnsyncedIds = new Set();
+  pushProgress = null;
   // Reset in-memory stores. Imported here to avoid a top-level cycle.
   await resetInMemoryStores();
 }
@@ -437,6 +496,10 @@ export async function flushSync(): Promise<void> {
     pushTimer = null;
   }
   await push();
+  // Web: let a detached (background) push finish, then retry anything it
+  // left unsent — logout wipes IDB, so this is the last chance for those rows.
+  await webPushChain;
+  await pushUnsyncedRows();
 }
 
 /**
@@ -448,7 +511,61 @@ export async function flushSync(): Promise<void> {
 export async function refreshNow(): Promise<void> {
   if (!currentOwnerId) return;
   await push();
+  await pushUnsyncedRows();
   await pull();
+}
+
+/**
+ * Re-send the web rows that are still local-only (see `webUnsyncedIds`). The
+ * toast's Retry, the online/focus listeners and `startSync` all land here.
+ * No-op on native (the durable queue owns retries there) and when nothing is
+ * outstanding. Rows are re-read from IDB at send time and anything that has
+ * since been stamped with a server rev (a pull delivered it, say) is dropped
+ * from the set rather than re-sent.
+ */
+export async function pushUnsyncedRows(): Promise<void> {
+  if (shouldQueueLocally() || webUnsyncedIds.size === 0) return;
+  const muts: queue.Mutation[] = [];
+  for (const kind of estore.ALL_KINDS) {
+    const wanted = new Set<string>();
+    for (const key of webUnsyncedIds) {
+      if (key.startsWith(`${kind}:`)) wanted.add(key.slice(kind.length + 1));
+    }
+    if (wanted.size === 0) continue;
+    const local = await estore.getAllLive(kind);
+    const groupCounts = kind === 'card' ? confirmedGroupCounts(local) : undefined;
+    for (const row of local) {
+      if (!wanted.has(row.id)) continue;
+      if (row.rev > 0) {
+        webUnsyncedIds.delete(`${kind}:${row.id}`);
+        continue;
+      }
+      // A row with no base rev never reached the server: it is a brand-new
+      // copy, so it gets the same printing-group tag a fresh persist would.
+      const isNew = baseRevFor(row) <= 0;
+      muts.push(
+        upsertMutation(kind, row.id, row.data, row.importId, isNew ? groupCounts : undefined)
+      );
+    }
+  }
+  await refreshPending();
+  if (muts.length === 0) return;
+  // Deletes never sit in the unsynced set (a failed delete is reverted), so
+  // there is nothing to restore on failure and the priors map stays empty.
+  await webPush(muts, new Map());
+}
+
+/**
+ * Seed `webUnsyncedIds` with every live row still at rev 0, from the snapshot
+ * the startup hydrate already took (no second pass over IDB). Run once per
+ * `startSync`, after the durable queue has drained: a guest's queued rows are
+ * rev 0 in that snapshot too, but `pushUnsyncedRows` re-reads each candidate
+ * at send time and drops any the drain has since stamped. Native skips it.
+ */
+async function scanUnsyncedRows(): Promise<void> {
+  if (shouldQueueLocally()) return;
+  for (const key of hydratedUnsyncedIds) webUnsyncedIds.add(key);
+  await refreshPending();
 }
 
 // ── Mutation entry points (called from stores) ──────────────────────────────
@@ -516,6 +633,68 @@ export async function recordDelete(kind: EntityKind, id: string): Promise<void> 
   }
 }
 
+/** Options for the persist helpers. */
+export interface PersistOptions {
+  /**
+   * Web only: resolve once the rows are in IDB and the server push has been
+   * queued behind any earlier web write, instead of after the push completes.
+   * For a bulk import that turns a many-request push into background work the
+   * caller can stop blocking on; progress and failure are reported through
+   * `getPushProgress` / the pending count / the toast, exactly as when awaited.
+   * Native ignores it (its queue drain is always detached).
+   */
+  detachPush?: boolean;
+}
+
+/**
+ * Card-only (E129): confirmed (server-known) member count per printing+finish
+ * group, computed once per persist so a brand-new copyId only gets tagged for
+ * the reject-stale check when it's joining an ALREADY-owned group. A
+ * first-time bulk import creates thousands of brand-new groups with zero
+ * pre-existing members — none of those need (or can cheaply afford) the
+ * server round-trip a check costs, and skipping them keeps import perf
+ * unchanged.
+ */
+function confirmedGroupCounts(local: estore.StoredRow[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const row of local) {
+    if (baseRevFor(row) <= 0) continue;
+    const g = cardGroupIdentity(row.data);
+    if (!g) continue;
+    const k = cardGroupKeyStr(g);
+    counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/**
+ * The outbound upsert for one row. `groupCounts` is passed only for a card
+ * that is NEW to this device: joining an already-owned printing+finish group
+ * is a cardinality change, so it gets tagged for buildOutbound to verify the
+ * group's live membership against the server before the add lands (E129).
+ */
+function upsertMutation(
+  kind: EntityKind,
+  id: string,
+  data: unknown,
+  importId: string | undefined,
+  groupCounts: Map<string, number> | undefined
+): queue.Mutation {
+  let cardGroup: queue.CardGroup | undefined;
+  if (kind === 'card' && groupCounts) {
+    const g = cardGroupIdentity(data);
+    if (g && (groupCounts.get(cardGroupKeyStr(g)) ?? 0) > 0) cardGroup = g;
+  }
+  return {
+    op: 'upsert',
+    kind,
+    id,
+    data,
+    ...(kind === 'card' && importId !== undefined ? { importId } : {}),
+    ...(cardGroup ? { cardGroup } : {}),
+  };
+}
+
 /**
  * Diff a kind's full in-memory array against the live rows in IDB, write
  * the delta to IDB, and enqueue upserts/deletes. The replacement for the
@@ -533,30 +712,14 @@ async function persistKind<T>(
   kind: EntityKind,
   rows: T[],
   getId: (row: T) => string,
-  getImportId?: (row: T) => string
+  getImportId?: (row: T) => string,
+  opts?: PersistOptions
 ): Promise<void> {
   const local = await estore.getAllLive(kind);
   const localById = new Map(local.map((r) => [r.id, r]));
   const desiredIds = new Set(rows.map(getId));
 
-  // Card-only (E129): confirmed (server-known) member count per printing+finish
-  // group, computed once so a brand-new copyId only gets tagged for the
-  // reject-stale check below when it's joining an ALREADY-owned group. A
-  // first-time bulk import creates thousands of brand-new groups with zero
-  // pre-existing members — none of those need (or can cheaply afford) the
-  // server round-trip a check costs, and skipping them keeps import perf
-  // unchanged.
-  let groupConfirmedCounts: Map<string, number> | undefined;
-  if (kind === 'card') {
-    groupConfirmedCounts = new Map();
-    for (const row of local) {
-      if (baseRevFor(row) <= 0) continue;
-      const g = cardGroupIdentity(row.data);
-      if (!g) continue;
-      const k = cardGroupKeyStr(g);
-      groupConfirmedCounts.set(k, (groupConfirmedCounts.get(k) ?? 0) + 1);
-    }
-  }
+  const groupConfirmedCounts = kind === 'card' ? confirmedGroupCounts(local) : undefined;
 
   // ponytail: O(kind-size) JSON.stringify per call to detect changes — fine at
   // realistic collection sizes (one diff per user action, no network); hash the
@@ -583,23 +746,15 @@ async function persistKind<T>(
       deletedAt: null,
       ...(kind === 'card' && getImportId ? { importId: getImportId(r) } : {}),
     });
-    // A brand-new copyId joining an already-owned printing+finish group is a
-    // cardinality change — tag it so buildOutbound verifies the group's live
-    // membership against the server before this add lands (E129).
-    let cardGroup: queue.CardGroup | undefined;
-    if (kind === 'card' && existing == null) {
-      const g = cardGroupIdentity(r);
-      if (g && (groupConfirmedCounts?.get(cardGroupKeyStr(g)) ?? 0) > 0) cardGroup = g;
-    }
-    muts.push({
-      op: 'upsert',
+    const mut = upsertMutation(
       kind,
       id,
-      data: r,
-      ...(kind === 'card' && getImportId ? { importId: getImportId(r) } : {}),
-      ...(kind === 'deck' && syncedRev > 0 ? { clientRev: syncedRev } : {}),
-      ...(cardGroup ? { cardGroup } : {}),
-    });
+      r,
+      kind === 'card' && getImportId ? getImportId(r) : undefined,
+      existing == null ? groupConfirmedCounts : undefined
+    );
+    if (mut.op === 'upsert' && kind === 'deck' && syncedRev > 0) mut.clientRev = syncedRev;
+    muts.push(mut);
   }
   if (changedRows.length > 0) await estore.putMany(kind, changedRows);
 
@@ -645,16 +800,19 @@ async function persistKind<T>(
       schedulePush();
     } else {
       // Web: no durable outbox. localById holds the pre-edit rows (read before
-      // the optimistic IDB writes above), so it doubles as the revert snapshot.
+      // the optimistic IDB writes above), so it doubles as the revert snapshot
+      // for the deletes (upserts that fail stay local — see webPushInner).
       const priors = new Map<string, estore.StoredRow | undefined>();
       for (const m of muts) priors.set(`${m.kind}:${m.id}`, localById.get(m.id));
-      await webPush(muts, priors);
+      const pushed = webPush(muts, priors);
+      if (!opts?.detachPush) await pushed;
     }
   }
 }
 
 export const persistCardsState = (
-  cards: ReadonlyArray<{ copyId: string; importId?: string }>
+  cards: ReadonlyArray<{ copyId: string; importId?: string }>,
+  opts?: PersistOptions
 ): Promise<void> => {
   // Seed device-local prices from the live cards BEFORE stripping them, so every
   // card-persist path (import/add/move/restore) keeps its price across reloads.
@@ -663,18 +821,25 @@ export const persistCardsState = (
     'card',
     (cards as EnrichedCardish[]).map(stripCardPrice),
     (c) => c.copyId,
-    (c) => c.importId ?? ''
+    (c) => c.importId ?? '',
+    opts
   );
 };
 
-export const persistImportsState = (imports: ReadonlyArray<{ id: string }>): Promise<void> =>
-  persistKind('import', imports as Array<{ id: string }>, (i) => i.id);
+export const persistImportsState = (
+  imports: ReadonlyArray<{ id: string }>,
+  opts?: PersistOptions
+): Promise<void> =>
+  persistKind('import', imports as Array<{ id: string }>, (i) => i.id, undefined, opts);
 
 export const persistBindersState = (binders: ReadonlyArray<{ id: string }>): Promise<void> =>
   persistKind('binder', binders as Array<{ id: string }>, (b) => b.id);
 
-export const persistListsState = (lists: ReadonlyArray<{ id: string }>): Promise<void> =>
-  persistKind('list', lists as Array<{ id: string }>, (l) => l.id);
+export const persistListsState = (
+  lists: ReadonlyArray<{ id: string }>,
+  opts?: PersistOptions
+): Promise<void> =>
+  persistKind('list', lists as Array<{ id: string }>, (l) => l.id, undefined, opts);
 
 export const persistDecksState = (decks: ReadonlyArray<{ id: string }>): Promise<void> =>
   persistKind('deck', decks as Array<{ id: string }>, (d) => d.id);
@@ -841,6 +1006,10 @@ async function hasDriftedFromServer(
   serverCounts: Partial<Record<EntityKind, number>>
 ): Promise<boolean> {
   if ((await queue.size()) > 0) return false;
+  // Web's equivalents of a non-empty queue: a push still in flight (a big
+  // import saving in the background while a focus pull runs) or rows waiting
+  // for a retry. Both make the local count legitimately exceed the server's.
+  if (webPushActive > 0 || webUnsyncedIds.size > 0) return false;
   for (const kind of estore.ALL_KINDS) {
     const server = serverCounts[kind];
     if (server === undefined) continue; // older server build — nothing to check
@@ -1131,15 +1300,17 @@ function webPush(
 /**
  * Web (online-only) outbound write. In place of the native durable queue +
  * debounced drain, web POSTs the batch straight to the server and reflects the
- * result. On failure (offline / server error) it reverts the optimistic local
- * rows to their pre-edit snapshot and rebuilds the in-memory stores, then toasts
- * — web has no durable outbox, so an unsaved change must not silently linger.
+ * result. On failure (offline / server error) the rows that never reached the
+ * server split two ways: upserts STAY on the device as unsynced rows (see
+ * `webUnsyncedIds` — the header counts them and they are re-sent on online /
+ * focus / Retry / next start), while deletes are reverted to their pre-edit
+ * snapshot, because a hard-deleted row has nothing left to re-send from.
  */
-// Cap web /api/sync POSTs at the same op-count the native durable queue drains
-// (peekBatch). A collection import emits one mutation per card, so an un-chunked
-// web push of a big collection blew past the server's MAX_BATCH_SIZE (5000) and
-// got a 413 → "Change could not be saved" (the import never synced on mobile web).
-const WEB_PUSH_CHUNK = 500;
+// Cap web /api/sync POSTs well under the server's MAX_BATCH_SIZE (5000): an
+// un-chunked push of a big import 413'd and the collection never synced on
+// mobile web. 2000 keeps a 13k-card import to 7 round trips instead of 26 at
+// the native drain's 500, while leaving headroom under the cap.
+const WEB_PUSH_CHUNK = 2000;
 
 async function webPushInner(
   muts: queue.Mutation[],
@@ -1150,14 +1321,25 @@ async function webPushInner(
   // the server already accepted (F19: that showed a visible revert of committed
   // data). A subsequent pull() stamps the canonical rev idempotently.
   let committed = 0;
+  const totalSlices = Math.ceil(muts.length / WEB_PUSH_CHUNK);
+  const reportProgress = totalSlices > 1;
+  webPushActive++;
+  if (reportProgress) setPushProgress({ done: 0, total: totalSlices, ops: muts.length });
   try {
     for (let start = 0; start < muts.length; start += WEB_PUSH_CHUNK) {
       const slice = muts.slice(start, start + WEB_PUSH_CHUNK);
       // Everything from `start` on is still outstanding on the server, so that
-      // remainder — not the 500-op slice — is the printing-group baseline.
+      // remainder — not the slice — is the printing-group baseline.
       const { upserts, deletions, cardGroupChecks } = await buildOutbound(slice, muts.slice(start));
       const result = await pushSync({ upserts, deletions, cardGroupChecks });
       committed = start + slice.length;
+      if (reportProgress) {
+        setPushProgress({
+          done: Math.ceil(committed / WEB_PUSH_CHUNK),
+          total: totalSlices,
+          ops: muts.length,
+        });
+      }
       const hint = await applyPushResult(result);
       broadcastCursor(hint);
     }
@@ -1165,35 +1347,61 @@ async function webPushInner(
     recomputeError();
     markSynced();
   } catch (err) {
-    logger.warn('[sync] web write failed; reverting optimistic change:', err);
-    // Revert only the rows that never reached the server — committed chunks keep
-    // their optimistic value (the server has them; pull() reconciles the rev).
+    logger.warn('[sync] web write failed; keeping unsent rows on this device:', err);
+    // Committed chunks keep their optimistic value (the server has them;
+    // pull() reconciles the rev). Of the rest, upserts are kept locally and
+    // marked unsynced; deletes are reverted.
     const restoreByKind = new Map<EntityKind, estore.StoredRow[]>();
-    const removeByKind = new Map<EntityKind, string[]>();
+    let kept = 0;
+    let reverted = 0;
     for (const m of muts.slice(committed)) {
-      const prior = priors.get(`${m.kind}:${m.id}`);
-      if (prior) {
-        const arr = restoreByKind.get(m.kind) ?? [];
-        arr.push(prior);
-        restoreByKind.set(m.kind, arr);
-      } else {
-        const arr = removeByKind.get(m.kind) ?? [];
-        arr.push(m.id);
-        removeByKind.set(m.kind, arr);
+      if (m.op === 'upsert') {
+        webUnsyncedIds.add(`${m.kind}:${m.id}`);
+        kept++;
+        continue;
       }
+      const prior = priors.get(`${m.kind}:${m.id}`);
+      if (!prior) continue;
+      const arr = restoreByKind.get(m.kind) ?? [];
+      arr.push(prior);
+      restoreByKind.set(m.kind, arr);
+      reverted++;
     }
     for (const [kind, rows] of restoreByKind) await estore.putMany(kind, rows);
-    for (const [kind, ids] of removeByKind) await estore.deleteMany(kind, ids);
-    await rehydrateStoresFromIdb();
-    toast.show({
-      message:
-        typeof navigator !== 'undefined' && !navigator.onLine
+    if (reverted > 0) await rehydrateStoresFromIdb();
+    const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+    if (kept > 0) {
+      const what = kept === 1 ? '1 change' : `${kept.toLocaleString()} changes`;
+      toast.show(
+        offline
+          ? {
+              message: `You're offline. ${what} saved on this device, will sync when you reconnect.`,
+              tone: 'info',
+            }
+          : {
+              message: `Couldn't save ${what}. Kept on this device.`,
+              tone: 'error',
+              actionLabel: 'Retry',
+              onAction: () => void pushUnsyncedRows(),
+            }
+      );
+    } else {
+      toast.show({
+        message: offline
           ? "You're offline. Changes can't be saved."
           : "Couldn't save that change. Try again.",
-      tone: 'error',
-    });
+        tone: 'error',
+      });
+    }
     pushError = true;
     recomputeError();
+  } finally {
+    // Whatever the server took is no longer unsynced (a retry push re-sends
+    // rows that are in the set; a first push normally finds none there).
+    for (const m of muts.slice(0, committed)) webUnsyncedIds.delete(`${m.kind}:${m.id}`);
+    webPushActive--;
+    if (reportProgress) setPushProgress(null);
+    void refreshPending();
   }
 }
 
@@ -1210,14 +1418,25 @@ async function push(): Promise<void> {
   // has proved nothing about connectivity, so it must not clear `pushError` —
   // see the guard below.
   let pushedSomething = false;
+  let reportedProgress = false;
   try {
     // Every confirmed card delete still queued, read ONCE for this drain rather
     // than per batch (a 13k-card clear would otherwise re-walk the whole queue
     // 26 times). Acked ids are dropped below, so each batch's printing-group
     // baseline names exactly the copies the server still holds.
     let pendingDeletes = await queue.pendingCardDeletes();
+    // Same slice progress the web push reports, so a queued bulk import on
+    // native shows "Saving 3/7…" in the header instead of a bare spinner.
+    // Sized once from the queue depth at drain start; ops enqueued mid-drain
+    // just extend the loop, and the count clamps rather than overflows.
+    const queued = await queue.size();
+    const totalSlices = Math.ceil(queued / NATIVE_DRAIN_BATCH);
+    const reportProgress = totalSlices > 1;
+    reportedProgress = reportProgress;
+    if (reportProgress) setPushProgress({ done: 0, total: totalSlices, ops: queued });
+    let drained = 0;
     while (true) {
-      const batch = await queue.peekBatch(500);
+      const batch = await queue.peekBatch(NATIVE_DRAIN_BATCH);
       if (batch.length === 0) break;
 
       const { upserts, deletions, cardGroupChecks } = await buildOutbound(
@@ -1231,6 +1450,10 @@ async function push(): Promise<void> {
 
       await queue.ack(batch.map((b) => b.seq));
       pushedSomething = true;
+      drained++;
+      if (reportProgress) {
+        setPushProgress({ done: Math.min(drained, totalSlices), total: totalSlices, ops: queued });
+      }
       const sent = new Set(batch.map((b) => b.m.id));
       pendingDeletes = pendingDeletes.filter((m) => !sent.has(m.id));
       void refreshPending();
@@ -1273,6 +1496,9 @@ async function push(): Promise<void> {
     recomputeError();
   } finally {
     isPushing = false;
+    // Only clear what THIS drain reported — on web an empty-queue drain can
+    // overlap a chunked write-through that owns the progress signal.
+    if (reportedProgress) setPushProgress(null);
   }
 }
 
@@ -1467,6 +1693,7 @@ function attachLifecycleListeners(): void {
   window.addEventListener('online', onOnline);
   window.addEventListener('offline', onOffline);
   window.addEventListener('focus', onFocus);
+  window.addEventListener('beforeunload', onBeforeUnload);
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', onVisibilityChange);
   }
@@ -1495,6 +1722,7 @@ function detachLifecycleListeners(): void {
   window.removeEventListener('online', onOnline);
   window.removeEventListener('offline', onOffline);
   window.removeEventListener('focus', onFocus);
+  window.removeEventListener('beforeunload', onBeforeUnload);
   if (typeof document !== 'undefined') {
     document.removeEventListener('visibilitychange', onVisibilityChange);
   }
@@ -1514,6 +1742,7 @@ function detachLifecycleListeners(): void {
 function onOnline(): void {
   setOnline(true);
   void push();
+  void pushUnsyncedRows();
   void pull();
 }
 function onOffline(): void {
@@ -1523,7 +1752,20 @@ function onFocus(): void {
   const now = Date.now();
   if (now - lastFocusPullAt < FOCUS_PULL_THROTTLE_MS) return;
   lastFocusPullAt = now;
+  void pushUnsyncedRows();
   void pull();
+}
+/**
+ * A tab closing mid-push would strand the unsent tail as local-only rows.
+ * They are recovered on the next start (scanUnsyncedRows), but only in THIS
+ * browser — the user's other devices would not see the import until then, so
+ * warn while a push is actually in flight. Silent otherwise.
+ */
+function onBeforeUnload(e: BeforeUnloadEvent): void {
+  if (webPushActive === 0) return;
+  e.preventDefault();
+  // Legacy hook for browsers that still require it to show the prompt.
+  e.returnValue = '';
 }
 function onVisibilityChange(): void {
   if (document.visibilityState === 'visible') onFocus();
@@ -1653,6 +1895,22 @@ async function rehydrateStoresFromIdb(): Promise<void> {
     estore.getAllLive('deck'),
     estore.getAllLive('cube'),
   ]);
+
+  // Note the rows still at rev 0 while they are in hand (see
+  // hydratedUnsyncedIds) — the same rows a separate scan would have re-read.
+  const unsynced = new Set<string>();
+  const byKind: Array<[EntityKind, estore.StoredRow[]]> = [
+    ['card', cards],
+    ['import', imports],
+    ['list', lists],
+    ['binder', binders],
+    ['deck', decks],
+    ['cube', cubes],
+  ];
+  for (const [kind, rows] of byKind) {
+    for (const r of rows) if (r.rev <= 0) unsynced.add(`${kind}:${r.id}`);
+  }
+  hydratedUnsyncedIds = unsynced;
 
   // Card rows are stored WITHOUT price (it lives device-local, see card-prices).
   // Merge the live price back on before the cards reach the in-memory store, so
