@@ -84,6 +84,15 @@ function RulesReferenceBody({ onClose }: { onClose: () => void }) {
           onQueryChange={setQuery}
           autoFocusSearch={autoFocusSearch}
           bodyClassName="modal-body"
+          onLeave={() => beginClose()}
+          onAsk={
+            aiStatus
+              ? (question) => {
+                  beginClose();
+                  navigate('/rules?tab=ask', { state: { question } });
+                }
+              : undefined
+          }
         />
 
         {/* The escalation door (E261): browsing didn't settle it → the Ask tab

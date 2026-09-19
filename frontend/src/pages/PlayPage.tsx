@@ -9,7 +9,7 @@ import '@/styles/play-enhancements.css';
 import '@/styles/play-layout-editor.css';
 import '@/styles/play-counters-panel.css';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
-import { BookOpen, Check, Copy, Swords, X } from 'lucide-react';
+import { Check, Copy, Swords, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
@@ -26,7 +26,6 @@ import {
 import { listFriends, type Friend } from '../lib/friends-client';
 import { getPod, listPods, type Pod } from '../lib/pods-client';
 import { formatIdentity } from '../lib/display-name';
-import { useRulesReferenceStore } from '../store/rules-reference';
 import { toast } from '../store/toasts';
 import { GameBoard } from '../components/play/GameBoard';
 import { OnlineGameView } from '../components/play/OnlineGameView';
@@ -57,7 +56,6 @@ export function PlayPage() {
   const isGuest = useAuth((s) => s.status === 'guest');
   const signInHref = useSignInPath();
   const decks = useDecksStore((s) => s.decks);
-  const openRules = useRulesReferenceStore((s) => s.open);
 
   const local = usePlayStore((s) => s.local);
   const online = usePlayStore((s) => s.online);
@@ -206,13 +204,7 @@ export function PlayPage() {
     <div className="play-page">
       <header className="binder-hero play-page-hero">
         <div className="play-page-hero-text">
-          <div className="play-page-title-row">
-            <h1 className="binder-hero-name">Play</h1>
-            <button type="button" className="pill-btn play-page-rules-btn" onClick={openRules}>
-              <BookOpen width={16} height={16} strokeWidth={2} aria-hidden />
-              Rules
-            </button>
-          </div>
+          <h1 className="binder-hero-name">Play</h1>
           <p className="play-page-hero-sub">
             Track a table in person, or play across devices with a join code.
           </p>

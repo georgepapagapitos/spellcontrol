@@ -4,7 +4,6 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlayPage } from './PlayPage';
-import { useRulesReferenceStore } from '../store/rules-reference';
 import { usePlayStore } from '../store/play';
 import { useAuth } from '../store/auth';
 import type { GameRecord } from '../lib/game-state';
@@ -180,12 +179,12 @@ describe('Local setup — seat name field (B7-05)', () => {
   });
 });
 
-describe('PlayPage rules button', () => {
-  it('opens the rules reference sheet', () => {
+describe('PlayPage rules door', () => {
+  // The hero's own Rules pill duplicated the header door one row above it
+  // (settled 2026-09-19): mid-game has the game menu, setup has the header.
+  it('has no Rules button of its own', () => {
     renderPage('/play?tab=local');
-    expect(useRulesReferenceStore.getState().isOpen).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: 'Rules' }));
-    expect(useRulesReferenceStore.getState().isOpen).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Rules' })).toBeNull();
   });
 });
 

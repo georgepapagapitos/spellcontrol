@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { SearchPill } from './SearchPill';
 import { Tabs } from './Tabs';
+import { openEntryMenu, RulesEntryMenu, type RulesEntry } from './RulesEntryMenu';
 import {
   loadRulesBundle,
   searchGlossary,
@@ -62,6 +63,10 @@ interface Props {
   showTabs?: boolean;
   searchClassName?: string;
   bodyClassName?: string;
+  /** Present while AI is available: every row's menu can hand it to Ask. */
+  onAsk?: (question: string) => void;
+  /** Called before a row's menu navigates elsewhere (the sheet closes). */
+  onLeave?: () => void;
 }
 
 /**
@@ -81,6 +86,8 @@ export function RulesReference({
   showTabs = true,
   searchClassName,
   bodyClassName,
+  onAsk,
+  onLeave,
 }: Props) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const loaded = bundle && bundle !== 'error' ? bundle : null;
@@ -98,6 +105,8 @@ export function RulesReference({
     onQueryChange(number);
     setExpanded(null);
   };
+
+  const menu: MenuProps = { onAsk, onLeave };
 
   const tabs = [
     { id: 'keywords' as const, label: 'Keywords', controls: 'rules-ref-panel' },
@@ -153,11 +162,12 @@ export function RulesReference({
             onToggle={(name) => setExpanded((cur) => (cur === name ? null : name))}
             glossaryByTerm={glossaryByTerm}
             onJump={jumpToRule}
+            menu={menu}
           />
         ) : tab === 'glossary' ? (
-          <GlossaryList bundle={loaded} query={query} onJump={jumpToRule} />
+          <GlossaryList bundle={loaded} query={query} onJump={jumpToRule} menu={menu} />
         ) : (
-          <RulesList bundle={loaded} query={query} onJump={jumpToRule} />
+          <RulesList bundle={loaded} query={query} onJump={jumpToRule} menu={menu} />
         )}
       </div>
     </>
@@ -204,6 +214,38 @@ function Empty({ what }: { what: string }) {
   return <p className="rules-ref-status">No {what} match your search.</p>;
 }
 
+type MenuProps = Pick<Props, 'onAsk' | 'onLeave'>;
+
+const address = (tab: RulesReferenceTab, q: string) =>
+  `/rules?tab=${tab}&q=${encodeURIComponent(q)}`;
+
+/** One numbered rule: its number, its text with jump links, and its menu. */
+function RuleRow({
+  number,
+  text,
+  onJump,
+  menu,
+}: {
+  number: string;
+  text: string;
+  onJump: (n: string) => void;
+  menu: MenuProps;
+}) {
+  const entry: RulesEntry = {
+    label: `Rule ${number}`,
+    text: `${number} ${text}`,
+    href: address('rules', number),
+    question: `Explain rule ${number}.`,
+  };
+  return (
+    <div className="rules-ref-rule" onContextMenu={openEntryMenu}>
+      <span className="rules-ref-rule-num">{number}</span>
+      <span className="rules-ref-rule-text">{withRuleLinks(text, onJump)}</span>
+      <RulesEntryMenu entry={entry} {...menu} />
+    </div>
+  );
+}
+
 function KeywordList({
   bundle,
   query,
@@ -211,6 +253,7 @@ function KeywordList({
   onToggle,
   glossaryByTerm,
   onJump,
+  menu,
 }: {
   bundle: RulesBundle;
   query: string;
@@ -218,6 +261,7 @@ function KeywordList({
   onToggle: (name: string) => void;
   glossaryByTerm: Map<string, string>;
   onJump: (n: string) => void;
+  menu: MenuProps;
 }) {
   const results = useMemo(() => searchKeywords(bundle.keywords, query), [bundle, query]);
   if (results.length === 0) return <Empty what="keywords" />;
@@ -226,26 +270,39 @@ function KeywordList({
       {results.map((k) => {
         const isOpen = expanded === k.name;
         const summary = glossaryByTerm.get(k.name.toLowerCase());
+        const entry: RulesEntry = {
+          label: k.name,
+          text: summary ? `${k.name} (${k.rule}): ${summary}` : `${k.name}, rule ${k.rule}`,
+          href: address('keywords', k.name),
+          keyword: k.kind === 'ability' ? k.name : undefined,
+          question: `How does ${k.name} work?`,
+        };
         return (
           <li key={`${k.kind}-${k.rule}`} className="rules-ref-keyword">
-            <button
-              type="button"
-              className="rules-ref-keyword-head"
-              aria-expanded={isOpen}
-              onClick={() => onToggle(k.name)}
-            >
-              <span className="rules-ref-keyword-name">{k.name}</span>
-              <span className={`rules-ref-badge rules-ref-badge-${k.kind}`}>{k.kind}</span>
-              <span className="rules-ref-keyword-rule">{k.rule}</span>
-            </button>
+            <div className="rules-ref-keyword-row" onContextMenu={openEntryMenu}>
+              <button
+                type="button"
+                className="rules-ref-keyword-head"
+                aria-expanded={isOpen}
+                onClick={() => onToggle(k.name)}
+              >
+                <span className="rules-ref-keyword-name">{k.name}</span>
+                <span className={`rules-ref-badge rules-ref-badge-${k.kind}`}>{k.kind}</span>
+                <span className="rules-ref-keyword-rule">{k.rule}</span>
+              </button>
+              <RulesEntryMenu entry={entry} {...menu} />
+            </div>
             {summary && !isOpen && <p className="rules-ref-keyword-summary">{summary}</p>}
             {isOpen && (
               <div className="rules-ref-keyword-body">
                 {subrulesFor(bundle.rules, k.rule).map((r) => (
-                  <p key={r.number} className="rules-ref-rule">
-                    <span className="rules-ref-rule-num">{r.number}</span>
-                    <span className="rules-ref-rule-text">{withRuleLinks(r.text, onJump)}</span>
-                  </p>
+                  <RuleRow
+                    key={r.number}
+                    number={r.number}
+                    text={r.text}
+                    onJump={onJump}
+                    menu={menu}
+                  />
                 ))}
               </div>
             )}
@@ -260,10 +317,12 @@ function GlossaryList({
   bundle,
   query,
   onJump,
+  menu,
 }: {
   bundle: RulesBundle;
   query: string;
   onJump: (n: string) => void;
+  menu: MenuProps;
 }) {
   // ponytail: renders all ~720 terms unfiltered; plain rows so it's fine. Add
   // virtualization if the glossary ever balloons.
@@ -272,8 +331,19 @@ function GlossaryList({
   return (
     <dl className="rules-ref-glossary">
       {results.map((g) => (
-        <div key={g.term} className="rules-ref-glossary-entry">
-          <dt className="rules-ref-glossary-term">{g.term}</dt>
+        <div key={g.term} className="rules-ref-glossary-entry" onContextMenu={openEntryMenu}>
+          <dt className="rules-ref-glossary-term">
+            <span>{g.term}</span>
+            <RulesEntryMenu
+              entry={{
+                label: g.term,
+                text: `${g.term}: ${g.definition}`,
+                href: address('glossary', g.term),
+                question: `What does "${g.term}" mean in the rules?`,
+              }}
+              {...menu}
+            />
+          </dt>
           <dd className="rules-ref-glossary-def">{withRuleLinks(g.definition, onJump)}</dd>
         </div>
       ))}
@@ -285,10 +355,12 @@ function RulesList({
   bundle,
   query,
   onJump,
+  menu,
 }: {
   bundle: RulesBundle;
   query: string;
   onJump: (n: string) => void;
+  menu: MenuProps;
 }) {
   const LIMIT = 200;
   const results = useMemo(() => searchRules(bundle.rules, query, LIMIT), [bundle, query]);
@@ -296,10 +368,7 @@ function RulesList({
   return (
     <div className="rules-ref-rules">
       {results.map((r) => (
-        <p key={r.number} className="rules-ref-rule">
-          <span className="rules-ref-rule-num">{r.number}</span>
-          <span className="rules-ref-rule-text">{withRuleLinks(r.text, onJump)}</span>
-        </p>
+        <RuleRow key={r.number} number={r.number} text={r.text} onJump={onJump} menu={menu} />
       ))}
       {results.length >= LIMIT && (
         <p className="rules-ref-status">Showing the first {LIMIT} matches. Refine your search.</p>
