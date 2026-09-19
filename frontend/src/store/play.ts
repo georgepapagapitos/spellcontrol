@@ -184,6 +184,17 @@ export function recordToRematch(rec: GameRecord): RematchTemplate {
  *  different trust: a play line is machine-generated from state under the
  *  projection.ts visibility contract, a chat line is free text another
  *  player wrote. Renderers must not present the second as the first. */
+/** One arrow on the table. `id` is the signal identity, unique per table. */
+export interface TableArrow {
+  id: string;
+  /** The seat that drew it. */
+  seat: number;
+  fromSeat: number;
+  fromCardId?: string;
+  toSeat: number;
+  toCardId?: string;
+}
+
 export type TickerItem =
   | { id: number; seat: number; kind: 'play'; entry: TickerEntry }
   | { id: number; seat: number; kind: 'chat'; text: string };
@@ -223,6 +234,12 @@ interface PlayState {
    * transiently. Reset whenever the online session starts or ends.
    */
   onlineSignal: { seq: number; signal: GameSignal } | null;
+  /**
+   * Arrows drawn on the table — a point that stays. Every seat sees the same
+   * list: `add` appends, `clear` drops every arrow its author drew. Ephemeral
+   * like the other signals (no catch-up on reconnect), reset with the session.
+   */
+  onlineArrows: TableArrow[];
   /**
    * The play ticker: a merged, arrival-ordered feed of every seat's public
    * log lines for the active online game — "Maya played Sol Ring" narrative
@@ -491,6 +508,8 @@ function applyServerRequest(request: GameRequest, set: PlaySet): void {
  * `tickerSeen`.
  */
 const signalSeen = new Set<string>();
+/** Most arrows the table keeps at once; the oldest fall off first. */
+const ARROW_LIMIT = 24;
 const SIGNAL_SEEN_LIMIT = 200;
 
 /**
@@ -518,6 +537,22 @@ function applyServerSignal(signal: GameSignal, set: PlaySet): void {
     const next: Partial<PlayState> = {
       onlineSignal: { seq: (s.onlineSignal?.seq ?? 0) + 1, signal },
     };
+    if (signal.kind === 'arrow') {
+      if (signal.op === 'clear') {
+        next.onlineArrows = s.onlineArrows.filter((a) => a.seat !== signal.seat);
+      } else if (signal.op === 'add' && signal.fromSeat != null && signal.toSeat != null) {
+        const arrow: TableArrow = {
+          id: identity,
+          seat: signal.seat,
+          fromSeat: signal.fromSeat,
+          toSeat: signal.toSeat,
+          ...(signal.fromCardId !== undefined && { fromCardId: signal.fromCardId }),
+          ...(signal.toCardId !== undefined && { toCardId: signal.toCardId }),
+        };
+        // Bounded: a table that never clears still can't grow this without end.
+        next.onlineArrows = [...s.onlineArrows, arrow].slice(-ARROW_LIMIT);
+      }
+    }
     // `text` is non-empty by construction server-side; the guard is for a
     // frame from an older/other client that sent a chat kind without one.
     if (signal.kind === 'chat' && signal.text) {
@@ -666,6 +701,7 @@ function resetOnlineState(
     onlineBoards: {},
     onlineRequests: {},
     onlineSignal: null,
+    onlineArrows: [],
     onlineTicker: [],
   });
 }
@@ -716,6 +752,7 @@ export const usePlayStore = create<PlayState>()(
       onlineBoards: {},
       onlineRequests: {},
       onlineSignal: null,
+      onlineArrows: [],
       onlineTicker: [],
       history: [],
       pendingResults: [],
@@ -888,6 +925,7 @@ export const usePlayStore = create<PlayState>()(
           onlineBoards: {},
           onlineRequests: {},
           onlineSignal: null,
+          onlineArrows: [],
           onlineTicker: [],
         });
         get().startPolling();
@@ -907,6 +945,7 @@ export const usePlayStore = create<PlayState>()(
           onlineBoards: {},
           onlineRequests: {},
           onlineSignal: null,
+          onlineArrows: [],
           onlineTicker: [],
         });
         get().startPolling();
@@ -1081,6 +1120,7 @@ export const usePlayStore = create<PlayState>()(
             onlineBoards: {},
             onlineRequests: {},
             onlineSignal: null,
+            onlineArrows: [],
             onlineTicker: [],
           });
         }

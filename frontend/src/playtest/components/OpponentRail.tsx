@@ -200,6 +200,7 @@ function OpponentEntry({
         sweeping && 'opponent-entry--turn-sweep',
         pointed && 'is-pointed'
       )}
+      data-seat-anchor={board.seat}
       style={{
         ['--opp-base' as never]: palette.base,
         ['--opp-edge' as never]: palette.edge,

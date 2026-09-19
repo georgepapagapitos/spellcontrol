@@ -161,7 +161,7 @@ export async function postBoard(code: string, board: PublicBoard): Promise<void>
  * reaches only who is connected now and is gone on reload, same as an emote.
  */
 export interface GameSignal {
-  kind: 'reaction' | 'roll' | 'chat' | 'point';
+  kind: 'reaction' | 'roll' | 'chat' | 'point' | 'arrow';
   seat: number;
   ts: number;
   /** reaction only — one of the fixed emote set (validated server-side). */
@@ -180,13 +180,30 @@ export interface GameSignal {
    *  target board must degrade to exactly that, since the server does not
    *  (and cannot reliably) validate the id against live board state. */
   cardId?: string;
+  /** arrow only: `add` draws one from (fromSeat, fromCardId?) to (toSeat,
+   *  toCardId?); `clear` removes every arrow this seat drew. A missing card
+   *  id, or one a receiver can't find, means the seat as a whole. */
+  op?: 'add' | 'clear';
+  fromSeat?: number;
+  fromCardId?: string;
+  toSeat?: number;
+  toCardId?: string;
 }
 
 export type GameSignalInput =
   | { kind: 'reaction'; emote: string }
   | { kind: 'roll'; die: NonNullable<GameSignal['die']> }
   | { kind: 'chat'; text: string }
-  | { kind: 'point'; targetSeat: number; cardId?: string };
+  | { kind: 'point'; targetSeat: number; cardId?: string }
+  | {
+      kind: 'arrow';
+      op: 'add';
+      fromSeat: number;
+      fromCardId?: string;
+      toSeat: number;
+      toCardId?: string;
+    }
+  | { kind: 'arrow'; op: 'clear' };
 
 export async function sendGameSignal(code: string, input: GameSignalInput): Promise<GameSignal> {
   const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/signal`, {
