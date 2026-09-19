@@ -24,6 +24,7 @@ function toPlaytestCard(card: ScryfallCard, id: string): PlaytestCard {
       ? (getCardBackFaceUrl(card, 'normal') ?? undefined)
       : undefined,
     manaValue: card.cmc,
+    manaCost: card.mana_cost,
     typeLine: card.type_line,
   };
 }

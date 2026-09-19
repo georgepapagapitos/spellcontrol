@@ -1,5 +1,6 @@
 import { useDroppable } from '@dnd-kit/core';
 import type { BattlefieldCard } from '@/lib/playtest';
+import { useLongPress } from '@/lib/use-long-press';
 import { PlaytestCardView } from './PlaytestCardView';
 
 interface Props {
@@ -8,6 +9,9 @@ interface Props {
   selectedIds: ReadonlySet<string>;
   /** A click that landed on the battlefield itself, not on a card. */
   onBackgroundClick(): void;
+  /** Right-click, or a touch long-press, on bare felt — opens the table
+   *  menu. Omitted on tiers that have no table menu. */
+  onBackgroundContextMenu?(x: number, y: number): void;
   onCardClick(cardId: string, e: React.MouseEvent | React.KeyboardEvent): void;
   onCardContextMenu(cardId: string, e: React.MouseEvent): void;
   onCardLongPress?(cardId: string, clientX: number, clientY: number): void;
@@ -17,11 +21,17 @@ export function Battlefield({
   cards,
   selectedIds,
   onBackgroundClick,
+  onBackgroundContextMenu,
   onCardClick,
   onCardContextMenu,
   onCardLongPress,
 }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: 'battlefield' });
+  // Touch route to the table menu. Cards run their own long-press first and
+  // their touches are not the felt's, so this only ever starts on bare felt.
+  const bgPress = useLongPress({
+    onLongPress: (x, y) => onBackgroundContextMenu?.(x, y),
+  });
   return (
     <div
       ref={setNodeRef}
@@ -39,6 +49,26 @@ export function Battlefield({
       onClick={(e) => {
         if (e.target === e.currentTarget) onBackgroundClick();
       }}
+      onContextMenu={
+        onBackgroundContextMenu
+          ? (e) => {
+              if (e.target !== e.currentTarget) return;
+              e.preventDefault();
+              onBackgroundContextMenu(e.clientX, e.clientY);
+            }
+          : undefined
+      }
+      onTouchStart={
+        onBackgroundContextMenu
+          ? (e) => {
+              if (e.target !== e.currentTarget) return;
+              bgPress.onTouchStart(e);
+            }
+          : undefined
+      }
+      onTouchMove={onBackgroundContextMenu ? bgPress.onTouchMove : undefined}
+      onTouchEnd={onBackgroundContextMenu ? bgPress.onTouchEnd : undefined}
+      onTouchCancel={onBackgroundContextMenu ? bgPress.onTouchCancel : undefined}
     >
       {cards.length === 0 && (
         <p className="playtest-battlefield__empty">Tap or drag a card from your hand to play it</p>

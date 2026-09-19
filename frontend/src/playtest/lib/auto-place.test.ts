@@ -70,6 +70,18 @@ describe('autoPlace', () => {
     expect(ys[1]).toBeGreaterThan(ys[2]);
   });
 
+  it('keeps the rows out of a reserved top band (the floating life panel)', () => {
+    const enchant = card('e1', { typeLine: 'Enchantment' });
+    const cardH = 126;
+    const free = autoPlace(enchant, [], { ...rect, cardW: 90, cardH });
+    const reserved = autoPlace(enchant, [], { ...rect, cardW: 90, cardH, reservedTop: 0.3 });
+    // The y fraction resolves against (height - cardH); the top edge in px
+    // must clear the band regardless of where the free layout put it.
+    const topPx = reserved.y * (rect.height - cardH);
+    expect(topPx).toBeGreaterThanOrEqual(rect.height * 0.3 - 1e-6);
+    expect(reserved.y).toBeGreaterThan(free.y);
+  });
+
   it('cascades horizontally for siblings of the same row', () => {
     const creature1 = card('c1', { typeLine: 'Creature' });
     const first = autoPlace(creature1, [], rect);

@@ -1822,11 +1822,18 @@ Untap):
   readable. It never overlaps cards while the row has room (the old 30%
   cascade hid names from the second card on). A face-down play lands in the
   creature row — it is a 2/2 whatever it was printed as.
-- **Hover / focus preview on fine pointers.** `CardHoverPreview` shows the
-  full face beside any card carrying `data-preview-id` (set by
-  `PlaytestCardFace`; absent when face-down — the URL resolves from React state, never from the DOM) after a 220ms rest, immediately
-  on keyboard focus, hidden while dragging or while any sheet is open. Touch
-  gets no hover — its path is long-press → menu → Preview.
+- **Hover / focus preview on fine pointers lands in ONE slot.** `CardHoverPreview`
+  shows the full face for any card carrying `data-preview-id` (set by
+  `PlaytestCardFace`; absent when face-down, the URL resolves from React state,
+  never from the DOM) after a 220ms rest, immediately on keyboard focus, hidden
+  while dragging or while any modal sheet is open (the docked log is not a
+  sheet). The face is a fixed pane, `min(22rem, 24vw)` wide, vertically centred
+  at the table's right edge; it flips to the left edge only when the hovered
+  card itself would sit under it (a permanent parked at the far right, a zone
+  pile). A tooltip that floats beside the card was tried first and covers the
+  neighbours you are comparing against; a fixed slot never covers what it
+  describes and the eye learns where to look. Touch gets no hover: its path is
+  long-press, menu, Preview.
 - **Every card surface has a menu, and it says what it will do.** Battlefield
   permanents and hand cards both open a menu (right-click, long-press, the
   Context Menu key or Shift+Enter — on every pointer type, desktop included)
@@ -1858,9 +1865,88 @@ Untap):
   it and keeps it at zero while open; a pending seat's first board seeds the
   baseline. It is never hidden in presence density — a change you missed is
   exactly what a crowded strip must still tell you.
-- **Life and mana share one row** (`.playtest-trackers`) wherever both fit —
-  two bordered chrome rows above the board were 45px of battlefield at every
-  tier; below 1024px they wrap to two rows again.
+- **Life and mana share one row** (`.playtest-trackers`) **on the narrow
+  tier** — two bordered chrome rows above the board were 45px of battlefield,
+  and below 1024px they wrap to two rows again. At ≥1024px they are not a row
+  at all: see the next subsection.
+
+### Table chrome at ≥1024px: corners, not rows
+
+Settled 2026-09-18 against EDHPlay. At the table tier the board is **one
+full-bleed felt and nothing else** — every row of chrome is gone and what it
+carried floats in the corners. Below 1024px, and in the short-landscape phone
+tier, nothing changed: those tiers keep the header, the action bar, the
+tracker rows, the flat hand strip and `MobileZonesPanel` exactly as they were.
+The split is made in JS (`useNarrowViewport`), so most of the table's CSS
+lives on classes only the wide tier's markup carries and needs no media query;
+only shared elements (the felt itself, the density cap) are gated on
+`@media (min-width: 1024px)`.
+
+- **No rows.** `.playtest-page__header` renders only when narrow
+  (`PlaytestSession`), and `ActionBar` + `.playtest-trackers` only when narrow
+  (`PlaytestBoard`). Nothing the bar offered may become unreachable: every one
+  of its actions is in the top-right game menu, the table menu, or a corner
+  button, and each is one shared handler behind all three.
+- **Four corners, anchored to the felt.** The clusters are `position:
+absolute` inside `.playtest-battlefield-wrap`, not inside `.playtest-board`,
+  so an opponent rail (a flex sibling of the wrap) is never underneath one.
+  Top-left: **your own** life as the panel's headline, a display numeral
+  between two 44px ±1 steppers (`usePressRepeat`, so a ten-point swing is one
+  hold), with a Details row and the numeral itself both opening the same
+  `LifeAdjustPanel` the strip uses. Everyone else, virtual opponent or real
+  seat, is a secondary row of small name+life chips underneath: four
+  equal-weight chips told you nothing about whose board you were looking at.
+  The mana tracker is the **last row of that same panel** — nothing at all
+  while the pool is empty and closed, a "Mana · 3" chip while mana is
+  floating, the full pool once opened by the chip or `M`. This is
+  `LifeStrip`'s `variant="table"`; the narrow tier keeps the strip untouched.
+  Top-right: the `☰` game menu (44×44, an `OverflowMenu`
+  so the keyboard nav is the shared one), the TURN chip, the primary turn
+  action, then the online-only phase/reaction/hold controls, Take back and
+  Select. Bottom-right: the zone piles as a horizontal row, each labelled
+  `Library (92)` with the count in the label, Library carrying an inline
+  "Draw · D". Bottom-centre: the hand fan, each non-land card badged with its
+  real mana cost as mana-font pips (`ManaCost`, off the new optional
+  `PlaytestCard.manaCost`; a pre-badge snapshot falls back to the bare mana
+  value, and lands and tokens carry no badge at all). Bottom-left: the log
+  dock. The empty-table hint stays, quietly, and says nothing once the hand
+  is collapsed: it names a hand that is not on screen.
+- **Banners float, they never displace.** `ResistanceBanner`, the session
+  summary and the takeback pending banner stack top-centre in
+  `.playtest-banners` (max 36rem), under the corner clusters' z-index.
+- **Fan geometry.** Each card sits in a `.playtest-hand__slot` whose inline
+  transform is `rotate(i × 2deg)` plus a squared translateY arc, with
+  `transform-origin: bottom center` and a negative `margin-left` after the
+  first. **The overlap is adaptive, never a constant** (`lib/fan-layout.ts`):
+  it spreads the hand into the width between the log dock's reserved band and
+  the pile row, capped at 52vw, and clamped to 0.12–0.45, so seven cards read
+  as seven cards and fifteen still fit. A fixed 0.45 made a normal hand
+  unreadable on a wide table. The `Hand (n)` toggle is bottom-anchored at the
+  fan's right end, on the same baseline as the pile row opposite it. The
+  **lift is on the card, never the
+  slot** — the slot owns the fan rotation, so lifting the card leaves every
+  neighbour still. Hover and `:focus-visible` both lift. dnd-kit composes by
+  construction: the source card is never transformed (the moving copy is the
+  top-level `<DragOverlay>`). A `Hand (n)` toggle collapses the fan to a pill
+  that is still a drop target; the state is a per-viewer localStorage
+  convenience and is ignored on the narrow tier.
+- **The table has a menu.** Right-click on bare felt (or the Context Menu key
+  / Shift+F10, or a long-press on a touch tablet) opens `TableContextMenu` on
+  the shared `CtxMenuShell`, each item naming its key: Draw `D`, Next turn `N`
+  or Pass turn `Space`, Untap all `U`, Top cards, Create token `K`, Roll dice,
+  Select, Reactions (online), Log `L`. This menu is where the board's
+  shortcuts are discovered, so an item without its key is a bug.
+- **The felt says whose turn it is.** `.playtest-battlefield-wrap` carries the
+  theme's two accent glows plus a 40px `repeating-linear-gradient` grid, and a
+  2px inset `--brand-seal-gold` ring **only** while `activeSeat === mySeat` at
+  an online table. Solo play has no turn order to signal and never rings.
+- **Density follows the fan, not the vanished rows.** `--pt-card-w` is
+  `clamp(90px, min(7vw, (100vh - 40px) / 7.6), 140px)`: three type rows (3.0
+  card heights) plus the fan's reserved bottom (1.3) plus the life panel's
+  reserved top (1.1) is 5.4 card heights = 7.56 card widths, and the 40px is
+  the fan's own padding and toggle. Both reservations are real inputs to
+  `auto-place.ts` (`reservedBottom` / `reservedTop`, fractions, never pixels),
+  so nothing auto-played lands under the fan, the piles, or the life panel.
 
 ### Opening hand — a takeover at 1024px and up, a sheet below
 

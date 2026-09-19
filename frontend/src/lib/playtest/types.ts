@@ -24,6 +24,10 @@ export interface PlaytestCard {
    *  tokens and single-faced cards never have one. */
   backImageUrl?: string;
   manaValue?: number;
+  /** Scryfall mana-cost payload ("{2}{R}{R}") for the hand fan's cost badge.
+   *  Optional, and absent from every snapshot saved before the badge existed,
+   *  which is exactly why the badge falls back to the bare `manaValue`. */
+  manaCost?: string;
   typeLine?: string;
   isToken?: boolean;
 }

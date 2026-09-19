@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { isOpponentDefeated, type OpponentLife } from '@/lib/playtest';
 import { paletteForIndex } from '@/lib/seat-palette';
+import { usePressRepeat } from '@/lib/use-press-repeat';
 import { cmdDamageKey, type GamePlayer } from '@/lib/game-state';
 import { LifeAdjustPanel, type CmdDamageRow, type OnlinePanelData } from './LifeAdjustPanel';
 import type { OnlineTable } from '../hooks/use-online-table';
@@ -29,6 +31,17 @@ interface Props {
   /** Opens the shared `OpponentBoardModal` for a seat — "View board" inside
    *  an online opponent's panel. Required whenever `onlineTable` is set. */
   onViewOpponentBoard?(seat: number): void;
+  /**
+   * `strip` (default) is the one-row chip strip every narrow tier uses.
+   * `table` is the ≥1024px corner panel: YOUR life as a display numeral with
+   * inline steppers, a Details row that opens the same `LifeAdjustPanel`, and
+   * the other players demoted to a secondary row of small chips underneath.
+   * Same data, same panel, same handlers — only the arrangement differs.
+   */
+  variant?: 'strip' | 'table';
+  /** Table variant only: rendered as the panel's last row. The board passes
+   *  the mana tracker here so life and mana are one panel, not two floaters. */
+  footer?: ReactNode;
 }
 
 type Selected = 'self' | number | null;
@@ -86,6 +99,8 @@ export function LifeStrip({
   onOpenChange,
   onlineTable,
   onViewOpponentBoard,
+  variant = 'strip',
+  footer,
 }: Props) {
   const [selected, setSelected] = useState<Selected>(null);
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
@@ -113,6 +128,8 @@ export function LifeStrip({
         anchorRect={anchorRect}
         openPanel={openPanel}
         closePanel={closePanel}
+        variant={variant}
+        footer={footer}
       />
     );
   }
@@ -131,6 +148,61 @@ export function LifeStrip({
   ].filter((label): label is string => Boolean(label));
 
   const selfCounters = counterEntries(playerCounters);
+
+  const adjustPanel = selected !== null && (
+    <LifeAdjustPanel
+      variant={isNarrow ? 'sheet' : 'floating'}
+      anchorRect={anchorRect}
+      title={selected === 'self' ? 'You' : opponentLabel(selected)}
+      life={selected === 'self' ? life : opponents[selected].life}
+      lifeEditable
+      commanderDamage={selected === 'self' ? undefined : opponents[selected].commanderDamage}
+      commanderDamageThreshold={commanderDamageThreshold}
+      defeated={
+        selected !== 'self' && isOpponentDefeated(opponents[selected], commanderDamageThreshold)
+      }
+      counters={(selected === 'self' ? playerCounters : opponents[selected].counters) ?? {}}
+      onClose={closePanel}
+      onAdjustCounter={(kind, delta) => onAdjustCounter(selected, kind, delta)}
+      onAdjustLife={(delta) => onAdjustLife(selected, delta)}
+      onAdjustCommanderDamage={
+        selected === 'self' ? undefined : (delta) => onAdjustCommanderDamage(selected, delta)
+      }
+    />
+  );
+
+  if (variant === 'table') {
+    return (
+      <TableLifePanel
+        life={life}
+        onAdjustLife={(delta) => onAdjustLife('self', delta)}
+        onOpenSelf={(e) => openPanel('self', e)}
+        designations={heldDesignationLabels}
+        counters={selfCounters}
+        seats={opponents.map((o, i) => {
+          const defeated = isOpponentDefeated(o, commanderDamageThreshold);
+          const oppCounters = counterEntries(o.counters);
+          return {
+            key: String(i),
+            label: opponents.length > 1 ? `Opp ${i + 1}` : 'Opponent',
+            life: o.life,
+            defeated,
+            ariaLabel: `${opponentLabel(i)}: ${o.life} life${
+              o.commanderDamage > 0 ? `, ${o.commanderDamage} commander damage` : ''
+            }${
+              oppCounters.length > 0
+                ? `, ${oppCounters.map(([k, v]) => `${k} ${v}`).join(', ')}`
+                : ''
+            }${defeated ? ', defeated' : ''}`,
+            onOpen: (e: React.MouseEvent<HTMLButtonElement>) => openPanel(i, e),
+          };
+        })}
+        footer={footer}
+      >
+        {adjustPanel}
+      </TableLifePanel>
+    );
+  }
 
   return (
     <div className="playtest-life-strip" role="group" aria-label="Life totals">
@@ -207,27 +279,7 @@ export function LifeStrip({
         );
       })}
 
-      {selected !== null && (
-        <LifeAdjustPanel
-          variant={isNarrow ? 'sheet' : 'floating'}
-          anchorRect={anchorRect}
-          title={selected === 'self' ? 'You' : opponentLabel(selected)}
-          life={selected === 'self' ? life : opponents[selected].life}
-          lifeEditable
-          commanderDamage={selected === 'self' ? undefined : opponents[selected].commanderDamage}
-          commanderDamageThreshold={commanderDamageThreshold}
-          defeated={
-            selected !== 'self' && isOpponentDefeated(opponents[selected], commanderDamageThreshold)
-          }
-          counters={(selected === 'self' ? playerCounters : opponents[selected].counters) ?? {}}
-          onClose={closePanel}
-          onAdjustCounter={(kind, delta) => onAdjustCounter(selected, kind, delta)}
-          onAdjustLife={(delta) => onAdjustLife(selected, delta)}
-          onAdjustCommanderDamage={
-            selected === 'self' ? undefined : (delta) => onAdjustCommanderDamage(selected, delta)
-          }
-        />
-      )}
+      {adjustPanel}
     </div>
   );
 }
@@ -246,6 +298,8 @@ function OnlineLifeStrip({
   anchorRect,
   openPanel,
   closePanel,
+  variant,
+  footer,
 }: {
   onlineTable: OnlineTable;
   isNarrow: boolean;
@@ -256,6 +310,8 @@ function OnlineLifeStrip({
   anchorRect: DOMRect | null;
   openPanel(target: Selected, e: React.MouseEvent<HTMLButtonElement>): void;
   closePanel(): void;
+  variant: 'strip' | 'table';
+  footer?: ReactNode;
 }) {
   const {
     me,
@@ -365,6 +421,49 @@ function OnlineLifeStrip({
     );
   }
 
+  if (variant === 'table') {
+    const held = [
+      designations.monarch === mySeat && 'Monarch',
+      designations.initiative === mySeat && 'Initiative',
+    ].filter((v): v is string => Boolean(v));
+    return (
+      <TableLifePanel
+        life={me.life}
+        onAdjustLife={(delta) => dispatch({ type: 'life', seat: mySeat, delta, actorSeat: mySeat })}
+        onOpenSelf={(e) => openPanel('self', e)}
+        designations={held}
+        counters={Object.entries(playerCounters).filter(([, v]) => v > 0)}
+        seats={players
+          .filter((p) => p.seat !== mySeat)
+          .map((p) => {
+            const palette = paletteForIndex(p.seat);
+            const isDead = p.eliminated || p.life <= 0;
+            return {
+              key: String(p.seat),
+              label: p.name,
+              life: p.life,
+              defeated: isDead,
+              active: p.seat === activeSeat,
+              dot: palette.base,
+              ariaLabel: [
+                p.name,
+                `${p.life} life`,
+                p.seat === activeSeat && "this player's turn",
+                poisonEnabled && p.poison > 0 && `${p.poison} poison`,
+                isDead && 'defeated',
+              ]
+                .filter(Boolean)
+                .join(', '),
+              onOpen: (e: React.MouseEvent<HTMLButtonElement>) => openPanel(p.seat, e),
+            };
+          })}
+        footer={footer}
+      >
+        {selected !== null && panel}
+      </TableLifePanel>
+    );
+  }
+
   return (
     <div className="playtest-life-strip" role="group" aria-label="Life totals">
       {players.map((p) => (
@@ -379,6 +478,142 @@ function OnlineLifeStrip({
         />
       ))}
       {selected !== null && panel}
+    </div>
+  );
+}
+
+interface TableSeat {
+  key: string;
+  label: string;
+  life: number;
+  defeated?: boolean;
+  active?: boolean;
+  /** Seat colour for the leading dot (online tables only). */
+  dot?: string;
+  ariaLabel: string;
+  onOpen(e: React.MouseEvent<HTMLButtonElement>): void;
+}
+
+/** A ±1 life step that repeats while held — same `usePressRepeat` contract as
+ *  ManaPool's and the adjust panel's own steppers. Its own component because
+ *  the hook can't be called conditionally. */
+function LifeStep({
+  label,
+  onAdjust,
+  children,
+}: {
+  label: string;
+  onAdjust(): void;
+  children: ReactNode;
+}) {
+  const press = usePressRepeat(onAdjust);
+  return (
+    <button type="button" className="playtest-life-table__step" aria-label={label} {...press}>
+      {children}
+    </button>
+  );
+}
+
+/**
+ * The ≥1024px corner panel. Your own life is the headline: a display numeral
+ * between two steppers, so the commonest action at a real table (take damage)
+ * is one tap and not "open a popover first". The numeral itself, and the
+ * Details row under it, both open the same `LifeAdjustPanel` the strip uses,
+ * so poison / commander damage / counters have exactly one implementation.
+ * Everyone else is a secondary row of small chips, because a four-seat table
+ * where every total is the same size tells you nothing about whose board you
+ * are looking at.
+ */
+function TableLifePanel({
+  life,
+  onAdjustLife,
+  onOpenSelf,
+  designations,
+  counters,
+  seats,
+  footer,
+  children,
+}: {
+  life: number;
+  onAdjustLife(delta: number): void;
+  onOpenSelf(e: React.MouseEvent<HTMLButtonElement>): void;
+  designations: string[];
+  counters: [string, number][];
+  seats: TableSeat[];
+  footer?: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="playtest-life-table" role="group" aria-label="Life totals">
+      <div className="playtest-life-table__row">
+        <LifeStep label="Lose 1 life" onAdjust={() => onAdjustLife(-1)}>
+          −
+        </LifeStep>
+        <button
+          type="button"
+          className="playtest-life-table__total"
+          onClick={onOpenSelf}
+          aria-haspopup="dialog"
+          aria-label={`You: ${life} life. Open life details`}
+        >
+          {life}
+        </button>
+        <LifeStep label="Gain 1 life" onAdjust={() => onAdjustLife(1)}>
+          +
+        </LifeStep>
+      </div>
+      {(designations.length > 0 || counters.length > 0) && (
+        <div className="playtest-life-table__badges">
+          {designations.map((d) => (
+            <span key={d} className="playtest-life-table__badge">
+              {d}
+            </span>
+          ))}
+          {counters.map(([k, v]) => (
+            <span key={k} className="playtest-life-table__badge" title={k}>
+              {k} {v}
+            </span>
+          ))}
+        </div>
+      )}
+      <button
+        type="button"
+        className="playtest-life-table__details"
+        onClick={onOpenSelf}
+        aria-haspopup="dialog"
+      >
+        <ChevronDown aria-hidden width={12} height={12} />
+        Details
+        {seats.length > 0 && (
+          <span className="playtest-life-table__details-count">
+            {seats.length} {seats.length === 1 ? 'opponent' : 'opponents'}
+          </span>
+        )}
+      </button>
+      {seats.length > 0 && (
+        <div className="playtest-life-table__seats">
+          {seats.map((s) => (
+            <button
+              key={s.key}
+              type="button"
+              className={`playtest-life-table__seat${s.defeated ? ' is-defeated' : ''}${
+                s.active ? ' is-active-turn' : ''
+              }`}
+              style={
+                s.dot ? ({ ['--opp-base' as never]: s.dot } as React.CSSProperties) : undefined
+              }
+              onClick={s.onOpen}
+              aria-label={s.ariaLabel}
+            >
+              {s.dot && <span className="playtest-life-table__seat-dot" aria-hidden />}
+              <span className="playtest-life-table__seat-name">{s.label}</span>
+              <span className="playtest-life-table__seat-life">{s.life}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {footer}
+      {children}
     </div>
   );
 }

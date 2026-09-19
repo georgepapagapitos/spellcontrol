@@ -58,12 +58,62 @@ describe('PlaytestBoard', () => {
       expect(screen.getAllByText(card.name).length).toBeGreaterThan(0);
     }
 
-    // The four side zone piles (desktop layout — isNarrow is false at the
-    // default happy-dom viewport width).
-    expect(screen.getByText('Library')).toBeTruthy();
-    expect(screen.getByText('Graveyard')).toBeTruthy();
-    expect(screen.getByText('Exile')).toBeTruthy();
-    expect(screen.getByText('Command')).toBeTruthy();
+    // The four zone piles (table layout — isNarrow is false at the default
+    // happy-dom viewport width). Each tile carries its own count in the
+    // label now, which is the whole point of the corner row.
+    expect(screen.getByText('Library (3)')).toBeTruthy();
+    expect(screen.getByText('Graveyard (0)')).toBeTruthy();
+    expect(screen.getByText('Exile (0)')).toBeTruthy();
+    expect(screen.getByText('Command (0)')).toBeTruthy();
+  });
+
+  it('puts the game menu and the turn chip in the corner instead of a toolbar row', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} backLabel="Krenko" onBack={() => {}} />
+      </MemoryRouter>
+    );
+
+    // No action-bar row at the table tier, and nothing it offered is lost:
+    // the menu carries the secondary actions, the corner the primary ones.
+    expect(document.querySelector('.playtest-actionbar')).toBeNull();
+    expect(document.querySelector('.playtest-page__header')).toBeNull();
+    const menu = screen.getByRole('button', { name: 'Game menu' });
+    expect(menu.getAttribute('aria-haspopup')).toBe('menu');
+    fireEvent.click(menu);
+    for (const label of ['Back to Krenko', 'Stats', 'Log', 'Shuffle', 'Mulligan', 'Reset']) {
+      expect(screen.getByRole('menuitem', { name: label }), label).toBeTruthy();
+    }
+  });
+
+  it('opens the table menu on a right-click on bare felt, with its shortcuts', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+
+    const felt = document.querySelector('.playtest-battlefield');
+    expect(felt).toBeTruthy();
+    fireEvent.contextMenu(felt!, { clientX: 100, clientY: 100 });
+
+    expect(screen.getByRole('menu', { name: 'Table actions' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: /Untap all/ }).textContent).toContain('U');
+  });
+
+  it('ignores a letter shortcut typed into a text field', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    fireEvent.keyDown(input, { key: 'd', bubbles: true });
+
+    expect(dispatch).not.toHaveBeenCalledWith({ type: 'DRAW', n: 1 });
+    input.remove();
   });
 
   it('dispatches DRAW off the "d" keyboard shortcut', () => {

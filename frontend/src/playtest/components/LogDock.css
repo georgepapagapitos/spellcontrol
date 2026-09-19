@@ -1,0 +1,233 @@
+/* ── LogDock: co-located styles ─────────────────────────────────────────────
+   A floating, non-modal panel inside `.playtest-board` (position: relative).
+   It sits over the table rather than replacing it, so it is translucent and
+   keeps clear of the hand: the bottom offset is one card height plus the
+   action bar. The playtest board is THEMED, not always-dark (STYLE_GUIDE
+   § Accessibility), so every focus ring here is the standard accent ring. */
+
+.playtest-log-dock {
+  position: absolute;
+  left: var(--space-4);
+  bottom: calc(var(--pt-card-h) + 56px);
+  width: 24rem;
+  max-height: min(60vh, 640px);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in oklab, var(--surface) 88%, transparent);
+  backdrop-filter: blur(12px);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+}
+
+@media (max-width: 1279px) {
+  .playtest-log-dock {
+    width: 20rem;
+  }
+}
+
+.playtest-log-dock__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3) var(--space-2);
+}
+
+.playtest-log-dock__title {
+  flex: 1;
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.playtest-log-dock__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.playtest-log-dock__btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playtest-log-dock__btn:hover:not(:disabled) {
+    border-color: var(--border);
+    color: var(--text-primary);
+  }
+}
+
+.playtest-log-dock__btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.playtest-log-dock__filters {
+  display: flex;
+  gap: var(--space-1);
+  padding: 0 var(--space-3) var(--space-2);
+}
+
+.playtest-log-dock__chip {
+  flex: 1;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.playtest-log-dock__chip[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playtest-log-dock__chip:hover {
+    color: var(--text-primary);
+  }
+}
+
+.playtest-log-dock__chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.playtest-log-dock__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 var(--space-3) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.playtest-log-dock__empty {
+  padding: var(--space-5) 0;
+  margin: 0;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.playtest-log-dock__turn {
+  margin: 0 0 var(--space-2);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.playtest-log-dock__entries,
+.playtest-log-dock__ticker {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.playtest-log-dock__entry {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--surface-raised) 70%, transparent);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+/* The app narrating (a turn boundary, an undo, a reset) reads quieter than
+   something you did. */
+.playtest-log-dock__entry--system {
+  border-left-color: var(--text-secondary);
+  color: var(--text-secondary);
+}
+
+/* TickerLine's rail density is tuned for a narrow column; match the dock's
+   own line size. */
+.playtest-log-dock__ticker .table-ticker__line {
+  font-size: var(--text-sm);
+}
+
+.playtest-log-dock__jump {
+  position: absolute;
+  left: 50%;
+  /* Clears the chat composer when the Table view mounts it below the feed. */
+  bottom: calc(var(--space-3) + var(--log-dock-foot, 0px));
+  transform: translateX(-50%);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-tooltip);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playtest-log-dock__jump:hover {
+    border-color: var(--accent);
+  }
+}
+
+.playtest-log-dock__jump:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The dock renders on pointer-capable tablets too (Lane A gates the mount at
+   ≥1024px), so the controls still have to clear the touch floor. */
+@media (pointer: coarse) {
+  .playtest-log-dock__btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .playtest-log-dock__chip,
+  .playtest-log-dock__jump {
+    min-height: 44px;
+  }
+}
+
+.playtest-log-dock.is-chatting {
+  --log-dock-foot: 56px;
+}
+
+.playtest-log-dock__text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.playtest-log-dock__time {
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}

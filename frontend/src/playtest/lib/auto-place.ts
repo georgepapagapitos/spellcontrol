@@ -31,7 +31,14 @@ const CARD_W = 90;
 const CARD_H = 126;
 
 /** Reasonable defaults if we can't measure the battlefield yet. */
-const FALLBACK_RECT = { width: 800, height: 540, cardW: CARD_W, cardH: CARD_H };
+const FALLBACK_RECT: Rect = {
+  width: 800,
+  height: 540,
+  cardW: CARD_W,
+  cardH: CARD_H,
+  reservedBottom: 0,
+  reservedTop: 0,
+};
 
 /** Gap between whole cards in a row. */
 const GAP = 8;
@@ -63,6 +70,21 @@ interface Rect {
    *  `CARD_H` — the desktop density — when the caller can't supply it. */
   cardW?: number;
   cardH?: number;
+  /**
+   * Fraction (0..1) of the battlefield's height at the BOTTOM that floating
+   * chrome covers and a new permanent must not land under — at the table
+   * tier (≥1024px) the hand fan and the zone piles overlay the board rather
+   * than sitting in rows beside it. A fraction rather than pixels because
+   * the thing being cleared is itself sized off `--pt-card-h`, so a pixel
+   * constant would go stale at every density. The three type rows are laid
+   * out inside what's left; positions still normalize against the FULL
+   * height, which is what the renderer's `top: y * (100% - cardH)` resolves
+   * against.
+   */
+  reservedBottom?: number;
+  /** Same idea for the top: the life panel floats over the board's top-left
+   *  at the table tier, so the permanents row starts under it. */
+  reservedTop?: number;
 }
 
 /**
@@ -102,7 +124,13 @@ export function autoPlace(
   const subRow = Math.floor(inRow / wholeFit);
   const xStep = cardW + GAP;
 
-  const yCenter = r.height * ROW_Y_FRACTION[row];
+  // The rows live above whatever floating chrome the caller reserved.
+  const rowsTop = r.height * clamp01(r.reservedTop ?? 0);
+  const rowsHeight = Math.max(
+    cardH,
+    r.height * (1 - clamp01(r.reservedTop ?? 0) - clamp01(r.reservedBottom ?? 0))
+  );
+  const yCenter = rowsTop + rowsHeight * ROW_Y_FRACTION[row];
   const x = leftPad + col * xStep;
   const y = yCenter - cardH / 2 + subRow * cardH * SUB_ROW_DY_FRACTION;
 
@@ -110,7 +138,7 @@ export function autoPlace(
   // battlefield's left edge or above the top, then normalize to the fraction
   // the reducer/renderer expect.
   const xClamped = Math.max(0, Math.min(x, r.width - cardW));
-  const yClamped = Math.max(0, Math.min(y, r.height - cardH));
+  const yClamped = Math.max(rowsTop, Math.min(y, rowsTop + rowsHeight - cardH));
   return {
     x: clamp01(xClamped / Math.max(1, r.width - cardW)),
     y: clamp01(yClamped / Math.max(1, r.height - cardH)),

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMediaQuery } from '@/lib/use-media-query';
+import './CardHoverPreview.css';
 
 /** Wait before showing so a pointer sweeping across the hand doesn't flicker
  *  a preview per card; focus (keyboard) shows immediately. */
@@ -88,21 +89,33 @@ export function CardHoverPreview({ suspended, resolve }: Props) {
 
   if (!finePointer || suspended || !target) return null;
 
-  // Beside the card, on whichever side has more room; vertically centred on
-  // it and clamped inside the viewport.
+  // One fixed slot: vertically centred at the table's right edge, matching
+  // the stylesheet's `min(22rem, 24vw)`. It flips to the left edge only when
+  // the hovered card itself would sit under the slot (a permanent parked at
+  // the far right, a zone pile), so the face never covers what it describes.
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const width = Math.min(320, vw * 0.28);
+  const width = Math.min(352, vw * 0.24);
   const height = width * 1.4;
-  const roomRight = vw - target.rect.right;
-  const left =
-    roomRight >= width + MARGIN
-      ? target.rect.right + MARGIN
-      : Math.max(MARGIN, target.rect.left - MARGIN - width);
-  const top = Math.max(
-    MARGIN,
-    Math.min(vh - height - MARGIN, target.rect.top + target.rect.height / 2 - height / 2)
-  );
+  const rightSlot = vw - MARGIN * 2 - width;
+  const r = target.rect;
+  const centred = Math.max(MARGIN, (vh - height) / 2);
+  const underRightSlot =
+    r.right > rightSlot - MARGIN &&
+    r.top < centred + height + MARGIN &&
+    r.bottom > centred - MARGIN;
+  const left = underRightSlot ? MARGIN * 2 : rightSlot;
+  // The corner clusters (life panel top-left, turn/menu stack top-right) own
+  // the top of the table; the pane starts below whichever one it would
+  // otherwise cover, so the numeral and the turn button stay readable.
+  let top = centred;
+  for (const el of document.querySelectorAll('.playtest-corner')) {
+    const c = el.getBoundingClientRect();
+    if (c.right > left && c.left < left + width && c.bottom + MARGIN > top) {
+      top = c.bottom + MARGIN;
+    }
+  }
+  top = Math.min(top, Math.max(MARGIN, vh - height - MARGIN));
 
   return (
     <div className="playtest-hover-preview" style={{ left, top, width }} aria-hidden>

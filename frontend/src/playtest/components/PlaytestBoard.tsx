@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Menu } from 'lucide-react';
 import { useConfirm } from '@/lib/use-confirm';
 import {
   DndContext,
@@ -41,6 +42,15 @@ import { useMediaQuery } from '@/lib/use-media-query';
 import { ZonePile } from './ZonePile';
 import { ZoneViewerModal } from './ZoneViewerModal';
 import { ActionBar } from './ActionBar';
+import { TableContextMenu, type TableMenuItem } from './TableContextMenu';
+import { LogDock } from './LogDock';
+import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
+import { PhaseChip } from '@/components/play/PhaseChip';
+import { ReactionPicker } from './ReactionPicker';
+import { HoldButton } from './HoldButton';
+import { HoldBanner } from './HoldBanner';
+import { TableSignals } from './TableSignals';
+import { TAKEBACK_MODE_LABEL } from '../lib/takeback';
 import { CardContextMenu } from './CardContextMenu';
 import { MobileZonesPanel } from './MobileZonesPanel';
 import { OpeningHandSheet } from './OpeningHandSheet';
@@ -53,7 +63,7 @@ import { PlaytestLogSheet } from './PlaytestLogSheet';
 import { ResistanceBanner } from './ResistanceBanner';
 import { ResistancePicker } from './ResistancePicker';
 import { DesignationsPicker } from './DesignationsPicker';
-import { RESISTANCE_LEVEL_ANNOUNCE } from '../lib/resistance';
+import { RESISTANCE_LEVEL_ANNOUNCE, RESISTANCE_LEVEL_LABEL } from '../lib/resistance';
 import { PlaytestSessionSummary } from './PlaytestSessionSummary';
 import { resolveTokenArt } from '../lib/token-art';
 import { commanderTaxAmount } from '../lib/zones';
@@ -99,13 +109,18 @@ const FALLBACK_DROP_POS = { x: 0.05, y: 0.05 };
 const PLAYTEST_SHORTCUTS = [
   { keys: ['D'], description: 'Draw a card' },
   { keys: ['N'], description: 'Next turn' },
+  { keys: ['Space'], description: 'Pass turn (online)' },
   { keys: ['U'], description: 'Untap all' },
+  { keys: ['K'], description: 'Create a token' },
+  { keys: ['L'], description: 'Open the log' },
+  { keys: ['M'], description: 'Show the mana tracker' },
   { keys: ['Z'], description: 'Take back' },
   { keys: ['Ctrl/⌘+C'], description: 'Copy selected cards' },
   { keys: ['Ctrl/⌘+V'], description: 'Paste copied cards' },
   { keys: ['T'], description: 'Tap / untap the selected cards' },
   { keys: ['Esc'], description: 'Clear selection' },
   { keys: ['Shift+Enter'], description: 'Open the focused card’s menu' },
+  { keys: ['Shift+F10'], description: 'Open the table menu' },
 ];
 
 function parseDraggable(id: string): { source: 'bf' | 'hand' | 'zone'; cardId: string } | null {
@@ -189,6 +204,12 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const [selectMode, setSelectMode] = useState(false);
   const [clipboard, setClipboard] = useState<readonly string[]>([]);
   const [lifePanelOpen, setLifePanelOpen] = useState(false);
+  // Table-tier chrome: the right-click menu on bare felt, and the mana
+  // tracker's collapsed-when-empty state (M, or the "Mana" chip).
+  const [tableMenu, setTableMenu] = useState<{ x: number; y: number } | null>(null);
+  const [manaOpen, setManaOpen] = useState(false);
+  // Bumped to open the online ReactionPicker from the table menu.
+  const [reactionToken, setReactionToken] = useState(0);
   // "View board" from an online opponent's LifeStrip panel — opens the same
   // full-board inspector OpponentRail's own tap-to-open already uses.
   const [viewingBoardSeat, setViewingBoardSeat] = useState<number | null>(null);
@@ -406,6 +427,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     setCtx({ cardId, x, y });
   }, []);
 
+  const openTableMenu = useCallback((x: number, y: number) => setTableMenu({ x, y }), []);
+
   // Single read of "how big is the board, how big is a card right now" —
   // `--pt-card-w`/`--pt-card-h` are the density-driving custom properties
   // (playtest.css), so this stays correct across the 320–1440px range without
@@ -434,7 +457,17 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
 
   function getBattlefieldRect() {
     const { width, height, cardW, cardH } = getBattlefieldGeometry();
-    return width > 0 && height > 0 ? { width, height, cardW, cardH } : null;
+    if (!(width > 0 && height > 0)) return null;
+    // At the table tier the hand fan and the zone piles float OVER the board's
+    // bottom edge, so auto-placement has to keep that band clear or a freshly
+    // played land lands under the fan. One card height plus the fan's own
+    // chrome ≈ 1.3 card heights; narrow keeps its rows beside the board and
+    // reserves nothing.
+    const reservedBottom = isNarrow ? 0 : Math.min(0.5, (cardH * 1.3) / height);
+    // And the life panel floats over the top-left: the first permanent used
+    // to land straight under it. Its box is ~1.1 card heights tall.
+    const reservedTop = isNarrow ? 0 : Math.min(0.3, (cardH * 1.1) / height);
+    return { width, height, cardW, cardH, reservedBottom, reservedTop };
   }
 
   function placeOnBattlefield(card: PlaytestCard) {
@@ -497,7 +530,11 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     tokenCreator ||
     showScry ||
     showStats ||
-    showLog ||
+    // The docked log (table tier) is deliberately NOT here: it is non-modal
+    // chrome, so shortcuts and the hover preview keep working beside it. The
+    // narrow tier's log is a real sheet and still counts.
+    (showLog && isNarrow) ||
+    tableMenu !== null ||
     showDice ||
     showResistancePicker ||
     showDesignations ||
@@ -546,10 +583,42 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   }, [takeback]);
 
   const hasUnreadLog = gameLog.some((e) => e.kind === 'resistance' && e.seq > lastSeenLogSeq);
-  function handleOpenLog() {
+  const handleOpenLog = useCallback(() => {
     setLastSeenLogSeq(gameLog.at(-1)?.seq ?? 0);
     setShowLog(true);
-  }
+  }, [gameLog]);
+
+  // ── Shared board actions ────────────────────────────────────────────────
+  // One implementation behind each of the three ways to reach it: the table
+  // menu's item, the corner cluster's button, and the key binding. A control
+  // that only exists in one of those is how the old bar's actions went
+  // unreachable when the bar stopped rendering.
+  const activeName = onlineTable?.players.find((p) => p.seat === onlineTable.activeSeat)?.name;
+  const myTurn = onlineTable !== null && onlineTable.activeSeat === onlineTable.mySeat;
+  const canPassTurn = onlineTable !== null && (myTurn || onlineTable.activeSeat === null);
+
+  const libraryCount = state.zones.library.length;
+  const doDraw = useCallback(() => {
+    if (libraryCount === 0) return;
+    haptics.tap();
+    dispatch({ type: 'DRAW', n: 1 });
+  }, [dispatch, libraryCount]);
+  const doNextTurn = useCallback(() => dispatch({ type: 'NEXT_TURN' }), [dispatch]);
+  const doUntapAll = useCallback(() => dispatch({ type: 'UNTAP_ALL' }), [dispatch]);
+  const doPassTurn = useCallback(() => {
+    if (!onlineTable) return;
+    haptics.tap();
+    onlineTable.dispatch({ type: 'pass-turn', actorSeat: onlineTable.mySeat });
+  }, [onlineTable]);
+  const doReset = useCallback(async () => {
+    const ok = await confirm({
+      title: 'Reset the game?',
+      body: 'This clears undo history and returns all cards to the starting state.',
+      confirmLabel: 'Reset',
+      danger: true,
+    });
+    if (ok) dispatch({ type: 'RESET' });
+  }, [confirm, dispatch]);
 
   // City's Blessing is a genuine one-time accomplishment (never lost this
   // game) — a stronger haptic cue than the routine tap monarch/initiative get.
@@ -649,6 +718,23 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         }
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
+      // Keyboard route to the table menu: the physical Context Menu key, or
+      // Shift+F10 on keyboards without one. Anchored at the board's centre,
+      // since a keyboard has no cursor to open at.
+      if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) {
+        e.preventDefault();
+        setTableMenu({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+        return;
+      }
+      if (key === ' ') {
+        // A focused button already activates on Space; firing pass-turn too
+        // would double-act.
+        if (e.target instanceof HTMLElement && e.target.closest('button')) return;
+        if (!canPassTurn) return;
+        e.preventDefault();
+        doPassTurn();
+        return;
+      }
       if (key === 'z') {
         e.preventDefault();
         handleTakebackClick();
@@ -660,15 +746,24 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         return;
       }
       if (key === 'd') {
-        if (state.zones.library.length === 0) return;
+        if (libraryCount === 0) return;
         e.preventDefault();
-        dispatch({ type: 'DRAW', n: 1 });
+        doDraw();
       } else if (key === 'n') {
         e.preventDefault();
-        dispatch({ type: 'NEXT_TURN' });
+        doNextTurn();
       } else if (key === 'u') {
         e.preventDefault();
-        dispatch({ type: 'UNTAP_ALL' });
+        doUntapAll();
+      } else if (key === 'k') {
+        e.preventDefault();
+        setTokenCreator(true);
+      } else if (key === 'l') {
+        e.preventDefault();
+        handleOpenLog();
+      } else if (key === 'm') {
+        e.preventDefault();
+        setManaOpen((open) => !open);
       }
     }
     window.addEventListener('keydown', onKeyDown);
@@ -676,8 +771,13 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   }, [
     anySheetOpen,
     handleTakebackClick,
-    dispatch,
-    state.zones.library.length,
+    handleOpenLog,
+    canPassTurn,
+    doDraw,
+    doNextTurn,
+    doPassTurn,
+    doUntapAll,
+    libraryCount,
     selected,
     clipboard,
     cloneCards,
@@ -701,114 +801,146 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       }
     : undefined;
 
-  return (
-    <div
-      className={`playtest-board${isNarrow ? ' playtest-board--narrow' : ''}${
-        selectMode ? ' is-selecting' : ''
-      }`}
+  // ── Table-tier chrome (≥1024px) ─────────────────────────────────────────
+  // Everything the deleted rows used to offer, regrouped into the four
+  // corners. Built here rather than in a component of its own because every
+  // item is one of this component's own handlers — a wrapper would be thirty
+  // props of pure pass-through.
+  const heldDesignations = [
+    state.monarch && 'Monarch',
+    state.initiative && 'Initiative',
+    state.citysBlessing && "City's Blessing",
+  ].filter((label): label is string => Boolean(label));
+
+  const gameMenuItems: OverflowMenuItem[] = [
+    ...(onBack ? [{ label: `Back to ${backLabel ?? 'deck'}`, onClick: onBack }] : []),
+    { label: 'Stats', onClick: () => setShowStats(true) },
+    { label: hasUnreadLog ? 'Log (new events)' : 'Log', onClick: handleOpenLog },
+    { label: 'Top cards', onClick: () => setShowScry(true), disabled: libraryCount === 0 },
+    { label: 'Shuffle', onClick: () => dispatch({ type: 'SHUFFLE_LIBRARY' }) },
+    {
+      label: 'Mulligan',
+      onClick: () => {
+        haptics.warning();
+        dispatch({ type: 'MULLIGAN' });
+      },
+    },
+    {
+      label:
+        heldDesignations.length > 0
+          ? `Designations: ${heldDesignations.join(', ')}`
+          : 'Designations',
+      onClick: () => setShowDesignations(true),
+    },
+    {
+      label: `Resistance: ${RESISTANCE_LEVEL_LABEL[resistanceLevel]}`,
+      onClick: () => setShowResistancePicker(true),
+    },
+    {
+      label: `Takeback rule: ${TAKEBACK_MODE_LABEL[takeback.mode]}`,
+      onClick: () => setShowTakebackSettings(true),
+    },
+    { label: 'Reset', onClick: () => void doReset(), danger: true },
+  ];
+
+  const tableMenuItems: TableMenuItem[] = [
+    { label: 'Draw', shortcut: 'D', onClick: doDraw, disabled: libraryCount === 0 },
+    canPassTurn
+      ? { label: 'Pass turn', shortcut: 'Space', onClick: doPassTurn }
+      : { label: 'Next turn', shortcut: 'N', onClick: doNextTurn },
+    { label: 'Untap all', shortcut: 'U', onClick: doUntapAll },
+    { label: 'Top cards', onClick: () => setShowScry(true), disabled: libraryCount === 0 },
+    { label: 'Create token', shortcut: 'K', onClick: () => setTokenCreator(true) },
+    { label: 'Roll dice', onClick: () => setShowDice(true) },
+    { label: selectMode ? 'Done selecting' : 'Select cards', onClick: toggleSelectMode },
+    ...(onlineTable ? [{ label: 'Reactions', onClick: () => setReactionToken((t) => t + 1) }] : []),
+    { label: 'Log', shortcut: 'L', onClick: handleOpenLog },
+  ];
+
+  // Takeback copy, shared with the ActionBar's own (narrow) button.
+  const takebackTitle =
+    takeback.mode === 'off'
+      ? 'Takebacks are off for this game.'
+      : takeback.verdict === 'locked'
+        ? (takeback.boundaryReason ?? undefined)
+        : takeback.verdict === 'none'
+          ? 'Nothing to take back yet.'
+          : `Take back (${takeback.stepsAvailable} available) (Z)`;
+  const takebackBadge =
+    takeback.mode === 'off'
+      ? 'Off'
+      : takeback.verdict === 'locked'
+        ? '🔒'
+        : takeback.stepsAvailable > 0
+          ? String(takeback.stepsAvailable)
+          : null;
+
+  // The table tier's mana row, folded into the life panel as its last row.
+  // Closed and empty it is nothing at all (six always-zero steppers have no
+  // business sitting on the table all game); closed with mana floating it is
+  // one "Mana · 3" chip; M or the chip opens the real pool.
+  const manaTotal = Object.values(state.manaPool ?? ZERO_MANA_POOL).reduce((a, b) => a + b, 0);
+  const manaPool = (
+    <ManaPool
+      pool={state.manaPool ?? ZERO_MANA_POOL}
+      onAdjust={(color, delta) => {
+        haptics.tap();
+        dispatch({ type: 'ADJUST_MANA', color, delta });
+      }}
+      onEmpty={() => {
+        haptics.tap();
+        dispatch({ type: 'EMPTY_MANA_POOL' });
+      }}
+    />
+  );
+  const manaRow = manaOpen ? (
+    manaPool
+  ) : manaTotal > 0 ? (
+    <button
+      type="button"
+      className="playtest-mana-collapsed"
+      onClick={() => setManaOpen(true)}
+      title="Floating mana (M)"
     >
-      <ActionBar
-        turn={state.turn}
-        libraryCount={state.zones.library.length}
+      Mana <span className="playtest-mana-collapsed__count">{manaTotal}</span>
+    </button>
+  ) : null;
+
+  const trackers = (
+    <div className={`playtest-trackers${isNarrow ? '' : ' playtest-trackers--corner'}`}>
+      <LifeStrip
+        life={state.life}
+        opponents={state.opponents}
+        commanderDamageThreshold={state.commanderDamageThreshold}
         isNarrow={isNarrow}
-        backLabel={backLabel}
-        onBack={onBack}
-        onDraw={() => {
-          haptics.tap();
-          dispatch({ type: 'DRAW', n: 1 });
-        }}
-        onShuffle={() => dispatch({ type: 'SHUFFLE_LIBRARY' })}
-        onMulligan={() => {
-          haptics.warning();
-          dispatch({ type: 'MULLIGAN' });
-        }}
-        onUntapAll={() => dispatch({ type: 'UNTAP_ALL' })}
-        onNextTurn={() => dispatch({ type: 'NEXT_TURN' })}
-        takeback={{
-          stepsAvailable: takeback.stepsAvailable,
-          verdict: takeback.verdict,
-          mode: takeback.mode,
-          boundaryReason: takeback.boundaryReason,
-          isPending: takeback.pendingRequest !== null,
-          onClick: handleTakebackClick,
-          onOpenSettings: () => setShowTakebackSettings(true),
-        }}
-        onReset={async () => {
-          const ok = await confirm({
-            title: 'Reset the game?',
-            body: 'This clears undo history and returns all cards to the starting state.',
-            confirmLabel: 'Reset',
-            danger: true,
-          });
-          if (ok) dispatch({ type: 'RESET' });
-        }}
-        onScry={() => setShowScry(true)}
-        onCreateToken={() => setTokenCreator(true)}
-        onOpenStats={() => setShowStats(true)}
-        onOpenLog={handleOpenLog}
-        onOpenDice={() => setShowDice(true)}
-        onOpenResistance={() => setShowResistancePicker(true)}
-        onOpenDesignations={() => setShowDesignations(true)}
-        resistanceLevel={resistanceLevel}
         monarch={state.monarch}
         initiative={state.initiative}
         citysBlessing={state.citysBlessing}
-        selectMode={selectMode}
-        onToggleSelectMode={toggleSelectMode}
-        selectionSize={selected.size}
-        hasUnreadLog={hasUnreadLog}
-        online={
-          onlineTable && {
-            phase: onlineTable.phase,
-            activeSeat: onlineTable.activeSeat,
-            mySeat: onlineTable.mySeat,
-            activeName: onlineTable.players.find((p) => p.seat === onlineTable.activeSeat)?.name,
-            dispatch: onlineTable.dispatch,
-            onPassTurn: () => {
-              haptics.tap();
-              onlineTable.dispatch({ type: 'pass-turn', actorSeat: onlineTable.mySeat });
-            },
-          }
-        }
+        playerCounters={state.playerCounters ?? {}}
+        onAdjustLife={(player, delta) => {
+          haptics.tap();
+          dispatch({ type: 'ADJUST_LIFE', player, delta });
+        }}
+        onAdjustCommanderDamage={(opponent, delta) => {
+          haptics.tap();
+          dispatch({ type: 'ADJUST_COMMANDER_DAMAGE', opponent, delta });
+        }}
+        onAdjustCounter={(player, kind, delta) => {
+          haptics.tap();
+          dispatch({ type: 'SET_PLAYER_COUNTER', player, counter: kind, delta });
+        }}
+        onOpenChange={setLifePanelOpen}
+        onlineTable={onlineTable}
+        onViewOpponentBoard={setViewingBoardSeat}
+        variant={isNarrow ? 'strip' : 'table'}
+        footer={isNarrow ? undefined : manaRow}
       />
-      <div className="playtest-trackers">
-        <LifeStrip
-          life={state.life}
-          opponents={state.opponents}
-          commanderDamageThreshold={state.commanderDamageThreshold}
-          isNarrow={isNarrow}
-          monarch={state.monarch}
-          initiative={state.initiative}
-          citysBlessing={state.citysBlessing}
-          playerCounters={state.playerCounters ?? {}}
-          onAdjustLife={(player, delta) => {
-            haptics.tap();
-            dispatch({ type: 'ADJUST_LIFE', player, delta });
-          }}
-          onAdjustCommanderDamage={(opponent, delta) => {
-            haptics.tap();
-            dispatch({ type: 'ADJUST_COMMANDER_DAMAGE', opponent, delta });
-          }}
-          onAdjustCounter={(player, kind, delta) => {
-            haptics.tap();
-            dispatch({ type: 'SET_PLAYER_COUNTER', player, counter: kind, delta });
-          }}
-          onOpenChange={setLifePanelOpen}
-          onlineTable={onlineTable}
-          onViewOpponentBoard={setViewingBoardSeat}
-        />
-        <ManaPool
-          pool={state.manaPool ?? ZERO_MANA_POOL}
-          onAdjust={(color, delta) => {
-            haptics.tap();
-            dispatch({ type: 'ADJUST_MANA', color, delta });
-          }}
-          onEmpty={() => {
-            haptics.tap();
-            dispatch({ type: 'EMPTY_MANA_POOL' });
-          }}
-        />
-      </div>
+      {isNarrow && manaPool}
+    </div>
+  );
+
+  const banners = (
+    <>
       {showTableDefeatedBanner && lastSessionRecord ? (
         // The richer E141 recap supersedes the plain "Table defeated" line —
         // it already names the kill turn plus mulligans/interaction survived.
@@ -848,6 +980,186 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           />
         )
       )}
+    </>
+  );
+
+  const pendingBanner = takeback.pendingRequest && (
+    <TakebackPendingBanner
+      request={takeback.pendingRequest}
+      onCancel={takeback.cancelPending}
+      message={takeback.pendingOutcomeMessage ?? undefined}
+    />
+  );
+
+  const cornerActions = (
+    <div className="playtest-corner playtest-corner--tr">
+      <OverflowMenu
+        items={gameMenuItems}
+        ariaLabel="Game menu"
+        align="right"
+        triggerClassName="playtest-corner-btn"
+        panelClassName="playtest-zone-menu-popover"
+        trigger={
+          <>
+            <Menu width={20} height={20} aria-hidden />
+            {hasUnreadLog && <span className="playtest-corner__dot" aria-hidden />}
+          </>
+        }
+      />
+      <div className="playtest-turn-chip">
+        <span className="playtest-turn-chip__label">Turn</span>
+        <span className="playtest-turn-chip__value">{state.turn}</span>
+      </div>
+      {onlineTable ? (
+        canPassTurn ? (
+          <button type="button" className="playtest-corner-btn is-primary" onClick={doPassTurn}>
+            Pass turn <kbd>Space</kbd>
+          </button>
+        ) : (
+          <span className="playtest-corner-waiting" aria-live="polite">
+            {activeName ? `${activeName}'s turn` : 'Not your turn'}
+          </span>
+        )
+      ) : (
+        <button type="button" className="playtest-corner-btn is-primary" onClick={doNextTurn}>
+          Next turn <kbd>N</kbd>
+        </button>
+      )}
+      {onlineTable && (
+        <PhaseChip
+          phase={onlineTable.phase}
+          activeSeat={onlineTable.activeSeat}
+          mySeat={onlineTable.mySeat}
+          dispatch={onlineTable.dispatch}
+        />
+      )}
+      {/* Both self-gate on an online, seated game (see their own docs). */}
+      <ReactionPicker openToken={reactionToken} />
+      <HoldButton />
+      <HoldBanner />
+      <button
+        type="button"
+        className={`playtest-corner-btn${takeback.pendingRequest ? ' is-pending' : ''}`}
+        onClick={handleTakebackClick}
+        aria-label={takeback.pendingRequest ? 'Take back: waiting for approval' : undefined}
+        title={takebackTitle}
+      >
+        Take back
+        {takebackBadge && (
+          // The count / lock / "Off" is a glance cue; the button's own title
+          // already says the same thing in words, so don't read it twice.
+          <span className="playtest-corner-btn__badge" aria-hidden>
+            {takebackBadge}
+          </span>
+        )}
+      </button>
+      <button
+        type="button"
+        className={`playtest-corner-btn${selectMode ? ' is-active' : ''}`}
+        onClick={toggleSelectMode}
+        aria-pressed={selectMode}
+        title="Select several cards to act on together"
+      >
+        {selectMode ? 'Done' : 'Select'}
+        {selectMode && selected.size > 0 && (
+          <span className="playtest-corner-btn__badge">{selected.size}</span>
+        )}
+      </button>
+      <TableSignals />
+    </div>
+  );
+
+  const piles = (
+    <aside className="playtest-piles">
+      <ZonePile
+        zone="library"
+        label="Library"
+        cards={state.zones.library}
+        onClick={() => setViewer({ zone: 'library' })}
+        action={{ label: 'Draw', shortcut: 'D', onClick: doDraw, disabled: libraryCount === 0 }}
+      />
+      <ZonePile
+        zone="graveyard"
+        label="Graveyard"
+        cards={state.zones.graveyard}
+        onClick={() => setViewer({ zone: 'graveyard' })}
+      />
+      <ZonePile
+        zone="exile"
+        label="Exile"
+        cards={state.zones.exile}
+        onClick={() => setViewer({ zone: 'exile' })}
+      />
+      <ZonePile
+        zone="command"
+        label="Command"
+        cards={state.zones.command}
+        commanderTax={state.commanderTax}
+        onClick={() => setViewer({ zone: 'command' })}
+      />
+    </aside>
+  );
+
+  return (
+    <div
+      className={`playtest-board${isNarrow ? ' playtest-board--narrow' : ''}${
+        selectMode ? ' is-selecting' : ''
+      }`}
+    >
+      {isNarrow && (
+        <ActionBar
+          turn={state.turn}
+          libraryCount={libraryCount}
+          isNarrow={isNarrow}
+          backLabel={backLabel}
+          onBack={onBack}
+          onDraw={doDraw}
+          onShuffle={() => dispatch({ type: 'SHUFFLE_LIBRARY' })}
+          onMulligan={() => {
+            haptics.warning();
+            dispatch({ type: 'MULLIGAN' });
+          }}
+          onUntapAll={doUntapAll}
+          onNextTurn={doNextTurn}
+          takeback={{
+            stepsAvailable: takeback.stepsAvailable,
+            verdict: takeback.verdict,
+            mode: takeback.mode,
+            boundaryReason: takeback.boundaryReason,
+            isPending: takeback.pendingRequest !== null,
+            onClick: handleTakebackClick,
+            onOpenSettings: () => setShowTakebackSettings(true),
+          }}
+          onReset={doReset}
+          onScry={() => setShowScry(true)}
+          onCreateToken={() => setTokenCreator(true)}
+          onOpenStats={() => setShowStats(true)}
+          onOpenLog={handleOpenLog}
+          onOpenDice={() => setShowDice(true)}
+          onOpenResistance={() => setShowResistancePicker(true)}
+          onOpenDesignations={() => setShowDesignations(true)}
+          resistanceLevel={resistanceLevel}
+          monarch={state.monarch}
+          initiative={state.initiative}
+          citysBlessing={state.citysBlessing}
+          selectMode={selectMode}
+          onToggleSelectMode={toggleSelectMode}
+          selectionSize={selected.size}
+          hasUnreadLog={hasUnreadLog}
+          online={
+            onlineTable && {
+              phase: onlineTable.phase,
+              activeSeat: onlineTable.activeSeat,
+              mySeat: onlineTable.mySeat,
+              activeName,
+              dispatch: onlineTable.dispatch,
+              onPassTurn: doPassTurn,
+            }
+          }
+        />
+      )}
+      {isNarrow && trackers}
+      {isNarrow && banners}
       {sealMoment}
       {/* All three portal to <body> (see their own doc comments) so placement
           here only decides conditional gating, not layout. */}
@@ -865,13 +1177,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
             />
           ) : null;
         })()}
-      {takeback.pendingRequest && (
-        <TakebackPendingBanner
-          request={takeback.pendingRequest}
-          onCancel={takeback.cancelPending}
-          message={takeback.pendingOutcomeMessage ?? undefined}
-        />
-      )}
+      {isNarrow && pendingBanner}
       <DndContext
         sensors={sensors}
         collisionDetection={collisionDetection}
@@ -888,11 +1194,15 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               <TableTicker onlineTable={onlineTable} />
             </OpponentRail>
           )}
-          <div ref={battlefieldRef} className="playtest-battlefield-wrap">
+          <div
+            ref={battlefieldRef}
+            className={`playtest-battlefield-wrap${myTurn ? ' is-my-turn' : ''}`}
+          >
             <Battlefield
               cards={state.battlefield}
               selectedIds={selected}
               onBackgroundClick={clearSelection}
+              onBackgroundContextMenu={isNarrow ? undefined : openTableMenu}
               onCardClick={handleCardClick}
               onCardContextMenu={handleCardContext}
               onCardLongPress={handleCardLongPress}
@@ -937,53 +1247,44 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                 </button>
               </div>
             )}
+            {/* The table tier's four corner clusters, floating over the felt
+                rather than taking rows off the board's height. */}
+            {!isNarrow && (
+              <>
+                <div className="playtest-banners">
+                  {pendingBanner}
+                  {banners}
+                </div>
+                {trackers}
+                {cornerActions}
+                {piles}
+                <Hand
+                  cards={state.zones.hand}
+                  fan
+                  onCardClick={handleHandCardClick}
+                  onCardMenu={handleHandCardMenu}
+                />
+              </>
+            )}
           </div>
-          {!isNarrow && (
-            <aside className="playtest-piles">
-              <ZonePile
-                zone="library"
-                label="Library"
-                cards={state.zones.library}
-                onClick={() => setViewer({ zone: 'library' })}
-              />
-              <ZonePile
-                zone="graveyard"
-                label="Graveyard"
-                cards={state.zones.graveyard}
-                onClick={() => setViewer({ zone: 'graveyard' })}
-              />
-              <ZonePile
-                zone="exile"
-                label="Exile"
-                cards={state.zones.exile}
-                onClick={() => setViewer({ zone: 'exile' })}
-              />
-              <ZonePile
-                zone="command"
-                label="Command"
-                cards={state.zones.command}
-                commanderTax={state.commanderTax}
-                onClick={() => setViewer({ zone: 'command' })}
-              />
-            </aside>
-          )}
         </div>
-        {shortLandscape ? (
-          <HandDrawer
-            cards={state.zones.hand}
-            open={handOpen}
-            onOpen={() => setHandOpen(true)}
-            onClose={() => setHandOpen(false)}
-            onCardClick={handleHandCardClick}
-            onCardMenu={handleHandCardMenu}
-          />
-        ) : (
-          <Hand
-            cards={state.zones.hand}
-            onCardClick={handleHandCardClick}
-            onCardMenu={handleHandCardMenu}
-          />
-        )}
+        {isNarrow &&
+          (shortLandscape ? (
+            <HandDrawer
+              cards={state.zones.hand}
+              open={handOpen}
+              onOpen={() => setHandOpen(true)}
+              onClose={() => setHandOpen(false)}
+              onCardClick={handleHandCardClick}
+              onCardMenu={handleHandCardMenu}
+            />
+          ) : (
+            <Hand
+              cards={state.zones.hand}
+              onCardClick={handleHandCardClick}
+              onCardMenu={handleHandCardMenu}
+            />
+          ))}
         <CardHoverPreview suspended={activeId !== null || anySheetOpen} resolve={resolvePreview} />
         {/* Above `--z-overlay` so a card dragged out of the hand sheet renders
             over the sheet, not behind it. */}
@@ -999,6 +1300,29 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           )}
         </DragOverlay>
       </DndContext>
+
+      {/* Non-modal docked log (table tier). The narrow tier keeps the sheet. */}
+      {showLog && !isNarrow && (
+        <LogDock
+          log={gameLog}
+          table={
+            onlineTable
+              ? { items: onlineTicker, nameFor: (seat) => tickerSeatName(onlineTable, seat) }
+              : undefined
+          }
+          onClose={() => setShowLog(false)}
+        />
+      )}
+
+      {tableMenu && (
+        <TableContextMenu
+          x={tableMenu.x}
+          y={tableMenu.y}
+          variant="floating"
+          items={tableMenuItems}
+          onClose={() => setTableMenu(null)}
+        />
+      )}
 
       {isNarrow && (
         <MobileZonesPanel
@@ -1252,7 +1576,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         />
       )}
 
-      {showLog && (
+      {showLog && isNarrow && (
         <PlaytestLogSheet
           log={gameLog}
           table={
