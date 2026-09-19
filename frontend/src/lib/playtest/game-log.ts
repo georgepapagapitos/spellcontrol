@@ -48,6 +48,10 @@ export interface GameLogEntry {
   kind: LogEntryKind;
   text: string;
   cardName?: string;
+  /** Wall-clock ms when the entry was appended, so a reviewable log can say
+   *  "6:04 PM" beside a line. Optional for back-compat: entries persisted
+   *  before it existed load without one and simply show no time. */
+  ts?: number;
   /** Rewind classification (see rewind.ts), computed from the action and the
    *  state immediately before it at the moment this entry was built. Optional
    *  for back-compat — same pattern as `BattlefieldCard.phased` and the
@@ -445,7 +449,8 @@ export function appendLogEntries(
 ): GameLogEntry[] {
   if (entries.length === 0) return log as GameLogEntry[];
   let seq = (log.at(-1)?.seq ?? 0) + 1;
-  const stamped = entries.map((e) => ({ ...e, seq: seq++ }));
+  const ts = Date.now();
+  const stamped = entries.map((e) => ({ ts, ...e, seq: seq++ }));
   return [...log, ...stamped].slice(-MAX_LOG_ENTRIES);
 }
 

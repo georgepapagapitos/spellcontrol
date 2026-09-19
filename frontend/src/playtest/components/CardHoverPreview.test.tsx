@@ -105,4 +105,53 @@ describe('CardHoverPreview', () => {
     });
     expect(document.querySelector('.playtest-hover-preview')).toBeNull();
   });
+
+  it('sits in one fixed slot at the right edge, and flips left only for a card under that slot', () => {
+    stubMatchMedia(true);
+    Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 900, configurable: true });
+    render(<CardHoverPreview suspended={false} resolve={resolve} />);
+    const rect = (x: number) =>
+      ({ left: x, right: x + 100, top: 400, bottom: 540, width: 100, height: 140 }) as DOMRect;
+
+    const mid = cardEl('a');
+    mid.getBoundingClientRect = () => rect(600);
+    act(() => {
+      mid.dispatchEvent(new Event('focusin', { bubbles: true }));
+      vi.advanceTimersByTime(0);
+    });
+    const pane = () => document.querySelector<HTMLElement>('.playtest-hover-preview')!;
+    // width = min(352, 24vw = 345.6) → right slot left edge = 1440 - 24 - 345.6
+    expect(parseFloat(pane().style.left)).toBeCloseTo(1440 - 24 - 345.6, 1);
+    expect(parseFloat(pane().style.top)).toBeCloseTo((900 - 345.6 * 1.4) / 2, 1);
+
+    const farRight = cardEl('b');
+    farRight.getBoundingClientRect = () => rect(1300);
+    act(() => {
+      farRight.dispatchEvent(new Event('focusin', { bubbles: true }));
+      vi.advanceTimersByTime(0);
+    });
+    expect(parseFloat(pane().style.left)).toBe(24);
+  });
+
+  it('starts below a corner cluster it would otherwise cover', () => {
+    stubMatchMedia(true);
+    Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 900, configurable: true });
+    const corner = document.createElement('div');
+    corner.className = 'playtest-corner';
+    corner.getBoundingClientRect = () =>
+      ({ left: 1300, right: 1428, top: 12, bottom: 280, width: 128, height: 268 }) as DOMRect;
+    document.body.appendChild(corner);
+    render(<CardHoverPreview suspended={false} resolve={resolve} />);
+    const el = cardEl('a');
+    el.getBoundingClientRect = () =>
+      ({ left: 600, right: 700, top: 700, bottom: 840, width: 100, height: 140 }) as DOMRect;
+    act(() => {
+      el.dispatchEvent(new Event('focusin', { bubbles: true }));
+      vi.advanceTimersByTime(0);
+    });
+    const pane = document.querySelector<HTMLElement>('.playtest-hover-preview')!;
+    expect(parseFloat(pane.style.top)).toBe(280 + 12);
+  });
 });

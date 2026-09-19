@@ -12,6 +12,7 @@ import type { Deck } from '@/store/decks';
 import { deckToPlaytestInit } from '@/playtest/lib/deck-to-playtest';
 import { usePlaytestStore, flushPendingPlaytestSnapshot, tryRecordSession } from '@/playtest/store';
 import { PlaytestBoard } from '@/playtest/components/PlaytestBoard';
+import { useNarrowViewport } from '@/playtest/hooks/use-narrow-viewport';
 
 export interface PlaytestBackTarget {
   label: string;
@@ -57,6 +58,11 @@ export function PlaytestSession({ deck, external: isExternal, back, title, empty
   const teardown = usePlaytestStore((s) => s.teardown);
   const storeDeckId = usePlaytestStore((s) => s.deckId);
   const { confirm, dialog: confirmDialog } = useConfirm();
+  // The table tier (≥1024px) has no chrome rows at all — back-navigation and
+  // the deck's name live in the board's own top-right game menu instead, so
+  // this header row is narrow-only. (Short landscape already dropped it in
+  // CSS; that tier is a subset of narrow, so nothing there changes.)
+  const isNarrow = useNarrowViewport();
 
   // The deck id a resume-vs-fresh prompt is currently open for. It gates only
   // the prompt: while the confirm dialog is up the effect below can re-run
@@ -195,12 +201,14 @@ export function PlaytestSession({ deck, external: isExternal, back, title, empty
 
   return (
     <div className="playtest-page">
-      <header className="playtest-page__header">
-        <button type="button" onClick={() => navigate(back.to)}>
-          ← {back.label}
-        </button>
-        <h1>{title}</h1>
-      </header>
+      {isNarrow && (
+        <header className="playtest-page__header">
+          <button type="button" onClick={() => navigate(back.to)}>
+            ← {back.label}
+          </button>
+          <h1>{title}</h1>
+        </header>
+      )}
       <PlaytestBoard state={state} backLabel={back.label} onBack={() => navigate(back.to)} />
       {confirmDialog}
     </div>

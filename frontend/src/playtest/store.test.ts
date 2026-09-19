@@ -416,7 +416,7 @@ describe('game log (E140 + E142)', () => {
   it('records structured entries for reducer actions dispatched through the store', () => {
     store().init('deck-1', { library: threatLibrary(3), seed: 42 });
     store().dispatch({ type: 'NEXT_TURN' });
-    expect(store().gameLog).toEqual([
+    expect(store().gameLog).toMatchObject([
       { seq: 1, turn: 2, kind: 'turn', text: 'Turn 2 begins', verdict: 'consent' },
     ]);
   });
@@ -424,7 +424,7 @@ describe('game log (E140 + E142)', () => {
   it('records a designation change dispatched through the store', () => {
     store().init('deck-1', { library: threatLibrary(3), seed: 42 });
     store().dispatch({ type: 'SET_DESIGNATION', designation: 'monarch', held: true });
-    expect(store().gameLog).toEqual([
+    expect(store().gameLog).toMatchObject([
       { seq: 1, turn: 1, kind: 'designation', text: 'Took the Monarch', verdict: 'consent' },
     ]);
     expect(store().state?.monarch).toBe(true);
@@ -486,7 +486,7 @@ describe('game log (E140 + E142)', () => {
     store().init('deck-1', { library: threatLibrary(12), seed: 42 });
     const [a, b] = store().state!.zones.library;
     store().dispatch({ type: 'RESOLVE_TOP', mode: 'scry', top: [a.id], bottom: [b.id] });
-    expect(store().gameLog).toEqual([
+    expect(store().gameLog).toMatchObject([
       { seq: 1, turn: 1, kind: 'scry', text: 'Scried 2 — 1 to the bottom', verdict: 'locked' },
     ]);
   });
@@ -494,7 +494,7 @@ describe('game log (E140 + E142)', () => {
   it('mulliganOpeningHand logs a mulligan entry', () => {
     store().init('deck-1', { library: threatLibrary(3), seed: 42 });
     store().mulliganOpeningHand();
-    expect(store().gameLog).toEqual([
+    expect(store().gameLog).toMatchObject([
       {
         seq: 1,
         turn: 1,
@@ -660,7 +660,7 @@ describe('device-local session persistence (E137)', () => {
     flushPendingPlaytestSnapshot();
 
     const snap = loadPlaytestSnapshot('deck-1', '100:0');
-    expect(snap?.gameLog).toEqual([
+    expect(snap?.gameLog).toMatchObject([
       { seq: 1, turn: 2, kind: 'turn', text: 'Turn 2 begins', verdict: 'consent' },
     ]);
   });

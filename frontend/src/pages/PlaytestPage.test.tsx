@@ -24,6 +24,14 @@ vi.mock('@/lib/playtest/session-snapshot', () => ({
   loadPlaytestSnapshot: () => null,
 }));
 vi.mock('@/styles/playtest.css', () => ({}));
+// The page's own `← {deck}` header is the NARROW tier's way back; the table
+// tier (≥1024px) has no chrome rows and carries back-navigation in the
+// board's game menu instead (covered by PlaytestBoard.test.tsx, since the
+// board is mocked out here). happy-dom has no matchMedia, so pin it narrow
+// and keep testing what this page actually owns.
+vi.mock('@/playtest/hooks/use-narrow-viewport', () => ({
+  useNarrowViewport: () => true,
+}));
 
 interface FakePlaytestStore {
   state: { turn: number } | null;
