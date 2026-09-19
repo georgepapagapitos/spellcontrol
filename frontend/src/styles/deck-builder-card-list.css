@@ -44,6 +44,76 @@
   display: flex;
 }
 
+/* ── Stacks view (2026-09-19) ─────────────────────────────────────────
+   One column per group, the tiles overlapped so only each card's name strip
+   shows; the hovered/focused tile lifts to full view over its neighbours.
+   Same tile markup as the grid (DeckCardGrid `layout="stacks"`), so every
+   pip and badge is shared — these rules only change the geometry. */
+.deck-card-grid-sections--stacks {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.deck-grid-section--stack {
+  flex: 0 0 auto;
+  /* Section chrome is 0.85rem of padding per side around one card. */
+  width: calc(var(--stack-w) + 1.7rem);
+  --stack-w: var(--stack-w-desktop, 210px);
+  /* Card height at this width; the strip a buried card keeps showing is
+     ~11% of it, which is the name bar plus a hair of art on a normal frame. */
+  --stack-card-h: calc(var(--stack-w) * 680 / 488);
+  --stack-peek: calc(var(--stack-card-h) * 0.11);
+}
+
+@media (max-width: 1024px) {
+  .deck-grid-section--stack {
+    --stack-w: var(--stack-w-mobile, 154px);
+  }
+}
+
+/* The section carries the inline `--stack-w-*` from JS (custom properties
+   inherit downward only, and the section needs the width for itself too). */
+.deck-card-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: var(--stack-w);
+}
+
+.deck-card-stack .deck-card-grid-cell {
+  width: var(--stack-w);
+}
+
+.deck-card-stack .deck-card-grid-cell + .deck-card-grid-cell {
+  margin-top: calc(var(--stack-peek) - var(--stack-card-h));
+}
+
+/* Later siblings paint over earlier ones by DOM order; hovering or focusing a
+   tile lifts it above the cards stacked on it. The lift is z-order only — no
+   transform — so nothing below shifts and the pointer never lands on a moving
+   target. It targets the tile (the button, which already carries the shared
+   :focus-visible ring), not the <li>, so keyboard focus lifts the same card. */
+@media (hover: hover) and (pointer: fine) {
+  .deck-card-stack .deck-card-grid-tile:hover {
+    z-index: 3;
+  }
+}
+.deck-card-stack .deck-card-grid-tile:focus-visible {
+  z-index: 3;
+}
+
+/* A buried tile shows only its top strip, and the qty pip sits in that strip
+   over the name — shrink it to a corner tag so the name stays readable. */
+.deck-card-stack .deck-card-grid-qty {
+  top: var(--space-1);
+  left: var(--space-1);
+  padding: 0.05rem 0.35rem;
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: 0.66rem;
+}
+
 /* Card badge cluster — bottom-right over the art, like the collection
    grid. Sibling of the tile button (not nested) so the interactive
    BinderBadge isn't a button-in-button. */
@@ -698,7 +768,14 @@
   color: var(--text-muted);
 }
 
-/* Single card row: qty | rarity pill | name | mana cost | price */
+/* Single card row: qty | (role) | name | mana cost | price | menu.
+   Reads as a table (2026-09-19): mana and price sit in fixed, right-aligned
+   slots at the row's trailing edge so the eye can run down a column of
+   names and a column of costs — the pips used to float at a different x on
+   every row, which is what made the list read as "crammed icons" more than
+   the icon count did. Everything else about a card (foil, combos, where the
+   copy lives, synergy, EDHREC %) is hover-revealed in .deck-row-hovermeta or
+   lives in the pinned rail / card preview. */
 .deck-row {
   display: flex;
   align-items: center;
@@ -814,6 +891,31 @@
 .deck-row-menu {
   width: 0.75rem;
   flex: 0 0 auto;
+}
+
+/* Mana cost is a fixed-width, right-aligned slot in the deck row (a plain
+   trailing cell elsewhere — see collection.css). 3.9rem holds four pips,
+   which covers all but a handful of cards; a longer cost simply grows the
+   slot on its own row. Empty placeholders (no cost: lands) keep the slot. */
+.deck-row .mana-cost-row {
+  display: inline-flex;
+  justify-content: flex-end;
+  min-width: 3.9rem;
+}
+
+/* The ⋮ kebab rests hidden on a fine pointer and shows on row hover/focus —
+   a hundred identical glyphs down the right edge said nothing a hover can't.
+   The slot keeps its width so nothing shifts. Touch keeps it visible: no
+   hover to reveal it, and it's the row's only menu affordance there. */
+@media (hover: hover) and (pointer: fine) {
+  .deck-row .deck-row-menu-trigger {
+    opacity: 0;
+  }
+  .deck-row:hover .deck-row-menu-trigger,
+  .deck-row:focus-within .deck-row-menu-trigger,
+  .deck-row .deck-row-menu-trigger[data-open] {
+    opacity: 1;
+  }
 }
 
 /* ── Multi-select (E172) ──────────────────────────────────────────────
@@ -1043,7 +1145,7 @@
    into the menu. Rows with an unknown price render this cell empty so the
    menu column still lines up. */
 .deck-row-price {
-  min-width: 2.5rem;
+  min-width: 3.25rem;
   flex: 0 0 auto;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;

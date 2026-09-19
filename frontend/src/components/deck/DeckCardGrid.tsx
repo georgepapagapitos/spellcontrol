@@ -1,9 +1,17 @@
-// Grid view for the deck card list. Split out of DeckDisplay.tsx purely to
-// shrink the file — no logic changes.
+// Grid + Stacks views for the deck card list (one tile, two layouts). Split
+// out of DeckDisplay.tsx purely to shrink the file.
+//
+// `layout="stacks"` (2026-09-19) is the visual-stacks layout Moxfield and
+// Archidekt default Commander decks to: every group is a column of card
+// images overlapped so only each card's name strip shows, and the hovered /
+// focused card lifts to full view over its neighbours. It renders the exact
+// same <li> tile as the grid — qty pip, allocation, legality, foil, badge
+// cluster — so the two can't drift; only the section/list classes and the
+// `--stack-w` width differ (see deck-builder-card-list.css § Stacks).
 import type { CSSProperties } from 'react';
 import { Handshake, Tag as TagIcon } from 'lucide-react';
 import { getRoleBadge, type RoleKey } from '../../lib/role-badges';
-import { zoomBucket, zoomMinCol, zoomTier } from '@/lib/grid-zoom';
+import { stackWidth, zoomBucket, zoomMinCol, zoomTier } from '@/lib/grid-zoom';
 import type { LegalityIssue } from '../../lib/deck-validation';
 import { MeterBar } from '../shared/MeterBar';
 import { BinderBadge, type BinderInfo } from '../BinderBadge';
@@ -29,9 +37,13 @@ export function DeckCardGrid({
   binderByCopyId,
   hasPartner,
   onEditPartner,
+  layout = 'grid',
 }: {
   groups: TypedGroup[];
   onRowClick: (name: string) => void;
+  /** 'grid' (default) wraps tiles in an auto-fill grid per section; 'stacks'
+   *  renders each section as one overlapped column of tiles. */
+  layout?: 'grid' | 'stacks';
   legalityBySlot?: Map<string, LegalityIssue>;
   gridZoom: number;
   /** Callback ref + measured width from `useElementWidth`, attached to every
@@ -46,8 +58,9 @@ export function DeckCardGrid({
   hasPartner?: boolean;
   onEditPartner?: () => void;
 }) {
+  const stacks = layout === 'stacks';
   return (
-    <div className="deck-card-grid-sections">
+    <div className={`deck-card-grid-sections${stacks ? ' deck-card-grid-sections--stacks' : ''}`}>
       {groups.map((g) => {
         // A bucket with no rows still renders when it carries a target (the
         // 0/N gap story) — see groupByCategory. Type-mode buckets never set
@@ -55,7 +68,22 @@ export function DeckCardGrid({
         if (g.rows.length === 0 && g.target === undefined) return null;
         const count = g.rows.reduce((s, r) => s + r.qty, 0);
         return (
-          <section key={g.title} className="deck-grid-section">
+          <section
+            key={g.title}
+            className={`deck-grid-section${stacks ? ' deck-grid-section--stack' : ''}`}
+            // Stacks: a fixed card width per zoom step, set on the SECTION so
+            // both it (its own width) and the list inside inherit it — custom
+            // properties only flow downward. The tier is the viewport's: the
+            // stack's own width IS this value, so measuring it would be circular.
+            style={
+              stacks
+                ? ({
+                    '--stack-w-desktop': `${stackWidth(gridZoom, 'desktop')}px`,
+                    '--stack-w-mobile': `${stackWidth(gridZoom, 'mobile')}px`,
+                  } as CSSProperties)
+                : undefined
+            }
+          >
             <header className="deck-section-header">
               <span className="deck-section-icon">
                 <SectionIcon icon={g.icon} />
@@ -88,7 +116,9 @@ export function DeckCardGrid({
             </header>
             <ul
               ref={gridRef}
-              className={`deck-card-grid grid-${zoomBucket(gridZoom)}`}
+              className={`deck-card-grid grid-${zoomBucket(gridZoom)}${
+                stacks ? ' deck-card-stack' : ''
+              }`}
               style={
                 {
                   '--card-min-desktop': `${zoomMinCol(gridZoom, 'desktop')}px`,

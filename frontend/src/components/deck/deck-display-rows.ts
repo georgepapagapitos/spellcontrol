@@ -141,7 +141,10 @@ export type SortMode = 'name' | 'cmc' | 'price' | 'color' | 'added' | 'custom';
 // Decks intentionally don't expose a "compact" list mode — the deck row
 // is already text-only and tight, so a denser variant would be visually
 // indistinguishable from the regular list.
-export type DeckViewMode = 'list' | 'grid';
+// 'stacks' (2026-09-19) is the Moxfield/Archidekt "visual stacks" layout:
+// one column per group, card images overlapped so only each name strip
+// shows, the hovered card lifting to full view. Same tile as the grid.
+export type DeckViewMode = 'list' | 'grid' | 'stacks';
 
 export interface ShowPrefs {
   price: boolean;
@@ -152,7 +155,12 @@ export interface ShowPrefs {
 export const VIEW_MODE_STORAGE_KEY = 'mtg-decks-view-mode';
 export const SHOW_PREFS_STORAGE_KEY = 'mtg-decks-show-prefs';
 
-export const DEFAULT_SHOW_PREFS: ShowPrefs = { price: true, roles: true, mana: true };
+// Roles default OFF (2026-09-19). The 2-letter role code is a second alphabet
+// on every row of a 100-card list, and in the Category lens the section
+// heading already says "Removal". The tap-to-reveal badge, the Key and the
+// Show toggle all remain; a user who turned roles on keeps them (their stored
+// prefs carry every key, so this default only reaches a first-time list).
+export const DEFAULT_SHOW_PREFS: ShowPrefs = { price: true, roles: false, mana: true };
 
 export function readStoredViewMode(): DeckViewMode {
   // Default is the list: it is the editing surface (steppers, kebab, reorder,
@@ -162,7 +170,7 @@ export function readStoredViewMode(): DeckViewMode {
   if (typeof window === 'undefined') return 'list';
   try {
     const v = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
-    if (v === 'list' || v === 'grid') return v;
+    if (v === 'list' || v === 'grid' || v === 'stacks') return v;
     // Migrate dropped modes ('compact', 'text') → 'list' for any
     // persisted value.
     if (v === 'compact' || v === 'text') return 'list';
@@ -608,6 +616,38 @@ export function sortRows(rows: Row[], mode: SortMode, dir: 'asc' | 'desc'): Row[
 }
 
 export type TypedGroup = { title: string; icon: string; rows: Row[]; target?: number };
+
+// ── List columns (2026-09-19) ────────────────────────────────────────────
+// Column sizing for the list view. The old rule was width-only (as many
+// 280px columns as fit), so a 100-card deck on a 2000px display got six
+// columns — one section each, five of them mostly empty below the fold —
+// while every card name was squeezed to ~90px and ellipsised. Two changes:
+// a wider floor per column, and a cap from the deck's own row count so the
+// leftover width goes to the names, not to more columns.
+export const LIST_COL_MIN_PX = 320;
+export const LIST_COL_GAP_PX = 16;
+/** Rows a column should hold before it earns a neighbour — a 100-card
+ *  Commander deck (≈110 rows with section headers) lands on four columns. */
+export const LIST_TARGET_ROWS_PER_COL = 30;
+
+/** How many list columns to render: as many as the width allows, but never
+ *  more than the deck can fill to `LIST_TARGET_ROWS_PER_COL`. 0 width (not
+ *  yet measured) is one column, matching the ≤1100px single-panel rule. */
+export function listColumnCount(width: number, rowCount: number): number {
+  if (width <= 0) return 1;
+  const byWidth = Math.max(
+    1,
+    Math.floor((width + LIST_COL_GAP_PX) / (LIST_COL_MIN_PX + LIST_COL_GAP_PX))
+  );
+  const byRows = Math.max(1, Math.ceil(rowCount / LIST_TARGET_ROWS_PER_COL));
+  return Math.min(byWidth, byRows);
+}
+
+/** Row-count height of a set of sections, header allowance included — the
+ *  same unit `packSections` balances on. */
+export function sectionRowCount(sections: ReadonlyArray<{ rows: unknown[] }>): number {
+  return sections.reduce((n, s) => n + s.rows.length + SECTION_HEADER_ROWS, 0);
+}
 
 /** A section header + its card padding is worth about this many rows of height. */
 const SECTION_HEADER_ROWS = 2;

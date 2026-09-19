@@ -35,6 +35,17 @@ export function zoomMinCol(step: number, tier: 'desktop' | 'mobile'): number {
 }
 
 /**
+ * Card width in px for a zoom step in the deck's Stacks view. A stack shows
+ * only each card's name strip until it's hovered, so the card has to be wide
+ * enough for that strip to read as text — 1.4× the grid ladder puts the
+ * default step at 210px (desktop) / 154px (phone), about what Archidekt and
+ * Moxfield render their stacks at, while the same −/+ control still drives it.
+ */
+export function stackWidth(step: number, tier: 'desktop' | 'mobile'): number {
+  return Math.round(zoomMinCol(step, tier) * 1.4);
+}
+
+/**
  * Column gap every card grid renders with, in px. The JS column math and the
  * CSS `gap` MUST be the same number: they were independently hand-picked (JS
  * used 8 below 1024px and 10 above; the collection grid rendered 10 either
