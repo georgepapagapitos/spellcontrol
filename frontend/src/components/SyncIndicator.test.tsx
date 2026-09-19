@@ -200,6 +200,17 @@ describe('SyncIndicator', () => {
     expect(screen.getByText('Synced')).toBeTruthy();
   });
 
+  it('shows slice progress while a chunked push is in flight, ahead of Syncing', () => {
+    authed();
+    vi.spyOn(sync, 'getSyncState').mockReturnValue('syncing');
+    vi.spyOn(sync, 'getPushProgress').mockReturnValue({ done: 4, total: 7, ops: 13000 });
+    const { container } = renderIndicator();
+    expect(screen.getByText(/Saving 5\/7/)).toBeTruthy();
+    expect(screen.getByLabelText('Saving to your account, 5 of 7…')).toBeTruthy();
+    expect(container.querySelector('.sync-indicator-spinner')).toBeTruthy();
+    expect(screen.queryByText(/Syncing/)).toBeNull();
+  });
+
   it('re-renders when the sync listener fires (e.g. syncing → ready)', () => {
     useAuth.setState({
       user: { id: 'u', username: 'a', role: 'user' },
@@ -308,6 +319,37 @@ describe('HeaderSyncIndicator', () => {
     const { container } = renderHeaderIndicator();
     expect(screen.getByText(/Saving/)).toBeTruthy();
     expect(container.querySelector('.sync-indicator-spinner')).toBeTruthy();
+  });
+
+  it('shows slice progress while a chunked push is in flight, ahead of Sync failed', () => {
+    // A big import saving to the account in the background: the user may
+    // have left the import panel, so the header carries the count.
+    authedHeader();
+    vi.spyOn(sync, 'getPushProgress').mockReturnValue({ done: 2, total: 7, ops: 13000 });
+    vi.spyOn(sync, 'hasSyncError').mockReturnValue(true);
+    const { container } = renderHeaderIndicator();
+    expect(screen.getByText(/Saving 3\/7/)).toBeTruthy();
+    expect(screen.getByLabelText('Saving to your account, 3 of 7…')).toBeTruthy();
+    expect(container.querySelector('.sync-indicator-spinner')).toBeTruthy();
+    expect(screen.queryByText('Sync failed')).toBeNull();
+  });
+
+  it('push progress advances as the sync listener fires', () => {
+    authedHeader();
+    const spy = vi.spyOn(sync, 'getPushProgress').mockReturnValue({ done: 0, total: 3, ops: 5000 });
+    renderHeaderIndicator();
+    expect(screen.getByText(/Saving 1\/3/)).toBeTruthy();
+    spy.mockReturnValue({ done: 2, total: 3, ops: 5000 });
+    act(() => {
+      emit();
+    });
+    expect(screen.getByText(/Saving 3\/3/)).toBeTruthy();
+    spy.mockReturnValue(null);
+    act(() => {
+      emit();
+    });
+    // Settled: silence = synced.
+    expect(screen.queryByText(/Saving/)).toBeNull();
   });
 
   it('Offline outranks Sync failed and Syncing', () => {

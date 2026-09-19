@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   getSyncState,
   getPendingCount,
+  getPushProgress,
   isOnline,
   hasSyncError,
   getLastSyncedAt,
@@ -60,6 +61,7 @@ export function SyncIndicator() {
   const pending = getPendingCount();
   const online = isOnline();
   const errored = hasSyncError();
+  const progress = getPushProgress();
 
   if (!online) {
     const detail =
@@ -74,6 +76,25 @@ export function SyncIndicator() {
         aria-live="polite"
       >
         Offline
+      </span>
+    );
+  }
+
+  // A chunked push in flight (a big import saving to the account). Ahead of
+  // "Syncing" and "Sync failed": it is the freshest signal, and the count is
+  // what tells the user the app is still working rather than stuck.
+  if (progress) {
+    const current = Math.min(progress.done + 1, progress.total);
+    const detail = `Saving to your account, ${current} of ${progress.total}…`;
+    return (
+      <span
+        className="sync-indicator sync-indicator-syncing"
+        title={detail}
+        aria-label={detail}
+        aria-live="polite"
+      >
+        <span className="sync-indicator-spinner" aria-hidden="true" />
+        Saving {current}/{progress.total}…
       </span>
     );
   }
@@ -177,6 +198,7 @@ export function HeaderSyncIndicator() {
   const errored = hasSyncError();
   const pending = getPendingCount();
   const state = getSyncState();
+  const progress = getPushProgress();
 
   // Offline — most urgent signal.
   if (!online) {
@@ -192,6 +214,25 @@ export function HeaderSyncIndicator() {
         aria-label={label}
       >
         {label}
+      </Link>
+    );
+  }
+
+  // A chunked push in flight — a big import saving to the account in the
+  // background. The user may have left the import panel by now, so this is
+  // where they see it is still working (and when it is done).
+  if (progress) {
+    const current = Math.min(progress.done + 1, progress.total);
+    const detail = `Saving to your account, ${current} of ${progress.total}…`;
+    return (
+      <Link
+        to="/you?section=account"
+        className="sync-indicator sync-indicator-syncing header-sync-indicator"
+        title={detail}
+        aria-label={detail}
+      >
+        <span className="sync-indicator-spinner" aria-hidden="true" />
+        Saving {current}/{progress.total}…
       </Link>
     );
   }
