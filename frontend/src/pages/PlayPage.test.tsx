@@ -83,27 +83,71 @@ function renderPage(initialEntry = '/play') {
 
 describe('PlayPage tabs', () => {
   it('renders Local/Online/Game nights/History through the shared Tabs primitive', () => {
-    const { container } = renderPage();
+    const { container } = renderPage('/play?tab=local');
     const tablist = screen.getByRole('tablist', { name: 'Play sections' });
     expect(tablist.classList.contains('sc-tabs')).toBe(true);
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.map((t) => t.textContent)).toEqual(['Local', 'Online', 'Game nights', 'History']);
+    expect(tabs.map((t) => t.textContent)).toEqual([
+      'Play',
+      'Local',
+      'Online',
+      'Game nights',
+      'History',
+    ]);
     // No hand-rolled strip left behind.
     expect(container.querySelector('.play-tabs')).toBeNull();
   });
 
-  it('defaults to the Local tab with roving tabindex', () => {
+  it('defaults to the Play dashboard with roving tabindex', () => {
     renderPage();
-    const local = screen.getByRole('tab', { name: 'Local' });
-    expect(local.getAttribute('aria-selected')).toBe('true');
-    expect(local.getAttribute('tabindex')).toBe('0');
-    expect(screen.getByRole('tab', { name: 'Online' }).getAttribute('tabindex')).toBe('-1');
-    // Local setup form is the visible panel.
+    const play = screen.getByRole('tab', { name: 'Play' });
+    expect(play.getAttribute('aria-selected')).toBe('true');
+    expect(play.getAttribute('tabindex')).toBe('0');
+    expect(screen.getByRole('tab', { name: 'Local' }).getAttribute('tabindex')).toBe('-1');
+    // The dashboard's doors are the visible panel, not a form.
+    expect(screen.getByRole('button', { name: /Track a table/ })).toBeTruthy();
+    expect(screen.queryByText('New local game')).toBeNull();
+  });
+
+  it('lands on the board when a local game is on screen, and on the dashboard once minimized', () => {
+    usePlayStore.getState().startLocal({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+      players: [
+        { name: 'Alice', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+        { name: 'Bob', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+      ],
+    });
+    const { unmount } = renderPage();
+    expect(screen.getByRole('tab', { name: /^Local/ }).getAttribute('aria-selected')).toBe('true');
+    unmount();
+
+    usePlayStore.getState().hideBoard();
+    renderPage();
+    expect(screen.getByRole('tab', { name: 'Play' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByText('Alice · Bob')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
+    expect(usePlayStore.getState().boardVisible).toBe(true);
+    expect(screen.getByRole('tab', { name: /^Local/ }).getAttribute('aria-selected')).toBe('true');
+    usePlayStore.getState().discardLocal();
+  });
+
+  it('opens the section a door names', () => {
+    useAuth.setState({ user: null, status: 'guest' });
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /Track a table/ }));
     expect(screen.getByText('New local game')).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: 'Play' }));
+    // Signed out, the online doors lead to the sign-in state, not a form.
+    fireEvent.click(screen.getByRole('button', { name: /Join with a code/ }));
+    expect(screen.getByRole('tab', { name: 'Online' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByText('Online games need an account.')).toBeTruthy();
   });
 
   it('switches panels on tab click', () => {
-    renderPage();
+    renderPage('/play?tab=local');
     fireEvent.click(screen.getByRole('tab', { name: 'History' }));
     expect(screen.getByRole('tab', { name: 'History' }).getAttribute('aria-selected')).toBe('true');
     expect(screen.getByText('No games yet.')).toBeTruthy();
@@ -119,14 +163,14 @@ describe('PlayPage tabs', () => {
 
 describe('Local setup — seat name field (B7-05)', () => {
   it('seeds the name field empty, not a live "Player N" value', () => {
-    renderPage();
+    renderPage('/play?tab=local');
     const seat1 = screen.getByRole('textbox', { name: 'Player 1 name' }) as HTMLInputElement;
     expect(seat1.value).toBe('');
     expect(seat1.placeholder).toBe('Player 1');
   });
 
   it('falls back to "Player N" for a seat left blank, without concatenating a typed name', () => {
-    renderPage();
+    renderPage('/play?tab=local');
     const seat2 = screen.getByRole('textbox', { name: 'Player 2 name' }) as HTMLInputElement;
     fireEvent.change(seat2, { target: { value: 'Bob' } });
     fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
@@ -138,7 +182,7 @@ describe('Local setup — seat name field (B7-05)', () => {
 
 describe('PlayPage rules button', () => {
   it('opens the rules reference sheet', () => {
-    renderPage();
+    renderPage('/play?tab=local');
     expect(useRulesReferenceStore.getState().isOpen).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: 'Rules' }));
     expect(useRulesReferenceStore.getState().isOpen).toBe(true);
@@ -219,8 +263,55 @@ describe('Local setup — seats are people', () => {
     usePlayStore.setState({ local: null });
   });
 
-  it('seats a friend: the name fills in and the started game carries their account', async () => {
+  it('signed in, the dashboard shows the record and the join door opens the join form', async () => {
+    usePlayStore.setState({
+      history: [
+        {
+          id: 'r1',
+          code: '',
+          format: 'commander',
+          startingLife: 40,
+          players: [
+            {
+              seat: 0,
+              userId: 'me',
+              name: 'georg',
+              deckId: 'd1',
+              deckName: 'Atraxa',
+              commander: null,
+              finalLife: 12,
+              eliminated: false,
+            },
+            {
+              seat: 1,
+              userId: null,
+              name: 'Cal',
+              deckId: null,
+              deckName: null,
+              commander: null,
+              finalLife: 0,
+              eliminated: true,
+            },
+          ],
+          winnerSeat: 0,
+          startedAt: 1,
+          endedAt: 2,
+          durationMs: 1,
+          mode: 'local',
+        },
+      ],
+    });
     renderPage();
+    expect(screen.getByText('georg won')).toBeTruthy();
+    const record = within(screen.getByLabelText('Your record'));
+    expect(record.getByText('100%')).toBeTruthy();
+    expect(record.getByText('Atraxa')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Join with a code/ }));
+    expect(screen.getByText('Join a game')).toBeTruthy();
+  });
+
+  it('seats a friend: the name fills in and the started game carries their account', async () => {
+    renderPage('/play?tab=local');
     const who = await screen.findByRole('button', { name: 'Who is in seat 2' });
     fireEvent.click(who);
     fireEvent.click(screen.getByRole('option', { name: 'Bobby' }));
@@ -242,7 +333,7 @@ describe('Local setup — seats are people', () => {
   });
 
   it('never offers an account that already holds another seat', async () => {
-    renderPage();
+    renderPage('/play?tab=local');
     fireEvent.click(await screen.findByRole('button', { name: 'Who is in seat 1' }));
     fireEvent.click(screen.getByRole('option', { name: 'Bobby' }));
     fireEvent.click(screen.getByRole('button', { name: 'Who is in seat 2' }));
@@ -252,7 +343,7 @@ describe('Local setup — seats are people', () => {
   });
 
   it('seats a whole pod in one tap, you first', async () => {
-    renderPage();
+    renderPage('/play?tab=local');
     fireEvent.click(await screen.findByRole('button', { name: 'Thursday' }));
     await waitFor(() =>
       expect(screen.getByRole('textbox', { name: 'Player 3 name' })).toBeTruthy()
@@ -277,7 +368,7 @@ describe('Local setup — seats are people', () => {
       ],
       'commander'
     );
-    renderPage();
+    renderPage('/play?tab=local');
     // The seat shows the account once the friends list has resolved it.
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Who is in seat 1' }).textContent).toContain(
@@ -412,9 +503,9 @@ describe('PlayPage — ?new=1 deep link', () => {
     expect(screen.queryByText('Player 1')).toBeNull();
   });
 
-  it('leaves a plain /play on the setup form — no accidental auto-start', () => {
+  it('leaves a plain /play on the dashboard — no accidental auto-start', () => {
     renderPage('/play');
-    expect(screen.getByText('New local game')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Track a table/ })).toBeTruthy();
     expect(usePlayStore.getState().local).toBeNull();
   });
 });
