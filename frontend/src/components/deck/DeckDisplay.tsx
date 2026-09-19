@@ -1321,17 +1321,15 @@ export function DeckDisplay({
   // Pinned card rail (2026-09-19): on a wide, hover-capable screen the list
   // gets a sticky preview column that shows the last card the pointer rested
   // on — the commander until then — instead of the floating hover-peek. The
-  // hover hook still owns "which row is under the pointer"; the rail only
-  // remembers the last non-null answer so it doesn't blink back to the
+  // hover hook owns both "which row is under the pointer" (`peek`) and the
+  // last non-null answer (`lastPeek`), so the rail doesn't blink back to the
   // commander in the gaps between rows.
   const railActive = useMediaQuery(RAIL_QUERY) && viewMode === 'list';
-  const [railKey, setRailKey] = useState<{ name: string; img?: string } | null>(null);
-  useEffect(() => {
-    if (hoverPeek.peek) setRailKey({ name: hoverPeek.peek.name, img: hoverPeek.peek.img });
-  }, [hoverPeek.peek]);
+  const railKey = hoverPeek.lastPeek;
   const railCard = useMemo<DeckCardRailCard | null>(() => {
     if (!railActive) return null;
-    const key = railKey ?? (commander ? { name: commander.name } : null);
+    const key: { name: string; img?: string } | null =
+      railKey ?? (commander ? { name: commander.name } : null);
     if (!key) return null;
     const i = flat.indexByName.get(key.name);
     if (i === undefined) return null;
@@ -1766,9 +1764,9 @@ export function DeckDisplay({
                         ))}
                       </div>
                     </div>
-                  {railActive && (
-                    <DeckCardRail card={railCard} currency={currency} onOpen={openPreview} />
-                  )}
+                    {railActive && (
+                      <DeckCardRail card={railCard} currency={currency} onOpen={openPreview} />
+                    )}
                   </div>
                 )}
                 {(viewMode === 'grid' || viewMode === 'stacks') && visibleGroups.length > 0 && (

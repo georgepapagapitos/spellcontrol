@@ -90,23 +90,25 @@
   margin-top: calc(var(--stack-peek) - var(--stack-card-h));
 }
 
-/* Later siblings paint over earlier ones by DOM order; a hover/focus lifts the
-   card above the ones stacked on it. The lift is z-order only — no transform —
-   so nothing below shifts and the pointer never lands on a moving target. */
+/* Later siblings paint over earlier ones by DOM order; hovering or focusing a
+   tile lifts it above the cards stacked on it. The lift is z-order only — no
+   transform — so nothing below shifts and the pointer never lands on a moving
+   target. It targets the tile (the button, which already carries the shared
+   :focus-visible ring), not the <li>, so keyboard focus lifts the same card. */
 @media (hover: hover) and (pointer: fine) {
-  .deck-card-stack .deck-card-grid-cell:hover {
+  .deck-card-stack .deck-card-grid-tile:hover {
     z-index: 3;
   }
 }
-.deck-card-stack .deck-card-grid-cell:focus-within {
+.deck-card-stack .deck-card-grid-tile:focus-visible {
   z-index: 3;
 }
 
 /* A buried tile shows only its top strip, and the qty pip sits in that strip
    over the name — shrink it to a corner tag so the name stays readable. */
 .deck-card-stack .deck-card-grid-qty {
-  top: 0.25rem;
-  left: 0.25rem;
+  top: var(--space-1);
+  left: var(--space-1);
   padding: 0.05rem 0.35rem;
   /* stylelint-disable-next-line declaration-property-value-disallowed-list */
   font-size: 0.66rem;
