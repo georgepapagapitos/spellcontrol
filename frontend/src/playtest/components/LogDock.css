@@ -265,3 +265,47 @@
   backdrop-filter: none;
   background: var(--bg);
 }
+
+/* ── Phase strip: the online table's turn clock, five icons, one lit ────── */
+
+.playtest-log-dock__phases {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-1);
+  padding: 0 var(--space-3) var(--space-2);
+}
+
+.playtest-log-dock__phase {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+button.playtest-log-dock__phase {
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.playtest-log-dock__phase.is-current {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button.playtest-log-dock__phase:hover {
+    color: var(--text-primary);
+  }
+}
+
+button.playtest-log-dock__phase:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

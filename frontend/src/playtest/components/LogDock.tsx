@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Copy, ExternalLink, X } from 'lucide-react';
+import { Copy, ExternalLink, Moon, Sunrise, Swords, Wand, X } from 'lucide-react';
+import { GAME_PHASES, type GamePhase } from '@/lib/game-state';
 import './LogDock.css';
 import {
   formatLogForClipboard,
@@ -23,6 +24,13 @@ interface Props {
   popoutHref?: string;
   /** `dock` floats over the table; `page` fills its window (the pop-out). */
   variant?: 'dock' | 'page';
+  /**
+   * The online table's phase clock, shown as a strip of five phase icons
+   * under the header, the reading an EDHPlay log gives at a glance. `mine`
+   * (it is this seat's turn) makes them buttons that set the phase;
+   * otherwise they only show where the turn is. Absent off the table.
+   */
+  phase?: { current: GamePhase | undefined; mine: boolean; onSet(phase: GamePhase): void };
 }
 
 type Filter = 'all' | 'cards' | 'life' | 'turns' | 'table';
@@ -91,7 +99,7 @@ function formatTime(ts: number): string {
   return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
-export function LogDock({ log, table, onClose, popoutHref, variant = 'dock' }: Props) {
+export function LogDock({ log, table, onClose, popoutHref, variant = 'dock', phase }: Props) {
   const [saved, setFilter] = useState<Filter>(readFilter);
   const filter = saved === 'table' && !table ? 'all' : saved;
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -209,6 +217,8 @@ export function LogDock({ log, table, onClose, popoutHref, variant = 'dock' }: P
         </button>
       </div>
 
+      {phase && <PhaseStrip {...phase} />}
+
       <div className="playtest-log-dock__filters" role="group" aria-label="Filter the log">
         {chips.map((chip) => (
           <button
@@ -284,5 +294,65 @@ export function LogDock({ log, table, onClose, popoutHref, variant = 'dock' }: P
           being online and seated. */}
       {showTable && <TableChat idPrefix="log-dock" />}
     </aside>
+  );
+}
+
+const PHASE_META: Record<GamePhase, { label: string; Icon: typeof Sunrise; flip?: boolean }> = {
+  beginning: { label: 'Beginning phase', Icon: Sunrise },
+  main1: { label: 'First main phase', Icon: Wand },
+  combat: { label: 'Combat phase', Icon: Swords },
+  main2: { label: 'Second main phase', Icon: Wand, flip: true },
+  end: { label: 'End phase', Icon: Moon },
+};
+
+/**
+ * Five phase icons, the current one lit. On your own turn each is a button
+ * that jumps the clock to that phase (forward or back — a table that
+ * skipped combat by mistake can say so); on anyone else's turn they only
+ * show where the turn is. Before the clock starts, the strip reads as unlit.
+ */
+function PhaseStrip({
+  current,
+  mine,
+  onSet,
+}: {
+  current: GamePhase | undefined;
+  mine: boolean;
+  onSet(phase: GamePhase): void;
+}) {
+  return (
+    <div
+      className="playtest-log-dock__phases"
+      role={mine ? 'group' : 'status'}
+      aria-label={
+        current ? `Phase: ${PHASE_META[current].label}` : 'The phase clock has not started'
+      }
+    >
+      {GAME_PHASES.map((p) => {
+        const { label, Icon, flip } = PHASE_META[p];
+        const isCurrent = current === p;
+        const cls = `playtest-log-dock__phase${isCurrent ? ' is-current' : ''}`;
+        const icon = (
+          <Icon aria-hidden size={16} style={flip ? { transform: 'scaleX(-1)' } : undefined} />
+        );
+        return mine ? (
+          <button
+            key={p}
+            type="button"
+            className={cls}
+            title={label}
+            aria-label={label}
+            aria-pressed={isCurrent}
+            onClick={() => onSet(p)}
+          >
+            {icon}
+          </button>
+        ) : (
+          <span key={p} className={cls} title={label} aria-label={label} role="img">
+            {icon}
+          </span>
+        );
+      })}
+    </div>
   );
 }

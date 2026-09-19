@@ -206,6 +206,28 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const [lastSeenLogSeq, setLastSeenLogSeq] = useState(0);
   const [showDice, setShowDice] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  // Card size on the wide tier: a multiplier on the density-driven card box,
+  // persisted per device and applied on <body> (where `--pt-card-w` lives so
+  // the drag overlay inherits it). 1 is the density the tier computes.
+  const [zoom, setZoom] = useState(() => readZoom());
+  useEffect(() => {
+    document.body.style.setProperty('--pt-zoom', String(zoom));
+    return () => {
+      document.body.style.removeProperty('--pt-zoom');
+    };
+  }, [zoom]);
+  const stepZoom = useCallback((dir: 1 | -1) => {
+    setZoom((z) => {
+      const next =
+        Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z + dir * ZOOM_STEP)) * 10) / 10;
+      writeZoom(next);
+      return next;
+    });
+  }, []);
+  const resetZoom = useCallback(() => {
+    setZoom(1);
+    writeZoom(1);
+  }, []);
   // Rebindable keys, persisted per device (lib/shortcuts). Every place that
   // prints a key — the corner buttons, the table menu, the sheet — reads the
   // same table, so a rebound key never lies on screen.
@@ -890,12 +912,12 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           for (const cardId of selected) dispatch({ type: 'TRANSFORM', cardId });
         },
         'counter-plus': () => {
-          if (!hasSelection) return false;
+          if (!hasSelection) return isNarrow ? false : stepZoom(1);
           for (const cardId of selected)
             dispatch({ type: 'SET_COUNTER', cardId, counter: '+1/+1', delta: 1 });
         },
         'counter-minus': () => {
-          if (!hasSelection) return false;
+          if (!hasSelection) return isNarrow ? false : stepZoom(-1);
           for (const cardId of selected)
             dispatch({ type: 'SET_COUNTER', cardId, counter: '-1/-1', delta: 1 });
         },
@@ -940,6 +962,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     showLog,
     isNarrow,
     state.battlefield,
+    stepZoom,
   ]);
 
   // Online, keeping your opening hand doesn't start the game — the takeover
@@ -998,6 +1021,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       onClick: () => setShowTakebackSettings(true),
     },
     { label: 'Keyboard shortcuts', onClick: () => setShowShortcuts(true) },
+    // The narrow tier sizes cards for a thumb; only the wide tier zooms.
+    ...(!isNarrow
+      ? [
+          { label: 'Bigger cards', onClick: () => stepZoom(1), disabled: zoom >= ZOOM_MAX },
+          { label: 'Smaller cards', onClick: () => stepZoom(-1), disabled: zoom <= ZOOM_MIN },
+          ...(zoom !== 1 ? [{ label: 'Reset card size', onClick: resetZoom }] : []),
+        ]
+      : []),
     // Fullscreen is offered only where the browser offers it (not inside the
     // native shell, and not in every embedded WebView).
     ...(typeof document !== 'undefined' && document.fullscreenEnabled
@@ -1540,6 +1571,20 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               ? { items: onlineTicker, nameFor: (seat) => tickerSeatName(onlineTable, seat) }
               : undefined
           }
+          phase={
+            onlineTable
+              ? {
+                  current: onlineTable.phase,
+                  mine: onlineTable.activeSeat === onlineTable.mySeat,
+                  onSet: (p) =>
+                    onlineTable.dispatch({
+                      type: 'phase',
+                      phase: p,
+                      actorSeat: onlineTable.mySeat,
+                    }),
+                }
+              : undefined
+          }
           onClose={() => setShowLog(false)}
         />
       )}
@@ -1831,4 +1876,29 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       {confirmDialog}
     </div>
   );
+}
+
+// ── Card size (wide tier) ───────────────────────────────────────────────────
+
+const ZOOM_KEY = 'playtest-zoom-v1';
+const ZOOM_MIN = 0.7;
+const ZOOM_MAX = 1.5;
+const ZOOM_STEP = 0.1;
+
+function readZoom(): number {
+  try {
+    const n = Number(localStorage.getItem(ZOOM_KEY));
+    return Number.isFinite(n) && n >= ZOOM_MIN && n <= ZOOM_MAX ? n : 1;
+  } catch {
+    return 1;
+  }
+}
+
+function writeZoom(zoom: number): void {
+  try {
+    if (zoom === 1) localStorage.removeItem(ZOOM_KEY);
+    else localStorage.setItem(ZOOM_KEY, String(zoom));
+  } catch {
+    // A remembered size is a convenience, never a requirement.
+  }
 }

@@ -77,7 +77,7 @@ body:has(.playtest-page) {
      chrome left. So the cap is (100vh - 40px) / 7.6. 1440×900 → 100px (7vw
      still binds), 1920×1080 → 134px (7vw binds there too). The ≤1023px and short-landscape tiers
      below override both with their own fixed sizes. */
-  --pt-card-w: clamp(90px, min(7vw, (100vh - 40px) / 7.6), 140px);
+  --pt-card-w: calc(clamp(90px, min(7vw, (100vh - 40px) / 7.6), 140px) * var(--pt-zoom, 1));
   --pt-card-h: calc(var(--pt-card-w) * 1.4);
   /* Half the extra width a tapped (90°-rotated) card sticks out past its
      slot: the battlefield keeps this much clear on each side so a tapped

@@ -112,7 +112,9 @@ describe('table chrome at the wide tier', () => {
   it('recomputes the density cap off the fan, not the deleted chrome rows', () => {
     // 4.3 card heights (three type rows + the fan's reserved bottom) = 6.02
     // card widths, plus the fan's own ~40px of padding/toggle.
-    expect(css).toContain('--pt-card-w: clamp(90px, min(7vw, (100vh - 40px) / 7.6), 140px);');
+    expect(css).toContain(
+      '--pt-card-w: calc(clamp(90px, min(7vw, (100vh - 40px) / 7.6), 140px) * var(--pt-zoom, 1));'
+    );
     expect(css).not.toContain('(100vh - 340px) / 4.6');
   });
 });
