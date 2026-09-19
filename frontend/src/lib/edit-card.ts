@@ -38,12 +38,20 @@ function mixedSummary(values: (string | undefined)[]): string | undefined {
 export function stackDetailMix(copies: EnrichedCard[]): {
   condition?: string;
   language?: string;
+  notes?: string;
   acquiredPrice?: string;
   priceOverride?: string;
 } {
   return {
     condition: mixedSummary(copies.map((c) => c.condition)),
     language: mixedSummary(copies.map((c) => c.language)),
+    // Notes are free text, so the per-value tally that reads well for
+    // "3 NM, 1 HP" would print the notes themselves; a count of distinct
+    // values says what matters (the stack disagrees) without the noise.
+    notes: (() => {
+      const distinct = new Set(copies.map((c) => c.notes?.trim() || ''));
+      return distinct.size > 1 ? `${distinct.size} different` : undefined;
+    })(),
     // Cost basis disagrees across a stack more often than any other field — the
     // same card bought twice years apart — so it gets the same don't-homogenize
     // treatment. Each copy formats in the currency it was recorded in (absent =
@@ -198,6 +206,10 @@ export function buildEditedCards(
     const languageTouched = selection.details.languageTouched ?? true;
     if (conditionTouched) cardFields.condition = selection.details.condition;
     if (languageTouched) cardFields.language = selection.details.language;
+    // Blank clears it — absent is the only "no note" state (see EnrichedCard).
+    if (selection.details.notesTouched ?? true) {
+      cardFields.notes = selection.details.notes?.trim() || undefined;
+    }
     cardFields.altered = selection.details.altered;
     cardFields.proxy = selection.details.proxy;
     cardFields.misprint = selection.details.misprint;
@@ -289,6 +301,7 @@ export function isNoOpCardEdit(
     if (
       (d.condition ?? undefined) !== editingCard.condition ||
       (d.language ?? undefined) !== editingCard.language ||
+      (d.notes?.trim() || undefined) !== (editingCard.notes?.trim() || undefined) ||
       (d.altered ?? false) !== (editingCard.altered ?? false) ||
       (d.proxy ?? false) !== (editingCard.proxy ?? false) ||
       (d.misprint ?? false) !== (editingCard.misprint ?? false) ||

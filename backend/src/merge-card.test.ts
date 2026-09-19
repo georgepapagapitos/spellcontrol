@@ -94,11 +94,19 @@ describe('mergeCard', () => {
 
   it('passes through per-copy row metadata only when present', () => {
     const full = mergeCard(
-      row({ condition: 'lp', language: 'ja', altered: true, proxy: false, misprint: true }),
+      row({
+        condition: 'lp',
+        language: 'ja',
+        notes: 'signed',
+        altered: true,
+        proxy: false,
+        misprint: true,
+      }),
       card()
     );
     expect(full.condition).toBe('lp');
     expect(full.language).toBe('ja');
+    expect(full.notes).toBe('signed');
     expect(full.altered).toBe(true);
     expect(full.proxy).toBe(false);
     expect(full.misprint).toBe(true);
@@ -106,6 +114,7 @@ describe('mergeCard', () => {
     const bare = mergeCard(row(), card());
     expect(bare).not.toHaveProperty('condition');
     expect(bare).not.toHaveProperty('language');
+    expect(bare).not.toHaveProperty('notes');
     expect(bare).not.toHaveProperty('altered');
   });
 

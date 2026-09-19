@@ -26,6 +26,8 @@ export interface ImportRow {
   condition?: Condition;
   /** Lowercased Scryfall language code (en, ja, de, es, fr, it, pt, ru, ko, zhs, zht, ...). */
   language?: string;
+  /** Free-text per-copy note from the source export (Deckbox "My Notes", generic "Notes"). */
+  notes?: string;
   /** True when the user has flagged the physical card as altered (custom art, etc.). */
   altered?: boolean;
   /** True when the card is a proxy rather than a real printing. */

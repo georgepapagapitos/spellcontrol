@@ -2263,6 +2263,186 @@ i.ss.set-symbol--mythic {
   font-size: var(--text-xs);
 }
 
+/* ── Table density — compact view from tablet width up ───────────────────
+   Compact rows become a real table at ≥768px: each row is its own grid on
+   the shared `--collection-table-cols` template (rows are virtualized and
+   absolutely positioned, so a single template — not subgrid — is what keeps
+   the columns aligned), under a sticky header of sort buttons that
+   CardListTable pins at the measured chrome bottom (inline `top`, like the
+   section overlay). Tracks are fixed everywhere but the three text columns
+   so every independent row grid resolves to identical widths. Column tiers
+   drop by CONTAINER width — header and cells together, via `data-col`. On
+   phones the compact flow row above stays as it is. The tier rules set the
+   template on the wrapper's CHILDREN, not the wrapper: an element can't be
+   queried by its own @container, so a rule on `.collection-table` itself
+   would never fire and the rows would keep twelve tracks for ten cells. */
+.collection-table {
+  container-type: inline-size;
+  /* qty · name · set · # · cond */
+  --ct-lead: 3ch minmax(8rem, 3fr) 3.5rem 4rem 3.5rem;
+  --ct-lang: 3.25rem;
+  --ct-binder: minmax(4rem, 1.5fr);
+  --ct-notes: minmax(0, 2fr);
+  --ct-mana: 6rem;
+  /* price · total · menu */
+  --ct-tail: 4.75rem 5.5rem 2rem;
+  --collection-table-cols: var(--ct-lead) var(--ct-lang) var(--ct-binder) var(--ct-notes)
+    var(--ct-mana) var(--ct-tail);
+}
+
+.collection-table-head,
+.collection-list.is-table .collection-table-row {
+  display: grid;
+  grid-template-columns: var(--collection-table-cols);
+  column-gap: var(--space-2);
+  align-items: center;
+  padding: 0 var(--space-3);
+}
+
+/* Bulk select adds a leading check column to the header and every row. */
+.collection-table.is-selecting .collection-table-head,
+.collection-table.is-selecting .collection-list.is-table .collection-table-row {
+  grid-template-columns: 1.75rem var(--collection-table-cols);
+}
+
+.collection-table-head {
+  position: sticky;
+  top: var(--collection-controls-sticky-h, 6.9rem);
+  z-index: var(--z-dropdown);
+  height: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+/* Sort buttons fill the header row; on touch the row grows to the floor. */
+@media (pointer: coarse) {
+  .collection-table-head {
+    height: 44px;
+  }
+}
+
+.collection-table-head + .collection-list.is-table {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.collection-table-th {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  height: 100%;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.collection-table-th.is-sortable {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.collection-table-th[data-active] {
+  color: var(--text-primary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .collection-table-th.is-sortable:hover {
+    color: var(--text-secondary);
+  }
+}
+
+.collection-table-th.is-sortable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Numbers right-align, header and cells alike. */
+.collection-table-th[data-col='qty'],
+.collection-table-th[data-col='price'],
+.collection-table-th[data-col='total'] {
+  justify-content: flex-end;
+}
+
+.collection-list.is-table .collection-table-row {
+  min-height: 32px;
+}
+
+.collection-list.is-table [data-col] {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.collection-list.is-table .collection-list-qty,
+.collection-list.is-table .collection-list-price {
+  font-size: var(--text-xs);
+  text-align: right;
+}
+
+.collection-table-name {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.collection-table-name .collection-list-name {
+  font-size: var(--text-sm);
+  min-width: 6ch;
+}
+
+.collection-table-binder {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.collection-table-notes {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+/* The kebab's focus ring must not be clipped by the cell. */
+.collection-list.is-table .collection-table-menu {
+  display: flex;
+  justify-content: flex-end;
+  overflow: visible;
+}
+
+@container (max-width: 1099px) {
+  .collection-table > * {
+    --collection-table-cols: var(--ct-lead) var(--ct-lang) var(--ct-notes) var(--ct-tail);
+  }
+
+  .collection-table [data-col='binder'],
+  .collection-table [data-col='mana'] {
+    display: none;
+  }
+}
+
+@container (max-width: 899px) {
+  .collection-table > * {
+    --collection-table-cols: var(--ct-lead) var(--ct-tail);
+  }
+
+  .collection-table [data-col='lang'],
+  .collection-table [data-col='notes'] {
+    display: none;
+  }
+}
+
 @media (max-width: 1024px) {
   .collection-grid {
     grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));

@@ -48,6 +48,14 @@ export interface EnrichedCard {
   foil: boolean;
   condition?: Condition;
   language?: string;
+  /**
+   * Free-text note about THIS PHYSICAL COPY ("signed", "for trade", "in the
+   * trade binder") — per-copy user data like condition/language, never
+   * printing data. Trimmed, absent when blank; shown in the collection
+   * table's Notes column and edited in CardEditDialog. Not projected onto
+   * public/friend shares.
+   */
+  notes?: string;
   altered?: boolean;
   proxy?: boolean;
   misprint?: boolean;

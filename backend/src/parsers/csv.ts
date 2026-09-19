@@ -75,6 +75,11 @@ const HEADER_ALIASES: Record<string, keyof FieldMap> = {
   language: 'language',
   lang: 'language',
 
+  // Per-copy notes
+  notes: 'notes',
+  note: 'notes',
+  'my notes': 'notes',
+
   // Altered / Alter
   altered: 'altered',
   alter: 'altered',
@@ -102,6 +107,7 @@ interface FieldMap {
   sourceCategory: number;
   condition: number;
   language: number;
+  notes: number;
   altered: number;
   proxy: number;
   misprint: number;
@@ -120,6 +126,7 @@ const EMPTY_MAP: FieldMap = {
   sourceCategory: -1,
   condition: -1,
   language: -1,
+  notes: -1,
   altered: -1,
   proxy: -1,
   misprint: -1,
@@ -201,6 +208,7 @@ export function parseCsvAuto(text: string, format: ImportFormat): ParseResult {
         fieldMap.sourceCategory >= 0 ? vals[fieldMap.sourceCategory] || undefined : undefined,
       condition: fieldMap.condition >= 0 ? parseCondition(vals[fieldMap.condition]) : undefined,
       language: fieldMap.language >= 0 ? parseLanguage(vals[fieldMap.language]) : undefined,
+      notes: fieldMap.notes >= 0 ? vals[fieldMap.notes]?.trim() || undefined : undefined,
       altered: fieldMap.altered >= 0 ? parseBool(vals[fieldMap.altered]) : undefined,
       proxy: fieldMap.proxy >= 0 ? parseBool(vals[fieldMap.proxy]) : undefined,
       misprint: fieldMap.misprint >= 0 ? parseBool(vals[fieldMap.misprint]) : undefined,

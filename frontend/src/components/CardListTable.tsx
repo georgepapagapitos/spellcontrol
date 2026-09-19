@@ -76,6 +76,8 @@ import { useCardsWithTags, cardTagLabel } from '../lib/card-tags';
 import { useCardsWithReleaseDates } from '../lib/card-release-dates';
 import { InlineCardSearch } from './InlineCardSearch';
 import { SortMenu, type SortMenuOption } from './SortMenu';
+import { SortDirArrow } from './SortDirArrow';
+import { useMediaQuery } from '../lib/use-media-query';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { sortCards, printingKey, sortDirectionLabel, type SortContext } from '../lib/sorting';
 import { getSectionMeta } from '@spellcontrol/binder-routing';
@@ -212,6 +214,25 @@ type SortKey =
 
 const ROW_HEIGHT_LIST = 66;
 const ROW_HEIGHT_COMPACT = 32;
+// Compact view at tablet+ is a real table: these are its columns, in the same
+// order `CardRow` (table mode) renders its cells, so the header and every row
+// share `--collection-table-cols`. `sort` wires a header to the existing sort
+// keys; columns without one are labels only (the SortMenu still covers every
+// key, and is the phone path where the table doesn't exist).
+const TABLE_COLUMNS: Array<{ col: string; label: string; sort?: SortKey }> = [
+  { col: 'qty', label: 'Qty', sort: 'qty' },
+  { col: 'name', label: 'Name', sort: 'name' },
+  { col: 'set', label: 'Set', sort: 'set' },
+  { col: 'cn', label: '#' },
+  { col: 'cond', label: 'Cond' },
+  { col: 'lang', label: 'Lang' },
+  { col: 'binder', label: 'Binder' },
+  { col: 'notes', label: 'Notes' },
+  { col: 'mana', label: 'Mana', sort: 'cmc' },
+  { col: 'price', label: 'Price', sort: 'price' },
+  { col: 'total', label: 'Total' },
+  { col: 'menu', label: '' },
+];
 // Fixed height of a full-width "Group by" section header row in grid view.
 // Keep in sync with .collection-grid-section-header in styles/collection.css.
 const GRID_SECTION_HEADER_H = 40;
@@ -422,6 +443,11 @@ export function CardListTable({
       /* ignore */
     }
   };
+  // Compact rows become the table (aligned columns + sticky sortable header)
+  // from tablet width up; on phones twelve columns don't fit, so compact stays
+  // the text-only flow row and sort stays in the SortMenu.
+  const wideEnoughForTable = useMediaQuery('(min-width: 768px)');
+  const isTable = view === 'compact' && wideEnoughForTable;
   const [gridZoom, setGridZoomRaw] = useState(() => readStoredZoom(GRID_SIZE_KEY));
   const setGridZoom = (z: number) => {
     setGridZoomRaw(z);
@@ -609,6 +635,18 @@ export function CardListTable({
   // wrappers are positioned and to toolbar reflow.
   const scrollEl = useScrollContainer();
   const [scrollMargin, setScrollMargin] = useState(0);
+  // Sticky table header (compact view, tablet+). Its height is measured, not
+  // a constant, because it grows to the touch floor on coarse pointers; the
+  // section overlay pins below it.
+  const tableHeadRef = useRef<HTMLDivElement>(null);
+  const [tableHeadH, setTableHeadH] = useState(0);
+  // Where the header pins: the bottom edge of the lowest STICKY chrome bar
+  // once it is pinned — its own `top` plus its height — not its unscrolled
+  // position. `controlsBottom` is only re-measured while grouped (the section
+  // overlay's scroll handler), so at scrollTop 0 it still holds the
+  // pre-pin offset and the header would stick mid-list. Bars that aren't
+  // sticky (phones, short landscape) contribute nothing.
+  const [tableHeadTop, setTableHeadTop] = useState(0);
   // Measured bottom of the lowest pinned chrome bar relative to the scroll
   // container top — used as the `top` for the sticky section overlay so it
   // sits flush below the sticky stack regardless of filter-chip row height.
@@ -1078,6 +1116,16 @@ export function CardListTable({
       if (bottom > 0) {
         setControlsBottom((prev) => (Math.abs(prev - bottom) > 0.5 ? bottom : prev));
       }
+      setTableHeadH(tableHeadRef.current?.offsetHeight ?? 0);
+      const pinnedBottom = (el: HTMLElement | null) => {
+        if (!el) return 0;
+        const cs = getComputedStyle(el);
+        const top = parseFloat(cs.top);
+        return cs.position === 'sticky' && Number.isFinite(top) ? top + el.offsetHeight : 0;
+      };
+      setTableHeadTop(
+        Math.max(pinnedBottom(controlsRowRef.current), pinnedBottom(toolbarRowRef.current))
+      );
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -2227,7 +2275,9 @@ export function CardListTable({
       {groupKey !== 'none' && activeSectionIdx >= 0 && boundaries[activeSectionIdx] && (
         <div
           className="collection-section-sticky-header"
-          style={{ top: controlsBottom > 0 ? controlsBottom : undefined }}
+          style={{
+            top: controlsBottom > 0 ? controlsBottom + tableHeadH : undefined,
+          }}
           aria-hidden
         >
           <SectionHeaderBar
@@ -2427,85 +2477,127 @@ export function CardListTable({
           })}
         </div>
       ) : sorted.length === 0 ? null : (
-        <div
-          ref={listContainerRef}
-          className={`collection-list${view === 'compact' ? ' is-compact' : ''}`}
-          style={{
-            height: listVirtualizer.getTotalSize(),
-            position: 'relative',
-          }}
-        >
-          {listVirtualizer.getVirtualItems().map((virtualRow) => {
-            const item = listLayout[virtualRow.index];
-            if (!item) return null;
-            // Headers ride as their own measured virtual rows (mirroring the
-            // grid), so a collapsed section keeps a tappable header with no card
-            // rows below it. `measureElement` folds each row's real height into
-            // the offset, so a header row and a card row can differ in height
-            // without drift.
-            const rowBox = (children: ReactNode) => (
-              <div
-                key={virtualRow.key}
-                data-index={virtualRow.index}
-                ref={listVirtualizer.measureElement}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  transform: `translateY(${virtualRow.start - scrollMargin}px)`,
-                }}
-              >
-                {children}
-              </div>
-            );
-            if (item.kind === 'header') {
+        <div className={`collection-table${selectMode ? ' is-selecting' : ''}`}>
+          {isTable && (
+            <div
+              ref={tableHeadRef}
+              className="collection-table-head"
+              role="group"
+              aria-label="Columns"
+              style={{ top: tableHeadTop > 0 ? tableHeadTop : undefined }}
+            >
+              {selectMode && <span aria-hidden />}
+              {TABLE_COLUMNS.map(({ col, label, sort }) => {
+                if (!sort) {
+                  return (
+                    <span key={col} className="collection-table-th" data-col={col}>
+                      {label}
+                    </span>
+                  );
+                }
+                const active = sortKey === sort;
+                return (
+                  <button
+                    key={col}
+                    type="button"
+                    className="collection-table-th is-sortable"
+                    data-col={col}
+                    data-active={active || undefined}
+                    aria-label={
+                      active
+                        ? `Sorted by ${label}, ${sortDirectionLabel(SORT_KEY_TO_FIELD[sort], sortDir)}. Reverse`
+                        : `Sort by ${label}`
+                    }
+                    onClick={() => toggleSort(sort)}
+                  >
+                    {label}
+                    {active && <SortDirArrow dir={sortDir} />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <div
+            ref={listContainerRef}
+            className={`collection-list${isTable ? ' is-table' : view === 'compact' ? ' is-compact' : ''}`}
+            style={{
+              height: listVirtualizer.getTotalSize(),
+              position: 'relative',
+            }}
+          >
+            {listVirtualizer.getVirtualItems().map((virtualRow) => {
+              const item = listLayout[virtualRow.index];
+              if (!item) return null;
+              // Headers ride as their own measured virtual rows (mirroring the
+              // grid), so a collapsed section keeps a tappable header with no card
+              // rows below it. `measureElement` folds each row's real height into
+              // the offset, so a header row and a card row can differ in height
+              // without drift.
+              const rowBox = (children: ReactNode) => (
+                <div
+                  key={virtualRow.key}
+                  data-index={virtualRow.index}
+                  ref={listVirtualizer.measureElement}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    transform: `translateY(${virtualRow.start - scrollMargin}px)`,
+                  }}
+                >
+                  {children}
+                </div>
+              );
+              if (item.kind === 'header') {
+                return rowBox(
+                  <SectionHeaderBar
+                    className="collection-list-section-header"
+                    pip={item.meta.pip}
+                    label={item.meta.label}
+                    count={item.count}
+                    collapsed={collapsedKeys.has(item.meta.key)}
+                    onToggle={() => toggleCollapsed(item.meta.key)}
+                  />
+                );
+              }
+              const r = displayRows[item.index];
+              const selected = selectedRowKeys.has(r.key);
               return rowBox(
-                <SectionHeaderBar
-                  className="collection-list-section-header"
-                  pip={item.meta.pip}
-                  label={item.meta.label}
-                  count={item.count}
-                  collapsed={collapsedKeys.has(item.meta.key)}
-                  onToggle={() => toggleCollapsed(item.meta.key)}
+                <CardRow
+                  card={r.card}
+                  qty={r.qty}
+                  allocations={allocationsFor(r.card)}
+                  binders={r.binders}
+                  surplusCount={surplusOnly ? surplusByName.get(r.card.name) : undefined}
+                  setName={r.card.setName || setMap?.[r.card.setCode.toUpperCase()]?.name}
+                  isLastRow={item.index === displayRows.length - 1}
+                  selectMode={selectMode}
+                  selected={selected}
+                  table={isTable}
+                  pricePending={
+                    (isRefreshingPrices || !pricesEverLoaded) && !((r.card.purchasePrice ?? 0) > 0)
+                  }
+                  onActivate={() => (selectMode ? toggleRow(r.key) : setPreviewIndex(item.index))}
+                  menu={
+                    <CardRowMenu
+                      card={r.card}
+                      onEditCard={() => openEdit(r.card, !groupPrintings)}
+                      onSplitCopy={
+                        groupPrintings && r.qty >= 2 ? () => openEdit(r.card, true) : undefined
+                      }
+                      onDelete={() => handleDeleteRow(r)}
+                      currentBinder={
+                        r.binderId && r.binderName
+                          ? { id: r.binderId, name: r.binderName, color: r.binderColor }
+                          : null
+                      }
+                    />
+                  }
                 />
               );
-            }
-            const r = displayRows[item.index];
-            const selected = selectedRowKeys.has(r.key);
-            return rowBox(
-              <CardRow
-                card={r.card}
-                qty={r.qty}
-                allocations={allocationsFor(r.card)}
-                binders={r.binders}
-                surplusCount={surplusOnly ? surplusByName.get(r.card.name) : undefined}
-                setName={r.card.setName || setMap?.[r.card.setCode.toUpperCase()]?.name}
-                isLastRow={item.index === displayRows.length - 1}
-                selectMode={selectMode}
-                selected={selected}
-                pricePending={
-                  (isRefreshingPrices || !pricesEverLoaded) && !((r.card.purchasePrice ?? 0) > 0)
-                }
-                onActivate={() => (selectMode ? toggleRow(r.key) : setPreviewIndex(item.index))}
-                menu={
-                  <CardRowMenu
-                    card={r.card}
-                    onEditCard={() => openEdit(r.card, !groupPrintings)}
-                    onSplitCopy={
-                      groupPrintings && r.qty >= 2 ? () => openEdit(r.card, true) : undefined
-                    }
-                    onDelete={() => handleDeleteRow(r)}
-                    currentBinder={
-                      r.binderId && r.binderName
-                        ? { id: r.binderId, name: r.binderName, color: r.binderColor }
-                        : null
-                    }
-                  />
-                }
-              />
-            );
-          })}
+            })}
+          </div>
         </div>
       )}
 
@@ -2542,6 +2634,7 @@ export function CardListTable({
           details={{
             condition: editingCard.condition,
             language: editingCard.language,
+            notes: editingCard.notes,
             altered: editingCard.altered,
             proxy: editingCard.proxy,
             misprint: editingCard.misprint,
