@@ -57,7 +57,10 @@ function localGame(opts: {
   endedAt?: number;
   events?: unknown[];
 }) {
-  const endedAt = opts.endedAt ?? 10_000 + ++seq;
+  // Every fixture gets a fresh id even when a caller pins endedAt — a reused
+  // id is a 200 (same recorder) or a 409 (another's), never a second row.
+  seq += 1;
+  const endedAt = opts.endedAt ?? 10_000 + seq;
   return {
     id: opts.id ?? `game_local_${seq}`,
     code: '',
