@@ -19,10 +19,27 @@ import { Modal } from './Modal';
 import { OverflowMenu } from './OverflowMenu';
 
 import { userMessage } from '@/lib/user-error';
+
+/** A 404 from a row action means another tab or admin already handled that
+ *  row — the outcome the action wanted is what's true, so the panel drops
+ *  the row and says so instead of leaving it (and its dialog) in place. */
+const isGone = (err: unknown) => (err as { status?: number } | null)?.status === 404;
 const REPORT_KIND_LABEL: Record<AdminReportRow['kind'], string> = {
   deck: 'Deck',
   profile: 'Profile',
   'game-result': 'Game result',
+};
+/** What "Hide" takes down, per kind — the dialog and the toast name it. */
+const HIDE_NOUN: Record<AdminReportRow['kind'], string> = {
+  deck: 'deck',
+  profile: 'profile',
+  'game-result': 'game result',
+};
+const HIDE_BODY: Record<AdminReportRow['kind'], string> = {
+  deck: 'This unpublishes the deck immediately. Its public link stops working for everyone, including the owner.',
+  profile: 'This hides the profile page and unpublishes every deck this account has published.',
+  'game-result':
+    'This revokes the shared game result immediately. Its link stops working for everyone, including the person who shared it.',
 };
 
 /** AI spend is billed in USD whatever the display currency is. */
@@ -176,6 +193,12 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
       setPending(null);
       await refresh();
     } catch (err) {
+      if (isGone(err)) {
+        toast.show({ message: `${pending.username} was already deleted.`, tone: 'info' });
+        setPending(null);
+        await refresh();
+        return;
+      }
       toast.show({
         message: userMessage(err, "Couldn't delete that account. Try again."),
         tone: 'error',
@@ -194,6 +217,12 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
       setPendingClear(null);
       await refresh();
     } catch (err) {
+      if (isGone(err)) {
+        toast.show({ message: `${pendingClear.username} was already deleted.`, tone: 'info' });
+        setPendingClear(null);
+        await refresh();
+        return;
+      }
       toast.show({
         message: userMessage(err, "Couldn't clear that profile. Try again."),
         tone: 'error',
@@ -229,6 +258,12 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
       setPendingAi(null);
       await refresh();
     } catch (err) {
+      if (isGone(err)) {
+        toast.show({ message: `${pendingAi.username} was already deleted.`, tone: 'info' });
+        setPendingAi(null);
+        await refresh();
+        return;
+      }
       toast.show({
         message: userMessage(err, "Couldn't update AI access. Try again."),
         tone: 'error',
@@ -265,6 +300,11 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
       setReports((prev) => (prev ? prev.filter((r) => r.id !== report.id) : prev));
       toast.show({ message: 'Dismissed report', tone: 'success' });
     } catch (err) {
+      if (isGone(err)) {
+        setReports((prev) => (prev ? prev.filter((r) => r.id !== report.id) : prev));
+        toast.show({ message: 'That report was already handled.', tone: 'info' });
+        return;
+      }
       toast.show({
         message: userMessage(err, "Couldn't dismiss that report. Try again."),
         tone: 'error',
@@ -280,12 +320,15 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
     try {
       await resolveReport(pendingHide.id, 'hide');
       setReports((prev) => (prev ? prev.filter((r) => r.id !== pendingHide.id) : prev));
-      toast.show({
-        message: `Hid the ${pendingHide.kind === 'profile' ? 'profile' : 'deck'}`,
-        tone: 'success',
-      });
+      toast.show({ message: `Hid the ${HIDE_NOUN[pendingHide.kind]}`, tone: 'success' });
       setPendingHide(null);
     } catch (err) {
+      if (isGone(err)) {
+        setReports((prev) => (prev ? prev.filter((r) => r.id !== pendingHide.id) : prev));
+        toast.show({ message: 'That report was already handled.', tone: 'info' });
+        setPendingHide(null);
+        return;
+      }
       toast.show({
         message: userMessage(err, "Couldn't hide that content. Try again."),
         tone: 'error',
@@ -692,11 +735,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
           <h2 id="admin-hide-report-title" className="choice-dialog-title">
             Hide this content?
           </h2>
-          <p className="choice-dialog-body">
-            {pendingHide.kind === 'profile'
-              ? 'This hides the profile page and unpublishes every deck this account has published.'
-              : 'This unpublishes the deck immediately. Its public link stops working for everyone, including the owner.'}
-          </p>
+          <p className="choice-dialog-body">{HIDE_BODY[pendingHide.kind]}</p>
           <div className="choice-dialog-actions admin-modal-actions">
             <button
               type="button"
