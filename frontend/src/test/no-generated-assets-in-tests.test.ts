@@ -23,7 +23,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const selfPath = fileURLToPath(import.meta.url);
@@ -73,7 +73,11 @@ describe('generated public/ assets stay out of the test suite', () => {
     const offenders: string[] = [];
 
     for (const file of testFiles(srcDir)) {
-      const rel = file.slice(srcDir.length + 1);
+      // Posix separators so ALLOWED matches on Windows too.
+      const rel = file
+        .slice(srcDir.length + 1)
+        .split(sep)
+        .join('/');
       if (file === selfPath) continue; // this guard names the assets on purpose
       if (ALLOWED.has(rel)) continue;
       const code = stripComments(readFileSync(file, 'utf8'));
