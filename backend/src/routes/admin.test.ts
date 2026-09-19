@@ -422,6 +422,69 @@ describe('POST /api/admin/users/:id/clear-profile', () => {
   });
 });
 
+describe('public caches after identity writes (playtest batch 12)', () => {
+  // The public deck page, profile page and share payloads are served from
+  // 60 s in-memory caches. Every write that changes who a user is on the
+  // public side must purge them, or a guest keeps reading a deleted account
+  // (measured: 58 s) or a cleared display name (60 s). Each case warms the
+  // caches with a real read first — an unwarmed 404 proves nothing.
+  it('DELETE /api/admin/users/:id — the deck page and profile 404 at once', async () => {
+    const adminCookie = await registerAdmin('purge-admin-a');
+    const { ownerId, slug } = await publishDeck('purge-deleted', 'deck-purge-delete');
+    expect((await request(app).get(`/api/public/decks/${slug}`)).status).toBe(200);
+    expect((await request(app).get('/api/public/users/purge-deleted')).status).toBe(200);
+
+    const res = await request(app).delete(`/api/admin/users/${ownerId}`).set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+
+    expect((await request(app).get(`/api/public/decks/${slug}`)).status).toBe(404);
+    expect((await request(app).get('/api/public/users/purge-deleted')).status).toBe(404);
+  });
+
+  it('POST /api/admin/users/:id/clear-profile — the profile and the deck byline drop the name at once', async () => {
+    const adminCookie = await registerAdmin('purge-admin-b');
+    const { ownerId, slug } = await publishDeck('purge-cleared', 'deck-purge-clear');
+    const warmProfile = await request(app).get('/api/public/users/purge-cleared');
+    expect(warmProfile.body.displayName).toBe('purge-cleared display');
+    const warmDeck = await request(app).get(`/api/public/decks/${slug}`);
+    expect(warmDeck.body.deck.ownerDisplayName).toBe('purge-cleared display');
+
+    const res = await request(app)
+      .post(`/api/admin/users/${ownerId}/clear-profile`)
+      .set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+
+    expect((await request(app).get('/api/public/users/purge-cleared')).body.displayName).toBeNull();
+    expect(
+      (await request(app).get(`/api/public/decks/${slug}`)).body.deck.ownerDisplayName
+    ).toBeNull();
+  });
+
+  it('PATCH /api/auth/profile — a renamed owner shows on their deck page at once', async () => {
+    const { cookie, slug } = await publishDeck('purge-renamed', 'deck-purge-rename');
+    expect((await request(app).get(`/api/public/decks/${slug}`)).body.deck.ownerDisplayName).toBe(
+      'purge-renamed display'
+    );
+    const res = await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', cookie)
+      .send({ displayName: 'Renamed Owner' });
+    expect(res.status).toBe(200);
+    expect((await request(app).get(`/api/public/decks/${slug}`)).body.deck.ownerDisplayName).toBe(
+      'Renamed Owner'
+    );
+  });
+
+  it('DELETE /api/auth/me — the self-delete still purges both pages', async () => {
+    const { cookie, slug } = await publishDeck('purge-self', 'deck-purge-self');
+    expect((await request(app).get(`/api/public/decks/${slug}`)).status).toBe(200);
+    expect((await request(app).get('/api/public/users/purge-self')).status).toBe(200);
+    expect((await request(app).delete('/api/auth/me').set('Cookie', cookie)).status).toBe(200);
+    expect((await request(app).get(`/api/public/decks/${slug}`)).status).toBe(404);
+    expect((await request(app).get('/api/public/users/purge-self')).status).toBe(404);
+  });
+});
+
 describe('/api/auth/me returns role', () => {
   it('reflects a promotion done after the JWT was issued', async () => {
     const cookie = await registerUser('tess');

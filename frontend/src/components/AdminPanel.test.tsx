@@ -13,6 +13,8 @@ const clearUserProfileMock = vi.fn<(id: string) => Promise<void>>();
 // list so this file's own test (which only exercises the Users card) isn't
 // left with an unresolved/rejected fetch.
 const listReportsMock = vi.fn<() => Promise<AdminReportRow[]>>(() => Promise.resolve([]));
+const resolveReportMock = vi.fn<(id: string, action: 'dismiss' | 'hide') => Promise<void>>();
+const deleteUserMock = vi.fn<(id: string) => Promise<void>>();
 const setUserAiMock =
   vi.fn<(id: string, patch: { access?: boolean; dailyLimit?: number | null }) => Promise<void>>();
 const emptyWindow = {
@@ -33,13 +35,25 @@ const getAiSpendMock = vi.fn<() => Promise<AiSpend>>(() =>
 vi.mock('../lib/admin-api', () => ({
   listUsers: () => listUsersMock(),
   getAiSpend: () => getAiSpendMock(),
-  deleteUser: vi.fn(),
+  deleteUser: (id: string) => deleteUserMock(id),
   clearUserProfile: (id: string) => clearUserProfileMock(id),
   setUserAi: (id: string, patch: { access?: boolean; dailyLimit?: number | null }) =>
     setUserAiMock(id, patch),
   listReports: () => listReportsMock(),
-  resolveReport: vi.fn(),
+  resolveReport: (id: string, action: 'dismiss' | 'hide') => resolveReportMock(id, action),
 }));
+import { useToastsStore } from '../store/toasts';
+const toastMessages = () => useToastsStore.getState().toasts.map((t) => t.message);
+/** What handleResponse throws for a 404: the server's copy with `.status` on it. */
+const gone = (message: string) => Object.assign(new Error(message), { status: 404 });
+const gameReport: AdminReportRow = {
+  id: 'r-gr',
+  kind: 'game-result',
+  targetLabel: 'commander game — 9/18/2026',
+  reporterUsername: null,
+  reason: 'Fake result',
+  createdAt: Date.parse('2026-09-19T00:00:00Z'),
+};
 
 const baseUser: AdminUserSummary = {
   id: 'u1',
@@ -154,5 +168,79 @@ describe('AdminPanel — clear profile', () => {
     await waitFor(() => expect(screen.queryByText('Nova')).toBeNull());
     // Two dashes: the cleared Profile cell and the (empty) AI spend cell.
     expect(screen.getAllByText('—')).toHaveLength(2);
+  });
+});
+
+describe('AdminPanel — reports (playtest batch 12)', () => {
+  it('hide on a game-result report names the game result, not a deck', async () => {
+    listUsersMock.mockResolvedValueOnce([]);
+    listReportsMock.mockResolvedValueOnce([gameReport]);
+    resolveReportMock.mockResolvedValueOnce(undefined);
+    render(<AdminPanel currentUserId="admin-1" />);
+    await screen.findByText('Fake result');
+    fireEvent.click(screen.getByRole('button', { name: 'Hide' }));
+    await screen.findByText('Hide this content?');
+    expect(screen.getByText(/revokes the shared game result/)).toBeTruthy();
+    expect(screen.queryByText(/unpublishes the deck/)).toBeNull();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Hide' }).at(-1)!);
+    await waitFor(() => expect(resolveReportMock).toHaveBeenCalledWith('r-gr', 'hide'));
+    await waitFor(() => expect(toastMessages()).toContain('Hid the game result'));
+  });
+
+  it('a 404 on Dismiss (handled in another tab) drops the row and says so', async () => {
+    listUsersMock.mockResolvedValueOnce([]);
+    listReportsMock.mockResolvedValueOnce([gameReport]);
+    resolveReportMock.mockRejectedValueOnce(gone('Report not found.'));
+    render(<AdminPanel currentUserId="admin-1" />);
+    await screen.findByText('Fake result');
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    await waitFor(() => expect(screen.queryByText('Fake result')).toBeNull());
+    expect(toastMessages()).toContain('That report was already handled.');
+    await screen.findByText('No open reports.');
+  });
+
+  it('a 404 on Hide closes the dialog and drops the row', async () => {
+    listUsersMock.mockResolvedValueOnce([]);
+    listReportsMock.mockResolvedValueOnce([gameReport]);
+    resolveReportMock.mockRejectedValueOnce(gone('Report not found.'));
+    render(<AdminPanel currentUserId="admin-1" />);
+    await screen.findByText('Fake result');
+    fireEvent.click(screen.getByRole('button', { name: 'Hide' }));
+    await screen.findByText('Hide this content?');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Hide' }).at(-1)!);
+    await waitFor(() => expect(screen.queryByText('Hide this content?')).toBeNull());
+    expect(screen.queryByText('Fake result')).toBeNull();
+    expect(toastMessages()).toContain('That report was already handled.');
+  });
+});
+
+describe('AdminPanel — users (playtest batch 12)', () => {
+  it('a 404 on Delete (deleted in another tab) closes the dialog and refreshes the list', async () => {
+    listUsersMock.mockResolvedValueOnce([baseUser]);
+    deleteUserMock.mockRejectedValueOnce(gone('User not found.'));
+    render(<AdminPanel currentUserId="admin-1" />);
+    await screen.findByText('nova');
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for nova' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+    await screen.findByText('Delete nova?');
+    listUsersMock.mockResolvedValueOnce([]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Delete' }).at(-1)!);
+    await waitFor(() => expect(screen.queryByText('Delete nova?')).toBeNull());
+    await screen.findByText('No users yet.');
+    expect(toastMessages()).toContain('nova was already deleted.');
+  });
+
+  it('a 404 on AI access Save closes the dialog and refreshes the list', async () => {
+    listUsersMock.mockResolvedValueOnce([baseUser]);
+    setUserAiMock.mockRejectedValueOnce(gone('User not found.'));
+    render(<AdminPanel currentUserId="admin-1" />);
+    await screen.findByText('nova');
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for nova' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'AI access…' }));
+    await screen.findByText('AI access for nova');
+    listUsersMock.mockResolvedValueOnce([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(screen.queryByText('AI access for nova')).toBeNull());
+    await screen.findByText('No users yet.');
   });
 });
