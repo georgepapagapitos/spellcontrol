@@ -29,6 +29,13 @@ export interface PlaytestCard {
    *  which is exactly why the badge falls back to the bare `manaValue`. */
   manaCost?: string;
   typeLine?: string;
+  /** Printed power/toughness, verbatim from Scryfall — so they carry `*`,
+   *  `1+*` and the rest unparsed. Present only for cards that have them
+   *  (and absent from every snapshot saved before the P/T badge existed),
+   *  which is exactly why `BattlefieldCard.pt` renders as a bare modifier
+   *  when they're missing rather than guessing a base. */
+  power?: string;
+  toughness?: string;
   isToken?: boolean;
 }
 
@@ -65,6 +72,16 @@ export interface BattlefieldCard {
    *  enforces no rules here, same as everywhere else in this state. Optional
    *  so it's absent (= not phased) on every snapshot saved before it existed. */
   phased?: boolean;
+  /** Power/toughness MODIFIER on this permanent — a running total of the
+   *  pumps and shrinks the player has applied by hand (Alt+1..4, or the
+   *  card menu), not an absolute P/T. Kept apart from `counters` because a
+   *  +1/+1 counter and a turn's worth of Giant Growth are different objects
+   *  at a real table: one stays, one wears off, and only the player knows
+   *  which is which. The face adds it to `PlaytestCard.power`/`toughness`
+   *  when those are numeric, and shows it alone when they aren't. Optional
+   *  so it's absent (= no modifier) on every older snapshot; a modifier
+   *  that returns to 0/0 is deleted rather than stored. */
+  pt?: { power: number; toughness: number };
 }
 
 /** One virtual opponent's damage bookkeeping. `commanderDamage` is damage
@@ -149,6 +166,29 @@ export interface PlaytestState {
    *  land or spends it against a cost. See NEXT_TURN in reducer.ts for when
    *  it empties. Optional for snapshot back-compat; absent === all-zero. */
   manaPool?: Record<ManaColor, number>;
+  /**
+   * Battlefield permanents currently marked as waiting to resolve, bottom
+   * of the stack first — so the LAST id is the top, which is what
+   * RESOLVE_STACK takes by default.
+   *
+   * Being on the stack is a MARK ON A CARD THAT IS ALREADY IN PLAY, not a
+   * zone that holds it: the permanent keeps its position, its counters and
+   * its place on the battlefield, and simply renders a ribbon while it is
+   * listed here. That is why this is a plain id list rather than a list of
+   * card objects — there is no second copy of the card anywhere.
+   *
+   * A card that leaves the battlefield drops off this list, so it can never
+   * name something that is not there. Optional for snapshot back-compat;
+   * absent === empty.
+   */
+  stack?: string[];
+  /** Ids of cards in hand you are currently showing the table (R). Hand is
+   *  otherwise hidden information, so this is the one list that lets a
+   *  specific card out of it without moving zones — the projection reads it
+   *  to decide what an opponent may see. Optional for snapshot
+   *  back-compat; absent === nothing revealed. A card leaving hand drops
+   *  off this list. */
+  revealed?: string[];
   /** Snapshots of prior states (cap kept inside reducer). UNDO pops the head. */
   past: Omit<PlaytestState, 'past'>[];
 }
@@ -198,6 +238,17 @@ export type PlaytestAction =
   | { type: 'TAP'; cardId: string; tapped?: boolean }
   | { type: 'UNTAP_ALL' }
   | { type: 'SET_COUNTER'; cardId: string; counter: string; delta: number }
+  /** Step every counter already on a permanent at once — the bulk form of
+   *  SET_COUNTER, for the boards where a dozen chargers or chapters move
+   *  together. Never CREATES a counter kind: a card with none is untouched,
+   *  because "add one to every counter" has no answer on a card with no
+   *  counters. Floors at zero and drops a kind that reaches it, same as
+   *  SET_COUNTER. */
+  | { type: 'ADJUST_ALL_COUNTERS'; cardId: string; op: 'inc' | 'dec' | 'double' }
+  /** Adjust the running power/toughness modifier on a permanent (see
+   *  `BattlefieldCard.pt`). Deltas, not absolutes; a modifier back at 0/0
+   *  is removed rather than stored. */
+  | { type: 'ADJUST_PT'; cardId: string; power?: number; toughness?: number }
   | { type: 'ADD_STICKER'; cardId: string; text: string }
   | { type: 'REMOVE_STICKER'; cardId: string; index: number }
   | { type: 'CREATE_TOKEN'; card: PlaytestCard; x: number; y: number }
@@ -230,6 +281,18 @@ export type PlaytestAction =
       cardId: string;
       targetId: string | null;
     }
+  /** Show or stop showing a card in your hand to the table (see
+   *  `PlaytestState.revealed`). No-op for a card that isn't in hand. */
+  | { type: 'TOGGLE_REVEAL'; cardId: string }
+  /** Mark a battlefield permanent as waiting to resolve. No-op for a card
+   *  that isn't on the battlefield or is already marked — the card does not
+   *  move, so there is nothing to do twice. */
+  | { type: 'PUT_ON_STACK'; cardId: string }
+  /** Take a card off the stack (the top one when `cardId` is omitted). The
+   *  permanent stays exactly where it is, because it was never anywhere
+   *  else — except an instant or sorcery, which has finished doing its job
+   *  and goes to the graveyard. */
+  | { type: 'RESOLVE_STACK'; cardId?: string }
   | { type: 'FLIP_FACE'; cardId: string }
   | { type: 'TRANSFORM'; cardId: string }
   | { type: 'TOGGLE_PHASED'; cardId: string }

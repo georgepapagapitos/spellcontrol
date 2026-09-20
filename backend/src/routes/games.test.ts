@@ -2524,6 +2524,39 @@ describe('POST /api/games/:code/signal (ephemeral table signals)', () => {
     }
   });
 
+  it('echoes a ping at a seated target with its card', async () => {
+    const { code, joiners } = await setupTable('games_sig_ping_h', ['games_sig_ping_j']);
+    const res = await request(app)
+      .post(`/api/games/${code}/signal`)
+      .set('Cookie', joiners[0])
+      .send({ kind: 'ping', targetSeat: 0, cardId: 'slot_abc#1' });
+    expect(res.status).toBe(200);
+    expect(res.body.signal.kind).toBe('ping');
+    expect(res.body.signal.targetSeat).toBe(0);
+    expect(res.body.signal.cardId).toBe('slot_abc#1');
+    expect(res.body.signal.seat).toBe(1);
+  });
+
+  // Unlike a point, which can be at a seat as a whole, a ping IS the card
+  // lighting up — one with no card has nothing to draw.
+  it('rejects a ping with no card, an over-long card, or an unseated target', async () => {
+    const { code, host } = await setupTable('games_sig_ping_bad', []);
+    const bodies = [
+      { kind: 'ping', targetSeat: 0 },
+      { kind: 'ping', targetSeat: 0, cardId: '' },
+      { kind: 'ping', targetSeat: 0, cardId: 'x'.repeat(129) },
+      { kind: 'ping', targetSeat: 0, cardId: 42 },
+      { kind: 'ping', targetSeat: 3, cardId: 'a' },
+    ];
+    for (const body of bodies) {
+      const res = await request(app)
+        .post(`/api/games/${code}/signal`)
+        .set('Cookie', host)
+        .send(body);
+      expect(res.status).toBe(400);
+    }
+  });
+
   it('echoes an arrow between two seated ends, with or without cards, and a clear carries nothing else', async () => {
     const { code, host, joiners } = await setupTable('games_sig_arrow_h', ['games_sig_arrow_j']);
     const cards = await request(app)

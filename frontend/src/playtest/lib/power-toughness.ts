@@ -1,0 +1,54 @@
+import type { BattlefieldCard, PlaytestCard } from '@/lib/playtest';
+
+/**
+ * What the power/toughness box on a permanent should read.
+ *
+ * Two things feed it and neither is reliable on its own: the printed values
+ * (`PlaytestCard.power`/`toughness`, verbatim from Scryfall, so `*`, `1+*`
+ * and `∞` all turn up) and the running modifier the player has applied by
+ * hand (`BattlefieldCard.pt`). Where the printed value is a plain number the
+ * two add up and the box shows one total, the way a player reading the board
+ * would say it. Where it isn't — a Tarmogoyf, a token nobody typed a body
+ * into — the modifier is shown BESIDE the printed value rather than folded
+ * into it, because `*+2` is true and `2` would be a lie.
+ *
+ * Returns null when there is nothing to show at all, which is the common
+ * case: a land, an artifact, an enchantment nobody has pumped.
+ */
+export interface PtDisplay {
+  power: string;
+  toughness: string;
+  /** True when a hand-applied modifier is part of what's shown — the face
+   *  tints the box so a pumped creature reads differently from a printed
+   *  one at a glance. */
+  modified: boolean;
+}
+
+function side(printed: string | undefined, delta: number): string | null {
+  const base = printed?.trim();
+  if (base === undefined || base === '') return delta === 0 ? null : signed(delta);
+  const n = Number(base);
+  if (Number.isFinite(n) && /^-?\d+$/.test(base)) return String(n + delta);
+  return delta === 0 ? base : `${base}${signed(delta)}`;
+}
+
+function signed(n: number): string {
+  return n >= 0 ? `+${n}` : String(n);
+}
+
+export function displayPT(card: PlaytestCard, bf: BattlefieldCard | undefined): PtDisplay | null {
+  const dp = bf?.pt?.power ?? 0;
+  const dt = bf?.pt?.toughness ?? 0;
+  const power = side(card.power, dp);
+  const toughness = side(card.toughness, dt);
+  // A body needs both halves. One side alone (a printed power with no
+  // toughness can't happen on a real card, but a hand-made token can be
+  // anything) would render as half a box, so pad the missing side from the
+  // modifier rather than dropping the whole badge.
+  if (power === null && toughness === null) return null;
+  return {
+    power: power ?? signed(dp),
+    toughness: toughness ?? signed(dt),
+    modified: dp !== 0 || dt !== 0,
+  };
+}

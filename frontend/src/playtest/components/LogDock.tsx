@@ -54,6 +54,10 @@ const CHIP_FOR: Record<LogEntryKind, Filter | null> = {
   draw: 'cards',
   play: 'cards',
   'zone-move': 'cards',
+  // Both are about a specific card moving or being shown, which is what
+  // the Cards chip means.
+  stack: 'cards',
+  reveal: 'cards',
   mulligan: 'cards',
   shuffle: 'cards',
   scry: 'cards',

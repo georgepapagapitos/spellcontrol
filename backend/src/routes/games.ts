@@ -181,8 +181,11 @@ function requestsSnapshot(code: string): StoredRequest[] {
   return Array.from(codeRequests.values());
 }
 
-/** Reaction emote set — the frontend UI lane pins this same fixed six; keep them in sync. */
-export const SIGNAL_EMOTES = ['👏', '😬', '🤔', '🔥', '😂', '🫡'] as const;
+/** Reaction emote set — the frontend UI lane pins this same fixed six; keep
+ *  them in sync. The first four are the ones the table's keyboard map binds
+ *  to 7/8/9/0 (thumbs up, thinking, wow, crying); the last two are
+ *  picker-only. Order is the order they appear in the picker. */
+export const SIGNAL_EMOTES = ['👍', '🤔', '😮', '😢', '🔥', '🫡'] as const;
 const SIGNAL_DICE = ['d6', 'd20', 'coin', 'first'] as const;
 
 /**
@@ -211,7 +214,7 @@ const MAX_CHAT_LEN = 240;
  * and lose it on reload, exactly like the rest of the table's ephemera.
  */
 interface GameSignal {
-  kind: 'reaction' | 'roll' | 'chat' | 'point' | 'arrow';
+  kind: 'reaction' | 'roll' | 'chat' | 'point' | 'arrow' | 'ping';
   seat: number;
   ts: number;
   emote?: string;
@@ -219,10 +222,11 @@ interface GameSignal {
   value?: number;
   /** chat only: the trimmed message body, at most `MAX_CHAT_LEN` chars. */
   text?: string;
-  /** point only: the seat whose board is being pointed at. */
+  /** point and ping only: the seat whose board is being indicated. */
   targetSeat?: number;
-  /** point only: the specific card being pointed at on that seat's board.
-   *  Absent means the point is at the seat/player as a whole. */
+  /** point and ping only: the specific card on that seat's board. Absent
+   *  means the point is at the seat/player as a whole; a ping always names
+   *  a card, since a ping IS the card lighting up. */
   cardId?: string;
   /** arrow only: `add` draws one, `clear` removes every arrow this seat drew. */
   op?: 'add' | 'clear';
@@ -1177,7 +1181,8 @@ const signalLimiter = testAwareLimiter({ windowMs: 60_000, max: 180 });
  * one of the fixed `SIGNAL_EMOTES`; `'roll'` requires `die` to be one of
  * `SIGNAL_DICE`; `'chat'` requires a `text` that is non-empty after trimming
  * and at most `MAX_CHAT_LEN`; `'point'` requires a `targetSeat` that is
- * actually seated in THIS game, with an optional `cardId`. Anything else
+ * actually seated in THIS game, with an optional `cardId`; `'ping'` is the
+ * same but its `cardId` is required. Anything else
  * (including a well-formed body for another kind) is a 400. The response
  * signal is built field-by-field from known values — never a spread of the
  * request body — so a stray extra field can never ride along into the
@@ -1265,6 +1270,32 @@ gamesRouter.post(
         ts: nextSignalTs(),
         targetSeat,
         ...(cardId !== undefined && { cardId }),
+      };
+    } else if (body.kind === 'ping') {
+      // A ping is a point's quieter sibling: the same two fields, the same
+      // opaque-card-id trust boundary, but it renders as a ring around the
+      // card for about a second and writes NOTHING to the play ticker.
+      // That difference is the whole reason it is its own kind — a ping
+      // fires on an ordinary card tap, so routing it through `point` would
+      // bury the table's feed under "is pointing at" lines nobody asked for.
+      const targetSeat = body.targetSeat;
+      if (
+        typeof targetSeat !== 'number' ||
+        !Number.isInteger(targetSeat) ||
+        !state.players.some((p) => p.seat === targetSeat)
+      ) {
+        return res.status(400).json({ error: 'Invalid target seat.' });
+      }
+      const rawCardId = body.cardId;
+      if (typeof rawCardId !== 'string' || rawCardId.length === 0 || rawCardId.length > 128) {
+        return res.status(400).json({ error: 'Invalid card.' });
+      }
+      signal = {
+        kind: 'ping',
+        seat: me.seat,
+        ts: nextSignalTs(),
+        targetSeat,
+        cardId: rawCardId,
       };
     } else if (body.kind === 'arrow') {
       // An arrow is a point that stays: two ends, either end a seat or a card

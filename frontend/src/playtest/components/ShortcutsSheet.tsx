@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Modal } from '@/components/Modal';
 import {
+  CARD_GROUP_HELP,
   SHORTCUTS,
   SHORTCUT_GROUP_LABEL,
   chordOf,
@@ -18,7 +19,15 @@ interface Props {
   onClose(): void;
 }
 
-const GROUP_ORDER: ShortcutGroup[] = ['turn', 'table', 'selection', 'players', 'view'];
+const GROUP_ORDER: ShortcutGroup[] = [
+  'turn',
+  'table',
+  'stack',
+  'card',
+  'counters',
+  'players',
+  'view',
+];
 
 /**
  * The table's keyboard shortcuts, each one rebindable in place: press the key
@@ -102,6 +111,7 @@ export function ShortcutsSheet({ overrides, onChange, onClose }: Props) {
         {GROUP_ORDER.map((group) => (
           <section key={group}>
             <h3 className="shortcuts-overlay-section-title">{SHORTCUT_GROUP_LABEL[group]}</h3>
+            {group === 'card' && <p className="playtest-shortcuts-group-help">{CARD_GROUP_HELP}</p>}
             <ul className="shortcuts-overlay-list">
               {SHORTCUTS.filter((d) => d.group === group).map((def) => {
                 const chord = bindings[def.id];

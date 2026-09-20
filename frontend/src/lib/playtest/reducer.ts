@@ -33,6 +33,17 @@ function clampFraction(n: number): number {
   return Math.max(0, Math.min(1, n));
 }
 
+/** Does this type line describe something that stays on the battlefield?
+ *  Used only to decide where a resolving stack entry lands — an instant or
+ *  sorcery to the graveyard, everything else onto the board. Type lines that
+ *  are missing (tokens made by hand, older snapshots) read as permanents,
+ *  which is the right default: a card someone put on the stack and resolved
+ *  is far more often a creature than a burn spell, and moving it afterwards
+ *  is one key either way. */
+function isPermanentType(typeLine: string | undefined): boolean {
+  return !/\b(instant|sorcery)\b/i.test(typeLine ?? '');
+}
+
 function emptyZones(): Record<Zone, PlaytestCard[]> {
   return { library: [], hand: [], graveyard: [], exile: [], command: [] };
 }
@@ -76,6 +87,8 @@ export function createPlaytestState(init: PlaytestInit): PlaytestState {
     citysBlessing: false,
     playerCounters: {},
     manaPool: emptyManaPool(),
+    stack: [],
+    revealed: [],
     past: [],
   };
 }
@@ -109,6 +122,8 @@ function snapshot(state: PlaytestState): Omit<PlaytestState, 'past'> {
     citysBlessing: state.citysBlessing,
     playerCounters: { ...state.playerCounters },
     manaPool: state.manaPool ? { ...state.manaPool } : undefined,
+    stack: state.stack ? state.stack.slice() : undefined,
+    revealed: state.revealed ? state.revealed.slice() : undefined,
   };
 }
 
@@ -137,7 +152,9 @@ interface Locator {
   index: number;
 }
 
-/** Find a card by instance id across all zones + battlefield. */
+/** Find a card by instance id across all zones + battlefield. The stack is
+ *  deliberately NOT searched: it holds ids of cards that are already on the
+ *  battlefield, so a card on the stack is found there like any other. */
 function locate(state: PlaytestState, cardId: string): Locator | null {
   for (const zone of ZONES) {
     const idx = state.zones[zone].findIndex((c) => c.id === cardId);
@@ -204,11 +221,20 @@ function pluck(
     const zone = next.zones[loc.zone].slice();
     const [card] = zone.splice(loc.index, 1);
     next.zones[loc.zone] = zone;
+    // Leaving hand ends any reveal of it: the card is somewhere public (or
+    // back in the library) and the list must never name a card that isn't
+    // in hand to show.
+    if (loc.zone === 'hand' && next.revealed?.length) {
+      next.revealed = next.revealed.filter((id) => id !== card.id);
+    }
     return { card };
   }
   const battlefield = next.battlefield.slice();
   const [bf] = battlefield.splice(loc.index, 1);
   next.battlefield = battlefield;
+  // Off the battlefield is off the stack: the list names permanents in
+  // play, so it must never outlive the card it points at.
+  if (next.stack?.length) next.stack = next.stack.filter((id) => id !== bf.card.id);
   return { card: bf.card, bf };
 }
 
@@ -257,6 +283,8 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         playerCounters: {},
         // A new game: floating mana from the last one is long gone.
         manaPool: emptyManaPool(),
+        stack: [],
+        revealed: [],
         past: [],
       };
     }
@@ -431,6 +459,92 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         else counters[action.counter] = updated;
         return { ...b, counters };
       });
+      return withHistory(state, next);
+    }
+    case 'ADJUST_ALL_COUNTERS': {
+      const idx = state.battlefield.findIndex((b) => b.card.id === action.cardId);
+      if (idx < 0) return state;
+      const kinds = Object.keys(state.battlefield[idx].counters);
+      // Deliberately not a no-op guard on `op` — a card with NO counters is
+      // the no-op, because there is nothing to add one to. Creating a
+      // `+1/+1` here would make Ctrl+1 a pump spell instead of a bulk step.
+      if (kinds.length === 0) return state;
+      const next = snapshot(state);
+      next.battlefield = next.battlefield.map((b, i) => {
+        if (i !== idx) return b;
+        const counters: Record<string, number> = {};
+        for (const [kind, value] of Object.entries(b.counters)) {
+          const updated =
+            action.op === 'double' ? value * 2 : value + (action.op === 'inc' ? 1 : -1);
+          if (updated > 0) counters[kind] = updated;
+        }
+        return { ...b, counters };
+      });
+      return withHistory(state, next);
+    }
+    case 'ADJUST_PT': {
+      const idx = state.battlefield.findIndex((b) => b.card.id === action.cardId);
+      if (idx < 0) return state;
+      const dp = action.power ?? 0;
+      const dt = action.toughness ?? 0;
+      if (dp === 0 && dt === 0) return state;
+      const next = snapshot(state);
+      next.battlefield = next.battlefield.map((b, i) => {
+        if (i !== idx) return b;
+        const power = (b.pt?.power ?? 0) + dp;
+        const toughness = (b.pt?.toughness ?? 0) + dt;
+        // Back to no modifier at all: drop the field rather than store a
+        // 0/0, so the face has one thing to test and a snapshot round-trips
+        // to the same shape it had before the first pump.
+        if (power === 0 && toughness === 0) {
+          const cleared = { ...b };
+          delete cleared.pt;
+          return cleared;
+        }
+        return { ...b, pt: { power, toughness } };
+      });
+      return withHistory(state, next);
+    }
+    case 'TOGGLE_REVEAL': {
+      if (!state.zones.hand.some((c) => c.id === action.cardId)) return state;
+      const next = snapshot(state);
+      const current = next.revealed ?? [];
+      next.revealed = current.includes(action.cardId)
+        ? current.filter((id) => id !== action.cardId)
+        : [...current, action.cardId];
+      return withHistory(state, next);
+    }
+    case 'PUT_ON_STACK': {
+      // Only a permanent in play can be marked: putting something "on the
+      // stack" here does not move it, so there is nothing sensible to mark
+      // about a card still in hand. The UI plays it first.
+      if (!state.battlefield.some((b) => b.card.id === action.cardId)) return state;
+      const stack = state.stack ?? [];
+      if (stack.includes(action.cardId)) return state;
+      const next = snapshot(state);
+      next.stack = [...stack, action.cardId];
+      return withHistory(state, next);
+    }
+    case 'RESOLVE_STACK': {
+      const stack = state.stack ?? [];
+      if (stack.length === 0) return state;
+      const cardId = action.cardId ?? stack[stack.length - 1];
+      if (!stack.includes(cardId)) return state;
+      const next = snapshot(state);
+      next.stack = stack.filter((id) => id !== cardId);
+      // A permanent simply stops being marked — it was already in play and
+      // stays exactly where it sits. An instant or sorcery has finished
+      // doing its job, so it goes to the graveyard rather than lingering on
+      // the battlefield as a permanent it never was.
+      const idx = next.battlefield.findIndex((b) => b.card.id === cardId);
+      if (idx >= 0 && !isPermanentType(next.battlefield[idx].card.typeLine)) {
+        const bf = next.battlefield[idx];
+        next.battlefield = next.battlefield.filter((_, k) => k !== idx);
+        next.battlefield = detachFrom(next.battlefield, cardId);
+        // A token spell-copy ceases to exist instead (rule 707.10) — it was
+        // never a card and has no graveyard to go to.
+        if (!bf.card.isToken) next.zones.graveyard = next.zones.graveyard.concat(bf.card);
+      }
       return withHistory(state, next);
     }
     case 'ADD_STICKER': {

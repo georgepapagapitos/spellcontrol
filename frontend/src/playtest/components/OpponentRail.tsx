@@ -181,6 +181,14 @@ function OpponentEntry({
       : `${permanentCount} permanent${permanentCount === 1 ? '' : 's'}`,
     !pending && `${board.handCount} card${board.handCount === 1 ? '' : 's'} in hand`,
     !pending && `${board.libraryCount} in library`,
+    // The rail is the phone/5-seat presentation, so these two have to be
+    // here as well as on the quadrant — a card someone is deliberately
+    // showing the table, and a spell waiting to resolve, are exactly the
+    // things you cannot afford to only see at 1440px.
+    !pending &&
+      (board.revealed?.length ?? 0) > 0 &&
+      `showing ${board.revealed!.map((c) => c.name ?? 'a card').join(', ')}`,
+    !pending && (board.stack?.length ?? 0) > 0 && `${board.stack!.length} on the stack`,
     held.length > 0 && `holds ${held.map((d) => d.label).join(', ')}`,
     // Part of the label rather than a bare visual ring: the highlight is the
     // whole point of a point, and a screen-reader user reaching this entry
@@ -255,7 +263,13 @@ function OpponentEntry({
           <>
             <span className="opponent-entry__counts" aria-hidden="true">
               Hand {board.handCount} · Library {board.libraryCount}
+              {(board.stack?.length ?? 0) > 0 && ` · Stack ${board.stack!.length}`}
             </span>
+            {(board.revealed?.length ?? 0) > 0 && (
+              <span className="opponent-entry__revealed" aria-hidden="true">
+                Showing {board.revealed!.map((c) => c.name ?? 'a card').join(', ')}
+              </span>
+            )}
             <MiniBattlefield cards={board.battlefield} />
           </>
         ) : (
