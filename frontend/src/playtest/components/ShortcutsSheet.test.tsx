@@ -17,7 +17,7 @@ describe('ShortcutsSheet', () => {
     expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeTruthy();
     expect(screen.getByText('Your turn')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Draw a card: D. Change' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Pass turn \(online\): Space/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Pass the turn.*: Space/ })).toBeTruthy();
   });
 
   it('rebinds on the next key press and says so', () => {

@@ -118,7 +118,7 @@ export const CARD_GROUP_HELP =
 
 export const SHORTCUTS: readonly ShortcutDef[] = [
   // ── Your turn ─────────────────────────────────────────────────────────
-  { id: 'pass-turn', key: 'space', label: 'Pass turn (online)', group: 'turn' },
+  { id: 'pass-turn', key: 'space', label: 'Pass the turn, or next turn solo', group: 'turn' },
   { id: 'advance-phase', key: 'q', label: 'Advance phase (online)', group: 'turn' },
   { id: 'next-turn', key: 'shift+n', label: 'Next turn', group: 'turn' },
   { id: 'draw', key: 'd', label: 'Draw a card', group: 'turn' },
