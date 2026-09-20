@@ -184,6 +184,30 @@
   overflow-wrap: anywhere;
 }
 
+/* The hero meta's "+N sideboard" / "+N considering" counts double as the jump
+   into the deck's out-zone (E176 used to spend a separate toolbar chip on it).
+   They inherit the meta line's voice completely at rest — a link that shouted
+   would turn a quiet subtitle into chrome — and declare themselves on hover
+   and focus. */
+.deck-hero-outzone-link {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px dotted currentcolor;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deck-hero-outzone-link:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+}
+
+.deck-hero-outzone-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
 .binder-hero-meta {
   /* Prose subtitle, not data — STYLE_GUIDE's --font-mono scope is prices/
      qty/set codes/tabular numerals only. This is the muted hero subtitle

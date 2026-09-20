@@ -29,7 +29,6 @@ import type { DeckGroupBy, DeckViewMode, ShowPrefs, SortMode } from './deck-disp
 
 // ── Toolbar ───────────────────────────────────────────────────────────────
 interface ToolbarProps {
-  title: string;
   sort: SortMode;
   sortDir: 'asc' | 'desc';
   onToggleSort: (s: SortMode) => void;
@@ -52,7 +51,6 @@ interface ToolbarProps {
   onShowTestHand?: () => void;
   /** Sideboard + Considering combined count — drives the "Not in the deck"
    *  jump chip (E176). 0 still renders the chip (the zone always exists). */
-  outzoneCount: number;
   /** E172 — whether ANY bulk-edit callback was passed; gates the "Select"
    *  toggle rendering at all (mirrors the tag props' own gating). */
   canBulkEdit: boolean;
@@ -263,7 +261,6 @@ function DeckViewPopoverPanel({
 }
 
 export function DeckToolbar({
-  title,
   sort,
   sortDir,
   onToggleSort,
@@ -281,35 +278,18 @@ export function DeckToolbar({
   onShowPrefsChange,
   onExport,
   onShowTestHand,
-  outzoneCount,
   canBulkEdit,
   selectMode,
   onToggleSelectMode,
 }: ToolbarProps) {
   return (
     <header className="deck-toolbar">
-      {/* Grade and missing-cards count live in the Statistics → Overview panel
-          now, so the toolbar stays focused on controls. The summary column's
-          only visible content is the "Not in the deck" jump chip (E176) —
-          .deck-toolbar-title is display:none — so at an empty out-zone the
-          whole column goes with it rather than leaving an empty flex child
-          holding a gap. A jump link to an empty zone is pure chrome, and on a
-          phone it cost a full row above the fold. */}
-      {outzoneCount > 0 && (
-        <div className="deck-toolbar-summary">
-          <span className="deck-toolbar-title">{title}</span>
-          <a
-            href="#deck-outzone"
-            className="deck-toolbar-outzone-chip"
-            aria-label={`Not in the deck: ${outzoneCount} ${outzoneCount === 1 ? 'card' : 'cards'}. Jump to sideboard and considering.`}
-          >
-            Not in deck
-            <span className="deck-toolbar-outzone-count" aria-hidden>
-              {outzoneCount}
-            </span>
-          </a>
-        </div>
-      )}
+      {/* The toolbar holds controls and nothing else. The out-zone jump used
+          to live here as a muted "Not in deck N" fragment alone on the left of
+          a right-aligned control row — restating a count the page hero already
+          gives as "+N sideboard" / "+N considering". The hero's own segments
+          carry the jump now (DeckEditorPage), so the fact and the way to reach
+          it are one thing in one place. */}
       <div className="deck-toolbar-controls">
         {canBulkEdit && !isNarrowGrid && (
           <button

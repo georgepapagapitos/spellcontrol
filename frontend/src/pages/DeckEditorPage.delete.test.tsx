@@ -408,6 +408,28 @@ vi.mock('../lib/sync', async (importOriginal) => ({
   onSyncedChange: () => () => {},
 }));
 
+describe('DeckEditorPage — the hero meta owns the out-zone jump (2026-09-20)', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => {
+    localStorage.clear();
+    mockDeck.sideboard = [];
+  });
+
+  it('makes the "+N sideboard" count the link into the out-zone', () => {
+    mockDeck.sideboard = [{ card: { id: 's1', name: 'Sideboard Card' } }] as never;
+    const { container } = renderEditor();
+    const link = container.querySelector('.deck-hero-outzone-link');
+    expect(link).not.toBeNull();
+    expect(link!.getAttribute('href')).toBe('#deck-outzone');
+    expect(link!.textContent).toContain('sideboard');
+  });
+
+  it('adds no link when there is nothing outside the deck', () => {
+    const { container } = renderEditor();
+    expect(container.querySelector('.deck-hero-outzone-link')).toBeNull();
+  });
+});
+
 describe('DeckEditorPage — Delete in ⋮ overflow (UX-316)', () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => localStorage.clear());
