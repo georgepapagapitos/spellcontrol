@@ -74,6 +74,10 @@ const TICKER_KINDS: ReadonlySet<LogEntryKind> = new Set([
   // local; see game-log.ts.)
   'card-counter',
   'face',
+  // The stack is in the middle of the table and a reveal IS the showing —
+  // both are public the moment they happen.
+  'stack',
+  'reveal',
 ]);
 
 /**
@@ -130,6 +134,17 @@ export interface PublicBoard {
   command: ProjectedCard[];
   handCount: number;
   libraryCount: number;
+  /** Ids of this seat's own battlefield permanents currently marked as
+   *  waiting to resolve, bottom first — the same ids that appear in
+   *  `battlefield`, so a receiver looks the card up there rather than
+   *  being sent a second copy of it. Public by construction: an object on
+   *  the stack has been announced. Optional like `ticker` — boards
+   *  published by clients predating the stack arrive without one. */
+  stack?: string[];
+  /** Cards this seat is currently showing the table out of its hand. The
+   *  one thing that legitimately lets a hand card's identity out without a
+   *  zone change — see `PlaytestState.revealed`. */
+  revealed?: ProjectedCard[];
   /** Trailing public log lines (see `toPublicTicker`) — the play ticker.
    *  Optional: boards published by clients predating the ticker arrive
    *  without it, and `toPublicBoard` itself doesn't attach one (the log
@@ -237,5 +252,15 @@ export function toPublicBoard(state: PlaytestState, seat: number): PublicBoard {
     command: state.zones.command.map(toProjectedCard),
     handCount: state.zones.hand.length,
     libraryCount: state.zones.library.length,
+    // Filtered against the live battlefield for the same reason `revealed`
+    // is filtered against the live hand: the list must never name a card
+    // the receiver cannot find.
+    stack: (state.stack ?? []).filter((id) => state.battlefield.some((b) => b.card.id === id)),
+    // Filtered against the live hand, not trusted from the list: a card that
+    // left hand without going through `pluck` (an older snapshot, a future
+    // action that forgets) must not keep leaking its name from here.
+    revealed: state.zones.hand
+      .filter((c) => (state.revealed ?? []).includes(c.id))
+      .map(toProjectedCard),
   };
 }

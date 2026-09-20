@@ -161,7 +161,7 @@ export async function postBoard(code: string, board: PublicBoard): Promise<void>
  * reaches only who is connected now and is gone on reload, same as an emote.
  */
 export interface GameSignal {
-  kind: 'reaction' | 'roll' | 'chat' | 'point' | 'arrow';
+  kind: 'reaction' | 'roll' | 'chat' | 'point' | 'arrow' | 'ping';
   seat: number;
   ts: number;
   /** reaction only — one of the fixed emote set (validated server-side). */
@@ -172,13 +172,15 @@ export interface GameSignal {
   value?: number;
   /** chat only: the message, trimmed and length-capped server-side. */
   text?: string;
-  /** point only: the seat whose board is being pointed at. Always a seat
-   *  the server verified is actually at this table. */
+  /** point and ping only: the seat whose board is being indicated. Always a
+   *  seat the server verified is actually at this table. */
   targetSeat?: number;
-  /** point only: which card on that seat's board. Absent means the point is
-   *  at the seat as a whole — and a receiver that can't find this id on the
-   *  target board must degrade to exactly that, since the server does not
-   *  (and cannot reliably) validate the id against live board state. */
+  /** point and ping only: which card on that seat's board. Absent means the
+   *  point is at the seat as a whole — and a receiver that can't find this
+   *  id on the target board must degrade to exactly that, since the server
+   *  does not (and cannot reliably) validate the id against live board
+   *  state. A ping always carries one: it renders as a ring around that
+   *  card, so an id matching nothing simply draws nothing. */
   cardId?: string;
   /** arrow only: `add` draws one from (fromSeat, fromCardId?) to (toSeat,
    *  toCardId?); `clear` removes every arrow this seat drew. A missing card
@@ -195,6 +197,10 @@ export type GameSignalInput =
   | { kind: 'roll'; die: NonNullable<GameSignal['die']> }
   | { kind: 'chat'; text: string }
   | { kind: 'point'; targetSeat: number; cardId?: string }
+  /** A ring around one card, for about a second, on every screen at the
+   *  table. Deliberately NOT a `point`: a ping rides an ordinary card tap
+   *  and writes nothing to the play ticker. */
+  | { kind: 'ping'; targetSeat: number; cardId: string }
   | {
       kind: 'arrow';
       op: 'add';

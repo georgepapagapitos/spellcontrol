@@ -105,6 +105,12 @@ export function OpponentQuadrant({
       : `${permanentCount} permanent${permanentCount === 1 ? '' : 's'}`,
     !pending && `${board.handCount} card${board.handCount === 1 ? '' : 's'} in hand`,
     !pending && `${board.libraryCount} in library`,
+    // Both are things the table is being told on purpose, so they belong in
+    // the label a screen-reader user hears rather than only in the picture.
+    !pending &&
+      (board.revealed?.length ?? 0) > 0 &&
+      `showing ${board.revealed!.map((c) => c.name ?? 'a card').join(', ')}`,
+    !pending && (board.stack?.length ?? 0) > 0 && `${board.stack!.length} on the stack`,
     held.length > 0 && `holds ${held.map((d) => d.label).join(', ')}`,
     pointed && 'being pointed at',
     unseen > 0 && `${unseen} change${unseen === 1 ? '' : 's'} since you last looked`,
@@ -196,6 +202,17 @@ export function OpponentQuadrant({
                 </span>
               )}
             </div>
+
+            {(board.revealed?.length ?? 0) > 0 && (
+              <div className="opponent-quadrant__revealed">
+                <span className="opponent-quadrant__revealed-label">Showing</span>
+                {board.revealed!.map((c) => (
+                  <span key={c.id} className="opponent-quadrant__revealed-card">
+                    {c.name ?? 'A card'}
+                  </span>
+                ))}
+              </div>
+            )}
 
             <div className="opponent-quadrant__piles">
               <QuadrantPile label="Library" count={board.libraryCount} name={name} onOpen={onOpen}>

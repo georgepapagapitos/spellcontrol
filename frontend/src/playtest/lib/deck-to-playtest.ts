@@ -26,6 +26,12 @@ function toPlaytestCard(card: ScryfallCard, id: string): PlaytestCard {
     manaValue: card.cmc,
     manaCost: card.mana_cost,
     typeLine: card.type_line,
+    // Printed body, verbatim — the card face adds any hand-applied
+    // modifier to it (see lib/power-toughness.ts). Absent for everything
+    // that isn't a creature or a vehicle, which is what stops the badge
+    // rendering on a land.
+    power: card.power,
+    toughness: card.toughness,
   };
 }
 

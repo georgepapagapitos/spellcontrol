@@ -25,6 +25,8 @@ interface Props {
    *  whose own selection actually changed. */
   selected?: boolean;
   size?: 'sm' | 'md' | 'lg';
+  /** Waiting to resolve — see `PlaytestCardFace.onStack`. */
+  onStack?: boolean;
 }
 
 export const PlaytestCardView = memo(function PlaytestCardView({
@@ -38,6 +40,7 @@ export const PlaytestCardView = memo(function PlaytestCardView({
   positioned = false,
   selected = false,
   size = 'md',
+  onStack = false,
 }: Props) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: draggableId,
@@ -96,6 +99,7 @@ export const PlaytestCardView = memo(function PlaytestCardView({
       card={card}
       bf={bf}
       size={size}
+      onStack={onStack}
       style={style}
       {...attributes}
       {...listeners}
@@ -135,7 +139,9 @@ export const PlaytestCardView = memo(function PlaytestCardView({
       onTouchCancel={onLongPress ? longPress.onTouchCancel : undefined}
       role="button"
       tabIndex={0}
-      aria-label={bf?.phased ? `${card.name} (phased out)` : card.name}
+      aria-label={[card.name, bf?.phased && 'phased out', onStack && 'on the stack']
+        .filter(Boolean)
+        .join(', ')}
       aria-pressed={selected || undefined}
     />
   );

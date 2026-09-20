@@ -11,6 +11,15 @@ interface Props {
   onPreview?(): void;
   onPlay(opts?: { tapped?: boolean; faceDown?: boolean }): void;
   onMoveTo(zone: Zone, toIndex?: number): void;
+  /** Whether the table is currently being shown this card. */
+  revealed?: boolean;
+  /** Show it to the table, or stop. Omitted off a table — there is nobody
+   *  to show it to in a solo goldfish, and an item that does nothing is
+   *  worse than no item. */
+  onToggleReveal?(): void;
+  /** Put it on the stack — casting it, in the only sense a
+   *  manual-enforcement table means that word. */
+  onPutOnStack?(copy: boolean): void;
 }
 
 /**
@@ -30,6 +39,9 @@ export function HandCardMenu({
   onPreview,
   onPlay,
   onMoveTo,
+  revealed = false,
+  onToggleReveal,
+  onPutOnStack,
 }: Props) {
   const act = (fn: () => void) => () => {
     fn();
@@ -59,6 +71,25 @@ export function HandCardMenu({
       >
         Play face down
       </button>
+      {onPutOnStack && (
+        <button
+          type="button"
+          className="playtest-ctx-action"
+          onClick={act(() => onPutOnStack(false))}
+        >
+          Put on the stack
+        </button>
+      )}
+      {onToggleReveal && (
+        <button
+          type="button"
+          className="playtest-ctx-action"
+          onClick={act(onToggleReveal)}
+          aria-pressed={revealed}
+        >
+          {revealed ? 'Stop showing it' : 'Show the table'}
+        </button>
+      )}
       <div className="playtest-ctx-group">
         <div className="playtest-ctx-heading">Move to</div>
         <button

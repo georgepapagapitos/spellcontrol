@@ -216,6 +216,32 @@
   color: var(--text-muted);
 }
 
+/* A card this seat is deliberately showing the table (R). Gold, like every
+   other "the player did this on purpose" mark on the board, and clipped to
+   one line — the rail entry is narrow and the full list is in the label. */
+.opponent-entry__revealed {
+  max-width: 100%;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--mtg-counter-gold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A card this seat is deliberately showing the table (R). Gold, like every
+   other "the player did this on purpose" mark on the board, and clipped to
+   one line — the rail entry is narrow and the full list is in the label. */
+.opponent-entry__revealed {
+  max-width: 100%;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--mtg-counter-gold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Presence-only shrink ladder: as N opponents divide a narrow top strip,
    drop the least essential content first and keep color + life legible
    down to the smallest slot — never hide the entry itself. */

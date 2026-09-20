@@ -5139,6 +5139,56 @@ re-aligned in sweep 3).
 
 ---
 
+## The table's keyboard map (2026-09-20 ruling)
+
+The playtest/online battlefield does **not** use the app-wide `?` registry as
+its source of truth. It owns a rebindable binding table
+(`playtest/lib/shortcuts.ts`) and one keydown dispatcher in `PlaytestBoard`,
+and *feeds* the `?` overlay from it. Three rules hold:
+
+**Defaults are EDHPlay's map, and that claim is tested.**
+`playtest/lib/shortcuts.test.ts` holds an `EXPECTED` key → id table plus an
+`UNBOUND` list, and a third test fails if any shortcut appears in neither. A
+default changes by editing that table in the same commit — never silently.
+
+**"The card in view" is the one targeting rule.** Every per-card key (tap,
+move, flip, counters, arrows, the stack) acts on **the selection when there
+is one, otherwise the card under the pointer or keyboard focus**. The hover
+half comes from `data-card-id` on `PlaytestCardFace` plus
+`hooks/use-hover-target` — a ref, never state, so crossing cards with the
+mouse re-renders nothing. A key over a card that isn't yours resolves to
+nothing and **falls through to the browser** rather than being swallowed.
+
+**Every key has a pointer twin.** A shortcut that exists only on the keyboard
+is not shipped: each one is also a card-menu item, a table-menu item, or a
+control on the surface it drives (the stack strip's own buttons). Menu items
+print their live binding via `keyFor(id)`, so a rebound key never lies.
+
+## Table signals — ring, point, arrow (2026-09-20 ruling)
+
+Three different weights of "look at this", and they are not interchangeable:
+
+| Signal    | Gesture                | Lives for | Writes to the ticker |
+| --------- | ---------------------- | --------- | -------------------- |
+| **Ping**  | any card tap           | ~1.1s     | no                   |
+| **Point** | a deliberate menu action | 5s      | yes                  |
+| **Arrow** | `W`, then a target     | until cleared | no               |
+
+A **ping** is a ring in the pinging seat's palette colour
+(`paletteForIndex`), drawn by `TablePings` as a viewport overlay measured off
+`data-card-id` — the same DOM-lookup pattern `TableArrows` uses, rather than
+threading a prop through four components. It is deliberately silent in the
+feed: it rides an ordinary tap, so a line per ping would bury everything
+else. Solo play still rings locally (the ring doubles as tap feedback) and
+sends nothing. Outbound pings are throttled client-side — the server's signal
+limiter is a shared budget, and a busy combat step is a lot of taps.
+
+Reduced motion keeps the ring and drops the travel: it appears at the card's
+own size and fades. Never remove the signal itself for reduced motion —
+somebody indicating a card still has to get through.
+
+---
+
 ## Extending this guide
 
 When you and a reviewer settle a recurring visual question ("should X be a pill?",

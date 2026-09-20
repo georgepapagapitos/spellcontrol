@@ -27,6 +27,8 @@ function baseProps() {
     onTransform: vi.fn(),
     onTogglePhased: vi.fn(),
     onDuplicate: vi.fn(),
+    onAdjustPT: vi.fn(),
+    onPutOnStack: vi.fn(),
     onMoveTo: vi.fn(),
   };
 }

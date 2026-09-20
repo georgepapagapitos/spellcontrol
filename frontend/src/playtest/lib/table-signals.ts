@@ -3,7 +3,7 @@ import type { GameSignal } from '@/lib/games-api';
 
 /** The fixed reaction set — the server whitelists exactly these six, so this
  *  is the one place both the picker and the incoming display agree on them. */
-export const REACTION_EMOTES = ['👏', '😬', '🤔', '🔥', '😂', '🫡'] as const;
+export const REACTION_EMOTES = ['👍', '🤔', '😮', '😢', '🔥', '🫡'] as const;
 export type ReactionEmote = (typeof REACTION_EMOTES)[number];
 
 /** Longest chat message the table accepts. Mirrors `MAX_CHAT_LEN` in backend
@@ -16,11 +16,11 @@ export const MAX_CHAT_LEN = 240;
 /** Screen-reader / status-text name for each emote — also doubles as the
  *  picker button's `aria-label`. */
 export const REACTION_LABEL: Record<ReactionEmote, string> = {
-  '👏': 'Applause',
-  '😬': 'Wince',
+  '👍': 'Thumbs up',
   '🤔': 'Thinking',
+  '😮': 'Wow',
+  '😢': 'Crying',
   '🔥': 'Fire',
-  '😂': 'Laughing',
   '🫡': 'Respect',
 };
 
