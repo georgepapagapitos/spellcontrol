@@ -17,6 +17,19 @@ export const SITE_NAME = 'SpellControl';
 const FALLBACK_DESCRIPTION = 'A read-only view of a SpellControl Magic: The Gathering collection.';
 const OG_IMAGE_URL = `${ORIGIN}/og-image.png`;
 
+/**
+ * A landing lookup that resolved to a DIFFERENT canonical URL: the handle in
+ * the path was released by a rename and nobody has claimed it since. The
+ * handler answers with a real 301 rather than rendering the shell, so a
+ * crawler moves its index entry and a person's address bar lands on the
+ * handle that account actually has now.
+ */
+export interface ShareLandingRedirect {
+  redirectTo: string;
+}
+
+export type ShareLandingResult = ShareLandingMeta | ShareLandingRedirect;
+
 export interface ShareLandingMeta {
   title: string;
   description: string;
@@ -290,7 +303,7 @@ export async function lookupShareLandingMeta(token: string): Promise<ShareLandin
  */
 export function createShareLandingHandler(
   spaDir: string,
-  lookup: (token: string) => Promise<ShareLandingMeta | null> = lookupShareLandingMeta
+  lookup: (token: string) => Promise<ShareLandingResult | null> = lookupShareLandingMeta
 ): RequestHandler {
   const indexPath = path.join(spaDir, 'index.html');
   let cachedShell: string | null = null;
@@ -310,13 +323,17 @@ export function createShareLandingHandler(
       logger.error('[shares/og] could not read index.html template', err);
       return next();
     }
-    let meta: ShareLandingMeta | null = null;
+    let meta: ShareLandingResult | null = null;
     let lookupFailed = false;
     try {
       meta = await lookup(token);
     } catch (err) {
       lookupFailed = true;
       logger.warn('[shares/og] lookup failed, serving bare shell with noindex:', err);
+    }
+    if (meta && 'redirectTo' in meta) {
+      res.redirect(301, meta.redirectTo);
+      return;
     }
     // A definite miss (unknown/revoked token, unpublished slug, hidden or
     // publication-less profile) is a real 404, not a soft one: crawlers drop

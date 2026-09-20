@@ -2,6 +2,8 @@ import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import { testAwareLimiter } from '../route-utils';
 import { promoteIfSeededAdmin } from '../admin/bootstrap';
+import { refreshGameResultUsernames, renameUser } from '../username/rename';
+import { invalidatePublicUserCache } from '../publications/cache';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import {
   clearSessionCookie,
@@ -89,6 +91,9 @@ const verifyEmailLimiter = testAwareLimiter({ windowMs: 15 * 60 * 1000, max: 20 
 const forgotPasswordLimiter = testAwareLimiter({ windowMs: 60 * 60 * 1000, max: 5 });
 const resetPasswordLimiter = testAwareLimiter({ windowMs: 15 * 60 * 1000, max: 10 });
 const passwordChangeLimiter = testAwareLimiter({ windowMs: 60 * 60 * 1000, max: 10 });
+// Renaming is cooldown-limited in the database; this only stops a client
+// hammering the validation path.
+const usernameChangeLimiter = testAwareLimiter({ windowMs: 60 * 60 * 1000, max: 10 });
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -853,7 +858,7 @@ authRouter.patch('/profile', profileLimiter, requireAuth, async (req: Request, r
     // displayName/bio/avatar are served straight off the public-read caches
     // (the profile page AND every deck page's byline) — without this, an edit
     // wouldn't show up on /u/:username or /d/:slug for up to the cache's TTL.
-    await purgeUserPublicCaches(req.user!.id, req.user!.username);
+    await purgeUserPublicCaches(req.user!.id);
   }
 
   const rows = await db
@@ -886,7 +891,7 @@ authRouter.delete('/me', requireAuth, profileLimiter, async (req: Request, res: 
   // were read from — the cascade only deletes DB rows, it doesn't know about
   // the in-memory caches, and those are what first makes these deck/profile
   // pages indexable, raising the stakes on a stale-cache window post-deletion.
-  await purgeUserPublicCaches(userId, req.user!.username);
+  await purgeUserPublicCaches(userId);
   await db.delete(users).where(eq(users.id, userId));
 
   clearSessionCookie(res);
@@ -932,6 +937,73 @@ async function latestPendingVerify(userId: string): Promise<{ email: string } | 
   if (!row || !row.email || row.expiresAt < Date.now()) return null;
   return { email: row.email };
 }
+
+/**
+ * Change the authed user's username.
+ *
+ * The transactional part (releasing the old handle, reserving it, taking the
+ * new one) lives in `username/rename.ts`. What this route owns is everything
+ * that lives OUTSIDE the users table and would otherwise go stale:
+ *
+ * - the public caches keyed by the old handle, which would keep serving the
+ *   old profile for the rest of their TTL,
+ * - the game-result rows that denormalize the username at write time,
+ * - the session cookie, whose JWT carries a username claim that every
+ *   `req.user.username` reader sees.
+ *
+ * The caller's OTHER devices keep a stale claim until their token renews.
+ * That is why nothing server-side stores or echoes `req.user.username` any
+ * more — see `currentUsername` in auth.ts.
+ */
+authRouter.patch(
+  '/me/username',
+  usernameChangeLimiter,
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+    const result = await renameUser(userId, req.body?.username);
+
+    if (!result.ok) {
+      switch (result.reason) {
+        case 'invalid':
+          return res.status(400).json({
+            error:
+              'Username must be 3–32 characters and use only lowercase letters, digits, _ and -.',
+          });
+        case 'reserved-word':
+          return res.status(400).json({ error: 'That username is reserved.' });
+        case 'unchanged':
+          return res.status(400).json({ error: 'That is already your username.' });
+        case 'taken':
+          return res.status(409).json({ error: 'That username is already taken.' });
+        case 'held':
+          // Deliberately does not say who holds it, or that it was ever held
+          // by anyone — that would leak one account's rename to a stranger.
+          return res.status(409).json({
+            error: 'That username is not available yet.',
+            availableAt: result.heldUntil,
+          });
+        case 'cooldown':
+          return res.status(429).json({
+            error: 'You can change your username once every 30 days.',
+            nextChangeAt: result.nextChangeAt,
+          });
+      }
+    }
+
+    const username = normalizeUsername(req.body?.username)!;
+    // The new handle's entries are purged by id; the handle just released has
+    // its own cache key, and nothing else will ever go looking for it.
+    await purgeUserPublicCaches(userId);
+    invalidatePublicUserCache(result.previous);
+    await refreshGameResultUsernames(userId, username);
+
+    // Re-mint the session so this device's own claim is correct immediately.
+    setSessionCookie(res, signSession({ id: userId, username, role: req.user!.role }));
+    logger.info(`[auth] "${result.previous}" (${userId}) is now "${username}"`);
+    res.json({ user: { id: userId, username, role: req.user!.role } });
+  }
+);
 
 /**
  * Start adding/changing the authed user's email. Doesn't write `users.email`

@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import { and, eq } from 'drizzle-orm';
 import { testAwareLimiter } from '../route-utils';
-import { requireAuth } from '../auth';
+import { currentUsername, requireAuth } from '../auth';
 import { getDb, getPool } from '../db';
 import { pods, podMembers } from '../db/schema';
 import { areFriends } from '../friends/relations';
@@ -81,9 +81,11 @@ podsRouter.post('/', requireAuth, podWriteLimiter, async (req: Request, res: Res
     id,
     name,
     ownerUserId: ownerId,
-    // Immutable post-registration (see auth.ts) — the JWT's username is
-    // always current, no need to re-read it from the DB.
-    ownerUsername: req.user!.username,
+    // From the row, not from `req.user.username`: that is a JWT claim minted
+    // at sign-in, and usernames are changeable now, so a caller who renamed
+    // on another device would see their OLD handle echoed back as the pod
+    // owner until their token aged out.
+    ownerUsername: await currentUsername(ownerId),
     createdAt: now,
     myStatus: 'member',
     memberCount: 1,
@@ -228,7 +230,7 @@ podsRouter.patch('/:id', requireAuth, podWriteLimiter, async (req: Request, res:
     id: podId,
     name,
     ownerUserId: callerId,
-    ownerUsername: req.user!.username,
+    ownerUsername: await currentUsername(callerId),
     createdAt: Number(updated[0].createdAt),
     myStatus: 'member',
     memberCount: Number(memberCountRes.rows[0].count),

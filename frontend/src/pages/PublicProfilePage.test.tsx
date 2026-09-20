@@ -4,10 +4,11 @@
  * gets the way back to the editor on /you (the other half of the Profile
  * card's "public profile" link).
  */
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PublicProfile, PublicProfileDeck } from '../lib/profile-client';
+import { ProfileNotFoundError, ProfileRenamedError } from '../lib/profile-client';
 
 const { fetchPublicProfileMock } = vi.hoisted(() => ({ fetchPublicProfileMock: vi.fn() }));
 vi.mock('../lib/profile-client', async (importOriginal) => {
@@ -122,5 +123,35 @@ describe('PublicProfilePage — brand-bar action', () => {
     const edit = await screen.findByRole('link', { name: 'Edit profile' });
     expect(edit.getAttribute('href')).toBe('/you?section=profile');
     expect(screen.queryByRole('button', { name: 'Report this profile' })).toBeNull();
+  });
+});
+
+describe('PublicProfilePage — a handle that moved', () => {
+  it('replaces the URL with the account current handle instead of 404ing', async () => {
+    fetchPublicProfileMock.mockImplementation((username: string) =>
+      username === 'alice'
+        ? Promise.reject(new ProfileRenamedError('alicenew'))
+        : Promise.resolve(profile({ username: 'alicenew' }))
+    );
+
+    render(
+      <MemoryRouter initialEntries={['/u/alice']}>
+        <Routes>
+          <Route path="/u/:username" element={<PublicProfilePage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    // The page re-fetches under the new handle and renders it, rather than
+    // showing the not-found state for a link that is merely old.
+    await waitFor(() => expect(fetchPublicProfileMock).toHaveBeenCalledWith('alicenew'));
+    expect(await screen.findByText('@alicenew')).toBeTruthy();
+    expect(screen.queryByText(/does not exist/i)).toBeNull();
+  });
+
+  it('still shows not-found for a handle nobody ever had', async () => {
+    fetchPublicProfileMock.mockRejectedValue(new ProfileNotFoundError());
+    renderProfile();
+    expect(await screen.findByText(/doesn't exist/i)).toBeTruthy();
   });
 });

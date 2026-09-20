@@ -39,6 +39,7 @@ import { resetAppCacheAndReload } from '../lib/reset-app-cache';
 import { AiFeaturesSettings } from '../components/settings/AiFeaturesSettings';
 import { getPendingCount } from '../lib/sync';
 import { ProfileEditor } from '../components/ProfileEditor';
+import { UsernameEditor } from '../components/UsernameEditor';
 import { TypeSetPicker } from '../components/TypeSetPicker';
 import { SettingsSection } from '../components/settings/SettingsSection';
 import { SettingsRow } from '../components/settings/SettingsRow';
@@ -483,6 +484,13 @@ export function YouPage() {
             }
           >
             <ProfileEditor />
+          </SettingsSection>
+          <SettingsSection
+            id="settings-username-title"
+            title="Username"
+            hint="Your handle, separate from your display name. Changing it moves your profile address."
+          >
+            <UsernameEditor />
           </SettingsSection>
         </div>
       )}
