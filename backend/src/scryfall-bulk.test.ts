@@ -59,6 +59,25 @@ describe('projectBulkCard', () => {
     });
   });
 
+  // The deck-token prep checklist reads this cache, so dropping it here is
+  // why "Tokens to prep" and the playtest token picker both resolved
+  // nothing on web: every lookup came back with no token data at all.
+  it('distills the tokens a card creates', () => {
+    const out = projectBulkCard(
+      bulk({
+        all_parts: [
+          { component: 'token', name: 'Goblin', type_line: 'Token Creature — Goblin' },
+          { component: 'combo_piece', name: 'Not A Token', type_line: 'Creature' },
+        ],
+      }) as never
+    );
+    expect(out?.tokens).toEqual([{ name: 'Goblin', typeLine: 'Token Creature — Goblin' }]);
+  });
+
+  it('leaves the field absent for a card that makes no tokens', () => {
+    expect(projectBulkCard(bulk({}) as never)?.tokens).toBeUndefined();
+  });
+
   // The playtest board prints a P/T box on every permanent that has one.
   // Dropping these here is why it could only ever show a hand-applied
   // modifier: no card in the cache carried a printed body at all.

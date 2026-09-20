@@ -1,3 +1,4 @@
+import { tokensFromParts, type RelatedPart } from './card-tokens';
 import { logger } from './logger';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -60,6 +61,10 @@ interface BulkCard extends Partial<ScryfallCard> {
   collector_number: string;
   games?: string[];
   set_type?: string;
+  /** Raw Scryfall relationships. Read only to distill `tokens` out of, and
+   *  deliberately NOT carried into the cached row — it holds a uri and an id
+   *  per related card, which is most of its weight and none of its use. */
+  all_parts?: RelatedPart[];
 }
 
 export interface BulkIndexEntry {
@@ -303,6 +308,13 @@ export function projectBulkCard(card: BulkCard): ScryfallCard | null {
     type_line: card.type_line,
     power: card.power,
     toughness: card.toughness,
+    // Distilled rather than stored raw: `all_parts` carries a uri + id per
+    // related card and would roughly double a token-maker's cached row, for
+    // two fields anybody reads. Without this the deck-token checklist — the
+    // deck page's "Tokens to prep" sheet AND the playtest token picker —
+    // resolves nothing at all on web, because this cache is where those
+    // lookups land.
+    tokens: tokensFromParts(card.all_parts),
     colors: card.colors,
     color_identity: card.color_identity,
     rarity: card.rarity ?? 'common',
