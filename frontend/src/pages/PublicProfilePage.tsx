@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { NotFoundView, ErrorView } from '../components/share/SharedShell';
 import { UserAvatar } from '../components/UserAvatar';
 import { ReportDialog } from '../components/share/ReportDialog';
@@ -7,7 +7,11 @@ import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { formatIdentity } from '../lib/display-name';
 import { formatSocialCount } from '../lib/social-proof';
 import { formatRelativeTime } from '../lib/format-time';
-import { fetchPublicProfile, ProfileNotFoundError } from '../lib/profile-client';
+import {
+  fetchPublicProfile,
+  ProfileNotFoundError,
+  ProfileRenamedError,
+} from '../lib/profile-client';
 import type { PublicProfile, PublicProfileDeck } from '../lib/profile-client';
 import { DeckLibrary, type LibraryDeck } from '../components/decks/DeckLibrary';
 import './PublicProfilePage.css';
@@ -153,6 +157,7 @@ function PublicProfilePageInner({ username }: { username: string }) {
     | { status: 'ready'; profile: PublicProfile }
   >({ status: 'loading' });
   const [reporting, setReporting] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let cancelled = false;
@@ -162,6 +167,12 @@ function PublicProfilePageInner({ username }: { username: string }) {
       })
       .catch((err) => {
         if (cancelled) return;
+        if (err instanceof ProfileRenamedError) {
+          // Replace, never push: the old handle should not sit in history as
+          // a step the back button returns to.
+          navigate(`/u/${err.renamedTo}`, { replace: true });
+          return;
+        }
         if (err instanceof ProfileNotFoundError) {
           setState({ status: 'notFound' });
         } else {
@@ -174,7 +185,7 @@ function PublicProfilePageInner({ username }: { username: string }) {
     return () => {
       cancelled = true;
     };
-  }, [username]);
+  }, [username, navigate]);
 
   useEffect(() => {
     if (state.status !== 'ready') return;

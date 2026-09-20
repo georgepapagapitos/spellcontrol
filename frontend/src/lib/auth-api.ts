@@ -77,7 +77,7 @@ export interface SyncPushResult {
   cursor: number;
 }
 
-import { authedFetch, handleResponse } from './fetch-utils';
+import { authedFetch, describeHttpFailure, handleResponse } from './fetch-utils';
 import { apiUrl } from './api-base';
 
 export async function register(username: string, password: string): Promise<AuthUser> {
@@ -413,6 +413,49 @@ export async function updateProfile(patch: {
   });
   const data = await handleResponse<{ profile: Profile }>(res);
   return data.profile;
+}
+
+/**
+ * A refusal from the username endpoint, carrying the date the UI needs to say
+ * WHEN rather than only "no": `availableAt` for a handle someone else released
+ * and still has first claim on, `nextChangeAt` for your own cooldown.
+ */
+export class UsernameChangeError extends Error {
+  readonly status: number;
+  readonly availableAt?: number;
+  readonly nextChangeAt?: number;
+
+  constructor(message: string, status: number, detail: Record<string, unknown>) {
+    super(message);
+    this.name = 'UsernameChangeError';
+    this.status = status;
+    if (typeof detail.availableAt === 'number') this.availableAt = detail.availableAt;
+    if (typeof detail.nextChangeAt === 'number') this.nextChangeAt = detail.nextChangeAt;
+  }
+}
+
+/**
+ * Change the signed-in account's username. The server re-mints the session
+ * cookie as part of the response, so this device is immediately consistent;
+ * the caller only has to update its own in-memory copy.
+ *
+ * Reads the body itself rather than going through `handleResponse`, which
+ * keeps only `error` and `status` — the two timestamps are the whole
+ * difference between "not available" and "not available until March 3".
+ */
+export async function changeUsername(username: string): Promise<AuthUser> {
+  const res = await authedFetch('/api/auth/me/username', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username }),
+  });
+  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) {
+    const message =
+      typeof body.error === 'string' && body.error ? body.error : describeHttpFailure(res.status);
+    throw new UsernameChangeError(message, res.status, body);
+  }
+  return (body as unknown as { user: AuthUser }).user;
 }
 
 /** Dismiss the auto-link banner (server-side: clears users.auto_linked_at). */

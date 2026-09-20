@@ -116,9 +116,17 @@ export async function createTestEnv(): Promise<TestEnv> {
       ai_daily_limit INTEGER,
       ai_access BOOLEAN NOT NULL DEFAULT false,
       inbox_seen_at BIGINT,
-      notify_email BOOLEAN NOT NULL DEFAULT true
+      notify_email BOOLEAN NOT NULL DEFAULT true,
+      username_changed_at BIGINT
     );
     CREATE UNIQUE INDEX users_email_idx ON users(email);
+    CREATE TABLE username_history (
+      username TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      released_at BIGINT NOT NULL,
+      reserved_until BIGINT NOT NULL
+    );
+    CREATE INDEX username_history_user_idx ON username_history(user_id);
     CREATE TABLE ai_reviews (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

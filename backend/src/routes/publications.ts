@@ -5,7 +5,8 @@ import { requireAuth } from '../auth';
 import { getPool } from '../db';
 import { extractListingFields } from '../publications/listing-fields';
 import { generateDeckSlug } from '../publications/slug';
-import { invalidateDeckPublicationCache, invalidatePublicUserCache } from '../publications/cache';
+import { invalidateDeckPublicationCache } from '../publications/cache';
+import { invalidatePublicUserCacheById } from '../publications/purge';
 import { invalidateShareContext } from '../shares/context';
 
 /**
@@ -249,7 +250,7 @@ publicationsRouter.delete(
       return res.status(404).json({ error: 'This deck is not published.' });
     }
     invalidateDeckPublicationCache(result.rows[0].slug);
-    invalidatePublicUserCache(req.user!.username);
+    await invalidatePublicUserCacheById(req.user!.id);
     res.status(204).end();
   }
 );

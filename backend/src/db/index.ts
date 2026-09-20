@@ -142,6 +142,18 @@ export async function ensureSchema(): Promise<void> {
     );
     -- Account recovery (T117): single-use email-verify / password-reset
     -- tokens. token_hash is the sha256 of the raw token mailed to the user.
+    -- Changeable usernames: when this account last renamed (rate limit) and
+    -- every handle it has released. A released handle keeps redirecting while
+    -- unclaimed and is reserved from everyone but its former owner until
+    -- reserved_until. See db/schema.ts for the full rationale.
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS username_changed_at BIGINT;
+    CREATE TABLE IF NOT EXISTS username_history (
+      username TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      released_at BIGINT NOT NULL,
+      reserved_until BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS username_history_user_idx ON username_history(user_id);
     CREATE TABLE IF NOT EXISTS auth_tokens (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

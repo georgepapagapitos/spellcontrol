@@ -38,6 +38,25 @@ export class ProfileNotFoundError extends Error {
   }
 }
 
+/**
+ * The handle in the URL was released by a rename and nobody has claimed it
+ * since, so the server told us where that account lives now.
+ *
+ * It arrives as a 404 with a pointer rather than a 3xx on purpose: `fetch`
+ * follows redirects transparently, which would render the right profile under
+ * the wrong address and leave a stale link in the person's history and in
+ * anything they copy from the address bar.
+ */
+export class ProfileRenamedError extends Error {
+  readonly renamedTo: string;
+
+  constructor(renamedTo: string) {
+    super(`Profile moved to @${renamedTo}.`);
+    this.name = 'ProfileRenamedError';
+    this.renamedTo = renamedTo;
+  }
+}
+
 async function readError(res: Response, fallback: string): Promise<string> {
   try {
     const body = (await res.json()) as { error?: string };
@@ -58,6 +77,10 @@ export async function fetchPublicProfile(username: string): Promise<PublicProfil
     credentials: 'include',
   });
   if (res.status === 404) {
+    const body = (await res.json().catch(() => ({}))) as { renamedTo?: unknown };
+    if (typeof body.renamedTo === 'string' && body.renamedTo) {
+      throw new ProfileRenamedError(body.renamedTo);
+    }
     throw new ProfileNotFoundError();
   }
   if (!res.ok) {

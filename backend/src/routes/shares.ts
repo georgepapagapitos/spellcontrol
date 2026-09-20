@@ -8,7 +8,8 @@ import { shares } from '../db/schema';
 import { areFriends } from '../friends/relations';
 import type { ShareDataView } from '../shares/cache';
 import { invalidateShareContext, loadShareContext } from '../shares/context';
-import { invalidateDeckPublicationCache, invalidatePublicUserCache } from '../publications/cache';
+import { invalidateDeckPublicationCache } from '../publications/cache';
+import { invalidatePublicUserCacheById } from '../publications/purge';
 import { resolveShareLabels } from '../shares/labels';
 import { getSetMap } from '../sets';
 import {
@@ -81,7 +82,7 @@ function newToken(): string {
  * not in the dialog that surfaced it. Unpublish keeps the frozen slug and the
  * counters, so a later republish is the same URL. 'direct' is not a rung.
  */
-async function retirePublication(userId: string, username: string, deckId: string): Promise<void> {
+async function retirePublication(userId: string, deckId: string): Promise<void> {
   const result = await getPool().query<{ slug: string }>(
     `UPDATE deck_publications SET unpublished_at = $3
        WHERE user_id = $1 AND deck_id = $2 AND unpublished_at IS NULL
@@ -89,7 +90,7 @@ async function retirePublication(userId: string, username: string, deckId: strin
     [userId, deckId, Date.now()]
   );
   for (const row of result.rows) invalidateDeckPublicationCache(row.slug);
-  if (result.rows.length > 0) invalidatePublicUserCache(username);
+  if (result.rows.length > 0) await invalidatePublicUserCacheById(userId);
 }
 
 /**
@@ -157,7 +158,7 @@ sharesRouter.post('/', requireAuth, writeLimiter, async (req: Request, res: Resp
   }
 
   if (kind === 'deck' && audience !== 'direct') {
-    await retirePublication(req.user!.id, req.user!.username, resourceId);
+    await retirePublication(req.user!.id, resourceId);
   }
 
   const db = getDb();

@@ -301,7 +301,7 @@ adminRouter.delete(
       return res.status(404).json({ error: 'User not found.' });
     }
     // Before the cascade takes the slugs and tokens with it.
-    await purgeUserPublicCaches(id, target[0].username);
+    await purgeUserPublicCaches(id);
     await db.delete(users).where(eq(users.id, id));
     res.json({ ok: true });
   }
@@ -338,7 +338,7 @@ adminRouter.post(
     if (cleared.length === 0) {
       return res.status(404).json({ error: 'User not found.' });
     }
-    await purgeUserPublicCaches(id, cleared[0].username);
+    await purgeUserPublicCaches(id);
     res.json({ ok: true });
   }
 );
@@ -396,7 +396,16 @@ adminRouter.get('/reports', requireAdmin, adminLimiter, async (_req: Request, re
             ? r.game_format
               ? `${r.game_format} game — ${new Date(Number(r.game_ended_at)).toLocaleDateString()}`
               : 'Deleted game'
-            : r.target_id,
+            : // A profile report stores the handle AS REPORTED in target_id,
+              // which is the right thing to keep (it is what the reporter
+              // actually saw) but the wrong thing to show: the account may
+              // have renamed since, and the resolve action acts on
+              // target_owner_id regardless. Label from the live join, and
+              // keep the reported handle alongside it when they differ.
+              r.owner_username +
+              (r.target_id && r.target_id !== r.owner_username
+                ? ` (reported as ${r.target_id})`
+                : ''),
       reporterUsername: r.reporter_username,
       reason: r.reason,
       createdAt: Number(r.created_at),
