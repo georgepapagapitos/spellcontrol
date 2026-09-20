@@ -12,6 +12,7 @@ import { CardPreview, type CardPreviewAction } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ColorPip } from './shared/ManaSymbol';
 import { CardRow } from './shared/CardRow';
+import { SectionHeaderBar } from './shared/SectionHeaderBar';
 import {
   BINDER_TABLE_COLUMNS,
   CardTableFrame,
@@ -48,6 +49,17 @@ interface Props {
   qtyByCopyId?: Map<string, number>;
   /** 'detail' = thumbnail + multi-line meta. 'compact' = text-only single line. */
   density?: 'detail' | 'compact';
+}
+
+/**
+ * A section's tally. Both numbers matter in a binder: the card count is how
+ * many sleeves the section fills, the unique count how many distinct printings
+ * — a playset of Path to Exile is four of one. They're only shown apart when
+ * they differ.
+ */
+function sectionMeta(totalQty: number, uniqueRows: number): string {
+  const cards = `${totalQty} ${totalQty === 1 ? 'card' : 'cards'}`;
+  return totalQty === uniqueRows ? cards : `${cards} · ${uniqueRows} unique`;
 }
 
 interface Row {
@@ -344,9 +356,9 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
         {viewToggle && <div className="binder-summary-viewmode">{viewToggle}</div>}
         <Legend context="binder" variant="pill" align="right" />
       </div>
-      <CardTableFrame columns={columns}>
+      <CardTableFrame columns={columns} framed={isTable}>
         {isTable && <CardTableHead columns={columns} />}
-        {flat.sectionRows.map(({ sectionKey, rows }) => {
+        {flat.sectionRows.map(({ sectionKey, rows }, sectionIdx) => {
           const section = binder.sections.find((s) => s.key === sectionKey);
           if (!section) return null;
           const isCollapsed = collapsed.has(sectionKey);
@@ -356,28 +368,47 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
           return (
             <div
               key={sectionKey}
-              className={`binder-section binder-section--list${isCompact ? ' binder-section--compact' : ''}`}
+              className={
+                isTable
+                  ? 'binder-table-group'
+                  : `binder-section binder-section--list${isCompact ? ' binder-section--compact' : ''}`
+              }
             >
-              <button
-                type="button"
-                id={headerId}
-                className={`section-header section-header-toggle ${isCollapsed ? 'collapsed' : ''}`}
-                onClick={() => toggle(sectionKey)}
-                aria-expanded={!isCollapsed}
-                aria-controls={panelId}
-              >
-                <span className="section-chevron" aria-hidden="true">
-                  ▾
-                </span>
-                {section.pip && <ColorPip color={section.key} pip="lg" />}
-                <span className="section-title" title={section.label}>
-                  {sectionHeading(section.cardLabels, section.label)}
-                </span>
-                <span className="section-meta">
-                  {totalQty} {totalQty === 1 ? 'card' : 'cards'}
-                  {totalQty !== rows.length && ` · ${rows.length} unique`}
-                </span>
-              </button>
+              {isTable ? (
+                // In the table the divider is a ROW of the table, not a bar
+                // floating above a separate box — same bar Collection's
+                // grouped list uses, so the two can't drift apart again.
+                <SectionHeaderBar
+                  className="collection-list-section-header binder-table-section"
+                  id={headerId}
+                  controls={panelId}
+                  pipSlot={section.pip ? <ColorPip color={section.key} pip="lg" /> : undefined}
+                  label={sectionHeading(section.cardLabels, section.label)}
+                  title={section.label}
+                  count={totalQty}
+                  meta={sectionMeta(totalQty, rows.length)}
+                  collapsed={isCollapsed}
+                  onToggle={() => toggle(sectionKey)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  id={headerId}
+                  className={`section-header section-header-toggle ${isCollapsed ? 'collapsed' : ''}`}
+                  onClick={() => toggle(sectionKey)}
+                  aria-expanded={!isCollapsed}
+                  aria-controls={panelId}
+                >
+                  <span className="section-chevron" aria-hidden="true">
+                    ▾
+                  </span>
+                  {section.pip && <ColorPip color={section.key} pip="lg" />}
+                  <span className="section-title" title={section.label}>
+                    {sectionHeading(section.cardLabels, section.label)}
+                  </span>
+                  <span className="section-meta">{sectionMeta(totalQty, rows.length)}</span>
+                </button>
+              )}
               {!isCollapsed && (
                 <div
                   id={panelId}
@@ -385,11 +416,19 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
                   aria-labelledby={headerId}
                   className={`collection-list${isTable ? ' is-table' : isCompact ? ' is-compact' : ''}`}
                 >
-                  {rows.map((r) => (
+                  {rows.map((r, rowIdx) => (
                     <CardRow
                       key={r.key}
                       card={r.card}
                       qty={r.qty}
+                      // Only the very last row in the slab drops its divider;
+                      // a section's last row still needs one, because a group
+                      // row follows it.
+                      isLastRow={
+                        isTable &&
+                        sectionIdx === flat.sectionRows.length - 1 &&
+                        rowIdx === rows.length - 1
+                      }
                       columns={isTable ? columns : undefined}
                       allocations={allocationsFor(r.card, r.qty)}
                       pageNum={r.pageNum}
