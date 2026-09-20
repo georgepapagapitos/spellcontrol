@@ -7,7 +7,7 @@ import {
   type SharedSortKey,
   type SortDir,
 } from '../../lib/shared-grouping';
-import { LayoutGrid, List as ListIcon } from 'lucide-react';
+import { AlignJustify, LayoutGrid, List as ListIcon } from 'lucide-react';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardList } from './SharedCardList';
 import { SharedEmptyState } from './SharedEmptyState';
@@ -24,7 +24,7 @@ interface Props {
   data: PublicCollection;
 }
 
-type ViewKind = 'grid' | 'list';
+type ViewKind = 'grid' | 'list' | 'compact';
 
 /** Rows rendered before "Show more" — the friend hub's own page size. */
 const PAGE_SIZE = 60;
@@ -154,6 +154,11 @@ export function SharedCollectionView({ data }: Props) {
               label: 'List view',
               icon: <ListIcon width={14} height={14} strokeWidth={2} aria-hidden />,
             },
+            {
+              value: 'compact',
+              label: 'Compact list (text only)',
+              icon: <AlignJustify width={14} height={14} strokeWidth={2} aria-hidden />,
+            },
           ]}
         />
       </div>
@@ -181,7 +186,7 @@ export function SharedCollectionView({ data }: Props) {
               ))}
             </ul>
           ) : (
-            <SharedCardList items={shown} onPreview={setPreviewIndex} />
+            <SharedCardList items={shown} onPreview={setPreviewIndex} table={view === 'compact'} />
           )}
           {hasMore && (
             <button

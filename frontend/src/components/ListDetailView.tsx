@@ -27,6 +27,14 @@ import { ViewModeToggle } from './ViewModeToggle';
 import { Legend } from './Legend';
 import { CardRow } from './shared/CardRow';
 import {
+  CardTableFrame,
+  CardTableHead,
+  LIST_TABLE_COLUMNS,
+  LIST_TABLE_COLUMNS_WITH_TARGET,
+  type CardTableCol,
+} from './shared/CardTable';
+import { useMediaQuery } from '../lib/use-media-query';
+import {
   CardGridCell,
   GridCaptionList,
   gridSetLabel,
@@ -226,6 +234,16 @@ export function ListDetailView({
   const [cmcMin, setCmcMin] = useState<number | undefined>(undefined);
   const [cmcMax, setCmcMax] = useState<number | undefined>(undefined);
 
+  // Which columns drive the sort here. Lists already sort by SortField, so a
+  // header click is the same `pickSort` the SortMenu calls — one sort state,
+  // two ways to reach it.
+  const TABLE_SORTS: Partial<Record<CardTableCol, SortField>> = {
+    qty: 'quantity',
+    name: 'name',
+    set: 'setName',
+    mana: 'cmc',
+    price: 'price',
+  };
   const [sortKey, setSortKey] = useState<SortField>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [view, setView] = useState<'list' | 'compact' | 'grid'>('list');
@@ -502,6 +520,13 @@ export function ListDetailView({
   };
 
   const tracking = isTrackingList(list);
+  // Compact becomes the shared card table from tablet width up, as it does on
+  // Collection and a binder page. The target-price column only exists where
+  // the editor does: a want list. A dynamic list's rows are owned collection
+  // copies and a tracking list already catalogues them, so neither shows it.
+  const wideEnoughForTable = useMediaQuery('(min-width: 768px)');
+  const isTable = view === 'compact' && wideEnoughForTable;
+  const tableColumns = dynamic || tracking ? LIST_TABLE_COLUMNS : LIST_TABLE_COLUMNS_WITH_TARGET;
 
   // Cross-references the entry against the collection by the same
   // oracleId/name match the header cost stat uses, so the two never disagree.
@@ -748,37 +773,50 @@ export function ListDetailView({
           ))}
         </div>
       ) : (
-        <div
-          className={`collection-list${view === 'compact' ? ' is-compact' : ''}`}
-          role="region"
-          aria-label={`${list.name} cards`}
-        >
-          {sorted.map((r, i) => (
-            <CardRow
-              key={r.card.copyId}
-              card={r.card}
-              qty={r.entry.quantity}
-              allocations={[]}
-              onActivate={() => setPreviewIndex(i)}
-              isLastRow={i === sorted.length - 1}
-              priceTitle="Market price for this printing"
-              pricePending={isRefreshingPrices && !((r.card.purchasePrice ?? 0) > 0)}
-              menu={dynamic ? undefined : rowMenu(r.entry)}
-              ownedBadge={dynamic ? undefined : ownedBadge(r.entry)}
-              targetPriceSlot={
-                // A want list is what target price means — a tracking list
-                // already catalogues owned cards, and a dynamic list's rows
-                // are owned collection copies (see isTrackingList).
-                dynamic || tracking ? undefined : (
-                  <ListEntryTargetPrice
-                    entry={r.entry}
-                    onSave={(patch) => void updateListEntry(list.id, r.entry.id, patch)}
-                  />
-                )
-              }
+        <CardTableFrame columns={tableColumns}>
+          {isTable && (
+            <CardTableHead<SortField>
+              columns={tableColumns}
+              sortFor={TABLE_SORTS}
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={pickSort}
+              dirLabel={(k, d) => sortDirectionLabel(k, d)}
             />
-          ))}
-        </div>
+          )}
+          <div
+            className={`collection-list${isTable ? ' is-table' : view === 'compact' ? ' is-compact' : ''}`}
+            role="region"
+            aria-label={`${list.name} cards`}
+          >
+            {sorted.map((r, i) => (
+              <CardRow
+                key={r.card.copyId}
+                card={r.card}
+                qty={r.entry.quantity}
+                columns={isTable ? tableColumns : undefined}
+                allocations={[]}
+                onActivate={() => setPreviewIndex(i)}
+                isLastRow={i === sorted.length - 1}
+                priceTitle="Market price for this printing"
+                pricePending={isRefreshingPrices && !((r.card.purchasePrice ?? 0) > 0)}
+                menu={dynamic ? undefined : rowMenu(r.entry)}
+                ownedBadge={dynamic ? undefined : ownedBadge(r.entry)}
+                targetPriceSlot={
+                  // A want list is what target price means — a tracking list
+                  // already catalogues owned cards, and a dynamic list's rows
+                  // are owned collection copies (see isTrackingList).
+                  dynamic || tracking ? undefined : (
+                    <ListEntryTargetPrice
+                      entry={r.entry}
+                      onSave={(patch) => void updateListEntry(list.id, r.entry.id, patch)}
+                    />
+                  )
+                }
+              />
+            ))}
+          </div>
+        </CardTableFrame>
       )}
 
       {!dynamic &&

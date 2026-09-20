@@ -4,8 +4,22 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { SharedCardList } from './SharedCardList';
 import type { PublicCard } from '../../lib/shared-types';
+import { SHARED_TABLE_COLUMNS } from '../shared/CardTable';
 
 vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+
+function stubViewport(tabletOrWider: boolean) {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: /min-width:\s*768px/.test(query) ? tabletOrWider : false,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  }));
+}
 
 function pc(over: Partial<PublicCard> = {}): PublicCard {
   return {
@@ -84,5 +98,53 @@ describe('SharedCardList', () => {
       items: [{ key: 'a', card: pc(), quantity: 1, ownership: { owned: true, binders: [] } }],
     });
     expect(screen.getByRole('button', { name: /sol ring.*owned/i })).toBeTruthy();
+  });
+});
+
+/**
+ * The compact mode these surfaces gained: the same table an owner sees on
+ * their own Collection, minus the columns a shared projection has no business
+ * carrying — condition, language and notes are the owner's private
+ * annotations, and there is no per-row menu because nothing here is the
+ * viewer's to edit. Qty and Price stay column-shaped but still obey the
+ * contents-yes-value-no contract.
+ */
+describe('SharedCardList in compact (table) mode', () => {
+  it('renders the read-only column set, with no menu column', () => {
+    stubViewport(true);
+    const { container } = renderList({ table: true });
+    const cols = [...container.querySelectorAll('.collection-table-head > [data-col]')].map((el) =>
+      el.getAttribute('data-col')
+    );
+    expect(cols).toEqual([...SHARED_TABLE_COLUMNS]);
+    for (const absent of ['cond', 'lang', 'notes', 'binder', 'menu']) {
+      expect(cols, `${absent} has no place on someone else's collection`).not.toContain(absent);
+    }
+    // Header and row agree, which is what the shared column list buys.
+    const rowCols = [...container.querySelectorAll('.collection-table-row > [data-col]')].map(
+      (el) => el.getAttribute('data-col')
+    );
+    expect(rowCols).toEqual(cols);
+  });
+
+  it('drops the withheld columns rather than labelling empty ones', () => {
+    // A friend's collection reports contents, not count or value. On a flow
+    // row those simply don't render; a table would otherwise keep three
+    // headed tracks promising numbers that never arrive.
+    stubViewport(true);
+    const { container } = renderList({ table: true, showPrice: false, showQty: false });
+    const cols = [...container.querySelectorAll('.collection-table-head > [data-col]')].map((el) =>
+      el.getAttribute('data-col')
+    );
+    expect(cols).toEqual(['name', 'set', 'cn', 'mana']);
+    expect(container.textContent).not.toMatch(/\$/);
+    expect(container.textContent).not.toMatch(/Price|Total|Qty/);
+  });
+
+  it('falls back to the flow row below tablet width, where the columns do not fit', () => {
+    stubViewport(false);
+    const { container } = renderList({ table: true });
+    expect(container.querySelector('.collection-table-head')).toBeNull();
+    expect(container.querySelector('.collection-table-row')).toBeNull();
   });
 });

@@ -1136,6 +1136,50 @@ Those heights are **layout contracts, not styling**:
   scoped rule pinning at `calc(var(--hub-tabs-sticky-h) - 1px)` (see
   `.collection-toolbar-row`, `.binders-index-search-row`). A bare `top: 0`
   slides **over** the tab strip when scrolled — same z tier, later in DOM.
+- **The seam rule binds measured offsets too.** A bar whose pin is computed in
+  JS (the card table's header, pinned under the auto-height controls row)
+  subtracts the same 1px, and re-measures whenever a bar above it changes
+  height — not only when the scrollport does. The controls row grows and
+  shrinks on its own (wrapping, select mode's bulk bar, the result count
+  appearing once a filter narrows the set); observing only the scroll
+  container left the header stamped at its mount-time offset, which parked it
+  a dozen pixels low with rows scrolling through the gap.
+
+## The card table — one row, one column vocabulary, four surfaces
+
+Every list of cards in the app is the same component at three densities: grid
+(`CardGridCell`), the thumbnail flow row and the compact row (`CardRow`), and —
+from **768px** up — the **card table**: aligned columns under a labelled header.
+Collection, a binder's list view, a list's compact view and the shared/friend
+views all render it. A new card-listing surface joins them; it does not grow its
+own table.
+
+- **Columns are declared, never hardcoded.** `shared/CardTable.tsx` owns the
+  `CardTableCol` vocabulary, each column's label, its width track
+  (`--ct-w-<col>` in `collection.css`) and its **tier**. A surface picks a
+  preset from that module and passes the same array to `CardTableFrame`,
+  `CardTableHead` and `CardRow`, so the header, the cells and the grid template
+  cannot disagree. `CardTable.test.tsx` holds them to it.
+- **A column a surface can't fill doesn't get a header.** Binder trades its
+  Binder column for the physical page number (a binder page never needs to name
+  itself — see "Binder pages" below); a list drops Binder and Notes, which a
+  printing reference doesn't carry, and adds the target price only where the
+  editor exists; a shared view drops the owner's private annotations and the
+  per-row menu, and drops Qty/Price/Total outright when the surface withholds
+  them rather than heading three empty tracks.
+- **Sortable only where a click sorts.** A column renders as a button only when
+  the surface maps it to a sort key. Collection and Lists do; a binder's order
+  is rule-driven, so its headers are labels. A header you can click that does
+  nothing is worse than one you can't.
+- **Tiers, not per-surface media queries.** Each column declares tier 1/2/3;
+  two `@container` rules on `.collection-table` zero the dropped column's track
+  and hide its cells by `data-tier`. Name, Price and Total are tier 1 — what a
+  row is and what it costs survive every width. Below 768px there is no table
+  at all: the compact flow row stays and sort lives in the SortMenu.
+- **One header per table, not per section.** In a grouped surface (a binder's
+  White / Blue / Multicolor sections) the header sits above every section
+  inside one `CardTableFrame`, so the columns line up across the whole binder
+  instead of each block finding its own widths.
 
 ## Card-name chips
 

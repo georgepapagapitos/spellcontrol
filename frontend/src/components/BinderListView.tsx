@@ -12,6 +12,8 @@ import { CardPreview, type CardPreviewAction } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ColorPip } from './shared/ManaSymbol';
 import { CardRow } from './shared/CardRow';
+import { BINDER_TABLE_COLUMNS, CardTableFrame, CardTableHead } from './shared/CardTable';
+import { useMediaQuery } from '../lib/use-media-query';
 import {
   buildEditedCards,
   isNoOpCardEdit,
@@ -59,6 +61,13 @@ interface Row {
  */
 export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'detail' }: Props) {
   const isCompact = density === 'compact';
+  // Compact becomes the shared card table from tablet width up, exactly as
+  // Collection's does — same row component, same columns, same widths. Below
+  // that the columns don't fit and compact stays the text-only flow row.
+  // Binder order is rule-driven (the SortPopover above owns it), so the
+  // header labels its columns without offering click-to-sort.
+  const wideEnoughForTable = useMediaQuery('(min-width: 768px)');
+  const isTable = isCompact && wideEnoughForTable;
   const isGrouped = !!qtyByCopyId;
   const allCards = useCollectionStore((s) => s.cards);
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
@@ -325,76 +334,80 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
         {viewToggle && <div className="binder-summary-viewmode">{viewToggle}</div>}
         <Legend context="binder" variant="pill" align="right" />
       </div>
-      {flat.sectionRows.map(({ sectionKey, rows }) => {
-        const section = binder.sections.find((s) => s.key === sectionKey);
-        if (!section) return null;
-        const isCollapsed = collapsed.has(sectionKey);
-        const headerId = `binder-list-section-${sectionKey}`;
-        const panelId = `binder-list-panel-${sectionKey}`;
-        const totalQty = rows.reduce((s, r) => s + r.qty, 0);
-        return (
-          <div
-            key={sectionKey}
-            className={`binder-section binder-section--list${isCompact ? ' binder-section--compact' : ''}`}
-          >
-            <button
-              type="button"
-              id={headerId}
-              className={`section-header section-header-toggle ${isCollapsed ? 'collapsed' : ''}`}
-              onClick={() => toggle(sectionKey)}
-              aria-expanded={!isCollapsed}
-              aria-controls={panelId}
+      <CardTableFrame columns={BINDER_TABLE_COLUMNS}>
+        {isTable && <CardTableHead columns={BINDER_TABLE_COLUMNS} />}
+        {flat.sectionRows.map(({ sectionKey, rows }) => {
+          const section = binder.sections.find((s) => s.key === sectionKey);
+          if (!section) return null;
+          const isCollapsed = collapsed.has(sectionKey);
+          const headerId = `binder-list-section-${sectionKey}`;
+          const panelId = `binder-list-panel-${sectionKey}`;
+          const totalQty = rows.reduce((s, r) => s + r.qty, 0);
+          return (
+            <div
+              key={sectionKey}
+              className={`binder-section binder-section--list${isCompact ? ' binder-section--compact' : ''}`}
             >
-              <span className="section-chevron" aria-hidden="true">
-                ▾
-              </span>
-              {section.pip && <ColorPip color={section.key} pip="lg" />}
-              <span className="section-title" title={section.label}>
-                {sectionHeading(section.cardLabels, section.label)}
-              </span>
-              <span className="section-meta">
-                {totalQty} {totalQty === 1 ? 'card' : 'cards'}
-                {totalQty !== rows.length && ` · ${rows.length} unique`}
-              </span>
-            </button>
-            {!isCollapsed && (
-              <div
-                id={panelId}
-                role="region"
-                aria-labelledby={headerId}
-                className={`collection-list${isCompact ? ' is-compact' : ''}`}
+              <button
+                type="button"
+                id={headerId}
+                className={`section-header section-header-toggle ${isCollapsed ? 'collapsed' : ''}`}
+                onClick={() => toggle(sectionKey)}
+                aria-expanded={!isCollapsed}
+                aria-controls={panelId}
               >
-                {rows.map((r) => (
-                  <CardRow
-                    key={r.key}
-                    card={r.card}
-                    qty={r.qty}
-                    allocations={allocationsFor(r.card, r.qty)}
-                    pageNum={r.pageNum}
-                    pricePending={isRefreshingPrices && !((r.card.purchasePrice ?? 0) > 0)}
-                    onActivate={() => {
-                      const idx = previewIndexFor.get(`${sectionKey}:${r.key}`);
-                      if (idx !== undefined) setPreviewIndex(idx);
-                    }}
-                    menu={
-                      <CardRowMenu
-                        card={r.card}
-                        onEditCard={() => openEdit(r.card, r.qty === 1)}
-                        onSplitCopy={r.qty >= 2 ? () => openEdit(r.card, true) : undefined}
-                        currentBinder={{
-                          id: binder.def.id,
-                          name: binder.def.name,
-                          color: binder.def.color,
-                        }}
-                      />
-                    }
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
+                <span className="section-chevron" aria-hidden="true">
+                  ▾
+                </span>
+                {section.pip && <ColorPip color={section.key} pip="lg" />}
+                <span className="section-title" title={section.label}>
+                  {sectionHeading(section.cardLabels, section.label)}
+                </span>
+                <span className="section-meta">
+                  {totalQty} {totalQty === 1 ? 'card' : 'cards'}
+                  {totalQty !== rows.length && ` · ${rows.length} unique`}
+                </span>
+              </button>
+              {!isCollapsed && (
+                <div
+                  id={panelId}
+                  role="region"
+                  aria-labelledby={headerId}
+                  className={`collection-list${isTable ? ' is-table' : isCompact ? ' is-compact' : ''}`}
+                >
+                  {rows.map((r) => (
+                    <CardRow
+                      key={r.key}
+                      card={r.card}
+                      qty={r.qty}
+                      columns={isTable ? BINDER_TABLE_COLUMNS : undefined}
+                      allocations={allocationsFor(r.card, r.qty)}
+                      pageNum={r.pageNum}
+                      pricePending={isRefreshingPrices && !((r.card.purchasePrice ?? 0) > 0)}
+                      onActivate={() => {
+                        const idx = previewIndexFor.get(`${sectionKey}:${r.key}`);
+                        if (idx !== undefined) setPreviewIndex(idx);
+                      }}
+                      menu={
+                        <CardRowMenu
+                          card={r.card}
+                          onEditCard={() => openEdit(r.card, r.qty === 1)}
+                          onSplitCopy={r.qty >= 2 ? () => openEdit(r.card, true) : undefined}
+                          currentBinder={{
+                            id: binder.def.id,
+                            name: binder.def.name,
+                            color: binder.def.color,
+                          }}
+                        />
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </CardTableFrame>
 
       {previewIndex !== null && (
         <CardPreview
