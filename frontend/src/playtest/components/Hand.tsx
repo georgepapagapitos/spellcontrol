@@ -163,7 +163,10 @@ export function Hand({ cards, fan = false, onCardClick, onCardMenu }: Props) {
                   {/* A land has no cost worth reading and a token has no mana
                       value at all, so neither gets a badge. */}
                   {c.manaValue !== undefined && !isPlaytestLand(c.typeLine) && (
-                    <span className="playtest-hand__mv" aria-hidden>
+                    <span
+                      className={`playtest-hand__mv${c.manaCost ? '' : ' playtest-hand__mv--plain'}`}
+                      aria-hidden
+                    >
                       {c.manaCost ? <ManaCost cost={c.manaCost} /> : c.manaValue}
                     </span>
                   )}

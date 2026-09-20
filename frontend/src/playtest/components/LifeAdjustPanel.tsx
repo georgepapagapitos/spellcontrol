@@ -1,36 +1,35 @@
 import { useEffect, useRef, useState } from 'react';
+import { Clock, Radiation, Skull, Ticket, Zap, type LucideIcon } from 'lucide-react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { getSafeViewport } from '@/lib/popover-placement';
 import { usePressRepeat } from '@/lib/use-press-repeat';
-import { cmdDamageToLethal } from '@/lib/cmd-damage';
 
-/** One commander-damage row — read-only ("taken", self panel) when
- *  `onAdjust` is absent, steppable ("from {opponent}", opponent panel)
- *  when present. `key` disambiguates a partner's row from the primary's. */
+/** One commander-damage row in the self panel's list — solo: damage YOU
+ *  dealt to that virtual opponent; online: damage taken FROM that seat's
+ *  commander (one row per commander, so a partner gets its own). `key`
+ *  disambiguates a partner's row from the primary's. */
 export interface CmdDamageRow {
   key: string;
   name: string;
   value: number;
-  onAdjust?(delta: number): void;
+  onAdjust(delta: number): void;
 }
 
-/** Online-only panel content — absent in solo mode. Discriminated by
- *  `kind`: `self` gets an editable poison stepper (when enabled) and a
- *  read-only "damage taken" list; `opponent` gets a read-only life note and
- *  a steppable "damage from" list (mutates MY seat's damage) plus a "View
- *  board" escape hatch into the full board inspector. */
+/** Online-only panel content — absent in solo mode. `self` may carry the
+ *  table's authoritative poison stepper, which takes the Poison row's place
+ *  in the counter list; `opponent` gets a read-only life note and a "View
+ *  board" escape hatch into the full board inspector. Commander damage is
+ *  not here: it rides the shared `cmdDamage` rows in both worlds. */
 export type OnlinePanelData =
   | {
       kind: 'self';
       poison?: { value: number; onAdjust(delta: number): void };
-      cmdDamageTaken: CmdDamageRow[];
     }
   | {
       kind: 'opponent';
       name: string;
-      cmdDamageFrom: CmdDamageRow[];
       onViewBoard(): void;
     };
 
@@ -43,9 +42,13 @@ interface Props {
   /** False renders life as a plain read-only number — an online opponent's
    *  seat, which only they may change (see `online.kind === 'opponent'`). */
   lifeEditable: boolean;
-  /** Present only for a SOLO opponent — solo's own commander-damage track
-   *  (dealt BY you TO them). Online commander damage instead rides `online`. */
-  commanderDamage?: number;
+  /** True leaves life out of the panel entirely — the wide table's corner
+   *  panel already has the numeral between two steppers, so the popover under
+   *  its chevron is counters and commander damage only (EDHPlay's shape). */
+  hideLife?: boolean;
+  /** Commander damage, one row per commander, self panel only. Solo passes a
+   *  row per virtual opponent; online a row per other seat's commander(s). */
+  cmdDamage?: CmdDamageRow[];
   commanderDamageThreshold: number;
   defeated: boolean;
   /** Player-scoped counters (poison/energy/experience/…) for this player. */
@@ -55,7 +58,6 @@ interface Props {
   countersLabel?: string;
   onClose(): void;
   onAdjustLife(delta: number): void;
-  onAdjustCommanderDamage?(delta: number): void;
   onAdjustCounter(kind: string, delta: number): void;
   /** Set while seated at an online table — see `OnlinePanelData`. */
   online?: OnlinePanelData;
@@ -63,11 +65,20 @@ interface Props {
 
 const MARGIN = 8;
 const STEPS = [-5, -1, 1, 5] as const;
-/** Poison is the one alternate kill condition life/commander damage can't
- *  express; energy and experience are the other two counters a deck routinely
- *  tracks on the player. Anything else gets added by name. */
-const PLAYER_COUNTER_KINDS = ['poison', 'energy', 'experience'];
+/** The player counters modern Magic actually puts on a player, listed even at
+ *  zero so the panel reads the same every game (EDHPlay's list). Poison is the
+ *  one alternate kill condition; the rest are what a deck routinely tracks.
+ *  Anything else gets added by name. */
+const PLAYER_COUNTERS: { kind: string; label: string; Icon: LucideIcon }[] = [
+  { kind: 'poison', label: 'Poison', Icon: Skull },
+  { kind: 'energy', label: 'Energy', Icon: Zap },
+  { kind: 'experience', label: 'Experience', Icon: Clock },
+  { kind: 'rad', label: 'Rad', Icon: Radiation },
+  { kind: 'tickets', label: 'Tickets', Icon: Ticket },
+];
+const PRESET_KINDS = PLAYER_COUNTERS.map((c) => c.kind);
 const MAX_COUNTER_NAME = 20;
+const POISON_LETHAL = 10;
 
 /** A ± step that repeats while held — see `usePressRepeat`. Split into its own
  *  component because the hook can't be called inside a `.map`. */
@@ -121,9 +132,9 @@ function Stepper({
   );
 }
 
-/** A ±1 stepper — poison, and every online commander-damage row. Coarser
- *  ±5/±1 (the `Stepper` above) fits a life total's range; a single hit of
- *  commander damage or poison moves by ones. */
+/** A ±1 stepper — every counter and commander-damage row. Coarser ±5/±1 (the
+ *  `Stepper` above) fits a life total's range; a single hit of commander
+ *  damage or a poison counter moves by ones. */
 function PlusMinusStepper({
   label,
   value,
@@ -162,28 +173,20 @@ function PlusMinusStepper({
 }
 
 /** One commander-damage row — see `CmdDamageRow`'s doc. */
-function CmdRow({ name, value, onAdjust }: CmdDamageRow) {
-  const toLethal = cmdDamageToLethal(value);
-  const lethal = value >= 21;
+function CmdRow({ name, value, onAdjust, lethalAt }: CmdDamageRow & { lethalAt: number }) {
+  const lethal = value >= lethalAt;
+  const toLethal = value > 0 && !lethal ? lethalAt - value : null;
   return (
     <div className={`playtest-life-panel__cmd-row${lethal ? ' is-lethal' : ''}`}>
       <span className="playtest-life-panel__cmd-row-name" title={name}>
         {name}
       </span>
-      {onAdjust ? (
-        <PlusMinusStepper
-          label={`Commander damage from ${name}`}
-          value={value}
-          onAdjust={onAdjust}
-        />
-      ) : (
-        <span
-          className={`playtest-life-panel__value${lethal ? ' is-lethal' : ''}`}
-          aria-live="polite"
-        >
-          {value}
-        </span>
-      )}
+      <PlusMinusStepper
+        label={`Commander damage from ${name}`}
+        value={value}
+        lethal={lethal}
+        onAdjust={onAdjust}
+      />
       {toLethal !== null && (
         <span className="playtest-life-panel__cmdr-note">{toLethal} to lethal</span>
       )}
@@ -198,9 +201,10 @@ function CmdRow({ name, value, onAdjust }: CmdDamageRow) {
  * popover on wide viewports, the shared card-picker bottom sheet on narrow
  * ones (both variant-agnostic content).
  *
- * Solo play (`online` absent) shows the original life/commander-damage/
- * counters body. Seated at an online table (`online` set), the body swaps to
- * the table's real fields — see `OnlinePanelData`.
+ * The body is one list: life (unless the caller already shows it), then the
+ * fixed player counters as icon rows, then commander damage as one row per
+ * commander. Solo and online share the same rows; only where the numbers come
+ * from differs (see `OnlinePanelData`).
  */
 export function LifeAdjustPanel({
   variant,
@@ -208,20 +212,21 @@ export function LifeAdjustPanel({
   title,
   life,
   lifeEditable,
-  commanderDamage,
+  hideLife = false,
+  cmdDamage,
   commanderDamageThreshold,
   defeated,
   counters,
   countersLabel,
   onClose,
   onAdjustLife,
-  onAdjustCommanderDamage,
   onAdjustCounter,
   online,
 }: Props) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [clamped, setClamped] = useState<{ left: number; top: number } | null>(null);
   const [counterText, setCounterText] = useState('');
+  const [addingCounter, setAddingCounter] = useState(false);
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
 
   useLockBodyScroll();
@@ -239,91 +244,42 @@ export function LifeAdjustPanel({
       Math.min(anchorRect.bottom + 6, safe.bottom - rect.height - MARGIN)
     );
     setClamped({ left, top });
-  }, [anchorRect, variant]);
+  }, [anchorRect, variant, addingCounter]);
 
   function submitCounter() {
     const kind = counterText.trim().slice(0, MAX_COUNTER_NAME);
     if (!kind) return;
     onAdjustCounter(kind, 1);
     setCounterText('');
+    setAddingCounter(false);
   }
 
-  // Presets plus any custom kind already on this player, so a counter added by
-  // name stays adjustable afterwards. Online-self already has an
-  // authoritative "Poison" stepper above (table-tracked) — "one fact, one
-  // place": drop the local preset so it never shows a second, do-nothing
-  // "poison" row right below the real one.
-  const hasOnlinePoison = online?.kind === 'self' && online.poison !== undefined;
-  const presetKinds = hasOnlinePoison
-    ? PLAYER_COUNTER_KINDS.filter((k) => k !== 'poison')
-    : PLAYER_COUNTER_KINDS;
-  const counterKinds = [
-    ...presetKinds,
-    ...Object.keys(counters).filter((k) => !presetKinds.includes(k) && k !== 'poison'),
-  ];
+  // The fixed list, then any custom kind already on this player, so a counter
+  // added by name stays adjustable afterwards. Online-self's Poison row is the
+  // table's authoritative one ("one fact, one place"), never the local bag's.
+  const onlinePoison = online?.kind === 'self' ? online.poison : undefined;
+  const customKinds = Object.keys(counters).filter((k) => !PRESET_KINDS.includes(k));
 
   const body = (
     <>
-      {lifeEditable ? (
-        <Stepper label="Life" value={life} onAdjust={onAdjustLife} />
-      ) : (
-        <div className="playtest-life-panel__stepper">
-          <span className="playtest-life-panel__stepper-label">Life</span>
-          <span
-            className="playtest-life-panel__value playtest-life-panel__value--readonly"
-            aria-live="polite"
-          >
-            {life}
-          </span>
-        </div>
-      )}
+      {!hideLife &&
+        (lifeEditable ? (
+          <Stepper label="Life" value={life} onAdjust={onAdjustLife} />
+        ) : (
+          <div className="playtest-life-panel__stepper">
+            <span className="playtest-life-panel__stepper-label">Life</span>
+            <span
+              className="playtest-life-panel__value playtest-life-panel__value--readonly"
+              aria-live="polite"
+            >
+              {life}
+            </span>
+          </div>
+        ))}
       {online?.kind === 'opponent' && (
         <p className="playtest-life-panel__readonly-note">
           Only {online.name} can change their life.
         </p>
-      )}
-      {commanderDamage !== undefined && onAdjustCommanderDamage && (
-        <div className="playtest-life-panel__cmdr">
-          <Stepper
-            label="Commander damage"
-            value={commanderDamage}
-            onAdjust={onAdjustCommanderDamage}
-          />
-          <p className="playtest-life-panel__cmdr-note">
-            {commanderDamageThreshold - commanderDamage > 0
-              ? `${commanderDamageThreshold - commanderDamage} more is lethal`
-              : 'Lethal commander damage'}
-          </p>
-        </div>
-      )}
-      {online?.kind === 'self' && online.poison && (
-        <div className="playtest-life-panel__stepper">
-          <span className="playtest-life-panel__stepper-label">Poison</span>
-          <PlusMinusStepper
-            label="Poison"
-            value={online.poison.value}
-            lethal={online.poison.value >= 10}
-            onAdjust={online.poison.onAdjust}
-          />
-        </div>
-      )}
-      {online?.kind === 'self' && online.cmdDamageTaken.length > 0 && (
-        <div className="playtest-life-panel__cmd-list">
-          <div className="playtest-life-panel__counters-heading">Commander damage taken</div>
-          {online.cmdDamageTaken.map((row) => (
-            <CmdRow key={row.key} name={row.name} value={row.value} onAdjust={row.onAdjust} />
-          ))}
-        </div>
-      )}
-      {online?.kind === 'opponent' && online.cmdDamageFrom.length > 0 && (
-        <div className="playtest-life-panel__cmd-list">
-          <div className="playtest-life-panel__counters-heading">
-            Commander damage from {online.name}
-          </div>
-          {online.cmdDamageFrom.map((row) => (
-            <CmdRow key={row.key} name={row.name} value={row.value} onAdjust={row.onAdjust} />
-          ))}
-        </div>
       )}
       {online?.kind === 'opponent' && (
         <button
@@ -337,47 +293,79 @@ export function LifeAdjustPanel({
       {(!online || online.kind === 'self') && (
         <div className="playtest-life-panel__counters">
           <div className="playtest-life-panel__counters-heading">{countersLabel ?? 'Counters'}</div>
-          {counterKinds.map((k) => (
-            <div key={k} className="playtest-life-panel__counter">
-              <span className="playtest-life-panel__counter-label">{k}</span>
-              <StepButton
-                label={`${k} minus 1, currently ${counters[k] ?? 0}`}
-                onAdjust={() => onAdjustCounter(k, -1)}
-              >
-                −
-              </StepButton>
-              <span className="playtest-life-panel__value" aria-live="polite">
-                {counters[k] ?? 0}
-              </span>
-              <StepButton
-                label={`${k} plus 1, currently ${counters[k] ?? 0}`}
-                onAdjust={() => onAdjustCounter(k, 1)}
-              >
-                +
-              </StepButton>
+          {PLAYER_COUNTERS.map(({ kind, label, Icon }) => {
+            const authoritative = kind === 'poison' ? onlinePoison : undefined;
+            const value = authoritative?.value ?? counters[kind] ?? 0;
+            return (
+              <div key={kind} className="playtest-life-panel__counter">
+                <Icon className="playtest-life-panel__counter-icon" aria-hidden />
+                <span className="playtest-life-panel__counter-label">{label}</span>
+                <PlusMinusStepper
+                  label={label}
+                  value={value}
+                  lethal={kind === 'poison' && value >= POISON_LETHAL}
+                  onAdjust={authoritative?.onAdjust ?? ((delta) => onAdjustCounter(kind, delta))}
+                />
+              </div>
+            );
+          })}
+          {customKinds.map((kind) => (
+            <div key={kind} className="playtest-life-panel__counter">
+              <span className="playtest-life-panel__counter-icon" aria-hidden />
+              <span className="playtest-life-panel__counter-label">{kind}</span>
+              <PlusMinusStepper
+                label={kind}
+                value={counters[kind] ?? 0}
+                onAdjust={(delta) => onAdjustCounter(kind, delta)}
+              />
             </div>
           ))}
-          <div className="playtest-life-panel__counter-add">
-            <input
-              type="text"
-              value={counterText}
-              onChange={(e) => setCounterText(e.target.value)}
-              placeholder="Other counter"
-              maxLength={MAX_COUNTER_NAME}
-              aria-label="Counter name"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') submitCounter();
-              }}
-            />
+          {addingCounter ? (
+            <div className="playtest-life-panel__counter-add">
+              <input
+                type="text"
+                value={counterText}
+                onChange={(e) => setCounterText(e.target.value)}
+                placeholder="Counter name"
+                maxLength={MAX_COUNTER_NAME}
+                aria-label="Counter name"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') submitCounter();
+                }}
+              />
+              <button
+                type="button"
+                disabled={!counterText.trim()}
+                onClick={submitCounter}
+                aria-label="Add counter"
+              >
+                Add
+              </button>
+            </div>
+          ) : (
             <button
               type="button"
-              disabled={!counterText.trim()}
-              onClick={submitCounter}
-              aria-label="Add counter"
+              className="playtest-life-panel__counter-more"
+              onClick={() => setAddingCounter(true)}
             >
-              Add
+              Another counter
             </button>
-          </div>
+          )}
+        </div>
+      )}
+      {cmdDamage && cmdDamage.length > 0 && (
+        <div className="playtest-life-panel__cmd-list">
+          <div className="playtest-life-panel__counters-heading">Commander damage</div>
+          {cmdDamage.map((row) => (
+            <CmdRow
+              key={row.key}
+              name={row.name}
+              value={row.value}
+              onAdjust={row.onAdjust}
+              lethalAt={commanderDamageThreshold}
+            />
+          ))}
         </div>
       )}
       {defeated && (
