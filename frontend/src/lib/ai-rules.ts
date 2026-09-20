@@ -34,8 +34,6 @@ export interface RulesQuestionEntry {
 }
 
 export interface RulesHistory {
-  /** The rules document's own effective date ("August 7, 2026"), if known. */
-  effectiveDate: string | null;
   questions: RulesQuestionEntry[];
 }
 
@@ -82,9 +80,9 @@ export async function requestRulesAnswer(
  */
 export async function fetchRulesHistory(): Promise<RulesHistory> {
   const res = await authedFetch('/api/ai/rules-history', { method: 'GET' });
-  if (res.status === 404 || res.status === 401) return { effectiveDate: null, questions: [] };
+  if (res.status === 404 || res.status === 401) return { questions: [] };
   const data = await handleResponse<RulesHistory>(res);
-  return { effectiveDate: data.effectiveDate ?? null, questions: data.questions ?? [] };
+  return { questions: data.questions ?? [] };
 }
 
 /**

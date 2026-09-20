@@ -60,7 +60,6 @@ describe('requestRulesAnswer', () => {
 describe('fetchRulesHistory', () => {
   it('returns the history payload', async () => {
     const payload = {
-      effectiveDate: 'August 7, 2026',
       questions: [{ id: '1', question: 'Q?', content: 'A.', createdAt: 5, rules: [] }],
     };
     stubFetch(200, JSON.stringify(payload));
@@ -69,7 +68,7 @@ describe('fetchRulesHistory', () => {
 
   it('degrades 404/401 to an empty history', async () => {
     stubFetch(404, JSON.stringify({ error: 'Not found.' }));
-    expect(await fetchRulesHistory()).toEqual({ effectiveDate: null, questions: [] });
+    expect(await fetchRulesHistory()).toEqual({ questions: [] });
   });
 });
 
