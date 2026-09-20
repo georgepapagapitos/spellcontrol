@@ -29,6 +29,13 @@ export interface PlaytestCard {
    *  which is exactly why the badge falls back to the bare `manaValue`. */
   manaCost?: string;
   typeLine?: string;
+  /** Printed power/toughness, verbatim from Scryfall — so they carry `*`,
+   *  `1+*` and the rest unparsed. Present only for cards that have them
+   *  (and absent from every snapshot saved before the P/T badge existed),
+   *  which is exactly why `BattlefieldCard.pt` renders as a bare modifier
+   *  when they're missing rather than guessing a base. */
+  power?: string;
+  toughness?: string;
   isToken?: boolean;
 }
 
@@ -65,6 +72,16 @@ export interface BattlefieldCard {
    *  enforces no rules here, same as everywhere else in this state. Optional
    *  so it's absent (= not phased) on every snapshot saved before it existed. */
   phased?: boolean;
+  /** Power/toughness MODIFIER on this permanent — a running total of the
+   *  pumps and shrinks the player has applied by hand (Alt+1..4, or the
+   *  card menu), not an absolute P/T. Kept apart from `counters` because a
+   *  +1/+1 counter and a turn's worth of Giant Growth are different objects
+   *  at a real table: one stays, one wears off, and only the player knows
+   *  which is which. The face adds it to `PlaytestCard.power`/`toughness`
+   *  when those are numeric, and shows it alone when they aren't. Optional
+   *  so it's absent (= no modifier) on every older snapshot; a modifier
+   *  that returns to 0/0 is deleted rather than stored. */
+  pt?: { power: number; toughness: number };
 }
 
 /** One virtual opponent's damage bookkeeping. `commanderDamage` is damage
@@ -102,6 +119,33 @@ export const MANA_COLOR_LABEL: Record<ManaColor, string> = {
   G: 'Green',
   C: 'Colorless',
 };
+
+/**
+ * One object waiting on the stack.
+ *
+ * The stack is NOT a `Zone`: a zone here is a flat `PlaytestCard[]` keyed by
+ * name, and a stack entry has to carry three things a bare card can't — the
+ * order it was put there in, whether it is a copy (a copy ceases to exist on
+ * resolution instead of going anywhere), and which zone the real card came
+ * from so resolving it can send it back somewhere sane. It gets its own
+ * ordered list on the state instead, and `locate`/`pluck` in the reducer
+ * know about it so a countered spell still moves with a plain `MOVE_TO_ZONE`.
+ *
+ * Like the rest of this engine the stack enforces no rules: nothing checks
+ * priority, nothing auto-resolves, and anything can be put on it. It is the
+ * pile in the middle of the table, not a rules engine.
+ */
+export interface StackItem {
+  /** Unique per entry — a copy shares its source's card, not its id. */
+  id: string;
+  card: PlaytestCard;
+  /** A copy (Shift+K): ceases to exist when it resolves (MTG rule 707.10). */
+  isCopy: boolean;
+  /** Where the real card was when it went on the stack, so RESOLVE_STACK
+   *  can return a non-permanent to a sensible zone. Absent for a copy,
+   *  which came from nowhere. */
+  from?: Zone | 'battlefield';
+}
 
 export interface PlaytestState {
   zones: Record<Zone, PlaytestCard[]>;
@@ -149,6 +193,18 @@ export interface PlaytestState {
    *  land or spends it against a cost. See NEXT_TURN in reducer.ts for when
    *  it empties. Optional for snapshot back-compat; absent === all-zero. */
   manaPool?: Record<ManaColor, number>;
+  /** Objects waiting to resolve, bottom of the stack first — so the LAST
+   *  entry is the top, matching how the stack renders and how
+   *  RESOLVE_STACK's default target is chosen. Optional for snapshot
+   *  back-compat; absent === empty. */
+  stack?: StackItem[];
+  /** Ids of cards in hand you are currently showing the table (R). Hand is
+   *  otherwise hidden information, so this is the one list that lets a
+   *  specific card out of it without moving zones — the projection reads it
+   *  to decide what an opponent may see. Optional for snapshot
+   *  back-compat; absent === nothing revealed. A card leaving hand drops
+   *  off this list. */
+  revealed?: string[];
   /** Snapshots of prior states (cap kept inside reducer). UNDO pops the head. */
   past: Omit<PlaytestState, 'past'>[];
 }
@@ -198,6 +254,17 @@ export type PlaytestAction =
   | { type: 'TAP'; cardId: string; tapped?: boolean }
   | { type: 'UNTAP_ALL' }
   | { type: 'SET_COUNTER'; cardId: string; counter: string; delta: number }
+  /** Step every counter already on a permanent at once — the bulk form of
+   *  SET_COUNTER, for the boards where a dozen chargers or chapters move
+   *  together. Never CREATES a counter kind: a card with none is untouched,
+   *  because "add one to every counter" has no answer on a card with no
+   *  counters. Floors at zero and drops a kind that reaches it, same as
+   *  SET_COUNTER. */
+  | { type: 'ADJUST_ALL_COUNTERS'; cardId: string; op: 'inc' | 'dec' | 'double' }
+  /** Adjust the running power/toughness modifier on a permanent (see
+   *  `BattlefieldCard.pt`). Deltas, not absolutes; a modifier back at 0/0
+   *  is removed rather than stored. */
+  | { type: 'ADJUST_PT'; cardId: string; power?: number; toughness?: number }
   | { type: 'ADD_STICKER'; cardId: string; text: string }
   | { type: 'REMOVE_STICKER'; cardId: string; index: number }
   | { type: 'CREATE_TOKEN'; card: PlaytestCard; x: number; y: number }
@@ -230,6 +297,23 @@ export type PlaytestAction =
       cardId: string;
       targetId: string | null;
     }
+  /** Show or stop showing a card in your hand to the table (see
+   *  `PlaytestState.revealed`). No-op for a card that isn't in hand. */
+  | { type: 'TOGGLE_REVEAL'; cardId: string }
+  /** Put a card on the stack. `entryId` is supplied by the caller so the
+   *  reducer stays pure (same contract as CLONE_BF_CARDS). `copy` makes an
+   *  entry that shares the card's printed face but leaves the real card
+   *  where it is — Shift+K, rule 707.10. */
+  | { type: 'PUT_ON_STACK'; cardId: string; entryId: string; copy?: boolean }
+  /** Resolve a stack entry (the top one when `entryId` is omitted). A copy
+   *  ceases to exist. A permanent lands on the battlefield at `x`/`y`;
+   *  anything else goes to the graveyard, or back to `from` when it came
+   *  from somewhere a spell wouldn't leave (the command zone). */
+  | { type: 'RESOLVE_STACK'; entryId?: string; x?: number; y?: number }
+  /** Take an entry off the stack without resolving it — countered, fizzled,
+   *  or put there by mistake. A copy just disappears; a real card goes to
+   *  `to` (its graveyard by default). */
+  | { type: 'REMOVE_FROM_STACK'; entryId?: string; to?: Zone }
   | { type: 'FLIP_FACE'; cardId: string }
   | { type: 'TRANSFORM'; cardId: string }
   | { type: 'TOGGLE_PHASED'; cardId: string }

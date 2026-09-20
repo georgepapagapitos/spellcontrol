@@ -46,6 +46,11 @@ interface Props {
   library: PlaytestCard[];
   /** Mode the sheet opens on; the user can switch without reopening. */
   initialMode?: ScryMode;
+  /** Which end of the library is being looked at. `bottom` mirrors the whole
+   *  sheet: the cards come off the bottom, the keep column puts them back on
+   *  the bottom, and scry's away column is the TOP — because "away" always
+   *  means the far end from the one you are looking at. */
+  from?: 'top' | 'bottom';
   onClose(): void;
   onResolve(resolution: ScryResolution): void;
 }
@@ -64,11 +69,16 @@ const MODE_HINT: Record<ScryMode, string> = {
   mill: 'Cards go to your graveyard — drag any back to keep it on top.',
 };
 
-/** Away-column heading per mode. */
-const AWAY_LABEL: Record<ScryMode, string> = {
-  scry: 'Bottom of library',
-  surveil: 'Graveyard',
-  mill: 'Graveyard',
+/** Away-column heading per mode, per end of the library being looked at. */
+const AWAY_LABEL: Record<'top' | 'bottom', Record<ScryMode, string>> = {
+  top: { scry: 'Bottom of library', surveil: 'Graveyard', mill: 'Graveyard' },
+  bottom: { scry: 'Top of library', surveil: 'Graveyard', mill: 'Graveyard' },
+};
+
+/** Keep-column (and sheet) heading: the end you are looking at. */
+const KEEP_LABEL: Record<'top' | 'bottom', string> = {
+  top: 'Top of library',
+  bottom: 'Bottom of library',
 };
 
 const MAX_PEEK = 10;
@@ -87,7 +97,13 @@ const MAX_PEEK = 10;
  * explicit move button, so touch and keyboard users never need a
  * cross-container drag (which dnd-kit's KeyboardSensor handles poorly).
  */
-export function ScrySheet({ library, initialMode = 'scry', onClose, onResolve }: Props) {
+export function ScrySheet({
+  library,
+  initialMode = 'scry',
+  from = 'top',
+  onClose,
+  onResolve,
+}: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   useLockBodyScroll();
   useEscapeKey(beginClose);
@@ -101,7 +117,10 @@ export function ScrySheet({ library, initialMode = 'scry', onClose, onResolve }:
   const [shuffleAfter, setShuffleAfter] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  const peeked = useMemo(() => library.slice(0, count), [library, count]);
+  const peeked = useMemo(
+    () => (from === 'top' ? library.slice(0, count) : library.slice(library.length - count)),
+    [library, count, from]
+  );
   const byId = useMemo(() => new Map(peeked.map((c) => [c.id, c])), [peeked]);
 
   // Changing mode or count re-deals the columns (mill starts everything in the
@@ -181,11 +200,24 @@ export function ScrySheet({ library, initialMode = 'scry', onClose, onResolve }:
   const hand = columns.hand.length ? columns.hand : undefined;
 
   function handleConfirm() {
-    onResolve(
-      mode === 'scry'
-        ? { mode, top: columns.top, bottom: columns.away, hand, shuffle }
-        : { mode, top: columns.top, graveyard: columns.away, hand, shuffle }
-    );
+    // `columns.top` is always the KEEP column — the end the sheet is looking
+    // at — and `columns.away` the other destination. Which reducer list each
+    // maps to is what flips when looking at the bottom.
+    const keep = columns.top;
+    const away = columns.away;
+    if (from === 'bottom') {
+      onResolve(
+        mode === 'scry'
+          ? { mode, top: away, bottom: keep, hand, shuffle }
+          : { mode, top: [], bottom: keep, graveyard: away, hand, shuffle }
+      );
+    } else {
+      onResolve(
+        mode === 'scry'
+          ? { mode, top: keep, bottom: away, hand, shuffle }
+          : { mode, top: keep, graveyard: away, hand, shuffle }
+      );
+    }
     beginClose();
   }
 
@@ -211,7 +243,7 @@ export function ScrySheet({ library, initialMode = 'scry', onClose, onResolve }:
         <div className="card-picker-handle" aria-hidden />
         <div className="card-picker-header">
           <h2 id="playtest-scry-title" className="card-picker-title">
-            Top of library
+            {KEEP_LABEL[from]}
           </h2>
           <fieldset className="playtest-scry-modes" aria-label="Action">
             {MODES.map((m) => (
@@ -296,7 +328,7 @@ export function ScrySheet({ library, initialMode = 'scry', onClose, onResolve }:
                           type="button"
                           className="playtest-scry-card__move"
                           onClick={() => move(cardId, 'top')}
-                          aria-label={`${card.name}: Back to top of library`}
+                          aria-label={`${card.name}: Back to ${KEEP_LABEL[from].toLowerCase()}`}
                         >
                           <Undo2 width={16} height={16} aria-hidden />
                         </button>
@@ -309,22 +341,32 @@ export function ScrySheet({ library, initialMode = 'scry', onClose, onResolve }:
             <div className="playtest-scry-columns">
               <ScryColumn
                 id="top"
-                heading="Top of library"
-                sub="First card drawn is at the top"
+                heading={KEEP_LABEL[from]}
+                sub={
+                  from === 'top'
+                    ? 'First card drawn is at the top'
+                    : 'Goes back under your library, in this order'
+                }
                 ids={columns.top}
                 byId={byId}
-                moveLabel={`Move to ${AWAY_LABEL[mode].toLowerCase()}`}
+                moveLabel={`Move to ${AWAY_LABEL[from][mode].toLowerCase()}`}
                 moveIcon="right"
                 onMove={(cardId) => move(cardId, 'away')}
                 onHand={toHand}
               />
               <ScryColumn
                 id="away"
-                heading={AWAY_LABEL[mode]}
-                sub={mode === 'scry' ? 'Goes under your library, in this order' : undefined}
+                heading={AWAY_LABEL[from][mode]}
+                sub={
+                  mode === 'scry'
+                    ? from === 'top'
+                      ? 'Goes under your library, in this order'
+                      : 'Goes on top of your library, in this order'
+                    : undefined
+                }
                 ids={columns.away}
                 byId={byId}
-                moveLabel="Move to top of library"
+                moveLabel={`Move to ${KEEP_LABEL[from].toLowerCase()}`}
                 moveIcon="left"
                 onMove={(cardId) => move(cardId, 'top')}
                 onHand={toHand}

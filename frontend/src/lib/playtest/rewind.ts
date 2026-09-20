@@ -174,9 +174,39 @@ export function classifyAction(
       return classification('free', 'Bulk version of TAP. Same reasoning.');
 
     case 'SET_COUNTER':
+    case 'ADJUST_ALL_COUNTERS':
       return classification(
         'free',
         "A permanent's counter tally is tracked, not enforced. Adjusting it back costs nothing."
+      );
+
+    case 'ADJUST_PT':
+      return classification(
+        'free',
+        'A power/toughness modifier is the player’s own bookkeeping, tracked and not enforced.'
+      );
+
+    case 'TOGGLE_REVEAL':
+      // Showing a card from hand is one-way in exactly the sense this module
+      // cares about: the table saw it, and hiding it again doesn't unsee it.
+      // Unlike the locked cases the ACTOR learned nothing private, so the
+      // table can still agree to roll it back — that's `consent`.
+      return classification(
+        'consent',
+        'The table saw the card. Hiding it again is something the others have to agree to overlook.'
+      );
+
+    case 'PUT_ON_STACK':
+      return classification(
+        'consent',
+        'The stack is in the middle of the table. Everyone watched it go on.'
+      );
+
+    case 'RESOLVE_STACK':
+    case 'REMOVE_FROM_STACK':
+      return classification(
+        'consent',
+        'Where a resolving object landed is public. Nothing hidden was learned moving it.'
       );
 
     case 'ADD_STICKER':

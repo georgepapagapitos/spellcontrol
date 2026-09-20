@@ -1,0 +1,162 @@
+/* The stack — a panel down the left of the table, above the felt and under
+   every sheet. Only rendered while something is on it. */
+
+.stack-strip {
+  position: absolute;
+  left: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: var(--z-table-panel);
+  width: min(13rem, 38vw);
+  max-height: 70%;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.35));
+}
+
+.stack-strip__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stack-strip__count {
+  min-width: 1.5rem;
+  padding: 0 6px;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.stack-strip__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.stack-strip__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* Somebody else's entry is readable but visibly not yours to act on. */
+.stack-strip__item:not(.is-mine) {
+  opacity: 0.72;
+}
+
+/* The one you would resolve next. */
+.stack-strip__item.is-next {
+  border-color: var(--accent);
+}
+
+.stack-strip__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.stack-strip__name {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stack-strip__meta {
+  display: flex;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.stack-strip__copy {
+  color: var(--mtg-counter-gold);
+}
+
+.stack-strip__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.stack-strip__resolve,
+.stack-strip__remove {
+  min-height: 32px;
+  padding: 0 var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.stack-strip__item.is-next .stack-strip__resolve {
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+/* Gated: an ungated :hover sticks after a tap on touch (E68). Focus is
+   kept out of the gate so keyboard users get the same affordance. */
+@media (hover: hover) and (pointer: fine) {
+  .stack-strip__resolve:hover,
+  .stack-strip__remove:hover {
+    color: var(--text-primary);
+    border-color: var(--border);
+  }
+}
+
+.stack-strip__resolve:focus-visible,
+.stack-strip__remove:focus-visible {
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+/* Narrow tiers have no room beside the battlefield: the strip docks along
+   the top instead, where it overlaps the felt's least useful band rather
+   than a third of its width. */
+@media (max-width: 767px) {
+  .stack-strip {
+    left: var(--space-2);
+    right: var(--space-2);
+    top: var(--space-2);
+    width: auto;
+    max-height: 40%;
+    transform: none;
+  }
+}
+
+/* Every control here clears 44px on touch, where hover never disambiguates
+   a too-small target. */
+@media (pointer: coarse) {
+  .stack-strip__resolve,
+  .stack-strip__remove {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

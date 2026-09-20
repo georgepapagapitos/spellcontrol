@@ -57,10 +57,10 @@ describe('TableSignals', () => {
   it('renders an incoming reaction with the sender name and auto-dismisses', async () => {
     render(<TableSignals />);
     await act(async () => {
-      withSignal(1, { kind: 'reaction', seat: 1, ts: 1, emote: '👏' });
+      withSignal(1, { kind: 'reaction', seat: 1, ts: 1, emote: '👍' });
     });
     const status = screen.getByRole('status');
-    expect(status.textContent).toContain('Maya reacted: Applause');
+    expect(status.textContent).toContain('Maya reacted: Thumbs up');
 
     act(() => {
       vi.advanceTimersByTime(2500);
@@ -113,7 +113,7 @@ describe('TableSignals', () => {
     render(<TableSignals />);
     for (let i = 1; i <= 5; i++) {
       await act(async () => {
-        withSignal(i, { kind: 'reaction', seat: 1, ts: i, emote: '😂' });
+        withSignal(i, { kind: 'reaction', seat: 1, ts: i, emote: '🔥' });
       });
     }
     expect(screen.getAllByRole('status')).toHaveLength(4);

@@ -69,7 +69,10 @@ export function TableSignals() {
     // an ambient bubble too would show the same message twice.
     // An arrow is durable table state too (store `onlineArrows`, drawn by
     // TableArrows), not a moment to flash.
-    if (signal.kind === 'chat' || signal.kind === 'arrow') return;
+    // A ping is drawn as a ring on the card itself (TablePings) and says
+    // nothing in the feed — it rides an ordinary card tap, so a line per
+    // ping would bury everything else the table needs to read.
+    if (signal.kind === 'chat' || signal.kind === 'arrow' || signal.kind === 'ping') return;
 
     let moment: Moment;
     if (signal.kind === 'reaction') {

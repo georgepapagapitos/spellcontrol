@@ -29,6 +29,9 @@ interface Props {
    *  Menu key / Shift+Enter, or a touch long-press, mirroring how battlefield
    *  cards open theirs. Tap/click still plays the card. */
   onCardMenu?(cardId: string, x: number, y: number): void;
+  /** Cards currently being shown to the table (R). Marked in place rather
+   *  than moved: it is still in your hand, everyone can just see it. */
+  revealedIds?: ReadonlySet<string>;
 }
 
 /**
@@ -74,7 +77,7 @@ function useContainerWidth(ref: React.RefObject<HTMLDivElement | null>): number 
   return width;
 }
 
-export function Hand({ cards, fan = false, onCardClick, onCardMenu }: Props) {
+export function Hand({ cards, fan = false, onCardClick, onCardMenu, revealedIds }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: 'hand' });
   const rootRef = useRef<HTMLDivElement | null>(null);
   const containerW = useContainerWidth(rootRef);
@@ -135,6 +138,15 @@ export function Hand({ cards, fan = false, onCardClick, onCardMenu }: Props) {
     />
   );
 
+  const revealedBadge = (c: PlaytestCard) =>
+    revealedIds?.has(c.id) ? (
+      // Not `aria-hidden`: whether the table can see a card in your hand is
+      // real game state, and the only place it is stated.
+      <span className="playtest-hand__revealed" title="The table can see this">
+        Shown
+      </span>
+    ) : null;
+
   return (
     <div
       ref={(el) => {
@@ -160,6 +172,7 @@ export function Hand({ cards, fan = false, onCardClick, onCardMenu }: Props) {
                     rises with its card instead of staying behind on the felt. */}
                 <div className="playtest-hand__lift">
                   {renderCard(c, i)}
+                  {revealedBadge(c)}
                   {/* A land has no cost worth reading and a token has no mana
                       value at all, so neither gets a badge. */}
                   {c.manaValue !== undefined && !isPlaytestLand(c.typeLine) && (
@@ -173,7 +186,10 @@ export function Hand({ cards, fan = false, onCardClick, onCardMenu }: Props) {
                 </div>
               </div>
             ) : (
-              renderCard(c, i)
+              <div key={c.id} className="playtest-hand__flat">
+                {renderCard(c, i)}
+                {revealedBadge(c)}
+              </div>
             )
           )}
         </div>

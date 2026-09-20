@@ -460,7 +460,7 @@ describe('PlaytestBoard — arrows', () => {
     expect(banner()).toBeNull();
   });
 
-  it('Esc cancels an armed arrow, and Shift+W clears my arrows once I have any', () => {
+  it('Esc cancels an armed arrow; clearing mine is a menu item, not a key', () => {
     onlineTable = seatedTable([opponent(1)]);
     usePlayStore.setState({
       onlineArrows: [{ id: '0:1', seat: 0, fromSeat: 0, fromCardId: 'card-0', toSeat: 1 }],
@@ -475,13 +475,19 @@ describe('PlaytestBoard — arrows', () => {
     expect(banner()).toBeTruthy();
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(banner()).toBeNull();
-    expect(sendSignal).not.toHaveBeenCalled();
+    // A cancelled arrow sends nothing. The click that armed it DID ping the
+    // card (every tap does), so this asserts on the arrow specifically
+    // rather than on "nothing was sent at all".
+    expect(sendSignal).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'arrow' }));
 
+    // `arrows-clear` ships unbound (the EDHPlay map leaves it off a key), so
+    // Shift+W is not the way in — the game menu is.
     fireEvent.keyDown(window, { key: 'W', shiftKey: true });
-    expect(sendSignal).toHaveBeenCalledWith({ kind: 'arrow', op: 'clear' });
+    expect(sendSignal).not.toHaveBeenCalledWith({ kind: 'arrow', op: 'clear' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
-    expect(screen.getByRole('menuitem', { name: 'Clear my arrows (1)' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Clear my arrows (1)' }));
+    expect(sendSignal).toHaveBeenCalledWith({ kind: 'arrow', op: 'clear' });
   });
 
   it('offline, W and the arrow menu item do nothing', () => {

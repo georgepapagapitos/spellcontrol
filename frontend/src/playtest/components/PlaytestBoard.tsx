@@ -43,6 +43,10 @@ const MULLIGAN_TABLE_NOTE: Record<MulliganType, string> = {
 import { useNarrowViewport } from '../hooks/use-narrow-viewport';
 import { useTurnSweep } from '../hooks/use-turn-sweep';
 import { useTablePointer } from '../hooks/use-table-pointer';
+import { useHoverTarget } from '../hooks/use-hover-target';
+import { useTablePings } from '../hooks/use-table-pings';
+import { TablePings } from './TablePings';
+import { StackStrip, type StackStripItem } from './StackStrip';
 import { isTypingTarget, useRegisterShortcuts } from '@/lib/shortcut-registry';
 import { useOnlineTable } from '../hooks/use-online-table';
 import { usePlayStore } from '@/store/play';
@@ -79,6 +83,7 @@ import { ActionBar } from './ActionBar';
 import { TableContextMenu, type TableMenuItem } from './TableContextMenu';
 import { LogDock } from './LogDock';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
+import { Modal } from '@/components/Modal';
 import { cardsToBottom, GAME_PHASES, type MulliganType } from '@/lib/game-state';
 import { formatClock } from '@/lib/game-clock';
 import { useNow } from '@/lib/use-now';
@@ -101,6 +106,7 @@ import { HoldButton } from './HoldButton';
 import { HoldBanner } from './HoldBanner';
 import { TableSignals } from './TableSignals';
 import { TAKEBACK_MODE_LABEL } from '../lib/takeback';
+import { REACTION_EMOTES } from '../lib/table-signals';
 import { CardContextMenu } from './CardContextMenu';
 import { MobileZonesPanel } from './MobileZonesPanel';
 import { OpeningHandSheet } from './OpeningHandSheet';
@@ -229,6 +235,13 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const [previewCardId, setPreviewCardId] = useState<string | null>(null);
   const [tokenCreator, setTokenCreator] = useState(false);
   const [showScry, setShowScry] = useState(false);
+  // Which end of the library the scry sheet is looking at (P vs Shift+P).
+  const [scryFrom, setScryFrom] = useState<'top' | 'bottom'>('top');
+  // A single card off one end of the library, looked at without moving it —
+  // the "is my top card a land" check that a whole scry sheet is too much
+  // ceremony for. Holds the card itself, not an index, so the panel can't
+  // end up showing a different card than the one that was peeked.
+  const [peek, setPeek] = useState<{ card: PlaytestCard; where: 'top' | 'bottom' } | null>(null);
   const [showStats, setShowStats] = useState(false);
   const [showLog, setShowLog] = useState(false);
   // Highest resistance-entry seq seen so far — drives the ActionBar's unread
@@ -236,6 +249,11 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const [lastSeenLogSeq, setLastSeenLogSeq] = useState(0);
   const [showDice, setShowDice] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  // Seat layout: `auto` is the breakpoint's own answer (grid at the widest
+  // tier, rail below it). Choosing one pins it until it is switched back —
+  // a player who wants every seat equal at 1280px, or their own board big
+  // at 1600px, should be able to say so.
+  const [layoutPref, setLayoutPref] = useState<'auto' | 'grid' | 'rail'>('auto');
   const [showTableSettings, setShowTableSettings] = useState(false);
   // Card size on the wide tier: a multiplier on the density-driven card box,
   // persisted per device and applied on <body> (where `--pt-card-w` lives so
@@ -317,6 +335,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // Publishes `state` internally; solo playtest never touches it beyond this
   // one hook call, and null here means the rail below never renders.
   const onlineTable = useOnlineTable(state);
+  // The card a per-card shortcut acts on when nothing is selected — see
+  // hooks/use-hover-target. A ref, not state: it changes on every card the
+  // pointer crosses and is only ever read inside a keydown.
+  const hoverTarget = useHoverTarget();
 
   // Arrows: a point that stays. W with one card selected starts one from it;
   // the next card tapped — yours, a quadrant's, or one in an opponent's
@@ -362,6 +384,19 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const myArrowCount = onlineTable
     ? onlineArrows.filter((a) => a.seat === onlineTable.mySeat).length
     : 0;
+  // Pings: tapping a card rings it, on every screen at the table, in the
+  // colour of the seat that tapped it. The lightest way to say "this one"
+  // — no ticker line, no state, gone in a second. Solo still rings locally
+  // (`send` null), because the ring is also the feedback that a tap landed.
+  const sendPing = useMemo(() => {
+    if (!onlineTable) return null;
+    const seat = onlineTable.mySeat;
+    return (cardId: string) => {
+      void sendSignal({ kind: 'ping', targetSeat: seat, cardId });
+    };
+  }, [onlineTable, sendSignal]);
+  const { pings, ping } = useTablePings(onlineTable?.mySeat ?? null, sendPing);
+
   const takeback = useTakeback(onlineTable);
   // Desktop seat grid (STYLE_GUIDE "Desktop table with opponents: 2x2, not a
   // rail"): at 1440px and up, an online table with opponents lays every seat
@@ -371,8 +406,19 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // and at a five-seat pod, the rail is still the answer.
   const wideTable = useMediaQuery(TABLE_GRID_QUERY);
   const opponents = onlineTable?.opponents ?? NO_OPPONENTS;
-  const gridMode =
-    !isNarrow && wideTable && opponents.length > 0 && opponents.length <= MAX_GRID_OPPONENTS;
+  // A five-seat pod and the narrow tiers are still rail-only whatever the
+  // preference says: the grid physically holds four seats, and forcing it
+  // would hide one — which is the thing the rail exists never to do.
+  const gridFits = !isNarrow && opponents.length > 0 && opponents.length <= MAX_GRID_OPPONENTS;
+  const gridMode = gridFits && (layoutPref === 'auto' ? wideTable : layoutPref === 'grid');
+  const toggleLayout = useCallback(() => {
+    if (!gridFits) {
+      toast.show({ message: 'This table only fits the rail.', tone: 'info' });
+      return;
+    }
+    setLayoutPref(gridMode ? 'rail' : 'grid');
+    haptics.tap();
+  }, [gridFits, gridMode]);
   // Both signals the rail carries today, lit on the quadrant instead.
   const sweepSeat = useTurnSweep(onlineTable?.activeSeat ?? undefined);
   const tablePointer = useTablePointer();
@@ -500,6 +546,11 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         finishArrow(onlineTable.mySeat, cardId);
         return;
       }
+      // Every tap rings the card, whatever the tap then does — building a
+      // selection, tapping a permanent, or landing an arrow. That IS the
+      // gesture: the player is already pointing at the card with their
+      // hand, and the ring is the table seeing them do it.
+      ping(cardId);
       if (selectMode || e.shiftKey || e.metaKey || e.ctrlKey) {
         setSelected((prev) => {
           const next = new Set(prev);
@@ -511,7 +562,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       setSelected((prev) => (prev.size === 0 ? prev : new Set()));
       dispatch({ type: 'TAP', cardId });
     },
-    [dispatch, selectMode, arrowFrom, onlineTable, finishArrow]
+    [dispatch, selectMode, arrowFrom, onlineTable, finishArrow, ping]
   );
 
   // Leaving select mode drops the selection with it, so nothing lingers
@@ -681,6 +732,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     setHandMenu({ cardId, x, y });
   }, []);
   const handMenuCard = handMenu ? state.zones.hand.find((c) => c.id === handMenu.cardId) : null;
+  const revealedIds = useMemo(() => new Set(state.revealed ?? []), [state.revealed]);
 
   const ctxCard = ctx ? state.battlefield.find((b) => b.card.id === ctx.cardId) : null;
   // Candidate hosts exclude the card itself and its current host (re-attaching
@@ -709,6 +761,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     (showLog && isNarrow) ||
     tableMenu !== null ||
     showDice ||
+    peek !== null ||
     showShortcuts ||
     showTableSettings ||
     showResistancePicker ||
@@ -853,6 +906,196 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     onlineTable.dispatch({ type: 'phase', phase: next, actorSeat: onlineTable.mySeat });
   }, [onlineTable]);
 
+  // ── The stack ───────────────────────────────────────────────────────────
+  // One list for the whole table: your own entries come from the reducer,
+  // everyone else's from their published board. Ordered exactly within a
+  // seat, grouped across seats — see StackStrip for why that is the honest
+  // rendering rather than an interleaving nobody can compute.
+  const stackItems: StackStripItem[] = useMemo(() => {
+    const mine: StackStripItem[] = [...(state.stack ?? [])].reverse().map((e) => ({
+      id: e.id,
+      name: e.card.name,
+      isCopy: e.isCopy,
+      seat: onlineTable?.mySeat ?? null,
+      mine: true,
+    }));
+    if (!onlineTable) return mine;
+    const theirs: StackStripItem[] = [];
+    for (const opp of onlineTable.opponents) {
+      for (const e of [...(opp.board.stack ?? [])].reverse()) {
+        theirs.push({
+          id: `${opp.board.seat}:${e.id}`,
+          name: e.card.name ?? 'A spell',
+          isCopy: e.isCopy,
+          seat: opp.board.seat,
+          seatName: opp.name,
+          mine: false,
+        });
+      }
+    }
+    return [...mine, ...theirs];
+  }, [state.stack, onlineTable]);
+
+  /** Put `cardIds` on the stack, minting each entry id here so the reducer
+   *  stays pure (same contract as `cloneCards`). */
+  const putOnStack = useCallback(
+    (cardIds: readonly string[], copy: boolean) => {
+      if (cardIds.length === 0) return false;
+      const batch = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      cardIds.forEach((cardId, i) => {
+        dispatch({ type: 'PUT_ON_STACK', cardId, entryId: `st-${batch}-${i}`, copy });
+      });
+      setSelected(new Set());
+      haptics.tap();
+      return true;
+    },
+    [dispatch]
+  );
+
+  /** Resolve a stack entry. A permanent needs somewhere to land, and the
+   *  reducer can't measure the board, so the position is chosen here. */
+  const resolveStack = useCallback(
+    (entryId?: string) => {
+      const stack = state.stack ?? [];
+      if (stack.length === 0) return false;
+      const entry = entryId ? stack.find((e) => e.id === entryId) : stack[stack.length - 1];
+      if (!entry) return false;
+      const pos = placeOnBattlefield(entry.card);
+      dispatch({ type: 'RESOLVE_STACK', entryId: entry.id, x: pos.x, y: pos.y });
+      haptics.tap();
+      return true;
+    },
+    // `placeOnBattlefield` reads live DOM geometry and is redefined every
+    // render by design; the entry it positions is read fresh from `state`
+    // on every call, so the omission can't serve a stale card.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dispatch, state.stack]
+  );
+
+  const removeFromStack = useCallback(
+    (entryId: string) => {
+      dispatch({ type: 'REMOVE_FROM_STACK', entryId });
+      haptics.tap();
+    },
+    [dispatch]
+  );
+
+  // ── Per-card actions the keyboard reaches ───────────────────────────────
+  /** Is this id one of MY cards, anywhere? The hover target can be an
+   *  opponent's permanent (their quadrant publishes a seat-scoped id), and
+   *  a key that silently swallowed itself over one of those would read as a
+   *  dead shortcut rather than falling through to the browser. */
+  const locatable = useCallback(
+    (cardId: string) =>
+      state.battlefield.some((b) => b.card.id === cardId) ||
+      (state.stack ?? []).some((e) => !e.isCopy && e.card.id === cardId) ||
+      (Object.keys(state.zones) as Zone[]).some((zone) =>
+        state.zones[zone].some((c) => c.id === cardId)
+      ),
+    [state.battlefield, state.stack, state.zones]
+  );
+
+  /** Show or stop showing hand cards to the table. */
+  const toggleReveal = useCallback(
+    (cardIds: readonly string[]) => {
+      const inHand = cardIds.filter((id) => state.zones.hand.some((c) => c.id === id));
+      if (inHand.length === 0) return false;
+      for (const cardId of inHand) dispatch({ type: 'TOGGLE_REVEAL', cardId });
+      haptics.tap();
+      return true;
+    },
+    [dispatch, state.zones.hand]
+  );
+
+  /** Move cards onto the battlefield from wherever they are — the keyboard
+   *  half of dragging one out of a zone. */
+  const moveToBattlefield = useCallback(
+    (cardIds: readonly string[]) => {
+      const moved = cardIds.filter((id) => !state.battlefield.some((b) => b.card.id === id));
+      if (moved.length === 0) return false;
+      for (const cardId of moved) {
+        const card =
+          state.zones.hand.find((c) => c.id === cardId) ??
+          state.zones.graveyard.find((c) => c.id === cardId) ??
+          state.zones.exile.find((c) => c.id === cardId) ??
+          state.zones.command.find((c) => c.id === cardId) ??
+          state.zones.library.find((c) => c.id === cardId);
+        if (!card) continue;
+        const { x, y } = placeOnBattlefield(card);
+        dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId, x, y });
+      }
+      setSelected(new Set());
+      haptics.tap();
+      return true;
+    },
+    // Same reason as `resolveStack`: `placeOnBattlefield` is DOM-reading and
+    // per-render, and every card it places is read fresh from `state`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dispatch, state.battlefield, state.zones]
+  );
+
+  const adjustPT = useCallback(
+    (cardIds: readonly string[], power: number, toughness: number) => {
+      const onBoard = cardIds.filter((id) => state.battlefield.some((b) => b.card.id === id));
+      if (onBoard.length === 0) return false;
+      for (const cardId of onBoard) dispatch({ type: 'ADJUST_PT', cardId, power, toughness });
+      haptics.tap();
+      return true;
+    },
+    [dispatch, state.battlefield]
+  );
+
+  const adjustAllCounters = useCallback(
+    (cardIds: readonly string[], op: 'inc' | 'dec' | 'double') => {
+      const withCounters = cardIds.filter((id) =>
+        state.battlefield.some((b) => b.card.id === id && Object.keys(b.counters).length > 0)
+      );
+      if (withCounters.length === 0) return false;
+      for (const cardId of withCounters) dispatch({ type: 'ADJUST_ALL_COUNTERS', cardId, op });
+      haptics.tap();
+      return true;
+    },
+    [dispatch, state.battlefield]
+  );
+
+  /** Open the counters UI for one card — the card menu, which is where
+   *  counters already live, rather than a second panel that does the same
+   *  job. Anchored at the card itself, since a key has no cursor. */
+  const openCounters = useCallback((cardId: string) => {
+    const el = document.querySelector<HTMLElement>(`[data-card-id="${CSS.escape(cardId)}"]`);
+    const r = el?.getBoundingClientRect();
+    setCtx({
+      cardId,
+      x: r ? r.left + r.width / 2 : window.innerWidth / 2,
+      y: r ? r.top + r.height / 2 : window.innerHeight / 2,
+    });
+    return true;
+  }, []);
+
+  /** Look at one card off an end of the library without moving it. */
+  const peekLibrary = useCallback(
+    (where: 'top' | 'bottom') => {
+      const card = where === 'top' ? state.zones.library[0] : state.zones.library.at(-1);
+      if (!card) return false;
+      setPeek({ card, where });
+      return true;
+    },
+    [state.zones.library]
+  );
+
+  /** Send one of the four keyboard-bound reactions. */
+  const sendReaction = useCallback(
+    (index: number) => {
+      if (!onlineTable) return false;
+      const emote = REACTION_EMOTES[index];
+      if (!emote) return false;
+      void sendSignal({ kind: 'reaction', emote });
+      haptics.tap();
+      return true;
+    },
+    [onlineTable, sendSignal]
+  );
+
   // City's Blessing is a genuine one-time accomplishment (never lost this
   // game) — a stronger haptic cue than the routine tap monarch/initiative get.
   function handleSetDesignation(designation: Designation, held: boolean) {
@@ -949,18 +1192,32 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       }
       const id = shortcutFor(e, bindings);
       if (id === null) return;
-      const hasSelection = selected.size > 0;
-      const moveSelectionToLibrary = (top: boolean) => {
-        for (const cardId of selected) {
-          dispatch({ type: 'MOVE_TO_ZONE', cardId, to: 'library', ...(top ? { toIndex: 0 } : {}) });
+      // "The card in view": the selection when there is one, otherwise
+      // whatever the pointer is resting on (or keyboard focus is inside).
+      // One rule behind every per-card key, so H means the same thing
+      // whether you built a selection first or just moved the mouse.
+      const hovered = hoverTarget.current;
+      const targets: string[] = selected.size > 0 ? [...selected] : hovered ? [hovered] : [];
+      const bfTargets = targets.filter((tid) => state.battlefield.some((b) => b.card.id === tid));
+      const moveTargets = (to: Zone, toIndex?: number) => {
+        // Filtered rather than dispatched blind: the reducer no-ops on an id
+        // it can't find, but a hovered OPPONENT card carries a seat-scoped
+        // id, and swallowing the key there would look like a dead shortcut
+        // instead of falling through to the browser.
+        const movable = targets.filter((tid) => locatable(tid));
+        if (movable.length === 0) return false;
+        for (const cardId of movable) {
+          dispatch({ type: 'MOVE_TO_ZONE', cardId, to, ...(toIndex !== undefined && { toIndex }) });
         }
         setSelected(new Set());
         haptics.tap();
+        return true;
       };
       const focus = (n: number) => {
         const opp = onlineTable?.opponents[n - 1];
         if (opp) setViewingBoardSeat(opp.board.seat);
       };
+      const stepPT = (power: number, toughness: number) => adjustPT(targets, power, toughness);
       // `false` from a handler means "nothing to act on": the key is left to
       // the browser (so ⌘C over real text still copies text, and Space on a
       // focused button still presses it).
@@ -969,7 +1226,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           if (arrowFrom) setArrowFrom(null);
           else clearSelection();
         },
-        arrow: () => beginArrow(selected),
+        arrow: () => beginArrow(new Set(targets)),
         'arrows-clear': () => (myArrowCount > 0 ? clearMyArrows() : false),
         shortcuts: () => setShowShortcuts(true),
         'pass-turn': () => {
@@ -984,50 +1241,92 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         'life-up': () => adjustMyLife(1),
         'life-down': () => adjustMyLife(-1),
         shuffle: () => dispatch({ type: 'SHUFFLE_LIBRARY' }),
-        scry: () => (libraryCount === 0 ? false : setShowScry(true)),
+        'view-library': () => (libraryCount === 0 ? false : setViewer({ zone: 'library' })),
+        scry: () => {
+          if (libraryCount === 0) return false;
+          setScryFrom('top');
+          setShowScry(true);
+        },
+        'scry-bottom': () => {
+          if (libraryCount === 0) return false;
+          setScryFrom('bottom');
+          setShowScry(true);
+        },
+        'view-top-card': () => peekLibrary('top'),
+        'view-bottom-card': () => peekLibrary('bottom'),
         dice: () => setShowDice(true),
         token: () => setTokenCreator(true),
         mana: () => setManaOpen((open) => !open),
         log: () => (showLog && !isNarrow ? setShowLog(false) : handleOpenLog()),
         undo: handleTakebackClick,
+        'stack-add': () => putOnStack(targets, false),
+        'stack-copy': () => putOnStack(targets, true),
+        'stack-resolve': () => resolveStack(),
         'select-all': () => {
           if (state.battlefield.length === 0) return false;
           setSelected(new Set(state.battlefield.map((b) => b.card.id)));
           setSelectMode(true);
         },
-        'tap-selection': () => (hasSelection ? tapSelection() : false),
-        copy: () => (hasSelection ? setClipboard([...selected]) : false),
+        'tap-selection': () => {
+          if (bfTargets.length === 0) return false;
+          // Any untapped in the group taps them all, matching the selection
+          // behaviour a single hovered card collapses to anyway.
+          const tapped = state.battlefield.some((b) => bfTargets.includes(b.card.id) && !b.tapped);
+          for (const cardId of bfTargets) dispatch({ type: 'TAP', cardId, tapped });
+          haptics.tap();
+        },
+        copy: () => (selected.size > 0 ? setClipboard([...selected]) : false),
         paste: () => {
           if (clipboard.length === 0) return false;
           const made = cloneCards(clipboard);
           if (made) setClipboard(made);
         },
-        clone: () => (hasSelection ? void cloneCards([...selected]) : false),
+        clone: () => (bfTargets.length > 0 ? void cloneCards(bfTargets) : false),
         transform: () => {
-          if (!hasSelection) return false;
-          for (const cardId of selected) dispatch({ type: 'TRANSFORM', cardId });
+          if (bfTargets.length === 0) return false;
+          for (const cardId of bfTargets) dispatch({ type: 'TRANSFORM', cardId });
         },
+        'face-down': () => {
+          if (bfTargets.length === 0) return false;
+          for (const cardId of bfTargets) dispatch({ type: 'FLIP_FACE', cardId });
+          haptics.tap();
+        },
+        reveal: () => toggleReveal(targets),
+        'to-battlefield': () => moveToBattlefield(targets),
+        counters: () => (bfTargets.length > 0 ? openCounters(bfTargets[0]) : false),
         'counter-plus': () => {
-          if (!hasSelection) return isNarrow ? false : stepZoom(1);
-          for (const cardId of selected)
+          if (bfTargets.length === 0) return isNarrow ? false : stepZoom(1);
+          for (const cardId of bfTargets)
             dispatch({ type: 'SET_COUNTER', cardId, counter: '+1/+1', delta: 1 });
         },
         'counter-minus': () => {
-          if (!hasSelection) return isNarrow ? false : stepZoom(-1);
-          for (const cardId of selected)
+          if (bfTargets.length === 0) return isNarrow ? false : stepZoom(-1);
+          for (const cardId of bfTargets)
             dispatch({ type: 'SET_COUNTER', cardId, counter: '-1/-1', delta: 1 });
         },
-        'to-hand': () => (hasSelection ? moveSelection('hand') : false),
-        'to-graveyard': () => (hasSelection ? moveSelection('graveyard') : false),
-        'to-exile': () => (hasSelection ? moveSelection('exile') : false),
-        'to-library-top': () => (hasSelection ? moveSelectionToLibrary(true) : false),
-        'to-library-bottom': () => (hasSelection ? moveSelectionToLibrary(false) : false),
+        'counters-all-inc': () => adjustAllCounters(bfTargets, 'inc'),
+        'counters-all-double': () => adjustAllCounters(bfTargets, 'double'),
+        'counters-all-dec': () => adjustAllCounters(bfTargets, 'dec'),
+        'power-inc': () => stepPT(1, 0),
+        'toughness-inc': () => stepPT(0, 1),
+        'power-dec': () => stepPT(-1, 0),
+        'toughness-dec': () => stepPT(0, -1),
+        'to-hand': () => moveTargets('hand'),
+        'to-graveyard': () => moveTargets('graveyard'),
+        'to-exile': () => moveTargets('exile'),
+        'to-library-top': () => moveTargets('library', 0),
+        'to-library-bottom': () => moveTargets('library'),
+        'toggle-layout': () => toggleLayout(),
         'focus-1': () => focus(1),
         'focus-2': () => focus(2),
         'focus-3': () => focus(3),
         'focus-4': () => focus(4),
         'focus-5': () => focus(5),
         'focus-6': () => focus(6),
+        'react-1': () => sendReaction(0),
+        'react-2': () => sendReaction(1),
+        'react-3': () => sendReaction(2),
+        'react-4': () => sendReaction(3),
       };
       if (handlers[id]() === false) return;
       e.preventDefault();
@@ -1051,8 +1350,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     clipboard,
     cloneCards,
     clearSelection,
-    tapSelection,
-    moveSelection,
     dispatch,
     onlineTable,
     showLog,
@@ -1063,6 +1360,18 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     beginArrow,
     clearMyArrows,
     myArrowCount,
+    hoverTarget,
+    locatable,
+    putOnStack,
+    resolveStack,
+    toggleReveal,
+    moveToBattlefield,
+    adjustPT,
+    adjustAllCounters,
+    openCounters,
+    peekLibrary,
+    sendReaction,
+    toggleLayout,
   ]);
 
   // Online, keeping your opening hand doesn't start the game — the takeover
@@ -1096,8 +1405,48 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     ...(onBack ? [{ label: `Back to ${backLabel ?? 'deck'}`, onClick: onBack }] : []),
     { label: 'Stats', onClick: () => setShowStats(true) },
     { label: hasUnreadLog ? 'Log (new events)' : 'Log', onClick: handleOpenLog },
-    { label: 'Top cards', onClick: () => setShowScry(true), disabled: libraryCount === 0 },
+    {
+      label: 'Top cards',
+      onClick: () => {
+        setScryFrom('top');
+        setShowScry(true);
+      },
+      disabled: libraryCount === 0,
+    },
+    {
+      label: 'Bottom cards',
+      onClick: () => {
+        setScryFrom('bottom');
+        setShowScry(true);
+      },
+      disabled: libraryCount === 0,
+    },
+    {
+      label: 'View library',
+      onClick: () => setViewer({ zone: 'library' }),
+      disabled: libraryCount === 0,
+    },
+    // The one-card peeks ship with no key (the map leaves them unbound), so
+    // the menu is their only door until somebody binds one.
+    {
+      label: 'Top card',
+      onClick: () => void peekLibrary('top'),
+      disabled: libraryCount === 0,
+    },
+    {
+      label: 'Bottom card',
+      onClick: () => void peekLibrary('bottom'),
+      disabled: libraryCount === 0,
+    },
     { label: 'Shuffle', onClick: () => dispatch({ type: 'SHUFFLE_LIBRARY' }) },
+    ...(gridFits
+      ? [
+          {
+            label: gridMode ? 'Show the rail' : 'Show the seat grid',
+            onClick: toggleLayout,
+          },
+        ]
+      : []),
     {
       label: 'Mulligan',
       onClick: () => {
@@ -1168,7 +1517,37 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     {
       label: 'Top cards',
       shortcut: keyFor('scry'),
-      onClick: () => setShowScry(true),
+      onClick: () => {
+        setScryFrom('top');
+        setShowScry(true);
+      },
+      disabled: libraryCount === 0,
+    },
+    {
+      label: 'Bottom cards',
+      shortcut: keyFor('scry-bottom'),
+      onClick: () => {
+        setScryFrom('bottom');
+        setShowScry(true);
+      },
+      disabled: libraryCount === 0,
+    },
+    {
+      label: 'View library',
+      shortcut: keyFor('view-library'),
+      onClick: () => setViewer({ zone: 'library' }),
+      disabled: libraryCount === 0,
+    },
+    {
+      label: 'Top card',
+      shortcut: keyFor('view-top-card'),
+      onClick: () => void peekLibrary('top'),
+      disabled: libraryCount === 0,
+    },
+    {
+      label: 'Bottom card',
+      shortcut: keyFor('view-bottom-card'),
+      onClick: () => void peekLibrary('bottom'),
       disabled: libraryCount === 0,
     },
     { label: 'Create token', shortcut: keyFor('token'), onClick: () => setTokenCreator(true) },
@@ -1550,6 +1929,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         </div>
       )}
       {onlineTable && <TableArrows mySeat={onlineTable.mySeat} />}
+      <TablePings pings={pings} mySeat={onlineTable?.mySeat ?? null} />
       <DndContext
         sensors={sensors}
         collisionDetection={collisionDetection}
@@ -1588,6 +1968,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               onCardContextMenu={handleCardContext}
               onCardLongPress={handleCardLongPress}
             />
+            {/* Renders nothing on an empty stack, which is most of a game. */}
+            <StackStrip items={stackItems} onResolve={resolveStack} onRemove={removeFromStack} />
             {/* Selection readout. Renders nothing at all when nothing is selected,
             so it never displaces the board — and a selection can only exist on a
             device with modifier keys, which is exactly where the shortcuts it
@@ -1652,6 +2034,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                   fan
                   onCardClick={handleHandCardClick}
                   onCardMenu={handleHandCardMenu}
+                  revealedIds={revealedIds}
                 />
               </>
             )}
@@ -1671,12 +2054,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               onClose={() => setHandOpen(false)}
               onCardClick={handleHandCardClick}
               onCardMenu={handleHandCardMenu}
+              revealedIds={revealedIds}
             />
           ) : (
             <Hand
               cards={state.zones.hand}
               onCardClick={handleHandCardClick}
               onCardMenu={handleHandCardMenu}
+              revealedIds={revealedIds}
             />
           ))}
         <CardHoverPreview suspended={activeId !== null || anySheetOpen} resolve={resolvePreview} />
@@ -1835,6 +2220,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
             cloneCards(selected.has(ctx.cardId) ? [...selected] : [ctx.cardId]);
             setCtx(null);
           }}
+          pt={ctxCard.pt}
+          onAdjustPT={(power, toughness) =>
+            dispatch({ type: 'ADJUST_PT', cardId: ctx.cardId, power, toughness })
+          }
+          onPutOnStack={(copy) => {
+            putOnStack(selected.has(ctx.cardId) ? [...selected] : [ctx.cardId], copy);
+            setCtx(null);
+          }}
           onAddCounter={(k) =>
             dispatch({ type: 'SET_COUNTER', cardId: ctx.cardId, counter: k, delta: 1 })
           }
@@ -1869,6 +2262,13 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           onMoveTo={(zone, toIndex) =>
             dispatch({ type: 'MOVE_TO_ZONE', cardId: handMenu.cardId, to: zone, toIndex })
           }
+          revealed={(state.revealed ?? []).includes(handMenu.cardId)}
+          onToggleReveal={
+            onlineTable
+              ? () => dispatch({ type: 'TOGGLE_REVEAL', cardId: handMenu.cardId })
+              : undefined
+          }
+          onPutOnStack={(copy) => putOnStack([handMenu.cardId], copy)}
         />
       )}
 
@@ -1916,6 +2316,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       {showScry && (
         <ScrySheet
           library={state.zones.library}
+          from={scryFrom}
           onClose={() => setShowScry(false)}
           onResolve={(resolution) => {
             haptics.tap();
@@ -1924,6 +2325,24 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         />
       )}
 
+      {peek && (
+        <Modal
+          onClose={() => setPeek(null)}
+          labelledBy="playtest-peek-title"
+          className="playtest-peek"
+        >
+          <h2 id="playtest-peek-title" className="playtest-peek__title">
+            {peek.where === 'top' ? 'Top of library' : 'Bottom of library'}
+          </h2>
+          {/* Shown, not moved: the card is still exactly where it was, which
+              is the whole point of this over the scry sheet. */}
+          <PlaytestCardFace card={peek.card} size="lg" />
+          <p className="playtest-peek__name">{peek.card.name}</p>
+          <button type="button" className="btn" onClick={() => setPeek(null)}>
+            Done
+          </button>
+        </Modal>
+      )}
       {showDice && <DiceRoller onClose={() => setShowDice(false)} />}
       {showTableSettings && (
         <TableSettingsSheet

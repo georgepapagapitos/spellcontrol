@@ -5,18 +5,24 @@ import { logger } from '@/lib/logger';
  * the key normaliser the board's one keydown handler dispatches through.
  *
  * Every shortcut has an id the board maps to a handler, a default key, and a
- * home in the sheet. Defaults follow EDHPlay where they don't fight what the
- * board already taught people (D draw, N next turn, U untap, Z undo, T tap
- * the selection, K token, M mana): a player coming from that table finds the
- * same keys, and a player already here loses none.
+ * home in the sheet. The defaults are EDHPlay's map: a player arriving from
+ * that table finds every key where they left it. Where that displaced a key
+ * this board already taught (N was Next turn, K was the token maker, Z was
+ * the take-back), the displaced action moved to the shifted or modified form
+ * of the same letter rather than to some unrelated key — Shift+N, Ctrl+Z.
  *
  * A key is a string like `d`, `space`, `arrowup`, `shift+p`, `mod+a` — one
  * chord, modifiers first, `mod` meaning Ctrl on Windows/Linux and ⌘ on a Mac.
  * Rebinding stores only the overrides, so a new default reaches everyone who
  * never touched that shortcut.
+ *
+ * ⚠️ `mod+1`/`mod+2`/`mod+3` (the bulk counter steps) are Chrome's own
+ * tab-switching chords and a page cannot always take them back. They are the
+ * keys EDHPlay uses and the sheet rebinds them like any other, so they stay
+ * the defaults — but a browser that keeps them is expected, not a bug.
  */
 
-export type ShortcutGroup = 'turn' | 'table' | 'selection' | 'players' | 'view';
+export type ShortcutGroup = 'turn' | 'table' | 'stack' | 'card' | 'counters' | 'players' | 'view';
 
 export interface ShortcutDef {
   id: ShortcutId;
@@ -36,139 +42,192 @@ export type ShortcutId =
   | 'life-up'
   | 'life-down'
   | 'shuffle'
+  | 'view-library'
   | 'scry'
+  | 'scry-bottom'
+  | 'view-top-card'
+  | 'view-bottom-card'
   | 'dice'
   | 'token'
   | 'mana'
   | 'log'
   | 'undo'
+  | 'stack-add'
+  | 'stack-copy'
+  | 'stack-resolve'
   | 'select-all'
   | 'tap-selection'
   | 'copy'
   | 'paste'
   | 'clone'
   | 'transform'
+  | 'face-down'
+  | 'reveal'
+  | 'to-battlefield'
   | 'to-hand'
   | 'to-graveyard'
   | 'to-exile'
   | 'to-library-top'
   | 'to-library-bottom'
+  | 'counters'
   | 'counter-plus'
   | 'counter-minus'
+  | 'counters-all-inc'
+  | 'counters-all-double'
+  | 'counters-all-dec'
+  | 'power-inc'
+  | 'toughness-inc'
+  | 'power-dec'
+  | 'toughness-dec'
   | 'focus-1'
   | 'focus-2'
   | 'focus-3'
   | 'focus-4'
   | 'focus-5'
   | 'focus-6'
+  | 'react-1'
+  | 'react-2'
+  | 'react-3'
+  | 'react-4'
   | 'arrow'
   | 'arrows-clear'
+  | 'toggle-layout'
   | 'shortcuts'
   | 'menu';
 
 export const SHORTCUT_GROUP_LABEL: Record<ShortcutGroup, string> = {
   turn: 'Your turn',
   table: 'The table',
-  selection: 'Selected cards',
+  stack: 'The stack',
+  card: 'The card in view',
+  counters: 'Counters and power',
   players: 'Players',
   view: 'View',
 };
 
+/**
+ * What "the card in view" means, printed once at the top of its section: the
+ * selection when there is one, otherwise whatever the pointer is resting on.
+ * One sentence, because it is the single rule that makes half this table
+ * make sense.
+ */
+export const CARD_GROUP_HELP =
+  'These act on your selection. With nothing selected, they act on the card under the pointer.';
+
 export const SHORTCUTS: readonly ShortcutDef[] = [
+  // ── Your turn ─────────────────────────────────────────────────────────
   { id: 'pass-turn', key: 'space', label: 'Pass turn (online)', group: 'turn' },
-  { id: 'next-turn', key: 'n', label: 'Next turn', group: 'turn' },
+  { id: 'advance-phase', key: 'q', label: 'Advance phase (online)', group: 'turn' },
+  { id: 'next-turn', key: 'shift+n', label: 'Next turn', group: 'turn' },
   { id: 'draw', key: 'd', label: 'Draw a card', group: 'turn' },
   { id: 'untap-all', key: 'u', label: 'Untap all', group: 'turn' },
-  { id: 'advance-phase', key: 'q', label: 'Advance phase (online)', group: 'turn' },
   { id: 'life-up', key: 'arrowup', label: 'Life +1', group: 'turn' },
   { id: 'life-down', key: 'arrowdown', label: 'Life −1', group: 'turn' },
+
+  // ── The table ─────────────────────────────────────────────────────────
   { id: 'shuffle', key: 's', label: 'Shuffle library', group: 'table' },
+  { id: 'view-library', key: 'v', label: 'View the library', group: 'table' },
   { id: 'scry', key: 'p', label: 'Look at the top cards', group: 'table' },
+  { id: 'scry-bottom', key: 'shift+p', label: 'Look at the bottom cards', group: 'table' },
+  {
+    id: 'view-top-card',
+    key: '',
+    label: 'View the top card of the library',
+    group: 'table',
+    optional: true,
+  },
+  {
+    id: 'view-bottom-card',
+    key: '',
+    label: 'View the bottom card of the library',
+    group: 'table',
+    optional: true,
+  },
   { id: 'dice', key: 'o', label: 'Roll dice or flip a coin', group: 'table' },
-  { id: 'token', key: 'k', label: 'Create a token', group: 'table' },
+  { id: 'token', key: 'n', label: 'Create a token', group: 'table' },
   { id: 'mana', key: 'm', label: 'Show or hide the mana pool', group: 'table' },
   { id: 'log', key: 'c', label: 'Open the log and chat', group: 'table' },
-  { id: 'undo', key: 'z', label: 'Undo (take back)', group: 'table' },
+  { id: 'undo', key: 'mod+z', label: 'Undo (take back)', group: 'table' },
+
+  // ── The stack ─────────────────────────────────────────────────────────
+  { id: 'stack-add', key: 'k', label: 'Put it on the stack', group: 'stack' },
+  { id: 'stack-copy', key: 'shift+k', label: 'Copy it onto the stack', group: 'stack' },
   {
-    id: 'select-all',
-    key: 'mod+a',
-    label: 'Select every card on the battlefield',
-    group: 'selection',
+    id: 'stack-resolve',
+    key: '',
+    label: 'Resolve the top of the stack',
+    group: 'stack',
+    optional: true,
   },
-  { id: 'tap-selection', key: 't', label: 'Tap or untap', group: 'selection' },
-  { id: 'clone', key: 'x', label: 'Make a token copy', group: 'selection' },
-  { id: 'transform', key: 'f', label: 'Flip (double-faced cards)', group: 'selection' },
+
+  // ── The card in view ──────────────────────────────────────────────────
+  { id: 'tap-selection', key: 't', label: 'Tap or untap', group: 'card' },
+  { id: 'transform', key: 'f', label: 'Flip (double-faced cards)', group: 'card' },
+  { id: 'face-down', key: 'z', label: 'Turn face down or face up', group: 'card' },
+  { id: 'clone', key: 'x', label: 'Make a token copy', group: 'card' },
+  { id: 'reveal', key: 'r', label: 'Reveal it from your hand', group: 'card' },
+  { id: 'to-battlefield', key: 'a', label: 'Move to the battlefield', group: 'card' },
+  { id: 'to-hand', key: 'h', label: 'Move to hand', group: 'card' },
+  { id: 'to-graveyard', key: 'g', label: 'Move to graveyard', group: 'card' },
+  { id: 'to-exile', key: 'e', label: 'Move to exile', group: 'card' },
+  { id: 'to-library-top', key: 'l', label: 'Move to top of library', group: 'card' },
+  { id: 'to-library-bottom', key: 'b', label: 'Move to bottom of library', group: 'card' },
+  { id: 'arrow', key: 'w', label: 'Draw an arrow from it (online)', group: 'card' },
+  {
+    id: 'arrows-clear',
+    key: '',
+    label: 'Remove every arrow you drew (online)',
+    group: 'card',
+    optional: true,
+  },
+  { id: 'select-all', key: 'mod+a', label: 'Select every card on the battlefield', group: 'card' },
+  { id: 'copy', key: 'mod+c', label: 'Copy', group: 'card' },
+  { id: 'paste', key: 'mod+v', label: 'Paste as token copies', group: 'card' },
+
+  // ── Counters and power ────────────────────────────────────────────────
+  { id: 'counters', key: 'j', label: 'Open counters', group: 'counters' },
   {
     id: 'counter-plus',
     key: '=',
-    label: 'Add a +1/+1 counter; with nothing selected, bigger cards',
-    group: 'selection',
+    label: 'Add a +1/+1 counter; with no card in view, bigger cards',
+    group: 'counters',
   },
   {
     id: 'counter-minus',
     key: '-',
-    label: 'Add a −1/−1 counter; with nothing selected, smaller cards',
-    group: 'selection',
+    label: 'Add a −1/−1 counter; with no card in view, smaller cards',
+    group: 'counters',
   },
-  { id: 'to-hand', key: 'h', label: 'Move to hand', group: 'selection' },
-  { id: 'to-graveyard', key: 'g', label: 'Move to graveyard', group: 'selection' },
-  { id: 'to-exile', key: 'e', label: 'Move to exile', group: 'selection' },
-  { id: 'to-library-top', key: 'l', label: 'Move to top of library', group: 'selection' },
-  { id: 'to-library-bottom', key: 'b', label: 'Move to bottom of library', group: 'selection' },
-  { id: 'copy', key: 'mod+c', label: 'Copy', group: 'selection' },
-  { id: 'paste', key: 'mod+v', label: 'Paste as token copies', group: 'selection' },
+  { id: 'counters-all-inc', key: 'mod+1', label: 'Add one to every counter', group: 'counters' },
+  { id: 'counters-all-double', key: 'mod+2', label: 'Double every counter', group: 'counters' },
+  { id: 'counters-all-dec', key: 'mod+3', label: 'Take one off every counter', group: 'counters' },
+  { id: 'power-inc', key: 'alt+1', label: 'Power +1', group: 'counters' },
+  { id: 'toughness-inc', key: 'alt+2', label: 'Toughness +1', group: 'counters' },
+  { id: 'power-dec', key: 'alt+3', label: 'Power −1', group: 'counters' },
+  { id: 'toughness-dec', key: 'alt+4', label: 'Toughness −1', group: 'counters' },
+
+  // ── Players ───────────────────────────────────────────────────────────
+  ...([1, 2, 3, 4, 5, 6] as const).map(
+    (n) =>
+      ({
+        id: `focus-${n}`,
+        key: String(n),
+        label: `Look at player ${n}’s board (online)`,
+        group: 'players',
+        optional: true,
+      }) as ShortcutDef
+  ),
+  { id: 'react-1', key: '7', label: 'React: thumbs up (online)', group: 'players', optional: true },
+  { id: 'react-2', key: '8', label: 'React: thinking (online)', group: 'players', optional: true },
+  { id: 'react-3', key: '9', label: 'React: wow (online)', group: 'players', optional: true },
+  { id: 'react-4', key: '0', label: 'React: crying (online)', group: 'players', optional: true },
+
+  // ── View ──────────────────────────────────────────────────────────────
   {
-    id: 'arrow',
-    key: 'w',
-    label: 'Draw an arrow from the selected card (online)',
-    group: 'selection',
-  },
-  {
-    id: 'arrows-clear',
-    key: 'shift+w',
-    label: 'Remove every arrow you drew (online)',
-    group: 'selection',
-  },
-  {
-    id: 'focus-1',
-    key: '1',
-    label: 'Look at player 1’s board (online)',
-    group: 'players',
-    optional: true,
-  },
-  {
-    id: 'focus-2',
-    key: '2',
-    label: 'Look at player 2’s board (online)',
-    group: 'players',
-    optional: true,
-  },
-  {
-    id: 'focus-3',
-    key: '3',
-    label: 'Look at player 3’s board (online)',
-    group: 'players',
-    optional: true,
-  },
-  {
-    id: 'focus-4',
-    key: '4',
-    label: 'Look at player 4’s board (online)',
-    group: 'players',
-    optional: true,
-  },
-  {
-    id: 'focus-5',
-    key: '5',
-    label: 'Look at player 5’s board (online)',
-    group: 'players',
-    optional: true,
-  },
-  {
-    id: 'focus-6',
-    key: '6',
-    label: 'Look at player 6’s board (online)',
-    group: 'players',
+    id: 'toggle-layout',
+    key: '',
+    label: 'Switch between the seat grid and the rail',
+    group: 'view',
     optional: true,
   },
   { id: 'shortcuts', key: 'i', label: 'Open this list', group: 'view' },

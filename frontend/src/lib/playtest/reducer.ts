@@ -9,6 +9,7 @@ import type {
   PlaytestCard,
   PlaytestInit,
   PlaytestState,
+  StackItem,
   Zone,
 } from './types';
 
@@ -31,6 +32,17 @@ const ZONES: Zone[] = ['library', 'hand', 'graveyard', 'exile', 'command'];
  *  card drift outside it. */
 function clampFraction(n: number): number {
   return Math.max(0, Math.min(1, n));
+}
+
+/** Does this type line describe something that stays on the battlefield?
+ *  Used only to decide where a resolving stack entry lands — an instant or
+ *  sorcery to the graveyard, everything else onto the board. Type lines that
+ *  are missing (tokens made by hand, older snapshots) read as permanents,
+ *  which is the right default: a card someone put on the stack and resolved
+ *  is far more often a creature than a burn spell, and moving it afterwards
+ *  is one key either way. */
+function isPermanentType(typeLine: string | undefined): boolean {
+  return !/\b(instant|sorcery)\b/i.test(typeLine ?? '');
 }
 
 function emptyZones(): Record<Zone, PlaytestCard[]> {
@@ -76,6 +88,8 @@ export function createPlaytestState(init: PlaytestInit): PlaytestState {
     citysBlessing: false,
     playerCounters: {},
     manaPool: emptyManaPool(),
+    stack: [],
+    revealed: [],
     past: [],
   };
 }
@@ -109,6 +123,8 @@ function snapshot(state: PlaytestState): Omit<PlaytestState, 'past'> {
     citysBlessing: state.citysBlessing,
     playerCounters: { ...state.playerCounters },
     manaPool: state.manaPool ? { ...state.manaPool } : undefined,
+    stack: state.stack ? state.stack.slice() : undefined,
+    revealed: state.revealed ? state.revealed.slice() : undefined,
   };
 }
 
@@ -132,12 +148,17 @@ function withHistory(prev: PlaytestState, next: Omit<PlaytestState, 'past'>): Pl
 }
 
 interface Locator {
-  source: 'zone' | 'battlefield';
+  source: 'zone' | 'battlefield' | 'stack';
   zone?: Zone;
   index: number;
 }
 
-/** Find a card by instance id across all zones + battlefield. */
+/** Find a card by instance id across all zones + battlefield + the stack.
+ *  The stack is searched last and matched on the ENTRY's card id, which is
+ *  what lets a countered spell move out with a plain `MOVE_TO_ZONE` instead
+ *  of every caller having to know it was mid-resolution. A copy's entry has
+ *  its source's card id too, so the real card (wherever it is) always wins
+ *  the lookup — a copy is only ever reachable by its entry id. */
 function locate(state: PlaytestState, cardId: string): Locator | null {
   for (const zone of ZONES) {
     const idx = state.zones[zone].findIndex((c) => c.id === cardId);
@@ -145,6 +166,8 @@ function locate(state: PlaytestState, cardId: string): Locator | null {
   }
   const bfIdx = state.battlefield.findIndex((b) => b.card.id === cardId);
   if (bfIdx >= 0) return { source: 'battlefield', index: bfIdx };
+  const stIdx = (state.stack ?? []).findIndex((e) => !e.isCopy && e.card.id === cardId);
+  if (stIdx >= 0) return { source: 'stack', index: stIdx };
   return null;
 }
 
@@ -204,7 +227,19 @@ function pluck(
     const zone = next.zones[loc.zone].slice();
     const [card] = zone.splice(loc.index, 1);
     next.zones[loc.zone] = zone;
+    // Leaving hand ends any reveal of it: the card is somewhere public (or
+    // back in the library) and the list must never name a card that isn't
+    // in hand to show.
+    if (loc.zone === 'hand' && next.revealed?.length) {
+      next.revealed = next.revealed.filter((id) => id !== card.id);
+    }
     return { card };
+  }
+  if (loc.source === 'stack') {
+    const stack = (next.stack ?? []).slice();
+    const [entry] = stack.splice(loc.index, 1);
+    next.stack = stack;
+    return { card: entry.card };
   }
   const battlefield = next.battlefield.slice();
   const [bf] = battlefield.splice(loc.index, 1);
@@ -227,6 +262,10 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         ...state.zones.graveyard,
         ...state.zones.exile,
         ...state.battlefield.filter((b) => !b.card.isToken).map((b) => b.card),
+        // A spell left mid-resolution is still a card in the deck — a new
+        // game shuffles it back in rather than losing it. Copies aren't
+        // cards and have nowhere to go back to.
+        ...(state.stack ?? []).filter((e) => !e.isCopy && !e.card.isToken).map((e) => e.card),
       ];
       const shuffled = shuffle(all, mulberry32(state.rngSeed));
       const hand = shuffled.slice(0, DEFAULT_OPENING_HAND);
@@ -257,6 +296,8 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         playerCounters: {},
         // A new game: floating mana from the last one is long gone.
         manaPool: emptyManaPool(),
+        stack: [],
+        revealed: [],
         past: [],
       };
     }
@@ -431,6 +472,144 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         else counters[action.counter] = updated;
         return { ...b, counters };
       });
+      return withHistory(state, next);
+    }
+    case 'ADJUST_ALL_COUNTERS': {
+      const idx = state.battlefield.findIndex((b) => b.card.id === action.cardId);
+      if (idx < 0) return state;
+      const kinds = Object.keys(state.battlefield[idx].counters);
+      // Deliberately not a no-op guard on `op` — a card with NO counters is
+      // the no-op, because there is nothing to add one to. Creating a
+      // `+1/+1` here would make Ctrl+1 a pump spell instead of a bulk step.
+      if (kinds.length === 0) return state;
+      const next = snapshot(state);
+      next.battlefield = next.battlefield.map((b, i) => {
+        if (i !== idx) return b;
+        const counters: Record<string, number> = {};
+        for (const [kind, value] of Object.entries(b.counters)) {
+          const updated =
+            action.op === 'double' ? value * 2 : value + (action.op === 'inc' ? 1 : -1);
+          if (updated > 0) counters[kind] = updated;
+        }
+        return { ...b, counters };
+      });
+      return withHistory(state, next);
+    }
+    case 'ADJUST_PT': {
+      const idx = state.battlefield.findIndex((b) => b.card.id === action.cardId);
+      if (idx < 0) return state;
+      const dp = action.power ?? 0;
+      const dt = action.toughness ?? 0;
+      if (dp === 0 && dt === 0) return state;
+      const next = snapshot(state);
+      next.battlefield = next.battlefield.map((b, i) => {
+        if (i !== idx) return b;
+        const power = (b.pt?.power ?? 0) + dp;
+        const toughness = (b.pt?.toughness ?? 0) + dt;
+        // Back to no modifier at all: drop the field rather than store a
+        // 0/0, so the face has one thing to test and a snapshot round-trips
+        // to the same shape it had before the first pump.
+        if (power === 0 && toughness === 0) {
+          const cleared = { ...b };
+          delete cleared.pt;
+          return cleared;
+        }
+        return { ...b, pt: { power, toughness } };
+      });
+      return withHistory(state, next);
+    }
+    case 'TOGGLE_REVEAL': {
+      if (!state.zones.hand.some((c) => c.id === action.cardId)) return state;
+      const next = snapshot(state);
+      const current = next.revealed ?? [];
+      next.revealed = current.includes(action.cardId)
+        ? current.filter((id) => id !== action.cardId)
+        : [...current, action.cardId];
+      return withHistory(state, next);
+    }
+    case 'PUT_ON_STACK': {
+      const loc = locate(state, action.cardId);
+      if (!loc) return state;
+      // Already on the stack: putting it there again would duplicate the
+      // card, since `pluck` would take it off and push it straight back.
+      if (loc.source === 'stack' && !action.copy) return state;
+      const next = snapshot(state);
+      let card: PlaytestCard;
+      if (action.copy) {
+        // A copy leaves the real object exactly where it is — on the
+        // battlefield, in hand, or lower on the stack.
+        const found =
+          loc.source === 'battlefield'
+            ? next.battlefield[loc.index].card
+            : loc.source === 'stack'
+              ? (next.stack ?? [])[loc.index].card
+              : next.zones[loc.zone!][loc.index];
+        card = found;
+      } else {
+        const plucked = pluck(next, loc);
+        card = plucked.card;
+        if (plucked.bf) next.battlefield = detachFrom(next.battlefield, action.cardId);
+      }
+      const entry: StackItem = {
+        id: action.entryId,
+        card,
+        isCopy: Boolean(action.copy),
+        ...(action.copy
+          ? {}
+          : { from: loc.source === 'battlefield' ? ('battlefield' as const) : loc.zone }),
+      };
+      next.stack = [...(next.stack ?? []), entry];
+      return withHistory(state, next);
+    }
+    case 'RESOLVE_STACK': {
+      const stack = state.stack ?? [];
+      if (stack.length === 0) return state;
+      const idx = action.entryId
+        ? stack.findIndex((e) => e.id === action.entryId)
+        : stack.length - 1;
+      if (idx < 0) return state;
+      const entry = stack[idx];
+      const next = snapshot(state);
+      next.stack = stack.filter((_, i) => i !== idx);
+      // A copy ceases to exist as it resolves (MTG rule 707.10) — it was
+      // never a card, so there is no zone for it to land in.
+      if (entry.isCopy) return withHistory(state, next);
+      if (isPermanentType(entry.card.typeLine)) {
+        next.battlefield = [
+          ...next.battlefield,
+          {
+            card: entry.card,
+            tapped: false,
+            counters: {},
+            stickers: [],
+            x: clampFraction(action.x ?? 0.5),
+            y: clampFraction(action.y ?? 0.5),
+            faceDown: false,
+          },
+        ];
+        return withHistory(state, next);
+      }
+      // An instant or sorcery goes to the graveyard; anything cast from the
+      // command zone goes back there instead (a commander's own rule, and
+      // the only `from` worth honouring — a spell never returns to hand or
+      // library just because that is where it started).
+      const dest: Zone = entry.from === 'command' ? 'command' : 'graveyard';
+      next.zones[dest] = next.zones[dest].concat(entry.card);
+      return withHistory(state, next);
+    }
+    case 'REMOVE_FROM_STACK': {
+      const stack = state.stack ?? [];
+      if (stack.length === 0) return state;
+      const idx = action.entryId
+        ? stack.findIndex((e) => e.id === action.entryId)
+        : stack.length - 1;
+      if (idx < 0) return state;
+      const entry = stack[idx];
+      const next = snapshot(state);
+      next.stack = stack.filter((_, i) => i !== idx);
+      if (entry.isCopy) return withHistory(state, next);
+      const dest = action.to ?? 'graveyard';
+      next.zones[dest] = next.zones[dest].concat(entry.card);
       return withHistory(state, next);
     }
     case 'ADD_STICKER': {

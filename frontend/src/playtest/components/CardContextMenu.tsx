@@ -43,6 +43,13 @@ interface Props {
   onFlip(): void;
   onTransform(): void;
   onTogglePhased(): void;
+  /** Current power/toughness modifier, if any — shown as the running total
+   *  beside the ± steps so the menu never asks the player to remember what
+   *  they have already pumped. */
+  pt?: { power: number; toughness: number };
+  onAdjustPT(power: number, toughness: number): void;
+  /** Put this card on the stack, or put a copy of it there. */
+  onPutOnStack(copy: boolean): void;
   /** Token-copy this card. When a multi-card selection is active and includes
    *  this card, the whole selection is copied — `selectionSize` says so. */
   onDuplicate(): void;
@@ -98,6 +105,9 @@ export function CardContextMenu({
   onFlip,
   onTransform,
   onTogglePhased,
+  pt,
+  onAdjustPT,
+  onPutOnStack,
   onDuplicate,
   selectionSize = 1,
   onMoveTo,
@@ -154,11 +164,49 @@ export function CardContextMenu({
       <button type="button" className="playtest-ctx-action" onClick={onDuplicate}>
         {selectionSize > 1 ? `Duplicate ${selectionSize} selected` : 'Duplicate'}
       </button>
+      <button type="button" className="playtest-ctx-action" onClick={() => onPutOnStack(false)}>
+        Put on the stack
+      </button>
+      <button type="button" className="playtest-ctx-action" onClick={() => onPutOnStack(true)}>
+        Copy onto the stack
+      </button>
       {canTransform && (
         <button type="button" className="playtest-ctx-action" onClick={onTransform}>
           Transform
         </button>
       )}
+      <div className="playtest-ctx-group">
+        <div className="playtest-ctx-heading">Power / toughness</div>
+        {/* A running modifier, not an absolute — the card face adds it to the
+            printed body. Kept apart from the +1/+1 counters below because a
+            pump that wears off at end of turn and a counter that stays are
+            different things at a real table. */}
+        {(
+          [
+            ['Power', pt?.power ?? 0, (d: number) => onAdjustPT(d, 0)],
+            ['Toughness', pt?.toughness ?? 0, (d: number) => onAdjustPT(0, d)],
+          ] as const
+        ).map(([label, value, adjust]) => (
+          <div key={label} className="playtest-ctx-counter">
+            <span>{label}</span>
+            <span className="playtest-ctx-counter__value" aria-hidden>
+              {value >= 0 ? `+${value}` : value}
+            </span>
+            <CounterStep
+              label={`${label} down, currently ${value >= 0 ? `+${value}` : value}`}
+              onAdjust={() => adjust(-1)}
+            >
+              −
+            </CounterStep>
+            <CounterStep
+              label={`${label} up, currently ${value >= 0 ? `+${value}` : value}`}
+              onAdjust={() => adjust(1)}
+            >
+              +
+            </CounterStep>
+          </div>
+        ))}
+      </div>
       <div className="playtest-ctx-group">
         <div className="playtest-ctx-heading">Counters</div>
         {counterKinds.map((k) => (

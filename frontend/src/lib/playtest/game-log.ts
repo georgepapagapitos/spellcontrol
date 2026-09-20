@@ -39,7 +39,13 @@ export type LogEntryKind =
   /** A permanent turned face down / face up, or a two-faced card
    *  transformed. Public either way: a card on the battlefield was already
    *  visible, and turning one face up IS the reveal. */
-  | 'face';
+  | 'face'
+  /** Something put on, taken off, or resolved off the stack. Public: the
+   *  stack is in the middle of the table. */
+  | 'stack'
+  /** A card shown to the table out of a hand. Public by definition — the
+   *  showing IS the event. */
+  | 'reveal';
 
 export interface GameLogEntry {
   /** Monotonic within a session — always ascending in log order. */
@@ -339,6 +345,91 @@ function buildRawLogEntries(
           kind: 'card-counter',
           text: `${name}: ${action.counter} counter${value === 1 ? '' : 's'} → ${value}`,
           cardName: after.card.name,
+        },
+      ];
+    }
+
+    case 'ADJUST_ALL_COUNTERS': {
+      const after = next.battlefield.find((b) => b.card.id === action.cardId);
+      if (!after || next === current) return [];
+      const verb =
+        action.op === 'double' ? 'doubled' : action.op === 'inc' ? 'stepped up' : 'stepped down';
+      const tally = Object.entries(after.counters)
+        .map(([kind, value]) => `${kind} ${value}`)
+        .join(', ');
+      return [
+        {
+          turn,
+          kind: 'card-counter',
+          text: `${after.card.name}: counters ${verb}${tally ? ` — ${tally}` : ' to none'}`,
+          cardName: after.card.name,
+        },
+      ];
+    }
+
+    case 'ADJUST_PT': {
+      const after = next.battlefield.find((b) => b.card.id === action.cardId);
+      if (!after || next === current) return [];
+      const pt = after.pt;
+      const signed = (n: number) => (n >= 0 ? `+${n}` : String(n));
+      return [
+        {
+          turn,
+          kind: 'card-counter',
+          text: pt
+            ? `${after.card.name}: ${signed(pt.power)}/${signed(pt.toughness)}`
+            : `${after.card.name}: back to its printed size`,
+          cardName: after.card.name,
+        },
+      ];
+    }
+
+    case 'TOGGLE_REVEAL': {
+      const card = current.zones.hand.find((c) => c.id === action.cardId);
+      if (!card || next === current) return [];
+      const nowShown = (next.revealed ?? []).includes(action.cardId);
+      return [
+        {
+          turn,
+          kind: 'reveal',
+          text: nowShown ? `Showed ${card.name} from hand` : `Stopped showing ${card.name}`,
+          cardName: card.name,
+        },
+      ];
+    }
+
+    case 'PUT_ON_STACK': {
+      const entry = (next.stack ?? []).at(-1);
+      if (!entry || next === current) return [];
+      return [
+        {
+          turn,
+          kind: 'stack',
+          text: entry.isCopy
+            ? `Copy of ${entry.card.name} on the stack`
+            : `${entry.card.name} on the stack`,
+          cardName: entry.card.name,
+        },
+      ];
+    }
+
+    case 'RESOLVE_STACK':
+    case 'REMOVE_FROM_STACK': {
+      const before = current.stack ?? [];
+      const after = next.stack ?? [];
+      if (before.length === after.length) return [];
+      const gone = before.find((e) => !after.some((k) => k.id === e.id));
+      if (!gone) return [];
+      const what = gone.isCopy ? `Copy of ${gone.card.name}` : gone.card.name;
+      return [
+        {
+          turn,
+          kind: 'stack',
+          text:
+            action.type === 'RESOLVE_STACK'
+              ? `${what} resolved`
+              : `${what} left the stack without resolving`,
+          cardName: gone.card.name,
         },
       ];
     }

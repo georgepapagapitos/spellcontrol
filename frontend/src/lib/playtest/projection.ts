@@ -31,6 +31,17 @@ export interface PublicBattlefieldCard {
   phased?: boolean;
 }
 
+/** One object on the stack as an opponent sees it. The stack is public by
+ *  construction — an object on it has been announced — so nothing here is
+ *  redacted. `from` is dropped: where the caster's copy came from is their
+ *  bookkeeping, and for a card cast out of hand it would leak the fact that
+ *  the hand held it. */
+export interface PublicStackItem {
+  id: string;
+  card: ProjectedCard;
+  isCopy: boolean;
+}
+
 /** One public-safe game-log line, ready to project to the table — see
  *  `toPublicTicker`. `seq` is the source `GameLogEntry.seq`: per-seat
  *  monotonic, which is what lets receivers diff re-delivered tickers (every
@@ -74,6 +85,10 @@ const TICKER_KINDS: ReadonlySet<LogEntryKind> = new Set([
   // local; see game-log.ts.)
   'card-counter',
   'face',
+  // The stack is in the middle of the table and a reveal IS the showing —
+  // both are public the moment they happen.
+  'stack',
+  'reveal',
 ]);
 
 /**
@@ -130,6 +145,14 @@ export interface PublicBoard {
   command: ProjectedCard[];
   handCount: number;
   libraryCount: number;
+  /** Objects this seat has waiting to resolve, bottom first. Optional like
+   *  `ticker`: boards published by clients predating the stack arrive
+   *  without one, and absent reads as an empty stack. */
+  stack?: PublicStackItem[];
+  /** Cards this seat is currently showing the table out of its hand. The
+   *  one thing that legitimately lets a hand card's identity out without a
+   *  zone change — see `PlaytestState.revealed`. */
+  revealed?: ProjectedCard[];
   /** Trailing public log lines (see `toPublicTicker`) — the play ticker.
    *  Optional: boards published by clients predating the ticker arrive
    *  without it, and `toPublicBoard` itself doesn't attach one (the log
@@ -237,5 +260,16 @@ export function toPublicBoard(state: PlaytestState, seat: number): PublicBoard {
     command: state.zones.command.map(toProjectedCard),
     handCount: state.zones.hand.length,
     libraryCount: state.zones.library.length,
+    stack: (state.stack ?? []).map((e) => ({
+      id: e.id,
+      card: toProjectedCard(e.card),
+      isCopy: e.isCopy,
+    })),
+    // Filtered against the live hand, not trusted from the list: a card that
+    // left hand without going through `pluck` (an older snapshot, a future
+    // action that forgets) must not keep leaking its name from here.
+    revealed: state.zones.hand
+      .filter((c) => (state.revealed ?? []).includes(c.id))
+      .map(toProjectedCard),
   };
 }

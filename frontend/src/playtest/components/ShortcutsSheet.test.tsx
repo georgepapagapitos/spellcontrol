@@ -24,9 +24,9 @@ describe('ShortcutsSheet', () => {
     const { onChange } = renderSheet();
     fireEvent.click(screen.getByRole('button', { name: 'Draw a card: D. Change' }));
     expect(screen.getByRole('button', { name: /Draw a card: press a key/ })).toBeTruthy();
-    fireEvent.keyDown(window, { key: 'j' });
-    expect(onChange).toHaveBeenCalledWith({ draw: 'j' });
-    expect(screen.getByRole('status').textContent).toBe('J is now Draw a card.');
+    fireEvent.keyDown(window, { key: 'y' });
+    expect(onChange).toHaveBeenCalledWith({ draw: 'y' });
+    expect(screen.getByRole('status').textContent).toBe('Y is now Draw a card.');
   });
 
   it('Esc cancels a rebind without closing the sheet', () => {

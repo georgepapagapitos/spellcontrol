@@ -15,10 +15,95 @@ function key(init: Partial<KeyboardEventInit> & { key: string }): KeyboardEvent 
   return new KeyboardEvent('keydown', init);
 }
 
+/**
+ * The map this table is expected to ship, key → shortcut id.
+ *
+ * This is the guard for the whole keyboard program: the defaults are
+ * EDHPlay's map, and "EDHPlay's map" is a claim that has to be checkable,
+ * not a comment somebody has to trust. Changing a default here is a
+ * deliberate edit to this table, in the same commit as the change.
+ *
+ * Shortcuts that ship unbound on purpose (`''`) are listed in UNBOUND below
+ * rather than omitted, so turning one on by accident fails too.
+ */
+const EXPECTED: Record<string, string> = {
+  // Global
+  space: 'pass-turn',
+  d: 'draw',
+  u: 'untap-all',
+  '=': 'counter-plus',
+  '-': 'counter-minus',
+  m: 'mana',
+  q: 'advance-phase',
+  arrowup: 'life-up',
+  arrowdown: 'life-down',
+  c: 'log',
+  s: 'shuffle',
+  v: 'view-library',
+  p: 'scry',
+  'shift+p': 'scry-bottom',
+  o: 'dice',
+  n: 'token',
+  i: 'shortcuts',
+  escape: 'menu',
+  'mod+a': 'select-all',
+  // Displaced by the map above, rehomed to the shifted/modified same letter
+  'shift+n': 'next-turn',
+  'mod+z': 'undo',
+  // The card in view
+  t: 'tap-selection',
+  f: 'transform',
+  z: 'face-down',
+  x: 'clone',
+  r: 'reveal',
+  h: 'to-hand',
+  g: 'to-graveyard',
+  e: 'to-exile',
+  a: 'to-battlefield',
+  l: 'to-library-top',
+  b: 'to-library-bottom',
+  w: 'arrow',
+  k: 'stack-add',
+  'shift+k': 'stack-copy',
+  j: 'counters',
+  'mod+c': 'copy',
+  'mod+v': 'paste',
+  // Counters and power
+  'mod+1': 'counters-all-inc',
+  'mod+2': 'counters-all-double',
+  'mod+3': 'counters-all-dec',
+  'alt+1': 'power-inc',
+  'alt+2': 'toughness-inc',
+  'alt+3': 'power-dec',
+  'alt+4': 'toughness-dec',
+  // Players and reactions
+  '1': 'focus-1',
+  '2': 'focus-2',
+  '3': 'focus-3',
+  '4': 'focus-4',
+  '5': 'focus-5',
+  '6': 'focus-6',
+  '7': 'react-1',
+  '8': 'react-2',
+  '9': 'react-3',
+  '0': 'react-4',
+};
+
+/** Shipped with no key, reachable from the sheet and the menus. */
+const UNBOUND = [
+  'arrows-clear',
+  'toggle-layout',
+  'view-top-card',
+  'view-bottom-card',
+  'stack-resolve',
+];
+
 describe('the binding table', () => {
   it('binds every default key to exactly one shortcut', () => {
     const seen = new Map<string, string>();
     for (const def of SHORTCUTS) {
+      // `''` is "off", not a key — several shortcuts legitimately share it.
+      if (def.key === '') continue;
       expect(seen.get(def.key), `${def.key} is both ${seen.get(def.key)} and ${def.id}`).toBe(
         undefined
       );
@@ -26,16 +111,39 @@ describe('the binding table', () => {
     }
   });
 
-  it('keeps the keys the board already taught: D, N, U, Z, T, K, M, Space', () => {
+  it('ships the expected default for every key in the map', () => {
     const b = resolveBindings({});
-    expect(b['draw']).toBe('d');
-    expect(b['next-turn']).toBe('n');
-    expect(b['untap-all']).toBe('u');
-    expect(b['undo']).toBe('z');
-    expect(b['tap-selection']).toBe('t');
-    expect(b['token']).toBe('k');
-    expect(b['mana']).toBe('m');
-    expect(b['pass-turn']).toBe('space');
+    for (const [chord, id] of Object.entries(EXPECTED)) {
+      expect(b[id as keyof typeof b], `${id} should be on ${chord}`).toBe(chord);
+    }
+  });
+
+  it('leaves the deliberately-unbound shortcuts unbound', () => {
+    const b = resolveBindings({});
+    for (const id of UNBOUND) {
+      expect(b[id as keyof typeof b], `${id} should ship with no key`).toBe('');
+    }
+  });
+
+  it('accounts for every shortcut — nothing bound without being expected', () => {
+    const accounted = new Set([...Object.values(EXPECTED), ...UNBOUND]);
+    const missing = SHORTCUTS.filter((d) => !accounted.has(d.id)).map((d) => d.id);
+    expect(missing, 'add these to EXPECTED or UNBOUND above').toEqual([]);
+  });
+
+  it('every shortcut has a group the sheet renders', () => {
+    const groups = new Set(['turn', 'table', 'stack', 'card', 'counters', 'players', 'view']);
+    for (const def of SHORTCUTS) {
+      expect(groups.has(def.group), `${def.id} is in unknown group ${def.group}`).toBe(true);
+    }
+  });
+
+  it('only optional shortcuts may ship unbound — a required one must have a key', () => {
+    for (const def of SHORTCUTS) {
+      if (def.key === '') {
+        expect(def.optional, `${def.id} ships unbound but is not optional`).toBe(true);
+      }
+    }
   });
 });
 
@@ -74,15 +182,15 @@ describe('shortcutFor', () => {
 
 describe('rebind', () => {
   it('records only what differs from the default', () => {
-    const { next } = rebind({}, 'draw', 'j');
-    expect(next).toEqual({ draw: 'j' });
+    const { next } = rebind({}, 'draw', 'y');
+    expect(next).toEqual({ draw: 'y' });
     expect(rebind(next, 'draw', 'd').next).toEqual({});
   });
 
   it('moves a required shortcut off a taken key back to its default, and names it', () => {
-    const { next, displaced } = rebind({ draw: 'j' }, 'shuffle', 'j');
+    const { next, displaced } = rebind({ draw: 'y' }, 'shuffle', 'y');
     expect(displaced).toBe('draw');
-    expect(next).toEqual({ shuffle: 'j' });
+    expect(next).toEqual({ shuffle: 'y' });
     expect(resolveBindings(next)['draw']).toBe('d');
   });
 
