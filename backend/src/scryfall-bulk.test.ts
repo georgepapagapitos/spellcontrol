@@ -59,6 +59,29 @@ describe('projectBulkCard', () => {
     });
   });
 
+  // The playtest board prints a P/T box on every permanent that has one.
+  // Dropping these here is why it could only ever show a hand-applied
+  // modifier: no card in the cache carried a printed body at all.
+  it('keeps the printed power/toughness', () => {
+    const out = projectBulkCard(bulk({ power: '2', toughness: '2' }) as never);
+    expect(out?.power).toBe('2');
+    expect(out?.toughness).toBe('2');
+  });
+
+  // Verbatim, not parsed — Scryfall ships `*`, `1+*` and `∞`, and a board
+  // that folded those into a number would print something untrue.
+  it('keeps a non-numeric body exactly as printed', () => {
+    const out = projectBulkCard(bulk({ power: '*', toughness: '1+*' }) as never);
+    expect(out?.power).toBe('*');
+    expect(out?.toughness).toBe('1+*');
+  });
+
+  it('leaves a card with no body alone', () => {
+    const out = projectBulkCard(bulk({}) as never);
+    expect(out?.power).toBeUndefined();
+    expect(out?.toughness).toBeUndefined();
+  });
+
   // The binder Release-date sort dates each printing from this, not from its
   // set. Dropping it here silently fell back to set dates, which are years off
   // for every rolling container set (SLD/PLST/PRM/SLP/SLC).

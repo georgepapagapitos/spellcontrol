@@ -301,6 +301,8 @@ export function projectBulkCard(card: BulkCard): ScryfallCard | null {
     mana_cost: card.mana_cost,
     cmc: card.cmc,
     type_line: card.type_line,
+    power: card.power,
+    toughness: card.toughness,
     colors: card.colors,
     color_identity: card.color_identity,
     rarity: card.rarity ?? 'common',
