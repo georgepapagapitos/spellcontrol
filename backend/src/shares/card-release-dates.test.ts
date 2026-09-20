@@ -31,7 +31,17 @@ beforeAll(() => {
   seed.close();
 });
 
-afterAll(() => {
+afterAll(async () => {
+  // The module under test reaches for the process-wide cache, which holds the
+  // SQLite file open. Windows refuses to delete a file with a live handle, so
+  // without this the cleanup below threw EPERM and failed the suite even
+  // though every assertion in it passed.
+  //
+  // Imported here rather than at the top for the same reason the tests import
+  // dynamically: `scryfall-cache` reads DB_PATH at module scope, and a static
+  // import would evaluate it before `beforeAll` has pointed it at `dir`.
+  const { closeScryfallCache } = await import('../scryfall-cache');
+  closeScryfallCache();
   delete process.env.DB_PATH;
   rmSync(dir, { recursive: true, force: true });
 });
