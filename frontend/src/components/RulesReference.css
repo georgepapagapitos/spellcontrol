@@ -65,10 +65,26 @@
   gap: 0.4rem;
 }
 
+/* The card is the unit, not the head band. Hover/focus lifts the WHOLE card —
+   border, background and the ⋮ together — because the whole card is the
+   right-click target (`onContextMenu` sits on the <li>). Highlighting only the
+   head button split the card in two: a lit strip above an unlit summary, with
+   the strip stopping short of the ⋮'s gutter. */
 .rules-ref-keyword {
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
+  transition:
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rules-ref-keyword:hover,
+  .rules-ref-keyword:focus-within {
+    background: var(--surface-raised);
+    border-color: var(--accent);
+  }
 }
 
 /* Head + its ⋮: the head is a button, so the menu sits beside it, not in it. */
@@ -94,12 +110,6 @@
 .rules-ref-keyword-head:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .rules-ref-keyword-head:hover {
-    background: var(--surface-raised);
-  }
 }
 
 .rules-ref-keyword-name {
@@ -156,9 +166,14 @@
   margin: 0;
 }
 
+/* Padded, then pulled back out by the same amount, so the hover fill has a
+   margin to sit in without shifting the text off the column's edge. */
 .rules-ref-glossary-entry {
-  padding: 0.55rem 0;
+  padding: 0.55rem var(--space-2);
+  margin-inline: calc(var(--space-2) * -1);
   border-bottom: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  transition: background-color var(--motion-fast) ease;
 }
 .rules-ref-glossary-entry:last-child {
   border-bottom: none;
@@ -189,10 +204,21 @@
 .rules-ref-rule {
   display: flex;
   gap: 0.6rem;
-  margin: 0;
-  padding: 0.35rem 0;
+  margin-inline: calc(var(--space-2) * -1);
+  padding: 0.35rem var(--space-2);
   font-size: var(--text-sm);
   line-height: 1.5;
+  border-radius: var(--radius);
+  transition: background-color var(--motion-fast) ease;
+}
+
+/* Whole-row hover, the keyword card's ruling applied to the flat rows: the row
+   is the right-click target, so the row is what lights up. */
+@media (hover: hover) and (pointer: fine) {
+  .rules-ref-glossary-entry:hover,
+  .rules-ref-rule:hover {
+    background: var(--surface-raised);
+  }
 }
 
 .rules-ref-rule-num {
@@ -209,10 +235,11 @@
 }
 
 /* ── The row menu ─────────────────────────────────────────────────────
-   Every row carries a ⋮ (copy, share, card searches, Ask). On a fine pointer
-   it rests hidden and shows on row hover/focus, the deck list's ruling: a
-   hundred identical glyphs down the edge say nothing a hover can't. Touch
-   keeps it visible, since it is the row's only menu affordance there. */
+   Every row carries a ⋮ (copy, share, card searches, Ask). It is ALWAYS
+   present — it does not appear and vanish under the cursor. Reference rows are
+   a dense stack the eye travels down, and a glyph that pops in at every stop is
+   the thing you notice instead of the rules. At rest it is a muted mark; the
+   hovered or focused row brings it up to full. */
 .rules-ref-entry-menu {
   flex: 0 0 auto;
   align-self: flex-start;
@@ -220,16 +247,18 @@
 
 @media (hover: hover) and (pointer: fine) {
   .rules-ref-entry-menu .overflow-menu-trigger {
-    opacity: 0;
+    opacity: 0.45;
     transition: opacity var(--motion-fast) ease;
   }
 
-  .rules-ref-keyword-row:hover .overflow-menu-trigger,
-  .rules-ref-keyword-row:focus-within .overflow-menu-trigger,
+  .rules-ref-keyword:hover .overflow-menu-trigger,
+  .rules-ref-keyword:focus-within .overflow-menu-trigger,
   .rules-ref-glossary-entry:hover .overflow-menu-trigger,
   .rules-ref-glossary-entry:focus-within .overflow-menu-trigger,
   .rules-ref-rule:hover .overflow-menu-trigger,
   .rules-ref-rule:focus-within .overflow-menu-trigger,
+  .rules-ref-entry-menu .overflow-menu-trigger:hover,
+  .rules-ref-entry-menu .overflow-menu-trigger:focus-visible,
   .rules-ref-entry-menu .overflow-menu-trigger[data-open] {
     opacity: 1;
   }
