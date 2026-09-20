@@ -13,7 +13,8 @@ const clearUserProfileMock = vi.fn<(id: string) => Promise<void>>();
 // list so this file's own test (which only exercises the Users card) isn't
 // left with an unresolved/rejected fetch.
 const listReportsMock = vi.fn<() => Promise<AdminReportRow[]>>(() => Promise.resolve([]));
-const resolveReportMock = vi.fn<(id: string, action: 'dismiss' | 'hide') => Promise<void>>();
+const resolveReportMock =
+  vi.fn<(id: string, action: 'dismiss' | 'hide') => Promise<{ changed: boolean }>>();
 const deleteUserMock = vi.fn<(id: string) => Promise<void>>();
 const setUserAiMock =
   vi.fn<(id: string, patch: { access?: boolean; dailyLimit?: number | null }) => Promise<void>>();
@@ -175,7 +176,7 @@ describe('AdminPanel — reports (playtest batch 12)', () => {
   it('hide on a game-result report names the game result, not a deck', async () => {
     listUsersMock.mockResolvedValueOnce([]);
     listReportsMock.mockResolvedValueOnce([gameReport]);
-    resolveReportMock.mockResolvedValueOnce(undefined);
+    resolveReportMock.mockResolvedValueOnce({ changed: true });
     render(<AdminPanel currentUserId="admin-1" />);
     await screen.findByText('Fake result');
     fireEvent.click(screen.getByRole('button', { name: 'Hide' }));
@@ -211,6 +212,30 @@ describe('AdminPanel — reports (playtest batch 12)', () => {
     await waitFor(() => expect(screen.queryByText('Hide this content?')).toBeNull());
     expect(screen.queryByText('Fake result')).toBeNull();
     expect(toastMessages()).toContain('That report was already handled.');
+  });
+
+  it('Hide on a report whose target was already taken down says so instead of "Hid the …" (E352)', async () => {
+    const deckReport: AdminReportRow = {
+      id: 'r-deck',
+      kind: 'deck',
+      targetLabel: 'Krenko Goes Wide by tradepal',
+      reporterUsername: null,
+      reason: 'Spam',
+      createdAt: Date.parse('2026-09-19T00:00:00Z'),
+    };
+    listUsersMock.mockResolvedValueOnce([]);
+    listReportsMock.mockResolvedValueOnce([deckReport]);
+    // The route resolved (200) but the UPDATE touched 0 rows — already
+    // unpublished by the time the admin acted on the report.
+    resolveReportMock.mockResolvedValueOnce({ changed: false });
+    render(<AdminPanel currentUserId="admin-1" />);
+    await screen.findByText('Krenko Goes Wide by tradepal');
+    fireEvent.click(screen.getByRole('button', { name: 'Hide' }));
+    await screen.findByText('Hide this content?');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Hide' }).at(-1)!);
+    await waitFor(() => expect(resolveReportMock).toHaveBeenCalledWith('r-deck', 'hide'));
+    await waitFor(() => expect(toastMessages()).toContain('Already unpublished; report closed.'));
+    expect(toastMessages()).not.toContain('Hid the deck');
   });
 });
 

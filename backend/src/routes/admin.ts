@@ -398,6 +398,12 @@ adminRouter.post(
       return res.status(404).json({ error: 'Report not found.' });
     }
 
+    // Whether "hide" actually changed anything — false when the target was
+    // already taken down some other way (e.g. the owner unpublished it after
+    // the report was filed). The report still resolves either way; only the
+    // response — and the admin panel's toast — needs to be honest about it.
+    let changed = true;
+
     if (action === 'hide') {
       const now = Date.now();
       if (report.kind === 'deck') {
@@ -407,6 +413,7 @@ adminRouter.post(
          RETURNING slug`,
           [report.target_owner_id, report.target_id, now]
         );
+        changed = updated.rows.length > 0;
         if (updated.rows[0]) invalidateDeckPublicationCache(updated.rows[0].slug);
         invalidatePublicUserCache(report.owner_username);
       } else if (report.kind === 'profile') {
@@ -427,10 +434,11 @@ adminRouter.post(
         // that token takes down the reported artifact without touching a
         // sibling share of the same underlying game. Same two-step every
         // existing DELETE /api/shares/:token revoke already performs.
-        await pool.query(
+        const revoked = await pool.query(
           `UPDATE shares SET revoked_at = $2 WHERE token = $1 AND kind = 'game-result' AND revoked_at IS NULL`,
           [report.target_id, now]
         );
+        changed = (revoked.rowCount ?? 0) > 0;
         invalidateShareContext(report.target_id);
       }
     }
@@ -440,6 +448,8 @@ adminRouter.post(
       Date.now(),
       action === 'hide' ? 'hidden' : 'dismissed',
     ]);
-    res.json({ ok: true });
+    // `changed` only means something for 'hide' — dismiss has no side effect
+    // to be honest or dishonest about, so its response shape is untouched.
+    res.json(action === 'hide' ? { ok: true, changed } : { ok: true });
   }
 );

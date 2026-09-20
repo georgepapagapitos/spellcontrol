@@ -622,6 +622,7 @@ describe('POST /api/admin/reports/:id/resolve', () => {
       .set('Cookie', adminCookie)
       .send({ action: 'hide' });
     expect(res.status).toBe(200);
+    expect(res.body.changed).toBe(true);
 
     const pub = (
       await pool.query(`SELECT unpublished_at FROM deck_publications WHERE deck_id = $1`, [deckId])
@@ -630,6 +631,35 @@ describe('POST /api/admin/reports/:id/resolve', () => {
 
     const publicRead = await request(app).get(`/api/public/decks/${slug}`);
     expect(publicRead.status).toBe(404);
+  });
+
+  it('hide on a deck report whose deck was unpublished after filing says changed:false — the UPDATE touched 0 rows (E352, playtest batch 12)', async () => {
+    const adminCookie = await registerAdmin('nolan');
+    const { cookie, deckId, ownerId } = await publishDeck('nadia', 'deck-report-already-gone');
+    const reportId = await seedReport({ kind: 'deck', targetId: deckId, targetOwnerId: ownerId });
+
+    // The owner unpublishes on their own, after the report was filed but
+    // before the admin gets to it.
+    const unpublish = await request(app)
+      .delete(`/api/publications/decks/${deckId}`)
+      .set('Cookie', cookie);
+    expect(unpublish.status).toBe(204);
+
+    const res = await request(app)
+      .post(`/api/admin/reports/${reportId}/resolve`)
+      .set('Cookie', adminCookie)
+      .send({ action: 'hide' });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true, changed: false });
+
+    // The report still resolves — it just didn't change anything further.
+    const row = (
+      await pool.query(`SELECT resolved_at, resolution FROM content_reports WHERE id = $1`, [
+        reportId,
+      ])
+    ).rows[0];
+    expect(row.resolved_at).not.toBeNull();
+    expect(row.resolution).toBe('hidden');
   });
 
   it('hide on a profile report sets profile_hidden_at AND cascades to unpublish every one of that user’s live decks', async () => {

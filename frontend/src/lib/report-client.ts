@@ -31,6 +31,12 @@ export async function submitReport(input: {
     body: JSON.stringify(input),
   });
   if (!res.ok) {
+    // The 5/min limiter's rejection is a plain-text body, not JSON — routed
+    // on the status code rather than sniffing that text, since a proxy or a
+    // future limiter message shouldn't change which branch this takes.
+    if (res.status === 429) {
+      throw new Error("You've sent a few reports already. Try again in a minute.");
+    }
     throw new Error(await readError(res, "Couldn't send your report. Try again."));
   }
 }
