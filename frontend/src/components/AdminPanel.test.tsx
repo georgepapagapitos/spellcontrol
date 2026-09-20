@@ -18,6 +18,7 @@ const resolveReportMock =
 const deleteUserMock = vi.fn<(id: string) => Promise<void>>();
 const setUserAiMock =
   vi.fn<(id: string, patch: { access?: boolean; dailyLimit?: number | null }) => Promise<void>>();
+const setUserRoleMock = vi.fn<(id: string, role: 'admin' | 'user') => Promise<void>>();
 const emptyWindow = {
   calls: 0,
   inputTokens: 0,
@@ -40,6 +41,7 @@ vi.mock('../lib/admin-api', () => ({
   clearUserProfile: (id: string) => clearUserProfileMock(id),
   setUserAi: (id: string, patch: { access?: boolean; dailyLimit?: number | null }) =>
     setUserAiMock(id, patch),
+  setUserRole: (id: string, role: 'admin' | 'user') => setUserRoleMock(id, role),
   listReports: () => listReportsMock(),
   resolveReport: (id: string, action: 'dismiss' | 'hide') => resolveReportMock(id, action),
 }));
@@ -169,6 +171,63 @@ describe('AdminPanel — clear profile', () => {
     await waitFor(() => expect(screen.queryByText('Nova')).toBeNull());
     // Two dashes: the cleared Profile cell and the (empty) AI spend cell.
     expect(screen.getAllByText('—')).toHaveLength(2);
+  });
+});
+
+describe('AdminPanel — role management', () => {
+  it('cancel fires no API call; confirm grants admin and the row reflects it', async () => {
+    listUsersMock.mockResolvedValueOnce([baseUser]);
+
+    render(<AdminPanel currentUserId="admin-1" />);
+    await screen.findByText('nova');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for nova' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Make admin…' }));
+    await screen.findByText('Make admin?');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByText('Make admin?')).toBeNull());
+    expect(setUserRoleMock).not.toHaveBeenCalled();
+
+    listUsersMock.mockResolvedValueOnce([{ ...baseUser, role: 'admin' }]);
+    setUserRoleMock.mockResolvedValueOnce(undefined);
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for nova' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Make admin…' }));
+    await screen.findByText('Make admin?');
+    fireEvent.click(screen.getByRole('button', { name: 'Make admin' }));
+
+    await waitFor(() => expect(setUserRoleMock).toHaveBeenCalledWith('u1', 'admin'));
+    await waitFor(() => expect(screen.getByText('admin')).toBeTruthy());
+    expect(toastMessages()).toContain('nova is an admin');
+  });
+
+  it('offers revoke for an existing admin, and sends role=user', async () => {
+    listUsersMock.mockResolvedValueOnce([{ ...baseUser, role: 'admin' }]);
+    render(<AdminPanel currentUserId="admin-1" />);
+    await screen.findByText('nova');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for nova' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Revoke admin…' }));
+    await screen.findByText('Revoke admin?');
+
+    listUsersMock.mockResolvedValueOnce([baseUser]);
+    setUserRoleMock.mockResolvedValueOnce(undefined);
+    fireEvent.click(screen.getByRole('button', { name: 'Revoke admin' }));
+
+    await waitFor(() => expect(setUserRoleMock).toHaveBeenCalledWith('u1', 'user'));
+    expect(toastMessages()).toContain('nova is no longer an admin');
+  });
+
+  it('disables the role action on your own row', async () => {
+    listUsersMock.mockResolvedValueOnce([{ ...baseUser, id: 'admin-1', role: 'admin' }]);
+    render(<AdminPanel currentUserId="admin-1" />);
+    await screen.findByText('nova');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for nova' }));
+    const item = screen.getByRole('menuitem', { name: "Can't change your own role" });
+    expect(item.hasAttribute('disabled') || item.getAttribute('aria-disabled') === 'true').toBe(
+      true
+    );
   });
 });
 

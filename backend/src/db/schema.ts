@@ -28,7 +28,8 @@ export const users = pgTable('users', {
   email: text('email'),
   emailVerified: boolean('email_verified').notNull().default(false),
   // 'user' (default) or 'admin'. Admin grants access to /api/admin/*; promoted
-  // at boot for any username in ADMIN_USERNAMES, additively (never demotes).
+  // at boot for any VERIFIED email in ADMIN_EMAILS, additively (never
+  // demotes), and granted/revoked by id from the admin panel thereafter.
   role: text('role').notNull().default('user'),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   // Set when the OAuth callback auto-linked a new external identity to this

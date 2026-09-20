@@ -22,13 +22,25 @@ function asRole(raw: string | null | undefined): UserRole {
 }
 
 /**
- * Parse the `ADMIN_USERNAMES` env var into a normalized set. Comma-separated,
+ * Parse the `ADMIN_EMAILS` env var into a normalized set. Comma-separated,
  * case-insensitive, whitespace-tolerant. Empty/unset → empty set. Read fresh
  * each call so operators can change the env without rebuilding the image and
  * tests can flip the gate per-case.
+ *
+ * This is a BOOTSTRAP SEED, not an authorization mechanism: it exists to mint
+ * the first admin on a fresh database, and every actual permission check runs
+ * off `users.role` via `requireAdmin`. Promotion additionally requires a
+ * VERIFIED email (see `promoteAdminsAtBoot`), so holding an address in the
+ * var is not by itself enough.
+ *
+ * It replaced `ADMIN_USERNAMES`, which matched a mutable, reclaimable label
+ * on every boot: once usernames became changeable, releasing a former admin's
+ * handle would have let whoever claimed it be promoted at the next restart.
+ * An email can't be taken over that way, and `users.id` (the only truly
+ * immutable identifier) can't seed an account that doesn't exist yet.
  */
-export function getAdminUsernames(): Set<string> {
-  const raw = process.env.ADMIN_USERNAMES;
+export function getAdminEmails(): Set<string> {
+  const raw = process.env.ADMIN_EMAILS;
   if (!raw) return new Set();
   return new Set(
     raw

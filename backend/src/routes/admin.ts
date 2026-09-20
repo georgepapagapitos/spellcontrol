@@ -8,6 +8,7 @@ import { invalidateDeckPublicationCache, invalidatePublicUserCache } from '../pu
 import { invalidateShareContext } from '../shares/context';
 import { purgeUserPublicCaches } from '../publications/purge';
 import { AI_MODEL, estimateUsd, type AiTokenCounts } from '../ai/client';
+import { logger } from '../logger';
 
 export const adminRouter: Router = Router();
 
@@ -223,6 +224,50 @@ adminRouter.patch('/users/:id/ai', requireAdmin, adminLimiter, async (req, res) 
     .where(eq(users.id, id))
     .returning({ aiAccess: users.aiAccess, aiDailyLimit: users.aiDailyLimit });
   if (updated.length === 0) return res.status(404).json({ error: 'User not found.' });
+  res.json({ ok: true, ...updated[0] });
+});
+
+/**
+ * PATCH /api/admin/users/:id/role
+ * body `{ role: 'admin' | 'user' }` — grant or revoke the admin seat, keyed
+ * on the immutable `users.id`.
+ *
+ * This is the ONLY ongoing way to change who is an admin. `ADMIN_EMAILS` is a
+ * bootstrap seed for the first admin on a fresh database; before this route
+ * existed it was also the only way to mint one, which made a config string
+ * load-bearing for the sole privileged role in the system.
+ *
+ * One guard: you cannot change your own role. That single rule is also what
+ * keeps the deployment from ending up with zero admins — the caller is an
+ * admin (requireAdmin re-reads the row), so any target other than themselves
+ * leaves their own seat standing. A separate "is this the last admin" check
+ * would be unreachable: the only way for the target to be the sole admin is
+ * for the target to BE the caller, which the self guard already refuses.
+ */
+adminRouter.patch('/users/:id/role', requireAdmin, adminLimiter, async (req, res) => {
+  const id = req.params.id;
+  if (typeof id !== 'string' || id.length === 0) {
+    return res.status(400).json({ error: 'Missing user id.' });
+  }
+  const role = (req.body as { role?: unknown }).role;
+  if (role !== 'admin' && role !== 'user') {
+    return res.status(400).json({ error: "role must be 'admin' or 'user'." });
+  }
+  if (id === req.user!.id) {
+    return res.status(400).json({ error: 'You cannot change your own role.' });
+  }
+
+  const updated = await getDb()
+    .update(users)
+    .set({ role })
+    .where(eq(users.id, id))
+    .returning({ username: users.username, role: users.role });
+  if (updated.length === 0) return res.status(404).json({ error: 'User not found.' });
+  // Role changes are the highest-privilege mutation the panel offers, so both
+  // sides of the change go in the log with the actor.
+  logger.info(
+    `[admin] ${req.user!.username} set role of "${updated[0]!.username}" (${id}) to ${role}`
+  );
   res.json({ ok: true, ...updated[0] });
 });
 

@@ -107,7 +107,7 @@ const aiReadLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 });
  * Feature flag: while the AI features are experimental they are admin-only,
  * so they can't be abused before the quota/prompt story is proven out. Set
  * `AI_PUBLIC=1` to open them to every account. Read fresh per request (like
- * `ADMIN_USERNAMES`) so flipping the env var needs no rebuild.
+ * `ADMIN_EMAILS`) so flipping the env var needs no rebuild.
  */
 const aiPublic = (): boolean => process.env.AI_PUBLIC === '1';
 

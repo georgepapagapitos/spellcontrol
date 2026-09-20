@@ -48,8 +48,6 @@ jobs:
     env:
       DATABASE_URL: postgres://spellcontrol:spellcontrol@localhost:5432/spellcontrol
       JWT_SECRET: nightly-journey-jwt-secret-not-a-secret
-      # The journey's fixed account is an admin so the walk covers /admin too.
-      ADMIN_USERNAMES: journeyadmin
       # Reference-data ingests are hours of network; the journey needs none.
       SCRYFALL_BULK_INGEST_DISABLED: '1'
       COMBOS_INGEST_DISABLED: '1'
@@ -113,6 +111,19 @@ jobs:
             sleep 2
           done
           echo "backend never answered /health"; cat backend.log; exit 1
+
+      # The journey's fixed account has to be an admin for the walk to cover
+      # /admin. Admin is seeded from VERIFIED emails now (ADMIN_EMAILS), and
+      # this account can't receive mail, so the seat is granted out-of-band
+      # here instead: register through the real endpoint, then promote with
+      # one UPDATE. The journey itself sees a 409 and signs in, exactly as it
+      # already does on any re-run against a warm database.
+      - name: Seed the journey's admin account
+        env:
+          PGPASSWORD: spellcontrol
+        run: |
+          curl -s -o /dev/null -X POST http://localhost:3737/api/auth/register -H 'Content-Type: application/json' -d '{"username":"journeyadmin","password":"journey-pass-journeyadmin"}'
+          psql -h localhost -U spellcontrol -d spellcontrol -c "UPDATE users SET role = 'admin' WHERE username = 'journeyadmin'"
 
       - name: Journey in Chrome (phone + desktop)
         run: node scripts/journey.mjs --base http://localhost:3737 --browser chrome --username journeyadmin --out journey-chrome
