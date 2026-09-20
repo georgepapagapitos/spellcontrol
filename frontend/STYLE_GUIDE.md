@@ -5261,6 +5261,18 @@ half comes from `data-card-id` on `PlaytestCardFace` plus
 mouse re-renders nothing. A key over a card that isn't yours resolves to
 nothing and **falls through to the browser** rather than being swallowed.
 
+**A key may read the context, and `=` / `-` do.** With a card targeted they
+are ±1/±1 counters; with nothing targeted they size the cards. That is
+EDHPlay's own mapping (its spec lists `-` under both global actions and
+counters) and what this board did before the map was first written, which
+split them into four separate keys and quietly cost the muscle memory the map
+exists to preserve. The two meanings do not compete in play: you reach for a
+counter with a card under the pointer, and for card size while looking at the
+whole board. The shifted `plus` / `_` stay bound as the form that only ever
+means a counter, so the unambiguous route survives. A context-reading key
+must state both halves in its label — the shortcuts sheet is generated from
+those labels, so a key that behaves two ways and says one is a lie.
+
 **Every key has a pointer twin.** A shortcut that exists only on the keyboard
 is not shipped: each one is also a card-menu item, a table-menu item, or a
 control on the surface it drives (the stack strip's own buttons). Menu items

@@ -1248,6 +1248,13 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         if (opp) setViewingBoardSeat(opp.board.seat);
       };
       const stepPT = (power: number, toughness: number) => adjustPT(targets, power, toughness);
+      /** A ±1/±1 counter on everything targeted, or `false` when nothing is —
+       *  which is what lets `=` and `-` fall through to card size. */
+      const stepCounter = (counter: '+1/+1' | '-1/-1') => {
+        if (bfTargets.length === 0) return false;
+        for (const cardId of bfTargets)
+          dispatch({ type: 'SET_COUNTER', cardId, counter, delta: 1 });
+      };
       // `false` from a handler means "nothing to act on": the key is left to
       // the browser (so ⌘C over real text still copies text, and Space on a
       // focused button still presses it).
@@ -1329,18 +1336,20 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         reveal: () => toggleReveal(targets),
         'to-battlefield': () => moveToBattlefield(targets),
         counters: () => (bfTargets.length > 0 ? openCounters(bfTargets[0]) : false),
-        'size-up': () => (isNarrow ? false : stepZoom(1)),
-        'size-down': () => (isNarrow ? false : stepZoom(-1)),
-        'counter-plus': () => {
-          if (bfTargets.length === 0) return false;
-          for (const cardId of bfTargets)
-            dispatch({ type: 'SET_COUNTER', cardId, counter: '+1/+1', delta: 1 });
-        },
-        'counter-minus': () => {
-          if (bfTargets.length === 0) return false;
-          for (const cardId of bfTargets)
-            dispatch({ type: 'SET_COUNTER', cardId, counter: '-1/-1', delta: 1 });
-        },
+        // `=` and `-` read the context, which is EDHPlay's own mapping and
+        // what this board did before the keyboard map split them into four
+        // keys: with a card under the pointer (or a selection) they are
+        // ±1/±1 counters, with nothing targeted they size the cards. The two
+        // never compete in play — you reach for a counter with a card under
+        // the pointer, and for card size while looking at the whole board —
+        // and the shifted `plus` / `_` below stay bound as the unambiguous
+        // way to force a counter whatever the pointer is over.
+        'size-up': () =>
+          bfTargets.length > 0 ? stepCounter('+1/+1') : isNarrow ? false : stepZoom(1),
+        'size-down': () =>
+          bfTargets.length > 0 ? stepCounter('-1/-1') : isNarrow ? false : stepZoom(-1),
+        'counter-plus': () => stepCounter('+1/+1'),
+        'counter-minus': () => stepCounter('-1/-1'),
         'counters-all-inc': () => adjustAllCounters(bfTargets, 'inc'),
         'counters-all-double': () => adjustAllCounters(bfTargets, 'double'),
         'counters-all-dec': () => adjustAllCounters(bfTargets, 'dec'),
