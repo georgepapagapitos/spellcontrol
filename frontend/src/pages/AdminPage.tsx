@@ -25,6 +25,7 @@ import {
 } from '../lib/admin-api';
 import { formatRelativeTime } from '../lib/format-time';
 import { userMessage } from '../lib/user-error';
+import { toast } from '../store/toasts';
 
 type Tab = 'analytics' | 'users' | 'overview' | 'decks' | 'storage' | 'raw';
 
@@ -54,8 +55,6 @@ export function AdminPage() {
   const hydrating = useCollectionStore((s) => s.hydrating);
   const binders = useCollectionStore((s) => s.binders);
   const importHistory = useCollectionStore((s) => s.importHistory);
-  const fileName = useCollectionStore((s) => s.fileName);
-  const uploadedAt = useCollectionStore((s) => s.uploadedAt);
   const clearCards = useCollectionStore((s) => s.clearCards);
   const deleteAllBinders = useCollectionStore((s) => s.deleteAllBinders);
   const decks = useDecksStore((s) => s.decks);
@@ -499,8 +498,6 @@ export function AdminPage() {
 
       {tab === 'storage' && (
         <StorageTab
-          fileName={fileName}
-          uploadedAt={uploadedAt}
           importHistory={importHistory}
           onClearCards={async () => {
             const ok = await confirm({
@@ -666,8 +663,6 @@ function DeckDetail({
 }
 
 function StorageTab({
-  fileName,
-  uploadedAt,
   importHistory,
   onClearCards,
   onClearBinders,
@@ -675,8 +670,6 @@ function StorageTab({
   onNuke,
   onRerunRemap,
 }: {
-  fileName: string;
-  uploadedAt: number | null;
   importHistory: { id: string; name: string; count: number; format: string; addedAt: number }[];
   onClearCards: () => void;
   onClearBinders: () => void;
@@ -695,10 +688,6 @@ function StorageTab({
         server except through a normal sync.
       </p>
       <h3>Imports</h3>
-      <p className="admin-sub">
-        Most recent file: <code>{fileName || '(none)'}</code>{' '}
-        {uploadedAt ? `at ${new Date(uploadedAt).toLocaleString()}` : ''}
-      </p>
       <table className="admin-table admin-table--dense">
         <thead>
           <tr>
@@ -764,8 +753,16 @@ function RawTab({
   importHistory: unknown[];
 }) {
   const copy = (label: string, value: unknown) => {
-    void navigator.clipboard.writeText(JSON.stringify(value, null, 2));
-    logger.debug(`[admin] copied ${label}:`, value);
+    navigator.clipboard
+      .writeText(JSON.stringify(value, null, 2))
+      .then(() => {
+        logger.debug(`[admin] copied ${label}:`, value);
+        toast.show({ message: `Copied ${label}.`, tone: 'success' });
+      })
+      .catch((err: unknown) => {
+        logger.warn(`[admin] clipboard write failed for ${label}:`, err);
+        toast.show({ message: "Couldn't copy to the clipboard.", tone: 'error' });
+      });
   };
   const download = (filename: string, value: unknown) => {
     const blob = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' });
@@ -784,9 +781,9 @@ function RawTab({
         chat or just expand in DevTools.
       </p>
       <div className="admin-raw-actions">
-        <button onClick={() => copy('decks', decks)}>Copy decks JSON</button>
-        <button onClick={() => copy('binders', binders)}>Copy binders JSON</button>
-        <button onClick={() => copy('importHistory', importHistory)}>Copy import history</button>
+        <button onClick={() => copy('decks JSON', decks)}>Copy decks JSON</button>
+        <button onClick={() => copy('binders JSON', binders)}>Copy binders JSON</button>
+        <button onClick={() => copy('import history', importHistory)}>Copy import history</button>
         <button onClick={() => download('collection.json', cards)}>
           Download collection.json ({cards.length} cards)
         </button>
