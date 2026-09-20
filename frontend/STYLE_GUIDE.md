@@ -1203,9 +1203,15 @@ own table.
   virtualized (a binder), pin the group row below the column header with real
   `position: sticky` at `--ct-head-h`; only a virtualized surface (Collection,
   whose rows are absolutely positioned) needs the measured floating overlay.
-- **Uppercase a group label only when it's a category word.** Collection
-  uppercases its groups; a binder doesn't, because its sections are named by
-  data — a set, a Secret Lair drop — and those keep their own case.
+- **A group label carries the case it was given.** No `text-transform` on
+  `.collection-list-section-label`, on any surface. `getSectionMeta` returns
+  display-ready labels, and they are two different kinds of thing — category
+  words the app wrote ("White", "Creature", "Mythic") and names that came from
+  card data ("Bloomburrow", "Secret Lair Drop: Artist Series"). CSS can't tell
+  them apart, so uppercasing decorated the first kind by mangling the second.
+  (A `*-section-label` heading a block of FORM controls — the filter panels,
+  the card editor — is a different class and stays uppercase: that text is
+  always a category word the app wrote.)
 - **The header pins below whatever is sticky above it.** A table nested under a
   hub's tab strip pins at `--hub-tabs-sticky-h`, not at the top of the
   scrollport — which is behind the tabs, where the header vanishes for the whole
