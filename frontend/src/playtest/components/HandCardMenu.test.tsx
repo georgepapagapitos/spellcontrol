@@ -60,3 +60,31 @@ describe('HandCardMenu', () => {
     expect(screen.getByRole('button', { name: 'Close' })).toBeTruthy();
   });
 });
+
+/**
+ * E348: arranging the hand is a drag, so it needs a path for a keyboard and
+ * for a screen reader. These rows are it — and they disappear at the ends,
+ * where the move would do nothing.
+ */
+describe('HandCardMenu — arranging the hand (E348)', () => {
+  it('moves the card a place in either direction', () => {
+    const onMove = vi.fn();
+    const p = renderMenu({ onMove, canMoveEarlier: true, canMoveLater: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Move it left' }));
+    expect(onMove).toHaveBeenLastCalledWith(-1);
+    fireEvent.click(screen.getByRole('button', { name: 'Move it right' }));
+    expect(onMove).toHaveBeenLastCalledWith(1);
+    expect(p.onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('offers nothing at the end it cannot move towards', () => {
+    renderMenu({ onMove: vi.fn(), canMoveEarlier: false, canMoveLater: true });
+    expect(screen.queryByRole('button', { name: 'Move it left' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Move it right' })).toBeTruthy();
+  });
+
+  it('says nothing about arranging when the caller does not offer it', () => {
+    renderMenu();
+    expect(screen.queryByText('Arrange')).toBeNull();
+  });
+});

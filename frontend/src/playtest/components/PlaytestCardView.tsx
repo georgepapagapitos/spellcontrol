@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
-import { hostDroppableId } from '../lib/zones';
+import { handSlotDroppableId, hostDroppableId } from '../lib/zones';
 import type { BattlefieldCard, PlaytestCard } from '@/lib/playtest';
 import { useLongPress } from '@/lib/use-long-press';
 import { PlaytestCardFace } from './PlaytestCardFace';
@@ -24,6 +24,11 @@ interface Props {
   /** Suppresses the card's own read-only power/toughness box — the caller is
    *  rendering the editable badges beside it instead. */
   ptHidden?: boolean;
+  /** In hand, with arranging on (E348): the card is also a drop target for
+   *  its neighbours, so dragging one onto it puts that card in this place.
+   *  Registered on the card's own node — the same shape as the battlefield's
+   *  host droppable below, and the only one that has a box to measure. */
+  handSlot?: boolean;
   /** Part of the current battlefield selection (E226 group copy). A plain
    *  boolean rather than the whole set so `memo` only re-renders the cards
    *  whose own selection actually changed. */
@@ -43,6 +48,7 @@ export const PlaytestCardView = memo(function PlaytestCardView({
   title,
   positioned = false,
   ptHidden = false,
+  handSlot = false,
   selected = false,
   size = 'md',
   onStack = false,
@@ -57,6 +63,7 @@ export const PlaytestCardView = memo(function PlaytestCardView({
   // is inert for every other drag. Disabled off the battlefield (hand cards
   // aren't hosts) — the hook must still be called unconditionally.
   const host = useDroppable({ id: hostDroppableId(card.id), disabled: !positioned });
+  const slot = useDroppable({ id: handSlotDroppableId(card.id), disabled: !handSlot });
 
   const longPress = useLongPress({
     onLongPress: (x, y) => onLongPress?.(card.id, x, y),
@@ -89,6 +96,7 @@ export const PlaytestCardView = memo(function PlaytestCardView({
       ref={(el) => {
         setNodeRef(el);
         host.setNodeRef(el);
+        slot.setNodeRef(el);
       }}
       card={card}
       bf={bf}
@@ -99,7 +107,11 @@ export const PlaytestCardView = memo(function PlaytestCardView({
       {...attributes}
       {...listeners}
       className={
-        [selected && 'playtest-card--selected', host.isOver && 'is-attach-target']
+        [
+          selected && 'playtest-card--selected',
+          host.isOver && 'is-attach-target',
+          slot.isOver && 'is-hand-drop',
+        ]
           .filter(Boolean)
           .join(' ') || undefined
       }

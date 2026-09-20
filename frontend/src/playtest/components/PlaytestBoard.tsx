@@ -68,7 +68,7 @@ import { TakebackConsentPrompt } from './TakebackConsentPrompt';
 import { toast } from '@/store/toasts';
 import { autoPlace } from '../lib/auto-place';
 import { makePlaytestCollision } from '../lib/attach-drop';
-import { hostFromDroppableId } from '../lib/zones';
+import { handSlotFromDroppableId, hostFromDroppableId } from '../lib/zones';
 import { haptics } from '@/lib/haptics';
 import { cachedCardThumb } from '@/lib/card-thumbs';
 import { Battlefield } from './Battlefield';
@@ -483,6 +483,17 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     const parsed = parseDraggable(String(event.active.id));
     if (!parsed) return;
     const overId = event.over?.id ? String(event.over.id) : null;
+
+    // Arranging the hand: one hand card dropped onto another takes its place.
+    const slotId = handSlotFromDroppableId(overId);
+    if (slotId && parsed.source === 'hand') {
+      const toIndex = state.zones.hand.findIndex((c) => c.id === slotId);
+      if (toIndex >= 0) {
+        dispatch({ type: 'REORDER_HAND', cardId: parsed.cardId, toIndex });
+        haptics.tap();
+      }
+      return;
+    }
 
     const hostId = hostFromDroppableId(overId);
     if (hostId) {
@@ -2138,6 +2149,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                 <Hand
                   cards={state.zones.hand}
                   fan
+                  reorderable
                   onCardClick={handleHandCardClick}
                   onCardMenu={handleHandCardMenu}
                   revealedIds={revealedIds}
@@ -2165,6 +2177,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           ) : (
             <Hand
               cards={state.zones.hand}
+              reorderable
               onCardClick={handleHandCardClick}
               onCardMenu={handleHandCardMenu}
               revealedIds={revealedIds}
@@ -2389,6 +2402,20 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               : undefined
           }
           onPutOnStack={() => putOnStack([handMenu.cardId])}
+          onMove={(direction) => {
+            const from = state.zones.hand.findIndex((c) => c.id === handMenu.cardId);
+            if (from >= 0)
+              dispatch({
+                type: 'REORDER_HAND',
+                cardId: handMenu.cardId,
+                toIndex: from + direction,
+              });
+          }}
+          canMoveEarlier={state.zones.hand.findIndex((c) => c.id === handMenu.cardId) > 0}
+          canMoveLater={
+            state.zones.hand.findIndex((c) => c.id === handMenu.cardId) <
+            state.zones.hand.length - 1
+          }
         />
       )}
 

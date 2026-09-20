@@ -431,6 +431,18 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       next.battlefield = restackWithAttachments(next.battlefield, action.cardId);
       return withHistory(state, next);
     }
+    case 'REORDER_HAND': {
+      const from = state.zones.hand.findIndex((c) => c.id === action.cardId);
+      if (from < 0) return state;
+      const to = Math.min(Math.max(0, Math.trunc(action.toIndex)), state.zones.hand.length - 1);
+      if (to === from) return state;
+      const next = snapshot(state);
+      const hand = [...next.zones.hand];
+      const [card] = hand.splice(from, 1);
+      hand.splice(to, 0, card);
+      next.zones = { ...next.zones, hand };
+      return withHistory(state, next);
+    }
     case 'TAP': {
       const idx = state.battlefield.findIndex((b) => b.card.id === action.cardId);
       if (idx < 0) return state;

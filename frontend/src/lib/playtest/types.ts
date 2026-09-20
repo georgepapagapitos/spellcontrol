@@ -235,6 +235,10 @@ export type PlaytestAction =
       faceDown?: boolean;
     }
   | { type: 'MOVE_BF_POSITION'; cardId: string; x: number; y: number }
+  /** Arranges the hand: moves one card to a position among the others. The
+   *  order is yours alone — nobody else ever sees your hand — but it lives in
+   *  the state so it survives a reload of the session. */
+  | { type: 'REORDER_HAND'; cardId: string; toIndex: number }
   | { type: 'TAP'; cardId: string; tapped?: boolean }
   | { type: 'UNTAP_ALL' }
   | { type: 'SET_COUNTER'; cardId: string; counter: string; delta: number }

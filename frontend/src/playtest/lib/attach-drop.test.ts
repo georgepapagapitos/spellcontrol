@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import type { CollisionDetection } from '@dnd-kit/core';
 import type { PlaytestCard } from '@/lib/playtest';
 import { makePlaytestCollision } from './attach-drop';
-import { hostDroppableId, hostFromDroppableId, isPlaytestAttachment } from './zones';
+import {
+  handSlotDroppableId,
+  handSlotFromDroppableId,
+  hostDroppableId,
+  hostFromDroppableId,
+  isPlaytestAttachment,
+} from './zones';
 
 describe('isPlaytestAttachment', () => {
   it.each([
@@ -84,5 +90,76 @@ describe('makePlaytestCollision', () => {
       active: { id: 'bf:c2', data: { current: { cardId: 'c2' } } },
     } as never);
     expect(hits.map((h) => String(h.id)).some((id) => id === hostDroppableId('c2'))).toBe(false);
+  });
+});
+
+/** The same shape as `args` above, but for the hand: two overlapping cards in
+ *  a fan with the pointer resting on the second one. */
+function handArgs(activeCardId: string): Parameters<CollisionDetection>[0] {
+  const rect = (left: number, top: number, w: number, h: number) => ({
+    left,
+    top,
+    width: w,
+    height: h,
+    right: left + w,
+    bottom: top + h,
+  });
+  // The fan overlaps by two thirds, which is why the pointer decides.
+  const droppableRects = new Map<string, ReturnType<typeof rect>>([
+    ['hand', rect(0, 500, 400, 140)],
+    ['battlefield', rect(0, 0, 1000, 480)],
+    [handSlotDroppableId('h1'), rect(100, 500, 100, 140)],
+    [handSlotDroppableId('h2'), rect(133, 500, 100, 140)],
+  ]);
+  return {
+    active: { id: `hand:${activeCardId}`, data: { current: { cardId: activeCardId } } },
+    collisionRect: rect(140, 500, 100, 140),
+    droppableRects,
+    droppableContainers: [...droppableRects.keys()].map((id) => ({
+      id,
+      data: { current: undefined },
+      disabled: false,
+      node: { current: null },
+      rect: { current: droppableRects.get(id)! },
+      key: id,
+    })),
+    pointerCoordinates: { x: 200, y: 560 },
+  } as unknown as Parameters<CollisionDetection>[0];
+}
+
+/**
+ * E348: arranging the hand is a drag from one hand card onto another, and the
+ * fan overlaps by two thirds — so the card under the POINTER wins, exactly as
+ * it does for drag-to-attach. Every other drag must never see a hand slot, or
+ * a card dragged back from the battlefield would "arrange" instead of coming
+ * home.
+ */
+describe('makePlaytestCollision — arranging the hand', () => {
+  const detect = makePlaytestCollision(() => undefined);
+
+  it('round-trips the hand-slot ids and rejects every other droppable', () => {
+    expect(handSlotFromDroppableId(handSlotDroppableId('abc'))).toBe('abc');
+    expect(handSlotFromDroppableId('hand')).toBeNull();
+    expect(handSlotFromDroppableId(hostDroppableId('abc'))).toBeNull();
+    expect(handSlotFromDroppableId(null)).toBeNull();
+  });
+
+  it('reports the hand card under the pointer when a hand card is dragged', () => {
+    expect(detect(handArgs('h1')).map((h) => String(h.id))).toEqual([handSlotDroppableId('h2')]);
+  });
+
+  it('never offers a card its own slot', () => {
+    const hits = detect(handArgs('h2')).map((h) => String(h.id));
+    expect(hits).not.toContain(handSlotDroppableId('h2'));
+  });
+
+  it('never offers a hand slot to a card coming from the battlefield', () => {
+    const fromBoard = {
+      ...handArgs('h1'),
+      active: { id: 'bf:b1', data: { current: { cardId: 'b1' } } },
+    } as never;
+    const hits = detect(fromBoard).map((h) => String(h.id));
+    expect(hits).toContain('hand');
+    expect(hits.some((id) => id.startsWith('handslot:'))).toBe(false);
   });
 });

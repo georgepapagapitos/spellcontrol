@@ -20,6 +20,17 @@ export function isPlaytestAttachment(typeLine?: string): boolean {
   return /\b(aura|equipment|fortification)\b/i.test(typeLine ?? '');
 }
 
+/** The droppable id a card in hand registers so another hand card can be
+ *  dropped onto it — how the hand is arranged (E348). */
+export function handSlotDroppableId(cardId: string): string {
+  return `handslot:${cardId}`;
+}
+
+/** Inverse of `handSlotDroppableId`; null for any other droppable. */
+export function handSlotFromDroppableId(id: string | null | undefined): string | null {
+  return id && id.startsWith('handslot:') ? id.slice(9) : null;
+}
+
 /** The droppable id a battlefield permanent registers as a potential host. */
 export function hostDroppableId(cardId: string): string {
   return `host:${cardId}`;

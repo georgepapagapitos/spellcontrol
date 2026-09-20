@@ -179,3 +179,28 @@ describe('the mulligan rule in force', () => {
     expect(screen.queryByRole('checkbox', { name: 'Free mulligans' })).toBeNull();
   });
 });
+
+/**
+ * E348: the takeover was the ONLY place a hand could be rearranged — at the
+ * one moment you are deciding keep-or-mulligan, and on the same cards the
+ * bottom-N step wants you to tap. Arranging moved to the hand you play with
+ * (`Hand` / `HandDrawer`); this pins the takeover staying out of it, since a
+ * dnd-kit wrapper is exactly the kind of thing that creeps back.
+ */
+describe('OpeningHandSheet — no dragging here (E348)', () => {
+  it('never tells the player to drag, in copy or in the accessible name', () => {
+    stubViewport(true);
+    const { container } = renderSheet();
+    expect(container.textContent).not.toMatch(/drag/i);
+    expect(screen.getByLabelText(/^Opening hand:/).getAttribute('aria-label')).not.toMatch(/drag/i);
+  });
+
+  it('leaves the cards in the order they were dealt', () => {
+    stubViewport(true);
+    renderSheet({ hand: hand(3) });
+    const names = Array.from(document.querySelectorAll('.playtest-opening-card')).map((el) =>
+      el.getAttribute('aria-label')
+    );
+    expect(names).toEqual(['Card 0', 'Card 1', 'Card 2']);
+  });
+});
