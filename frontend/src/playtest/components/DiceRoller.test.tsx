@@ -4,7 +4,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { usePlayStore } from '@/store/play';
 import { useAuth } from '@/store/auth';
 import { createGameState, makePlayer } from '@/lib/game-state';
+import { usePlaytestStore } from '../store';
 import { DiceRoller } from './DiceRoller';
+
+const MY_DECK = 'deck-mine';
 
 function onlineGame() {
   return createGameState({
@@ -24,6 +27,7 @@ function onlineGame() {
         name: 'Me',
         startingLife: 40,
         isHost: true,
+        deckId: MY_DECK,
       }),
       makePlayer({ id: 'p1', userId: 'u1', seat: 1, name: 'Priya', startingLife: 40 }),
     ],
@@ -62,6 +66,7 @@ describe('DiceRoller — online table linked', () => {
   beforeEach(() => {
     useAuth.setState({ user: { id: 'me-id', username: 'me', role: 'user' } });
     usePlayStore.setState({ online: onlineGame(), onlineSignal: null, sendSignal: vi.fn() });
+    usePlaytestStore.setState({ deckId: MY_DECK });
   });
 
   it.each([
@@ -125,5 +130,17 @@ describe('DiceRoller — online table linked', () => {
       });
     });
     expect(screen.getByRole('status').textContent).toBe('Tap a die or the coin to roll.');
+  });
+
+  it('sends nothing while goldfishing a different deck than the seat', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    usePlaytestStore.setState({ deckId: 'deck-other' });
+    const sendSignal = vi.fn();
+    usePlayStore.setState({ sendSignal });
+    render(<DiceRoller onClose={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'd6' }));
+    expect(sendSignal).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Who goes first?' })).toBeNull();
   });
 });

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { usePlayStore } from '@/store/play';
 import { turnStartedAt } from '@/lib/game-clock';
-import { useAuth } from '@/store/auth';
 import { publishBoard } from '@/lib/games-board';
 import { toPublicBoard, toPublicTicker, type PublicBoard } from '@/lib/playtest/projection';
 import type { PlaytestState } from '@/lib/playtest';
@@ -15,6 +14,7 @@ import type {
   MulliganType,
 } from '@/lib/game-state';
 import { usePlaytestStore } from '../store';
+import { useTableSeat } from './use-table-seat';
 import type { OpponentSeat } from '../components/OpponentRail';
 
 export interface OnlineTable {
@@ -88,8 +88,17 @@ function pendingBoard(seat: number, life: number): PublicBoard {
  * The conditional multiplayer seam: playtest and online games are otherwise
  * independent worlds. This hook is the single place that decides whether
  * they're linked for the current render — derived, not a mode toggle: linked
- * exactly when `usePlayStore().online` exists AND this device holds a seat in
- * it (same `userId` match `GameBoard` uses to find "which panel is mine").
+ * exactly when `usePlayStore().online` exists, this device holds a seat in it
+ * (same `userId` match `GameBoard` uses to find "which panel is mine") **and
+ * the deck being playtested is the deck on that seat**.
+ *
+ * The deck half of that test is load-bearing. Holding a seat used to be the
+ * whole condition, so opening ANY of your decks to goldfish while seated
+ * turned that goldfish into your seat's board: it published a board the table
+ * was not playing against, and took the table's authoritative life total for
+ * its own. Goldfishing a deck that is not your seat's is an ordinary solo
+ * session, and a seat with no deck yet is nobody's board — the board door's
+ * "pick a deck to open your board" is the route that sets it.
  *
  * When linked: publishes `state` (debounced inside `publishBoard`, so this
  * calls it on every change rather than adding a second debounce) and returns
@@ -99,15 +108,13 @@ function pendingBoard(seat: number, life: number): PublicBoard {
  * link "derived" instead of a route/flag a solo session has to opt out of.
  */
 export function useOnlineTable(state: PlaytestState): OnlineTable | null {
-  const online = usePlayStore((s) => s.online);
   const onlineBoards = usePlayStore((s) => s.onlineBoards);
-  const userId = useAuth((s) => s.user?.id ?? null);
-
-  const mine = useMemo(
-    () =>
-      online && userId != null ? (online.players.find((p) => p.userId === userId) ?? null) : null,
-    [online, userId]
-  );
+  // One rule, one place — see `useTableSeat`. `online` is read THROUGH it so
+  // an unlinked board cannot reach the game at all: no code to publish to, no
+  // id to dispatch against.
+  const link = useTableSeat();
+  const online = link?.online ?? null;
+  const mine = link?.seat ?? null;
   const code = online?.code ?? null;
   const mySeat = mine?.seat ?? null;
 

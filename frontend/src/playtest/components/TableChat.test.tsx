@@ -4,8 +4,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { usePlayStore } from '@/store/play';
 import { useAuth } from '@/store/auth';
 import { createGameState, makePlayer } from '@/lib/game-state';
+import { usePlaytestStore } from '../store';
 import { TableChat } from './TableChat';
 import { MAX_CHAT_LEN } from '../lib/table-signals';
+
+const MY_DECK = 'deck-mine';
 
 function onlineGame() {
   return createGameState({
@@ -25,6 +28,7 @@ function onlineGame() {
         name: 'Me',
         startingLife: 40,
         isHost: true,
+        deckId: MY_DECK,
       }),
       makePlayer({ id: 'p1', userId: 'u1', seat: 1, name: 'Rival', startingLife: 40 }),
     ],
@@ -43,6 +47,7 @@ beforeEach(() => {
   sendSignal = makeSendSignal();
   useAuth.setState({ user: { id: 'me-id', username: 'me', role: 'user' } });
   usePlayStore.setState({ online: onlineGame(), sendSignal });
+  usePlaytestStore.setState({ deckId: MY_DECK });
 });
 
 function field() {
@@ -58,6 +63,12 @@ describe('TableChat', () => {
 
   it('renders nothing when online but this device holds no seat', () => {
     useAuth.setState({ user: { id: 'someone-else', username: 'x', role: 'user' } });
+    const { container } = render(<TableChat idPrefix="t" />);
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('renders nothing while goldfishing a different deck than the seat', () => {
+    usePlaytestStore.setState({ deckId: 'deck-other' });
     const { container } = render(<TableChat idPrefix="t" />);
     expect(container.innerHTML).toBe('');
   });

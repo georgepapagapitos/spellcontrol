@@ -5,7 +5,10 @@ import { usePlayStore } from '@/store/play';
 import { useAuth } from '@/store/auth';
 import { createGameState, makePlayer } from '@/lib/game-state';
 import type { GameSignal } from '@/lib/games-api';
+import { usePlaytestStore } from '../store';
 import { TableSignals } from './TableSignals';
+
+const MY_DECK = 'deck-mine';
 
 function onlineGame() {
   const g = createGameState({
@@ -25,6 +28,7 @@ function onlineGame() {
         name: 'Me',
         startingLife: 40,
         isHost: true,
+        deckId: MY_DECK,
       }),
       makePlayer({ id: 'p1', userId: 'u1', seat: 1, name: 'Maya', startingLife: 40 }),
       makePlayer({ id: 'p2', userId: 'u2', seat: 2, name: 'Priya', startingLife: 40 }),
@@ -40,6 +44,7 @@ function withSignal(seq: number, signal: GameSignal) {
 beforeEach(() => {
   useAuth.setState({ user: { id: 'me-id', username: 'me', role: 'user' } });
   usePlayStore.setState({ online: onlineGame(), onlineSignal: null, sendSignal: vi.fn() });
+  usePlaytestStore.setState({ deckId: MY_DECK });
   vi.useFakeTimers();
 });
 
@@ -194,6 +199,15 @@ describe('TableSignals', () => {
     render(<TableSignals />);
     await act(async () => {
       withSignal(1, { kind: 'arrow', seat: 1, ts: 1, op: 'add', fromSeat: 1, toSeat: 0 });
+    });
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('renders nothing while goldfishing a different deck than the seat', async () => {
+    usePlaytestStore.setState({ deckId: 'deck-other' });
+    render(<TableSignals />);
+    await act(async () => {
+      withSignal(1, { kind: 'reaction', seat: 1, ts: 1, emote: '👍' });
     });
     expect(screen.queryByRole('status')).toBeNull();
   });

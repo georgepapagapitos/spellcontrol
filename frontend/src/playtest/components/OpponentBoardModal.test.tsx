@@ -14,6 +14,9 @@ import { getCardsByIds, getCardsByNames } from '@/deck-builder/services/scryfall
 import { usePlayStore } from '@/store/play';
 import { useAuth } from '@/store/auth';
 import { createGameState, makePlayer } from '@/lib/game-state';
+import { usePlaytestStore } from '../store';
+
+const MY_DECK = 'deck-mine';
 
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
   getCardsByIds: vi.fn(),
@@ -413,11 +416,13 @@ describe('OpponentBoardModal — pointing', () => {
             name: 'Me',
             startingLife: 40,
             isHost: true,
+            deckId: MY_DECK,
           }),
           makePlayer({ id: 'p', userId: 'u', seat: 0, name: 'Priya', startingLife: 40 }),
         ],
       }),
     });
+    usePlaytestStore.setState({ deckId: MY_DECK });
     return sendSignal;
   }
 
@@ -519,5 +524,20 @@ describe('OpponentBoardModal — pointing', () => {
     // Guard against a vacuous pass: the tile exists, it just isn't lit.
     expect(document.querySelector('.opponent-board-card')).toBeTruthy();
     expect(document.querySelector('.opponent-board-card.is-pointed')).toBeNull();
+  });
+
+  it('sends nothing while goldfishing a different deck than the seat', () => {
+    seatMeOnline();
+    usePlaytestStore.setState({ deckId: 'deck-other' });
+    resolveAll([scryCard('c1', 'Sol Ring')]);
+    render(
+      <OpponentBoardModal
+        opp={opp({}, { battlefield: [bfCard('c1', 'Sol Ring')] })}
+        active={false}
+        onClose={() => {}}
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'Point at Priya' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Point at Sol Ring' })).toBeNull();
   });
 });
