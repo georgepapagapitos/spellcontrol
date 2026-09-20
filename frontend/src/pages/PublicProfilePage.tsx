@@ -4,7 +4,7 @@ import { NotFoundView, ErrorView } from '../components/share/SharedShell';
 import { UserAvatar } from '../components/UserAvatar';
 import { ReportDialog } from '../components/share/ReportDialog';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
-import { formatIdentity } from '../lib/display-name';
+import { formatIdentity, standaloneIdentity } from '../lib/display-name';
 import { formatSocialCount } from '../lib/social-proof';
 import { formatRelativeTime } from '../lib/format-time';
 import { fetchPublicProfile, ProfileNotFoundError } from '../lib/profile-client';
@@ -24,10 +24,10 @@ function pageHeading(profile: Pick<PublicProfile, 'username' | 'displayName'>): 
   heading: string;
   handle: string | null;
 } {
-  const identity = formatIdentity({ username: profile.username, displayName: profile.displayName });
+  const identity = { username: profile.username, displayName: profile.displayName };
   return {
-    heading: identity.secondary ? identity.primary : `@${profile.username}`,
-    handle: identity.secondary,
+    heading: standaloneIdentity(identity),
+    handle: formatIdentity(identity).secondary,
   };
 }
 

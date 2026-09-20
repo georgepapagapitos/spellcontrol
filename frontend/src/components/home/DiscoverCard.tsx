@@ -6,12 +6,20 @@ import { HomeCard } from './HomeCard';
 import { ColorPip } from '../shared/ManaSymbol';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { listDiscoverDecks, type DiscoverDeck } from '../../lib/discover-client';
+import { standaloneIdentity } from '../../lib/display-name';
 
 import { userMessage } from '@/lib/user-error';
+/** The owner's own name once they've set one, `@username` until then — the
+ *  meta row has no avatar and no "by" to frame it. Matches the full
+ *  `DiscoverDeckTile`, which this card is a mini version of. */
+function ownerLabel(deck: DiscoverDeck): string {
+  return standaloneIdentity({ username: deck.ownerUsername, displayName: deck.ownerDisplayName });
+}
+
 function rowAriaLabel(deck: DiscoverDeck): string {
   const parts = [deck.name];
   if (deck.commanderName) parts.push(deck.commanderName);
-  parts.push(`by @${deck.ownerUsername}`);
+  parts.push(`by ${ownerLabel(deck)}`);
   return parts.join(', ');
 }
 
@@ -113,7 +121,7 @@ export function DiscoverCard() {
                   {deck.commanderName && (
                     <span className="discover-card-commander">{deck.commanderName}</span>
                   )}
-                  <span className="discover-card-owner">@{deck.ownerUsername}</span>
+                  <span className="discover-card-owner">{ownerLabel(deck)}</span>
                 </div>
               </div>
             </Link>

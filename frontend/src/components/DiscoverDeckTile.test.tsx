@@ -198,6 +198,14 @@ describe('DiscoverDeckTile — list view stays the pre-v2 compact row', () => {
     expect(container.querySelector('.discover-tile-banner-stats')).toBeFalsy();
   });
 
+  it('prefers ownerDisplayName in the caption too, matching the grid view', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    renderTile({ ownerUsername: 'alice', ownerDisplayName: 'Alice Cooper' }, 'list');
+
+    expect(screen.getByText('by Alice Cooper')).toBeTruthy();
+    expect(screen.queryByText('by alice')).toBeNull();
+  });
+
   it('keeps the original price + views/copies/likes stats line in the body', () => {
     useCardThumbMock.mockReturnValue(undefined);
     const { container } = renderTile({ estimatedValueUsd: 245, likeCount: 8 }, 'list');
