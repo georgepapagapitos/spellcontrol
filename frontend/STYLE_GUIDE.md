@@ -5295,6 +5295,24 @@ re-aligned in sweep 3).
 
 ---
 
+## The card back is the real one (2026-09-20 ruling)
+
+A face-down card — yours, an opponent's mini card in the rail, or the
+library pile — draws the actual Magic card back from
+`frontend/public/card-back.webp`, not a gradient approximating one.
+
+It is the same Scryfall CDN artwork every card face in this app already
+renders, so declining it while the whole product is built on the faces was an
+arbitrary line, not a principled one. It is **downloaded once and served
+locally** rather than hotlinked: unlike a face, the back is drawn many times
+per board, and Scryfall asks consumers to cache rather than re-fetch.
+
+Sizing is a deliberate trade, not a default: 600px wide covers a card at full
+zoom on a 2x display, and WebP at quality 72 takes the 1.1MB source PNG to
+71KB. It lives in `public/`, so it is outside the entry graph and costs the
+boot budget nothing. Re-deriving it means re-running the same resize rather
+than dropping the source PNG in.
+
 ## Playtest ↔ online table: one linkage rule (2026-09-20 ruling)
 
 The playtest board doubles as an online seat's board. **Whether it does is
