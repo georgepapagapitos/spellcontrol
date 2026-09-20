@@ -153,6 +153,91 @@ export async function searchTokenArt(displayName: string): Promise<string | null
   }
 }
 
+/** One token as the playtest token picker needs it: enough to show a face
+ *  and enough to create the thing. Deliberately not a `ScryfallCard` — the
+ *  picker has no use for the other sixty fields, and a narrow shape keeps
+ *  the offline/empty path honest. */
+export interface TokenOption {
+  /** Scryfall's oracle id where there is one, else the name — the picker's
+   *  React key, which must survive two printings of the same token. */
+  id: string;
+  name: string;
+  typeLine?: string;
+  imageUrl?: string;
+  /** "3/3" for a creature token, absent for Treasure and the like. */
+  pt?: string;
+}
+
+/** How many results a token search shows. One screenful — the search is for
+ *  finding a known token, not for browsing every printing of Soldier. */
+const TOKEN_SEARCH_LIMIT = 30;
+
+function toTokenOption(card: ScryfallCard): TokenOption {
+  return {
+    id: card.oracle_id ?? card.id ?? card.name,
+    name: card.name,
+    ...(card.type_line !== undefined && { typeLine: card.type_line }),
+    ...(getCardImageUrl(card, 'normal') && { imageUrl: getCardImageUrl(card, 'normal') }),
+    ...(card.power !== undefined &&
+      card.toughness !== undefined && { pt: `${card.power}/${card.toughness}` }),
+  };
+}
+
+/**
+ * Search Scryfall for tokens by name, for the playtest token picker.
+ *
+ * Same trust boundary as `searchTokenArt` above — token layouts are excluded
+ * from `isPlayableCard` everywhere else, and tokens are exactly what is
+ * wanted here, so this bypasses the playable filter and hits live search.
+ * `unique=cards` collapses reprints of the same token to one face.
+ *
+ * Offline has no token data in the slim bundle, so it short-circuits to an
+ * empty list rather than firing a guaranteed-miss request — the picker's
+ * deck-token grid still works offline, which is the half that matters.
+ * Returns [] on no-match/offline/network failure; the picker shows its
+ * "nothing found" state either way, and typing a name by hand still works.
+ */
+export async function searchTokens(query: string): Promise<TokenOption[]> {
+  if (offlineActive()) return [];
+  const term = query.trim();
+  if (!term) return [];
+  try {
+    const q = encodeURIComponent(`t:token ${term}`);
+    const response = await scryfallFetch<ScryfallSearchResponse>(
+      `/cards/search?q=${q}&unique=cards`
+    );
+    return response.data.slice(0, TOKEN_SEARCH_LIMIT).map(toTokenOption);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Resolve the full face of a token named in a deck's token list
+ * (`lib/deck-tokens`), which carries a name and a type line but no art.
+ * Matches on the type line where one is given so "Token Creature — Bird"
+ * does not come back as an enchantment that happens to share the name.
+ */
+export async function resolveTokenOption(
+  name: string,
+  typeLine?: string
+): Promise<TokenOption | null> {
+  if (offlineActive()) return null;
+  const term = name.trim();
+  if (!term) return null;
+  try {
+    const q = encodeURIComponent(`t:token !"${term}"`);
+    const response = await scryfallFetch<ScryfallSearchResponse>(
+      `/cards/search?q=${q}&unique=cards`
+    );
+    const exact = typeLine ? response.data.find((c) => c.type_line === typeLine) : undefined;
+    const card = exact ?? response.data[0];
+    return card ? toTokenOption(card) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Return a shallow copy with deck-generation flags stripped so cached objects stay clean. */
 function freshCopy(card: ScryfallCard): ScryfallCard {
   const {
