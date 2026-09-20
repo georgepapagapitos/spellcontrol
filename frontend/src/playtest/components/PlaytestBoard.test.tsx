@@ -174,9 +174,33 @@ describe('PlaytestBoard', () => {
     const menu = screen.getByRole('button', { name: 'Game menu' });
     expect(menu.getAttribute('aria-haspopup')).toBe('menu');
     fireEvent.click(menu);
-    for (const label of ['Back to Krenko', 'Stats', 'Log', 'Shuffle', 'Mulligan', 'Reset']) {
+    for (const label of [
+      'Back to Krenko',
+      'Stats',
+      'Log',
+      'Keyboard shortcuts',
+      'Table settings',
+      'Reset',
+    ]) {
       expect(screen.getByRole('menuitem', { name: label }), label).toBeTruthy();
     }
+    // Library actions moved onto the library pile, and the set-and-forget
+    // preferences behind "Table settings" — the menu is actions now.
+    for (const gone of ['Shuffle', 'Mulligan', 'Top cards', 'Resistance: Off']) {
+      expect(screen.queryByRole('menuitem', { name: gone }), gone).toBeNull();
+    }
+  });
+
+  it('the library pile carries its own actions: Draw, Shuffle and Top cards', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(screen.getByRole('button', { name: /Draw/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Library actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Shuffle' }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SHUFFLE_LIBRARY' });
   });
 
   it('opens the table menu on a right-click on bare felt, with its shortcuts', () => {
@@ -360,9 +384,9 @@ describe('PlaytestBoard — rebindable shortcuts', () => {
     expect(dispatch).not.toHaveBeenCalledWith({ type: 'DRAW', n: 1 });
     fireEvent.keyDown(window, { key: 'j' });
     expect(dispatch).toHaveBeenCalledWith({ type: 'DRAW', n: 1 });
-    // The table menu prints the live key, not the default.
-    fireEvent.keyDown(window, { key: 'F10', shiftKey: true });
-    expect(screen.getByRole('menuitem', { name: /Draw/ }).textContent).toContain('J');
+    // The library pile's Draw prints the live key, not the default — it is
+    // the only Draw control on the felt now that the table menu dropped it.
+    expect(screen.getByRole('button', { name: /Draw/ }).textContent).toContain('J');
   });
 });
 
@@ -387,13 +411,13 @@ describe('PlaytestBoard — card size', () => {
     // No counter was ever asked for: nothing selected means the keys zoom.
     expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_COUNTER' }));
     fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Card size: 90%' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Table settings' }));
     const slider = screen.getByRole('slider', { name: 'Card size' });
     expect(slider.getAttribute('aria-valuetext')).toBe('90%');
     fireEvent.change(slider, { target: { value: '1.3' } });
     expect(document.body.style.getPropertyValue('--pt-zoom')).toBe('1.3');
     expect(localStorage.getItem('playtest-zoom-v1')).toBe('1.3');
-    fireEvent.click(screen.getByRole('button', { name: 'Reset to default' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset card size' }));
     expect(document.body.style.getPropertyValue('--pt-zoom')).toBe('1');
     expect(localStorage.getItem('playtest-zoom-v1')).toBeNull();
     unmount();

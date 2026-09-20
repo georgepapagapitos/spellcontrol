@@ -200,7 +200,8 @@ interface PlaytestStore {
   rewindTrail: RewindTrailEntry[];
   /** Table takeback rule: Ask (default) / Free / Off — device preference,
    *  same pattern as `freeMulligan`. NOT reset by init/hydrate/teardown. */
-  takebackMode: TakebackMode;
+  /** null until the player picks one — `resolveTakebackMode` fills it. */
+  takebackMode: TakebackMode | null;
   /** Whether the live session's table-defeat has already been captured into
    *  history (E141) — prevents a later RESET/teardown from double-recording
    *  the same completed game. Reset on init/hydrate/RESET. */

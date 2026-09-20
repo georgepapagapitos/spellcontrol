@@ -11,8 +11,16 @@
  * viewer's own board is already open.
  */
 import 'fake-indexeddb/auto';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+
+/** `useNavigate` is how Start hands the player to their board; spying on it
+ *  is the only way to assert that hand-off without a real router history. */
+const navigateSpy = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return { ...actual, useNavigate: () => navigateSpy };
+});
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GameState } from '../lib/game-state';
 import type { Deck } from '../store/decks';
@@ -293,6 +301,61 @@ describe('Open-your-board door — no deck picked', () => {
         colorIdentity: [],
       },
     });
+  });
+});
+
+describe('Start puts you at the table', () => {
+  it('sends a seat that has a deck straight to its board, once per game', () => {
+    sessionStorage.clear();
+    mockState.online = makeOnlineGame({
+      status: 'active',
+      players: [
+        makePlayer({ id: 'p1', userId: 'user_1', seat: 0, name: 'Alice', deckId: 'deck-1' }),
+      ],
+    });
+    renderOnlineTab();
+    expect(navigateSpy).toHaveBeenCalledWith('/decks/deck-1/playtest');
+
+    // Coming back to this tab during the same game must not yank them away.
+    navigateSpy.mockClear();
+    cleanup();
+    renderOnlineTab();
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
+  it('leaves a seat with no deck where it is, so the prompt is reachable', () => {
+    sessionStorage.clear();
+    mockState.online = makeOnlineGame({
+      status: 'active',
+      players: [makePlayer({ id: 'p1', userId: 'user_1', seat: 0, name: 'Alice' })],
+    });
+    renderOnlineTab();
+    expect(navigateSpy).not.toHaveBeenCalled();
+    expect(screen.getByText('Pick a deck to open your board')).toBeTruthy();
+  });
+
+  it('does not send a seat anywhere while the game is still in the lobby', () => {
+    sessionStorage.clear();
+    mockState.online = makeOnlineGame({
+      status: 'lobby',
+      players: [
+        makePlayer({ id: 'p1', userId: 'user_1', seat: 0, name: 'Alice', deckId: 'deck-1' }),
+      ],
+    });
+    renderOnlineTab();
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('Open-your-board door — alone at the table', () => {
+  it('drops the boards-open count, which alone is a count of yourself', () => {
+    sessionStorage.clear();
+    mockState.online = makeOnlineGame({
+      status: 'active',
+      players: [makePlayer({ id: 'p1', userId: 'user_1', seat: 0, name: 'Alice' })],
+    });
+    renderOnlineTab();
+    expect(screen.queryByText(/boards? open/)).toBeNull();
   });
 });
 

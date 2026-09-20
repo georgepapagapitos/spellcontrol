@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
 import { commanderTaxAmount } from '../lib/zones';
+import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
 
 interface Props {
   zone: Zone;
@@ -17,9 +18,17 @@ interface Props {
    * reader would never reach the inner one.
    */
   action?: { label: string; shortcut?: string; onClick(): void; disabled?: boolean };
+  /**
+   * The zone's own actions, behind a kebab on the tile — Shuffle and Top
+   * cards for the library. They live here, on the pile they act on, rather
+   * than in the board's game menu, which is how that menu grew to sixteen
+   * rows. Mirrors the per-zone menu `MobileZonesPanel` already gives the
+   * narrow tier.
+   */
+  menu?: OverflowMenuItem[];
 }
 
-export function ZonePile({ zone, label, cards, commanderTax, onClick, action }: Props) {
+export function ZonePile({ zone, label, cards, commanderTax, onClick, action, menu }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: `zone:${zone}` });
   const top = cards[cards.length - 1];
   // Tracks the id of a card whose image failed, so a new top card (the pile
@@ -28,6 +37,15 @@ export function ZonePile({ zone, label, cards, commanderTax, onClick, action }: 
   const tax = zone === 'command' ? commanderTaxAmount(commanderTax ?? {}, top?.id) : 0;
   return (
     <div ref={setNodeRef} className={`playtest-pile${isOver ? ' is-over' : ''}`}>
+      {menu && menu.length > 0 && (
+        <OverflowMenu
+          items={menu}
+          ariaLabel={`${label} actions`}
+          align="right"
+          triggerClassName="playtest-pile__kebab"
+          panelClassName="playtest-zone-menu-popover"
+        />
+      )}
       <button
         type="button"
         onClick={onClick}
