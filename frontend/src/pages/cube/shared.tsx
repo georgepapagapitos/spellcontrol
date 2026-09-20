@@ -9,7 +9,7 @@ import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
 import { buildAllocationMap, type AllocationInfo } from '../../lib/allocations';
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
-import { CUBE_SIZES, SIZE_INFO, type ColorBucket, type CubeSize } from '../../lib/cube/targets';
+import { CUBE_SIZES, sizeInfo, type ColorBucket, type CubeSize } from '../../lib/cube/targets';
 import { CUBE_FORMATS, FORMAT_INFO, type CubeFormat } from '../../lib/cube/play-format';
 import type { GeneratedCube } from '../../lib/cube/generate';
 import type { Ownership } from '../../lib/cube/import';
@@ -351,11 +351,11 @@ export function CubeSizePicker({
             onClick={() => onSize(s)}
           >
             <span className="cube-size-n">{s}</span>
-            <span className="cube-size-sub">{SIZE_INFO[s].players} players</span>
+            <span className="cube-size-sub">{sizeInfo(s).players} players</span>
           </button>
         ))}
       </div>
-      <p className="cube-size-note">{SIZE_INFO[size].note}</p>
+      <p className="cube-size-note">{sizeInfo(size).note}</p>
     </div>
   );
 }
