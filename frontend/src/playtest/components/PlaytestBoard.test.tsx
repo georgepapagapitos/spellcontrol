@@ -390,6 +390,70 @@ describe('PlaytestBoard — rebindable shortcuts', () => {
   });
 });
 
+/**
+ * `=` and `-` read the context (EDHPlay's own mapping, and what this board
+ * did before the keyboard map split them apart): a card targeted means a
+ * ±1/±1 counter, nothing targeted means card size. The shifted forms only
+ * ever mean a counter.
+ */
+describe('PlaytestBoard — = and − read the context', () => {
+  beforeEach(() => localStorage.clear());
+
+  /** A state with one permanent on the battlefield, so there is something to
+   *  target — `seededState` deals a hand and a library only. */
+  function withPermanent() {
+    const base = seededState();
+    return applyAction(base, {
+      type: 'MOVE_TO_BATTLEFIELD',
+      cardId: base.zones.hand[0].id,
+      x: 0,
+      y: 0,
+    });
+  }
+
+  it('puts a counter on the selection instead of resizing, and leaves the zoom alone', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={withPermanent()} />
+      </MemoryRouter>
+    );
+    fireEvent.keyDown(window, { key: 'a', ctrlKey: true }); // select every permanent
+    dispatch.mockClear();
+
+    fireEvent.keyDown(window, { key: '=' });
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'SET_COUNTER', counter: '+1/+1', delta: 1 })
+    );
+    fireEvent.keyDown(window, { key: '-' });
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'SET_COUNTER', counter: '-1/-1', delta: 1 })
+    );
+    // The cards never resized: the keys belonged to the selection.
+    expect(document.body.style.getPropertyValue('--pt-zoom')).toBe('1');
+  });
+
+  it('the shifted forms mean a counter whatever is targeted, and never resize', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={withPermanent()} />
+      </MemoryRouter>
+    );
+    // Nothing selected: the shifted keys still only ever mean a counter, so
+    // they no-op rather than falling through to the zoom.
+    fireEvent.keyDown(window, { key: '+' });
+    fireEvent.keyDown(window, { key: '_' });
+    expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_COUNTER' }));
+    expect(document.body.style.getPropertyValue('--pt-zoom')).toBe('1');
+
+    fireEvent.keyDown(window, { key: 'a', ctrlKey: true });
+    fireEvent.keyDown(window, { key: '+' });
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'SET_COUNTER', counter: '+1/+1', delta: 1 })
+    );
+    expect(document.body.style.getPropertyValue('--pt-zoom')).toBe('1');
+  });
+});
+
 // Card size on the wide tier: = and − zoom when nothing is selected, the
 // value lives on <body> so the drag overlay inherits it, and it is remembered.
 describe('PlaytestBoard — card size', () => {

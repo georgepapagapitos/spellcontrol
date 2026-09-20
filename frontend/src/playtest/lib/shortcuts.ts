@@ -145,8 +145,18 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
     group: 'table',
     optional: true,
   },
-  { id: 'size-up', key: '=', label: 'Bigger cards', group: 'table' },
-  { id: 'size-down', key: '-', label: 'Smaller cards', group: 'table' },
+  {
+    id: 'size-up',
+    key: '=',
+    label: 'Bigger cards; with a card targeted, a +1/+1 counter',
+    group: 'table',
+  },
+  {
+    id: 'size-down',
+    key: '-',
+    label: 'Smaller cards; with a card targeted, a −1/−1 counter',
+    group: 'table',
+  },
   { id: 'dice', key: 'o', label: 'Roll dice or flip a coin', group: 'table' },
   { id: 'token', key: 'n', label: 'Create a token', group: 'table' },
   { id: 'mana', key: 'm', label: 'Show or hide the mana pool', group: 'table' },
@@ -192,6 +202,8 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
   { id: 'counters', key: 'j', label: 'Open counters', group: 'counters' },
   // `plus`, not `+`: the chord separator IS `+`, so the bare character
   // cannot be a key name without `+`.split('+') tearing it in half.
+  // The unshifted `=` / `-` already do these on a targeted card; these stay
+  // bound as the form that only ever means a counter.
   { id: 'counter-plus', key: 'plus', label: 'Add a +1/+1 counter', group: 'counters' },
   { id: 'counter-minus', key: '_', label: 'Add a −1/−1 counter', group: 'counters' },
   { id: 'counters-all-inc', key: 'mod+1', label: 'Add one to every counter', group: 'counters' },
