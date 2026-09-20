@@ -3280,6 +3280,37 @@ body:has(.playtest-page) {
   min-width: 8rem;
 }
 
+/* The chip is the turn control when there is a turn to take. Styled as
+   itself rather than as a button: the affordance is the number being live,
+   and a bordered button here would put two competing controls in the same
+   corner as the game menu. */
+.playtest-turn-chip--action {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font: inherit;
+  /* Touch target: the chip is already taller than 44px at every tier the
+     corner cluster renders in, so only the width floor needs stating. */
+  min-height: 44px;
+}
+
+.playtest-turn-chip--action:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playtest-turn-chip--action:hover {
+    border-color: var(--border);
+  }
+
+  .playtest-turn-chip--action:hover .playtest-turn-chip__value {
+    color: var(--accent);
+  }
+}
+
 .playtest-turn-chip__label {
   font-size: var(--text-xs);
   text-transform: uppercase;

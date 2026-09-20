@@ -844,6 +844,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const activeName = onlineTable?.players.find((p) => p.seat === onlineTable.activeSeat)?.name;
   const myTurn = onlineTable !== null && onlineTable.activeSeat === onlineTable.mySeat;
   const canPassTurn = onlineTable !== null && (myTurn || onlineTable.activeSeat === null);
+  /** Is there a turn to move on at all? Always, solo — there is nobody to
+   *  wait for. */
+  const canAdvanceTurn = onlineTable === null || canPassTurn;
 
   const libraryCount = state.zones.library.length;
   const doDraw = useCallback(() => {
@@ -918,6 +921,29 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     },
     [dispatch, onlineTable]
   );
+  /**
+   * Move the game on: pass the turn at a table, take the next turn solo.
+   *
+   * One action rather than two, because it is one intent — and because
+   * Space was wired to pass-turn ALONE, which made the biggest key on the
+   * keyboard do nothing at all in the mode most goldfishing happens in. A
+   * key that is dead in the common case is worse than an unbound one: it
+   * teaches the player it is broken.
+   *
+   * Returns false when there is genuinely nothing to do (somebody else's
+   * turn at a table), so the keydown handler leaves the key to the browser
+   * rather than swallowing it.
+   */
+  const advanceTurn = useCallback(() => {
+    if (onlineTable) {
+      if (!canPassTurn) return false;
+      doPassTurn();
+      return true;
+    }
+    doNextTurn();
+    return true;
+  }, [onlineTable, canPassTurn, doPassTurn, doNextTurn]);
+
   const advancePhase = useCallback(() => {
     if (!onlineTable) return;
     const cur = onlineTable.phase;
@@ -1291,9 +1317,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         'arrows-clear': () => (myArrowCount > 0 ? clearMyArrows() : false),
         shortcuts: () => setShowShortcuts(true),
         'pass-turn': () => {
+          // Space on a focused button presses that button; it is not ours
+          // to steal.
           if (e.target instanceof HTMLElement && e.target.closest('button')) return false;
-          if (!canPassTurn) return false;
-          doPassTurn();
+          return advanceTurn();
         },
         'next-turn': doNextTurn,
         draw: () => (libraryCount === 0 ? false : doDraw()),
@@ -1404,6 +1431,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     handleTakebackClick,
     handleOpenLog,
     canPassTurn,
+    advanceTurn,
     doDraw,
     doNextTurn,
     doPassTurn,
@@ -1726,27 +1754,44 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           </>
         }
       />
-      <div className="playtest-turn-chip">
-        <span className="playtest-turn-chip__label">Turn</span>
-        <span className="playtest-turn-chip__value">{state.turn}</span>
-        {onlineTable?.turnTimerEnabled && onlineTable.turnStartedAt != null && (
-          <TurnTimer startedAt={onlineTable.turnStartedAt} />
-        )}
-      </div>
-      {onlineTable ? (
-        canPassTurn ? (
-          <button type="button" className="playtest-corner-btn is-primary" onClick={doPassTurn}>
-            Pass turn {keyFor('pass-turn') && <kbd>{keyFor('pass-turn')}</kbd>}
-          </button>
-        ) : (
-          <span className="playtest-corner-waiting" aria-live="polite">
-            {activeName ? `${activeName}'s turn` : 'Not your turn'}
+      {/* The turn count IS the control: pressing it moves the game on, the
+          same thing Space does. A "Next turn" button sitting beside a turn
+          counter was two pieces of chrome saying one thing. When it is not
+          your turn there is nothing to press, so it degrades to a readout
+          that says whose turn it is instead. */}
+      {canAdvanceTurn ? (
+        <button
+          type="button"
+          className="playtest-turn-chip playtest-turn-chip--action"
+          onClick={advanceTurn}
+          aria-label={[
+            onlineTable ? 'Pass the turn' : 'Next turn',
+            `turn ${state.turn}`,
+            keyFor('pass-turn'),
+          ]
+            .filter(Boolean)
+            .join(', ')}
+        >
+          <span className="playtest-turn-chip__label" aria-hidden>
+            Turn
           </span>
-        )
-      ) : (
-        <button type="button" className="playtest-corner-btn is-primary" onClick={doNextTurn}>
-          Next turn {keyFor('next-turn') && <kbd>{keyFor('next-turn')}</kbd>}
+          <span className="playtest-turn-chip__value" aria-hidden>
+            {state.turn}
+          </span>
+          {onlineTable?.turnTimerEnabled && onlineTable.turnStartedAt != null && (
+            <TurnTimer startedAt={onlineTable.turnStartedAt} />
+          )}
         </button>
+      ) : (
+        <div className="playtest-turn-chip" aria-live="polite">
+          <span className="playtest-turn-chip__label">
+            {activeName ? `${activeName}'s turn` : 'Turn'}
+          </span>
+          <span className="playtest-turn-chip__value">{state.turn}</span>
+          {onlineTable?.turnTimerEnabled && onlineTable.turnStartedAt != null && (
+            <TurnTimer startedAt={onlineTable.turnStartedAt} />
+          )}
+        </div>
       )}
       {onlineTable && (
         <PhaseChip
