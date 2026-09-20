@@ -1,1 +1,6 @@
+# Every text file is LF in every checkout, on every OS: the repo is LF-only
+# (prettier enforces it in CI) and a CRLF checkout showed every touched file
+# as a whole-file diff on Windows. Windows batch files are the one exception.
+* text=auto eol=lf
+*.bat text eol=crlf
 backend/data/scanner/card-embeddings.bin filter=lfs diff=lfs merge=lfs -text
