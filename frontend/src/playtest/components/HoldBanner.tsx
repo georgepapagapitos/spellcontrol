@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePlayStore } from '@/store/play';
-import { useAuth } from '@/store/auth';
 import { paletteForIndex } from '@/lib/seat-palette';
 import { haptics } from '@/lib/haptics';
 import { TAKEBACK_EXPIRY_GRACE_MS } from '../lib/takeback';
+import { useTableSeat } from '../hooks/use-table-seat';
 import type { GameRequest } from '@/lib/games-api';
 import './HoldBanner.css';
 
@@ -39,18 +39,13 @@ function pickActiveHolds(
  * plumbing from PlaytestBoard needed.
  */
 export function HoldBanner() {
-  const online = usePlayStore((s) => s.online);
   const onlineRequests = usePlayStore((s) => s.onlineRequests);
   const cancelGameRequest = usePlayStore((s) => s.cancelGameRequest);
-  const userId = useAuth((s) => s.user?.id ?? null);
-
-  const mySeat = useMemo(
-    () =>
-      online && userId != null
-        ? (online.players.find((p) => p.userId === userId)?.seat ?? null)
-        : null,
-    [online, userId]
-  );
+  // The fourth hand-rolled copy of "am I seated here?" — now the shared rule,
+  // so a solo goldfish no longer shows the table's holds over its own board.
+  const link = useTableSeat();
+  const online = link?.online ?? null;
+  const mySeat = link?.seat.seat ?? null;
 
   const holds = pickActiveHolds(onlineRequests);
   const deadlineKey = holds.map((h) => `${h.id}:${h.expiresAt}`).join(',');

@@ -29,8 +29,14 @@ function state(overrides: Partial<PlaytestState> = {}): PlaytestState {
   return { ...s, ...overrides };
 }
 
+/** The deck seat 0 is playing. The link is per-deck, so the seat's deck and
+ *  the playtest store's deck have to agree for the board to BE the seat's —
+ *  `resetStores` puts this on both sides. */
+const MY_DECK = 'deck-mine';
+
 /** A 3-seat online game: seat 0 is always "me" (userId 'me-id'), matching the
- *  `useAuth` user set in tests that want the viewer seated. */
+ *  `useAuth` user set in tests that want the viewer seated, and holding
+ *  `MY_DECK` so the seat and the board agree on what is being played. */
 function onlineGame(overrides: Partial<GameState> = {}): GameState {
   const g = createGameState({
     id: 'game1',
@@ -49,6 +55,7 @@ function onlineGame(overrides: Partial<GameState> = {}): GameState {
         name: 'Me',
         startingLife: 40,
         isHost: true,
+        deckId: MY_DECK,
       }),
       makePlayer({ id: 'p1', userId: 'u1', seat: 1, name: 'Rival', startingLife: 40 }),
       makePlayer({ id: 'p2', userId: 'u2', seat: 2, name: 'Third', startingLife: 33 }),
@@ -67,7 +74,7 @@ function resetStores() {
   // suppresses this test's own-line ingestion.
   usePlayStore.getState().clearOnline();
   usePlayStore.setState({ online: null, onlineBoards: {}, onlineTicker: [] });
-  usePlaytestStore.setState({ gameLog: [], phase: 'opening' });
+  usePlaytestStore.setState({ gameLog: [], phase: 'opening', deckId: MY_DECK });
   useAuth.setState({ user: null, status: 'unknown' });
 }
 
@@ -81,6 +88,38 @@ describe('useOnlineTable', () => {
     const { result } = renderHook(() => useOnlineTable(state()));
     expect(result.current).toBeNull();
     expect(mockPublish).not.toHaveBeenCalled();
+  });
+
+  // The link is per-DECK, not per-account. Seating alone used to be the whole
+  // test, so goldfishing any other deck while seated published THAT board to
+  // the table as this seat's, and took the table's life total for its own.
+  it('stays solo when the seat holds a different deck, and publishes nothing', () => {
+    signIn('me-id');
+    usePlayStore.setState({ online: onlineGame() });
+    usePlaytestStore.setState({ deckId: 'some-other-deck' });
+    const { result } = renderHook(() => useOnlineTable(state()));
+    expect(result.current).toBeNull();
+    expect(mockPublish).not.toHaveBeenCalled();
+  });
+
+  it('stays solo when the seat has picked no deck at all', () => {
+    signIn('me-id');
+    const g = onlineGame();
+    usePlayStore.setState({
+      online: { ...g, players: g.players.map((p) => (p.seat === 0 ? { ...p, deckId: null } : p)) },
+    });
+    const { result } = renderHook(() => useOnlineTable(state()));
+    expect(result.current).toBeNull();
+    expect(mockPublish).not.toHaveBeenCalled();
+  });
+
+  it('links the moment the board being played IS the seat deck', () => {
+    signIn('me-id');
+    usePlayStore.setState({ online: onlineGame() });
+    usePlaytestStore.setState({ deckId: MY_DECK });
+    const { result } = renderHook(() => useOnlineTable(state()));
+    expect(result.current).not.toBeNull();
+    expect(result.current?.mySeat).toBe(0);
   });
 
   // Regression: the table was WRITE-ONLY on the playtest route. `publishBoard`

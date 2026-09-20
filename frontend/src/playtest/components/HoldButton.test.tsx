@@ -6,7 +6,10 @@ import { useAuth } from '@/store/auth';
 import { toast } from '@/store/toasts';
 import { createGameState, makePlayer } from '@/lib/game-state';
 import type { GameRequest } from '@/lib/games-api';
+import { usePlaytestStore } from '../store';
 import { HoldButton } from './HoldButton';
+
+const MY_DECK = 'deck-mine';
 
 function onlineGame() {
   return createGameState({
@@ -26,6 +29,7 @@ function onlineGame() {
         name: 'Me',
         startingLife: 40,
         isHost: true,
+        deckId: MY_DECK,
       }),
       makePlayer({ id: 'p1', userId: 'u1', seat: 1, name: 'Rival', startingLife: 40 }),
     ],
@@ -55,6 +59,7 @@ beforeEach(() => {
     raiseGameRequest: vi.fn(),
     cancelGameRequest: vi.fn(),
   });
+  usePlaytestStore.setState({ deckId: MY_DECK });
 });
 
 describe('HoldButton', () => {
@@ -66,6 +71,12 @@ describe('HoldButton', () => {
 
   it('renders nothing when online but this device holds no seat', () => {
     useAuth.setState({ user: { id: 'someone-else', username: 'x', role: 'user' } });
+    const { container } = render(<HoldButton />);
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('renders nothing while goldfishing a different deck than the seat', () => {
+    usePlaytestStore.setState({ deckId: 'deck-other' });
     const { container } = render(<HoldButton />);
     expect(container.innerHTML).toBe('');
   });
