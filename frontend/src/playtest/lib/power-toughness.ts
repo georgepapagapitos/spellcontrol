@@ -3,14 +3,22 @@ import type { BattlefieldCard, PlaytestCard } from '@/lib/playtest';
 /**
  * What the power/toughness box on a permanent should read.
  *
- * Two things feed it and neither is reliable on its own: the printed values
+ * THREE things feed it and none is reliable alone: the printed values
  * (`PlaytestCard.power`/`toughness`, verbatim from Scryfall, so `*`, `1+*`
- * and `∞` all turn up) and the running modifier the player has applied by
- * hand (`BattlefieldCard.pt`). Where the printed value is a plain number the
- * two add up and the box shows one total, the way a player reading the board
- * would say it. Where it isn't — a Tarmogoyf, a token nobody typed a body
- * into — the modifier is shown BESIDE the printed value rather than folded
- * into it, because `*+2` is true and `2` would be a lie.
+ * and `∞` all turn up), the running modifier the player applied by hand
+ * (`BattlefieldCard.pt`), and the +1/+1 and -1/-1 counters ON the card.
+ *
+ * Counters count because a 2/2 under two +1/+1 counters is a 4/4, and that
+ * is the number the player needs when they are working out whether it
+ * survives. Reading the printed 2/2 and doing the arithmetic off the counter
+ * badge is exactly the work a board should be doing for you. The badge stays
+ * visible alongside, so the size and the reason for it are both on the card.
+ *
+ * Where the printed value is a plain number everything adds up and the box
+ * shows one total, the way a player reading the board would say it. Where it
+ * isn't — a Tarmogoyf, a token nobody typed a body into — the modifier is
+ * shown BESIDE the printed value rather than folded into it, because `*+2`
+ * is true and `2` would be a lie.
  *
  * Returns null when there is nothing to show at all, which is the common
  * case: a land, an artifact, an enchantment nobody has pumped.
@@ -36,9 +44,19 @@ function signed(n: number): string {
   return n >= 0 ? `+${n}` : String(n);
 }
 
+/** The ±1/±1 counters on a permanent, as a single signed step. Only these
+ *  two kinds change a body — a charge or a loyalty counter does not, and
+ *  folding one in would print a size the card does not have. */
+export function counterStep(bf: BattlefieldCard | undefined): number {
+  const plus = bf?.counters?.['+1/+1'] ?? 0;
+  const minus = bf?.counters?.['-1/-1'] ?? 0;
+  return plus - minus;
+}
+
 export function displayPT(card: PlaytestCard, bf: BattlefieldCard | undefined): PtDisplay | null {
-  const dp = bf?.pt?.power ?? 0;
-  const dt = bf?.pt?.toughness ?? 0;
+  const step = counterStep(bf);
+  const dp = (bf?.pt?.power ?? 0) + step;
+  const dt = (bf?.pt?.toughness ?? 0) + step;
   const power = side(card.power, dp);
   const toughness = side(card.toughness, dt);
   // A body needs both halves. One side alone (a printed power with no
