@@ -1194,6 +1194,18 @@ own table.
   White / Blue / Multicolor sections) the header sits above every section
   inside one `CardTableFrame`, so the columns line up across the whole binder
   instead of each block finding its own widths.
+- **The table is one slab, and a group divider is a ROW of it.** `CardTableFrame`
+  takes `framed`: the frame carries the border, the radius and the surface, and
+  the header and every row list inside go flush. A section divider is the shared
+  `SectionHeaderBar` rendered inline, never a bar floating above a separately
+  bordered box — a binder that carried the page-grid's `.section-header-toggle`
+  into the table read as three unconnected cards. Where the surface is not
+  virtualized (a binder), pin the group row below the column header with real
+  `position: sticky` at `--ct-head-h`; only a virtualized surface (Collection,
+  whose rows are absolutely positioned) needs the measured floating overlay.
+- **Uppercase a group label only when it's a category word.** Collection
+  uppercases its groups; a binder doesn't, because its sections are named by
+  data — a set, a Secret Lair drop — and those keep their own case.
 - **The header pins below whatever is sticky above it.** A table nested under a
   hub's tab strip pins at `--hub-tabs-sticky-h`, not at the top of the
   scrollport — which is behind the tabs, where the header vanishes for the whole

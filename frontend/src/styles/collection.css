@@ -2302,6 +2302,9 @@ i.ss.set-symbol--mythic {
   --ct-w-price: 4.75rem;
   --ct-w-total: 5.5rem;
   --ct-w-menu: 2rem;
+  /* Header height, named because a grouped surface pins its group rows
+     directly beneath it. Grows to the touch floor on coarse pointers. */
+  --ct-head-h: 32px;
 }
 
 .collection-table-head,
@@ -2337,7 +2340,7 @@ i.ss.set-symbol--mythic {
      41px above where Collection's chrome actually ends. */
   top: 0;
   z-index: var(--z-dropdown);
-  height: 32px;
+  height: var(--ct-head-h);
   background: var(--surface);
   border: 1px solid var(--border);
   border-bottom: 0;
@@ -2356,8 +2359,8 @@ i.ss.set-symbol--mythic {
 
 /* Sort buttons fill the header row; on touch the row grows to the floor. */
 @media (pointer: coarse) {
-  .collection-table-head {
-    height: 44px;
+  .collection-table {
+    --ct-head-h: 44px;
   }
 }
 
@@ -2473,6 +2476,63 @@ i.ss.set-symbol--mythic {
   display: flex;
   justify-content: flex-end;
   overflow: visible;
+}
+
+/* ── One table, one slab ─────────────────────────────────────────────────
+   `is-framed` moves the border, the radius and the surface onto the frame, so
+   the column header and every row list inside it go flush and the table reads
+   as one object. Without it each list keeps its own box — which is what a
+   binder looked like when it carried the PAGE-GRID section markup into the
+   table: a column header in one rounded box, a section bar floating in the
+   gap, and the rows in a third box with all four corners rounded. */
+.collection-table.is-framed {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  /* `clip`, not `hidden`: `hidden` would make this a scroll container and the
+     sticky header would then pin to the table's own box instead of the page,
+     i.e. never move. `clip` only rounds off what the corners cut. */
+  overflow: clip;
+}
+
+.collection-table.is-framed .collection-table-head {
+  border: 0;
+  border-radius: 0;
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+
+.collection-table.is-framed .collection-list.is-table {
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+/* A binder's group row. The wrapper exists only to carry the disclosure region
+   for a11y, so it draws nothing; the bar itself is the divider, and the row
+   above it already ends in a hairline. */
+.binder-table-group {
+  display: block;
+}
+
+/* It pins directly below the column header, so a 40-card section never scrolls
+   away from its own name. A binder's list is NOT virtualized, so this is real
+   `position: sticky` — Collection can't do it (its rows are absolutely
+   positioned) and floats a measured overlay instead. */
+/* Collection's groups are short category words, so it uppercases them as a
+   label. A binder's section label is data — a colour, but just as often a set
+   name or a Secret Lair drop title — and "SECRET LAIR DROP: ARTIST SERIES" is
+   not a label, it's shouting. Keep the name's own case, which is what the
+   binder showed before it joined the table. */
+.binder-table-section .collection-list-section-label {
+  text-transform: none;
+}
+
+.collection-table.is-framed .binder-table-section {
+  position: sticky;
+  top: calc(var(--hub-tabs-sticky-h) - 1px + var(--ct-head-h));
+  /* Under the column header, over the rows. */
+  z-index: calc(var(--z-dropdown) - 1);
+  width: 100%;
 }
 
 /* Responsive tiers. A column declares its own tier in `CardTable.tsx`

@@ -228,6 +228,14 @@ interface FrameProps {
   columns: readonly CardTableCol[];
   selectMode?: boolean;
   className?: string;
+  /**
+   * Draw the whole table as ONE bordered slab: the frame carries the border,
+   * the radius and the surface, and the header and row lists inside it go
+   * flush. Pass it whenever the table density is on. Without it each list
+   * keeps its own box, which on a grouped surface reads as a stack of
+   * unconnected cards rather than one table.
+   */
+  framed?: boolean;
   children: ReactNode;
 }
 
@@ -237,12 +245,18 @@ interface FrameProps {
  * across every section, in the grouped surfaces — resolve to identical
  * column widths.
  */
-export function CardTableFrame({ columns, selectMode = false, className, children }: FrameProps) {
+export function CardTableFrame({
+  columns,
+  selectMode = false,
+  className,
+  framed = false,
+  children,
+}: FrameProps) {
   return (
     <div
       className={`collection-table${selectMode ? ' is-selecting' : ''}${
-        className ? ` ${className}` : ''
-      }`}
+        framed ? ' is-framed' : ''
+      }${className ? ` ${className}` : ''}`}
       style={
         {
           '--collection-table-cols': cardTableTemplate(columns, selectMode),

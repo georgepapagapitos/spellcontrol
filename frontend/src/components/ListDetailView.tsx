@@ -784,7 +784,7 @@ export function ListDetailView({
           ))}
         </div>
       ) : (
-        <CardTableFrame columns={tableColumns}>
+        <CardTableFrame columns={tableColumns} framed={isTable}>
           {isTable && (
             <CardTableHead<SortField>
               columns={tableColumns}
