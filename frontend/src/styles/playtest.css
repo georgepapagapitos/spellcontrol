@@ -1124,21 +1124,22 @@ body:has(.playtest-page) {
 /* A face-down permanent and the library tile are the same object, a card
    back: a dark leather field, a centred oval, a pale rim, so it's a card and
    not a missing image or a coloured slab. */
+/* A face-down permanent and the library tile are the same object: the real
+   card back. It is the same Scryfall CDN artwork every card face in this app
+   already comes from, downloaded once and served locally rather than
+   hotlinked — unlike a face, the back is drawn many times per board, and
+   Scryfall asks consumers to cache rather than re-fetch. 600px wide covers a
+   card at full zoom on a 2x display; the source PNG is 1.1MB and this is 71KB.
+   `cover` on a 5:7 box matches the art's own ratio, so nothing is cropped. */
 .playtest-card__back,
 .playtest-pile__back--library {
   width: 100%;
   height: 100%;
-  background:
-    radial-gradient(ellipse 34% 26% at 50% 50%, #6b4a2a 0%, #4a3018 60%, transparent 62%),
-    radial-gradient(
-      ellipse 60% 44% at 50% 50%,
-      transparent 0%,
-      transparent 78%,
-      #7a5a34 80%,
-      transparent 82%
-    ),
-    linear-gradient(160deg, #4a3220 0%, #2c1c10 55%, #1e130b 100%);
-  box-shadow: inset 0 0 0 3px #d9c9a8;
+  background-color: #1e130b;
+  background-image: url('/card-back.webp');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .playtest-card--tapped {
