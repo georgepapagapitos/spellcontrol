@@ -24,9 +24,9 @@ interface Props {
  *
  * `lens`/`missingCost`/`loading` come from the page's `useOwnershipLens()`
  * call (data-fetching lives there, per w1-ownership-lens.md); this component
- * owns only the sheet's open/close UI state. Three mutually exclusive,
- * exhaustive branches: `loading` -> skeleton; `!lens` -> guest sign-in hook;
- * else -> the real strip.
+ * owns only the sheet's open/close UI state. Mutually exclusive branches:
+ * `loading` -> skeleton; `!lens` -> guest sign-in hook; nothing missing ->
+ * nothing at all; else -> the real strip.
  */
 export function OwnershipLensStrip({ lens, missingCost, missingCardPrices, loading }: Props) {
   const [open, setOpen] = useState(false);
@@ -48,10 +48,15 @@ export function OwnershipLensStrip({ lens, missingCost, missingCardPrices, loadi
     );
   }
 
-  // Ground-truth booleans (not the rounded percentOwned) decide the branch,
-  // so a large deck where the rounded percent lands on 0/100 by coincidence
-  // never claims "every card" or "0% owned" dishonestly.
-  const fullyOwned = lens.missingCardNames.length === 0;
+  // Owning the whole deck is a non-event: the strip only earns its row when it
+  // tells the viewer something they'd act on (what's missing, what it costs).
+  if (lens.missingCardNames.length === 0) {
+    return null;
+  }
+
+  // A ground-truth count (not the rounded percentOwned) decides the branch, so
+  // a large deck where the rounded percent lands on 0 by coincidence never
+  // claims "0% owned" dishonestly.
   const noneOwned = lens.ownedCount === 0;
   const cost = missingCost ?? 0;
   const costText = cost > 0 ? `~${formatMoney(cost, { wholeDollars: true })}` : null;
@@ -71,11 +76,9 @@ export function OwnershipLensStrip({ lens, missingCost, missingCardPrices, loadi
           </span>
         )}
         <span className="ownership-lens-strip-label">
-          {fullyOwned
-            ? 'You own every card in this deck'
-            : noneOwned
-              ? `0% owned${costText ? ` · ${costText} to build` : ''}`
-              : `${lens.percentOwned}% owned in your collection${costText ? ` · ${costText} to finish` : ''}`}
+          {noneOwned
+            ? `0% owned${costText ? ` · ${costText} to build` : ''}`
+            : `${lens.percentOwned}% owned in your collection${costText ? ` · ${costText} to finish` : ''}`}
         </span>
         <ChevronRight className="ownership-lens-strip-chevron" aria-hidden width={16} height={16} />
       </button>
