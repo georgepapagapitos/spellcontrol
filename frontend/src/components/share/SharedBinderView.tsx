@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { LayoutGrid, List as ListIcon } from 'lucide-react';
+import { AlignJustify, LayoutGrid, List as ListIcon } from 'lucide-react';
 import type { PublicBinder, PublicCard } from '../../lib/shared-types';
 import { normalizeForSearch } from '../../lib/normalize-search';
 import { formatMoney } from '../../lib/format-money';
@@ -19,7 +19,7 @@ interface Props {
   data: PublicBinder;
 }
 
-type ViewKind = 'grid' | 'list';
+type ViewKind = 'grid' | 'list' | 'compact';
 
 /**
  * Public read-only view of a shared binder. The backend already routed the
@@ -132,6 +132,11 @@ export function SharedBinderView({ data }: Props) {
               label: 'List view',
               icon: <ListIcon width={14} height={14} strokeWidth={2} aria-hidden />,
             },
+            {
+              value: 'compact',
+              label: 'Compact list (text only)',
+              icon: <AlignJustify width={14} height={14} strokeWidth={2} aria-hidden />,
+            },
           ]}
         />
       </div>
@@ -173,6 +178,7 @@ export function SharedBinderView({ data }: Props) {
               <SharedCardList
                 items={section.groups}
                 onPreview={(j) => setPreviewIndex(section.start + j)}
+                table={view === 'compact'}
               />
             )}
           </section>

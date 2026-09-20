@@ -76,7 +76,6 @@ import { useCardsWithTags, cardTagLabel } from '../lib/card-tags';
 import { useCardsWithReleaseDates } from '../lib/card-release-dates';
 import { InlineCardSearch } from './InlineCardSearch';
 import { SortMenu, type SortMenuOption } from './SortMenu';
-import { SortDirArrow } from './SortDirArrow';
 import { useMediaQuery } from '../lib/use-media-query';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { sortCards, printingKey, sortDirectionLabel, type SortContext } from '../lib/sorting';
@@ -101,6 +100,12 @@ import {
 import { fetchTypeSuggestions } from '../lib/scryfall-catalog';
 import { parseTypeLine, SUPERTYPES, TYPES } from '../lib/card-types';
 import { CardRow } from './shared/CardRow';
+import {
+  CardTableFrame,
+  CardTableHead,
+  COLLECTION_TABLE_COLUMNS,
+  type CardTableCol,
+} from './shared/CardTable';
 import {
   CardGridCell,
   GridCaptionList,
@@ -214,25 +219,18 @@ type SortKey =
 
 const ROW_HEIGHT_LIST = 66;
 const ROW_HEIGHT_COMPACT = 32;
-// Compact view at tablet+ is a real table: these are its columns, in the same
-// order `CardRow` (table mode) renders its cells, so the header and every row
-// share `--collection-table-cols`. `sort` wires a header to the existing sort
-// keys; columns without one are labels only (the SortMenu still covers every
-// key, and is the phone path where the table doesn't exist).
-const TABLE_COLUMNS: Array<{ col: string; label: string; sort?: SortKey }> = [
-  { col: 'qty', label: 'Qty', sort: 'qty' },
-  { col: 'name', label: 'Name', sort: 'name' },
-  { col: 'set', label: 'Set', sort: 'set' },
-  { col: 'cn', label: '#' },
-  { col: 'cond', label: 'Cond' },
-  { col: 'lang', label: 'Lang' },
-  { col: 'binder', label: 'Binder' },
-  { col: 'notes', label: 'Notes' },
-  { col: 'mana', label: 'Mana', sort: 'cmc' },
-  { col: 'price', label: 'Price', sort: 'price' },
-  { col: 'total', label: 'Total' },
-  { col: 'menu', label: '' },
-];
+// Which of the shared table's columns drive a sort here, and the sort key
+// each one sets. Columns absent from this map render as labels (the SortMenu
+// still covers every key, and is the phone path where the table doesn't
+// exist). The column ORDER and labels live in `shared/CardTable`, with the
+// matching cells — this file no longer restates them.
+const COLLECTION_TABLE_SORTS: Partial<Record<CardTableCol, SortKey>> = {
+  qty: 'qty',
+  name: 'name',
+  set: 'set',
+  mana: 'cmc',
+  price: 'price',
+};
 // Fixed height of a full-width "Group by" section header row in grid view.
 // Keep in sync with .collection-grid-section-header in styles/collection.css.
 const GRID_SECTION_HEADER_H = 40;
@@ -1121,15 +1119,31 @@ export function CardListTable({
         if (!el) return 0;
         const cs = getComputedStyle(el);
         const top = parseFloat(cs.top);
-        return cs.position === 'sticky' && Number.isFinite(top) ? top + el.offsetHeight : 0;
+        // −1px: every bar in this sticky stack overlaps the one above it by a
+        // pixel so DPR rounding can't open a seam for rows to scroll through
+        // (see the `.collection-toolbar-row` / `.card-list-controls-sticky`
+        // rules). The table header is part of the same stack and needs it too:
+        // without it the header landed +0.4px below the controls row and a
+        // sliver of the list showed between them on fractional-DPR displays.
+        return cs.position === 'sticky' && Number.isFinite(top) ? top + el.offsetHeight - 1 : 0;
       };
       setTableHeadTop(
         Math.max(pinnedBottom(controlsRowRef.current), pinnedBottom(toolbarRowRef.current))
       );
     };
     measure();
+    // The chrome rows are observed alongside the scrollport: the controls row
+    // changes height on its own (wrapping at narrow widths, the result count
+    // appearing once a filter narrows the set, select mode swapping in the
+    // bulk bar) without the scroll container ever resizing. Observing only
+    // the scrollport left `tableHeadTop` stamped at the mount-time height —
+    // measured 12px too low after a shrink, which parks the header below the
+    // controls row with a live gap, and 26px too high after a growth, which
+    // tucks it underneath.
     const ro = new ResizeObserver(measure);
     ro.observe(scrollEl);
+    if (controlsRowRef.current) ro.observe(controlsRowRef.current);
+    if (toolbarRowRef.current) ro.observe(toolbarRowRef.current);
     window.addEventListener('resize', measure);
     return () => {
       ro.disconnect();
@@ -2477,45 +2491,19 @@ export function CardListTable({
           })}
         </div>
       ) : sorted.length === 0 ? null : (
-        <div className={`collection-table${selectMode ? ' is-selecting' : ''}`}>
+        <CardTableFrame columns={COLLECTION_TABLE_COLUMNS} selectMode={selectMode}>
           {isTable && (
-            <div
-              ref={tableHeadRef}
-              className="collection-table-head"
-              role="group"
-              aria-label="Columns"
-              style={{ top: tableHeadTop > 0 ? tableHeadTop : undefined }}
-            >
-              {selectMode && <span aria-hidden />}
-              {TABLE_COLUMNS.map(({ col, label, sort }) => {
-                if (!sort) {
-                  return (
-                    <span key={col} className="collection-table-th" data-col={col}>
-                      {label}
-                    </span>
-                  );
-                }
-                const active = sortKey === sort;
-                return (
-                  <button
-                    key={col}
-                    type="button"
-                    className="collection-table-th is-sortable"
-                    data-col={col}
-                    data-active={active || undefined}
-                    aria-label={
-                      active
-                        ? `Sorted by ${label}, ${sortDirectionLabel(SORT_KEY_TO_FIELD[sort], sortDir)}. Reverse`
-                        : `Sort by ${label}`
-                    }
-                    onClick={() => toggleSort(sort)}
-                  >
-                    {label}
-                    {active && <SortDirArrow dir={sortDir} />}
-                  </button>
-                );
-              })}
-            </div>
+            <CardTableHead<SortKey>
+              headRef={tableHeadRef}
+              columns={COLLECTION_TABLE_COLUMNS}
+              selectMode={selectMode}
+              top={tableHeadTop}
+              sortFor={COLLECTION_TABLE_SORTS}
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={toggleSort}
+              dirLabel={(k, d) => sortDirectionLabel(SORT_KEY_TO_FIELD[k], d)}
+            />
           )}
           <div
             ref={listContainerRef}
@@ -2574,7 +2562,7 @@ export function CardListTable({
                   isLastRow={item.index === displayRows.length - 1}
                   selectMode={selectMode}
                   selected={selected}
-                  table={isTable}
+                  columns={isTable ? COLLECTION_TABLE_COLUMNS : undefined}
                   pricePending={
                     (isRefreshingPrices || !pricesEverLoaded) && !((r.card.purchasePrice ?? 0) > 0)
                   }
@@ -2598,7 +2586,7 @@ export function CardListTable({
               );
             })}
           </div>
-        </div>
+        </CardTableFrame>
       )}
 
       {view !== 'grid' && showScryfallTrigger && (

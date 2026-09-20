@@ -2278,36 +2278,58 @@ i.ss.set-symbol--mythic {
    would never fire and the rows would keep twelve tracks for ten cells. */
 .collection-table {
   container-type: inline-size;
-  /* qty · name · set · # · cond */
-  --ct-lead: 3ch minmax(8rem, 3fr) 3.5rem 4rem 3.5rem;
-  --ct-lang: 3.25rem;
-  --ct-binder: minmax(4rem, 1.5fr);
-  --ct-notes: minmax(0, 2fr);
-  --ct-mana: 6rem;
-  /* price · total · menu */
-  --ct-tail: 4.75rem 5.5rem 2rem;
-  --collection-table-cols: var(--ct-lead) var(--ct-lang) var(--ct-binder) var(--ct-notes)
-    var(--ct-mana) var(--ct-tail);
+  /* One track per column of the `CardTableCol` vocabulary. `cardTableTemplate`
+     composes --collection-table-cols from only the columns a surface asked
+     for, so the tiers below can drop a column by zeroing its track without
+     knowing which surface is rendering. */
+  --ct-w-qty: 3ch;
+  --ct-w-name: minmax(8rem, 3fr);
+  --ct-w-set: 3.5rem;
+  --ct-w-cn: 4rem;
+  --ct-w-cond: 3.5rem;
+  --ct-w-lang: 3.25rem;
+  --ct-w-binder: minmax(4rem, 1.5fr);
+  --ct-w-page: 3.5rem;
+  --ct-w-notes: minmax(0, 2fr);
+  --ct-w-target: 6.5rem;
+  --ct-w-mana: 6rem;
+  --ct-w-price: 4.75rem;
+  --ct-w-total: 5.5rem;
+  --ct-w-menu: 2rem;
 }
 
 .collection-table-head,
 .collection-list.is-table .collection-table-row {
   display: grid;
   grid-template-columns: var(--collection-table-cols);
-  column-gap: var(--space-2);
+  /* The gutter is cell padding, not `column-gap`: a tier that drops a column
+     zeroes its track, and a zero-width track would still contribute a gap. */
+  column-gap: 0;
   align-items: center;
   padding: 0 var(--space-3);
 }
 
-/* Bulk select adds a leading check column to the header and every row. */
-.collection-table.is-selecting .collection-table-head,
-.collection-table.is-selecting .collection-list.is-table .collection-table-row {
-  grid-template-columns: 1.75rem var(--collection-table-cols);
+.collection-table-head > [data-col],
+.collection-list.is-table .collection-table-row > [data-col] {
+  padding-inline-end: var(--space-2);
 }
+
+.collection-table-head > [data-col='menu'],
+.collection-list.is-table .collection-table-row > [data-col='menu'] {
+  padding-inline-end: 0;
+}
+
+/* Bulk select adds a leading check column to the header and every row. */
 
 .collection-table-head {
   position: sticky;
-  top: var(--collection-controls-sticky-h, 6.9rem);
+  /* Surfaces with sticky chrome above the table (Collection) pass a measured
+     `top` inline — it lands in the same layout pass, before paint. Surfaces
+     with none (a binder page, a list) pin at the top of the scrollport, which
+     is what this default is. It used to name a custom property that is
+     defined nowhere in the app, so the real value was the 6.9rem fallback:
+     41px above where Collection's chrome actually ends. */
+  top: 0;
   z-index: var(--z-dropdown);
   height: 32px;
   background: var(--surface);
@@ -2323,7 +2345,9 @@ i.ss.set-symbol--mythic {
   }
 }
 
-.collection-table-head + .collection-list.is-table {
+/* Whatever the header sits on top of — a flat list, or the first section of a
+   grouped one — joins it as one slab. */
+.collection-table-head + * {
   border-top-left-radius: 0;
   border-top-right-radius: 0;
 }
@@ -2421,24 +2445,42 @@ i.ss.set-symbol--mythic {
   overflow: visible;
 }
 
+/* Same exception for the target-price cell: it holds a real inline editor
+   (a button that becomes an input), and `[data-col]`'s ellipsis clipping
+   would cut its focus ring. */
+.collection-list.is-table .collection-table-target {
+  display: flex;
+  justify-content: flex-end;
+  overflow: visible;
+}
+
+/* Responsive tiers. A column declares its own tier in `CardTable.tsx`
+   (3 drops first, then 2; tier 1 always survives) and carries it as
+   `data-tier`, so these two rules cover every surface and every column set
+   without naming a preset. The track vars are set on the container's
+   CHILDREN, not the container: an element can't be queried by its own
+   @container, so a rule on `.collection-table` itself would never fire and
+   the rows would keep tracks for cells that are no longer there. */
 @container (max-width: 1099px) {
   .collection-table > * {
-    --collection-table-cols: var(--ct-lead) var(--ct-lang) var(--ct-notes) var(--ct-tail);
+    --ct-w-binder: 0px;
+    --ct-w-page: 0px;
+    --ct-w-mana: 0px;
   }
 
-  .collection-table [data-col='binder'],
-  .collection-table [data-col='mana'] {
+  .collection-table [data-tier='3'] {
     display: none;
   }
 }
 
 @container (max-width: 899px) {
   .collection-table > * {
-    --collection-table-cols: var(--ct-lead) var(--ct-tail);
+    --ct-w-lang: 0px;
+    --ct-w-notes: 0px;
+    --ct-w-target: 0px;
   }
 
-  .collection-table [data-col='lang'],
-  .collection-table [data-col='notes'] {
+  .collection-table [data-tier='2'] {
     display: none;
   }
 }
