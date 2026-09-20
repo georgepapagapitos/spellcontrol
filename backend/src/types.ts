@@ -2,6 +2,8 @@
  * A single Scryfall ruling entry.
  * Shape: https://scryfall.com/docs/api/rulings
  */
+import type { CardTokenRef } from './card-tokens';
+
 export interface Ruling {
   published_at: string;
   comment: string;
@@ -59,6 +61,10 @@ export interface ScryfallCard {
    *  cache could only ever show a hand-applied modifier. */
   power?: string;
   toughness?: string;
+  /** Tokens and emblems this card creates, distilled from Scryfall's
+   *  `all_parts` — the deck-token prep checklist's whole input. Omitted when
+   *  the card makes none. */
+  tokens?: CardTokenRef[];
   /** Older full-art lands set this without populating frame_effects. */
   full_art?: boolean;
   /** "black" | "white" | "borderless" | "silver" | "gold". */
