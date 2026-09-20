@@ -331,11 +331,18 @@
    (styles/playtest.css): card backs read the same regardless of app theme,
    same reasoning as the --art-scrim tokens. Not reused directly to avoid
    coupling this rail to the full-board's --pt-card-w/h density var. */
+/* An opponent's face-down card is the same object as your own, so it wears
+   the same back (see `.playtest-card__back`). At 40px it reads as a brown
+   card rather than the detail of one, which is still more legible as "a
+   Magic card, face down" than the blue-grey slab it replaced. */
 .opponent-mini-card__back {
   display: block;
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #2b3340, #1a2030);
+  background-color: #1e130b;
+  background-image: url('/card-back.webp');
+  background-size: cover;
+  background-position: center;
 }
 
 .opponent-mini-card__placeholder {
