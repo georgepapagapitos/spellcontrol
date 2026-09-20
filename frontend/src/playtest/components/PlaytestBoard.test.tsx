@@ -19,6 +19,19 @@ let onlineTable: OnlineTable | null = null;
 vi.mock('../hooks/use-online-table', () => ({
   useOnlineTable: () => onlineTable,
 }));
+// The token picker's two seams: the deck-token list (echoed back as a name
+// so the test can see HOW MANY deck cards the board passed down) and the
+// live Scryfall lookups, which must never fire in a unit test.
+vi.mock('@/components/deck/use-deck-tokens', () => ({
+  useDeckTokens: (cards: unknown[]) =>
+    cards.length > 0 ? [{ name: `deck-cards-${cards.length}`, producers: [] }] : [],
+}));
+vi.mock('@/deck-builder/services/scryfall/client', async (orig) => ({
+  ...(await orig<Record<string, unknown>>()),
+  searchTokens: async () => [],
+  resolveTokenOption: async () => null,
+}));
+
 // Art resolution for the quadrants' cards — see OpponentQuadrant.test.tsx.
 vi.mock('@/lib/card-thumbs', () => ({
   useCardThumb: (name?: string) => (name ? `https://cards.example/${name}.jpg` : undefined),
@@ -590,5 +603,61 @@ describe('PlaytestBoard — arrows', () => {
     expect(sendSignal).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
     expect(screen.queryByRole('menuitem', { name: /Clear my arrows/ })).toBeNull();
+  });
+});
+
+/**
+ * A shared or public deck is never in the viewer's decks store — it is
+ * adapted per page and parked on the playtest store as `externalDeck`. The
+ * board used to look only in the decks store, so on every
+ * `/d/:slug/playtest` visit it silently had no deck: the token picker's
+ * "Deck tokens" grid came up empty and the hand's card previews were gone,
+ * with no error to show for it. Found on the live site, not by a test,
+ * which is exactly why this one exists.
+ *
+ * The assertion goes through the token picker on purpose: it is the surface
+ * that consumes the deck's CARDS, so it fails if the board resolves no deck
+ * — where a smoke-test "does the board render" would pass either way.
+ */
+describe("PlaytestBoard — a deck that is not the viewer's own", () => {
+  const externalDeck = {
+    id: 'public:goblin-storm',
+    name: 'Goblin Storm',
+    format: 'commander',
+    source: 'manual',
+    cards: [
+      {
+        slotId: 'pub-main-0',
+        card: { id: 'sf-1', name: 'Dragon Fodder', type_line: 'Sorcery' },
+        allocatedCopyId: null,
+      },
+    ],
+    commander: { id: 'sf-c', name: 'Krenko, Mob Boss', type_line: 'Legendary Creature — Goblin' },
+  } as never;
+
+  it('hands the external deck’s cards to the token picker', async () => {
+    usePlaytestStore.setState({ deckId: 'public:goblin-storm', externalDeck });
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    fireEvent.keyDown(window, { key: 'n' });
+    // `useDeckTokens` is mocked to name its token after the number of deck
+    // cards it was handed: 1 mainboard + 1 commander. Before the fix it was
+    // handed zero and the grid rendered its empty state instead.
+    expect(await screen.findByText('deck-cards-2')).toBeTruthy();
+    expect(screen.queryByText('This deck makes no tokens.')).toBeNull();
+  });
+
+  it('falls back to the empty state when there genuinely is no deck', async () => {
+    usePlaytestStore.setState({ deckId: null, externalDeck: null });
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    fireEvent.keyDown(window, { key: 'n' });
+    expect(await screen.findByText('This deck makes no tokens.')).toBeTruthy();
   });
 });

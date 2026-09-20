@@ -52,6 +52,13 @@ export interface ScryfallCard {
   /** Promo treatments — where Scryfall encodes specialty foils like "textured", "surgefoil",
    *  "halofoil", "gilded", "oilslick", "neonink", "raisedfoil", "confettifoil", "stepandrepeat". */
   promo_types?: string[];
+  /** Printed power/toughness, verbatim — so `*`, `1+*` and the rest survive
+   *  as written. Absent for everything that is not a creature or a vehicle,
+   *  which is what keeps a land from rendering a body. Carried because the
+   *  playtest board prints a P/T box on a permanent, and without these the
+   *  cache could only ever show a hand-applied modifier. */
+  power?: string;
+  toughness?: string;
   /** Older full-art lands set this without populating frame_effects. */
   full_art?: boolean;
   /** "black" | "white" | "borderless" | "silver" | "gold". */

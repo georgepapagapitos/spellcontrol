@@ -198,9 +198,18 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const lastSessionAggregates = usePlaytestStore((s) => s.lastSessionAggregates);
   const gameLog = usePlaytestStore((s) => s.gameLog);
   const playtestDeckId = usePlaytestStore((s) => s.deckId);
-  const deck = useDecksStore((s) =>
+  // A shared or public deck is NOT in the viewer's decks store — it is
+  // adapted per page and handed to the session, which parks it on the
+  // playtest store as `externalDeck`. Looking only in the decks store is how
+  // the board silently lost the deck on every `/d/:slug/playtest` and
+  // `/s/:token/playtest` visit: the hand's card previews and the token
+  // picker's "Deck tokens" grid both went empty with no error to show for
+  // it. External wins, because when it exists it IS the deck being played.
+  const externalDeck = usePlaytestStore((s) => s.externalDeck);
+  const ownDeck = useDecksStore((s) =>
     playtestDeckId ? s.decks.find((d) => d.id === playtestDeckId) : undefined
   );
+  const deck = externalDeck ?? ownDeck;
   const navigate = useNavigate();
 
   // Build a map from each PlaytestCard instance id back to the underlying
