@@ -6,7 +6,10 @@ import path from 'node:path';
 import { Readable, Writable } from 'node:stream';
 import { pipeline as streamPipeline } from 'node:stream/promises';
 import streamArray from 'stream-json/streamers/stream-array.js';
-import type { SlimCard, SlimTokenRef } from './types';
+import type { SlimCard } from './types';
+// Shared with the SQLite card cache's own projection — see card-tokens.ts
+// for why this lives in its own module rather than in either caller.
+import { tokensFromParts } from '../card-tokens';
 import { SCRYFALL_USER_AGENT } from '../scryfall';
 import { NON_PLAYABLE_LAYOUTS, fetchScryfallBulkEntry } from '../scryfall-bulk';
 import { pipeForwardingErrors } from '../stream-utils';
@@ -217,26 +220,6 @@ let lastError: { message: string; at: number } | null = null;
 
 async function fetchOracleBulkUrl(): Promise<{ url: string; updatedAt: string }> {
   return fetchScryfallBulkEntry('oracle_cards');
-}
-
-/**
- * Distill a card's token output from Scryfall's `all_parts` array: keep only the
- * `component === 'token'` entries (tokens + emblems), dedupe by name+type, and
- * drop everything else (the card itself, meld/combo parts). Returns undefined
- * when the card makes no tokens so the field stays absent in the slim payload.
- */
-function tokensFromParts(parts: ScryfallBulkCard['all_parts']): SlimTokenRef[] | undefined {
-  if (!parts || parts.length === 0) return undefined;
-  const seen = new Set<string>();
-  const out: SlimTokenRef[] = [];
-  for (const p of parts) {
-    if (p.component !== 'token' || !p.name) continue;
-    const key = `${p.name} ${p.type_line ?? ''}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(p.type_line ? { name: p.name, typeLine: p.type_line } : { name: p.name });
-  }
-  return out.length > 0 ? out : undefined;
 }
 
 function slimCard(card: ScryfallBulkCard, gameChangerNames: ReadonlySet<string>): SlimCard | null {
