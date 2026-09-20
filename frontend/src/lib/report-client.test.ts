@@ -61,4 +61,15 @@ describe('submitReport', () => {
       /Couldn't send your report/
     );
   });
+
+  it('gives the 5/min limiter its own copy on a 429, routed by status not body text (E347)', async () => {
+    // The limiter's real body is plain text, not JSON — a bare Response with
+    // no parsable error, same as a proxy's rate-limit page would produce.
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('Too many requests, please try again later.', { status: 429 })
+    );
+    await expect(submitReport({ kind: 'deck', targetId: 'd1', reason: 'x' })).rejects.toThrow(
+      /sent a few reports already/
+    );
+  });
 });

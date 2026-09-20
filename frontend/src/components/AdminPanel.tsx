@@ -41,6 +41,13 @@ const HIDE_BODY: Record<AdminReportRow['kind'], string> = {
   'game-result':
     'This revokes the shared game result immediately. Its link stops working for everyone, including the person who shared it.',
 };
+/** Hide toast copy when the target was already taken down some other way —
+ *  the UPDATE touched 0 rows, so "Hid the …" would be a lie (E352). */
+const HIDE_ALREADY: Record<AdminReportRow['kind'], string> = {
+  deck: 'Already unpublished; report closed.',
+  profile: 'Already hidden; report closed.',
+  'game-result': 'Already revoked; report closed.',
+};
 
 /** AI spend is billed in USD whatever the display currency is. */
 const usd = (n: number) => formatMoney(n, { currency: 'USD' });
@@ -318,9 +325,14 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
     if (!pendingHide) return;
     setHiding(true);
     try {
-      await resolveReport(pendingHide.id, 'hide');
+      const { changed } = await resolveReport(pendingHide.id, 'hide');
       setReports((prev) => (prev ? prev.filter((r) => r.id !== pendingHide.id) : prev));
-      toast.show({ message: `Hid the ${HIDE_NOUN[pendingHide.kind]}`, tone: 'success' });
+      toast.show({
+        message: changed
+          ? `Hid the ${HIDE_NOUN[pendingHide.kind]}`
+          : HIDE_ALREADY[pendingHide.kind],
+        tone: 'success',
+      });
       setPendingHide(null);
     } catch (err) {
       if (isGone(err)) {
