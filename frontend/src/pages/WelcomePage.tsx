@@ -154,6 +154,29 @@ export function WelcomePage() {
           </div>
 
           {sampleError && <p className="welcome-error">{sampleError}</p>}
+
+          {/* Door 5 — the way past. Every other door here asks for something:
+              an import, an account, a pile of cards you don't own. Without
+              this one the gate has no exit that isn't a commitment, and
+              `useFirstRunGate` sends a first-run guest back here from any
+              non-exempt path, so someone who typed /rules could not reach it.
+              Deliberately quiet: it is the answer to "I just want to look",
+              not a peer of the two real doors.
+
+              markEverVisited() because this IS an intentional first choice,
+              and /collection because that is where App already routes a
+              returning guest from `/`. A <Link> (not navigate) so
+              cmd/ctrl/middle-click still work, same as Sign in above. */}
+          <Link
+            to="/collection"
+            className="welcome-skip"
+            onClick={() => {
+              markEverVisited();
+              track('skipped_welcome');
+            }}
+          >
+            Look around first
+          </Link>
         </section>
 
         <section className="welcome-features" aria-label="What SpellControl does">

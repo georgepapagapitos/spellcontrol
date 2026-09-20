@@ -49,6 +49,7 @@ export const EVENT_NAMES = new Set([
   'register_completed',
   'deck_created',
   'binder_created',
+  'skipped_welcome',
 ]);
 
 export const ERROR_KINDS = new Set(['error', 'rejection', 'render']);

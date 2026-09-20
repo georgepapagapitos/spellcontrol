@@ -31,7 +31,11 @@ export type EventName =
   | 'play_started'
   | 'register_completed'
   | 'deck_created'
-  | 'binder_created';
+  | 'binder_created'
+  // The landing's own escape hatch. Counted like any other door, because
+  // "how many people wanted past the storefront without taking any of it"
+  // is the question that justifies the door existing.
+  | 'skipped_welcome';
 
 const ID_ROUTES =
   /^\/(s|d|u|gn|pods|friends|decks\/cube|decks|collection\/(?:binders|lists|sets))\/([^/]+)(\/.*)?$/;
