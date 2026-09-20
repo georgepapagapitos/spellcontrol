@@ -588,6 +588,41 @@
   flex-shrink: 0;
 }
 
+/* ── Account recovery banner ───────────────────────────────────────────────
+   Same sticky chrome as the auto-link banner above, in the warning tone
+   rather than the accent one: this is a standing condition to fix, not an
+   event to acknowledge, and it has no dismiss. */
+.recovery-banner {
+  position: sticky;
+  top: 0;
+  /* Sticky page chrome — use the scale, not a raw 50. See STYLE_GUIDE. */
+  z-index: var(--z-popover);
+  padding: var(--space-3) var(--space-4);
+  background: var(--warn-bg, var(--surface-raised));
+  border-bottom: 1px solid var(--warn-text, var(--border));
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.recovery-banner-text {
+  flex: 1 1 280px;
+  line-height: 1.45;
+}
+
+.recovery-banner .btn {
+  flex-shrink: 0;
+}
+
+@media (pointer: coarse) {
+  .recovery-banner .btn {
+    min-height: 44px;
+  }
+}
+
 /* ── Account merge dialog (guest → populated-account collision) ─────────── */
 .account-merge-dialog {
   max-width: 540px;

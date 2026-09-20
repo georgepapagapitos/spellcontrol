@@ -116,14 +116,17 @@ jobs:
       # /admin. Admin is seeded from VERIFIED emails now (ADMIN_EMAILS), and
       # this account can't receive mail, so the seat is granted out-of-band
       # here instead: register through the real endpoint, then promote with
-      # one UPDATE. The journey itself sees a 409 and signs in, exactly as it
-      # already does on any re-run against a warm database.
+      # one UPDATE. The same UPDATE marks the address verified, which both
+      # matches what a real account looks like after clicking the link and
+      # keeps the recovery banner off every screenshot. The journey itself
+      # sees a 409 and signs in, exactly as it already does on any re-run
+      # against a warm database.
       - name: Seed the journey's admin account
         env:
           PGPASSWORD: spellcontrol
         run: |
-          curl -s -o /dev/null -X POST http://localhost:3737/api/auth/register -H 'Content-Type: application/json' -d '{"username":"journeyadmin","password":"journey-pass-journeyadmin"}'
-          psql -h localhost -U spellcontrol -d spellcontrol -c "UPDATE users SET role = 'admin' WHERE username = 'journeyadmin'"
+          curl -s -o /dev/null -X POST http://localhost:3737/api/auth/register -H 'Content-Type: application/json' -d '{"username":"journeyadmin","password":"journey-pass-journeyadmin","email":"journeyadmin@example.com"}'
+          psql -h localhost -U spellcontrol -d spellcontrol -c "UPDATE users SET role = 'admin', email = 'journeyadmin@example.com', email_verified = true WHERE username = 'journeyadmin'"
 
       - name: Journey in Chrome (phone + desktop)
         run: node scripts/journey.mjs --base http://localhost:3737 --browser chrome --username journeyadmin --out journey-chrome

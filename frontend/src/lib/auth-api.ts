@@ -80,11 +80,20 @@ export interface SyncPushResult {
 import { authedFetch, describeHttpFailure, handleResponse } from './fetch-utils';
 import { apiUrl } from './api-base';
 
-export async function register(username: string, password: string): Promise<AuthUser> {
+/**
+ * Create a password account. The email is required by the server: password
+ * reset is the only way back in, and it sends there. The address is not live
+ * on the account until the link in that mail is clicked.
+ */
+export async function register(
+  username: string,
+  password: string,
+  email: string
+): Promise<AuthUser> {
   const res = await authedFetch('/api/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, email }),
   });
   const data = await handleResponse<{ user: AuthUser }>(res);
   return data.user;
@@ -366,6 +375,13 @@ export interface MeResponse {
   user: AuthUser;
   autoLinkedAt: number | null;
   inboxSeenAt: number | null;
+  /**
+   * False when this account cannot receive a password reset — either it has
+   * no address yet, or the one it gave at sign-up has not been confirmed.
+   * Both mean the same thing to the person (no way back in), which is what
+   * the recovery banner acts on.
+   */
+  emailVerified: boolean;
   profile: Profile;
 }
 
@@ -376,12 +392,16 @@ export async function fetchMe(): Promise<MeResponse | null> {
     user: AuthUser;
     autoLinkedAt?: number | null;
     inboxSeenAt?: number | null;
+    emailVerified?: boolean;
     profile: Profile;
   }>(res);
   return {
     user: data.user,
     autoLinkedAt: data.autoLinkedAt ?? null,
     inboxSeenAt: data.inboxSeenAt ?? null,
+    // Absent (an older backend) is treated as verified: a banner nobody can
+    // act on is worse than a missing one.
+    emailVerified: data.emailVerified ?? true,
     profile: data.profile,
   };
 }

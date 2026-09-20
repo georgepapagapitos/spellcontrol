@@ -18,7 +18,7 @@ let cleanup: () => Promise<void>;
 async function registerUser(username: string): Promise<string> {
   const res = await request(app)
     .post('/api/auth/register')
-    .send({ username, password: 'correct horse battery' });
+    .send({ username, password: 'correct horse battery', email: `${username}@example.test` });
   return extractSessionCookie(res.headers['set-cookie'])!;
 }
 
@@ -172,9 +172,11 @@ describe('GET /api/aggregates/trending', () => {
 
 describe('GET /api/aggregates/trending (topCopiedDecks, w4-trending)', () => {
   it('gains topCopiedDecks once real snapshot deltas exist', async () => {
-    const reg = await request(app)
-      .post('/api/auth/register')
-      .send({ username: 'trending_owner', password: 'correct horse battery' });
+    const reg = await request(app).post('/api/auth/register').send({
+      username: 'trending_owner',
+      password: 'correct horse battery',
+      email: 'trending_owner@example.test',
+    });
     const ownerId = reg.body.user.id as string;
     const db = getDb();
     const now = Date.now();
@@ -243,9 +245,11 @@ describe('POST /api/aggregates/admin/refresh (auth gating)', () => {
 // one file sequentially, in declaration order).
 describe('POST /api/aggregates/admin/refresh (runs the rollup)', () => {
   it('invokes runRollup() against seeded fixture decks for an admin', async () => {
-    const adminReg = await request(app)
-      .post('/api/auth/register')
-      .send({ username: 'aggregates_admin', password: 'correct horse battery' });
+    const adminReg = await request(app).post('/api/auth/register').send({
+      username: 'aggregates_admin',
+      password: 'correct horse battery',
+      email: 'aggregates_admin@example.test',
+    });
     await getDb().execute(sql`UPDATE users SET role = 'admin' WHERE username = 'aggregates_admin'`);
     const login = await request(app)
       .post('/api/auth/login')

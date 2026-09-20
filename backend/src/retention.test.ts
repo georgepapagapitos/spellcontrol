@@ -26,7 +26,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 async function makeUser(username: string): Promise<string> {
   const reg = await request(app)
     .post('/api/auth/register')
-    .send({ username, password: 'correct horse battery' });
+    .send({ username, password: 'correct horse battery', email: `${username}@example.test` });
   expect(reg.status).toBe(201);
   return reg.body.user.id as string;
 }

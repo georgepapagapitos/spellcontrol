@@ -84,7 +84,9 @@ async function createGoogleAccount(sub: string, email: string, username: string)
 
 /** Register a password account and return its session cookie + user id. */
 async function registerWithSession(username: string, password = 'correct horse battery') {
-  const res = await request(app).post('/api/auth/register').send({ username, password });
+  const res = await request(app)
+    .post('/api/auth/register')
+    .send({ username, password, email: `${username}@example.test` });
   expect(res.status).toBe(201);
   return {
     cookie: extractSessionCookie(res.headers['set-cookie'])!,
@@ -300,7 +302,9 @@ describe('GET /api/auth/google/callback — returning user', () => {
 describe('POST /api/auth/google/link-with-password', () => {
   /** Register a password-only account; returns the username. */
   async function registerPassword(username: string, password = 'correct horse battery') {
-    const res = await request(app).post('/api/auth/register').send({ username, password });
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({ username, password, email: `${username}@example.test` });
     expect(res.status).toBe(201);
     return username;
   }
@@ -466,9 +470,12 @@ describe('GET /api/auth/me/identities', () => {
     expect(res.body).toEqual({
       password: true,
       google: null,
+      // Sign-up takes an address and mails a link, but does not write
+      // `users.email` until that link is clicked — so a brand-new account has
+      // a verification pending and nothing verified yet.
       email: null,
       emailVerified: false,
-      pendingEmail: null,
+      pendingEmail: 'ident-alice@example.test',
       notifyEmail: true,
     });
   });
@@ -642,7 +649,7 @@ describe('Google callback — same-email auto-link', () => {
   ): Promise<{ userId: string }> {
     const reg = await request(app)
       .post('/api/auth/register')
-      .send({ username, password: 'correct horse battery' });
+      .send({ username, password: 'correct horse battery', email: `${username}@example.test` });
     expect(reg.status).toBe(201);
     const userId = reg.body.user.id as string;
     await pool.query('UPDATE users SET email = $1, email_verified = $2 WHERE id = $3', [

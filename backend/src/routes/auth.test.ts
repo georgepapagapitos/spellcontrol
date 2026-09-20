@@ -21,7 +21,7 @@ describe('POST /api/auth/register', () => {
   it('creates a user and returns a session cookie', async () => {
     const res = await request(app)
       .post('/api/auth/register')
-      .send({ username: 'alice', password: 'correct horse battery' });
+      .send({ username: 'alice', password: 'correct horse battery', email: 'alice@example.test' });
     expect(res.status).toBe(201);
     expect(res.body.user).toMatchObject({ username: 'alice' });
     expect(res.body.user.id).toBeTypeOf('string');
@@ -31,41 +31,43 @@ describe('POST /api/auth/register', () => {
   it('rejects duplicate usernames', async () => {
     await request(app)
       .post('/api/auth/register')
-      .send({ username: 'bob', password: 'correct horse battery' });
+      .send({ username: 'bob', password: 'correct horse battery', email: 'bob@example.test' });
     const res = await request(app)
       .post('/api/auth/register')
-      .send({ username: 'bob', password: 'another good password' });
+      .send({ username: 'bob', password: 'another good password', email: 'bob@example.test' });
     expect(res.status).toBe(409);
   });
 
   it('rejects short passwords', async () => {
     const res = await request(app)
       .post('/api/auth/register')
-      .send({ username: 'cory', password: 'short' });
+      .send({ username: 'cory', password: 'short', email: 'cory@example.test' });
     expect(res.status).toBe(400);
   });
 
   it('rejects malformed usernames', async () => {
-    const res = await request(app)
-      .post('/api/auth/register')
-      .send({ username: 'BadUser!', password: 'correct horse battery' });
+    const res = await request(app).post('/api/auth/register').send({
+      username: 'BadUser!',
+      password: 'correct horse battery',
+      email: 'BadUser!@example.test',
+    });
     expect(res.status).toBe(400);
   });
 
   it('lowercases usernames so case-only duplicates collide', async () => {
     await request(app)
       .post('/api/auth/register')
-      .send({ username: 'dan', password: 'correct horse battery' });
+      .send({ username: 'dan', password: 'correct horse battery', email: 'dan@example.test' });
     const res = await request(app)
       .post('/api/auth/register')
-      .send({ username: 'DAN', password: 'correct horse battery' });
+      .send({ username: 'DAN', password: 'correct horse battery', email: 'DAN@example.test' });
     expect(res.status).toBe(409);
   });
 
   it('rejects a reserved username with a message distinct from "taken"', async () => {
     const res = await request(app)
       .post('/api/auth/register')
-      .send({ username: 'admin', password: 'correct horse battery' });
+      .send({ username: 'admin', password: 'correct horse battery', email: 'admin@example.test' });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/reserved/i);
   });
@@ -83,7 +85,7 @@ describe('POST /api/auth/login', () => {
   it('returns a session cookie on valid credentials', async () => {
     await request(app)
       .post('/api/auth/register')
-      .send({ username: 'eve', password: 'correct horse battery' });
+      .send({ username: 'eve', password: 'correct horse battery', email: 'eve@example.test' });
     const res = await request(app)
       .post('/api/auth/login')
       .send({ username: 'eve', password: 'correct horse battery' });
@@ -94,7 +96,7 @@ describe('POST /api/auth/login', () => {
   it('rejects wrong password with generic 401', async () => {
     await request(app)
       .post('/api/auth/register')
-      .send({ username: 'frank', password: 'correct horse battery' });
+      .send({ username: 'frank', password: 'correct horse battery', email: 'frank@example.test' });
     const res = await request(app)
       .post('/api/auth/login')
       .send({ username: 'frank', password: 'wrong wrong wrong' });
@@ -120,7 +122,7 @@ describe('GET /api/auth/me', () => {
   it('returns the user with a valid session', async () => {
     const reg = await request(app)
       .post('/api/auth/register')
-      .send({ username: 'helen', password: 'correct horse battery' });
+      .send({ username: 'helen', password: 'correct horse battery', email: 'helen@example.test' });
     const cookie = extractSessionCookie(reg.headers['set-cookie'])!;
     const res = await request(app).get('/api/auth/me').set('Cookie', cookie);
     expect(res.status).toBe(200);
@@ -128,9 +130,11 @@ describe('GET /api/auth/me', () => {
   });
 
   it('includes an all-null profile for a fresh registration', async () => {
-    const reg = await request(app)
-      .post('/api/auth/register')
-      .send({ username: 'freshprofile', password: 'correct horse battery' });
+    const reg = await request(app).post('/api/auth/register').send({
+      username: 'freshprofile',
+      password: 'correct horse battery',
+      email: 'freshprofile@example.test',
+    });
     const cookie = extractSessionCookie(reg.headers['set-cookie'])!;
     const res = await request(app).get('/api/auth/me').set('Cookie', cookie);
     expect(res.status).toBe(200);
@@ -158,7 +162,7 @@ describe('DELETE /api/auth/me', () => {
   it('deletes the account and invalidates the session', async () => {
     const reg = await request(app)
       .post('/api/auth/register')
-      .send({ username: 'iris', password: 'correct horse battery' });
+      .send({ username: 'iris', password: 'correct horse battery', email: 'iris@example.test' });
     const cookie = extractSessionCookie(reg.headers['set-cookie'])!;
     const del = await request(app).delete('/api/auth/me').set('Cookie', cookie);
     expect(del.status).toBe(200);
@@ -167,9 +171,11 @@ describe('DELETE /api/auth/me', () => {
   });
 
   it('purges the public-read caches for a deleted account with a live publication', async () => {
-    const reg = await request(app)
-      .post('/api/auth/register')
-      .send({ username: 'deleteme-pub', password: 'correct horse battery' });
+    const reg = await request(app).post('/api/auth/register').send({
+      username: 'deleteme-pub',
+      password: 'correct horse battery',
+      email: 'deleteme-pub@example.test',
+    });
     const cookie = extractSessionCookie(reg.headers['set-cookie'])!;
     await request(app)
       .patch('/api/auth/profile')
@@ -223,7 +229,7 @@ describe('PATCH /api/auth/profile', () => {
   async function registerAndGetCookie(username: string): Promise<string> {
     const reg = await request(app)
       .post('/api/auth/register')
-      .send({ username, password: 'correct horse battery' });
+      .send({ username, password: 'correct horse battery', email: `${username}@example.test` });
     return extractSessionCookie(reg.headers['set-cookie'])!;
   }
 
@@ -310,7 +316,7 @@ describe('PATCH /api/auth/me/username', () => {
   async function signUp(username: string): Promise<string> {
     const reg = await request(app)
       .post('/api/auth/register')
-      .send({ username, password: 'correct horse battery' });
+      .send({ username, password: 'correct horse battery', email: `${username}@example.test` });
     return extractSessionCookie(reg.headers['set-cookie'])!;
   }
 

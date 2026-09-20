@@ -66,3 +66,21 @@ describe('AuthPage tabs', () => {
     );
   });
 });
+
+describe('AuthPage — the recovery address', () => {
+  it('asks for an email only when creating an account', async () => {
+    const { container } = await renderPage();
+
+    // Sign-in has nothing to recover yet, so it stays a two-field form.
+    expect(container.querySelector('input[autocomplete="email"]')).toBeFalsy();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Create account' }));
+    const email = container.querySelector('input[autocomplete="email"]') as HTMLInputElement;
+    expect(email).toBeTruthy();
+    // Required, so the browser blocks a signup with no way back in before the
+    // request is ever made.
+    expect(email.required).toBe(true);
+    expect(email.type).toBe('email');
+    expect(screen.getByText(/only way back/i)).toBeTruthy();
+  });
+});

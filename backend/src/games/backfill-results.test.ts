@@ -23,7 +23,7 @@ afterAll(async () => {
 async function makeUserId(username: string): Promise<string> {
   const reg = await request(app)
     .post('/api/auth/register')
-    .send({ username, password: 'correct horse battery' });
+    .send({ username, password: 'correct horse battery', email: `${username}@example.test` });
   expect(reg.status).toBe(201);
   const r = await pool.query<{ id: string }>(`SELECT id FROM users WHERE username = $1`, [
     username,

@@ -77,12 +77,16 @@ describe('AuthPage register-failure form state', () => {
     const { container } = await renderRegisterMode();
 
     const usernameInput = container.querySelector('input[autocomplete="username"]');
+    const emailInput = container.querySelector('input[autocomplete="email"]');
     const passwordInput = container.querySelector('input[autocomplete="new-password"]');
     const confirmInput = container.querySelectorAll('input[type="password"]')[1];
-    if (!usernameInput || !passwordInput || !confirmInput) {
+    if (!usernameInput || !emailInput || !passwordInput || !confirmInput) {
       throw new Error('Could not find form inputs');
     }
     fireEvent.change(usernameInput, { target: { value: 'dev' } });
+    // Sign-up requires a recovery address; the field is `required`, so an
+    // unfilled one never reaches the submit handler at all.
+    fireEvent.change(emailInput, { target: { value: 'dev@example.test' } });
     fireEvent.change(passwordInput, { target: { value: 'matchingpassword1' } });
     fireEvent.change(confirmInput, { target: { value: 'matchingpassword1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
@@ -97,13 +101,15 @@ describe('AuthPage register-failure form state', () => {
     const usernameInput = container.querySelector('input[autocomplete="username"]');
     const passwordInput = container.querySelector('input[autocomplete="new-password"]');
     const confirmInput = container.querySelectorAll('input[type="password"]')[1];
-    if (!usernameInput || !passwordInput || !confirmInput) {
+    const emailInput = container.querySelector('input[autocomplete="email"]');
+    if (!usernameInput || !emailInput || !passwordInput || !confirmInput) {
       throw new Error('Could not find form inputs');
     }
 
     // First attempt: matching passwords, but the backend rejects the
     // username — a real "That username is already taken." error banner.
     fireEvent.change(usernameInput, { target: { value: 'dev' } });
+    fireEvent.change(emailInput, { target: { value: 'dev@example.test' } });
     fireEvent.change(passwordInput, { target: { value: 'onepassword1' } });
     fireEvent.change(confirmInput, { target: { value: 'onepassword1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));

@@ -38,6 +38,7 @@ describe('bootstrap', () => {
       user: { id: 'u1', username: 'alice', role: 'user' },
       autoLinkedAt: null,
       inboxSeenAt: null,
+      emailVerified: true,
       profile: EMPTY_PROFILE,
     });
     await useAuth.getState().bootstrap();
@@ -52,6 +53,7 @@ describe('bootstrap', () => {
       user: { id: 'u1', username: 'alice', role: 'user' },
       autoLinkedAt: null,
       inboxSeenAt: null,
+      emailVerified: true,
       profile,
     });
     await useAuth.getState().bootstrap();
@@ -109,6 +111,7 @@ describe('bootstrap', () => {
       user: { id: 'u1', username: 'alice', role: 'user' },
       autoLinkedAt: 1700000000000,
       inboxSeenAt: null,
+      emailVerified: true,
       profile: EMPTY_PROFILE,
     });
     await useAuth.getState().bootstrap();
@@ -120,6 +123,7 @@ describe('bootstrap', () => {
       user: { id: 'u1', username: 'alice', role: 'user' },
       autoLinkedAt: null,
       inboxSeenAt: 1700000000000,
+      emailVerified: true,
       profile: EMPTY_PROFILE,
     });
     await useAuth.getState().bootstrap();
@@ -181,6 +185,7 @@ describe('login / register', () => {
       user: { id: 'u2', username: 'bob', role: 'user' },
       autoLinkedAt: null,
       inboxSeenAt: null,
+      emailVerified: true,
       profile,
     });
     await useAuth.getState().login('bob', 'correct horse battery');
@@ -212,7 +217,9 @@ describe('login / register', () => {
 
   it('register success sets the user', async () => {
     vi.spyOn(authApi, 'register').mockResolvedValue({ id: 'u3', username: 'cory', role: 'user' });
-    const ok = await useAuth.getState().register('cory', 'correct horse battery');
+    const ok = await useAuth
+      .getState()
+      .register('cory', 'correct horse battery', 'cory@example.test');
     expect(ok).toBe(true);
     expect(useAuth.getState().user?.id).toBe('u3');
   });
@@ -279,7 +286,7 @@ describe('first-run flag side effect', () => {
 
   it('register success marks the device', async () => {
     vi.spyOn(authApi, 'register').mockResolvedValue({ id: 'u', username: 'a', role: 'user' });
-    await useAuth.getState().register('a', 'pw');
+    await useAuth.getState().register('a', 'pw', 'a@example.test');
     expect(hasEverVisited()).toBe(true);
   });
 

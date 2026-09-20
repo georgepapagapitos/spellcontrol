@@ -46,6 +46,10 @@ interface AuthState {
    * (or unlinking) calls `acknowledgeAutoLink()` and clears this.
    */
   autoLinkedAt: number | null;
+  /** False when no password reset can reach this account — drives the
+   *  recovery banner. True while signed out or offline, so the banner never
+   *  appears somewhere it cannot be acted on. */
+  emailVerified: boolean;
   /**
    * Server truth (T117) behind the inbox/friend-request "unseen" badges —
    * `users.inbox_seen_at`. Every badge reader (`useInbox`, `useFriendRequests`,
@@ -71,7 +75,7 @@ interface AuthState {
    */
   bootstrap: () => Promise<void>;
   login: (username: string, password: string) => Promise<boolean>;
-  register: (username: string, password: string) => Promise<boolean>;
+  register: (username: string, password: string, email: string) => Promise<boolean>;
   /**
    * Finish a password reset: sets the new password and signs the user in
    * (same shared success path as login/register). Resolves to false (and
@@ -152,6 +156,7 @@ export const useAuth = create<AuthState>((set, get) => {
     status: 'unknown',
     error: null,
     autoLinkedAt: null,
+    emailVerified: true,
     inboxSeenAt: null,
     profile: null,
 
@@ -166,6 +171,7 @@ export const useAuth = create<AuthState>((set, get) => {
             status: 'authed',
             error: null,
             autoLinkedAt: me.autoLinkedAt,
+            emailVerified: me.emailVerified,
             inboxSeenAt: me.inboxSeenAt,
             profile: me.profile,
           });
@@ -226,10 +232,10 @@ export const useAuth = create<AuthState>((set, get) => {
       }
     },
 
-    register: async (username, password) => {
+    register: async (username, password, email) => {
       set({ error: null });
       try {
-        const user = await authApi.register(username, password);
+        const user = await authApi.register(username, password, email);
         signInAs(user);
         track('register_completed');
         return true;
