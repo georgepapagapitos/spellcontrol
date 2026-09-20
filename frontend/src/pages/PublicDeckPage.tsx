@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Navigate, useParams } from 'react-router-dom';
 import {
   fetchPublicDeckPage,
   PublicDeckNotFoundError,
@@ -10,6 +10,7 @@ import { SharedDeckSurface } from '../components/share/SharedDeckSurface';
 import { BrandMark } from '../components/shared/BrandMark';
 import { NotFoundView, ErrorView } from '../components/share/SharedShell';
 import { useAuth } from '../store/auth';
+import { useDecksStore } from '../store/decks';
 import { useDocumentTitle } from '../lib/use-document-title';
 import { useOwnershipLens } from '../lib/use-ownership-lens';
 import { OwnershipLensStrip } from '../components/deck/OwnershipLensStrip';
@@ -115,13 +116,31 @@ function PublicDeckPageInner({ slug }: { slug: string }) {
     loading: lensLoading,
   } = useOwnershipLens(deckCards);
 
-  if (state.status === 'loading') {
+  // Your own deck, opened through its public link (Discover, a rail, your
+  // profile): the read-only visitor's view of a deck you can edit is the wrong
+  // page, and the `/d/:slug` URL makes it read as somebody else's. Send the
+  // owner to the real thing. Keyed on the deck id the payload carries, and
+  // only once the local decks are hydrated — an owner whose deck hasn't synced
+  // to this device has nowhere to go, so they keep the public page.
+  const isOwner =
+    state.status === 'ready' && !!authUsername && authUsername === state.payload.deck.ownerUsername;
+  const decksHydrated = useDecksStore((s) => s.hydrated);
+  const ownDeckId = useDecksStore((s) =>
+    isOwner && state.status === 'ready'
+      ? (s.decks.find((d) => d.id === state.payload.deck.id)?.id ?? null)
+      : null
+  );
+
+  if (state.status === 'loading' || (isOwner && !decksHydrated)) {
     return (
       <div className="shared-view shared-view--loading" aria-busy="true">
         <BrandMark size={64} motion="busy" aria-hidden />
         <p>Loading…</p>
       </div>
     );
+  }
+  if (ownDeckId) {
+    return <Navigate to={`/decks/${ownDeckId}`} replace />;
   }
   if (state.status === 'notFound') {
     return (
