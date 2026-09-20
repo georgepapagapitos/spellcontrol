@@ -31,7 +31,7 @@ import { loadCubeSignal } from '../../lib/cube/signal';
 import { ensureCardTags, getCardTags, useCardTagsReady } from '../../lib/card-tags';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
-import { CubeSize, SIZE_INFO, ColorBucket, provenance } from '../../lib/cube/targets';
+import { CubeSize, sizeInfo, ColorBucket, provenance } from '../../lib/cube/targets';
 import { generateCube, GeneratedCube } from '../../lib/cube/generate';
 import { toCubeCobraList } from '../../lib/cube/format';
 import { Ownership } from '../../lib/cube/import';
@@ -528,7 +528,7 @@ function PoolFilterRow({
 function SavedCubeMeta({ sc }: { sc: SavedCube }) {
   return (
     <>
-      {sc.size} cards · {SIZE_INFO[sc.size].players} players
+      {sc.size} cards · {sizeInfo(sc.size).players} players
       {sc.cube.format === 'commander' && ' · Commander'} · saved {formatRelativeTime(sc.savedAt)}
       {sc.isPhysical && (
         <span className="cube-saved-physical-tag">

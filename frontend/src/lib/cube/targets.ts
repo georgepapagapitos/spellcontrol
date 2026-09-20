@@ -65,6 +65,24 @@ export const SIZE_INFO: Record<CubeSize, { players: number; note: string }> = {
   720: { players: 8, note: 'An 8-player draft sees 50%, or run two pods at once' },
 };
 
+/**
+ * `SIZE_INFO` for any size, including one we don't offer. A saved cube's size
+ * is persisted and synced, so it can be a value this build has never heard of
+ * (a cube saved by an older/newer app version, or a hand-written sync row).
+ * Indexing `SIZE_INFO` blind on one of those was an undefined deref that took
+ * the ENTIRE cube workshop down through the ErrorBoundary — with no escape,
+ * because deleting the cube lives only on the page that crashed (board E353).
+ * Every read of the table goes through here; never index it directly.
+ */
+export function sizeInfo(size: number): { players: number; note: string } {
+  const known = SIZE_INFO[size as CubeSize];
+  if (known) return known;
+  // 45 cards per drafter (3 packs of 15) — the same arithmetic the six known
+  // sizes are built from, so an unfamiliar size still reads as a real cube.
+  const players = Math.max(1, Math.round(size / 45));
+  return { players, note: `${size} cards` };
+}
+
 export const provenance = data.provenance;
 
 /**
