@@ -240,19 +240,22 @@ describe('admin-only flag', () => {
   });
 
   it('lets an admin through end to end', async () => {
-    process.env.ADMIN_USERNAMES = 'ai-gate-admin';
-    try {
-      const cookie = await makeUser('ai-gate-admin');
-      await optIn(cookie);
-      const res = await request(app)
-        .post('/api/ai/deck-review')
-        .set('Cookie', cookie)
-        .send(reviewBody());
-      expect(res.status).toBe(200);
-      expect(parseStream(res.text).done).toMatchObject({ content: REVIEW_TEXT });
-    } finally {
-      delete process.env.ADMIN_USERNAMES;
-    }
+    const { getPool } = await import('../db');
+    const cookie = await makeUser('ai-gate-admin');
+    // Registration never mints an admin any more (admin is seeded from
+    // verified emails, granted by id thereafter), so the seat is set
+    // directly — the same shape as the ai_access cases above.
+    await getPool().query('UPDATE users SET role = $1 WHERE username = $2', [
+      'admin',
+      'ai-gate-admin',
+    ]);
+    await optIn(cookie);
+    const res = await request(app)
+      .post('/api/ai/deck-review')
+      .set('Cookie', cookie)
+      .send(reviewBody());
+    expect(res.status).toBe(200);
+    expect(parseStream(res.text).done).toMatchObject({ content: REVIEW_TEXT });
   });
 });
 

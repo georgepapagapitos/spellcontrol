@@ -96,6 +96,21 @@ export async function setUserAi(
   await adminResponse<{ ok: true }>(res);
 }
 
+/**
+ * Grant or revoke the admin seat, keyed on the immutable user id. This is the
+ * only ongoing way roles change — `ADMIN_EMAILS` on the server seeds the first
+ * admin on a fresh database and nothing else. The server refuses a change to
+ * your own role, which is what guarantees a deployment always keeps one admin.
+ */
+export async function setUserRole(id: string, role: UserRole): Promise<void> {
+  const res = await authedFetch(`/api/admin/users/${encodeURIComponent(id)}/role`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role }),
+  });
+  await adminResponse<{ ok: true }>(res);
+}
+
 export interface AdminReportRow {
   id: string;
   kind: ReportKind;
