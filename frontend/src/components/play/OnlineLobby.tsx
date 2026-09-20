@@ -1,4 +1,4 @@
-import { Check, Copy, Crown, Shuffle, UserRound, X } from 'lucide-react';
+import { Check, Copy, Crown, Dices, Shuffle, UserRound, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ConfirmDialog } from '../ConfirmDialog';
@@ -14,12 +14,25 @@ import type {
   GameFormat,
   GamePlayer,
   GameState,
+  MulliganType,
 } from '../../lib/game-state';
 import { makePlayer } from '../../lib/game-state';
 import './OnlineLobby.css';
 
 /** Same cap as the create/join paths and the local setup's seat names. */
 const MAX_GUEST_NAME = 40;
+
+/** The three mulligan variants, said the way a pod says them. Order is
+ *  commonest first: Commander tables play the free-first rule by default. */
+const MULLIGAN_OPTIONS: { value: MulliganType; label: string }[] = [
+  { value: 'commander', label: 'Commander (first is free)' },
+  { value: 'london', label: 'London' },
+  { value: 'free', label: 'Free' },
+];
+
+/** The starting-player select's "nobody yet" value. A real seat number can
+ *  never collide with it, and null is not a select value. */
+const RANDOM_SEAT = 'random';
 
 /** Seats an online table shows before anyone joins. The server seats up to 8;
  *  a pod is four, so four is what the grid promises and it grows from there. */
@@ -75,6 +88,19 @@ export function OnlineLobby({
   const readyCount = game.players.filter((p) => p.ready === true || p.userId === null).length;
   const allReady = readyCount === game.players.length;
   const myDeck = mySeat.deckId ? (decks.find((d) => d.id === mySeat.deckId) ?? null) : null;
+
+  const pickDeck = (deck: Deck | null) =>
+    dispatch({
+      type: 'update-player',
+      seat: mySeat.seat,
+      patch: {
+        deckId: deck?.id ?? null,
+        deckName: deck?.name ?? null,
+        commander: deck?.commander?.name ?? null,
+        partner: deck?.partnerCommander?.name ?? null,
+        colorIdentity: deck?.commander?.color_identity ?? [],
+      },
+    });
 
   return (
     <div className="lobby">
@@ -140,23 +166,18 @@ export function OnlineLobby({
           seats. */}
       <div className="lobby-bar">
         <div className="lobby-bar-group">
-          <DeckPicker
-            decks={decks}
-            value={mySeat.deckId}
-            onChange={(deck) =>
-              dispatch({
-                type: 'update-player',
-                seat: mySeat.seat,
-                patch: {
-                  deckId: deck?.id ?? null,
-                  deckName: deck?.name ?? null,
-                  commander: deck?.commander?.name ?? null,
-                  partner: deck?.partnerCommander?.name ?? null,
-                  colorIdentity: deck?.commander?.color_identity ?? [],
-                },
-              })
-            }
-          />
+          <DeckPicker decks={decks} value={mySeat.deckId} onChange={pickDeck} />
+          {decks.length > 1 && (
+            <button
+              type="button"
+              className="btn lobby-bar-btn lobby-deck-random"
+              onClick={() => pickDeck(decks[Math.floor(Math.random() * decks.length)])}
+              aria-label="Pick a random deck"
+              title="Pick a random deck"
+            >
+              <Dices width={16} height={16} strokeWidth={2} aria-hidden />
+            </button>
+          )}
           {mySeat.deckId && (
             <Link to={`/decks/${mySeat.deckId}/playtest`} className="btn lobby-bar-btn">
               Open board
@@ -190,7 +211,25 @@ export function OnlineLobby({
               <button
                 type="button"
                 className="btn btn-primary lobby-bar-btn"
-                onClick={() => dispatch({ type: 'start' })}
+                onClick={() => {
+                  // "Random" is a promise to roll at the last moment, not a
+                  // seat — so the roll happens here, on the host's device,
+                  // and the result is dispatched as an ordinary settings
+                  // change. The reducer stays pure, and every seat sees the
+                  // same first player.
+                  if (game.startingSeat == null) {
+                    const pick = pickFirstPlayer(game.players);
+                    if (pick) {
+                      dispatch({
+                        type: 'note',
+                        actorSeat: null,
+                        message: `First player: ${pick.name}`,
+                      });
+                      dispatch({ type: 'settings', patch: { startingSeat: pick.seat } });
+                    }
+                  }
+                  dispatch({ type: 'start' });
+                }}
               >
                 Start game
               </button>
@@ -444,13 +483,18 @@ function LobbyRail({
   const startingPlayer =
     game.startingSeat != null
       ? (game.players.find((p) => p.seat === game.startingSeat)?.name ?? 'Unknown')
-      : 'Not decided';
+      : 'Random';
 
-  const randomizeFirst = () => {
-    const pick = pickFirstPlayer(game.players);
-    if (!pick) return;
-    dispatch({ type: 'note', actorSeat: null, message: `First player: ${pick.name}` });
-    dispatch({ type: 'settings', patch: { startingSeat: pick.seat } });
+  const shuffleSeats = () => {
+    // Fisher-Yates on the ids; the reducer only applies the order it is
+    // given, so the roll belongs on this device (same split as the first
+    // player above).
+    const order = game.players.map((p) => p.id);
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    dispatch({ type: 'reseat', order });
   };
 
   return (
@@ -535,15 +579,55 @@ function LobbyRail({
         </div>
 
         <div className="lobby-setting">
-          <span>Starting player</span>
-          <span className="lobby-setting-value">{startingPlayer}</span>
-          {isHost && (
-            <button type="button" className="btn lobby-randomize" onClick={randomizeFirst}>
-              <Shuffle width={14} height={14} strokeWidth={2} aria-hidden />
-              Randomize
-            </button>
+          <span id="lobby-mulligan-label">Mulligan</span>
+          {isHost ? (
+            <SelectMenu<MulliganType>
+              ariaLabel="Mulligan"
+              value={game.mulliganType ?? 'commander'}
+              onChange={(mulliganType) => dispatch({ type: 'settings', patch: { mulliganType } })}
+              options={MULLIGAN_OPTIONS}
+            />
+          ) : (
+            <span className="lobby-setting-value">
+              {MULLIGAN_OPTIONS.find((o) => o.value === (game.mulliganType ?? 'commander'))?.label}
+            </span>
           )}
         </div>
+
+        <div className="lobby-setting">
+          <span>Starting player</span>
+          {isHost ? (
+            // "Random" is the absence of a pick, rolled when the game starts —
+            // so the table can see it is undecided rather than reading a name
+            // that was really chosen minutes ago.
+            <SelectMenu<string>
+              ariaLabel="Starting player"
+              value={game.startingSeat == null ? RANDOM_SEAT : String(game.startingSeat)}
+              onChange={(next) =>
+                dispatch({
+                  type: 'settings',
+                  patch: { startingSeat: next === RANDOM_SEAT ? null : Number(next) },
+                })
+              }
+              options={[
+                { value: RANDOM_SEAT, label: 'Random' },
+                ...game.players.map((p) => ({ value: String(p.seat), label: p.name })),
+              ]}
+            />
+          ) : (
+            <span className="lobby-setting-value">{startingPlayer}</span>
+          )}
+        </div>
+
+        {isHost && game.players.length > 1 && (
+          <div className="lobby-setting">
+            <span>Seats</span>
+            <button type="button" className="btn lobby-randomize" onClick={shuffleSeats}>
+              <Shuffle width={14} height={14} strokeWidth={2} aria-hidden />
+              Shuffle
+            </button>
+          </div>
+        )}
 
         {isHost ? (
           <div className="lobby-rules">
@@ -561,6 +645,14 @@ function LobbyRail({
               label="Poison counters"
               hint="Lose at 10 poison counters."
             />
+            <RulePill
+              on={game.turnTimerEnabled ?? false}
+              onChange={(turnTimerEnabled) =>
+                dispatch({ type: 'settings', patch: { turnTimerEnabled } })
+              }
+              label="Turn timer"
+              hint="Show how long the current turn has run. Nothing expires."
+            />
           </div>
         ) : (
           <>
@@ -573,6 +665,10 @@ function LobbyRail({
             <div className="lobby-setting">
               <span>Poison counters</span>
               <span className="lobby-setting-value">{game.poisonEnabled ? 'On' : 'Off'}</span>
+            </div>
+            <div className="lobby-setting">
+              <span>Turn timer</span>
+              <span className="lobby-setting-value">{game.turnTimerEnabled ? 'On' : 'Off'}</span>
             </div>
           </>
         )}

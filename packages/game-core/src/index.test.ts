@@ -5,6 +5,7 @@ import {
   createGameState,
   gameToRecord,
   makePlayer,
+  cardsToBottom,
   normalizeCounterName,
   seatCounters,
   selectNotableEvents,
@@ -1047,5 +1048,70 @@ describe('undoOf — the log knows what an Undo took back', () => {
     g = applyAction(g, { type: 'eliminate', seat: 1, eliminated: true });
     g = applyAction(g, { type: 'eliminate', seat: 1, eliminated: false, undoOf: anchor });
     expect(selectNotableEvents(g.events).map((e) => e.kind)).not.toContain('eliminate');
+  });
+});
+
+describe('mulligan type', () => {
+  it('defaults to commander, the variant legacy tables already played', () => {
+    expect(lobby().mulliganType).toBe('commander');
+    // A state persisted before the field existed reads as the same default.
+    const legacy = { ...lobby(), mulliganType: undefined } as unknown as GameState;
+    expect(applyAction(legacy, { type: 'start' }).mulliganType).toBe('commander');
+  });
+
+  it('owes the bottom a different count per variant', () => {
+    // Commander: the first mulligan is free, then one per mulligan after it.
+    expect([0, 1, 2, 3].map((n) => cardsToBottom('commander', n))).toEqual([0, 0, 1, 2]);
+    // London: one per mulligan, from the first.
+    expect([0, 1, 2, 3].map((n) => cardsToBottom('london', n))).toEqual([0, 1, 2, 3]);
+    // Free: never anything owed.
+    expect([0, 1, 2, 3].map((n) => cardsToBottom('free', n))).toEqual([0, 0, 0, 0]);
+  });
+
+  it('is a rules setting, so changing it logs an event', () => {
+    const before = lobby();
+    const after = applyAction(before, { type: 'settings', patch: { mulliganType: 'london' } });
+    expect(after.mulliganType).toBe('london');
+    expect(after.events.filter((e) => e.kind === 'settings')).toHaveLength(1);
+  });
+});
+
+describe('turn timer', () => {
+  it('is off by default and flips through settings', () => {
+    const before = lobby();
+    expect(before.turnTimerEnabled).toBe(false);
+    expect(
+      applyAction(before, { type: 'settings', patch: { turnTimerEnabled: true } }).turnTimerEnabled
+    ).toBe(true);
+  });
+});
+
+describe('reseat', () => {
+  it('reorders seats to the given order and clears the stale on-the-play mark', () => {
+    const before = applyAction(lobby(3), { type: 'settings', patch: { startingSeat: 2 } });
+    const after = applyAction(before, { type: 'reseat', order: ['u2', 'u0', 'u1'] });
+    expect(after.players.map((p) => [p.id, p.seat])).toEqual([
+      ['u2', 0],
+      ['u0', 1],
+      ['u1', 2],
+    ]);
+    expect(after.startingSeat).toBeNull();
+    expect(after.events.some((e) => e.message === 'Seats shuffled')).toBe(true);
+  });
+
+  it('refuses an order that is not a permutation of the seated players', () => {
+    const before = lobby(3);
+    for (const order of [
+      ['u0', 'u1'],
+      ['u0', 'u1', 'u1'],
+      ['u0', 'u1', 'ghost'],
+    ]) {
+      expect(applyAction(before, { type: 'reseat', order })).toBe(before);
+    }
+  });
+
+  it('refuses once the game is active, since seat numbers key live game state', () => {
+    const active = applyAction(lobby(3), { type: 'start' });
+    expect(applyAction(active, { type: 'reseat', order: ['u2', 'u1', 'u0'] })).toBe(active);
   });
 });

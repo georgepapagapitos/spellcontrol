@@ -1727,11 +1727,26 @@ the live board with a Start button in its header. Two regions at >=1024px
 
 - **Rail** (left): the join-code ticket at the top, then `GAME SETTINGS`, then
   `CHAT`. Small-caps section labels. Every settings row is a real field of
-  `GameState` the reducer honours (format, starting life, starting player,
-  commander damage, poison) — host-editable, read-only values for everyone
-  else. A setting the engine can't honour (a mulligan rule, a sideboard, a
-  turn timer) is not drawn: this is a life pad with a shared log, and a
-  toggle that changes nothing is worse than no toggle.
+  `GameState` the reducer honours (format, starting life, mulligan, starting
+  player, seat order, commander damage, poison, turn timer) — host-editable,
+  read-only values for everyone else. **A setting the engine can't honour is
+  still not drawn**: a toggle that changes nothing is worse than no toggle.
+  That is why there is no sideboard row — nothing in play models one. The
+  mulligan rule and the turn timer earned their rows by being wired end to
+  end first (`mulliganType` decides the bottom-N count the opening-hand
+  takeover asks for; `turnTimerEnabled` drives the readout under the board's
+  TURN chip).
+- **The lobby is where the table's rules are set, and the only place.** The
+  pre-create Host form asks for the format and nothing else: the format
+  implies the rest, the pod isn't assembled yet, and every rule belongs
+  somewhere all of them can see and argue about it. Asking twice — once in a
+  form nobody else can read, once in the rail — was the old shape.
+- **"Random" is the absence of a choice, not a hidden one.** The starting
+  player select holds Random until the host starts, and the roll happens on
+  the host's device at that moment, dispatched as an ordinary settings
+  change. The reducer stays pure and every seat sees the same first player.
+  Same split for shuffling seats: the client rolls the order, `reseat` only
+  applies the permutation it is handed.
 - **Main** (right): the table name as a centred heading, a 2-up seat grid
   (one column below 1024) capped at `54rem` and centred, and the bracket hint.
   The grid is capped rather than stretched: a seat card is an object with a

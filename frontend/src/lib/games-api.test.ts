@@ -27,6 +27,8 @@ function mockState(overrides: Partial<GameState> = {}): GameState {
     startingLife: 40,
     commanderDamageEnabled: true,
     poisonEnabled: false,
+    mulliganType: 'commander' as const,
+    turnTimerEnabled: false,
     layout: 'pod',
     tapOrientation: 'horizontal',
     activeSeat: null,

@@ -1,12 +1,19 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { usePlayStore } from '@/store/play';
+import { turnStartedAt } from '@/lib/game-clock';
 import { useAuth } from '@/store/auth';
 import { publishBoard } from '@/lib/games-board';
 import { toPublicBoard, toPublicTicker, type PublicBoard } from '@/lib/playtest/projection';
 import type { PlaytestState } from '@/lib/playtest';
 import { capture } from '@/lib/undo-stack';
 import { toast } from '@/store/toasts';
-import type { GameAction, GameDesignations, GamePhase, GamePlayer } from '@/lib/game-state';
+import type {
+  GameAction,
+  GameDesignations,
+  GamePhase,
+  GamePlayer,
+  MulliganType,
+} from '@/lib/game-state';
 import { usePlaytestStore } from '../store';
 import type { OpponentSeat } from '../components/OpponentRail';
 
@@ -30,6 +37,16 @@ export interface OnlineTable {
   phase: GamePhase | undefined;
   poisonEnabled: boolean;
   commanderDamageEnabled: boolean;
+  /** How this table mulligans — the seated board follows the table's setting
+   *  instead of this device's own free-mulligan preference, since a mulligan
+   *  rule the pod agreed on isn't a per-device taste. */
+  mulliganType: MulliganType;
+  /** Whether the table shows how long the current turn has run. */
+  turnTimerEnabled: boolean;
+  /** When the current turn started, for that readout. Resolved here because
+   *  it is read off the session's whole event log, which nothing downstream
+   *  of this hook holds. Null before the table starts passing turns. */
+  turnStartedAt: number | null;
   /** Table-level Monarch/Initiative holders (seat numbers or null) — the
    *  authoritative source LifeStrip badges off in online mode, since a
    *  holder claimed from `/play` must show here too, not just designations
@@ -179,6 +196,9 @@ export function useOnlineTable(state: PlaytestState): OnlineTable | null {
       phase: online.phase,
       poisonEnabled: online.poisonEnabled,
       commanderDamageEnabled: online.commanderDamageEnabled,
+      mulliganType: online.mulliganType ?? 'commander',
+      turnTimerEnabled: online.turnTimerEnabled ?? false,
+      turnStartedAt: online.activeSeat == null ? null : turnStartedAt(online),
       designations: online.designations,
       dispatch,
     };

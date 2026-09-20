@@ -106,6 +106,16 @@
   font-size: var(--text-xs);
 }
 
+/* The dice beside the deck picker: an icon button, so it stays out of the
+   picker's way and reads as a shortcut rather than a second choice. */
+.lobby-deck-random {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1) var(--space-2);
+}
+
 .lobby-rules {
   display: flex;
   flex-direction: column;
