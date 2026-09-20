@@ -23,6 +23,20 @@ export function getScryfallCache(): ScryfallCache {
 }
 
 /**
+ * Close the singleton and forget it, so the next `getScryfallCache()` opens a
+ * fresh one. The server never calls this — the cache lives as long as the
+ * process. It exists for tests that point `DB_PATH` at a temp directory and
+ * then delete it: on Windows an open SQLite handle makes `rmSync` fail with
+ * EPERM, so a suite that touches any module reaching for the singleton could
+ * not clean up after itself (`shares/card-release-dates.test.ts` failed in
+ * `afterAll` for exactly this, while all of its assertions passed).
+ */
+export function closeScryfallCache(): void {
+  instance?.close();
+  instance = null;
+}
+
+/**
  * Finish-aware USD price for a cached card: prefer the price for the owned
  * finish, then fall back across the others. Same ordering as `mergeCard`'s
  * import-time `resolvePrice` (the single source of truth for "which finish's
