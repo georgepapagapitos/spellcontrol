@@ -272,6 +272,15 @@ describe('RulesPage — every row has a menu', () => {
     expect(screen.getByText('Copy text')).toBeTruthy();
   });
 
+  it('right-clicks anywhere on a keyword card, not just its head row', async () => {
+    renderPage(undefined, '');
+    // The summary line sits below the head button — outside the old target.
+    const summary = await screen.findByText('A keyword ability. See rule 702.2.');
+    fireEvent.contextMenu(summary.closest('.rules-ref-keyword')!);
+    expect(screen.getByText('Copy text')).toBeTruthy();
+    expect(screen.getByText('Cards with this keyword')).toBeTruthy();
+  });
+
   it('offers the card searches for a keyword ability, never for a keyword action', async () => {
     renderPage(undefined, '');
     await screen.findByText('Deathtouch');
@@ -307,5 +316,26 @@ describe('RulesPage — every row has a menu', () => {
     openMenu('Rule 702.2b');
     expect(screen.getByText('Copy text')).toBeTruthy();
     expect(screen.queryByText('Ask AI about this')).toBeNull();
+  });
+});
+
+describe('RulesPage — a rule number goes to the rules', () => {
+  it('switches to Rules when a number is typed on another section', async () => {
+    renderPage(undefined, '');
+    await screen.findByText('Deathtouch');
+    fireEvent.change(screen.getByLabelText('Search rules reference'), {
+      target: { value: '702.2' },
+    });
+    expect(screen.getByRole('tab', { name: 'Rules' }).getAttribute('aria-selected')).toBe('true');
+    expect(await screen.findByText('Deathtouch is a static ability.')).toBeTruthy();
+  });
+
+  it('leaves a partial number alone — the tab does not move mid-keystroke', async () => {
+    renderPage(undefined, '');
+    await screen.findByText('Deathtouch');
+    fireEvent.change(screen.getByLabelText('Search rules reference'), { target: { value: '70' } });
+    expect(screen.getByRole('tab', { name: 'Keywords' }).getAttribute('aria-selected')).toBe(
+      'true'
+    );
   });
 });
