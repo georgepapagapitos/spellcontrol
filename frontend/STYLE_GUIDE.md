@@ -2035,6 +2035,33 @@ cleaner with the sub menus"). Three rulings, all on the battlefield:
   right-click, so on a coarse pointer a tap still taps — the board branches on
   `(hover: hover) and (pointer: fine)`, and both halves are pinned by tests.
 
+### The table's look is per-device, never table-wide (2026-09-20, E347)
+
+The felt colour and the sleeves are **preferences on this device**, the same
+class as card size and the takeback rule — not `GameState` like the mulligan
+rule or the turn timer. The test is who has to agree: opponents see the board
+you publish, never your CSS, so there is nothing for a pod to settle. They live
+in the Table settings sheet next to Card size, in `localStorage`, and the sheet
+says so in one line ("Your table only").
+
+- **Set on `<body>`, not on the board element.** `data-felt` / `data-sleeve`
+  (see `playtest/lib/table-skin.ts`), because a face-down card also appears in
+  surfaces that portal out of the board tree. The board applies them while it
+  is mounted and hands back the undo, so leaving the table restores whatever
+  was there.
+- **A default writes no attribute and stores nothing.** The plain rules ARE the
+  default look, so a device that never opened this carries no storage and no
+  markup, and "Theme" means the felt keeps following the app's theme.
+- **A sleeve is the one card back in another colour, never a second image.**
+  `background-blend-mode: luminosity` over a solid `--sleeve-color` keeps the
+  printed back's light and shade and takes the hue from underneath. #2010
+  collapsed the library pile, face-down permanents and the opponent rail's mini
+  card onto one rule over one asset; a per-sleeve image would undo that and put
+  an image request behind a preference.
+- **The picker is native radios in a `fieldset`** (`no-aria-only-radiogroups`),
+  one `useId()` group name per row — two rows sharing a name would be one group
+  and picking a felt would clear the sleeve.
+
 ### Table chrome at ≥1024px: corners, not rows
 
 Settled 2026-09-18 against EDHPlay. At the table tier the board is **one

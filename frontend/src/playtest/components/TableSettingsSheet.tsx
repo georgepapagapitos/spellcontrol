@@ -1,5 +1,6 @@
-import type { CSSProperties } from 'react';
+import { useId, type CSSProperties } from 'react';
 import { Modal } from '@/components/Modal';
+import { FELTS, SLEEVES, type SkinOption } from '../lib/table-skin';
 
 /** One preference that owns its own picker: this row states where it stands
  *  and opens that picker. Keeps each existing picker untouched while giving
@@ -10,11 +11,66 @@ export interface SettingLink {
   onOpen(): void;
 }
 
+/** How the table looks, both halves of it (E347). Per-device, like card size
+ *  — opponents see the board you publish, never your CSS. */
+export interface TableSkin {
+  felt: string;
+  sleeve: string;
+  onFelt(id: string): void;
+  onSleeve(id: string): void;
+}
+
+/**
+ * A row of swatches. Native radios inside a `fieldset`, never `role="radio"`
+ * buttons: exclusivity, arrow-key navigation and a single group tab stop come
+ * free, and the hand-rolled version of this is what `no-aria-only-radiogroups`
+ * exists to stop.
+ */
+function SwatchRow({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: readonly SkinOption[];
+  value: string;
+  onChange(id: string): void;
+}) {
+  // Two swatch rows in one sheet share a DOM; without distinct names they
+  // would be one radio group and deselect each other.
+  const groupName = useId();
+  return (
+    <div className="playtest-settings__row playtest-settings__row--skin">
+      <span className="shortcuts-overlay-desc">{label}</span>
+      <fieldset className="playtest-skin" aria-label={label}>
+        {options.map((o) => (
+          <label key={o.id} className="playtest-skin__option" title={o.label}>
+            <input
+              type="radio"
+              name={groupName}
+              checked={value === o.id}
+              onChange={() => onChange(o.id)}
+              aria-label={o.label}
+            />
+            <span
+              className={`playtest-skin__swatch${value === o.id ? ' is-selected' : ''}`}
+              style={{ background: o.swatch }}
+            />
+          </label>
+        ))}
+      </fieldset>
+    </div>
+  );
+}
+
 interface Props {
   /** Multiplier on the tier's card density; 1 is the default. Absent on the
    *  narrow tier, where cards are sized for a thumb and there is nothing to
    *  set. */
   zoom?: { value: number; min: number; max: number; step: number; onZoom(zoom: number): void };
+  /** Felt colour and sleeves. Absent (tests, previews) hides both rows. */
+  skin?: TableSkin;
   /** Takeback rule, Resistance, Designations — in that order. */
   links: SettingLink[];
   onClose(): void;
@@ -29,7 +85,7 @@ interface Props {
  * while watching the table cannot be a separate sheet. The rest state their
  * current value and open the picker that already owns them.
  */
-export function TableSettingsSheet({ zoom, links, onClose }: Props) {
+export function TableSettingsSheet({ zoom, skin, links, onClose }: Props) {
   const pct = zoom ? Math.round(zoom.value * 100) : 0;
   const progress = zoom
     ? `${Math.round(((zoom.value - zoom.min) / (zoom.max - zoom.min)) * 100)}%`
@@ -75,6 +131,20 @@ export function TableSettingsSheet({ zoom, links, onClose }: Props) {
             <p className="playtest-settings__hint">
               Your hand, the battlefield and the zone piles all follow it. The = and − keys step it
               too.
+            </p>
+          </>
+        )}
+        {skin && (
+          <>
+            <SwatchRow label="Felt" options={FELTS} value={skin.felt} onChange={skin.onFelt} />
+            <SwatchRow
+              label="Sleeves"
+              options={SLEEVES}
+              value={skin.sleeve}
+              onChange={skin.onSleeve}
+            />
+            <p className="playtest-settings__hint">
+              Your table only. Everyone else sees their own felt and their own sleeves.
             </p>
           </>
         )}

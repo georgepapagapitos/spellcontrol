@@ -41,6 +41,7 @@ const MULLIGAN_TABLE_NOTE: Record<MulliganType, string> = {
   free: 'Table rule: free mulligans. Nothing goes to the bottom.',
 };
 import { useNarrowViewport } from '../hooks/use-narrow-viewport';
+import { applyTableSkin, readFelt, readSleeve, writeFelt, writeSleeve } from '../lib/table-skin';
 import { useTurnSweep } from '../hooks/use-turn-sweep';
 import { useTablePointer } from '../hooks/use-table-pointer';
 import { useHoverTarget } from '../hooks/use-hover-target';
@@ -339,6 +340,11 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // one from a later game) re-shows.
   const [dismissedSessionRecordId, setDismissedSessionRecordId] = useState<string | null>(null);
   const isNarrow = useNarrowViewport();
+  // How this device's table looks (E347): a per-device preference, like card
+  // size — it never leaves the device and nothing about it is published.
+  const [felt, setFelt] = useState(readFelt);
+  const [sleeve, setSleeve] = useState(readSleeve);
+  useEffect(() => applyTableSkin(felt, sleeve), [felt, sleeve]);
   /** A mouse (and therefore a right-click and a keyboard) is driving the
    *  board — the one place a click can mean "select" without stranding a
    *  player who has no other way to tap a permanent. */
@@ -2484,6 +2490,18 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               ? undefined
               : { value: zoom, min: ZOOM_MIN, max: ZOOM_MAX, step: ZOOM_STEP, onZoom: setZoomTo }
           }
+          skin={{
+            felt,
+            sleeve,
+            onFelt: (id) => {
+              setFelt(id);
+              writeFelt(id);
+            },
+            onSleeve: (id) => {
+              setSleeve(id);
+              writeSleeve(id);
+            },
+          }}
           links={settingsLinks}
           onClose={() => setShowTableSettings(false)}
         />

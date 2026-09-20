@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { TableSettingsSheet } from './TableSettingsSheet';
 
 function links(onOpen = vi.fn()) {
@@ -71,5 +71,67 @@ describe('the preferences it gathers', () => {
     expect(screen.queryByRole('button', { name: 'Reset card size' })).toBeNull();
     // The rest of the preferences are still offered.
     expect(screen.getByRole('button', { name: 'Resistance Off' })).toBeTruthy();
+  });
+});
+
+/**
+ * E347: the felt and the sleeves are per-device preferences that live here,
+ * next to card size — not table-wide state a pod agrees on. The picker is
+ * native radios (the `no-aria-only-radiogroups` guard is the other half of
+ * this), and the two rows must be separate groups or picking a felt would
+ * clear the sleeve.
+ */
+describe('TableSettingsSheet — how the table looks (E347)', () => {
+  function renderSkin(felt = 'theme', sleeve = 'original') {
+    const onFelt = vi.fn();
+    const onSleeve = vi.fn();
+    render(
+      <TableSettingsSheet
+        skin={{ felt, sleeve, onFelt, onSleeve }}
+        links={links()}
+        onClose={vi.fn()}
+      />
+    );
+    return { onFelt, onSleeve };
+  }
+
+  it('picks a felt and a sleeve, each from its own group', () => {
+    const { onFelt, onSleeve } = renderSkin();
+    const felt = screen.getByRole('group', { name: 'Felt' });
+    const sleeves = screen.getByRole('group', { name: 'Sleeves' });
+    expect(within(felt).getByRole('radio', { name: 'Theme' })).toBeTruthy();
+
+    fireEvent.click(within(felt).getByRole('radio', { name: 'Green' }));
+    expect(onFelt).toHaveBeenCalledWith('green');
+    fireEvent.click(within(sleeves).getByRole('radio', { name: 'Purple' }));
+    expect(onSleeve).toHaveBeenCalledWith('purple');
+
+    const names = (el: HTMLElement) =>
+      within(el)
+        .getAllByRole('radio')
+        .map((r) => (r as HTMLInputElement).name);
+    expect(new Set([...names(felt), ...names(sleeves)]).size).toBe(2);
+  });
+
+  it('checks the swatch that is in use', () => {
+    renderSkin('wine', 'red');
+    const felt = screen.getByRole('group', { name: 'Felt' });
+    expect((within(felt).getByRole('radio', { name: 'Wine' }) as HTMLInputElement).checked).toBe(
+      true
+    );
+    const sleeves = screen.getByRole('group', { name: 'Sleeves' });
+    expect((within(sleeves).getByRole('radio', { name: 'Red' }) as HTMLInputElement).checked).toBe(
+      true
+    );
+  });
+
+  it('says whose table it is, because a pod setting would read the same', () => {
+    renderSkin();
+    expect(screen.getByText(/Your table only/)).toBeTruthy();
+  });
+
+  it('shows no swatches at all when the caller offers no skin', () => {
+    renderSheet();
+    expect(screen.queryByRole('group', { name: 'Felt' })).toBeNull();
   });
 });
