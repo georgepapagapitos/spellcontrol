@@ -82,6 +82,9 @@ function seatedTable(opponents: OpponentSeat[]): OnlineTable {
     phase: undefined,
     poisonEnabled: false,
     commanderDamageEnabled: false,
+    mulliganType: 'commander' as const,
+    turnTimerEnabled: false,
+    turnStartedAt: null,
     designations: { monarch: null, initiative: null },
     dispatch: () => {},
   };

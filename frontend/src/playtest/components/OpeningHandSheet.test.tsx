@@ -31,6 +31,7 @@ function renderSheet(overrides: Overrides = {}) {
     phase: 'opening' as const,
     hand: hand(),
     mulliganCount: 0,
+    cardsOwedToBottom: 0,
     freeMulligan: false,
     onFreeMulliganChange: vi.fn(),
     onDraw: false,
@@ -158,5 +159,23 @@ describe('OpeningHandSheet online curtain', () => {
     stubViewport(true);
     renderSheet({ phase: 'playing' });
     expect(root()).toBeNull();
+  });
+});
+
+describe('the mulligan rule in force', () => {
+  it('bottoms the count it is given, not the mulligan count', () => {
+    // A commander-rule table on its second mulligan owes one, not two.
+    renderSheet({ phase: 'mulligan-bottom', mulliganCount: 2, cardsOwedToBottom: 1 });
+    expect(screen.getByText(/Tap 1 card to send to the bottom/)).toBeTruthy();
+  });
+
+  it('offers the free-mulligan switch solo, and states the table rule instead when seated', () => {
+    const solo = renderSheet();
+    expect(solo.getByRole('checkbox', { name: 'Free mulligans' })).toBeTruthy();
+    solo.unmount();
+
+    renderSheet({ tableMulligan: 'Table rule: the first mulligan is free.' });
+    expect(screen.getByText('Table rule: the first mulligan is free.')).toBeTruthy();
+    expect(screen.queryByRole('checkbox', { name: 'Free mulligans' })).toBeNull();
   });
 });

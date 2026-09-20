@@ -4,10 +4,11 @@
  * OnlineGameView, which reads the stores itself), so the only mocks here are
  * the art resolver — a network path — and the router, for the board link.
  */
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import type { GamePlayer, GameState } from '../../lib/game-state';
+import type { Deck } from '../../store/decks';
 import { applyAction, createGameState, makePlayer } from '../../lib/game-state';
 
 vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
@@ -43,13 +44,13 @@ function table(count = 2): GameState {
   });
 }
 
-function renderLobby(game: GameState, userId = 'u0', dispatch = vi.fn()) {
+function renderLobby(game: GameState, userId = 'u0', dispatch = vi.fn(), decks: Deck[] = []) {
   const mySeat = game.players.find((p) => p.userId === userId)!;
   render(
     <MemoryRouter>
       <OnlineLobby
         game={game}
-        decks={[]}
+        decks={decks}
         userId={userId}
         mySeat={mySeat}
         dispatch={dispatch}
@@ -184,5 +185,83 @@ describe('guest seats', () => {
     const seats = within(screen.getByRole('list', { name: 'Seats' })).getAllByRole('listitem');
     expect(within(seats[2]).getByText('Guest')).toBeTruthy();
     expect(within(seats[2]).queryByRole('button', { name: 'Remove Wally' })).toBeNull();
+  });
+});
+
+describe('table settings the pod decides together', () => {
+  it('the host picks the mulligan rule; everyone else reads it', () => {
+    const dispatch = renderLobby(table());
+    fireEvent.click(screen.getByRole('button', { name: /Mulligan/ }));
+    fireEvent.click(screen.getByRole('option', { name: 'London' }));
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'settings',
+      patch: { mulliganType: 'london' },
+    });
+
+    cleanup();
+    renderLobby(table(), 'u1');
+    expect(screen.getByText('Commander (first is free)')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Mulligan/ })).toBeNull();
+  });
+
+  it('starting player is a real choice, and Random means nobody yet', () => {
+    const dispatch = renderLobby(table());
+    fireEvent.click(screen.getByRole('button', { name: /Starting player/ }));
+    fireEvent.click(screen.getByRole('option', { name: 'P1' }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'settings', patch: { startingSeat: 1 } });
+  });
+
+  it('the host rolls the first player at Start when the table left it on Random', () => {
+    const dispatch = renderLobby(table());
+    fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
+    const patches = dispatch.mock.calls
+      .map(([a]) => a)
+      .filter((a) => a.type === 'settings' && 'startingSeat' in a.patch);
+    expect(patches).toHaveLength(1);
+    expect(dispatch).toHaveBeenCalledWith({ type: 'start' });
+  });
+
+  it('a table that already named a first player is not re-rolled at Start', () => {
+    const decided = { ...table(), startingSeat: 1 };
+    const dispatch = renderLobby(decided);
+    fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
+    expect(dispatch.mock.calls.map(([a]) => a).filter((a) => a.type === 'settings')).toHaveLength(
+      0
+    );
+  });
+
+  it('shuffling seats sends every seated id, and only the host is offered it', () => {
+    const dispatch = renderLobby(table(3));
+    fireEvent.click(screen.getByRole('button', { name: 'Shuffle' }));
+    const [action] = dispatch.mock.calls.map(([a]) => a).filter((a) => a.type === 'reseat');
+    expect([...action.order].sort()).toEqual(['u0', 'u1', 'u2']);
+
+    cleanup();
+    renderLobby(table(3), 'u1');
+    expect(screen.queryByRole('button', { name: 'Shuffle' })).toBeNull();
+  });
+
+  it('the turn timer is a table rule, off by default', () => {
+    const dispatch = renderLobby(table());
+    fireEvent.click(screen.getByRole('switch', { name: /Turn timer/ }));
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'settings',
+      patch: { turnTimerEnabled: true },
+    });
+  });
+});
+
+describe('deck randomizer', () => {
+  const deck = (id: string, name: string) => ({ id, name, cards: [] }) as unknown as Deck;
+
+  it('picks one of your decks at random, and is absent when there is nothing to choose', () => {
+    const dispatch = renderLobby(table(), 'u0', vi.fn(), [deck('d1', 'A'), deck('d2', 'B')]);
+    fireEvent.click(screen.getByRole('button', { name: 'Pick a random deck' }));
+    const [action] = dispatch.mock.calls.map(([a]) => a).filter((a) => a.type === 'update-player');
+    expect(['d1', 'd2']).toContain(action.patch.deckId);
+
+    cleanup();
+    renderLobby(table(), 'u0', vi.fn(), [deck('d1', 'A')]);
+    expect(screen.queryByRole('button', { name: 'Pick a random deck' })).toBeNull();
   });
 });

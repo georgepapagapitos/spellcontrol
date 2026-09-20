@@ -40,6 +40,26 @@ import { summarizeGame, type GameSummary } from './summary';
 export type TapOrientation = 'horizontal' | 'vertical';
 
 /**
+ * How the table takes mulligans. Three real variants, and every one of them is
+ * just "how many cards go to the bottom after the Nth mulligan":
+ * - `commander` — the first mulligan is free, then London. The Commander
+ *   default, and this table's default.
+ * - `london` — bottom N after N mulligans, from the first one.
+ * - `free` — every mulligan redraws a full seven, nothing owed.
+ */
+export type MulliganType = 'commander' | 'london' | 'free';
+
+export const MULLIGAN_TYPES: readonly MulliganType[] = ['commander', 'london', 'free'];
+
+/** How many cards this variant owes the bottom after `count` mulligans. The
+ *  one place the three variants differ, shared by the table and the solo
+ *  playtest board so they can't drift. */
+export function cardsToBottom(type: MulliganType, count: number): number {
+  if (type === 'free' || count <= 0) return 0;
+  return type === 'commander' ? Math.max(0, count - 1) : count;
+}
+
+/**
  * Coarse turn-structure phase for the advisory phase clock. Deliberately
  * coarse — this is a life pad, not a rules engine, so untap/upkeep/draw all
  * collapse into `beginning`. Advisory only: the reducer never validates that
@@ -203,6 +223,12 @@ export interface GameState {
   startingLife: number;
   commanderDamageEnabled: boolean;
   poisonEnabled: boolean;
+  /** How this table mulligans. Defaults to 'commander'; legacy states resolve
+   *  to it, which is what they already behaved as. */
+  mulliganType: MulliganType;
+  /** Whether the table shows how long the current turn has been running.
+   *  A readout only — nothing expires, nobody is forced to pass. */
+  turnTimerEnabled: boolean;
   /** Visual arrangement of player panels. Defaults to 'pod'. */
   layout: GameLayout;
   /**
@@ -269,6 +295,17 @@ export type GameAction =
   | { type: 'reset'; ts?: number }
   | { type: 'add-player'; player: GamePlayer; ts?: number }
   | { type: 'remove-player'; seat: number; ts?: number }
+  /**
+   * Reseat the table: `order` is every seated player's id, in the seat order
+   * they should take (`order[0]` sits in seat 0). Lobby only — seat numbers
+   * key commander damage, designations and the turn marker, all of which are
+   * empty before a game starts and would be silently rewired after it.
+   *
+   * The caller supplies the order rather than the reducer rolling one, so the
+   * reducer stays pure and the server and every client land on the same
+   * seating (the same split the random-first-player control already uses).
+   */
+  | { type: 'reseat'; order: string[]; ts?: number }
   | {
       type: 'update-player';
       seat: number;
@@ -353,6 +390,8 @@ export type GameAction =
           | 'startingLife'
           | 'commanderDamageEnabled'
           | 'poisonEnabled'
+          | 'mulliganType'
+          | 'turnTimerEnabled'
           | 'format'
           | 'layout'
           | 'tapOrientation'
@@ -427,6 +466,8 @@ const RULES_SETTINGS_KEYS = [
   'startingLife',
   'commanderDamageEnabled',
   'poisonEnabled',
+  'mulliganType',
+  'turnTimerEnabled',
   'format',
 ] as const;
 
@@ -654,6 +695,8 @@ export function createGameState(input: {
   startingLife: number;
   commanderDamageEnabled: boolean;
   poisonEnabled: boolean;
+  mulliganType?: MulliganType;
+  turnTimerEnabled?: boolean;
   layout?: GameLayout;
   tapOrientation?: TapOrientation;
   players: GamePlayer[];
@@ -670,6 +713,8 @@ export function createGameState(input: {
     startingLife: input.startingLife,
     commanderDamageEnabled: input.commanderDamageEnabled,
     poisonEnabled: input.poisonEnabled,
+    mulliganType: input.mulliganType ?? 'commander',
+    turnTimerEnabled: input.turnTimerEnabled ?? false,
     layout: input.layout ?? 'pod',
     tapOrientation: input.tapOrientation ?? 'horizontal',
     activeSeat: null,
@@ -740,6 +785,8 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
     ...prev,
     activeSeat: prev.activeSeat ?? null,
     startingSeat: prev.startingSeat ?? null,
+    mulliganType: prev.mulliganType ?? 'commander',
+    turnTimerEnabled: prev.turnTimerEnabled ?? false,
     designations: resolveDesignations(prev.designations),
     tableCounters: prev.tableCounters ?? {},
   };
@@ -843,6 +890,33 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
           actorSeat: null,
           targetSeat: action.seat,
           message: target.name,
+          ts,
+        }),
+      };
+      break;
+    }
+    case 'reseat': {
+      if (prev.status !== 'lobby') return prev;
+      // Must be a permutation of exactly the seated players: anything else
+      // would drop or duplicate a seat, so leave the table untouched.
+      const ids = prev.players.map((p) => p.id);
+      const ok =
+        action.order.length === ids.length &&
+        new Set(action.order).size === ids.length &&
+        action.order.every((id) => ids.includes(id));
+      if (!ok) return prev;
+      const byId = new Map(prev.players.map((p) => [p.id, p]));
+      next = {
+        ...next,
+        players: action.order.map((id, seat) => ({ ...byId.get(id)!, seat })),
+        // Whoever was on the play is identified by seat, and every seat just
+        // changed hands — the mark is stale, not transferable.
+        startingSeat: null,
+        events: pushEvent(next, {
+          kind: 'settings',
+          actorSeat: null,
+          targetSeat: null,
+          message: 'Seats shuffled',
           ts,
         }),
       };

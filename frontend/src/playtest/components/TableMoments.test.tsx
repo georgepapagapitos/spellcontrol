@@ -46,6 +46,8 @@ function onlineGame(overrides: Partial<GameState> = {}): GameState {
     format: 'commander',
     startingLife: 40,
     commanderDamageEnabled: true,
+    mulliganType: 'commander' as const,
+    turnTimerEnabled: false,
     poisonEnabled: false,
     players: [
       makePlayer({
@@ -74,6 +76,9 @@ function table(overrides: Partial<OnlineTable> = {}): OnlineTable {
     phase: undefined,
     poisonEnabled: false,
     commanderDamageEnabled: false,
+    mulliganType: 'commander' as const,
+    turnTimerEnabled: false,
+    turnStartedAt: null,
     designations: { monarch: null, initiative: null },
     dispatch: () => {},
     ...overrides,

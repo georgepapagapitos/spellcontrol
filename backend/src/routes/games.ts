@@ -1709,8 +1709,9 @@ function actionIsAllowed(action: GameAction, state: GameState, userId: string): 
 
   // Host can do anything else. Other authed participants can do gameplay
   // actions (life, poison, cmd-dmg, eliminate, note, update-player for their
-  // own seat, and end). They can't add/remove other players, change
-  // settings, reset, or start the game — those are host-only.
+  // own seat, and end). They can't add/remove other players, reseat the table
+  // (which rewrites every seat number), change settings, reset, or start the
+  // game — those are host-only.
   if (isHost) return null;
   if (!isParticipant(state, userId)) return 'Not a participant.';
 
@@ -1720,6 +1721,7 @@ function actionIsAllowed(action: GameAction, state: GameState, userId: string): 
     case 'settings':
     case 'add-player':
     case 'remove-player':
+    case 'reseat':
       return 'Host only.';
     case 'update-player': {
       const target = state.players.find((p) => p.seat === action.seat);

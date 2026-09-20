@@ -168,6 +168,14 @@
   color: var(--text-secondary);
 }
 
+/* Seated: the table's mulligan rule, stated where the device's own
+   free-mulligan switch sits solo. A fact, so it gets no control chrome. */
+.playtest-opening-variant__table {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
 @media (hover: hover) and (pointer: fine) {
   .playtest-opening-variant:hover {
     border-color: var(--accent);

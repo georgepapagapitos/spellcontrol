@@ -6,6 +6,7 @@ import {
   type PlaytestInit,
   type PlaytestState,
 } from '@/lib/playtest';
+import { cardsToBottom, type MulliganType } from '@/lib/game-state';
 import { appendLogEntries, buildLogEntries, type GameLogEntry } from '@/lib/playtest/game-log';
 import { classifyAction } from '@/lib/playtest/rewind';
 import {
@@ -105,6 +106,17 @@ export type PlaytestPhase = 'opening' | 'mulligan-bottom' | 'playing';
  * a resumed game can't disagree with the toggle the player is looking at. */
 const FREE_MULLIGAN_KEY = 'spellcontrol:playtest:freeMulligan';
 
+/** Which variant actually governs this board: the online table's rule when
+ *  seated, else this device's own free-mulligan preference (whose "off" has
+ *  always meant London — solo's behaviour is unchanged by the table setting
+ *  existing). */
+export function effectiveMulliganType(
+  freeMulligan: boolean,
+  tableMulliganType: MulliganType | null
+): MulliganType {
+  return tableMulliganType ?? (freeMulligan ? 'free' : 'london');
+}
+
 export function loadFreeMulligan(): boolean {
   try {
     return localStorage.getItem(FREE_MULLIGAN_KEY) === '1';
@@ -139,6 +151,12 @@ interface PlaytestStore {
   /** Free-mulligan variant: mulligans redraw a full seven and the
    *  bottom-N step is skipped. Device preference — see `loadFreeMulligan`. */
   freeMulligan: boolean;
+  /** The mulligan variant the ONLINE table agreed on, or null when playing
+   *  solo. A rule the pod set beats this device's own free-mulligan taste,
+   *  so when it is set it decides the bottom-N count outright
+   *  (`effectiveMulliganType`). Per-session, not persisted: it is the
+   *  table's fact, re-read from the table every time. */
+  tableMulliganType: MulliganType | null;
   /** On-the-draw choice (Wave 3): `createPlaytestState` deals a fresh seven
    *  with `turn: 1` and no draw — that IS "on the play", the correct default
    *  for solo goldfishing. This flag is the other half: draw one extra card
@@ -203,6 +221,7 @@ interface PlaytestStore {
   setResistanceLevel(level: ResistanceLevel): void;
   /** Turn the free-mulligan variant on/off; persists as a device preference. */
   setFreeMulligan(on: boolean): void;
+  setTableMulliganType(type: MulliganType | null): void;
   /** Switch the table takeback rule; persists as a device preference. */
   setTakebackMode(mode: TakebackMode): void;
   /** Turn the on-the-draw choice on/off for this game. */
@@ -232,6 +251,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
   phase: 'opening',
   mulliganCount: 0,
   freeMulligan: loadFreeMulligan(),
+  tableMulliganType: null,
   onDraw: false,
   resistanceLevel: 'off',
   resistanceState: null,
@@ -543,8 +563,14 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
     // Flipping it on while already sitting in the bottom-N step means the
     // player just decided those cards shouldn't be owed — drop straight into
     // play rather than stranding them on a step the variant doesn't have.
-    const { phase } = get();
-    set({ freeMulligan: on, ...(on && phase === 'mulligan-bottom' && { phase: 'playing' }) });
+    const { phase, tableMulliganType } = get();
+    // Seated at a table, the table's rule decides — flipping the device
+    // preference must not skip a bottom-N step the pod agreed on.
+    const skips = on && tableMulliganType === null;
+    set({ freeMulligan: on, ...(skips && phase === 'mulligan-bottom' && { phase: 'playing' }) });
+  },
+  setTableMulliganType(type) {
+    set({ tableMulliganType: type });
   },
   setTakebackMode(mode) {
     saveTakebackMode(mode);
@@ -554,8 +580,8 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
     set({ onDraw: on });
   },
   keepOpeningHand() {
-    const { mulliganCount, freeMulligan, onDraw } = get();
-    if (mulliganCount > 0 && !freeMulligan) {
+    const { mulliganCount, freeMulligan, tableMulliganType, onDraw } = get();
+    if (cardsToBottom(effectiveMulliganType(freeMulligan, tableMulliganType), mulliganCount) > 0) {
       set({ phase: 'mulligan-bottom' });
       return;
     }
