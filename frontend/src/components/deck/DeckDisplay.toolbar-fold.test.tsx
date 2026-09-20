@@ -98,15 +98,16 @@ describe('deck toolbar — narrow-viewport fold', () => {
     expect(queryByRole('button', { name: /Deck list actions/ })).toBeNull();
   });
 
-  it('the out-zone jump chip is suppressed at 0 and restored above it', () => {
+  it('carries controls and nothing else, at any out-zone count', () => {
     const empty = renderDeck({ narrow: true });
-    expect(empty.container.querySelector('.deck-toolbar-outzone-chip')).toBeNull();
-    // No empty flex child left holding a gap either.
     expect(empty.container.querySelector('.deck-toolbar-summary')).toBeNull();
     empty.unmount();
 
+    // A non-empty out-zone used to grow a left-hand summary column here. The
+    // page hero states the count and owns the jump now.
     const filled = renderDeck({ narrow: true, sideboard: ['A'] });
-    expect(filled.container.querySelector('.deck-toolbar-outzone-chip')).not.toBeNull();
+    expect(filled.container.querySelector('.deck-toolbar-outzone-chip')).toBeNull();
+    expect(filled.container.querySelector('.deck-toolbar-summary')).toBeNull();
   });
 
   it('the stat strip leads the surface, ahead of the toolbar', () => {

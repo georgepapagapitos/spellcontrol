@@ -13,7 +13,9 @@
   gap: var(--space-4);
 }
 
-/* Toolbar — title + meta on left, sort/search/actions on right. */
+/* Toolbar — controls only. The deck name lives in the page hero, and the
+   out-zone jump moved onto the hero's own "+N sideboard" / "+N considering"
+   counts, so there is no left-hand summary column to balance against. */
 .deck-toolbar {
   display: flex;
   justify-content: space-between;
@@ -22,62 +24,10 @@
   flex-wrap: wrap;
 }
 
-.deck-toolbar-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  min-width: 0;
-}
-
-/* The page header already renders the deck name (and lets the user
-   rename it). Showing it again inside the toolbar was redundant — the
-   stats meta line below carries the useful information. */
-.deck-toolbar-title {
-  display: none;
-}
-
 .deck-toolbar-meta {
   font-size: var(--text-sm);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
-}
-
-/* Jump chip to the "Not in the deck" zone (E176) — .deck-toolbar-title above
-   is display:none, so this is the only visible content of the summary
-   column. Short text ("Not in deck" + a 1-2 digit count) so it never wraps
-   at 320px. */
-.deck-toolbar-outzone-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  align-self: flex-start;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-@media (pointer: coarse) {
-  .deck-toolbar-outzone-chip {
-    min-height: 44px;
-    align-items: center;
-  }
-}
-
-.deck-toolbar-outzone-count {
-  font-variant-numeric: tabular-nums;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .deck-toolbar-outzone-chip:hover {
-    color: var(--accent);
-  }
-}
-
-.deck-toolbar-outzone-chip:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: var(--radius);
 }
 
 .deck-toolbar-missing {

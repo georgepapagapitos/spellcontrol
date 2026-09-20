@@ -2933,8 +2933,11 @@ export function DeckEditorPage() {
                 {deck.partnerCommander && ` +\u00A0${deck.partnerCommander.name}`}
               </>
             )}
-            {/* Desktop-only totals chip — hidden on tablet/mobile via
-                .deck-hero-totals to keep the meta line short there. */}
+            {/* The deck's totals. The sideboard and considering counts are
+                also the way INTO those zones: each links to the out-zone at
+                the foot of the deck body, which is why the toolbar no longer
+                carries a separate "Not in deck" jump. One fact in one place,
+                with the affordance on the fact rather than beside it. */}
             <span className="deck-hero-totals">
               {'\u00A0· '}
               {heroTotals.count}
@@ -2942,8 +2945,30 @@ export function DeckEditorPage() {
               {heroTotals.count === 1 ? 'card' : 'cards'}
               {'\u00A0· '}
               {formatMoney(heroTotals.value)}
-              {heroTotals.sideboard > 0 && `\u00A0· +${heroTotals.sideboard}\u00A0sideboard`}
-              {heroTotals.considering > 0 && `\u00A0· +${heroTotals.considering}\u00A0considering`}
+              {heroTotals.sideboard > 0 && (
+                <>
+                  {'\u00A0· '}
+                  <a
+                    href="#deck-outzone"
+                    className="deck-hero-outzone-link"
+                    aria-label={`${heroTotals.sideboard} in the sideboard. Jump to the cards not in the deck.`}
+                  >
+                    {`+${heroTotals.sideboard}\u00A0sideboard`}
+                  </a>
+                </>
+              )}
+              {heroTotals.considering > 0 && (
+                <>
+                  {'\u00A0· '}
+                  <a
+                    href="#deck-outzone"
+                    className="deck-hero-outzone-link"
+                    aria-label={`${heroTotals.considering} being considered. Jump to the cards not in the deck.`}
+                  >
+                    {`+${heroTotals.considering}\u00A0considering`}
+                  </a>
+                </>
+              )}
             </span>
             {/* Bracket — glanceable on every view (it left the feature strip). */}
             {bracketValue != null && (
