@@ -1,8 +1,10 @@
 // @vitest-environment happy-dom
-// The deck list on a wide screen (2026-09-19): a pinned card rail beside the
-// columns on a wide, hover-capable display; rows that rest sparse (no role
-// code by default); and a labelled Group dropdown in place of the three-icon
-// toggle. See STYLE_GUIDE § Deck list on a wide screen.
+// The card inspector (2026-09-20): a sticky detail column beside the deck body
+// on a wide, hover-capable display, shared by all three view modes, showing
+// what a row cannot (oracle text, ownership) and holding a card while it's
+// read. Also covers the 2026-09-19 rulings it inherits: rows that rest sparse
+// (no role code by default) and a labelled Group dropdown.
+// See STYLE_GUIDE § Deck list on a wide screen.
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
@@ -20,6 +22,7 @@ function card(name: string, over: Partial<ScryfallCard> = {}): ScryfallCard {
     mana_cost: '{1}{R}',
     cmc: 2,
     type_line: 'Creature — Goblin',
+    oracle_text: `${name} does a thing when it enters.`,
     color_identity: ['R'],
     keywords: [],
     rarity: 'common',
@@ -38,7 +41,7 @@ function slots(names: string[]): DeckDisplayCard[] {
 }
 
 /** DeckDisplay reads its breakpoints through matchMedia. `wideHover` answers
- *  the rail's own query (≥1280px + fine pointer) and the hover-peek hook's
+ *  the inspector's own query (≥1440px + fine pointer) and the hover-peek hook's
  *  capability query; the narrow breakpoints always say no. */
 function setViewport(wideHover: boolean) {
   window.matchMedia = ((query: string) =>
@@ -70,43 +73,91 @@ function renderDeck(opts: { wideHover: boolean; commander?: ScryfallCard | null 
   );
 }
 
-describe('deck list on a wide screen — pinned card rail', () => {
+/** Hover a card by its delegated peek attribute, with a stable rect so the
+ *  placement math has something to work from. */
+function hoverCard(container: HTMLElement, name: string) {
+  const el = container.querySelector<HTMLElement>(`[data-peek-name="${name}"]`)!;
+  expect(el).not.toBeNull();
+  el.getBoundingClientRect = () =>
+    ({ top: 100, left: 0, right: 300, bottom: 120, width: 300, height: 20 }) as DOMRect;
+  fireEvent.mouseOver(el, { clientX: 10, clientY: 110 });
+  return el;
+}
+
+const nameOf = (container: HTMLElement) =>
+  container.querySelector('.deck-card-inspector-name')?.textContent;
+
+describe('card inspector', () => {
   beforeEach(() => {
     localStorage.clear();
     localStorage.setItem('mtg-decks-view-mode', 'list');
   });
 
-  it('shows the commander in the rail until a row is hovered', () => {
+  it('shows the commander until a card is hovered', () => {
     const { container } = renderDeck({ wideHover: true });
-    const rail = container.querySelector('.deck-card-rail');
-    expect(rail).not.toBeNull();
-    expect(rail!.querySelector('.deck-card-rail-name')!.textContent).toBe('Krenko, Mob Boss');
+    expect(container.querySelector('.deck-card-inspector')).not.toBeNull();
+    expect(nameOf(container)).toBe('Krenko, Mob Boss');
   });
 
-  it('follows the hovered row and keeps it after the pointer leaves', () => {
+  it('follows the hovered card and keeps it after the pointer leaves', () => {
     const { container } = renderDeck({ wideHover: true });
-    const row = container.querySelector<HTMLElement>('[data-peek-name="Goblin Lackey"]')!;
-    expect(row).not.toBeNull();
-    row.getBoundingClientRect = () =>
-      ({ top: 100, left: 0, right: 300, bottom: 120, width: 300, height: 20 }) as DOMRect;
-    fireEvent.mouseOver(row, { clientX: 10, clientY: 110 });
-    expect(container.querySelector('.deck-card-rail-name')!.textContent).toBe('Goblin Lackey');
+    hoverCard(container, 'Goblin Lackey');
+    expect(nameOf(container)).toBe('Goblin Lackey');
 
-    // Leaving the list clears the transient peek but the rail remembers.
+    // Leaving the list clears the transient peek; the inspector remembers.
     fireEvent.mouseLeave(container.querySelector('.deck-card-list')!);
     expect(container.querySelector('.deck-card-hover-peek')).toBeNull();
-    expect(container.querySelector('.deck-card-rail-name')!.textContent).toBe('Goblin Lackey');
+    expect(nameOf(container)).toBe('Goblin Lackey');
   });
 
-  it('is absent below the wide/hover gate (the floating peek path is untouched)', () => {
+  it('shows what the row cannot: oracle text and the ownership line', () => {
+    const { container } = renderDeck({ wideHover: true });
+    hoverCard(container, 'Goblin Lackey');
+    expect(container.querySelector('.deck-card-inspector-oracle')!.textContent).toBe(
+      'Goblin Lackey does a thing when it enters.'
+    );
+    expect(container.querySelector('.deck-card-inspector-owned-text')!.textContent).toBeTruthy();
+  });
+
+  it('pinning holds the card while the pointer moves on', () => {
+    const { container, getByLabelText } = renderDeck({ wideHover: true });
+    hoverCard(container, 'Goblin Lackey');
+    fireEvent.click(getByLabelText('Pin Goblin Lackey'));
+
+    hoverCard(container, 'Skirk Prospector');
+    expect(nameOf(container)).toBe('Goblin Lackey');
+
+    // Unpinning hands the panel back to the pointer's last answer.
+    fireEvent.click(getByLabelText('Unpin Goblin Lackey'));
+    expect(nameOf(container)).toBe('Skirk Prospector');
+  });
+
+  it('answers to the keyboard, not only the pointer', () => {
+    const { container } = renderDeck({ wideHover: true });
+    const row = container.querySelector<HTMLElement>('[data-peek-name="Skirk Prospector"]')!;
+    row.getBoundingClientRect = () =>
+      ({ top: 100, left: 0, right: 300, bottom: 120, width: 300, height: 20 }) as DOMRect;
+    fireEvent.focus(row.querySelector('button')!);
+    expect(nameOf(container)).toBe('Skirk Prospector');
+  });
+
+  it('serves the card views too, not just the list', () => {
+    localStorage.setItem('mtg-decks-view-mode', 'stacks');
+    const { container } = renderDeck({ wideHover: true });
+    expect(container.querySelector('.deck-card-inspector')).not.toBeNull();
+    hoverCard(container, 'Goblin Lackey');
+    expect(nameOf(container)).toBe('Goblin Lackey');
+  });
+
+  it('is absent below the wide/hover gate, where the floating peek takes over', () => {
     const { container } = renderDeck({ wideHover: false });
-    expect(container.querySelector('.deck-card-rail')).toBeNull();
-    expect(container.querySelector('.deck-list-layout')).toBeNull();
+    expect(container.querySelector('.deck-card-inspector')).toBeNull();
+    expect(container.querySelector('.deck-body-layout')).toBeNull();
   });
 
   it('with no commander, invites a hover instead of showing nothing', () => {
     const { container } = renderDeck({ wideHover: true, commander: null });
-    expect(container.querySelector('.deck-card-rail-empty')).not.toBeNull();
+    expect(container.querySelector('.deck-card-inspector-empty')).not.toBeNull();
   });
 });
 

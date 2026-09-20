@@ -93,6 +93,48 @@ export function useDeckHoverPeek({ minViewport = 0, anchor = 'pointer' }: HoverP
     };
   }, [peek]);
 
+  /** Pin the peek to `el`. `pointer` is the cursor position for the pointer
+   *  anchor; a focus-driven call has none, so it falls back to the element's
+   *  own rect (the row anchor's placement) for both anchors. */
+  const pinTo = useCallback(
+    (el: HTMLElement, pointer?: { x: number; y: number }) => {
+      const name = el.dataset.peekName;
+      if (!name) return;
+      // An explicit per-element image (a printing sub-row) is also the dedupe
+      // key, so moving between same-named printings still re-pins the peek.
+      const img = el.dataset.peekImg;
+      const prevKey = peekRef.current ? (peekRef.current.img ?? peekRef.current.name) : undefined;
+      if ((img ?? name) === prevKey) return;
+      const vw = window.innerWidth;
+      const width = peekWidth(vw);
+      const height = Math.round(width * CARD_ASPECT);
+      const viewport = { width: vw, height: window.innerHeight };
+      const { left, top } =
+        anchor === 'pointer' && pointer
+          ? computePointerPlacement(pointer.x, pointer.y, viewport, width, height)
+          : computePeekPlacement(el.getBoundingClientRect(), viewport, width, height);
+      const next = { name, img, left, top, width };
+      setPeek(next);
+      setLastPeek(next);
+    },
+    [anchor]
+  );
+
+  // Keyboard parity (2026-09-20): tabbing into a row feeds the same state the
+  // pointer does, so the card inspector answers to the keyboard rather than
+  // sitting on the commander forever. React's onFocus is focusin, so one
+  // delegated handler on the container covers every focusable inside a row.
+  const onFocus = useCallback(
+    (e: { target: EventTarget | null }) => {
+      if (!capableRef.current) return;
+      if (window.innerWidth < minViewport) return;
+      const el =
+        e.target instanceof Element ? e.target.closest<HTMLElement>('[data-peek-name]') : null;
+      if (el) pinTo(el);
+    },
+    [minViewport, pinTo]
+  );
+
   const onMouseOver = useCallback(
     (e: MouseEvent) => {
       if (!capableRef.current) return;
@@ -105,25 +147,9 @@ export function useDeckHoverPeek({ minViewport = 0, anchor = 'pointer' }: HoverP
         if (anchor === 'pointer') setPeek(null);
         return;
       }
-      const name = el.dataset.peekName;
-      if (!name) return;
-      // An explicit per-element image (a printing sub-row) is also the dedupe
-      // key, so moving between same-named printings still re-pins the peek.
-      const img = el.dataset.peekImg;
-      const prevKey = peekRef.current ? (peekRef.current.img ?? peekRef.current.name) : undefined;
-      if ((img ?? name) === prevKey) return;
-      const width = peekWidth(vw);
-      const height = Math.round(width * CARD_ASPECT);
-      const viewport = { width: vw, height: window.innerHeight };
-      const { left, top } =
-        anchor === 'pointer'
-          ? computePointerPlacement(e.clientX, e.clientY, viewport, width, height)
-          : computePeekPlacement(el.getBoundingClientRect(), viewport, width, height);
-      const next = { name, img, left, top, width };
-      setPeek(next);
-      setLastPeek(next);
+      pinTo(el, { x: e.clientX, y: e.clientY });
     },
-    [minViewport, anchor]
+    [minViewport, anchor, pinTo]
   );
 
   const onMouseOut = useCallback((e: MouseEvent) => {
@@ -137,5 +163,10 @@ export function useDeckHoverPeek({ minViewport = 0, anchor = 'pointer' }: HoverP
 
   const onMouseLeave = useCallback(() => setPeek(null), []);
 
-  return { peek, lastPeek, clear, listHandlers: { onMouseOver, onMouseOut, onMouseLeave } };
+  return {
+    peek,
+    lastPeek,
+    clear,
+    listHandlers: { onMouseOver, onMouseOut, onMouseLeave, onFocus },
+  };
 }

@@ -95,4 +95,16 @@ describe('listColumnCount', () => {
   it('a 400-card cube still fans out to fill the width', () => {
     expect(listColumnCount(1700, 420)).toBe(5);
   });
+
+  // The card inspector (2026-09-20) takes a 300px column plus a 24px gap off
+  // the list's measured width at its 1440px gate. The list measures itself, so
+  // nothing here changes — this pins the consequence so a future widening of
+  // the inspector can't silently drop a Commander deck to two columns.
+  it('gives a Commander deck three columns beside the card inspector', () => {
+    const rows = sectionRowCount(commanderDeck);
+    const besideInspector = (viewport: number) => viewport - 300 - 24 - 64; // panel, gap, gutters
+    expect(listColumnCount(besideInspector(1440), rows)).toBe(3);
+    // A wider display gets the fourth column back.
+    expect(listColumnCount(besideInspector(1800), rows)).toBe(4);
+  });
 });
