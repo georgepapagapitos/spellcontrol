@@ -1477,7 +1477,6 @@ export function DeckDisplay({
             {statCarousel.preview}
 
             <DeckToolbar
-              title={title}
               sort={sort}
               sortDir={sortDir}
               onToggleSort={onToggleSort}
@@ -1495,7 +1494,6 @@ export function DeckDisplay({
               onShowPrefsChange={handleShowPrefsChange}
               onExport={() => setExportOpen(true)}
               onShowTestHand={onShowTestHand}
-              outzoneCount={sideboard.length + considering.length}
               canBulkEdit={canBulkEdit}
               selectMode={selectMode}
               onToggleSelectMode={() => (selectMode ? exitSelectMode() : setSelectMode(true))}

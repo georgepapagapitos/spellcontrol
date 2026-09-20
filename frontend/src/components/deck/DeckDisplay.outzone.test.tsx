@@ -103,12 +103,16 @@ describe('DeckDisplay "Not in the deck" zone (E176)', () => {
     expect(target!.getAttribute('tabindex')).toBe('-1');
   });
 
-  it('the toolbar jump chip points at the zone and reports the combined count', () => {
+  // The toolbar's own "Not in deck N" chip is gone (2026-09-20): it restated a
+  // count the page hero already gives as "+N sideboard" / "+N considering",
+  // as muted text alone on the left of a right-aligned control row. The hero's
+  // counts carry the jump now; see DeckEditorPage's deck-hero-outzone-link.
+  it('spends no toolbar chip on a count the page hero already gives', () => {
     const { container } = renderDeck({ sideboard: ['A', 'B'], considering: ['C'] });
-    const chip = container.querySelector('.deck-toolbar-outzone-chip');
-    expect(chip).not.toBeNull();
-    expect(chip!.getAttribute('href')).toBe('#deck-outzone');
-    expect(chip!.textContent).toContain('3');
+    expect(container.querySelector('.deck-toolbar-outzone-chip')).toBeNull();
+    expect(container.querySelector('.deck-toolbar-summary')).toBeNull();
+    // The zone it pointed at is untouched and still the anchor target.
+    expect(container.querySelector('#deck-outzone')).not.toBeNull();
   });
 
   it('considering cards never reach the mainboard stats (E122)', () => {
