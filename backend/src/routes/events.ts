@@ -24,6 +24,20 @@ import { testAwareLimiter } from '../route-utils';
  */
 export const eventsRouter: Router = Router();
 
+/**
+ * Every usage event the client may send. A name that is not in here is
+ * dropped silently by the handler below, so this set has to hold the whole of
+ * the frontend's `EventName` union — `lib/analytics-parity.test.ts` fails when
+ * the two drift.
+ *
+ * The four past-the-landing events were added to the client by #1911 and to
+ * this set by nobody, so `play_started`, `register_completed`, `deck_created`
+ * and `binder_created` beaconed into a 204 from the day they shipped: the
+ * funnel that PR exists to measure recorded no rows at all. `play_started` is
+ * the sharpest loss — a local game needs no account and writes nothing else
+ * server-side, so anonymous play was exactly what it was added to make
+ * visible.
+ */
 export const EVENT_NAMES = new Set([
   'pageview',
   'import_started',
@@ -31,6 +45,10 @@ export const EVENT_NAMES = new Set([
   'browse_decks',
   'sign_in',
   'guide_cta',
+  'play_started',
+  'register_completed',
+  'deck_created',
+  'binder_created',
 ]);
 
 export const ERROR_KINDS = new Set(['error', 'rejection', 'render']);

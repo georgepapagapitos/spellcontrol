@@ -43,6 +43,18 @@ describe('POST /api/events', () => {
     expect(rows.map((r) => r.column_name).sort()).toEqual(['count', 'day', 'name', 'path']);
   });
 
+  it('records the past-the-landing funnel events, which it used to drop', async () => {
+    // #1911 added these four to the client and to no server list, so each one
+    // beaconed into a 204 and wrote no row for as long as it shipped. An
+    // unrecorded door and an unused door look identical in Admin → Analytics,
+    // so the regression is only ever found by someone acting on the numbers.
+    for (const name of ['play_started', 'register_completed', 'deck_created', 'binder_created']) {
+      const res = await request(app).post('/api/events').send({ name, path: '/play' });
+      expect(res.status).toBe(204);
+      expect(await count(name, '/play'), `${name} should have been counted`).toBe(1);
+    }
+  });
+
   it('drops unknown event names and non-path paths silently', async () => {
     const bad = await request(app).post('/api/events').send({ name: 'evil', path: '/' });
     expect(bad.status).toBe(204);
