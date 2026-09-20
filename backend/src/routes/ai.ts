@@ -965,7 +965,6 @@ aiRouter.get('/rules-history', requireAuth, aiReadLimiter, async (req: Request, 
     [req.user!.id, RULES_QA_FEATURE]
   );
   res.json({
-    effectiveDate: getRulesIndex().status().effectiveDate,
     questions: rows.rows.map((r) => {
       const content = stripAnswerMark(r.content);
       return {

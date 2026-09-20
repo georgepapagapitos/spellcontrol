@@ -47,9 +47,7 @@ beforeEach(() => {
   opened.length = 0;
   aiState.status = { optIn: true, used: 0, limit: 10 };
   requestRulesAnswer.mockReset().mockResolvedValue(ANSWER);
-  fetchRulesHistory
-    .mockReset()
-    .mockResolvedValue({ effectiveDate: 'August 7, 2026', questions: [] });
+  fetchRulesHistory.mockReset().mockResolvedValue({ questions: [] });
 });
 
 vi.mock('../lib/comprehensive-rules', async (importOriginal) => {
@@ -188,7 +186,6 @@ describe('RulesPage', () => {
 
   it('restores the newest past question for free on load', async () => {
     fetchRulesHistory.mockResolvedValue({
-      effectiveDate: 'August 7, 2026',
       questions: [
         {
           id: 'h1',

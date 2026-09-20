@@ -1360,14 +1360,13 @@ describe('POST /api/ai/rules-question and GET /api/ai/rules-history', () => {
     expect(res.status).toBe(429);
   });
 
-  it('lists past questions with their citations and the rules effective date', async () => {
+  it('lists past questions with their citations', async () => {
     const cookie = await makeUser('rules-history');
     await optIn(cookie);
     const q = 'Does lethal damage destroy my creature?';
     await request(app).post('/api/ai/rules-question').set('Cookie', cookie).send({ question: q });
     const res = await request(app).get('/api/ai/rules-history').set('Cookie', cookie);
     expect(res.status).toBe(200);
-    expect(res.body.effectiveDate).toBe('August 7, 2026');
     expect(res.body.questions).toHaveLength(1);
     expect(res.body.questions[0]).toMatchObject({
       question: q,

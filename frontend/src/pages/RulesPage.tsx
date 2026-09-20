@@ -210,7 +210,6 @@ function RulesAsk({ seed }: { seed?: string }) {
   const [streamed, setStreamed] = useState('');
   /** Past questions, newest first. Null until fetched. */
   const [history, setHistory] = useState<RulesQuestionEntry[] | null>(null);
-  const [effectiveDate, setEffectiveDate] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   /** The question in flight / most recently sent — rendered as the answer's
    *  title while streaming, and what Try again retries after the box cleared.
@@ -233,7 +232,6 @@ function RulesAsk({ seed }: { seed?: string }) {
       .then((h) => {
         if (!alive) return;
         setHistory(h.questions);
-        setEffectiveDate(h.effectiveDate);
         const newest = h.questions[0];
         if (newest) {
           setAnswer(
@@ -484,9 +482,8 @@ function RulesAsk({ seed }: { seed?: string }) {
       )}
 
       <p className="rules-disclaimer">
-        Answers cite the official Comprehensive Rules
-        {effectiveDate ? ` (effective ${effectiveDate})` : ''}. AI can misread corner cases, so ask
-        a judge for tournament play.
+        Answers cite the official Comprehensive Rules. AI can misread corner cases, so ask a judge
+        for tournament play.
       </p>
     </div>
   );
