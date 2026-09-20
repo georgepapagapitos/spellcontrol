@@ -8,6 +8,7 @@ import {
   Box,
   FolderOpen,
   Layers,
+  AlignJustify,
   LayoutGrid,
   List as ListIcon,
   ListChecks,
@@ -77,7 +78,7 @@ const COLLECTION_SORT_OPTIONS: SortMenuOption<FriendSortKey>[] = [
 
 type HubTab = 'overview' | 'decks' | 'collection' | 'trades';
 /** Grid/list, matching the shared collection view's own toggle. */
-type FriendViewKind = 'grid' | 'list';
+type FriendViewKind = 'grid' | 'list' | 'compact';
 
 /** A counter is just a new offer the other way, prefilled with the first card
  *  they asked for so the composer opens with the conversation already in it. */
@@ -846,6 +847,11 @@ export function FriendHubPage() {
                     label: 'List view',
                     icon: <ListIcon width={14} height={14} strokeWidth={2} aria-hidden />,
                   },
+                  {
+                    value: 'compact',
+                    label: 'Compact list (text only)',
+                    icon: <AlignJustify width={14} height={14} strokeWidth={2} aria-hidden />,
+                  },
                 ]}
               />
             </div>
@@ -902,6 +908,7 @@ export function FriendHubPage() {
                       quantity: 1,
                     }))}
                     onPreview={(i) => inspectFriendCard(visibleFriendCards[i])}
+                    table={collectionView === 'compact'}
                     showPrice={false}
                     showQty={false}
                   />

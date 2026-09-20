@@ -8,16 +8,22 @@ const here = dirname(fileURLToPath(import.meta.url));
 const css = readFileSync(join(here, 'collection.css'), 'utf8');
 
 /**
- * The collection table's column tiers are `@container` rules queried against
+ * The card table's column tiers are `@container` rules queried against
  * `.collection-table` (the `container-type: inline-size` wrapper). An element
  * cannot be matched by a query on its own container, so a tier rule written as
- * `.collection-table { --collection-table-cols: … }` never fires: the cells
- * for the dropped columns disappear (their `data-col` hide rules target
- * descendants, which DO match) while the rows keep every track, and the
- * remaining cells slide left into the wrong widths with a hole on the right.
- * That is exactly how the first cut of the table looked at 1024px. The guard
- * reads every `@container` block in the sheet and requires anything that sets
- * the template inside one to target a descendant of the wrapper.
+ * `.collection-table { --ct-w-binder: 0px }` never fires: the cells for the
+ * dropped columns disappear (their `data-tier` hide rules target descendants,
+ * which DO match) while the rows keep every track, and the remaining cells
+ * slide left into the wrong widths with a hole on the right. That is exactly
+ * how the first cut of the table looked at 1024px. The guard reads every
+ * `@container` block in the sheet and requires anything that sizes a column
+ * inside one to target a descendant of the wrapper.
+ *
+ * The tiers used to rewrite `--collection-table-cols` wholesale, which only
+ * worked because one surface owned the only column set. They now zero the
+ * dropped column's own `--ct-w-*` track instead, so the same two rules serve
+ * every surface and every preset — but the containment trap is unchanged,
+ * hence the same guard over the new property names.
  */
 function containerBlocks(sheet: string): string[] {
   const out: string[] = [];
@@ -36,7 +42,8 @@ function containerBlocks(sheet: string): string[] {
 }
 
 describe('collection table column tiers', () => {
-  const blocks = containerBlocks(css).filter((b) => b.includes('--collection-table-cols'));
+  const TRACK_PROP = /--(?:collection-table-cols|ct-w-[\w-]+)/;
+  const blocks = containerBlocks(css).filter((b) => TRACK_PROP.test(b));
 
   it('has container-query tiers that set the column template', () => {
     expect(blocks.length).toBeGreaterThan(0);
@@ -44,7 +51,7 @@ describe('collection table column tiers', () => {
 
   it('never sets the template on the queried container itself', () => {
     for (const block of blocks) {
-      const rules = block.match(/[^{}]+\{[^{}]*--collection-table-cols[^{}]*\}/g) ?? [];
+      const rules = (block.match(/[^{}]+\{[^{}]*\}/g) ?? []).filter((r) => TRACK_PROP.test(r));
       expect(rules.length).toBeGreaterThan(0);
       for (const rule of rules) {
         const selector = rule.slice(0, rule.indexOf('{')).trim();

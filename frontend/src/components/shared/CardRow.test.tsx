@@ -3,6 +3,7 @@ import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import type { EnrichedCard } from '../../types';
+import { COLLECTION_TABLE_COLUMNS, type CardTableCol } from './CardTable';
 import { CardRow } from './CardRow';
 
 function card(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
@@ -118,7 +119,7 @@ describe('CardRow', () => {
 
 describe('CardRow on a read-only shared surface', () => {
   function renderWith(
-    props: { hidePrice?: boolean; hideQty?: boolean; table?: boolean },
+    props: { hidePrice?: boolean; hideQty?: boolean; columns?: readonly CardTableCol[] },
     o: Partial<EnrichedCard> = {}
   ) {
     return render(
@@ -157,7 +158,7 @@ describe('CardRow on a read-only shared surface', () => {
 
   it('table mode renders one cell per column, splitting unit price from the line total', () => {
     const { container } = renderWith(
-      { table: true },
+      { columns: COLLECTION_TABLE_COLUMNS },
       { condition: 'nm', language: 'ja', notes: 'signed at the prerelease', purchasePrice: 1.5 }
     );
     const cols = [...container.querySelectorAll('.collection-table-row > [data-col]')].map((el) =>

@@ -1,4 +1,10 @@
-import type { ComponentProps, KeyboardEvent, ReactNode } from 'react';
+import {
+  cloneElement,
+  type ComponentProps,
+  type KeyboardEvent,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 import { Check } from 'lucide-react';
 import type { Condition, EnrichedCard } from '../../types';
 import type { AllocationInfo } from '../../lib/allocations';
@@ -15,6 +21,7 @@ import { getCardType } from '../../lib/card-types';
 import { getColorKey, COLOR_INFO } from '../../lib/colors';
 import { formatMoney } from '../../lib/format-money';
 import { useCardThumb } from '../../lib/card-thumbs';
+import { CARD_TABLE_COLUMNS, type CardTableCol } from './CardTable';
 
 /** 'damaged' abbreviates to DMG for the row chip; the rest are already short. */
 export function conditionShort(condition: Condition): string {
@@ -99,24 +106,29 @@ interface CardRowProps {
    */
   hideQty?: boolean;
   /**
-   * Table density (collection compact view at tablet+): one grid cell per
-   * column — qty · name · set · # · condition · language · binder · notes ·
-   * mana · price · total · menu — sized by the shared `--collection-table-cols`
-   * template so every row lines up under `CardListTable`'s sticky header.
+   * Table density: one grid cell per column, in the order given, sized by
+   * the shared `--collection-table-cols` template so every row lines up
+   * under the surface's `CardTableHead`. Passing this IS table mode; omit it
+   * for the flow row. Use one of the presets in `./CardTable` rather than
+   * assembling an array by hand.
+   *
    * Price is the unit price here and Total is price × qty (the list/compact
-   * rows show only the total). Condition and language show for every copy,
-   * NM and English included: the column label carries the meaning, so the
-   * "deviations only" rule of the flow rows doesn't apply.
+   * flow rows show only the total). Condition and language show for every
+   * copy, NM and English included: the column label carries the meaning, so
+   * the "deviations only" rule of the flow rows doesn't apply.
    */
-  table?: boolean;
+  columns?: readonly CardTableCol[];
 }
 
 /**
- * The single card row used by the collection table and the binder list (and a
- * candidate for shared views). Owns the `.collection-list-*` visual contract —
+ * The single card row behind every list of cards in the app: Collection, a
+ * binder's list view, a list, and the shared/friend views — at both densities,
+ * the thumbnail flow row and (given `columns`) the table.
+ *
+ * Owns the `.collection-list-*` visual contract —
  * thumb, name + badges, the primary-type glyph + accessible rarity chip + set
- * code "printing-identity floor", the mana-cost column, qty and price — so the two
- * surfaces stay consistent by construction. Interaction (preview vs. select),
+ * code "printing-identity floor", the mana-cost column, qty and price — so every
+ * surface stays consistent by construction. Interaction (preview vs. select),
  * virtualization, and the action menu stay with the caller; this is purely
  * presentational. See STYLE_GUIDE "Card row information hierarchy".
  */
@@ -139,7 +151,7 @@ export function CardRow({
   targetPriceSlot,
   hidePrice = false,
   hideQty = false,
-  table = false,
+  columns,
 }: CardRowProps) {
   const colorKey = getColorKey(card);
   // Name-keyed CDN thumb is only a fallback, exactly as in `CardGridCell`: a
@@ -172,7 +184,7 @@ export function CardRow({
     </span>
   );
 
-  if (table) {
+  if (columns) {
     const langLabel = card.language
       ? ((LANGUAGE_OPTIONS.find((o) => o.value === card.language)?.label as string) ??
         card.language.toUpperCase())
@@ -185,13 +197,13 @@ export function CardRow({
       ) : (
         formatMoney(amount, { currency: 'USD' })
       );
-    return (
-      <div className={`${rowClass} collection-table-row`} {...rowInteraction}>
-        {check}
-        <div className="collection-list-qty" data-col="qty">
-          {hideQty ? '' : qty}
-        </div>
-        <div className="collection-table-name" data-col="name">
+    // One entry per `CardTableCol`. The record is exhaustive by type, so a
+    // column added to the vocabulary fails to compile until it has a cell —
+    // which is the whole point of moving the list out of this file.
+    const cell: Record<CardTableCol, ReactNode> = {
+      qty: <div className="collection-list-qty">{hideQty ? '' : qty}</div>,
+      name: (
+        <div className="collection-table-name">
           <TypeIcon type={type} label={typeLabel} className="card-list-type" />
           <RarityBadge rarity={card.rarity} />
           <span className="collection-list-name">
@@ -202,21 +214,25 @@ export function CardRow({
             {ownedBadge}
           </span>
         </div>
-        <div data-col="set">
+      ),
+      set: (
+        <div>
           {card.setCode && (
             <span className="card-list-set-code" title={setName ?? card.setName}>
               {card.setCode.toUpperCase()}
             </span>
           )}
         </div>
-        <div className="card-list-cn" data-col="cn">
-          {card.collectorNumber}
-        </div>
-        <div data-col="cond">{card.condition && <ConditionChip condition={card.condition} />}</div>
-        <div className="card-list-language" data-col="lang" title={langLabel}>
+      ),
+      cn: <div className="card-list-cn">{card.collectorNumber}</div>,
+      cond: <div>{card.condition && <ConditionChip condition={card.condition} />}</div>,
+      lang: (
+        <div className="card-list-language" title={langLabel}>
           {card.language?.toUpperCase()}
         </div>
-        <div className="collection-table-binder" data-col="binder">
+      ),
+      binder: (
+        <div className="collection-table-binder">
           <BinderBadge binders={binders ?? []} />
           {!!surplusCount && (
             <span
@@ -227,15 +243,30 @@ export function CardRow({
             </span>
           )}
         </div>
-        <div className="collection-table-notes" data-col="notes" title={card.notes}>
+      ),
+      // Same chip the flow row uses, same "only when the copy carries it"
+      // guard — a binder page number is a real location or it is nothing.
+      page: (
+        <div>
+          {pageNum !== undefined && pageNum > 0 && (
+            <span className="card-list-page" title={`Page ${pageNum}`}>
+              p.{pageNum}
+            </span>
+          )}
+        </div>
+      ),
+      notes: (
+        <div className="collection-table-notes" title={card.notes}>
           {card.notes}
         </div>
-        <div data-col="mana">
-          {card.manaCost && <ManaCost cost={card.manaCost} className="mana-cost-row" />}
-        </div>
+      ),
+      target: <div className="collection-table-target">{targetPriceSlot}</div>,
+      mana: (
+        <div>{card.manaCost && <ManaCost cost={card.manaCost} className="mana-cost-row" />}</div>
+      ),
+      price: (
         <div
           className="collection-list-price"
-          data-col="price"
           title={pricePending ? 'Updating price…' : priceTitle}
         >
           {!hidePrice && (
@@ -245,12 +276,27 @@ export function CardRow({
             </>
           )}
         </div>
-        <div className="collection-list-price" data-col="total">
+      ),
+      total: (
+        <div className="collection-list-price">
           {!hidePrice && !hideQty && money(card.purchasePrice * qty)}
         </div>
-        <div className="collection-table-menu" data-col="menu">
-          {menu}
-        </div>
+      ),
+      menu: <div className="collection-table-menu">{menu}</div>,
+    };
+    return (
+      <div className={`${rowClass} collection-table-row`} {...rowInteraction}>
+        {check}
+        {columns.map((col) =>
+          // `data-col` / `data-tier` ride on the cell rather than inside each
+          // branch above so a cell can't be written without them — they are
+          // what the responsive tier rules and the column styling hook onto.
+          cloneElement(cell[col] as ReactElement<Record<string, unknown>>, {
+            key: col,
+            'data-col': col,
+            'data-tier': CARD_TABLE_COLUMNS[col].tier,
+          })
+        )}
       </div>
     );
   }
