@@ -1900,10 +1900,21 @@ absolute` inside `.playtest-battlefield-wrap`, not inside `.playtest-board`,
   so an opponent rail (a flex sibling of the wrap) is never underneath one.
   Top-left: **your own** life as the panel's headline, a display numeral
   between two 44px ±1 steppers (`usePressRepeat`, so a ten-point swing is one
-  hold), with a Details row and the numeral itself both opening the same
-  `LifeAdjustPanel` the strip uses. Everyone else, virtual opponent or real
-  seat, is a secondary row of small name+life chips underneath: four
-  equal-weight chips told you nothing about whose board you were looking at.
+  hold), with a bare chevron and the numeral itself both opening the same
+  `LifeAdjustPanel` the strip uses. The chevron carries no "Details" label
+  and no opponent count: the chips under it are the opponents. Everyone
+  else, virtual opponent or real seat, is a secondary row of small name+life
+  chips underneath: four equal-weight chips told you nothing about whose
+  board you were looking at. The popover under the chevron is **one list**:
+  the five player counters modern Magic actually uses (poison, energy,
+  experience, rad, tickets) as icon rows, listed even at zero, then one
+  commander-damage row per commander (solo: dealt to each virtual opponent;
+  online: taken from each seat), each a name, a value and a ±1 stepper. No
+  life row on the wide tier (the steppers are already on the panel; the
+  narrow strip's sheet keeps it, since the chip has none), and the by-name
+  counter field folds behind an "Another counter" link so the fixed list is
+  the whole panel at rest. This is EDHPlay's shape; the earlier version put
+  life in twice and split commander damage across a per-opponent panel.
   The mana tracker is the **last row of that same panel** — nothing at all
   while the pool is empty and closed, a "Mana · 3" chip while mana is
   floating, the full pool once opened by the chip or `M`. This is
