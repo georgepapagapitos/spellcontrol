@@ -65,6 +65,15 @@ export interface ScryfallCard {
    *  `all_parts` — the deck-token prep checklist's whole input. Omitted when
    *  the card makes none. */
   tokens?: CardTokenRef[];
+  /** A planeswalker's starting loyalty, verbatim. */
+  loyalty?: string;
+  /** Mana symbols this card can produce — the mana-base analysis's input. */
+  produced_mana?: string[];
+  /** Which game clients this printing exists in; `paper` for anything the
+   *  ingest keeps. Read to filter Arena-only printings. */
+  games?: string[];
+  /** Printed flavour text, for the card detail pane. */
+  flavor_text?: string;
   /** Older full-art lands set this without populating frame_effects. */
   full_art?: boolean;
   /** "black" | "white" | "borderless" | "silver" | "gold". */
