@@ -339,3 +339,36 @@ describe('RulesPage — a rule number goes to the rules', () => {
     );
   });
 });
+
+describe('RulesPage — a keyword row says that it opens', () => {
+  it('marks the head as a disclosure and wires it to the body it reveals', async () => {
+    renderPage(undefined, '');
+    const head = await screen.findByRole('button', { name: /^Deathtouch/ });
+    expect(head.getAttribute('aria-expanded')).toBe('false');
+    const bodyId = head.getAttribute('aria-controls');
+    expect(bodyId).toBeTruthy();
+    // Collapsed: nothing is wired up yet on the page.
+    expect(document.getElementById(bodyId!)).toBeNull();
+
+    fireEvent.click(head);
+    expect(head.getAttribute('aria-expanded')).toBe('true');
+    // The revealed subrules are the element the head named all along.
+    const body = document.getElementById(bodyId!);
+    expect(body).toBeTruthy();
+    expect(body!.textContent).toContain('Deathtouch is a static ability.');
+  });
+
+  it('carries a chevron that flips when it opens', async () => {
+    renderPage(undefined, '');
+    const head = await screen.findByRole('button', { name: /^Deathtouch/ });
+    const chevron = head.querySelector('.rules-ref-keyword-chevron');
+    // aria-expanded alone is a promise kept only to screen readers; a sighted
+    // visitor needs the mark.
+    expect(chevron).toBeTruthy();
+    expect(chevron!.getAttribute('data-open')).toBe('false');
+    fireEvent.click(head);
+    expect(head.querySelector('.rules-ref-keyword-chevron')!.getAttribute('data-open')).toBe(
+      'true'
+    );
+  });
+});

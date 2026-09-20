@@ -1,3 +1,4 @@
+import { ChevronDown } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { SearchPill } from './SearchPill';
 import { Tabs } from './Tabs';
@@ -297,6 +298,7 @@ function KeywordList({
           keyword: k.kind === 'ability' ? k.name : undefined,
           question: `How does ${k.name} work?`,
         };
+        const bodyId = `rules-kw-${k.kind}-${k.rule}`;
         return (
           <li
             key={`${k.kind}-${k.rule}`}
@@ -308,8 +310,21 @@ function KeywordList({
                 type="button"
                 className="rules-ref-keyword-head"
                 aria-expanded={isOpen}
+                aria-controls={bodyId}
                 onClick={() => onToggle(k.name)}
               >
+                {/* Leads the row, where every other in-place disclosure in
+                    the app puts it (CardRulings, CardDetails, WhyBreakdown,
+                    CoachFeed). The row reads as a definition, so nothing said
+                    it also opened: `aria-expanded` told a screen reader and
+                    left every sighted visitor to discover the click. */}
+                <ChevronDown
+                  className="rules-ref-keyword-chevron"
+                  data-open={isOpen}
+                  aria-hidden
+                  width={14}
+                  height={14}
+                />
                 <span className="rules-ref-keyword-name">{k.name}</span>
                 <span className={`rules-ref-badge rules-ref-badge-${k.kind}`}>{k.kind}</span>
                 <span className="rules-ref-keyword-rule">{k.rule}</span>
@@ -318,7 +333,7 @@ function KeywordList({
             </div>
             {summary && !isOpen && <p className="rules-ref-keyword-summary">{summary}</p>}
             {isOpen && (
-              <div className="rules-ref-keyword-body">
+              <div className="rules-ref-keyword-body" id={bodyId}>
                 {subrulesFor(bundle.rules, k.rule).map((r) => (
                   <RuleRow
                     key={r.number}

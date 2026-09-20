@@ -5788,9 +5788,58 @@ Model-written text always says so. The rulings:
   matches abilities and an empty result page answers nothing. "Ask AI about
   this" seeds the Ask tab and self-hides without AI. The ⋮ is the visible
   affordance on every pointer; right-click, the Context Menu key and
-  Shift+F10 on the row open the same menu (`openEntryMenu`). On a fine
-  pointer the ⋮ rests hidden and shows on row hover/focus, the deck list's
-  ruling; touch keeps it visible.
+  Shift+F10 on the row open the same menu (`openEntryMenu`). The ⋮ is
+  **always present, never hover-revealed** (settled 2026-09-20): reference
+  rows are a dense stack the eye travels down, and a glyph that pops in at
+  every stop is what you notice instead of the rules. It rests muted and
+  comes up to full on the hovered or focused row. This is the opposite of
+  the deck list's ruling, and the difference is the surface — a list you
+  ACT on can hide its controls until you arrive at a row; a list you READ
+  cannot afford the flicker.
+- **The ⋮ takes its row's vertical centering, never a blanket
+  `align-self`** (settled 2026-09-20). A keyword head and a glossary term
+  are single lines, so their ⋮ sits ON the line, beside the rule number.
+  Only a numbered rule opts out: it is a paragraph, so its ⋮ tracks the
+  first line rather than centering down four lines of prose. A blanket
+  `align-self: flex-start` on `.rules-ref-entry-menu` is what once left the
+  ⋮ floating in the corner above the term while the rule number — which
+  lives inside the head button — sat correctly on the line.
+- **The reference is a dictionary, and both lists draw it the same way**
+  (settled 2026-09-20). Keyword entries and glossary terms are
+  **hairline-separated rows, never bordered cards**, and the category badge
+  beside a term is a **small-caps label, not a chip** — the pill form is for
+  a mark that must catch the eye against other content, and here the same
+  mark repeats on nearly every row. Keywords shipped as cards while the
+  glossary next door was already a hairline list; at 2-up the cards' grid
+  also carried `align-items: start`, so each entry kept its own content
+  height, the shorter of every pair left a ragged hole beneath it and no two
+  row gaps measured the same. **At 2-up neither list takes `align-items` or
+  a row gap** — letting each row's pair share a height is what puts the two
+  columns' hairlines on one line, and a box edge is what makes a mismatch
+  visible in the first place. Hover fills the whole entry; it does not ring
+  it in accent. Guarded by `styles/rules-reference-rows.test.ts`.
+- **A keyword row that opens says so with a chevron, and the chevron LEADS
+  the row** (settled 2026-09-20). The head is a disclosure button
+  (`aria-expanded` + `aria-controls` naming the subrule body it reveals)
+  carrying the app's standard chevron: `ChevronDown`, `data-open`,
+  `rotate(180deg)`, muted, `--motion-fast`, silent under
+  `prefers-reduced-motion`. The row reads as a definition, so without the
+  mark nothing told a sighted visitor it also opened; `aria-expanded` alone
+  is a promise kept only to screen readers. The definition and the opened
+  subrules indent by `--rules-kw-indent` so body copy hangs under the term,
+  not under the chevron.
+- **In-place disclosure ⇒ LEADING chevron. A row that opens a separate
+  surface ⇒ TRAILING chevron.** These are two patterns, and the trailing
+  ruling above (suggestion strips, § Suggestion feeds) is the second one —
+  navigation, not disclosure. Every in-place toggle in the app leads:
+  `CardRulings`, `CardDetails` (Legalities), `WhyBreakdown`, and both of
+  `CoachFeed`'s. External design systems default an accordion chevron to the
+  END (Carbon, so the title aligns with other type) and NN/g's accordion-icon
+  study tested only that placement — we go the other way **on purpose**,
+  because five in-app precedents beat a generic default, and because Carbon's
+  own stated exception is tree-like content: a keyword expands into its
+  numbered subrules, which is a hierarchy. Don't "fix" a leading chevron to
+  match an outside design system.
 - **The Rules hub uses a wide screen; the sheet never does** (settled
   2026-09-19). Below 1024px `/rules` is the 640px reading column its social
   siblings use. From 1024px it widens to the 1100px cap Search / Compare /
