@@ -216,7 +216,13 @@ export function CardPreview({
   // Compact (image-hero) ↔ expanded (text-hero) panel. Expanded is a fixed
   // taller height applied to every card, so swiping between cards stays
   // height-stable — the card just shrinks via the track's container query.
-  const [expanded, setExpanded] = useState(false);
+  // The playtest/online inspector is opened mid-game to read a card, not to
+  // look at its art: it leads with rules text and rulings, drops the
+  // collection bookkeeping (price, condition, binder/deck pills, the
+  // "card N of M" counter), and starts expanded so none of that needs a
+  // chevron hunt at the table.
+  const isPlaytest = source === 'playtest';
+  const [expanded, setExpanded] = useState(isPlaytest);
   // Full Scryfall card for the focused slide — supplies flavor text, P/T, and
   // authoritative legalities that EnrichedCard doesn't carry. Offline-first,
   // cached; oracle text already renders instantly from the EnrichedCard.
@@ -485,6 +491,23 @@ export function CardPreview({
           .join(' / ')
       : '';
 
+  // Oracle text + rulings. One definition, two homes: the playtest inspector
+  // puts it directly under the type line (it's what the card was opened for);
+  // every other surface keeps it below the collection facts.
+  const rulesBlock = (
+    <>
+      <CardText card={current} detail={detail} />
+      {/* Real Scryfall printings only — placeholder/synthetic ids would 400. */}
+      {UUID_RE.test(current.scryfallId) && (
+        <CardRulings
+          key={current.scryfallId}
+          scryfallId={current.scryfallId}
+          defaultOpen={isPlaytest}
+        />
+      )}
+    </>
+  );
+
   const turnCycle = current.layout ? TURN_CYCLE[current.layout] : undefined;
   const turnAngle = turned[selected] ?? 0;
   // indexOf(-1) + 1 === 0, so an unknown angle safely resets to the cycle start.
@@ -687,106 +710,111 @@ export function CardPreview({
                 })()}
               </div>
             )}
-            <div className="card-preview-context">
-              {binderName}
-              {(() => {
-                // Aggregate binders and decks across every copy in the stack
-                // so a grouped row can surface every container it touches —
-                // not just whichever copy the row picked as its representative.
-                const binders = getStackBinders?.(selected) ?? [];
-                const binderById = new Map<string, BinderInfo>();
-                for (const b of binders) binderById.set(b.id, b);
-                const uniqueBinders = [...binderById.values()];
+            {/* Binder / deck / section provenance. Meaningless at a game table,
+                where every card is "Playtest · Battlefield". */}
+            {!isPlaytest && (
+              <div className="card-preview-context">
+                {binderName}
+                {(() => {
+                  // Aggregate binders and decks across every copy in the stack
+                  // so a grouped row can surface every container it touches —
+                  // not just whichever copy the row picked as its representative.
+                  const binders = getStackBinders?.(selected) ?? [];
+                  const binderById = new Map<string, BinderInfo>();
+                  for (const b of binders) binderById.set(b.id, b);
+                  const uniqueBinders = [...binderById.values()];
 
-                const allocs = getStackAllocations?.(selected) ?? [];
-                const deckById = new Map<string, AllocationInfo>();
-                const cubeById = new Map<string, AllocationInfo>();
-                for (const a of allocs) {
-                  if (a.ownerKind === 'cube') {
-                    cubeById.set(a.ownerId, a);
-                  } else {
-                    if (a.deckId === currentDeckId) continue;
-                    deckById.set(a.deckId, a);
+                  const allocs = getStackAllocations?.(selected) ?? [];
+                  const deckById = new Map<string, AllocationInfo>();
+                  const cubeById = new Map<string, AllocationInfo>();
+                  for (const a of allocs) {
+                    if (a.ownerKind === 'cube') {
+                      cubeById.set(a.ownerId, a);
+                    } else {
+                      if (a.deckId === currentDeckId) continue;
+                      deckById.set(a.deckId, a);
+                    }
                   }
-                }
-                const uniqueDecks = [...deckById.values()];
-                const uniqueCubes = [...cubeById.values()];
-                const sectionLabel = sectionLabels[selected] ?? '';
+                  const uniqueDecks = [...deckById.values()];
+                  const uniqueCubes = [...cubeById.values()];
+                  const sectionLabel = sectionLabels[selected] ?? '';
 
-                return (
-                  <>
-                    {sectionLabel && ` · ${sectionLabel}`}
-                    {uniqueBinders.length > 0 && ' · '}
-                    {uniqueBinders.map((b, i) => (
-                      <span key={`b-${b.id}`}>
-                        {i > 0 && ' · '}
-                        <Link
-                          to={`/collection/binders/${b.id}`}
-                          className="card-preview-context-pill card-preview-context-pill--binder"
-                          style={
-                            {
-                              '--pill-color': b.color || 'var(--accent)',
-                            } as React.CSSProperties
-                          }
-                          onClick={onClose}
-                          title={`Open binder ${b.name}`}
-                        >
-                          <Notebook width={11} height={11} strokeWidth={2.2} aria-hidden />
-                          <span>{b.name}</span>
-                        </Link>
-                      </span>
-                    ))}
-                    {uniqueDecks.length > 0 && ' · '}
-                    {uniqueDecks.map((d, i) => (
-                      <span key={`d-${d.deckId}`}>
-                        {i > 0 && ' · '}
-                        <Link
-                          to={`/decks/${d.ownerId}`}
-                          className="card-preview-context-pill card-preview-context-pill--deck"
-                          style={
-                            {
-                              '--pill-color': d.deckColor || 'var(--accent)',
-                            } as React.CSSProperties
-                          }
-                          onClick={onClose}
-                          title={`In deck: ${d.deckName}`}
-                          aria-label={`In deck: ${d.deckName}`}
-                        >
-                          <Layers width={11} height={11} strokeWidth={2.2} aria-hidden />
-                          <span>{d.deckName}</span>
-                        </Link>
-                      </span>
-                    ))}
-                    {uniqueCubes.length > 0 && ' · '}
-                    {uniqueCubes.map((c, i) => (
-                      <span key={`c-${c.ownerId}`}>
-                        {i > 0 && ' · '}
-                        <Link
-                          to={`/decks/cube/${c.ownerId}`}
-                          className="card-preview-context-pill card-preview-context-pill--cube"
-                          style={
-                            {
-                              '--pill-color': 'var(--cube-color)',
-                            } as React.CSSProperties
-                          }
-                          onClick={onClose}
-                          title={`In cube: ${c.ownerName}`}
-                          aria-label={`In cube: ${c.ownerName}`}
-                        >
-                          <Boxes width={11} height={11} strokeWidth={2.2} aria-hidden />
-                          <span>{c.ownerName}</span>
-                        </Link>
-                      </span>
-                    ))}
-                  </>
-                );
-              })()}
-            </div>
+                  return (
+                    <>
+                      {sectionLabel && ` · ${sectionLabel}`}
+                      {uniqueBinders.length > 0 && ' · '}
+                      {uniqueBinders.map((b, i) => (
+                        <span key={`b-${b.id}`}>
+                          {i > 0 && ' · '}
+                          <Link
+                            to={`/collection/binders/${b.id}`}
+                            className="card-preview-context-pill card-preview-context-pill--binder"
+                            style={
+                              {
+                                '--pill-color': b.color || 'var(--accent)',
+                              } as React.CSSProperties
+                            }
+                            onClick={onClose}
+                            title={`Open binder ${b.name}`}
+                          >
+                            <Notebook width={11} height={11} strokeWidth={2.2} aria-hidden />
+                            <span>{b.name}</span>
+                          </Link>
+                        </span>
+                      ))}
+                      {uniqueDecks.length > 0 && ' · '}
+                      {uniqueDecks.map((d, i) => (
+                        <span key={`d-${d.deckId}`}>
+                          {i > 0 && ' · '}
+                          <Link
+                            to={`/decks/${d.ownerId}`}
+                            className="card-preview-context-pill card-preview-context-pill--deck"
+                            style={
+                              {
+                                '--pill-color': d.deckColor || 'var(--accent)',
+                              } as React.CSSProperties
+                            }
+                            onClick={onClose}
+                            title={`In deck: ${d.deckName}`}
+                            aria-label={`In deck: ${d.deckName}`}
+                          >
+                            <Layers width={11} height={11} strokeWidth={2.2} aria-hidden />
+                            <span>{d.deckName}</span>
+                          </Link>
+                        </span>
+                      ))}
+                      {uniqueCubes.length > 0 && ' · '}
+                      {uniqueCubes.map((c, i) => (
+                        <span key={`c-${c.ownerId}`}>
+                          {i > 0 && ' · '}
+                          <Link
+                            to={`/decks/cube/${c.ownerId}`}
+                            className="card-preview-context-pill card-preview-context-pill--cube"
+                            style={
+                              {
+                                '--pill-color': 'var(--cube-color)',
+                              } as React.CSSProperties
+                            }
+                            onClick={onClose}
+                            title={`In cube: ${c.ownerName}`}
+                            aria-label={`In cube: ${c.ownerName}`}
+                          >
+                            <Boxes width={11} height={11} strokeWidth={2.2} aria-hidden />
+                            <span>{c.ownerName}</span>
+                          </Link>
+                        </span>
+                      ))}
+                    </>
+                  );
+                })()}
+              </div>
+            )}
             {renderPanelMeta && (
               <div className="card-preview-slot card-preview-slot--meta">
                 {renderPanelMeta(selected)}
               </div>
             )}
+            {isPlaytest && rulesBlock}
             <div className="card-preview-meta">
               <span
                 className={`card-preview-rarity rarity-${(current.rarity || '').toLowerCase()}`}
@@ -800,7 +828,7 @@ export function CardPreview({
                 const finish = foilFinishLabel(current);
                 return finish ? <span className="card-preview-foil">{finish}</span> : null;
               })()}
-              {!hidePrice && (
+              {!hidePrice && !isPlaytest && (
                 <>
                   {' · '}
                   {formatMoney(current.purchasePrice)}
@@ -808,7 +836,7 @@ export function CardPreview({
                 </>
               )}
               {(() => {
-                const qty = getStackQty?.(selected) ?? 1;
+                const qty = isPlaytest ? 1 : (getStackQty?.(selected) ?? 1);
                 return qty > 1 ? (
                   <span className="card-preview-qty" aria-label={`${qty} copies`}>
                     {' · '}
@@ -819,7 +847,7 @@ export function CardPreview({
                   </span>
                 ) : null;
               })()}
-              {current.condition && (
+              {!isPlaytest && current.condition && (
                 <span
                   className="card-preview-condition"
                   aria-label={`Condition ${current.condition}`}
@@ -828,7 +856,8 @@ export function CardPreview({
                   {current.condition.toUpperCase()}
                 </span>
               )}
-              {current.language &&
+              {!isPlaytest &&
+                current.language &&
                 current.language !== 'en' &&
                 (() => {
                   const label =
@@ -842,7 +871,7 @@ export function CardPreview({
                   );
                 })()}
               {(['altered', 'proxy', 'misprint'] as const)
-                .filter((flag) => current[flag])
+                .filter((flag) => !isPlaytest && current[flag])
                 .map((flag) => (
                   <span key={flag} className="card-preview-condition" aria-label={flag}>
                     {' · '}
@@ -853,7 +882,7 @@ export function CardPreview({
             {(() => {
               // Price freshness on demand — the always-on collection "Prices as
               // of" line was retired; the card inspector is one of its homes.
-              const updated = hidePrice ? null : formatPricedDate(current.pricedAt);
+              const updated = hidePrice || isPlaytest ? null : formatPricedDate(current.pricedAt);
               return updated ? (
                 <div className="card-preview-priced-at">Prices updated {updated}</div>
               ) : null;
@@ -929,44 +958,46 @@ export function CardPreview({
                   className="card-preview-ext-link-icon"
                 />
               </a>
-              <a
-                href={`https://www.tcgplayer.com/search/magic/product?q=${encodeURIComponent(current.name)}&view=grid`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="card-preview-ext-link"
-                onClick={(e) => {
-                  if (!isNativePlatform()) return;
-                  e.preventDefault();
-                  openExternal(
-                    `https://www.tcgplayer.com/search/magic/product?q=${encodeURIComponent(current.name)}&view=grid`
-                  );
-                }}
-              >
-                TCGPlayer
-                <ExternalLink
-                  width={12}
-                  height={12}
-                  strokeWidth={2.4}
-                  aria-hidden
-                  className="card-preview-ext-link-icon"
-                />
-              </a>
+              {!isPlaytest && (
+                <a
+                  href={`https://www.tcgplayer.com/search/magic/product?q=${encodeURIComponent(current.name)}&view=grid`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="card-preview-ext-link"
+                  onClick={(e) => {
+                    if (!isNativePlatform()) return;
+                    e.preventDefault();
+                    openExternal(
+                      `https://www.tcgplayer.com/search/magic/product?q=${encodeURIComponent(current.name)}&view=grid`
+                    );
+                  }}
+                >
+                  TCGPlayer
+                  <ExternalLink
+                    width={12}
+                    height={12}
+                    strokeWidth={2.4}
+                    aria-hidden
+                    className="card-preview-ext-link-icon"
+                  />
+                </a>
+              )}
             </div>
             {/* Rules-reference depth, below the collection facts — revealed when
                 the panel expands (compact height shows the facts first). */}
-            <CardText card={current} detail={detail} />
-            {/* Real Scryfall printings only — placeholder/synthetic ids would 400. */}
-            {UUID_RE.test(current.scryfallId) && (
-              <CardRulings key={current.scryfallId} scryfallId={current.scryfallId} />
-            )}
+            {!isPlaytest && rulesBlock}
             <CardLegalities legalities={detail?.legalities ?? current.legalities} />
             {renderPanelExtra && (
               <div className="card-preview-slot">{renderPanelExtra(selected)}</div>
             )}
-            <div className="card-preview-counter">
-              Card {selected + 1} of {cards.length}
-              {pageNumbers[selected] ? ` · Page ${pageNumbers[selected]} of ${totalPages}` : ''}
-            </div>
+            {/* Carousel position. A playtest inspector always holds exactly one
+                card, so the counter would only ever read "Card 1 of 1". */}
+            {!isPlaytest && (
+              <div className="card-preview-counter">
+                Card {selected + 1} of {cards.length}
+                {pageNumbers[selected] ? ` · Page ${pageNumbers[selected]} of ${totalPages}` : ''}
+              </div>
+            )}
           </div>
         </div>
       </div>

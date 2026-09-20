@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import type { EnrichedCard } from '../types';
 
 // Pending for the test's lifetime — the panel falls back to its text-only set
@@ -42,6 +43,17 @@ vi.mock('@capacitor/filesystem', () => ({
   Directory: { Cache: 'CACHE' },
   Filesystem: { writeFile: (o: { path: string }) => writeFileMock(o) },
 }));
+// Rulings come from the backend; the playtest inspector opens them on mount,
+// so the fetch is stubbed rather than left to hit the network.
+const rulingsMock = vi.fn(async () => [
+  {
+    comment: 'Dash does not change when you may cast the spell.',
+    published_at: '2015-02-25',
+    source: 'wotc',
+  },
+]);
+vi.mock('../lib/card-rulings', () => ({ fetchCardRulings: () => rulingsMock() }));
+
 const fetchMock = vi.fn();
 const nativeMock = vi.fn(() => false);
 vi.mock('../lib/platform', () => ({
@@ -87,7 +99,10 @@ function mk(o: Partial<EnrichedCard>): EnrichedCard {
   } as EnrichedCard;
 }
 
-function renderPreview(card: EnrichedCard, props: { hidePrice?: boolean } = {}) {
+function renderPreview(
+  card: EnrichedCard,
+  props: { hidePrice?: boolean; source?: 'playtest'; renderPanelMeta?: () => ReactNode } = {}
+) {
   return render(
     <MemoryRouter>
       <CardPreview
@@ -358,5 +373,57 @@ describe('CardPreview slide mounting', () => {
     const frames = screen.getAllByTestId('card-image-frame');
     const byName = Object.fromEntries(frames.map((f) => [f.dataset.name, f.dataset.errored]));
     expect(byName).toEqual({ A: 'true', B: 'false' });
+  });
+});
+
+describe('CardPreview playtest inspector (rules first, no shop talk)', () => {
+  const UUID = '00000000-0000-4000-8000-000000000001';
+
+  it('leads with rules text and opens rulings without a second tap', async () => {
+    renderPreview(mk({ scryfallId: UUID, oracleText: 'Flying' }), { source: 'playtest' });
+    expect(await screen.findByText(/Dash does not change/)).toBeTruthy();
+    // The disclosure is genuinely open, not just loaded behind a chevron.
+    expect(screen.getByRole('button', { name: /Rulings/ }).getAttribute('aria-expanded')).toBe(
+      'true'
+    );
+    // Rules text sits ABOVE the printing facts — the reason the card was opened.
+    const panel = document.getElementById('card-preview-panel-inner')!;
+    const text = panel.textContent ?? '';
+    expect(text.indexOf('Flying')).toBeLessThan(text.indexOf('Test Set'));
+  });
+
+  it('keeps rulings collapsed on every other surface', () => {
+    renderPreview(mk({ scryfallId: UUID, oracleText: 'Flying' }));
+    expect(screen.getByRole('button', { name: /Rulings/ }).getAttribute('aria-expanded')).toBe(
+      'false'
+    );
+  });
+
+  it('drops price, copy condition and the carousel counter at a game table', () => {
+    renderPreview(
+      mk({
+        scryfallId: UUID,
+        purchasePrice: 12.5,
+        pricedAt: Date.now(),
+        condition: 'lp',
+        oracleText: 'Flying',
+      }),
+      { source: 'playtest' }
+    );
+    const text = document.body.textContent ?? '';
+    expect(text).not.toMatch(/\$12\.50|Prices updated|TCGPlayer|Card 1 of 1/);
+    expect(screen.queryByLabelText(/^Condition/)).toBeNull();
+    // Printing identity survives as the footer: it answers "which printing".
+    expect(screen.getByText('(TST)')).toBeTruthy();
+    expect(screen.getByText('rare')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Scryfall/ })).toBeTruthy();
+  });
+
+  it('renders the live board state the caller supplies', () => {
+    renderPreview(mk({ scryfallId: UUID }), {
+      source: 'playtest',
+      renderPanelMeta: () => <span>Tapped</span>,
+    });
+    expect(screen.getByText('Tapped')).toBeTruthy();
   });
 });

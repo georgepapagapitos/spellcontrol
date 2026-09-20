@@ -863,6 +863,24 @@
   height: min(12rem, 42vh);
 }
 
+/* `playtest` is the in-game inspector: the panel opens expanded (CardPreview
+   seeds its own expanded state from the source) with rules text and rulings
+   directly under the type line, and the printing facts demoted to a quiet
+   footer rule. What stays is what answers a question at the table; price,
+   condition, binder/deck provenance and the carousel counter are not rendered
+   at all (see CardPreview). */
+.card-preview-panel[data-source='playtest'] .card-preview-meta {
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 0.5px solid rgba(255, 255, 255, 0.1);
+  width: 100%;
+}
+
+.card-preview-panel[data-source='playtest'] .card-preview-set,
+.card-preview-panel[data-source='playtest'] .card-preview-links {
+  opacity: 0.75;
+}
+
 /* ── Desktop (≥1024): two panes, not a bottom sheet ──────────────────────
    The phone layout scaled UP is what the user rejected ("waste of space,
    weirdly formatted… worse on desktop because more room"): a full-width
