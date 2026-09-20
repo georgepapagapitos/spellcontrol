@@ -1083,19 +1083,19 @@ function OnlineSetup({
 }) {
   const [mode, setMode] = useState<'host' | 'join'>(initialMode ?? 'host');
   const [format, setFormat] = useState<GameFormat>('commander');
-  const cfg = FORMAT_OPTIONS.find((f) => f.value === format) ?? FORMAT_OPTIONS[0];
-  const [startingLife, setStartingLife] = useState(cfg.defaultLife);
-  const [commanderDamageEnabled, setCmdDmg] = useState(cfg.cmdDmg);
-  const [poisonEnabled, setPoison] = useState(false);
   const [name, setName] = useState(defaultName);
   const [deck, setDeck] = useState<Deck | null>(null);
   const [code, setCode] = useState('');
 
+  // The format decides the table's opening rules; the host tunes them in the
+  // lobby afterwards, so they are derived here rather than held as state.
+  const cfg = FORMAT_OPTIONS.find((f) => f.value === format) ?? FORMAT_OPTIONS[0];
+  const startingLife = cfg.defaultLife;
+  const commanderDamageEnabled = cfg.cmdDmg;
+  const poisonEnabled = false;
+
   function applyFormat(next: GameFormat) {
-    const c = FORMAT_OPTIONS.find((f) => f.value === next) ?? FORMAT_OPTIONS[0];
     setFormat(next);
-    setStartingLife(c.defaultLife);
-    setCmdDmg(c.cmdDmg);
   }
 
   return (
@@ -1142,6 +1142,10 @@ function OnlineSetup({
             </p>
           </header>
 
+          {/* Format alone: it sets the defaults for everything else, and
+              every other table rule (life, commander damage, poison, the
+              mulligan, the timer) belongs in the lobby, where the pod can see
+              and argue about it. Asking twice was the old shape. */}
           <section className="play-setup-row play-setup-game">
             <div className="play-field play-field-inline">
               <span>Format</span>
@@ -1152,32 +1156,6 @@ function OnlineSetup({
                 options={FORMAT_OPTIONS.map((f) => ({ value: f.value, label: f.label }))}
               />
             </div>
-            <div className="play-field play-field-inline">
-              <span id="online-host-life-label">Starting life</span>
-              <Stepper
-                value={startingLife}
-                min={1}
-                max={200}
-                step={5}
-                ariaLabelledBy="online-host-life-label"
-                onChange={setStartingLife}
-              />
-            </div>
-          </section>
-
-          <section className="play-setup-rules" aria-label="Game rules">
-            <RulePill
-              on={commanderDamageEnabled}
-              onChange={setCmdDmg}
-              label="Commander damage"
-              hint="Lose at 21 combat damage from a single commander."
-            />
-            <RulePill
-              on={poisonEnabled}
-              onChange={setPoison}
-              label="Poison counters"
-              hint="Lose at 10 poison counters."
-            />
           </section>
 
           <section className="play-setup-roster" aria-label="You">

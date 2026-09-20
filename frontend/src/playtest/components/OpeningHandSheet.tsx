@@ -54,9 +54,18 @@ interface Props {
   cardLookup?: Map<string, ScryfallCard>;
   deckName?: string;
   /** Free-mulligan variant (E226): every mulligan redraws a full seven and
-   *  the bottom-N step never happens. */
+   *  the bottom-N step never happens. Solo only — seated at a table, the
+   *  pod's own mulligan rule decides and the toggle is not offered. */
   freeMulligan: boolean;
   onFreeMulliganChange(on: boolean): void;
+  /** How many cards this hand owes the bottom, per the variant in force
+   *  (`cardsToBottom`). Passed in rather than derived from `mulliganCount`
+   *  here, because which variant governs depends on whether this board is
+   *  seated at a table — a question the sheet has no business answering. */
+  cardsOwedToBottom: number;
+  /** Seated only: the table's mulligan rule in words, shown in place of the
+   *  device's free-mulligan switch. Absent solo. */
+  tableMulligan?: string;
   /** On-the-draw choice (Wave 3): draw one extra card the moment play
    *  actually begins. `createPlaytestState` already deals the on-the-play
    *  default (no draw before turn 1) — this is the opt-in for the other seat. */
@@ -112,6 +121,8 @@ export function OpeningHandSheet({
   phase,
   hand,
   mulliganCount,
+  cardsOwedToBottom,
+  tableMulligan,
   cardLookup,
   deckName,
   freeMulligan,
@@ -131,7 +142,7 @@ export function OpeningHandSheet({
   const [peeking, setPeeking] = useState(false);
 
   const isMulliganBottom = phase === 'mulligan-bottom';
-  const requiredBottom = isMulliganBottom ? mulliganCount : 0;
+  const requiredBottom = isMulliganBottom ? cardsOwedToBottom : 0;
   const canConfirm = isMulliganBottom && selected.length === requiredBottom;
 
   // Online only (see the `phase` prop doc): this device has kept and the
@@ -562,20 +573,26 @@ export function OpeningHandSheet({
             bottoming (mulligan-bottom) or the choice is already locked in. */}
         {!isMulliganBottom && !waiting && (
           <div className="playtest-opening-variants">
-            <label className="playtest-opening-variant">
-              <input
-                type="checkbox"
-                aria-label="Free mulligans"
-                checked={freeMulligan}
-                onChange={(e) => onFreeMulliganChange(e.target.checked)}
-              />
-              <span className="playtest-opening-variant__text">
-                <span className="playtest-opening-variant__label">Free mulligans</span>
-                <span className="playtest-opening-variant__desc">
-                  Redraw a full seven. Nothing goes to the bottom.
+            {tableMulligan ? (
+              // Seated: the pod set the rule in the lobby, so this states it
+              // rather than offering a second, contradictory switch.
+              <p className="playtest-opening-variant__table">{tableMulligan}</p>
+            ) : (
+              <label className="playtest-opening-variant">
+                <input
+                  type="checkbox"
+                  aria-label="Free mulligans"
+                  checked={freeMulligan}
+                  onChange={(e) => onFreeMulliganChange(e.target.checked)}
+                />
+                <span className="playtest-opening-variant__text">
+                  <span className="playtest-opening-variant__label">Free mulligans</span>
+                  <span className="playtest-opening-variant__desc">
+                    Redraw a full seven. Nothing goes to the bottom.
+                  </span>
                 </span>
-              </span>
-            </label>
+              </label>
+            )}
             <label className="playtest-opening-variant">
               <input
                 type="checkbox"

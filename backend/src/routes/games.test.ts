@@ -1634,6 +1634,33 @@ describe('set-ready', () => {
   });
 });
 
+describe('reseat is host-only', () => {
+  it('a seated non-host cannot reshuffle the table', async () => {
+    const { code, joiners } = await setupTable('games_reseat_403', ['games_reseat_403_j']);
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', joiners[0]);
+    const order = current.body.game.players.map((p: { id: string }) => p.id).reverse();
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiners[0])
+      .send({ baseVersion: current.body.game.version, actions: [{ type: 'reseat', order }] });
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('Host only.');
+  });
+
+  it('the host reseats the table and every seat number follows the new order', async () => {
+    const { code, host } = await setupTable('games_reseat_ok', ['games_reseat_ok_j']);
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    const order = current.body.game.players.map((p: { id: string }) => p.id).reverse();
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', host)
+      .send({ baseVersion: current.body.game.version, actions: [{ type: 'reseat', order }] });
+    expect(res.status).toBe(200);
+    expect(res.body.game.players.map((p: { id: string }) => p.id)).toEqual(order);
+    expect(res.body.game.players.map((p: { seat: number }) => p.seat)).toEqual([0, 1]);
+  });
+});
+
 /**
  * T99: per-device online surface — each player adjusts only their own seat's
  * life/poison/commander-damage, including the host (who otherwise keeps an

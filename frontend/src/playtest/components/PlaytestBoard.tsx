@@ -15,7 +15,31 @@ import { useNavigate } from 'react-router-dom';
 import type { Designation, ManaColor, PlaytestCard, PlaytestState, Zone } from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useDecksStore } from '@/store/decks';
-import { usePlaytestStore } from '../store';
+import { effectiveMulliganType, usePlaytestStore } from '../store';
+
+/** The table's mulligan rule, said once in the opening-hand takeover. Same
+ *  three variants as the lobby's own picker (`MULLIGAN_TYPES`). */
+/**
+ * How long the seat on turn has been on it, under the turn number. Shown only
+ * when the table turned the timer on in the lobby — it is a readout, never a
+ * limit: nothing expires and nobody is forced to pass. Ticks off the wall
+ * clock (`useNow`) rather than game state, so a table thinking hard still
+ * sees the number move.
+ */
+function TurnTimer({ startedAt }: { startedAt: number }) {
+  const now = useNow(true);
+  return (
+    <span className="playtest-turn-chip__clock" aria-label="Time on this turn">
+      {formatClock(Math.max(0, now - startedAt))}
+    </span>
+  );
+}
+
+const MULLIGAN_TABLE_NOTE: Record<MulliganType, string> = {
+  commander: 'Table rule: the first mulligan is free.',
+  london: 'Table rule: London mulligans.',
+  free: 'Table rule: free mulligans. Nothing goes to the bottom.',
+};
 import { useNarrowViewport } from '../hooks/use-narrow-viewport';
 import { useTurnSweep } from '../hooks/use-turn-sweep';
 import { useTablePointer } from '../hooks/use-table-pointer';
@@ -55,7 +79,9 @@ import { ActionBar } from './ActionBar';
 import { TableContextMenu, type TableMenuItem } from './TableContextMenu';
 import { LogDock } from './LogDock';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
-import { GAME_PHASES } from '@/lib/game-state';
+import { cardsToBottom, GAME_PHASES, type MulliganType } from '@/lib/game-state';
+import { formatClock } from '@/lib/game-clock';
+import { useNow } from '@/lib/use-now';
 import {
   SHORTCUTS,
   formatChord,
@@ -155,6 +181,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const finalizeBottom = usePlaytestStore((s) => s.finalizeBottom);
   const freeMulligan = usePlaytestStore((s) => s.freeMulligan);
   const setFreeMulligan = usePlaytestStore((s) => s.setFreeMulligan);
+  const tableMulliganType = usePlaytestStore((s) => s.tableMulliganType);
+  const setTableMulliganType = usePlaytestStore((s) => s.setTableMulliganType);
   const onDraw = usePlaytestStore((s) => s.onDraw);
   const setOnDraw = usePlaytestStore((s) => s.setOnDraw);
   const resistanceLevel = usePlaytestStore((s) => s.resistanceLevel);
@@ -750,6 +778,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     haptics.tap();
     dispatch({ type: 'DRAW', n: 1 });
   }, [dispatch, libraryCount]);
+  // The table's mulligan rule is the pod's, so it lives in the store for the
+  // whole session rather than being read at the one call site — the store is
+  // what decides whether a kept hand owes the bottom anything.
+  const onlineMulliganType = onlineTable?.mulliganType ?? null;
+  useEffect(() => {
+    setTableMulliganType(onlineMulliganType);
+  }, [onlineMulliganType, setTableMulliganType]);
+
   const doNextTurn = useCallback(() => dispatch({ type: 'NEXT_TURN' }), [dispatch]);
   const doUntapAll = useCallback(() => dispatch({ type: 'UNTAP_ALL' }), [dispatch]);
   const doPassTurn = useCallback(() => {
@@ -1318,6 +1354,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       <div className="playtest-turn-chip">
         <span className="playtest-turn-chip__label">Turn</span>
         <span className="playtest-turn-chip__value">{state.turn}</span>
+        {onlineTable?.turnTimerEnabled && onlineTable.turnStartedAt != null && (
+          <TurnTimer startedAt={onlineTable.turnStartedAt} />
+        )}
       </div>
       {onlineTable ? (
         canPassTurn ? (
@@ -1937,6 +1976,11 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           online={openingOnline}
           hand={state.zones.hand}
           mulliganCount={mulliganCount}
+          cardsOwedToBottom={cardsToBottom(
+            effectiveMulliganType(freeMulligan, tableMulliganType),
+            mulliganCount
+          )}
+          tableMulligan={onlineMulliganType ? MULLIGAN_TABLE_NOTE[onlineMulliganType] : undefined}
           cardLookup={cardLookup}
           deckName={deck?.name}
           freeMulligan={freeMulligan}
