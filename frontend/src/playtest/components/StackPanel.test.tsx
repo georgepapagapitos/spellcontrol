@@ -82,6 +82,64 @@ describe('StackPanel', () => {
     expect(screen.getByText('You')).toBeTruthy();
   });
 
+  // The cards under the top of the stack are clipped to their title bar, so
+  // the only way to read one in full is the same hover preview the board
+  // gives you. That preview is delegated off `data-preview-id`.
+  it('lets you hover a buried card for its full face, by the same preview id the board uses', () => {
+    const { container } = render(
+      <StackPanel
+        items={[
+          item({ id: 'bottom', name: 'Elrond', imageUrl: 'https://img/elrond.jpg' }),
+          item({ id: 'top', name: 'Sol Ring', imageUrl: 'https://img/sol.jpg' }),
+        ]}
+        onDrawArrow={vi.fn()}
+        onCopy={vi.fn()}
+        onResolve={vi.fn()}
+      />
+    );
+    const ids = [...container.querySelectorAll('[data-preview-id]')].map((el) =>
+      el.getAttribute('data-preview-id')
+    );
+    // The top card is already open to its full face, so it asks for none.
+    expect(ids).toEqual(['bottom']);
+  });
+
+  // The grip icon is an affordance, not the whole target: the bar drags.
+  it('drags from anywhere in the header, not just the grip', () => {
+    render(
+      <StackPanel
+        items={[item({ id: 'a', name: 'Sol Ring' })]}
+        onDrawArrow={vi.fn()}
+        onCopy={vi.fn()}
+        onResolve={vi.fn()}
+      />
+    );
+    const panel = screen.getByRole('region');
+    const head = screen.getByText('Stack (1)').parentElement as HTMLElement;
+    fireEvent.pointerDown(head, { clientX: 200, clientY: 100 });
+    fireEvent.pointerMove(head, { clientX: 260, clientY: 180 });
+    // Moved by the pointer's delta, keeping the grab point under the cursor.
+    expect(panel.style.left).toBe('60px');
+    expect(panel.style.top).toBe('80px');
+  });
+
+  // Pressing close is not a drag, even though it lives in the handle.
+  it('does not drag when the close button inside the header is pressed', () => {
+    render(
+      <StackPanel
+        items={[item({ id: 'a', name: 'Sol Ring' })]}
+        onDrawArrow={vi.fn()}
+        onCopy={vi.fn()}
+        onResolve={vi.fn()}
+      />
+    );
+    const panel = screen.getByRole('region');
+    const close = screen.getByRole('button', { name: 'Hide the stack panel' });
+    fireEvent.pointerDown(close, { clientX: 200, clientY: 100 });
+    fireEvent.pointerMove(close, { clientX: 260, clientY: 180 });
+    expect(panel.style.left).toBe('');
+  });
+
   it('can be put away, and comes back when a new stack forms', () => {
     const { rerender } = render(
       <StackPanel
