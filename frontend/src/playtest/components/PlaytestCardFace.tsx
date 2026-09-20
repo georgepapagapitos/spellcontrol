@@ -6,6 +6,10 @@ interface Props extends React.HTMLAttributes<HTMLDivElement> {
   card: PlaytestCard;
   bf?: BattlefieldCard;
   size?: 'sm' | 'md' | 'lg';
+  /** Waiting to resolve. A card on the stack does not leave the
+   *  battlefield — it wears this ribbon in place, which is the durable
+   *  signal (the stack panel can be closed; this cannot). */
+  onStack?: boolean;
 }
 
 const MAX_VISIBLE_STICKERS = 3;
@@ -19,7 +23,7 @@ const MAX_VISIBLE_COUNTERS = 3;
  */
 export const PlaytestCardFace = memo(
   forwardRef<HTMLDivElement, Props>(function PlaytestCardFace(
-    { card, bf, size = 'md', className = '', ...rest },
+    { card, bf, size = 'md', onStack = false, className = '', ...rest },
     ref
   ) {
     const tapped = bf?.tapped ?? false;
@@ -47,7 +51,9 @@ export const PlaytestCardFace = memo(
         ref={ref}
         className={`playtest-card playtest-card--${size}${tapped ? ' playtest-card--tapped' : ''}${
           attached ? ' playtest-card--attached' : ''
-        }${phased ? ' playtest-card--phased' : ''}${className ? ` ${className}` : ''}`}
+        }${phased ? ' playtest-card--phased' : ''}${
+          onStack ? ' playtest-card--on-stack' : ''
+        }${className ? ` ${className}` : ''}`}
         // Hover/focus preview hook (CardHoverPreview.tsx): only the instance
         // id goes in the DOM — the preview resolves the image from React
         // state, never from a DOM attribute. Absent for a face-down card so
@@ -61,6 +67,11 @@ export const PlaytestCardFace = memo(
         data-card-id={card.id}
         {...rest}
       >
+        {onStack && (
+          <span className="playtest-card__stack-ribbon" aria-hidden>
+            Stack
+          </span>
+        )}
         {attached && (
           <span className="playtest-card__attached" title="Attached" aria-hidden>
             🔗

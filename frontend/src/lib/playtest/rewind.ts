@@ -203,7 +203,6 @@ export function classifyAction(
       );
 
     case 'RESOLVE_STACK':
-    case 'REMOVE_FROM_STACK':
       return classification(
         'consent',
         'Where a resolving object landed is public. Nothing hidden was learned moving it.'

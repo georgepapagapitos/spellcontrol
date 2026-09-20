@@ -46,7 +46,7 @@ import { useTablePointer } from '../hooks/use-table-pointer';
 import { useHoverTarget } from '../hooks/use-hover-target';
 import { useTablePings } from '../hooks/use-table-pings';
 import { TablePings } from './TablePings';
-import { StackStrip, type StackStripItem } from './StackStrip';
+import { StackPanel, type StackPanelItem } from './StackPanel';
 import { isTypingTarget, useRegisterShortcuts } from '@/lib/shortcut-registry';
 import { useOnlineTable } from '../hooks/use-online-table';
 import { usePlayStore } from '@/store/play';
@@ -733,6 +733,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   }, []);
   const handMenuCard = handMenu ? state.zones.hand.find((c) => c.id === handMenu.cardId) : null;
   const revealedIds = useMemo(() => new Set(state.revealed ?? []), [state.revealed]);
+  const stackIdSet = useMemo(() => new Set(state.stack ?? []), [state.stack]);
 
   const ctxCard = ctx ? state.battlefield.find((b) => b.card.id === ctx.cardId) : null;
   // Candidate hosts exclude the card itself and its current host (re-attaching
@@ -907,26 +908,48 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   }, [onlineTable]);
 
   // ── The stack ───────────────────────────────────────────────────────────
-  // One list for the whole table: your own entries come from the reducer,
-  // everyone else's from their published board. Ordered exactly within a
-  // seat, grouped across seats — see StackStrip for why that is the honest
+  // Being on the stack is a MARK on a permanent already in play, not a zone
+  // that holds it: the card keeps its place on the battlefield and wears a
+  // ribbon while it waits. The panel is a view onto those marked cards.
+  //
+  // One list for the whole table: your own from the reducer, everyone
+  // else's from their published board. Ordered exactly within a seat and
+  // grouped across seats — see StackPanel for why that is the honest
   // rendering rather than an interleaving nobody can compute.
-  const stackItems: StackStripItem[] = useMemo(() => {
-    const mine: StackStripItem[] = [...(state.stack ?? [])].reverse().map((e) => ({
-      id: e.id,
-      name: e.card.name,
-      isCopy: e.isCopy,
-      seat: onlineTable?.mySeat ?? null,
-      mine: true,
-    }));
+  const stackIds = state.stack;
+  const stackItems: StackPanelItem[] = useMemo(() => {
+    const mine: StackPanelItem[] = (stackIds ?? []).flatMap((id) => {
+      const bf = state.battlefield.find((b) => b.card.id === id);
+      if (!bf) return [];
+      return [
+        {
+          id,
+          name: bf.card.name,
+          imageUrl:
+            bf.showBackFace && bf.card.backImageUrl ? bf.card.backImageUrl : bf.card.imageUrl,
+          manaCost: bf.card.manaCost,
+          isToken: bf.card.isToken === true,
+          seat: onlineTable?.mySeat ?? null,
+          seatName: onlineTable ? 'You' : undefined,
+          mine: true,
+        },
+      ];
+    });
     if (!onlineTable) return mine;
-    const theirs: StackStripItem[] = [];
+    const theirs: StackPanelItem[] = [];
     for (const opp of onlineTable.opponents) {
-      for (const e of [...(opp.board.stack ?? [])].reverse()) {
+      for (const id of opp.board.stack ?? []) {
+        const bf = opp.board.battlefield.find((b) => b.card.id === id);
+        if (!bf || bf.faceDown) continue;
         theirs.push({
-          id: `${opp.board.seat}:${e.id}`,
-          name: e.card.name ?? 'A spell',
-          isCopy: e.isCopy,
+          id: opponentPreviewId(opp.board.seat, id),
+          name: bf.card.name ?? 'A spell',
+          // An opponent's board never carries image URLs (projection.ts) —
+          // the art comes back out of the shared CDN cache by name.
+          imageUrl: bf.card.name
+            ? (cachedCardThumb(bf.card.name, 'normal') ?? undefined)
+            : undefined,
+          isToken: bf.card.isToken === true,
           seat: opp.board.seat,
           seatName: opp.name,
           mine: false,
@@ -934,50 +957,58 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       }
     }
     return [...mine, ...theirs];
-  }, [state.stack, onlineTable]);
+  }, [stackIds, state.battlefield, onlineTable]);
 
-  /** Put `cardIds` on the stack, minting each entry id here so the reducer
-   *  stays pure (same contract as `cloneCards`). */
+  /**
+   * Mark cards as waiting to resolve. A card still in hand is played first
+   * — "casting" it — because the stack only ever names permanents in play.
+   */
   const putOnStack = useCallback(
-    (cardIds: readonly string[], copy: boolean) => {
-      if (cardIds.length === 0) return false;
-      const batch = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      cardIds.forEach((cardId, i) => {
-        dispatch({ type: 'PUT_ON_STACK', cardId, entryId: `st-${batch}-${i}`, copy });
-      });
+    (cardIds: readonly string[]) => {
+      const usable = cardIds.filter(
+        (id) =>
+          state.battlefield.some((b) => b.card.id === id) ||
+          state.zones.hand.some((c) => c.id === id)
+      );
+      if (usable.length === 0) return false;
+      for (const cardId of usable) {
+        const handCard = state.zones.hand.find((c) => c.id === cardId);
+        if (handCard) {
+          const { x, y } = placeOnBattlefield(handCard);
+          dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId, x, y });
+        }
+        dispatch({ type: 'PUT_ON_STACK', cardId });
+      }
       setSelected(new Set());
       haptics.tap();
       return true;
     },
-    [dispatch]
+    // `placeOnBattlefield` reads live DOM geometry and is redefined every
+    // render by design; every card it places is read fresh from `state`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dispatch, state.battlefield, state.zones.hand]
   );
 
-  /** Resolve a stack entry. A permanent needs somewhere to land, and the
-   *  reducer can't measure the board, so the position is chosen here. */
+  /** Copy a card onto the stack: a token copy of it, itself marked. */
+  const copyOntoStack = useCallback(
+    (cardIds: readonly string[]) => {
+      const onBoard = cardIds.filter((id) => state.battlefield.some((b) => b.card.id === id));
+      if (onBoard.length === 0) return false;
+      const made = cloneCards(onBoard);
+      for (const cardId of made ?? []) dispatch({ type: 'PUT_ON_STACK', cardId });
+      return true;
+    },
+    [cloneCards, dispatch, state.battlefield]
+  );
+
   const resolveStack = useCallback(
-    (entryId?: string) => {
-      const stack = state.stack ?? [];
-      if (stack.length === 0) return false;
-      const entry = entryId ? stack.find((e) => e.id === entryId) : stack[stack.length - 1];
-      if (!entry) return false;
-      const pos = placeOnBattlefield(entry.card);
-      dispatch({ type: 'RESOLVE_STACK', entryId: entry.id, x: pos.x, y: pos.y });
+    (cardId?: string) => {
+      if ((state.stack ?? []).length === 0) return false;
+      dispatch({ type: 'RESOLVE_STACK', ...(cardId !== undefined && { cardId }) });
       haptics.tap();
       return true;
     },
-    // `placeOnBattlefield` reads live DOM geometry and is redefined every
-    // render by design; the entry it positions is read fresh from `state`
-    // on every call, so the omission can't serve a stale card.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [dispatch, state.stack]
-  );
-
-  const removeFromStack = useCallback(
-    (entryId: string) => {
-      dispatch({ type: 'REMOVE_FROM_STACK', entryId });
-      haptics.tap();
-    },
-    [dispatch]
   );
 
   // ── Per-card actions the keyboard reaches ───────────────────────────────
@@ -988,11 +1019,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const locatable = useCallback(
     (cardId: string) =>
       state.battlefield.some((b) => b.card.id === cardId) ||
-      (state.stack ?? []).some((e) => !e.isCopy && e.card.id === cardId) ||
       (Object.keys(state.zones) as Zone[]).some((zone) =>
         state.zones[zone].some((c) => c.id === cardId)
       ),
-    [state.battlefield, state.stack, state.zones]
+    [state.battlefield, state.zones]
   );
 
   /** Show or stop showing hand cards to the table. */
@@ -1223,8 +1253,13 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       // focused button still presses it).
       const handlers: Record<ShortcutId, () => boolean | void> = {
         menu: () => {
+          // "Clear selection / close / open menu", in that order: Escape
+          // always undoes the most recent thing you are in the middle of,
+          // and with nothing to undo it becomes the way in to the table
+          // menu — which is otherwise right-click only.
           if (arrowFrom) setArrowFrom(null);
-          else clearSelection();
+          else if (selected.size > 0) clearSelection();
+          else setTableMenu({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
         },
         arrow: () => beginArrow(new Set(targets)),
         'arrows-clear': () => (myArrowCount > 0 ? clearMyArrows() : false),
@@ -1259,8 +1294,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         mana: () => setManaOpen((open) => !open),
         log: () => (showLog && !isNarrow ? setShowLog(false) : handleOpenLog()),
         undo: handleTakebackClick,
-        'stack-add': () => putOnStack(targets, false),
-        'stack-copy': () => putOnStack(targets, true),
+        'stack-add': () => putOnStack(targets),
+        'stack-copy': () => copyOntoStack(targets),
         'stack-resolve': () => resolveStack(),
         'select-all': () => {
           if (state.battlefield.length === 0) return false;
@@ -1294,13 +1329,15 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         reveal: () => toggleReveal(targets),
         'to-battlefield': () => moveToBattlefield(targets),
         counters: () => (bfTargets.length > 0 ? openCounters(bfTargets[0]) : false),
+        'size-up': () => (isNarrow ? false : stepZoom(1)),
+        'size-down': () => (isNarrow ? false : stepZoom(-1)),
         'counter-plus': () => {
-          if (bfTargets.length === 0) return isNarrow ? false : stepZoom(1);
+          if (bfTargets.length === 0) return false;
           for (const cardId of bfTargets)
             dispatch({ type: 'SET_COUNTER', cardId, counter: '+1/+1', delta: 1 });
         },
         'counter-minus': () => {
-          if (bfTargets.length === 0) return isNarrow ? false : stepZoom(-1);
+          if (bfTargets.length === 0) return false;
           for (const cardId of bfTargets)
             dispatch({ type: 'SET_COUNTER', cardId, counter: '-1/-1', delta: 1 });
         },
@@ -1363,6 +1400,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     hoverTarget,
     locatable,
     putOnStack,
+    copyOntoStack,
     resolveStack,
     toggleReveal,
     moveToBattlefield,
@@ -1930,6 +1968,16 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       )}
       {onlineTable && <TableArrows mySeat={onlineTable.mySeat} />}
       <TablePings pings={pings} mySeat={onlineTable?.mySeat ?? null} />
+      {/* Renders nothing on an empty stack, which is most of a game. */}
+      <StackPanel
+        items={stackItems}
+        onDrawArrow={(id) => beginArrow(new Set([id]))}
+        onCopy={(id) => copyOntoStack([id])}
+        onResolve={(id) => resolveStack(id)}
+        arrowKey={keyFor('arrow')}
+        copyKey={keyFor('stack-copy')}
+        resolveKey={keyFor('stack-resolve')}
+      />
       <DndContext
         sensors={sensors}
         collisionDetection={collisionDetection}
@@ -1962,14 +2010,13 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
             <Battlefield
               cards={state.battlefield}
               selectedIds={selected}
+              stackIds={stackIdSet}
               onBackgroundClick={clearSelection}
               onBackgroundContextMenu={isNarrow ? undefined : openTableMenu}
               onCardClick={handleCardClick}
               onCardContextMenu={handleCardContext}
               onCardLongPress={handleCardLongPress}
             />
-            {/* Renders nothing on an empty stack, which is most of a game. */}
-            <StackStrip items={stackItems} onResolve={resolveStack} onRemove={removeFromStack} />
             {/* Selection readout. Renders nothing at all when nothing is selected,
             so it never displaces the board — and a selection can only exist on a
             device with modifier keys, which is exactly where the shortcuts it
@@ -2225,7 +2272,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
             dispatch({ type: 'ADJUST_PT', cardId: ctx.cardId, power, toughness })
           }
           onPutOnStack={(copy) => {
-            putOnStack(selected.has(ctx.cardId) ? [...selected] : [ctx.cardId], copy);
+            const ids = selected.has(ctx.cardId) ? [...selected] : [ctx.cardId];
+            if (copy) copyOntoStack(ids);
+            else putOnStack(ids);
             setCtx(null);
           }}
           onAddCounter={(k) =>
@@ -2268,7 +2317,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               ? () => dispatch({ type: 'TOGGLE_REVEAL', cardId: handMenu.cardId })
               : undefined
           }
-          onPutOnStack={(copy) => putOnStack([handMenu.cardId], copy)}
+          onPutOnStack={() => putOnStack([handMenu.cardId])}
         />
       )}
 

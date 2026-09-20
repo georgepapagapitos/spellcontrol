@@ -7,6 +7,9 @@ interface Props {
   cards: BattlefieldCard[];
   /** Ids in the current selection (E226 group copy); empty set = none. */
   selectedIds: ReadonlySet<string>;
+  /** Ids currently waiting to resolve — they stay on the battlefield and
+   *  wear a ribbon. Empty set = nothing on the stack. */
+  stackIds: ReadonlySet<string>;
   /** A click that landed on the battlefield itself, not on a card. */
   onBackgroundClick(): void;
   /** Right-click, or a touch long-press, on bare felt — opens the table
@@ -20,6 +23,7 @@ interface Props {
 export function Battlefield({
   cards,
   selectedIds,
+  stackIds,
   onBackgroundClick,
   onBackgroundContextMenu,
   onCardClick,
@@ -85,6 +89,7 @@ export function Battlefield({
           draggableId={`bf:${bf.card.id}`}
           positioned
           selected={selectedIds.has(bf.card.id)}
+          onStack={stackIds.has(bf.card.id)}
           onClick={onCardClick}
           onContextMenu={onCardContextMenu}
           onLongPress={onCardLongPress}

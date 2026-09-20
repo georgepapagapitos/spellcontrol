@@ -1146,6 +1146,36 @@ body:has(.playtest-page) {
   pointer-events: none;
 }
 
+/* Waiting to resolve. The card stays on the battlefield and wears a
+   corner ribbon — the durable signal, because the stack panel can be closed
+   and this cannot. A ring as well as the ribbon, so a card half-hidden
+   under another still reads as stacked. */
+.playtest-card--on-stack {
+  box-shadow: 0 0 0 2px var(--mtg-counter-gold);
+}
+
+.playtest-card__stack-ribbon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  /* A 45° banner across the top-left corner: translated out to the corner,
+     then rotated about it, so it reads as a physical ribbon laid over the
+     card rather than a label floating on top of the art. */
+  transform: translate(-29%, 34%) rotate(-45deg);
+  transform-origin: center;
+  width: 100%;
+  padding: 1px 0;
+  font-size: var(--text-xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+  color: #2b2b2b;
+  background: var(--mtg-counter-gold);
+  pointer-events: none;
+}
+
 /* Power/toughness sits bottom-right, where a real card prints it. The
    counters row gives it the width back so the two never overlap. */
 .playtest-card__pt {

@@ -120,33 +120,6 @@ export const MANA_COLOR_LABEL: Record<ManaColor, string> = {
   C: 'Colorless',
 };
 
-/**
- * One object waiting on the stack.
- *
- * The stack is NOT a `Zone`: a zone here is a flat `PlaytestCard[]` keyed by
- * name, and a stack entry has to carry three things a bare card can't — the
- * order it was put there in, whether it is a copy (a copy ceases to exist on
- * resolution instead of going anywhere), and which zone the real card came
- * from so resolving it can send it back somewhere sane. It gets its own
- * ordered list on the state instead, and `locate`/`pluck` in the reducer
- * know about it so a countered spell still moves with a plain `MOVE_TO_ZONE`.
- *
- * Like the rest of this engine the stack enforces no rules: nothing checks
- * priority, nothing auto-resolves, and anything can be put on it. It is the
- * pile in the middle of the table, not a rules engine.
- */
-export interface StackItem {
-  /** Unique per entry — a copy shares its source's card, not its id. */
-  id: string;
-  card: PlaytestCard;
-  /** A copy (Shift+K): ceases to exist when it resolves (MTG rule 707.10). */
-  isCopy: boolean;
-  /** Where the real card was when it went on the stack, so RESOLVE_STACK
-   *  can return a non-permanent to a sensible zone. Absent for a copy,
-   *  which came from nowhere. */
-  from?: Zone | 'battlefield';
-}
-
 export interface PlaytestState {
   zones: Record<Zone, PlaytestCard[]>;
   battlefield: BattlefieldCard[];
@@ -193,11 +166,22 @@ export interface PlaytestState {
    *  land or spends it against a cost. See NEXT_TURN in reducer.ts for when
    *  it empties. Optional for snapshot back-compat; absent === all-zero. */
   manaPool?: Record<ManaColor, number>;
-  /** Objects waiting to resolve, bottom of the stack first — so the LAST
-   *  entry is the top, matching how the stack renders and how
-   *  RESOLVE_STACK's default target is chosen. Optional for snapshot
-   *  back-compat; absent === empty. */
-  stack?: StackItem[];
+  /**
+   * Battlefield permanents currently marked as waiting to resolve, bottom
+   * of the stack first — so the LAST id is the top, which is what
+   * RESOLVE_STACK takes by default.
+   *
+   * Being on the stack is a MARK ON A CARD THAT IS ALREADY IN PLAY, not a
+   * zone that holds it: the permanent keeps its position, its counters and
+   * its place on the battlefield, and simply renders a ribbon while it is
+   * listed here. That is why this is a plain id list rather than a list of
+   * card objects — there is no second copy of the card anywhere.
+   *
+   * A card that leaves the battlefield drops off this list, so it can never
+   * name something that is not there. Optional for snapshot back-compat;
+   * absent === empty.
+   */
+  stack?: string[];
   /** Ids of cards in hand you are currently showing the table (R). Hand is
    *  otherwise hidden information, so this is the one list that lets a
    *  specific card out of it without moving zones — the projection reads it
@@ -300,20 +284,15 @@ export type PlaytestAction =
   /** Show or stop showing a card in your hand to the table (see
    *  `PlaytestState.revealed`). No-op for a card that isn't in hand. */
   | { type: 'TOGGLE_REVEAL'; cardId: string }
-  /** Put a card on the stack. `entryId` is supplied by the caller so the
-   *  reducer stays pure (same contract as CLONE_BF_CARDS). `copy` makes an
-   *  entry that shares the card's printed face but leaves the real card
-   *  where it is — Shift+K, rule 707.10. */
-  | { type: 'PUT_ON_STACK'; cardId: string; entryId: string; copy?: boolean }
-  /** Resolve a stack entry (the top one when `entryId` is omitted). A copy
-   *  ceases to exist. A permanent lands on the battlefield at `x`/`y`;
-   *  anything else goes to the graveyard, or back to `from` when it came
-   *  from somewhere a spell wouldn't leave (the command zone). */
-  | { type: 'RESOLVE_STACK'; entryId?: string; x?: number; y?: number }
-  /** Take an entry off the stack without resolving it — countered, fizzled,
-   *  or put there by mistake. A copy just disappears; a real card goes to
-   *  `to` (its graveyard by default). */
-  | { type: 'REMOVE_FROM_STACK'; entryId?: string; to?: Zone }
+  /** Mark a battlefield permanent as waiting to resolve. No-op for a card
+   *  that isn't on the battlefield or is already marked — the card does not
+   *  move, so there is nothing to do twice. */
+  | { type: 'PUT_ON_STACK'; cardId: string }
+  /** Take a card off the stack (the top one when `cardId` is omitted). The
+   *  permanent stays exactly where it is, because it was never anywhere
+   *  else — except an instant or sorcery, which has finished doing its job
+   *  and goes to the graveyard. */
+  | { type: 'RESOLVE_STACK'; cardId?: string }
   | { type: 'FLIP_FACE'; cardId: string }
   | { type: 'TRANSFORM'; cardId: string }
   | { type: 'TOGGLE_PHASED'; cardId: string }

@@ -399,39 +399,28 @@ function buildRawLogEntries(
     }
 
     case 'PUT_ON_STACK': {
-      const entry = (next.stack ?? []).at(-1);
-      if (!entry || next === current) return [];
+      const bf = next.battlefield.find((b) => b.card.id === action.cardId);
+      if (!bf || next === current) return [];
       return [
         {
           turn,
           kind: 'stack',
-          text: entry.isCopy
-            ? `Copy of ${entry.card.name} on the stack`
-            : `${entry.card.name} on the stack`,
-          cardName: entry.card.name,
+          text: `${bf.card.name} on the stack`,
+          cardName: bf.card.name,
         },
       ];
     }
 
-    case 'RESOLVE_STACK':
-    case 'REMOVE_FROM_STACK': {
+    case 'RESOLVE_STACK': {
       const before = current.stack ?? [];
       const after = next.stack ?? [];
       if (before.length === after.length) return [];
-      const gone = before.find((e) => !after.some((k) => k.id === e.id));
-      if (!gone) return [];
-      const what = gone.isCopy ? `Copy of ${gone.card.name}` : gone.card.name;
-      return [
-        {
-          turn,
-          kind: 'stack',
-          text:
-            action.type === 'RESOLVE_STACK'
-              ? `${what} resolved`
-              : `${what} left the stack without resolving`,
-          cardName: gone.card.name,
-        },
-      ];
+      const goneId = before.find((id) => !after.includes(id));
+      if (!goneId) return [];
+      // Read off the PRIOR battlefield: an instant leaves it as it resolves.
+      const card = current.battlefield.find((b) => b.card.id === goneId)?.card;
+      if (!card) return [];
+      return [{ turn, kind: 'stack', text: `${card.name} resolved`, cardName: card.name }];
     }
 
     case 'FLIP_FACE': {

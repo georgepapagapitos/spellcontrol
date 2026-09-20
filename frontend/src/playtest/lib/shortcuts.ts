@@ -72,6 +72,8 @@ export type ShortcutId =
   | 'counters'
   | 'counter-plus'
   | 'counter-minus'
+  | 'size-up'
+  | 'size-down'
   | 'counters-all-inc'
   | 'counters-all-double'
   | 'counters-all-dec'
@@ -143,6 +145,8 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
     group: 'table',
     optional: true,
   },
+  { id: 'size-up', key: '=', label: 'Bigger cards', group: 'table' },
+  { id: 'size-down', key: '-', label: 'Smaller cards', group: 'table' },
   { id: 'dice', key: 'o', label: 'Roll dice or flip a coin', group: 'table' },
   { id: 'token', key: 'n', label: 'Create a token', group: 'table' },
   { id: 'mana', key: 'm', label: 'Show or hide the mana pool', group: 'table' },
@@ -186,18 +190,10 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
 
   // ── Counters and power ────────────────────────────────────────────────
   { id: 'counters', key: 'j', label: 'Open counters', group: 'counters' },
-  {
-    id: 'counter-plus',
-    key: '=',
-    label: 'Add a +1/+1 counter; with no card in view, bigger cards',
-    group: 'counters',
-  },
-  {
-    id: 'counter-minus',
-    key: '-',
-    label: 'Add a −1/−1 counter; with no card in view, smaller cards',
-    group: 'counters',
-  },
+  // `plus`, not `+`: the chord separator IS `+`, so the bare character
+  // cannot be a key name without `+`.split('+') tearing it in half.
+  { id: 'counter-plus', key: 'plus', label: 'Add a +1/+1 counter', group: 'counters' },
+  { id: 'counter-minus', key: '_', label: 'Add a −1/−1 counter', group: 'counters' },
   { id: 'counters-all-inc', key: 'mod+1', label: 'Add one to every counter', group: 'counters' },
   { id: 'counters-all-double', key: 'mod+2', label: 'Double every counter', group: 'counters' },
   { id: 'counters-all-dec', key: 'mod+3', label: 'Take one off every counter', group: 'counters' },
@@ -331,7 +327,9 @@ export function chordOf(e: KeyboardEvent): string | null {
   // for named keys, but not for punctuation that already changes with it: a
   // typed `?` is its own key, so `shift+/` would never match what people press.
   if (e.shiftKey && (raw.length !== 1 || /[a-z]/i.test(raw))) parts.push('shift');
-  parts.push(key === ' ' ? 'space' : key);
+  // `space` and `plus` are named for the same reason: one is unprintable and
+  // the other is the separator this very string is joined with.
+  parts.push(key === ' ' ? 'space' : key === '+' ? 'plus' : key);
   return parts.join('+');
 }
 
@@ -352,6 +350,8 @@ export function formatChord(chord: string): string {
           return IS_MAC ? '⌥' : 'Alt';
         case 'space':
           return 'Space';
+        case 'plus':
+          return '+';
         case 'escape':
           return 'Esc';
         case 'arrowup':
@@ -363,7 +363,8 @@ export function formatChord(chord: string): string {
         case 'arrowright':
           return '→';
         default:
-          return part.length === 1 ? part.toUpperCase() : part[0].toUpperCase() + part.slice(1);
+          if (part.length <= 1) return part.toUpperCase();
+          return part[0].toUpperCase() + part.slice(1);
       }
     })
     .join(' ');

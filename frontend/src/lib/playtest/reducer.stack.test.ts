@@ -6,179 +6,148 @@ function card(id: string, over: Partial<PlaytestCard> = {}): PlaytestCard {
   return { id, name: `card-${id}`, ...over };
 }
 
-function init(cards: PlaytestCard[], handSize = 2): PlaytestState {
-  return createPlaytestState({ library: cards, seed: 7, openingHandSize: handSize });
-}
-
-/** Put a specific card in hand regardless of the shuffle. */
+/** A state with exactly `cards` in hand and nothing else. */
 function withHand(cards: PlaytestCard[]): PlaytestState {
-  const s = init(cards, 0);
+  const s = createPlaytestState({ library: cards, seed: 7, openingHandSize: 0 });
   return { ...s, zones: { ...s.zones, hand: s.zones.library.slice(), library: [] } };
 }
 
-function onBattlefield(c: PlaytestCard): PlaytestState {
-  const s = withHand([c]);
-  return applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: c.id, x: 0.5, y: 0.5 });
+function onBattlefield(...cards: PlaytestCard[]): PlaytestState {
+  let s = withHand(cards);
+  for (const c of cards) {
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: c.id, x: 0.5, y: 0.5 });
+  }
+  return s;
+}
+
+function stacked(...cards: PlaytestCard[]): PlaytestState {
+  let s = onBattlefield(...cards);
+  for (const c of cards) s = applyAction(s, { type: 'PUT_ON_STACK', cardId: c.id });
+  return s;
 }
 
 describe('PUT_ON_STACK', () => {
-  it('moves the card out of its zone and onto the stack', () => {
-    const s = applyAction(withHand([card('a', { typeLine: 'Instant' })]), {
-      type: 'PUT_ON_STACK',
-      cardId: 'a',
-      entryId: 'e1',
-    });
-    expect(s.zones.hand).toHaveLength(0);
-    expect(s.stack).toHaveLength(1);
-    expect(s.stack![0]).toMatchObject({ id: 'e1', isCopy: false, from: 'hand' });
-  });
-
-  it('a copy leaves the real card exactly where it was', () => {
-    const s = applyAction(onBattlefield(card('a', { typeLine: 'Creature' })), {
-      type: 'PUT_ON_STACK',
-      cardId: 'a',
-      entryId: 'e1',
-      copy: true,
-    });
+  // The whole model in one assertion: being on the stack is a MARK on a card
+  // that is already in play, not a zone that takes it away.
+  it('marks a permanent without moving it', () => {
+    const s = stacked(card('a', { typeLine: 'Creature' }));
+    expect(s.stack).toEqual(['a']);
     expect(s.battlefield).toHaveLength(1);
-    expect(s.stack![0]).toMatchObject({ isCopy: true });
-    expect(s.stack![0].from).toBeUndefined();
+    expect(s.battlefield[0].card.id).toBe('a');
+    expect(s.battlefield[0].x).toBe(0.5);
   });
 
-  it('refuses to put the same real card on the stack twice', () => {
-    const once = applyAction(withHand([card('a')]), {
-      type: 'PUT_ON_STACK',
-      cardId: 'a',
-      entryId: 'e1',
-    });
-    const twice = applyAction(once, { type: 'PUT_ON_STACK', cardId: 'a', entryId: 'e2' });
-    expect(twice).toBe(once);
+  it('keeps counters, position and tapped state across being stacked', () => {
+    let s = onBattlefield(card('a'));
+    s = applyAction(s, { type: 'SET_COUNTER', cardId: 'a', counter: '+1/+1', delta: 2 });
+    s = applyAction(s, { type: 'TAP', cardId: 'a' });
+    s = applyAction(s, { type: 'PUT_ON_STACK', cardId: 'a' });
+    expect(s.battlefield[0].counters).toEqual({ '+1/+1': 2 });
+    expect(s.battlefield[0].tapped).toBe(true);
   });
 
-  it('is a no-op for a card that is nowhere', () => {
+  it('stacks in order, so the last one put on is the top', () => {
+    const s = stacked(card('a'), card('b'), card('c'));
+    expect(s.stack).toEqual(['a', 'b', 'c']);
+  });
+
+  it('is a no-op for a card already on the stack', () => {
+    const once = stacked(card('a'));
+    expect(applyAction(once, { type: 'PUT_ON_STACK', cardId: 'a' })).toBe(once);
+  });
+
+  // The stack only ever names permanents in play — the UI plays a hand card
+  // first, so the reducer never has to invent a position.
+  it('is a no-op for a card that is not on the battlefield', () => {
     const s = withHand([card('a')]);
-    expect(applyAction(s, { type: 'PUT_ON_STACK', cardId: 'nope', entryId: 'e1' })).toBe(s);
+    expect(applyAction(s, { type: 'PUT_ON_STACK', cardId: 'a' })).toBe(s);
+    expect(applyAction(s, { type: 'PUT_ON_STACK', cardId: 'nope' })).toBe(s);
   });
 });
 
 describe('RESOLVE_STACK', () => {
-  it('puts a permanent onto the battlefield at the given spot', () => {
-    const s = applyAction(
-      applyAction(withHand([card('a', { typeLine: 'Creature — Bear' })]), {
-        type: 'PUT_ON_STACK',
-        cardId: 'a',
-        entryId: 'e1',
-      }),
-      { type: 'RESOLVE_STACK', x: 0.25, y: 0.75 }
-    );
-    expect(s.stack).toHaveLength(0);
-    expect(s.battlefield).toHaveLength(1);
-    expect(s.battlefield[0]).toMatchObject({ x: 0.25, y: 0.75, tapped: false });
-  });
-
-  it('sends an instant or sorcery to the graveyard', () => {
-    const s = applyAction(
-      applyAction(withHand([card('a', { typeLine: 'Instant' })]), {
-        type: 'PUT_ON_STACK',
-        cardId: 'a',
-        entryId: 'e1',
-      }),
-      { type: 'RESOLVE_STACK' }
-    );
-    expect(s.battlefield).toHaveLength(0);
-    expect(s.zones.graveyard.map((c) => c.id)).toEqual(['a']);
-  });
-
-  // Rule 707.10: a copy ceases to exist as it resolves.
-  it('a resolving copy goes nowhere at all', () => {
-    const s = applyAction(
-      applyAction(onBattlefield(card('a', { typeLine: 'Creature' })), {
-        type: 'PUT_ON_STACK',
-        cardId: 'a',
-        entryId: 'e1',
-        copy: true,
-      }),
-      { type: 'RESOLVE_STACK' }
-    );
-    expect(s.stack).toHaveLength(0);
-    expect(s.battlefield).toHaveLength(1);
-    expect(s.zones.graveyard).toHaveLength(0);
-  });
-
-  it('returns a commander cast from the command zone to the command zone', () => {
-    const base = withHand([card('cmd', { typeLine: 'Instant' })]);
-    const inCommand: PlaytestState = {
-      ...base,
-      zones: { ...base.zones, hand: [], command: base.zones.hand.slice() },
-    };
-    const s = applyAction(
-      applyAction(inCommand, { type: 'PUT_ON_STACK', cardId: 'cmd', entryId: 'e1' }),
-      { type: 'RESOLVE_STACK' }
-    );
-    expect(s.zones.command.map((c) => c.id)).toEqual(['cmd']);
-    expect(s.zones.graveyard).toHaveLength(0);
-  });
-
-  it('resolves the top — the last one put on — when no entry is named', () => {
-    let s = withHand([card('a', { typeLine: 'Instant' }), card('b', { typeLine: 'Instant' })]);
-    s = applyAction(s, { type: 'PUT_ON_STACK', cardId: 'a', entryId: 'e1' });
-    s = applyAction(s, { type: 'PUT_ON_STACK', cardId: 'b', entryId: 'e2' });
-    s = applyAction(s, { type: 'RESOLVE_STACK' });
-    expect(s.zones.graveyard.map((c) => c.id)).toEqual(['b']);
-    expect(s.stack!.map((e) => e.id)).toEqual(['e1']);
-  });
-});
-
-describe('REMOVE_FROM_STACK', () => {
-  it('a countered spell goes to the graveyard by default', () => {
-    const s = applyAction(
-      applyAction(withHand([card('a', { typeLine: 'Creature' })]), {
-        type: 'PUT_ON_STACK',
-        cardId: 'a',
-        entryId: 'e1',
-      }),
-      { type: 'REMOVE_FROM_STACK', entryId: 'e1' }
-    );
-    expect(s.battlefield).toHaveLength(0);
-    expect(s.zones.graveyard.map((c) => c.id)).toEqual(['a']);
-  });
-
-  it('honours an explicit destination', () => {
-    const s = applyAction(
-      applyAction(withHand([card('a')]), { type: 'PUT_ON_STACK', cardId: 'a', entryId: 'e1' }),
-      { type: 'REMOVE_FROM_STACK', entryId: 'e1', to: 'hand' }
-    );
-    expect(s.zones.hand.map((c) => c.id)).toEqual(['a']);
-  });
-});
-
-// The stack is reachable by the ordinary zone machinery, which is what lets
-// a countered spell move with a plain MOVE_TO_ZONE instead of every caller
-// having to know it was mid-resolution.
-describe('a card on the stack is still locatable', () => {
-  it('MOVE_TO_ZONE pulls it straight off', () => {
-    const s = applyAction(
-      applyAction(withHand([card('a')]), { type: 'PUT_ON_STACK', cardId: 'a', entryId: 'e1' }),
-      { type: 'MOVE_TO_ZONE', cardId: 'a', to: 'exile' }
-    );
-    expect(s.stack).toHaveLength(0);
-    expect(s.zones.exile.map((c) => c.id)).toEqual(['a']);
-  });
-});
-
-describe('RESET', () => {
-  it('shuffles a card left on the stack back into the deck rather than losing it', () => {
-    const s = applyAction(
-      applyAction(withHand([card('a'), card('b')]), {
-        type: 'PUT_ON_STACK',
-        cardId: 'a',
-        entryId: 'e1',
-      }),
-      { type: 'RESET' }
-    );
+  it('unmarks a permanent and leaves it exactly where it was', () => {
+    const s = applyAction(stacked(card('a', { typeLine: 'Creature — Bear' })), {
+      type: 'RESOLVE_STACK',
+    });
     expect(s.stack).toEqual([]);
-    const all = [...s.zones.library, ...s.zones.hand].map((c) => c.id).sort();
-    expect(all).toEqual(['a', 'b']);
+    expect(s.battlefield).toHaveLength(1);
+    expect(s.battlefield[0].x).toBe(0.5);
+  });
+
+  it('sends a resolving instant or sorcery to the graveyard', () => {
+    const s = applyAction(stacked(card('a', { typeLine: 'Instant' })), { type: 'RESOLVE_STACK' });
+    expect(s.stack).toEqual([]);
+    expect(s.battlefield).toHaveLength(0);
+    expect(s.zones.graveyard.map((c) => c.id)).toEqual(['a']);
+  });
+
+  // Rule 707.10 — a token copy ceases to exist rather than hitting a
+  // graveyard it was never a card in.
+  it('a resolving token spell-copy ceases to exist', () => {
+    const s = applyAction(stacked(card('a', { typeLine: 'Instant', isToken: true })), {
+      type: 'RESOLVE_STACK',
+    });
+    expect(s.battlefield).toHaveLength(0);
+    expect(s.zones.graveyard).toHaveLength(0);
+  });
+
+  it('resolves the top — the last one put on — when no card is named', () => {
+    const s = applyAction(stacked(card('a'), card('b')), { type: 'RESOLVE_STACK' });
+    expect(s.stack).toEqual(['a']);
+  });
+
+  it('resolves a named card out of the middle', () => {
+    const s = applyAction(stacked(card('a'), card('b'), card('c')), {
+      type: 'RESOLVE_STACK',
+      cardId: 'b',
+    });
+    expect(s.stack).toEqual(['a', 'c']);
+  });
+
+  it('is a no-op on an empty stack, or for a card that is not on it', () => {
+    const empty = onBattlefield(card('a'));
+    expect(applyAction(empty, { type: 'RESOLVE_STACK' })).toBe(empty);
+    const one = stacked(card('a'), card('b'));
+    expect(applyAction(one, { type: 'RESOLVE_STACK', cardId: 'nope' })).toBe(one);
+  });
+});
+
+// The list names permanents in play, so it must never outlive the card it
+// points at — otherwise the panel renders a row with nothing behind it.
+describe('a card leaving the battlefield drops off the stack', () => {
+  it('when it is moved to another zone', () => {
+    const s = applyAction(stacked(card('a'), card('b')), {
+      type: 'MOVE_TO_ZONE',
+      cardId: 'a',
+      to: 'graveyard',
+    });
+    expect(s.stack).toEqual(['b']);
+    expect(s.zones.graveyard.map((c) => c.id)).toEqual(['a']);
+  });
+
+  it('when a token leaves and ceases to exist', () => {
+    const s = applyAction(stacked(card('t', { isToken: true })), {
+      type: 'MOVE_TO_ZONE',
+      cardId: 't',
+      to: 'exile',
+    });
+    expect(s.stack).toEqual([]);
+    expect(s.zones.exile).toHaveLength(0);
+  });
+
+  it('and RESET clears the stack outright', () => {
+    const s = applyAction(stacked(card('a')), { type: 'RESET' });
+    expect(s.stack).toEqual([]);
+  });
+});
+
+describe('UNDO', () => {
+  it('restores the stack as it was', () => {
+    const before = stacked(card('a'), card('b'));
+    const after = applyAction(before, { type: 'RESOLVE_STACK' });
+    expect(after.stack).toEqual(['a']);
+    expect(applyAction(after, { type: 'UNDO' }).stack).toEqual(['a', 'b']);
   });
 });
 
