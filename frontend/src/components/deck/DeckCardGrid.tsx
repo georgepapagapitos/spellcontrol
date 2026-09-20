@@ -149,6 +149,8 @@ export function DeckCardGrid({
                 }
                 const roleDimmed = !!roleFilter && !cardFilterRoles(row.card).includes(roleFilter);
                 return (
+                  // `data-peek-name` on the tile feeds the card inspector through
+                  // the same delegated hover handlers the list rows use.
                   <li
                     key={row.name}
                     className={`deck-card-grid-cell${roleDimmed ? ' is-role-dimmed' : ''}`}
@@ -157,6 +159,7 @@ export function DeckCardGrid({
                       type="button"
                       className={`deck-card-grid-tile${foilTileClass(row)}`}
                       onClick={() => onRowClick(row.name)}
+                      data-peek-name={row.name}
                       aria-label={`${row.name} (${row.qty} in deck, ${allocationSummary(row)})`}
                     >
                       {row.imageNormal ? (

@@ -118,7 +118,7 @@ import {
   listColumnCount,
   sectionRowCount,
 } from './deck-display-rows';
-import { DeckCardRail, type DeckCardRailCard } from './DeckCardRail';
+import { DeckCardInspector, type DeckCardInspectorCard } from './DeckCardInspector';
 import { PartnerHeaderButton } from './deck-display-icons';
 import { DeckToolbar } from './DeckToolbar';
 import { DeckCardGrid } from './DeckCardGrid';
@@ -131,10 +131,12 @@ import { DeckAnalysisView } from './DeckAnalysisView';
 const celebratedDeckComplete = new Set<string>();
 
 const GRID_SIZE_STORAGE_KEY = 'mtg-decks-grid-size';
-// The pinned card rail (DeckCardRail) is a hover surface that needs room
-// beside the list: wide desktop AND a fine pointer. Below/without that, the
-// floating hover-peek and the touch long-press peek carry on unchanged.
-const RAIL_QUERY = '(min-width: 1280px) and (hover: hover) and (pointer: fine)';
+// The card inspector (DeckCardInspector) is a hover surface that needs room
+// beside the deck body: wide desktop AND a fine pointer. 1440 rather than the
+// rail's 1280 — a 300px inspector plus three 320px list columns needs the
+// room. Below/without that, the floating hover-peek and the touch long-press
+// peek carry on unchanged, in every view mode.
+const INSPECTOR_QUERY = '(min-width: 1440px) and (hover: hover) and (pointer: fine)';
 
 // ── Props ─────────────────────────────────────────────────────────────────
 export interface DeckDisplayCard {
@@ -1318,31 +1320,51 @@ export function DeckDisplay({
   const listCols = narrowList ? 1 : listColumnCount(listWidth, sectionRowCount(columnGroups));
   const listColumns = useMemo(() => packSections(columnGroups, listCols), [columnGroups, listCols]);
 
-  // Pinned card rail (2026-09-19): on a wide, hover-capable screen the list
-  // gets a sticky preview column that shows the last card the pointer rested
-  // on — the commander until then — instead of the floating hover-peek. The
-  // hover hook owns both "which row is under the pointer" (`peek`) and the
-  // last non-null answer (`lastPeek`), so the rail doesn't blink back to the
-  // commander in the gaps between rows.
-  const railActive = useMediaQuery(RAIL_QUERY) && viewMode === 'list';
-  const railKey = hoverPeek.lastPeek;
-  const railCard = useMemo<DeckCardRailCard | null>(() => {
-    if (!railActive) return null;
-    const key: { name: string; img?: string } | null =
-      railKey ?? (commander ? { name: commander.name } : null);
-    if (!key) return null;
-    const i = flat.indexByName.get(key.name);
+  // Card inspector (2026-09-20): on a wide, hover-capable screen the deck body
+  // gets a sticky detail column — in EVERY view mode, which is why it replaced
+  // the list-only rail — showing the last card the pointer rested on, the
+  // commander until then. The hover hook owns both "which row is under the
+  // pointer" (`peek`) and the last non-null answer (`lastPeek`), so the panel
+  // doesn't blink back to the commander in the gaps between rows.
+  //
+  // `pinnedName` wins over the hover answer: reading a card's oracle text is a
+  // sustained act, and the pointer crossing another row must not interrupt it.
+  // That is the whole reason a persistent panel beats a floating peek here.
+  const inspectorActive = useMediaQuery(INSPECTOR_QUERY);
+  const [pinnedName, setPinnedName] = useState<string | null>(null);
+  const hoverKey = hoverPeek.lastPeek;
+  const inspectorCard = useMemo<DeckCardInspectorCard | null>(() => {
+    if (!inspectorActive) return null;
+    const name = pinnedName ?? hoverKey?.name ?? commander?.name;
+    if (!name) return null;
+    const i = flat.indexByName.get(name);
     if (i === undefined) return null;
     const row = flat.rows[i];
     const enriched = flat.cards[i];
+    // Same copy → binder resolution the grid badge does: dedupe by binder id
+    // across every allocated copy this aggregated row covers.
+    const binders: BinderInfo[] = [];
+    if (binderByCopyId) {
+      const seen = new Set<string>();
+      for (const cid of row.allocatedCopyIds) {
+        for (const b of binderByCopyId.get(cid) ?? []) {
+          if (!seen.has(b.id)) {
+            seen.add(b.id);
+            binders.push(b);
+          }
+        }
+      }
+    }
     return {
-      name: row.name,
-      card: row.card,
-      imageUrl: key.img || enriched?.imageLarge || enriched?.imageNormal,
-      price: row.price,
-      qty: row.qty,
+      row,
+      // A printing sub-row carries its own art; honor it while following the
+      // pointer, but a pinned card resolves by name like the carousel does.
+      imageUrl:
+        (pinnedName ? undefined : hoverKey?.img) || enriched?.imageLarge || enriched?.imageNormal,
+      binders,
+      synergyReasons: synergyByName.get(name),
     };
-  }, [railActive, railKey, commander, flat]);
+  }, [inspectorActive, pinnedName, hoverKey, commander, flat, binderByCopyId, synergyByName]);
   const renderListSection = (g: TypedGroup) => (
     <CategorySection
       key={g.title}
@@ -1736,55 +1758,85 @@ export function DeckDisplay({
                 {groupBy === 'category' && visibleGroups.length > 0 && (
                   <p className="deck-group-caption">Each card is filed under one category.</p>
                 )}
-                {viewMode === 'list' && visibleGroups.length > 0 && (
-                  <div className={railActive ? 'deck-list-layout' : undefined}>
+                {/* The deck body (2026-09-20): one two-column layout for ALL
+                    view modes, so the card inspector is a single surface rather
+                    than a list-only rail plus a grid-only floating peek. The
+                    toolbar and filter-chip bands above stay full width, which is
+                    what lets the inspector sit on the LEFT without moving the
+                    page's alignment line off the gutter. */}
+                {visibleGroups.length > 0 && (
+                  <div className={inspectorActive ? 'deck-body-layout' : undefined}>
+                    {inspectorActive && (
+                      <DeckCardInspector
+                        card={inspectorCard}
+                        currency={currency}
+                        pinned={pinnedName !== null}
+                        onTogglePin={() =>
+                          setPinnedName((prev) => (prev ? null : (inspectorCard?.row.name ?? null)))
+                        }
+                        onOpen={openPreview}
+                        actions={{
+                          onMoveToSideboard: showSideboardTab ? onMoveToSideboard : undefined,
+                          onMoveToConsidering,
+                          onRemoveCard,
+                        }}
+                      />
+                    )}
+                    {/* The grid/stacks tiles feed the inspector through the same
+                        delegated hover handlers the list uses. They attach only
+                        while the inspector is mounted: below the gate a grid tile
+                        already shows its own art, so a floating peek over it
+                        would be noise. */}
                     <div
-                      className="deck-card-list"
-                      ref={listRef}
-                      style={{ '--deck-cols': listCols } as CSSProperties}
-                      {...hoverPeek.listHandlers}
-                      {...touchPeek.listHandlers}
+                      className="deck-body-main"
+                      {...(inspectorActive && viewMode !== 'list' ? hoverPeek.listHandlers : {})}
                     >
-                      {/* Command zone — the commander (and partner) as a full-width
+                      {viewMode === 'list' ? (
+                        <div
+                          className="deck-card-list"
+                          ref={listRef}
+                          style={{ '--deck-cols': listCols } as CSSProperties}
+                          {...hoverPeek.listHandlers}
+                          {...touchPeek.listHandlers}
+                        >
+                          {/* Command zone — the commander (and partner) as a full-width
                           strip ABOVE the type columns, rendered with the same
                           CategorySection/DeckMainboardRow as every other card so the
                           interactions are identical. It never occupies a column: a
                           1-row section at the top of a column stranded a 30-row hole
                           under it. Its rows align to the column grid below. */}
-                      {commandGroups.length > 0 && (
-                        <div className="deck-command-zone">
-                          {commandGroups.map(renderListSection)}
-                        </div>
-                      )}
-                      <div className="deck-card-columns">
-                        {listColumns.map((column, i) => (
-                          <div key={i} className="deck-card-column">
-                            {column.map(renderListSection)}
+                          {commandGroups.length > 0 && (
+                            <div className="deck-command-zone">
+                              {commandGroups.map(renderListSection)}
+                            </div>
+                          )}
+                          <div className="deck-card-columns">
+                            {listColumns.map((column, i) => (
+                              <div key={i} className="deck-card-column">
+                                {column.map(renderListSection)}
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ) : (
+                        <DeckCardGrid
+                          layout={viewMode}
+                          groups={visibleGroups}
+                          onRowClick={openPreview}
+                          legalityBySlot={legalityBySlot}
+                          gridZoom={effectiveGridZoom}
+                          gridRef={gridRef}
+                          gridWidth={gridWidth}
+                          showRoles={showPrefs.roles}
+                          roleFilter={activeRoleFilter}
+                          synergyByName={synergyByName}
+                          binderByCopyId={binderByCopyId}
+                          hasPartner={!!partnerCommander}
+                          onEditPartner={onEditPartner}
+                        />
+                      )}
                     </div>
-                    {railActive && (
-                      <DeckCardRail card={railCard} currency={currency} onOpen={openPreview} />
-                    )}
                   </div>
-                )}
-                {(viewMode === 'grid' || viewMode === 'stacks') && visibleGroups.length > 0 && (
-                  <DeckCardGrid
-                    layout={viewMode}
-                    groups={visibleGroups}
-                    onRowClick={openPreview}
-                    legalityBySlot={legalityBySlot}
-                    gridZoom={effectiveGridZoom}
-                    gridRef={gridRef}
-                    gridWidth={gridWidth}
-                    showRoles={showPrefs.roles}
-                    roleFilter={activeRoleFilter}
-                    synergyByName={synergyByName}
-                    binderByCopyId={binderByCopyId}
-                    hasPartner={!!partnerCommander}
-                    onEditPartner={onEditPartner}
-                  />
                 )}
 
                 {/* "Not in the deck" (E176) — one subordinate zone below the
@@ -1985,7 +2037,7 @@ export function DeckDisplay({
         {/* Desktop-only floating hover-peek: a transient card-art preview in the
             gutter beside the list while hovering a row. No-op on touch/native. */}
         {hoverPeek.peek &&
-          !railActive &&
+          !inspectorActive &&
           (() => {
             // A printing sub-row carries its own art (data-peek-img); use it so
             // each expanded printing peeks its real card. Otherwise resolve the

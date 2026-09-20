@@ -2994,15 +2994,21 @@ preview) and Archidekt's static-card panel, these rulings now hold:
   on touch. The ⋮ kebab keeps its slot but rests at `opacity: 0` on a fine
   pointer and shows on row hover/focus. Add a new always-on glyph to the row
   only by trading one out.
-- **Wide + fine pointer gets a pinned card rail, not a floating peek.**
-  `DeckCardRail` (co-located CSS) is a sticky column beside the list at
-  `(min-width: 1280px) and (hover: hover) and (pointer: fine)` showing the
-  last card the pointer rested on — the commander until then — with name,
-  mana, type line and price; clicking the art opens the preview. The
-  floating hover-peek (`DeckHoverPeek`) is suppressed while the rail shows
-  and unchanged elsewhere; the touch long-press peek is untouched. The rail
-  never owns hover state — it remembers `useDeckHoverPeek`'s last non-null
-  answer, so it doesn't blink back to the commander between rows.
+- **Wide + fine pointer gets a card inspector, and it earns its width.**
+  Superseded the day-old pinned rail (see the amendment below). `DeckCardInspector`
+  (co-located CSS) is a sticky LEFT column beside the deck body at
+  `(min-width: 1440px) and (hover: hover) and (pointer: fine)`, mounted by the
+  shared `.deck-body-layout` wrapper in **every view mode** — list, grid and
+  stacks — showing the last card the pointer rested on, the commander until
+  then. It carries art, name, mana, type line, **oracle text**, the ownership
+  sentence (`allocationSummary` + `BinderBadge`), role and synergy chips, price,
+  and three row actions; clicking the art opens the preview. A pin toggle freezes
+  the panel so the pointer crossing another row can't interrupt a read. The
+  floating hover-peek (`DeckHoverPeek`) is suppressed while the inspector shows
+  and unchanged elsewhere, including below 1440 in list view; the touch
+  long-press peek is untouched. The inspector never owns hover state — it
+  remembers `useDeckHoverPeek`'s last non-null answer, so it doesn't blink back
+  to the commander between rows.
 - **The group lens is a labelled dropdown.** "Group · Type ▾" (`SelectMenu`,
   same as the collection toolbar's Group by), not three unlabelled icons.
   A display control whose options can't be told apart at a glance gets a
@@ -3015,6 +3021,35 @@ preview) and Archidekt's static-card panel, these rulings now hold:
   ladder × 1.4 (`stackWidth`), driven by the same −/+ control as the grid.
   Toggle order is grid → stacks → list. Never fork the tile for stacks: every
   pip, badge and allocation cue must stay shared with the grid.
+
+### Amendment: the card inspector (2026-09-20)
+
+The rail above lasted one day. It showed name, mana, type line and price — three
+of which the row already carried — so it spent a permanent 232px column and paid
+back a smaller, further-away copy of the floating peek it replaced. On a 2000px
+display with four list columns, hovering column one put the card ~1400px away.
+The rulings that came out of it:
+
+- **A persistent panel earns its width only by showing what the row cannot.**
+  Oracle text is the load-bearing one: before this, a card in the deck view
+  could not be read without opening the full-screen preview. Ownership (which
+  binder, how many copies allocated) is the second, and it is the thing neither
+  Moxfield nor Archidekt can show.
+- **Hover previews, a pin holds.** Hover is for glancing and must stay cheap;
+  reading rules text is sustained, and a pointer crossing another row must not
+  end it. Row click still opens the preview carousel — repurposing the app's
+  most-used click to mean "pin" was rejected.
+- **One surface for every view mode.** A list-only rail plus a grid-only
+  floating peek is two answers to one question. `.deck-body-layout` wraps the
+  whole deck body and the grid/stacks tiles carry `data-peek-name`, so the same
+  delegated handlers feed the inspector everywhere.
+- **Left is fine when the panel is permanent, and only then.** The toolbar and
+  filter-chip bands stay full width above the body, so only the deck body
+  insets and the page keeps its gutter alignment (Moxfield's arrangement). A
+  panel that appeared and disappeared would have to sit on the right: mounting
+  it on the left would shove every row sideways mid-read.
+- **Don't ship a layout picker.** Archidekt's four-layout carousel is a
+  confession that no default was chosen. Choose the default.
 
 ## Deck diff rows (T22/E173)
 
@@ -5246,7 +5281,7 @@ re-aligned in sweep 3).
 The playtest/online battlefield does **not** use the app-wide `?` registry as
 its source of truth. It owns a rebindable binding table
 (`playtest/lib/shortcuts.ts`) and one keydown dispatcher in `PlaytestBoard`,
-and *feeds* the `?` overlay from it. Three rules hold:
+and _feeds_ the `?` overlay from it. Three rules hold:
 
 **Defaults are EDHPlay's map, and that claim is tested.**
 `playtest/lib/shortcuts.test.ts` holds an `EXPECTED` key → id table plus an
@@ -5270,11 +5305,11 @@ print their live binding via `keyFor(id)`, so a rebound key never lies.
 
 Three different weights of "look at this", and they are not interchangeable:
 
-| Signal    | Gesture                | Lives for | Writes to the ticker |
-| --------- | ---------------------- | --------- | -------------------- |
-| **Ping**  | any card tap           | ~1.1s     | no                   |
-| **Point** | a deliberate menu action | 5s      | yes                  |
-| **Arrow** | `W`, then a target     | until cleared | no               |
+| Signal    | Gesture                  | Lives for     | Writes to the ticker |
+| --------- | ------------------------ | ------------- | -------------------- |
+| **Ping**  | any card tap             | ~1.1s         | no                   |
+| **Point** | a deliberate menu action | 5s            | yes                  |
+| **Arrow** | `W`, then a target       | until cleared | no                   |
 
 A **ping** is a ring in the pinging seat's palette colour
 (`paletteForIndex`), drawn by `TablePings` as a viewport overlay measured off

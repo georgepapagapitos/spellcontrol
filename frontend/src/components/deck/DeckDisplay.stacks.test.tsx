@@ -74,9 +74,10 @@ describe('deck Stacks view', () => {
     // Same tile as the grid: qty/alloc/legality/badges all come along.
     expect(container.querySelectorAll('.deck-card-stack .deck-card-grid-tile').length).toBe(3);
     expect(container.querySelector('.deck-card-grid-sections--stacks')).not.toBeNull();
-    // No list rows, no rail — this is a card-forward view.
+    // No list rows — this is a card-forward view. (The card inspector is a
+    // separate, width-gated surface; this viewport is below its gate.)
     expect(container.querySelector('.deck-row')).toBeNull();
-    expect(container.querySelector('.deck-card-rail')).toBeNull();
+    expect(container.querySelector('.deck-card-inspector')).toBeNull();
   });
 
   it('sets a per-zoom card width on each stack', () => {
