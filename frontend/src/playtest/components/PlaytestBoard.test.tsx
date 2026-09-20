@@ -661,3 +661,71 @@ describe("PlaytestBoard — a deck that is not the viewer's own", () => {
     expect(await screen.findByText('This deck makes no tokens.')).toBeTruthy();
   });
 });
+
+/**
+ * Space is the biggest key on the keyboard and it used to be wired to
+ * pass-turn ALONE — which exists only at an online table. In solo playtest,
+ * where most goldfishing happens, pressing it did nothing at all. A key
+ * that is dead in the common case is worse than an unbound one: it teaches
+ * the player it is broken.
+ *
+ * So Space means "move the game on" in both modes, and the turn chip is the
+ * pointer twin of the same action.
+ */
+describe('PlaytestBoard — Space moves the game on', () => {
+  it('takes the next turn in solo', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    fireEvent.keyDown(window, { key: ' ' });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'NEXT_TURN' });
+  });
+
+  it('passes the turn at a table when it is yours', () => {
+    const tableDispatch = vi.fn();
+    onlineTable = { ...seatedTable([opponent(1)]), dispatch: tableDispatch };
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    fireEvent.keyDown(window, { key: ' ' });
+    expect(tableDispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'pass-turn' }));
+    // Never the solo action at a table — that would advance this seat's own
+    // local turn counter behind the table's back.
+    expect(dispatch).not.toHaveBeenCalledWith({ type: 'NEXT_TURN' });
+  });
+
+  // The one case where it should still do nothing: somebody else is playing.
+  it('does nothing at a table when it is not your turn', () => {
+    const tableDispatch = vi.fn();
+    onlineTable = { ...seatedTable([opponent(1)]), activeSeat: 1, dispatch: tableDispatch };
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    fireEvent.keyDown(window, { key: ' ' });
+    expect(tableDispatch).not.toHaveBeenCalled();
+    expect(dispatch).not.toHaveBeenCalledWith({ type: 'NEXT_TURN' });
+  });
+
+  // The turn count IS the button; a separate "Next turn" control beside a
+  // turn counter was two pieces of chrome saying one thing.
+  it('makes the turn chip the pointer twin, with no separate turn button', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    // Exactly one control advances the turn, and it is the chip — not a
+    // chip plus a button beside it saying the same thing.
+    const advancers = screen.getAllByRole('button', { name: /Next turn/ });
+    expect(advancers).toHaveLength(1);
+    expect(advancers[0].className).toContain('playtest-turn-chip');
+    fireEvent.click(advancers[0]);
+    expect(dispatch).toHaveBeenCalledWith({ type: 'NEXT_TURN' });
+  });
+});
