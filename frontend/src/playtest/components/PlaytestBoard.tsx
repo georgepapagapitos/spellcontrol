@@ -733,6 +733,16 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   }, []);
   const handMenuCard = handMenu ? state.zones.hand.find((c) => c.id === handMenu.cardId) : null;
   const revealedIds = useMemo(() => new Set(state.revealed ?? []), [state.revealed]);
+  // Every card of the deck behind this session, for the token picker's
+  // "Deck tokens" grid. Commanders included — a commander is as likely to
+  // be the thing making tokens as anything in the ninety-nine.
+  const deckTokenSources = useMemo(() => {
+    if (!deck) return [];
+    const out = deck.cards.map((slot) => slot.card);
+    if (deck.commander) out.push(deck.commander);
+    if (deck.partnerCommander) out.push(deck.partnerCommander);
+    return out;
+  }, [deck]);
   const stackIdSet = useMemo(() => new Set(state.stack ?? []), [state.stack]);
 
   const ctxCard = ctx ? state.battlefield.find((b) => b.card.id === ctx.cardId) : null;
@@ -2313,18 +2323,29 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
 
       {tokenCreator && (
         <TokenCreator
+          deckCards={deckTokenSources}
           onClose={() => setTokenCreator(false)}
-          onCreate={(name) => {
+          onCreate={({ name, typeLine, imageUrl }) => {
             const id = `tok-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-            const tokenCard: PlaytestCard = { id, name, isToken: true };
+            const tokenCard: PlaytestCard = {
+              id,
+              name,
+              isToken: true,
+              // Carried through so auto-placement puts a creature token in
+              // the creature row rather than guessing from the name.
+              ...(typeLine !== undefined && { typeLine }),
+              ...(imageUrl !== undefined && { imageUrl }),
+            };
             const { x, y } = placeOnBattlefield(tokenCard);
             dispatch({ type: 'CREATE_TOKEN', card: tokenCard, x, y });
             setTokenCreator(false);
-            // Never block token creation on the network — the text-box
-            // placeholder renders immediately above; art swaps in when (if)
-            // it resolves.
-            void resolveTokenArt(name).then((imageUrl) => {
-              if (imageUrl) dispatch({ type: 'SET_CARD_IMAGE', cardId: id, imageUrl });
+            // A token picked from the grid already brought its art. Only a
+            // name typed by hand needs resolving, and that never blocks the
+            // token appearing — the placeholder renders immediately and the
+            // art swaps in when (if) it lands.
+            if (imageUrl) return;
+            void resolveTokenArt(name).then((url) => {
+              if (url) dispatch({ type: 'SET_CARD_IMAGE', cardId: id, imageUrl: url });
             });
           }}
         />
