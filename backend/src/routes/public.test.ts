@@ -6,6 +6,17 @@ import { createTestEnv, extractSessionCookie, setSnapshotViaSyncApi } from '../t
 import { deckPublicationCache, publicUserCache } from '../publications/cache';
 import { lookupPublicUserLandingMeta } from './public';
 
+import type { ShareLandingMeta, ShareLandingResult } from '../shares/og';
+
+/** Narrows a landing lookup to the metadata case, failing loudly on the
+ *  rename-redirect case so a test never silently asserts against `undefined`. */
+function asMeta(result: ShareLandingResult | null): ShareLandingMeta {
+  if (!result || 'redirectTo' in result) {
+    throw new Error(`expected landing meta, got ${JSON.stringify(result)}`);
+  }
+  return result;
+}
+
 let app: Server;
 let pool: Pool;
 let cleanup: () => Promise<void>;
@@ -396,14 +407,92 @@ describe('lookupPublicUserLandingMeta', () => {
   // /u/tradepal served .../u/tradepal — two canonical URLs for one profile.
   it('emits the normalized handle as the canonical URL whatever case the visitor typed', async () => {
     await publishDeck('landingcase', 'deck-landing-case');
-    const meta = await lookupPublicUserLandingMeta('LandingCase');
-    expect(meta?.url).toBe('https://spellcontrol.com/u/landingcase');
-    expect(meta?.indexable).toBe(true);
+    const meta = asMeta(await lookupPublicUserLandingMeta('LandingCase'));
+    expect(meta.url).toBe('https://spellcontrol.com/u/landingcase');
+    expect(meta.indexable).toBe(true);
   });
 
   it('is null for a user with nothing live (noindex, matching the JSON 404)', async () => {
     const cookie = await makeUser('landingquiet');
     await setDisplayName(cookie, 'Quiet');
     expect(await lookupPublicUserLandingMeta('LandingQuiet')).toBeNull();
+  });
+});
+
+describe('a released handle keeps pointing at the account that had it', () => {
+  async function rename(cookie: string, username: string): Promise<void> {
+    const res = await request(app)
+      .patch('/api/auth/me/username')
+      .set('Cookie', cookie)
+      .send({ username });
+    expect(res.status).toBe(200);
+  }
+
+  it('answers the old handle with a 404 carrying the new one, so the SPA can correct its URL', async () => {
+    const { cookie } = await publishDeck('renameold', 'deck-rename-1');
+    await rename(cookie, 'renamenew');
+
+    const res = await request(app).get('/api/public/users/renameold');
+
+    // A 3xx would be followed transparently by fetch() and the client would
+    // never learn to replace the address it is showing.
+    expect(res.status).toBe(404);
+    expect(res.body.renamedTo).toBe('renamenew');
+
+    const moved = await request(app).get('/api/public/users/renamenew');
+    expect(moved.status).toBe(200);
+  });
+
+  it('301s the crawlable landing URL to the handle the account has now', async () => {
+    const { cookie } = await publishDeck('landoldname', 'deck-rename-2');
+    await rename(cookie, 'landnewname');
+
+    expect(await lookupPublicUserLandingMeta('landoldname')).toEqual({
+      redirectTo: '/u/landnewname',
+    });
+  });
+
+  it('follows a chain of renames rather than stopping at the first hop', async () => {
+    const { cookie } = await publishDeck('chainone', 'deck-rename-3');
+    await rename(cookie, 'chaintwo');
+    // The cooldown is a product rule, not the thing under test here.
+    await pool.query('UPDATE users SET username_changed_at = NULL WHERE username = $1', [
+      'chaintwo',
+    ]);
+    const second = await request(app)
+      .patch('/api/auth/me/username')
+      .set('Cookie', cookie)
+      .send({ username: 'chainthree' });
+    expect(second.status).toBe(200);
+
+    const res = await request(app).get('/api/public/users/chainone');
+    expect(res.body.renamedTo).toBe('chainthree');
+  });
+
+  it('stops redirecting once somebody else holds the handle', async () => {
+    const { cookie } = await publishDeck('handedover', 'deck-rename-4');
+    await rename(cookie, 'movedalong');
+    // Age the reserve out so the handle is genuinely on the market.
+    await pool.query('UPDATE username_history SET reserved_until = $1 WHERE username = $2', [
+      Date.now() - 1000,
+      'handedover',
+    ]);
+    const { cookie: other } = await publishDeck('newcomer', 'deck-rename-5');
+    await rename(other, 'handedover');
+
+    // The old owner's redirect must NOT survive: it would send visitors to
+    // the wrong person's profile.
+    const res = await request(app).get('/api/public/users/handedover');
+    expect(res.status).toBe(200);
+    expect(res.body.username).toBe('handedover');
+    expect(res.body.renamedTo).toBeUndefined();
+  });
+
+  it('leaves a handle that was never released alone', async () => {
+    await publishDeck('neverrenamed', 'deck-rename-6');
+    const res = await request(app).get('/api/public/users/doesnotexist');
+    expect(res.status).toBe(404);
+    expect(res.body.renamedTo).toBeUndefined();
+    expect(await lookupPublicUserLandingMeta('doesnotexist')).toBeNull();
   });
 });

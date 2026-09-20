@@ -590,3 +590,21 @@ export async function resolveDisplayLabel(userId: string): Promise<string> {
   const row = rows[0];
   return row?.displayName ?? row?.username ?? '';
 }
+
+/**
+ * This account's username as the row has it right now, one indexed lookup.
+ *
+ * Use this, not `req.user.username`, anywhere the value is stored, cached, or
+ * sent to a client. `requireAuth` populates `req.user` from the session JWT's
+ * claims and does not re-read the row, so after a rename that claim is stale
+ * for the rest of the token's life — on every device except the one that made
+ * the change. The claim is still fine for logging the actor of a request.
+ */
+export async function currentUsername(userId: string): Promise<string> {
+  const rows = await getDb()
+    .select({ username: users.username })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  return rows[0]?.username ?? '';
+}

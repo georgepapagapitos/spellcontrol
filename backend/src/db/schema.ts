@@ -32,6 +32,13 @@ export const users = pgTable('users', {
   // demotes), and granted/revoked by id from the admin panel thereafter.
   role: text('role').notNull().default('user'),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  /**
+   * When this account last changed its username, epoch ms. Null for an
+   * account still on the handle it registered with. Enforces the one-change-
+   * per-`USERNAME_CHANGE_COOLDOWN_MS` limit; the history table holds what the
+   * old handles were.
+   */
+  usernameChangedAt: bigint('username_changed_at', { mode: 'number' }),
   // Set when the OAuth callback auto-linked a new external identity to this
   // account via a verified-email match (e.g. user with a password account
   // signs in with the same email via Google). The /me endpoint exposes it so
@@ -165,6 +172,38 @@ export const oauthHandoffCodes = pgTable('oauth_handoff_codes', {
  * token invalidates the user's older unused tokens of the same purpose (see
  * `routes/auth.ts`'s `issueAuthToken`).
  */
+/**
+ * Every username an account has moved off of. One row per released handle,
+ * written when the user renames.
+ *
+ * Two jobs:
+ *
+ * 1. **Redirect.** `/u/<old>` keeps resolving to the account that used to
+ *    hold it, for as long as nobody else has taken it. A handle that HAS been
+ *    reclaimed is not in this table any more (the claim deletes the row), so
+ *    the lookup can't send anyone to the wrong person.
+ * 2. **Reserve.** For `USERNAME_RESERVE_MS` after the release, nobody else may
+ *    claim it — the window that stops somebody renaming to a handle its owner
+ *    just vacated and picking up their reputation with it. The original owner
+ *    can always reclaim their own former handle, reserved or not.
+ *
+ * Cascades with the account: deleting a user frees every handle they held.
+ */
+export const usernameHistory = pgTable(
+  'username_history',
+  {
+    /** The released handle. PK, so a handle appears in history at most once. */
+    username: text('username').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    releasedAt: bigint('released_at', { mode: 'number' }).notNull(),
+    /** Epoch ms until which only `userId` may re-claim this handle. */
+    reservedUntil: bigint('reserved_until', { mode: 'number' }).notNull(),
+  },
+  (t) => [index('username_history_user_idx').on(t.userId)]
+);
+
 export const authTokens = pgTable(
   'auth_tokens',
   {

@@ -1,9 +1,10 @@
 import { logger } from '../logger';
+import { findRenamedOwner } from '../username/rename';
 import { Router, type Request, type Response } from 'express';
 import { testAwareLimiter } from '../route-utils';
 import { normalizeUsername, optionalAuth } from '../auth';
 import { getPool } from '../db';
-import { ORIGIN, type ShareLandingMeta } from '../shares/og';
+import { ORIGIN, type ShareLandingMeta, type ShareLandingResult } from '../shares/og';
 import { projectDeck, type PublicDeck } from '../shares/projections';
 import {
   deckPublicationCache,
@@ -273,7 +274,14 @@ publicRouter.get(
     const username = normalizeUsername(req.params.username);
     if (!username) return res.status(404).json(USER_NOT_FOUND);
     const profile = await loadPublicUserProfile(username);
-    if (!profile) return res.status(404).json(USER_NOT_FOUND);
+    if (!profile) {
+      // Same rename case as the SSR landing above, answered in a form a
+      // fetch() can act on: a 3xx here would be followed transparently and
+      // the SPA would never learn to correct its own URL.
+      const renamedTo = await findRenamedOwner(username);
+      if (renamedTo) return res.status(404).json({ ...USER_NOT_FOUND, renamedTo });
+      return res.status(404).json(USER_NOT_FOUND);
+    }
 
     const isOwner = req.user?.id === profile.id;
     if (!isOwner && (profile.profileHiddenAt !== null || profile.decks.length === 0)) {
@@ -345,7 +353,7 @@ export async function lookupPublicDeckLandingMeta(slug: string): Promise<ShareLa
  */
 export async function lookupPublicUserLandingMeta(
   username: string
-): Promise<ShareLandingMeta | null> {
+): Promise<ShareLandingResult | null> {
   // The URL segment is whatever the visitor typed; the canonical must be the
   // one normalized handle, or /u/TradePal and /u/tradepal each claim to be
   // the canonical page of the same profile (playtest batch 11).
@@ -362,7 +370,15 @@ export async function lookupPublicUserLandingMeta(
     [handle]
   );
   const row = rows[0];
-  if (!row || row.profile_hidden_at !== null || !row.has_live) return null;
+  // Nobody holds this handle. If an account released it and it is still
+  // unclaimed, this URL is somebody's old profile link — send the crawler
+  // (and the person) to where that account lives now, rather than 404ing a
+  // link that may be years old and still in the index.
+  if (!row) {
+    const current = await findRenamedOwner(handle);
+    return current ? { redirectTo: `/u/${current}` } : null;
+  }
+  if (row.profile_hidden_at !== null || !row.has_live) return null;
   return {
     title: `${row.display_name ?? handle} on SpellControl`,
     description: `View ${row.display_name ?? handle}'s public decks on SpellControl.`,

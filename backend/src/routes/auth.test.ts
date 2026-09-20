@@ -305,3 +305,121 @@ describe('PATCH /api/auth/profile', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('PATCH /api/auth/me/username', () => {
+  async function signUp(username: string): Promise<string> {
+    const reg = await request(app)
+      .post('/api/auth/register')
+      .send({ username, password: 'correct horse battery' });
+    return extractSessionCookie(reg.headers['set-cookie'])!;
+  }
+
+  it('401s without a session', async () => {
+    const res = await request(app).patch('/api/auth/me/username').send({ username: 'nope' });
+    expect(res.status).toBe(401);
+  });
+
+  it('renames the account and hands back a session carrying the new handle', async () => {
+    const cookie = await signUp('renamer');
+
+    const res = await request(app)
+      .patch('/api/auth/me/username')
+      .set('Cookie', cookie)
+      .send({ username: 'renamed' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.username).toBe('renamed');
+
+    // The response re-mints the cookie, so this device is immediately correct
+    // rather than carrying a stale username claim until the token expires.
+    const fresh = extractSessionCookie(res.headers['set-cookie'])!;
+    const me = await request(app).get('/api/auth/me').set('Cookie', fresh);
+    expect(me.body.user.username).toBe('renamed');
+  });
+
+  it('can sign in under the new handle, and not the old one', async () => {
+    const cookie = await signUp('signinold');
+    await request(app)
+      .patch('/api/auth/me/username')
+      .set('Cookie', cookie)
+      .send({ username: 'signinnew' });
+
+    const asNew = await request(app)
+      .post('/api/auth/login')
+      .send({ username: 'signinnew', password: 'correct horse battery' });
+    expect(asNew.status).toBe(200);
+
+    const asOld = await request(app)
+      .post('/api/auth/login')
+      .send({ username: 'signinold', password: 'correct horse battery' });
+    expect(asOld.status).toBe(401);
+  });
+
+  it('rejects a malformed handle, a reserved word, and a no-op', async () => {
+    const cookie = await signUp('validate');
+    const cases: [unknown, number][] = [
+      ['no', 400],
+      ['Has Spaces', 400],
+      [42, 400],
+      ['admin', 400],
+      ['validate', 400],
+    ];
+    for (const [username, status] of cases) {
+      const res = await request(app)
+        .patch('/api/auth/me/username')
+        .set('Cookie', cookie)
+        .send({ username });
+      expect(res.status, JSON.stringify(username)).toBe(status);
+    }
+  });
+
+  it('409s on a handle somebody already holds', async () => {
+    await signUp('occupied');
+    const cookie = await signUp('hopeful');
+
+    const res = await request(app)
+      .patch('/api/auth/me/username')
+      .set('Cookie', cookie)
+      .send({ username: 'occupied' });
+
+    expect(res.status).toBe(409);
+  });
+
+  it('409s on another account reserved handle without revealing who holds it', async () => {
+    const theirs = await signUp('wasmine');
+    await request(app)
+      .patch('/api/auth/me/username')
+      .set('Cookie', theirs)
+      .send({ username: 'nowmine' });
+    const cookie = await signUp('opportunist');
+
+    const res = await request(app)
+      .patch('/api/auth/me/username')
+      .set('Cookie', cookie)
+      .send({ username: 'wasmine' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.availableAt).toBeGreaterThan(Date.now());
+    // The copy must not say the handle belonged to anyone, or a stranger can
+    // discover that an account renamed.
+    expect(JSON.stringify(res.body)).not.toContain('nowmine');
+    expect(res.body.error).toBe('That username is not available yet.');
+  });
+
+  it('429s a second change inside the cooldown, reporting when it lifts', async () => {
+    const cookie = await signUp('cooldown');
+    const first = await request(app)
+      .patch('/api/auth/me/username')
+      .set('Cookie', cookie)
+      .send({ username: 'cooldownb' });
+    expect(first.status).toBe(200);
+
+    const second = await request(app)
+      .patch('/api/auth/me/username')
+      .set('Cookie', extractSessionCookie(first.headers['set-cookie'])!)
+      .send({ username: 'cooldownc' });
+
+    expect(second.status).toBe(429);
+    expect(second.body.nextChangeAt).toBeGreaterThan(Date.now());
+  });
+});

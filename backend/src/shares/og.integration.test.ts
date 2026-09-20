@@ -24,6 +24,17 @@ import { lookupPublicDeckLandingMeta, lookupPublicUserLandingMeta } from '../rou
 import { shareCache } from './cache';
 import { createShareLandingHandler, lookupShareLandingMeta } from './og';
 
+import type { ShareLandingMeta, ShareLandingResult } from './og';
+
+/** Narrows a landing lookup to the metadata case, failing loudly on the
+ *  rename-redirect case so a test never silently asserts against `undefined`. */
+function asMeta(result: ShareLandingResult | null): ShareLandingMeta {
+  if (!result || 'redirectTo' in result) {
+    throw new Error(`expected landing meta, got ${JSON.stringify(result)}`);
+  }
+  return result;
+}
+
 let app: Server;
 let pool: Pool;
 let cleanup: () => Promise<void>;
@@ -606,11 +617,10 @@ describe('lookupPublicDeckLandingMeta', () => {
 describe('lookupPublicUserLandingMeta', () => {
   it('is indexable for a user with at least one live publication', async () => {
     await publishLandingDeck('land-user-live', 'lu-live');
-    const meta = await lookupPublicUserLandingMeta('land-user-live');
-    expect(meta).not.toBeNull();
-    expect(meta!.indexable).toBe(true);
-    expect(meta!.title).toBe('land-user-live display on SpellControl');
-    expect(meta!.url).toBe('https://spellcontrol.com/u/land-user-live');
+    const meta = asMeta(await lookupPublicUserLandingMeta('land-user-live'));
+    expect(meta.indexable).toBe(true);
+    expect(meta.title).toBe('land-user-live display on SpellControl');
+    expect(meta.url).toBe('https://spellcontrol.com/u/land-user-live');
   });
 
   it('returns null (Folded blocking fix #2) for a user with zero live publications', async () => {
