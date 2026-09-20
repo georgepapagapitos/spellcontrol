@@ -308,6 +308,24 @@ export function projectBulkCard(card: BulkCard): ScryfallCard | null {
     type_line: card.type_line,
     power: card.power,
     toughness: card.toughness,
+    // A planeswalker's starting loyalty, same class as power/toughness —
+    // the card detail and preview panes print it.
+    loyalty: card.loyalty,
+    // What a land or rock taps for. The mana-base analysis, the cost
+    // analyzer and `lib/mana-sources` all read it; without it a Command
+    // Tower produces no colours as far as this app is concerned.
+    produced_mana: card.produced_mana,
+    // Partner detection, flash/changeling checks, the commander profile —
+    // roughly twenty reads across the deck builder.
+    keywords: card.keywords,
+    // Arena-only filtering. The ingest already drops digital-only
+    // printings, so this is belt-and-braces — but a live-fetched card
+    // carries it, and a cached one reading differently from a fetched one
+    // is exactly the inconsistency this whole whitelist keeps producing.
+    games: card.games,
+    // Printed flavour text, for the card detail pane. Same weight class as
+    // `oracle_text`, which is already here.
+    flavor_text: card.flavor_text,
     // Distilled rather than stored raw: `all_parts` carries a uri + id per
     // related card and would roughly double a token-maker's cached row, for
     // two fields anybody reads. Without this the deck-token checklist — the
