@@ -3784,6 +3784,16 @@ button.playtest-card-pt__value--editable:focus-visible {
 
 /* A card in hand the whole table can see (R). Marked in place, at the
    bottom of the card so it never fights the mana-cost badge at the top. */
+/* Arranging the hand (E348): every card in hand is also a drop target for its
+   neighbours, so dragging one onto another puts it in that place. The droppable
+   rides the card's own node (nothing wraps it, so the fan's geometry is
+   untouched) and lights only while a card is held over it. */
+.playtest-card.is-hand-drop {
+  box-shadow:
+    inset 0 0 0 3px var(--accent),
+    0 0 0 1px var(--accent);
+}
+
 .playtest-hand__flat {
   position: relative;
 }

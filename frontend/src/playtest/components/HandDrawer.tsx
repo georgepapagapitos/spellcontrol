@@ -113,6 +113,7 @@ function HandSheet({
         ) : (
           <Hand
             cards={cards}
+            reorderable
             revealedIds={revealedIds}
             onCardClick={(cardId, index) => {
               onCardClick(cardId, index);

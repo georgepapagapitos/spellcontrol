@@ -1426,3 +1426,43 @@ describe('ADJUST_MANA / EMPTY_MANA_POOL', () => {
     });
   });
 });
+
+/**
+ * E348: arranging the hand moved out of the opening-hand takeover (where it
+ * competed with tap-to-select in the mulligan-bottom step) and into the hand
+ * you actually play with. The order is private — nobody else ever sees a
+ * hand — but it lives in the state so it survives a reload of the session.
+ */
+describe('REORDER_HAND', () => {
+  const handOf = (s: PlaytestState) => s.zones.hand.map((c) => c.id);
+
+  it('moves a card to the position it was dropped on', () => {
+    let s = init(20, 1, 4);
+    const third = handOf(s)[2];
+    s = applyAction(s, { type: 'REORDER_HAND', cardId: third, toIndex: 0 });
+    expect(handOf(s)[0]).toBe(third);
+    expect(s.zones.hand).toHaveLength(4);
+  });
+
+  it('clamps a position past the end, and no-ops on a card that is not in hand', () => {
+    let s = init(20, 1, 3);
+    const first = handOf(s)[0];
+    s = applyAction(s, { type: 'REORDER_HAND', cardId: first, toIndex: 99 });
+    expect(handOf(s)[2]).toBe(first);
+
+    const settled = s;
+    expect(applyAction(s, { type: 'REORDER_HAND', cardId: first, toIndex: 2 })).toBe(settled);
+    expect(applyAction(s, { type: 'REORDER_HAND', cardId: 'nope', toIndex: 0 })).toBe(settled);
+  });
+
+  it('moves nothing between zones — every card is where it was', () => {
+    const before = init(20, 1, 5);
+    const after = applyAction(before, {
+      type: 'REORDER_HAND',
+      cardId: handOf(before)[4],
+      toIndex: 1,
+    });
+    expect(allCardIds(after)).toEqual(allCardIds(before));
+    expect(after.zones.library).toEqual(before.zones.library);
+  });
+});

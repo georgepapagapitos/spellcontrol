@@ -32,6 +32,10 @@ interface Props {
   /** Cards currently being shown to the table (R). Marked in place rather
    *  than moved: it is still in your hand, everyone can just see it. */
   revealedIds?: ReadonlySet<string>;
+  /** Arranging the hand is on (E348): every card also becomes a drop target,
+   *  so dragging one onto another puts it in that place. The board owns the
+   *  drop itself — this only registers the targets. */
+  reorderable?: boolean;
 }
 
 /**
@@ -77,7 +81,14 @@ function useContainerWidth(ref: React.RefObject<HTMLDivElement | null>): number 
   return width;
 }
 
-export function Hand({ cards, fan = false, onCardClick, onCardMenu, revealedIds }: Props) {
+export function Hand({
+  cards,
+  fan = false,
+  onCardClick,
+  onCardMenu,
+  revealedIds,
+  reorderable = false,
+}: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: 'hand' });
   const rootRef = useRef<HTMLDivElement | null>(null);
   const containerW = useContainerWidth(rootRef);
@@ -123,6 +134,7 @@ export function Hand({ cards, fan = false, onCardClick, onCardMenu, revealedIds 
       key={c.id}
       card={c}
       draggableId={`hand:${c.id}`}
+      handSlot={reorderable}
       size="sm"
       onClick={onCardClick ? (cardId) => onCardClick(cardId, i) : undefined}
       onContextMenu={
@@ -134,7 +146,11 @@ export function Hand({ cards, fan = false, onCardClick, onCardMenu, revealedIds 
           : undefined
       }
       onLongPress={onCardMenu}
-      title={onCardMenu ? 'Click to play · right-click or hold for options' : undefined}
+      title={
+        onCardMenu
+          ? `Click to play${reorderable ? ' · drag onto another card to arrange' : ''} · right-click or hold for options`
+          : undefined
+      }
     />
   );
 

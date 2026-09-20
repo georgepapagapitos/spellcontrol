@@ -156,6 +156,10 @@ export function classifyAction(
     case 'MOVE_BF_POSITION':
       return classification('free', 'A drag on the mat. No zone or information changed.');
 
+    case 'REORDER_HAND':
+      // Nobody else can see your hand, let alone the order you hold it in.
+      return classification('free', 'Arranging your own hand. Nothing left it, and nobody saw.');
+
     case 'TAP':
       // Arguable: a tap is visible to the whole table, and can represent an
       // attack declaration or ability activation others already reacted to —
