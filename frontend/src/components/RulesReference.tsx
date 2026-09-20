@@ -21,6 +21,13 @@ export function isRulesReferenceTab(v: string | null | undefined): v is RulesRef
   return !!v && RULES_REFERENCE_TABS.has(v);
 }
 
+/**
+ * A query that is only a rule number: "701", "701.2", "702.2b". Three digits
+ * before anything counts — a section number is the shortest real one, and
+ * fewer would yank the tab away mid-keystroke.
+ */
+const RULE_NUMBER = /^\d{3}(\.\d+[a-z]?)?$/;
+
 const PLACEHOLDER: Record<RulesReferenceTab, string> = {
   keywords: 'Search keywords',
   glossary: 'Search terms',
@@ -108,6 +115,19 @@ export function RulesReference({
 
   const menu: MenuProps = { onAsk, onLeave };
 
+  /**
+   * Typing a rule number anywhere in the reference goes to the rules. Keywords
+   * and the glossary are indexed by name, so a number searched there found
+   * nothing and said so — while the answer sat one tab over.
+   */
+  const handleQueryChange = (next: string) => {
+    onQueryChange(next);
+    if (tab !== 'rules' && RULE_NUMBER.test(next.trim())) {
+      onTabChange('rules');
+      setExpanded(null);
+    }
+  };
+
   const tabs = [
     { id: 'keywords' as const, label: 'Keywords', controls: 'rules-ref-panel' },
     { id: 'glossary' as const, label: 'Glossary', controls: 'rules-ref-panel' },
@@ -119,7 +139,7 @@ export function RulesReference({
       <div className={`rules-ref-search${searchClassName ? ` ${searchClassName}` : ''}`}>
         <SearchPill
           value={query}
-          onChange={onQueryChange}
+          onChange={handleQueryChange}
           placeholder={PLACEHOLDER[tab]}
           ariaLabel="Search rules reference"
           autoFocus={autoFocusSearch}
@@ -278,8 +298,12 @@ function KeywordList({
           question: `How does ${k.name} work?`,
         };
         return (
-          <li key={`${k.kind}-${k.rule}`} className="rules-ref-keyword">
-            <div className="rules-ref-keyword-row" onContextMenu={openEntryMenu}>
+          <li
+            key={`${k.kind}-${k.rule}`}
+            className="rules-ref-keyword"
+            onContextMenu={openEntryMenu}
+          >
+            <div className="rules-ref-keyword-row">
               <button
                 type="button"
                 className="rules-ref-keyword-head"
