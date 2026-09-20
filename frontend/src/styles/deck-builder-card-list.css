@@ -446,22 +446,20 @@
   min-width: 0;
 }
 
+/* Icon + title(+gauge) + (subtotal) + (headerAction) — up to 4 children when
+   the price subtotal and the Commander section's "Edit partner" control show
+   at once. Flex, not grid: the old `auto 1fr auto` grid had nowhere to put a
+   4th child, so it was forced onto its own full-width row and a partnered
+   Commander header spent a whole stretched line on one text link. Everything
+   now rides the single header line, with the title cell absorbing the slack. */
 .deck-section-header {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.55rem;
   padding: var(--space-1) 0.1rem 0.55rem;
   border-bottom: 0.5px solid var(--border);
   margin-bottom: 0.45rem;
-}
-
-/* Icon + title + (subtotal) + (headerAction) can be 4 children (both the
-   price subtotal and the new-arrivals chip showing at once). Grid
-   auto-placement would otherwise drop the 4th into row 2's first (icon-sized)
-   column, widening it — force it onto its own full-width row instead. */
-.deck-section-header > :nth-child(4) {
-  grid-column: 1 / -1;
 }
 
 .deck-section-icon {
@@ -478,6 +476,7 @@
    the heading's place. */
 .deck-section-title-row {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
@@ -509,13 +508,18 @@
 }
 
 .deck-section-subtotal {
+  flex-shrink: 0;
   font-size: var(--text-xs);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
-/* "Add/Edit partner" control in the Commander section header. */
+/* "Add/Edit partner" control in the Commander section header. Last child of a
+   wrapping flex header, so `margin-left: auto` keeps it hugging the right edge
+   whether it shares the title's line or wraps below it. */
 .deck-section-partner-btn {
+  flex-shrink: 0;
+  margin-left: auto;
   font-size: var(--text-xs);
   white-space: nowrap;
 }
