@@ -12,7 +12,12 @@ import { CardPreview, type CardPreviewAction } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ColorPip } from './shared/ManaSymbol';
 import { CardRow } from './shared/CardRow';
-import { BINDER_TABLE_COLUMNS, CardTableFrame, CardTableHead } from './shared/CardTable';
+import {
+  BINDER_TABLE_COLUMNS,
+  CardTableFrame,
+  CardTableHead,
+  visibleColumns,
+} from './shared/CardTable';
 import { useMediaQuery } from '../lib/use-media-query';
 import {
   buildEditedCards,
@@ -207,6 +212,11 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
   }, [binder, qtyByCopyId]);
   const qtyOf = (card: EnrichedCard) => flat.qtyByCopy.get(card.copyId) ?? 1;
 
+  // Cond, Lang and Notes earn their tracks only if some copy on this page has
+  // something to put in them — otherwise the binder spends three columns, one
+  // of them two `fr` wide, saying NM / EN / nothing a thousand times over.
+  const columns = useMemo(() => visibleColumns(BINDER_TABLE_COLUMNS, flat.cards), [flat.cards]);
+
   const toggle = (key: string) => {
     setCollapsed((prev) => {
       const next = new Set(prev);
@@ -334,8 +344,8 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
         {viewToggle && <div className="binder-summary-viewmode">{viewToggle}</div>}
         <Legend context="binder" variant="pill" align="right" />
       </div>
-      <CardTableFrame columns={BINDER_TABLE_COLUMNS}>
-        {isTable && <CardTableHead columns={BINDER_TABLE_COLUMNS} />}
+      <CardTableFrame columns={columns}>
+        {isTable && <CardTableHead columns={columns} />}
         {flat.sectionRows.map(({ sectionKey, rows }) => {
           const section = binder.sections.find((s) => s.key === sectionKey);
           if (!section) return null;
@@ -380,7 +390,7 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
                       key={r.key}
                       card={r.card}
                       qty={r.qty}
-                      columns={isTable ? BINDER_TABLE_COLUMNS : undefined}
+                      columns={isTable ? columns : undefined}
                       allocations={allocationsFor(r.card, r.qty)}
                       pageNum={r.pageNum}
                       pricePending={isRefreshingPrices && !((r.card.purchasePrice ?? 0) > 0)}

@@ -1167,6 +1167,20 @@ own table.
   editor exists; a shared view drops the owner's private annotations and the
   per-row menu, and drops Qty/Price/Total outright when the surface withholds
   them rather than heading three empty tracks.
+- **A column earns its track by being used, on a surface you browse.** Cond,
+  Lang and Notes are blank on a copy that carries nothing unusual. A binder or
+  a list runs its preset through `visibleColumns(preset, copies)` and drops the
+  ones no visible row fills, because a 1,000-card binder otherwise spends three
+  tracks — one of them the second-widest in the table — printing "NM", "EN" and
+  nothing. **Collection is the exception and keeps them:** it is the audit view,
+  where those are columns you sort and scan by, and one that vanished whenever
+  every copy happened to be near-mint would be worse than one that reads NM.
+- **Size a column track for its HEADER, not its data.** The header is uppercase
+  `--text-xs` with tracking and may carry a 14px sort arrow, so a track sized to
+  its values clips its own label — `--ct-w-qty: 3ch` fit "999" and rendered
+  "QTY" as "TY". Tracks are declared in `rem`, never `ch` (which measures the
+  wrapper's font, not the header's). `card-table-header-fit.test.ts` recomputes
+  every floor.
 - **Sortable only where a click sorts.** A column renders as a button only when
   the surface maps it to a sort key. Collection and Lists do; a binder's order
   is rule-driven, so its headers are labels. A header you can click that does
@@ -1180,6 +1194,11 @@ own table.
   White / Blue / Multicolor sections) the header sits above every section
   inside one `CardTableFrame`, so the columns line up across the whole binder
   instead of each block finding its own widths.
+- **The header pins below whatever is sticky above it.** A table nested under a
+  hub's tab strip pins at `--hub-tabs-sticky-h`, not at the top of the
+  scrollport — which is behind the tabs, where the header vanishes for the whole
+  scroll. A surface with a deeper stack (Collection: tabs + search + controls)
+  measures its own offset and passes `top` inline, which wins over the CSS.
 
 ## Card-name chips
 

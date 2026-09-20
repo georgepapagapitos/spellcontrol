@@ -7,7 +7,9 @@
  *
  * Binder and Notes are collection-copy facts a printing reference doesn't
  * carry, so they aren't in the preset. The inline target-price editor is the
- * column that exists only where the editor does: a want list.
+ * column that exists only where the editor does: a want list. Cond and Lang
+ * are in the preset but only render when some row deviates from NM English —
+ * a browse surface doesn't spend a track on a fact no row has.
  */
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -40,7 +42,14 @@ vi.mock('./CardEditDialog', () => ({ CardEditDialog: () => null }));
 vi.mock('./InlineCardSearch', () => ({ InlineCardSearch: () => null }));
 
 import { ListDetailView } from './ListDetailView';
-import { LIST_TABLE_COLUMNS, LIST_TABLE_COLUMNS_WITH_TARGET } from './shared/CardTable';
+import {
+  LIST_TABLE_COLUMNS,
+  LIST_TABLE_COLUMNS_WITH_TARGET,
+  type CardTableCol,
+} from './shared/CardTable';
+
+/** Columns that only render when a row deviates; no fixture card here does. */
+const ANNOTATION: CardTableCol[] = ['cond', 'lang'];
 
 const list = { id: 'l1', name: 'Probe list', entries: [] } as unknown as ListDef;
 
@@ -108,7 +117,7 @@ describe('a list in compact view at tablet width and up', () => {
     const cols = [...container.querySelectorAll('.collection-table-head > [data-col]')].map((el) =>
       el.getAttribute('data-col')
     );
-    expect(cols).toEqual([...LIST_TABLE_COLUMNS_WITH_TARGET]);
+    expect(cols).toEqual(LIST_TABLE_COLUMNS_WITH_TARGET.filter((c) => !ANNOTATION.includes(c)));
     // Collection-copy facts a printing reference doesn't carry.
     expect(cols).not.toContain('binder');
     expect(cols).not.toContain('notes');
@@ -120,7 +129,7 @@ describe('a list in compact view at tablet width and up', () => {
     const cols = [...container.querySelectorAll('.collection-table-head > [data-col]')].map((el) =>
       el.getAttribute('data-col')
     );
-    expect(cols).toEqual([...LIST_TABLE_COLUMNS]);
+    expect(cols).toEqual(LIST_TABLE_COLUMNS.filter((c) => !ANNOTATION.includes(c)));
     expect(cols).not.toContain('target');
   });
 
@@ -139,8 +148,8 @@ describe('a list in compact view at tablet width and up', () => {
   it('leaves columns without a sort key as labels, not dead buttons', () => {
     renderList();
     toCompact();
-    expect(screen.queryByRole('button', { name: /Sort by Lang/ })).toBeNull();
-    expect(screen.getByText('Lang')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Sort by Total/ })).toBeNull();
+    expect(screen.getByText('Total')).toBeTruthy();
   });
 });
 
