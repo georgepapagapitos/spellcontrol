@@ -221,6 +221,14 @@ describe('WelcomePage renders', () => {
     expect(screen.getByRole('link', { name: /sign in/i }).getAttribute('href')).toBe('/auth');
   });
 
+  it('offers a way past the storefront that asks for nothing', () => {
+    renderWelcome();
+    // Without this the gate has no exit that is not a commitment: import a
+    // collection, load cards you do not own, or make an account.
+    const skip = screen.getByRole('link', { name: /look around first/i });
+    expect(skip.getAttribute('href')).toBe('/collection');
+  });
+
   it('shows the trending rail\'s "View all" link to Discover once there are enough fresh decks', async () => {
     mockListDiscoverDecks.mockResolvedValue({
       decks: [makeDeck({ slug: 'a' }), makeDeck({ slug: 'b' }), makeDeck({ slug: 'c' })],
@@ -346,6 +354,13 @@ describe('Dismissal persistence — no reshow', () => {
     renderWelcome();
     fireEvent.click(screen.getByRole('button', { name: /try sample cards/i }));
     await waitFor(() => expect(hasEverVisited()).toBe(true));
+  });
+
+  it('hasEverVisited becomes true after Look around first, so the gate lets go', () => {
+    renderWelcome();
+    fireEvent.click(screen.getByRole('link', { name: /look around first/i }));
+    // The whole point: useFirstRunGate must stop bouncing this device.
+    expect(hasEverVisited()).toBe(true);
   });
 
   it('hasEverVisited is still false after Sign in (auth not yet completed)', () => {
