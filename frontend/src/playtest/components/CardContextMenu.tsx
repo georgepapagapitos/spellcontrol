@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { usePressRepeat } from '@/lib/use-press-repeat';
 import type { Zone } from '@/lib/playtest';
 import { MOVE_DESTINATIONS, destinationKey } from '../lib/zones';
+import type { ShortcutId } from '../lib/shortcuts';
 import { CtxMenuShell } from './CtxMenuShell';
 
 interface Props {
@@ -31,6 +33,13 @@ interface Props {
    *  reminder flag, no rules enforcement. See `BattlefieldCard.phased`. */
   phased?: boolean;
   variant?: 'floating' | 'sheet';
+  /** Which page the menu opens on. The counters key (J) opens it straight on
+   *  Counters rather than making the player drill in by hand. */
+  initialPage?: CardMenuPage;
+  /** The live binding for a shortcut, already formatted for display — every
+   *  row that has one prints it, so the menu teaches the keyboard instead of
+   *  competing with it. Omitted (tests, previews) simply prints no keys. */
+  keyFor?(id: ShortcutId): string | undefined;
   onClose(): void;
   /** Opens the shared CardPreview (B6-07). Omitted (no menu item) when this
    *  card has no resolvable ScryfallCard to preview. */
@@ -38,6 +47,9 @@ interface Props {
   onTap(): void;
   onAddCounter(kind: string): void;
   onRemoveCounter(kind: string): void;
+  /** Bulk steps across every counter already on the card. Omitted hides the
+   *  rows, as does a card with no counters (all three are no-ops there). */
+  onAdjustAllCounters?(op: 'inc' | 'dec' | 'double'): void;
   onAddSticker(text: string): void;
   onRemoveSticker(index: number): void;
   onFlip(): void;
@@ -48,6 +60,9 @@ interface Props {
    *  they have already pumped. */
   pt?: { power: number; toughness: number };
   onAdjustPT(power: number, toughness: number): void;
+  /** Starts an arrow from this card. Online tables only — an arrow with
+   *  nobody to see it is a note to yourself. Omitted hides the row. */
+  onDrawArrow?(): void;
   /** Put this card on the stack, or put a copy of it there. */
   onPutOnStack(copy: boolean): void;
   /** Token-copy this card. When a multi-card selection is active and includes
@@ -60,6 +75,75 @@ interface Props {
 
 const COUNTER_KINDS = ['+1/+1', '-1/-1', 'loyalty', 'charge'];
 const MAX_COUNTER_NAME = 20;
+
+/** Which shortcut each Move-to destination answers to, so the submenu prints
+ *  the same keys the board already listens for. The command zone has none. */
+const MOVE_SHORTCUT: Record<string, ShortcutId | undefined> = {
+  'hand:end': 'to-hand',
+  'graveyard:end': 'to-graveyard',
+  'exile:end': 'to-exile',
+  'library:0': 'to-library-top',
+  'library:end': 'to-library-bottom',
+  'command:end': undefined,
+};
+
+/** The pages this menu drills into. `root` is the short action list; the rest
+ *  are one level down, reached by a `▸` row and left by the back row. */
+export type CardMenuPage = 'root' | 'counters' | 'pt' | 'move' | 'more';
+type Page = CardMenuPage;
+
+const PAGE_TITLE: Record<Exclude<Page, 'root'>, string> = {
+  counters: 'Counters',
+  pt: 'Power / toughness',
+  move: 'Move to',
+  more: 'More',
+};
+
+/** One action row: what it does, and the key that does the same thing. */
+function MenuAction({
+  label,
+  shortcut,
+  onClick,
+  pressed,
+}: {
+  label: string;
+  shortcut?: string;
+  onClick(): void;
+  pressed?: boolean;
+}) {
+  return (
+    <button type="button" className="playtest-ctx-action" onClick={onClick} aria-pressed={pressed}>
+      <span>{label}</span>
+      {shortcut && <kbd className="playtest-ctx-key">{shortcut}</kbd>}
+    </button>
+  );
+}
+
+/** One row that opens a page instead of doing something. */
+function MenuSubmenu({
+  label,
+  shortcut,
+  onOpen,
+}: {
+  label: string;
+  shortcut?: string;
+  onOpen(): void;
+}) {
+  return (
+    <button
+      type="button"
+      className="playtest-ctx-action playtest-ctx-action--submenu"
+      aria-haspopup="menu"
+      onClick={onOpen}
+    >
+      <span>{label}</span>
+      <span className="playtest-ctx-action__end">
+        {shortcut && <kbd className="playtest-ctx-key">{shortcut}</kbd>}
+        <ChevronRight width={14} height={14} aria-hidden />
+      </span>
+    </button>
+  );
+}
 
 /** A ± counter step that repeats while held. Own component because the hook
  *  can't be called inside the `.map` below. */
@@ -80,6 +164,17 @@ function CounterStep({
   );
 }
 
+/**
+ * The menu behind a right-click / long-press on a battlefield permanent.
+ *
+ * A short list of actions with four drill-downs rather than one scrolling
+ * panel: everything that needs a stepper, a picker or a text field — counters,
+ * power/toughness, the zone list, and the rarely-wanted rest — lives one row
+ * down, so the menu opens at a size a player can read at a glance. Every row
+ * prints its live binding, the same one the board's keydown handler
+ * dispatches: the menu is the discoverable face of the keyboard map, never a
+ * second set of behaviour.
+ */
 export function CardContextMenu({
   x,
   y,
@@ -95,11 +190,14 @@ export function CardContextMenu({
   faceDown = false,
   phased = false,
   variant = 'floating',
+  initialPage = 'root',
+  keyFor,
   onClose,
   onPreview,
   onTap,
   onAddCounter,
   onRemoveCounter,
+  onAdjustAllCounters,
   onAddSticker,
   onRemoveSticker,
   onFlip,
@@ -107,13 +205,17 @@ export function CardContextMenu({
   onTogglePhased,
   pt,
   onAdjustPT,
+  onDrawArrow,
   onPutOnStack,
   onDuplicate,
   selectionSize = 1,
   onMoveTo,
 }: Props) {
+  const [page, setPage] = useState<Page>(initialPage);
   const [stickerText, setStickerText] = useState('');
   const [counterText, setCounterText] = useState('');
+
+  const key = (id: ShortcutId) => keyFor?.(id);
 
   function submitSticker() {
     const text = stickerText.trim();
@@ -136,123 +238,188 @@ export function CardContextMenu({
     ...COUNTER_KINDS,
     ...Object.keys(counters).filter((k) => !COUNTER_KINDS.includes(k)),
   ];
+  const hasCounters = Object.keys(counters).length > 0;
 
-  // Action list — identical markup in both variants; only the surrounding
-  // chrome differs (a cursor-anchored popover vs. the shared bottom sheet).
-  const items = (
+  const root = (
     <>
       {Boolean(tax) && <div className="playtest-ctx-tax">Tax: +{tax}</div>}
-      {onPreview && (
-        <button type="button" className="playtest-ctx-action" onClick={onPreview}>
-          Preview card
-        </button>
+      <MenuAction
+        label={tapped ? 'Untap' : 'Tap'}
+        shortcut={key('tap-selection')}
+        onClick={onTap}
+      />
+      <MenuSubmenu label="Counters" shortcut={key('counters')} onOpen={() => setPage('counters')} />
+      <MenuSubmenu label="Power / toughness" onOpen={() => setPage('pt')} />
+      <MenuSubmenu label="Move to" onOpen={() => setPage('move')} />
+      <MenuAction
+        label={faceDown ? 'Turn face up' : 'Turn face down'}
+        shortcut={key('face-down')}
+        onClick={onFlip}
+      />
+      <MenuAction
+        label={selectionSize > 1 ? `Make ${selectionSize} token copies` : 'Make a token copy'}
+        shortcut={key('clone')}
+        onClick={onDuplicate}
+      />
+      {onDrawArrow && (
+        <MenuAction label="Draw an arrow" shortcut={key('arrow')} onClick={onDrawArrow} />
       )}
-      <button type="button" className="playtest-ctx-action" onClick={onTap}>
-        {tapped ? 'Untap' : 'Tap'}
-      </button>
-      <button type="button" className="playtest-ctx-action" onClick={onFlip}>
-        {faceDown ? 'Turn face up' : 'Turn face down'}
-      </button>
-      <button
-        type="button"
-        className="playtest-ctx-action"
-        onClick={onTogglePhased}
-        aria-pressed={phased}
-      >
-        {phased ? 'Phase in' : 'Phase out'}
-      </button>
-      <button type="button" className="playtest-ctx-action" onClick={onDuplicate}>
-        {selectionSize > 1 ? `Duplicate ${selectionSize} selected` : 'Duplicate'}
-      </button>
-      <button type="button" className="playtest-ctx-action" onClick={() => onPutOnStack(false)}>
-        Put on the stack
-      </button>
-      <button type="button" className="playtest-ctx-action" onClick={() => onPutOnStack(true)}>
-        Copy onto the stack
-      </button>
-      {canTransform && (
-        <button type="button" className="playtest-ctx-action" onClick={onTransform}>
-          Transform
+      <MenuAction
+        label="Put on the stack"
+        shortcut={key('stack-add')}
+        onClick={() => onPutOnStack(false)}
+      />
+      {onPreview && <MenuAction label="View information" onClick={onPreview} />}
+      <MenuSubmenu label="More" onOpen={() => setPage('more')} />
+    </>
+  );
+
+  const countersPage = (
+    <>
+      {counterKinds.map((k) => (
+        <div key={k} className="playtest-ctx-counter">
+          <span>{k}</span>
+          <span className="playtest-ctx-counter__value" aria-hidden>
+            {counters[k] ?? 0}
+          </span>
+          <CounterStep
+            label={`Remove ${k}, currently ${counters[k] ?? 0}`}
+            onAdjust={() => onRemoveCounter(k)}
+          >
+            −
+          </CounterStep>
+          <CounterStep
+            label={`Add ${k}, currently ${counters[k] ?? 0}`}
+            onAdjust={() => onAddCounter(k)}
+          >
+            +
+          </CounterStep>
+        </div>
+      ))}
+      {/* The reducer already accepts any counter name — this input is the
+          only thing that was missing for saga chapters, ascend, fade, etc. */}
+      <div className="playtest-ctx-counter-add">
+        <input
+          type="text"
+          value={counterText}
+          onChange={(e) => setCounterText(e.target.value)}
+          placeholder="chapter"
+          maxLength={MAX_COUNTER_NAME}
+          aria-label="Counter name"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submitCounter();
+          }}
+        />
+        <button
+          type="button"
+          disabled={!counterText.trim()}
+          onClick={submitCounter}
+          aria-label="Add counter"
+        >
+          Add
         </button>
+      </div>
+      {/* Bulk steps act on every kind at once — the saga-and-charge card where
+          stepping each kind by hand is the tedious part. */}
+      {onAdjustAllCounters && hasCounters && (
+        <div className="playtest-ctx-group">
+          <div className="playtest-ctx-heading">Every counter</div>
+          <MenuAction
+            label="Add one to each"
+            shortcut={key('counters-all-inc')}
+            onClick={() => onAdjustAllCounters('inc')}
+          />
+          <MenuAction
+            label="Take one off each"
+            shortcut={key('counters-all-dec')}
+            onClick={() => onAdjustAllCounters('dec')}
+          />
+          <MenuAction
+            label="Double each"
+            shortcut={key('counters-all-double')}
+            onClick={() => onAdjustAllCounters('double')}
+          />
+        </div>
       )}
-      <div className="playtest-ctx-group">
-        <div className="playtest-ctx-heading">Power / toughness</div>
-        {/* A running modifier, not an absolute — the card face adds it to the
-            printed body. Kept apart from the +1/+1 counters below because a
-            pump that wears off at end of turn and a counter that stays are
-            different things at a real table. */}
-        {(
+    </>
+  );
+
+  const ptPage = (
+    <>
+      {/* A running modifier, not an absolute — the card face adds it to the
+          printed body. Kept apart from the +1/+1 counters because a pump that
+          wears off at end of turn and a counter that stays are different
+          things at a real table. */}
+      {(
+        [
+          ['Power', pt?.power ?? 0, (d: number) => onAdjustPT(d, 0), 'power-inc', 'power-dec'],
           [
-            ['Power', pt?.power ?? 0, (d: number) => onAdjustPT(d, 0)],
-            ['Toughness', pt?.toughness ?? 0, (d: number) => onAdjustPT(0, d)],
-          ] as const
-        ).map(([label, value, adjust]) => (
+            'Toughness',
+            pt?.toughness ?? 0,
+            (d: number) => onAdjustPT(0, d),
+            'toughness-inc',
+            'toughness-dec',
+          ],
+        ] as const
+      ).map(([label, value, adjust, upId, downId]) => {
+        const reading = value >= 0 ? `+${value}` : String(value);
+        const down = key(downId);
+        const up = key(upId);
+        return (
           <div key={label} className="playtest-ctx-counter">
             <span>{label}</span>
             <span className="playtest-ctx-counter__value" aria-hidden>
-              {value >= 0 ? `+${value}` : value}
+              {reading}
             </span>
             <CounterStep
-              label={`${label} down, currently ${value >= 0 ? `+${value}` : value}`}
+              label={`${label} down, currently ${reading}${down ? `, ${down}` : ''}`}
               onAdjust={() => adjust(-1)}
             >
               −
             </CounterStep>
             <CounterStep
-              label={`${label} up, currently ${value >= 0 ? `+${value}` : value}`}
+              label={`${label} up, currently ${reading}${up ? `, ${up}` : ''}`}
               onAdjust={() => adjust(1)}
             >
               +
             </CounterStep>
           </div>
-        ))}
-      </div>
-      <div className="playtest-ctx-group">
-        <div className="playtest-ctx-heading">Counters</div>
-        {counterKinds.map((k) => (
-          <div key={k} className="playtest-ctx-counter">
-            <span>{k}</span>
-            <span className="playtest-ctx-counter__value" aria-hidden>
-              {counters[k] ?? 0}
-            </span>
-            <CounterStep
-              label={`Remove ${k}, currently ${counters[k] ?? 0}`}
-              onAdjust={() => onRemoveCounter(k)}
-            >
-              −
-            </CounterStep>
-            <CounterStep
-              label={`Add ${k}, currently ${counters[k] ?? 0}`}
-              onAdjust={() => onAddCounter(k)}
-            >
-              +
-            </CounterStep>
-          </div>
-        ))}
-        {/* The reducer already accepts any counter name — this input is the
-            only thing that was missing for saga chapters, ascend, fade, etc. */}
-        <div className="playtest-ctx-counter-add">
-          <input
-            type="text"
-            value={counterText}
-            onChange={(e) => setCounterText(e.target.value)}
-            placeholder="chapter"
-            maxLength={MAX_COUNTER_NAME}
-            aria-label="Counter name"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') submitCounter();
-            }}
+        );
+      })}
+    </>
+  );
+
+  const movePage = (
+    <>
+      {MOVE_DESTINATIONS.map((z) => {
+        const id = MOVE_SHORTCUT[destinationKey(z)];
+        return (
+          <MenuAction
+            key={destinationKey(z)}
+            label={z.label}
+            shortcut={id && key(id)}
+            onClick={() => onMoveTo(z.key, z.toIndex)}
           />
-          <button
-            type="button"
-            disabled={!counterText.trim()}
-            onClick={submitCounter}
-            aria-label="Add counter"
-          >
-            Add
-          </button>
-        </div>
-      </div>
+        );
+      })}
+    </>
+  );
+
+  const morePage = (
+    <>
+      {canTransform && (
+        <MenuAction label="Transform" shortcut={key('transform')} onClick={onTransform} />
+      )}
+      <MenuAction
+        label={phased ? 'Phase in' : 'Phase out'}
+        onClick={onTogglePhased}
+        pressed={phased}
+      />
+      <MenuAction
+        label="Copy onto the stack"
+        shortcut={key('stack-copy')}
+        onClick={() => onPutOnStack(true)}
+      />
       {(attachTargets.length > 0 || attachedToName) && (
         <div className="playtest-ctx-group">
           <div className="playtest-ctx-heading">Attached to</div>
@@ -330,25 +497,40 @@ export function CardContextMenu({
           </div>
         ))}
       </div>
-      <div className="playtest-ctx-group">
-        <div className="playtest-ctx-heading">Move to</div>
-        {MOVE_DESTINATIONS.map((z) => (
-          <button
-            key={destinationKey(z)}
-            type="button"
-            className="playtest-ctx-action"
-            onClick={() => onMoveTo(z.key, z.toIndex)}
-          >
-            {z.label}
-          </button>
-        ))}
-      </div>
     </>
   );
 
+  const pages: Record<Page, React.ReactNode> = {
+    root,
+    counters: countersPage,
+    pt: ptPage,
+    move: movePage,
+    more: morePage,
+  };
+
   return (
-    <CtxMenuShell x={x} y={y} title={cardName} variant={variant} onClose={onClose}>
-      {items}
+    <CtxMenuShell
+      x={x}
+      y={y}
+      title={page === 'root' ? cardName : PAGE_TITLE[page]}
+      variant={variant}
+      // A page swap changes the panel's height, so the floating variant
+      // re-clamps, and focus lands on the new page's first row.
+      contentKey={page}
+      onClose={onClose}
+    >
+      {page !== 'root' && (
+        <button
+          type="button"
+          className="playtest-ctx-back"
+          onClick={() => setPage('root')}
+          aria-label={`Back to ${cardName}`}
+        >
+          <ChevronLeft width={14} height={14} aria-hidden />
+          <span>{cardName}</span>
+        </button>
+      )}
+      {pages[page]}
     </CtxMenuShell>
   );
 }

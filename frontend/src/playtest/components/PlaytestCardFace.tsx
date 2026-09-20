@@ -6,6 +6,9 @@ interface Props extends React.HTMLAttributes<HTMLDivElement> {
   card: PlaytestCard;
   bf?: BattlefieldCard;
   size?: 'sm' | 'md' | 'lg';
+  /** Hides the read-only power/toughness box — the battlefield renders
+   *  editable badges beside the card instead (see `CardPtBadges`). */
+  ptHidden?: boolean;
   /** Waiting to resolve. A card on the stack does not leave the
    *  battlefield — it wears this ribbon in place, which is the durable
    *  signal (the stack panel can be closed; this cannot). */
@@ -23,7 +26,7 @@ const MAX_VISIBLE_COUNTERS = 3;
  */
 export const PlaytestCardFace = memo(
   forwardRef<HTMLDivElement, Props>(function PlaytestCardFace(
-    { card, bf, size = 'md', onStack = false, className = '', ...rest },
+    { card, bf, size = 'md', ptHidden = false, onStack = false, className = '', ...rest },
     ref
   ) {
     const tapped = bf?.tapped ?? false;
@@ -44,7 +47,7 @@ export const PlaytestCardFace = memo(
     // Face-down hides the body along with everything else: a morph is a 2/2
     // whatever is underneath, and printing the real numbers on the back of
     // the card would give it away.
-    const pt = faceDown ? null : displayPT(card, bf);
+    const pt = faceDown || ptHidden ? null : displayPT(card, bf);
 
     return (
       <div

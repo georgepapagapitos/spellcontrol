@@ -2,6 +2,7 @@ import { useDroppable } from '@dnd-kit/core';
 import type { BattlefieldCard } from '@/lib/playtest';
 import { useLongPress } from '@/lib/use-long-press';
 import { PlaytestCardView } from './PlaytestCardView';
+import { CardPtBadges } from './CardPtBadges';
 
 interface Props {
   cards: BattlefieldCard[];
@@ -18,6 +19,9 @@ interface Props {
   onCardClick(cardId: string, e: React.MouseEvent | React.KeyboardEvent): void;
   onCardContextMenu(cardId: string, e: React.MouseEvent): void;
   onCardLongPress?(cardId: string, clientX: number, clientY: number): void;
+  /** Steps one permanent's power/toughness modifier — what the editable
+   *  badges on the card write. Omitted renders them read-only. */
+  onAdjustPT?(cardId: string, power: number, toughness: number): void;
 }
 
 export function Battlefield({
@@ -29,6 +33,7 @@ export function Battlefield({
   onCardClick,
   onCardContextMenu,
   onCardLongPress,
+  onAdjustPT,
 }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: 'battlefield' });
   // Touch route to the table menu. Cards run their own long-press first and
@@ -78,22 +83,39 @@ export function Battlefield({
         <p className="playtest-battlefield__empty">Tap or drag a card from your hand to play it</p>
       )}
       {cards.map((bf) => (
-        // onClick/onContextMenu/onLongPress are passed straight through
-        // (no per-card wrapper arrow) so their identity stays stable across
-        // renders — required for React.memo(PlaytestCardView) to actually
-        // skip re-rendering cards that didn't change.
-        <PlaytestCardView
+        // One card-sized slot per permanent: it owns the position, and the
+        // card and its power/toughness badges sit inside it as siblings. The
+        // badges cannot live inside the card — that card is itself a
+        // `role="button"`, and a control nested in a control is unreachable.
+        <div
           key={bf.card.id}
-          card={bf.card}
-          bf={bf}
-          draggableId={`bf:${bf.card.id}`}
-          positioned
-          selected={selectedIds.has(bf.card.id)}
-          onStack={stackIds.has(bf.card.id)}
-          onClick={onCardClick}
-          onContextMenu={onCardContextMenu}
-          onLongPress={onCardLongPress}
-        />
+          className="playtest-card-slot"
+          style={{ '--pt-x': bf.x, '--pt-y': bf.y } as React.CSSProperties}
+        >
+          {/* onClick/onContextMenu/onLongPress are passed straight through
+              (no per-card wrapper arrow) so their identity stays stable across
+              renders — required for React.memo(PlaytestCardView) to actually
+              skip re-rendering cards that didn't change. */}
+          <PlaytestCardView
+            card={bf.card}
+            bf={bf}
+            draggableId={`bf:${bf.card.id}`}
+            positioned
+            ptHidden={Boolean(onAdjustPT)}
+            selected={selectedIds.has(bf.card.id)}
+            onStack={stackIds.has(bf.card.id)}
+            onClick={onCardClick}
+            onContextMenu={onCardContextMenu}
+            onLongPress={onCardLongPress}
+          />
+          {onAdjustPT && (
+            <CardPtBadges
+              card={bf.card}
+              bf={bf}
+              onAdjustPT={(power, toughness) => onAdjustPT(bf.card.id, power, toughness)}
+            />
+          )}
+        </div>
       ))}
     </div>
   );

@@ -107,7 +107,7 @@ import { HoldBanner } from './HoldBanner';
 import { TableSignals } from './TableSignals';
 import { TAKEBACK_MODE_LABEL } from '../lib/takeback';
 import { REACTION_EMOTES } from '../lib/table-signals';
-import { CardContextMenu } from './CardContextMenu';
+import { CardContextMenu, type CardMenuPage } from './CardContextMenu';
 import { MobileZonesPanel } from './MobileZonesPanel';
 import { OpeningHandSheet } from './OpeningHandSheet';
 import { PlaytestCardFace } from './PlaytestCardFace';
@@ -143,7 +143,7 @@ interface Props {
 }
 
 type ViewerMode = { zone: Zone } | null;
-type ContextState = { cardId: string; x: number; y: number } | null;
+type ContextState = { cardId: string; x: number; y: number; page?: CardMenuPage } | null;
 type HandMenuState = { cardId: string; x: number; y: number } | null;
 
 // Backfill for a session snapshot saved before the mana pool existed —
@@ -339,6 +339,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // one from a later game) re-shows.
   const [dismissedSessionRecordId, setDismissedSessionRecordId] = useState<string | null>(null);
   const isNarrow = useNarrowViewport();
+  /** A mouse (and therefore a right-click and a keyboard) is driving the
+   *  board — the one place a click can mean "select" without stranding a
+   *  player who has no other way to tap a permanent. */
+  const mouseDriven = useMediaQuery('(hover: hover) and (pointer: fine)');
   // The conditional multiplayer seam (see use-online-table.ts): non-null only
   // when there's an active online game AND this device holds a seat in it.
   // Publishes `state` internally; solo playtest never touches it beyond this
@@ -546,8 +550,12 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // Battlefield passes them straight through to every card's
   // React.memo(PlaytestCardView), and a fresh identity here would defeat
   // that memo for the whole battlefield on every dispatch.
-  // Modifier-click builds a selection; a plain click is still the tap gesture
-  // and drops any selection, so nothing lingers invisibly after you move on.
+  // Modifier-click builds a selection. What a PLAIN click does depends on
+  // what is pointing at the card: with a mouse it selects the permanent and
+  // tapping is a deliberate act (T, or Tap in the card menu) the way it is at
+  // EDHPlay — a click is how you pick a card up, and tapping on every stray
+  // click was the misfire. A finger has neither key nor right-click, so on a
+  // touch device a tap still taps.
   const handleCardClick = useCallback(
     (cardId: string, e: React.MouseEvent | React.KeyboardEvent) => {
       // Drawing an arrow: this tap is where it lands, not a tap of the card.
@@ -568,10 +576,16 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         });
         return;
       }
+      if (mouseDriven) {
+        // A plain click is "this one, and only this one" — the selection
+        // readout then offers Tap, and T does it from the keyboard.
+        setSelected((prev) => (prev.size === 1 && prev.has(cardId) ? prev : new Set([cardId])));
+        return;
+      }
       setSelected((prev) => (prev.size === 0 ? prev : new Set()));
       dispatch({ type: 'TAP', cardId });
     },
-    [dispatch, selectMode, arrowFrom, onlineTable, finishArrow, ping]
+    [dispatch, selectMode, arrowFrom, onlineTable, finishArrow, ping, mouseDriven]
   );
 
   // Leaving select mode drops the selection with it, so nothing lingers
@@ -1107,9 +1121,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     [dispatch, state.battlefield]
   );
 
-  /** Open the counters UI for one card — the card menu, which is where
-   *  counters already live, rather than a second panel that does the same
-   *  job. Anchored at the card itself, since a key has no cursor. */
+  /** Open the counters UI for one card — the card menu's Counters page, which
+   *  is where counters already live, rather than a second panel that does the
+   *  same job. Anchored at the card itself, since a key has no cursor. */
   const openCounters = useCallback((cardId: string) => {
     const el = document.querySelector<HTMLElement>(`[data-card-id="${CSS.escape(cardId)}"]`);
     const r = el?.getBoundingClientRect();
@@ -1117,6 +1131,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       cardId,
       x: r ? r.left + r.width / 2 : window.innerWidth / 2,
       y: r ? r.top + r.height / 2 : window.innerHeight / 2,
+      page: 'counters',
     });
     return true;
   }, []);
@@ -2012,6 +2027,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               onCardClick={handleCardClick}
               onCardContextMenu={handleCardContext}
               onCardLongPress={handleCardLongPress}
+              onAdjustPT={(cardId, power, toughness) =>
+                dispatch({ type: 'ADJUST_PT', cardId, power, toughness })
+              }
             />
             {/* Selection readout. Renders nothing at all when nothing is selected,
             so it never displaces the board — and a selection can only exist on a
@@ -2238,6 +2256,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           faceDown={ctxCard.faceDown}
           phased={ctxCard.phased ?? false}
           variant={isNarrow ? 'sheet' : 'floating'}
+          initialPage={ctx.page}
+          keyFor={keyFor}
           onClose={() => setCtx(null)}
           onTap={() => {
             dispatch({ type: 'TAP', cardId: ctx.cardId });
@@ -2267,6 +2287,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           onAdjustPT={(power, toughness) =>
             dispatch({ type: 'ADJUST_PT', cardId: ctx.cardId, power, toughness })
           }
+          onDrawArrow={
+            onlineTable
+              ? () => {
+                  beginArrow(new Set([ctx.cardId]));
+                  setCtx(null);
+                }
+              : undefined
+          }
           onPutOnStack={(copy) => {
             const ids = selected.has(ctx.cardId) ? [...selected] : [ctx.cardId];
             if (copy) copyOntoStack(ids);
@@ -2276,6 +2304,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           onAddCounter={(k) =>
             dispatch({ type: 'SET_COUNTER', cardId: ctx.cardId, counter: k, delta: 1 })
           }
+          onAdjustAllCounters={(op) => adjustAllCounters([ctx.cardId], op)}
           onRemoveCounter={(k) =>
             dispatch({ type: 'SET_COUNTER', cardId: ctx.cardId, counter: k, delta: -1 })
           }
@@ -2296,6 +2325,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           y={handMenu.y}
           cardName={handMenuCard.name}
           variant={isNarrow ? 'sheet' : 'floating'}
+          keyFor={keyFor}
           onClose={() => setHandMenu(null)}
           onPreview={
             cardLookup?.has(handMenu.cardId) ? () => setPreviewCardId(handMenu.cardId) : undefined

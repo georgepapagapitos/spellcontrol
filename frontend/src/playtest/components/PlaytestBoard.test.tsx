@@ -512,6 +512,49 @@ describe('PlaytestBoard — card size', () => {
   });
 });
 
+/**
+ * A click on a permanent is not a tap when a mouse is driving (EDHPlay's
+ * rule, user 2026-09-20): it picks the card, and tapping is the deliberate
+ * act — T, or Tap in the card menu. A finger has neither key nor right-click,
+ * so on a touch device a tap still taps, and these two tests are what keeps
+ * one device tier from quietly taking the other's behaviour.
+ */
+describe('PlaytestBoard — what a click on a permanent means', () => {
+  function onBattlefield() {
+    return applyAction(seededState(), {
+      type: 'MOVE_TO_BATTLEFIELD',
+      cardId: 'card-0',
+      x: 0.2,
+      y: 0.3,
+    });
+  }
+
+  it('with a mouse: a click selects the card, and T taps it', () => {
+    stubWidth(1440, true);
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={onBattlefield()} />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Card 0' }));
+    expect(dispatch).not.toHaveBeenCalledWith({ type: 'TAP', cardId: 'card-0' });
+    expect(screen.getByText('1 selected')).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: 't' });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'TAP', cardId: 'card-0', tapped: true });
+  });
+
+  it('with a finger: a tap still taps the permanent', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={onBattlefield()} />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Card 0' }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'TAP', cardId: 'card-0' });
+  });
+});
+
 // Drawn arrows (online only): W with one card selected arms an arrow from
 // it, the next tap on a card is where it lands (sent as an `arrow` signal),
 // and Shift+W clears the ones you drew.
