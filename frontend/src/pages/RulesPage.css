@@ -450,14 +450,23 @@
     border-bottom: 1px solid var(--border);
   }
 
-  /* Cards are a name, a tag and a one-line summary — two abreast at ~530px
-     each, the same measure the phone column gives them. An open card grows
-     in place (align-items: start keeps its neighbour from stretching). */
+  /* Keyword entries two abreast, on exactly the glossary's terms below — one
+     reference, one lattice. NO `align-items: start` and no row gap: letting
+     each row's pair share a height is what puts the two columns' hairlines on
+     the same line. With `start` and a gap the entries kept their own heights,
+     so the shorter of each pair left a ragged hole under it and every row gap
+     measured differently — the misalignment that made the old bordered cards
+     look broken. */
   .rules-page .rules-ref-list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-    gap: var(--space-3);
+    column-gap: var(--space-8);
+  }
+
+  /* The last row keeps its line on both sides (the single :last-child is one
+     column's entry, not the row's). */
+  .rules-page .rules-ref-keyword:last-child {
+    border-bottom: 0.5px solid var(--border);
   }
 
   /* Dictionary rows two abreast; rows share a height so the hairlines line
