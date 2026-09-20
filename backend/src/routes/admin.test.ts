@@ -26,7 +26,9 @@ async function registerAdmin(
   username: string,
   password = 'correct horse battery'
 ): Promise<string> {
-  const reg = await request(app).post('/api/auth/register').send({ username, password });
+  const reg = await request(app)
+    .post('/api/auth/register')
+    .send({ username, password, email: `${username}@example.test` });
   if (reg.status !== 201) throw new Error(`register admin failed: ${reg.status}`);
   await getDb().execute(sql`UPDATE users SET role = 'admin' WHERE username = ${username}`);
   // Re-login so the new session cookie carries role='admin' in its JWT claims.
@@ -35,7 +37,9 @@ async function registerAdmin(
 }
 
 async function registerUser(username: string, password = 'correct horse battery'): Promise<string> {
-  const reg = await request(app).post('/api/auth/register').send({ username, password });
+  const reg = await request(app)
+    .post('/api/auth/register')
+    .send({ username, password, email: `${username}@example.test` });
   if (reg.status !== 201) throw new Error(`register user failed: ${reg.status}`);
   return extractSessionCookie(reg.headers['set-cookie'])!;
 }

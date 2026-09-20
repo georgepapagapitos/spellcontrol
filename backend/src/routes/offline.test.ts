@@ -176,7 +176,7 @@ describe('GET /api/offline/combos', () => {
 async function registerCookie(username: string): Promise<string> {
   const reg = await request(app)
     .post('/api/auth/register')
-    .send({ username, password: 'correct horse battery' });
+    .send({ username, password: 'correct horse battery', email: `${username}@example.test` });
   expect(reg.status).toBe(201);
   return extractSessionCookie(reg.headers['set-cookie'])!;
 }

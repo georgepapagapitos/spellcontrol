@@ -18,7 +18,7 @@ describe('register', () => {
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(jsonResponse({ user: { id: 'u1', username: 'alice' } }, { status: 201 }));
-    const u = await register('alice', 'correct horse battery');
+    const u = await register('alice', 'correct horse battery', 'alice@example.test');
     expect(u).toEqual({ id: 'u1', username: 'alice' });
     expect(fetchSpy).toHaveBeenCalledWith(
       '/api/auth/register',
@@ -30,7 +30,7 @@ describe('register', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({ error: 'taken' }, { status: 409 })
     );
-    await expect(register('alice', 'pw1234567890')).rejects.toThrow(/taken/);
+    await expect(register('alice', 'pw1234567890', 'alice@example.test')).rejects.toThrow(/taken/);
   });
 });
 
@@ -89,6 +89,7 @@ describe('fetchMe', () => {
       user: { id: 'u3', username: 'cory' },
       autoLinkedAt: null,
       inboxSeenAt: null,
+      emailVerified: true,
     });
   });
 
@@ -100,6 +101,7 @@ describe('fetchMe', () => {
       user: { id: 'u3', username: 'cory' },
       autoLinkedAt: 1700000000000,
       inboxSeenAt: null,
+      emailVerified: true,
     });
   });
 
@@ -111,7 +113,23 @@ describe('fetchMe', () => {
       user: { id: 'u3', username: 'cory' },
       autoLinkedAt: null,
       inboxSeenAt: null,
+      emailVerified: true,
     });
+  });
+
+  it('reports an unverified account so the recovery banner can show', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ user: { id: 'u3', username: 'cory' }, emailVerified: false })
+    );
+    expect((await fetchMe())?.emailVerified).toBe(false);
+  });
+
+  it('treats an older /me with no emailVerified as verified', async () => {
+    // A banner nobody can act on is worse than a missing one.
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ user: { id: 'u3', username: 'cory' } })
+    );
+    expect((await fetchMe())?.emailVerified).toBe(true);
   });
 
   it('threads inboxSeenAt from /me', async () => {
@@ -122,6 +140,7 @@ describe('fetchMe', () => {
       user: { id: 'u3', username: 'cory' },
       autoLinkedAt: null,
       inboxSeenAt: 1700000000000,
+      emailVerified: true,
     });
   });
 });

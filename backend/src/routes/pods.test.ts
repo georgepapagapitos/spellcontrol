@@ -25,7 +25,7 @@ afterAll(async () => {
 async function makeUser(username: string): Promise<{ cookie: string; id: string }> {
   const reg = await request(app)
     .post('/api/auth/register')
-    .send({ username, password: 'correct horse battery' });
+    .send({ username, password: 'correct horse battery', email: `${username}@example.test` });
   expect(reg.status).toBe(201);
   return { cookie: extractSessionCookie(reg.headers['set-cookie'])!, id: reg.body.user.id };
 }

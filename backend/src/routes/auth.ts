@@ -186,9 +186,26 @@ function resetPasswordContent(link: string): { subject: string; text: string; ht
 
 export const authRouter: Router = Router();
 
+/**
+ * Create a password account.
+ *
+ * An email is REQUIRED. Password reset is the only way back into an account
+ * whose password is forgotten, and it sends to `users.email` — so an account
+ * created without one had no recovery path at all, and the collection,
+ * binders, decks and game history behind it were one forgotten password from
+ * being unreachable. Google signups already arrive with a verified address.
+ *
+ * The address is NOT written to `users.email` here. It rides a verify token
+ * and only lands on the row once the link is clicked, exactly as
+ * `POST /me/email` does — writing it unverified would let anyone occupy the
+ * unique index with somebody else's address and block the real owner from
+ * ever adding it. Until then the account has an email on the way and no
+ * recovery yet, which is what the unverified-email banner is for.
+ */
 authRouter.post('/register', registerLimiter, async (req: Request, res: Response) => {
   const username = normalizeUsername(req.body?.username);
   const password = validatePassword(req.body?.password);
+  const email = normalizeEmail(req.body?.email);
   if (!username) {
     return res.status(400).json({
       error: 'Username must be 3–32 characters and use only lowercase letters, digits, _ and -.',
@@ -198,6 +215,9 @@ authRouter.post('/register', registerLimiter, async (req: Request, res: Response
     return res
       .status(400)
       .json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
+  }
+  if (!email) {
+    return res.status(400).json({ error: 'Enter a valid email address.' });
   }
   if (isReservedUsername(username)) {
     return res.status(400).json({ error: 'That username is reserved.' });
@@ -211,6 +231,17 @@ authRouter.post('/register', registerLimiter, async (req: Request, res: Response
     .limit(1);
   if (existing.length > 0) {
     return res.status(409).json({ error: 'That username is already taken.' });
+  }
+  // Same generic refusal `POST /me/email` gives, and for the same reason: a
+  // message that distinguished "in use" from "not in use" would turn this
+  // open endpoint into a way to ask whether an address has an account here.
+  const emailOwners = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.email, email), eq(users.emailVerified, true)))
+    .limit(1);
+  if (emailOwners.length > 0) {
+    return res.status(409).json({ error: 'That email is already in use.' });
   }
 
   const id = crypto.randomUUID();
@@ -231,9 +262,15 @@ authRouter.post('/register', registerLimiter, async (req: Request, res: Response
   // No initial user-data row to create: per-entity tables are empty by default
   // and become populated by the first POST /api/sync from the client.
 
+  // Best-effort: `sendMail` never throws, and the token is already issued, so
+  // a mail outage costs the user a Resend click rather than the account.
+  const verifyToken = await issueAuthToken(id, 'verify', email);
+  const verifyLink = `${publicWebOrigin()}/verify-email?token=${encodeURIComponent(verifyToken)}`;
+  await sendMail({ to: email, ...verifyEmailContent(verifyLink) });
+
   const token = signSession({ id, username, role });
   setSessionCookie(res, token);
-  res.status(201).json({ user: { id, username, role } });
+  res.status(201).json({ user: { id, username, role }, pendingEmail: email });
 });
 
 authRouter.post('/login', loginLimiter, async (req: Request, res: Response) => {
@@ -747,6 +784,7 @@ authRouter.get('/me', sessionLimiter, async (req: Request, res: Response) => {
     .select({
       autoLinkedAt: users.autoLinkedAt,
       inboxSeenAt: users.inboxSeenAt,
+      emailVerified: users.emailVerified,
       displayName: users.displayName,
       bio: users.bio,
       avatarCardId: users.avatarCardId,
@@ -762,6 +800,11 @@ authRouter.get('/me', sessionLimiter, async (req: Request, res: Response) => {
     // Server truth for the inbox/friend-request unseen badges (T117) — see
     // POST /api/users/me/inbox-seen.
     inboxSeenAt: row[0]?.inboxSeenAt ?? null,
+    // Drives the recovery banner. False covers both "never added an address"
+    // and "added one, has not clicked the link yet" — neither can receive a
+    // password reset, which is the only thing the banner cares about. Which
+    // of the two it is lives on the Settings screen the banner links to.
+    emailVerified: row[0]?.emailVerified ?? false,
     profile: {
       displayName: row[0]?.displayName ?? null,
       bio: row[0]?.bio ?? null,

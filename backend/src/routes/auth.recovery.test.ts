@@ -39,7 +39,7 @@ function tokenFromLastMail(): string {
 async function registerAndVerify(username: string, email: string) {
   const register = await request(app)
     .post('/api/auth/register')
-    .send({ username, password: 'correct horse battery' });
+    .send({ username, password: 'correct horse battery', email: `${username}@example.test` });
   const cookie = extractSessionCookie(register.headers['set-cookie']);
   await request(app).post('/api/auth/me/email').set('Cookie', cookie!).send({ email });
   const token = tokenFromLastMail();
@@ -49,10 +49,15 @@ async function registerAndVerify(username: string, email: string) {
 
 describe('POST /api/auth/me/email + POST /api/auth/verify-email', () => {
   it('issues a token, verifies it, and marks the email verified', async () => {
-    const register = await request(app)
-      .post('/api/auth/register')
-      .send({ username: 'em-alice', password: 'correct horse battery' });
+    const register = await request(app).post('/api/auth/register').send({
+      username: 'em-alice',
+      password: 'correct horse battery',
+      email: 'em-alice@example.test',
+    });
     const cookie = extractSessionCookie(register.headers['set-cookie']);
+    // Registration sends its own verification mail for the address given at
+    // sign-up; this case is about CHANGING that address afterwards.
+    mockSendMail.mockClear();
 
     const start = await request(app)
       .post('/api/auth/me/email')
@@ -87,9 +92,11 @@ describe('POST /api/auth/me/email + POST /api/auth/verify-email', () => {
       .send({ token: 'not-a-real-token' });
     expect(res.status).toBe(400);
 
-    const register = await request(app)
-      .post('/api/auth/register')
-      .send({ username: 'em-bob', password: 'correct horse battery' });
+    const register = await request(app).post('/api/auth/register').send({
+      username: 'em-bob',
+      password: 'correct horse battery',
+      email: 'em-bob@example.test',
+    });
     const cookie = extractSessionCookie(register.headers['set-cookie']);
     await request(app)
       .post('/api/auth/me/email')
@@ -105,9 +112,11 @@ describe('POST /api/auth/me/email + POST /api/auth/verify-email', () => {
   it('refuses to claim an email another VERIFIED account already owns', async () => {
     await registerAndVerify('em-carol', 'carol@example.com');
 
-    const register = await request(app)
-      .post('/api/auth/register')
-      .send({ username: 'em-dave', password: 'correct horse battery' });
+    const register = await request(app).post('/api/auth/register').send({
+      username: 'em-dave',
+      password: 'correct horse battery',
+      email: 'em-dave@example.test',
+    });
     const cookie = extractSessionCookie(register.headers['set-cookie']);
     const res = await request(app)
       .post('/api/auth/me/email')
@@ -124,7 +133,7 @@ describe('POST /api/auth/me/email + POST /api/auth/verify-email', () => {
     for (const username of ['em-race-1', 'em-race-2']) {
       const register = await request(app)
         .post('/api/auth/register')
-        .send({ username, password: 'correct horse battery' });
+        .send({ username, password: 'correct horse battery', email: `${username}@example.test` });
       const cookie = extractSessionCookie(register.headers['set-cookie']);
       await request(app)
         .post('/api/auth/me/email')
@@ -141,9 +150,11 @@ describe('POST /api/auth/me/email + POST /api/auth/verify-email', () => {
   });
 
   it('rejects a malformed email', async () => {
-    const register = await request(app)
-      .post('/api/auth/register')
-      .send({ username: 'em-erin', password: 'correct horse battery' });
+    const register = await request(app).post('/api/auth/register').send({
+      username: 'em-erin',
+      password: 'correct horse battery',
+      email: 'em-erin@example.test',
+    });
     const cookie = extractSessionCookie(register.headers['set-cookie']);
     const res = await request(app)
       .post('/api/auth/me/email')
@@ -155,9 +166,11 @@ describe('POST /api/auth/me/email + POST /api/auth/verify-email', () => {
 
 describe('POST /api/auth/me/email/resend', () => {
   it('re-sends the newest pending verify token', async () => {
-    const register = await request(app)
-      .post('/api/auth/register')
-      .send({ username: 'em-frank', password: 'correct horse battery' });
+    const register = await request(app).post('/api/auth/register').send({
+      username: 'em-frank',
+      password: 'correct horse battery',
+      email: 'em-frank@example.test',
+    });
     const cookie = extractSessionCookie(register.headers['set-cookie']);
     await request(app)
       .post('/api/auth/me/email')
@@ -175,10 +188,19 @@ describe('POST /api/auth/me/email/resend', () => {
   });
 
   it('400s when there is no pending email', async () => {
-    const register = await request(app)
-      .post('/api/auth/register')
-      .send({ username: 'em-grace', password: 'correct horse battery' });
+    const register = await request(app).post('/api/auth/register').send({
+      username: 'em-grace',
+      password: 'correct horse battery',
+      email: 'em-grace@example.test',
+    });
     const cookie = extractSessionCookie(register.headers['set-cookie']);
+    // Registration leaves a pending verification behind, so "nothing pending"
+    // now means the sign-up token was already used — click it first.
+    const verify = await request(app)
+      .post('/api/auth/verify-email')
+      .send({ token: tokenFromLastMail() });
+    expect(verify.status).toBe(200);
+
     const res = await request(app)
       .post('/api/auth/me/email/resend')
       .set('Cookie', cookie!)
@@ -194,9 +216,11 @@ describe('POST /api/auth/forgot-password + POST /api/auth/reset-password', () =>
       .send({ email: 'nobody@example.com' });
     expect(unknown.status).toBe(200);
 
-    const register = await request(app)
-      .post('/api/auth/register')
-      .send({ username: 'fp-alice', password: 'correct horse battery' });
+    const register = await request(app).post('/api/auth/register').send({
+      username: 'fp-alice',
+      password: 'correct horse battery',
+      email: 'fp-alice@example.test',
+    });
     const cookie = extractSessionCookie(register.headers['set-cookie']);
     // Unverified email on the account: still 200, still no mail sent.
     await request(app)
@@ -263,9 +287,11 @@ describe('POST /api/auth/me/password', () => {
     // The "no currentPassword required" (SSO-only account) branch is
     // exercised end to end by the unlink-after-set-password test below,
     // which needs that exact account shape anyway.
-    const register = await request(app)
-      .post('/api/auth/register')
-      .send({ username: 'pw-alice', password: 'correct horse battery' });
+    const register = await request(app).post('/api/auth/register').send({
+      username: 'pw-alice',
+      password: 'correct horse battery',
+      email: 'pw-alice@example.test',
+    });
     const cookie = extractSessionCookie(register.headers['set-cookie']);
 
     const missingCurrent = await request(app)
@@ -293,9 +319,11 @@ describe('POST /api/auth/me/password', () => {
   });
 
   it('rejects a short new password', async () => {
-    const register = await request(app)
-      .post('/api/auth/register')
-      .send({ username: 'pw-bob', password: 'correct horse battery' });
+    const register = await request(app).post('/api/auth/register').send({
+      username: 'pw-bob',
+      password: 'correct horse battery',
+      email: 'pw-bob@example.test',
+    });
     const cookie = extractSessionCookie(register.headers['set-cookie']);
     const res = await request(app)
       .post('/api/auth/me/password')
@@ -313,9 +341,11 @@ describe('unlink-after-set-password (the whole point of T117)', () => {
     // (see auth.oauth.test.ts for that), so this is the most direct way to
     // reach the exact "no password, no other identity" state the unlink
     // guard exists for.
-    const register = await request(app)
-      .post('/api/auth/register')
-      .send({ username: 'unlink-alice', password: 'correct horse battery' });
+    const register = await request(app).post('/api/auth/register').send({
+      username: 'unlink-alice',
+      password: 'correct horse battery',
+      email: 'unlink-alice@example.test',
+    });
     const cookie = extractSessionCookie(register.headers['set-cookie']);
     const userIdRow = await pool.query('SELECT id FROM users WHERE username = $1', [
       'unlink-alice',
@@ -384,5 +414,91 @@ describe('PATCH /api/auth/me/notify-email', () => {
       .set('Cookie', cookie)
       .send({ enabled: 'yes' });
     expect(res.status).toBe(400);
+  });
+});
+
+describe('POST /api/auth/register — the recovery address', () => {
+  it('refuses a signup with no email, or a malformed one', async () => {
+    for (const email of [undefined, '', 'not-an-address', 'no@domain', 42]) {
+      const res = await request(app)
+        .post('/api/auth/register')
+        .send({ username: 'noemail', password: 'correct horse battery', email });
+      expect(res.status, JSON.stringify(email)).toBe(400);
+      expect(res.body.error).toBe('Enter a valid email address.');
+    }
+  });
+
+  it('creates the account but leaves users.email unset until the link is clicked', async () => {
+    const res = await request(app).post('/api/auth/register').send({
+      username: 'pending-pat',
+      password: 'correct horse battery',
+      email: 'Pending.Pat@Example.com',
+    });
+    expect(res.status).toBe(201);
+    // Echoed back normalized so the UI can say where the link went.
+    expect(res.body.pendingEmail).toBe('pending.pat@example.com');
+
+    const cookie = extractSessionCookie(res.headers['set-cookie'])!;
+    const identities = await request(app).get('/api/auth/me/identities').set('Cookie', cookie);
+    // Not on the row yet: writing it unverified would let anyone occupy the
+    // unique index with an address they do not control.
+    expect(identities.body.email).toBeNull();
+    expect(identities.body.emailVerified).toBe(false);
+    expect(identities.body.pendingEmail).toBe('pending.pat@example.com');
+  });
+
+  it('reports the unverified state on /me, which is what the banner reads', async () => {
+    const reg = await request(app).post('/api/auth/register').send({
+      username: 'banner-bea',
+      password: 'correct horse battery',
+      email: 'banner-bea@example.test',
+    });
+    const cookie = extractSessionCookie(reg.headers['set-cookie'])!;
+
+    const me = await request(app).get('/api/auth/me').set('Cookie', cookie);
+    expect(me.body.emailVerified).toBe(false);
+  });
+
+  it('refuses an address another VERIFIED account owns, without saying whose', async () => {
+    await request(app).post('/api/auth/register').send({
+      username: 'owner-olive',
+      password: 'correct horse battery',
+      email: 'contested@example.com',
+    });
+    // Verification is what makes the address spoken for — the link is public,
+    // so no session is needed to click it.
+    await request(app)
+      .post('/api/auth/verify-email')
+      .send({ token: tokenFromLastMail() })
+      .expect(200);
+
+    const second = await request(app).post('/api/auth/register').send({
+      username: 'taker-tom',
+      password: 'correct horse battery',
+      email: 'contested@example.com',
+    });
+
+    expect(second.status).toBe(409);
+    expect(second.body.error).toBe('That email is already in use.');
+    // The copy must not name the account that holds it.
+    expect(JSON.stringify(second.body)).not.toContain('owner-olive');
+    // And the cookie check: no session was handed out.
+    expect(extractSessionCookie(second.headers['set-cookie'])).toBeNull();
+  });
+
+  it('allows an address that is only PENDING on another account', async () => {
+    // Nobody has proved they control it yet, so it is not spoken for — and
+    // refusing here would let anyone block a signup by typing the address.
+    await request(app).post('/api/auth/register').send({
+      username: 'pend-one',
+      password: 'correct horse battery',
+      email: 'shared-pending@example.com',
+    });
+    const second = await request(app).post('/api/auth/register').send({
+      username: 'pend-two',
+      password: 'correct horse battery',
+      email: 'shared-pending@example.com',
+    });
+    expect(second.status).toBe(201);
   });
 });

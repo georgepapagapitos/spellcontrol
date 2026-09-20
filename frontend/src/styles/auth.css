@@ -120,6 +120,14 @@
   font-weight: 500;
 }
 
+/* Overrides `.auth-field span`, which styles the LABEL text — this one is the
+   explanation under the input, in the muted hint voice the rules list uses. */
+.auth-field-hint {
+  font-size: var(--text-xs);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
 .auth-field input {
   display: block;
   width: 100%;

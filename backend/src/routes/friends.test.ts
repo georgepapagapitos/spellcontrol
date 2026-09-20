@@ -33,7 +33,7 @@ afterAll(async () => {
 async function makeUser(username: string): Promise<string> {
   const reg = await request(app)
     .post('/api/auth/register')
-    .send({ username, password: 'correct horse battery' });
+    .send({ username, password: 'correct horse battery', email: `${username}@example.test` });
   expect(reg.status, `register(${username}) → ${JSON.stringify(reg.body)}`).toBe(201);
   return extractSessionCookie(reg.headers['set-cookie'])!;
 }
@@ -235,9 +235,11 @@ describe('POST /api/friends/requests', () => {
 
   it('notifies the addressee of the new request (T117)', async () => {
     const alice = await makeUser('fr-notify-alice');
-    const bobReg = await request(app)
-      .post('/api/auth/register')
-      .send({ username: 'fr-notify-bob', password: 'correct horse battery' });
+    const bobReg = await request(app).post('/api/auth/register').send({
+      username: 'fr-notify-bob',
+      password: 'correct horse battery',
+      email: 'fr-notify-bob@example.test',
+    });
     const bobId = bobReg.body.user.id as string;
 
     mockNotifyUser.mockClear();
@@ -623,7 +625,7 @@ async function makeUserFull(
 ): Promise<{ cookie: string; id: string; username: string }> {
   const reg = await request(app)
     .post('/api/auth/register')
-    .send({ username, password: 'correct horse battery' });
+    .send({ username, password: 'correct horse battery', email: `${username}@example.test` });
   expect(reg.status, `register(${username}) → ${JSON.stringify(reg.body)}`).toBe(201);
   const cookie = extractSessionCookie(reg.headers['set-cookie'])!;
   // Get our own id via /api/friends (or auth me) — simpler: look ourselves up via users search

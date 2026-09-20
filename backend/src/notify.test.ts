@@ -47,7 +47,7 @@ async function makeUser(
 ): Promise<string> {
   const register = await request(app)
     .post('/api/auth/register')
-    .send({ username, password: 'correct horse battery' });
+    .send({ username, password: 'correct horse battery', email: `${username}@example.test` });
   const id = register.body.user.id as string;
   const cookie = extractSessionCookie(register.headers['set-cookie'])!;
   await request(app).post('/api/auth/me/email').set('Cookie', cookie).send({ email });
