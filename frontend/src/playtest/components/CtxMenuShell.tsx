@@ -15,6 +15,10 @@ export interface CtxMenuShellProps {
   /** `floating` = cursor-anchored popover clamped to the safe viewport
    *  (desktop); `sheet` = the shared bottom sheet (narrow viewports). */
   variant: 'floating' | 'sheet';
+  /** Changes whenever the caller swaps what it renders inside (e.g. a menu
+   *  drilling into a submenu page): the floating variant re-clamps to the new
+   *  height, and focus moves to the new content's first control. */
+  contentKey?: string;
   onClose(): void;
   children: ReactNode;
 }
@@ -25,7 +29,15 @@ export interface CtxMenuShellProps {
  * Escape, body-scroll lock, and initial focus into the first control so a
  * keyboard-opened menu is immediately operable. Items are the caller's.
  */
-export function CtxMenuShell({ x, y, title, variant, onClose, children }: CtxMenuShellProps) {
+export function CtxMenuShell({
+  x,
+  y,
+  title,
+  variant,
+  contentKey,
+  onClose,
+  children,
+}: CtxMenuShellProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const itemsRef = useRef<HTMLDivElement | null>(null);
   const [clamped, setClamped] = useState<{ left: number; top: number } | null>(null);
@@ -43,7 +55,7 @@ export function CtxMenuShell({ x, y, title, variant, onClose, children }: CtxMen
     const left = Math.max(MENU_MARGIN, Math.min(x, safe.right - rect.width - MENU_MARGIN));
     const top = Math.max(MENU_MARGIN, Math.min(y, safe.bottom - rect.height - MENU_MARGIN));
     setClamped({ left, top });
-  }, [x, y, variant]);
+  }, [x, y, variant, contentKey]);
 
   // Keyboard-opened menus land with nothing focused unless something moves
   // focus in; a pointer open leaves focus where it was, which is fine since
@@ -57,7 +69,7 @@ export function CtxMenuShell({ x, y, title, variant, onClose, children }: CtxMen
         'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled)'
       )
       ?.focus();
-  }, [variant, clamped]);
+  }, [variant, clamped, contentKey]);
 
   if (variant === 'sheet') {
     return (

@@ -46,11 +46,11 @@ describe('HandCardMenu', () => {
 
   it('shows Preview only when the card resolves, and names the card as the menu', () => {
     renderMenu();
-    expect(screen.queryByRole('button', { name: 'Preview card' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'View information' })).toBeNull();
     expect(screen.getByRole('menu', { name: 'Brainstorm' })).toBeTruthy();
     const onPreview = vi.fn();
     renderMenu({ onPreview, cardName: 'Ponder' });
-    fireEvent.click(screen.getByRole('button', { name: 'Preview card' }));
+    fireEvent.click(screen.getByRole('button', { name: 'View information' }));
     expect(onPreview).toHaveBeenCalled();
   });
 
