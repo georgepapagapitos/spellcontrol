@@ -34,9 +34,10 @@ interface Props {
   /**
    * `strip` (default) is the one-row chip strip every narrow tier uses.
    * `table` is the ≥1024px corner panel: YOUR life as a display numeral with
-   * inline steppers, a Details row that opens the same `LifeAdjustPanel`, and
-   * the other players demoted to a secondary row of small chips underneath.
-   * Same data, same panel, same handlers — only the arrangement differs.
+   * inline steppers, a chevron that opens the same `LifeAdjustPanel` (minus
+   * its life row — the steppers are already on the panel), and the other
+   * players demoted to a secondary row of small chips underneath. Same data,
+   * same panel, same handlers — only the arrangement differs.
    */
   variant?: 'strip' | 'table';
   /** Table variant only: rendered as the panel's last row. The board passes
@@ -46,24 +47,32 @@ interface Props {
 
 type Selected = 'self' | number | null;
 
-/** "N to lethal"-style rows for every OTHER seated player's commander(s),
- *  read from `me`'s own `commanderDamage` bag — the self panel's read-only
- *  "Commander damage taken" list. Lists every seat unconditionally (even at
- *  0), mirroring `OnlineGameView`'s own read-only cmd list. */
-function cmdDamageTakenRows(me: GamePlayer, players: GamePlayer[]): CmdDamageRow[] {
+/** One steppable row per OTHER seated player's commander (a partner gets its
+ *  own), read from and written to `me`'s own `commanderDamage` bag — the self
+ *  panel's "Commander damage" list. Lists every seat unconditionally (even at
+ *  0), so the list reads the same all game (EDHPlay's shape). */
+function cmdDamageRows(
+  me: GamePlayer,
+  players: GamePlayer[],
+  dispatch: OnlineTable['dispatch']
+): CmdDamageRow[] {
   const rows: CmdDamageRow[] = [];
+  const step = (fromSeat: number, fromPartner: boolean) => (delta: number) =>
+    dispatch({ type: 'cmd-dmg', seat: me.seat, fromSeat, fromPartner, delta, actorSeat: me.seat });
   for (const p of players) {
     if (p.seat === me.seat) continue;
     rows.push({
       key: `${p.seat}`,
       name: p.commander ?? p.name,
       value: me.commanderDamage[cmdDamageKey(p.seat)] ?? 0,
+      onAdjust: step(p.seat, false),
     });
     if (p.partner) {
       rows.push({
         key: `${p.seat}#p`,
         name: p.partner,
         value: me.commanderDamage[cmdDamageKey(p.seat, true)] ?? 0,
+        onAdjust: step(p.seat, true),
       });
     }
   }
@@ -156,7 +165,19 @@ export function LifeStrip({
       title={selected === 'self' ? 'You' : opponentLabel(selected)}
       life={selected === 'self' ? life : opponents[selected].life}
       lifeEditable
-      commanderDamage={selected === 'self' ? undefined : opponents[selected].commanderDamage}
+      hideLife={selected === 'self' && variant === 'table'}
+      // Solo tracks the damage YOU dealt each virtual opponent's way; it's one
+      // row per opponent in your own panel, the same list online shows.
+      cmdDamage={
+        selected === 'self'
+          ? opponents.map((o, i) => ({
+              key: String(i),
+              name: opponentLabel(i),
+              value: o.commanderDamage,
+              onAdjust: (delta: number) => onAdjustCommanderDamage(i, delta),
+            }))
+          : undefined
+      }
       commanderDamageThreshold={commanderDamageThreshold}
       defeated={
         selected !== 'self' && isOpponentDefeated(opponents[selected], commanderDamageThreshold)
@@ -165,9 +186,6 @@ export function LifeStrip({
       onClose={closePanel}
       onAdjustCounter={(kind, delta) => onAdjustCounter(selected, kind, delta)}
       onAdjustLife={(delta) => onAdjustLife(selected, delta)}
-      onAdjustCommanderDamage={
-        selected === 'self' ? undefined : (delta) => onAdjustCommanderDamage(selected, delta)
-      }
     />
   );
 
@@ -338,7 +356,6 @@ function OnlineLifeStrip({
               dispatch({ type: 'poison', seat: mySeat, delta, actorSeat: mySeat }),
           }
         : undefined,
-      cmdDamageTaken: commanderDamageEnabled ? cmdDamageTakenRows(me, players) : [],
     };
     panel = (
       <LifeAdjustPanel
@@ -347,6 +364,8 @@ function OnlineLifeStrip({
         title="You"
         life={me.life}
         lifeEditable
+        hideLife={variant === 'table'}
+        cmdDamage={commanderDamageEnabled ? cmdDamageRows(me, players, dispatch) : undefined}
         commanderDamageThreshold={21}
         defeated={false}
         counters={playerCounters}
@@ -358,46 +377,9 @@ function OnlineLifeStrip({
       />
     );
   } else if (selectedPlayer) {
-    const rows: CmdDamageRow[] = commanderDamageEnabled
-      ? [
-          {
-            key: `${selectedPlayer.seat}`,
-            name: selectedPlayer.commander ?? selectedPlayer.name,
-            value: me.commanderDamage[cmdDamageKey(selectedPlayer.seat)] ?? 0,
-            onAdjust: (delta) =>
-              dispatch({
-                type: 'cmd-dmg',
-                seat: mySeat,
-                fromSeat: selectedPlayer.seat,
-                fromPartner: false,
-                delta,
-                actorSeat: mySeat,
-              }),
-          },
-          ...(selectedPlayer.partner
-            ? [
-                {
-                  key: `${selectedPlayer.seat}#p`,
-                  name: selectedPlayer.partner,
-                  value: me.commanderDamage[cmdDamageKey(selectedPlayer.seat, true)] ?? 0,
-                  onAdjust: (delta: number) =>
-                    dispatch({
-                      type: 'cmd-dmg',
-                      seat: mySeat,
-                      fromSeat: selectedPlayer.seat,
-                      fromPartner: true,
-                      delta,
-                      actorSeat: mySeat,
-                    }),
-                },
-              ]
-            : []),
-        ]
-      : [];
     const online: OnlinePanelData = {
       kind: 'opponent',
       name: selectedPlayer.name,
-      cmdDamageFrom: rows,
       onViewBoard: () => {
         closePanel();
         onViewOpponentBoard?.(selectedPlayer.seat);
@@ -518,8 +500,10 @@ function LifeStep({
  * The ≥1024px corner panel. Your own life is the headline: a display numeral
  * between two steppers, so the commonest action at a real table (take damage)
  * is one tap and not "open a popover first". The numeral itself, and the
- * Details row under it, both open the same `LifeAdjustPanel` the strip uses,
- * so poison / commander damage / counters have exactly one implementation.
+ * chevron under it, both open the same `LifeAdjustPanel` the strip uses, so
+ * poison / commander damage / counters have exactly one implementation. The
+ * chevron says nothing else: no "Details", no opponent count — the chips
+ * under it are the opponents (EDHPlay's shape).
  * Everyone else is a secondary row of small chips, because a four-seat table
  * where every total is the same size tells you nothing about whose board you
  * are looking at.
@@ -581,14 +565,9 @@ function TableLifePanel({
         className="playtest-life-table__details"
         onClick={onOpenSelf}
         aria-haspopup="dialog"
+        aria-label="Counters and commander damage"
       >
-        <ChevronDown aria-hidden width={12} height={12} />
-        Details
-        {seats.length > 0 && (
-          <span className="playtest-life-table__details-count">
-            {seats.length} {seats.length === 1 ? 'opponent' : 'opponents'}
-          </span>
-        )}
+        <ChevronDown aria-hidden width={14} height={14} />
       </button>
       {seats.length > 0 && (
         <div className="playtest-life-table__seats">

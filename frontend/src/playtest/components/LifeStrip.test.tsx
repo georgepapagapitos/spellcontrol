@@ -65,10 +65,91 @@ function onlineTable(overrides: Partial<OnlineTable> = {}): OnlineTable {
   };
 }
 
-describe('LifeStrip — solo mode (unchanged)', () => {
+describe('LifeStrip — solo mode', () => {
   it('renders the local life total, not a table', () => {
     render(<LifeStrip {...soloProps()} />);
     expect(screen.getByRole('button', { name: /You: 40 life/ })).toBeTruthy();
+  });
+
+  it('lists commander damage per opponent in MY panel and steps it onto that opponent', () => {
+    const props = soloProps();
+    render(
+      <LifeStrip
+        {...props}
+        opponents={[
+          { life: 40, commanderDamage: 5 },
+          { life: 40, commanderDamage: 0 },
+        ]}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /You: 40 life/ }));
+    expect(screen.getByText('Commander damage')).toBeTruthy();
+    expect(screen.getByText('16 to lethal')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Commander damage from Opponent 2 +1' }));
+    expect(props.onAdjustCommanderDamage).toHaveBeenCalledWith(1, 1);
+  });
+
+  it("an opponent's own panel is life and counters, not a second commander-damage stepper", () => {
+    render(<LifeStrip {...soloProps()} opponents={[{ life: 40, commanderDamage: 5 }]} />);
+    fireEvent.click(screen.getByRole('button', { name: /Opponent: 40 life/ }));
+    expect(screen.getByRole('button', { name: 'Life +1' })).toBeTruthy();
+    expect(screen.queryByText('Commander damage')).toBeNull();
+  });
+});
+
+describe('LifeStrip — the popover is one fixed list (EDHPlay shape)', () => {
+  it('lists the five player counters even at zero, in Title case with the by-name field folded away', () => {
+    render(<LifeStrip {...soloProps()} />);
+    fireEvent.click(screen.getByRole('button', { name: /You: 40 life/ }));
+    for (const label of ['Poison', 'Energy', 'Experience', 'Rad', 'Tickets']) {
+      expect(screen.getByText(label)).toBeTruthy();
+    }
+    expect(screen.queryByRole('textbox', { name: 'Counter name' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Another counter' }));
+    expect(screen.getByRole('textbox', { name: 'Counter name' })).toBeTruthy();
+  });
+
+  it('a custom counter already on the player stays adjustable below the fixed five', () => {
+    const props = soloProps();
+    render(<LifeStrip {...props} playerCounters={{ oil: 2 }} />);
+    fireEvent.click(screen.getByRole('button', { name: /You: 40 life/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'oil +1' }));
+    expect(props.onAdjustCounter).toHaveBeenCalledWith('self', 'oil', 1);
+  });
+
+  it('table variant: a bare chevron opens the popover, which has no life row and no "Details" caption', () => {
+    render(
+      <LifeStrip {...soloProps()} opponents={[{ life: 40, commanderDamage: 0 }]} variant="table" />
+    );
+    expect(screen.queryByText('Details')).toBeNull();
+    expect(screen.queryByText(/opponents?$/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Counters and commander damage' }));
+    expect(screen.getByRole('dialog', { name: 'You' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Life +5' })).toBeNull();
+    expect(screen.getByText('Poison')).toBeTruthy();
+  });
+
+  it('strip variant keeps the life row in the sheet, since the chip has no steppers of its own', () => {
+    render(<LifeStrip {...soloProps()} />);
+    fireEvent.click(screen.getByRole('button', { name: /You: 40 life/ }));
+    expect(screen.getByRole('button', { name: 'Life +5' })).toBeTruthy();
+  });
+
+  it("online: the table's poison stepper takes the Poison row's place, once", () => {
+    const table = onlineTable({
+      poisonEnabled: true,
+      me: player({ seat: 0, name: 'Me', life: 40, poison: 2 }),
+    });
+    render(<LifeStrip {...soloProps()} onlineTable={table} />);
+    fireEvent.click(screen.getByText('You').closest('button')!);
+    expect(screen.getAllByText('Poison')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Poison +1' }));
+    expect(table.dispatch).toHaveBeenCalledWith({
+      type: 'poison',
+      seat: 0,
+      delta: 1,
+      actorSeat: 0,
+    });
   });
 });
 
@@ -143,10 +224,10 @@ describe('LifeStrip — online mode', () => {
     expect(onViewOpponentBoard).toHaveBeenCalledWith(1);
   });
 
-  it('steps commander damage FROM an opponent onto MY OWN seat', () => {
+  it('steps commander damage FROM an opponent onto MY OWN seat, from MY panel', () => {
     const table = onlineTable();
     render(<LifeStrip {...soloProps()} onlineTable={table} />);
-    fireEvent.click(screen.getByText('Maya').closest('button')!);
+    fireEvent.click(screen.getByText('You').closest('button')!);
     fireEvent.click(screen.getByRole('button', { name: 'Commander damage from Maya +1' }));
     expect(table.dispatch).toHaveBeenCalledWith({
       type: 'cmd-dmg',
