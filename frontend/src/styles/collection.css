@@ -2282,15 +2282,21 @@ i.ss.set-symbol--mythic {
      composes --collection-table-cols from only the columns a surface asked
      for, so the tiers below can drop a column by zeroing its track without
      knowing which surface is rendering. */
-  --ct-w-qty: 3ch;
+  /* Every track is sized for its own HEADER, not just its data: the header
+     is uppercase --text-xs with letter-spacing and may carry a 14px sort
+     arrow, so a column sized to its values clips its own label. `--ct-w-qty`
+     was `3ch` — room for "999", 25px short of "QTY ↓", which the right-
+     aligned header then cut from the left into "TY". See
+     card-table-header-fit.test.ts, which recomputes every floor. */
+  --ct-w-qty: 3.5rem;
   --ct-w-name: minmax(8rem, 3fr);
   --ct-w-set: 3.5rem;
   --ct-w-cn: 4rem;
   --ct-w-cond: 3.5rem;
-  --ct-w-lang: 3.25rem;
-  --ct-w-binder: minmax(4rem, 1.5fr);
+  --ct-w-lang: 3.5rem;
+  --ct-w-binder: minmax(4.5rem, 1.5fr);
+  --ct-w-notes: minmax(4rem, 2fr);
   --ct-w-page: 3.5rem;
-  --ct-w-notes: minmax(0, 2fr);
   --ct-w-target: 6.5rem;
   --ct-w-mana: 6rem;
   --ct-w-price: 4.75rem;
@@ -2338,6 +2344,16 @@ i.ss.set-symbol--mythic {
   border-radius: var(--radius) var(--radius) 0 0;
 }
 
+/* Under a hub's tab strip the scrollport top is BEHIND the tabs, so a header
+   pinned at 0 slides under them and the columns go unlabelled for the whole
+   scroll — which is what a binder and a list did. Pin beneath the strip, the
+   same offset the search row and the index toolbars already use. A surface
+   with a deeper sticky stack (Collection: tabs + search + controls) measures
+   it and passes `top` inline, which wins over this. */
+.collection-hub-tabs ~ * .collection-table-head {
+  top: calc(var(--hub-tabs-sticky-h) - 1px);
+}
+
 /* Sort buttons fill the header row; on touch the row grows to the floor. */
 @media (pointer: coarse) {
   .collection-table-head {
@@ -2372,7 +2388,12 @@ i.ss.set-symbol--mythic {
   appearance: none;
   border: 0;
   background: none;
-  padding: 0;
+  /* Not `padding: 0` — that has the same specificity as the shared
+     `[data-col]` gutter rule above and wins on order, so a sortable header
+     lost the column gutter every other cell keeps and its sort arrow sat
+     flush against the next column. Zero the button's own padding only. */
+  padding-block: 0;
+  padding-inline-start: 0;
   font-family: inherit;
   cursor: pointer;
 }

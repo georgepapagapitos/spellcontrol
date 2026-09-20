@@ -47,6 +47,14 @@ interface ColumnSpec {
    * media queries.
    */
   tier: 1 | 2 | 3;
+  /**
+   * Whether any surface may offer click-to-sort on this column. Load-bearing
+   * twice over: `CardTableHead` renders a sort button only for a column marked
+   * here, and `card-table-header-fit.test.ts` reserves the sort arrow's width
+   * in the column's track only for these. A column that grew an arrow without
+   * the flag would be a header too narrow for its own label.
+   */
+  sortable?: true;
 }
 
 /**
@@ -55,9 +63,9 @@ interface ColumnSpec {
  * before Collector number.
  */
 export const CARD_TABLE_COLUMNS: Record<CardTableCol, ColumnSpec> = {
-  qty: { label: 'Qty', tier: 1 },
-  name: { label: 'Name', tier: 1 },
-  set: { label: 'Set', tier: 1 },
+  qty: { label: 'Qty', tier: 1, sortable: true },
+  name: { label: 'Name', tier: 1, sortable: true },
+  set: { label: 'Set', tier: 1, sortable: true },
   cn: { label: '#', tier: 1 },
   cond: { label: 'Cond', tier: 1 },
   lang: { label: 'Lang', tier: 2 },
@@ -65,8 +73,8 @@ export const CARD_TABLE_COLUMNS: Record<CardTableCol, ColumnSpec> = {
   page: { label: 'Page', tier: 3 },
   notes: { label: 'Notes', tier: 2 },
   target: { label: 'Target', tier: 2 },
-  mana: { label: 'Mana', tier: 3 },
-  price: { label: 'Price', tier: 1 },
+  mana: { label: 'Mana', tier: 3, sortable: true },
+  price: { label: 'Price', tier: 1, sortable: true },
   total: { label: 'Total', tier: 1 },
   menu: { label: '', tier: 1 },
 };
@@ -152,6 +160,52 @@ export const SHARED_TABLE_COLUMNS = orderColumns([
   'price',
   'total',
 ]);
+
+/**
+ * A copy, as far as the columns that only exist to report a deviation are
+ * concerned. Deliberately structural rather than `EnrichedCard` — this module
+ * owns the column vocabulary and nothing else.
+ */
+interface AnnotatedCopy {
+  condition?: string;
+  language?: string;
+  notes?: string;
+}
+
+/**
+ * Columns whose cell is blank on a copy that carries nothing unusual, and the
+ * test for "carries something".
+ */
+const OPTIONAL_COLUMNS: Partial<Record<CardTableCol, (c: AnnotatedCopy) => boolean>> = {
+  cond: (c) => !!c.condition && c.condition !== 'nm',
+  lang: (c) => !!c.language && c.language !== 'en',
+  notes: (c) => !!c.notes?.trim(),
+};
+
+/**
+ * Drop the columns that have nothing to say about THESE copies.
+ *
+ * A binder of 1,062 sleeved English near-mint cards otherwise prints "NM" a
+ * thousand times, "EN" a thousand times, and an empty Notes column two `fr`
+ * wide — three dead tracks, one of them the second-widest in the table, which
+ * is what made the binder read as broken at desktop width. E335 shipped these
+ * columns unconditionally on the reasoning that "the column label carries the
+ * meaning"; it only carries meaning when a row has meaning to carry.
+ *
+ * Browse surfaces (a binder, a list) call this. Collection does NOT: it is the
+ * audit view, where Cond and Lang are columns you sort and scan by, and one
+ * that vanished when every copy happened to be NM would be worse than one that
+ * reads NM.
+ */
+export function visibleColumns(
+  columns: readonly CardTableCol[],
+  copies: readonly AnnotatedCopy[]
+): CardTableCol[] {
+  return columns.filter((col) => {
+    const carries = OPTIONAL_COLUMNS[col];
+    return !carries || copies.some((c) => carries(c));
+  });
+}
 
 /**
  * The `grid-template-columns` value for a set of columns, as a list of
@@ -246,9 +300,13 @@ export function CardTableHead<K extends string>({
     >
       {selectMode && <span aria-hidden />}
       {columns.map((col) => {
-        const { label, tier } = CARD_TABLE_COLUMNS[col];
+        const { label, tier, sortable } = CARD_TABLE_COLUMNS[col];
         const key = sortFor?.[col];
-        if (!key || !onSort) {
+        // `sortable` gates the button, not just `sortFor`: the column's track
+        // only reserves room for the arrow when the vocabulary says the column
+        // can carry one, so a surface can't grow an arrow the width doesn't
+        // allow for.
+        if (!key || !onSort || !sortable) {
           return (
             <span key={col} className="collection-table-th" data-col={col} data-tier={tier}>
               {label}

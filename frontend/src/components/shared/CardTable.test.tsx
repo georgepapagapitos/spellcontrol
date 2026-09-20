@@ -29,6 +29,7 @@ import {
   SHARED_TABLE_COLUMNS,
   cardTableTemplate,
   orderColumns,
+  visibleColumns,
   type CardTableCol,
 } from './CardTable';
 
@@ -112,6 +113,17 @@ describe('the column vocabulary', () => {
     }
   });
 
+  it('marks every column a surface offers click-to-sort on', () => {
+    // The flag gates the button in `CardTableHead` and reserves the sort
+    // arrow's width in `card-table-header-fit.test.ts`. These five are the
+    // union of Collection's and Lists' sort maps; adding a sixth means
+    // checking its track still fits the label plus an arrow.
+    const sortable = Object.entries(CARD_TABLE_COLUMNS)
+      .filter(([, spec]) => spec.sortable)
+      .map(([col]) => col);
+    expect(sortable.sort()).toEqual(['mana', 'name', 'price', 'qty', 'set']);
+  });
+
   it('keeps Name and the money columns at the tier that never drops', () => {
     // What a row is, and what it costs, survive every width; everything else
     // is negotiable. Demoting one of these would leave the narrowest table
@@ -119,5 +131,46 @@ describe('the column vocabulary', () => {
     for (const col of ['name', 'price', 'total'] as const) {
       expect(CARD_TABLE_COLUMNS[col].tier).toBe(1);
     }
+  });
+});
+
+describe('columns that only earn their track by being used', () => {
+  const preset = BINDER_TABLE_COLUMNS;
+  const plain = [{ condition: 'nm', language: 'en' }];
+
+  it('drops Cond, Lang and Notes when no copy deviates', () => {
+    const cols = visibleColumns(preset, plain);
+    for (const col of ['cond', 'lang', 'notes'] as const) expect(cols).not.toContain(col);
+  });
+
+  it('keeps the rest of the preset, in order', () => {
+    expect(visibleColumns(preset, plain)).toEqual(
+      preset.filter((c) => !['cond', 'lang', 'notes'].includes(c))
+    );
+  });
+
+  it.each([
+    ['a played copy', { condition: 'lp' }, 'cond'],
+    ['a non-English copy', { language: 'ja' }, 'lang'],
+    ['a copy with a note', { notes: 'signed' }, 'notes'],
+  ])('keeps the column for %s', (_what, copy, col) => {
+    expect(visibleColumns(preset, [...plain, copy])).toContain(col);
+  });
+
+  it('treats whitespace as no note', () => {
+    expect(visibleColumns(preset, [{ notes: '   ' }])).not.toContain('notes');
+  });
+
+  it('drops nothing when a surface has no rows to judge by', () => {
+    // An empty list should not flicker its columns in on the first card;
+    // surfaces render the empty state instead of a table, so this is only
+    // about the helper staying total.
+    expect(visibleColumns(preset, [])).toEqual(
+      preset.filter((c) => !['cond', 'lang', 'notes'].includes(c))
+    );
+  });
+
+  it('never invents a column the preset left out', () => {
+    expect(visibleColumns(LIST_TABLE_COLUMNS, [{ notes: 'signed' }])).not.toContain('notes');
   });
 });
