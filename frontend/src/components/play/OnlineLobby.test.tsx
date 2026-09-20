@@ -120,6 +120,13 @@ describe('OnlineLobby', () => {
     expect(screen.getByText('Commander damage')).toBeTruthy();
   });
 
+  it('the join code has no dismiss control and stays visible for the whole lobby', () => {
+    renderLobby(table());
+    expect(screen.getByText('ABCD')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /hide join code/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^dismiss/i })).toBeNull();
+  });
+
   it('chat sends a note from the viewer’s seat and shows system lines as system', () => {
     const game = applyAction(table(2), { type: 'set-ready', actorSeat: 0, ready: true });
     const dispatch = renderLobby(game);
@@ -247,6 +254,24 @@ describe('table settings the pod decides together', () => {
     expect(dispatch).toHaveBeenCalledWith({
       type: 'settings',
       patch: { turnTimerEnabled: true },
+    });
+  });
+
+  it('the commander damage toggle dispatches its settings patch', () => {
+    const dispatch = renderLobby(table());
+    fireEvent.click(screen.getByRole('switch', { name: /Commander damage/ }));
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'settings',
+      patch: { commanderDamageEnabled: false },
+    });
+  });
+
+  it('the poison counters toggle dispatches its settings patch', () => {
+    const dispatch = renderLobby(table());
+    fireEvent.click(screen.getByRole('switch', { name: /Poison counters/ }));
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'settings',
+      patch: { poisonEnabled: true },
     });
   });
 });

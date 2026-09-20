@@ -52,14 +52,31 @@ export const TAKEBACK_MODE_DESCRIPTION: Record<TakebackMode, string> = {
 const TAKEBACK_MODE_KEY = 'spellcontrol:playtest:takebackMode';
 
 /** Device preference — same storage pattern as `loadFreeMulligan` /
- *  `loadLastResistanceLevel` (see store.ts / lib/resistance.ts). */
-export function loadTakebackMode(): TakebackMode {
+ *  `loadLastResistanceLevel` (see store.ts / lib/resistance.ts). `null` means
+ *  the player has never chosen, which is not the same as choosing `ask` —
+ *  see `resolveTakebackMode`. */
+export function loadTakebackMode(): TakebackMode | null {
   try {
     const raw = localStorage.getItem(TAKEBACK_MODE_KEY);
-    return raw === 'ask' || raw === 'free' || raw === 'off' ? raw : 'ask';
+    return raw === 'ask' || raw === 'free' || raw === 'off' ? raw : null;
   } catch {
-    return 'ask';
+    return null;
   }
+}
+
+/**
+ * What a player who has never picked a takeback rule gets.
+ *
+ * Online it is `free`. At a real table "can I take that back" is one
+ * sentence and the pod says yes; making the software hold every step for an
+ * approval round-trip models an argument nobody was having. Solo it is
+ * `ask`, which is inert with no table to ask (nothing is ever held), and
+ * stays the honest label if that game later becomes a seated one.
+ *
+ * An explicit choice always wins — this only fills the blank.
+ */
+export function resolveTakebackMode(stored: TakebackMode | null, online: boolean): TakebackMode {
+  return stored ?? (online ? 'free' : 'ask');
 }
 
 export function saveTakebackMode(mode: TakebackMode): void {

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   readTakeback,
+  resolveTakebackMode,
   resolveTakebackPlan,
+  TAKEBACK_MODES,
   takebackSummary,
   trailEntry,
   type RewindTrailEntry,
@@ -109,5 +111,19 @@ describe('takebackSummary', () => {
 
   it('falls back to a generic phrase for untracked action types', () => {
     expect(takebackSummary(free(null))).toMatch(/quick adjustment/);
+  });
+});
+
+describe('resolveTakebackMode', () => {
+  it('fills the blank with free online and ask solo', () => {
+    expect(resolveTakebackMode(null, true)).toBe('free');
+    expect(resolveTakebackMode(null, false)).toBe('ask');
+  });
+
+  it('never overrides a choice the player actually made', () => {
+    for (const mode of TAKEBACK_MODES) {
+      expect(resolveTakebackMode(mode, true)).toBe(mode);
+      expect(resolveTakebackMode(mode, false)).toBe(mode);
+    }
   });
 });

@@ -522,10 +522,12 @@
   flex: 0 0 auto;
   width: var(--oh-w);
   aspect-ratio: 5 / 7;
-  /* Pivot below the card so the fan splays rather than shears. */
+  /* Pivot below the card so the fan splays rather than shears. The angle is
+     a custom property because the hover/focus rule below re-states the whole
+     transform and must keep the very same rotation. */
+  --oh-rot: calc((var(--oh-i) - (var(--oh-n) - 1) / 2) * 4deg);
   transform-origin: 50% 130%;
-  transform: rotate(calc((var(--oh-i) - (var(--oh-n) - 1) / 2) * 4deg))
-    translateY(var(--oh-lift, 0px));
+  transform: rotate(var(--oh-rot)) translateY(var(--oh-lift, 0px));
   z-index: var(--oh-i);
   transition: transform var(--motion-fast) var(--ease-out-soft);
 }
@@ -544,17 +546,22 @@
   animation-delay: calc(var(--oh-i) * 16ms);
 }
 
-/* The pointed-at card leaves the fan: straightens, lifts, and comes fully to
-   the front. `:has()` on the slot keeps the lift and the fan geometry on one
-   element (the card's own transform belongs to the drag). */
+/* The pointed-at card lifts out of the fan and comes fully to the front, and
+   it KEEPS ITS ANGLE (`--oh-rot`) while doing it. Straightening it was a
+   second, unasked-for movement: the hand reads as a held fan, and one card
+   snapping square breaks that read for the moment you are looking hardest.
+   Because the rotation comes first, the lift runs along the card's own axis,
+   so it rises the way a card pulled from a real fan does. `:has()` on the
+   slot keeps the lift and the fan geometry on one element (the card's own
+   transform belongs to the drag). */
 .is-takeover .playtest-opening-slot:has(.playtest-opening-card:focus-visible) {
-  transform: translateY(-24px) scale(1.06);
+  transform: rotate(var(--oh-rot)) translateY(-24px) scale(1.06);
   z-index: 20;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .is-takeover .playtest-opening-slot:has(.playtest-opening-card:hover) {
-    transform: translateY(-24px) scale(1.06);
+    transform: rotate(var(--oh-rot)) translateY(-24px) scale(1.06);
     z-index: 20;
   }
 
