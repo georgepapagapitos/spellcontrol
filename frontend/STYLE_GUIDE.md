@@ -1736,6 +1736,34 @@ the live board with a Start button in its header. Two regions at >=1024px
   end first (`mulliganType` decides the bottom-N count the opening-hand
   takeover asks for; `turnTimerEnabled` drives the readout under the board's
   TURN chip).
+- **The join-code ticket has no dismiss control.** It is the one thing a
+  host needs to get people seated, so it stays on screen for the life of
+  the lobby rather than being collapsible or closeable — a host stranded
+  without their own code was a real complaint, not a hypothetical one.
+  Keep its help text to one short clause; it does not need to spell out the
+  whole join flow.
+- **A rule toggle (commander damage, poison, turn timer) is a
+  `.lobby-setting` row, not a bordered card.** `RulePill` (`SetupControls`)
+  is the two-line card with a permanent hint sentence used by the local
+  setup form, and that shape stays there; the lobby's own `RuleToggle`
+  matches the plain settings rows above it and puts the hint sentence on
+  the control's `title` instead, since three permanent hint lines next to
+  four hint-less rows read as three heavier cards, not part of the same
+  list.
+- **Start puts you at the table.** The board is the online surface; this tab
+  is the lobby before a game and the record after one. On the first render
+  after a game goes active, a seat that has a deck is sent to
+  `/decks/:id/playtest` — once per game, marked in `sessionStorage` so coming
+  back to Play does not yank them away again, and skipped entirely when
+  storage is blocked (no mark means it would fire on every mount, which is
+  worse than never). A seat with no deck stays put, because the prompt it
+  needs is here. Landing on a life counter that then offered to "open your
+  board" made Start feel like it had not started anything, and put a second
+  set of life / commander-damage / monarch controls in front of the ones the
+  board already carries.
+- **A comparison needs someone to compare with.** The board-door's "N of M
+  boards open" and its seat chips are hidden at a one-seat table, where they
+  read as a count of yourself.
 - **The lobby is where the table's rules are set, and the only place.** The
   pre-create Host form asks for the format and nothing else: the format
   implies the rest, the pod isn't assembled yet, and every rule belongs
@@ -1935,16 +1963,40 @@ absolute` inside `.playtest-battlefield-wrap`, not inside `.playtest-board`,
   floating, the full pool once opened by the chip or `M`. This is
   `LifeStrip`'s `variant="table"`; the narrow tier keeps the strip untouched.
   Top-right: the `☰` game menu (44×44, an `OverflowMenu`
-  so the keyboard nav is the shared one), the TURN chip, the primary turn
-  action, then the online-only phase/reaction/hold controls, Take back and
-  Select. Bottom-right: the zone piles as a horizontal row, each labelled
-  `Library (92)` with the count in the label, Library carrying an inline
-  "Draw · D". Bottom-centre: the hand fan, each non-land card badged with its
+  so the keyboard nav is the shared one), the TURN chip (carrying the turn
+  clock when the table turned one on), the primary turn action, then the
+  online-only phase/reaction/hold controls. **Nothing else earns a permanent
+  button over the felt.** Take back and Select were there and are not any
+  more: both are in the table menu and on their own keys, and neither is
+  reached often enough to hold the corner. Each keeps a transient presence
+  for exactly as long as it is live — a pending takeback says it is waiting
+  on the table, and Select shows a "Done" button with its count while a
+  selection is open. Bottom-right: the zone piles as a horizontal row, each
+  labelled `Library (92)` with the count in the label, Library carrying an
+  inline "Draw · D" (the live key, never a hard-coded one — it is the only
+  Draw control on the felt) and a kebab with Shuffle and Top cards. Bottom-centre: the hand fan, each non-land card badged with its
   real mana cost as mana-font pips (`ManaCost`, off the new optional
   `PlaytestCard.manaCost`; a pre-badge snapshot falls back to the bare mana
   value, and lands and tokens carry no badge at all). Bottom-left: the log
   dock. The empty-table hint stays, quietly, and says nothing once the hand
   is collapsed: it names a hand that is not on screen.
+- **The game menu is actions; anything you set once lives in Table
+  settings.** The menu had grown to sixteen rows by absorbing every
+  preference. It is now Back, Stats, Log, Keyboard shortcuts, Table
+  settings, Fullscreen, Reset and the online-only Concede/Leave. Card size,
+  Takeback rule, Resistance and Designations moved into
+  `TableSettingsSheet`, which renders the card-size slider in full (you drag
+  it while watching the table, so it cannot be a separate sheet) and states
+  the rest as rows that open the pickers already owning them. Library
+  actions moved onto the library pile. Mulligan was dropped: the
+  opening-hand takeover offers it, which is the only moment it makes sense.
+  **The test of a new row is which of those two it is** — an action, or a
+  setting.
+- **The table menu is what you reach for with the pointer already on the
+  felt.** Right-click gives Pass/Next turn, Untap all, Mana pool, Create
+  token, Roll dice, Select cards, Take back, and Reactions online. Draw,
+  Log and Keyboard shortcuts were dropped from it: each is one tap away
+  somewhere the eye is already going (the library pile, the game menu).
 - **Banners float, they never displace.** `ResistanceBanner`, the session
   summary and the takeback pending banner stack top-centre in
   `.playtest-banners` (max 36rem), under the corner clusters' z-index.
@@ -2001,8 +2053,14 @@ sheet is unchanged — a phone has no room for the fan.
   35% overlap), the card inside carries dnd-kit's drag transform. One
   transform per element is the rule — a drag must never fight the fan. The
   slot is `display: contents` in the sheet tier, so the phone layout is
-  exactly what it was before slots existed. Hover or keyboard focus takes a
-  card fully out of the fan: straight, lifted 24px, scaled 1.06, in front.
+  exactly what it was before slots existed. Hover or keyboard focus lifts a
+  card out of the fan 24px, scales it 1.06 and brings it fully to the front,
+  **keeping its angle** (`--oh-rot`, the one place the rotation is spelled, so
+  the rest state and the lifted state cannot disagree). It used to straighten
+  too, and that was one movement too many: the hand reads as a held fan, and a
+  card snapping square breaks that read at the moment the player is looking
+  hardest. Rotation comes first in the transform, so the lift runs along the
+  card's own axis and it rises the way a card pulled from a real fan does.
   Cards deal in on mount and after every mulligan, 16ms apart, under 300ms
   total, and not at all under `prefers-reduced-motion`.
 - **The fan is bounded by the height budget, not just the width.**

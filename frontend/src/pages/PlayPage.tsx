@@ -11,7 +11,7 @@ import '@/styles/play-counters-panel.css';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { Check, Copy, Swords, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
 import { useAuth } from '../store/auth';
 import { useDecksStore, type Deck } from '../store/decks';
@@ -86,6 +86,38 @@ export function PlayPage() {
     online && online.status === 'lobby' && user?.id
       ? (online.players.find((p) => p.userId === user.id) ?? null)
       : null;
+
+  // ── Start puts you at the table ────────────────────────────────────────
+  // The board IS the online table; this tab is the lobby before a game and
+  // the record after one. Landing on a life counter that then asks you to
+  // "open your board" made Start feel like it had not started anything, and
+  // put a second set of life / commander-damage / monarch controls in front
+  // of the ones the board already carries.
+  //
+  // Once per game, and only for a seat that actually has a deck to open:
+  // after that the player is free to come back here, and a `sessionStorage`
+  // mark (not state) means a reload on this tab does not yank them away
+  // again.
+  const navigate = useNavigate();
+  const mySeatDeckId =
+    online && online.status === 'active' && user?.id
+      ? (online.players.find((p) => p.userId === user.id)?.deckId ?? null)
+      : null;
+  const liveGameId = online && online.status === 'active' ? online.id : null;
+  useEffect(() => {
+    if (!liveGameId || !mySeatDeckId) return;
+    const key = `spellcontrol:play:sentToBoard:${liveGameId}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, '1');
+    } catch {
+      // Private mode / blocked storage: without the mark this would send the
+      // player to their board on every mount of this tab, which is worse
+      // than never doing it. Skip rather than risk the loop.
+      return;
+    }
+    navigate(`/decks/${mySeatDeckId}/playtest`);
+  }, [liveGameId, mySeatDeckId, navigate]);
 
   // Where the page opens: the tab you asked for; else the table you're in the
   // middle of (a board on screen, or a live online seat); else the landing.
@@ -1320,27 +1352,32 @@ function OnlineBoardDoor({
       className={`play-board-door ${urgent ? 'is-urgent' : ''} ${myBoardOpen ? 'is-receded' : ''}`}
       aria-label="Your board"
     >
-      <div className="play-board-door-summary">
-        <span className="play-board-door-count">
-          {openCount} of {total} board{total === 1 ? '' : 's'} open
-        </span>
-        <ul className="play-board-door-seats">
-          {game.players.map((p) => {
-            const open = onlineBoards[p.seat] != null;
-            const label = p.userId === userId ? 'You' : p.name;
-            return (
-              <li
-                key={p.seat}
-                className={`play-board-door-seat ${open ? 'is-open' : ''}`}
-                aria-label={`${label} — ${open ? 'board open' : 'no board yet'}`}
-              >
-                <span className="play-board-door-seat-dot" aria-hidden="true" />
-                <span aria-hidden="true">{label}</span>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+      {/* Who else is on their board is a comparison, so it needs someone to
+          compare with: alone at the table it read as "0 of 1 board open · You",
+          which is a count of yourself. */}
+      {total > 1 && (
+        <div className="play-board-door-summary">
+          <span className="play-board-door-count">
+            {openCount} of {total} boards open
+          </span>
+          <ul className="play-board-door-seats">
+            {game.players.map((p) => {
+              const open = onlineBoards[p.seat] != null;
+              const label = p.userId === userId ? 'You' : p.name;
+              return (
+                <li
+                  key={p.seat}
+                  className={`play-board-door-seat ${open ? 'is-open' : ''}`}
+                  aria-label={`${label} — ${open ? 'board open' : 'no board yet'}`}
+                >
+                  <span className="play-board-door-seat-dot" aria-hidden="true" />
+                  <span aria-hidden="true">{label}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       {!mine.deckId ? (
         <div className="play-board-door-pick">

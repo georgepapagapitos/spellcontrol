@@ -4,6 +4,7 @@ import { usePlayStore } from '@/store/play';
 import { haptics } from '@/lib/haptics';
 import {
   readTakeback,
+  resolveTakebackMode,
   resolveTakebackPlan,
   takebackSummary,
   TAKEBACK_EXPIRY_GRACE_MS,
@@ -61,7 +62,7 @@ const RESOLUTION_DISPLAY_MS = 4000;
 export function useTakeback(onlineTable: OnlineTable | null): TakebackStatus {
   const rewindTrail = usePlaytestStore((s) => s.rewindTrail);
   const dispatch = usePlaytestStore((s) => s.dispatch);
-  const mode = usePlaytestStore((s) => s.takebackMode);
+  const storedMode = usePlaytestStore((s) => s.takebackMode);
   const setMode = usePlaytestStore((s) => s.setTakebackMode);
   const onlineRequests = usePlayStore((s) => s.onlineRequests);
   const raiseGameRequest = usePlayStore((s) => s.raiseGameRequest);
@@ -69,6 +70,7 @@ export function useTakeback(onlineTable: OnlineTable | null): TakebackStatus {
 
   const mySeat = onlineTable?.mySeat ?? null;
   const online = onlineTable !== null;
+  const mode = useMemo(() => resolveTakebackMode(storedMode, online), [storedMode, online]);
 
   // `onlineRequests` is keyed by requester seat, so `onlineRequests[mySeat]`
   // can only ever be a request THIS seat raised. `myRequestId` narrows it

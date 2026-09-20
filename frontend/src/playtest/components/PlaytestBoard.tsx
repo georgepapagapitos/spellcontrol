@@ -98,7 +98,7 @@ import {
   type ShortcutOverrides,
 } from '../lib/shortcuts';
 import { ShortcutsSheet } from './ShortcutsSheet';
-import { TableSettingsSheet } from './TableSettingsSheet';
+import { TableSettingsSheet, type SettingLink } from './TableSettingsSheet';
 import { TableArrows } from './TableArrows';
 import { PhaseChip } from '@/components/play/PhaseChip';
 import { ReactionPicker } from './ReactionPicker';
@@ -1439,44 +1439,41 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     state.citysBlessing && "City's Blessing",
   ].filter((label): label is string => Boolean(label));
 
+  // Everything you set once and forget lives behind "Table settings" (see
+  // `TableSettingsSheet`); the menu itself is actions. Library actions
+  // (Shuffle, Top cards) moved onto the library pile, where the cards are,
+  // and Mulligan is offered by the opening-hand takeover that owns it.
+  const settingsLinks: SettingLink[] = [
+    {
+      label: 'Takeback rule',
+      value: TAKEBACK_MODE_LABEL[takeback.mode],
+      onOpen: () => {
+        setShowTableSettings(false);
+        setShowTakebackSettings(true);
+      },
+    },
+    {
+      label: 'Resistance',
+      value: RESISTANCE_LEVEL_LABEL[resistanceLevel],
+      onOpen: () => {
+        setShowTableSettings(false);
+        setShowResistancePicker(true);
+      },
+    },
+    {
+      label: 'Designations',
+      value: heldDesignations.length > 0 ? heldDesignations.join(', ') : 'None',
+      onOpen: () => {
+        setShowTableSettings(false);
+        setShowDesignations(true);
+      },
+    },
+  ];
+
   const gameMenuItems: OverflowMenuItem[] = [
     ...(onBack ? [{ label: `Back to ${backLabel ?? 'deck'}`, onClick: onBack }] : []),
     { label: 'Stats', onClick: () => setShowStats(true) },
     { label: hasUnreadLog ? 'Log (new events)' : 'Log', onClick: handleOpenLog },
-    {
-      label: 'Top cards',
-      onClick: () => {
-        setScryFrom('top');
-        setShowScry(true);
-      },
-      disabled: libraryCount === 0,
-    },
-    {
-      label: 'Bottom cards',
-      onClick: () => {
-        setScryFrom('bottom');
-        setShowScry(true);
-      },
-      disabled: libraryCount === 0,
-    },
-    {
-      label: 'View library',
-      onClick: () => setViewer({ zone: 'library' }),
-      disabled: libraryCount === 0,
-    },
-    // The one-card peeks ship with no key (the map leaves them unbound), so
-    // the menu is their only door until somebody binds one.
-    {
-      label: 'Top card',
-      onClick: () => void peekLibrary('top'),
-      disabled: libraryCount === 0,
-    },
-    {
-      label: 'Bottom card',
-      onClick: () => void peekLibrary('bottom'),
-      disabled: libraryCount === 0,
-    },
-    { label: 'Shuffle', onClick: () => dispatch({ type: 'SHUFFLE_LIBRARY' }) },
     ...(gridFits
       ? [
           {
@@ -1485,39 +1482,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           },
         ]
       : []),
-    {
-      label: 'Mulligan',
-      onClick: () => {
-        haptics.warning();
-        dispatch({ type: 'MULLIGAN' });
-      },
-    },
-    {
-      label:
-        heldDesignations.length > 0
-          ? `Designations: ${heldDesignations.join(', ')}`
-          : 'Designations',
-      onClick: () => setShowDesignations(true),
-    },
-    {
-      label: `Resistance: ${RESISTANCE_LEVEL_LABEL[resistanceLevel]}`,
-      onClick: () => setShowResistancePicker(true),
-    },
-    {
-      label: `Takeback rule: ${TAKEBACK_MODE_LABEL[takeback.mode]}`,
-      onClick: () => setShowTakebackSettings(true),
-    },
     { label: 'Keyboard shortcuts', onClick: () => setShowShortcuts(true) },
-    // The narrow tier sizes cards for a thumb; only the wide tier has a size
-    // to set (the sheet's slider, or = and − on the keys).
-    ...(!isNarrow
-      ? [
-          {
-            label: `Card size: ${Math.round(zoom * 100)}%`,
-            onClick: () => setShowTableSettings(true),
-          },
-        ]
-      : []),
+    { label: 'Table settings', onClick: () => setShowTableSettings(true) },
     // Fullscreen is offered only where the browser offers it (not inside the
     // native shell, and not in every embedded WebView).
     ...(typeof document !== 'undefined' && document.fullscreenEnabled
@@ -1546,69 +1512,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       : []),
   ];
 
-  const tableMenuItems: TableMenuItem[] = [
-    { label: 'Draw', shortcut: keyFor('draw'), onClick: doDraw, disabled: libraryCount === 0 },
-    canPassTurn
-      ? { label: 'Pass turn', shortcut: keyFor('pass-turn'), onClick: doPassTurn }
-      : { label: 'Next turn', shortcut: keyFor('next-turn'), onClick: doNextTurn },
-    { label: 'Untap all', shortcut: keyFor('untap-all'), onClick: doUntapAll },
-    {
-      label: 'Top cards',
-      shortcut: keyFor('scry'),
-      onClick: () => {
-        setScryFrom('top');
-        setShowScry(true);
-      },
-      disabled: libraryCount === 0,
-    },
-    {
-      label: 'Bottom cards',
-      shortcut: keyFor('scry-bottom'),
-      onClick: () => {
-        setScryFrom('bottom');
-        setShowScry(true);
-      },
-      disabled: libraryCount === 0,
-    },
-    {
-      label: 'View library',
-      shortcut: keyFor('view-library'),
-      onClick: () => setViewer({ zone: 'library' }),
-      disabled: libraryCount === 0,
-    },
-    {
-      label: 'Top card',
-      shortcut: keyFor('view-top-card'),
-      onClick: () => void peekLibrary('top'),
-      disabled: libraryCount === 0,
-    },
-    {
-      label: 'Bottom card',
-      shortcut: keyFor('view-bottom-card'),
-      onClick: () => void peekLibrary('bottom'),
-      disabled: libraryCount === 0,
-    },
-    { label: 'Create token', shortcut: keyFor('token'), onClick: () => setTokenCreator(true) },
-    { label: 'Roll dice', shortcut: keyFor('dice'), onClick: () => setShowDice(true) },
-    { label: selectMode ? 'Done selecting' : 'Select cards', onClick: toggleSelectMode },
-    ...(onlineTable ? [{ label: 'Reactions', onClick: () => setReactionToken((t) => t + 1) }] : []),
-    { label: 'Log', shortcut: keyFor('log'), onClick: handleOpenLog },
-    {
-      label: 'Keyboard shortcuts',
-      shortcut: keyFor('shortcuts'),
-      onClick: () => setShowShortcuts(true),
-    },
-  ];
-
-  // Takeback copy, shared with the ActionBar's own (narrow) button.
-  const takebackTitle =
-    takeback.mode === 'off'
-      ? 'Takebacks are off for this game.'
-      : takeback.verdict === 'locked'
-        ? (takeback.boundaryReason ?? undefined)
-        : takeback.verdict === 'none'
-          ? 'Nothing to take back yet.'
-          : `Take back (${takeback.stepsAvailable} available) (Z)`;
+  // Takeback's glance cue: the count, a lock, or "Off". Read by the table
+  // menu's own row, so it is resolved before that list is built.
   const takebackBadge =
     takeback.mode === 'off'
       ? 'Off'
@@ -1617,6 +1522,31 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         : takeback.stepsAvailable > 0
           ? String(takeback.stepsAvailable)
           : null;
+
+  // Drawing and every library peek are on the library pile (and on their own
+  // keys); the log and the shortcuts sheet are in the game menu. What is left
+  // is what you reach for with the pointer already on the felt.
+  const tableMenuItems: TableMenuItem[] = [
+    canPassTurn
+      ? { label: 'Pass turn', shortcut: keyFor('pass-turn'), onClick: doPassTurn }
+      : { label: 'Next turn', shortcut: keyFor('next-turn'), onClick: doNextTurn },
+    { label: 'Untap all', shortcut: keyFor('untap-all'), onClick: doUntapAll },
+    {
+      label: manaOpen ? 'Hide mana pool' : 'Mana pool',
+      shortcut: keyFor('mana'),
+      onClick: () => setManaOpen((open) => !open),
+    },
+    { label: 'Create token', shortcut: keyFor('token'), onClick: () => setTokenCreator(true) },
+    { label: 'Roll dice', shortcut: keyFor('dice'), onClick: () => setShowDice(true) },
+    { label: selectMode ? 'Done selecting' : 'Select cards', onClick: toggleSelectMode },
+    {
+      label: takebackBadge ? `Take back (${takebackBadge})` : 'Take back',
+      shortcut: keyFor('undo'),
+      onClick: handleTakebackClick,
+      disabled: takeback.mode === 'off' || takeback.verdict === 'none',
+    },
+    ...(onlineTable ? [{ label: 'Reactions', onClick: () => setReactionToken((t) => t + 1) }] : []),
+  ];
 
   // The table tier's mana row, folded into the life panel as its last row.
   // Closed and empty it is nothing at all (six always-zero steppers have no
@@ -1802,34 +1732,29 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       <ReactionPicker openToken={reactionToken} />
       <HoldButton />
       <HoldBanner />
-      <button
-        type="button"
-        className={`playtest-corner-btn${takeback.pendingRequest ? ' is-pending' : ''}`}
-        onClick={handleTakebackClick}
-        aria-label={takeback.pendingRequest ? 'Take back: waiting for approval' : undefined}
-        title={takebackTitle}
-      >
-        Take back
-        {takebackBadge && (
-          // The count / lock / "Off" is a glance cue; the button's own title
-          // already says the same thing in words, so don't read it twice.
-          <span className="playtest-corner-btn__badge" aria-hidden>
-            {takebackBadge}
-          </span>
-        )}
-      </button>
-      <button
-        type="button"
-        className={`playtest-corner-btn${selectMode ? ' is-active' : ''}`}
-        onClick={toggleSelectMode}
-        aria-pressed={selectMode}
-        title="Select several cards to act on together"
-      >
-        {selectMode ? 'Done' : 'Select'}
-        {selectMode && selected.size > 0 && (
-          <span className="playtest-corner-btn__badge">{selected.size}</span>
-        )}
-      </button>
+      {/* Take back and Select used to sit here too. Both are in the table
+          menu (right-click) and on their own keys, and neither is reached
+          often enough to hold a permanent button over the felt — the corner
+          keeps the one control you press every turn. A pending takeback is
+          the exception: while the table is deciding, it is the only thing
+          you want to see. */}
+      {takeback.pendingRequest && (
+        <span className="playtest-corner-waiting" aria-live="polite">
+          Take back: waiting for the table
+        </span>
+      )}
+      {selectMode && (
+        <button
+          type="button"
+          className="playtest-corner-btn is-active"
+          onClick={toggleSelectMode}
+          aria-pressed
+          title="Stop selecting"
+        >
+          Done
+          {selected.size > 0 && <span className="playtest-corner-btn__badge">{selected.size}</span>}
+        </button>
+      )}
       <TableSignals />
     </div>
   );
@@ -1841,7 +1766,50 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         label="Library"
         cards={state.zones.library}
         onClick={() => setViewer({ zone: 'library' })}
-        action={{ label: 'Draw', shortcut: 'D', onClick: doDraw, disabled: libraryCount === 0 }}
+        action={{
+          label: 'Draw',
+          shortcut: keyFor('draw'),
+          onClick: doDraw,
+          disabled: libraryCount === 0,
+        }}
+        // Every library action, on the library. They were spread across the
+        // game menu and the table menu, which is how both grew past reading.
+        menu={[
+          { label: 'Shuffle', onClick: () => dispatch({ type: 'SHUFFLE_LIBRARY' }) },
+          {
+            // The sheet picks the mode (scry / surveil / mill) and the count,
+            // so the entry stays generic — a fixed "Scry 3" would mislead.
+            label: 'Top cards',
+            onClick: () => {
+              setScryFrom('top');
+              setShowScry(true);
+            },
+            disabled: libraryCount === 0,
+          },
+          {
+            label: 'Bottom cards',
+            onClick: () => {
+              setScryFrom('bottom');
+              setShowScry(true);
+            },
+            disabled: libraryCount === 0,
+          },
+          {
+            label: 'View library',
+            onClick: () => setViewer({ zone: 'library' }),
+            disabled: libraryCount === 0,
+          },
+          {
+            label: 'Top card',
+            onClick: () => void peekLibrary('top'),
+            disabled: libraryCount === 0,
+          },
+          {
+            label: 'Bottom card',
+            onClick: () => void peekLibrary('bottom'),
+            disabled: libraryCount === 0,
+          },
+        ]}
       />
       <ZonePile
         zone="graveyard"
@@ -2395,11 +2363,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       {showDice && <DiceRoller onClose={() => setShowDice(false)} />}
       {showTableSettings && (
         <TableSettingsSheet
-          zoom={zoom}
-          min={ZOOM_MIN}
-          max={ZOOM_MAX}
-          step={ZOOM_STEP}
-          onZoom={setZoomTo}
+          // The narrow tier sizes cards for a thumb; only the wide tier has a
+          // size to set (this slider, or = and − on the keys).
+          zoom={
+            isNarrow
+              ? undefined
+              : { value: zoom, min: ZOOM_MIN, max: ZOOM_MAX, step: ZOOM_STEP, onZoom: setZoomTo }
+          }
+          links={settingsLinks}
           onClose={() => setShowTableSettings(false)}
         />
       )}

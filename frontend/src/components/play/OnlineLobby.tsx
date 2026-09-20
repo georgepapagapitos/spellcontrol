@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { SelectMenu } from '../SelectMenu';
-import { DeckPicker, RulePill, SeatPips, Stepper } from './SetupControls';
+import { DeckPicker, SeatPips, Stepper } from './SetupControls';
 import { FORMAT_OPTIONS } from '../../lib/game-formats';
 import { pickFirstPlayer } from '../../lib/game-tools';
 import { useCardThumb } from '../../lib/card-thumbs';
@@ -467,7 +467,6 @@ function LobbyRail({
   dispatch: (action: GameAction) => void;
 }) {
   const [copied, setCopied] = useState(false);
-  const [dismissedCode, setDismissedCode] = useState(false);
 
   const copyCode = async () => {
     try {
@@ -499,39 +498,29 @@ function LobbyRail({
 
   return (
     <aside className="lobby-rail" aria-label="Table settings and chat">
-      {!dismissedCode && (
-        <div className="play-code-banner lobby-code">
-          <span className="play-code-label">Join code</span>
-          <span className="play-code-value">{game.code}</span>
-          <button
-            type="button"
-            className="play-code-copy"
-            aria-label={copied ? 'Join code copied' : 'Copy join code'}
-            onClick={() => void copyCode()}
-          >
-            {copied ? (
-              <>
-                <Check width={14} height={14} strokeWidth={2.5} aria-hidden /> Copied
-              </>
-            ) : (
-              <>
-                <Copy width={14} height={14} strokeWidth={2} aria-hidden /> Copy
-              </>
-            )}
-          </button>
-          <span className="play-code-hint">
-            Players go to Play, then Online, then Join, and enter this code.
-          </span>
-          <button
-            type="button"
-            className="play-code-dismiss"
-            aria-label="Hide join code"
-            onClick={() => setDismissedCode(true)}
-          >
-            <X width={16} height={16} strokeWidth={2} aria-hidden />
-          </button>
-        </div>
-      )}
+      {/* Always on screen: the code is the one thing a host needs to get
+          people seated, so it has no dismiss control to strand them behind. */}
+      <div className="play-code-banner lobby-code">
+        <span className="play-code-label">Join code</span>
+        <span className="play-code-value">{game.code}</span>
+        <button
+          type="button"
+          className="play-code-copy"
+          aria-label={copied ? 'Join code copied' : 'Copy join code'}
+          onClick={() => void copyCode()}
+        >
+          {copied ? (
+            <>
+              <Check width={14} height={14} strokeWidth={2.5} aria-hidden /> Copied
+            </>
+          ) : (
+            <>
+              <Copy width={14} height={14} strokeWidth={2} aria-hidden /> Copy
+            </>
+          )}
+        </button>
+        <span className="play-code-hint">Share this code so others can join.</span>
+      </div>
 
       <section className="lobby-section" aria-labelledby="lobby-settings-label">
         <h3 className="lobby-section-label" id="lobby-settings-label">
@@ -630,30 +619,33 @@ function LobbyRail({
         )}
 
         {isHost ? (
-          <div className="lobby-rules">
-            <RulePill
+          <>
+            <RuleToggle
+              labelId="lobby-cmddmg-label"
+              label="Commander damage"
+              hint="Lose at 21 combat damage from a single commander."
               on={game.commanderDamageEnabled}
               onChange={(commanderDamageEnabled) =>
                 dispatch({ type: 'settings', patch: { commanderDamageEnabled } })
               }
-              label="Commander damage"
-              hint="Lose at 21 combat damage from a single commander."
             />
-            <RulePill
-              on={game.poisonEnabled}
-              onChange={(poisonEnabled) => dispatch({ type: 'settings', patch: { poisonEnabled } })}
+            <RuleToggle
+              labelId="lobby-poison-label"
               label="Poison counters"
               hint="Lose at 10 poison counters."
+              on={game.poisonEnabled}
+              onChange={(poisonEnabled) => dispatch({ type: 'settings', patch: { poisonEnabled } })}
             />
-            <RulePill
+            <RuleToggle
+              labelId="lobby-turntimer-label"
+              label="Turn timer"
+              hint="Shows how long the current turn has run. Nothing expires."
               on={game.turnTimerEnabled ?? false}
               onChange={(turnTimerEnabled) =>
                 dispatch({ type: 'settings', patch: { turnTimerEnabled } })
               }
-              label="Turn timer"
-              hint="Show how long the current turn has run. Nothing expires."
             />
-          </div>
+          </>
         ) : (
           <>
             <div className="lobby-setting">
@@ -676,6 +668,45 @@ function LobbyRail({
 
       <LobbyChat game={game} mySeat={mySeat} dispatch={dispatch} />
     </aside>
+  );
+}
+
+/**
+ * A rule toggle, sized to sit in the settings list beside the plain rows
+ * above it (Format, Starting life, ...) rather than as its own bordered
+ * card. `RulePill` in SetupControls is the local setup form's two-line
+ * card and stays that shape there; this is a lobby-only compact switch
+ * that trades the always-visible hint sentence for a tooltip, since a row
+ * this size has no room for one and still read as a setting, not clutter.
+ */
+function RuleToggle({
+  labelId,
+  label,
+  hint,
+  on,
+  onChange,
+}: {
+  labelId: string;
+  label: string;
+  hint: string;
+  on: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <div className="lobby-setting">
+      <span id={labelId}>{label}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-labelledby={labelId}
+        title={hint}
+        className={`lobby-toggle ${on ? 'is-on' : ''}`}
+        onClick={() => onChange(!on)}
+      >
+        {on ? 'On' : 'Off'}
+      </button>
+    </div>
   );
 }
 

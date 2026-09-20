@@ -683,6 +683,56 @@ body:has(.playtest-page) {
   backdrop-filter: blur(6px);
 }
 
+/* The pile's own actions (Shuffle, Top cards on the library). Parked in the
+   tile's top-left corner, opposite the count in its label, and only visible
+   on hover/focus so four tiles don't carry four permanent kebabs. */
+.playtest-pile__kebab {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--art-scrim);
+  color: var(--text-primary);
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Focus and the open state are not pointer-dependent, so they stay ungated;
+   the hover half is gated, or a touch device latches it on (E68 guard). */
+.playtest-pile:focus-within .playtest-pile__kebab,
+.playtest-pile__kebab[aria-expanded='true'] {
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playtest-pile:hover .playtest-pile__kebab {
+    opacity: 1;
+  }
+}
+
+/* No hover on touch: the kebab is always there, at a real target size. */
+@media (pointer: coarse) {
+  .playtest-pile__kebab {
+    min-width: 44px;
+    min-height: 44px;
+    opacity: 1;
+  }
+}
+
+.playtest-pile__kebab:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .playtest-pile.is-over {
   background: var(--accent-light);
   border-color: var(--accent);
@@ -3795,6 +3845,56 @@ body:has(.playtest-page) {
   margin: var(--space-2) 0 0;
   color: var(--text-secondary);
   font-size: var(--text-sm);
+}
+
+/* The preferences that own their own picker: a row states where it stands and
+   opens that picker. */
+.playtest-settings__links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.playtest-settings__link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.playtest-settings__link-value {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playtest-settings__link:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
+.playtest-settings__link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .playtest-settings__range {
