@@ -35,6 +35,7 @@ const SAMPLE_ACTIONS: Record<PlaytestAction['type'], PlaytestAction> = {
   RESOLVE_TOP: { type: 'RESOLVE_TOP', mode: 'scry', top: [] },
   MOVE_TO_BATTLEFIELD: { type: 'MOVE_TO_BATTLEFIELD', cardId: 'x', x: 0, y: 0 },
   MOVE_BF_POSITION: { type: 'MOVE_BF_POSITION', cardId: 'x', x: 0, y: 0 },
+  REORDER_HAND: { type: 'REORDER_HAND', cardId: 'x', toIndex: 0 },
   TAP: { type: 'TAP', cardId: 'x' },
   UNTAP_ALL: { type: 'UNTAP_ALL' },
   SET_COUNTER: { type: 'SET_COUNTER', cardId: 'x', counter: '+1/+1', delta: 1 },

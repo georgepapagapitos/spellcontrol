@@ -1,24 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import {
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  closestCenter,
-  pointerWithin,
-  useSensor,
-  useSensors,
-  type CollisionDetection,
-  type DragEndEvent,
-  type Modifier,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  arrayMove,
-  rectSortingStrategy,
-  sortableKeyboardCoordinates,
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useMediaQuery } from '@/lib/use-media-query';
 import type { PlaytestCard } from '@/lib/playtest';
@@ -106,17 +86,6 @@ function nameList(names: string[]): string {
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
-/** In the fan, a card's axis-aligned box covers a third of its neighbour's, so
- *  box-vs-box collision is guesswork: `closestCenter` alone hands the drop to
- *  whichever centre happens to be nearest rather than the card under the
- *  pointer. `pointerWithin` answers with the card you are actually pointing at;
- *  `closestCenter` only covers the gap when the pointer is over no card at all
- *  (the arc leaves wedges between them, and the sheet tier has row gaps). */
-const fanCollision: CollisionDetection = (args) => {
-  const pointed = pointerWithin(args);
-  return pointed.length > 0 ? pointed : closestCenter(args);
-};
-
 export function OpeningHandSheet({
   phase,
   hand,
@@ -198,32 +167,12 @@ export function OpeningHandSheet({
   const hidden = curtainDone || (phase === 'playing' && !waiting);
   useLockBodyScroll(!hidden);
 
-  // Local visual order for drag-to-reorder — independent of the prop's order.
-  // PlaytestCard.id is the per-instance id from the reducer and stays stable
-  // for the lifetime of the hand, so it doubles as the sortable slot id.
-  // Reset whenever the prop's *set* of cards changes (mulligan → new deal): a
-  // fresh hand starts in deal order; a re-render of the same hand preserves
-  // whatever order the user dragged it into.
-  //
-  // Render-phase reset (vs. useEffect) sidesteps `react-hooks/set-state-in-effect`
-  // and is the official React pattern for syncing derived state from props.
-  // The signature (sorted ids joined) collapses identity comparison to a string
-  // diff so a same-set-different-order re-render doesn't clobber local drags.
-  const handSignature = hand
-    .map((c) => c.id)
-    .sort()
-    .join('|');
-  const [order, setOrder] = useState<string[]>(() => hand.map((c) => c.id));
-  const [trackedSignature, setTrackedSignature] = useState<string>(handSignature);
-  if (trackedSignature !== handSignature) {
-    setTrackedSignature(handSignature);
-    setOrder(hand.map((c) => c.id));
-  }
-
-  const orderedHand = useMemo(() => {
-    const byId = new Map(hand.map((c) => [c.id, c]));
-    return order.map((id) => byId.get(id)).filter((c): c is PlaytestCard => Boolean(c));
-  }, [hand, order]);
+  // The takeover shows the hand as the reducer dealt it. Arranging belongs to
+  // the hand you play with, not to the one moment you are deciding
+  // keep-or-mulligan — and in the bottom-N step these same cards are
+  // tap-to-select, so a drag on that target only competed with the tap (E348,
+  // user 2026-09-20). Reorder lives in `Hand` / `HandDrawer` now.
+  const orderedHand = hand;
 
   // EnrichedCard projection for CardPreview, parallel to the *displayed*
   // order so prev/next swipes through the carousel match what the user sees.
@@ -265,9 +214,14 @@ export function OpeningHandSheet({
   // (mulligan again) cycles for one game — only the card set changes — so a
   // plain ref/state list here naturally resets per fresh game (the sheet
   // unmounts once play starts, and remounts on the next RESET/init). Render-
-  // phase state sync (not a useEffect) for the same reason `order` above
-  // does it: each *distinct* opening hand seen gets counted exactly once,
-  // never re-counted on an unrelated re-render of the same hand.
+  // phase state sync, not a useEffect: each *distinct* opening hand seen gets
+  // counted exactly once, never re-counted on an unrelated re-render of the
+  // same hand. The signature (sorted ids joined) collapses identity
+  // comparison to a string diff.
+  const handSignature = hand
+    .map((c) => c.id)
+    .sort()
+    .join('|');
   const [landHistory, setLandHistory] = useState<number[]>([]);
   const [trackedLandSignature, setTrackedLandSignature] = useState<string | null>(null);
   if (handStats && trackedLandSignature !== handSignature) {
@@ -306,47 +260,6 @@ export function OpeningHandSheet({
       return;
     }
     openPreview(cardId);
-  }
-
-  // PointerSensor's `distance: 6` activation matches the long-press tolerance
-  // (`useLongPress` also cancels on >6px movement) — gives the three gestures
-  // non-overlapping thresholds: <6px + <500ms → tap, <6px + ≥500ms →
-  // long-press, ≥6px → drag. KeyboardSensor adds Tab → Space → Arrows
-  // reordering for keyboard / SR users.
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
-  // dnd-kit's `restrictToParentElement` clamps to the dragged node's PARENT.
-  // Since each card gained a fan slot, that parent is a box exactly the card's
-  // own size, which pinned every drag to zero movement (and in the sheet tier
-  // the slot is `display: contents`, so it has no box at all). Clamp to the
-  // hand container instead — same intent, the right box. An axis is left alone
-  // when the container isn't bigger than the card on it, so a rotated card
-  // whose bounding box overhangs the row can't invert the bounds.
-  const cardsRef = useRef<HTMLDivElement>(null);
-  const restrictToHand = useCallback<Modifier>(({ draggingNodeRect, transform }) => {
-    const box = cardsRef.current?.getBoundingClientRect();
-    if (!draggingNodeRect || !box) return transform;
-    const clamp = (v: number, lo: number, hi: number) =>
-      lo > hi ? v : Math.min(Math.max(v, lo), hi);
-    return {
-      ...transform,
-      x: clamp(transform.x, box.left - draggingNodeRect.left, box.right - draggingNodeRect.right),
-      y: clamp(transform.y, box.top - draggingNodeRect.top, box.bottom - draggingNodeRect.bottom),
-    };
-  }, []);
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    setOrder((prev) => {
-      const oldIndex = prev.indexOf(String(active.id));
-      const newIndex = prev.indexOf(String(over.id));
-      if (oldIndex === -1 || newIndex === -1) return prev;
-      return arrayMove(prev, oldIndex, newIndex);
-    });
   }
 
   // The curtain has lifted (or the phase moved on solo) — the board owns the
@@ -423,78 +336,65 @@ export function OpeningHandSheet({
           {waiting ? null : isMulliganBottom ? (
             <p className="playtest-opening-hint">
               Tap {requiredBottom} card{requiredBottom === 1 ? '' : 's'} to send to the bottom, in
-              order. Long-press to preview, drag to reorder.{' '}
+              order. Long-press to preview.{' '}
               <strong>
                 {selected.length}/{requiredBottom} selected
               </strong>
             </p>
           ) : (
             previewable.length > 0 && (
-              <p className="playtest-opening-hint">Tap a card to enlarge · drag to reorder.</p>
+              <p className="playtest-opening-hint">Tap a card to enlarge.</p>
             )
           )}
         </div>
 
-        <DndContext
-          sensors={sensors}
-          collisionDetection={fanCollision}
-          onDragEnd={handleDragEnd}
-          modifiers={[restrictToHand]}
+        <div
+          className="playtest-opening-cards"
+          // Card width is a share of this container (see the sheet rules
+          // above); the live count keeps that exact for a short hand too.
+          style={{ '--hand-n': orderedHand.length } as CSSProperties}
+          aria-label={
+            isMulliganBottom
+              ? 'Hand: tap to select, long-press to preview'
+              : 'Opening hand: tap to preview'
+          }
         >
-          {/* `rectSortingStrategy` (not the horizontal one) and no horizontal-
-              axis restriction: the hand wraps to two rows on phones, and a
-              horizontal-only drag can't move a card between rows. */}
-          <SortableContext items={order} strategy={rectSortingStrategy}>
-            <div
-              ref={cardsRef}
-              className="playtest-opening-cards"
-              // Card width is a share of this container (see the sheet rules
-              // above); the live count keeps that exact for a short hand too.
-              style={{ '--hand-n': orderedHand.length } as CSSProperties}
-              aria-label={
-                isMulliganBottom
-                  ? 'Hand: drag to reorder, tap to select, long-press to preview'
-                  : 'Opening hand: drag to reorder, tap to preview'
-              }
-            >
-              {orderedHand.map((c, i) => {
-                const idx = bottomIndex(c.id);
-                const isSel = idx !== null;
-                const hasPreview = previewable.some((p) => p.cardId === c.id);
-                const tappable = isMulliganBottom || hasPreview;
-                return (
-                  // The slot carries the fan geometry, the card inside carries
-                  // dnd-kit's drag transform — see OpeningHandSheet.css. It is
-                  // `display: contents` in the sheet, so the phone layout is
-                  // exactly what it was before the slot existed.
-                  <div
-                    key={c.id}
-                    className="playtest-opening-slot"
-                    style={
-                      {
-                        '--oh-i': i,
-                        '--oh-n': orderedHand.length,
-                        '--oh-lift': `${arcLift(i, orderedHand.length)}px`,
-                      } as CSSProperties
-                    }
-                  >
-                    <SortableHandCard
-                      card={c}
-                      visualIndex={i}
-                      isSelected={isSel}
-                      selectedOrdinal={idx}
-                      tappable={tappable}
-                      isMulliganBottom={isMulliganBottom}
-                      longPressEnabled={hasPreview}
-                      onTap={handleCardTap}
-                      onLongPress={openPreview}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </SortableContext>
-        </DndContext>
+          {orderedHand.map((c, i) => {
+            const idx = bottomIndex(c.id);
+            const isSel = idx !== null;
+            const hasPreview = previewable.some((p) => p.cardId === c.id);
+            const tappable = isMulliganBottom || hasPreview;
+            return (
+              // The slot carries the fan geometry, the card inside carries
+              // dnd-kit's drag transform — see OpeningHandSheet.css. It is
+              // `display: contents` in the sheet, so the phone layout is
+              // exactly what it was before the slot existed.
+              <div
+                key={c.id}
+                className="playtest-opening-slot"
+                style={
+                  {
+                    '--oh-i': i,
+                    '--oh-n': orderedHand.length,
+                    '--oh-lift': `${arcLift(i, orderedHand.length)}px`,
+                  } as CSSProperties
+                }
+              >
+                <OpeningHandCard
+                  card={c}
+                  visualIndex={i}
+                  isSelected={isSel}
+                  selectedOrdinal={idx}
+                  tappable={tappable}
+                  isMulliganBottom={isMulliganBottom}
+                  longPressEnabled={hasPreview}
+                  onTap={handleCardTap}
+                  onLongPress={openPreview}
+                />
+              </div>
+            );
+          })}
+        </div>
 
         {!waiting && (
           <div className="card-picker-footer playtest-opening-footer">
@@ -628,7 +528,7 @@ export function OpeningHandSheet({
   );
 }
 
-interface SortableHandCardProps {
+interface OpeningHandCardProps {
   card: PlaytestCard;
   /** Position in the displayed order, used only for stacking z-index. */
   visualIndex: number;
@@ -646,25 +546,17 @@ interface SortableHandCardProps {
 
 /**
  * Lifted out of the parent's `hand.map(...)` so each card can call its own
- * `useLongPress` + `useSortable` hooks (both store per-instance ref state).
+ * `useLongPress` hook (it stores per-instance ref state).
  *
- * Three gestures share this button surface:
+ * Two gestures share this button surface:
  * - **Tap** (<6px, <500ms): preview in opening phase, select in mulligan-bottom.
  * - **Long-press** (<6px, ≥500ms): preview. The only way to preview during
- *   mulligan-bottom since tap is reserved for selection there.
- * - **Drag** (≥6px): reorder via `@dnd-kit`.
+ *   mulligan-bottom, since tap is reserved for selection there.
  *
- * The thresholds are deliberately non-overlapping: dnd-kit's PointerSensor
- * `distance: 6` activation matches the long-press 6px tolerance, and the
- * long-press timer cancels on movement so a started drag never also fires
- * a preview. `consumedClick()` swallows the synthetic click that follows a
- * fired long-press so the click handler doesn't also toggle selection.
- *
- * `touch-action: none` lets dnd-kit own the touch surface for drag; the
- * inline long-press handlers still receive React's synthetic touch events
- * because those fire before browser default actions are consulted.
+ * `consumedClick()` swallows the synthetic click that follows a fired
+ * long-press so the click handler doesn't also toggle selection.
  */
-function SortableHandCard({
+function OpeningHandCard({
   card,
   visualIndex,
   isSelected,
@@ -674,10 +566,7 @@ function SortableHandCard({
   longPressEnabled,
   onTap,
   onLongPress,
-}: SortableHandCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: card.id,
-  });
+}: OpeningHandCardProps) {
   const longPress = useLongPress({ onLongPress: () => onLongPress(card.id) });
   const handleClick = () => {
     if (longPress.consumedClick()) return;
@@ -696,20 +585,10 @@ function SortableHandCard({
     : undefined;
   return (
     <button
-      ref={setNodeRef}
       type="button"
-      className={`playtest-opening-card${isSelected ? ' is-selected' : ''}${
-        isDragging ? ' is-dragging' : ''
-      }`}
-      style={{
-        zIndex: isDragging ? 50 : visualIndex,
-        transform: CSS.Transform.toString(transform),
-        transition,
-        touchAction: 'none',
-      }}
+      className={`playtest-opening-card${isSelected ? ' is-selected' : ''}`}
+      style={{ zIndex: visualIndex }}
       onClick={handleClick}
-      {...attributes}
-      {...listeners}
       {...touchHandlers}
       aria-pressed={isMulliganBottom ? isSelected : undefined}
       aria-label={`${card.name}${isSelected ? `: selected, position ${selectedOrdinal}` : ''}`}

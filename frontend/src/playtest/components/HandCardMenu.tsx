@@ -24,6 +24,12 @@ interface Props {
   /** Put it on the stack — casting it, in the only sense a
    *  manual-enforcement table means that word. */
   onPutOnStack?(copy: boolean): void;
+  /** Moves the card one place towards the start / end of the hand. The
+   *  keyboard and screen-reader path to arranging a hand (dragging is the
+   *  pointer one); omitted, or passed `false` at either end, hides the row. */
+  onMove?(direction: -1 | 1): void;
+  canMoveEarlier?: boolean;
+  canMoveLater?: boolean;
 }
 
 /**
@@ -47,6 +53,9 @@ export function HandCardMenu({
   revealed = false,
   onToggleReveal,
   onPutOnStack,
+  onMove,
+  canMoveEarlier = false,
+  canMoveLater = false,
 }: Props) {
   const act = (fn: () => void) => () => {
     fn();
@@ -102,6 +111,21 @@ export function HandCardMenu({
           <span>{revealed ? 'Stop showing it' : 'Show the table'}</span>
           {key('reveal')}
         </button>
+      )}
+      {onMove && (canMoveEarlier || canMoveLater) && (
+        <div className="playtest-ctx-group">
+          <div className="playtest-ctx-heading">Arrange</div>
+          {canMoveEarlier && (
+            <button type="button" className="playtest-ctx-action" onClick={act(() => onMove(-1))}>
+              Move it left
+            </button>
+          )}
+          {canMoveLater && (
+            <button type="button" className="playtest-ctx-action" onClick={act(() => onMove(1))}>
+              Move it right
+            </button>
+          )}
+        </div>
       )}
       <div className="playtest-ctx-group">
         <div className="playtest-ctx-heading">Move to</div>

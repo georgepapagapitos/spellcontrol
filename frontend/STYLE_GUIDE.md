@@ -2211,16 +2211,29 @@ sheet is unchanged — a phone has no room for the fan.
   5/7 card aspect). A layout that can push the actions off a short slab is a
   bug, not a trade: the actions carry their own `z-index` so the arc's outer
   cards tuck behind them rather than over them.
-- **A wrapper breaks dnd-kit's parent-relative helpers.** Adding the fan slot
-  silently killed drag-to-reorder at every width: `restrictToParentElement`
-  clamps to the dragged node's parent, which became a box exactly the card's
-  size (and no box at all in the sheet tier, where the slot is
-  `display: contents`). It is replaced by a modifier that clamps to the hand
-  container. Collision is `pointerWithin` first, `closestCenter` only as the
-  fallback — overlapping rotated cards make nearest-centre a guess, and the
-  card under the pointer is the one the player means. Prove a reorder in a
-  real browser with stepped `mouse.move` after touching any of this; no unit
-  test sees it.
+- **You arrange the hand you play with, not the one you are deciding on.**
+  (Revised 2026-09-20, E348 — the takeover used to be the only place a hand
+  could be rearranged, which is the inverse of useful, and in the
+  mulligan-bottom step a drag competed with the tap that selects a card for
+  the bottom.) The takeover now shows the hand exactly as it was dealt and has
+  no drag at all; arranging lives in `Hand` / `HandDrawer`, where each card
+  registers a hand-slot droppable **on its own node** (the same shape as the
+  battlefield's host droppable) and a drop dispatches `REORDER_HAND`. Two
+  rulings survive the move and still hold:
+  - **The card under the POINTER wins, not the nearest centre.** The fan
+    overlaps by two thirds, so box-vs-box collision is a guess;
+    `makePlaytestCollision` answers a hand drag with `pointerWithin` over the
+    hand slots, and filters those slots out of every other drag so a card
+    coming back from the battlefield still lands in the hand as a whole.
+  - **Never wrap a card to make it a drop target.** A wrapper is either
+    `display: contents` (no box for dnd-kit to measure) or a box that changes
+    the fan's geometry — the reason the parent-clamping modifier existed in
+    the first place. Put the droppable on the card's node.
+  - A drag is still invisible to unit tests: the collision function and the
+    reducer action are covered, but prove an actual reorder in a real browser
+    with stepped `mouse.move` after touching any of this. The keyboard and
+    screen-reader path is not the drag at all — it is "Move it left / right"
+    in the hand card's menu, which must keep working on its own.
 - **Three actions, one row, in rising commitment:** View battlefield (ghost),
   Mulligan (warn tone), Keep hand (primary, and where focus lands on open).
   "View battlefield" is a _peek_: the whole takeover goes
