@@ -1996,6 +1996,45 @@ Untap):
   and below 1024px they wrap to two rows again. At ≥1024px they are not a row
   at all: see the next subsection.
 
+### The card menu drills down; the card carries its own body (2026-09-20)
+
+Settled against EDHPlay's card menu, which the user asked for by name ("much
+cleaner with the sub menus"). Three rulings, all on the battlefield:
+
+- **A card menu is a short list of actions plus drill-downs, never one
+  scrolling panel.** `CardContextMenu` opens on ~10 single-line rows — Tap,
+  Counters ▸, Power / toughness ▸, Move to ▸, Turn face down, Make a token
+  copy, Draw an arrow (online), Put on the stack, View information, More ▸ —
+  and every stepper, picker and text field lives one page down, reached by a
+  `▸` row and left by a back row named after the card. `CtxMenuShell` takes a
+  `contentKey` so a page swap re-clamps the floating popover and moves focus
+  into the new page. The root list's length is a test
+  (`CardContextMenu.test.tsx`, `ROOT_MAX_ROWS`), not a habit: a menu grows one
+  row at a time and that is how it became a scrolling panel the first time.
+- **Every menu row prints its live key.** Rows take the binding from
+  `keyFor(id)` (the board's resolved shortcut map), so a rebind moves the key
+  on the row too. The menu is the discoverable face of the keyboard map —
+  never a second set of behaviour, and never a hard-coded `<kbd>`.
+- **Controls that ride a card are SIBLINGS of it, inside a card-sized slot.**
+  A battlefield card is itself a `role="button"` (it is the drag handle and
+  the tap target), so a control nested inside it is invalid and unreachable —
+  the same ruling as "the ✕ is a SIBLING of the open-button". `Battlefield`
+  therefore renders one `.playtest-card-slot` per permanent, which owns the
+  0..1 x/y placement, and puts the card and its `CardPtBadges` in it side by
+  side. The badges stay upright when the card rotates 90°, and anything else
+  that needs to sit on a card goes in the same slot.
+- **Power and toughness are edited on the card.** Click a number, type the
+  total you want, Enter (arrow keys step the draft, Escape leaves it alone).
+  What is stored is still a modifier over the printed body (`ADJUST_PT`), so
+  the card is never rewritten; a side whose printed value is not a number
+  (`*`, `1+*`) has no total to type and stays read-only, stepped from the
+  menu's Power / toughness page instead.
+- **With a mouse, a click on a permanent selects it — it does not tap it.**
+  Tapping is deliberate: `T`, or Tap in the card menu (EDHPlay's rule; a stray
+  click tapping a creature was the misfire). A finger has neither a key nor a
+  right-click, so on a coarse pointer a tap still taps — the board branches on
+  `(hover: hover) and (pointer: fine)`, and both halves are pinned by tests.
+
 ### Table chrome at ≥1024px: corners, not rows
 
 Settled 2026-09-18 against EDHPlay. At the table tier the board is **one

@@ -52,3 +52,16 @@ export function displayPT(card: PlaytestCard, bf: BattlefieldCard | undefined): 
     modified: dp !== 0 || dt !== 0,
   };
 }
+
+/**
+ * The number an in-place edit of one side counts up from: the printed value
+ * where it is a plain integer, 0 where the card prints no body at all (a
+ * hand-made token), and null where the printed value is something no total
+ * can be typed against (`*`, `1+*`, `∞`) — those sides stay read-only on the
+ * card and are stepped from the card menu instead.
+ */
+export function printedBase(printed: string | undefined): number | null {
+  const base = printed?.trim();
+  if (base === undefined || base === '') return 0;
+  return /^-?\d+$/.test(base) ? Number(base) : null;
+}

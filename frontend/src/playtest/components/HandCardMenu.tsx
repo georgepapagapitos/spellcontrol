@@ -1,4 +1,5 @@
 import type { Zone } from '@/lib/playtest';
+import type { ShortcutId } from '../lib/shortcuts';
 import { CtxMenuShell } from './CtxMenuShell';
 
 interface Props {
@@ -6,6 +7,9 @@ interface Props {
   y: number;
   cardName: string;
   variant: 'floating' | 'sheet';
+  /** The live binding for a shortcut, formatted for display — the same keys
+   *  the board listens for on the card under the pointer. */
+  keyFor?(id: ShortcutId): string | undefined;
   onClose(): void;
   /** Omitted (no item) when the card has no resolvable ScryfallCard. */
   onPreview?(): void;
@@ -35,6 +39,7 @@ export function HandCardMenu({
   y,
   cardName,
   variant,
+  keyFor,
   onClose,
   onPreview,
   onPlay,
@@ -47,29 +52,35 @@ export function HandCardMenu({
     fn();
     onClose();
   };
+  const key = (id: ShortcutId) => {
+    const k = keyFor?.(id);
+    return k ? <kbd className="playtest-ctx-key">{k}</kbd> : null;
+  };
   return (
     <CtxMenuShell x={x} y={y} title={cardName} variant={variant} onClose={onClose}>
       {onPreview && (
         <button type="button" className="playtest-ctx-action" onClick={act(onPreview)}>
-          Preview card
+          <span>View information</span>
         </button>
       )}
       <button type="button" className="playtest-ctx-action" onClick={act(() => onPlay())}>
-        Play
+        <span>Play</span>
+        {key('to-battlefield')}
       </button>
       <button
         type="button"
         className="playtest-ctx-action"
         onClick={act(() => onPlay({ tapped: true }))}
       >
-        Play tapped
+        <span>Play tapped</span>
       </button>
       <button
         type="button"
         className="playtest-ctx-action"
         onClick={act(() => onPlay({ faceDown: true }))}
       >
-        Play face down
+        <span>Play face down</span>
+        {key('face-down')}
       </button>
       {onPutOnStack && (
         <button
@@ -77,7 +88,8 @@ export function HandCardMenu({
           className="playtest-ctx-action"
           onClick={act(() => onPutOnStack(false))}
         >
-          Put on the stack
+          <span>Put on the stack</span>
+          {key('stack-add')}
         </button>
       )}
       {onToggleReveal && (
@@ -87,7 +99,8 @@ export function HandCardMenu({
           onClick={act(onToggleReveal)}
           aria-pressed={revealed}
         >
-          {revealed ? 'Stop showing it' : 'Show the table'}
+          <span>{revealed ? 'Stop showing it' : 'Show the table'}</span>
+          {key('reveal')}
         </button>
       )}
       <div className="playtest-ctx-group">
@@ -97,35 +110,39 @@ export function HandCardMenu({
           className="playtest-ctx-action"
           onClick={act(() => onMoveTo('graveyard'))}
         >
-          Discard
+          <span>Discard</span>
+          {key('to-graveyard')}
         </button>
         <button
           type="button"
           className="playtest-ctx-action"
           onClick={act(() => onMoveTo('exile'))}
         >
-          Exile
+          <span>Exile</span>
+          {key('to-exile')}
         </button>
         <button
           type="button"
           className="playtest-ctx-action"
           onClick={act(() => onMoveTo('library', 0))}
         >
-          Top of library
+          <span>Top of library</span>
+          {key('to-library-top')}
         </button>
         <button
           type="button"
           className="playtest-ctx-action"
           onClick={act(() => onMoveTo('library'))}
         >
-          Bottom of library
+          <span>Bottom of library</span>
+          {key('to-library-bottom')}
         </button>
         <button
           type="button"
           className="playtest-ctx-action"
           onClick={act(() => onMoveTo('command'))}
         >
-          Command zone
+          <span>Command zone</span>
         </button>
       </div>
     </CtxMenuShell>

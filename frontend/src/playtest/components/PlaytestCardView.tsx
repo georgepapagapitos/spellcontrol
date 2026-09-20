@@ -18,8 +18,12 @@ interface Props {
   onLongPress?: (cardId: string, clientX: number, clientY: number) => void;
   /** Native tooltip — the hand uses it to name its two gestures. */
   title?: string;
-  /** When true, positions the card absolutely using bf.x/bf.y. */
+  /** When true, the card fills its positioned slot on the battlefield (see
+   *  `.playtest-card-slot`) and registers as an attachment host. */
   positioned?: boolean;
+  /** Suppresses the card's own read-only power/toughness box — the caller is
+   *  rendering the editable badges beside it instead. */
+  ptHidden?: boolean;
   /** Part of the current battlefield selection (E226 group copy). A plain
    *  boolean rather than the whole set so `memo` only re-renders the cards
    *  whose own selection actually changed. */
@@ -38,6 +42,7 @@ export const PlaytestCardView = memo(function PlaytestCardView({
   onLongPress,
   title,
   positioned = false,
+  ptHidden = false,
   selected = false,
   size = 'md',
   onStack = false,
@@ -59,27 +64,16 @@ export const PlaytestCardView = memo(function PlaytestCardView({
 
   const tapped = bf?.tapped ?? false;
 
-  // Position is percentage-based, not `transform: translate(px)` — x/y are
-  // 0..1 fractions of the battlefield box (see BattlefieldCard.x/y), and
-  // `--pt-card-w`/`--pt-card-h` (set once per density tier in playtest.css)
-  // are what makes `100% - cardWidth` resolve to "the card's far edge never
-  // passes the container edge" at any container size. The tap rotation stays
-  // a `transform` (kept separate from position so it can't fight the
-  // left/top math) — the drag *transform* is intentionally NOT applied here:
+  // Position lives on the slot around the card (`.playtest-card-slot`, which
+  // reads the same 0..1 x/y fractions); the card just fills it. The tap
+  // rotation stays a `transform` — the drag *transform* is intentionally NOT
+  // applied here:
   // the source card stays put (dimmed) while a top-level <DragOverlay>
   // renders the moving copy. Translating the source instead would leave it
   // clipped by the hand strip's / battlefield's `overflow` and stuck behind
   // sibling surfaces.
   const style: React.CSSProperties = {
-    position: positioned ? 'absolute' : 'relative',
-    ...(positioned && bf
-      ? ({
-          '--pt-x': bf.x,
-          '--pt-y': bf.y,
-          left: 'calc(var(--pt-x) * (100% - var(--pt-card-w)))',
-          top: 'calc(var(--pt-y) * (100% - var(--pt-card-h)))',
-        } as React.CSSProperties)
-      : null),
+    position: 'relative',
     transform: tapped ? 'rotate(90deg)' : undefined,
     transformOrigin: 'center center',
     opacity: isDragging ? 0.4 : 1,
@@ -99,6 +93,7 @@ export const PlaytestCardView = memo(function PlaytestCardView({
       card={card}
       bf={bf}
       size={size}
+      ptHidden={ptHidden}
       onStack={onStack}
       style={style}
       {...attributes}
