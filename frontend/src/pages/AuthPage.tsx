@@ -53,6 +53,7 @@ function GoogleMark() {
 export default function AuthPage() {
   const [mode, setMode] = useState<Mode>('login');
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [confirmError, setConfirmError] = useState<string | null>(null);
@@ -119,7 +120,7 @@ export default function AuthPage() {
     const ok =
       mode === 'login'
         ? await loginAction(username.trim(), password)
-        : await registerAction(username.trim(), password);
+        : await registerAction(username.trim(), password, email.trim());
     setSubmitting(false);
     if (ok) {
       // Confirm the outcome in a toast so users see the result, not just our
@@ -240,6 +241,27 @@ export default function AuthPage() {
               title="3–32 characters: letters, digits, underscore, hyphen"
             />
           </label>
+
+          {mode === 'register' ? (
+            <label className="auth-field">
+              <span>Email</span>
+              <input
+                type="email"
+                autoComplete="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                maxLength={254}
+              />
+              <span className="auth-field-hint">
+                Where a reset link goes if you forget your password. It is the only way back into
+                your account.
+              </span>
+            </label>
+          ) : null}
 
           <label className="auth-field">
             <span>Password</span>

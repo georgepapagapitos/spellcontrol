@@ -12,7 +12,7 @@ let cleanup: () => Promise<void>;
 async function registerAndGetCookie(username: string): Promise<string> {
   const res = await request(app)
     .post('/api/auth/register')
-    .send({ username, password: 'correct horse battery' });
+    .send({ username, password: 'correct horse battery', email: `${username}@example.test` });
   return extractSessionCookie(res.headers['set-cookie'])!;
 }
 

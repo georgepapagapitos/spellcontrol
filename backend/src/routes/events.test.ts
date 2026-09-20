@@ -164,9 +164,11 @@ describe('POST /api/events {name:"vital"}', () => {
 
 describe('GET /api/admin/events', () => {
   it('is admin-only and returns the raw daily rows', async () => {
-    const reg = await request(app)
-      .post('/api/auth/register')
-      .send({ username: 'evadmin', password: 'correct horse battery' });
+    const reg = await request(app).post('/api/auth/register').send({
+      username: 'evadmin',
+      password: 'correct horse battery',
+      email: 'evadmin@example.test',
+    });
     expect(reg.status).toBe(201);
     const userCookie = extractSessionCookie(reg.headers['set-cookie'])!;
     expect((await request(app).get('/api/admin/events').set('Cookie', userCookie)).status).toBe(

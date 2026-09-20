@@ -37,6 +37,7 @@ import { autoSyncOfflineData, registerOfflineSyncOnResume } from './lib/offline/
 import { initDeepLinks } from './lib/deep-links';
 import { setAppNavigator } from './lib/navigate-bridge';
 import { AutoLinkBanner } from './components/AutoLinkBanner';
+import { RecoveryBanner } from './components/RecoveryBanner';
 import { useFirstRunGate } from './lib/use-first-run-gate';
 import { useTradeSettlement } from './lib/use-trade-settlement';
 import { hasEverVisited } from './lib/first-run';
@@ -382,6 +383,7 @@ export default function App() {
   // normal, dismissable route reached from the header / Settings.
   return (
     <>
+      <RecoveryBanner />
       <AutoLinkBanner />
       {/* Outer boundary: catches lazy routes that render outside <Layout/>
           (share views, game night). Layout has its own inner fallback. */}

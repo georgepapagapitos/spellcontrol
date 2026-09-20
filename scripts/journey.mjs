@@ -520,9 +520,14 @@ async function main() {
 
       // --- Sign up once (the second viewport signs in to the same account).
       if (!seeded) {
+        const name = USERNAME ?? `journey${Date.now().toString(36)}`.slice(0, 20);
         seeded = {
-          username: USERNAME ?? `journey${Date.now().toString(36)}`.slice(0, 20),
+          username: name,
           password: USERNAME ? `journey-pass-${USERNAME}` : 'journey-pass-' + Date.now(),
+          // Registration requires an address (it is the only route back into
+          // an account with a forgotten password). Nothing here reads mail;
+          // the walk never needs the account verified.
+          email: `${name}@example.com`,
         };
         const status = await page.evaluate(async (creds) => {
           let r = await fetch('/api/auth/register', {
@@ -537,7 +542,7 @@ async function main() {
               method: 'POST',
               credentials: 'include',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(creds),
+              body: JSON.stringify({ username: creds.username, password: creds.password }),
             });
             return r.status === 200 ? 201 : r.status;
           }
