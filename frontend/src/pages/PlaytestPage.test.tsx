@@ -65,7 +65,9 @@ vi.mock('@/store/decks', () => ({
 
 // Online seat: `online` is null for a solo playtest; a seated game turns
 // the page's back target into the table.
-const fakePlay = create<{ online: { code: string; players: { userId: string }[] } | null }>(() => ({
+const fakePlay = create<{
+  online: { code: string; players: { userId: string; deckId?: string | null }[] } | null;
+}>(() => ({
   online: null,
 }));
 vi.mock('@/store/play', () => ({
@@ -113,8 +115,10 @@ describe('PlaytestPage', () => {
     expect(await screen.findByText('deck page')).toBeTruthy();
   });
 
-  it('backs out to the table when this device holds a seat in an online game', async () => {
-    fakePlay.setState({ online: { code: 'JRA4', players: [{ userId: 'me' }] } });
+  it('backs out to the table when this deck IS the seat deck', async () => {
+    fakePlay.setState({
+      online: { code: 'JRA4', players: [{ userId: 'me', deckId: 'deck-1' }] },
+    });
     renderAt('/decks/deck-1/playtest');
     fireEvent.click(await screen.findByRole('button', { name: '← Game JRA4' }));
     expect(await screen.findByText('play page')).toBeTruthy();
@@ -122,6 +126,24 @@ describe('PlaytestPage', () => {
 
   it('ignores an online game this device is not seated in', async () => {
     fakePlay.setState({ online: { code: 'JRA4', players: [{ userId: 'someone-else' }] } });
+    renderAt('/decks/deck-1/playtest');
+    expect(await screen.findByRole('button', { name: '← Krenko' })).toBeTruthy();
+  });
+
+  // Seating alone used to relabel every deck's goldfish as the table's board,
+  // so a solo session offered to walk you back to a game it had nothing to do
+  // with — which is how the coupling was spotted.
+  it('stays a plain playtest when seated with a DIFFERENT deck', async () => {
+    fakePlay.setState({
+      online: { code: 'JRA4', players: [{ userId: 'me', deckId: 'deck-other' }] },
+    });
+    renderAt('/decks/deck-1/playtest');
+    expect(await screen.findByRole('button', { name: '← Krenko' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '← Game JRA4' })).toBeNull();
+  });
+
+  it('stays a plain playtest when the seat has no deck yet', async () => {
+    fakePlay.setState({ online: { code: 'JRA4', players: [{ userId: 'me', deckId: null }] } });
     renderAt('/decks/deck-1/playtest');
     expect(await screen.findByRole('button', { name: '← Krenko' })).toBeTruthy();
   });

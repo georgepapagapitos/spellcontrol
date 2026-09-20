@@ -18,12 +18,16 @@ export function PlaytestPage() {
   const navigate = useNavigate();
   const decks = useDecksStore((s) => s.decks);
   const hydrated = useDecksStore((s) => s.hydrated);
-  // Same seat test as use-online-table: when this device holds a seat in a
-  // live online game, this playtest IS that seat's board, so "back" returns
-  // to the table — not to the deck, which then needed a second hop to Play.
+  // Same test as use-online-table, and it has to stay the same: this playtest
+  // is the seat's board only when it IS the seat's deck. Holding a seat alone
+  // used to be enough, which relabelled every deck's goldfish as "Your board"
+  // and pointed its back link at a game it had nothing to do with.
   const online = usePlayStore((s) => s.online);
   const userId = useAuth((s) => s.user?.id);
-  const tableCode = online && online.players.some((p) => p.userId === userId) ? online.code : null;
+  const mySeat =
+    online && userId != null ? (online.players.find((p) => p.userId === userId) ?? null) : null;
+  const tableCode =
+    online && mySeat && mySeat.deckId != null && mySeat.deckId === id ? online.code : null;
 
   const deck = id ? decks.find((d) => d.id === id) : undefined;
   // A cold device has an empty store while the first pull is in flight —

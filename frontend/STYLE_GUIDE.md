@@ -5260,6 +5260,39 @@ re-aligned in sweep 3).
 
 ---
 
+## Playtest ↔ online table: one linkage rule (2026-09-20 ruling)
+
+The playtest board doubles as an online seat's board. **Whether it does is
+decided in exactly one place, `playtest/hooks/use-table-seat.ts`**, and the
+rule has three parts: there is an online game, this device holds a seat in
+it, and **the seat's deck is the deck this board is playing**.
+
+The deck part is what makes the link per-board instead of per-account.
+Without it, holding a seat was the whole test, so opening any other deck to
+goldfish silently became your seat: it published that board to the table,
+fed its log lines into the table ticker, took the table's authoritative life
+total for its own, relabelled the page "Your board" with a back link into the
+game, and armed chat, reactions, dice, pointing and holds against a game it
+was not part of. A shared or public deck reaches the same board through
+`PlaytestSession`, so that was exposed too.
+
+**Never re-derive it.** The condition was hand-rolled in four places — the
+two hooks, `HoldBanner` and `PlaytestPage` — which is precisely how three of
+them kept the old rule when the fourth learned about decks. `useOnlineTable`
+and `useOnlineSignals` both consume `useTableSeat`; anything new that asks
+"am I seated here?" consumes it too. A second copy is a bug with a delay on
+it.
+
+Two deliberate non-rules:
+
+- **No `status` gate.** A finished game stays linked, because `TableMoments`
+  runs the win ceremony off the status transition and needs the link alive to
+  see it. Status is that component's business, not the linkage's.
+- **A seat with no deck is nobody's board.** It does not fall back to
+  "whatever you happen to be playtesting". The board door's "pick a deck to
+  open your board" is the route that sets the seat's deck, and it already
+  navigates afterwards.
+
 ## The table's keyboard map (2026-09-20 ruling)
 
 The playtest/online battlefield does **not** use the app-wide `?` registry as

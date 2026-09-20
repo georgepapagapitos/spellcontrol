@@ -5,7 +5,10 @@ import { usePlayStore } from '@/store/play';
 import { useAuth } from '@/store/auth';
 import { createGameState, makePlayer } from '@/lib/game-state';
 import type { GameRequest } from '@/lib/games-api';
+import { usePlaytestStore } from '../store';
 import { HoldBanner } from './HoldBanner';
+
+const MY_DECK = 'deck-mine';
 
 function onlineGame() {
   return createGameState({
@@ -25,6 +28,7 @@ function onlineGame() {
         name: 'Me',
         startingLife: 40,
         isHost: true,
+        deckId: MY_DECK,
       }),
       makePlayer({ id: 'p1', userId: 'u1', seat: 1, name: 'Maya', startingLife: 40 }),
       makePlayer({ id: 'p2', userId: 'u2', seat: 2, name: 'Priya', startingLife: 40 }),
@@ -54,6 +58,7 @@ beforeEach(() => {
     onlineRequests: {},
     cancelGameRequest: vi.fn().mockResolvedValue(undefined),
   });
+  usePlaytestStore.setState({ deckId: MY_DECK });
 });
 
 afterEach(() => {
@@ -95,6 +100,14 @@ describe('HoldBanner', () => {
     });
     const { container } = render(<HoldBanner />);
     expect(container.innerHTML).toBe('');
+  });
+
+  it('does not show a release control for this seat’s own hold while goldfishing a different deck than the seat', () => {
+    usePlaytestStore.setState({ deckId: 'deck-other' });
+    usePlayStore.setState({ onlineRequests: { 0: holdRequest({ id: 'mine', requesterSeat: 0 }) } });
+    render(<HoldBanner />);
+    expect(screen.getByRole('status')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Release' })).toBeNull();
   });
 
   it('self-dismisses at expiresAt (+ grace) with no server frame', () => {

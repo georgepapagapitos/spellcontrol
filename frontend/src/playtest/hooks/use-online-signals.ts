@@ -1,29 +1,29 @@
 import { useMemo } from 'react';
 import { usePlayStore } from '@/store/play';
-import { useAuth } from '@/store/auth';
+import { useTableSeat } from './use-table-seat';
 
 /**
- * Whether this device holds a seat in the currently active online game — the
- * same linkage condition `useOnlineTable` derives (`online` exists AND this
- * device's `userId` matches a seated player) — re-derived here rather than
- * composed from that hook because reactions/dice need only the seat check,
- * not the board-publish side effect or opponent-roster projection it also
- * does. Returns null in solo playtest (or online but unseated), in which
- * case callers render nothing — see ActionBar/DiceRoller/TableSignals.
+ * The signal half of the same linkage `useOnlineTable` uses — chat,
+ * reactions, dice, pointing and holds — kept separate because those need
+ * only the seat, not the board-publish side effect or the opponent-roster
+ * projection.
+ *
+ * The condition itself is NOT re-derived here any more. It used to be, and
+ * that was the bug: when the table link grew a deck test, these five write
+ * paths kept the old seat-only rule and went on posting chat, reactions and
+ * dice rolls into a game the board was not playing in. Both hooks now ask
+ * `useTableSeat`.
+ *
+ * Returns null in solo playtest, online but unseated, or seated while
+ * goldfishing a different deck — in which case callers render nothing.
  */
 export function useOnlineSignals() {
-  const online = usePlayStore((s) => s.online);
   const onlineSignal = usePlayStore((s) => s.onlineSignal);
   const sendSignal = usePlayStore((s) => s.sendSignal);
-  const userId = useAuth((s) => s.user?.id ?? null);
-
-  const mySeat = useMemo(() => {
-    if (!online || userId == null) return null;
-    return online.players.find((p) => p.userId === userId)?.seat ?? null;
-  }, [online, userId]);
+  const link = useTableSeat();
 
   return useMemo(() => {
-    if (!online || mySeat == null) return null;
-    return { online, mySeat, onlineSignal, sendSignal };
-  }, [online, mySeat, onlineSignal, sendSignal]);
+    if (!link) return null;
+    return { online: link.online, mySeat: link.seat.seat, onlineSignal, sendSignal };
+  }, [link, onlineSignal, sendSignal]);
 }
