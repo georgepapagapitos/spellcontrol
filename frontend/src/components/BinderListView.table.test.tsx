@@ -9,6 +9,12 @@
  * Binder order is rule-driven (the SortPopover owns it), so the header labels
  * its columns without offering click-to-sort — a header you can click that
  * does nothing is worse than one you can't.
+ *
+ * Cond, Lang and Notes are in the preset but only render when some copy on the
+ * page actually deviates. A binder of 1,062 sleeved English near-mint cards was
+ * spending three tracks — one of them two `fr` wide — to print "NM", "EN" and
+ * nothing a thousand times, which is what made the table read as broken at
+ * desktop width.
  */
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -37,7 +43,7 @@ vi.mock('./Legend', () => ({ Legend: () => null }));
 vi.mock('./SortPopover', () => ({ SortPopover: () => null }));
 
 import { BinderListView } from './BinderListView';
-import { BINDER_TABLE_COLUMNS } from './shared/CardTable';
+import { BINDER_TABLE_COLUMNS, type CardTableCol } from './shared/CardTable';
 
 function card(copyId: string, name: string, colorIdentity: string[]): EnrichedCard {
   return {
@@ -111,12 +117,32 @@ function stubViewport(tabletOrWider: boolean) {
   }));
 }
 
-const renderBinder = (density: 'detail' | 'compact') =>
+const renderBinder = (density: 'detail' | 'compact', b: MaterializedBinder = binder) =>
   render(
     <MemoryRouter>
-      <BinderListView binder={binder} density={density} />
+      <BinderListView binder={b} density={density} />
     </MemoryRouter>
   );
+
+const headerCols = (container: HTMLElement) =>
+  [...container.querySelectorAll('.collection-table-head > [data-col]')].map((el) =>
+    el.getAttribute('data-col')
+  );
+
+/** The columns a binder only spends width on when some copy has something to put there. */
+const OPTIONAL: CardTableCol[] = ['cond', 'lang', 'notes'];
+
+/** The same two-section binder, with annotations applied to the red card. */
+function binderWith(extra: Partial<EnrichedCard>): MaterializedBinder {
+  const red = { ...mountain, ...extra } as EnrichedCard;
+  return {
+    ...binder,
+    sections: [
+      { ...binder.sections[0], cards: [red], pages: [{ pageNum: 1, slots: [red] }] },
+      binder.sections[1],
+    ],
+  } as MaterializedBinder;
+}
 
 describe('a binder list at tablet width and up', () => {
   beforeEach(() => stubViewport(true));
@@ -124,10 +150,9 @@ describe('a binder list at tablet width and up', () => {
   it('renders one header above every section, with the binder column set', () => {
     const { container } = renderBinder('compact');
     expect(container.querySelectorAll('.collection-table-head')).toHaveLength(1);
-    const cols = [...container.querySelectorAll('.collection-table-head > [data-col]')].map((el) =>
-      el.getAttribute('data-col')
-    );
-    expect(cols).toEqual([...BINDER_TABLE_COLUMNS]);
+    const cols = headerCols(container);
+    // The preset minus the annotation columns no copy in this binder uses.
+    expect(cols).toEqual(BINDER_TABLE_COLUMNS.filter((c) => !OPTIONAL.includes(c)));
     expect(cols).toContain('page');
     expect(cols).not.toContain('binder');
 
@@ -155,6 +180,44 @@ describe('a binder list at tablet width and up', () => {
     const { container } = renderBinder('detail');
     expect(container.querySelector('.collection-table-head')).toBeNull();
     expect(container.querySelector('.collection-table-row')).toBeNull();
+  });
+});
+
+describe('the annotation columns a binder only earns by using them', () => {
+  beforeEach(() => stubViewport(true));
+
+  it('drops Cond, Lang and Notes when every copy is an unremarkable NM English one', () => {
+    const { container } = renderBinder('compact');
+    const cols = headerCols(container);
+    for (const col of OPTIONAL) expect(cols).not.toContain(col);
+    // And no row keeps a cell for a column the header no longer has.
+    expect(container.querySelector('.collection-table-row [data-col="cond"]')).toBeNull();
+  });
+
+  it.each([
+    ['condition', { condition: 'lp' } as Partial<EnrichedCard>, 'cond'],
+    ['language', { language: 'ja' } as Partial<EnrichedCard>, 'lang'],
+    ['notes', { notes: 'signed at GP' } as Partial<EnrichedCard>, 'notes'],
+  ])('keeps the column as soon as one copy carries a %s', (_what, extra, col) => {
+    const { container } = renderBinder('compact', binderWith(extra));
+    expect(headerCols(container)).toContain(col);
+  });
+
+  it('is not fooled by the defaults the column exists to contrast with', () => {
+    const { container } = renderBinder('compact', binderWith({ condition: 'nm', language: 'en' }));
+    const cols = headerCols(container);
+    expect(cols).not.toContain('cond');
+    expect(cols).not.toContain('lang');
+  });
+
+  it('keeps every row aligned with the header it dropped columns from', () => {
+    const { container } = renderBinder('compact', binderWith({ notes: 'signed at GP' }));
+    const head = headerCols(container);
+    const rows = [...container.querySelectorAll('.collection-table-row')].map((row) =>
+      [...row.querySelectorAll(':scope > [data-col]')].map((el) => el.getAttribute('data-col'))
+    );
+    expect(rows).toHaveLength(2);
+    for (const row of rows) expect(row).toEqual(head);
   });
 });
 

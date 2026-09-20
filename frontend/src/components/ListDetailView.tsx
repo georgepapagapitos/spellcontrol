@@ -31,6 +31,7 @@ import {
   CardTableHead,
   LIST_TABLE_COLUMNS,
   LIST_TABLE_COLUMNS_WITH_TARGET,
+  visibleColumns,
   type CardTableCol,
 } from './shared/CardTable';
 import { useMediaQuery } from '../lib/use-media-query';
@@ -526,7 +527,17 @@ export function ListDetailView({
   // copies and a tracking list already catalogues them, so neither shows it.
   const wideEnoughForTable = useMediaQuery('(min-width: 768px)');
   const isTable = view === 'compact' && wideEnoughForTable;
-  const tableColumns = dynamic || tracking ? LIST_TABLE_COLUMNS : LIST_TABLE_COLUMNS_WITH_TARGET;
+  const tablePreset = dynamic || tracking ? LIST_TABLE_COLUMNS : LIST_TABLE_COLUMNS_WITH_TARGET;
+  // Cond and Lang go unless some row actually deviates — same rule as a
+  // binder. A want list of unowned printings has neither to report.
+  const tableColumns = useMemo(
+    () =>
+      visibleColumns(
+        tablePreset,
+        sorted.map((r) => r.card)
+      ),
+    [tablePreset, sorted]
+  );
 
   // Cross-references the entry against the collection by the same
   // oracleId/name match the header cost stat uses, so the two never disagree.
