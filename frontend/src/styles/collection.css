@@ -1796,9 +1796,15 @@ i.ss.set-symbol--mythic {
   flex-shrink: 0;
 }
 
-.collection-list-section-label {
-  text-transform: uppercase;
-}
+/* `.collection-list-section-label` deliberately has NO rule of its own. It
+   used to carry `text-transform: uppercase`, which read as a label on the
+   category groups and shouted the data ones: every label arrives display-ready
+   from `getSectionMeta` — "White", "Multicolor", "Creature", "Mythic", "A",
+   "7+", and, grouping by set, "Bloomburrow" or "Secret Lair Drop: Artist
+   Series". CSS cannot tell a category word from a proper noun, so it mangled
+   the second kind to decorate the first. A label now carries the case it was
+   given, on every surface. The class stays in the markup as a hook.
+   See section-label-case.test.ts. */
 
 .collection-list-section-count {
   margin-left: auto;
@@ -2518,15 +2524,6 @@ i.ss.set-symbol--mythic {
    away from its own name. A binder's list is NOT virtualized, so this is real
    `position: sticky` — Collection can't do it (its rows are absolutely
    positioned) and floats a measured overlay instead. */
-/* Collection's groups are short category words, so it uppercases them as a
-   label. A binder's section label is data — a colour, but just as often a set
-   name or a Secret Lair drop title — and "SECRET LAIR DROP: ARTIST SERIES" is
-   not a label, it's shouting. Keep the name's own case, which is what the
-   binder showed before it joined the table. */
-.binder-table-section .collection-list-section-label {
-  text-transform: none;
-}
-
 .collection-table.is-framed .binder-table-section {
   position: sticky;
   top: calc(var(--hub-tabs-sticky-h) - 1px + var(--ct-head-h));
