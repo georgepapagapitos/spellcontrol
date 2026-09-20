@@ -729,48 +729,6 @@
   flex-shrink: 0;
 }
 
-/* End-game winner picker — radio buttons styled as chips inside the
- * existing ConfirmDialog frame. */
-/* A <fieldset>: strip its default chrome, same as .settings-currency-toggle. */
-.play-end-winners {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: var(--space-2) 0 var(--space-4);
-  padding: 0;
-  border: 0;
-  min-inline-size: 0;
-}
-
-.play-end-winner {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 0.4rem 0.8rem;
-  font-size: var(--text-sm);
-  color: var(--text-primary);
-  cursor: pointer;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .play-end-winner:hover {
-    border-color: var(--accent);
-  }
-}
-
-.play-end-winner.is-selected {
-  background: var(--accent);
-  color: var(--on-accent);
-  border-color: var(--accent);
-}
-
-.play-end-winner input {
-  accent-color: var(--accent);
-}
-
 /* When the game board overlay is mounted, every modal-backdrop in the
  * document needs to climb above it — by default --z-modal (1000) sits below
  * --z-overlay (1100), so confirmation dialogs triggered from inside a game

@@ -71,6 +71,7 @@ function table(overrides: Partial<OnlineTable> = {}): OnlineTable {
     activeSeat: null,
     opponents: [],
     mySeat: 0,
+    isHost: false,
     me,
     players: [me],
     phase: undefined,
