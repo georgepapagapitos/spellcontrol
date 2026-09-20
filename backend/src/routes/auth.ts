@@ -1,11 +1,11 @@
 import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import { testAwareLimiter } from '../route-utils';
+import { promoteIfSeededAdmin } from '../admin/bootstrap';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import {
   clearSessionCookie,
   generateUsername,
-  getAdminUsernames,
   hashPassword,
   isReservedUsername,
   isScryfallArtUrl,
@@ -211,10 +211,11 @@ authRouter.post('/register', registerLimiter, async (req: Request, res: Response
   const id = crypto.randomUUID();
   const passwordHash = await hashPassword(password);
   const now = Date.now();
-  // If the new username is in ADMIN_USERNAMES, promote on insert so the first
-  // login already carries admin privileges. The boot-time bootstrap covers the
-  // case where the env var is added *after* the user already exists.
-  const role: UserRole = getAdminUsernames().has(username) ? 'admin' : 'user';
+  // Always 'user'. A password signup has no verified email yet, and admin is
+  // seeded from VERIFIED addresses only (`ADMIN_EMAILS`), so there is nothing
+  // to promote on at this point — `promoteIfSeededAdmin` fires later, when
+  // the address is actually verified.
+  const role: UserRole = 'user';
   await db.insert(users).values({ id, username, passwordHash, role, createdAt: now });
   // Password signup is anonymous (no email) and open to the public internet, so
   // log the source IP + UA to tell real users from endpoint-probing bots.
@@ -995,6 +996,9 @@ authRouter.post('/verify-email', verifyEmailLimiter, async (req: Request, res: R
     }
     throw err;
   }
+  // The address is verified as of this statement, so this is the first moment
+  // a seeded operator can legitimately be promoted. No-op for everyone else.
+  await promoteIfSeededAdmin(result.userId, result.email);
   res.json({ ok: true });
 });
 

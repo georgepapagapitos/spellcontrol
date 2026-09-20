@@ -6,6 +6,7 @@ import {
   deleteUser,
   clearUserProfile,
   setUserAi,
+  setUserRole,
   getAiSpend,
   listReports,
   resolveReport,
@@ -85,6 +86,10 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
   const [deleting, setDeleting] = useState(false);
   const [pendingClear, setPendingClear] = useState<AdminUserSummary | null>(null);
   const [clearingProfile, setClearingProfile] = useState(false);
+  // Role change: the row being granted or revoked, and the in-flight flag.
+  // Confirmed rather than one-click — it is the highest-privilege action here.
+  const [pendingRole, setPendingRole] = useState<AdminUserSummary | null>(null);
+  const [savingRole, setSavingRole] = useState(false);
   // AI access dialog (T114): the row being edited plus its draft fields.
   const [pendingAi, setPendingAi] = useState<AdminUserSummary | null>(null);
   const [aiAccessDraft, setAiAccessDraft] = useState(false);
@@ -212,6 +217,37 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
       });
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function handleConfirmRole() {
+    if (!pendingRole) return;
+    const next = pendingRole.role === 'admin' ? 'user' : 'admin';
+    setSavingRole(true);
+    try {
+      await setUserRole(pendingRole.id, next);
+      toast.show({
+        message:
+          next === 'admin'
+            ? `${pendingRole.username} is an admin`
+            : `${pendingRole.username} is no longer an admin`,
+        tone: 'success',
+      });
+      setPendingRole(null);
+      await refresh();
+    } catch (err) {
+      if (isGone(err)) {
+        toast.show({ message: `${pendingRole.username} was already deleted.`, tone: 'info' });
+        setPendingRole(null);
+        await refresh();
+        return;
+      }
+      toast.show({
+        message: userMessage(err, "Couldn't change that role. Try again."),
+        tone: 'error',
+      });
+    } finally {
+      setSavingRole(false);
     }
   }
 
@@ -496,6 +532,15 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
                                 onClick: () => openAiDialog(u),
                               },
                               {
+                                label: isSelf
+                                  ? "Can't change your own role"
+                                  : u.role === 'admin'
+                                    ? 'Revoke admin…'
+                                    : 'Make admin…',
+                                disabled: isSelf,
+                                onClick: () => setPendingRole(u),
+                              },
+                              {
                                 label: 'Clear profile',
                                 danger: true,
                                 onClick: () => setPendingClear(u),
@@ -622,6 +667,58 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
                 </button>
               </div>
             </form>
+          </Modal>
+        )}
+
+        {pendingRole && (
+          <Modal
+            onClose={() => !savingRole && setPendingRole(null)}
+            labelledBy="admin-role-title"
+            dismissable={!savingRole}
+          >
+            <h2 id="admin-role-title" className="choice-dialog-title">
+              {pendingRole.role === 'admin' ? 'Revoke admin?' : 'Make admin?'}
+            </h2>
+            <p className="choice-dialog-body">
+              {pendingRole.role === 'admin' ? (
+                <>
+                  <strong>{pendingRole.username}</strong> loses the admin panel, and with it every
+                  account, report, and AI control on this page. Their own data is untouched.
+                </>
+              ) : (
+                <>
+                  <strong>{pendingRole.username}</strong> gets this panel: every account, every
+                  report, the AI controls, and the ability to delete accounts. Grant it to people
+                  you would trust with all of it.
+                </>
+              )}
+            </p>
+            <div className="choice-dialog-actions admin-modal-actions">
+              <button
+                type="button"
+                className="pill-btn"
+                onClick={() => setPendingRole(null)}
+                disabled={savingRole}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={
+                  pendingRole.role === 'admin'
+                    ? 'pill-btn pill-btn-danger'
+                    : 'pill-btn pill-btn-primary'
+                }
+                onClick={() => void handleConfirmRole()}
+                disabled={savingRole}
+              >
+                {savingRole
+                  ? 'Saving…'
+                  : pendingRole.role === 'admin'
+                    ? 'Revoke admin'
+                    : 'Make admin'}
+              </button>
+            </div>
           </Modal>
         )}
 

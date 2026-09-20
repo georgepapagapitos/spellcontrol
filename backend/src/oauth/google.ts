@@ -3,7 +3,8 @@ import { OAuth2Client } from 'google-auth-library';
 import { and, eq, isNull, lt } from 'drizzle-orm';
 import { getDb } from '../db';
 import { users, authIdentities, oauthHandoffCodes } from '../db/schema';
-import { getAdminUsernames, type AuthedUser, type OAuthPlatform } from '../auth';
+import { getAdminEmails, type AuthedUser, type OAuthPlatform, type UserRole } from '../auth';
+import { promoteIfSeededAdmin } from '../admin/bootstrap';
 
 /** Provider key stored in `auth_identities.provider`. */
 const PROVIDER = 'google';
@@ -198,10 +199,16 @@ export async function adoptVerifiedGoogleEmail(
   if (!identity.email || !identity.emailVerified) return;
   const db = getDb();
   try {
-    await db
+    const adopted = await db
       .update(users)
       .set({ email: identity.email, emailVerified: true })
-      .where(and(eq(users.id, userId), isNull(users.email)));
+      .where(and(eq(users.id, userId), isNull(users.email)))
+      .returning({ id: users.id });
+    // Adopting is the moment this account first has a verified address, so
+    // it is also the moment a seeded operator who signed up with a password
+    // and linked Google afterwards becomes promotable. No-op for everyone
+    // else, and skipped entirely when the row already had an email.
+    if (adopted.length > 0) await promoteIfSeededAdmin(userId, identity.email);
   } catch (err) {
     if (isUniqueViolation(err)) return;
     throw err;
@@ -231,7 +238,14 @@ export async function createGoogleUser(
   const db = getDb();
   const id = crypto.randomUUID();
   const now = Date.now();
-  const role = getAdminUsernames().has(username) ? 'admin' : 'user';
+  // Google asserts the address, so a seeded operator arriving this way is
+  // already verified at creation time and needs no second step. An identity
+  // Google itself reports as unverified never counts.
+  const seededAdmin =
+    identity.emailVerified &&
+    identity.email != null &&
+    getAdminEmails().has(identity.email.trim().toLowerCase());
+  const role: UserRole = seededAdmin ? 'admin' : 'user';
   await db.insert(users).values({
     id,
     username,

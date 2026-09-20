@@ -327,6 +327,99 @@ describe('PATCH /api/admin/users/:id/ai', () => {
   });
 });
 
+describe('PATCH /api/admin/users/:id/role', () => {
+  it('403s for a non-admin session', async () => {
+    const cookie = await registerUser('role-quinn');
+    const res = await request(app)
+      .patch('/api/admin/users/some-id/role')
+      .set('Cookie', cookie)
+      .send({ role: 'admin' });
+    expect(res.status).toBe(403);
+  });
+
+  it('404s for an unknown user id', async () => {
+    const cookie = await registerAdmin('role-rhea');
+    const res = await request(app)
+      .patch('/api/admin/users/does-not-exist/role')
+      .set('Cookie', cookie)
+      .send({ role: 'admin' });
+    expect(res.status).toBe(404);
+  });
+
+  it('400s anything that is not exactly admin or user', async () => {
+    const cookie = await registerAdmin('role-sol');
+    const targetId = await userIdFromCookie(await registerUser('role-tam'));
+    for (const body of [{}, { role: 'superuser' }, { role: true }, { role: 'ADMIN' }]) {
+      const res = await request(app)
+        .patch(`/api/admin/users/${targetId}/role`)
+        .set('Cookie', cookie)
+        .send(body);
+      expect(res.status, JSON.stringify(body)).toBe(400);
+    }
+  });
+
+  it('grants and revokes admin, and the list reflects it', async () => {
+    const cookie = await registerAdmin('role-ursa');
+    const targetId = await userIdFromCookie(await registerUser('role-vik'));
+    const find = async () => {
+      const res = await request(app).get('/api/admin/users').set('Cookie', cookie);
+      return res.body.users.find((u: { username: string }) => u.username === 'role-vik');
+    };
+    expect(await find()).toMatchObject({ role: 'user' });
+
+    let res = await request(app)
+      .patch(`/api/admin/users/${targetId}/role`)
+      .set('Cookie', cookie)
+      .send({ role: 'admin' });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true, username: 'role-vik', role: 'admin' });
+    expect(await find()).toMatchObject({ role: 'admin' });
+
+    res = await request(app)
+      .patch(`/api/admin/users/${targetId}/role`)
+      .set('Cookie', cookie)
+      .send({ role: 'user' });
+    expect(res.body).toEqual({ ok: true, username: 'role-vik', role: 'user' });
+    expect(await find()).toMatchObject({ role: 'user' });
+  });
+
+  it('refuses to change your own role', async () => {
+    const cookie = await registerAdmin('role-wren');
+    const selfId = await userIdFromCookie(cookie);
+    const res = await request(app)
+      .patch(`/api/admin/users/${selfId}/role`)
+      .set('Cookie', cookie)
+      .send({ role: 'user' });
+    expect(res.status).toBe(400);
+    // Still an admin, so the panel is still reachable.
+    const list = await request(app).get('/api/admin/users').set('Cookie', cookie);
+    expect(list.status).toBe(200);
+  });
+
+  it('always leaves at least one admin standing', async () => {
+    // The self guard is the whole safety property: an admin can demote every
+    // other admin, but never the seat they are acting from, so the panel is
+    // never orphaned. No separate last-admin check is reachable.
+    const actor = await registerAdmin('role-xan');
+    const otherCookie = await registerAdmin('role-yuki');
+    const otherId = await userIdFromCookie(otherCookie);
+    const actorId = await userIdFromCookie(actor);
+
+    const demoteOther = await request(app)
+      .patch(`/api/admin/users/${otherId}/role`)
+      .set('Cookie', actor)
+      .send({ role: 'user' });
+    expect(demoteOther.status).toBe(200);
+
+    const demoteSelf = await request(app)
+      .patch(`/api/admin/users/${actorId}/role`)
+      .set('Cookie', actor)
+      .send({ role: 'user' });
+    expect(demoteSelf.status).toBe(400);
+    expect((await request(app).get('/api/admin/users').set('Cookie', actor)).status).toBe(200);
+  });
+});
+
 describe('DELETE /api/admin/users/:id', () => {
   it('403s for a non-admin session', async () => {
     const cookie = await registerUser('owen');
