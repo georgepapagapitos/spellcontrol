@@ -4,7 +4,6 @@ import {
   Bookmark,
   Captions,
   CheckSquare,
-  ChevronDown,
   ChevronsDownUp,
   ChevronsUpDown,
   Eye,
@@ -22,7 +21,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type ReactNode,
 } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -100,6 +98,7 @@ import {
 import { fetchTypeSuggestions } from '../lib/scryfall-catalog';
 import { parseTypeLine, SUPERTYPES, TYPES } from '../lib/card-types';
 import { CardRow } from './shared/CardRow';
+import { SectionHeaderBar } from './shared/SectionHeaderBar';
 import {
   CardTableFrame,
   CardTableHead,
@@ -334,60 +333,6 @@ const persistCollapsedKeys = (g: GroupKey, keys: Set<string>) => {
     /* ignore – SSR / private-browsing / quota errors */
   }
 };
-
-// Shared section-header bar: a disclosure button (chevron + pip + label + count)
-// reused by the inline list/grid headers and the floating sticky overlay. The
-// `className` carries the per-surface look; this adds the button reset, the
-// rotating chevron, and the expanded/collapsed a11y state.
-function SectionHeaderBar({
-  pip,
-  label,
-  count,
-  collapsed,
-  onToggle,
-  className,
-  style,
-  tabIndex,
-}: {
-  pip: SectionHeader['meta']['pip'];
-  label: string;
-  count: number;
-  collapsed: boolean;
-  onToggle: () => void;
-  className: string;
-  style?: CSSProperties;
-  tabIndex?: number;
-}) {
-  return (
-    <button
-      type="button"
-      className={`${className} collection-section-header-btn`}
-      style={style}
-      tabIndex={tabIndex}
-      aria-expanded={!collapsed}
-      aria-label={`${label}, ${count} cards, ${collapsed ? 'collapsed' : 'expanded'}`}
-      onClick={onToggle}
-    >
-      <ChevronDown
-        className="collection-section-chevron"
-        width={16}
-        height={16}
-        strokeWidth={2.25}
-        aria-hidden
-        data-collapsed={collapsed || undefined}
-      />
-      {pip && (
-        <span
-          className="collection-list-section-pip"
-          style={{ background: pip.background, borderColor: pip.border }}
-          aria-hidden
-        />
-      )}
-      <span className="collection-list-section-label">{label}</span>
-      <span className="collection-list-section-count">{count}</span>
-    </button>
-  );
-}
 
 export function CardListTable({
   cards,

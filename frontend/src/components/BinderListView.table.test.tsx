@@ -183,6 +183,56 @@ describe('a binder list at tablet width and up', () => {
   });
 });
 
+describe('the section divider is part of the table, not a bar above it', () => {
+  beforeEach(() => stubViewport(true));
+
+  it('draws the whole table as one framed slab', () => {
+    const { container } = renderBinder('compact');
+    const frame = container.querySelector('.collection-table');
+    expect(frame?.classList.contains('is-framed')).toBe(true);
+    // The page-grid section chrome (its own border, radius and margin) is what
+    // split the table into three unconnected boxes. It has no business here.
+    expect(container.querySelector('.binder-section')).toBeNull();
+    expect(container.querySelector('.section-header-toggle')).toBeNull();
+  });
+
+  it('uses the same group bar as Collection, one per section', () => {
+    const { container } = renderBinder('compact');
+    const bars = container.querySelectorAll('.collection-list-section-header');
+    expect(bars).toHaveLength(2);
+    for (const bar of bars) expect(bar.classList.contains('binder-table-section')).toBe(true);
+  });
+
+  it('keeps the disclosure wired to the rows it hides', () => {
+    const { container } = renderBinder('compact');
+    const bar = container.querySelector('.binder-table-section') as HTMLElement;
+    const panelId = bar.getAttribute('aria-controls');
+    expect(panelId).toBeTruthy();
+    const panel = container.querySelector(`#${panelId}`) as HTMLElement;
+    expect(panel.getAttribute('role')).toBe('region');
+    expect(panel.getAttribute('aria-labelledby')).toBe(bar.id);
+    expect(bar.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('still says how many cards and how many are distinct', () => {
+    const { container } = renderBinder('compact');
+    const counts = [...container.querySelectorAll('.collection-list-section-count')].map(
+      (el) => el.textContent
+    );
+    // One copy each, so the two numbers agree and only one is shown.
+    expect(counts).toEqual(['1 card', '1 card']);
+  });
+
+  it('leaves the flow density on the page-grid section header', () => {
+    const { container } = renderBinder('detail');
+    expect(container.querySelector('.section-header-toggle')).toBeTruthy();
+    expect(container.querySelector('.binder-table-section')).toBeNull();
+    expect(container.querySelector('.collection-table')?.classList.contains('is-framed')).toBe(
+      false
+    );
+  });
+});
+
 describe('the annotation columns a binder only earns by using them', () => {
   beforeEach(() => stubViewport(true));
 
