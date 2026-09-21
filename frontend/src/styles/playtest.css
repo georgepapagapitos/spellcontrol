@@ -83,8 +83,10 @@ body:has(.playtest-page) {
      slot: the battlefield keeps this much clear on each side so a tapped
      card at x = 0 or x = 1 is never clipped by the wrap's overflow. */
   --pt-edge: calc((var(--pt-card-h) - var(--pt-card-w)) / 2);
-  /* The ring a selected card wears. Fixed, unlike the hover ring's
-     `--accent` — see `.playtest-card--selected`. */
+  /* The two card rings: cyan under the pointer, gold in the selection — the
+     pair EDHPlay uses, and fixed rather than themed on purpose. See
+     `.playtest-card--selected`. */
+  --pt-ring-hover: #4cc3f0;
   --pt-ring-selected: var(--mtg-counter-gold);
 }
 
@@ -671,9 +673,9 @@ body[data-felt='slate'] {
   position: absolute;
   z-index: 4;
   pointer-events: none;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--pt-ring-hover);
   border-radius: 2px;
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  background: color-mix(in srgb, var(--pt-ring-hover) 14%, transparent);
 }
 
 .playtest-battlefield.is-over {
@@ -1027,12 +1029,16 @@ body[data-felt='slate'] {
    The ring was briefly `--border-strong` inset, which measured fine and was
    invisible in practice: on a dark theme that token is a dark navy sitting on
    top of a card's own black border, over art. Checked in a browser at both
-   ends of the theme range, not read off the sheet. */
+   ends of the theme range, not read off the sheet. It was then `--accent`
+   (#2049), which is visible but is a different colour in every theme and
+   collides with the selection's ring in some of them — the two states are
+   now the fixed cyan/gold pair EDHPlay uses. The geometry that fix found,
+   a ring drawn OUTSIDE the card rather than inset, is kept. */
 @media (hover: hover) and (pointer: fine) {
   .playtest-battlefield
     .playtest-card:hover:not(.playtest-card--dragging, .playtest-card--selected) {
     box-shadow:
-      0 0 0 2px var(--accent),
+      0 0 0 2px var(--pt-ring-hover),
       var(--shadow-card);
   }
 }
@@ -1041,10 +1047,10 @@ body[data-felt='slate'] {
    `overflow: hidden` and rotates 90° when tapped, and an outline would be
    clipped on one and mis-hug the other.
 
-   Gold, and fixed rather than themed: the hover ring is `--accent` (#2049),
-   so "under the cursor" and "in the selection" have to stay two different
-   colours in every theme, and this one is drawn on card art rather than on
-   themed chrome. The drag-box is the pointer's, so it takes the accent. */
+   Gold to the hover ring's cyan, the pair EDHPlay uses, and fixed rather
+   than themed: both are drawn on card art rather than on themed chrome, and
+   "under the cursor" and "in the selection" have to read as two different
+   things in every theme. The drag-box is the pointer's, so it is cyan. */
 .playtest-card--selected {
   box-shadow:
     inset 0 0 0 3px var(--pt-ring-selected),
