@@ -149,6 +149,17 @@ describe('card inspector', () => {
     expect(nameOf(container)).toBe('Goblin Lackey');
   });
 
+  // A sticky column only sticks for the height of its containing block. While
+  // "Not in the deck" sat OUTSIDE .deck-body-layout, the inspector came unstuck
+  // at the end of the card list and rode up under the site header for the whole
+  // rest of the page — the card you were reading disappeared.
+  it('keeps "Not in the deck" inside the column it sticks against', () => {
+    const { container } = renderDeck({ wideHover: true });
+    const main = container.querySelector('.deck-body-main')!;
+    expect(main.closest('.deck-body-layout')).not.toBeNull();
+    expect(main.querySelector('.deck-outzone')).not.toBeNull();
+  });
+
   it('is absent below the wide/hover gate, where the floating peek takes over', () => {
     const { container } = renderDeck({ wideHover: false });
     expect(container.querySelector('.deck-card-inspector')).toBeNull();

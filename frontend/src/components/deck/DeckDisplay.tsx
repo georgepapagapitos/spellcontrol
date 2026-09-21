@@ -1839,35 +1839,41 @@ export function DeckDisplay({
                     than a list-only rail plus a grid-only floating peek. The
                     toolbar and filter-chip bands above stay full width, which is
                     what lets the inspector sit on the LEFT without moving the
-                    page's alignment line off the gutter. */}
-                {visibleGroups.length > 0 && (
-                  <div className={inspectorActive ? 'deck-body-layout' : undefined}>
-                    {inspectorActive && (
-                      <DeckCardInspector
-                        card={inspectorCard}
-                        currency={currency}
-                        pinned={pinnedName !== null}
-                        onTogglePin={() =>
-                          setPinnedName((prev) => (prev ? null : (inspectorCard?.row.name ?? null)))
-                        }
-                        onOpen={openPreview}
-                        actions={{
-                          onMoveToSideboard: showSideboardTab ? onMoveToSideboard : undefined,
-                          onMoveToConsidering,
-                          onRemoveCard,
-                        }}
-                      />
-                    )}
-                    {/* The grid/stacks tiles feed the inspector through the same
+                    page's alignment line off the gutter.
+
+                    It wraps EVERYTHING below the toolbar — the card body AND the
+                    "Not in the deck" zone — because a sticky element only sticks
+                    for the height of its containing block. With the outzone left
+                    outside, the inspector came unstuck at the end of the card
+                    list and rode up under the header for the rest of the page. */}
+                <div className={inspectorActive ? 'deck-body-layout' : undefined}>
+                  {inspectorActive && visibleGroups.length > 0 && (
+                    <DeckCardInspector
+                      card={inspectorCard}
+                      currency={currency}
+                      pinned={pinnedName !== null}
+                      onTogglePin={() =>
+                        setPinnedName((prev) => (prev ? null : (inspectorCard?.row.name ?? null)))
+                      }
+                      onOpen={openPreview}
+                      actions={{
+                        onMoveToSideboard: showSideboardTab ? onMoveToSideboard : undefined,
+                        onMoveToConsidering,
+                        onRemoveCard,
+                      }}
+                    />
+                  )}
+                  {/* The grid/stacks tiles feed the inspector through the same
                         delegated hover handlers the list uses. They attach only
                         while the inspector is mounted: below the gate a grid tile
                         already shows its own art, so a floating peek over it
                         would be noise. */}
-                    <div
-                      className="deck-body-main"
-                      {...(inspectorActive && viewMode !== 'list' ? hoverPeek.listHandlers : {})}
-                    >
-                      {viewMode === 'list' ? (
+                  <div
+                    className="deck-body-main"
+                    {...(inspectorActive && viewMode !== 'list' ? hoverPeek.listHandlers : {})}
+                  >
+                    {visibleGroups.length > 0 &&
+                      (viewMode === 'list' ? (
                         <div
                           className="deck-card-list"
                           ref={listRef}
@@ -1916,13 +1922,11 @@ export function DeckDisplay({
                           hasPartner={!!partnerCommander}
                           onEditPartner={onEditPartner}
                         />
-                      )}
-                    </div>
-                  </div>
-                )}
+                      ))}
 
-                {/* "Not in the deck" (E176) — one subordinate zone below the
-                    decklist, in EVERY view mode (the former defect: this
+                    {/* "Not in the deck" (E176) — one subordinate zone below the
+                    decklist, inside `.deck-body-main` so the inspector column
+                    stays stuck alongside it, in EVERY view mode (the former defect: this
                     content only rendered inside the list-view branch, so
                     grid-view users could neither see nor reach it). Always a
                     compact row list (CategorySection/DeckCardRow) even in
@@ -1933,137 +1937,141 @@ export function DeckDisplay({
                     excluded from stats/legality/mana/role counts upstream
                     (see the `cards`-only `allCards`/`legalityIssues` memos
                     above — this zone never feeds them). */}
-                <div className="deck-outzone">
-                  <h3 className="deck-outzone-title" id="deck-outzone" tabIndex={-1}>
-                    Not in the deck
-                  </h3>
-                  {showSideboardTab ? (
-                    <Tabs
-                      ariaLabel="Not in the deck"
-                      variant="fitted"
-                      value={outzoneTab}
-                      onChange={setOutzoneTab}
-                      tabs={[
-                        {
-                          id: 'sideboard',
-                          label: 'Sideboard',
-                          count: sideboard.length,
-                          controls: 'deck-outzone-panel',
-                          ariaLabel: `Sideboard, ${sideboard.length} cards`,
-                        },
-                        {
-                          id: 'considering',
-                          label: 'Considering',
-                          count: considering.length,
-                          controls: 'deck-outzone-panel',
-                          ariaLabel: `Considering, ${considering.length} cards`,
-                        },
-                      ]}
-                    />
-                  ) : (
-                    <div className="deck-outzone-single-label">
-                      Considering
-                      <span className="deck-outzone-single-count">({considering.length})</span>
-                    </div>
-                  )}
-                  <div
-                    id="deck-outzone-panel"
-                    className="deck-outzone-body"
-                    role={showSideboardTab ? 'tabpanel' : undefined}
-                    aria-labelledby={showSideboardTab ? `sc-tab-${outzoneTab}` : undefined}
-                  >
-                    {outzoneTab === 'sideboard' && showSideboardTab ? (
-                      visibleSideboardGroups.length > 0 ? (
-                        visibleSideboardGroups.map((g) => (
-                          <CategorySection
-                            key={`sb-${g.title}`}
-                            title={g.title}
-                            icon={g.icon}
-                            rows={g.rows}
-                            currency={currency}
-                            showPrefs={showPrefs}
-                            onRowClick={openPreview}
-                            onRemoveCard={onRemoveSideboardCard}
-                            onSetQty={onSetQtyForZone('sideboard')}
-                            selectMode={selectMode}
-                            isRowSelected={(row) => isRowSelected('sideboard', row)}
-                            onToggleRowSelected={(row) => toggleRowSelected('sideboard', row)}
-                            dragEnabled={sort === 'custom'}
-                            onReorder={onReorderForZone('sideboard')}
-                            isSingleton={formatConfig.isSingleton}
-                            onEditCard={onEditCard}
-                            roleFilter={activeRoleFilter}
-                            legalityBySlot={legalityBySlot}
-                            onMoveToMainboard={onMoveToMainboard}
-                            onMakeCommander={onMakeCommander}
-                            canMakeCommander={canMakeCommander}
-                            onMakePartner={onMakePartner}
-                            canMakePartner={canMakePartner}
-                            onMoveToAnotherDeck={onMoveToAnotherDeck}
-                            onReleaseCopy={onReleaseCopy}
-                            onUseOwnCopy={onUseOwnCopy}
-                            synergyByName={synergyByName}
-                            cardInclusionMap={cardInclusionMap}
-                            combosByOracle={combosByOracle}
-                            cardProvenance={cardProvenance}
-                          />
-                        ))
-                      ) : (
-                        <p className="deck-outzone-empty">No sideboard cards yet</p>
-                      )
-                    ) : visibleConsideringGroups.length > 0 ? (
-                      visibleConsideringGroups.map((g) => (
-                        <CategorySection
-                          key={`cn-${g.title}`}
-                          title={g.title}
-                          icon={g.icon}
-                          rows={g.rows}
-                          currency={currency}
-                          showPrefs={showPrefs}
-                          onRowClick={openPreview}
-                          onRemoveCard={onRemoveConsideringCard}
-                          onSetQty={onSetQtyForZone('considering')}
-                          selectMode={selectMode}
-                          isRowSelected={(row) => isRowSelected('considering', row)}
-                          onToggleRowSelected={(row) => toggleRowSelected('considering', row)}
-                          dragEnabled={sort === 'custom'}
-                          onReorder={onReorderForZone('considering')}
-                          // Considering is copy-limit exempt (E122) regardless of
-                          // format singleton rules — never the artificial 1-copy
-                          // cap `isSingleton ?? true` would otherwise fall back to.
-                          isSingleton={false}
-                          roleFilter={activeRoleFilter}
-                          onMoveToMainboard={onMoveFromConsidering}
-                          synergyByName={synergyByName}
-                          cardInclusionMap={cardInclusionMap}
-                          combosByOracle={combosByOracle}
-                          cardProvenance={cardProvenance}
+                    <div className="deck-outzone">
+                      <h3 className="deck-outzone-title" id="deck-outzone" tabIndex={-1}>
+                        Not in the deck
+                      </h3>
+                      {showSideboardTab ? (
+                        <Tabs
+                          ariaLabel="Not in the deck"
+                          variant="fitted"
+                          value={outzoneTab}
+                          onChange={setOutzoneTab}
+                          tabs={[
+                            {
+                              id: 'sideboard',
+                              label: 'Sideboard',
+                              count: sideboard.length,
+                              controls: 'deck-outzone-panel',
+                              ariaLabel: `Sideboard, ${sideboard.length} cards`,
+                            },
+                            {
+                              id: 'considering',
+                              label: 'Considering',
+                              count: considering.length,
+                              controls: 'deck-outzone-panel',
+                              ariaLabel: `Considering, ${considering.length} cards`,
+                            },
+                          ]}
                         />
-                      ))
-                    ) : (
-                      <p className="deck-outzone-empty">
-                        Nothing parked here yet. Move a card here when you're unsure about it.
-                      </p>
+                      ) : (
+                        <div className="deck-outzone-single-label">
+                          Considering
+                          <span className="deck-outzone-single-count">({considering.length})</span>
+                        </div>
+                      )}
+                      <div
+                        id="deck-outzone-panel"
+                        className="deck-outzone-body"
+                        role={showSideboardTab ? 'tabpanel' : undefined}
+                        aria-labelledby={showSideboardTab ? `sc-tab-${outzoneTab}` : undefined}
+                      >
+                        {outzoneTab === 'sideboard' && showSideboardTab ? (
+                          visibleSideboardGroups.length > 0 ? (
+                            visibleSideboardGroups.map((g) => (
+                              <CategorySection
+                                key={`sb-${g.title}`}
+                                title={g.title}
+                                icon={g.icon}
+                                rows={g.rows}
+                                currency={currency}
+                                showPrefs={showPrefs}
+                                onRowClick={openPreview}
+                                onRemoveCard={onRemoveSideboardCard}
+                                onSetQty={onSetQtyForZone('sideboard')}
+                                selectMode={selectMode}
+                                isRowSelected={(row) => isRowSelected('sideboard', row)}
+                                onToggleRowSelected={(row) => toggleRowSelected('sideboard', row)}
+                                dragEnabled={sort === 'custom'}
+                                onReorder={onReorderForZone('sideboard')}
+                                isSingleton={formatConfig.isSingleton}
+                                onEditCard={onEditCard}
+                                roleFilter={activeRoleFilter}
+                                legalityBySlot={legalityBySlot}
+                                onMoveToMainboard={onMoveToMainboard}
+                                onMakeCommander={onMakeCommander}
+                                canMakeCommander={canMakeCommander}
+                                onMakePartner={onMakePartner}
+                                canMakePartner={canMakePartner}
+                                onMoveToAnotherDeck={onMoveToAnotherDeck}
+                                onReleaseCopy={onReleaseCopy}
+                                onUseOwnCopy={onUseOwnCopy}
+                                synergyByName={synergyByName}
+                                cardInclusionMap={cardInclusionMap}
+                                combosByOracle={combosByOracle}
+                                cardProvenance={cardProvenance}
+                              />
+                            ))
+                          ) : (
+                            <p className="deck-outzone-empty">No sideboard cards yet</p>
+                          )
+                        ) : visibleConsideringGroups.length > 0 ? (
+                          visibleConsideringGroups.map((g) => (
+                            <CategorySection
+                              key={`cn-${g.title}`}
+                              title={g.title}
+                              icon={g.icon}
+                              rows={g.rows}
+                              currency={currency}
+                              showPrefs={showPrefs}
+                              onRowClick={openPreview}
+                              onRemoveCard={onRemoveConsideringCard}
+                              onSetQty={onSetQtyForZone('considering')}
+                              selectMode={selectMode}
+                              isRowSelected={(row) => isRowSelected('considering', row)}
+                              onToggleRowSelected={(row) => toggleRowSelected('considering', row)}
+                              dragEnabled={sort === 'custom'}
+                              onReorder={onReorderForZone('considering')}
+                              // Considering is copy-limit exempt (E122) regardless of
+                              // format singleton rules — never the artificial 1-copy
+                              // cap `isSingleton ?? true` would otherwise fall back to.
+                              isSingleton={false}
+                              roleFilter={activeRoleFilter}
+                              onMoveToMainboard={onMoveFromConsidering}
+                              synergyByName={synergyByName}
+                              cardInclusionMap={cardInclusionMap}
+                              combosByOracle={combosByOracle}
+                              cardProvenance={cardProvenance}
+                            />
+                          ))
+                        ) : (
+                          <p className="deck-outzone-empty">
+                            Nothing parked here yet. Move a card here when you're unsure about it.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {onAddFromSearch && search.trim().length >= 1 && noDeckMatches && (
+                      <button
+                        type="button"
+                        className="deck-display-scryfall-trigger"
+                        onClick={() => onAddFromSearch(search.trim())}
+                        aria-label={`Search Scryfall for ${search.trim()} to add a card not in this deck`}
+                      >
+                        <Search width={16} height={16} strokeWidth={1.8} aria-hidden />
+                        <span className="deck-display-scryfall-trigger-text">
+                          <span className="deck-display-scryfall-trigger-title">
+                            Search Scryfall
+                          </span>
+                          <span className="deck-display-scryfall-trigger-sub">
+                            for "{search.trim()}", add a card not in this deck
+                          </span>
+                        </span>
+                      </button>
                     )}
                   </div>
                 </div>
-
-                {onAddFromSearch && search.trim().length >= 1 && noDeckMatches && (
-                  <button
-                    type="button"
-                    className="deck-display-scryfall-trigger"
-                    onClick={() => onAddFromSearch(search.trim())}
-                    aria-label={`Search Scryfall for ${search.trim()} to add a card not in this deck`}
-                  >
-                    <Search width={16} height={16} strokeWidth={1.8} aria-hidden />
-                    <span className="deck-display-scryfall-trigger-text">
-                      <span className="deck-display-scryfall-trigger-title">Search Scryfall</span>
-                      <span className="deck-display-scryfall-trigger-sub">
-                        for "{search.trim()}", add a card not in this deck
-                      </span>
-                    </span>
-                  </button>
-                )}
               </div>
             </div>
           </>
