@@ -4224,12 +4224,13 @@ button.playtest-card-pt__value--editable:focus-visible {
    any more. */
 
 /* ── Desktop table with opponents: a 2x2 seat grid, not a rail ───────────── */
-/*  STYLE_GUIDE "Desktop table with opponents: 2x2, not a rail". At 1440px and
- *  up an online table with one to three opponents replaces the rail column
- *  with equal quadrants, one per seat, yours bottom-left. The gate is made in
- *  JS (PlaytestBoard's `gridMode`), so every rule here hangs off a class only
- *  that markup carries — no media query, the same contract the rest of this
- *  section follows. */
+/*  STYLE_GUIDE "Desktop table with opponents: 2x2, not a rail". At 1024px and
+ *  up (the same floor the rest of "table chrome" uses) an online table with
+ *  one to three opponents replaces the rail column with equal quadrants, one
+ *  per seat, yours bottom-left. The gate is made in JS (PlaytestBoard's
+ *  `gridMode`), so every rule here hangs off a class only that markup
+ *  carries — no media query, the same contract the rest of this section
+ *  follows. */
 .playtest-main--grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

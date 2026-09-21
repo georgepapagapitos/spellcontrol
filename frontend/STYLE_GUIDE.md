@@ -2424,14 +2424,32 @@ resolution for opponents a phone-portrait viewer will never see tiles for.
 ### Desktop table with opponents: 2x2, not a rail
 
 Settled 2026-09-18 against EDHPlay, and it **reverses the rule above for one
-tier only**. From **1440px** up, at an online table seating one to three
-opponents, `.playtest-main` stops being "your board plus a rail" and becomes a
-**grid of equal boards, one per seat** — yours bottom-left, the others filling
-the row above (`PlaytestBoard`'s `gridMode`, `OpponentQuadrant.tsx`). Two seats
-are two columns in one row; three seats are a 2x2 with a quiet "Open seat"
-placeholder; four seats fill it. Below 1440px, on phones, and at a five-seat
-pod the rail is still the answer, untouched — its presence and glance densities
-are exactly what they were.
+tier only**. From **1024px** up — the same "table chrome" floor every other
+tier in this file already draws (`isNarrow`, the corner-chrome rules) — an
+online table seating one to three opponents has `.playtest-main` stop being
+"your board plus a rail" and become a **grid of equal boards, one per seat** —
+yours bottom-left, the others filling the row above (`PlaytestBoard`'s
+`gridMode`, `OpponentQuadrant.tsx`). Two seats are two columns in one row;
+three seats are a 2x2 with a quiet "Open seat" placeholder; four seats fill
+it. Below 1024px, on phones, and at a five-seat pod the rail is still the
+answer, untouched — its presence and glance densities are exactly what they
+were.
+
+**Revised 2026-09-21 (E372): the gate used to sit at 1440px, which lost every
+opponent's board on an ordinary unmaximised laptop window, not just a phone —
+an opponent's battlefield is the point of the table, and a rail (even
+glance's mini-thumbnails) is the last resort, not the default the moment a
+window is a little narrower than full-screen.** 1024 was chosen over
+inventing a third breakpoint: below it the whole layout already switches to
+the mobile shell (row hand, sheet drawers, floating chrome gone), so a seat
+grid has nowhere to sit regardless of width — 1024 is the floor, not a guess.
+Verified in a real browser before shipping: at 1024/1100/1280px with a
+three-opponent (four-seat) table, each quadrant is ~450–550px square and the
+container-driven card size (`OpponentQuadrant.css`) sits at its designed
+36px floor — the same floor the old 1440px gate was already brushing against
+at typical laptop heights, so the lower gate asks nothing new of the
+quadrant. Life panel, name pill and hand fan stay fully legible at that size;
+nothing was cropped or overlapping in the verification captures.
 
 **Why equal boards are right here and wrong everywhere else.** The rail ruling
 says an opponent's actual cards are unreadable at glance size and that reading
@@ -2440,9 +2458,9 @@ card was to make it big _in place_. The **fixed hover slot** (§ Playtest board)
 is that promotion, and it costs no layout: rest on any card in any quadrant and
 its full face lands in the one pane at the table's edge. So a quadrant only has
 to carry **shape, position, tapped state, counters and count** — which it does
-at ~57px cards on a 960px quadrant — and legibility is handed back on demand.
-Below 1440 there is no quadrant big enough for that trade, which is why the
-reversal is scoped to one gate and not argued as a general improvement.
+down to its 36px card floor — and legibility is handed back on demand. Below
+1024 there is no quadrant at all (the mobile shell takes over), which is why
+the reversal is scoped to one gate and not argued as a general improvement.
 
 - **Your quadrant is the real board, not a bigger tile.** It is the same
   `.playtest-battlefield-wrap` with the same corner chrome. What anchors where
