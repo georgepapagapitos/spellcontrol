@@ -9,7 +9,9 @@
   position: fixed;
   top: calc(var(--safe-top) + var(--space-8));
   right: max(var(--safe-right), var(--space-3));
-  z-index: 900;
+  /* Body-portaled: must clear the board itself, not sit in the 900-series.
+     See the note in HoldBanner.css. */
+  z-index: var(--z-overlay);
   display: flex;
   flex-direction: column-reverse;
   align-items: flex-end;
