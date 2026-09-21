@@ -317,6 +317,32 @@ export async function patchGame(
   return { game: data.game };
 }
 
+/**
+ * One row of the public room browser (board E367) — the narrow projection
+ * `GET /api/games` answers with (backend: `projectGameListing` in
+ * routes/games.ts). Never the full `GameState`: no account id, deck, or
+ * commander crosses the wire for a table this device hasn't joined.
+ */
+export interface GameListing {
+  code: string;
+  name: string;
+  format: GameState['format'];
+  status: GameState['status'];
+  seated: number;
+  max: number;
+  /** Open seat and not yet started — the row's Join action. Spectating is a
+   *  separate affordance (available once `status` is 'active') and doesn't
+   *  depend on this flag. */
+  joinable: boolean;
+}
+
+/** List public, live, non-stale games for the room browser. */
+export async function listGames(): Promise<GameListing[]> {
+  const res = await authedFetch('/api/games');
+  const data = await handleResponse<{ games: GameListing[] }>(res);
+  return data.games;
+}
+
 export async function leaveGame(code: string): Promise<{ deleted?: boolean; game?: GameState }> {
   const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/leave`, {
     method: 'POST',

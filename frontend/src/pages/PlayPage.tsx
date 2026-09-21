@@ -31,6 +31,7 @@ import { GameBoard } from '../components/play/GameBoard';
 import { EndGameDialog } from '../components/play/EndGameDialog';
 import { OnlineGameView } from '../components/play/OnlineGameView';
 import { OnlineLobby } from '../components/play/OnlineLobby';
+import { RoomBrowser } from '../components/play/RoomBrowser';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SelectMenu } from '../components/SelectMenu';
 import { Tabs } from '../components/Tabs';
@@ -154,7 +155,8 @@ export function PlayPage() {
       return p;
     });
   };
-  const onlineMode: 'host' | 'join' = params.get('mode') === 'join' ? 'join' : 'host';
+  const onlineMode: 'host' | 'join' | 'browse' =
+    params.get('mode') === 'join' ? 'join' : params.get('mode') === 'browse' ? 'browse' : 'host';
 
   // Deep link from the landing page's "Start a game" door (`/play?new=1`):
   // start a table on arrival, so the promise is one tap rather than a tap plus
@@ -1132,9 +1134,9 @@ function OnlineSetup({
   defaultName: string;
   hasActive: boolean;
   /** Which form opens first — the dashboard's doors pick one. */
-  initialMode?: 'host' | 'join';
+  initialMode?: 'host' | 'join' | 'browse';
 }) {
-  const [mode, setMode] = useState<'host' | 'join'>(initialMode ?? 'host');
+  const [mode, setMode] = useState<'host' | 'join' | 'browse'>(initialMode ?? 'host');
   const [format, setFormat] = useState<GameFormat>('commander');
   const [name, setName] = useState(defaultName);
   const [deck, setDeck] = useState<PickedDeck | null>(null);
@@ -1158,7 +1160,7 @@ function OnlineSetup({
 
   return (
     <div className="play-setup play-setup--online">
-      <Tabs<'host' | 'join'>
+      <Tabs<'host' | 'join' | 'browse'>
         ariaLabel="Online game mode"
         value={mode}
         onChange={setMode}
@@ -1167,10 +1169,26 @@ function OnlineSetup({
         tabs={[
           { id: 'host', label: 'Host' },
           { id: 'join', label: 'Join' },
+          { id: 'browse', label: 'Browse' },
         ]}
       />
 
-      {mode === 'host' ? (
+      {mode === 'browse' ? (
+        <RoomBrowser
+          onJoin={(code) =>
+            onJoin(code, {
+              name: name || defaultName,
+              deckId: deck?.id ?? null,
+              deckName: deck?.name ?? null,
+              commander: deck?.commander ?? null,
+              partner: deck?.partner ?? null,
+              colorIdentity: deck?.colorIdentity ?? [],
+            })
+          }
+          onWatch={onWatch}
+          onHostInstead={() => setMode('host')}
+        />
+      ) : mode === 'host' ? (
         <form
           className="play-setup-form-grid"
           onSubmit={(e) => {

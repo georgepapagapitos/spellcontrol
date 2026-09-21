@@ -1,5 +1,5 @@
 import './PlayHome.css';
-import { CalendarDays, KeyRound, Radio, Swords } from 'lucide-react';
+import { CalendarDays, KeyRound, Radio, Swords, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { GameNight } from '../../lib/game-nights-api';
 import type { GameRecord, GameState } from '../../lib/game-state';
@@ -8,7 +8,7 @@ import { aggregateDeckRecords } from '../../store/play';
 
 export type PlayHomeTarget =
   | { tab: 'local' }
-  | { tab: 'online'; mode?: 'host' | 'join' }
+  | { tab: 'online'; mode?: 'host' | 'join' | 'browse' }
   | { tab: 'nights' }
   | { tab: 'history' };
 
@@ -109,6 +109,17 @@ export function PlayHome({
           <span className="play-home-door-title">Join with a code</span>
           <span className="play-home-door-sub">
             {isGuest ? 'Needs an account.' : 'Take your seat at a table someone else hosts.'}
+          </span>
+        </button>
+        <button
+          type="button"
+          className="play-home-door"
+          onClick={() => go({ tab: 'online', mode: 'browse' })}
+        >
+          <Users width={20} height={20} strokeWidth={1.8} aria-hidden />
+          <span className="play-home-door-title">Browse games</span>
+          <span className="play-home-door-sub">
+            {isGuest ? 'Needs an account.' : 'Public tables, no code needed.'}
           </span>
         </button>
       </section>
