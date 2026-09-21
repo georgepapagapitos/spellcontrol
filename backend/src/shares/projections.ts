@@ -367,12 +367,39 @@ function findInArray(arr: unknown, id: string): unknown {
  * card is private financial data, not part of a shared binder. `purchasePrice`
  * below is the market price, which is public Scryfall reference data.
  */
+/**
+ * Can the public view render this collection row / list entry at all?
+ *
+ * This is `projectCard`'s own guard, exported so a caller that only needs a
+ * COUNT agrees with the page by construction. The collection unfurl used to
+ * count raw rows while the page counted projected ones, so a single
+ * unrenderable row (the dev account has one: a name with `scryfallId: ''`)
+ * made the link preview say 11,533 cards over a page that said 11,532 — board
+ * E343. Counting is the only reason this is separate from `projectCard`:
+ * materializing 11.5k objects to answer "how many" is what the og lookup's
+ * "small constant-time read" comment exists to avoid.
+ */
+export function isProjectableCard(raw: unknown): boolean {
+  const r = asRecord(raw);
+  return !!r && !!asString(r.name) && !!asString(r.scryfallId);
+}
+
+/** Deck slots are rendered by `card` alone — `projectSlots`' own guard. */
+export function isProjectableSlot(raw: unknown): boolean {
+  const s = asRecord(raw);
+  return !!s && !!s.card;
+}
+
+/** How many of `raw`'s entries the public view would actually render. */
+export function countProjectable(raw: unknown, ok: (x: unknown) => boolean): number {
+  return Array.isArray(raw) ? raw.reduce((n, x) => (ok(x) ? n + 1 : n), 0) : 0;
+}
+
 export function projectCard(raw: unknown): PublicCard | null {
   const r = asRecord(raw);
-  if (!r) return null;
-  const name = asString(r.name);
-  const scryfallId = asString(r.scryfallId);
-  if (!name || !scryfallId) return null;
+  if (!r || !isProjectableCard(r)) return null;
+  const name = asString(r.name)!;
+  const scryfallId = asString(r.scryfallId)!;
   return {
     name,
     scryfallId,
@@ -433,9 +460,9 @@ export function projectList(owner: ShareOwner, listRaw: unknown): PublicList | n
   for (const raw of rawEntries) {
     const e = asRecord(raw);
     if (!e) continue;
-    const entryName = asString(e.name);
-    const sid = asString(e.scryfallId);
-    if (!entryName || !sid) continue;
+    if (!isProjectableCard(e)) continue;
+    const entryName = asString(e.name)!;
+    const sid = asString(e.scryfallId)!;
     entries.push({
       name: entryName,
       scryfallId: sid,
@@ -488,7 +515,7 @@ export function projectDeck(owner: ShareOwner, deckRaw: unknown): PublicDeck | n
     const out: PublicDeckCard[] = [];
     for (const slot of xs) {
       const s = asRecord(slot);
-      if (s && s.card) out.push({ card: s.card });
+      if (isProjectableSlot(s)) out.push({ card: s!.card });
     }
     return out;
   };
