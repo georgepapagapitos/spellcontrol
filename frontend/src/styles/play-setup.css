@@ -1011,3 +1011,43 @@ body:has(.game-board) .modal-backdrop {
   opacity: 0.55;
   cursor: default;
 }
+
+/* ── Deck picker trigger ──────────────────────────────────────────────────
+   The seat's deck control. It was a <select> until the picker grew a second
+   source (the starter-deck catalog, searched on the server), so it now reads
+   as a select but opens the picker overlay. */
+.play-deck-picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  max-width: 12rem;
+  padding: 0.3rem var(--space-2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.play-deck-picker-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .play-deck-picker-trigger:hover {
+    border-color: var(--accent);
+  }
+}
+
+.play-deck-picker-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

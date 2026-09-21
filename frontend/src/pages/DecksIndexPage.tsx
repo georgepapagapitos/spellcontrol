@@ -12,6 +12,7 @@ import {
   List as ListIconLucide,
   Package,
   Play,
+  Swords,
   Plus,
   RefreshCw,
   Share2,
@@ -31,6 +32,8 @@ import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
 import { BetweenYourDecks } from '../components/deck/BetweenYourDecks';
 import { ProductSearchDialog } from '../components/ProductSearchDialog';
+import { DeckPickerDialog } from '../components/play/DeckPickerDialog';
+import { deckBoardPath } from '../lib/starter-decks';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SortMenu, type SortMenuOption } from '../components/SortMenu';
 import { ColorPip } from '../components/shared/ManaSymbol';
@@ -377,6 +380,7 @@ export function DecksIndexPage() {
 
   const [showImport, setShowImport] = useState(false);
   const [showProductSearch, setShowProductSearch] = useState(false);
+  const [showStarters, setShowStarters] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Deck | null>(null);
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
@@ -556,6 +560,19 @@ export function DecksIndexPage() {
               <Play width={14} height={14} strokeWidth={1.8} aria-hidden />
               <span>Goldfish a list</span>
             </Link>
+            {/* A real precon on a board without building or owning anything.
+                It sits with the other two because it is the same gesture with
+                the list already written: the deck is resolved on the way to
+                the board and nothing is saved. */}
+            <button
+              type="button"
+              className="pill-btn decks-index-action-secondary"
+              aria-haspopup="dialog"
+              onClick={() => setShowStarters(true)}
+            >
+              <Swords width={14} height={14} strokeWidth={1.8} aria-hidden />
+              <span>Play a starter deck</span>
+            </button>
             {/* Page-level door to /decks/compare. The per-deck kebab's
                 "Compare" (pre-picks that deck as side A) stays, but a tool
                 reachable only from a row menu is a tool nobody finds; same
@@ -596,6 +613,11 @@ export function DecksIndexPage() {
                   label: 'Goldfish a list',
                   icon: Play,
                   onClick: () => navigate('/decks/goldfish'),
+                },
+                {
+                  label: 'Play a starter deck',
+                  icon: Swords,
+                  onClick: () => setShowStarters(true),
                 },
                 ...(decks.length >= 2
                   ? [
@@ -703,6 +725,15 @@ export function DecksIndexPage() {
 
         {showImport && <ImportDeckDialog onClose={() => setShowImport(false)} />}
         {showProductSearch && <ProductSearchDialog onClose={() => setShowProductSearch(false)} />}
+        {showStarters && (
+          <DeckPickerDialog
+            decks={[]}
+            value={null}
+            startersOnly
+            onPick={(picked) => picked && navigate(deckBoardPath(picked.id))}
+            onClose={() => setShowStarters(false)}
+          />
+        )}
 
         {pendingDelete && (
           <ConfirmDialog

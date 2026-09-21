@@ -75,6 +75,10 @@ const CubePage = lazyPage(() => import('./pages/CubePage'), 'CubePage');
 const PlayPage = lazyPage(() => import('./pages/PlayPage'), 'PlayPage');
 const PlaytestPage = lazyPage(() => import('./pages/PlaytestPage'), 'PlaytestPage');
 const GoldfishListPage = lazyPage(() => import('./pages/GoldfishListPage'), 'GoldfishListPage');
+const StarterDeckPlaytestPage = lazyPage(
+  () => import('./pages/StarterDeckPlaytestPage'),
+  'StarterDeckPlaytestPage'
+);
 const PlaytestLogPage = lazyPage(() => import('./pages/PlaytestLogPage'), 'PlaytestLogPage');
 // Social
 const YouPage = lazyPage(() => import('./pages/YouPage'), 'YouPage');
@@ -460,6 +464,12 @@ export default function App() {
             <Route path="/decks/new" element={<DeckNewPage />} />
             <Route path="/decks/new/brew" element={<BrewBuildPage />} />
             <Route path="/decks/goldfish" element={<GoldfishListPage />} />
+            {/* A precon on a board, owned by nobody. Ahead of `/decks/:id` so
+                "starters" can't be read as a deck id. */}
+            <Route
+              path="/decks/starters/:fileName/playtest"
+              element={<StarterDeckPlaytestPage />}
+            />
             <Route path="/decks/compare" element={<DeckComparePage />} />
             <Route path="/decks/cube" element={<CubePage />} />
             <Route path="/decks/cube/:id" element={<CubePage />} />

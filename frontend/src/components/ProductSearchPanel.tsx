@@ -3,7 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { AlignJustify, ChevronLeft, Layers, LayoutGrid, Package, Rows3 } from 'lucide-react';
 import { ViewModeToggle, type ViewModeOption } from './ViewModeToggle';
 import { CardThumb } from './CardThumb';
-import { searchProducts, fetchProduct, fetchProductCommanderSummary, useSetMap } from '../lib/api';
+import { searchProducts, fetchProduct, useSetMap } from '../lib/api';
+import {
+  colorIdentityCost,
+  colorIdentityLabel,
+  useProductCommander,
+} from '../lib/use-product-commander';
 import { useBuildDeckFromImport } from '../lib/build-deck-from-import';
 import { useCollectionStore } from '../store/collection';
 import {
@@ -11,7 +16,6 @@ import {
   groupPhysicalByZone,
   physicalCardsToUploadResponse,
 } from '../lib/product-import';
-import { createLimiter } from '../lib/concurrency-limit';
 import { fetchErrorMessage } from '../lib/import-review';
 import { useCardCarousel, type CarouselEntry } from './deck/useCardCarousel';
 import { ManaCost } from './ManaCost';
@@ -19,12 +23,7 @@ import { SearchPill } from './SearchPill';
 import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { DeckFormat } from '@/deck-builder/types';
-import type {
-  ProductCommanderSummary,
-  ProductPhysicalCard,
-  ProductResolveResponse,
-  ProductSummary,
-} from '../types';
+import type { ProductPhysicalCard, ProductResolveResponse, ProductSummary } from '../types';
 import './ProductSearchPanel.css';
 
 import { userMessage } from '@/lib/user-error';
@@ -56,34 +55,6 @@ const LAYOUT_OPTIONS: ViewModeOption<PreconLayout>[] = [
   { value: 'compact', label: 'Compact', icon: <AlignJustify width={14} height={14} aria-hidden /> },
 ];
 
-// Lazy per-row commander enrichment: cap concurrent /summary fetches so scrolling
-// a long list doesn't fire dozens at once, and remember results across re-renders
-// / scrolls (the backend caches too; this avoids even the round-trip).
-const summaryLimiter = createLimiter(4);
-const summaryCache = new Map<string, ProductCommanderSummary | null>();
-
-/** Color-identity → mana-cost string for {@link ManaCost}; `{C}` for colorless. */
-function colorIdentityCost(summary: ProductCommanderSummary | null | undefined): string {
-  if (!summary) return '';
-  return summary.colorIdentity.length > 0
-    ? summary.colorIdentity.map((c) => `{${c}}`).join('')
-    : '{C}';
-}
-
-const COLOR_NAMES: Record<string, string> = {
-  W: 'White',
-  U: 'Blue',
-  B: 'Black',
-  R: 'Red',
-  G: 'Green',
-};
-
-/** Screen-reader label for a commander's colors (the mana glyphs are decorative). */
-function colorIdentityLabel(summary: ProductCommanderSummary): string {
-  if (summary.colorIdentity.length === 0) return 'Colorless';
-  return `Colors: ${summary.colorIdentity.map((c) => COLOR_NAMES[c] ?? c).join(', ')}`;
-}
-
 interface ResultRowProps {
   product: ProductSummary;
   set: { name: string; iconSvgUri: string } | undefined;
@@ -100,48 +71,7 @@ interface ResultRowProps {
 function ProductResultRow({ product, set, disabled, onOpen }: ResultRowProps) {
   // Commander + Brawl products have a commander whose colors/art we can preview.
   const wantSummary = /commander|brawl/i.test(product.type);
-  const [summary, setSummary] = useState<ProductCommanderSummary | null | undefined>(() =>
-    summaryCache.get(product.fileName)
-  );
-  const liRef = useRef<HTMLLIElement>(null);
-
-  useEffect(() => {
-    if (!wantSummary || summary !== undefined) return;
-    const el = liRef.current;
-    if (!el) return;
-    let done = false;
-    const load = () => {
-      if (done) return;
-      done = true;
-      void summaryLimiter(() => fetchProductCommanderSummary(product.fileName))
-        .then((s) => {
-          summaryCache.set(product.fileName, s);
-          setSummary(s);
-        })
-        .catch(() => {
-          // Treat a failed enrichment as "no commander" — the row still works.
-          summaryCache.set(product.fileName, null);
-          setSummary(null);
-        });
-    };
-    // Fetch when the row nears the viewport; degrade to immediate fetch where
-    // IntersectionObserver is unavailable.
-    if (typeof IntersectionObserver === 'undefined') {
-      load();
-      return;
-    }
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          io.disconnect();
-          load();
-        }
-      },
-      { rootMargin: '150px' }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [product.fileName, wantSummary, summary]);
+  const { summary, ref: liRef } = useProductCommander<HTMLLIElement>(product.fileName, wantSummary);
 
   const art = summary?.image ?? null;
   const cost = colorIdentityCost(summary);

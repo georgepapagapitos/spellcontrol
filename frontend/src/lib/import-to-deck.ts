@@ -59,10 +59,16 @@ function toFormat(format: string | undefined): DeckFormat {
   ) as DeckFormat;
 }
 
-export function importToDeck(result: DeckImportResponse, token: string, name: string): Deck {
+/**
+ * `localId` is the caller's already-namespaced deck id — `pastedDeckLocalId`
+ * for a pasted list, `starterDeckLocalId` for a starter deck. It is the
+ * caller's because the id is what keys the deck's board state, and only the
+ * caller knows what makes two sessions the same session.
+ */
+export function importToDeck(result: DeckImportResponse, localId: string, name: string): Deck {
   const now = Date.now();
   return {
-    id: pastedDeckLocalId(token),
+    id: localId,
     name,
     format: toFormat(result.detectedFormat),
     source: 'manual',

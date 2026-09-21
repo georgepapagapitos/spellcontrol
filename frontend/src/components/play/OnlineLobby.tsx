@@ -1,9 +1,11 @@
-import { Check, Copy, Crown, Dices, Shuffle, UserRound, X } from 'lucide-react';
+import { Check, Copy, Crown, Shuffle, UserRound, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { SelectMenu } from '../SelectMenu';
 import { DeckPicker, SeatPips, Stepper } from './SetupControls';
+import type { PickedDeck } from './DeckPickerDialog';
+import { deckBoardPath } from '../../lib/starter-decks';
 import { FORMAT_OPTIONS } from '../../lib/game-formats';
 import { pickFirstPlayer } from '../../lib/game-tools';
 import { useCardThumb } from '../../lib/card-thumbs';
@@ -89,16 +91,16 @@ export function OnlineLobby({
   const allReady = readyCount === game.players.length;
   const myDeck = mySeat.deckId ? (decks.find((d) => d.id === mySeat.deckId) ?? null) : null;
 
-  const pickDeck = (deck: Deck | null) =>
+  const pickDeck = (picked: PickedDeck | null) =>
     dispatch({
       type: 'update-player',
       seat: mySeat.seat,
       patch: {
-        deckId: deck?.id ?? null,
-        deckName: deck?.name ?? null,
-        commander: deck?.commander?.name ?? null,
-        partner: deck?.partnerCommander?.name ?? null,
-        colorIdentity: deck?.commander?.color_identity ?? [],
+        deckId: picked?.id ?? null,
+        deckName: picked?.name ?? null,
+        commander: picked?.commander ?? null,
+        partner: picked?.partner ?? null,
+        colorIdentity: picked?.colorIdentity ?? [],
       },
     });
 
@@ -166,20 +168,16 @@ export function OnlineLobby({
           seats. */}
       <div className="lobby-bar">
         <div className="lobby-bar-group">
-          <DeckPicker decks={decks} value={mySeat.deckId} onChange={pickDeck} />
-          {decks.length > 1 && (
-            <button
-              type="button"
-              className="btn lobby-bar-btn lobby-deck-random"
-              onClick={() => pickDeck(decks[Math.floor(Math.random() * decks.length)])}
-              aria-label="Pick a random deck"
-              title="Pick a random deck"
-            >
-              <Dices width={16} height={16} strokeWidth={2} aria-hidden />
-            </button>
-          )}
+          {/* The randomizer moved inside the picker, where it can roll a
+              starter deck too — a bar button could only ever see your own. */}
+          <DeckPicker
+            decks={decks}
+            value={mySeat.deckId}
+            valueName={mySeat.deckName}
+            onChange={pickDeck}
+          />
           {mySeat.deckId && (
-            <Link to={`/decks/${mySeat.deckId}/playtest`} className="btn lobby-bar-btn">
+            <Link to={deckBoardPath(mySeat.deckId)} className="btn lobby-bar-btn">
               Open board
             </Link>
           )}
@@ -413,16 +411,17 @@ function SeatCard({
             <DeckPicker
               decks={manage.decks}
               value={player.deckId}
-              onChange={(deck) =>
+              valueName={player.deckName}
+              onChange={(picked) =>
                 manage.dispatch({
                   type: 'update-player',
                   seat: player.seat,
                   patch: {
-                    deckId: deck?.id ?? null,
-                    deckName: deck?.name ?? null,
-                    commander: deck?.commander?.name ?? null,
-                    partner: deck?.partnerCommander?.name ?? null,
-                    colorIdentity: deck?.commander?.color_identity ?? [],
+                    deckId: picked?.id ?? null,
+                    deckName: picked?.name ?? null,
+                    commander: picked?.commander ?? null,
+                    partner: picked?.partner ?? null,
+                    colorIdentity: picked?.colorIdentity ?? [],
                   },
                 })
               }

@@ -276,18 +276,30 @@ describe('table settings the pod decides together', () => {
   });
 });
 
-describe('deck randomizer', () => {
+describe('the deck picker', () => {
   const deck = (id: string, name: string) => ({ id, name, cards: [] }) as unknown as Deck;
 
-  it('picks one of your decks at random, and is absent when there is nothing to choose', () => {
+  // The randomizer moved inside the picker with the starter catalog (it can
+  // now roll a precon, which a bar button could never see) — see
+  // DeckPickerDialog.test.tsx. What the bar still owns is opening it.
+  it('seats the deck you pick', () => {
     const dispatch = renderLobby(table(), 'u0', vi.fn(), [deck('d1', 'A'), deck('d2', 'B')]);
-    fireEvent.click(screen.getByRole('button', { name: 'Pick a random deck' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Deck' }));
+    fireEvent.click(screen.getByRole('button', { name: /^B/ }));
     const [action] = dispatch.mock.calls.map(([a]) => a).filter((a) => a.type === 'update-player');
-    expect(['d1', 'd2']).toContain(action.patch.deckId);
+    expect(action.patch).toMatchObject({ deckId: 'd2', deckName: 'B' });
+  });
 
-    cleanup();
-    renderLobby(table(), 'u0', vi.fn(), [deck('d1', 'A')]);
-    expect(screen.queryByRole('button', { name: 'Pick a random deck' })).toBeNull();
+  // A starter deck is not in the decks store, so the trigger's label comes off
+  // the seat and the board link goes to the route that resolves the product.
+  it('names a seated starter deck and opens its own board route', () => {
+    const game = table();
+    game.players[0] = seat(0, { deckId: 'starter:precon.json', deckName: 'Squirreled Away' });
+    renderLobby(game, 'u0', vi.fn(), [deck('d1', 'A')]);
+    expect(screen.getByRole('button', { name: 'Deck' }).textContent).toContain('Squirreled Away');
+    expect(screen.getByRole('link', { name: 'Open board' }).getAttribute('href')).toBe(
+      '/decks/starters/precon.json/playtest'
+    );
   });
 });
 

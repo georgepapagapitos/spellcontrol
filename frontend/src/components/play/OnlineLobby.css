@@ -106,16 +106,6 @@
   font-size: var(--text-xs);
 }
 
-/* The dice beside the deck picker: an icon button, so it stays out of the
-   picker's way and reads as a shortcut rather than a second choice. */
-.lobby-deck-random {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-1) var(--space-2);
-}
-
 /* The three rule switches: same shape as a `.lobby-setting` row above them,
    with the hint sentence moved to `title` instead of a permanent second
    line — three bordered cards read as clutter next to four plain rows. */
