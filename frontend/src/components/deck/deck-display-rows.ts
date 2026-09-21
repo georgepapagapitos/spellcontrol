@@ -198,18 +198,50 @@ export function readStoredShowPrefs(): ShowPrefs {
 // ── Group-by (E124, +'tag' E171) ─────────────────────────────────────────
 // Mainboard grouping lens: 'type' (canonical card type — the long-standing
 // default), 'category' (the generator's 8-bucket DeckCategory shape, with
-// target gauges), or 'tag' (user-defined tags — a card can land in more than
+// target gauges), 'stack' (the user's own tags as a PARTITION — first tag
+// wins, untagged cards fall back to their type, see groupByStack's doc), or
+// 'tag' (the same tags as an overlapping lens — a card can land in more than
 // one group here, see groupByTag's doc). Persisted like view mode/show
 // prefs; default stays 'type' so an existing deck's mainboard renders
 // byte-identical until the user opts in.
-export type DeckGroupBy = 'type' | 'category' | 'tag';
+export type DeckGroupBy = 'type' | 'category' | 'stack' | 'tag';
 export const GROUP_BY_STORAGE_KEY = 'mtg-decks-group-by';
+
+// ── Collapsed sections ────────────────────────────────────────────────────
+// Which mainboard sections are folded shut, persisted like view mode and
+// group-by. Entries are `${groupBy}:${title}` so collapsing "Creature" under
+// the Type lens doesn't silently fold a stack that happens to share the name.
+// A section stays collapsed across reloads because a 100-card deck is read in
+// passes, and re-folding the same six sections every visit is the friction
+// this exists to remove.
+export const COLLAPSED_SECTIONS_STORAGE_KEY = 'mtg-decks-collapsed-sections';
+
+export function readStoredCollapsedSections(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = window.localStorage.getItem(COLLAPSED_SECTIONS_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? new Set(parsed.filter((v) => typeof v === 'string')) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+export function writeStoredCollapsedSections(keys: Set<string>): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(COLLAPSED_SECTIONS_STORAGE_KEY, JSON.stringify([...keys]));
+  } catch {
+    /* ignore */
+  }
+}
 
 export function readStoredGroupBy(): DeckGroupBy {
   if (typeof window === 'undefined') return 'type';
   try {
     const v = window.localStorage.getItem(GROUP_BY_STORAGE_KEY);
-    if (v === 'type' || v === 'category' || v === 'tag') return v;
+    if (v === 'type' || v === 'category' || v === 'stack' || v === 'tag') return v;
   } catch {
     /* ignore */
   }
@@ -806,6 +838,84 @@ export function groupByTag(rows: Row[], commanderRows?: Row[]): TypedGroup[] {
   }
   if (untagged.length > 0) {
     ordered.push({ title: UNTAGGED_GROUP_TITLE, icon: 'tag', rows: untagged });
+  }
+  return ordered;
+}
+
+// Group a flat Row[] into "stacks" — the partitioning sibling of groupByTag.
+// A row's stack is its FIRST tag; a row with no tags falls back to its card
+// type, so an untagged deck still reads as the type list it always was and a
+// partially tagged one grows its own sections without stranding the rest in
+// one "Untagged" pile.
+//
+// Unlike groupByTag this IS a partition: every row lands in exactly one
+// group, so the section-header counts sum to the deck total and the caller
+// does not render the tag-overlap honesty note. A multi-tagged row is a
+// member of exactly one stack here (its first tag); the other tags are still
+// visible as chips on the row, and the 'tag' lens remains the way to see a
+// card under all of them.
+//
+// `tags[0]` is a deliberate, stable choice rather than an arbitrary one:
+// buildRows preserves each slot's tag array order and only appends on union,
+// and the tag editor appends, so the first tag is the first one the user
+// applied. Promoting a different tag is a reorder of that array, which needs
+// no new field on DeckCard. Caveat worth knowing: a row aggregates every slot
+// of one name, so when two slots of the same card disagree the first tag of
+// the EARLIER slot wins. Deterministic, and setCardTags writes a whole
+// same-name row at once, so the two only diverge on data that predates it.
+//
+// Ordering: commander first (as every grouper does), then the user's own
+// stacks alphabetically, then the type fallbacks in DISPLAY_ORDER. User
+// stacks lead because they are the point of this lens; the fallbacks are
+// what has not been filed yet.
+export function groupByStack(rows: Row[], commanderRows?: Row[]): TypedGroup[] {
+  // Keyed case-insensitively so a tag named "Creature" lands in the SAME
+  // bucket as the Creature type fallback instead of producing a second
+  // section with an identical title. Both renderers key their sections on
+  // `title` (DeckDisplay's renderListSection, DeckCardGrid), so two sections
+  // sharing a title would be a duplicate React key and two headers reading
+  // the same word. A bucket that ever receives a tagged row presents as a
+  // tag: it takes that tag's casing and the tag icon.
+  const buckets = new Map<string, { title: string; icon: string; tagged: boolean; rows: Row[] }>();
+  const add = (title: string, icon: string, tagged: boolean, row: Row) => {
+    const key = title.toLowerCase();
+    const bucket = buckets.get(key);
+    if (!bucket) {
+      buckets.set(key, { title, icon, tagged, rows: [row] });
+      return;
+    }
+    bucket.rows.push(row);
+    if (tagged && !bucket.tagged) {
+      bucket.tagged = true;
+      bucket.title = title;
+      bucket.icon = icon;
+    }
+  };
+  for (const row of rows) {
+    const stack = row.tags[0];
+    if (stack === undefined) {
+      const t = classifyType(row.card);
+      add(t, typeIcon(t.toLowerCase()), false, row);
+    } else {
+      add(stack, 'tag', true, row);
+    }
+  }
+  const ordered: TypedGroup[] = [];
+  if (commanderRows && commanderRows.length > 0) {
+    ordered.push({
+      title: commanderRows.length > 1 ? 'Commanders' : 'Commander',
+      icon: 'commander',
+      rows: commanderRows,
+    });
+  }
+  const all = [...buckets.values()];
+  for (const b of all.filter((b) => b.tagged).sort((a, b) => a.title.localeCompare(b.title))) {
+    ordered.push({ title: b.title, icon: b.icon, rows: b.rows });
+  }
+  const untaggedByTitle = new Map(all.filter((b) => !b.tagged).map((b) => [b.title, b]));
+  for (const t of DISPLAY_ORDER) {
+    const b = untaggedByTitle.get(t);
+    if (b) ordered.push({ title: b.title, icon: b.icon, rows: b.rows });
   }
   return ordered;
 }

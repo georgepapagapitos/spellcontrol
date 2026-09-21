@@ -4,7 +4,7 @@
 // DeckMainboardRow (not DeckCardRow) because components/deck/DeckCardRow.tsx
 // already exists as an unrelated swap-suggestion row component — the
 // `DeckCardRow` function name itself is unchanged, only the file differs.
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import {
   Check,
   ChevronDown,
@@ -98,6 +98,8 @@ export function CategorySection({
   onToggleRowSelected,
   dragEnabled,
   onReorder,
+  collapsed,
+  onToggleCollapsed,
 }: {
   title: string;
   icon: string;
@@ -130,6 +132,12 @@ export function CategorySection({
   /** Optional control rendered at the end of the section header (e.g. the
    *  Commander section's "Add/Edit partner" button). */
   headerAction?: React.ReactNode;
+  /** Collapsed sections keep their header (count and price stay readable —
+   *  that is the point of collapsing one) and hide only their rows. Both are
+   *  optional: a section with no `onToggleCollapsed` renders no chevron and
+   *  can never collapse, which is how the out-zone lists stay as they were. */
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
   synergyByName?: Map<string, string[]>;
   cardInclusionMap?: Record<string, number>;
   /** Every combo each in-deck card participates in, keyed by oracle id — see
@@ -151,6 +159,10 @@ export function CategorySection({
   // return (a section emptying from N→0 cards would otherwise change the hook
   // count between renders and crash).
   const listRef = useRef<HTMLUListElement | null>(null);
+  // Declared unconditionally, above the empty-bucket early return below, so
+  // the hook order never changes. Wires the collapse chevron's aria-controls
+  // to the list it hides.
+  const listId = useId();
   const { entries, registerItem, onExitEnd } = useListFlip(rows, (r) => r.name, listRef);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -196,7 +208,7 @@ export function CategorySection({
   const count = rows.reduce((sum, r) => sum + r.qty, 0);
 
   const listEl = (
-    <ul className="deck-section-rows" ref={listRef}>
+    <ul className="deck-section-rows" id={listId} hidden={collapsed} ref={listRef}>
       {entries.map((entry) => (
         <DeckCardRow
           key={entry.key}
@@ -245,8 +257,29 @@ export function CategorySection({
   );
 
   return (
-    <section className="deck-section">
+    <section className={`deck-section${collapsed ? ' is-collapsed' : ''}`}>
       <header className="deck-section-header">
+        {/* The header itself is not the toggle: it already hosts headerAction
+            (the partner control), and a button inside a button is invalid.
+            The chevron matches the per-row printings disclosure below. */}
+        {onToggleCollapsed && (
+          <button
+            type="button"
+            className="deck-section-collapse"
+            aria-expanded={!collapsed}
+            aria-controls={listId}
+            aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${title}`}
+            onClick={onToggleCollapsed}
+          >
+            <ChevronDown
+              width={14}
+              height={14}
+              strokeWidth={2}
+              className="deck-section-collapse-icon"
+              aria-hidden
+            />
+          </button>
+        )}
         <span className="deck-section-icon">
           <SectionIcon icon={icon} />
         </span>
