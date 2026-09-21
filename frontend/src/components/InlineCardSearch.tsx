@@ -319,8 +319,8 @@ export function InlineCardSearch({ query, view = 'list', onClose, onAdd, onAdded
           case that made it obvious (board E341). */}
       {total !== null && total > results.length && (
         <p className="inline-card-search-total">
-          Showing {Math.min(visible, results.length).toLocaleString()} of{' '}
-          {total.toLocaleString()} matches. Narrow the search to see the rest.
+          Showing {Math.min(visible, results.length).toLocaleString()} of {total.toLocaleString()}{' '}
+          matches. Narrow the search to see the rest.
         </p>
       )}
 
