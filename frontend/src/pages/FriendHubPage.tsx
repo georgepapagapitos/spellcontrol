@@ -561,9 +561,7 @@ export function FriendHubPage() {
   ];
 
   return (
-    <div
-      className={`friend-hub social-page-shell${tab === 'collection' ? ' friend-hub--wide' : ''}`}
-    >
+    <div className="friend-hub social-page-shell friend-hub--wide">
       <BackLink to="/friends" label="Friends" />
       <header className="binder-hero">
         <h1 className="binder-hero-name">{heading}</h1>
