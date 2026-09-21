@@ -5,6 +5,7 @@ import type { Zone } from '@/lib/playtest';
 import { MOVE_DESTINATIONS, destinationKey } from '../lib/zones';
 import type { ShortcutId } from '../lib/shortcuts';
 import { CtxMenuShell } from '@/components/shared/CtxMenuShell';
+import { CountPage } from './CountPage';
 
 interface Props {
   x: number;
@@ -73,6 +74,10 @@ interface Props {
    *  actions run over the whole selection. */
   selectionSize?: number;
   onMoveTo(zone: Zone, toIndex?: number): void;
+  /** Cards in the library, which caps how far down a card can be buried.
+   *  Omitted (tests, previews) hides the "X from the top" row — there is no
+   *  honest maximum to offer without it. */
+  libraryCount?: number;
 }
 
 const COUNTER_KINDS = ['+1/+1', '-1/-1', 'loyalty', 'charge'];
@@ -91,13 +96,14 @@ const MOVE_SHORTCUT: Record<string, ShortcutId | undefined> = {
 
 /** The pages this menu drills into. `root` is the short action list; the rest
  *  are one level down, reached by a `▸` row and left by the back row. */
-export type CardMenuPage = 'root' | 'counters' | 'pt' | 'move' | 'more';
+export type CardMenuPage = 'root' | 'counters' | 'pt' | 'move' | 'move-x' | 'more';
 type Page = CardMenuPage;
 
 const PAGE_TITLE: Record<Exclude<Page, 'root'>, string> = {
   counters: 'Counters',
   pt: 'Power / toughness',
   move: 'Move to',
+  'move-x': 'Library, X from the top',
   more: 'More',
 };
 
@@ -212,6 +218,7 @@ export function CardContextMenu({
   onDuplicate,
   selectionSize = 1,
   onMoveTo,
+  libraryCount,
 }: Props) {
   const [page, setPage] = useState<Page>(initialPage);
   const [stickerText, setStickerText] = useState('');
@@ -410,7 +417,26 @@ export function CardContextMenu({
           />
         );
       })}
+      {/* Top and bottom are the two ends; this is everywhere between them —
+          a tutor putting something back a few cards down, or a Brainstorm
+          leftover that should not be the next draw. */}
+      {libraryCount !== undefined && libraryCount > 0 && (
+        <MenuSubmenu label="Library, X from the top" onOpen={() => setPage('move-x')} />
+      )}
     </>
+  );
+
+  const moveXPage = (
+    <CountPage
+      max={libraryCount ?? 0}
+      // 1 is the first position the two end rows do not already cover.
+      initial={1}
+      // Says the RESULT, not the index: "3 from the top" reads as either the
+      // third card or the fourth depending on who you ask, and burying a card
+      // in the wrong slot is invisible until you draw it.
+      label={(n) => `Put it under ${n} card${n === 1 ? '' : 's'}`}
+      onConfirm={(n) => onMoveTo('library', n)}
+    />
   );
 
   const morePage = (
@@ -513,6 +539,7 @@ export function CardContextMenu({
     counters: countersPage,
     pt: ptPage,
     move: movePage,
+    'move-x': moveXPage,
     more: morePage,
   };
 
@@ -522,6 +549,10 @@ export function CardContextMenu({
   // opened the menu on, so there the card's name is the true heading.
   const actsOnSelection = selectionSize > 1 && (page === 'root' || page === 'move');
   const subject = actsOnSelection ? `${selectionSize} cards selected` : cardName;
+  // "X from the top" is a page UNDER "Move to", so its back row goes up one
+  // level rather than all the way out.
+  const backTo: Page = page === 'move-x' ? 'move' : 'root';
+  const backLabel = backTo === 'root' ? subject : PAGE_TITLE.move;
 
   return (
     <CtxMenuShell
@@ -538,11 +569,11 @@ export function CardContextMenu({
         <button
           type="button"
           className="playtest-ctx-back"
-          onClick={() => setPage('root')}
-          aria-label={`Back to ${subject}`}
+          onClick={() => setPage(backTo)}
+          aria-label={`Back to ${backLabel}`}
         >
           <ChevronLeft width={14} height={14} aria-hidden />
-          <span>{subject}</span>
+          <span>{backLabel}</span>
         </button>
       )}
       {pages[page]}

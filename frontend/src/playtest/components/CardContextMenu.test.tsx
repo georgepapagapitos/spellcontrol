@@ -159,3 +159,62 @@ describe('CardContextMenu — submenu shape (E346)', () => {
     expect(onDrawArrow).toHaveBeenCalledOnce();
   });
 });
+
+/**
+ * Top and bottom are the two ends of the library; this is everywhere between
+ * them. The count says the RESULT ("under 3 cards") rather than an index,
+ * because "3 from the top" reads as either the third card or the fourth
+ * depending on who you ask — and a card buried in the wrong slot stays
+ * invisible until it is drawn.
+ */
+describe('CardContextMenu — Library, X from the top', () => {
+  function openMovePage(extra: Record<string, unknown> = {}) {
+    const onMoveTo = vi.fn();
+    render(<CardContextMenu {...baseProps()} onMoveTo={onMoveTo} {...extra} />);
+    fireEvent.click(screen.getByRole('button', { name: /^Move to/ }));
+    return { onMoveTo };
+  }
+
+  it('buries the card under the chosen number of cards', () => {
+    const { onMoveTo } = openMovePage({ libraryCount: 40 });
+    fireEvent.click(screen.getByRole('button', { name: /^Library, X from the top/ }));
+
+    // Opens at 1: the position the Top and Bottom rows do not already cover.
+    expect(screen.getByRole('button', { name: 'Put it under 1 card' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'One more' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put it under 2 cards' }));
+    expect(onMoveTo).toHaveBeenCalledWith('library', 2);
+  });
+
+  it('cannot bury a card deeper than the library is', () => {
+    openMovePage({ libraryCount: 2 });
+    fireEvent.click(screen.getByRole('button', { name: /^Library, X from the top/ }));
+    const more = screen.getByRole('button', { name: 'One more' });
+    fireEvent.click(more);
+    expect(screen.getByRole('button', { name: 'Put it under 2 cards' })).toBeTruthy();
+    expect((more as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('goes back up one level, to Move to rather than out to the card', () => {
+    openMovePage({ libraryCount: 40 });
+    fireEvent.click(screen.getByRole('button', { name: /^Library, X from the top/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Move to' }));
+    // The destination rows are back, and the menu did not close.
+    expect(screen.getByRole('button', { name: /^Library \(top\)/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Back to Sol Ring' })).toBeTruthy();
+  });
+
+  it('offers no such row without a library count to cap it', () => {
+    openMovePage();
+    expect(screen.queryByRole('button', { name: /X from the top/ })).toBeNull();
+    // An empty library has no position to bury anything in either.
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Sol Ring' }));
+    render(<CardContextMenu {...baseProps()} libraryCount={0} />);
+  });
+
+  it('leaves the two end rows exactly where they were', () => {
+    openMovePage({ libraryCount: 40 });
+    expect(screen.getByRole('button', { name: /^Library \(top\)/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Library \(bottom\)/ })).toBeTruthy();
+  });
+});
