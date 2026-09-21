@@ -61,11 +61,38 @@ describe('table chrome at the wide tier', () => {
     expect(block('.playtest-hand--fan {')).not.toContain('left: 50%');
   });
 
-  it('sizes each zone pile as one hand-sized card', () => {
+  it('tucks each zone pile to a peek, and opens it on intent', () => {
+    // Card WIDTH always (the shelf reads as the same objects as the felt and
+    // follows the card-size setting), but only a slice of the height at rest:
+    // the corner the piles used to eat belongs to the battlefield.
     const stack = block('.playtest-pile__stack {');
     expect(stack).toContain('width: var(--pt-card-w)');
-    expect(stack).toContain('height: var(--pt-card-h)');
+    expect(stack).toContain('height: calc(var(--pt-card-h) * 0.6)');
     expect(stack).not.toContain('height: 72px');
+    // Nothing is hidden, only deferred — pointing at a pile, tabbing into it
+    // or dragging a card onto it opens the whole card. All three, or the
+    // keyboard and drop paths silently keep the peek.
+    expect(css).toContain('.playtest-pile:has(:focus-visible) .playtest-pile__stack,');
+    expect(css).toContain('.playtest-pile.is-over .playtest-pile__stack {');
+    expect(css).toContain('.playtest-pile:hover .playtest-pile__stack {');
+    // The peek keeps the card's name and art, not its rules box.
+    expect(block('.playtest-pile__stack img {')).toContain('object-position: top');
+    // An empty zone is a well, not a filled fake card.
+    expect(css).toContain('.playtest-pile.is-empty .playtest-pile__back {');
+  });
+
+  it('gives the mana row one control per color instead of a box with two steppers', () => {
+    const pip = block('.playtest-mana-pip {');
+    // Right-click decrements, so the pip must not hand the gesture to the OS
+    // menu or start a selection under a touch long-press.
+    expect(pip).toContain('user-select: none');
+    expect(pip).toContain('-webkit-touch-callout: none');
+    // The retired chip carried a bordered box and a +/- pair per color.
+    expect(css).not.toContain('.playtest-mana-chip');
+    // Still on the touch floor without growing the strip — the coarse-pointer
+    // override, not the fine-pointer rule above.
+    const coarse = css.slice(css.indexOf('@media (pointer: coarse) {', css.indexOf(pip)));
+    expect(coarse.slice(0, coarse.indexOf('}'))).toContain('min-height: 44px');
   });
 
   it('makes your own life the panel headline, with the others demoted and mana folded in', () => {

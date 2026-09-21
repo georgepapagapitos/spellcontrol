@@ -714,9 +714,8 @@ body[data-felt='slate'] {
   position: relative;
   flex: none;
   border: 0.5px solid var(--border);
-  background: color-mix(in oklab, var(--surface) 88%, transparent);
+  background: color-mix(in oklab, var(--surface) 70%, transparent);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-tooltip);
   backdrop-filter: blur(6px);
 }
 
@@ -821,22 +820,50 @@ body[data-felt='slate'] {
 
 .playtest-pile__stack {
   position: relative;
-  /* One card, the same size as a card in hand or on the battlefield, so the
-     piles read as the same objects and follow the card-size setting. */
+  /* Card width, so the piles read as the same objects as the battlefield and
+     follow the card-size setting — but only the TOP SLICE of the height. The
+     shelf is a tucked-away reference, not a fifth row of cards: at rest it
+     shows the label, the count and enough art to recognise the top card,
+     and gives the felt back the corner it used to eat. Hover/focus/drag-over
+     below opens it to the full card. */
   width: var(--pt-card-w);
-  height: var(--pt-card-h);
+  height: calc(var(--pt-card-h) * 0.6);
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--surface-raised);
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: height var(--motion-fast) var(--ease-out-soft);
 }
 
+/* Opens to the whole card the moment you mean to use the pile — pointing at
+   it, tabbing into it, or dragging a card onto it. Nothing is hidden, only
+   deferred. */
+.playtest-pile:has(:focus-visible) .playtest-pile__stack,
+.playtest-pile.is-over .playtest-pile__stack {
+  height: var(--pt-card-h);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playtest-pile:hover .playtest-pile__stack {
+    height: var(--pt-card-h);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playtest-pile__stack {
+    transition: none;
+  }
+}
+
+/* Anchored to the top of the art, so the slice that survives the peek is the
+   card's name and illustration rather than its rules text. */
 .playtest-pile__stack img {
   width: 100%;
-  height: 100%;
+  height: var(--pt-card-h);
   object-fit: cover;
+  object-position: top;
 }
 
 .playtest-pile__back {
@@ -853,6 +880,15 @@ body[data-felt='slate'] {
 
 .playtest-pile__back--exile {
   background: linear-gradient(135deg, #4a4a3a 0%, #2a2a1a 100%);
+}
+
+/* An empty zone is an empty well, not a filled card. The tinted backs above
+   are the look of a pile that HAS something in it (and the fallback for a top
+   card whose art failed to load); a graveyard at 0 rendering as a solid brown
+   card reads as a card, which is half of what made this shelf so loud. */
+.playtest-pile.is-empty .playtest-pile__back {
+  background: color-mix(in oklab, var(--surface-raised) 55%, transparent);
+  box-shadow: inset 0 0 0 0.5px var(--border);
 }
 
 /* Commander tax badge — overlaid on the command pile's card stack, shown
@@ -2781,12 +2817,15 @@ button.playtest-card-pt__value--editable:focus-visible {
 
 /* ── Mana pool (Wave 3) ──────────────────────────────────────────────────── */
 /*  Same "never displaces the board, scroll instead of wrap/grow" contract as
- *  the life strip above — six always-visible color chips + an Empty button. */
+ *  the life strip above. Six color pips, each one control: click adds, a
+ *  right-click or long-press removes (see ManaPool.tsx). The previous row
+ *  spent a bordered box and two stepper buttons per color — eighteen targets
+ *  for a number you glance at between spells. */
 
 .playtest-mana-pool {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   padding: var(--space-1) var(--space-3);
   border-bottom: 0.5px solid var(--border);
   background: var(--surface);
@@ -2795,23 +2834,25 @@ button.playtest-card-pt__value--editable:focus-visible {
   scrollbar-width: thin;
 }
 
-.playtest-mana-chip {
-  display: flex;
+/* A pip and its count, with no chrome of its own until you point at it. */
+.playtest-mana-pip {
+  display: inline-flex;
   align-items: center;
   gap: 3px;
   flex: 0 0 auto;
-  background: var(--surface-raised);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius-lg);
   padding: 3px 5px;
+  border: 0.5px solid transparent;
+  border-radius: var(--radius-lg);
+  background: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  /* Right-click is the decrement, so the OS menu must never win — and on
+     touch the long-press must not start a text selection instead. */
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
-.playtest-mana-chip__pip {
-  display: inline-flex;
-  line-height: 0;
-}
-
-.playtest-mana-chip__count {
+.playtest-mana-pip__count {
   min-width: 1ch;
   text-align: center;
   font-size: var(--text-sm);
@@ -2819,29 +2860,26 @@ button.playtest-card-pt__value--editable:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-.playtest-mana-chip__step {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border: 0.5px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--text-primary);
-  font-size: var(--text-sm);
-  line-height: 1;
-  cursor: pointer;
+/* Nothing floating: still there (the six colors keep their positions, so the
+   one you want is always in the same place), just receded, so a real count
+   is the only thing that reads. */
+.playtest-mana-pip.is-zero {
+  opacity: 0.45;
 }
 
-.playtest-mana-chip__step:focus-visible {
+.playtest-mana-pip:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .playtest-mana-chip__step:hover {
+  .playtest-mana-pip:hover {
     border-color: var(--accent);
+    background: var(--surface-raised);
+  }
+
+  .playtest-mana-pip:hover.is-zero {
+    opacity: 1;
   }
 }
 
@@ -2875,34 +2913,12 @@ button.playtest-card-pt__value--editable:focus-visible {
 }
 
 /* a11y: 44px touch targets on coarse pointers, same rule as the actionbar
- * and life chips above. The ±1 steppers stay visually small (22px) — a taller
- * hit box via padding, not a taller glyph, keeps six color chips fitting on
- * one row on a phone. */
+ * and life chips above. The pip stays visually small — the hit box grows via
+ * padding, not the glyph, so six colors still fit one row on a phone. */
 @media (pointer: coarse) {
-  .playtest-mana-chip {
-    padding: var(--space-2) 5px;
-  }
-
-  .playtest-mana-chip__step {
-    position: relative;
-    width: 32px;
-    height: 32px;
-  }
-
-  /* The comment above promises a hit box bigger than the glyph, but the
-     32px box WAS the hit box. Ghost the target out to 44px without growing
-     the strip (which would displace the board) — same technique as
-     .playtest-zone-tile__kebab. The ± centres sit 66px apart, so the two
-     ghosts in a chip never overlap, and 44px fits inside the chip's own
-     padded height, so neither one reaches over the battlefield. */
-  .playtest-mana-chip__step::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
+  .playtest-mana-pip {
+    min-height: 44px;
+    padding: 0 var(--space-2);
   }
 
   .playtest-mana-pool__empty {
