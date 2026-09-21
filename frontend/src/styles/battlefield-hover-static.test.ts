@@ -104,4 +104,18 @@ describe('battlefield cards do not move on hover', () => {
       `\`${prop}\` displaces a battlefield card under the cursor — use a ring or shadow instead`
     ).toEqual([]);
   });
+
+  // The first cut of this fix used an inset `--border-strong` ring. It passed
+  // every check above and was invisible on screen: on a dark theme that token
+  // is a dark navy, drawn on top of a card's own black border, over art. The
+  // cue has to carry contrast against card art in every theme, which is what
+  // `--accent` is for — and it is what the hand fan already uses for the card
+  // under the pointer.
+  it('draws the cue in the accent colour', () => {
+    const withoutAccent = hoverRules.filter((r) => !r.body.includes('var(--accent)'));
+    expect(
+      withoutAccent.map((r) => r.selector),
+      'a battlefield hover cue must use var(--accent) — neutral border tokens vanish over card art on dark themes'
+    ).toEqual([]);
+  });
 });
