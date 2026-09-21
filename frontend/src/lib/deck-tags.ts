@@ -1,10 +1,15 @@
 // User-defined card tags (E171) — pure helpers shared by the deck list, the
-// card-preview tag editor, and the tag manager. Multi-tag, free-text,
-// per-deck-scoped; see the `tags` doc on `DeckCard` (store/decks.ts) for the
-// sticky-override contract this all builds on.
-import type { ScryfallCard, DeckCategory } from '@/deck-builder/types';
-import { classifyCardCategory } from '@/deck-builder/services/deckBuilder/categorize';
-import { ROLE_TITLES } from './role-badges';
+// card menu, the card-preview tag editor, and the tag manager. Multi-tag,
+// free-text, per-deck-scoped; see the `tags` doc on `DeckCard`
+// (store/decks.ts) for the sticky-override contract this all builds on.
+//
+// There used to be a `suggestedTagForCard` here, offering the four ROLE_TITLES
+// words as a ghost chip on an untouched card. It was dropped 2026-09-21 (E371):
+// those four words are exactly what the Roles lens already partitions by and
+// the role filter chips already filter by, so accepting suggestions rebuilt,
+// one card at a time, a grouping that was one click away. What user tags are
+// FOR is the grouping the app cannot derive ("Blink", "Combo", "Cut"), and the
+// suggestion pointed away from it.
 import type { DeckCard } from '../store/decks';
 
 /** A card's current tags — `undefined` (never edited) reads the same as
@@ -17,27 +22,6 @@ export function cardTagsOf(dc: Pick<DeckCard, 'tags'>): string[] {
  *  all) — the point past which the classifier's suggestion never returns. */
 export function isTagsEdited(dc: Pick<DeckCard, 'tags'>): boolean {
   return dc.tags !== undefined;
-}
-
-// Only the generator's functional-role buckets make a useful suggested tag —
-// 'lands'/'creatures' are already obvious from the type line, and
-// 'synergy'/'utility' are catch-alls with nothing specific to suggest.
-const SUGGESTABLE_LABELS: Partial<Record<DeckCategory, string>> = {
-  ramp: ROLE_TITLES.ramp,
-  cardDraw: ROLE_TITLES.cardDraw,
-  singleRemoval: ROLE_TITLES.removal,
-  boardWipes: ROLE_TITLES.boardwipe,
-};
-
-/**
- * A live, never-persisted tag suggestion for an untouched card — derived
- * from `classifyCardCategory` (display-only by design, see its own doc
- * comment; this reads it, never mutates it). Returns null once the slot has
- * ANY user tags (edited or not is the caller's job to check via
- * `isTagsEdited` — this function only answers "what would we suggest").
- */
-export function suggestedTagForCard(card: ScryfallCard): string | null {
-  return SUGGESTABLE_LABELS[classifyCardCategory(card)] ?? null;
 }
 
 /** Trim + collapse whitespace; empty after trimming means "not a tag". */

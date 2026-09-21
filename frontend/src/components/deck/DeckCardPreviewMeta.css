@@ -110,19 +110,6 @@
   gap: 0.3rem;
 }
 
-/* "edited" sticky-override affordance next to the section label — quiet,
-   the same muted opacity as the label itself, just enough to notice. */
-.deck-card-preview-meta-tags-edited {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.15rem;
-  margin-left: 0.4rem;
-  text-transform: none;
-  letter-spacing: normal;
-  font-family: inherit;
-  font-style: italic;
-}
-
 .deck-card-preview-meta-tags-chips {
   display: flex;
   flex-wrap: wrap;
@@ -150,32 +137,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* Ghost/dashed variant for the live (never-persisted) auto-suggestion —
-   visually distinct from a real, committed tag. A button when it's
-   actionable (onSetTags present), plain span otherwise. */
-button.deck-card-preview-meta-tag-chip.is-suggested {
-  border-style: dashed;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.65);
-  cursor: pointer;
-}
-
-button.deck-card-preview-meta-tag-chip.is-suggested:disabled {
-  cursor: default;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  button.deck-card-preview-meta-tag-chip.is-suggested:not(:disabled):hover {
-    border-color: var(--accent);
-    color: #fff;
-  }
-}
-
-.deck-card-preview-meta-tag-chip.is-suggested:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
 }
 
 .deck-card-preview-meta-tag-remove {
