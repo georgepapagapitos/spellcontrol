@@ -483,6 +483,19 @@ body:has(.playtest-page) {
   animation: playtest-takeback-fade-in 200ms ease;
 }
 
+/* A hold and a takeback request can be live at once, and both are centred
+   banners a few rem apart: hold at 3.25rem, this at 6rem. That 44px of
+   clearance only survives a ONE-LINE hold message. The summary is free text a
+   seat types, and a real pod holding for a complicated stack does not write
+   four words — at two lines the hold banner is 56px tall and lands 20px ON TOP
+   of this prompt, measured in a browser at 1440x900. HoldBanner.css says the
+   two "must never visually collide when both are live at once"; this is what
+   makes that true. `:has` mirrors the `body:has(.playtest-page)` precedent
+   above. */
+body:has(.playtest-hold-banner) .playtest-takeback-consent {
+  top: calc(var(--safe-top) + 8.5rem);
+}
+
 .playtest-takeback-consent__message {
   margin: 0;
   font-size: var(--text-sm);
