@@ -38,6 +38,8 @@ export interface CreateGameInput {
   hostCommander?: string | null;
   hostPartner?: string | null;
   hostColorIdentity?: string[];
+  name?: string;
+  visibility?: GameState['visibility'];
 }
 
 export async function createGame(input: CreateGameInput): Promise<GameState> {

@@ -229,15 +229,22 @@ export interface GameState {
   /** Whether the table shows how long the current turn has been running.
    *  A readout only — nothing expires, nobody is forced to pass. */
   turnTimerEnabled: boolean;
+  /** The table's display name, set by the host at creation (e.g. "Bracket 3
+   *  chill"). Empty string for a table nobody named. Legacy states resolve to
+   *  `''`, which renders the same as a table left unnamed. */
+  name: string;
   /**
-   * Whether somebody holding the join code may watch this table without
-   * taking a seat. Defaults to false, and that default is load-bearing: a
-   * code is four characters, so the read routes answer a non-participant with
-   * the same 404 an unknown code gets, and opening that up is the host's
-   * decision to make rather than ours. Legacy states resolve to false, which
-   * is exactly how they already behaved.
+   * Whether this table is listed and watchable, or reachable by code only.
+   * `'public'` means anyone holding the join code may watch without taking a
+   * seat; `'private'` (the default) restricts the table to its seats. The
+   * default is load-bearing: a code is four characters, so the read routes
+   * answer a non-participant with the same 404 an unknown code gets, and
+   * opening that up is the host's decision to make rather than ours. Legacy
+   * states carried this as the `spectatorsAllowed` boolean; they resolve to
+   * `'public'` when that was `true`, else `'private'` — the same behaviour
+   * they already had.
    */
-  spectatorsAllowed: boolean;
+  visibility: 'public' | 'private';
   /**
    * Where this table is talking, if it is: a Discord invite, a Meet room, any
    * https link the host pastes. Display only — nothing here dials anything,
@@ -413,8 +420,9 @@ export type GameAction =
           | 'layout'
           | 'tapOrientation'
           | 'startingSeat'
-          | 'spectatorsAllowed'
+          | 'visibility'
           | 'voiceUrl'
+          | 'name'
         >
       >;
       ts?: number;
@@ -489,8 +497,9 @@ const RULES_SETTINGS_KEYS = [
   'turnTimerEnabled',
   'format',
   // Not a rule, but the one setting the table has a right to hear about: it
-  // decides whether anyone outside the seats can see the game.
-  'spectatorsAllowed',
+  // decides whether anyone outside the seats can see the game. The name is
+  // deliberately NOT here — a rename isn't a rules change worth a log row.
+  'visibility',
 ] as const;
 
 function makeEventId(ts: number): string {
@@ -721,6 +730,8 @@ export function createGameState(input: {
   turnTimerEnabled?: boolean;
   layout?: GameLayout;
   tapOrientation?: TapOrientation;
+  name?: string;
+  visibility?: 'public' | 'private';
   players: GamePlayer[];
   ts?: number;
 }): GameState {
@@ -737,8 +748,9 @@ export function createGameState(input: {
     poisonEnabled: input.poisonEnabled,
     mulliganType: input.mulliganType ?? 'commander',
     turnTimerEnabled: input.turnTimerEnabled ?? false,
-    // Off until the host says otherwise — see the field's own doc.
-    spectatorsAllowed: false,
+    name: input.name ?? '',
+    // Private until the host says otherwise — see the field's own doc.
+    visibility: input.visibility ?? 'private',
     voiceUrl: null,
     layout: input.layout ?? 'pod',
     tapOrientation: input.tapOrientation ?? 'horizontal',
@@ -812,7 +824,10 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
     startingSeat: prev.startingSeat ?? null,
     mulliganType: prev.mulliganType ?? 'commander',
     turnTimerEnabled: prev.turnTimerEnabled ?? false,
-    spectatorsAllowed: prev.spectatorsAllowed ?? false,
+    name: prev.name ?? '',
+    visibility:
+      prev.visibility ??
+      ((prev as { spectatorsAllowed?: boolean }).spectatorsAllowed === true ? 'public' : 'private'),
     voiceUrl: prev.voiceUrl ?? null,
     designations: resolveDesignations(prev.designations),
     tableCounters: prev.tableCounters ?? {},

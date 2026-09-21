@@ -1,5 +1,5 @@
 import { Check, Copy, Crown, Shuffle, UserRound, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { SelectMenu } from '../SelectMenu';
@@ -116,7 +116,9 @@ export function OnlineLobby({
         <LobbyRail game={game} isHost={isHost} mySeat={mySeat} dispatch={dispatch} />
 
         <div className="lobby-main">
-          <h2 className="lobby-title">{formatLabel(game.format)} table</h2>
+          <h2 className="lobby-title">
+            {game.name ? game.name : `${formatLabel(game.format)} table`}
+          </h2>
 
           <ul className="lobby-seats" role="list" aria-label="Seats">
             {seats.map((player, i) =>
@@ -473,6 +475,7 @@ function LobbyRail({
   dispatch: (action: GameAction) => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const visibilityGroup = useId();
 
   const copyCode = async () => {
     try {
@@ -651,15 +654,40 @@ function LobbyRail({
                 dispatch({ type: 'settings', patch: { turnTimerEnabled } })
               }
             />
-            <RuleToggle
-              labelId="lobby-spectators-label"
-              label="Anyone with the code can watch"
-              hint="Watchers see what each seat shows the table. They cannot act."
-              on={game.spectatorsAllowed ?? false}
-              onChange={(spectatorsAllowed) =>
-                dispatch({ type: 'settings', patch: { spectatorsAllowed } })
-              }
-            />
+            <div className="lobby-setting lobby-setting--voice">
+              <span className="lobby-voice-label" id="lobby-visibility-label">
+                Visibility
+              </span>
+              <fieldset className="share-audience" aria-labelledby="lobby-visibility-label">
+                {(
+                  [
+                    { value: 'private' as const, label: 'Private' },
+                    { value: 'public' as const, label: 'Public' },
+                  ] as const
+                ).map((opt) => (
+                  <label
+                    key={opt.value}
+                    className={`share-audience-option${
+                      (game.visibility ?? 'private') === opt.value ? ' is-active' : ''
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name={visibilityGroup}
+                      value={opt.value}
+                      checked={(game.visibility ?? 'private') === opt.value}
+                      onChange={() =>
+                        dispatch({ type: 'settings', patch: { visibility: opt.value } })
+                      }
+                    />
+                    <span>{opt.label}</span>
+                  </label>
+                ))}
+              </fieldset>
+              <p className="play-setup-help">
+                Watchers see what each seat shows the table. They cannot act.
+              </p>
+            </div>
             <VoiceLinkRow game={game} dispatch={dispatch} />
           </>
         ) : (
@@ -679,9 +707,9 @@ function LobbyRail({
               <span className="lobby-setting-value">{game.turnTimerEnabled ? 'On' : 'Off'}</span>
             </div>
             <div className="lobby-setting">
-              <span>Watchers</span>
+              <span>Visibility</span>
               <span className="lobby-setting-value">
-                {game.spectatorsAllowed ? 'Allowed' : 'Seats only'}
+                {game.visibility === 'public' ? 'Public' : 'Private'}
               </span>
             </div>
             {game.voiceUrl && (
