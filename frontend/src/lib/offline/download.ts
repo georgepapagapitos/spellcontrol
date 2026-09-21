@@ -25,12 +25,19 @@ export interface DownloadProgress {
 export type ProgressFn = (p: DownloadProgress) => void;
 
 /**
- * Status codes that mean "the server is preparing the bulk; come back soon".
- * 503 is what our backend returns intentionally; 502/504 are what nginx
- * returns when an upstream is slow or unreachable — same retry strategy
- * applies (server boot is still warming).
+ * Status codes that mean "come back soon", as opposed to "this failed".
+ *
+ * 503 is what our backend returns intentionally while the bulk warms; 502/504
+ * are what nginx returns when an upstream is slow or unreachable (server boot
+ * is still warming). 429 belongs here for the same reason and is the one that
+ * bites hardest: `/api/offline/manifest` is rate-limited, and the warm-up path
+ * below is exactly what bunches requests together — every client on a venue's
+ * shared address enters this loop at once after a deploy. Treating 429 as
+ * fatal turned "wait a moment" into "Couldn't reach the card data service" for
+ * all of them. `Retry-After` (which express-rate-limit sets) is honoured below,
+ * and the exponential backoff is the fallback when it is absent.
  */
-const RETRYABLE_STATUSES = new Set([502, 503, 504]);
+const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
 
 /** Total wall-clock cap on a single sync attempt's manifest-warm-up retries. */
 const MAX_RETRY_WINDOW_MS = 180_000; // 3 minutes — server usually warms in <60s

@@ -17,12 +17,16 @@ export const offlineRouter: Router = Router();
 // user per week typically. Keep a generous limiter to allow re-downloads
 // after a clear-and-retry without rate-limiting normal users.
 const bulkLimiter = testAwareLimiter({ windowMs: 60_000, max: 10 });
-// Version/manifest reads, not bulk transfers: each is one small JSON answer
-// that a client asks for roughly once per app load (download.ts and
-// ensure-combos.ts), so bulkLimiter's 10/min is far too tight for them while
-// unbounded is not an option either. 120/min leaves room for a pod sharing one
-// NAT address without letting the endpoint be hammered.
-const manifestLimiter = testAwareLimiter({ windowMs: 60_000, max: 120 });
+// Version/manifest reads, not bulk transfers: each is one small JSON answer,
+// so bulkLimiter's 10/min is far too tight while unbounded is not an option
+// either.
+//
+// 600/min, not the 120 this shipped with. "Roughly once per app load" was only
+// true of the steady state: `fetchManifest` in download.ts retries this
+// endpoint with backoff for up to three minutes while the oracle bulk warms
+// after a deploy, so every client behind one venue address piles into the same
+// window. 120 was reachable by a mid-sized pod doing nothing wrong.
+const manifestLimiter = testAwareLimiter({ windowMs: 60_000, max: 600 });
 
 /**
  * Tell the client to retry in a few seconds rather than blocking the request
