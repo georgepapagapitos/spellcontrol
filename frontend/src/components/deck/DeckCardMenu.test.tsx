@@ -129,16 +129,16 @@ describe('deck card menu', () => {
     });
   });
 
-  describe('stack actions', () => {
-    it('lists the deck’s stacks and marks the one this card is in', () => {
+  describe('tag actions', () => {
+    it('lists the deck’s tags and marks the one this card is filed under', () => {
       const { container, getByRole } = renderDeck();
       fireEvent.contextMenu(rowFor(container, 'Brago'));
-      fireEvent.click(getByRole('menuitem', { name: /Move to stack/ }));
+      fireEvent.click(getByRole('menuitem', { name: /Move to tag/ }));
       const pick = getByRole('menuitemradio', { name: 'Blink' });
       expect(pick.getAttribute('aria-checked')).toBe('true');
     });
 
-    it('moving to a stack hoists that tag to primary and keeps the others', () => {
+    it('moving to a tag hoists it to primary and keeps the others', () => {
       const onSetCardTags = vi.fn();
       const cards: DeckDisplayCard[] = [
         { slotId: 's0', card: card('Brago', 'Creature'), tags: ['Blink', 'Wincon'] },
@@ -146,35 +146,35 @@ describe('deck card menu', () => {
       ];
       const { container, getByRole } = renderDeck({ cards, onSetCardTags });
       fireEvent.contextMenu(rowFor(container, 'Brago'));
-      fireEvent.click(getByRole('menuitem', { name: /Move to stack/ }));
+      fireEvent.click(getByRole('menuitem', { name: /Move to tag/ }));
       fireEvent.click(getByRole('menuitemradio', { name: 'Draw' }));
       expect(onSetCardTags).toHaveBeenCalledWith('cards', ['s0'], ['Draw', 'Blink', 'Wincon']);
     });
 
-    it('names a new stack and files the card into it', () => {
+    it('names a new tag and files the card under it', () => {
       const onSetCardTags = vi.fn();
       const { container, getByRole, getByLabelText } = renderDeck({ onSetCardTags });
       fireEvent.contextMenu(rowFor(container, 'Bear'));
-      fireEvent.click(getByRole('menuitem', { name: /Move to stack/ }));
-      const input = getByLabelText('New stack');
+      fireEvent.click(getByRole('menuitem', { name: /Move to tag/ }));
+      const input = getByLabelText('New tag');
       fireEvent.change(input, { target: { value: '  Ramp  ' } });
       fireEvent.keyDown(input, { key: 'Enter' });
-      // Whitespace is normalized, and the card lands in the new stack.
+      // Whitespace is normalized, and the card lands under the new tag.
       expect(onSetCardTags).toHaveBeenCalledWith('cards', ['s1'], ['Ramp']);
     });
 
-    it('ignores a new stack name that is only whitespace', () => {
+    it('ignores a new tag name that is only whitespace', () => {
       const onSetCardTags = vi.fn();
       const { container, getByRole, getByLabelText } = renderDeck({ onSetCardTags });
       fireEvent.contextMenu(rowFor(container, 'Bear'));
-      fireEvent.click(getByRole('menuitem', { name: /Move to stack/ }));
-      const input = getByLabelText('New stack');
+      fireEvent.click(getByRole('menuitem', { name: /Move to tag/ }));
+      const input = getByLabelText('New tag');
       fireEvent.change(input, { target: { value: '   ' } });
       fireEvent.keyDown(input, { key: 'Enter' });
       expect(onSetCardTags).not.toHaveBeenCalled();
     });
 
-    it('takes a card out of its stack without touching its other tags', () => {
+    it('takes a card out of its tag without touching its other tags', () => {
       const onSetCardTags = vi.fn();
       const cards: DeckDisplayCard[] = [
         { slotId: 's0', card: card('Brago', 'Creature'), tags: ['Blink', 'Wincon'] },
@@ -185,11 +185,11 @@ describe('deck card menu', () => {
       expect(onSetCardTags).toHaveBeenCalledWith('cards', ['s0'], ['Wincon']);
     });
 
-    it('offers no stack actions when the deck is read-only', () => {
+    it('offers no tag actions when the deck is read-only', () => {
       const { container, getByRole } = renderDeck({ onSetCardTags: undefined });
       fireEvent.contextMenu(rowFor(container, 'Brago'));
       const menu = getByRole('menu', { name: 'Brago' });
-      expect(within(menu).queryByRole('menuitem', { name: /Move to stack/ })).toBeNull();
+      expect(within(menu).queryByRole('menuitem', { name: /Move to tag/ })).toBeNull();
     });
   });
 

@@ -200,12 +200,15 @@ describe('DeckDisplay category groups (E124)', () => {
    *
    * The caption is the fix, so it is what this pins.
    */
-  it('says the category list files each card once, so its counts can be told from the Roles panel', () => {
+  it('says the Roles list files each card once, so its counts can be told from the Roles panel', () => {
+    // The lens is labelled "Roles" since 2026-09-21 — its buckets ARE
+    // ROLE_TITLES, so calling it "Category" made the derived taxonomy
+    // compete with the user's own tags for the same word.
     localStorage.setItem('mtg-decks-group-by', 'category');
     const { container } = renderDeck(slots([forest(), bear(), opt()]));
     const caption = container.querySelector('.deck-group-caption');
-    expect(caption, 'category grouping rendered no counting-rule caption').toBeTruthy();
-    expect(caption!.textContent).toMatch(/filed under one category/i);
+    expect(caption, 'Roles grouping rendered no counting-rule caption').toBeTruthy();
+    expect(caption!.textContent).toMatch(/filed under one role/i);
   });
 
   it('shows no such caption when grouping by type, where the question does not arise', () => {

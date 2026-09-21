@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import {
   deckCardActions,
-  stackPickActions,
+  tagPickActions,
   SECTION_ORDER,
   type DeckCardActionCtx,
 } from './deck-card-actions';
@@ -73,7 +73,7 @@ describe('deckCardActions', () => {
     expect(k).not.toContain('edit-printing');
     expect(k).not.toContain('add-copy');
     expect(k).not.toContain('move-considering-one');
-    expect(k).not.toContain('stack-pick');
+    expect(k).not.toContain('tag-pick');
     // The remove row is always present, but disabled with nothing to remove.
     expect(byKey(ctx, 'remove-one')!.disabled).toBe(true);
   });
@@ -115,18 +115,18 @@ describe('deckCardActions', () => {
     expect(keys({ row: row({ isPartner: true }), onMoveToAnotherDeck })).not.toContain('move-deck');
   });
 
-  it('offers the stack picker only with a tag handler, and clear only when tagged', () => {
-    expect(keys({ row: row({ tags: ['Blink'] }) })).not.toContain('stack-pick');
+  it('offers the tag picker only with a tag handler, and clear only when tagged', () => {
+    expect(keys({ row: row({ tags: ['Blink'] }) })).not.toContain('tag-pick');
     const onSetRowTags = vi.fn();
-    expect(keys({ row: row(), onSetRowTags })).not.toContain('stack-clear');
+    expect(keys({ row: row(), onSetRowTags })).not.toContain('tag-clear');
     const tagged = { row: row({ tags: ['Blink', 'Wincon'] }), onSetRowTags };
-    expect(byKey(tagged, 'stack-clear')!.label).toBe('Take out of Blink');
+    expect(byKey(tagged, 'tag-clear')!.label).toBe('Take out of Blink');
   });
 
-  it('clearing a stack drops ONLY the primary, keeping the rest of the taxonomy', () => {
+  it('clearing drops ONLY the primary tag, keeping the rest of the taxonomy', () => {
     const onSetRowTags = vi.fn();
     const ctx = { row: row({ tags: ['Blink', 'Wincon'] }), onSetRowTags };
-    byKey(ctx, 'stack-clear')!.run!();
+    byKey(ctx, 'tag-clear')!.run!();
     expect(onSetRowTags).toHaveBeenCalledWith(['s1'], ['Wincon']);
   });
 
@@ -149,10 +149,10 @@ describe('deckCardActions', () => {
   });
 });
 
-describe('stackPickActions', () => {
-  it('checks the row’s current stack, which is its FIRST tag', () => {
-    const picks = stackPickActions(row({ tags: ['Blink', 'Draw'] }), ['Blink', 'Draw'], vi.fn());
-    expect(picks.map((p) => [p.label, p.checked])).toEqual([
+describe('tagPickActions', () => {
+  it('checks the row’s current group, which is its FIRST tag', () => {
+    const picks = tagPickActions(row({ tags: ['Blink', 'Draw'] }), ['Blink', 'Draw'], vi.fn());
+    expect(picks.map((p: { label: string; checked: boolean }) => [p.label, p.checked])).toEqual([
       ['Blink', true],
       ['Draw', false],
     ]);
@@ -161,20 +161,20 @@ describe('stackPickActions', () => {
   it('HOISTS the picked tag to primary instead of appending it', () => {
     // Appending would leave the card in its old stack and the menu would lie.
     const onSetRowTags = vi.fn();
-    const picks = stackPickActions(row({ tags: ['Blink'] }), ['Draw'], onSetRowTags);
+    const picks = tagPickActions(row({ tags: ['Blink'] }), ['Draw'], onSetRowTags);
     picks[0].run!();
     expect(onSetRowTags).toHaveBeenCalledWith(['s1'], ['Draw', 'Blink']);
   });
 
   it('does not duplicate a tag the card already carries further down', () => {
     const onSetRowTags = vi.fn();
-    const picks = stackPickActions(row({ tags: ['Blink', 'Draw'] }), ['Draw'], onSetRowTags);
+    const picks = tagPickActions(row({ tags: ['Blink', 'Draw'] }), ['Draw'], onSetRowTags);
     picks[0].run!();
     expect(onSetRowTags).toHaveBeenCalledWith(['s1'], ['Draw', 'Blink']);
   });
 
-  it('matches the current stack case-insensitively', () => {
-    const picks = stackPickActions(row({ tags: ['blink'] }), ['Blink'], vi.fn());
+  it('matches the current group case-insensitively', () => {
+    const picks = tagPickActions(row({ tags: ['blink'] }), ['Blink'], vi.fn());
     expect(picks[0].checked).toBe(true);
   });
 });

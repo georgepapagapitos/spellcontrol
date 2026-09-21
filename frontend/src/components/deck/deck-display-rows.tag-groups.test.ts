@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 import { describe, it, expect } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { groupByStack, readStoredGroupBy, type Row } from './deck-display-rows';
+import { groupByTag, readStoredGroupBy, type Row } from './deck-display-rows';
 
-// A Row is wide, but groupByStack reads exactly three things off it: `tags`,
+// A Row is wide, but groupByTag reads exactly three things off it: `tags`,
 // `card.type_line` (through classifyType) and `qty`. Build the minimum and
 // cast, rather than carrying a 30-field fixture that hides what matters.
 function row(name: string, typeLine: string, tags: string[] = [], qty = 1): Row {
@@ -19,19 +19,19 @@ const titles = (groups: Array<{ title: string }>) => groups.map((g) => g.title);
 const total = (groups: Array<{ rows: Row[] }>) =>
   groups.reduce((n, g) => n + g.rows.reduce((m, r) => m + r.qty, 0), 0);
 
-describe('groupByStack', () => {
+describe('groupByTag', () => {
   it('files a tagged card under its FIRST tag, not its type', () => {
-    const groups = groupByStack([row('Brago', 'Legendary Creature', ['Blink', 'Wincon'])]);
+    const groups = groupByTag([row('Brago', 'Legendary Creature', ['Blink', 'Wincon'])]);
     expect(titles(groups)).toEqual(['Blink']);
   });
 
   it('falls back to the card type when a card has no tags', () => {
-    const groups = groupByStack([row('Forest', 'Basic Land'), row('Bear', 'Creature')]);
+    const groups = groupByTag([row('Forest', 'Basic Land'), row('Bear', 'Creature')]);
     expect(titles(groups)).toEqual(['Creature', 'Land']);
   });
 
   it('is a PARTITION: a multi-tagged card appears exactly once', () => {
-    const groups = groupByStack([
+    const groups = groupByTag([
       row('Brago', 'Creature', ['Blink', 'Wincon', 'Combo']),
       row('Bear', 'Creature'),
     ]);
@@ -47,11 +47,11 @@ describe('groupByStack', () => {
       row('Sol Ring', 'Artifact', ['Ramp'], 1),
       row('Bear', 'Creature', [], 4),
     ];
-    expect(total(groupByStack(deck))).toBe(42);
+    expect(total(groupByTag(deck))).toBe(42);
   });
 
   it('orders user stacks alphabetically, then type fallbacks in display order', () => {
-    const groups = groupByStack([
+    const groups = groupByTag([
       row('Forest', 'Basic Land'),
       row('Bear', 'Creature'),
       row('Sol Ring', 'Artifact', ['Ramp']),
@@ -64,8 +64,8 @@ describe('groupByStack', () => {
 
   it('prepends the commander group, singular or plural', () => {
     const cmd = [row('Brago', 'Legendary Creature')];
-    expect(titles(groupByStack([row('Bear', 'Creature')], cmd))[0]).toBe('Commander');
-    expect(titles(groupByStack([], [...cmd, row('Sidar', 'Legendary Creature')]))[0]).toBe(
+    expect(titles(groupByTag([row('Bear', 'Creature')], cmd))[0]).toBe('Commander');
+    expect(titles(groupByTag([], [...cmd, row('Sidar', 'Legendary Creature')]))[0]).toBe(
       'Commanders'
     );
   });
@@ -73,7 +73,7 @@ describe('groupByStack', () => {
   it('merges a tag that collides with a type name into ONE section', () => {
     // Two sections titled "Creature" would be a duplicate React key in both
     // renderers, and two headers reading the same word.
-    const groups = groupByStack([
+    const groups = groupByTag([
       row('Brago', 'Legendary Creature', ['Creature']),
       row('Bear', 'Creature'),
     ]);
@@ -83,22 +83,30 @@ describe('groupByStack', () => {
   });
 
   it('merges case-insensitively and keeps the tag casing', () => {
-    const groups = groupByStack([row('Bear', 'Creature'), row('Brago', 'Creature', ['CREATURE'])]);
+    const groups = groupByTag([row('Bear', 'Creature'), row('Brago', 'Creature', ['CREATURE'])]);
     expect(titles(groups)).toEqual(['CREATURE']);
     expect(groups[0].rows).toHaveLength(2);
   });
 
   it('returns nothing for an empty deck', () => {
-    expect(groupByStack([])).toEqual([]);
+    expect(groupByTag([])).toEqual([]);
   });
 });
 
-describe("readStoredGroupBy accepts 'stack'", () => {
-  it('round-trips the new lens and still rejects junk', () => {
-    localStorage.setItem('mtg-decks-group-by', 'stack');
-    expect(readStoredGroupBy()).toBe('stack');
+describe('readStoredGroupBy', () => {
+  it('round-trips the tag lens and still rejects junk', () => {
+    localStorage.setItem('mtg-decks-group-by', 'tag');
+    expect(readStoredGroupBy()).toBe('tag');
     localStorage.setItem('mtg-decks-group-by', 'nonsense');
     expect(readStoredGroupBy()).toBe('type');
+    localStorage.removeItem('mtg-decks-group-by');
+  });
+
+  it("migrates the retired 'stack' value onto the tag lens it became", () => {
+    // Anyone who picked Stacks while it existed keeps the grouping they chose
+    // instead of being dropped back to Type.
+    localStorage.setItem('mtg-decks-group-by', 'stack');
+    expect(readStoredGroupBy()).toBe('tag');
     localStorage.removeItem('mtg-decks-group-by');
   });
 });
