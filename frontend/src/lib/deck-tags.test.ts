@@ -1,28 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
-import type { DeckCategory } from '@/deck-builder/types';
-
-// suggestedTagForCard's own job is just "map classifyCardCategory's output
-// to a label (or nothing)" — classifyCardCategory itself is covered by
-// categorize.test.ts, so mock it here to test the mapping in isolation.
-let mockedCategory: DeckCategory = 'synergy';
-vi.mock('@/deck-builder/services/deckBuilder/categorize', () => ({
-  classifyCardCategory: () => mockedCategory,
-}));
+import { describe, it, expect } from 'vitest';
 
 import {
   cardTagsOf,
   isTagsEdited,
-  suggestedTagForCard,
   normalizeTagText,
   withTagAdded,
   withTagRemoved,
   collectDeckTags,
 } from './deck-tags';
 import type { DeckCard, Deck } from '../store/decks';
-
-function sc() {
-  return {} as import('@/deck-builder/types').ScryfallCard;
-}
 
 describe('cardTagsOf / isTagsEdited', () => {
   it('treats undefined as untouched, distinct from an explicit empty array', () => {
@@ -36,26 +22,6 @@ describe('cardTagsOf / isTagsEdited', () => {
 
   it('reads real tags through', () => {
     expect(cardTagsOf({ tags: ['Ramp', 'Wincon'] })).toEqual(['Ramp', 'Wincon']);
-  });
-});
-
-describe('suggestedTagForCard', () => {
-  it('suggests a label for each functional-role category', () => {
-    mockedCategory = 'ramp';
-    expect(suggestedTagForCard(sc())).toBe('Ramp');
-    mockedCategory = 'cardDraw';
-    expect(suggestedTagForCard(sc())).toBe('Card advantage');
-    mockedCategory = 'singleRemoval';
-    expect(suggestedTagForCard(sc())).toBe('Removal');
-    mockedCategory = 'boardWipes';
-    expect(suggestedTagForCard(sc())).toBe('Board wipe');
-  });
-
-  it('suggests nothing for type-obvious or catch-all buckets', () => {
-    for (const cat of ['lands', 'creatures', 'synergy', 'utility'] as const) {
-      mockedCategory = cat;
-      expect(suggestedTagForCard(sc())).toBeNull();
-    }
   });
 });
 

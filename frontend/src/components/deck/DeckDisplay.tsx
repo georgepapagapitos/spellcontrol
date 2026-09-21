@@ -10,7 +10,7 @@ import type {
   BuildReport,
   Archetype,
 } from '@/deck-builder/types';
-import { suggestedTagForCard, collectDeckTags } from '@/lib/deck-tags';
+import { collectDeckTags } from '@/lib/deck-tags';
 import { DeckTagManager } from './DeckTagManager';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { buildManaData, tallyNames } from '@/lib/build-mana-data';
@@ -2189,8 +2189,6 @@ export function DeckDisplay({
                   }
                   status={r.status}
                   tags={r.tags}
-                  tagsEdited={r.tagsEdited}
-                  suggestedTag={!r.tagsEdited ? suggestedTagForCard(r.card) : null}
                   existingDeckTags={deckTags.map((t) => t.tag)}
                   onSetTags={
                     canEditTags
