@@ -13,20 +13,20 @@ import type { Row } from './deck-display-rows';
 
 /** Clusters, in render order. The menu runs past a dozen rows, and the style
  *  guide asks for labelled sections rather than one flat list once it does. */
-export type DeckCardActionSection = 'copies' | 'move' | 'collection' | 'commander' | 'stack';
+export type DeckCardActionSection = 'copies' | 'move' | 'collection' | 'commander' | 'tag';
 
 export const SECTION_TITLES: Record<DeckCardActionSection, string> = {
   copies: 'Copies',
   move: 'Move',
   collection: 'Collection',
   commander: 'Command zone',
-  stack: 'Stack',
+  tag: 'Tags',
 };
 
 export const SECTION_ORDER: DeckCardActionSection[] = [
   'copies',
   'move',
-  'stack',
+  'tag',
   'collection',
   'commander',
 ];
@@ -36,7 +36,7 @@ export interface DeckCardAction {
   label: string;
   section: DeckCardActionSection;
   disabled?: boolean;
-  /** Drills into the stack picker instead of acting. */
+  /** Drills into the tag picker instead of acting. */
   submenu?: true;
   run?: () => void;
 }
@@ -60,7 +60,7 @@ export interface DeckCardActionCtx {
   onMakePartner?: (slotId: string, card: ScryfallCard) => void;
   canMakePartner?: (card: ScryfallCard) => boolean;
   /** Already bound to this row's zone by the caller, so the action list never
-   *  needs to know which zone it is in. Absent means no stack actions. */
+   *  needs to know which zone it is in. Absent means no tag actions. */
   onSetRowTags?: (slotIds: string[], tags: string[]) => void;
 }
 
@@ -167,14 +167,15 @@ export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
   }
 
   if (onSetRowTags && hasSlots) {
-    out.push({ key: 'stack-pick', label: 'Move to stack', section: 'stack', submenu: true });
+    out.push({ key: 'tag-pick', label: 'Move to tag', section: 'tag', submenu: true });
     if (row.tags.length > 0) {
       out.push({
-        key: 'stack-clear',
+        key: 'tag-clear',
         label: `Take out of ${row.tags[0]}`,
-        section: 'stack',
-        // Drops only the primary. The card's other tags are its own taxonomy
-        // and the tag lens still shows it under them.
+        section: 'tag',
+        // Drops only the primary, which is the tag deciding this card's
+        // section. Its other tags are its own taxonomy and the deck search
+        // still finds it by them.
         run: () => onSetRowTags(row.slotIds, row.tags.slice(1)),
       });
     }
@@ -226,21 +227,21 @@ export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
 }
 
 /**
- * The stack picker's rows. A stack is the row's FIRST tag (see groupByStack),
+ * The tag picker's rows. A card's section is its FIRST tag (see groupByTag),
  * so picking one HOISTS it to index 0 rather than appending: appending would
- * leave the card sitting in whatever stack it was already in, and the menu
+ * leave the card sitting in whatever group it was already in, and the menu
  * would have lied. Every other tag the card carries is preserved, so the
- * overlapping tag lens and the row's chips are untouched.
+ * row's chips and the deck search are untouched.
  */
-export function stackPickActions(
+export function tagPickActions(
   row: Row,
   deckTags: string[],
   onSetRowTags: (slotIds: string[], tags: string[]) => void
 ): Array<DeckCardAction & { checked: boolean }> {
   return deckTags.map((tag) => ({
-    key: `stack-${tag}`,
+    key: `tag-${tag}`,
     label: tag,
-    section: 'stack' as const,
+    section: 'tag' as const,
     checked: row.tags[0]?.toLowerCase() === tag.toLowerCase(),
     run: () => onSetRowTags(row.slotIds, [tag, ...withTagRemoved(row.tags, tag)]),
   }));

@@ -104,7 +104,6 @@ import {
   findClaimedBy,
   groupByType,
   groupByCategory,
-  groupByStack,
   groupByTag,
   applyFilterSort,
   VIEW_MODE_STORAGE_KEY,
@@ -834,7 +833,6 @@ export function DeckDisplay({
   const groups = useMemo(() => {
     const rows = buildRows(cards, currency, collectionByCopyId, crossDeck);
     if (groupBy === 'tag') return groupByTag(rows, commanderRows);
-    if (groupBy === 'stack') return groupByStack(rows, commanderRows);
     return groupBy === 'category'
       ? groupByCategory(rows, categoryTargets, commanderRows)
       : groupByType(rows, commanderRows);
@@ -1755,39 +1753,6 @@ export function DeckDisplay({
               </div>
             )}
 
-            {/* Overlap-honesty note (E171): grouping by tag is NOT a partition
-                — a card with 2 tags shows up in both groups, so summing the
-                section counts below overstates the deck. The stat strip's
-                card count (computed straight from the raw lists, never from
-                these groups) is the only number that's ever a total. */}
-            {groupBy === 'tag' && (
-              <div className="deck-tag-honesty-banner">
-                <TagIcon width={14} height={14} strokeWidth={2} aria-hidden />
-                <span>
-                  Tags can overlap: a multi-tagged card appears in every group it's tagged with. The
-                  deck-size count stays the true total.
-                </span>
-                {deckTags.length > 0 && (onRenameDeckTag || onRemoveDeckTag) && (
-                  <ToolbarPopover
-                    triggerClassName="btn btn-sm deck-tag-manage-btn"
-                    triggerContent="Manage tags"
-                    triggerAriaLabel="Manage deck tags"
-                    panelClassName="toolbar-popover-panel toolbar-popover-panel--fixed deck-tag-manager-popover"
-                    panelAriaLabel="Manage tags"
-                  >
-                    {(close) => (
-                      <DeckTagManager
-                        tags={deckTags}
-                        onRename={onRenameDeckTag}
-                        onRemove={onRemoveDeckTag}
-                        onDone={close}
-                      />
-                    )}
-                  </ToolbarPopover>
-                )}
-              </div>
-            )}
-
             <div className="deck-display-body">
               <div className="deck-display-main">
                 {/* E182: a brand-new deck (no commander, no cards) previously
@@ -1833,31 +1798,29 @@ export function DeckDisplay({
                     </button>
                   </div>
                 )}
-                {/* Category grouping is a strict PARTITION — `classifyCardCategory`
+                {/* The Roles lens is a strict PARTITION — `classifyCardCategory`
                     files each card under exactly one heading, type first, so the
                     buckets sum to the deck. The Stats tab's Roles panel counts
                     every role a card serves, so it reports larger numbers for the
                     same words. Both are right; this line is what lets a reader
                     reconcile them (playtest batch 6, E330). */}
                 {groupBy === 'category' && visibleGroups.length > 0 && (
-                  <p className="deck-group-caption">Each card is filed under one category.</p>
+                  <p className="deck-group-caption">Each card is filed under one role.</p>
                 )}
-                {/* Stacks is a partition too, so it gets the same reconciling
-                    line rather than the tag lens's overlap banner. It also
-                    carries the tag manager: the banner above is the only other
-                    door to renaming or removing a tag, and it does not render
-                    under this lens, so without this a stack could be made but
-                    never renamed. */}
-                {groupBy === 'stack' && visibleGroups.length > 0 && (
+                {/* The tag lens partitions too, so it gets the same reconciling
+                    line. It also carries the tag manager: renaming or removing
+                    a tag deck-wide has no other door, and this is the lens a
+                    reader is in when they want one. */}
+                {groupBy === 'tag' && visibleGroups.length > 0 && (
                   <div className="deck-group-caption deck-group-caption--managed">
-                    <span>Each card sits in one stack: its first tag, or its card type.</span>
+                    <span>Each card is filed under its first tag, or its card type.</span>
                     {deckTags.length > 0 && (onRenameDeckTag || onRemoveDeckTag) && (
                       <ToolbarPopover
                         triggerClassName="btn btn-sm deck-tag-manage-btn"
-                        triggerContent="Manage stacks"
-                        triggerAriaLabel="Manage deck stacks"
+                        triggerContent="Manage tags"
+                        triggerAriaLabel="Manage deck tags"
                         panelClassName="toolbar-popover-panel toolbar-popover-panel--fixed deck-tag-manager-popover"
-                        panelAriaLabel="Manage stacks"
+                        panelAriaLabel="Manage tags"
                       >
                         {(close) => (
                           <DeckTagManager

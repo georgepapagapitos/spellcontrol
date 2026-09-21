@@ -30,7 +30,7 @@ export function DeckCardMenu({
   deckTags: string[];
   onClose: () => void;
 }) {
-  const [page, setPage] = useState<'root' | 'stack'>('root');
+  const [page, setPage] = useState<'root' | 'tag'>('root');
   // Same boundary the shell's own sheet styling assumes. A floating popover
   // anchored to a fingertip is unusable on a phone; the sheet is not.
   const narrow = useMediaQuery('(max-width: 1023px)');

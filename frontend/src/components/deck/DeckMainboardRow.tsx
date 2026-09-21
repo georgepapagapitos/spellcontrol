@@ -464,8 +464,8 @@ function DeckCardRow({
   // uniform "Mountain ×22" has nothing to reveal.
   const multiPrinting = row.printings.length > 1;
   const [expanded, setExpanded] = useState(false);
-  // The kebab's menu drills into a stack picker, same as the pointer menu.
-  const [menuPage, setMenuPage] = useState<'root' | 'stack'>('root');
+  // The kebab's menu drills into a tag picker, same as the pointer menu.
+  const [menuPage, setMenuPage] = useState<'root' | 'tag'>('root');
   const subListId = `printings-${row.slotIds[0] ?? row.name}`;
 
   const startEditQty = (e: React.MouseEvent) => {
