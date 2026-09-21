@@ -3,6 +3,7 @@ import {
   applyAction,
   createPlaytestState,
   type PlaytestAction,
+  type PlaytestCard,
   type PlaytestInit,
   type PlaytestState,
 } from '@/lib/playtest';
@@ -16,6 +17,7 @@ import {
   type RewindTrailEntry,
   type TakebackMode,
 } from './lib/takeback';
+import type { PrintedBodies } from './lib/printed-bodies';
 import {
   fingerprintDeck,
   backfillManaCost,
@@ -217,6 +219,10 @@ interface PlaytestStore {
   /** Restore a previously-saved session in place of `init` (E137 resume). */
   hydrate(deckId: string, snapshot: PlaytestSnapshot, externalDeck?: Deck): void;
   dispatch(action: PlaytestAction): void;
+  /** Fill in printed power/toughness on cards whose deck copy carries none.
+   *  Data repair, not a move: it never goes through the reducer, so it writes
+   *  no undo entry and no game-log line. See `lib/printed-bodies.ts`. */
+  applyPrintedBodies(bodies: PrintedBodies): void;
   /** Switch difficulty (or turn it off); persists the choice as the device's
    *  "last used" preference and appends a game-log entry when armed. */
   setResistanceLevel(level: ResistanceLevel): void;
@@ -527,6 +533,41 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
         lastSessionAggregates: defeatCapture.aggregates,
       }),
     });
+  },
+  applyPrintedBodies(bodies) {
+    const current = get().state;
+    if (!current || bodies.size === 0) return;
+    let changed = false;
+    const patchCard = (card: PlaytestCard): PlaytestCard => {
+      // A card that already prints a body is right, and a hand-made token's
+      // body is whatever its maker typed — neither is ours to overwrite.
+      if (card.power !== undefined || card.isToken) return card;
+      const body = bodies.get(card.name);
+      if (!body) return card;
+      changed = true;
+      return { ...card, power: body.power, toughness: body.toughness };
+    };
+    // Generic over the state shape because history entries are stored as
+    // `Omit<PlaytestState, 'past'>` — the same patch, one implementation.
+    const patchState = <T extends Omit<PlaytestState, 'past'>>(s: T): T => ({
+      ...s,
+      zones: {
+        library: s.zones.library.map(patchCard),
+        hand: s.zones.hand.map(patchCard),
+        graveyard: s.zones.graveyard.map(patchCard),
+        exile: s.zones.exile.map(patchCard),
+        command: s.zones.command.map(patchCard),
+      },
+      battlefield: s.battlefield.map((bf) => {
+        const card = patchCard(bf.card);
+        return card === bf.card ? bf : { ...bf, card };
+      }),
+    });
+    // History too, or an undo would take the badges back off a permanent that
+    // has been on the board the whole time.
+    const next = { ...patchState(current), past: current.past.map(patchState) };
+    if (!changed) return;
+    set({ state: next });
   },
   setResistanceLevel(level) {
     const { state, gameLog } = get();

@@ -775,3 +775,101 @@ describe('E141 — session record capture', () => {
     expect(store().lastSessionAggregates?.bestKillTurn).toBe(2);
   });
 });
+
+// The P/T box reads `PlaytestCard.power`, which `deckToPlaytestInit` copies off
+// the deck's own stored card — and a deck built before the card cache kept
+// `power`/`toughness` (#2004) holds creatures with no body at all. Verified on
+// the live public board after the cache was re-ingested: 7 permanents, 0
+// badges. `applyPrintedBodies` is the repair; these guard its edges.
+//
+// If these fail: the patch is missing a zone, rewriting a body it shouldn't
+// own, or leaking into the undo stack (it is data repair, not a move).
+describe('playtest store — printed-body backfill', () => {
+  const BODIES = new Map([
+    ['Goblin Trashmaster', { power: '3', toughness: '3' }],
+    ['Tarmogoyf', { power: '*', toughness: '1+*' }],
+  ]);
+
+  function bodilessLibrary(): PlaytestCard[] {
+    return [
+      { id: 'c-1', name: 'Goblin Trashmaster', typeLine: 'Creature — Goblin' },
+      { id: 'c-2', name: 'Goblin Trashmaster', typeLine: 'Creature — Goblin' },
+      { id: 'c-3', name: 'Tarmogoyf', typeLine: 'Creature — Lhurgoyf' },
+      { id: 'c-4', name: 'Mountain', typeLine: 'Basic Land — Mountain' },
+    ];
+  }
+
+  function cardById(id: string): PlaytestCard | undefined {
+    const s = store().state as PlaytestState;
+    return [...s.zones.library, ...s.zones.hand, ...s.battlefield.map((b) => b.card)].find(
+      (c) => c.id === id
+    );
+  }
+
+  beforeEach(() => {
+    store().init('deck-1', { library: bodilessLibrary(), seed: 7 });
+  });
+
+  it('fills in the printed body of every copy, wherever it sits', () => {
+    store().applyPrintedBodies(BODIES);
+    expect(cardById('c-1')).toMatchObject({ power: '3', toughness: '3' });
+    expect(cardById('c-2')).toMatchObject({ power: '3', toughness: '3' });
+  });
+
+  it('keeps a non-numeric body verbatim', () => {
+    store().applyPrintedBodies(BODIES);
+    expect(cardById('c-3')).toMatchObject({ power: '*', toughness: '1+*' });
+  });
+
+  it('leaves a card with no body among the answers untouched', () => {
+    store().applyPrintedBodies(BODIES);
+    expect(cardById('c-4')?.power).toBeUndefined();
+  });
+
+  it('reaches a permanent already on the battlefield', () => {
+    store().dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: 'c-1', x: 0.5, y: 0.5 });
+    store().applyPrintedBodies(BODIES);
+    const bf = (store().state as PlaytestState).battlefield.find((b) => b.card.id === 'c-1');
+    expect(bf?.card).toMatchObject({ power: '3', toughness: '3' });
+  });
+
+  it('patches history too, so an undo does not take the badges back off', () => {
+    store().dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: 'c-1', x: 0.5, y: 0.5 });
+    store().applyPrintedBodies(BODIES);
+    store().dispatch({ type: 'UNDO' });
+    expect(cardById('c-1')).toMatchObject({ power: '3', toughness: '3' });
+  });
+
+  it('writes no undo entry of its own — it is data repair, not a move', () => {
+    const before = (store().state as PlaytestState).past.length;
+    store().applyPrintedBodies(BODIES);
+    expect((store().state as PlaytestState).past).toHaveLength(before);
+  });
+
+  it('never overwrites a body the card already prints', () => {
+    store().init('deck-1', {
+      library: [{ id: 'c-9', name: 'Goblin Trashmaster', power: '2', toughness: '2' }],
+      seed: 7,
+    });
+    store().applyPrintedBodies(BODIES);
+    expect(cardById('c-9')).toMatchObject({ power: '2', toughness: '2' });
+  });
+
+  it('never overwrites a hand-made token, whose body is whatever its maker typed', () => {
+    store().dispatch({
+      type: 'CREATE_TOKEN',
+      card: { id: 'tok-1', name: 'Goblin Trashmaster', isToken: true },
+      x: 0.5,
+      y: 0.5,
+    });
+    store().applyPrintedBodies(BODIES);
+    const tok = (store().state as PlaytestState).battlefield.find((b) => b.card.id === 'tok-1');
+    expect(tok?.card.power).toBeUndefined();
+  });
+
+  it('leaves the state object identical when there is nothing to fix', () => {
+    const before = store().state;
+    store().applyPrintedBodies(new Map([['Nobody Here', { power: '1', toughness: '1' }]]));
+    expect(store().state).toBe(before);
+  });
+});

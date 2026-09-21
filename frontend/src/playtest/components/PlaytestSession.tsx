@@ -13,6 +13,7 @@ import { deckToPlaytestInit } from '@/playtest/lib/deck-to-playtest';
 import { usePlaytestStore, flushPendingPlaytestSnapshot, tryRecordSession } from '@/playtest/store';
 import { PlaytestBoard } from '@/playtest/components/PlaytestBoard';
 import { useNarrowViewport } from '@/playtest/hooks/use-narrow-viewport';
+import { usePrintedBodies } from '@/playtest/hooks/use-printed-bodies';
 
 export interface PlaytestBackTarget {
   label: string;
@@ -63,6 +64,9 @@ export function PlaytestSession({ deck, external: isExternal, back, title, empty
   // this header row is narrow-only. (Short landscape already dropped it in
   // CSS; that tier is a subset of narrow, so nothing there changes.)
   const isNarrow = useNarrowViewport();
+  // Backfills printed power/toughness the deck's own cards are missing, so a
+  // creature on the board shows a P/T box whatever era the deck was built in.
+  usePrintedBodies(deck);
 
   // The deck id a resume-vs-fresh prompt is currently open for. It gates only
   // the prompt: while the confirm dialog is up the effect below can re-run
