@@ -14,6 +14,7 @@ import { suggestedTagForCard, collectDeckTags } from '@/lib/deck-tags';
 import { DeckTagManager } from './DeckTagManager';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { buildManaData, tallyNames } from '@/lib/build-mana-data';
+import { useProducedMana } from './use-produced-mana';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
   validateDeck as runValidation,
@@ -1054,9 +1055,13 @@ export function DeckDisplay({
   );
   // Mana curve / color demand+production / type breakdown / drill-downs — the
   // shared pure builder so this view and the deck-compare page agree exactly.
+  // Deck rows store each card as the cache had it when the card was added, so a
+  // deck built before #2011 carries no `produced_mana` at all and the analysis
+  // falls back to oracle text — which never reads `{C}`. Backfill it first.
+  const manaCards = useProducedMana(allCards);
   const manaData = useMemo(
-    () => buildManaData(allCards, commander, partnerCommander),
-    [allCards, commander, partnerCommander]
+    () => buildManaData(manaCards, commander, partnerCommander),
+    [manaCards, commander, partnerCommander]
   );
 
   // Generated decks pass roleCounts in; manual decks don't — derive them on
