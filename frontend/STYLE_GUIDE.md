@@ -1371,11 +1371,16 @@ panel's existing light-on-dark contract — never theme tokens there.
   chips that sits in the section named by one of them is self-evident only
   because both chips are on screen. A card with no tags renders no chip at
   all — zero clutter for anyone who's never touched the feature.
-- **Live suggestion ≠ a real tag.** The auto-suggested chip (derived from
-  `classifyCardCategory`, shown only while a card is untouched) is a
-  **dashed-border ghost pill**, visually distinct from a committed tag —
-  tapping it commits the tag for real. Never render a suggestion with the
-  same solid styling as a real tag; that reads as already-applied.
+- **The app does not suggest tags.** There was a dashed ghost pill offering
+  a role-derived tag on an untouched card; it was removed 2026-09-21 (E371).
+  It only ever offered the four `ROLE_TITLES` words, which are exactly what
+  the **Roles** lens partitions by and the role filter chips filter by — so
+  accepting suggestions rebuilt, one card at a time, a grouping that was one
+  click away, and the resulting tags collided with the app's own vocabulary
+  on screen. A tag is worth storing when it says something the app cannot
+  derive ("Blink", "Combo", "Cut"); if we can derive it, it belongs in a
+  lens, not in the user's data. Don't reintroduce a suggestion that
+  duplicates a derived taxonomy.
 - **Grid tiles get an icon-only badge**, not the tag text (no room) — same
   art-scrim plate as the synergy/role badges beside it, with a small count
   past 1 tag. Full tag names are always readable in the list row or the

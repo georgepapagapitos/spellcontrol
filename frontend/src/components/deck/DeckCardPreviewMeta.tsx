@@ -1,5 +1,5 @@
 import { Fragment, useId, useState, type ReactNode } from 'react';
-import { Crown, Handshake, Pencil, Plus, X } from 'lucide-react';
+import { Crown, Handshake, Plus, X } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { LegalityIssue } from '../../lib/deck-validation';
 import type { AllocationStatus } from '../../lib/allocations';
@@ -29,17 +29,14 @@ interface Props {
   /** Ownership status of the allocated copy. */
   status?: AllocationStatus;
   /**
-   * User tags (E171) — this panel is the ONE place tags get edited (the
-   * deck list/grid only ever display them). `tags`/`tagsEdited` mirror the
-   * aggregated Row fields (see DeckDisplay.tsx); `onSetTags` omitted means
-   * read-only (a shared/read-only view, or a commander row with no slot to
-   * tag) — chips still show, but no add/remove controls render.
+   * User tags (E171) — this panel and the card menu (DeckCardMenuBody) are
+   * the two places tags get edited; the deck list/grid only display them.
+   * `tags` mirrors the aggregated Row field (see DeckDisplay.tsx);
+   * `onSetTags` omitted means read-only (a shared/read-only view, or a
+   * commander row with no slot to tag) — chips still show, but no
+   * add/remove controls render.
    */
   tags?: string[];
-  tagsEdited?: boolean;
-  /** Live, never-persisted suggestion derived from classifyCardCategory —
-   *  only meaningful (and only passed) while `tagsEdited` is false. */
-  suggestedTag?: string | null;
   /** Every distinct tag already used elsewhere in the deck, for the add
    *  input's autocomplete — encourages reusing "Ramp" over "ramp"/"Ramps". */
   existingDeckTags?: string[];
@@ -84,8 +81,6 @@ export function DeckCardPreviewMeta({
   legality,
   status,
   tags,
-  tagsEdited,
-  suggestedTag,
   existingDeckTags,
   onSetTags,
 }: Props) {
@@ -104,9 +99,6 @@ export function DeckCardPreviewMeta({
     setDraft('');
   };
   const removeTag = (t: string) => onSetTags?.(withTagRemoved(tagList, t));
-  const acceptSuggestion = () => {
-    if (suggestedTag) onSetTags?.(withTagAdded(tagList, suggestedTag));
-  };
 
   // At-a-glance segments, joined by separators on one wrapping line.
   const segments: ReactNode[] = [];
@@ -186,18 +178,7 @@ export function DeckCardPreviewMeta({
 
       {showTagsSection && (
         <div className="deck-card-preview-meta-tags">
-          <span className="deck-card-preview-meta-label">
-            Tags
-            {tagsEdited && (
-              <span
-                className="deck-card-preview-meta-tags-edited"
-                title="You edited these tags; no more auto-suggestions"
-              >
-                <Pencil width={10} height={10} strokeWidth={2.4} aria-hidden />
-                edited
-              </span>
-            )}
-          </span>
+          <span className="deck-card-preview-meta-label">Tags</span>
 
           <div className="deck-card-preview-meta-tags-chips">
             {tagList.map((t) => (
@@ -216,24 +197,7 @@ export function DeckCardPreviewMeta({
               </span>
             ))}
 
-            {!tagsEdited && suggestedTag && !tagList.includes(suggestedTag) && (
-              <button
-                type="button"
-                className="deck-card-preview-meta-tag-chip is-suggested"
-                onClick={onSetTags ? acceptSuggestion : undefined}
-                disabled={!onSetTags}
-                title={
-                  onSetTags
-                    ? `Suggested from this card's role, tap to add`
-                    : `Suggested from this card's role`
-                }
-              >
-                {suggestedTag}
-                {onSetTags && <Plus width={11} height={11} strokeWidth={2.6} aria-hidden />}
-              </button>
-            )}
-
-            {tagList.length === 0 && !suggestedTag && !onSetTags && (
+            {tagList.length === 0 && !onSetTags && (
               <span className="deck-card-preview-meta-tags-none">No tags</span>
             )}
           </div>
