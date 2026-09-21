@@ -68,7 +68,9 @@ interface Props {
   /** Token-copy this card. When a multi-card selection is active and includes
    *  this card, the whole selection is copied — `selectionSize` says so. */
   onDuplicate(): void;
-  /** How many cards `onDuplicate` will copy (1 unless a selection is live). */
+  /** How many cards this menu acts on (1 unless it was opened on a card in
+   *  a live selection). Above 1 the menu says so and its batch-capable
+   *  actions run over the whole selection. */
   selectionSize?: number;
   onMoveTo(zone: Zone, toIndex?: number): void;
 }
@@ -242,6 +244,12 @@ export function CardContextMenu({
 
   const root = (
     <>
+      {/* Opened on a card that is part of a selection, this menu acts on the
+          whole selection — the heading is what says so before anything is
+          clicked. */}
+      {selectionSize > 1 && (
+        <div className="playtest-ctx-selection">{selectionSize} cards selected</div>
+      )}
       {Boolean(tax) && <div className="playtest-ctx-tax">Tax: +{tax}</div>}
       <MenuAction
         label={tapped ? 'Untap' : 'Tap'}
