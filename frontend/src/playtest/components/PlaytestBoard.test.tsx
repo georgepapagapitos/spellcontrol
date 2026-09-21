@@ -1099,3 +1099,93 @@ describe('PlaytestBoard — who a reveal is for', () => {
     }
   });
 });
+
+/**
+ * Every reveal in the real thing is Everyone or Me — a two-option audience,
+ * not a list of opponents. "Me" has to be private at the WIRE (see
+ * `projectRevealedLibrary`), not merely filtered in an opponent's UI, so
+ * these cover both the menu shape and the projection behind it.
+ */
+describe('PlaytestBoard — who a reveal is for', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    dispatch.mockClear();
+    onlineTable = seatedTable([opponent(1), opponent(2)]);
+  });
+
+  function openLibraryMenu() {
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^Draw a card\./ }), {
+      clientX: 20,
+      clientY: 20,
+    });
+  }
+
+  function mount(state = seededState()) {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={state} />
+      </MemoryRouter>
+    );
+  }
+
+  it('offers Everyone and Me for the standing reveal, and marks which is on', () => {
+    mount(applyAction(seededState(), { type: 'SET_LIBRARY_REVEAL', reveal: 'top-me' }));
+    openLibraryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Play with top revealed/ }));
+
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Me' }).getAttribute('aria-checked')).toBe(
+      'true'
+    );
+    expect(
+      screen.getByRole('menuitemcheckbox', { name: 'Everyone' }).getAttribute('aria-checked')
+    ).toBe('false');
+
+    // Switching audience is one step, not off-then-on.
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Everyone' }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_LIBRARY_REVEAL', reveal: 'top' });
+  });
+
+  it('reveals the top card once as an event, not a mode', () => {
+    mount();
+    openLibraryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Reveal top card/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Everyone' }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'REVEAL_TOP_CARD' });
+    // Not a standing reveal — nothing was switched on.
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'SET_LIBRARY_REVEAL' })
+    );
+  });
+
+  it('shows the top card to you alone when the audience is Me', () => {
+    mount();
+    openLibraryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Reveal top card/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Me' }));
+    expect(screen.getByText('Top of library')).toBeTruthy();
+    // Showing yourself a card is not an action the table hears about.
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('gives the whole-library reveal no Me — you can already read your own', () => {
+    mount();
+    openLibraryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Reveal library/ }));
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Everyone' })).toBeTruthy();
+    expect(screen.queryByRole('menuitemcheckbox', { name: 'Me' })).toBeNull();
+  });
+
+  it('turns the pile face up for either audience — Me is about them, not you', () => {
+    for (const reveal of ['top', 'top-me'] as const) {
+      const { unmount } = render(
+        <MemoryRouter>
+          <PlaytestBoard
+            state={applyAction(seededState(), { type: 'SET_LIBRARY_REVEAL', reveal })}
+          />
+        </MemoryRouter>
+      );
+      expect(document.querySelector('.playtest-pile__back--library'), reveal).toBeNull();
+      unmount();
+    }
+  });
+});
