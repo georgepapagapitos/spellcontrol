@@ -3,14 +3,14 @@
  * No `@testing-library/jest-dom` in this repo — assertions use plain
  * vitest/chai matchers.
  */
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { usePlayStore, type TickerItem } from '@/store/play';
 import type { PublicBoard, TickerEntry } from '@/lib/playtest/projection';
 import type { GamePlayer } from '@/lib/game-state';
 import type { OnlineTable } from '../hooks/use-online-table';
 import { GLANCE_QUERY } from './OpponentRail';
-import { TableTicker, tickerSeatName } from './TableTicker';
+import { TableTicker, TableTickerDock, tickerSeatName } from './TableTicker';
 
 /**
  * The rail's own test-stub lesson (see project history): a matchMedia stub
@@ -107,28 +107,111 @@ describe('tickerSeatName', () => {
   });
 });
 
-describe('TableTicker — glance panel', () => {
-  it('renders the feed with seat names and line text', () => {
+describe('TableTicker — glance density', () => {
+  it('renders nothing (the feed lives behind TableTickerDock now)', () => {
     mockGlance(true);
+    const { container } = render(<TableTicker onlineTable={table()} />);
+    expect(container.innerHTML).toBe('');
+  });
+});
+
+describe('TableTickerDock', () => {
+  it('starts closed with a plain label and no badge', () => {
+    render(<TableTickerDock onlineTable={table()} />);
+    const toggle = screen.getByRole('button', { name: 'Table log' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(toggle.getAttribute('aria-haspopup')).toBe('dialog');
+    expect(screen.queryByRole('log')).toBeNull();
+  });
+
+  it('opens the feed on click, with seat names and line text, and closes on the close button', () => {
     usePlayStore.setState({
       onlineTicker: [
         item(1, { text: 'Sol Ring played from hand' }),
         item(0, { text: 'Drew 1 card' }),
       ],
     });
-    render(<TableTicker onlineTable={table()} />);
+    render(<TableTickerDock onlineTable={table()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Table log' }));
+
     expect(screen.getByRole('log')).toBeTruthy();
     expect(screen.getByText('Sol Ring played from hand')).toBeTruthy();
     expect(screen.getByText('Maya')).toBeTruthy();
     expect(screen.getByText('Drew 1 card')).toBeTruthy();
     expect(screen.getByText('You')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Table log' }).getAttribute('aria-expanded')).toBe(
+      'true'
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close table log' }));
+    expect(screen.queryByRole('log')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Table log' }).getAttribute('aria-expanded')).toBe(
+      'false'
+    );
   });
 
   it('shows the empty state before any line arrives', () => {
-    mockGlance(true);
-    render(<TableTicker onlineTable={table()} />);
+    render(<TableTickerDock onlineTable={table()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Table log' }));
     expect(screen.getByText('Plays and messages will appear here.')).toBeTruthy();
     expect(screen.queryByRole('log')).toBeNull();
+  });
+
+  it('does not count backlog already in the feed at mount', () => {
+    usePlayStore.setState({ onlineTicker: [item(1, { text: 'old backlog line' })] });
+    render(<TableTickerDock onlineTable={table()} />);
+    expect(screen.getByRole('button', { name: 'Table log' })).toBeTruthy();
+  });
+
+  it('counts lines that arrive from other seats while closed, and the label carries the count', () => {
+    render(<TableTickerDock onlineTable={table()} />);
+    act(() => {
+      usePlayStore.setState((s) => ({
+        onlineTicker: [...s.onlineTicker, item(1, { text: 'Maya untapped everything' })],
+      }));
+    });
+    expect(screen.getByRole('button', { name: 'Table log, 1 unread' })).toBeTruthy();
+
+    act(() => {
+      usePlayStore.setState((s) => ({
+        onlineTicker: [...s.onlineTicker, item(2, { text: 'Rin drew a card' })],
+      }));
+    });
+    expect(screen.getByRole('button', { name: 'Table log, 2 unread' })).toBeTruthy();
+  });
+
+  it("never counts the viewer's own seat lines as unread", () => {
+    render(<TableTickerDock onlineTable={table()} />);
+    act(() => {
+      usePlayStore.setState((s) => ({
+        onlineTicker: [...s.onlineTicker, item(0, { text: 'You played a land' })],
+      }));
+    });
+    expect(screen.getByRole('button', { name: 'Table log' })).toBeTruthy();
+  });
+
+  it('resets the unread count the moment the panel opens', () => {
+    render(<TableTickerDock onlineTable={table()} />);
+    act(() => {
+      usePlayStore.setState((s) => ({
+        onlineTicker: [...s.onlineTicker, item(1, { text: 'Maya untapped everything' })],
+      }));
+    });
+    expect(screen.getByRole('button', { name: 'Table log, 1 unread' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Table log, 1 unread' }));
+    expect(screen.getByRole('button', { name: 'Table log' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Table log' }));
+    expect(screen.getByRole('button', { name: 'Table log' })).toBeTruthy();
+  });
+
+  it('closes on Escape when focus is inside the panel', () => {
+    render(<TableTickerDock onlineTable={table()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Table log' }));
+    const close = screen.getByRole('button', { name: 'Close table log' });
+    fireEvent.keyDown(close, { key: 'Escape' });
+    expect(screen.queryByRole('button', { name: 'Close table log' })).toBeNull();
   });
 });
 

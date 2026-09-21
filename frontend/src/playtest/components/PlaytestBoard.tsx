@@ -88,7 +88,7 @@ import { OpponentBoardModal } from './OpponentBoardModal';
 import { TableMoments } from './TableMoments';
 import { TriggerReminder, type TriggerCard } from './TriggerReminder';
 import { matchTriggers } from '../lib/triggers';
-import { TableTicker, tickerSeatName } from './TableTicker';
+import { TableTicker, TableTickerDock, tickerSeatName } from './TableTicker';
 import { TakebackModePicker } from './TakebackModePicker';
 import { TakebackPendingBanner } from './TakebackPendingBanner';
 import { TakebackConsentPrompt } from './TakebackConsentPrompt';
@@ -2531,11 +2531,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
 
       {/* Bottom-left dock column (table tier; the narrow tier keeps the log
           sheet and puts mana in the trackers row). Mana sits above the log,
-          and they stack with flexbox rather than arithmetic: the log's height
-          is content-driven and capped at a MAX, and it is unmounted entirely
-          when closed — any hand-computed offset is wrong in both directions
-          (an early one put the mana column off the top of the screen). */}
-      {!isNarrow && (manaRow || showLog) && (
+          above the table log toggle, and they stack with flexbox rather than
+          arithmetic: the log's height is content-driven and capped at a MAX,
+          and it is unmounted entirely when closed — any hand-computed offset
+          is wrong in both directions (an early one put the mana column off
+          the top of the screen). The dock mounts for an online table even
+          with no mana and the log closed: the table log toggle (#2073) has
+          to stay reachable, not appear only when something else is open. */}
+      {!isNarrow && (manaRow || showLog || onlineTable) && (
         <div className="playtest-left-dock">
           {manaRow && <div className="playtest-mana-dock">{manaRow}</div>}
           {showLog && (
@@ -2564,6 +2567,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               onClose={() => setShowLog(false)}
             />
           )}
+          {onlineTable && <TableTickerDock onlineTable={onlineTable} />}
         </div>
       )}
 
