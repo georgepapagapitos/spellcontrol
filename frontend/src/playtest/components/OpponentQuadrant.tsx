@@ -368,7 +368,8 @@ function QuadrantPile({
     >
       <span className="opponent-quadrant__pile-face">{children}</span>
       <span className="opponent-quadrant__pile-label" aria-hidden="true">
-        {label} ({count}){tax ? <span className="opponent-quadrant__pile-tax"> +{tax}</span> : null}
+        {label} <span className="opponent-quadrant__pile-count">({count})</span>
+        {tax ? <span className="opponent-quadrant__pile-tax"> +{tax}</span> : null}
       </span>
     </button>
   );

@@ -47,9 +47,14 @@
 }
 
 /* The turn ring the local board wears for your own turn (playtest.css
-   `.playtest-battlefield-wrap.is-my-turn`), on the seat that holds it. */
+   `.playtest-battlefield-wrap.is-my-turn`) — same weight, same colour, same
+   inset, so "whose turn" reads as one signal whether the active seat is
+   yours or an opponent's. Kept wide enough (plus an outer glow) to read at
+   a glance across the whole table, not just up close. */
 .opponent-quadrant.is-active-turn {
-  box-shadow: inset 0 0 0 2px var(--brand-seal-gold);
+  box-shadow:
+    inset 0 0 0 4px var(--brand-seal-gold),
+    0 0 20px 2px color-mix(in oklab, var(--brand-seal-gold) 45%, transparent);
 }
 
 .opponent-quadrant--turn-sweep {
@@ -236,18 +241,24 @@
 }
 
 .opponent-quadrant__hand-back {
-  width: calc(var(--pt-card-w) * 0.5);
-  height: calc(var(--pt-card-h) * 0.5);
+  /* Near-full card size, not a chip: the same back everywhere else in the
+     app wears (`.playtest-card__back`, `.opponent-mini-card__back`), so a
+     hand reads as a hand of Magic cards rather than a row of tokens. */
+  width: calc(var(--pt-card-w) * 0.82);
+  height: calc(var(--pt-card-h) * 0.82);
   flex: none;
   border-radius: var(--radius);
-  background: linear-gradient(135deg, #3a4a6a 0%, #1a2a4a 100%);
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.08);
+  background-color: #1e130b;
+  background-image: url('/card-back.webp');
+  background-size: cover;
+  background-position: center;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
   rotate: calc(var(--oq-i) * 3deg);
   transform-origin: bottom center;
 }
 
 .opponent-quadrant__hand-back + .opponent-quadrant__hand-back {
-  margin-left: calc(var(--pt-card-w) * -0.22);
+  margin-left: calc(var(--pt-card-w) * -0.5);
 }
 
 .opponent-quadrant__hand-more {
@@ -314,6 +325,21 @@
 .opponent-quadrant__pile-label {
   font-size: var(--text-xs);
   white-space: nowrap;
+}
+
+/* Reserves room for a second digit so a zone crossing the single/double-digit
+   boundary (a draw, a mill) does not resize the tile and shift the row next
+   to it — same idea as the local board's `.playtest-pile__count`. */
+/* The whole "(N)" is the reserved slot, not the digits inside it: reserving
+   width between the parentheses rendered a single-digit count as "(  0)",
+   with a visible hole. Sized for three digits so a 100+ library never
+   reflows the row, and left-aligned so the slack falls after the closing
+   paren where it reads as spacing. */
+.opponent-quadrant__pile-count {
+  display: inline-block;
+  min-width: 3.5ch;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
 }
 
 .opponent-quadrant__pile-tax {
