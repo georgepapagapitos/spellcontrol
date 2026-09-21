@@ -2263,6 +2263,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         commanderTax={state.commanderTax}
         click={{ label: 'View the command zone', onClick: () => setViewer({ zone: 'command' }) }}
         onMenu={openPileMenu('command')}
+        // Clicking a commander casts it. It is the command zone's one
+        // obvious action (the viewer's primary is already "Cast"), and with
+        // partners the pile cannot guess which of the two you meant — so the
+        // choice IS the click. The reducer bumps that commander's own tax.
+        onCastCommander={(card) => {
+          const pos = placeOnBattlefield(card);
+          dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: card.id, x: pos.x, y: pos.y });
+        }}
       />
     </aside>
   );
