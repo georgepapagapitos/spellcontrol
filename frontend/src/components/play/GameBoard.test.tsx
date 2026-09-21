@@ -149,3 +149,36 @@ describe('Board overlays answer Escape', () => {
     expect(document.activeElement).toBe(trigger);
   });
 });
+
+describe('Right-click belongs to the board', () => {
+  // The board is a game surface, not a document: its own gestures own
+  // right-click, so the native browser menu never opens over the felt or the
+  // chrome. `fireEvent` returns false when the event was cancelled, which is
+  // exactly "no native menu here".
+  it('cancels the native menu across the board, chrome included', () => {
+    const game = makeTestState([makeTestPlayer()], { mode: 'local', status: 'active' });
+    render(<GameBoard game={game} dispatch={vi.fn()} canControlAll />);
+
+    const board = document.querySelector('.game-board')!;
+    const menuBtn = screen.getByRole('button', { name: 'Game menu' });
+
+    for (const target of [board, menuBtn]) {
+      expect(fireEvent.contextMenu(target)).toBe(false);
+    }
+  });
+
+  it('leaves a text field its own menu, so paste still works', () => {
+    const game = makeTestState([makeTestPlayer({ name: 'Alice' })], {
+      mode: 'local',
+      status: 'active',
+    });
+    render(<GameBoard game={game} dispatch={vi.fn()} canControlAll />);
+    fireEvent.click(screen.getByRole('button', { name: 'Seat menu' }));
+
+    // The seat menu's "Set life to" field is a real input on the board — the
+    // one place a player types rather than taps, and the case the board-wide
+    // suppression has to leave alone.
+    const lifeInput = screen.getByLabelText('Set life to');
+    expect(fireEvent.contextMenu(lifeInput)).toBe(true);
+  });
+});
