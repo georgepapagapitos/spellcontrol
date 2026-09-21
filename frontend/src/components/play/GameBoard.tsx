@@ -13,6 +13,7 @@ import { paletteForSeat } from '../../lib/seat-palette';
 import { useAnimatedNumber } from '../../lib/use-animated-number';
 import { useFloatingDelta } from '../../lib/use-floating-delta';
 import { haptics } from '../../lib/haptics';
+import { suppressNativeContextMenu } from '../../lib/suppress-context-menu';
 import { useWakeLock } from '../../lib/use-wake-lock';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
 import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
@@ -177,6 +178,9 @@ export function GameBoard({
         isCustomLayout(board.id) ? 'custom' : board.id
       } mode-${game.mode}${cmdFocus ? ' is-cmd-focus' : ''}`}
       data-shared={isShared || undefined}
+      // Right-click belongs to the board, not the browser — same ruling as the
+      // playtest table.
+      onContextMenu={suppressNativeContextMenu}
     >
       <div
         className="game-board-grid"
