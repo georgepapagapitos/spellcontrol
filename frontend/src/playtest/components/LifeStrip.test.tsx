@@ -303,3 +303,48 @@ describe('LifeStrip — online mode', () => {
     });
   });
 });
+
+describe('LifeStrip — the table popover escapes its chip', () => {
+  /**
+   * `.playtest-life-table` carries `backdrop-filter: blur(6px)`, which makes it
+   * a containing block for `position: fixed` descendants exactly as a transform
+   * would. The popover is positioned from VIEWPORT coordinates, so rendered as
+   * a child of the chip those coordinates were applied relative to the chip.
+   *
+   * On the local board the chip sits at (12, 12) and the error was 13px, so it
+   * went unnoticed. At an online table's 2x2 grid the chip sits in a quadrant
+   * roughly 530px down, and the panel landed off the bottom of the screen: the
+   * chevron looked dead. jsdom has no layout and cannot see that, but it can
+   * see where the node is mounted.
+   */
+  it('portals the popover to the body, not inside the life chip', () => {
+    render(<LifeStrip {...soloProps()} variant="table" />);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Opponents, commander damage and counters' })
+    );
+    const panel = document.querySelector('.playtest-life-panel-floating');
+    expect(panel).toBeTruthy();
+    expect(panel?.closest('.playtest-life-table')).toBeNull();
+  });
+
+  it('opens from the chevron at an online table too, not only solo', () => {
+    render(
+      <LifeStrip
+        {...soloProps()}
+        variant="table"
+        onlineTable={onlineTable({
+          players: [
+            player({ seat: 0, name: 'seat1' }),
+            player({ seat: 1, name: 'seat2' }),
+            player({ seat: 2, name: 'seat3' }),
+            player({ seat: 3, name: 'seat4' }),
+          ],
+        })}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Opponents, commander damage and counters' })
+    );
+    expect(document.querySelector('.playtest-life-panel-floating')).toBeTruthy();
+  });
+});
