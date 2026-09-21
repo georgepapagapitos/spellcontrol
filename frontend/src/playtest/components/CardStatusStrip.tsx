@@ -2,7 +2,7 @@ import type { BattlefieldCard, PlaytestCard } from '@/lib/playtest';
 import { displayPT } from '../lib/power-toughness';
 import './CardStatusStrip.css';
 
-interface Props {
+export interface CardStatusStripProps {
   card: PlaytestCard;
   /** The permanent, when this card is on the battlefield. A card inspected
    *  from hand has none, and then the strip is only the commander tax. */
@@ -23,7 +23,7 @@ interface Props {
  * carries the board's own facts rather than making them go back and count
  * counters on a card they have covered with a menu.
  */
-export function CardStatusStrip({ card, bf, attachedToName, tax = 0 }: Props) {
+export function CardStatusStrip({ card, bf, attachedToName, tax = 0 }: CardStatusStripProps) {
   const counters = Object.entries(bf?.counters ?? {}).filter(([, n]) => n > 0);
   // The body as the board reads it, which folds in BOTH the hand-applied
   // modifier and the ±1/±1 counters (see `displayPT`). `modified` is what
