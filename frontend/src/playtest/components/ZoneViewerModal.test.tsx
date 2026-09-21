@@ -204,3 +204,40 @@ describe('ZoneViewerModal — footer', () => {
     expect(screen.queryByRole('button', { name: /Shuffle/ })).toBeNull();
   });
 });
+
+/**
+ * The other side of face-down exile: its owner CAN read it — you know what
+ * you exiled — and needs to be told the table cannot.
+ */
+describe('ZoneViewerModal — your own face-down exile', () => {
+  it('shows the card, badged as face down', () => {
+    const cards = [ptCard('a', 'Hidden Thing'), ptCard('b', 'Open Thing')];
+    render(
+      <ZoneViewerModal
+        zone="exile"
+        cards={cards}
+        hiddenIds={new Set(['a'])}
+        onClose={() => {}}
+        onMove={() => {}}
+      />
+    );
+    // Readable to you, both of them (the name appears on the tile and in
+    // its placeholder, hence getAllByText).
+    expect(screen.getAllByText('Hidden Thing').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Open Thing').length).toBeGreaterThan(0);
+    // And exactly one is marked as hidden from everyone else.
+    expect(screen.getAllByText('Face down')).toHaveLength(1);
+  });
+
+  it('badges nothing when nothing is hidden', () => {
+    render(
+      <ZoneViewerModal
+        zone="exile"
+        cards={[ptCard('a', 'Open Thing')]}
+        onClose={() => {}}
+        onMove={() => {}}
+      />
+    );
+    expect(screen.queryByText('Face down')).toBeNull();
+  });
+});

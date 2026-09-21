@@ -33,6 +33,7 @@ const SAMPLE_ACTIONS: Record<PlaytestAction['type'], PlaytestAction> = {
   MULLIGAN: { type: 'MULLIGAN' },
   MOVE_TO_ZONE: { type: 'MOVE_TO_ZONE', cardId: 'x', to: 'graveyard' },
   MOVE_ALL_TO: { type: 'MOVE_ALL_TO', from: 'graveyard', to: 'exile' },
+  MOVE_TOP_N: { type: 'MOVE_TOP_N', n: 3, to: 'graveyard' },
   SET_LIBRARY_REVEAL: { type: 'SET_LIBRARY_REVEAL', reveal: 'top' },
   REVEAL_TOP_CARD: { type: 'REVEAL_TOP_CARD' },
   RESOLVE_TOP: { type: 'RESOLVE_TOP', mode: 'scry', top: [] },

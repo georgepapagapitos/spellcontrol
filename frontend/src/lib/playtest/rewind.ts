@@ -150,6 +150,11 @@ export function classifyAction(
     case 'MOVE_TO_ZONE':
       return moveToZoneVerdict(locateZone(current, action.cardId));
 
+    case 'MOVE_TOP_N':
+      // Always off the library, so always the library rule: the actor now
+      // knows cards they had not seen, and no replay un-knows them.
+      return classification('locked', LOCKED_LIBRARY_LOOK);
+
     case 'MOVE_ALL_TO':
       // Same rule as one card moving, applied to the whole zone: emptying
       // the library into somewhere public shows the actor every card that

@@ -1597,3 +1597,84 @@ describe('snapshot() keeps the whole state', () => {
     }
   });
 });
+
+describe('MOVE_TOP_N', () => {
+  it('takes exactly n off the top, in order', () => {
+    const before = init(10, 1, 0);
+    const top3 = before.zones.library.slice(0, 3).map((c) => c.id);
+    const after = applyAction(before, { type: 'MOVE_TOP_N', n: 3, to: 'graveyard' });
+    expect(after.zones.graveyard.map((c) => c.id)).toEqual(top3);
+    expect(after.zones.library).toHaveLength(7);
+    expect(allCardIds(after)).toEqual(allCardIds(before));
+  });
+
+  it('takes what is there when asked for more than the library holds', () => {
+    const before = init(4, 1, 0);
+    const after = applyAction(before, { type: 'MOVE_TOP_N', n: 99, to: 'exile' });
+    expect(after.zones.exile).toHaveLength(4);
+    expect(after.zones.library).toHaveLength(0);
+  });
+
+  it('is a no-op for nothing to move, and never moves the library into itself', () => {
+    const s = init(5, 1, 0);
+    expect(applyAction(s, { type: 'MOVE_TOP_N', n: 0, to: 'exile' })).toBe(s);
+    expect(applyAction(s, { type: 'MOVE_TOP_N', n: -3, to: 'exile' })).toBe(s);
+    expect(applyAction(s, { type: 'MOVE_TOP_N', n: 3, to: 'library' })).toBe(s);
+    const empty = init(3, 1, 3);
+    expect(applyAction(empty, { type: 'MOVE_TOP_N', n: 2, to: 'exile' })).toBe(empty);
+  });
+
+  it('marks exiled cards face down only when asked, and only in exile', () => {
+    const before = init(10, 1, 0);
+    const top2 = before.zones.library.slice(0, 2).map((c) => c.id);
+
+    const open = applyAction(before, { type: 'MOVE_TOP_N', n: 2, to: 'exile' });
+    expect(open.faceDownExile ?? []).toEqual([]);
+
+    const hidden = applyAction(before, { type: 'MOVE_TOP_N', n: 2, to: 'exile', faceDown: true });
+    expect(hidden.faceDownExile).toEqual(top2);
+
+    // Face down is a property of being in exile — nowhere else takes it.
+    const milled = applyAction(before, {
+      type: 'MOVE_TOP_N',
+      n: 2,
+      to: 'graveyard',
+      faceDown: true,
+    });
+    expect(milled.faceDownExile ?? []).toEqual([]);
+  });
+});
+
+describe('face-down exile stops being face down when the card leaves', () => {
+  function withHidden() {
+    return applyAction(init(10, 1, 0), { type: 'MOVE_TOP_N', n: 2, to: 'exile', faceDown: true });
+  }
+
+  it('drops a card that moves out of exile', () => {
+    const s = withHidden();
+    const [first] = s.zones.exile;
+    const after = applyAction(s, { type: 'MOVE_TO_ZONE', cardId: first.id, to: 'hand' });
+    expect(after.faceDownExile).not.toContain(first.id);
+    // The other one is untouched.
+    expect(after.faceDownExile).toHaveLength(1);
+  });
+
+  it('does not re-hide a card that comes back to exile face up', () => {
+    const s = withHidden();
+    const [first] = s.zones.exile;
+    const out = applyAction(s, { type: 'MOVE_TO_ZONE', cardId: first.id, to: 'hand' });
+    const back = applyAction(out, { type: 'MOVE_TO_ZONE', cardId: first.id, to: 'exile' });
+    expect(back.faceDownExile).not.toContain(first.id);
+  });
+
+  it('clears the list when exile is emptied wholesale', () => {
+    // Neither path goes through `pluck`, so both clear it by hand.
+    expect(
+      applyAction(withHidden(), { type: 'SHUFFLE_ZONE_INTO_LIBRARY', zone: 'exile' }).faceDownExile
+    ).toEqual([]);
+    expect(
+      applyAction(withHidden(), { type: 'MOVE_ALL_TO', from: 'exile', to: 'graveyard' })
+        .faceDownExile
+    ).toEqual([]);
+  });
+});
