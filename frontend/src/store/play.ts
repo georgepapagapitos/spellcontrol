@@ -36,10 +36,14 @@ import { subscribeGameLongPoll, usesLongPoll } from '../lib/games-longpoll';
 import { cancelBoardPublish } from '../lib/games-board';
 import { setHapticsEnabled } from '../lib/haptics';
 import { clearUndo } from '../lib/undo-stack';
+import { applyEditToRecord, applyEditToState } from '../lib/edit-game-record';
 import { FORMAT_OPTIONS } from '../lib/game-formats';
 import type { PublicBoard, TickerEntry } from '../lib/playtest/projection';
 import {
   deleteGameResult,
+  patchGameResult,
+  setGameResultHidden,
+  type GameResultEdit,
   fetchMyResults,
   postLocalResult,
   resultToRecord,
@@ -366,6 +370,27 @@ interface PlayState {
    * record and is never deleted — callers hide the control for those.
    */
   removeHistory(id: string): void;
+  /**
+   * Correct the attribution on a game this account recorded: who won, and
+   * which deck sat where. Shown at once, then written — a game still queued
+   * for upload is corrected in the queue instead, so the upload carries the
+   * fix rather than the mistake.
+   */
+  editHistory(id: string, edit: GameResultEdit): Promise<void>;
+  /**
+   * Drop an online game out of this account's list, or put it back. An online
+   * row is the table's shared record, so this hides it and never retracts it;
+   * every stats read still counts the game. Guests have no server list, so it
+   * just leaves the device's own list.
+   */
+  setHistoryHidden(id: string, hidden: boolean): Promise<void>;
+  /** The rows this account has hidden, fetched on demand so they can be
+   *  offered back. Empty until `loadHiddenHistory` runs. */
+  hiddenHistory: GameRecord[];
+  /** How many rows this account has hidden, known from any history read —
+   *  so the History tab can offer them without a speculative request. */
+  hiddenCount: number;
+  loadHiddenHistory(): Promise<void>;
   /** Signed in: replace `history` with the server's list. Guests: no-op. */
   loadHistory(): Promise<void>;
   /** Post every queued local result, oldest first. No-op for guests. */
@@ -758,6 +783,8 @@ export const usePlayStore = create<PlayState>()(
       onlineArrows: [],
       onlineTicker: [],
       history: [],
+      hiddenHistory: [],
+      hiddenCount: 0,
       pendingResults: [],
       hydrated: false,
       onlineError: null,
@@ -1263,10 +1290,94 @@ export const usePlayStore = create<PlayState>()(
         }
       },
 
+      editHistory: async (id, edit) => {
+        const before = get().history.find((r) => r.id === id);
+        if (!before) return;
+        const queued = get().pendingResults.find((g) => g.id === id);
+        set((s) => ({
+          history: s.history.map((r) => (r.id === id ? applyEditToRecord(r, edit) : r)),
+          pendingResults: s.pendingResults.map((g) =>
+            g.id === id ? applyEditToState(g, edit) : g
+          ),
+        }));
+        // A game still in the queue has no server row yet — the corrected
+        // state above IS the write. Same for a guest, and for a row this
+        // account did not record (the server would refuse it anyway).
+        const me = useAuth.getState().user?.id ?? null;
+        if (queued || before.mode !== 'local' || !me || before.recordedByUserId !== me) return;
+        try {
+          const record = resultToRecord(await patchGameResult(id, edit));
+          set((s) => ({ history: s.history.map((r) => (r.id === id ? record : r)) }));
+        } catch (err) {
+          // Put the row back as it was and say so. There is no outbox for
+          // history, so a change that did not land must not sit there looking
+          // saved.
+          set((s) => ({ history: s.history.map((r) => (r.id === id ? before : r)) }));
+          toast.show({
+            message: userMessage(err, "Couldn't save that change."),
+            tone: 'error',
+          });
+        }
+      },
+
+      setHistoryHidden: async (id, hidden) => {
+        const rec = hidden
+          ? get().history.find((r) => r.id === id)
+          : get().hiddenHistory.find((r) => r.id === id);
+        if (!rec) return;
+        set((s) =>
+          hidden
+            ? {
+                history: s.history.filter((r) => r.id !== id),
+                hiddenHistory: [rec, ...s.hiddenHistory],
+                hiddenCount: s.hiddenCount + 1,
+              }
+            : {
+                history: [rec, ...s.history].sort((a, b) => b.endedAt - a.endedAt),
+                hiddenHistory: s.hiddenHistory.filter((r) => r.id !== id),
+                hiddenCount: Math.max(0, s.hiddenCount - 1),
+              }
+        );
+        // A guest's list is this device's alone: there is nothing to tell the
+        // server, and nothing that would come back on the next read.
+        if (!signedIn()) return;
+        try {
+          await setGameResultHidden(id, hidden);
+        } catch (err) {
+          set((s) =>
+            hidden
+              ? {
+                  history: [rec, ...s.history].sort((a, b) => b.endedAt - a.endedAt),
+                  hiddenHistory: s.hiddenHistory.filter((r) => r.id !== id),
+                  hiddenCount: Math.max(0, s.hiddenCount - 1),
+                }
+              : {
+                  history: s.history.filter((r) => r.id !== id),
+                  hiddenHistory: [rec, ...s.hiddenHistory],
+                  hiddenCount: s.hiddenCount + 1,
+                }
+          );
+          toast.show({
+            message: userMessage(
+              err,
+              hidden ? "Couldn't hide that game." : "Couldn't bring that game back."
+            ),
+            tone: 'error',
+          });
+        }
+      },
+
+      loadHiddenHistory: async () => {
+        if (!signedIn()) return;
+        const { results } = await fetchMyResults({ limit: 200, hidden: true });
+        set({ hiddenHistory: results.map(resultToRecord) });
+      },
+
       loadHistory: async () => {
         if (!signedIn()) return;
-        const { results } = await fetchMyResults({ limit: 200 });
+        const { results, hiddenCount } = await fetchMyResults({ limit: 200 });
         const fromServer = results.map(resultToRecord);
+        set({ hiddenCount });
         set((s) => {
           // A game still waiting to post is real history the server doesn't
           // know yet — keep its on-device record ahead of the server's list.

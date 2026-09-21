@@ -316,3 +316,35 @@ export function isKeyMoment(row: { kind: GameEvent['kind']; delta?: number }): b
   }
   return false;
 }
+
+/**
+ * Re-point a stored summary at a different winner, for the one case where a
+ * finished game's attribution is corrected after the fact (a mistapped seat).
+ *
+ * The summarizer stamps the winner as 1st place, so simply changing
+ * `winnerSeat` would leave the old winner still claiming first and the row
+ * would read as two winners. Everything else is a fact of the event log and
+ * is left alone: an eliminated seat keeps the placement its elimination order
+ * earned, and a survivor who is no longer the winner goes back to `null` —
+ * the same "no placement" a living seat gets.
+ *
+ * Shared rather than reimplemented on each side: the server applies it when
+ * it writes the correction, and the client applies it to show the correction
+ * immediately, so a game still queued for upload never displays a placement
+ * the server would disagree with.
+ */
+export function reseatSummaryWinner(
+  summary: GameSummary,
+  winnerSeat: number | null,
+  eliminatedSeats: ReadonlySet<number>
+): GameSummary {
+  return {
+    ...summary,
+    winnerSeat,
+    seats: summary.seats.map((s) => {
+      if (s.seat === winnerSeat) return { ...s, placement: 1 };
+      if (s.placement === 1 && !eliminatedSeats.has(s.seat)) return { ...s, placement: null };
+      return s;
+    }),
+  };
+}

@@ -10,7 +10,8 @@ import type {
 } from '../games/result-types';
 import { rollupForUser, killEdges } from '../games/rollup';
 import { buildGameResultRow, insertGameResult } from '../games/persist-result';
-import { MAX_LOCAL_RESULT_BYTES, parseLocalResult } from '../games/local-result';
+import { MAX_LOCAL_RESULT_BYTES, parseLocalResult, parseResultEdit } from '../games/local-result';
+import { applyResultEdit } from '../games/edit-result';
 import type { GameEvent, GameSummary } from '@spellcontrol/game-core';
 
 export const gameResultsRouter: Router = Router();
@@ -159,21 +160,45 @@ gameResultsRouter.get('/mine', requireAuth, readLimiter, async (req: Request, re
     beforeId = req.query.before.slice(idx + 1);
   }
 
-  const rows = await getPool().query<ResultRow>(
+  // `hidden=1` flips the list to the rows the caller has hidden. Hiding is
+  // never a one-way door: this is how the History tab hands them back.
+  const hiddenOnly = req.query.hidden === '1';
+
+  const pool = getPool();
+  const rows = await pool.query<ResultRow>(
     `SELECT ${RESULT_COLUMNS}
-       FROM game_results
+       FROM game_results r
       WHERE (participants @> $1::jsonb OR recorded_by_user_id = $2)
         AND ($3::text IS NULL OR mode = $3)
         AND ($4::bigint IS NULL OR (ended_at, session_id) < ($4, $5))
+        AND (EXISTS (SELECT 1
+                       FROM game_result_hidden h
+                      WHERE h.session_id = r.session_id AND h.user_id = $2)) = $7::boolean
       ORDER BY ended_at DESC, session_id DESC
       LIMIT $6`,
-    [participantFilter(callerId), callerId, mf.mode, beforeEnded, beforeId ?? '', limit + 1]
+    [
+      participantFilter(callerId),
+      callerId,
+      mf.mode,
+      beforeEnded,
+      beforeId ?? '',
+      limit + 1,
+      hiddenOnly,
+    ]
+  );
+  // Cheap indexed count, returned on every page so the History tab can offer
+  // the hidden list without a speculative second request for the 99% of
+  // accounts that have hidden nothing.
+  const counted = await pool.query<{ n: string }>(
+    `SELECT COUNT(*) AS n FROM game_result_hidden WHERE user_id = $1`,
+    [callerId]
   );
   const page = rows.rows.slice(0, limit);
   const last = page[page.length - 1];
   res.json({
     results: page.map(toPublic),
     nextCursor: rows.rows.length > limit && last ? `${last.ended_at}:${last.session_id}` : null,
+    hiddenCount: Number(counted.rows[0]?.n ?? 0),
   });
 });
 
@@ -196,6 +221,131 @@ gameResultsRouter.delete(
       [sessionId, callerId]
     );
     if ((r.rowCount ?? 0) === 0) return res.status(404).json({ error: 'No such game.' });
+    res.json({ ok: true });
+  }
+);
+
+// ────────────────────────────────────────────────
+// PATCH /api/game-results/:sessionId
+// Correct a LOCAL game the caller recorded: the winner, and each seat's deck.
+// Nothing derived from the event log moves (see applyResultEdit) — this fixes
+// attribution a human typed, it does not rewrite what the device witnessed.
+// Same ownership rule and same uniform 404 as DELETE.
+// ────────────────────────────────────────────────
+gameResultsRouter.patch(
+  '/:sessionId',
+  requireAuth,
+  writeLimiter,
+  async (req: Request, res: Response) => {
+    const callerId = req.user!.id;
+    const sessionId = String(req.params.sessionId ?? '');
+    const parsed = parseResultEdit(req.body);
+    if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+    const edit = parsed.edit;
+
+    const pool = getPool();
+    const current = await pool.query<ResultRow>(
+      `SELECT ${RESULT_COLUMNS}
+         FROM game_results
+        WHERE session_id = $1 AND mode = 'local' AND recorded_by_user_id = $2`,
+      [sessionId, callerId]
+    );
+    const row = current.rows[0];
+    if (!row) return res.status(404).json({ error: 'No such game.' });
+
+    const seats = new Set(row.participants.map((p) => p.seat));
+    if (edit.winnerSeat !== null && !seats.has(edit.winnerSeat)) {
+      return res.status(400).json({ error: 'That seat is not in this game.' });
+    }
+    for (const seat of edit.decks.keys()) {
+      if (!seats.has(seat))
+        return res.status(400).json({ error: 'That seat is not in this game.' });
+    }
+    // The persist path refuses to stamp an eliminated seat as the winner; an
+    // edit must not become the way around that.
+    if (row.participants.some((p) => p.seat === edit.winnerSeat && p.eliminated)) {
+      return res.status(400).json({ error: 'A seat that was eliminated cannot be the winner.' });
+    }
+
+    const next = applyResultEdit(row.participants, row.summary, edit);
+    const updated = await pool.query<ResultRow>(
+      `UPDATE game_results
+          SET winner_seat = $3, winner_user_id = $4, participants = $5::jsonb, summary = $6::jsonb
+        WHERE session_id = $1 AND mode = 'local' AND recorded_by_user_id = $2
+        RETURNING ${RESULT_COLUMNS}`,
+      [
+        sessionId,
+        callerId,
+        next.winnerSeat,
+        next.winnerUserId,
+        JSON.stringify(next.participants),
+        next.summary === null ? null : JSON.stringify(next.summary),
+      ]
+    );
+    const saved = updated.rows[0];
+    if (!saved) return res.status(404).json({ error: 'No such game.' });
+    res.json({ result: toPublic(saved) });
+  }
+);
+
+// ────────────────────────────────────────────────
+// PUT / DELETE /api/game-results/:sessionId/hidden
+// Drop a row out of the caller's own history list, or put it back.
+//
+// Exactly the rows they can see but cannot delete: every online game (the
+// table's shared record) and every local game a FRIEND recorded them into.
+// Both land in their history with no other way off it. A local row the caller
+// recorded themselves is excluded on purpose — that one is deleted outright,
+// and hiding it would be a second path to the same thing.
+//
+// Hiding is list curation and never a retraction: every stats read still
+// counts the game, so a seat cannot use this to quietly rewrite a shared
+// win-loss. Uniform 404 for "not yours" and "no such row", matching DELETE.
+// ────────────────────────────────────────────────
+async function callerCanHide(sessionId: string, callerId: string): Promise<boolean> {
+  const r = await getPool().query(
+    `SELECT 1 FROM game_results
+      WHERE session_id = $1
+        AND (participants @> $2::jsonb OR recorded_by_user_id = $3)
+        AND NOT (mode = 'local' AND recorded_by_user_id = $3)`,
+    [sessionId, participantFilter(callerId), callerId]
+  );
+  return (r.rowCount ?? 0) > 0;
+}
+
+gameResultsRouter.put(
+  '/:sessionId/hidden',
+  requireAuth,
+  writeLimiter,
+  async (req: Request, res: Response) => {
+    const callerId = req.user!.id;
+    const sessionId = String(req.params.sessionId ?? '');
+    if (!(await callerCanHide(sessionId, callerId))) {
+      return res.status(404).json({ error: 'No such game.' });
+    }
+    await getPool().query(
+      `INSERT INTO game_result_hidden (session_id, user_id, hidden_at)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (session_id, user_id) DO NOTHING`,
+      [sessionId, callerId, Date.now()]
+    );
+    res.json({ ok: true });
+  }
+);
+
+gameResultsRouter.delete(
+  '/:sessionId/hidden',
+  requireAuth,
+  writeLimiter,
+  async (req: Request, res: Response) => {
+    const callerId = req.user!.id;
+    const sessionId = String(req.params.sessionId ?? '');
+    // No ownership pre-check: a row you hid stays un-hideable by you even if
+    // you later lost your seat, and deleting a row you never hid is a no-op.
+    await getPool().query(`DELETE FROM game_result_hidden WHERE session_id = $1 AND user_id = $2`, [
+      sessionId,
+      callerId,
+    ]);
     res.json({ ok: true });
   }
 );

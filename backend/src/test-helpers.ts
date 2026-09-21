@@ -463,6 +463,13 @@ export async function createTestEnv(): Promise<TestEnv> {
     CREATE INDEX game_results_participants_idx ON game_results USING GIN (participants);
     CREATE INDEX game_results_ended_idx ON game_results(ended_at DESC);
     CREATE INDEX game_results_recorded_by_idx ON game_results(recorded_by_user_id);
+    CREATE TABLE game_result_hidden (
+      session_id TEXT NOT NULL,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      hidden_at BIGINT NOT NULL,
+      PRIMARY KEY (session_id, user_id)
+    );
+    CREATE INDEX game_result_hidden_user_idx ON game_result_hidden(user_id);
     CREATE TABLE app_migrations (
       name TEXT PRIMARY KEY,
       applied_at BIGINT NOT NULL

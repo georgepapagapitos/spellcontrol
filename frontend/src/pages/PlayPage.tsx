@@ -33,6 +33,8 @@ import { OnlineGameView } from '../components/play/OnlineGameView';
 import { OnlineLobby } from '../components/play/OnlineLobby';
 import { RoomBrowser } from '../components/play/RoomBrowser';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { OverflowMenu, type OverflowMenuItem } from '../components/OverflowMenu';
+import { GameResultEditDialog } from '../components/play/GameResultEditDialog';
 import { SelectMenu } from '../components/SelectMenu';
 import { Tabs } from '../components/Tabs';
 import { StackedBar } from '../components/shared/MeterBar';
@@ -1520,15 +1522,59 @@ function OnlineBoardDoor({
 type HistoryFilter = 'all' | 'local' | 'online';
 
 /**
- * Whether the × may remove this record. A local game is deletable by the
- * device that holds it (a guest's device-only record) or the account that
- * posted it; an online game is the table's shared record and nobody's to
- * remove. A record read back from the server without a recorder is the same.
+ * A local row this device or account owns. The only kind that can be
+ * corrected, and the only kind that can be deleted outright.
  */
-function canRemoveRecord(rec: GameRecord, userId: string | null): boolean {
+function ownsRecord(rec: GameRecord, userId: string | null): boolean {
   if (rec.mode !== 'local') return false;
   if (userId === null) return true;
   return rec.recordedByUserId === undefined || rec.recordedByUserId === userId;
+}
+
+/**
+ * A row this account can see but never delete: an online game (the table's
+ * shared record) or a local one a friend recorded them into. It leaves their
+ * list and nothing else - the game still counts in every win-loss.
+ */
+function canHideRecord(rec: GameRecord, userId: string | null): boolean {
+  return userId !== null && !ownsRecord(rec, userId);
+}
+
+/** A guest's history is this device's alone, so anything on it can leave it. */
+function canDropRecord(rec: GameRecord, userId: string | null): boolean {
+  return userId === null || ownsRecord(rec, userId) || canHideRecord(rec, userId);
+}
+
+/** What leaving the list means for a row: gone for good, or out of sight. */
+function dropKind(rec: GameRecord, userId: string | null): 'remove' | 'hide' {
+  return canHideRecord(rec, userId) ? 'hide' : 'remove';
+}
+
+/**
+ * The confirm body for dropping `records`, which may mix the two kinds. Each
+ * kind is spelled out, because one is permanent and the other is not, and a
+ * single sentence covering both would be true of neither.
+ */
+function dropConfirmBody(records: GameRecord[], userId: string | null): string {
+  const removing = records.filter((r) => dropKind(r, userId) === 'remove').length;
+  const hiding = records.length - removing;
+  const parts: string[] = [];
+  if (removing > 0) {
+    parts.push(
+      removing === 1
+        ? 'One game leaves your history for good, along with the deck records built from it.'
+        : `${removing} games leave your history for good, along with the deck records built from them.`
+    );
+  }
+  if (hiding > 0) {
+    parts.push(
+      hiding === 1
+        ? 'One game leaves your list. The table keeps its record, and your win-loss still counts it.'
+        : `${hiding} games leave your list. The table keeps its record, and your win-loss still counts them.`
+    );
+  }
+  if (removing > 0) parts.push("Removing can't be undone.");
+  return parts.join(' ');
 }
 
 function HistoryTab({
@@ -1541,10 +1587,22 @@ function HistoryTab({
   onRematch: (rec: GameRecord) => void;
 }) {
   const removeHistory = usePlayStore((s) => s.removeHistory);
-  // The × sits on every row of a list a thumb scrolls past, and a removed
-  // record is gone for good (no undo) — so it asks first, like every other
-  // destructive exit on this page.
-  const [pendingRemove, setPendingRemove] = useState<GameRecord | null>(null);
+  const editHistory = usePlayStore((s) => s.editHistory);
+  const setHistoryHidden = usePlayStore((s) => s.setHistoryHidden);
+  const loadHiddenHistory = usePlayStore((s) => s.loadHiddenHistory);
+  const hiddenHistory = usePlayStore((s) => s.hiddenHistory);
+  const hiddenCount = usePlayStore((s) => s.hiddenCount);
+  const decks = useDecksStore((s) => s.decks);
+  // Dropping a row is asked about first: removal is permanent, and even a
+  // hide is worth naming so nobody thinks they just deleted a shared record.
+  const [pendingDrop, setPendingDrop] = useState<GameRecord[] | null>(null);
+  const [editing, setEditing] = useState<GameRecord | null>(null);
+  // Selection is opt-in: a permanent checkbox column would put a control in
+  // front of every row of a list people mostly come here to read.
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+  const [showHidden, setShowHidden] = useState(false);
+  const [loadingHidden, setLoadingHidden] = useState(false);
   // Both modes live in one list on purpose (one record per game, wherever it
   // was played); the filter is how you look at just one of them.
   const [filter, setFilter] = useState<HistoryFilter>('all');
@@ -1556,6 +1614,39 @@ function HistoryTab({
   const matchupRows = useMemo(() => aggregateMatchupRecords(shown, userId), [shown, userId]);
   const hasBothModes =
     history.some((r) => r.mode === 'local') && history.some((r) => r.mode === 'online');
+  const droppable = useMemo(() => shown.filter((r) => canDropRecord(r, userId)), [shown, userId]);
+  const selectedRecords = useMemo(
+    () => droppable.filter((r) => selected.has(r.id)),
+    [droppable, selected]
+  );
+
+  const dropRecords = (records: GameRecord[]) => {
+    for (const rec of records) {
+      if (dropKind(rec, userId) === 'hide') void setHistoryHidden(rec.id, true);
+      else removeHistory(rec.id);
+    }
+    setSelected(new Set());
+    setSelecting(false);
+  };
+
+  const toggleSelected = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+
+  const openHidden = async () => {
+    const next = !showHidden;
+    setShowHidden(next);
+    if (!next || hiddenHistory.length > 0) return;
+    setLoadingHidden(true);
+    try {
+      await loadHiddenHistory();
+    } finally {
+      setLoadingHidden(false);
+    }
+  };
 
   // Authed users always get the server-authoritative Friends leaderboard, even
   // before any games are recorded.
@@ -1572,7 +1663,7 @@ function HistoryTab({
   return (
     <div className="play-history">
       {userId !== null && <FriendsLeaderboard />}
-      {history.length === 0 && (
+      {history.length === 0 && hiddenCount === 0 && (
         <div className="empty-state">
           <EmptyStateMark />
           <p className="empty-state-tagline">No games yet.</p>
@@ -1668,7 +1759,50 @@ function HistoryTab({
         </section>
       )}
       <section className="play-records">
-        <h2 className="play-records-title">Games</h2>
+        <div className="play-records-head">
+          <h2 className="play-records-title">Games</h2>
+          {droppable.length > 0 && (
+            <button
+              type="button"
+              className="play-history-select-toggle"
+              aria-pressed={selecting}
+              onClick={() => {
+                setSelecting((on) => !on);
+                setSelected(new Set());
+              }}
+            >
+              {selecting ? 'Done' : 'Select'}
+            </button>
+          )}
+        </div>
+        {selecting && (
+          <div className="play-history-bulk">
+            <span className="play-history-bulk-count" aria-live="polite">
+              {selected.size} selected
+            </span>
+            <button
+              type="button"
+              className="play-history-select-toggle"
+              onClick={() =>
+                setSelected(
+                  selected.size === droppable.length
+                    ? new Set()
+                    : new Set(droppable.map((r) => r.id))
+                )
+              }
+            >
+              {selected.size === droppable.length ? 'Clear' : 'Select all'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger play-history-bulk-drop"
+              disabled={selectedRecords.length === 0}
+              onClick={() => setPendingDrop(selectedRecords)}
+            >
+              Remove
+            </button>
+          </div>
+        )}
         {shown.length === 0 && history.length > 0 && (
           <p className="empty-state-hint">No {filter} games yet.</p>
         )}
@@ -1676,31 +1810,44 @@ function HistoryTab({
           {shown.map((rec) => {
             const winner =
               rec.winnerSeat != null ? rec.players.find((p) => p.seat === rec.winnerSeat) : null;
+            const when = new Date(rec.endedAt).toLocaleString();
+            const kind = dropKind(rec, userId);
+            const menuItems: OverflowMenuItem[] = [];
+            if (ownsRecord(rec, userId)) {
+              menuItems.push({ label: 'Correct this game', onClick: () => setEditing(rec) });
+            }
+            if (canDropRecord(rec, userId)) {
+              menuItems.push({
+                label: kind === 'hide' ? 'Hide from my list' : 'Remove',
+                danger: kind === 'remove',
+                onClick: () => setPendingDrop([rec]),
+              });
+            }
             return (
               <li key={rec.id} className="play-history-item">
                 <div className="play-history-head">
+                  {selecting && canDropRecord(rec, userId) && (
+                    <input
+                      type="checkbox"
+                      className="play-history-check"
+                      checked={selected.has(rec.id)}
+                      aria-label={`Select game: ${when}`}
+                      onChange={() => toggleSelected(rec.id)}
+                    />
+                  )}
                   <span className="play-history-format">{rec.format}</span>
                   <span className="play-history-mode">{rec.mode}</span>
-                  <span className="play-history-date">
-                    {new Date(rec.endedAt).toLocaleString()}
-                  </span>
+                  <span className="play-history-date">{when}</span>
                   <button
                     type="button"
                     className="play-history-rematch"
-                    aria-label={`Rematch: ${new Date(rec.endedAt).toLocaleString()}`}
+                    aria-label={`Rematch: ${when}`}
                     onClick={() => onRematch(rec)}
                   >
                     Rematch
                   </button>
-                  {canRemoveRecord(rec, userId) && (
-                    <button
-                      type="button"
-                      className="play-history-remove"
-                      aria-label={`Remove game: ${new Date(rec.endedAt).toLocaleString()}`}
-                      onClick={() => setPendingRemove(rec)}
-                    >
-                      ×
-                    </button>
+                  {menuItems.length > 0 && (
+                    <OverflowMenu items={menuItems} ariaLabel={`Game options: ${when}`} />
                   )}
                 </div>
                 <div className="play-history-winner">
@@ -1728,16 +1875,80 @@ function HistoryTab({
           })}
         </ul>
       </section>
-      {pendingRemove && (
+      {hiddenCount > 0 && (
+        <section className="play-records">
+          <button
+            type="button"
+            className="play-history-hidden-toggle"
+            aria-expanded={showHidden}
+            onClick={() => void openHidden()}
+          >
+            {hiddenCount} hidden {hiddenCount === 1 ? 'game' : 'games'}
+          </button>
+          {showHidden && (
+            <>
+              <p className="play-history-hidden-note">
+                Out of your list only. Each one still counts in your win-loss.
+              </p>
+              {loadingHidden && hiddenHistory.length === 0 && (
+                <p className="empty-state-hint">Loading…</p>
+              )}
+              <ul className="play-history-list">
+                {hiddenHistory.map((rec) => (
+                  <li key={rec.id} className="play-history-item is-hidden-row">
+                    <div className="play-history-head">
+                      <span className="play-history-format">{rec.format}</span>
+                      <span className="play-history-mode">{rec.mode}</span>
+                      <span className="play-history-date">
+                        {new Date(rec.endedAt).toLocaleString()}
+                      </span>
+                      <button
+                        type="button"
+                        className="play-history-rematch"
+                        onClick={() => void setHistoryHidden(rec.id, false)}
+                      >
+                        Bring back
+                      </button>
+                    </div>
+                    <div className="play-history-winner">
+                      {rec.players.map((p) => p.name).join(' · ')}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+      )}
+      {editing && (
+        <GameResultEditDialog
+          record={editing}
+          decks={decks}
+          onCancel={() => setEditing(null)}
+          onSave={(edit) => {
+            void editHistory(editing.id, edit);
+            setEditing(null);
+          }}
+        />
+      )}
+      {pendingDrop && (
         <ConfirmDialog
-          title="Remove this game?"
-          body="It leaves your history and the deck records built from it. This can't be undone."
-          confirmLabel="Remove"
-          danger
-          onCancel={() => setPendingRemove(null)}
+          title={
+            pendingDrop.length === 1
+              ? dropKind(pendingDrop[0], userId) === 'hide'
+                ? 'Hide this game?'
+                : 'Remove this game?'
+              : `Clear ${pendingDrop.length} games?`
+          }
+          body={dropConfirmBody(pendingDrop, userId)}
+          confirmLabel={
+            pendingDrop.every((r) => dropKind(r, userId) === 'hide') ? 'Hide' : 'Remove'
+          }
+          danger={pendingDrop.some((r) => dropKind(r, userId) === 'remove')}
+          onCancel={() => setPendingDrop(null)}
           onConfirm={() => {
-            removeHistory(pendingRemove.id);
-            setPendingRemove(null);
+            dropRecords(pendingDrop);
+            setPendingDrop(null);
           }}
         />
       )}
