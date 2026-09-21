@@ -130,15 +130,39 @@ describe('the symptom: a colorless deck reads as having no mana', () => {
     ['Wastes', ['C']],
   ]);
 
-  it('counts zero mana sources on the stored deck', () => {
+  // ⚠️ This block used to open by asserting ZERO sources on the stored deck,
+  // and that is no longer true — the oracle-text fallback learned to read {C},
+  // so it now finds a plainly-worded "{T}: Add {C}" without any help. That fix
+  // and this one are separate on purpose: the fallback is a heuristic over
+  // printed text, and backfilling is authoritative data. What follows is the
+  // part backfilling still owns.
+  it('reads a plainly-worded colorless source even unhydrated', () => {
     const mana = buildManaData(deck, null, null);
-    expect(mana.manaProduction.total).toBe(0);
-    expect(mana.manaProduction.counts.C).toBe(0);
+    expect(mana.manaProduction.counts.C).toBe(4);
   });
 
   it('counts every one of them once production is backfilled', () => {
     const mana = buildManaData(applyProducedMana(deck, production), null, null);
     expect(mana.manaProduction.total).toBe(4);
     expect(mana.manaProduction.counts.C).toBe(4);
+  });
+
+  it('still needs backfill for production no printed text spells out', () => {
+    // Real Scryfall text. The fallback looks for "any color" and for {X} mana
+    // symbols; Gilded Lotus says "any ONE color" and names no symbol, so no
+    // amount of text-reading finds it. Measured on live decks, this class also
+    // covers Bloom Tender, Astral Cornucopia, the Thriving lands and every
+    // double-faced card — production only the resolved card knows about.
+    const gildedLotus = card({
+      name: 'Gilded Lotus',
+      oracle_text: '{T}: Add three mana of any one color.',
+    });
+    expect(buildManaData([gildedLotus], null, null).manaProduction.total).toBe(0);
+
+    const hydrated = applyProducedMana(
+      [gildedLotus],
+      new Map([['Gilded Lotus', ['B', 'G', 'R', 'U', 'W']]])
+    );
+    expect(buildManaData(hydrated, null, null).manaProduction.total).toBe(1);
   });
 });

@@ -57,9 +57,16 @@ describe('producedManaColors', () => {
       oracle_text: '{T}: Add {C}.\n{W/U}, {T}: Add {W}{W}, {W}{U}, or {U}{U}.',
     });
     const all = new Set(['W', 'U', 'B', 'R', 'G']);
-    expect(sorted(producedManaColors(springs, all))).toEqual(['B', 'R']);
+    // ⚠️ The {C} in each of these is NOT noise to be filtered out — Scryfall's
+    // own produced_mana is ["B","C","R"] for Sulfurous Springs and ["C","U","W"]
+    // for Mystic Gate. These two expectations used to omit it, which encoded
+    // the bug rather than the card: the fallback read only WUBRG, so a
+    // painland lost its colorless half and a Sol Ring produced nothing at all.
+    // A hydrated card and an unhydrated one have to agree, and the hydrated one
+    // says C. Do not "fix" a failure here by dropping the C back out.
+    expect(sorted(producedManaColors(springs, all))).toEqual(['B', 'C', 'R']);
     expect(sorted(producedManaColors(triLand, all))).toEqual(['B', 'U', 'W']);
-    expect(sorted(producedManaColors(filter, all))).toEqual(['U', 'W']);
+    expect(sorted(producedManaColors(filter, all))).toEqual(['C', 'U', 'W']);
   });
 
   it('fallback still reads basic land types and ignores a basic-fetch with no "Add"', () => {
@@ -71,6 +78,44 @@ describe('producedManaColors', () => {
     });
     expect(sorted(producedManaColors(tundra, WU))).toEqual(['U', 'W']);
     expect(producedManaColors(wilds, WU)).toEqual([]);
+  });
+
+  it('fallback reads {C}, so a colorless source is not invisible', () => {
+    // The whole colorless column was unreachable from the fallback: its "Add …"
+    // scan matched only {W}{U}{B}{R}{G}. Measured on five live public decks,
+    // every one reported ZERO colorless sources — and a colorless deck reported
+    // no mana sources at all, 0 where it had 49. Real Scryfall text.
+    const solRing = card({
+      name: 'Sol Ring',
+      type_line: 'Artifact',
+      oracle_text: '{T}: Add {C}{C}.',
+    });
+    const wastes = card({ name: 'Wastes', type_line: 'Basic Land', oracle_text: '{T}: Add {C}.' });
+    expect(producedManaColors(solRing, WU)).toEqual(['C']);
+    expect(producedManaColors(wastes, WU)).toEqual(['C']);
+  });
+
+  it('fallback reads "adds" as well as "add"', () => {
+    // Wild Growth grants the mana in the third person, so a bare `add` never
+    // matched it and a real ramp source counted for nothing. Real Scryfall text.
+    const wildGrowth = card({
+      name: 'Wild Growth',
+      type_line: 'Enchantment — Aura',
+      oracle_text:
+        'Enchant land\nWhenever enchanted land is tapped for mana, its controller adds an additional {G}.',
+    });
+    expect(producedManaColors(wildGrowth, new Set(['G']))).toEqual(['G']);
+  });
+
+  it('still ignores an "Add" that is not this card making mana', () => {
+    // The scan is deliberately clause-scoped (stops at the sentence end), so a
+    // card that merely mentions adding counters keeps producing nothing.
+    const counters = card({
+      name: 'Not A Mana Source',
+      type_line: 'Enchantment',
+      oracle_text: 'At the beginning of your upkeep, add a charge counter to this enchantment.',
+    });
+    expect(producedManaColors(counters, WU)).toEqual([]);
   });
 
   it('counts colorless (C) producers like Sol Ring', () => {
