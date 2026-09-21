@@ -45,6 +45,37 @@ const heelcutter = {
   image_uris: { normal: 'https://cards.example/heelcutter.jpg' },
 } as unknown as ScryfallCard;
 
+// A transform card: two faces, the back one with no mana cost of its own.
+const delver = {
+  id: '1a2b3c4d-1111-4222-8333-444444444444',
+  name: 'Delver of Secrets // Insectile Aberration',
+  layout: 'transform',
+  card_faces: [
+    {
+      name: 'Delver of Secrets',
+      mana_cost: '{U}',
+      type_line: 'Creature — Human Wizard',
+      oracle_text:
+        'At the beginning of your upkeep, look at the top card of your library. You may reveal that card. If an instant or sorcery card is revealed this way, transform this creature.',
+      power: '1',
+      toughness: '1',
+      image_uris: { normal: 'https://cards.example/delver-front.jpg' },
+    },
+    {
+      name: 'Insectile Aberration',
+      type_line: 'Creature — Human Insect',
+      oracle_text: 'Flying',
+      power: '3',
+      toughness: '2',
+      image_uris: { normal: 'https://cards.example/delver-back.jpg' },
+    },
+  ],
+  set: 'inr',
+  set_name: 'Innistrad Remastered',
+  collector_number: '60',
+  rarity: 'common',
+} as unknown as ScryfallCard;
+
 describe('CardInfoDialog', () => {
   it('reads the card: name, type line, rules text and body', () => {
     render(<CardInfoDialog card={heelcutter} onClose={() => {}} />);
@@ -95,5 +126,22 @@ describe('CardInfoDialog', () => {
     expect(screen.getByRole('dialog')).toBeTruthy();
     // The carousel's page counter / section label chrome has no place here.
     expect(screen.queryByText(/Page 1/)).toBeNull();
+  });
+
+  it("heads a transform card with the front face's cost, not a dangling separator", () => {
+    render(<CardInfoDialog card={delver} onClose={() => {}} />);
+
+    // The dialog portals to <body>, so the header is reached through the
+    // front-face type line rather than RTL's own container.
+    const header = screen.getAllByText('Creature — Human Wizard')[0].closest('.card-info-typeline');
+    // EnrichedCard.manaCost joins faces with "//" and the back face has no
+    // cost of its own, so the joined form rendered "{U} //" in the header.
+    expect(header?.textContent).not.toContain('//');
+  });
+
+  it('offers the other face of a transform card by name', () => {
+    render(<CardInfoDialog card={delver} onClose={() => {}} />);
+
+    expect(screen.getByRole('button', { name: 'Insectile Aberration' })).toBeTruthy();
   });
 });

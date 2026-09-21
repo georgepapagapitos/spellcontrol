@@ -53,7 +53,13 @@ export function CardInfoDialog({
   const [face, setFace] = useState(0);
   const image = artFaces.length > 1 ? artFaces[face].image_uris?.normal : enriched.imageNormal;
 
+  // Front face only, both of them: `EnrichedCard.manaCost` joins a DFC's
+  // faces with "//", and a transform card's back face has no cost — so the
+  // header rendered "{U} //" with nothing after the separator. The per-face
+  // breakdown below (`CardText`) already prints each face's own cost beside
+  // its name, so the header is the front of the card and nothing else.
   const typeLine = getFrontFaceTypeLine(card) ?? card.type_line;
+  const manaCost = card.mana_cost || card.card_faces?.[0]?.mana_cost;
   const stat =
     card.power != null && card.toughness != null
       ? `${card.power}/${card.toughness}`
@@ -101,7 +107,7 @@ export function CardInfoDialog({
         <div className="card-info-rules">
           <div className="card-info-typeline">
             <span>{typeLine}</span>
-            <ManaCost cost={enriched.manaCost} />
+            <ManaCost cost={manaCost} />
           </div>
           {status && <CardStatusStrip {...status} />}
           <CardText card={enriched} detail={card} />
