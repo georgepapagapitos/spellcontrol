@@ -17,6 +17,8 @@
   overflow: hidden;
 }
 
+/* The whole bar is the handle: grip, title, and the empty space between
+   them. Only the close button opts out (see StackPanel.tsx). */
 .stack-panel__head {
   display: flex;
   align-items: center;
@@ -24,6 +26,13 @@
   padding: var(--space-1) var(--space-2);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.stack-panel__head:active {
+  cursor: grabbing;
 }
 
 .stack-panel__title {
@@ -45,16 +54,10 @@
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius);
+}
+
+.stack-panel__close {
   cursor: pointer;
-}
-
-.stack-panel__grip {
-  cursor: grab;
-  touch-action: none;
-}
-
-.stack-panel__grip:active {
-  cursor: grabbing;
 }
 
 .stack-panel__list {
@@ -62,39 +65,50 @@
   margin: 0;
   padding: var(--space-1);
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
-.stack-panel__row {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
+/* Each card tucks a few pixels under the one in front of it, and the later
+   row paints over the earlier one by DOM order — the pile, seen from just
+   above its top edge. */
+.stack-panel__row + .stack-panel__row {
+  margin-top: -5px;
 }
 
-/* Who cast it, above its name bar — the reference's own arrangement, and
-   the only thing that makes a four-player stack readable. */
-.stack-panel__seat {
-  align-self: flex-start;
-  padding: 0 var(--space-1);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  line-height: 1.5;
-  color: var(--text-secondary);
-  background: var(--surface);
-  border-radius: 3px 3px 0 0;
+.stack-panel__card {
+  position: relative;
+  border-radius: 6px;
+  overflow: hidden;
+  /* A hairline of light along the top edge and a shadow cast upward: the
+     card reads as sitting on top of the one behind it. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 -3px 8px rgba(0, 0, 0, 0.55);
 }
 
-/* The card's name bar, standing in for the top slice of the real card. */
+/* A card under the top of the stack shows the slice a real pile shows: its
+   own top border and printed title bar, name and mana cost in the card's
+   own type-set over its own frame colour. 100/22 of the card's width is
+   that band plus a sliver of art, and the sliver is what the next card
+   overlaps. */
+.stack-panel__card--clipped {
+  aspect-ratio: 100 / 22;
+}
+
+.stack-panel__face {
+  display: block;
+  width: 100%;
+}
+
+/* Tokens and anything else with no art keep a text bar — the only row that
+   cannot be a picture of a card. */
 .stack-panel__bar {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 3px var(--space-1);
+  padding: 3px var(--space-1) 3px 4.25rem;
   background: var(--surface);
   border: 1px solid var(--border-strong, var(--border));
-  border-radius: var(--radius);
+  border-radius: 6px;
 }
 
 .stack-panel__name {
@@ -115,26 +129,25 @@
   flex: none;
 }
 
-/* Only the top of the stack opens out — it is the one anybody is about to
-   act on, and three full cards would not fit a panel this size. */
-.stack-panel__art {
-  width: 100%;
-  margin-top: -1px;
-  border: 1px solid var(--border-strong, var(--border));
-  border-top: 0;
-  border-radius: 0 0 var(--radius) var(--radius);
-  display: block;
-}
-
-.stack-panel__art--placeholder {
-  display: grid;
-  place-items: center;
-  min-height: 7rem;
-  padding: var(--space-2);
+/* Who cast it, laid over the card's top border rather than beside the card
+   — the reference's own arrangement, and the only thing that makes a
+   four-player stack readable without stealing a row of height. */
+.stack-panel__seat {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  max-width: 75%;
+  padding: 0 5px;
   font-size: var(--text-xs);
-  color: var(--text-secondary);
-  text-align: center;
-  background: var(--surface);
+  font-weight: 700;
+  line-height: 1.35;
+  color: #f4f5f7;
+  background: rgba(10, 12, 18, 0.82);
+  border-radius: 6px 0 5px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .stack-panel__actions {
@@ -162,7 +175,6 @@
 
 @media (hover: hover) and (pointer: fine) {
   .stack-panel__action:hover,
-  .stack-panel__grip:hover,
   .stack-panel__close:hover {
     color: var(--text-primary);
     border-color: var(--border-strong, var(--border));
@@ -175,7 +187,6 @@
 }
 
 .stack-panel__action:focus-visible,
-.stack-panel__grip:focus-visible,
 .stack-panel__close:focus-visible {
   color: var(--text-primary);
   border-color: var(--accent);
@@ -185,7 +196,6 @@
    eats more than half a phone's width. */
 @media (pointer: coarse) {
   .stack-panel__action,
-  .stack-panel__grip,
   .stack-panel__close {
     min-width: 44px;
     min-height: 44px;
