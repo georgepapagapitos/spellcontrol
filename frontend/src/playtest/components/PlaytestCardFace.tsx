@@ -19,6 +19,22 @@ const MAX_VISIBLE_STICKERS = 3;
 /** Same cap for counters: the smallest card tier clips a fourth badge. */
 const MAX_VISIBLE_COUNTERS = 3;
 
+/** What a counter badge prints. `+1/+1` and `-1/-1` get their sign, because
+ *  those are the two everyone reads at a glance; anything else gets its
+ *  first letter, with the full name in the label and the tooltip. */
+function counterMark(kind: string): string {
+  if (kind === '+1/+1') return '+';
+  if (kind === '-1/-1') return '−';
+  return kind.slice(0, 1).toUpperCase();
+}
+
+/** Sort key: the body-changing counters first, then everything else. */
+function counterRank(kind: string): number {
+  if (kind === '+1/+1') return 0;
+  if (kind === '-1/-1') return 1;
+  return 2;
+}
+
 /**
  * Pure presentational card face — image / face-down back / placeholder plus
  * counters. Shared by the draggable `PlaytestCardView` and the top-level
@@ -48,6 +64,12 @@ export const PlaytestCardFace = memo(
     // whatever is underneath, and printing the real numbers on the back of
     // the card would give it away.
     const pt = faceDown || ptHidden ? null : displayPT(card, bf);
+    // Ordered so the two that change a creature's size come first: they are
+    // the ones a player is reading the board for, and the ones the P/T box
+    // above has already folded in.
+    const counterList = faceDown
+      ? []
+      : Object.entries(counters).sort(([a], [b]) => counterRank(a) - counterRank(b));
 
     return (
       <div
@@ -74,6 +96,46 @@ export const PlaytestCardFace = memo(
           <span className="playtest-card__stack-ribbon" aria-hidden>
             Stack
           </span>
+        )}
+        {counterList.length > 0 && (
+          <div className="playtest-card__counters">
+            {counterList.slice(0, MAX_VISIBLE_COUNTERS).map(([kind, n]) => (
+              <span
+                key={kind}
+                className={`playtest-card__counter${
+                  kind === '+1/+1' ? ' is-plus' : kind === '-1/-1' ? ' is-minus' : ''
+                }`}
+                // The kind is in the label rather than printed: a badge wide
+                // enough to spell "experience" would cover the art it sits on.
+                aria-label={`${n} ${kind} counter${n === 1 ? '' : 's'}`}
+                title={`${kind}: ${n}`}
+              >
+                <span className="playtest-card__counter-mark" aria-hidden>
+                  {counterMark(kind)}
+                </span>
+                <span className="playtest-card__counter-n" aria-hidden>
+                  {n}
+                </span>
+              </span>
+            ))}
+            {counterList.length > MAX_VISIBLE_COUNTERS && (
+              <span
+                className="playtest-card__counter"
+                aria-label={counterList
+                  .slice(MAX_VISIBLE_COUNTERS)
+                  .map(([k, v]) => `${v} ${k}`)
+                  .join(', ')}
+                title={counterList
+                  .slice(MAX_VISIBLE_COUNTERS)
+                  .map(([k, v]) => `${k}: ${v}`)
+                  .join(', ')}
+              >
+                <span className="playtest-card__counter-n" aria-hidden>
+                  +{counterList.length - MAX_VISIBLE_COUNTERS}
+                </span>
+              </span>
+            )}
+          </div>
         )}
         {attached && (
           <span className="playtest-card__attached" title="Attached" aria-hidden>
@@ -107,8 +169,14 @@ export const PlaytestCardFace = memo(
             // aloud at a table.
             aria-label={`${pt.power} by ${pt.toughness}`}
           >
-            <span aria-hidden>
-              {pt.power}/{pt.toughness}
+            {/* Two boxes rather than "4/4": at the smallest card tier the
+                slash costs a character's width and reads as noise, and the
+                pair is what a real card prints. */}
+            <span className="playtest-card__pt-half" aria-hidden>
+              {pt.power}
+            </span>
+            <span className="playtest-card__pt-half" aria-hidden>
+              {pt.toughness}
             </span>
           </span>
         )}
@@ -129,28 +197,6 @@ export const PlaytestCardFace = memo(
                 title={stickers.slice(MAX_VISIBLE_STICKERS).join(', ')}
               >
                 +{stickers.length - MAX_VISIBLE_STICKERS} more
-              </span>
-            )}
-          </div>
-        )}
-        {Object.entries(counters).length > 0 && (
-          <div className="playtest-card__counters">
-            {Object.entries(counters)
-              .slice(0, MAX_VISIBLE_COUNTERS)
-              .map(([k, v]) => (
-                <span key={k} className="playtest-card__counter" title={k}>
-                  {k === '+1/+1' ? '+1' : k.slice(0, 3)}:{v}
-                </span>
-              ))}
-            {Object.entries(counters).length > MAX_VISIBLE_COUNTERS && (
-              <span
-                className="playtest-card__counter"
-                title={Object.entries(counters)
-                  .slice(MAX_VISIBLE_COUNTERS)
-                  .map(([k, v]) => `${k}: ${v}`)
-                  .join(', ')}
-              >
-                +{Object.entries(counters).length - MAX_VISIBLE_COUNTERS}
               </span>
             )}
           </div>
