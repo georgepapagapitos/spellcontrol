@@ -1,0 +1,49 @@
+/* Chrome for every pointer-anchored card menu, co-located with the component
+   that renders it (2026-09-21). These four rules used to live in
+   styles/playtest.css, which is a PAGE-CHUNK stylesheet: only the playtest
+   pages import it. Once the deck view started rendering this shell, a deck
+   chunk would have emitted class names no stylesheet it loads defines, which
+   is exactly the failure styles/css-chunk-ownership.test.ts exists to catch.
+   Co-locating them means the rules travel with whichever chunk pulls the
+   shell in, and the boot CSS budget is untouched.
+
+   Only the SHELL's own classes moved. The action-row classes
+   (.playtest-ctx-action / -group / -heading / -counter) are the caller's and
+   stay with the playtest menus; the deck's menu dresses its rows with the
+   deck list's own .deck-row-menu-item instead.
+
+   Floating variant: a cursor-anchored popover, kept bespoke since the shared
+   sheet primitive has no positioned-popover mode. Sheet variant rides the
+   shared .card-picker-* bottom sheet, which is global. */
+
+.ctx-menu__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-overlay) - 1);
+}
+
+.ctx-menu {
+  position: fixed;
+  z-index: var(--z-overlay);
+  min-width: 12.5rem;
+  max-width: calc(100vw - 1rem);
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-tooltip);
+}
+
+.ctx-menu-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0.4rem;
+}
+
+.ctx-menu-sheet .ctx-menu-items {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--space-2);
+}

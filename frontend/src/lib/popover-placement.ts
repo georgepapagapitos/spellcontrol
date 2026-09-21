@@ -4,8 +4,9 @@
  * All surfaces that open anchored to a trigger element use this to decide
  * where to position their portaled panel. The math is DOM-free and fully
  * unit-testable. Converged surfaces (all portal to <body>):
- *   InfoTip, SelectMenu, OverflowMenu, CardRowMenu, FilterPopover,
- *   DeckFiltersPopover, SortPopover, Legend, CardContextMenu (playtest),
+ * *   InfoTip, SelectMenu, OverflowMenu, CardRowMenu, FilterPopover,
+ *   DeckFiltersPopover, SortPopover, Legend, CtxMenuShell (the playtest and
+ *   deck card menus),
  *   MobileZonesPanel (playtest), DeckDisplay ToolbarPopover, CardSlot tooltip.
  *
  * Policy

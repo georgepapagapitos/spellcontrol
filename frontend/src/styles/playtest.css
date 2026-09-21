@@ -1898,42 +1898,21 @@ button.playtest-card-pt__value--editable:focus-visible {
 }
 
 /* ── Card context menu ─────────────────────────────────────────────────── */
-/*  Floating variant: a cursor-anchored popover (desktop, ≥1024px) — kept
- *  bespoke since the shared sheet primitive has no positioned-popover mode.
- *  Sheet variant (<1024px) rides the shared .card-picker-* bottom sheet.
- *  The action-list classes (.playtest-ctx-action / -group / -heading /
- *  -counter) are variant-agnostic and shared by both. */
+/*  The shell's own chrome (backdrop, floating popover, sheet, item column)
+ *  moved to components/shared/CtxMenuShell.css when the deck view started
+ *  using the same shell — this file is page-chunk CSS the deck never loads.
+ *  What stays here is the playtest menus' own action-list vocabulary
+ *  (.playtest-ctx-action / -group / -heading / -counter / -draw / -sticker),
+ *  which only these menus render. Rules that scope to the sheet variant now
+ *  reach for the shell's `.ctx-menu-sheet`. */
 
+/*  LifeAdjustPanel renders its own click-catcher backdrop without going
+ *  through the shell, so this keeps a playtest-owned copy rather than
+ *  borrowing a class from a stylesheet that chunk does not load. */
 .playtest-ctx__backdrop {
   position: fixed;
   inset: 0;
   z-index: calc(var(--z-overlay) - 1);
-}
-
-.playtest-ctx {
-  position: fixed;
-  z-index: var(--z-overlay);
-  min-width: 12.5rem;
-  max-width: calc(100vw - 1rem);
-  background: var(--surface);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-tooltip);
-}
-
-.playtest-ctx-menu {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 0.4rem;
-}
-
-.playtest-ctx-sheet .playtest-ctx-menu {
-  flex: 1;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  padding: var(--space-2);
 }
 
 .playtest-ctx-action {
@@ -2281,13 +2260,13 @@ button.playtest-card-pt__value--editable:focus-visible {
   /* The sheet variant's counter/sticker controls were left out of this floor
      when it was written — they're the touch presentation, so they need it
      most. Padding alone left them at ~31px. */
-  .playtest-ctx-sheet .playtest-ctx-counter button,
-  .playtest-ctx-sheet .playtest-ctx-sticker button,
-  .playtest-ctx-sheet .playtest-ctx-counter-add button,
-  .playtest-ctx-sheet .playtest-ctx-sticker-add button,
+  .ctx-menu-sheet .playtest-ctx-counter button,
+  .ctx-menu-sheet .playtest-ctx-sticker button,
+  .ctx-menu-sheet .playtest-ctx-counter-add button,
+  .ctx-menu-sheet .playtest-ctx-sticker-add button,
   /* …and the action list itself — the most-tapped control set on the touch
      board was the one left out (its padding computed to ~37px). */
-  .playtest-ctx-sheet .playtest-ctx-action {
+  .ctx-menu-sheet .playtest-ctx-action {
     min-height: 44px;
   }
 }
@@ -2379,24 +2358,24 @@ button.playtest-card-pt__value--editable:focus-visible {
 
 /* Larger touch targets for the bottom-sheet variant. (The 44px floor lives
    in the shared coarse-pointer block above, with its siblings.) */
-.playtest-ctx-sheet .playtest-ctx-action {
+.ctx-menu-sheet .playtest-ctx-action {
   padding: 0.6rem var(--space-3);
   font-size: var(--text-base);
 }
 
-.playtest-ctx-sheet .playtest-ctx-counter button {
+.ctx-menu-sheet .playtest-ctx-counter button {
   padding: 0.4rem 0.85rem;
   min-width: 2.5rem;
 }
 
-.playtest-ctx-sheet .playtest-ctx-sticker button,
-.playtest-ctx-sheet .playtest-ctx-counter-add button,
-.playtest-ctx-sheet .playtest-ctx-sticker-add button {
+.ctx-menu-sheet .playtest-ctx-sticker button,
+.ctx-menu-sheet .playtest-ctx-counter-add button,
+.ctx-menu-sheet .playtest-ctx-sticker-add button {
   padding: 0.4rem 0.85rem;
 }
 
-.playtest-ctx-sheet .playtest-ctx-sticker-add input,
-.playtest-ctx-sheet .playtest-ctx-counter-add input {
+.ctx-menu-sheet .playtest-ctx-sticker-add input,
+.ctx-menu-sheet .playtest-ctx-counter-add input {
   padding: 0.4rem var(--space-2);
   font-size: var(--text-base);
 }

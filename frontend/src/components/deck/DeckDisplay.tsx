@@ -127,6 +127,8 @@ import { PartnerHeaderButton } from './deck-display-icons';
 import { DeckToolbar } from './DeckToolbar';
 import { DeckCardGrid } from './DeckCardGrid';
 import { CategorySection } from './DeckMainboardRow';
+import { DeckCardMenu } from './DeckCardMenu';
+import type { DeckCardActionCtx } from './deck-card-actions';
 import { DeckAnalysisView } from './DeckAnalysisView';
 
 /** Deck ids whose completion moment already played this app-open — an edit
@@ -631,6 +633,30 @@ export function DeckDisplay({
       return next;
     });
   };
+  // The card menu, anchored to a pointer or to a tile's kebab. One instance
+  // for the whole surface; the row and tile only report where and what.
+  const [cardMenu, setCardMenu] = useState<{
+    row: Row;
+    zone: DeckZone;
+    x: number;
+    y: number;
+  } | null>(null);
+  const openCardMenu = (zone: DeckZone) => (row: Row, e: React.MouseEvent) => {
+    // A right-click on a field or a link keeps the browser's own menu: copy,
+    // paste and open-in-new-tab are not ours to take.
+    if (
+      (e.target as HTMLElement).closest(
+        'input, textarea, select, a[href], [contenteditable="true"]'
+      )
+    ) {
+      return;
+    }
+    e.preventDefault();
+    setCardMenu({ row, zone, x: e.clientX, y: e.clientY });
+  };
+  const openCardMenuAt = (zone: DeckZone) => (row: Row, rect: DOMRect) =>
+    setCardMenu({ row, zone, x: rect.left, y: rect.bottom });
+
   const collapsedTitlesForLens = useMemo(() => {
     const prefix = `${groupBy}:`;
     return new Set(
@@ -1399,9 +1425,33 @@ export function DeckDisplay({
       synergyReasons: synergyByName.get(name),
     };
   }, [inspectorActive, pinnedName, hoverKey, commander, flat, binderByCopyId, synergyByName]);
+  const cardMenuCtx = (row: Row, zone: DeckZone): DeckCardActionCtx => ({
+    row,
+    isSingleton: formatConfig.isSingleton,
+    moveZone: zone === 'cards' ? (showSideboardTab ? 'sideboard' : undefined) : 'mainboard',
+    onEditCard,
+    onSetQty: onSetQtyForZone(zone),
+    onRemoveCard: zone === 'cards' ? onRemoveCard : undefined,
+    onMoveToZone: zone === 'cards' && showSideboardTab ? onMoveToSideboard : undefined,
+    onMoveToConsidering: zone === 'cards' ? onMoveToConsidering : undefined,
+    onUseOwnCopy,
+    onMoveToAnotherDeck,
+    onReleaseCopy,
+    onMakeCommander,
+    canMakeCommander,
+    onMakePartner,
+    canMakePartner,
+    onSetRowTags: onSetCardTags ? (slotIds, tags) => onSetCardTags(zone, slotIds, tags) : undefined,
+  });
+
   const renderListSection = (g: TypedGroup) => (
     <CategorySection
       key={g.title}
+      deckTags={deckTags.map((t) => t.tag)}
+      onSetRowTags={
+        onSetCardTags ? (slotIds, tags) => onSetCardTags('cards', slotIds, tags) : undefined
+      }
+      onRowContextMenu={openCardMenu('cards')}
       collapsed={isSectionCollapsed(g.title)}
       onToggleCollapsed={() => toggleSection(g.title)}
       title={g.title}
@@ -1889,6 +1939,8 @@ export function DeckDisplay({
                           showPrice={showPrefs.price}
                           collapsedTitles={collapsedTitlesForLens}
                           onToggleSection={toggleSection}
+                          onRowContextMenu={openCardMenu('cards')}
+                          onRowMenu={openCardMenuAt('cards')}
                           onRowClick={openPreview}
                           legalityBySlot={legalityBySlot}
                           gridZoom={effectiveGridZoom}
@@ -2341,6 +2393,18 @@ export function DeckDisplay({
             </section>
           )}
         </div>
+        {/* One menu for the whole surface, rendered last so it sits over the
+            list, the tiles and the inspector alike. */}
+        {cardMenu && (
+          <DeckCardMenu
+            row={cardMenu.row}
+            x={cardMenu.x}
+            y={cardMenu.y}
+            deckTags={deckTags.map((t) => t.tag)}
+            ctx={cardMenuCtx(cardMenu.row, cardMenu.zone)}
+            onClose={() => setCardMenu(null)}
+          />
+        )}
       </div>
     </CardPreviewContext.Provider>
   );

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { CtxMenuShell } from './CtxMenuShell';
+import { CtxMenuShell } from '@/components/shared/CtxMenuShell';
 
 export interface TableMenuItem {
   label: string;
