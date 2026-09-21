@@ -20,6 +20,7 @@ import {
   setSnapshotViaSyncApi,
   type SnapshotShape,
 } from '../test-helpers';
+import { projectCollection, projectDeck, projectList } from './projections';
 import { lookupPublicDeckLandingMeta, lookupPublicUserLandingMeta } from '../routes/public';
 import { shareCache } from './cache';
 import { createShareLandingHandler, lookupShareLandingMeta } from './og';
@@ -427,6 +428,70 @@ describe('lookupShareLandingMeta', () => {
     expect(meta!.title).toBe('Wishlist — shared by og-list');
     expect(meta!.description).toContain('A list (2 entries)');
     expect(meta!.image).toBeUndefined();
+  });
+
+  /**
+   * Board E343. A link preview may only promise what the page renders: the
+   * counts used to come from `raw.length` while the page came from the
+   * `project*` filters, so ONE unrenderable row put the unfurl and the page on
+   * different numbers (11,533 vs 11,532 on the dev collection). Each of these
+   * plants junk of the kind the projection drops and asserts the preview
+   * agrees with the projection itself, not with a number typed here.
+   */
+  describe('counts agree with what the public page renders', () => {
+    const owner = { username: 'og-count', displayName: null };
+
+    it('a collection row the page cannot render is not promised by the unfurl', async () => {
+      const cookie = await makeUser('og-count');
+      // Two real cards plus the shape the dev account actually carries: a
+      // named row whose scryfallId never resolved.
+      const cards = [
+        makeCard('Sol Ring'),
+        makeCard('Arcane Signet'),
+        { ...makeCard('Zzznotacard Faketest Card Name'), scryfallId: '' },
+      ];
+      await setSnapshot(cookie, 0, { collection: { cards } });
+      const token = await mintShare(cookie, 'collection');
+      const meta = await lookupShareLandingMeta(token);
+      const rendered = projectCollection(owner, { cards }).cards.length;
+      expect(rendered).toBe(2);
+      expect(meta!.description).toContain(`${rendered} cards shared by`);
+      expect(meta!.description).not.toContain('3 cards');
+    });
+
+    it('a deck slot with no card is not promised by the unfurl', async () => {
+      const cookie = await makeUser('og-count-deck');
+      const slots = [{ card: { name: 'Sol Ring' } }, { quantity: 1 }];
+      await setSnapshot(cookie, 0, {
+        decks: [makeLandingDeck('d-count', { cards: slots })],
+      });
+      const token = await mintShare(cookie, 'deck', 'd-count');
+      const meta = await lookupShareLandingMeta(token);
+      const rendered = projectDeck(owner, makeLandingDeck('d-count', { cards: slots }))!.cards
+        .length;
+      expect(rendered).toBe(1);
+      expect(meta!.description).toContain(`(${rendered} card)`);
+    });
+
+    it('a list entry the page cannot render is not promised by the unfurl', async () => {
+      const cookie = await makeUser('og-count-list');
+      const list = {
+        id: 'l-count',
+        name: 'Wishlist',
+        entries: [
+          { id: 'e1', name: 'Force of Will', scryfallId: 'fow-id', quantity: 1 },
+          { id: 'e2', name: 'Mana Drain', quantity: 1 },
+        ],
+        createdAt: 1,
+        updatedAt: 1,
+      };
+      await setSnapshot(cookie, 0, { collection: { cards: [], lists: [list] } });
+      const token = await mintShare(cookie, 'list', 'l-count');
+      const meta = await lookupShareLandingMeta(token);
+      const rendered = projectList(owner, list)!.entries.length;
+      expect(rendered).toBe(1);
+      expect(meta!.description).toContain(`A list (${rendered} entry)`);
+    });
   });
 
   it('returns null for a list whose id no longer exists', async () => {
