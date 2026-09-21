@@ -433,3 +433,192 @@ describe('leaderboard and h2h across modes', () => {
     expect(h2hOnline.body.summary.gamesPlayed).toBe(1);
   });
 });
+
+// ─── Correcting a recorded game ──────────────────────────────────────────────
+
+describe('PATCH /api/game-results/:sessionId', () => {
+  it('lets the recorder fix the winner and a seat deck, and moves the placement with it', async () => {
+    const ana = await makeUser('edit-ana');
+    const game = localGame({ seats: [{}, {}], winnerSeat: 0 });
+    await request(app).post('/api/game-results').set('Cookie', ana).send({ game });
+
+    const res = await request(app)
+      .patch(`/api/game-results/${game.id}`)
+      .set('Cookie', ana)
+      .send({
+        winnerSeat: 1,
+        decks: [
+          {
+            seat: 1,
+            deckId: 'd1',
+            deckName: 'Atraxa',
+            commander: 'Atraxa',
+            colorIdentity: ['w', 'u', 'b', 'g'],
+          },
+        ],
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.result.winnerSeat).toBe(1);
+    const seat1 = res.body.result.participants.find((p: { seat: number }) => p.seat === 1);
+    expect(seat1.deckName).toBe('Atraxa');
+    // Colors are normalized to the canonical uppercase set, like every other
+    // write path.
+    expect(seat1.colorIdentity).toEqual(['W', 'U', 'B', 'G']);
+    // The summary must not keep claiming the old winner came first.
+    expect(res.body.result.summary.winnerSeat).toBe(1);
+    const placements = res.body.result.summary.seats.map(
+      (s: { seat: number; placement: number | null }) => [s.seat, s.placement]
+    );
+    expect(placements).toEqual([
+      [0, null],
+      [1, 1],
+    ]);
+
+    const mine = await request(app).get('/api/game-results/mine').set('Cookie', ana);
+    expect(mine.body.results[0].winnerSeat).toBe(1);
+  });
+
+  it('clears the winner when asked, and leaves seats it was not given alone', async () => {
+    const ana = await makeUser('edit-clear');
+    const game = localGame({ seats: [{}, {}], winnerSeat: 0 });
+    await request(app).post('/api/game-results').set('Cookie', ana).send({ game });
+
+    const res = await request(app)
+      .patch(`/api/game-results/${game.id}`)
+      .set('Cookie', ana)
+      .send({ winnerSeat: null });
+    expect(res.status).toBe(200);
+    expect(res.body.result.winnerSeat).toBe(null);
+    expect(res.body.result.winnerUserId).toBe(null);
+    expect(res.body.result.participants).toHaveLength(2);
+    expect(res.body.result.participants[0].deckName).toBe(null);
+  });
+
+  it('refuses another account, an online row, an unknown seat and an eliminated winner', async () => {
+    const ana = await makeUser('edit-owner');
+    const bob = await makeUser('edit-other');
+    const anaId = await userId('edit-owner');
+    const game = localGame({ seats: [{}, { eliminated: true }], winnerSeat: 0 });
+    await request(app).post('/api/game-results').set('Cookie', ana).send({ game });
+
+    const notMine = await request(app)
+      .patch(`/api/game-results/${game.id}`)
+      .set('Cookie', bob)
+      .send({ winnerSeat: 1 });
+    expect(notMine.status).toBe(404);
+
+    await insertOnlineRow({
+      sessionId: 'edit-online-1',
+      winnerUserId: anaId,
+      participants: [{ userId: anaId }, { userId: null }],
+    });
+    const online = await request(app)
+      .patch('/api/game-results/edit-online-1')
+      .set('Cookie', ana)
+      .send({ winnerSeat: 1 });
+    expect(online.status).toBe(404);
+
+    const noSeat = await request(app)
+      .patch(`/api/game-results/${game.id}`)
+      .set('Cookie', ana)
+      .send({ winnerSeat: 5 });
+    expect(noSeat.status).toBe(400);
+
+    const dead = await request(app)
+      .patch(`/api/game-results/${game.id}`)
+      .set('Cookie', ana)
+      .send({ winnerSeat: 1 });
+    expect(dead.status).toBe(400);
+
+    // The row is untouched by every refusal above.
+    const still = await request(app).get('/api/game-results/mine').set('Cookie', ana);
+    expect(still.body.results[0].winnerSeat).toBe(0);
+  });
+});
+
+// ─── Hiding a shared online row from one account's list ──────────────────────
+
+describe('PUT/DELETE /api/game-results/:sessionId/hidden', () => {
+  it('drops an online row out of the hider list only, and hands it back on request', async () => {
+    const ana = await makeUser('hide-ana');
+    const bob = await makeUser('hide-bob');
+    const anaId = await userId('hide-ana');
+    const bobId = await userId('hide-bob');
+    await makeFriends(anaId, bobId);
+    await insertOnlineRow({
+      sessionId: 'hide-1',
+      winnerUserId: bobId,
+      participants: [{ userId: anaId }, { userId: bobId }],
+    });
+
+    const hid = await request(app).put('/api/game-results/hide-1/hidden').set('Cookie', ana);
+    expect(hid.status).toBe(200);
+
+    const mine = await request(app).get('/api/game-results/mine').set('Cookie', ana);
+    expect(mine.body.results.map((r: { sessionId: string }) => r.sessionId)).not.toContain(
+      'hide-1'
+    );
+    expect(mine.body.hiddenCount).toBe(1);
+
+    const hiddenList = await request(app).get('/api/game-results/mine?hidden=1').set('Cookie', ana);
+    expect(hiddenList.body.results.map((r: { sessionId: string }) => r.sessionId)).toEqual([
+      'hide-1',
+    ]);
+
+    // The other seat's list is untouched — this is one account's curation.
+    const theirs = await request(app).get('/api/game-results/mine').set('Cookie', bob);
+    expect(theirs.body.results.map((r: { sessionId: string }) => r.sessionId)).toContain('hide-1');
+    expect(theirs.body.hiddenCount).toBe(0);
+
+    const back = await request(app).delete('/api/game-results/hide-1/hidden').set('Cookie', ana);
+    expect(back.status).toBe(200);
+    const after = await request(app).get('/api/game-results/mine').set('Cookie', ana);
+    expect(after.body.results.map((r: { sessionId: string }) => r.sessionId)).toContain('hide-1');
+    expect(after.body.hiddenCount).toBe(0);
+  });
+
+  it('still counts a hidden game in the shared record', async () => {
+    const ana = await makeUser('hide-stats-ana');
+    await makeUser('hide-stats-bob');
+    const anaId = await userId('hide-stats-ana');
+    const bobId = await userId('hide-stats-bob');
+    await makeFriends(anaId, bobId);
+    await insertOnlineRow({
+      sessionId: 'hide-stats-1',
+      winnerUserId: bobId,
+      participants: [{ userId: anaId }, { userId: bobId }],
+    });
+    await request(app).put('/api/game-results/hide-stats-1/hidden').set('Cookie', ana);
+
+    // Hiding is list curation, never a retraction: one seat must not be able
+    // to quietly rewrite a head-to-head both of them played.
+    const board = await request(app).get('/api/game-results/leaderboard').set('Cookie', ana);
+    expect(board.body.leaderboard[0].gamesPlayed).toBe(1);
+    expect(board.body.leaderboard[0].friendWins).toBe(1);
+    const h2h = await request(app).get(`/api/game-results/h2h/${bobId}`).set('Cookie', ana);
+    expect(h2h.body.summary.gamesPlayed).toBe(1);
+  });
+
+  it('refuses a local row and a game the caller never sat at', async () => {
+    const ana = await makeUser('hide-local');
+    const bob = await makeUser('hide-stranger');
+    const anaId = await userId('hide-local');
+    const game = localGame({ seats: [{ userId: anaId }, {}] });
+    await request(app).post('/api/game-results').set('Cookie', ana).send({ game });
+
+    // A local row you recorded is deleted outright; hiding it would be a
+    // second path to the same thing.
+    const local = await request(app).put(`/api/game-results/${game.id}/hidden`).set('Cookie', ana);
+    expect(local.status).toBe(404);
+
+    await insertOnlineRow({
+      sessionId: 'hide-strangers-game',
+      winnerUserId: anaId,
+      participants: [{ userId: anaId }, { userId: null }],
+    });
+    const stranger = await request(app)
+      .put('/api/game-results/hide-strangers-game/hidden')
+      .set('Cookie', bob);
+    expect(stranger.status).toBe(404);
+  });
+});
