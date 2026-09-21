@@ -229,6 +229,23 @@ export interface GameState {
   /** Whether the table shows how long the current turn has been running.
    *  A readout only — nothing expires, nobody is forced to pass. */
   turnTimerEnabled: boolean;
+  /**
+   * Whether somebody holding the join code may watch this table without
+   * taking a seat. Defaults to false, and that default is load-bearing: a
+   * code is four characters, so the read routes answer a non-participant with
+   * the same 404 an unknown code gets, and opening that up is the host's
+   * decision to make rather than ours. Legacy states resolve to false, which
+   * is exactly how they already behaved.
+   */
+  spectatorsAllowed: boolean;
+  /**
+   * Where this table is talking, if it is: a Discord invite, a Meet room, any
+   * https link the host pastes. Display only — nothing here dials anything,
+   * and the reducer stores whatever it is handed. The ROUTE is what refuses a
+   * non-https or over-long link (see the games router), the same division of
+   * labour `phase` already uses.
+   */
+  voiceUrl: string | null;
   /** Visual arrangement of player panels. Defaults to 'pod'. */
   layout: GameLayout;
   /**
@@ -396,6 +413,8 @@ export type GameAction =
           | 'layout'
           | 'tapOrientation'
           | 'startingSeat'
+          | 'spectatorsAllowed'
+          | 'voiceUrl'
         >
       >;
       ts?: number;
@@ -469,6 +488,9 @@ const RULES_SETTINGS_KEYS = [
   'mulliganType',
   'turnTimerEnabled',
   'format',
+  // Not a rule, but the one setting the table has a right to hear about: it
+  // decides whether anyone outside the seats can see the game.
+  'spectatorsAllowed',
 ] as const;
 
 function makeEventId(ts: number): string {
@@ -715,6 +737,9 @@ export function createGameState(input: {
     poisonEnabled: input.poisonEnabled,
     mulliganType: input.mulliganType ?? 'commander',
     turnTimerEnabled: input.turnTimerEnabled ?? false,
+    // Off until the host says otherwise — see the field's own doc.
+    spectatorsAllowed: false,
+    voiceUrl: null,
     layout: input.layout ?? 'pod',
     tapOrientation: input.tapOrientation ?? 'horizontal',
     activeSeat: null,
@@ -787,6 +812,8 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
     startingSeat: prev.startingSeat ?? null,
     mulliganType: prev.mulliganType ?? 'commander',
     turnTimerEnabled: prev.turnTimerEnabled ?? false,
+    spectatorsAllowed: prev.spectatorsAllowed ?? false,
+    voiceUrl: prev.voiceUrl ?? null,
     designations: resolveDesignations(prev.designations),
     tableCounters: prev.tableCounters ?? {},
   };

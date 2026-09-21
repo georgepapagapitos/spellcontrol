@@ -290,3 +290,48 @@ describe('deck randomizer', () => {
     expect(screen.queryByRole('button', { name: 'Pick a random deck' })).toBeNull();
   });
 });
+
+describe('watchers and the voice link', () => {
+  it('lets the host open the table to watchers', () => {
+    const dispatch = renderLobby(table(2), 'u0');
+    fireEvent.click(screen.getByRole('switch', { name: 'Anyone with the code can watch' }));
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'settings',
+      patch: { spectatorsAllowed: true },
+    });
+  });
+
+  it('tells everyone else where the table stands without letting them change it', () => {
+    renderLobby(table(2), 'u1');
+    expect(screen.queryByRole('switch', { name: 'Anyone with the code can watch' })).toBe(null);
+    expect(screen.getByText('Seats only')).toBeTruthy();
+  });
+
+  it('saves a voice link on Enter', () => {
+    const dispatch = renderLobby(table(2), 'u0');
+    const field = screen.getByLabelText('Voice link');
+    fireEvent.change(field, { target: { value: 'https://discord.gg/example' } });
+    fireEvent.keyDown(field, { key: 'Enter' });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'settings',
+      patch: { voiceUrl: 'https://discord.gg/example' },
+    });
+  });
+
+  it('refuses a link that could run code, before the round trip', () => {
+    const dispatch = renderLobby(table(2), 'u0');
+    const field = screen.getByLabelText('Voice link');
+    fireEvent.change(field, { target: { value: 'javascript:alert(1)' } });
+    fireEvent.blur(field);
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert').textContent).toContain('https');
+  });
+
+  it('gives everyone else the link as something to open', () => {
+    const game = { ...table(2), voiceUrl: 'https://meet.example.com/abc' };
+    renderLobby(game, 'u1');
+    const link = screen.getByRole('link', { name: 'Join the call' });
+    expect(link.getAttribute('href')).toBe('https://meet.example.com/abc');
+    expect(link.getAttribute('rel')).toContain('noopener');
+  });
+});

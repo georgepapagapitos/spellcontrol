@@ -566,6 +566,24 @@ describe('usePlayStore — online flow', () => {
     expect(usePlayStore.getState().online).toBe(game);
   });
 
+  it('watchOnline opens the table without taking a seat', async () => {
+    const game = makeOnlineGame(2);
+    mockGet.mockResolvedValue(game);
+    const returned = await usePlayStore.getState().watchOnline('abcd');
+    // No join call at all: watching is a read, and the seat count is untouched.
+    expect(mockJoin).not.toHaveBeenCalled();
+    expect(mockGet).toHaveBeenCalledWith('ABCD');
+    expect(returned).toBe(game);
+    expect(usePlayStore.getState().online).toBe(game);
+    expect(usePlayStore.getState().onlinePolling).toBe(true);
+  });
+
+  it('watchOnline refuses a table that answered as if it were not there', async () => {
+    mockGet.mockResolvedValue(null);
+    await expect(usePlayStore.getState().watchOnline('ZZZZ')).rejects.toThrow();
+    expect(usePlayStore.getState().online).toBe(null);
+  });
+
   it('refreshOnline is a no-op when there is no joined game', async () => {
     await usePlayStore.getState().refreshOnline();
     expect(mockGet).not.toHaveBeenCalled();

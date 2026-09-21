@@ -350,7 +350,7 @@ function broadcastGameState(code: string, state: GameState): void {
   const subs = subscribers.get(code);
   if (!subs || subs.size === 0) return;
   for (const sub of Array.from(subs)) {
-    if (!isParticipant(state, sub.userId)) {
+    if (!canRead(state, sub.userId)) {
       subs.delete(sub);
       sub.onDeleted();
       continue;
@@ -625,6 +625,34 @@ function noteMessageError(action: GameAction): string | null {
  * list — the reducer sets it verbatim with no validation of its own (see
  * `packages/game-core`), so the route is the only place this is checked.
  */
+/**
+ * The voice link the host pastes into the lobby. The reducer stores whatever
+ * it is handed (see `packages/game-core`), so this route is the only place it
+ * is checked — same division of labour as `phase` below.
+ *
+ * https only, and that is the point rather than pedantry: this string is
+ * rendered as a link every other seat can click, so a `javascript:` or `data:`
+ * URL would be one player handing the rest of the pod a script. Clearing it
+ * back to null is always allowed.
+ */
+const MAX_VOICE_URL_LEN = 2048;
+
+function invalidVoiceUrlError(action: GameAction): string | null {
+  if (action.type !== 'settings') return null;
+  const url = action.patch.voiceUrl;
+  if (url === undefined || url === null || url === '') return null;
+  if (typeof url !== 'string') return 'Invalid voice link.';
+  if (url.length > MAX_VOICE_URL_LEN) return 'That voice link is too long.';
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return 'That voice link is not a URL.';
+  }
+  if (parsed.protocol !== 'https:') return 'A voice link has to start with https.';
+  return null;
+}
+
 function invalidPhaseError(action: GameAction): string | null {
   if (action.type !== 'phase') return null;
   return (GAME_PHASES as readonly string[]).includes(action.phase) ? null : 'Invalid phase.';
@@ -633,6 +661,27 @@ function invalidPhaseError(action: GameAction): string | null {
 function isParticipant(state: GameState, userId: string): boolean {
   if (state.hostUserId === userId) return true;
   return state.players.some((p) => p.userId === userId);
+}
+
+/**
+ * Who may READ this game. Participants always; anyone else only once the host
+ * has opened the table to spectators.
+ *
+ * That opt-in is the whole security model here. A join code is four
+ * characters — about a million of them — which is why the read routes answer
+ * a stranger with the same 404 an unknown code gets, and why simply holding a
+ * code cannot be enough to watch: otherwise a code sweep would turn up every
+ * live table in the app. With `spectatorsAllowed` off (the default, including
+ * for every game persisted before this existed) nothing changes at all.
+ *
+ * Reading is all it grants. Every mutation still goes through
+ * `isParticipant`, so a spectator can watch and do nothing else, and what
+ * they see is what each seat chose to publish — hands and libraries are
+ * already collapsed to counts by the client-side projection before a board
+ * ever reaches the server.
+ */
+function canRead(state: GameState, userId: string): boolean {
+  return isParticipant(state, userId) || state.spectatorsAllowed === true;
 }
 
 function nextOpenSeat(state: GameState, max: number): number {
@@ -810,7 +859,7 @@ gamesRouter.get('/:code', readLimiter, requireAuth, async (req: Request, res: Re
   const state = row.state as GameState;
   // Stealth 404 — identical to an unknown code, so the response carries no
   // signal about whether the guessed code exists.
-  if (!isParticipant(state, req.user!.id)) {
+  if (!canRead(state, req.user!.id)) {
     return res.status(404).json({ error: 'Game not found.' });
   }
   res.json({ game: state });
@@ -834,7 +883,7 @@ gamesRouter.get('/:code/events', readLimiter, requireAuth, async (req: Request, 
   const row = rows[0];
   if (!row) return res.status(404).json({ error: 'Game not found.' });
   const state = row.state as GameState;
-  if (!isParticipant(state, req.user!.id)) {
+  if (!canRead(state, req.user!.id)) {
     return res.status(404).json({ error: 'Game not found.' });
   }
   if (openStreamCount(req.user!.id) >= MAX_STREAMS_PER_USER) {
@@ -989,7 +1038,7 @@ gamesRouter.get('/:code/poll', readLimiter, requireAuth, async (req: Request, re
   const row = rows[0];
   if (!row) return res.status(404).json({ error: 'Game not found.' });
   const state = row.state as GameState;
-  if (!isParticipant(state, req.user!.id)) {
+  if (!canRead(state, req.user!.id)) {
     return res.status(404).json({ error: 'Game not found.' });
   }
 
@@ -1809,6 +1858,8 @@ gamesRouter.patch('/:code', writeLimiter, requireAuth, async (req: Request, res:
     if (noteErr) return res.status(400).json({ error: noteErr });
     const phaseErr = invalidPhaseError(raw);
     if (phaseErr) return res.status(400).json({ error: phaseErr });
+    const voiceErr = invalidVoiceUrlError(raw);
+    if (voiceErr) return res.status(400).json({ error: voiceErr });
     const action = sanitizeAction(raw);
     try {
       next = applyAction(next, action);

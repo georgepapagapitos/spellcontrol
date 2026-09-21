@@ -176,6 +176,17 @@
   border-radius: var(--radius);
 }
 
+/* Watching sits under Join with the same shape, one step quieter: it is the
+   same destination reached without a seat, not a different kind of action. */
+.play-setup-watch {
+  align-self: stretch;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: var(--space-2);
+  padding-block: 0.6rem;
+  border-radius: var(--radius);
+}
+
 /* ── Local setup: redesigned ─────────────────────────────────────────────
    Sleeker, pill-driven layout. Replaces the dropdown-heavy form with
    inline stepper, rule pills, and an add/remove roster. */
