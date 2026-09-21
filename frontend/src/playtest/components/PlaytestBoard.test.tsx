@@ -247,12 +247,11 @@ describe('PlaytestBoard', () => {
     const menu = screen.getByRole('menu', { name: 'Library' });
     for (const label of [
       /^Draw a card/,
+      /^Draw several/,
+      /^View/,
       /^Shuffle/,
-      /^View the library/,
-      /^Look at the top cards/,
-      /^Look at the bottom cards/,
-      /^View the top card/,
-      /^View the bottom card/,
+      /^Select a random card/,
+      /^Move all to/,
     ]) {
       expect(within(menu).getByRole('menuitem', { name: label }), String(label)).toBeTruthy();
     }
@@ -265,6 +264,30 @@ describe('PlaytestBoard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Library actions' }));
     fireEvent.click(screen.getByRole('menuitem', { name: /^Shuffle/ }));
     expect(dispatch).toHaveBeenCalledWith({ type: 'SHUFFLE_LIBRARY' });
+  });
+
+  // The five ways of looking are one row that opens onto them, not five
+  // rows on the root — which is what keeps the root readable now that the
+  // reveals live there too.
+  it('groups every way of looking at the library behind View, keys included', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^Draw a card\./ }), {
+      clientX: 20,
+      clientY: 20,
+    });
+    fireEvent.click(screen.getByRole('menuitem', { name: /^View/ }));
+    for (const label of [/^Top card/, /^Bottom card/, /^Top X cards/, /^Bottom X cards/, /^All/]) {
+      expect(screen.getByRole('menuitem', { name: label }), String(label)).toBeTruthy();
+    }
+    expect(screen.getByRole('menuitem', { name: /^All/ }).textContent).toContain('V');
+    expect(screen.getByRole('menuitem', { name: /^Top X cards/ }).textContent).toContain('P');
+
+    fireEvent.click(screen.getByRole('menuitem', { name: /^All/ }));
+    expect(screen.getByRole('dialog', { name: /Library/ })).toBeTruthy();
   });
 
   // Every EDHPlay library action our menu was missing. They all hang off the
@@ -321,7 +344,9 @@ describe('PlaytestBoard', () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
-  it('plays with the top card revealed, and turns the pile face up while it is on', () => {
+  // Solo there is no audience, so the standing reveal collapses to its
+  // private half and is a plain toggle rather than a choice of who sees it.
+  it('plays with the top revealed, privately, and turns the pile face up while it is on', () => {
     const { rerender } = render(
       <MemoryRouter>
         <PlaytestBoard state={seededState()} />
@@ -331,14 +356,12 @@ describe('PlaytestBoard', () => {
     expect(document.querySelector('.playtest-pile__back--library')).toBeTruthy();
 
     openLibraryMenu();
-    const row = screen.getByRole('menuitemcheckbox', {
-      name: /Play with the top card revealed/,
-    });
+    const row = screen.getByRole('menuitemcheckbox', { name: /Play with top revealed/ });
     expect(row.getAttribute('aria-checked')).toBe('false');
     fireEvent.click(row);
-    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_LIBRARY_REVEAL', reveal: 'top' });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_LIBRARY_REVEAL', reveal: 'top-me' });
 
-    const revealed = applyAction(seededState(), { type: 'SET_LIBRARY_REVEAL', reveal: 'top' });
+    const revealed = applyAction(seededState(), { type: 'SET_LIBRARY_REVEAL', reveal: 'top-me' });
     rerender(
       <MemoryRouter>
         <PlaytestBoard state={revealed} />
@@ -346,27 +369,24 @@ describe('PlaytestBoard', () => {
     );
     expect(document.querySelector('.playtest-pile__back--library')).toBeNull();
     openLibraryMenu();
-    expect(
-      screen
-        .getByRole('menuitemcheckbox', { name: /Play with the top card revealed/ })
-        .getAttribute('aria-checked')
-    ).toBe('true');
+    // Picking the mode it is already in is how you turn it back off.
+    const on = screen.getByRole('menuitemcheckbox', { name: /Play with top revealed/ });
+    expect(on.getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(on);
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_LIBRARY_REVEAL', reveal: 'none' });
   });
 
-  it('keeps the whole-library reveal off the solo menu — there is nobody to show', () => {
+  it('offers no one-shot reveal at all when solo — every audience is nobody', () => {
     render(
       <MemoryRouter>
         <PlaytestBoard state={seededState()} />
       </MemoryRouter>
     );
     openLibraryMenu();
-    expect(
-      screen.queryByRole('menuitemcheckbox', { name: /Reveal the library to the table/ })
-    ).toBeNull();
-    // The solo-safe one is still there.
-    expect(
-      screen.getByRole('menuitemcheckbox', { name: /Play with the top card revealed/ })
-    ).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: /^Reveal top card/ })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: /^Reveal library/ })).toBeNull();
+    // The private one is still there, as a toggle and not a submenu.
+    expect(screen.getByRole('menuitemcheckbox', { name: /Play with top revealed/ })).toBeTruthy();
   });
 
   it('empties a zone into another from Move all to', () => {
@@ -966,5 +986,95 @@ describe('PlaytestBoard — Space moves the game on', () => {
     expect(advancers[0].className).toContain('playtest-turn-chip');
     fireEvent.click(advancers[0]);
     expect(dispatch).toHaveBeenCalledWith({ type: 'NEXT_TURN' });
+  });
+});
+
+/**
+ * Every reveal in the real thing is Everyone or Me — a two-option audience,
+ * not a list of opponents. "Me" has to be private at the WIRE (see
+ * `projectRevealedLibrary`), not merely filtered in an opponent's UI, so
+ * these cover both the menu shape and the projection behind it.
+ */
+describe('PlaytestBoard — who a reveal is for', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    dispatch.mockClear();
+    onlineTable = seatedTable([opponent(1), opponent(2)]);
+  });
+
+  function openLibraryMenu() {
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^Draw a card\./ }), {
+      clientX: 20,
+      clientY: 20,
+    });
+  }
+
+  function mount(state = seededState()) {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={state} />
+      </MemoryRouter>
+    );
+  }
+
+  it('offers Everyone and Me for the standing reveal, and marks which is on', () => {
+    mount(applyAction(seededState(), { type: 'SET_LIBRARY_REVEAL', reveal: 'top-me' }));
+    openLibraryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Play with top revealed/ }));
+
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Me' }).getAttribute('aria-checked')).toBe(
+      'true'
+    );
+    expect(
+      screen.getByRole('menuitemcheckbox', { name: 'Everyone' }).getAttribute('aria-checked')
+    ).toBe('false');
+
+    // Switching audience is one step, not off-then-on.
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Everyone' }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_LIBRARY_REVEAL', reveal: 'top' });
+  });
+
+  it('reveals the top card once as an event, not a mode', () => {
+    mount();
+    openLibraryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Reveal top card/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Everyone' }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'REVEAL_TOP_CARD' });
+    // Not a standing reveal — nothing was switched on.
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'SET_LIBRARY_REVEAL' })
+    );
+  });
+
+  it('shows the top card to you alone when the audience is Me', () => {
+    mount();
+    openLibraryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Reveal top card/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Me' }));
+    expect(screen.getByText('Top of library')).toBeTruthy();
+    // Showing yourself a card is not an action the table hears about.
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('gives the whole-library reveal no Me — you can already read your own', () => {
+    mount();
+    openLibraryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Reveal library/ }));
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Everyone' })).toBeTruthy();
+    expect(screen.queryByRole('menuitemcheckbox', { name: 'Me' })).toBeNull();
+  });
+
+  it('turns the pile face up for either audience — Me is about them, not you', () => {
+    for (const reveal of ['top', 'top-me'] as const) {
+      const { unmount } = render(
+        <MemoryRouter>
+          <PlaytestBoard
+            state={applyAction(seededState(), { type: 'SET_LIBRARY_REVEAL', reveal })}
+          />
+        </MemoryRouter>
+      );
+      expect(document.querySelector('.playtest-pile__back--library'), reveal).toBeNull();
+      unmount();
+    }
   });
 });

@@ -1507,15 +1507,21 @@ describe('MOVE_ALL_TO', () => {
 });
 
 describe('SET_LIBRARY_REVEAL', () => {
-  it('starts private and moves between the three modes', () => {
+  it('starts private and moves between every mode, audience included', () => {
     let s = init(10);
     expect(s.libraryReveal).toBe('none');
-    s = applyAction(s, { type: 'SET_LIBRARY_REVEAL', reveal: 'top' });
-    expect(s.libraryReveal).toBe('top');
-    s = applyAction(s, { type: 'SET_LIBRARY_REVEAL', reveal: 'all' });
-    expect(s.libraryReveal).toBe('all');
-    s = applyAction(s, { type: 'SET_LIBRARY_REVEAL', reveal: 'none' });
-    expect(s.libraryReveal).toBe('none');
+    for (const reveal of ['top', 'top-me', 'all', 'none'] as const) {
+      s = applyAction(s, { type: 'SET_LIBRARY_REVEAL', reveal });
+      expect(s.libraryReveal).toBe(reveal);
+    }
+  });
+
+  it('switches audience in one step rather than off and on again', () => {
+    const shown = applyAction(init(10), { type: 'SET_LIBRARY_REVEAL', reveal: 'top' });
+    const mine = applyAction(shown, { type: 'SET_LIBRARY_REVEAL', reveal: 'top-me' });
+    expect(mine.libraryReveal).toBe('top-me');
+    // One step means one thing to undo.
+    expect(applyAction(mine, { type: 'UNDO' }).libraryReveal).toBe('top');
   });
 
   it('is a no-op when it is already in that mode, so it cannot pad the undo stack', () => {
@@ -1528,5 +1534,66 @@ describe('SET_LIBRARY_REVEAL', () => {
     const after = applyAction(before, { type: 'SET_LIBRARY_REVEAL', reveal: 'all' });
     expect(allCardIds(after)).toEqual(allCardIds(before));
     expect(after.zones.library).toEqual(before.zones.library);
+  });
+
+  // Regression: `snapshot()` is an explicit field list, and a field missing
+  // from it is dropped by EVERY other action — the reveal turned itself off
+  // on the next draw.
+  it('survives an unrelated action', () => {
+    let s = applyAction(init(10), { type: 'SET_LIBRARY_REVEAL', reveal: 'top' });
+    for (const action of [
+      { type: 'DRAW' },
+      { type: 'SHUFFLE_LIBRARY' },
+      { type: 'UNTAP_ALL' },
+      { type: 'NEXT_TURN' },
+    ] as const) {
+      s = applyAction(s, action);
+      expect(s.libraryReveal, action.type).toBe('top');
+    }
+    // And back out again through the undo stack.
+    expect(applyAction(s, { type: 'UNDO' }).libraryReveal).toBe('top');
+  });
+});
+
+describe('REVEAL_TOP_CARD', () => {
+  it('changes nothing at all — it is an event, not a state', () => {
+    const s = init(10);
+    // Identity, not deep equality: no snapshot pushed, nothing to undo.
+    expect(applyAction(s, { type: 'REVEAL_TOP_CARD' })).toBe(s);
+  });
+
+  it('leaves the standing reveal alone', () => {
+    const s = applyAction(init(10), { type: 'SET_LIBRARY_REVEAL', reveal: 'top-me' });
+    expect(applyAction(s, { type: 'REVEAL_TOP_CARD' }).libraryReveal).toBe('top-me');
+  });
+});
+
+/**
+ * `snapshot()` is a hand-written field list, so a field added to
+ * `PlaytestState` and not added there is silently dropped by EVERY action
+ * that snapshots — which is how `libraryReveal` turned itself off on the
+ * next draw. This is the class-level guard: it fails for the next field
+ * too, without anyone remembering to write a test for it.
+ */
+describe('snapshot() keeps the whole state', () => {
+  it('drops no field when an unrelated action snapshots', () => {
+    const base = init(10);
+    // Every optional field populated, so none is absent for its own reasons.
+    const seeded: PlaytestState = {
+      ...base,
+      libraryReveal: 'top',
+      revealed: [],
+      stack: [],
+    };
+    const after = applyAction(seeded, { type: 'UNTAP_ALL' });
+    expect(Object.keys(after).sort()).toEqual(Object.keys(seeded).sort());
+  });
+
+  it('round-trips their values, not just their keys', () => {
+    const seeded: PlaytestState = { ...init(10), libraryReveal: 'all', revealed: [], stack: [] };
+    const after = applyAction(seeded, { type: 'UNTAP_ALL' });
+    for (const k of ['libraryReveal', 'turn', 'life', 'rngSeed'] as const) {
+      expect(after[k], k).toEqual(seeded[k]);
+    }
   });
 });
