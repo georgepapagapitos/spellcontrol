@@ -4,9 +4,11 @@ import {
   createGameState,
   isKeyMoment,
   makePlayer,
+  reseatSummaryWinner,
   summarizeGame,
   type GameAction,
   type GameState,
+  type GameSummary,
 } from './index';
 
 function lobby(players = 4): GameState {
@@ -305,5 +307,71 @@ describe('isKeyMoment', () => {
     expect(isKeyMoment({ kind: 'life' })).toBe(false);
     expect(isKeyMoment({ kind: 'cmd-dmg', delta: 7 })).toBe(true);
     expect(isKeyMoment({ kind: 'cmd-dmg', delta: 2 })).toBe(false);
+  });
+});
+
+describe('reseatSummaryWinner', () => {
+  function summary(placements: Array<[number, number | null]>): GameSummary {
+    return {
+      turns: 3,
+      durationMs: 900,
+      firstBlood: null,
+      startingSeat: 0,
+      winnerSeat: placements.find(([, p]) => p === 1)?.[0] ?? null,
+      seats: placements.map(([seat, placement]) => ({
+        seat,
+        damageTaken: 0,
+        lifeGained: 0,
+        biggestHit: 0,
+        lowestLife: 40,
+        commanderDamageDealt: 0,
+        placement,
+        eliminatedOnTurn: null,
+        killedBySeat: null,
+      })),
+      commanderDamage: [],
+    };
+  }
+
+  it('never leaves two seats claiming first place', () => {
+    const out = reseatSummaryWinner(
+      summary([
+        [0, 1],
+        [1, null],
+      ]),
+      1,
+      new Set()
+    );
+    expect(out.winnerSeat).toBe(1);
+    expect(out.seats.filter((s) => s.placement === 1).map((s) => s.seat)).toEqual([1]);
+    expect(out.seats.find((s) => s.seat === 0)?.placement).toBe(null);
+  });
+
+  it('leaves an eliminated seat the placement its elimination order earned', () => {
+    const out = reseatSummaryWinner(
+      summary([
+        [0, 1],
+        [1, null],
+        [2, 3],
+      ]),
+      1,
+      new Set([2])
+    );
+    expect(out.seats.find((s) => s.seat === 2)?.placement).toBe(3);
+  });
+
+  it('drops first place entirely when the winner is cleared', () => {
+    const out = reseatSummaryWinner(summary([[0, 1]]), null, new Set());
+    expect(out.winnerSeat).toBe(null);
+    expect(out.seats.every((s) => s.placement === null)).toBe(true);
+  });
+
+  it('leaves every other stat alone', () => {
+    const before = summary([[0, 1]]);
+    const out = reseatSummaryWinner(before, null, new Set());
+    expect(out.turns).toBe(before.turns);
+    expect(out.durationMs).toBe(before.durationMs);
+    expect(out.startingSeat).toBe(before.startingSeat);
+    expect(out.seats[0].damageTaken).toBe(before.seats[0].damageTaken);
   });
 });

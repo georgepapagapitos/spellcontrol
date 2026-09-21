@@ -869,6 +869,28 @@ export const gameResults = pgTable(
 );
 
 /**
+ * Rows a given account has dropped out of its own history list. Only ONLINE
+ * rows land here: an online game is the table's shared record, so a seat can
+ * hide it but never retract it, and every stats read (leaderboard, H2H, pod)
+ * deliberately ignores this table so hiding cannot rewrite a shared win-loss.
+ * A local row the caller recorded is deleted outright instead.
+ */
+export const gameResultHidden = pgTable(
+  'game_result_hidden',
+  {
+    sessionId: text('session_id').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    hiddenAt: bigint('hidden_at', { mode: 'number' }).notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.sessionId, t.userId] }),
+    userIdx: index('game_result_hidden_user_idx').on(t.userId),
+  })
+);
+
+/**
  * One-shot data migrations that `ensureSchema` must not repeat on every boot
  * (it is idempotent DDL; anything that scans rows checks in here first).
  * See `games/backfill-results.ts`.
@@ -1146,6 +1168,7 @@ export type FriendshipRow = typeof friendships.$inferSelect;
 export type PodRow = typeof pods.$inferSelect;
 export type PodMemberRow = typeof podMembers.$inferSelect;
 export type GameResultRow = typeof gameResults.$inferSelect;
+export type GameResultHiddenRow = typeof gameResultHidden.$inferSelect;
 export type DeckPublicationRow = typeof deckPublications.$inferSelect;
 export type DeckLikeRow = typeof deckLikes.$inferSelect;
 export type DeckBookmarkRow = typeof deckBookmarks.$inferSelect;

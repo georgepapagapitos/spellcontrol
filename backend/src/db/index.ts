@@ -595,6 +595,19 @@ export async function ensureSchema(): Promise<void> {
     -- user_games owner.
     ALTER TABLE game_results ADD COLUMN IF NOT EXISTS recorded_by_user_id TEXT;
     CREATE INDEX IF NOT EXISTS game_results_recorded_by_idx ON game_results(recorded_by_user_id);
+    -- Per-account hide list for ONLINE rows. An online game is the table's
+    -- shared record, so one seat may not retract it — but they can drop it out
+    -- of their own history list (a test table, a game they would rather not
+    -- scroll past). Hiding is list curation ONLY: every stats read still counts
+    -- the row, so no participant can quietly rewrite a shared win-loss. A local
+    -- row is deleted outright instead (DELETE /api/game-results/:sessionId).
+    CREATE TABLE IF NOT EXISTS game_result_hidden (
+      session_id TEXT NOT NULL,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      hidden_at BIGINT NOT NULL,
+      PRIMARY KEY (session_id, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS game_result_hidden_user_idx ON game_result_hidden(user_id);
     -- One-shot data migrations, keyed by name. ensureSchema runs on every
     -- boot, so anything that scans DATA (not just DDL) checks in here first.
     CREATE TABLE IF NOT EXISTS app_migrations (

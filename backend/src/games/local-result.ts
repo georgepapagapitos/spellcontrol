@@ -197,3 +197,64 @@ export function parseLocalResult(body: unknown): LocalResultParse {
     },
   };
 }
+
+/**
+ * A correction to an already-recorded LOCAL result: who actually won, and
+ * which deck each seat was actually playing. Both are things a recorder
+ * routinely gets wrong in the moment (a mistapped seat, a deck nobody
+ * attached), and before this the only repair was deleting the game and
+ * losing it.
+ *
+ * Deliberately narrow. Life totals, elimination, timings and the event log
+ * are what the device WITNESSED; rewriting those after the fact would turn
+ * the record into free-form fiction. The winner and the deck labels are
+ * attribution, which is exactly the part a human enters by hand.
+ */
+export interface ResultEditDeck {
+  deckId: string | null;
+  deckName: string | null;
+  commander: string | null;
+  colorIdentity: string[];
+}
+
+export interface ResultEdit {
+  /** Seat that won, or null for "no winner recorded". */
+  winnerSeat: number | null;
+  /** Per-seat deck attribution. A seat the map omits keeps what it had. */
+  decks: Map<number, ResultEditDeck>;
+}
+
+export type ResultEditParse = { ok: true; edit: ResultEdit } | { ok: false; error: string };
+
+export function parseResultEdit(body: unknown): ResultEditParse {
+  if (!isRec(body)) return { ok: false, error: 'Nothing to change.' };
+
+  let winnerSeat: number | null = null;
+  if (body.winnerSeat !== null && body.winnerSeat !== undefined) {
+    if (!isInt(body.winnerSeat) || body.winnerSeat < 0 || body.winnerSeat >= MAX_PLAYERS) {
+      return { ok: false, error: 'That seat is not in this game.' };
+    }
+    winnerSeat = body.winnerSeat;
+  }
+
+  const decks: ResultEdit['decks'] = new Map();
+  if (body.decks !== undefined) {
+    if (!Array.isArray(body.decks) || body.decks.length > MAX_PLAYERS) {
+      return { ok: false, error: 'Bad deck list.' };
+    }
+    for (const raw of body.decks) {
+      if (!isRec(raw) || !isInt(raw.seat) || raw.seat < 0 || raw.seat >= MAX_PLAYERS) {
+        return { ok: false, error: 'That seat is not in this game.' };
+      }
+      if (decks.has(raw.seat)) return { ok: false, error: 'A seat can appear only once.' };
+      decks.set(raw.seat, {
+        deckId: optStr(raw.deckId, 100),
+        deckName: optStr(raw.deckName, MAX_LABEL_LEN),
+        commander: optStr(raw.commander, MAX_LABEL_LEN),
+        colorIdentity: colors(raw.colorIdentity),
+      });
+    }
+  }
+
+  return { ok: true, edit: { winnerSeat, decks } };
+}

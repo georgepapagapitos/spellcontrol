@@ -33,22 +33,34 @@ vi.mock('../lib/game-results-client', async (importOriginal) => {
     postLocalResult: vi.fn(),
     fetchMyResults: vi.fn(),
     deleteGameResult: vi.fn(),
+    patchGameResult: vi.fn(),
+    setGameResultHidden: vi.fn(),
   };
 });
 
 import { gameToRematch, recordToRematch, usePlayStore } from './play';
 import { useAuth } from './auth';
-import { postLocalResult, fetchMyResults, deleteGameResult } from '../lib/game-results-client';
+import {
+  postLocalResult,
+  fetchMyResults,
+  deleteGameResult,
+  patchGameResult,
+  setGameResultHidden,
+} from '../lib/game-results-client';
 
 const mockPost = vi.mocked(postLocalResult);
 const mockFetchMine = vi.mocked(fetchMyResults);
 const mockDelete = vi.mocked(deleteGameResult);
+const mockPatch = vi.mocked(patchGameResult);
+const mockSetHidden = vi.mocked(setGameResultHidden);
 
 function resetStores() {
   usePlayStore.setState({
     local: null,
     online: null,
     history: [],
+    hiddenHistory: [],
+    hiddenCount: 0,
     pendingResults: [],
     boardVisible: true,
     hydrated: true,
@@ -135,7 +147,7 @@ beforeEach(() => {
   // Implementations too, not just call counts — a resolved value left over
   // from one test must not feed the next test's sign-in read.
   vi.resetAllMocks();
-  mockFetchMine.mockResolvedValue({ results: [], nextCursor: null });
+  mockFetchMine.mockResolvedValue({ results: [], nextCursor: null, hiddenCount: 0 });
   resetStores();
 });
 
@@ -167,7 +179,11 @@ describe('a finished local game and the server record', () => {
     await flush();
     expect(mockPost).not.toHaveBeenCalled();
     mockPost.mockImplementation(async (g) => serverCopy(g));
-    mockFetchMine.mockResolvedValue({ results: [serverCopy(game)], nextCursor: null });
+    mockFetchMine.mockResolvedValue({
+      results: [serverCopy(game)],
+      nextCursor: null,
+      hiddenCount: 0,
+    });
     await signIn();
     await flush();
     await flush();
@@ -272,7 +288,7 @@ describe('loadHistory', () => {
       mode: 'online',
       recordedByUserId: null,
     };
-    mockFetchMine.mockResolvedValue({ results: [fromServer], nextCursor: null });
+    mockFetchMine.mockResolvedValue({ results: [fromServer], nextCursor: null, hiddenCount: 0 });
     await usePlayStore.getState().loadHistory();
     expect(usePlayStore.getState().history.map((r) => r.id)).toEqual(['waiting', 'srv-1']);
     expect(usePlayStore.getState().history[1].mode).toBe('online');
@@ -316,5 +332,129 @@ describe('removeHistory', () => {
     usePlayStore.getState().removeHistory('g');
     expect(usePlayStore.getState().history).toEqual([]);
     expect(mockDelete).not.toHaveBeenCalled();
+  });
+});
+
+describe('editHistory', () => {
+  const seats = (winnerSeat: number | null): GameRecord => ({
+    ...record('mine', 'local', 'me'),
+    winnerSeat,
+    players: [
+      {
+        seat: 0,
+        userId: null,
+        name: 'A',
+        deckId: null,
+        deckName: null,
+        commander: null,
+        finalLife: 40,
+        eliminated: false,
+      },
+      {
+        seat: 1,
+        userId: null,
+        name: 'B',
+        deckId: null,
+        deckName: null,
+        commander: null,
+        finalLife: 0,
+        eliminated: true,
+      },
+    ],
+  });
+
+  it('shows the correction at once and writes it through', async () => {
+    const playedGame = playAGame();
+    resetStores();
+    await signIn();
+    usePlayStore.setState({ history: [seats(1)] });
+    mockPatch.mockImplementation(async () => {
+      // The row already reads as corrected before the server answers.
+      expect(usePlayStore.getState().history[0].winnerSeat).toBe(0);
+      return {
+        ...serverCopy({ ...playedGame, id: 'mine' }),
+        sessionId: 'mine',
+        winnerSeat: 0,
+      };
+    });
+    await usePlayStore.getState().editHistory('mine', { winnerSeat: 0, decks: [] });
+    expect(mockPatch).toHaveBeenCalledWith('mine', { winnerSeat: 0, decks: [] });
+    expect(usePlayStore.getState().history[0].winnerSeat).toBe(0);
+  });
+
+  it('puts the row back when the write fails, rather than leaving it looking saved', async () => {
+    await signIn();
+    usePlayStore.setState({ history: [seats(1)] });
+    mockPatch.mockRejectedValue(new Error('offline'));
+    await usePlayStore.getState().editHistory('mine', { winnerSeat: 0, decks: [] });
+    expect(usePlayStore.getState().history[0].winnerSeat).toBe(1);
+  });
+
+  it('corrects a game still queued in the queue itself, not on the server', async () => {
+    await signIn();
+    usePlayStore.setState({
+      history: [{ ...seats(1), id: 'queued' }],
+      pendingResults: [
+        { id: 'queued', winnerSeat: 1, players: [{ seat: 0 }, { seat: 1 }] } as GameState,
+      ],
+    });
+    await usePlayStore.getState().editHistory('queued', {
+      winnerSeat: 0,
+      decks: [{ seat: 0, deckId: 'd', deckName: 'Deck', commander: null, colorIdentity: ['G'] }],
+    });
+    expect(mockPatch).not.toHaveBeenCalled();
+    const queued = usePlayStore.getState().pendingResults[0];
+    expect(queued.winnerSeat).toBe(0);
+    expect(queued.players[0].deckName).toBe('Deck');
+    expect(usePlayStore.getState().history[0].players[0].deckName).toBe('Deck');
+  });
+
+  it('a guest corrects the device copy and calls nothing', async () => {
+    usePlayStore.setState({ history: [seats(1)] });
+    await usePlayStore.getState().editHistory('mine', { winnerSeat: 0, decks: [] });
+    expect(mockPatch).not.toHaveBeenCalled();
+    expect(usePlayStore.getState().history[0].winnerSeat).toBe(0);
+  });
+});
+
+describe('setHistoryHidden', () => {
+  it('moves the row to the hidden list and back, keeping the count in step', async () => {
+    await signIn();
+    mockSetHidden.mockResolvedValue();
+    usePlayStore.setState({ history: [record('online', 'online', null)], hiddenCount: 0 });
+
+    await usePlayStore.getState().setHistoryHidden('online', true);
+    expect(usePlayStore.getState().history).toEqual([]);
+    expect(usePlayStore.getState().hiddenHistory.map((r) => r.id)).toEqual(['online']);
+    expect(usePlayStore.getState().hiddenCount).toBe(1);
+    expect(mockSetHidden).toHaveBeenCalledWith('online', true);
+
+    await usePlayStore.getState().setHistoryHidden('online', false);
+    expect(usePlayStore.getState().history.map((r) => r.id)).toEqual(['online']);
+    expect(usePlayStore.getState().hiddenHistory).toEqual([]);
+    expect(usePlayStore.getState().hiddenCount).toBe(0);
+  });
+
+  it('puts the row back when the server refuses', async () => {
+    await signIn();
+    mockSetHidden.mockRejectedValue(new Error('nope'));
+    usePlayStore.setState({ history: [record('online', 'online', null)], hiddenCount: 0 });
+    await usePlayStore.getState().setHistoryHidden('online', true);
+    expect(usePlayStore.getState().history.map((r) => r.id)).toEqual(['online']);
+    expect(usePlayStore.getState().hiddenHistory).toEqual([]);
+    expect(usePlayStore.getState().hiddenCount).toBe(0);
+  });
+
+  it('a guest list is this device only, so nothing is told to the server', async () => {
+    usePlayStore.setState({ history: [record('online', 'online', null)] });
+    await usePlayStore.getState().setHistoryHidden('online', true);
+    expect(mockSetHidden).not.toHaveBeenCalled();
+    expect(usePlayStore.getState().history).toEqual([]);
+  });
+
+  it('loadHistory adopts the server hidden count', async () => {
+    mockFetchMine.mockResolvedValue({ results: [], nextCursor: null, hiddenCount: 4 });
+    await signIn();
+    expect(usePlayStore.getState().hiddenCount).toBe(4);
   });
 });
