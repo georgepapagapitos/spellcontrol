@@ -2573,7 +2573,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         <TableContextMenu
           x={pileMenu.x}
           y={pileMenu.y}
-          variant="floating"
+          // One menu, two presentations: a cursor-anchored popover where
+          // there is a cursor, the shared bottom sheet where there is a thumb.
+          variant={isNarrow ? 'sheet' : 'floating'}
           title={ZONE_VIEWER_LABEL[pileMenu.zone]}
           items={pileMenuItems(pileMenu.zone)}
           onClose={() => setPileMenu(null)}
@@ -2585,8 +2587,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           zones={state.zones}
           commanderTax={state.commanderTax}
           onOpenZone={(zone) => setViewer({ zone })}
-          onShuffleLibrary={() => dispatch({ type: 'SHUFFLE_LIBRARY' })}
-          onScry={() => setShowScry(true)}
+          // The sheet variant is anchored by the viewport, not the pointer,
+          // so the coordinates are unused here — 0,0 says so.
+          onMenu={(zone) => setPileMenu({ zone, x: 0, y: 0 })}
         />
       )}
 

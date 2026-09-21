@@ -1263,3 +1263,99 @@ describe('PlaytestBoard — who a reveal is for', () => {
     }
   });
 });
+
+/**
+ * The narrow tier reaches the same menu the table tier does, through the
+ * zones drawer's kebab instead of a right-click, rendered as the shared
+ * bottom sheet. The point of the hand-off is that there is ONE item list —
+ * so what is asserted here is the ten rows arriving, not the plumbing.
+ */
+describe('PlaytestBoard — the phone gets the same zone menus', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    dispatch.mockClear();
+    onlineTable = null;
+    // Undo the desktop-forcing matchMedia from the outer beforeEach: this
+    // block wants the board's narrow layout, which is what mounts the
+    // zones drawer in place of the four piles.
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: (query: string) => ({
+        matches: true,
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }),
+    });
+  });
+
+  function openLibrarySheet() {
+    fireEvent.click(screen.getByRole('button', { name: 'Show other zones' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Library actions' }));
+  }
+
+  it('opens the library menu as a sheet, with every row the table tier has', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    openLibrarySheet();
+
+    // The sheet variant, not the cursor-anchored popover.
+    expect(screen.getByRole('dialog', { name: 'Library' })).toBeTruthy();
+    for (const label of [
+      /^Draw a card/,
+      /^Draw several/,
+      /^Move top cards to/,
+      /^View/,
+      /^Shuffle/,
+      /^Select a random card/,
+      /^Move all to/,
+    ]) {
+      expect(screen.getByRole('menuitem', { name: label }), String(label)).toBeTruthy();
+    }
+  });
+
+  it('runs an action from the sheet', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    openLibrarySheet();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Shuffle/ }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SHUFFLE_LIBRARY' });
+  });
+
+  it('drills into a submenu on a phone too', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    openLibrarySheet();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Move top cards to/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Exile face down' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Exile 1 card face down' }));
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'MOVE_TOP_N',
+      n: 1,
+      to: 'exile',
+      faceDown: true,
+    });
+  });
+
+  it('gives the other three zones their menus as well', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Show other zones' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Graveyard actions' }));
+    expect(screen.getByRole('dialog', { name: 'Graveyard' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: /^Move all to/ })).toBeTruthy();
+  });
+});
