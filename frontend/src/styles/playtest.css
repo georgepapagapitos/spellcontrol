@@ -720,9 +720,10 @@ body[data-felt='slate'] {
   backdrop-filter: blur(6px);
 }
 
-/* The pile's own actions (Shuffle, Top cards on the library). Parked in the
-   tile's top-left corner, opposite the count in its label, and only visible
-   on hover/focus so four tiles don't carry four permanent kebabs. */
+/* The pile's menu, the same one right-click opens. Parked in the tile's
+   top-left corner, opposite the count in its label, and only visible on
+   hover/focus so four tiles don't carry four permanent kebabs — but always
+   present, because right-click is not reachable from a keyboard alone. */
 .playtest-pile__kebab {
   position: absolute;
   top: 2px;
@@ -775,8 +776,8 @@ body[data-felt='slate'] {
   border-color: var(--accent);
 }
 
-/* The tile's own trigger: opens the zone viewer. A separate element from the
-   tile root so an overlaid action (Library's Draw) can be a real button
+/* The tile's own trigger: draws on the library, opens the viewer elsewhere.
+   A separate element from the tile root so the kebab can be a real button
    beside it rather than nested inside one. */
 .playtest-pile__open {
   display: flex;
@@ -792,8 +793,15 @@ body[data-felt='slate'] {
   font-size: var(--text-xs);
 }
 
+.playtest-pile__open:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* The disabled tile still carries a menu, so the hover tint would promise a
+   click that does nothing — light the tile only where one lands. */
 @media (hover: hover) and (pointer: fine) {
-  .playtest-pile:hover {
+  .playtest-pile:not(:has(.playtest-pile__open:disabled)):hover {
     background: var(--accent-light);
     border-color: var(--accent);
   }
@@ -809,44 +817,6 @@ body[data-felt='slate'] {
   font-weight: 600;
   color: var(--text-secondary);
   white-space: nowrap;
-}
-
-/* Library's inline Draw, overlaid on the bottom of its art — the one action
-   taken often enough to not live behind the viewer. */
-.playtest-pile__action {
-  position: absolute;
-  left: 6px;
-  right: 6px;
-  bottom: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
-  padding: 3px var(--space-2);
-  border: 0.5px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--on-accent);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.playtest-pile__action:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.playtest-pile__action kbd {
-  font-family: inherit;
-  font-size: var(--text-xs);
-  opacity: 0.8;
-}
-
-@media (pointer: coarse) {
-  .playtest-pile__action {
-    min-height: 44px;
-  }
 }
 
 .playtest-pile__stack {
@@ -2508,8 +2478,7 @@ button.playtest-card-pt__value--editable:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
-.playtest-pile__open:focus-visible,
-.playtest-pile__action:focus-visible {
+.playtest-pile__open:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
