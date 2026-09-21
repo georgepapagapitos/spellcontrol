@@ -133,6 +133,21 @@ export function GameMenu({
         >
           {activeTab === 'now' && (
             <>
+              {/* Where the table is talking, set by the host in the lobby. The
+                  lobby is gone once the game starts, so this is where someone
+                  who joined late, or dropped off the call, finds it again. */}
+              {game.voiceUrl && (
+                <section className="game-menu-section">
+                  <a
+                    className="game-menu-btn is-wide"
+                    href={game.voiceUrl}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                  >
+                    Join the voice call
+                  </a>
+                </section>
+              )}
               {/* ── Primary actions — immediately visible without scrolling ── */}
               <section className="game-menu-section">
                 <div className="game-menu-actions">

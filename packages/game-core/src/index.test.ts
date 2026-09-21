@@ -1115,3 +1115,51 @@ describe('reseat', () => {
     expect(applyAction(active, { type: 'reseat', order: ['u2', 'u1', 'u0'] })).toBe(active);
   });
 });
+
+describe('watching and voice', () => {
+  it('starts closed: a new table is seats only, with nowhere to talk', () => {
+    const s = lobby();
+    expect(s.spectatorsAllowed).toBe(false);
+    expect(s.voiceUrl).toBe(null);
+  });
+
+  it('reads a game persisted before either field as closed, not open', () => {
+    const legacy = lobby() as Partial<GameState>;
+    delete legacy.spectatorsAllowed;
+    delete legacy.voiceUrl;
+    const s = applyAction(legacy as GameState, { type: 'note', message: 'hi', actorSeat: 0 });
+    expect(s.spectatorsAllowed).toBe(false);
+    expect(s.voiceUrl).toBe(null);
+  });
+
+  it('opens and closes watching through settings', () => {
+    const open = applyAction(lobby(), {
+      type: 'settings',
+      patch: { spectatorsAllowed: true },
+    });
+    expect(open.spectatorsAllowed).toBe(true);
+    const shut = applyAction(open, { type: 'settings', patch: { spectatorsAllowed: false } });
+    expect(shut.spectatorsAllowed).toBe(false);
+  });
+
+  it('tells the table when watching is opened, because the table has a right to know', () => {
+    const before = lobby().events.length;
+    const open = applyAction(lobby(), {
+      type: 'settings',
+      patch: { spectatorsAllowed: true },
+    });
+    expect(open.events.length).toBe(before + 1);
+    expect(open.events.at(-1)?.kind).toBe('settings');
+  });
+
+  it('carries a voice link, and clears it, without announcing either', () => {
+    const withUrl = applyAction(lobby(), {
+      type: 'settings',
+      patch: { voiceUrl: 'https://discord.gg/example' },
+    });
+    expect(withUrl.voiceUrl).toBe('https://discord.gg/example');
+    expect(withUrl.events.length).toBe(lobby().events.length);
+    const cleared = applyAction(withUrl, { type: 'settings', patch: { voiceUrl: null } });
+    expect(cleared.voiceUrl).toBe(null);
+  });
+});

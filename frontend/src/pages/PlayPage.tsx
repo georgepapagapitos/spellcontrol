@@ -9,7 +9,7 @@ import '@/styles/play-enhancements.css';
 import '@/styles/play-layout-editor.css';
 import '@/styles/play-counters-panel.css';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
-import { Check, Copy, Swords, X } from 'lucide-react';
+import { Check, Copy, Eye, Swords, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
@@ -72,6 +72,7 @@ export function PlayPage() {
 
   const hostOnline = usePlayStore((s) => s.hostOnline);
   const joinOnline = usePlayStore((s) => s.joinOnline);
+  const watchOnline = usePlayStore((s) => s.watchOnline);
   const dispatchOnline = usePlayStore((s) => s.dispatchOnline);
   const leaveOnline = usePlayStore((s) => s.leaveOnline);
   const refreshOnline = usePlayStore((s) => s.refreshOnline);
@@ -444,6 +445,20 @@ export function PlayPage() {
                       message: userMessage(
                         err,
                         "Couldn't join that game. Check the code and try again."
+                      ),
+                      tone: 'error',
+                    })
+                  )
+                }
+                onWatch={(code) =>
+                  void watchOnline(code).catch((err) =>
+                    toast.show({
+                      // A table that has not opened itself to watchers reads
+                      // exactly like a code that does not exist, on purpose —
+                      // so this one message covers both.
+                      message: userMessage(
+                        err,
+                        "That game isn't open to watch. Check the code, or ask the host to allow watchers."
                       ),
                       tone: 'error',
                     })
@@ -1080,6 +1095,7 @@ function OnlineSetup({
   decks,
   onHost,
   onJoin,
+  onWatch,
   defaultName,
   hasActive,
   initialMode,
@@ -1108,6 +1124,7 @@ function OnlineSetup({
       colorIdentity: string[];
     }
   ) => void;
+  onWatch: (code: string) => void;
   defaultName: string;
   hasActive: boolean;
   /** Which form opens first — the dashboard's doors pick one. */
@@ -1296,6 +1313,19 @@ function OnlineSetup({
           >
             <Swords width={16} height={16} strokeWidth={2} aria-hidden />
             Join game
+          </button>
+          {/* Watching needs the code and nothing else — no name, no deck, no
+              seat. It only works on a table whose host switched watchers on;
+              otherwise the read comes back as if the code were unknown, and
+              the error says so. */}
+          <button
+            type="button"
+            className="btn play-setup-watch"
+            disabled={code.trim().length < 3}
+            onClick={() => onWatch(code.trim().toUpperCase())}
+          >
+            <Eye width={16} height={16} strokeWidth={2} aria-hidden />
+            Watch without a seat
           </button>
         </form>
       )}
