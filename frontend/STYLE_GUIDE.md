@@ -1358,10 +1358,11 @@ panel's existing light-on-dark contract — never theme tokens there.
   next to it (synergy ✦, EDHREC %, which hide behind
   `.deck-row-hovermeta`'s `(hover:hover) and (pointer:fine)` gate), a
   card's own tags stay visible at rest. They're user-authored content, and
-  — critically — visibility here is what makes tag-group overlap legible:
-  a card showing 2 chips is self-evidently a member of 2 groups when
-  "Group by tag" is active. A card with no tags renders no chip at all —
-  zero clutter for anyone who's never touched the feature.
+  — critically — visibility here is what explains the grouping: under
+  "Group · Tags" a card is filed under its FIRST tag, so a card showing two
+  chips that sits in the section named by one of them is self-evident only
+  because both chips are on screen. A card with no tags renders no chip at
+  all — zero clutter for anyone who's never touched the feature.
 - **Live suggestion ≠ a real tag.** The auto-suggested chip (derived from
   `classifyCardCategory`, shown only while a card is untouched) is a
   **dashed-border ghost pill**, visually distinct from a committed tag —
@@ -3203,6 +3204,23 @@ preview) and Archidekt's static-card panel, these rulings now hold:
   same as the collection toolbar's Group by), not three unlabelled icons.
   A display control whose options can't be told apart at a glance gets a
   word, not a tooltip.
+- **Three lenses, and every one of them partitions.** Type, Roles and Tags.
+  Each files a card under exactly one heading, so section counts always sum
+  to the deck and a reader can trust any total on the page. Settled
+  2026-09-21, when a fourth lens was retired: there were briefly TWO lenses
+  over `DeckCard.tags`, one partitioning and one overlapping, and the
+  overlapping one shipped a banner explaining why its counts did not add up.
+  A feature that has to apologise for its own numbers is the wrong feature.
+  "Show me everything tagged Combo" is a **filter**, not a grouping, and it
+  lives in the toolbar search (which matches a card's name OR any of its
+  tags) so it works under every lens and in all three layouts.
+- **One word, one meaning: "Stacks" is a LAYOUT.** It names the overlapped-
+  card geometry below, and nothing else. The grouping over a user's tags is
+  called "Tags" because that is what the chips, the manager and the card
+  menu already call it. The derived lens is called "Roles" (not "Category")
+  because its buckets ARE `ROLE_TITLES` — the same four words the role
+  badges and the role filter chips use. Before this, "stack" meant three
+  things and "Category" competed with the user's own vocabulary.
 - **Stacks is the third view, and it is the grid's tile in another
   geometry.** `DeckCardGrid layout="stacks"` renders each group as one column
   of overlapped tiles (`.deck-card-stack`, `--stack-peek` ≈ 11% of the card

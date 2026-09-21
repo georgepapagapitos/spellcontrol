@@ -54,36 +54,46 @@ function sectionTitles(container: HTMLElement): string[] {
   });
 }
 
-describe('DeckDisplay stacks lens', () => {
+describe('DeckDisplay tag lens', () => {
   beforeEach(() => {
     localStorage.clear();
     localStorage.setItem('mtg-decks-view-mode', 'list');
-    localStorage.setItem('mtg-decks-group-by', 'stack');
+    localStorage.setItem('mtg-decks-group-by', 'tag');
   });
 
-  it('renders user stacks first, then the type fallbacks', () => {
+  it("renders the user's own tags first, then the type fallbacks", () => {
     const { container } = renderDeck(deck());
     expect(sectionTitles(container)).toEqual(['Blink', 'Draw', 'Creature', 'Land']);
   });
 
-  it('does NOT show the tag-overlap banner, because this lens partitions', () => {
+  it('PARTITIONS: a multi-tagged card appears once, and counts sum to the deck', () => {
+    const cards: DeckDisplayCard[] = [
+      { slotId: 's0', card: card('Brago', 'Creature'), tags: ['Blink', 'Wincon', 'Combo'] },
+      { slotId: 's1', card: card('Bear', 'Creature') },
+    ];
+    const { container } = renderDeck(cards);
+    // The retired overlapping lens would have produced Blink + Wincon + Combo.
+    expect(sectionTitles(container)).toEqual(['Blink', 'Creature']);
+  });
+
+  it('shows no overlap banner anywhere, because there is no overlapping lens', () => {
     const { container } = renderDeck(deck());
     expect(container.querySelector('.deck-tag-honesty-banner')).toBeNull();
-    expect(container.textContent).toContain('Each card sits in one stack');
+    expect(container.textContent).toContain('Each card is filed under its first tag');
   });
 
-  it('still shows the overlap banner under the tag lens', () => {
-    localStorage.setItem('mtg-decks-group-by', 'tag');
-    const { container } = renderDeck(deck());
-    expect(container.querySelector('.deck-tag-honesty-banner')).not.toBeNull();
-  });
-
-  it('keeps the tag manager reachable, since the banner that hosts it is gone', () => {
+  it('keeps the tag manager reachable from this lens', () => {
     const { getByRole } = renderDeck(deck(), {
       onRenameDeckTag: vi.fn(),
       onRemoveDeckTag: vi.fn(),
     });
-    expect(getByRole('button', { name: 'Manage deck stacks' })).toBeTruthy();
+    expect(getByRole('button', { name: 'Manage deck tags' })).toBeTruthy();
+  });
+
+  it('labels the derived lens "Roles", not "Category"', () => {
+    localStorage.setItem('mtg-decks-group-by', 'category');
+    const { container } = renderDeck(deck());
+    expect(container.textContent).toContain('Each card is filed under one role');
   });
 
   it('collapses a section and hides only its rows, keeping the header readable', () => {
@@ -97,7 +107,7 @@ describe('DeckDisplay stacks lens', () => {
     expect(reToggle.getAttribute('aria-expanded')).toBe('false');
     const listId = reToggle.getAttribute('aria-controls');
     expect((container.querySelector(`#${listId}`) as HTMLElement).hidden).toBe(true);
-    // The header survives: a collapsed stack that still states its size is
+    // The header survives: a collapsed section that still states its size is
     // the whole point of collapsing one.
     expect(sectionTitles(container)).toContain('Blink');
   });
@@ -115,6 +125,27 @@ describe('DeckDisplay stacks lens', () => {
     localStorage.setItem('mtg-decks-group-by', 'type');
     const third = renderDeck(deck());
     expect(third.getByRole('button', { name: 'Collapse Creature' })).toBeTruthy();
+  });
+
+  it('filters the deck by TAG as well as by name, in any layout', () => {
+    // This is what replaced the overlapping tag lens: "show me everything
+    // tagged Combo" is a filter, so it works under every grouping and in all
+    // three layouts instead of being a grouping whose counts did not sum.
+    localStorage.setItem('mtg-decks-group-by', 'type');
+    const cards: DeckDisplayCard[] = [
+      { slotId: 's0', card: card('Brago', 'Creature'), tags: ['Blink'] },
+      { slotId: 's1', card: card('Bear', 'Creature') },
+    ];
+    const { container, getByLabelText } = renderDeck(cards);
+    fireEvent.change(getByLabelText('Search this deck'), { target: { value: 'blink' } });
+
+    // :not(.is-leaving) matters — a filtered-out row stays mounted through its
+    // exit animation, which never fires under happy-dom.
+    const names = Array.from(
+      container.querySelectorAll('.deck-row[data-peek-name]:not(.is-leaving)')
+    ).map((el) => el.getAttribute('data-peek-name'));
+    // Brago matches on its tag, not its name; Bear matches neither.
+    expect(names).toEqual(['Brago']);
   });
 
   it('gives grid and stacks section headers a price, which was list-only before', () => {

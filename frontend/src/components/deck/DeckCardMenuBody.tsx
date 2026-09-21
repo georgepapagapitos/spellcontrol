@@ -3,7 +3,7 @@ import { ChevronRight, ChevronLeft, Check } from 'lucide-react';
 import { normalizeTagText } from '../../lib/deck-tags';
 import {
   deckCardActions,
-  stackPickActions,
+  tagPickActions,
   SECTION_ORDER,
   SECTION_TITLES,
   type DeckCardActionCtx,
@@ -18,8 +18,8 @@ import type { Row } from './deck-display-rows';
  *
  * Two pages. The root lists the actions in labelled clusters, because the
  * menu is past a dozen rows and the style guide asks for sections rather than
- * one flat list at that length. The stack page picks which stack the card
- * belongs to, and can name a new one.
+ * one flat list at that length. The tag page picks which tag files the card,
+ * and can name a new one.
  *
  * Page state is the caller's so the floating shell can pass it as `contentKey`
  * and get its re-clamp and focus-into-the-new-page for free.
@@ -34,20 +34,20 @@ export function DeckCardMenuBody({
 }: {
   row: Row;
   ctx: DeckCardActionCtx;
-  /** Every tag already used anywhere in this deck, for the stack picker. */
+  /** Every tag already used anywhere in this deck, for the tag picker. */
   deckTags: string[];
-  page: 'root' | 'stack';
-  onPageChange: (page: 'root' | 'stack') => void;
+  page: 'root' | 'tag';
+  onPageChange: (page: 'root' | 'tag') => void;
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState('');
   const actions = deckCardActions(ctx);
 
-  const commitNewStack = () => {
+  const commitNewTag = () => {
     const tag = normalizeTagText(draft);
     if (!tag || !ctx.onSetRowTags) return;
-    // Hoisted to primary, like picking an existing stack: this row moves
-    // there rather than merely gaining a tag.
+    // Hoisted to primary, like picking an existing tag: this row moves
+    // there rather than merely gaining one more tag.
     ctx.onSetRowTags(row.slotIds, [
       tag,
       ...row.tags.filter((t) => t.toLowerCase() !== tag.toLowerCase()),
@@ -56,8 +56,8 @@ export function DeckCardMenuBody({
     onClose();
   };
 
-  if (page === 'stack' && ctx.onSetRowTags) {
-    const picks = stackPickActions(row, deckTags, ctx.onSetRowTags);
+  if (page === 'tag' && ctx.onSetRowTags) {
+    const picks = tagPickActions(row, deckTags, ctx.onSetRowTags);
     return (
       <>
         <button
@@ -92,11 +92,11 @@ export function DeckCardMenuBody({
           </button>
         ))}
         <div className="deck-card-menu-new">
-          <label className="deck-card-menu-new-label" htmlFor={`new-stack-${row.name}`}>
-            New stack
+          <label className="deck-card-menu-new-label" htmlFor={`new-tag-${row.name}`}>
+            New tag
           </label>
           <input
-            id={`new-stack-${row.name}`}
+            id={`new-tag-${row.name}`}
             type="text"
             className="deck-card-menu-new-input"
             value={draft}
@@ -107,7 +107,7 @@ export function DeckCardMenuBody({
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                commitNewStack();
+                commitNewTag();
               }
             }}
           />
@@ -134,7 +134,7 @@ export function DeckCardMenuBody({
                   className="deck-row-menu-item deck-card-menu-drill"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onPageChange('stack');
+                    onPageChange('tag');
                   }}
                 >
                   {action.label}

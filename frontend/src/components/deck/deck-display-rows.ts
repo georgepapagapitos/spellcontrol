@@ -197,20 +197,19 @@ export function readStoredShowPrefs(): ShowPrefs {
 
 // ── Group-by (E124, +'tag' E171) ─────────────────────────────────────────
 // Mainboard grouping lens: 'type' (canonical card type — the long-standing
-// default), 'category' (the generator's 8-bucket DeckCategory shape, with
-// target gauges), 'stack' (the user's own tags as a PARTITION — first tag
-// wins, untagged cards fall back to their type, see groupByStack's doc), or
-// 'tag' (the same tags as an overlapping lens — a card can land in more than
-// one group here, see groupByTag's doc). Persisted like view mode/show
-// prefs; default stays 'type' so an existing deck's mainboard renders
-// byte-identical until the user opts in.
-export type DeckGroupBy = 'type' | 'category' | 'stack' | 'tag';
+// default), 'category' (the derived role buckets, labelled "Roles" in the
+// toolbar, with target gauges on a generated deck) or 'tag' (the user's own
+// tags, a PARTITION — first tag wins, untagged cards fall back to their
+// type; see groupByTag's doc). Persisted like view mode/show prefs; default
+// stays 'type' so an existing deck's mainboard renders byte-identical until
+// the user opts in.
+export type DeckGroupBy = 'type' | 'category' | 'tag';
 export const GROUP_BY_STORAGE_KEY = 'mtg-decks-group-by';
 
 // ── Collapsed sections ────────────────────────────────────────────────────
 // Which mainboard sections are folded shut, persisted like view mode and
 // group-by. Entries are `${groupBy}:${title}` so collapsing "Creature" under
-// the Type lens doesn't silently fold a stack that happens to share the name.
+// the Type lens doesn't silently fold a tag group that shares the name.
 // A section stays collapsed across reloads because a 100-card deck is read in
 // passes, and re-folding the same six sections every visit is the friction
 // this exists to remove.
@@ -241,7 +240,11 @@ export function readStoredGroupBy(): DeckGroupBy {
   if (typeof window === 'undefined') return 'type';
   try {
     const v = window.localStorage.getItem(GROUP_BY_STORAGE_KEY);
-    if (v === 'type' || v === 'category' || v === 'stack' || v === 'tag') return v;
+    // 'stack' was the short-lived name for the partition lens (2026-09-21).
+    // It IS the tag lens now, so an existing preference follows rather than
+    // silently dropping the reader back to Type.
+    if (v === 'stack') return 'tag';
+    if (v === 'type' || v === 'category' || v === 'tag') return v;
   } catch {
     /* ignore */
   }
@@ -801,59 +804,20 @@ export function groupByCategory(
   return ordered;
 }
 
-// Group a flat Row[] by user tag (E171). Unlike groupByType/groupByCategory
-// this is NOT a partition — a multi-tagged row appears in every one of its
-// tag's groups, by design (multi-tag was a deliberate ruling, see the
-// DeckCard.tags doc). That's exactly what makes the section-header counts
-// here NOT summable into a deck total: the true count lives only in the
-// stat-strip's `totalCards` (computed straight from `cards.length`, never
-// from these groups — see the honesty note this function's caller renders).
-// Rows are alphabetical by tag name; an "Untagged" bucket trails last so a
-// deck that's only partially tagged still shows the whole list.
-export const UNTAGGED_GROUP_TITLE = 'Untagged';
-export function groupByTag(rows: Row[], commanderRows?: Row[]): TypedGroup[] {
-  const buckets = new Map<string, Row[]>();
-  const untagged: Row[] = [];
-  for (const row of rows) {
-    if (row.tags.length === 0) {
-      untagged.push(row);
-      continue;
-    }
-    for (const tag of row.tags) {
-      const bucket = buckets.get(tag) ?? [];
-      bucket.push(row);
-      buckets.set(tag, bucket);
-    }
-  }
-  const ordered: TypedGroup[] = [];
-  if (commanderRows && commanderRows.length > 0) {
-    ordered.push({
-      title: commanderRows.length > 1 ? 'Commanders' : 'Commander',
-      icon: 'commander',
-      rows: commanderRows,
-    });
-  }
-  for (const tag of [...buckets.keys()].sort((a, b) => a.localeCompare(b))) {
-    ordered.push({ title: tag, icon: 'tag', rows: buckets.get(tag)! });
-  }
-  if (untagged.length > 0) {
-    ordered.push({ title: UNTAGGED_GROUP_TITLE, icon: 'tag', rows: untagged });
-  }
-  return ordered;
-}
-
-// Group a flat Row[] into "stacks" — the partitioning sibling of groupByTag.
-// A row's stack is its FIRST tag; a row with no tags falls back to its card
-// type, so an untagged deck still reads as the type list it always was and a
-// partially tagged one grows its own sections without stranding the rest in
-// one "Untagged" pile.
+// Group a flat Row[] by user tag (E171). A row's group is its FIRST tag; a
+// row with no tags falls back to its card type, so an untagged deck still
+// reads as the type list it always was and a partially tagged one grows its
+// own sections without stranding the rest in one "Untagged" pile.
 //
-// Unlike groupByTag this IS a partition: every row lands in exactly one
-// group, so the section-header counts sum to the deck total and the caller
-// does not render the tag-overlap honesty note. A multi-tagged row is a
-// member of exactly one stack here (its first tag); the other tags are still
-// visible as chips on the row, and the 'tag' lens remains the way to see a
-// card under all of them.
+// This IS a partition: every row lands in exactly one group, so the
+// section-header counts sum to the deck total. Until 2026-09-21 there was a
+// second, OVERLAPPING tag lens beside this one, where a multi-tagged card
+// appeared in every one of its groups and the counts deliberately did not
+// sum — it needed a banner explaining why, which was the tell. It is gone.
+// A card's other tags are still visible as chips on the row, and the deck
+// search matches them (see applyFilterSort), so "show me everything tagged
+// Combo" is a filter that works in all three layouts rather than a grouping
+// mode with untrustworthy totals.
 //
 // `tags[0]` is a deliberate, stable choice rather than an arbitrary one:
 // buildRows preserves each slot's tag array order and only appends on union,
@@ -865,10 +829,10 @@ export function groupByTag(rows: Row[], commanderRows?: Row[]): TypedGroup[] {
 // same-name row at once, so the two only diverge on data that predates it.
 //
 // Ordering: commander first (as every grouper does), then the user's own
-// stacks alphabetically, then the type fallbacks in DISPLAY_ORDER. User
-// stacks lead because they are the point of this lens; the fallbacks are
+// tags alphabetically, then the type fallbacks in DISPLAY_ORDER. The user's
+// own tags lead because they are the point of this lens; the fallbacks are
 // what has not been filed yet.
-export function groupByStack(rows: Row[], commanderRows?: Row[]): TypedGroup[] {
+export function groupByTag(rows: Row[], commanderRows?: Row[]): TypedGroup[] {
   // Keyed case-insensitively so a tag named "Creature" lands in the SAME
   // bucket as the Creature type fallback instead of producing a second
   // section with an identical title. Both renderers key their sections on
@@ -892,12 +856,12 @@ export function groupByStack(rows: Row[], commanderRows?: Row[]): TypedGroup[] {
     }
   };
   for (const row of rows) {
-    const stack = row.tags[0];
-    if (stack === undefined) {
+    const primary = row.tags[0];
+    if (primary === undefined) {
       const t = classifyType(row.card);
       add(t, typeIcon(t.toLowerCase()), false, row);
     } else {
-      add(stack, 'tag', true, row);
+      add(primary, 'tag', true, row);
     }
   }
   const ordered: TypedGroup[] = [];
@@ -930,7 +894,15 @@ export function applyFilterSort(
 ): TypedGroup[] {
   const q = search.trim().toLowerCase();
   return groups.map((g) => {
-    const filtered = q ? g.rows.filter((r) => r.name.toLowerCase().includes(q)) : g.rows;
+    // Matches a card's name OR any of its tags. The tag half is what replaced
+    // the old overlapping tag lens: "show me everything tagged Combo" is a
+    // filter, and as a filter it works in all three layouts and under every
+    // grouping, instead of being a grouping mode whose counts did not sum.
+    const filtered = q
+      ? g.rows.filter(
+          (r) => r.name.toLowerCase().includes(q) || r.tags.some((t) => t.toLowerCase().includes(q))
+        )
+      : g.rows;
     return { ...g, rows: sortRows(filtered, sort, sortDir) };
   });
 }
