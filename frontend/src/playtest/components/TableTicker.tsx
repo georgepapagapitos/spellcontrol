@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
+import { MessageCircle, X } from 'lucide-react';
 import { usePlayStore, type TickerItem } from '@/store/play';
 import { paletteForIndex } from '@/lib/seat-palette';
 import type { OnlineTable } from '../hooks/use-online-table';
@@ -25,31 +26,125 @@ interface Props {
 }
 
 /**
- * The play ticker — the table's narrative feed ("Maya played Sol Ring"),
- * built from each seat's public log lines (store/play.ts `onlineTicker`;
- * visibility contract in projection.ts `toPublicTicker`). Renders in the
- * rail's slot (OpponentRail's `children`) at two densities, following the
- * rail's own gate so the two never disagree:
+ * The play ticker's presence-density half — a transient one-line flash for
+ * the table's narrative feed ("Maya played Sol Ring"), built from each
+ * seat's public log lines (store/play.ts `onlineTicker`; visibility contract
+ * in projection.ts `toPublicTicker`). Mounted in the rail's slot
+ * (OpponentRail's `children`) and the grid mode's ticker dock; renders
+ * nothing at glance density — that density's persistent feed now lives
+ * behind `TableTickerDock`'s bottom-left toggle in the table tier's left
+ * dock (see PlaytestBoard.tsx), not parked open over the felt or the rail
+ * with no way to close it (#2073 — the "can't close the table log" and
+ * "chat icon bottom left" reports).
  *
- * - **Glance** (side rail): a persistent scrolling feed under the opponent
- *   list — the rail column has vertical slack, so the narrative is always
- *   ambient there.
- * - **Presence** (top strip): a transient one-line flash, portaled to
- *   `<body>` (same clipping reason as TableMoments) and auto-dismissing —
- *   the phone board has no axis to spend on a persistent feed, and the
- *   reviewable history lives one tap away in the Log sheet's Table tab.
+ * Presence (top strip / narrow tier): a transient flash, portaled to
+ * `<body>` (same clipping reason as TableMoments) and auto-dismissing — the
+ * phone board has no axis to spend on a persistent feed, and the reviewable
+ * history lives one tap away in the Log sheet's Table tab.
  */
 export function TableTicker({ onlineTable }: Props) {
   const items = usePlayStore((s) => s.onlineTicker);
   const glance = useMediaQuery(GLANCE_QUERY);
-  return glance ? (
-    <TickerPanel items={items} onlineTable={onlineTable} />
-  ) : (
-    <TickerFlash items={items} onlineTable={onlineTable} />
+  if (glance) return null;
+  return <TickerFlash items={items} onlineTable={onlineTable} />;
+}
+
+/**
+ * The table tier's persistent chat/log entry point — a bottom-left button in
+ * PlaytestBoard's `.playtest-left-dock` column, beside the mana pool and the
+ * game log. Carries an unread count for lines that arrived while it was
+ * closed (own-seat lines never count — see `TickerFlash`'s same rule) and
+ * resets the moment it opens. The feed and composer are the same ones the
+ * old always-open glance panel rendered; they now have a way to close.
+ *
+ * Dismiss follows the dock's other panel (LogDock)'s own convention rather
+ * than a modal's: a close button and Escape while focus is already inside,
+ * no backdrop, no click-outside, no focus trap. It's a companion panel
+ * beside the felt, not a decision that should vanish because you clicked
+ * the board mid-turn.
+ */
+export function TableTickerDock({ onlineTable }: Props) {
+  const items = usePlayStore((s) => s.onlineTicker);
+  const [open, setOpen] = useState(false);
+  const panelRef = useRef<HTMLElement>(null);
+  // Seeded with the current tail so backlog already in the feed when this
+  // mounts never inflates the very first badge (same reasoning as
+  // TickerFlash's lastIdRef). Only advances on close (see `close` below) —
+  // everything that arrived while the panel was open was already visible in
+  // the list, so there is nothing to mark read until it shuts again.
+  const [lastSeenId, setLastSeenId] = useState(() =>
+    items.length > 0 ? items[items.length - 1].id : 0
+  );
+
+  function close() {
+    setOpen(false);
+    if (items.length > 0) setLastSeenId(items[items.length - 1].id);
+  }
+
+  // Bound to the panel's own node, not the document, so Escape closes it
+  // only when focus is already inside — a keystroke aimed at the board
+  // never reaches this (same technique as LogDock). Keyed on `open`: the
+  // panel (and its ref target) only exists while open, so the listener has
+  // to re-attach to the freshly mounted node each time rather than binding
+  // once against a `null` ref before the panel ever opens; keyed on `items`
+  // too so a late Escape still stamps the tail it closes against.
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setOpen(false);
+      if (items.length > 0) setLastSeenId(items[items.length - 1].id);
+    };
+    el.addEventListener('keydown', onKeyDown);
+    return () => el.removeEventListener('keydown', onKeyDown);
+  }, [open, items]);
+
+  // Zero while open — everything that arrives is already visible in the list
+  // below — so the badge only ever counts what showed up while it was shut.
+  const unread = open
+    ? 0
+    : items.filter((it) => it.id > lastSeenId && it.seat !== onlineTable.mySeat).length;
+
+  const label = unread > 0 ? `Table log, ${unread} unread` : 'Table log';
+
+  return (
+    <div className="table-ticker-dock">
+      {open && (
+        <TickerPanel items={items} onlineTable={onlineTable} panelRef={panelRef} onClose={close} />
+      )}
+      <button
+        type="button"
+        className={`table-ticker-dock__toggle${open ? ' is-open' : ''}`}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={label}
+        title="Table log"
+        onClick={() => (open ? close() : setOpen(true))}
+      >
+        <MessageCircle width={20} height={20} aria-hidden />
+        {unread > 0 && (
+          <span className="table-ticker-dock__badge" aria-hidden="true">
+            {unread > 99 ? '99+' : unread}
+          </span>
+        )}
+      </button>
+    </div>
   );
 }
 
-function TickerPanel({ items, onlineTable }: { items: TickerItem[]; onlineTable: OnlineTable }) {
+function TickerPanel({
+  items,
+  onlineTable,
+  panelRef,
+  onClose,
+}: {
+  items: TickerItem[];
+  onlineTable: OnlineTable;
+  /** Given by `TableTickerDock` so Escape can bind to the panel's own node. */
+  panelRef?: RefObject<HTMLElement | null>;
+  onClose?: () => void;
+}) {
   const listRef = useRef<HTMLOListElement>(null);
   // Keep the newest line in view — the feed reads downward like a chat log.
   useEffect(() => {
@@ -57,24 +152,32 @@ function TickerPanel({ items, onlineTable }: { items: TickerItem[]; onlineTable:
     if (el) el.scrollTop = el.scrollHeight;
   }, [items]);
   return (
-    <section className="table-ticker" aria-label="Table log">
-      <h3 className="table-ticker__heading">Table log</h3>
+    <section className="table-ticker" aria-label="Table log" ref={panelRef}>
+      <div className="table-ticker__head">
+        <h3 className="table-ticker__heading">Table log</h3>
+        {onClose && (
+          <button
+            type="button"
+            className="table-ticker__close"
+            aria-label="Close table log"
+            onClick={onClose}
+          >
+            <X width={16} height={16} aria-hidden />
+          </button>
+        )}
+      </div>
       {items.length === 0 ? (
         <p className="table-ticker__empty">Plays and messages will appear here.</p>
       ) : (
         // role="log" = implicit polite live region: new lines are announced
-        // without stealing focus, in both densities' place of one.
+        // without stealing focus.
         <ol ref={listRef} className="table-ticker__list" role="log">
           {items.map((it) => (
             <TickerLine key={it.id} item={it} name={tickerSeatName(onlineTable, it.seat)} />
           ))}
         </ol>
       )}
-      {/* Glance density only — the rail column has the vertical slack for a
-          persistent composer. In presence density the ticker renders just a
-          portaled transient flash with no in-flow surface to attach one to,
-          so the phone's composer lives in the Log sheet's Table tab. */}
-      <TableChat idPrefix="rail" />
+      <TableChat idPrefix="ticker-dock" />
     </section>
   );
 }
