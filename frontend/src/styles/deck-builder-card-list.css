@@ -46,7 +46,8 @@
 
 /* ── Stacks view (2026-09-19) ─────────────────────────────────────────
    One column per group, the tiles overlapped so only each card's name strip
-   shows; the hovered/focused tile lifts to full view over its neighbours.
+   shows; the hovered/focused tile opens to full size and pushes the rest of
+   the column down.
    Same tile markup as the grid (DeckCardGrid `layout="stacks"`), so every
    pip and badge is shared — these rules only change the geometry. */
 .deck-card-grid-sections--stacks {
@@ -88,13 +89,13 @@
 
 .deck-card-stack .deck-card-grid-cell + .deck-card-grid-cell {
   margin-top: calc(var(--stack-peek) - var(--stack-card-h));
+  transition: margin-top var(--motion-fast) var(--ease-out-soft);
 }
 
 /* Later siblings paint over earlier ones by DOM order; hovering or focusing a
-   tile lifts it above the cards stacked on it. The lift is z-order only — no
-   transform — so nothing below shifts and the pointer never lands on a moving
-   target. It targets the tile (the button, which already carries the shared
-   :focus-visible ring), not the <li>, so keyboard focus lifts the same card. */
+   tile lifts it above the cards stacked on it. It targets the tile (the
+   button, which already carries the shared :focus-visible ring), not the
+   <li>, so keyboard focus lifts the same card. */
 @media (hover: hover) and (pointer: fine) {
   .deck-card-stack .deck-card-grid-tile:hover {
     z-index: 3;
@@ -102,6 +103,36 @@
 }
 .deck-card-stack .deck-card-grid-tile:focus-visible {
   z-index: 3;
+}
+
+/* …and the rest of the column moves down to make room (2026-09-21), the way
+   Archidekt's stacks do. Lifting by z-order alone was a dead end: the card
+   revealed under the cursor covered the name strips of every card beneath it,
+   so the only way to reach one of those was to leave the stack and come back
+   from below. Dropping the overlap on the tile DIRECTLY after the active one
+   is enough — the tail keeps its own overlap and travels down as a unit.
+
+   Only the top strip of a buried card is exposed to the cursor, so the pointer
+   is always in the top ~11% of the card that opens; the card grows downward,
+   away from it, and nothing moves under the cursor. Moving on to the next card
+   lands on its strip in its pushed-down position, which then opens in place. */
+@media (hover: hover) and (pointer: fine) {
+  .deck-card-stack .deck-card-grid-cell:hover + .deck-card-grid-cell {
+    margin-top: 0;
+  }
+}
+
+/* Keyboard parity, on the cell so the tile's kebab holds the card open too.
+   :focus-visible (not plain :focus) keeps a click from leaving the column
+   parted after the pointer has gone. */
+.deck-card-stack .deck-card-grid-cell:has(:focus-visible) + .deck-card-grid-cell {
+  margin-top: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-card-stack .deck-card-grid-cell + .deck-card-grid-cell {
+    transition: none;
+  }
 }
 
 /* A buried tile shows only its top strip, and the qty pip sits in that strip

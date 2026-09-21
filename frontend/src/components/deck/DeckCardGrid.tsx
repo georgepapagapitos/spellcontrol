@@ -4,7 +4,8 @@
 // `layout="stacks"` (2026-09-19) is the visual-stacks layout Moxfield and
 // Archidekt default Commander decks to: every group is a column of card
 // images overlapped so only each card's name strip shows, and the hovered /
-// focused card lifts to full view over its neighbours. It renders the exact
+// focused card opens to full size, pushing the rest of the column down so the
+// cards under it stay reachable. It renders the exact
 // same <li> tile as the grid — qty pip, allocation, legality, foil, badge
 // cluster — so the two can't drift; only the section/list classes and the
 // `--stack-w` width differ (see deck-builder-card-list.css § Stacks).

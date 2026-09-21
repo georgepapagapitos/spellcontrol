@@ -3232,8 +3232,11 @@ preview) and Archidekt's static-card panel, these rulings now hold:
 - **Stacks is the third view, and it is the grid's tile in another
   geometry.** `DeckCardGrid layout="stacks"` renders each group as one column
   of overlapped tiles (`.deck-card-stack`, `--stack-peek` ≈ 11% of the card
-  height so the name strip reads), the hovered/focused tile lifting by
-  z-order only — no transform, nothing below moves. Card width is the zoom
+  height so the name strip reads), the hovered/focused tile opening to full
+  size while the rest of the column slides down to clear it — the tile itself
+  never moves, so the cursor stays on the card it opened, and the cards under
+  it keep their strips within reach (Archidekt's behaviour; z-order alone
+  buried them). Card width is the zoom
   ladder × 1.4 (`stackWidth`), driven by the same −/+ control as the grid.
   Toggle order is grid → stacks → list. Never fork the tile for stacks: every
   pip, badge and allocation cue must stay shared with the grid.
