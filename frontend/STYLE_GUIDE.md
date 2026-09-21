@@ -517,6 +517,16 @@ changes _what kind of result_ the user gets (target bracket, Staples ↔ Brew)
 stays always-open; collapsibles are for constraints and advanced tuning. Don't
 bury an objective-function dial in a closed group with an opaque title.
 
+**A body hidden with the `hidden` attribute must kill its own `display`.**
+`hidden` is only a `display: none` in the browser's stylesheet, so any author
+rule giving that element a `display` — `.deck-card-grid { display: grid }`,
+`.deck-section-rows { display: flex }` — silently outranks it and the section
+never closes: the chevron turns, `aria-expanded` flips, and every card stays on
+screen. Pair the attribute with `.<body-class>[hidden] { display: none }` (or
+hide from the panel's `.is-collapsed`, which the combos and test-hand lanes do).
+Guarded by `styles/hidden-beats-display.test.ts`, which reads the JSX for every
+`hidden={…}` body and fails on one whose class sets a `display` nothing beats.
+
 **Avatars are circular — the one shape exception outside the button/label
 taxonomy above.** `UserAvatar` (a person's card-art image, or a flat-colored
 initial when unset) is `border-radius: 50%`, not `--radius`/`--radius-lg`/pill.
@@ -3241,7 +3251,8 @@ preview) and Archidekt's static-card panel, these rulings now hold:
   size while the rest of the column slides down to clear it — the tile itself
   never moves, so the cursor stays on the card it opened, and the cards under
   it keep their strips within reach (Archidekt's behaviour; z-order alone
-  buried them). Card width is the zoom
+  buried them). The slide is `--motion-gentle` `--ease-drawer`: it is a full
+  card of travel, so it takes the drawer pair, not the 120ms hover one. Card width is the zoom
   ladder × 1.4 (`stackWidth`), driven by the same −/+ control as the grid.
   Toggle order is grid → stacks → list. Never fork the tile for stacks: every
   pip, badge and allocation cue must stay shared with the grid.
