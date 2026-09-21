@@ -231,18 +231,54 @@ describe('History — removing a game asks first', () => {
     });
   });
 
+  const openRowMenu = () => fireEvent.click(screen.getByRole('button', { name: /^Game options:/ }));
+
   it('keeps the row on Cancel and removes it only on confirm', () => {
     renderPage('/play?tab=history');
     expect(screen.getByText('Winner: Ana')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /^Remove game:/ }));
+    openRowMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }));
     expect(screen.getByText('Remove this game?')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.getByText('Winner: Ana')).toBeTruthy();
     expect(usePlayStore.getState().history).toHaveLength(1);
-    fireEvent.click(screen.getByRole('button', { name: /^Remove game:/ }));
+    openRowMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }));
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
     expect(usePlayStore.getState().history).toHaveLength(0);
     expect(screen.queryByText('Winner: Ana')).toBeNull();
+  });
+
+  it('corrects the winner from the row menu without deleting anything', () => {
+    renderPage('/play?tab=history');
+    openRowMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Correct this game' }));
+    // Ben was eliminated, so he is offered but not selectable as the winner.
+    const ben = screen.getByRole('radio', { name: /Ben/ }) as HTMLInputElement;
+    expect(ben.disabled).toBe(true);
+    fireEvent.click(screen.getByRole('radio', { name: 'No winner' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(usePlayStore.getState().history).toHaveLength(1);
+    expect(usePlayStore.getState().history[0].winnerSeat).toBe(null);
+    expect(screen.getByText('No winner recorded')).toBeTruthy();
+  });
+
+  it('clears several games at once, asking once', () => {
+    usePlayStore.setState((prev) => ({
+      history: [
+        ...prev.history,
+        { ...prev.history[0], id: 'rec-2', endedAt: 62_000 },
+        { ...prev.history[0], id: 'rec-3', endedAt: 63_000 },
+      ],
+    }));
+    renderPage('/play?tab=history');
+    fireEvent.click(screen.getByRole('button', { name: 'Select' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Select all' }));
+    expect(screen.getByText('3 selected')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+    expect(screen.getByText('Clear 3 games?')).toBeTruthy();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remove' }));
+    expect(usePlayStore.getState().history).toHaveLength(0);
   });
 });
 
@@ -442,7 +478,7 @@ describe('History tab — local and online records together', () => {
     expect(screen.queryByText('Winner: Ben')).toBeNull();
   });
 
-  it('offers removal for a local game you hold, never for an online game or one a friend recorded', () => {
+  it('deletes only what you recorded, and hides the rest instead', () => {
     useAuth.setState({ user: { id: 'me', username: 'me', role: 'user' }, status: 'authed' });
     usePlayStore.setState({
       history: [
@@ -452,10 +488,25 @@ describe('History tab — local and online records together', () => {
       ],
     });
     renderPage('/play?tab=history');
-    const removes = screen.getAllByRole('button', { name: /^Remove game:/ });
-    expect(removes).toHaveLength(1);
-    // The one × sits on Ana's (mine) row.
-    expect(removes[0].closest('.play-history-item')?.textContent).toContain('Winner: Ana');
+    const menuFor = (winner: string) =>
+      screen
+        .getAllByRole('button', { name: /^Game options:/ })
+        .find((b) => b.closest('.play-history-item')?.textContent?.includes(`Winner: ${winner}`))!;
+
+    // Your own local game: correctable, and gone for good if you say so.
+    fireEvent.click(menuFor('Ana'));
+    expect(screen.getByRole('menuitem', { name: 'Correct this game' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Remove' })).toBeTruthy();
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    // A friend's local game and any online game are the shared record: they
+    // leave your list, and there is nothing to correct.
+    for (const winner of ['Cal', 'Ben']) {
+      fireEvent.click(menuFor(winner));
+      expect(screen.queryByRole('menuitem', { name: 'Correct this game' })).toBeNull();
+      expect(screen.getByRole('menuitem', { name: 'Hide from my list' })).toBeTruthy();
+      fireEvent.keyDown(document, { key: 'Escape' });
+    }
   });
 });
 

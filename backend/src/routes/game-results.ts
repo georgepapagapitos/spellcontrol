@@ -290,18 +290,25 @@ gameResultsRouter.patch(
 
 // ────────────────────────────────────────────────
 // PUT / DELETE /api/game-results/:sessionId/hidden
-// Drop an ONLINE row out of the caller's own history list, or put it back.
-// Online rows only: a local row the caller recorded is deleted outright, and
-// one they can't see is none of their business. Hiding is list curation —
-// every stats read still counts the game, so a seat can't use this to quietly
-// rewrite a shared win-loss. Uniform 404 for "not yours", "not online" and
-// "no such row", matching DELETE.
+// Drop a row out of the caller's own history list, or put it back.
+//
+// Exactly the rows they can see but cannot delete: every online game (the
+// table's shared record) and every local game a FRIEND recorded them into.
+// Both land in their history with no other way off it. A local row the caller
+// recorded themselves is excluded on purpose — that one is deleted outright,
+// and hiding it would be a second path to the same thing.
+//
+// Hiding is list curation and never a retraction: every stats read still
+// counts the game, so a seat cannot use this to quietly rewrite a shared
+// win-loss. Uniform 404 for "not yours" and "no such row", matching DELETE.
 // ────────────────────────────────────────────────
 async function callerCanHide(sessionId: string, callerId: string): Promise<boolean> {
   const r = await getPool().query(
     `SELECT 1 FROM game_results
-      WHERE session_id = $1 AND mode = 'online' AND participants @> $2::jsonb`,
-    [sessionId, participantFilter(callerId)]
+      WHERE session_id = $1
+        AND (participants @> $2::jsonb OR recorded_by_user_id = $3)
+        AND NOT (mode = 'local' AND recorded_by_user_id = $3)`,
+    [sessionId, participantFilter(callerId), callerId]
   );
   return (r.rowCount ?? 0) > 0;
 }

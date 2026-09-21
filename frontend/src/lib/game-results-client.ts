@@ -139,19 +139,81 @@ export async function fetchMyResults(
     mode?: GameResultMode | null;
     limit?: number;
     before?: string | null;
+    /** True asks for the rows the caller has hidden, instead of the rest. */
+    hidden?: boolean;
   } = {}
-): Promise<{ results: PublicGameResult[]; nextCursor: string | null }> {
+): Promise<MyResultsPage> {
   const params = new URLSearchParams();
   if (opts.mode) params.set('mode', opts.mode);
   if (opts.limit) params.set('limit', String(opts.limit));
   if (opts.before) params.set('before', opts.before);
+  if (opts.hidden) params.set('hidden', '1');
   const qs = params.toString();
   const res = await fetch(apiUrl(`/api/game-results/mine${qs ? `?${qs}` : ''}`), {
     credentials: 'include',
   });
   if (!res.ok)
     throw new Error(await readError(res, "Couldn't load your games. Try again in a moment."));
-  return (await res.json()) as { results: PublicGameResult[]; nextCursor: string | null };
+  return (await res.json()) as MyResultsPage;
+}
+
+export interface MyResultsPage {
+  results: PublicGameResult[];
+  nextCursor: string | null;
+  /** How many rows this account has hidden, on every page — so the History
+   *  tab can offer them back without a speculative extra request. */
+  hiddenCount: number;
+}
+
+/**
+ * Attribution this account is correcting on a game it recorded: who won, and
+ * which deck sat where. A seat the list omits keeps the deck it had.
+ */
+export interface GameResultEdit {
+  winnerSeat: number | null;
+  decks: {
+    seat: number;
+    deckId: string | null;
+    deckName: string | null;
+    commander: string | null;
+    colorIdentity: string[];
+  }[];
+}
+
+/**
+ * Correct a local game the caller recorded. Only the winner and the deck
+ * labels move: everything the device witnessed (life, elimination, timings)
+ * is the record, not an editable field.
+ */
+export async function patchGameResult(
+  sessionId: string,
+  edit: GameResultEdit
+): Promise<PublicGameResult> {
+  const res = await fetch(apiUrl(`/api/game-results/${encodeURIComponent(sessionId)}`), {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(edit),
+  });
+  if (!res.ok) throw new Error(await readError(res, "Couldn't save that change."));
+  const body = (await res.json()) as { result: PublicGameResult };
+  return body.result;
+}
+
+/**
+ * Drop an online game out of this account's history list, or (`hidden: false`)
+ * put it back. The row itself is the table's shared record and is untouched —
+ * every stats read still counts the game.
+ */
+export async function setGameResultHidden(sessionId: string, hidden: boolean): Promise<void> {
+  const res = await fetch(apiUrl(`/api/game-results/${encodeURIComponent(sessionId)}/hidden`), {
+    method: hidden ? 'PUT' : 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok)
+    throw new Error(
+      await readError(res, hidden ? "Couldn't hide that game." : "Couldn't bring that game back.")
+    );
 }
 
 /**

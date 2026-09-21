@@ -1,4 +1,4 @@
-import type { GameSummary } from '@spellcontrol/game-core';
+import { reseatSummaryWinner, type GameSummary } from '@spellcontrol/game-core';
 import type { GameResultParticipant } from './result-types';
 import type { ResultEdit } from './local-result';
 
@@ -11,11 +11,9 @@ import type { ResultEdit } from './local-result';
  * device witnessed it, because the log itself is not stored and nothing here
  * could honestly recompute it.
  *
- * The one derived field that MUST move is `summary.placement`: the summarizer
- * stamps the winner as 1st, so leaving a stale 1 on the old winner would have
- * the same row claim two first places. Eliminated seats keep the placement
- * their elimination order earned; a survivor who is no longer the winner goes
- * back to `null`, the same "no placement" the summarizer gives a living seat.
+ * The one derived field that MUST move is `summary.placement` — see
+ * `reseatSummaryWinner` in @spellcontrol/game-core, which owns that rule so
+ * the client can show the same correction before this ever runs.
  *
  * Callers validate first: every seat in `edit` must exist, and an eliminated
  * seat may not be named the winner (the persist path refuses that too, so an
@@ -41,17 +39,7 @@ export function applyResultEdit(
 
   const eliminated = new Set(nextParticipants.filter((p) => p.eliminated).map((p) => p.seat));
   const nextSummary: GameSummary | null =
-    summary === null
-      ? null
-      : {
-          ...summary,
-          winnerSeat: edit.winnerSeat,
-          seats: summary.seats.map((s) => {
-            if (s.seat === edit.winnerSeat) return { ...s, placement: 1 };
-            if (s.placement === 1 && !eliminated.has(s.seat)) return { ...s, placement: null };
-            return s;
-          }),
-        };
+    summary === null ? null : reseatSummaryWinner(summary, edit.winnerSeat, eliminated);
 
   return {
     participants: nextParticipants,

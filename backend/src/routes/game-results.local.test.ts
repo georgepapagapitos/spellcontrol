@@ -599,7 +599,30 @@ describe('PUT/DELETE /api/game-results/:sessionId/hidden', () => {
     expect(h2h.body.summary.gamesPlayed).toBe(1);
   });
 
-  it('refuses a local row and a game the caller never sat at', async () => {
+  it('hides a local game a friend recorded you into, which you cannot delete', async () => {
+    const ana = await makeUser('hide-friend-ana');
+    const bob = await makeUser('hide-friend-bob');
+    const anaId = await userId('hide-friend-ana');
+    const bobId = await userId('hide-friend-bob');
+    await makeFriends(anaId, bobId);
+    // Bob records it, Ana is a seat: it lands in her history with no way off.
+    const game = localGame({ seats: [{ userId: bobId }, { userId: anaId }] });
+    await request(app).post('/api/game-results').set('Cookie', bob).send({ game });
+
+    expect(
+      (await request(app).delete(`/api/game-results/${game.id}`).set('Cookie', ana)).status
+    ).toBe(404);
+    expect(
+      (await request(app).put(`/api/game-results/${game.id}/hidden`).set('Cookie', ana)).status
+    ).toBe(200);
+    const mine = await request(app).get('/api/game-results/mine').set('Cookie', ana);
+    expect(mine.body.results.map((r: { sessionId: string }) => r.sessionId)).not.toContain(game.id);
+    // Bob, who recorded it, still has it: one account's curation.
+    const his = await request(app).get('/api/game-results/mine').set('Cookie', bob);
+    expect(his.body.results.map((r: { sessionId: string }) => r.sessionId)).toContain(game.id);
+  });
+
+  it('refuses a row the caller can delete, and one they never sat at', async () => {
     const ana = await makeUser('hide-local');
     const bob = await makeUser('hide-stranger');
     const anaId = await userId('hide-local');
