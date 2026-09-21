@@ -862,11 +862,16 @@ body[data-felt='slate'] {
    boundary (a draw, a mill) does not resize the tile and shift the row next
    to it — the tile otherwise shrink-wraps this text, and "Library (9)" is
    narrower than "Library (10)". */
+/* The whole "(N)" is the reserved slot, not the digits inside it: reserving
+   width between the parentheses rendered a single-digit count as "(  0)",
+   with a visible hole. Sized for three digits so a 100+ library never
+   reflows the row, and left-aligned so the slack falls after the closing
+   paren where it reads as spacing. */
 .playtest-pile__count {
   display: inline-block;
-  min-width: 2ch;
+  min-width: 3.5ch;
   font-variant-numeric: tabular-nums;
-  text-align: right;
+  text-align: left;
 }
 
 /* The command zone lays its commanders out in a row instead of stacking
