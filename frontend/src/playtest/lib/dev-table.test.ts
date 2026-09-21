@@ -84,6 +84,22 @@ describe('seedDevTable', () => {
     expect(reqs[0].requesterSeat).not.toBe(0);
   });
 
+  it('publishes a kept board for every opponent, so the table can actually start', () => {
+    // The opening-hand takeover waits on every other seat, and a seat with no
+    // published board reads as still choosing. Without these the fake table
+    // sits on "Waiting for Maya, Devon and Priya" and the game never begins —
+    // which is exactly how the first version of this harness shipped.
+    seedDevTable(opts);
+    const boards = usePlayStore.getState().onlineBoards;
+    expect(Object.keys(boards)).toHaveLength(3);
+    expect(Object.values(boards).every((b) => b.keptHand === true)).toBe(true);
+  });
+
+  it('does not publish a board for your own seat, which is yours to play', () => {
+    seedDevTable(opts);
+    expect(usePlayStore.getState().onlineBoards[0]).toBeUndefined();
+  });
+
   it('fires an incoming signal when asked', () => {
     seedDevTable({ ...opts, signal: true });
     expect(usePlayStore.getState().onlineSignal?.signal.kind).toBe('reaction');
