@@ -123,6 +123,54 @@ describe('syncOfflineData', () => {
     expect(combosCalls).toBe(2);
   });
 
+  /**
+   * `/api/offline/manifest` is rate-limited server-side, and this warm-up loop
+   * is what bunches requests: after a deploy the bulk 503s for 30-60s and every
+   * client behind one venue address retries into the same window. When 429 was
+   * missing from RETRYABLE_STATUSES that turned a "slow down" into a hard
+   * "Couldn't reach the card data service" for all of them.
+   */
+  it('retries a 429 instead of failing the whole sync', async () => {
+    let manifestCalls = 0;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.endsWith('/api/offline/manifest')) {
+        manifestCalls += 1;
+        if (manifestCalls < 3) {
+          return new Response(JSON.stringify({ error: 'Too many requests' }), {
+            status: 429,
+            headers: { 'Retry-After': '0' },
+          });
+        }
+        return jsonResponse({
+          oracleVersion: 'v1',
+          oracleCardCount: 0,
+          oracleByteSize: 0,
+          oracleUpdatedAt: 0,
+          combosVersion: 'c1',
+          combosCount: 0,
+          combosByteSize: 0,
+          combosUpdatedAt: 0,
+        });
+      }
+      if (url.endsWith('/api/offline/oracle-cards') || url.endsWith('/api/offline/combos')) {
+        return gzippedEmptyArray();
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    const progressEvents: string[] = [];
+    const pending = syncOfflineData({
+      onProgress: (p) => progressEvents.push(p.phase),
+    });
+    await vi.runAllTimersAsync();
+    await pending;
+
+    expect(manifestCalls).toBe(3);
+    expect(progressEvents).toContain('waiting-for-server');
+    expect(progressEvents.at(-1)).toBe('done');
+  });
+
   it('gives up on a non-retryable status', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('nope', { status: 500 }));
     // No timers fire on this path (500 is not retryable), so attach the
