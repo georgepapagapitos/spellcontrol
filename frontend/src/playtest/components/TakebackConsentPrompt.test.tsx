@@ -53,6 +53,7 @@ const mySeat: OnlineTable = {
   activeSeat: null,
   opponents: [],
   mySeat: 0,
+  isHost: false,
   me: makePlayer({ id: 'me-id', userId: 'me-id', seat: 0, name: 'Me', startingLife: 40 }),
   players: [makePlayer({ id: 'me-id', userId: 'me-id', seat: 0, name: 'Me', startingLife: 40 })],
   phase: undefined,

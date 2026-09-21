@@ -188,7 +188,7 @@ export function ActionBar({
       label: `Takeback rule: ${TAKEBACK_MODE_LABEL[takeback.mode]}`,
       onClick: takeback.onOpenSettings,
     },
-    { label: 'Reset', onClick: onReset, danger: true },
+    { label: 'Start a new game', onClick: onReset, danger: true },
   ];
 
   return (
@@ -347,7 +347,7 @@ export function ActionBar({
             Takeback: {TAKEBACK_MODE_LABEL[takeback.mode]}
           </button>
           <button type="button" onClick={onReset} className="playtest-actionbar__reset">
-            Reset
+            New game
           </button>
         </>
       )}

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { applyAction, createPlaytestState } from '@/lib/playtest';
 import { usePlayStore } from '@/store/play';
@@ -90,6 +90,7 @@ function seatedTable(opponents: OpponentSeat[]): OnlineTable {
     activeSeat: 0,
     opponents,
     mySeat: 0,
+    isHost: false,
     me: { seat: 0, name: 'Dev', life: 40 } as OnlineTable['me'],
     players: [{ seat: 0, name: 'Dev', life: 40 } as OnlineTable['me']],
     phase: undefined,
@@ -185,22 +186,33 @@ describe('PlaytestBoard', () => {
     expect(document.querySelector('.playtest-actionbar')).toBeNull();
     expect(document.querySelector('.playtest-page__header')).toBeNull();
     const menu = screen.getByRole('button', { name: 'Game menu' });
-    expect(menu.getAttribute('aria-haspopup')).toBe('menu');
+    expect(menu.getAttribute('aria-haspopup')).toBe('dialog');
     fireEvent.click(menu);
+    const drawer = screen.getByRole('dialog', { name: 'Game menu' });
     for (const label of [
       'Back to Krenko',
       'Stats',
       'Log',
+      'Rules reference',
       'Keyboard shortcuts',
       'Table settings',
-      'Reset',
+      'Start a new game',
     ]) {
-      expect(screen.getByRole('menuitem', { name: label }), label).toBeTruthy();
+      expect(within(drawer).getByRole('button', { name: label }), label).toBeTruthy();
     }
+    // Grouped, with the game-enders kept out of the scrolling list.
+    for (const group of ['Table', 'Settings', 'Game']) {
+      expect(within(drawer).getByRole('heading', { name: group }), group).toBeTruthy();
+    }
+    expect(
+      within(drawer)
+        .getByRole('button', { name: 'Start a new game' })
+        .closest('.playtest-game-menu__end')
+    ).toBeTruthy();
     // Library actions moved onto the library pile, and the set-and-forget
     // preferences behind "Table settings" — the menu is actions now.
     for (const gone of ['Shuffle', 'Mulligan', 'Top cards', 'Resistance: Off']) {
-      expect(screen.queryByRole('menuitem', { name: gone }), gone).toBeNull();
+      expect(within(drawer).queryByRole('button', { name: gone }), gone).toBeNull();
     }
   });
 
@@ -488,7 +500,7 @@ describe('PlaytestBoard — card size', () => {
     // No counter was ever asked for: nothing selected means the keys zoom.
     expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_COUNTER' }));
     fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Table settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Table settings' }));
     const slider = screen.getByRole('slider', { name: 'Card size' });
     expect(slider.getAttribute('aria-valuetext')).toBe('90%');
     fireEvent.change(slider, { target: { value: '1.3' } });
@@ -630,7 +642,7 @@ describe('PlaytestBoard — arrows', () => {
     expect(sendSignal).not.toHaveBeenCalledWith({ kind: 'arrow', op: 'clear' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Clear my arrows (1)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear my arrows (1)' }));
     expect(sendSignal).toHaveBeenCalledWith({ kind: 'arrow', op: 'clear' });
   });
 
@@ -645,7 +657,7 @@ describe('PlaytestBoard — arrows', () => {
     expect(banner()).toBeNull();
     expect(sendSignal).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
-    expect(screen.queryByRole('menuitem', { name: /Clear my arrows/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Clear my arrows/ })).toBeNull();
   });
 });
 

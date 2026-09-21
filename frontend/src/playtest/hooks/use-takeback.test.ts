@@ -30,6 +30,7 @@ function seatedTable(mySeat = 0): OnlineTable {
     mySeat,
     me,
     players: [me],
+    isHost: false,
     phase: undefined,
     poisonEnabled: false,
     commanderDamageEnabled: false,

@@ -51,6 +51,7 @@ function onlineTable(overrides: Partial<OnlineTable> = {}): OnlineTable {
   return {
     activeSeat: null,
     mySeat: 0,
+    isHost: false,
     me,
     players: [me, maya],
     // Unused by LifeStrip's online branch (it renders off `players`, not

@@ -28,10 +28,10 @@ import { getPod, listPods, type Pod } from '../lib/pods-client';
 import { formatIdentity } from '../lib/display-name';
 import { toast } from '../store/toasts';
 import { GameBoard } from '../components/play/GameBoard';
+import { EndGameDialog } from '../components/play/EndGameDialog';
 import { OnlineGameView } from '../components/play/OnlineGameView';
 import { OnlineLobby } from '../components/play/OnlineLobby';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { Modal } from '../components/Modal';
 import { SelectMenu } from '../components/SelectMenu';
 import { Tabs } from '../components/Tabs';
 import { StackedBar } from '../components/shared/MeterBar';
@@ -1676,73 +1676,5 @@ function ResumeBanner({
         </button>
       </div>
     </section>
-  );
-}
-
-/**
- * End-game dialog with a real winner picker. If exactly one player is alive
- * it's pre-selected; the user can still pick "No winner" or override. The
- * picker is rendered on top of the game-board overlay (the body:has(.game-board)
- * z-index rule in play-setup.css handles the layering).
- */
-function EndGameDialog({
-  game,
-  onConfirm,
-  onCancel,
-}: {
-  game: { players: GamePlayer[] } | null;
-  onConfirm: (winnerSeat: number | null) => void;
-  onCancel: () => void;
-}) {
-  const alive = game?.players.filter((p) => !p.eliminated) ?? [];
-  const defaultWinner = alive.length === 1 ? alive[0].seat : null;
-  const [winnerSeat, setWinnerSeat] = useState<number | null>(defaultWinner);
-
-  if (!game) return null;
-  return (
-    <Modal onClose={onCancel} label="End game">
-      <h2 className="choice-dialog-title">End the game?</h2>
-      <p className="choice-dialog-body">Pick the winner, or end without one.</p>
-      {/* Already native radios — the wrapper just needed to be a real fieldset
-          instead of a div carrying role="radiogroup". */}
-      <fieldset className="play-end-winners" aria-label="Winner">
-        {game.players.map((p) => (
-          <label
-            key={p.seat}
-            className={`play-end-winner ${winnerSeat === p.seat ? 'is-selected' : ''}`}
-          >
-            <input
-              type="radio"
-              name="winner"
-              checked={winnerSeat === p.seat}
-              onChange={() => setWinnerSeat(p.seat)}
-            />
-            <span>{p.name}</span>
-          </label>
-        ))}
-        <label className={`play-end-winner ${winnerSeat === null ? 'is-selected' : ''}`}>
-          <input
-            type="radio"
-            name="winner"
-            checked={winnerSeat === null}
-            onChange={() => setWinnerSeat(null)}
-          />
-          <span>No winner</span>
-        </label>
-      </fieldset>
-      <div className="choice-dialog-actions">
-        <button type="button" className="btn" onClick={onCancel}>
-          Cancel
-        </button>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => onConfirm(winnerSeat)}
-          autoFocus
-        >
-          Save
-        </button>
-      </div>
-    </Modal>
   );
 }
