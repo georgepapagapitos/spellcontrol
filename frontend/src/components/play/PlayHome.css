@@ -54,7 +54,10 @@
 
 .play-home-doors {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* auto-fit rather than a fixed column count: four doors read as 2x2 on a
+     tablet-width viewport and a single row once there's room, with no extra
+     breakpoint needed beyond the <=600px single-column override below. */
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: var(--space-3);
 }
 

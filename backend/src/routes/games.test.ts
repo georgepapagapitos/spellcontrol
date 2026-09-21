@@ -2900,3 +2900,143 @@ describe('table name and visibility', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('GET /api/games (room browser, E367)', () => {
+  async function hostGame(tag: string, body: Record<string, unknown> = {}) {
+    const hostCookie = await registerAndGetCookie(tag);
+    const created = await request(app).post('/api/games').set('Cookie', hostCookie).send(body);
+    return {
+      hostCookie,
+      code: created.body.game.code as string,
+      version: created.body.game.version as number,
+      game: created.body.game as Record<string, unknown>,
+    };
+  }
+
+  interface Row {
+    code: string;
+    name: string;
+    format: string;
+    status: string;
+    seated: number;
+    max: number;
+    joinable: boolean;
+  }
+
+  async function listGames(cookie: string): Promise<Row[]> {
+    const res = await request(app).get('/api/games').set('Cookie', cookie);
+    expect(res.status).toBe(200);
+    return res.body.games as Row[];
+  }
+
+  it('rejects unauthenticated requests', async () => {
+    const res = await request(app).get('/api/games');
+    expect(res.status).toBe(401);
+  });
+
+  it('never lists a private game (default visibility)', async () => {
+    await hostGame('browser_private_host', { name: 'Secret table' });
+    const viewer = await registerAndGetCookie('browser_private_viewer');
+    const rows = await listGames(viewer);
+    expect(rows.find((g) => g.name === 'Secret table')).toBeUndefined();
+  });
+
+  it('lists a public game with the room-browser shape', async () => {
+    const { code } = await hostGame('browser_public_host', {
+      name: 'Bracket 3 chill',
+      visibility: 'public',
+      format: 'commander',
+    });
+    const viewer = await registerAndGetCookie('browser_public_viewer');
+    const rows = await listGames(viewer);
+    const row = rows.find((g) => g.code === code);
+    expect(row).toMatchObject({
+      code,
+      name: 'Bracket 3 chill',
+      format: 'commander',
+      status: 'lobby',
+      seated: 1,
+      max: 8,
+      joinable: true,
+    });
+    // Allowlist — nothing beyond these seven fields, in particular no
+    // hostUserId/players/deck data from the underlying GameState.
+    expect(Object.keys(row!).sort()).toEqual(
+      ['code', 'format', 'joinable', 'max', 'name', 'seated', 'status'].sort()
+    );
+  });
+
+  it('falls back to a format-derived name when the host left it blank', async () => {
+    const { code } = await hostGame('browser_unnamed_host', {
+      visibility: 'public',
+      format: 'pauper',
+    });
+    const viewer = await registerAndGetCookie('browser_unnamed_viewer');
+    const rows = await listGames(viewer);
+    expect(rows.find((g) => g.code === code)?.name).toBe('Pauper table');
+  });
+
+  it('excludes a finished game', async () => {
+    const { hostCookie, code, version } = await hostGame('browser_finished_host', {
+      name: 'Wrapped up',
+      visibility: 'public',
+    });
+    const ended = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', hostCookie)
+      .send({ baseVersion: version, actions: [{ type: 'end', winnerSeat: null }] });
+    expect(ended.body.game.status).toBe('finished');
+    const viewer = await registerAndGetCookie('browser_finished_viewer');
+    const rows = await listGames(viewer);
+    expect(rows.find((g) => g.code === code)).toBeUndefined();
+  });
+
+  it('excludes a public game that has gone stale', async () => {
+    const { code } = await hostGame('browser_stale_host', {
+      name: 'Gone quiet',
+      visibility: 'public',
+    });
+    await pool.query('UPDATE game_sessions SET updated_at = $1 WHERE code = $2', [
+      Date.now() - 2 * 60 * 60 * 1000,
+      code,
+    ]);
+    const viewer = await registerAndGetCookie('browser_stale_viewer');
+    const rows = await listGames(viewer);
+    expect(rows.find((g) => g.code === code)).toBeUndefined();
+  });
+
+  it('marks a full lobby joinable: false but still lists it', async () => {
+    const { code } = await hostGame('browser_full_host', {
+      name: 'Packed table',
+      visibility: 'public',
+    });
+    for (let i = 0; i < 7; i++) {
+      const joinerCookie = await registerAndGetCookie(`browser_full_joiner_${i}`);
+      const joinRes = await request(app)
+        .post(`/api/games/${code}/join`)
+        .set('Cookie', joinerCookie)
+        .send({});
+      expect(joinRes.status).toBe(200);
+    }
+    const viewer = await registerAndGetCookie('browser_full_viewer');
+    const rows = await listGames(viewer);
+    const row = rows.find((g) => g.code === code);
+    expect(row).toMatchObject({ seated: 8, max: 8, joinable: false, status: 'lobby' });
+  });
+
+  it('lists an active public game as spectatable (not joinable)', async () => {
+    const { hostCookie, code, version } = await hostGame('browser_active_host', {
+      name: 'Underway',
+      visibility: 'public',
+    });
+    const started = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', hostCookie)
+      .send({ baseVersion: version, actions: [{ type: 'start' }] });
+    expect(started.body.game.status).toBe('active');
+    const viewer = await registerAndGetCookie('browser_active_viewer');
+    const rows = await listGames(viewer);
+    const row = rows.find((g) => g.code === code);
+    expect(row).toMatchObject({ status: 'active', joinable: false });
+  });
+});
