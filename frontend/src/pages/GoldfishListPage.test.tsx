@@ -27,21 +27,24 @@ vi.mock('@/playtest/components/PlaytestSession', () => ({
 }));
 
 import { GoldfishListPage } from './GoldfishListPage';
+import type { ScryfallCard } from '@/deck-builder/types';
+
+/** The page only ever reads a card's name, so the fixture stops at one. */
+function card(id: string, name: string): ScryfallCard {
+  return { id, name } as ScryfallCard;
+}
 
 function parsed(over: Partial<DeckImportResponse> = {}): DeckImportResponse {
   return {
     commander: null,
     companion: null,
-    cards: [
-      { id: 'sol-ring', name: 'Sol Ring' },
-      { id: 'island', name: 'Island' },
-    ],
+    cards: [card('sol-ring', 'Sol Ring'), card('island', 'Island')],
     unresolvedNames: [],
     fetchErrors: [],
     detectedFormat: 'commander',
     cardCount: 2,
     ...over,
-  } as DeckImportResponse;
+  };
 }
 
 function setup() {
@@ -71,7 +74,7 @@ describe('GoldfishListPage', () => {
   });
 
   it('hands the parsed list to the board as an external deck', async () => {
-    importDeckText.mockResolvedValue(parsed({ commander: { id: 'a', name: 'Atraxa' } }));
+    importDeckText.mockResolvedValue(parsed({ commander: card('a', 'Atraxa') }));
     setup();
     paste('1 Atraxa\n1 Sol Ring');
     fireEvent.click(screen.getByRole('button', { name: 'Play this list' }));
