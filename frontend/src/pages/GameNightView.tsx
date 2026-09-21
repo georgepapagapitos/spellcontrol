@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { CalendarPlus, ChevronDown } from 'lucide-react';
 import {
   fetchPublicGameNight,
@@ -17,7 +17,7 @@ import { gameFormatLabel } from '../lib/game-formats';
 import { mapsSearchUrl } from '../lib/place-search';
 import { isNativePlatform, openExternal } from '../lib/platform';
 import { useAuth } from '../store/auth';
-import { SharedShell } from '../components/share/SharedShell';
+import { ErrorView, NotFoundView, SharedShell } from '../components/share/SharedShell';
 import { BrandMark } from '../components/shared/BrandMark';
 import { NightPoll } from '../components/NightPoll';
 import { OverflowMenu } from '../components/OverflowMenu';
@@ -74,23 +74,11 @@ export function GameNightView() {
   if (!token) {
     return (
       <SharedShell ctaLabel="Plan your own game nights">
-        <NotFoundView />
+        <NotFoundView message="This game night link is invalid or no longer exists." />
       </SharedShell>
     );
   }
   return <GameNightViewInner key={token} token={token} />;
-}
-
-function NotFoundView() {
-  return (
-    <div className="shared-view shared-view--missing">
-      <h1>Link not found</h1>
-      <p>This game night link is invalid or no longer exists.</p>
-      <Link to="/" className="btn btn-primary shared-copy-btn">
-        Go to SpellControl
-      </Link>
-    </div>
-  );
 }
 
 function GameNightViewInner({ token }: { token: string }) {
@@ -138,20 +126,14 @@ function GameNightViewInner({ token }: { token: string }) {
   if (state.status === 'notFound') {
     return (
       <SharedShell ctaLabel="Plan your own game nights">
-        <NotFoundView />
+        <NotFoundView message="This game night link is invalid or no longer exists." />
       </SharedShell>
     );
   }
   if (state.status === 'error') {
     return (
       <SharedShell ctaLabel="Plan your own game nights">
-        <div className="shared-view shared-view--error">
-          <h1>Something went wrong</h1>
-          <p>{state.message}</p>
-          <Link to="/" className="btn btn-primary shared-copy-btn">
-            Go to SpellControl
-          </Link>
-        </div>
+        <ErrorView message={state.message} />
       </SharedShell>
     );
   }

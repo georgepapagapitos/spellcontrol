@@ -40,6 +40,9 @@ describe('SharedView — the friends gate', () => {
     expect(screen.getByRole('link', { name: 'Go to Friends' }).getAttribute('href')).toBe(
       '/friends'
     );
+    // E344: the tab has to agree with the wall, not with the shell the page was
+    // served as.
+    expect(document.title).toBe('Friends only · SpellControl');
   });
 
   it('a guest (401) gets "Friends only" and a sign-in door that returns here', async () => {
@@ -49,5 +52,6 @@ describe('SharedView — the friends gate', () => {
     expect(screen.getByRole('link', { name: 'Sign in' }).getAttribute('href')).toBe(
       '/auth?returnTo=%2Fs%2Ftok'
     );
+    expect(document.title).toBe('Friends only · SpellControl');
   });
 });

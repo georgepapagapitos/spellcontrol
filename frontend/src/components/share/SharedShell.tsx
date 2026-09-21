@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { useDocumentTitle } from '../../lib/use-document-title';
 import { BrandMark } from '../shared/BrandMark';
 import { isNativePlatform, openExternal } from '../../lib/platform';
 
@@ -75,6 +76,12 @@ export function NotFoundView({
   title = 'Link not found',
   message = 'This share link is invalid or has been revoked.',
 }: NotFoundViewProps) {
+  // The tab says what the page says. A public link is often a stranger's first
+  // contact and the shell they were served carries the homepage title, so
+  // without this the tab (and any bookmark) claims a deck they cannot see is
+  // "SpellControl — Organize MTG binders…" (E344). Set here rather than at each
+  // caller so every dead end gets it, including the ones added later.
+  useDocumentTitle(title);
   return (
     <div className="shared-view shared-view--missing">
       <h1>{title}</h1>
@@ -93,6 +100,7 @@ interface ErrorViewProps {
 /** Shared network/unexpected-error state for any `SharedShell`-wrapped public
  *  page. Same reuse rationale as `NotFoundView` above. */
 export function ErrorView({ message }: ErrorViewProps) {
+  useDocumentTitle('Something went wrong');
   return (
     <div className="shared-view shared-view--error">
       <h1>Something went wrong</h1>
