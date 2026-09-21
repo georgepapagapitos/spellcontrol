@@ -6,7 +6,11 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  /* No gap: each row is a 44px tap target that owns its full height, so the
+     rows meet edge to edge like a list. The gap existed to separate rows that
+     pulled themselves 8px INTO each other (see the link's margin below), which
+     made the bottom 4px of every row open the next friend's deck. */
+  gap: 0;
 }
 
 .new-from-friends-link {
@@ -14,7 +18,12 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2);
-  margin: calc(var(--space-2) * -1);
+  /* INLINE only. A negative margin on the block axis pulls the row over its
+     neighbour, and the row painted later wins the overlap: consecutive 44px
+     rows measured a 39px usable target, and the lost 5px opened the WRONG
+     friend's deck. Horizontally there is no sibling to collide with, so the
+     row can still bleed over the card's own padding. */
+  margin-inline: calc(var(--space-2) * -1);
   border-radius: var(--radius);
   text-decoration: none;
   color: inherit;

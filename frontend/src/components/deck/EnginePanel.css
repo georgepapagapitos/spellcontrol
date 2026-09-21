@@ -63,7 +63,10 @@
   display: block;
   width: 100%;
   padding: 0.35rem 0.45rem;
-  margin: -0.35rem -0.45rem;
+  /* INLINE only — a negative block margin makes consecutive axis rows overlap,
+     and the one painted later wins: each 44px button measured a 41px usable
+     target and its bottom edge drilled into the NEXT axis. */
+  margin-inline: -0.45rem;
   border: none;
   border-radius: var(--radius);
   background: none;
