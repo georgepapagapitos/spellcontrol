@@ -21,7 +21,8 @@ import { fileURLToPath } from 'node:url';
 const srcDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** Marks an `<input>` as a place a deck gets named. */
-const DECK_NAME_INPUT = /aria-label=\{?["`]?Deck name|deck-editor-name-input|import-deck-draft-name/;
+const DECK_NAME_INPUT =
+  /aria-label=\{?["`]?Deck name|deck-editor-name-input|import-deck-draft-name/;
 
 function tsxFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
