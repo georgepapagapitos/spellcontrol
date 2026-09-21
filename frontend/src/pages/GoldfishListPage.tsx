@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { importDeckText } from '@/lib/api';
 import { userMessage } from '@/lib/user-error';
 import { useDocumentTitle } from '@/lib/use-document-title';
-import { importToDeck, pastedListToken } from '@/lib/import-to-deck';
+import { importToDeck, pastedDeckLocalId, pastedListToken } from '@/lib/import-to-deck';
 import { PlaytestSession } from '@/playtest/components/PlaytestSession';
 import { toast } from '@/store/toasts';
 import type { Deck } from '@/store/decks';
@@ -64,7 +64,11 @@ export function GoldfishListPage() {
       }
       setState({
         status: 'ready',
-        deck: importToDeck(result, pastedListToken(list), result.commander?.name ?? 'Pasted list'),
+        deck: importToDeck(
+          result,
+          pastedDeckLocalId(pastedListToken(list)),
+          result.commander?.name ?? 'Pasted list'
+        ),
       });
     } catch (err) {
       setState({

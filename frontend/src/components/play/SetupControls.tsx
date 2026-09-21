@@ -1,5 +1,6 @@
-import { SelectMenu } from '../SelectMenu';
-import { deckPickerLabels } from '../../lib/deck-picker-labels';
+import { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
+import { DeckPickerDialog, type PickedDeck } from './DeckPickerDialog';
 import type { Deck } from '../../store/decks';
 import { ColorPip } from '../shared/ManaSymbol';
 
@@ -98,31 +99,45 @@ export function SeatPips({ ci }: { ci: string[] }) {
   );
 }
 
-const DECK_PICKER_NONE = '__none__';
-
+/**
+ * Opens the deck picker for a seat. The control is a button rather than a
+ * select because what it opens is no longer only your own decks — the
+ * starter-deck catalog is searched on the server and is far too long for a
+ * select, and an account with no decks needs somewhere to go.
+ */
 export function DeckPicker({
   decks,
   value,
+  valueName,
   onChange,
 }: {
   decks: Deck[];
   value: string | null;
-  onChange: (deck: Deck | null) => void;
+  /** Name of the currently picked deck — a starter is not in `decks`. */
+  valueName: string | null;
+  onChange: (picked: PickedDeck | null) => void;
 }) {
-  // Same-named decks behind the same commander are the common case for
-  // generated decks — the labels are made distinct in deckPickerLabels.
-  const labels = deckPickerLabels(decks);
+  const [open, setOpen] = useState(false);
   return (
-    <SelectMenu<string>
-      ariaLabel="Deck"
-      value={value ?? DECK_PICKER_NONE}
-      onChange={(next) =>
-        onChange(next === DECK_PICKER_NONE ? null : (decks.find((d) => d.id === next) ?? null))
-      }
-      options={[
-        { value: DECK_PICKER_NONE, label: 'None' },
-        ...decks.map((d, i) => ({ value: d.id, label: labels[i] })),
-      ]}
-    />
+    <>
+      <button
+        type="button"
+        className="play-deck-picker-trigger"
+        aria-label="Deck"
+        aria-haspopup="dialog"
+        onClick={() => setOpen(true)}
+      >
+        <span className="play-deck-picker-value">{valueName ?? 'Pick a deck'}</span>
+        <ChevronDown width={14} height={14} strokeWidth={2} aria-hidden />
+      </button>
+      {open && (
+        <DeckPickerDialog
+          decks={decks}
+          value={value}
+          onPick={onChange}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
   );
 }

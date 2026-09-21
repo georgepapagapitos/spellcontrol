@@ -187,6 +187,8 @@ vi.mock('../store/auth', () => ({
 
 vi.mock('../store/decks', () => ({
   useDecksStore: <T,>(selector: (s: object) => T): T => selector({ decks: mockState.decks }),
+  // The deck picker labels each of your decks with its bracket.
+  effectiveBracket: (d: { bracketOverride?: number }) => d.bracketOverride,
 }));
 
 // GameBoard itself is heavy (rendering, timers, wake-lock…) and irrelevant
@@ -287,8 +289,8 @@ describe('Open-your-board door — no deck picked', () => {
 
     // The reused SeatDeck affordance — same "+ Deck" control the join form uses.
     fireEvent.click(screen.getByRole('button', { name: 'Add deck' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Deck' })); // SelectMenu trigger
-    fireEvent.click(screen.getByRole('option', { name: 'My Deck' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Deck' })); // opens the picker
+    fireEvent.click(screen.getByRole('button', { name: /My Deck/ }));
 
     expect(storeActions.dispatchOnline).toHaveBeenCalledWith({
       type: 'update-player',
