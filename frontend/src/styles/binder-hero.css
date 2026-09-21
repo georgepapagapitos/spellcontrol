@@ -178,8 +178,17 @@
   font-weight: 400;
   letter-spacing: -0.01em;
   color: var(--text-primary);
-  margin: 0;
   line-height: 1.1;
+  /* The ink of every display face the typeface picker offers is taller than
+     this line box — measured em heights run 1.13 (Plain) to 1.28 (Broadsheet
+     / Bodoni Moda) — so ascenders, accents and descenders paint outside it.
+     The padding claims that space and the equal negative margin gives the
+     layout back unchanged, which keeps a title's glyphs clear of anything
+     placed above it and survives an ancestor that clips. Same recipe, and the
+     same 0.22em, as `.deck-editor-name` (#2087), where a clip on this very
+     line-height was already cutting the tail off "go fetch!". */
+  padding: 0.22em 0;
+  margin: -0.22em 0;
   /* One long word at a large font scale breaks rather than widening the page. */
   overflow-wrap: anywhere;
 }
