@@ -10,6 +10,21 @@ interface UseSearchCardsResult<T> {
   results: T[];
   loading: boolean;
   error: string | null;
+  /**
+   * How many results the search actually MATCHED, when the fetcher can say —
+   * not how many are held. `results` is capped at `limit`, so without this a
+   * caller can only describe its own window and ends up implying the window
+   * is everything: /tags picked a tag with 976 cards and the stack said
+   * "Show 10 more · 50 not shown" (board E341). null when the fetcher returns
+   * a bare array, because then the true total is unknown.
+   */
+  total: number | null;
+}
+
+/** A fetcher that knows the true match count reports it alongside the page. */
+export interface SearchPage<T> {
+  items: T[];
+  total: number;
 }
 
 interface UseSearchCardsOptions<T> {
@@ -18,8 +33,11 @@ interface UseSearchCardsOptions<T> {
    * `searchCards` (skipFormatFilter). Must be a STABLE reference (module-level
    * fn or `useCallback`) — it's an effect dependency, so a fresh closure each
    * render re-fires the search.
+   *
+   * Return a bare array, or a `SearchPage` when the endpoint reports a match
+   * count the page should be able to state (`total`).
    */
-  fetcher?: (query: string) => Promise<T[]>;
+  fetcher?: (query: string) => Promise<T[] | SearchPage<T>>;
   /** Max results kept from the response. Default 60. */
   limit?: number;
   /** Min trimmed query length before fetching. Default 2; pass 0 to fetch on empty. */
@@ -30,8 +48,12 @@ interface UseSearchCardsOptions<T> {
   enabled?: boolean;
 }
 
-const defaultFetcher = (q: string): Promise<ScryfallCard[]> =>
-  searchCards(q, [], { skipFormatFilter: true }).then((resp) => resp.data);
+const defaultFetcher = (q: string): Promise<SearchPage<ScryfallCard>> =>
+  searchCards(q, [], { skipFormatFilter: true }).then((resp) => ({
+    items: resp.data,
+    // Scryfall's own count for the whole query, not the page it returned.
+    total: resp.total_cards,
+  }));
 
 /**
  * Debounced search hook. Defaults to Scryfall card search, but accepts a custom
@@ -54,7 +76,7 @@ export function useSearchCards<T = ScryfallCard>(
   const opts: UseSearchCardsOptions<T> =
     typeof arg === 'number' || arg === undefined ? { limit: arg } : arg;
   const {
-    fetcher = defaultFetcher as unknown as (q: string) => Promise<T[]>,
+    fetcher = defaultFetcher as unknown as (q: string) => Promise<T[] | SearchPage<T>>,
     limit = 60,
     minLength = DEFAULT_MIN_QUERY_LENGTH,
     debounceMs = DEFAULT_DEBOUNCE_MS,
@@ -68,6 +90,7 @@ export function useSearchCards<T = ScryfallCard>(
   // 44ms on /search?q=… (playtest batch 10, after the effect-side fix).
   const [loading, setLoading] = useState(() => enabled && query.trim().length >= minLength);
   const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState<number | null>(null);
   // Cancels the in-flight debounce wait: clears its timer AND settles its
   // promise, so a superseded `run()` exits through `if (cancelled) return`
   // instead of hanging on a promise nothing will ever resolve.
@@ -81,6 +104,7 @@ export function useSearchCards<T = ScryfallCard>(
         if (!cancelled) {
           setResults([]);
           setError(null);
+          setTotal(null);
           setLoading(false);
         }
         return;
@@ -106,14 +130,19 @@ export function useSearchCards<T = ScryfallCard>(
       setLoading(true);
       setError(null);
       try {
-        const data = await fetcher(q);
-        if (!cancelled) setResults(data.slice(0, limit));
+        const page = await fetcher(q);
+        const items = Array.isArray(page) ? page : page.items;
+        if (!cancelled) {
+          setResults(items.slice(0, limit));
+          setTotal(Array.isArray(page) ? null : page.total);
+        }
       } catch (e) {
         if (!cancelled) {
           setError(
             userMessage(e, "Couldn't run that search. Check your connection and try again.")
           );
           setResults([]);
+          setTotal(null);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -126,5 +155,5 @@ export function useSearchCards<T = ScryfallCard>(
     };
   }, [query, limit, fetcher, minLength, debounceMs, enabled]);
 
-  return { results, loading, error };
+  return { results, loading, error, total };
 }

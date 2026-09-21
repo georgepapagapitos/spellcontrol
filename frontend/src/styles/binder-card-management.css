@@ -1171,6 +1171,16 @@
   }
 }
 
+/* "Showing 60 of 942 matches." — the cap disclosure under the results stack
+   (board E341). A quiet status line, not a control: the button above it is the
+   only thing to tap. */
+.inline-card-search-total {
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
 .inline-card-search-more--printings {
   margin-top: 0.4rem;
   font-size: var(--text-xs);
