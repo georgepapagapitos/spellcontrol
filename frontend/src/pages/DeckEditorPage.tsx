@@ -109,6 +109,7 @@ import {
   type LaneId,
   type ChangeOwnership,
 } from '@/lib/deck-change';
+import { DECK_NAME_MAX } from '@/lib/deck-name';
 import { rankReplacementCuts } from '@/lib/intelligent-cuts';
 import { buildSwapAlternativeFactors, type WhyFactor } from '@/lib/why-factors';
 import { computeAddFit } from '@/lib/card-fit';
@@ -2887,6 +2888,7 @@ export function DeckEditorPage() {
                 type="text"
                 className="deck-editor-name-input"
                 value={draftName}
+                maxLength={DECK_NAME_MAX}
                 onChange={(e) => setDraftName(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleCommitRename();

@@ -20,7 +20,7 @@ import {
   setSnapshotViaSyncApi,
   type SnapshotShape,
 } from '../test-helpers';
-import { projectCollection, projectDeck, projectList } from './projections';
+import { DECK_NAME_MAX, projectCollection, projectDeck, projectList } from './projections';
 import { lookupPublicDeckLandingMeta, lookupPublicUserLandingMeta } from '../routes/public';
 import { shareCache } from './cache';
 import { createShareLandingHandler, lookupShareLandingMeta } from './og';
@@ -438,6 +438,20 @@ describe('lookupShareLandingMeta', () => {
    * plants junk of the kind the projection drops and asserts the preview
    * agrees with the projection itself, not with a number typed here.
    */
+  it('a very long deck name reaches the share preview at the cap (board E342)', async () => {
+    const cookie = await makeUser('og-longname');
+    await setSnapshot(cookie, 0, {
+      decks: [makeLandingDeck('d-long', { name: 'w'.repeat(400) })],
+    });
+    const token = await mintShare(cookie, 'deck', 'd-long');
+    const meta = await lookupShareLandingMeta(token);
+    expect(meta).not.toBeNull();
+    // The title is "<name> — shared by <owner>", so the name's own share of it
+    // is what must be capped.
+    expect(meta!.title.startsWith('w'.repeat(DECK_NAME_MAX))).toBe(true);
+    expect(meta!.title).not.toContain('w'.repeat(DECK_NAME_MAX + 1));
+  });
+
   describe('counts agree with what the public page renders', () => {
     const owner = { username: 'og-count', displayName: null };
 

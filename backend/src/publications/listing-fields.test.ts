@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { extractListingFields } from './listing-fields';
-import { projectDeck } from '../shares/projections';
+import { DECK_NAME_MAX, projectDeck } from '../shares/projections';
 
 /** A realistic deck fixture matching the frontend's `Deck` shape closely
  *  enough to exercise every extracted field. */
@@ -53,6 +53,14 @@ describe('extractListingFields', () => {
     expect(rendered).toBe(1);
     // commander + the one slot the page can render.
     expect(fields!.cardCount).toBe(1 + rendered);
+  });
+
+  it('clamps the name it publishes, which is the title and the tile (board E342)', () => {
+    // `deck_name` is the /d/:slug <title>, its og:title, the hero h1 and the
+    // /u/ tile. A 400-character name filled all four.
+    const fields = extractListingFields(baseDeck({ name: 'q'.repeat(400) }));
+    expect(fields!.name.length).toBe(DECK_NAME_MAX);
+    expect(fields!.name).toBe('q'.repeat(DECK_NAME_MAX));
   });
 
   it('returns null for a non-object', () => {

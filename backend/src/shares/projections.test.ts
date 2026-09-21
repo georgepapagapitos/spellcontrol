@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
+  DECK_NAME_MAX,
+  clampDeckName,
   findBinderById,
   findCubeById,
   findDeckById,
@@ -414,6 +416,38 @@ describe('projectDeck', () => {
     ]) {
       expect(out?.[field as keyof typeof out]).toBeUndefined();
     }
+  });
+});
+
+describe('clampDeckName (board E342)', () => {
+  it('leaves a name a person would actually type alone', () => {
+    expect(clampDeckName('Atraxa Superfriends')).toBe('Atraxa Superfriends');
+    const exact = 'x'.repeat(DECK_NAME_MAX);
+    expect(clampDeckName(exact)).toBe(exact);
+  });
+
+  it('trims a name too long for a title, without a dangling space', () => {
+    // The reported case: a 400-character name titled the tab, filled the
+    // og:title, set the hero h1 and stretched the /u/ tile.
+    const long = `${'a'.repeat(DECK_NAME_MAX - 1)} trailing words`;
+    const out = clampDeckName(long);
+    expect(out.length).toBeLessThanOrEqual(DECK_NAME_MAX);
+    expect(out).toBe('a'.repeat(DECK_NAME_MAX - 1));
+    expect(clampDeckName('b'.repeat(400)).length).toBe(DECK_NAME_MAX);
+  });
+});
+
+describe('projectDeck clamps the name it publishes (board E342)', () => {
+  it('a 400-character name reaches the public page at the cap', () => {
+    const out = projectDeck(ALICE, {
+      id: 'd1',
+      name: 'z'.repeat(400),
+      format: 'commander',
+      cards: [],
+      sideboard: [],
+      color: '#888',
+    });
+    expect(out!.name.length).toBe(DECK_NAME_MAX);
   });
 });
 
