@@ -61,6 +61,20 @@ describe('ProfileEditor', () => {
     expect(asButton(screen.getByRole('button', { name: 'Save' })).disabled).toBe(true);
   });
 
+  it('shows the signed-in handle read-only — it has no input, and no Save of its own', () => {
+    const { container } = render(<ProfileEditor />);
+
+    expect(screen.getByText('@alice')).toBeTruthy();
+    const handle = container.querySelector('.profile-editor-handle');
+    expect(handle?.querySelector('input')).toBeFalsy();
+  });
+
+  it('still shows the handle while the profile is loading (it comes from the session, not the profile)', () => {
+    useAuth.setState({ profile: null });
+    render(<ProfileEditor />);
+    expect(screen.getByText('@alice')).toBeTruthy();
+  });
+
   it('disables Save with no edits', () => {
     render(<ProfileEditor />);
     expect(asButton(screen.getByRole('button', { name: 'Save' })).disabled).toBe(true);

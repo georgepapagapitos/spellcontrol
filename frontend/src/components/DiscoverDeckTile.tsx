@@ -208,7 +208,7 @@ export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsave
         </Link>
       ) : (
         <Link to={`/u/${deck.ownerUsername}`} className="discover-tile-owner">
-          by {deck.ownerUsername}
+          by {ownerName}
         </Link>
       )}
       {isGrid &&
