@@ -102,6 +102,35 @@ describe('stacks view keeps buried cards reachable', () => {
     }
   });
 
+  it("keeps each card's own chrome inside that card", () => {
+    // A buried tile is still a full card tall behind the cards stacked on it,
+    // and its badge cluster (z-index: 2) and kebab (z-index: 3) sit at that
+    // full card's edges — deep inside whatever card is in front. Without a
+    // stacking context per cell those z-indexes resolve against the whole
+    // column, and every buried card's icons punch through the open card's art
+    // in a ragged line down its right-hand side.
+    const cell = all.find((r) => r.selector.trim() === '.deck-card-stack .deck-card-grid-cell');
+    expect(cell?.body, 'the stacked cell rule went missing').toBeTruthy();
+    expect(
+      cell?.body,
+      'a stacked cell must isolate, or a buried card’s badges paint over the open card'
+    ).toMatch(/isolation\s*:\s*isolate/);
+  });
+
+  it('lifts the open card by the cell, not by something inside it', () => {
+    // The corollary of isolating: a z-index raised on the tile can no longer
+    // lift the card it belongs to, so the lift has to be on the cell itself.
+    const lifts = all.filter(
+      (r) => r.selector.includes('.deck-card-stack') && /z-index\s*:\s*[1-9]/.test(r.body)
+    );
+    expect(lifts.length, 'nothing lifts the open card over its neighbours').toBeGreaterThan(0);
+    const onTile = lifts.filter((r) => r.selector.includes('.deck-card-grid-tile'));
+    expect(
+      onTile.map((r) => r.selector),
+      'an isolated cell contains its children — lift .deck-card-grid-cell instead'
+    ).toEqual([]);
+  });
+
   it('opens the card downward, never by moving it under the cursor', () => {
     // The cursor sits in the exposed top strip of the card it opens. Growing
     // downward keeps it there; a transform or a negative margin on the OPEN
