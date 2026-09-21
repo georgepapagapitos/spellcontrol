@@ -130,7 +130,7 @@ import { TableSignals } from './TableSignals';
 import { TAKEBACK_MODE_LABEL } from '../lib/takeback';
 import { REACTION_EMOTES } from '../lib/table-signals';
 import { CardContextMenu, type CardMenuPage } from './CardContextMenu';
-import { CardStatusStrip } from './CardStatusStrip';
+import { CardInfoDialog } from './CardInfoDialog';
 import { MobileZonesPanel } from './MobileZonesPanel';
 import { DrawCountPage } from './DrawCountPage';
 import { OpeningHandSheet } from './OpeningHandSheet';
@@ -150,8 +150,6 @@ import { commanderTaxAmount, MOVE_DESTINATIONS, ZONE_VIEWER_LABEL } from '../lib
 import { LifeStrip } from './LifeStrip';
 import { ManaPool } from './ManaPool';
 import { useSealMoment } from '@/components/shared/SealMoment';
-import { CardPreview } from '@/components/CardPreview';
-import { scryfallToEnrichedCard } from '@/lib/scryfall-to-enriched';
 
 interface Props {
   state: PlaytestState;
@@ -262,9 +260,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const [viewer, setViewer] = useState<ViewerMode>(null);
   const [ctx, setCtx] = useState<ContextState>(null);
   const [handMenu, setHandMenu] = useState<HandMenuState>(null);
-  // B6-07: card previewed from a battlefield permanent's context menu — a
-  // single-card CardPreview, same shared component OpeningHandSheet/
-  // ZoneViewerModal use.
+  // "View information" on a battlefield permanent or a card in hand — one
+  // card, read in a centered dialog (`CardInfoDialog`). Browsing a whole zone
+  // is still the shared `CardPreview` carousel (OpeningHandSheet /
+  // ZoneViewerModal); a single card is not a carousel.
   const [previewCardId, setPreviewCardId] = useState<string | null>(null);
   const [tokenCreator, setTokenCreator] = useState(false);
   const [showScry, setShowScry] = useState(false);
@@ -2683,37 +2682,23 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       {previewCardId &&
         cardLookup?.has(previewCardId) &&
         (() => {
-          const enriched = scryfallToEnrichedCard(cardLookup.get(previewCardId)!);
-          const zoneLabel = state.zones.hand.some((c) => c.id === previewCardId)
-            ? 'Hand'
-            : 'Battlefield';
+          const card = cardLookup.get(previewCardId)!;
           // The permanent behind the inspected card, when it's on the
-          // battlefield — the inspector prints its live state (tapped,
-          // counters, attachments) above the card's rules text.
+          // battlefield — the dialog prints its live state (tapped, counters,
+          // attachments) between the type line and the card's rules text.
           const bf = state.battlefield.find((b) => b.card.id === previewCardId);
           const host = bf?.attachedTo
             ? state.battlefield.find((b) => b.card.id === bf.attachedTo)?.card.name
             : undefined;
           return (
-            <CardPreview
-              source="playtest"
-              cards={[enriched]}
-              index={0}
-              binderName="Playtest"
-              sectionLabels={[zoneLabel]}
-              pageNumbers={[1]}
-              totalPages={1}
-              renderPanelMeta={() =>
-                bf || commanderTaxAmount(state.commanderTax, previewCardId) > 0 ? (
-                  <CardStatusStrip
-                    card={bf?.card ?? { id: previewCardId, name: enriched.name }}
-                    bf={bf}
-                    attachedToName={host}
-                    tax={commanderTaxAmount(state.commanderTax, previewCardId)}
-                  />
-                ) : null
-              }
-              onIndexChange={() => {}}
+            <CardInfoDialog
+              card={card}
+              status={{
+                card: bf?.card ?? { id: previewCardId, name: card.name },
+                bf,
+                attachedToName: host,
+                tax: commanderTaxAmount(state.commanderTax, previewCardId),
+              }}
               onClose={() => setPreviewCardId(null)}
             />
           );
