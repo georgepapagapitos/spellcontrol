@@ -1,4 +1,4 @@
-import { asRecord, asString } from '../shares/projections';
+import { asRecord, asString, countProjectable, isProjectableSlot } from '../shares/projections';
 import { cardArtUrl } from '../shares/og';
 
 export interface ListingFields {
@@ -82,7 +82,14 @@ export function extractListingFields(deckData: unknown): ListingFields | null {
       asFiniteNumber(deck.bracketOverride) ??
       asFiniteNumber(asRecord(deck.bracketEstimation)?.bracket) ??
       null,
-    cardCount: (commander ? 1 : 0) + (partnerCommander ? 1 : 0) + cardsArr.length,
+    // Counted with the SAME guard the public deck page renders with, not
+    // `cardsArr.length`: this number is the /d/:slug link preview's "N cards"
+    // and the /u/ tile's count, and a slot with no `card` is one the page
+    // drops (board E343, fourth instance of the same shape).
+    cardCount:
+      (commander ? 1 : 0) +
+      (partnerCommander ? 1 : 0) +
+      countProjectable(cardsArr, isProjectableSlot),
     ogArtCrop:
       cardArtUrl(commander) ??
       cardArtUrl(partnerCommander) ??

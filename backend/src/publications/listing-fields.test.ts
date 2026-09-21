@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { extractListingFields } from './listing-fields';
+import { projectDeck } from '../shares/projections';
 
 /** A realistic deck fixture matching the frontend's `Deck` shape closely
  *  enough to exercise every extracted field. */
@@ -36,6 +37,22 @@ describe('extractListingFields', () => {
       bracket: 3,
       cardCount: 2, // commander + 1 mainboard card
     });
+  });
+
+  it('counts only the slots the public deck page renders (board E343)', () => {
+    // `cardCount` is the /d/:slug link preview's "N cards" and the /u/ tile's
+    // count. A slot with no `card` is one the page drops, so promising it is
+    // the same off-by-one the collection unfurl had.
+    const cards = [
+      { slotId: 's1', card: { id: 'sol-ring', name: 'Sol Ring' } },
+      { slotId: 's2', allocatedCopyId: null },
+    ];
+    const deck = baseDeck({ cards });
+    const fields = extractListingFields(deck);
+    const rendered = projectDeck({ username: 'u', displayName: null }, deck)!.cards.length;
+    expect(rendered).toBe(1);
+    // commander + the one slot the page can render.
+    expect(fields!.cardCount).toBe(1 + rendered);
   });
 
   it('returns null for a non-object', () => {

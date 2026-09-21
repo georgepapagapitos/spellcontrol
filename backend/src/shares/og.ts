@@ -6,10 +6,13 @@ import { loadShareContext } from './context';
 import {
   asRecord,
   asString,
+  countProjectable,
   findBinderById,
   findCubeById,
   findDeckById,
   findListById,
+  isProjectableCard,
+  isProjectableSlot,
 } from './projections';
 
 export const ORIGIN = 'https://spellcontrol.com';
@@ -148,10 +151,17 @@ export function injectShareHead(html: string, meta: ShareLandingMeta | null): st
   return `${head}    ${block}\n  ${html.slice(idx)}`;
 }
 
+/**
+ * Every count in a link preview is counted with the SAME predicate the public
+ * page renders with (`isProjectableCard` / `isProjectableSlot`), never with
+ * `raw.length`. A row the page cannot render is a row the preview must not
+ * promise: one unrenderable card in the dev collection had the unfurl saying
+ * 11,533 over a page saying 11,532 (board E343), and the deck and list
+ * previews counted raw rows the same way.
+ */
 function countCollectionCards(collection: unknown): number {
   const r = asRecord(collection);
-  if (!r) return 0;
-  return Array.isArray(r.cards) ? r.cards.length : 0;
+  return r ? countProjectable(r.cards, isProjectableCard) : 0;
 }
 
 function plural(n: number, one: string, many: string): string {
@@ -211,7 +221,7 @@ export async function lookupShareLandingMeta(token: string): Promise<ShareLandin
     const name = asString(deck.name) ?? 'Untitled deck';
     const format = asString(deck.format) ?? 'Magic';
     const cardsArr = Array.isArray(deck.cards) ? deck.cards : [];
-    const cards = cardsArr.length;
+    const cards = countProjectable(cardsArr, isProjectableSlot);
     // Commander → partner commander → first mainboard card. DeckCard wraps
     // `card: ScryfallCard`, so the first mainboard card is `cardsArr[0]?.card`.
     const image =
@@ -237,7 +247,7 @@ export async function lookupShareLandingMeta(token: string): Promise<ShareLandin
     const list = asRecord(findListById(data.collection, share.resourceId));
     if (!list) return null;
     const name = asString(list.name) ?? 'Untitled list';
-    const entries = Array.isArray(list.entries) ? list.entries.length : 0;
+    const entries = countProjectable(list.entries, isProjectableCard);
     return {
       title: `${name} — shared by ${owner}`,
       description: `A list (${plural(entries, 'entry', 'entries')}) shared by ${owner} on ${SITE_NAME}.`,
