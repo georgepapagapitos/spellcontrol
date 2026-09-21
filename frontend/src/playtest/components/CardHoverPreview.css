@@ -26,6 +26,27 @@
   object-fit: cover;
 }
 
+/* Identity ribbon, the card's own top-right corner (STYLE_GUIDE: state
+   ribbons left, identity ribbons right). Same 45° geometry as
+   `.playtest-card__token-ribbon`, one step up in type because this face is
+   read at rules-text size rather than glanced at. */
+.playtest-hover-preview__token {
+  position: absolute;
+  top: 0;
+  right: 0;
+  transform: translate(29%, 34%) rotate(45deg);
+  transform-origin: center;
+  width: 100%;
+  padding: 2px 0;
+  font-size: var(--text-sm);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+  color: #f3f4f6;
+  background: rgba(31, 41, 55, 0.92);
+}
+
 @keyframes playtest-hover-preview-in {
   from {
     opacity: 0;

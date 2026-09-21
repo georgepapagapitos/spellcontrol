@@ -19,6 +19,11 @@ interface Props {
 interface Target {
   src: string;
   rect: DOMRect;
+  /** The hovered card is a token copy (`data-token`). The enlarged art is
+   *  the art of the card it copied, so without this the one surface that
+   *  shows a card at reading size is also the one that hides the
+   *  difference. */
+  isToken: boolean;
 }
 
 /**
@@ -44,7 +49,9 @@ export function CardHoverPreview({ suspended, resolve }: Props) {
     const read = (el: Element): Target | null => {
       const id = el.getAttribute('data-preview-id');
       const src = id ? resolve(id) : null;
-      return src ? { src, rect: el.getBoundingClientRect() } : null;
+      return src
+        ? { src, rect: el.getBoundingClientRect(), isToken: el.hasAttribute('data-token') }
+        : null;
     };
     const show = (el: Element, delay: number) => {
       clear();
@@ -120,6 +127,9 @@ export function CardHoverPreview({ suspended, resolve }: Props) {
   return (
     <div className="playtest-hover-preview" style={{ left, top, width }} aria-hidden>
       <img src={target.src} alt="" draggable={false} decoding="async" />
+      {/* The same ribbon the card itself wears, on the same corner, at a
+          size that suits the bigger face. */}
+      {target.isToken && <span className="playtest-hover-preview__token">Token</span>}
     </div>
   );
 }

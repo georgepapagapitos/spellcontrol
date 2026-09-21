@@ -24,9 +24,10 @@ const SRCS: Record<string, string> = {
 };
 const resolve = (id: string) => SRCS[id] ?? null;
 
-function cardEl(id?: string) {
+function cardEl(id?: string, isToken = false) {
   const el = document.createElement('div');
   if (id) el.setAttribute('data-preview-id', id);
+  if (isToken) el.setAttribute('data-token', '');
   el.setAttribute('aria-label', 'Sol Ring');
   el.tabIndex = 0;
   document.body.appendChild(el);
@@ -153,5 +154,26 @@ describe('CardHoverPreview', () => {
     });
     const pane = document.querySelector<HTMLElement>('.playtest-hover-preview')!;
     expect(parseFloat(pane.style.top)).toBe(280 + 12);
+  });
+
+  // The enlarged face is the art of the card the token copied, so this is
+  // the one surface where the difference would otherwise disappear.
+  it('marks a token, and leaves a real card unmarked', () => {
+    stubMatchMedia(true);
+    const { rerender } = render(<CardHoverPreview suspended={false} resolve={resolve} />);
+    const token = cardEl('a', true);
+    act(() => {
+      token.dispatchEvent(new Event('focusin', { bubbles: true }));
+      vi.advanceTimersByTime(0);
+    });
+    expect(document.querySelector('.playtest-hover-preview__token')?.textContent).toBe('Token');
+
+    rerender(<CardHoverPreview suspended={false} resolve={resolve} />);
+    const real = cardEl('b');
+    act(() => {
+      real.dispatchEvent(new Event('focusin', { bubbles: true }));
+      vi.advanceTimersByTime(0);
+    });
+    expect(document.querySelector('.playtest-hover-preview__token')).toBeNull();
   });
 });
