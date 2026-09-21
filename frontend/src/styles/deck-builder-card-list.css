@@ -117,6 +117,55 @@
 /* Card badge cluster — bottom-right over the art, like the collection
    grid. Sibling of the tile button (not nested) so the interactive
    BinderBadge isn't a button-in-button. */
+/* Tile kebab (2026-09-21). A SIBLING of the tile, not a child: the tile is
+   itself a <button> and a nested button is invalid. Rests hidden on a
+   hover-capable pointer and appears on hover or keyboard focus; always
+   visible on a coarse pointer, where there is no hover and no right-click,
+   so the menu stays reachable. */
+.deck-card-grid-menu {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.deck-card-grid-menu:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  /* Revealing a child is not itself an interactive hover: the focus ring for
+     this control lives on the button's own :focus-visible above, which also
+     reveals it for keyboard users. */
+  .deck-card-grid-cell:hover > .deck-card-grid-menu {
+    opacity: 1;
+  }
+
+  .deck-card-grid-menu:hover {
+    color: var(--text-primary);
+  }
+}
+
+@media (pointer: coarse) {
+  .deck-card-grid-menu {
+    opacity: 1;
+  }
+}
+
 .deck-card-grid-badges {
   position: absolute;
   bottom: 5px;
@@ -1425,6 +1474,78 @@
   .toolbar-popover-panel {
     animation: none;
   }
+}
+
+/* Labelled clusters inside the card menu. The menu runs past a dozen rows,
+   and the style guide asks for sections with hairline dividers rather than
+   one flat list once it does. */
+.deck-card-menu-group + .deck-card-menu-group {
+  margin-top: 0.3rem;
+  padding-top: 0.3rem;
+  border-top: 0.5px solid var(--border);
+}
+
+.deck-card-menu-heading {
+  margin: 0 0 0.15rem;
+  padding: 0 0.55rem;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.deck-card-menu-drill,
+.deck-card-menu-back,
+.deck-card-menu-pick {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.deck-card-menu-drill {
+  justify-content: space-between;
+}
+
+/* Fixed gutter so the picked stack's check does not shunt the labels. */
+.deck-card-menu-pick-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  flex: 0 0 14px;
+  color: var(--accent);
+}
+
+.deck-card-menu-new {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.3rem;
+  padding: 0.3rem 0.55rem 0.15rem;
+  border-top: 0.5px solid var(--border);
+}
+
+.deck-card-menu-new-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.deck-card-menu-new-input {
+  width: 100%;
+  min-height: 32px;
+  padding: var(--space-1) 0.4rem;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.deck-card-menu-new-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .deck-row-menu-item {

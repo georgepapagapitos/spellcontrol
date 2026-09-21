@@ -1,6 +1,6 @@
 import type { Zone } from '@/lib/playtest';
 import type { ShortcutId } from '../lib/shortcuts';
-import { CtxMenuShell } from './CtxMenuShell';
+import { CtxMenuShell } from '@/components/shared/CtxMenuShell';
 
 interface Props {
   x: number;
