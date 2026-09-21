@@ -4,7 +4,7 @@
  * signed-in stranger opening a friends-only share used to get "Something
  * went wrong" (playtest batch 11); nothing went wrong.
  */
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -41,8 +41,10 @@ describe('SharedView — the friends gate', () => {
       '/friends'
     );
     // E344: the tab has to agree with the wall, not with the shell the page was
-    // served as.
-    expect(document.title).toBe('Friends only · SpellControl');
+    // served as. Awaited, because the heading arriving does not mean the title
+    // effect has flushed: asserting it synchronously passed alone and failed
+    // under a loaded full suite, which is how it reached CI as a flake.
+    await waitFor(() => expect(document.title).toBe('Friends only · SpellControl'));
   });
 
   it('a guest (401) gets "Friends only" and a sign-in door that returns here', async () => {
@@ -52,6 +54,6 @@ describe('SharedView — the friends gate', () => {
     expect(screen.getByRole('link', { name: 'Sign in' }).getAttribute('href')).toBe(
       '/auth?returnTo=%2Fs%2Ftok'
     );
-    expect(document.title).toBe('Friends only · SpellControl');
+    await waitFor(() => expect(document.title).toBe('Friends only · SpellControl'));
   });
 });
