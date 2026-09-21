@@ -214,8 +214,15 @@
   color: var(--text-primary);
   background: transparent;
   border: 0;
-  padding: 0;
-  margin: 0;
+  /* Vertical slack, cancelled by the matching negative margin so the hero's
+     layout is unchanged. `overflow: hidden` below clips at the CONTENT box,
+     which at line-height 1.1 is shorter than the ink of every display face
+     the typeset picker offers: measured em-relative ink heights run 1.13
+     (Plain) to 1.28 (Broadsheet/Bodoni Moda), so a name's descenders ("go
+     fetch!") or an accented cap ("Ágh") lost their ends. 0.22em clears the
+     worst face on both edges. */
+  padding: 0.22em 0;
+  margin: -0.22em 0;
   border-radius: var(--radius);
   cursor: pointer;
   text-align: left;
