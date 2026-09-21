@@ -3920,17 +3920,36 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   sized every numeric field in the app. A new numeric field picks a width
   on its own class.
 - **The solo-playtest table stack is named.** `--z-table-chrome` (900, zones
-  tab) · `--z-table-panel` (901, zones panel, takeback banner) ·
-  `--z-table-banner` (902, resistance banner) · `--z-table-consent` (950)
-  sit between `--z-suggest` and `--z-modal`; the table's context menu and
-  floating life panel ride `--z-overlay` (±1 for its backdrop and the zone
-  menu popover). `playtest.css` carries no bare three-digit z-index. The
+  tab) · `--z-table-panel` (901, zones panel) · `--z-table-banner` (902,
+  resistance banner, card pings) sit between `--z-suggest` and `--z-modal`;
+  the table's context menu and floating life panel ride `--z-overlay` (±1 for
+  its backdrop and the zone menu popover). `playtest.css` carries no bare
+  three-digit z-index. **These tokens order things INSIDE the board, and
+  nothing else** — see the body-portal rule below, which is why the takeback
+  banner and consent prompt no longer use them, and why `--z-table-consent`
+  was removed outright. The
   felt's own chrome lives in a small 1–5 band, with two deliberate
   exceptions: `.playtest-left-dock` at 30, and `.playtest-trackers--corner`
   at 31 above it. **A popover is only ever as high as the stacking context
   it is rendered into** — the life popover is a child of that corner, so at
   the corner's old z-index of 3 it opened underneath the mana column and the
   game log whatever `--z-overlay` said on the popover itself.
+- **An overlay portaled to `<body>` must clear `--z-overlay`, whatever the
+  table tokens say.** The board is `.playtest-page`, `position: fixed` at
+  `--z-overlay` (1100). A node portaled to `<body>` is a _sibling_ of that,
+  so the 900-series `--z-table-*` tokens cannot order it — below 1100 it is
+  painted under the entire board and is simply invisible. This is the exact
+  inverse of the popover rule above: there a high z-index was trapped in a
+  low stacking context; here a low z-index sits in the right context and
+  means nothing. Five overlays shipped this way and reached production
+  invisible (#2056, #2058) — TriggerReminder, HoldBanner, TableSignals and
+  both takeback prompts — each measured 100% covered on the deployed site,
+  against TableMoments at `--z-overlay` as a visible control. Neither
+  failure mode is visible to jsdom, which loads no stylesheets, so both are
+  guarded by tests that read the CSS:
+  `playtest/components/body-portal-stacking.test.ts` for this rule, which
+  fails any body-portaled board overlay whose `position: fixed` rule sits
+  below `--z-overlay`.
 - **Role ink colors are tokens too.** The four card-role hues (ramp, removal,
   wipe, draw) that tint role chips, curve-phase bars and analysis rows are
   `--role-ink-ramp` / `--role-ink-removal` / `--role-ink-wipe` /
