@@ -761,7 +761,10 @@ authRouter.post('/google/exchange', oauthLimiter, async (req: Request, res: Resp
   res.json({ user });
 });
 
-authRouter.post('/logout', (_req: Request, res: Response) => {
+// Limited like every other session route. Logout is cheap and unauthenticated,
+// but 'cheap' is not 'unbounded' — and an unlimited route is the one this
+// router would have shipped without rate-limit-coverage.test.ts noticing.
+authRouter.post('/logout', sessionLimiter, (_req: Request, res: Response) => {
   clearSessionCookie(res);
   res.json({ ok: true });
 });

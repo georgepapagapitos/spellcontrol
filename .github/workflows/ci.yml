@@ -65,7 +65,9 @@ jobs:
       # Root devDeps only (the script needs a YAML parser). --ignore-scripts
       # skips husky's `prepare`, which has nothing to set up in CI.
       - name: Install root dependencies
-        run: npm ci --ignore-scripts --no-audit --no-fund
+        uses: ./.github/actions/npm-ci
+        with:
+          flags: --ignore-scripts --no-audit --no-fund
 
       - name: Check shared package registration
         run: node scripts/check-shared-package-registration.mjs
@@ -99,7 +101,9 @@ jobs:
           cache-dependency-path: packages/${{ matrix.package }}/package-lock.json
 
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        uses: ./.github/actions/npm-ci
+        with:
+          working-directory: packages/${{ matrix.package }}
 
       - name: Type check
         run: npm run typecheck
@@ -135,7 +139,9 @@ jobs:
         uses: ./.github/actions/build-shared
 
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        uses: ./.github/actions/npm-ci
+        with:
+          working-directory: frontend
 
       - name: Type check
         run: npm run typecheck
@@ -225,7 +231,9 @@ jobs:
         uses: ./.github/actions/build-shared
 
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        uses: ./.github/actions/npm-ci
+        with:
+          working-directory: backend
 
       - name: Type check
         run: npm run typecheck

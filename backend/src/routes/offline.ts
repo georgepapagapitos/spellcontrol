@@ -17,6 +17,12 @@ export const offlineRouter: Router = Router();
 // user per week typically. Keep a generous limiter to allow re-downloads
 // after a clear-and-retry without rate-limiting normal users.
 const bulkLimiter = testAwareLimiter({ windowMs: 60_000, max: 10 });
+// Version/manifest reads, not bulk transfers: each is one small JSON answer
+// that a client asks for roughly once per app load (download.ts and
+// ensure-combos.ts), so bulkLimiter's 10/min is far too tight for them while
+// unbounded is not an option either. 120/min leaves room for a pod sharing one
+// NAT address without letting the endpoint be hammered.
+const manifestLimiter = testAwareLimiter({ windowMs: 60_000, max: 120 });
 
 /**
  * Tell the client to retry in a few seconds rather than blocking the request
@@ -40,7 +46,7 @@ function sendBuilding(res: Response, status: BulkStatus): void {
  * available so it can decide whether to re-download. Cheap and frequent —
  * MUST NOT block on a 30-60s bulk build (see sendBuilding).
  */
-offlineRouter.get('/manifest', async (_req: Request, res: Response) => {
+offlineRouter.get('/manifest', manifestLimiter, async (_req: Request, res: Response) => {
   const oracleStatus = getOracleBulkStatus();
   if (oracleStatus.state !== 'ready' || !oracleStatus.payload) {
     sendBuilding(res, oracleStatus);
@@ -133,7 +139,7 @@ offlineRouter.get('/combos', bulkLimiter, async (req: Request, res: Response) =>
  * doesn't silently fall back to the capped server matcher during that window
  * (E212 — that fallback was measured showing 14% of a real collection's combos).
  */
-offlineRouter.get('/combos-version', async (_req: Request, res: Response) => {
+offlineRouter.get('/combos-version', manifestLimiter, async (_req: Request, res: Response) => {
   try {
     const combos = await getCombosBulk();
     res.set('Cache-Control', 'public, max-age=300');
