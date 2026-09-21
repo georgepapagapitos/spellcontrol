@@ -2121,7 +2121,17 @@ absolute` inside `.playtest-battlefield-wrap`, not inside `.playtest-board`,
   selection is open. Bottom-right: the zone piles as a horizontal row, each
   labelled `Library (92)` with the count in the label, Library carrying an
   inline "Draw · D" (the live key, never a hard-coded one — it is the only
-  Draw control on the felt) and a kebab with Shuffle and Top cards. Bottom-centre: the hand fan, each non-land card badged with its
+  Draw control on the felt) and a kebab with Shuffle and Top cards.
+- **The zone shelf is tucked, and opens on intent.** A pile shows its label,
+  its count and the top 60% of its top card (`object-position: top`, so the
+  slice you keep is the name and art, not the rules box). Hovering it, tabbing
+  into it or dragging a card onto it grows the stack to the full card — all
+  three, or the keyboard and drop paths quietly keep the peek. The shelf is a
+  reference you glance at between spells, not a fifth row of cards, and the
+  corner it used to fill belongs to the battlefield. An **empty** zone is an
+  empty well (`.is-empty`), never one of the tinted card backs: those are the
+  look of a pile with something in it, and a graveyard at 0 painted as a solid
+  brown card reads as a card. Bottom-centre: the hand fan, each non-land card badged with its
   real mana cost as mana-font pips (`ManaCost`, off the new optional
   `PlaytestCard.manaCost`; a pre-badge snapshot falls back to the bare mana
   value, and lands and tokens carry no badge at all). Bottom-left: the log
@@ -2144,6 +2154,17 @@ absolute` inside `.playtest-battlefield-wrap`, not inside `.playtest-board`,
   token, Roll dice, Select cards, Take back, and Reactions online. Draw,
   Log and Keyboard shortcuts were dropped from it: each is one tap away
   somewhere the eye is already going (the library pile, the game menu).
+- **A counter you read at a glance is one control, not a boxed stepper.**
+  The floating-mana row is six bare pips, each with its count beside it:
+  click adds, right-click or a touch long-press removes, and arrow keys (plus
+  `+`/`-`) do both from the keyboard. The retired version wrapped every color
+  in a bordered chip with its own ± pair — eighteen targets for a number you
+  check between spells, and a row too loud to skim. A pip at 0 recedes to
+  0.45 opacity rather than disappearing: the six colors hold their positions
+  so the one you want is always in the same place. Any control that steals
+  right-click this way must `preventDefault` the context menu and set
+  `user-select: none` / `-webkit-touch-callout: none`, or the OS menu and a
+  touch text-selection eat the gesture.
 - **Banners float, they never displace.** `ResistanceBanner`, the session
   summary and the takeback pending banner stack top-centre in
   `.playtest-banners` (max 36rem), under the corner clusters' z-index.

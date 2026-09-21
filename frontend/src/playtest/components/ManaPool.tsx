@@ -1,5 +1,6 @@
+import { useCallback } from 'react';
 import { ColorPip } from '@/components/shared/ManaSymbol';
-import { usePressRepeat } from '@/lib/use-press-repeat';
+import { useLongPress } from '@/lib/use-long-press';
 import { MANA_COLORS, MANA_COLOR_LABEL, type ManaColor } from '@/lib/playtest';
 
 interface Props {
@@ -8,59 +9,91 @@ interface Props {
   onEmpty(): void;
 }
 
-/** A ± step that repeats while held — same pattern as CardContextMenu's
- *  CounterStep. Own component because the hook can't be called inside a
- *  `.map`. */
-function ManaStep({
-  label,
+/**
+ * One color's floating count: a pip and a number, and nothing else.
+ *
+ * The old chip wrapped every color in a bordered box with its own − and +
+ * buttons — six boxes, eighteen controls, a strip you could not read at a
+ * glance during a turn. Tapping the pip is the whole control now:
+ *
+ * - click / tap → +1
+ * - right-click, or a long-press on touch → −1
+ * - arrow keys (and + / −) while focused → ±1
+ *
+ * Every path is reachable without a pointer, and −1 never needs a second
+ * target, which is what bought the row back its size.
+ */
+function ManaPip({
+  color,
+  count,
   onAdjust,
-  children,
 }: {
-  label: string;
-  onAdjust(): void;
-  children: React.ReactNode;
+  color: ManaColor;
+  count: number;
+  onAdjust(delta: number): void;
 }) {
-  const press = usePressRepeat(onAdjust);
+  const label = MANA_COLOR_LABEL[color];
+  // `consumedClick` is a callback, not a DOM handler — it must not reach the
+  // element in the spread below.
+  const { consumedClick, ...touch } = useLongPress({ onLongPress: () => onAdjust(-1) });
+
+  const onClick = useCallback(() => {
+    // The long-press already decremented; the synthesized click must not
+    // turn straight around and add it back.
+    if (consumedClick()) return;
+    onAdjust(1);
+  }, [consumedClick, onAdjust]);
+
   return (
-    <button type="button" className="playtest-mana-chip__step" aria-label={label} {...press}>
-      {children}
+    <button
+      type="button"
+      className={`playtest-mana-pip${count === 0 ? ' is-zero' : ''}`}
+      // The count is in the label rather than read off the adjacent span, so
+      // a screen reader hears the value change on every press.
+      aria-label={`${label} mana, ${count} floating`}
+      title={`${label}: click to add, right-click to remove`}
+      onClick={onClick}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onAdjust(-1);
+      }}
+      onKeyDown={(e) => {
+        const delta =
+          e.key === 'ArrowUp' || e.key === 'ArrowRight' || e.key === '+' || e.key === '='
+            ? 1
+            : e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === '-'
+              ? -1
+              : 0;
+        if (delta === 0) return;
+        e.preventDefault();
+        onAdjust(delta);
+      }}
+      {...touch}
+    >
+      <ColorPip color={color} pip="md" />
+      <span className="playtest-mana-pip__count">{count}</span>
     </button>
   );
 }
 
 /**
  * Floating-mana tracker (display/bookkeeping only — see ADJUST_MANA in
- * reducer.ts). Six always-visible color chips, each with a ±1 stepper, plus a
- * manual "Empty" escape hatch for mid-turn resets. The pool also empties
- * automatically on NEXT_TURN; this button covers everything finer than a
- * full turn boundary without the reducer having to model steps/phases it
- * otherwise knows nothing about.
+ * reducer.ts). Six color pips, plus a manual "Empty" escape hatch for
+ * mid-turn resets. The pool also empties automatically on NEXT_TURN; this
+ * button covers everything finer than a full turn boundary without the
+ * reducer having to model steps/phases it otherwise knows nothing about.
  */
 export function ManaPool({ pool, onAdjust, onEmpty }: Props) {
   const total = MANA_COLORS.reduce((sum, c) => sum + pool[c], 0);
   return (
     <div className="playtest-mana-pool" role="group" aria-label="Floating mana">
       {MANA_COLORS.map((color) => (
-        <div key={color} className="playtest-mana-chip">
-          <ManaStep
-            label={`Remove floating ${MANA_COLOR_LABEL[color]} mana, currently ${pool[color]}`}
-            onAdjust={() => onAdjust(color, -1)}
-          >
-            −
-          </ManaStep>
-          <span className="playtest-mana-chip__pip">
-            <ColorPip color={color} pip="md" label={MANA_COLOR_LABEL[color]} />
-          </span>
-          <span className="playtest-mana-chip__count" aria-hidden>
-            {pool[color]}
-          </span>
-          <ManaStep
-            label={`Add floating ${MANA_COLOR_LABEL[color]} mana, currently ${pool[color]}`}
-            onAdjust={() => onAdjust(color, 1)}
-          >
-            +
-          </ManaStep>
-        </div>
+        <ManaPip
+          key={color}
+          color={color}
+          count={pool[color]}
+          onAdjust={(delta) => onAdjust(color, delta)}
+        />
       ))}
       <button
         type="button"

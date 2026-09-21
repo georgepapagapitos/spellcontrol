@@ -37,7 +37,7 @@ export function ZonePile({ zone, label, cards, commanderTax, click, onMenu }: Pr
   return (
     <div
       ref={setNodeRef}
-      className={`playtest-pile${isOver ? ' is-over' : ''}`}
+      className={`playtest-pile${isOver ? ' is-over' : ''}${cards.length === 0 ? ' is-empty' : ''}`}
       // Fires for the Context Menu key and Shift+F10 as well as a right-click,
       // and bubbles from whichever child has focus — so the keyboard reaches
       // the same menu without the tile needing a key handler of its own.
