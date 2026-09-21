@@ -5549,6 +5549,15 @@ the back of a card gives nothing away.
 Everything else about a card — counters, stickers, phasing, attachment — is a
 badge, not a ribbon. If a third ribbon ever seems necessary, it is a badge.
 
+**Where the mark has to be repeated.** Any surface that shows a card at
+reading size repeats the ribbon on the same corner: the hover preview does,
+one type step up, because an enlarged token shows the art of the card it
+copied and would otherwise be the one place the difference disappears. A
+surface that shows cards as a _list_ uses that list's own chip vocabulary
+instead — the stack panel marks a token with a chip mirroring its seat chip,
+because its tucked rows are clipped to the title bar and would cut a 45°
+ribbon in half. The rule: ribbon on a card, chip in a list.
+
 ---
 
 ## Extending this guide

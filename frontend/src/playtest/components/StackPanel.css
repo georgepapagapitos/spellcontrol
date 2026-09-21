@@ -150,6 +150,27 @@
   white-space: nowrap;
 }
 
+/* Mirrors the seat chip on the opposite corner: who put it there on the
+   left, what it is on the right. Sized to survive the clipped title-bar
+   rows, which is the whole reason this is a chip and not the card's
+   ribbon. */
+.stack-panel__token {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  padding: 0 5px;
+  font-size: var(--text-xs);
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #f3f4f6;
+  background: rgba(31, 41, 55, 0.92);
+  border-radius: 0 6px 0 5px;
+  white-space: nowrap;
+}
+
 .stack-panel__actions {
   display: flex;
   justify-content: center;

@@ -57,6 +57,7 @@ function StackCard({ item, clipped }: { item: StackPanelItem; clipped?: boolean 
     <div
       className={`stack-panel__card${clipped && art ? ' stack-panel__card--clipped' : ''}`}
       data-preview-id={clipped && art ? item.id : undefined}
+      data-token={item.isToken ? '' : undefined}
     >
       {art ? (
         <img
@@ -77,6 +78,11 @@ function StackCard({ item, clipped }: { item: StackPanelItem; clipped?: boolean 
         </div>
       )}
       <span className="stack-panel__seat">{item.seatName ?? 'A player'}</span>
+      {/* A token copy on the stack is a picture of the card it copied, so the
+          row says which it is. A chip rather than the card's corner ribbon:
+          the rows underneath are clipped to the title bar, which would cut a
+          ribbon in half, and a chip is this panel's own vocabulary. */}
+      {item.isToken && <span className="stack-panel__token">Token</span>}
     </div>
   );
 }
