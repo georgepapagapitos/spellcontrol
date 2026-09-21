@@ -543,17 +543,21 @@
    Leave are one thumb (or one glance) away however tall the table gets.
    Opaque, not translucent: seat art scrolls under it and would otherwise show
    through the controls. */
+/* The footer of the seat grid, and deliberately NOT sticky any more. Pinned
+   to the bottom it detached and reattached as the lobby scrolled, and with
+   `flex-wrap: wrap` it changed HEIGHT whenever the row reflowed — so the row
+   holding Start game moved under the cursor. A lobby is a short page; the bar
+   sits at the end of it. */
 .lobby-bar {
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
-  box-shadow: 0 -6px 18px rgb(0 0 0 / 22%);
   display: flex;
-  flex-wrap: wrap;
+  /* No wrapping: the groups shrink and the deck name truncates instead of the
+     bar growing a second row. */
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-2);
+  gap: var(--space-3);
   padding: var(--space-3);
+  border-top: 1px solid var(--border);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -562,10 +566,30 @@
 .lobby-bar-group {
   display: flex;
   max-width: 100%;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
+}
+
+/* The actions never shrink; the deck picker gives up the width instead, so
+   Start game stays where the eye left it. */
+.lobby-bar-group--actions {
+  flex: 0 0 auto;
+}
+
+/* The count sits directly left of Start game, so anything that changes its
+   width moves the button. The slot reserves the room whether or not the
+   warning is showing; tabular figures keep "1 of 4" and "4 of 4" identical. */
+.lobby-ready-slot {
+  display: inline-flex;
+  justify-content: flex-end;
+  min-width: 7.5rem;
+}
+
+.lobby-ready-count {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .lobby-ready-btn.is-ready {
