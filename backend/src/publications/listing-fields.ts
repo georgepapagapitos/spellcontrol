@@ -1,4 +1,10 @@
-import { asRecord, asString, countProjectable, isProjectableSlot } from '../shares/projections';
+import {
+  asRecord,
+  asString,
+  clampDeckName,
+  countProjectable,
+  isProjectableSlot,
+} from '../shares/projections';
 import { cardArtUrl } from '../shares/og';
 
 export interface ListingFields {
@@ -65,8 +71,12 @@ function deckColorIdentity(commander: unknown, partnerCommander: unknown): strin
 export function extractListingFields(deckData: unknown): ListingFields | null {
   const deck = asRecord(deckData);
   if (!deck) return null;
-  const name = asString(deck.name);
-  if (!name) return null;
+  const rawName = asString(deck.name);
+  if (!rawName) return null;
+  // `deck_publications.deck_name` is the /d/:slug <title>, its og:title, the
+  // hero h1 and the /u/ tile. Clamp once, here, where they all read from
+  // (board E342) — the deck's own stored name keeps whatever the owner typed.
+  const name = clampDeckName(rawName);
 
   const cardsArr = Array.isArray(deck.cards) ? deck.cards : [];
   const firstMainboardCard = asRecord(cardsArr[0])?.card;

@@ -38,6 +38,7 @@ import {
   stripExtension,
 } from '../../lib/staged-files';
 
+import { DECK_NAME_MAX } from '@/lib/deck-name';
 import { userMessage } from '@/lib/user-error';
 interface Props {
   onClose: () => void;
@@ -970,7 +971,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                         className="import-deck-name-input import-deck-draft-name"
                         value={d.name}
                         onChange={(e) => patchDraft(d.key, { name: e.target.value })}
-                        maxLength={120}
+                        maxLength={DECK_NAME_MAX}
                         aria-label={`Deck name for ${d.fileName}`}
                       />
                       <select

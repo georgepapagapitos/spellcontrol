@@ -6,6 +6,7 @@ import { loadShareContext } from './context';
 import {
   asRecord,
   asString,
+  clampDeckName,
   countProjectable,
   findBinderById,
   findCubeById,
@@ -218,7 +219,9 @@ export async function lookupShareLandingMeta(token: string): Promise<ShareLandin
   if (share.kind === 'deck' || share.kind === 'feedback') {
     const deck = asRecord(findDeckById(data.decks, share.resourceId));
     if (!deck) return null;
-    const name = asString(deck.name) ?? 'Untitled deck';
+    // Clamped for the same reason the publication listing clamps: this string
+    // is the preview's title (board E342).
+    const name = clampDeckName(asString(deck.name) ?? 'Untitled deck');
     const format = asString(deck.format) ?? 'Magic';
     const cardsArr = Array.isArray(deck.cards) ? deck.cards : [];
     const cards = countProjectable(cardsArr, isProjectableSlot);
