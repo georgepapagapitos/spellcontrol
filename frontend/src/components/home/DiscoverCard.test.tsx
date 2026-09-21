@@ -81,6 +81,37 @@ describe('DiscoverCard', () => {
     expect(link).toBeTruthy();
   });
 
+  it('shows the owner display name once set, and keeps @username as the fallback', async () => {
+    mockListDiscoverDecks.mockResolvedValue({
+      decks: [makeDeck({ ownerDisplayName: 'Alice Cooper' })],
+      page: 1,
+      hasMore: false,
+    });
+    const { container } = renderCard();
+
+    await waitFor(() =>
+      expect(container.querySelector('.discover-card-owner')?.textContent).toBe('Alice Cooper')
+    );
+    expect(
+      screen.getByRole('link', {
+        name: "Atraxa Superfriends, Atraxa, Praetors' Voice, by Alice Cooper",
+      })
+    ).toBeTruthy();
+  });
+
+  it('falls back to @username in the meta row when no display name is set', async () => {
+    mockListDiscoverDecks.mockResolvedValue({
+      decks: [makeDeck()],
+      page: 1,
+      hasMore: false,
+    });
+    const { container } = renderCard();
+
+    await waitFor(() =>
+      expect(container.querySelector('.discover-card-owner')?.textContent).toBe('@alice')
+    );
+  });
+
   it('shows the empty state when there are no public decks', async () => {
     mockListDiscoverDecks.mockResolvedValue({ decks: [], page: 1, hasMore: false });
     renderCard();

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatIdentity } from './display-name';
+import { formatIdentity, standaloneIdentity } from './display-name';
 
 describe('formatIdentity', () => {
   it('prefers the display name as primary, with @username as secondary', () => {
@@ -32,5 +32,17 @@ describe('formatIdentity', () => {
       primary: 'Alice A.',
       secondary: '@alice',
     });
+  });
+});
+
+describe('standaloneIdentity', () => {
+  it('uses the display name when one is set', () => {
+    expect(standaloneIdentity({ username: 'alice', displayName: 'Alice A.' })).toBe('Alice A.');
+  });
+
+  it('keeps the @ on the username when no display name is set, so it reads as a handle', () => {
+    expect(standaloneIdentity({ username: 'alice', displayName: null })).toBe('@alice');
+    expect(standaloneIdentity({ username: 'alice' })).toBe('@alice');
+    expect(standaloneIdentity({ username: 'alice', displayName: '  ' })).toBe('@alice');
   });
 });

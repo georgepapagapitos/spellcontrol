@@ -17,3 +17,21 @@ export function formatIdentity(identity: { username: string; displayName?: strin
     secondary: trimmed ? `@${identity.username}` : null,
   };
 }
+
+/**
+ * The same identity as one **unframed** label, for a surface with no "by …"
+ * or "Shared by …" wording and no avatar to mark it as a person: the display
+ * name when one is set, otherwise `@username`. The "@" is what makes a bare
+ * username read as a handle rather than as someone's unset display name.
+ *
+ * Framed call sites (`by {name}`, an avatar + name row) want
+ * `formatIdentity(...).primary` instead — the framing already does this job,
+ * and an "@" inside it reads as noise.
+ */
+export function standaloneIdentity(identity: {
+  username: string;
+  displayName?: string | null;
+}): string {
+  const { primary, secondary } = formatIdentity(identity);
+  return secondary ? primary : `@${identity.username}`;
+}
