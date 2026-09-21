@@ -479,7 +479,59 @@ describe('PlaytestBoard', () => {
       from: 'library',
       to: 'graveyard',
       toIndex: undefined,
+      random: false,
     });
+  });
+
+  it('randomises a pile moved INTO the library, and says so on the row', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard
+          state={applyAction(seededState(), {
+            type: 'MOVE_TO_ZONE',
+            cardId: 'card-0',
+            to: 'graveyard',
+          })}
+        />
+      </MemoryRouter>
+    );
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^View the graveyard\./ }), {
+      clientX: 10,
+      clientY: 10,
+    });
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Move all to/ }));
+    // The promise is on the label, not just in the action.
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Library (top), random order' }));
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'MOVE_ALL_TO',
+      from: 'graveyard',
+      to: 'library',
+      toIndex: 0,
+      random: true,
+    });
+  });
+
+  it('selects a random card from the graveyard, not just the library', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard
+          state={applyAction(seededState(), {
+            type: 'MOVE_TO_ZONE',
+            cardId: 'card-0',
+            to: 'graveyard',
+          })}
+        />
+      </MemoryRouter>
+    );
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^View the graveyard\./ }), {
+      clientX: 10,
+      clientY: 10,
+    });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Select a random card' }));
+    expect(screen.getByText('Random card selected')).toBeTruthy();
+    // Out of a public pile there is nothing to put back — it never left.
+    expect(screen.getByRole('button', { name: 'Leave it' })).toBeTruthy();
+    expect(dispatch).not.toHaveBeenCalled();
   });
 
   it('gives every pile a menu, with the graveyard its shuffle-back', () => {
