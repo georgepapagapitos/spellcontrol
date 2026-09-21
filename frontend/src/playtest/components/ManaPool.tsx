@@ -4,6 +4,12 @@ import { useLongPress } from '@/lib/use-long-press';
 import { MANA_COLORS, MANA_COLOR_LABEL, type ManaColor } from '@/lib/playtest';
 
 interface Props {
+  /**
+   * `row` is the narrow tier's strip. `column` is the table tier's dock: a
+   * vertical list at the board's left edge, which is the shape that fits
+   * beside a hand rather than across the top of one.
+   */
+  layout?: 'row' | 'column';
   pool: Record<ManaColor, number>;
   onAdjust(color: ManaColor, delta: number): void;
   onEmpty(): void;
@@ -83,10 +89,14 @@ function ManaPip({
  * button covers everything finer than a full turn boundary without the
  * reducer having to model steps/phases it otherwise knows nothing about.
  */
-export function ManaPool({ pool, onAdjust, onEmpty }: Props) {
+export function ManaPool({ layout = 'row', pool, onAdjust, onEmpty }: Props) {
   const total = MANA_COLORS.reduce((sum, c) => sum + pool[c], 0);
   return (
-    <div className="playtest-mana-pool" role="group" aria-label="Floating mana">
+    <div
+      className={`playtest-mana-pool${layout === 'column' ? ' playtest-mana-pool--column' : ''}`}
+      role="group"
+      aria-label="Floating mana"
+    >
       {MANA_COLORS.map((color) => (
         <ManaPip
           key={color}

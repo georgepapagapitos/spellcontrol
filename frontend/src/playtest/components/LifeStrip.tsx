@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { isOpponentDefeated, type OpponentLife } from '@/lib/playtest';
 import { paletteForIndex } from '@/lib/seat-palette';
@@ -40,9 +40,6 @@ interface Props {
    * same panel, same handlers — only the arrangement differs.
    */
   variant?: 'strip' | 'table';
-  /** Table variant only: rendered as the panel's last row. The board passes
-   *  the mana tracker here so life and mana are one panel, not two floaters. */
-  footer?: ReactNode;
 }
 
 type Selected = 'self' | number | null;
@@ -109,7 +106,6 @@ export function LifeStrip({
   onlineTable,
   onViewOpponentBoard,
   variant = 'strip',
-  footer,
 }: Props) {
   const [selected, setSelected] = useState<Selected>(null);
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
@@ -138,7 +134,6 @@ export function LifeStrip({
         openPanel={openPanel}
         closePanel={closePanel}
         variant={variant}
-        footer={footer}
       />
     );
   }
@@ -166,6 +161,21 @@ export function LifeStrip({
       life={selected === 'self' ? life : opponents[selected].life}
       lifeEditable
       hideLife={selected === 'self' && variant === 'table'}
+      // The corner panel is just your own total now, so the virtual opponents
+      // are reachable only from here. Their life is the row's own stepper;
+      // their name opens their full panel (±5s, their counters).
+      opponents={
+        selected === 'self'
+          ? opponents.map((o, i) => ({
+              key: String(i),
+              name: opponentLabel(i),
+              life: o.life,
+              defeated: isOpponentDefeated(o, commanderDamageThreshold),
+              onAdjustLife: (delta: number) => onAdjustLife(i, delta),
+              onOpen: () => setSelected(i),
+            }))
+          : undefined
+      }
       // Solo tracks the damage YOU dealt each virtual opponent's way; it's one
       // row per opponent in your own panel, the same list online shows.
       cmdDamage={
@@ -197,25 +207,6 @@ export function LifeStrip({
         onOpenSelf={(e) => openPanel('self', e)}
         designations={heldDesignationLabels}
         counters={selfCounters}
-        seats={opponents.map((o, i) => {
-          const defeated = isOpponentDefeated(o, commanderDamageThreshold);
-          const oppCounters = counterEntries(o.counters);
-          return {
-            key: String(i),
-            label: opponents.length > 1 ? `Opp ${i + 1}` : 'Opponent',
-            life: o.life,
-            defeated,
-            ariaLabel: `${opponentLabel(i)}: ${o.life} life${
-              o.commanderDamage > 0 ? `, ${o.commanderDamage} commander damage` : ''
-            }${
-              oppCounters.length > 0
-                ? `, ${oppCounters.map(([k, v]) => `${k} ${v}`).join(', ')}`
-                : ''
-            }${defeated ? ', defeated' : ''}`,
-            onOpen: (e: React.MouseEvent<HTMLButtonElement>) => openPanel(i, e),
-          };
-        })}
-        footer={footer}
       >
         {adjustPanel}
       </TableLifePanel>
@@ -317,7 +308,6 @@ function OnlineLifeStrip({
   openPanel,
   closePanel,
   variant,
-  footer,
 }: {
   onlineTable: OnlineTable;
   isNarrow: boolean;
@@ -329,7 +319,6 @@ function OnlineLifeStrip({
   openPanel(target: Selected, e: React.MouseEvent<HTMLButtonElement>): void;
   closePanel(): void;
   variant: 'strip' | 'table';
-  footer?: ReactNode;
 }) {
   const {
     me,
@@ -408,6 +397,9 @@ function OnlineLifeStrip({
       designations.monarch === mySeat && 'Monarch',
       designations.initiative === mySeat && 'Initiative',
     ].filter((v): v is string => Boolean(v));
+    // No `opponents` list online: those seats are real quadrants on the felt
+    // (OpponentRail / OpponentQuadrant), so duplicating them in the popover
+    // would be a second place to read the same number.
     return (
       <TableLifePanel
         life={me.life}
@@ -415,31 +407,6 @@ function OnlineLifeStrip({
         onOpenSelf={(e) => openPanel('self', e)}
         designations={held}
         counters={Object.entries(playerCounters).filter(([, v]) => v > 0)}
-        seats={players
-          .filter((p) => p.seat !== mySeat)
-          .map((p) => {
-            const palette = paletteForIndex(p.seat);
-            const isDead = p.eliminated || p.life <= 0;
-            return {
-              key: String(p.seat),
-              label: p.name,
-              life: p.life,
-              defeated: isDead,
-              active: p.seat === activeSeat,
-              dot: palette.base,
-              ariaLabel: [
-                p.name,
-                `${p.life} life`,
-                p.seat === activeSeat && "this player's turn",
-                poisonEnabled && p.poison > 0 && `${p.poison} poison`,
-                isDead && 'defeated',
-              ]
-                .filter(Boolean)
-                .join(', '),
-              onOpen: (e: React.MouseEvent<HTMLButtonElement>) => openPanel(p.seat, e),
-            };
-          })}
-        footer={footer}
       >
         {selected !== null && panel}
       </TableLifePanel>
@@ -464,18 +431,6 @@ function OnlineLifeStrip({
   );
 }
 
-interface TableSeat {
-  key: string;
-  label: string;
-  life: number;
-  defeated?: boolean;
-  active?: boolean;
-  /** Seat colour for the leading dot (online tables only). */
-  dot?: string;
-  ariaLabel: string;
-  onOpen(e: React.MouseEvent<HTMLButtonElement>): void;
-}
-
 /** A ±1 life step that repeats while held — same `usePressRepeat` contract as
  *  ManaPool's and the adjust panel's own steppers. Its own component because
  *  the hook can't be called conditionally. */
@@ -497,16 +452,50 @@ function LifeStep({
 }
 
 /**
- * The ≥1024px corner panel. Your own life is the headline: a display numeral
- * between two steppers, so the commonest action at a real table (take damage)
- * is one tap and not "open a popover first". The numeral itself, and the
- * chevron under it, both open the same `LifeAdjustPanel` the strip uses, so
- * poison / commander damage / counters have exactly one implementation. The
- * chevron says nothing else: no "Details", no opponent count — the chips
- * under it are the opponents (EDHPlay's shape).
- * Everyone else is a secondary row of small chips, because a four-seat table
- * where every total is the same size tells you nothing about whose board you
- * are looking at.
+ * A transient "+5" / "−3" beside your total while you are taking damage.
+ *
+ * EDHPlay shows the running change as you click, and it answers the question
+ * the numeral cannot: you know you are on 34, but not whether that was six
+ * off a Blightning or one off a fetch. It accumulates every step within
+ * `LIFE_DELTA_IDLE_MS` of the last one, then clears — so a burst of clicks is
+ * one number, and a change you have finished making stops shouting.
+ *
+ * `aria-hidden`: the total's own button already announces the new value, and
+ * a live delta would make a screen reader read every intermediate step of a
+ * press-and-hold.
+ */
+const LIFE_DELTA_IDLE_MS = 1400;
+
+function useLifeDelta(life: number): number {
+  const [delta, setDelta] = useState(0);
+  const prev = useRef(life);
+  useEffect(() => {
+    const change = life - prev.current;
+    prev.current = life;
+    if (change === 0) return;
+    setDelta((d) => d + change);
+    const t = window.setTimeout(() => setDelta(0), LIFE_DELTA_IDLE_MS);
+    return () => window.clearTimeout(t);
+  }, [life]);
+  // A reset back to starting life (RESET) lands as one big jump; nothing to
+  // special-case, but a delta of 0 must never render as "+0".
+  return delta;
+}
+
+/**
+ * The ≥1024px corner panel, and deliberately almost nothing: − 40 + on one
+ * line, with a chevron under it. That is the whole resting state.
+ *
+ * It used to be a headline numeral between two 44px boxes, then a row of
+ * opponent chips, then the mana row — a block of chrome sitting over the felt
+ * all game to show one number that changes a dozen times. Everything else
+ * moved behind the chevron (opponents, commander damage, counters) or out to
+ * its own corner (mana). What stays on the felt is what you look at between
+ * every spell; what you touch a few times a game is one click away.
+ *
+ * The badges are the exception, and only when they are non-zero: a poison
+ * count or the Monarch is a thing you must not have to open a panel to
+ * notice.
  */
 function TableLifePanel({
   life,
@@ -514,8 +503,6 @@ function TableLifePanel({
   onOpenSelf,
   designations,
   counters,
-  seats,
-  footer,
   children,
 }: {
   life: number;
@@ -523,10 +510,9 @@ function TableLifePanel({
   onOpenSelf(e: React.MouseEvent<HTMLButtonElement>): void;
   designations: string[];
   counters: [string, number][];
-  seats: TableSeat[];
-  footer?: ReactNode;
   children?: ReactNode;
 }) {
+  const delta = useLifeDelta(life);
   return (
     <div className="playtest-life-table" role="group" aria-label="Life totals">
       <div className="playtest-life-table__row">
@@ -545,6 +531,16 @@ function TableLifePanel({
         <LifeStep label="Gain 1 life" onAdjust={() => onAdjustLife(1)}>
           +
         </LifeStep>
+        {delta !== 0 && (
+          <span
+            className={`playtest-life-table__delta${delta > 0 ? ' is-gain' : ' is-loss'}`}
+            aria-hidden
+          >
+            {/* A real minus sign, matching the stepper beside it — a raw
+                negative number renders an ASCII hyphen. */}
+            {delta > 0 ? `+${delta}` : `−${Math.abs(delta)}`}
+          </span>
+        )}
       </div>
       {(designations.length > 0 || counters.length > 0) && (
         <div className="playtest-life-table__badges">
@@ -565,33 +561,10 @@ function TableLifePanel({
         className="playtest-life-table__details"
         onClick={onOpenSelf}
         aria-haspopup="dialog"
-        aria-label="Counters and commander damage"
+        aria-label="Opponents, commander damage and counters"
       >
         <ChevronDown aria-hidden width={14} height={14} />
       </button>
-      {seats.length > 0 && (
-        <div className="playtest-life-table__seats">
-          {seats.map((s) => (
-            <button
-              key={s.key}
-              type="button"
-              className={`playtest-life-table__seat${s.defeated ? ' is-defeated' : ''}${
-                s.active ? ' is-active-turn' : ''
-              }`}
-              style={
-                s.dot ? ({ ['--opp-base' as never]: s.dot } as React.CSSProperties) : undefined
-              }
-              onClick={s.onOpen}
-              aria-label={s.ariaLabel}
-            >
-              {s.dot && <span className="playtest-life-table__seat-dot" aria-hidden />}
-              <span className="playtest-life-table__seat-name">{s.label}</span>
-              <span className="playtest-life-table__seat-life">{s.life}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      {footer}
       {children}
     </div>
   );
