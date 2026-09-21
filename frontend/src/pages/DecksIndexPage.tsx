@@ -11,6 +11,7 @@ import {
   LayoutGrid,
   List as ListIconLucide,
   Package,
+  Play,
   Plus,
   RefreshCw,
   Share2,
@@ -547,6 +548,14 @@ export function DecksIndexPage() {
               <Package width={14} height={14} strokeWidth={1.8} aria-hidden />
               <span>Add a product</span>
             </button>
+            {/* Play a list you have not saved. It sits with Import because it is
+                the same gesture minus the saving — the list is parsed by the
+                same endpoint and goldfished on the same board, then thrown
+                away. */}
+            <Link to="/decks/goldfish" className="pill-btn decks-index-action-secondary">
+              <Play width={14} height={14} strokeWidth={1.8} aria-hidden />
+              <span>Goldfish a list</span>
+            </Link>
             {/* Page-level door to /decks/compare. The per-deck kebab's
                 "Compare" (pre-picks that deck as side A) stays, but a tool
                 reachable only from a row menu is a tool nobody finds; same
@@ -582,6 +591,11 @@ export function DecksIndexPage() {
                   label: 'Add a product',
                   icon: Package,
                   onClick: () => setShowProductSearch(true),
+                },
+                {
+                  label: 'Goldfish a list',
+                  icon: Play,
+                  onClick: () => navigate('/decks/goldfish'),
                 },
                 ...(decks.length >= 2
                   ? [
