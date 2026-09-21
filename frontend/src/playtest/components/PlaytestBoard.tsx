@@ -349,6 +349,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // Table-tier chrome: the right-click menu on bare felt, and the mana
   // tracker's collapsed-when-empty state (M, or the "Mana" chip).
   const [tableMenu, setTableMenu] = useState<{ x: number; y: number } | null>(null);
+  // Which zone pile's menu is open, and where. Same menu component the felt
+  // uses; the pile just supplies its own title and its own items.
+  const [pileMenu, setPileMenu] = useState<{ zone: Zone; x: number; y: number } | null>(null);
   const [manaOpen, setManaOpen] = useState(false);
   // Bumped to open the online ReactionPicker from the table menu.
   const [reactionToken, setReactionToken] = useState(0);
@@ -834,6 +837,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     // narrow tier's log is a real sheet and still counts.
     (showLog && isNarrow) ||
     tableMenu !== null ||
+    pileMenu !== null ||
     showDice ||
     peek !== null ||
     showShortcuts ||
@@ -1944,76 +1948,123 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     </div>
   );
 
+  /** The label a pile's menu and its click use for the zone itself. */
+  const ZONE_TITLE: Record<Zone, string> = {
+    library: 'Library',
+    hand: 'Hand',
+    graveyard: 'Graveyard',
+    exile: 'Exile',
+    command: 'Command',
+  };
+
+  /**
+   * A pile's menu. Every action that belongs to a zone lives here, on the
+   * zone, reachable by right-click, the Context Menu key or the tile's
+   * kebab — they used to be spread across the game menu and the table menu,
+   * which is how both grew past reading. Rows print their key, so the menu
+   * is also where the library's shortcuts are discovered.
+   */
+  const pileMenuItems = (zone: Zone): TableMenuItem[] => {
+    const empty = state.zones[zone].length === 0;
+    const view = {
+      label: `View the ${zone === 'command' ? 'command zone' : zone}`,
+      shortcut: zone === 'library' ? keyFor('view-library') : undefined,
+      onClick: () => setViewer({ zone }),
+      disabled: empty,
+    };
+    if (zone !== 'library') {
+      return [
+        view,
+        ...(zone === 'graveyard' || zone === 'exile'
+          ? [
+              {
+                label: 'Shuffle into the library',
+                onClick: () => dispatch({ type: 'SHUFFLE_ZONE_INTO_LIBRARY', zone }),
+                disabled: empty,
+              },
+            ]
+          : []),
+      ];
+    }
+    return [
+      { label: 'Draw a card', shortcut: keyFor('draw'), onClick: doDraw, disabled: empty },
+      {
+        label: 'Shuffle',
+        shortcut: keyFor('shuffle'),
+        onClick: () => dispatch({ type: 'SHUFFLE_LIBRARY' }),
+      },
+      view,
+      {
+        // The sheet picks the mode (scry / surveil / mill) and the count, so
+        // the row stays generic — a fixed "Scry 3" would mislead.
+        label: 'Look at the top cards',
+        shortcut: keyFor('scry'),
+        onClick: () => {
+          setScryFrom('top');
+          setShowScry(true);
+        },
+        disabled: empty,
+      },
+      {
+        label: 'Look at the bottom cards',
+        shortcut: keyFor('scry-bottom'),
+        onClick: () => {
+          setScryFrom('bottom');
+          setShowScry(true);
+        },
+        disabled: empty,
+      },
+      {
+        label: 'View the top card',
+        shortcut: keyFor('view-top-card'),
+        onClick: () => void peekLibrary('top'),
+        disabled: empty,
+      },
+      {
+        label: 'View the bottom card',
+        shortcut: keyFor('view-bottom-card'),
+        onClick: () => void peekLibrary('bottom'),
+        disabled: empty,
+      },
+    ];
+  };
+
+  const openPileMenu = (zone: Zone) => (x: number, y: number) => setPileMenu({ zone, x, y });
+
   const piles = (
     <aside className="playtest-piles">
       <ZonePile
         zone="library"
-        label="Library"
+        label={ZONE_TITLE.library}
         cards={state.zones.library}
-        onClick={() => setViewer({ zone: 'library' })}
-        action={{
-          label: 'Draw',
-          shortcut: keyFor('draw'),
-          onClick: doDraw,
-          disabled: libraryCount === 0,
-        }}
-        // Every library action, on the library. They were spread across the
-        // game menu and the table menu, which is how both grew past reading.
-        menu={[
-          { label: 'Shuffle', onClick: () => dispatch({ type: 'SHUFFLE_LIBRARY' }) },
-          {
-            // The sheet picks the mode (scry / surveil / mill) and the count,
-            // so the entry stays generic — a fixed "Scry 3" would mislead.
-            label: 'Top cards',
-            onClick: () => {
-              setScryFrom('top');
-              setShowScry(true);
-            },
-            disabled: libraryCount === 0,
-          },
-          {
-            label: 'Bottom cards',
-            onClick: () => {
-              setScryFrom('bottom');
-              setShowScry(true);
-            },
-            disabled: libraryCount === 0,
-          },
-          {
-            label: 'View library',
-            onClick: () => setViewer({ zone: 'library' }),
-            disabled: libraryCount === 0,
-          },
-          {
-            label: 'Top card',
-            onClick: () => void peekLibrary('top'),
-            disabled: libraryCount === 0,
-          },
-          {
-            label: 'Bottom card',
-            onClick: () => void peekLibrary('bottom'),
-            disabled: libraryCount === 0,
-          },
-        ]}
+        // The library's click draws. It is the one pile with an action taken
+        // often enough to own the click outright, which is what frees the
+        // menu to hold everything else (and what EDHPlay does, so the habit
+        // players arrive with is the right one here).
+        click={{ label: 'Draw a card', onClick: doDraw, disabled: libraryCount === 0 }}
+        onMenu={openPileMenu('library')}
       />
       <ZonePile
         zone="graveyard"
-        label="Graveyard"
+        label={ZONE_TITLE.graveyard}
         cards={state.zones.graveyard}
-        onClick={() => setViewer({ zone: 'graveyard' })}
+        click={{ label: 'View the graveyard', onClick: () => setViewer({ zone: 'graveyard' }) }}
+        onMenu={openPileMenu('graveyard')}
       />
       <ZonePile
         zone="exile"
-        label="Exile"
+        label={ZONE_TITLE.exile}
         cards={state.zones.exile}
-        onClick={() => setViewer({ zone: 'exile' })}
+        click={{ label: 'View exile', onClick: () => setViewer({ zone: 'exile' }) }}
+        onMenu={openPileMenu('exile')}
       />
       <ZonePile
         zone="command"
-        label="Command"
+        label={ZONE_TITLE.command}
         cards={state.zones.command}
         commanderTax={state.commanderTax}
-        onClick={() => setViewer({ zone: 'command' })}
+        click={{ label: 'View the command zone', onClick: () => setViewer({ zone: 'command' }) }}
+        onMenu={openPileMenu('command')}
       />
     </aside>
   );
@@ -2320,6 +2371,17 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           variant="floating"
           items={tableMenuItems}
           onClose={() => setTableMenu(null)}
+        />
+      )}
+
+      {pileMenu && (
+        <TableContextMenu
+          x={pileMenu.x}
+          y={pileMenu.y}
+          variant="floating"
+          title={ZONE_TITLE[pileMenu.zone]}
+          items={pileMenuItems(pileMenu.zone)}
+          onClose={() => setPileMenu(null)}
         />
       )}
 

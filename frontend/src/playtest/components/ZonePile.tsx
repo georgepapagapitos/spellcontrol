@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
+import { MoreVertical } from 'lucide-react';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
 import { commanderTaxAmount } from '../lib/zones';
-import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
 
 interface Props {
   zone: Zone;
@@ -10,25 +10,24 @@ interface Props {
   cards: PlaytestCard[];
   /** Only meaningful for the command zone — omit elsewhere. */
   commanderTax?: Record<string, number>;
-  onClick(): void;
   /**
-   * One action offered on the tile itself rather than behind the viewer —
-   * the library's "Draw". Rendered as its own button, which is why the tile
-   * root is a div: a button inside a button is invalid markup and a screen
-   * reader would never reach the inner one.
+   * What a click on the tile does. The library draws, because that is the
+   * action a player takes fifty times a game; every other pile opens its
+   * viewer, because it has no one obvious action. `label` is a whole phrase
+   * ("Draw a card", "View the graveyard") and is what a screen reader hears
+   * before the zone and its count.
    */
-  action?: { label: string; shortcut?: string; onClick(): void; disabled?: boolean };
+  click: { label: string; onClick(): void; disabled?: boolean };
   /**
-   * The zone's own actions, behind a kebab on the tile — Shuffle and Top
-   * cards for the library. They live here, on the pile they act on, rather
-   * than in the board's game menu, which is how that menu grew to sixteen
-   * rows. Mirrors the per-zone menu `MobileZonesPanel` already gives the
-   * narrow tier.
+   * Opens this zone's menu at a point on screen. Right-click, the Context
+   * Menu key and the tile's own kebab all route here, so there is one menu
+   * with one list of items rather than a popover for the pointer and a
+   * different panel for everyone else.
    */
-  menu?: OverflowMenuItem[];
+  onMenu(x: number, y: number): void;
 }
 
-export function ZonePile({ zone, label, cards, commanderTax, onClick, action, menu }: Props) {
+export function ZonePile({ zone, label, cards, commanderTax, click, onMenu }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: `zone:${zone}` });
   const top = cards[cards.length - 1];
   // Tracks the id of a card whose image failed, so a new top card (the pile
@@ -36,21 +35,39 @@ export function ZonePile({ zone, label, cards, commanderTax, onClick, action, me
   const [erroredId, setErroredId] = useState<string | null>(null);
   const tax = zone === 'command' ? commanderTaxAmount(commanderTax ?? {}, top?.id) : 0;
   return (
-    <div ref={setNodeRef} className={`playtest-pile${isOver ? ' is-over' : ''}`}>
-      {menu && menu.length > 0 && (
-        <OverflowMenu
-          items={menu}
-          ariaLabel={`${label} actions`}
-          align="right"
-          triggerClassName="playtest-pile__kebab"
-          panelClassName="playtest-zone-menu-popover"
-        />
-      )}
+    <div
+      ref={setNodeRef}
+      className={`playtest-pile${isOver ? ' is-over' : ''}`}
+      // Fires for the Context Menu key and Shift+F10 as well as a right-click,
+      // and bubbles from whichever child has focus — so the keyboard reaches
+      // the same menu without the tile needing a key handler of its own.
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onMenu(e.clientX, e.clientY);
+      }}
+    >
       <button
         type="button"
-        onClick={onClick}
+        className="playtest-pile__kebab"
+        aria-haspopup="menu"
+        aria-label={`${label} actions`}
+        onClick={(e) => {
+          // Anchored under the kebab rather than at the pointer, so a click
+          // and a keyboard activation put the menu in the same place.
+          const r = e.currentTarget.getBoundingClientRect();
+          onMenu(r.left, r.bottom);
+        }}
+      >
+        <MoreVertical width={16} height={16} strokeWidth={2} aria-hidden />
+      </button>
+      <button
+        type="button"
+        onClick={click.onClick}
+        disabled={click.disabled}
         className="playtest-pile__open"
-        aria-label={`${label} (${cards.length} cards)${tax > 0 ? `, tax +${tax}` : ''}`}
+        aria-label={`${click.label}. ${label}, ${cards.length} cards${
+          tax > 0 ? `, tax +${tax}` : ''
+        }`}
       >
         {/* The count rides in the label, so each tile is one line of text over
             its art and four of them fit a bottom-right corner row. */}
@@ -77,17 +94,6 @@ export function ZonePile({ zone, label, cards, commanderTax, onClick, action, me
           )}
         </span>
       </button>
-      {action && (
-        <button
-          type="button"
-          className="playtest-pile__action"
-          onClick={action.onClick}
-          disabled={action.disabled}
-        >
-          {action.label}
-          {action.shortcut && <kbd>{action.shortcut}</kbd>}
-        </button>
-      )}
     </div>
   );
 }

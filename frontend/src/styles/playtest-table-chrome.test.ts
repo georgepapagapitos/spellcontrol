@@ -123,7 +123,9 @@ describe('table chrome at the wide tier', () => {
     expect(block('\n.playtest-hand__toggle {')).toContain('min-height: 44px');
     expect(css).toContain('.playtest-corner-btn:focus-visible,');
     expect(css).toContain('.playtest-hand__toggle:focus-visible {');
-    expect(block('@media (pointer: coarse) {\n  .playtest-pile__action {')).toContain(
+    // The pile's touch target is its kebab — the menu is the only control
+    // on a tile now that the library's Draw is the tile's own click.
+    expect(block('@media (pointer: coarse) {\n  .playtest-pile__kebab {')).toContain(
       'min-height: 44px'
     );
   });

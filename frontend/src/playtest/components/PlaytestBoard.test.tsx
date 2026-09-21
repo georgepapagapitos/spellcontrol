@@ -216,16 +216,78 @@ describe('PlaytestBoard', () => {
     }
   });
 
-  it('the library pile carries its own actions: Draw, Shuffle and Top cards', () => {
+  // The library's click is Draw, and everything else about the library is on
+  // its menu — reachable three ways, because right-click alone is neither
+  // keyboard- nor touch-reachable.
+  it('draws on a click of the library pile, and never on a click of another pile', () => {
     render(
       <MemoryRouter>
         <PlaytestBoard state={seededState()} />
       </MemoryRouter>
     );
-    expect(screen.getByRole('button', { name: /Draw/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /^Draw a card\./ }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'DRAW', n: 1 });
+
+    dispatch.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: /^View the graveyard\./ }));
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: /Graveyard/ })).toBeTruthy();
+  });
+
+  it('opens the library menu on a right-click, on the kebab, and on the Context Menu key', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    const tile = screen.getByRole('button', { name: /^Draw a card\./ });
+
+    // 1. Right-click anywhere on the tile.
+    fireEvent.contextMenu(tile, { clientX: 40, clientY: 40 });
+    const menu = screen.getByRole('menu', { name: 'Library' });
+    for (const label of [
+      /^Draw a card/,
+      /^Shuffle/,
+      /^View the library/,
+      /^Look at the top cards/,
+      /^Look at the bottom cards/,
+      /^View the top card/,
+      /^View the bottom card/,
+    ]) {
+      expect(within(menu).getByRole('menuitem', { name: label }), String(label)).toBeTruthy();
+    }
+    // The menu is where the library's keys are discovered, so every row that
+    // has one prints it.
+    expect(within(menu).getByRole('menuitem', { name: /^Shuffle/ }).textContent).toContain('S');
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    // 2. The kebab, which is what a keyboard or a touchscreen reaches for.
     fireEvent.click(screen.getByRole('button', { name: 'Library actions' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Shuffle' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Shuffle/ }));
     expect(dispatch).toHaveBeenCalledWith({ type: 'SHUFFLE_LIBRARY' });
+  });
+
+  it('gives every pile a menu, with the graveyard its shuffle-back', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard
+          state={applyAction(seededState(), {
+            type: 'MOVE_TO_ZONE',
+            cardId: 'card-0',
+            to: 'graveyard',
+          })}
+        />
+      </MemoryRouter>
+    );
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^View the graveyard\./ }), {
+      clientX: 10,
+      clientY: 10,
+    });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Shuffle into the library' }));
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'SHUFFLE_ZONE_INTO_LIBRARY',
+      zone: 'graveyard',
+    });
   });
 
   it('opens the table menu on a right-click on bare felt, with its shortcuts', () => {
@@ -409,9 +471,10 @@ describe('PlaytestBoard — rebindable shortcuts', () => {
     expect(dispatch).not.toHaveBeenCalledWith({ type: 'DRAW', n: 1 });
     fireEvent.keyDown(window, { key: 'j' });
     expect(dispatch).toHaveBeenCalledWith({ type: 'DRAW', n: 1 });
-    // The library pile's Draw prints the live key, not the default — it is
-    // the only Draw control on the felt now that the table menu dropped it.
-    expect(screen.getByRole('button', { name: /Draw/ }).textContent).toContain('J');
+    // The library menu's Draw prints the live key, not the default — the
+    // menu is the only place a Draw key is written down now.
+    fireEvent.click(screen.getByRole('button', { name: 'Library actions' }));
+    expect(screen.getByRole('menuitem', { name: /^Draw a card/ }).textContent).toContain('J');
   });
 });
 
