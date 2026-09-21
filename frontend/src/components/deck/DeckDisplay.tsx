@@ -90,6 +90,8 @@ import {
   cardFilterRoles,
   priceOf,
   readStoredViewMode,
+  readStoredCollapsedSections,
+  writeStoredCollapsedSections,
   readStoredShowPrefs,
   readStoredGroupBy,
   frontFaceImage,
@@ -102,6 +104,7 @@ import {
   findClaimedBy,
   groupByType,
   groupByCategory,
+  groupByStack,
   groupByTag,
   applyFilterSort,
   VIEW_MODE_STORAGE_KEY,
@@ -611,6 +614,29 @@ export function DeckDisplay({
   const [exportFormat, setExportFormat] = useState<ExportFormat>(() => readStoredExportFormat());
   const [viewMode, setViewMode] = useState<DeckViewMode>(() => readStoredViewMode());
   const [groupBy, setGroupBy] = useState<DeckGroupBy>(() => readStoredGroupBy());
+  // Collapsed mainboard sections, keyed by lens so the same title under two
+  // lenses folds independently. The out-zone lists are deliberately excluded:
+  // they are small holding zones already behind a tab.
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
+    readStoredCollapsedSections
+  );
+  const sectionKey = (title: string) => `${groupBy}:${title}`;
+  const isSectionCollapsed = (title: string) => collapsedSections.has(sectionKey(title));
+  const toggleSection = (title: string) => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      const key = `${groupBy}:${title}`;
+      if (!next.delete(key)) next.add(key);
+      writeStoredCollapsedSections(next);
+      return next;
+    });
+  };
+  const collapsedTitlesForLens = useMemo(() => {
+    const prefix = `${groupBy}:`;
+    return new Set(
+      [...collapsedSections].filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length))
+    );
+  }, [collapsedSections, groupBy]);
   const [gridZoom, setGridZoom] = useState(() => readStoredZoom(GRID_SIZE_STORAGE_KEY));
   const [showPrefs, setShowPrefs] = useState<ShowPrefs>(() => readStoredShowPrefs());
   // Mirrors the collection grid: on narrow viewports the top zoom steps
@@ -782,6 +808,7 @@ export function DeckDisplay({
   const groups = useMemo(() => {
     const rows = buildRows(cards, currency, collectionByCopyId, crossDeck);
     if (groupBy === 'tag') return groupByTag(rows, commanderRows);
+    if (groupBy === 'stack') return groupByStack(rows, commanderRows);
     return groupBy === 'category'
       ? groupByCategory(rows, categoryTargets, commanderRows)
       : groupByType(rows, commanderRows);
@@ -1176,7 +1203,9 @@ export function DeckDisplay({
     const pushGroups = (groups: typeof visibleGroups, zone: DeckZone) => {
       // Tag groupBy is NOT a partition (E171) — a multi-tagged row can appear
       // in more than one of `groups`. Dedupe within this zone's pass so the
-      // carousel never repeats the same card as consecutive slides.
+      // carousel never repeats the same card as consecutive slides. The other
+      // three lenses (including 'stack') do partition, so this is a no-op
+      // there rather than a second behaviour to keep in step.
       const pushedThisZone = new Set<string>();
       for (const g of groups) {
         for (const row of g.rows) {
@@ -1373,6 +1402,8 @@ export function DeckDisplay({
   const renderListSection = (g: TypedGroup) => (
     <CategorySection
       key={g.title}
+      collapsed={isSectionCollapsed(g.title)}
+      onToggleCollapsed={() => toggleSection(g.title)}
       title={g.title}
       icon={g.icon}
       rows={g.rows}
@@ -1761,6 +1792,35 @@ export function DeckDisplay({
                 {groupBy === 'category' && visibleGroups.length > 0 && (
                   <p className="deck-group-caption">Each card is filed under one category.</p>
                 )}
+                {/* Stacks is a partition too, so it gets the same reconciling
+                    line rather than the tag lens's overlap banner. It also
+                    carries the tag manager: the banner above is the only other
+                    door to renaming or removing a tag, and it does not render
+                    under this lens, so without this a stack could be made but
+                    never renamed. */}
+                {groupBy === 'stack' && visibleGroups.length > 0 && (
+                  <div className="deck-group-caption deck-group-caption--managed">
+                    <span>Each card sits in one stack: its first tag, or its card type.</span>
+                    {deckTags.length > 0 && (onRenameDeckTag || onRemoveDeckTag) && (
+                      <ToolbarPopover
+                        triggerClassName="btn btn-sm deck-tag-manage-btn"
+                        triggerContent="Manage stacks"
+                        triggerAriaLabel="Manage deck stacks"
+                        panelClassName="toolbar-popover-panel toolbar-popover-panel--fixed deck-tag-manager-popover"
+                        panelAriaLabel="Manage stacks"
+                      >
+                        {(close) => (
+                          <DeckTagManager
+                            tags={deckTags}
+                            onRename={onRenameDeckTag}
+                            onRemove={onRemoveDeckTag}
+                            onDone={close}
+                          />
+                        )}
+                      </ToolbarPopover>
+                    )}
+                  </div>
+                )}
                 {/* The deck body (2026-09-20): one two-column layout for ALL
                     view modes, so the card inspector is a single surface rather
                     than a list-only rail plus a grid-only floating peek. The
@@ -1825,6 +1885,10 @@ export function DeckDisplay({
                         <DeckCardGrid
                           layout={viewMode}
                           groups={visibleGroups}
+                          currency={currency}
+                          showPrice={showPrefs.price}
+                          collapsedTitles={collapsedTitlesForLens}
+                          onToggleSection={toggleSection}
                           onRowClick={openPreview}
                           legalityBySlot={legalityBySlot}
                           gridZoom={effectiveGridZoom}

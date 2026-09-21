@@ -9,16 +9,18 @@
 // cluster — so the two can't drift; only the section/list classes and the
 // `--stack-w` width differ (see deck-builder-card-list.css § Stacks).
 import type { CSSProperties } from 'react';
-import { Handshake, Tag as TagIcon } from 'lucide-react';
+import { ChevronDown, Handshake, Tag as TagIcon } from 'lucide-react';
 import { getRoleBadge, type RoleKey } from '../../lib/role-badges';
 import { stackWidth, zoomBucket, zoomMinCol, zoomTier } from '@/lib/grid-zoom';
 import type { LegalityIssue } from '../../lib/deck-validation';
 import { MeterBar } from '../shared/MeterBar';
 import { BinderBadge, type BinderInfo } from '../BinderBadge';
+import { formatMoney } from '../../lib/format-money';
 import {
   cardFilterRoles,
   foilTileClass,
   allocationSummary,
+  type CurrencyCode,
   type TypedGroup,
 } from './deck-display-rows';
 import { SectionIcon, FoilShimmer } from './deck-display-icons';
@@ -38,6 +40,10 @@ export function DeckCardGrid({
   hasPartner,
   onEditPartner,
   layout = 'grid',
+  currency,
+  showPrice,
+  collapsedTitles,
+  onToggleSection,
 }: {
   groups: TypedGroup[];
   onRowClick: (name: string) => void;
@@ -57,6 +63,15 @@ export function DeckCardGrid({
   binderByCopyId?: Map<string, BinderInfo[]>;
   hasPartner?: boolean;
   onEditPartner?: () => void;
+  currency: CurrencyCode;
+  /** Mirrors the list view's `showPrefs.price` — the section subtotal was
+   *  list-only before, so grid and stacks headers stated a count but never a
+   *  price for the same section. */
+  showPrice: boolean;
+  /** Section titles currently collapsed. Absent (with no onToggleSection)
+   *  means this grid cannot collapse at all. */
+  collapsedTitles?: Set<string>;
+  onToggleSection?: (title: string) => void;
 }) {
   const stacks = layout === 'stacks';
   return (
@@ -67,10 +82,18 @@ export function DeckCardGrid({
         // `target`, so this is a no-op there.
         if (g.rows.length === 0 && g.target === undefined) return null;
         const count = g.rows.reduce((s, r) => s + r.qty, 0);
+        const subtotal = g.rows.reduce((s, r) => s + r.price, 0);
+        const collapsed = collapsedTitles?.has(g.title) ?? false;
+        // Section titles are unique within a group list (groupByStack merges
+        // a tag that collides with a type name), so the title is a safe id
+        // seed. Non-word characters would otherwise produce an invalid id.
+        const listId = `deck-grid-section-${g.title.replace(/\W+/g, '-').toLowerCase()}`;
         return (
           <section
             key={g.title}
-            className={`deck-grid-section${stacks ? ' deck-grid-section--stack' : ''}`}
+            className={`deck-grid-section${stacks ? ' deck-grid-section--stack' : ''}${
+              collapsed ? ' is-collapsed' : ''
+            }`}
             // Stacks: a fixed card width per zoom step, set on the SECTION so
             // both it (its own width) and the list inside inherit it — custom
             // properties only flow downward. The tier is the viewport's: the
@@ -85,6 +108,24 @@ export function DeckCardGrid({
             }
           >
             <header className="deck-section-header">
+              {onToggleSection && (
+                <button
+                  type="button"
+                  className="deck-section-collapse"
+                  aria-expanded={!collapsed}
+                  aria-controls={listId}
+                  aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${g.title}`}
+                  onClick={() => onToggleSection(g.title)}
+                >
+                  <ChevronDown
+                    width={14}
+                    height={14}
+                    strokeWidth={2}
+                    className="deck-section-collapse-icon"
+                    aria-hidden
+                  />
+                </button>
+              )}
               <span className="deck-section-icon">
                 <SectionIcon icon={g.icon} />
               </span>
@@ -110,11 +151,16 @@ export function DeckCardGrid({
                   />
                 )}
               </div>
+              {showPrice && (
+                <span className="deck-section-subtotal">{formatMoney(subtotal, { currency })}</span>
+              )}
               {g.icon === 'commander' && onEditPartner && (
                 <PartnerHeaderButton hasPartner={!!hasPartner} onClick={onEditPartner} />
               )}
             </header>
             <ul
+              id={listId}
+              hidden={collapsed}
               ref={gridRef}
               className={`deck-card-grid grid-${zoomBucket(gridZoom)}${
                 stacks ? ' deck-card-stack' : ''

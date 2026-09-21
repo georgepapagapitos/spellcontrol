@@ -481,17 +481,23 @@ function DeckViewModeToggle({
 
 // ── Group-by menu (E124, +'tag' E171; a labelled dropdown since 2026-09-19) ──
 // 'type' (canonical card type, the long-standing default), 'category' (the
-// generator's 8-bucket DeckCategory shape, with target gauges) or 'tag' (user
-// tags). This was a three-icon segmented toggle (Shapes / Tags / Tag) — three
-// near-identical unlabelled glyphs that nobody could read; Moxfield and
+// generator's 8-bucket DeckCategory shape, with target gauges), 'stacks' (the
+// user's own tags as a partition, first tag wins) or 'tag' (the same tags,
+// overlapping). This was a three-icon segmented toggle (Shapes / Tags / Tag) —
+// three near-identical unlabelled glyphs that nobody could read; Moxfield and
 // Archidekt both spell it out as "Group: Type ▾", and so does the collection
 // toolbar's own Group by menu (CardListTable), which this now matches.
+//
+// Stacks sits next to Tags because they read the same data: Stacks files each
+// card under one heading that sums to the deck, Tags shows a card under all of
+// its headings and does not sum.
 const GROUP_BY_LABEL: Record<DeckGroupBy, string> = {
   type: 'Type',
   category: 'Category',
+  stack: 'Stacks',
   tag: 'Tags',
 };
-const GROUP_BY_ORDER: DeckGroupBy[] = ['type', 'category', 'tag'];
+const GROUP_BY_ORDER: DeckGroupBy[] = ['type', 'category', 'stack', 'tag'];
 
 function DeckGroupByMenu({
   value,
