@@ -3292,13 +3292,20 @@ moving off it. The rulings, guarded by `styles/stack-hover-reachable.test.ts`:
 - **The overlap is layout and never animates.** `margin-top` puts each card in
   the stack; transitioning it re-lays-out the deck every frame and moves the
   tail by reflowing the card in front of it. Room for the slide is reserved on
-  the column in one step (on pointer-enter, given back one slide after leave),
-  so the cards move with no layout at all in between.
+  the column in one step, and only when the open card HAS a tail — a one-card
+  stack, and the last card of any stack, move nothing, and reserving on
+  column-enter left those hanging under an empty half-column of surface. It is
+  given back one slide after leave, so the cards move with no layout at all in
+  between.
 - **Stacks pack, they do not wrap.** `packStacks` fills the shortest column, so
   a 28-card Creature stack never holds a screen-high hole beside a 1-card
   Commander. On a phone there is exactly ONE stack, as wide as the screen: a
   stack is a name strip you have to be able to read, and the −/+ stepper hides
   there because the screen sets the size.
+- **The out-zone is ONE stack.** "Not in the deck" is a holding pile of a
+  handful of cards, so in the stacks lens it collapses its type groups into a
+  single column and drops the section header — the tab directly above already
+  names the pile, and a header per type would sit over every second card.
 - **A stack header is words.** No collapse chevron (the column is already its
   own collapse, one card open at a time) and no type glyph (the column below it
   is a wall of card art). Name, count, price.

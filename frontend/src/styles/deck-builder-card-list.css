@@ -117,23 +117,29 @@
    The reservation is a single step, never a transition: animating it would put
    the whole deck through layout on every frame, which is what made the old
    slide judder (the growing column shoved every later column of the wrapped row
-   down, a frame at a time). It is taken on entering the COLUMN rather than a
-   card, so the box has finished resizing before a card opens, and it is given
-   back a slide later (`0s` duration, `--motion-gentle` delay) so the cards are
-   home before the box closes around them. Between those two steps the column's
-   height is fixed, and the cards move without any layout at all. */
+   down, a frame at a time). It is given back a slide later (`0s` duration,
+   `--motion-gentle` delay) so the cards are home before the box closes around
+   them, and between the two steps the column's height is fixed and the cards
+   move without any layout at all.
+
+   It is taken only when a card that HAS a tail is open — `:has(:hover ~ *)`,
+   not `:hover` on the column. A one-card stack, or the last card of any stack,
+   moves nothing, and reserving on column-enter left those hanging under an
+   empty half-column of surface. */
 @media (hover: hover) and (pointer: fine) {
   .deck-card-stack {
     transition: padding-bottom 0s var(--motion-gentle);
   }
 
-  .deck-grid-section--stack:hover .deck-card-stack {
+  .deck-grid-section--stack:has(.deck-card-grid-cell:hover ~ .deck-card-grid-cell)
+    .deck-card-stack {
     padding-bottom: var(--stack-open);
     transition-delay: 0s;
   }
 }
 
-.deck-grid-section--stack:has(:focus-visible) .deck-card-stack {
+.deck-grid-section--stack:has(.deck-card-grid-cell:has(:focus-visible) ~ .deck-card-grid-cell)
+  .deck-card-stack {
   padding-bottom: var(--stack-open);
 }
 

@@ -69,11 +69,16 @@ function rules(sheet: string): Rule[] {
 const all = rules(css);
 const stack = all.filter((r) => r.selector.includes('.deck-card-stack'));
 
-/** The rules that displace the cards below the open one, per opening state. */
+/**
+ * The rules that displace the cards below the open one, per opening state.
+ * Keyed on the selector ENDING at a cell: the column's own reservation rule
+ * also names a following sibling, but it targets the list, not the cards.
+ */
 function tailRules(state: 'hover' | 'focus'): Rule[] {
   return stack.filter(
     (r) =>
       r.selector.includes('~') &&
+      r.selector.trim().endsWith('.deck-card-grid-cell') &&
       (state === 'hover' ? r.selector.includes(':hover') : r.selector.includes('focus'))
   );
 }
@@ -153,8 +158,15 @@ describe('stacks view keeps buried cards reachable', () => {
     for (const r of reserves) {
       expect(
         r.selector,
-        'reserve on the COLUMN, so the box has finished resizing before a card opens'
-      ).toMatch(/\.deck-grid-section--stack:(hover|has\()/);
+        'reserve on the COLUMN, which is the box the cards would otherwise overflow'
+      ).toMatch(/\.deck-grid-section--stack:has\(/);
+      // A one-card stack, and the last card of any stack, move nothing. Keying
+      // the reserve off the column being hovered left those sitting under an
+      // empty half-column of surface, which is what the user saw first.
+      expect(
+        r.selector,
+        'reserve only when the open card HAS a tail: `:has(<open> ~ <cell>)`'
+      ).toMatch(/~\s*\.deck-card-grid-cell/);
       expect(
         r.body,
         'a transitioned reservation puts the deck through layout every frame'

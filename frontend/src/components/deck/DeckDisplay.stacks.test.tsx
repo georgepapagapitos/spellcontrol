@@ -107,6 +107,31 @@ describe('deck Stacks view', () => {
     ).toContain('Creature');
   });
 
+  it('shows the out-zone as ONE stack, not a stack per type', () => {
+    localStorage.setItem('mtg-decks-view-mode', 'stacks');
+    const { container } = render(
+      <MemoryRouter>
+        <DeckDisplay
+          title="Test deck"
+          commander={null}
+          format="commander"
+          cards={DECK}
+          considering={[
+            { slotId: 'c1', card: card('Sol Ring', 'Artifact') },
+            { slotId: 'c2', card: card('Counterspell', 'Instant') },
+          ]}
+        />
+      </MemoryRouter>
+    );
+    const zone = container.querySelector('.deck-outzone-body')!;
+    // A holding pile of a handful of cards: one column, and no header over it
+    // (the tab directly above already names the pile).
+    expect(zone.querySelectorAll('.deck-card-stack')).toHaveLength(1);
+    expect(zone.querySelectorAll('.deck-card-grid-tile')).toHaveLength(2);
+    expect(zone.querySelector('.deck-section-header')).toBeNull();
+    expect(zone.querySelector('.deck-row')).toBeNull();
+  });
+
   it('sets a per-zoom card width on each stack', () => {
     localStorage.setItem('mtg-decks-view-mode', 'stacks');
     const { container } = renderDeck();

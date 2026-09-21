@@ -113,6 +113,7 @@ export function DeckCardGrid({
   onToggleSection,
   onRowContextMenu,
   onRowMenu,
+  hideHeaders = false,
 }: {
   groups: TypedGroup[];
   onRowClick: (name: string) => void;
@@ -122,8 +123,10 @@ export function DeckCardGrid({
   legalityBySlot?: Map<string, LegalityIssue>;
   gridZoom: number;
   /** Callback ref + measured width from `useElementWidth`, attached to every
-   *  section's grid (all equal width; the last to mount is observed). */
-  gridRef: (el: HTMLUListElement | null) => void;
+   *  section's grid (all equal width; the last to mount is observed). Omitted
+   *  by the out-zone stack: it is a different width from the decklist's grids,
+   *  and being the last to mount it would be the one measured. */
+  gridRef?: (el: HTMLUListElement | null) => void;
   gridWidth: number;
   showRoles: boolean;
   /** Active role filter — tiles not filling it render dimmed. */
@@ -147,6 +150,10 @@ export function DeckCardGrid({
    *  rect. Right-click alone would leave touch and keyboard users with no
    *  way in, which is why this is not optional in practice. */
   onRowMenu?: (row: Row, rect: DOMRect) => void;
+  /** Drops the per-section header. The "Not in the deck" zone names its pile
+   *  in a tab directly above the stack, so a header there would say Sideboard
+   *  for the third time in three rows. */
+  hideHeaders?: boolean;
 }) {
   const stacks = layout === 'stacks';
   const [stacksRef, stacksWidth] = useElementWidth<HTMLDivElement>();
@@ -208,62 +215,64 @@ export function DeckCardGrid({
             : undefined
         }
       >
-        <header className="deck-section-header">
-          {onToggleSection && !stacks && (
-            <button
-              type="button"
-              className="deck-section-collapse"
-              aria-expanded={!collapsed}
-              aria-controls={listId}
-              aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${g.title}`}
-              onClick={() => onToggleSection(g.title)}
-            >
-              <ChevronDown
-                width={14}
-                height={14}
-                strokeWidth={2}
-                className="deck-section-collapse-icon"
-                aria-hidden
-              />
-            </button>
-          )}
-          {/* Stacks drop the type glyph: the column is already a wall of
+        {!hideHeaders && (
+          <header className="deck-section-header">
+            {onToggleSection && !stacks && (
+              <button
+                type="button"
+                className="deck-section-collapse"
+                aria-expanded={!collapsed}
+                aria-controls={listId}
+                aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${g.title}`}
+                onClick={() => onToggleSection(g.title)}
+              >
+                <ChevronDown
+                  width={14}
+                  height={14}
+                  strokeWidth={2}
+                  className="deck-section-collapse-icon"
+                  aria-hidden
+                />
+              </button>
+            )}
+            {/* Stacks drop the type glyph: the column is already a wall of
                   card art, and a header that has to sit above it stays
                   readable as words alone. */}
-          {!stacks && (
-            <span className="deck-section-icon">
-              <SectionIcon icon={g.icon} />
-            </span>
-          )}
-          {/* A <div> (MeterBar's root) can't nest inside <h3> — phrasing
+            {!stacks && (
+              <span className="deck-section-icon">
+                <SectionIcon icon={g.icon} />
+              </span>
+            )}
+            {/* A <div> (MeterBar's root) can't nest inside <h3> — phrasing
                   content only — so the gauge is a sibling of the heading,
                   both wrapped as the single grid-column-occupying title cell. */}
-          <div className="deck-section-title-row">
-            <h3 className="deck-section-title">
-              {g.title}{' '}
-              <span className="deck-section-count">
-                ({count}
-                {g.target !== undefined ? ` / ${g.target}` : ''})
-              </span>
-            </h3>
-            {g.target !== undefined && (
-              <MeterBar
-                value={count}
-                max={Math.max(g.target, count)}
-                size="sm"
-                role="meter"
-                label={`${g.title}: ${count} of ${g.target}`}
-                className="deck-section-gauge"
-              />
+            <div className="deck-section-title-row">
+              <h3 className="deck-section-title">
+                {g.title}{' '}
+                <span className="deck-section-count">
+                  ({count}
+                  {g.target !== undefined ? ` / ${g.target}` : ''})
+                </span>
+              </h3>
+              {g.target !== undefined && (
+                <MeterBar
+                  value={count}
+                  max={Math.max(g.target, count)}
+                  size="sm"
+                  role="meter"
+                  label={`${g.title}: ${count} of ${g.target}`}
+                  className="deck-section-gauge"
+                />
+              )}
+            </div>
+            {showPrice && (
+              <span className="deck-section-subtotal">{formatMoney(subtotal, { currency })}</span>
             )}
-          </div>
-          {showPrice && (
-            <span className="deck-section-subtotal">{formatMoney(subtotal, { currency })}</span>
-          )}
-          {g.icon === 'commander' && onEditPartner && (
-            <PartnerHeaderButton hasPartner={!!hasPartner} onClick={onEditPartner} />
-          )}
-        </header>
+            {g.icon === 'commander' && onEditPartner && (
+              <PartnerHeaderButton hasPartner={!!hasPartner} onClick={onEditPartner} />
+            )}
+          </header>
+        )}
         <ul
           id={listId}
           hidden={collapsed}
