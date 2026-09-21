@@ -1335,12 +1335,25 @@ pill. Card-preview's dark panel uses the equivalent literal white-alpha
 values (`rgba(255,255,255,.08)` bg / `.92` text / `.18` border) per that
 panel's existing light-on-dark contract — never theme tokens there.
 
-- **Display is read-only, editing is centralized.** Tag chips render
-  wherever a card shows (deck list row, grid tile badge, card-preview
-  panel) but only the **card-preview panel** — the app's one single
-  per-card view — carries add/remove controls. Don't add a second edit
-  surface on the row/tile; that duplicates the keyboard/focus work and
-  gives two places to drift.
+- **Display is read-only; editing lives in the preview panel and the card
+  menu.** Tag chips render wherever a card shows (deck list row, grid tile
+  badge, card-preview panel). Only two surfaces carry add/remove controls:
+  the **card-preview panel** and the **card menu** (`DeckCardMenuBody`,
+  rendered by the list kebab, the tile kebab and right-click alike).
+  Amended 2026-09-21, from "the preview panel only". The rule was written to
+  stop a second *inline* editor appearing on every row and tile, each
+  repeating the keyboard and focus work. A menu is not that: it is one
+  shared, focus-managed body reached from three places, and its items come
+  from a single action list (`deck-card-actions.ts`), so there is nothing to
+  drift. It is also the only way tagging is reachable at all from the grid
+  and stacks layouts, which have no row to hang chips on. The prohibition on
+  **inline** tag controls on a row or tile stands unchanged.
+- **A right-click affordance always ships a visible control in the same
+  place.** Right-click does not exist on touch and cannot be reached by
+  keyboard, so a surface that opens a menu on `contextmenu` also renders a
+  kebab: revealed on hover or focus where a fine pointer exists, and always
+  visible under `pointer: coarse`. The deck's grid and stacks tiles are the
+  reference (`.deck-card-grid-menu`).
 - **Always visible, never hover-gated.** Unlike the system-derived hints
   next to it (synergy ✦, EDHREC %, which hide behind
   `.deck-row-hovermeta`'s `(hover:hover) and (pointer:fine)` gate), a

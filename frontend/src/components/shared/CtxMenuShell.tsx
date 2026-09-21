@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import './CtxMenuShell.css';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
@@ -24,10 +25,16 @@ export interface CtxMenuShellProps {
 }
 
 /**
- * The chrome shared by every card menu on the playtest surface (battlefield
- * permanent, hand card): backdrop, clamped floating popover or bottom sheet,
- * Escape, body-scroll lock, and initial focus into the first control so a
- * keyboard-opened menu is immediately operable. Items are the caller's.
+ * The chrome shared by every pointer-anchored card menu: backdrop, clamped
+ * floating popover or bottom sheet, Escape, body-scroll lock, and initial
+ * focus into the first control so a keyboard-opened menu is immediately
+ * operable. Items are the caller's.
+ *
+ * Lived in `playtest/components/` until 2026-09-21, when the deck view's card
+ * menu needed the same chrome. Nothing about it was playtest-specific, so it
+ * moved to `components/shared/` rather than being copied. Its CSS came with
+ * it (see CtxMenuShell.css) because playtest.css is a page-chunk stylesheet
+ * the deck view never loads.
  */
 export function CtxMenuShell({
   x,
@@ -78,7 +85,7 @@ export function CtxMenuShell({
             root — is what a "click outside the sheet" actually lands on. */}
         <div className="card-picker-backdrop" role="presentation" onClick={() => beginClose()} />
         <div
-          className={`card-picker-sheet playtest-ctx-sheet${isClosing ? ' is-closing' : ''}`}
+          className={`card-picker-sheet ctx-menu-sheet${isClosing ? ' is-closing' : ''}`}
           role="dialog"
           aria-modal="true"
           aria-label={title}
@@ -88,7 +95,7 @@ export function CtxMenuShell({
           <div className="card-picker-header">
             <h2 className="card-picker-title">{title}</h2>
           </div>
-          <div className="playtest-ctx-menu" ref={itemsRef}>
+          <div className="ctx-menu-items" ref={itemsRef}>
             {children}
           </div>
           <div className="card-picker-footer">
@@ -103,10 +110,10 @@ export function CtxMenuShell({
 
   return (
     <>
-      <div className="playtest-ctx__backdrop" role="presentation" onClick={onClose} />
+      <div className="ctx-menu__backdrop" role="presentation" onClick={onClose} />
       <div
         ref={menuRef}
-        className="playtest-ctx playtest-ctx-menu"
+        className="ctx-menu ctx-menu-items"
         style={{
           left: clamped?.left ?? x,
           top: clamped?.top ?? y,

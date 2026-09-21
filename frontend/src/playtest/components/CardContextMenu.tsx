@@ -4,7 +4,7 @@ import { usePressRepeat } from '@/lib/use-press-repeat';
 import type { Zone } from '@/lib/playtest';
 import { MOVE_DESTINATIONS, destinationKey } from '../lib/zones';
 import type { ShortcutId } from '../lib/shortcuts';
-import { CtxMenuShell } from './CtxMenuShell';
+import { CtxMenuShell } from '@/components/shared/CtxMenuShell';
 
 interface Props {
   x: number;

@@ -9,7 +9,7 @@
 // cluster — so the two can't drift; only the section/list classes and the
 // `--stack-w` width differ (see deck-builder-card-list.css § Stacks).
 import type { CSSProperties } from 'react';
-import { ChevronDown, Handshake, Tag as TagIcon } from 'lucide-react';
+import { ChevronDown, Handshake, MoreVertical, Tag as TagIcon } from 'lucide-react';
 import { getRoleBadge, type RoleKey } from '../../lib/role-badges';
 import { stackWidth, zoomBucket, zoomMinCol, zoomTier } from '@/lib/grid-zoom';
 import type { LegalityIssue } from '../../lib/deck-validation';
@@ -21,6 +21,7 @@ import {
   foilTileClass,
   allocationSummary,
   type CurrencyCode,
+  type Row,
   type TypedGroup,
 } from './deck-display-rows';
 import { SectionIcon, FoilShimmer } from './deck-display-icons';
@@ -44,6 +45,8 @@ export function DeckCardGrid({
   showPrice,
   collapsedTitles,
   onToggleSection,
+  onRowContextMenu,
+  onRowMenu,
 }: {
   groups: TypedGroup[];
   onRowClick: (name: string) => void;
@@ -72,6 +75,12 @@ export function DeckCardGrid({
    *  means this grid cannot collapse at all. */
   collapsedTitles?: Set<string>;
   onToggleSection?: (title: string) => void;
+  /** Right-click on a tile. The host owns the menu and its input/link guard. */
+  onRowContextMenu?: (row: Row, e: React.MouseEvent) => void;
+  /** Opens the same menu from the tile's kebab, anchored to the button's
+   *  rect. Right-click alone would leave touch and keyboard users with no
+   *  way in, which is why this is not optional in practice. */
+  onRowMenu?: (row: Row, rect: DOMRect) => void;
 }) {
   const stacks = layout === 'stacks';
   return (
@@ -200,6 +209,7 @@ export function DeckCardGrid({
                   <li
                     key={row.name}
                     className={`deck-card-grid-cell${roleDimmed ? ' is-role-dimmed' : ''}`}
+                    onContextMenu={onRowContextMenu ? (e) => onRowContextMenu(row, e) : undefined}
                   >
                     <button
                       type="button"
@@ -247,6 +257,20 @@ export function DeckCardGrid({
                         ) : null;
                       })()}
                     </button>
+                    {onRowMenu && (
+                      <button
+                        type="button"
+                        className="deck-card-grid-menu"
+                        aria-haspopup="menu"
+                        aria-label={`Actions for ${row.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRowMenu(row, e.currentTarget.getBoundingClientRect());
+                        }}
+                      >
+                        <MoreVertical width={14} height={14} strokeWidth={2} aria-hidden />
+                      </button>
+                    )}
                     {(row.isPartner ||
                       role ||
                       (synergy && synergy.length > 0) ||

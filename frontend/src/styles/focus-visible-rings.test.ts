@@ -41,6 +41,10 @@ const ALLOWLIST = new Set([
   '.new-arrivals-row',
   '.trade-result-row',
   '.deck-combos-row',
+  // Same shape: the <li> is not focusable, and its hover only reveals the
+  // tile's kebab. That button carries .deck-card-grid-menu:focus-visible,
+  // which is also what reveals it for keyboard users.
+  '.deck-card-grid-cell',
 ]);
 
 function cssFiles(dir: string): string[] {

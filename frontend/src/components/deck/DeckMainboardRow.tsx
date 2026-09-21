@@ -14,6 +14,7 @@ import {
   MoreVertical,
   Plus,
 } from 'lucide-react';
+import { DeckCardMenuBody } from './DeckCardMenuBody';
 import {
   DndContext,
   DragOverlay,
@@ -100,6 +101,9 @@ export function CategorySection({
   onReorder,
   collapsed,
   onToggleCollapsed,
+  deckTags,
+  onSetRowTags,
+  onRowContextMenu,
 }: {
   title: string;
   icon: string;
@@ -138,6 +142,10 @@ export function CategorySection({
    *  can never collapse, which is how the out-zone lists stay as they were. */
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
+  /** Passed straight to every row's menu — see DeckCardRow's own docs. */
+  deckTags?: string[];
+  onSetRowTags?: (slotIds: string[], tags: string[]) => void;
+  onRowContextMenu?: (row: Row, e: React.MouseEvent) => void;
   synergyByName?: Map<string, string[]>;
   cardInclusionMap?: Record<string, number>;
   /** Every combo each in-deck card participates in, keyed by oracle id — see
@@ -222,6 +230,9 @@ export function CategorySection({
           onEditCard={entry.leaving ? undefined : onEditCard}
           roleFilter={roleFilter}
           legalityIssue={legalityBySlot?.get(entry.item.legalitySlotKey ?? entry.item.slotIds[0])}
+          deckTags={deckTags}
+          onSetRowTags={entry.leaving ? undefined : onSetRowTags}
+          onRowContextMenu={entry.leaving ? undefined : onRowContextMenu}
           onMoveToZone={entry.leaving ? undefined : (onMoveToSideboard ?? onMoveToMainboard)}
           moveZone={onMoveToSideboard ? 'sideboard' : onMoveToMainboard ? 'mainboard' : undefined}
           onMoveToConsidering={entry.leaving ? undefined : onMoveToConsidering}
@@ -351,6 +362,9 @@ function DeckCardRow({
   legalityIssue,
   onMoveToZone,
   moveZone,
+  deckTags,
+  onSetRowTags,
+  onRowContextMenu,
   onMoveToConsidering,
   onMakeCommander,
   canMakeCommander,
@@ -387,6 +401,14 @@ function DeckCardRow({
   legalityIssue?: LegalityIssue;
   /** Move the given copies to the other zone. One copy, or the row's whole stack. */
   onMoveToZone?: (slotIds: string[]) => void;
+  /** Every tag used anywhere in this deck, for the menu's stack picker. */
+  deckTags?: string[];
+  /** Zone-bound tag write for this row's slots. Absent means the menu shows
+   *  no stack actions (a read-only or shared deck view). */
+  onSetRowTags?: (slotIds: string[], tags: string[]) => void;
+  /** Right-click anywhere on the row. The host owns the menu and the guard
+   *  that keeps a native context menu over inputs and links. */
+  onRowContextMenu?: (row: Row, e: React.MouseEvent) => void;
   /** The destination zone — names the move menu items. */
   moveZone?: 'sideboard' | 'mainboard';
   /** Mainboard-only extra move action: park copies in Considering (E122),
@@ -430,7 +452,6 @@ function DeckCardRow({
 }) {
   const roleBadge = showPrefs.roles ? getRoleBadge(row.card) : null;
   const mana = showPrefs.mana ? frontFaceMana(row.card) : undefined;
-  const canRemove = !!onRemoveCard && row.slotIds.length > 0;
   const canEditQty = !!onSetQty && row.slotIds.length > 0;
   // Stepper only earns its place when a second copy is actually legal — on a
   // singleton nonbasic it's pure UI noise (Commander/Brawl/PDH). Basics and
@@ -443,22 +464,10 @@ function DeckCardRow({
   // uniform "Mountain ×22" has nothing to reveal.
   const multiPrinting = row.printings.length > 1;
   const [expanded, setExpanded] = useState(false);
+  // The kebab's menu drills into a stack picker, same as the pointer menu.
+  const [menuPage, setMenuPage] = useState<'root' | 'stack'>('root');
   const subListId = `printings-${row.slotIds[0] ?? row.name}`;
 
-  const handleRemoveOne = (e: React.MouseEvent | React.KeyboardEvent, close: () => void) => {
-    e.stopPropagation();
-    close();
-    if (canRemove) onRemoveCard!(row.slotIds[row.slotIds.length - 1]);
-  };
-  const handleRemoveAll = (e: React.MouseEvent, close: () => void) => {
-    e.stopPropagation();
-    close();
-    // Prefer the bulk path so the host can show one undo toast for the whole batch.
-    if (canEditQty) onSetQty!(row.card, 0);
-    else if (canRemove) {
-      for (const slotId of [...row.slotIds].reverse()) onRemoveCard!(slotId);
-    }
-  };
   const startEditQty = (e: React.MouseEvent) => {
     if (!canEditQty) return;
     e.stopPropagation();
@@ -571,6 +580,7 @@ function DeckCardRow({
         className={rowClass}
         data-peek-name={row.name}
         onClick={leaving ? undefined : rowActivate}
+        onContextMenu={leaving || !onRowContextMenu ? undefined : (e) => onRowContextMenu(row, e)}
         role={leaving ? undefined : 'button'}
         tabIndex={leaving ? -1 : 0}
         aria-hidden={leaving ? true : undefined}
@@ -853,189 +863,31 @@ function DeckCardRow({
           }
         >
           {(close) => (
-            <>
-              {onEditCard && row.slotIds.length > 0 && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="deck-row-menu-item"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    close();
-                    onEditCard(row.slotIds[0], row.card);
-                  }}
-                >
-                  Edit printing
-                </button>
-              )}
-              {canEditQty && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="deck-row-menu-item"
-                  // Same ceiling as the "+" stepper (getMaxCopies) — the two
-                  // add affordances agree by construction, not by convention.
-                  disabled={atCap}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    close();
-                    onSetQty!(row.card, row.qty + 1);
-                  }}
-                >
-                  Add another copy
-                </button>
-              )}
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-row-menu-item"
-                disabled={!canRemove}
-                onClick={(e) => handleRemoveOne(e, close)}
-              >
-                {row.qty > 1 ? 'Remove one copy' : 'Remove from deck'}
-              </button>
-              {row.qty > 1 && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="deck-row-menu-item"
-                  disabled={!canRemove && !canEditQty}
-                  onClick={(e) => handleRemoveAll(e, close)}
-                >
-                  Remove all {row.qty} copies
-                </button>
-              )}
-              {onMoveToZone && moveZone && row.slotIds.length > 0 && (
-                <>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="deck-row-menu-item"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      close();
-                      onMoveToZone([row.slotIds[0]]);
-                    }}
-                  >
-                    {row.qty > 1 ? `Move one copy to ${moveZone}` : `Move to ${moveZone}`}
-                  </button>
-                  {row.qty > 1 && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="deck-row-menu-item"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        close();
-                        onMoveToZone(row.slotIds);
-                      }}
-                    >
-                      Move all {row.qty} copies to {moveZone}
-                    </button>
-                  )}
-                </>
-              )}
-              {onMoveToConsidering && row.slotIds.length > 0 && (
-                <>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="deck-row-menu-item"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      close();
-                      onMoveToConsidering([row.slotIds[0]]);
-                    }}
-                  >
-                    {row.qty > 1 ? 'Move one copy to considering' : 'Move to considering'}
-                  </button>
-                  {row.qty > 1 && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="deck-row-menu-item"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        close();
-                        onMoveToConsidering(row.slotIds);
-                      }}
-                    >
-                      Move all {row.qty} copies to considering
-                    </button>
-                  )}
-                </>
-              )}
-              {onUseOwnCopy && row.claimedElsewhereQty > 0 && row.slotIds.length > 0 && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="deck-row-menu-item"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    close();
-                    onUseOwnCopy(row.card);
-                  }}
-                >
-                  Use my copy
-                </button>
-              )}
-              {onMoveToAnotherDeck && !row.isPartner && row.slotIds.length > 0 && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="deck-row-menu-item"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    close();
-                    onMoveToAnotherDeck(row.card);
-                  }}
-                >
-                  Move to another deck…
-                </button>
-              )}
-              {onReleaseCopy && row.allocatedQty > 0 && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="deck-row-menu-item"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    close();
-                    onReleaseCopy(row.card);
-                  }}
-                >
-                  Release copy
-                </button>
-              )}
-              {onMakeCommander && canMakeCommander?.(row.card) && row.slotIds.length > 0 && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="deck-row-menu-item"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    close();
-                    onMakeCommander(row.slotIds[0], row.card);
-                  }}
-                >
-                  Make commander
-                </button>
-              )}
-              {onMakePartner && canMakePartner?.(row.card) && row.slotIds.length > 0 && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="deck-row-menu-item"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    close();
-                    onMakePartner(row.slotIds[0], row.card);
-                  }}
-                >
-                  Make partner
-                </button>
-              )}
-            </>
+            <DeckCardMenuBody
+              row={row}
+              deckTags={deckTags ?? []}
+              page={menuPage}
+              onPageChange={setMenuPage}
+              onClose={close}
+              ctx={{
+                row,
+                isSingleton,
+                moveZone,
+                onEditCard,
+                onSetQty,
+                onRemoveCard,
+                onMoveToZone,
+                onMoveToConsidering,
+                onUseOwnCopy,
+                onMoveToAnotherDeck,
+                onReleaseCopy,
+                onMakeCommander,
+                canMakeCommander,
+                onMakePartner,
+                canMakePartner,
+                onSetRowTags,
+              }}
+            />
           )}
         </ToolbarPopover>
       </li>
