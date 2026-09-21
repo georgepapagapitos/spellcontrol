@@ -244,6 +244,27 @@ const NO_WRAP_AT_PHONE = [
  * playtest sweep's remaining batches. **Flip this into `rec.fail` once that
  * inventory is empty** — one line, below.
  *
+ * Three of those classes will never leave the report, because they are
+ * RULINGS and not misses. Re-measured in a browser 2026-09-20 (hit areas, not
+ * boxes) before writing this down:
+ *   - `.deck-row` and every control inside it (the kebab, the qty readout, the
+ *     ± steppers) are capped by the row's `min-height: 36px` under
+ *     `(pointer: coarse)`. That number is deliberate and the comment on it
+ *     says why: a 100-row deck list, full-width rows, and a 44px version was
+ *     tried and reverted because it stranded one 20px line of text in ~50px of
+ *     padding. 36x36 clears WCAG 2.5.8 (24x24 AA); 44 is the AAA bar. ~230 of
+ *     the reported instances on a 100-card deck are this one line.
+ *   - `.card-list-binder-badge` / `.card-list-deck-badge` ghosts are 44 wide
+ *     and capped at 36 tall on purpose (collection.css): a 44px-tall ghost
+ *     overhangs the card art in a 118x208 tile and steals the tile's own tap,
+ *     which opens the card. Measured hit area 53x37 — a secondary action
+ *     nested in a primary target, above the AA floor.
+ *   - `.deck-curve-phases-bar-hit` is a chart column, 32px wide with a 39px
+ *     hit area. Widening one column eats its neighbour; the fix is a different
+ *     chart, not a floor.
+ * So the flip needs those three carried as documented exceptions, not as an
+ * allowlist of 21 — and nothing else added to it without a measured reason.
+ *
  * It exists because a *static* CSS guard structurally cannot find this family
  * of defect, and the 2026-09-15 sweep found four in three batches — every one
  * a floor that existed on paper and was defeated in the rendered box:
@@ -311,6 +332,91 @@ function undersizedTouchTargets() {
     if (seen.has(line)) continue;
     seen.add(line);
     out.push(line);
+  }
+  return out;
+}
+
+/**
+ * Interactive targets that OVERLAP another interactive target, at phone width.
+ *
+ * This fails the run, unlike `undersizedTouchTargets` above — it has no
+ * standing inventory to work through, and what it catches is worse than a
+ * small target: the overlap belongs to whichever element paints later, so the
+ * lost strip does not just miss, it fires the WRONG control.
+ *
+ * The recurring cause is one idiom. A control bleeds over its container's
+ * padding with a negative margin equal to its own padding, so the padding does
+ * not count in layout — correct on the inline axis, where nothing is beside
+ * it, and a defect on the block axis, where the row above and below is another
+ * instance of the same control. Measured 2026-09-20: `.new-from-friends-link`
+ * (`margin: calc(var(--space-2) * -1)`) overlapped by 8px, so each 44px row
+ * had a 39px usable target and its bottom strip opened the next friend's deck;
+ * `.engine-axis-btn` (`margin: -0.35rem -0.45rem`) overlapped by 2.4px into
+ * the next axis. Both boxes read 44x44, so `undersizedTouchTargets` passed
+ * them and the nightly said nothing.
+ *
+ * Only real overlap counts: a control nested inside another interactive
+ * element (a row that is itself a button, a label around its input) shares
+ * space by design, and is skipped.
+ */
+function overlappingTouchTargets() {
+  const sel = 'button,a[href],input,select,textarea,[role="button"],[role="tab"],[role="switch"]';
+  /** App chrome is SUPPOSED to sit over the page and win the tap — that is
+   *  layering, not a stolen target. Fixed/sticky covers most of it; the mobile
+   *  tab bar is the exception that needs naming, because it is deliberately a
+   *  normal flex child of the non-scrolling shell rather than `position:
+   *  fixed` (responsive-nav.css says why: --safe-bottom jumps on Android), so
+   *  content scrolled under it looks like an overlap from a rect alone. */
+  const CHROME = '.mobile-tab-bar, .skip-link, .site-header';
+  const pinned = (el) => {
+    if (el.closest(CHROME)) return true;
+    for (let n = el; n && n !== document.body; n = n.parentElement) {
+      const pos = getComputedStyle(n).position;
+      if (pos === 'fixed' || pos === 'sticky') return true;
+    }
+    return false;
+  };
+  const interactive = (el) => !!el && !!el.closest && !!el.closest(sel);
+  const key = (el) => {
+    const first = String(el.className || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)[0];
+    return first ? `.${first}` : el.tagName.toLowerCase();
+  };
+  const out = [];
+  const seen = new Set();
+  for (const el of document.querySelectorAll(sel)) {
+    if (el.closest('details:not([open])') || el.closest('[hidden]')) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) continue;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === 'hidden' || cs.display === 'none' || cs.pointerEvents === 'none')
+      continue;
+    // Only judge a control that is fully on screen — a point outside the
+    // viewport hit-tests as nothing, and one behind pinned chrome is layering.
+    if (r.top < 2 || r.bottom > innerHeight - 2 || r.left < 0 || r.right > innerWidth) continue;
+    if (pinned(el)) continue;
+    const cx = Math.round(r.left + r.width / 2);
+    const cy = Math.round(r.top + r.height / 2);
+    const edges = [
+      ['top', cx, Math.round(r.top + 2)],
+      ['bottom', cx, Math.round(r.bottom - 2)],
+      ['left', Math.round(r.left + 2), cy],
+      ['right', Math.round(r.right - 2), cy],
+    ];
+    for (const [edge, x, y] of edges) {
+      const hit = document.elementFromPoint(x, y);
+      if (!hit || hit === el || el.contains(hit) || hit.contains(el)) continue;
+      const other = hit.closest(sel);
+      if (!interactive(hit) || !other || other === el) continue;
+      if (other.contains(el) || el.contains(other)) continue;
+      if (pinned(other)) continue;
+      const line = `${key(el)} loses its ${edge} edge to ${key(other)}`;
+      if (seen.has(line)) continue;
+      seen.add(line);
+      out.push(line);
+    }
   }
   return out;
 }
@@ -475,6 +581,9 @@ async function main() {
         // 2.5.8's 24px, and every desktop-only control clears that.
         const smallTargets =
           tierName === 'phone' ? await page.evaluate(undersizedTouchTargets) : [];
+        // Overlapping targets DO fail — see overlappingTouchTargets.
+        const overlapping =
+          tierName === 'phone' ? await page.evaluate(overlappingTouchTargets) : [];
         const errs = consoleErrors.filter((e) => !IGNORED_CONSOLE.test(e));
         const file = `${slug(label)}__${tierName}.png`;
         await page.screenshot({ path: path.join(OUT, file) }).catch(() => {});
@@ -490,6 +599,7 @@ async function main() {
           touching: touching.slice(0, 8),
           wrapped,
           smallTargets,
+          overlapping,
           file,
         };
         rec.fail =
@@ -498,11 +608,12 @@ async function main() {
           !rec.title ||
           errs.length > 0 ||
           touching.length > 0 ||
-          wrapped.length > 0;
+          wrapped.length > 0 ||
+          overlapping.length > 0;
         results.push(rec);
         console.log(
           `${rec.fail ? 'FAIL' : ' ok '} ${BROWSER.padEnd(7)} ${tierName.padEnd(7)} ${label.padEnd(36)} ` +
-            `overflow=${rec.overflow} empty=${rec.emptyBody} errors=${errs.length} touching=${touching.length} wrapped=${wrapped.length} small=${smallTargets.length}` +
+            `overflow=${rec.overflow} empty=${rec.emptyBody} errors=${errs.length} touching=${touching.length} wrapped=${wrapped.length} small=${smallTargets.length} overlapping=${overlapping.length}` +
             (rec.landed !== label.split('?')[0] && !label.includes('{')
               ? ` landed=${rec.landed}`
               : '')
@@ -510,6 +621,8 @@ async function main() {
         if (errs.length) for (const e of errs) console.log(`        ${e}`);
         if (touching.length) for (const t of rec.touching) console.log(`        touching: ${t}`);
         if (wrapped.length) for (const w of wrapped) console.log(`        ${w}`);
+        if (overlapping.length)
+          for (const o of overlapping) console.log(`        overlapping: ${o}`);
         return rec;
       };
 

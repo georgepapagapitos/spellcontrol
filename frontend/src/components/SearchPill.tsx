@@ -1,5 +1,5 @@
 import { Search } from 'lucide-react';
-import { forwardRef, type InputHTMLAttributes, type ReactNode } from 'react';
+import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from 'react';
 
 interface Props {
   value: string;
@@ -46,6 +46,12 @@ interface Props {
  * the text field. Used across the binder, collection, deck, rules, and
  * card-search surfaces so the search affordance looks identical everywhere.
  *
+ * The magnifier is a `<label>` for the input, not decoration: the wrapper is
+ * a plain <div> with no handler, so before this the icon and the pill's left
+ * padding — the most natural place to tap a search field — did nothing at all
+ * (board E313). A label forwards the tap to the input with no JS, and the
+ * stylesheet stretches it over that padding and the pill's full height.
+ *
  * forwardRef exposes the input for callers that focus it imperatively
  * (e.g. a parent's focusInput() handle or arrow-key result navigation).
  */
@@ -65,13 +71,19 @@ export const SearchPill = forwardRef<HTMLInputElement, Props>(function SearchPil
   },
   ref
 ) {
+  // The label needs an id to point at; callers that focus the input by id pass
+  // their own.
+  const fallbackId = useId();
+  const id = inputId ?? fallbackId;
   return (
     <div className={`search-pill${className ? ` ${className}` : ''}`}>
-      <Search className="search-pill-icon" width={16} height={16} strokeWidth={2} aria-hidden />
+      <label className="search-pill-icon-label" htmlFor={id}>
+        <Search className="search-pill-icon" width={16} height={16} strokeWidth={2} aria-hidden />
+      </label>
       <input
         {...inputProps}
         ref={ref}
-        id={inputId}
+        id={id}
         type={inputType}
         value={value}
         onChange={(e) => onChange(e.target.value)}

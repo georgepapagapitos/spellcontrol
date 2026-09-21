@@ -340,8 +340,9 @@ describe('coarse-pointer touch floor', () => {
     ['styles/play-setup.css', '.play-stepper-btn'],
     ['styles/play-setup.css', '.play-setup-seat-deck-add'],
     ['styles/collection.css', '.collection-hero-stats-link::after'],
-    ['styles/collection.css', '.card-list-binder-badge::after'],
-    ['styles/collection.css', '.card-list-deck-badge::after'],
+    // The two collection-tile badges are NOT in this list: neither axis can
+    // reach 44px without stealing another control's taps. See the test below
+    // the loop, which pins their measured geometry instead.
     ['components/home/HomeCard.css', '.home-card-retry'],
     ['styles/deck-builder-analysis.css', '.deck-stat-btn'],
     ['styles/deck-builder-toast.css', '.toast-close'],
@@ -372,6 +373,39 @@ describe('coarse-pointer touch floor', () => {
     const found = blocks(read('components/OverflowMenu.css'), '.overflow-menu-trigger');
     expect(found.some((b) => /min-width:\s*(?:44px|2\.75rem)/.test(b))).toBe(true);
     expect(found.some((b) => /min-height:\s*(?:44px|2\.75rem)/.test(b))).toBe(true);
+  });
+
+  /**
+   * The collection tile's binder/deck badges are the one control where the
+   * 44px floor is unreachable on BOTH axes, so they carry their own guard with
+   * the measured numbers rather than sitting in CONTROLS above.
+   *
+   *  - Vertically, the ghost is capped at the badge row's 36px because a 44px
+   *    ghost overhangs the card art in a 118x208 tile and steals the tile's
+   *    own tap, which is what opens the card (board E316).
+   *  - Horizontally, the two badges sit 33.8px apart in the tile corner. A
+   *    44px-wide ghost overlapped its sibling by ~10px, and the badge painted
+   *    later won that strip — measured 2026-09-20 with elementFromPoint, and
+   *    caught by the nightly journey's overlapping-target check: a tap on the
+   *    deck badge opened the BINDER sheet.
+   *
+   * 33.8x36 clears WCAG 2.5.8's 24x24 AA target for a secondary action nested
+   * inside a primary one. Anything bigger has to come from moving the badges
+   * out of the art overlay, not from a floor.
+   */
+  it('the collection tile badges ghost to their own pitch, not to 44px', () => {
+    for (const selector of ['.card-list-binder-badge::after', '.card-list-deck-badge::after']) {
+      const found = blocks(read('styles/collection.css'), selector);
+      expect(found, `no rule for ${selector}`).not.toEqual([]);
+      expect(
+        found.some((b) => /width:\s*calc\(100% \+ var\(--space-1\)\)/.test(b)),
+        `${selector} must ghost to its pitch — a 44px width overlaps the sibling badge`
+      ).toBe(true);
+      expect(
+        found.some((b) => /height:\s*36px/.test(b)),
+        `${selector} must stay capped at the row height — 44px overhangs the card art`
+      ).toBe(true);
+    }
   });
 
   for (const [file, selector] of CONTROLS) {
