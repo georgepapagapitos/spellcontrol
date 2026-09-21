@@ -1954,6 +1954,18 @@ Untap):
   readable. It never overlaps cards while the row has room (the old 30%
   cascade hid names from the second card on). A face-down play lands in the
   creature row — it is a 2/2 whatever it was printed as.
+- **A card the player placed never moves under the cursor.** Hover on the
+  battlefield is an accent ring (`0 0 0 2px var(--accent)`) plus
+  `--shadow-card`, never a lift. The hand fan may lift, because there the strip
+  is a fan and nothing is read against where a card sits; on the battlefield
+  position is information the player put there, cards are read against the row
+  or stack they were placed in, and tokens / attachments / taps ride on top, so
+  displacing one on hover breaks the alignment being read. The ring sits
+  outside the card, where `--selected`'s is inset; a selected card already
+  reads as marked and is left out of the hover rule. Contrast is why it is
+  `--accent` and not a neutral border token: a
+  `--border-strong` ring is a dark navy on a dark theme, invisible over card
+  art. Guarded by `styles/battlefield-hover-static.test.ts`.
 - **Hover / focus preview on fine pointers lands in ONE slot.** `CardHoverPreview`
   shows the full face for any card carrying `data-preview-id` (set by
   `PlaytestCardFace`; absent when face-down, the URL resolves from React state,

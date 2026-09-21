@@ -1003,13 +1003,21 @@ body[data-felt='slate'] {
    information the player placed there — a 6px lift on hover shifted a card out
    of the row/stack it was read against, and made a dense board twitch under the
    cursor. The hand can lift (there the strip is a fan, not a layout); here the
-   cue is a ring and a lifted shadow, no displacement. `--selected` keeps its own
-   ring, and the DragOverlay copy (`--dragging`) gets nothing. */
+   cue is a ring and a shadow, no displacement — the same accent ring the hand
+   fan puts on the card under the pointer, so "this is the one" reads the same
+   way in both places. A `--selected` card already wears a ring and is left
+   alone, and the DragOverlay copy (`--dragging`) renders outside the
+   battlefield and gets nothing.
+
+   The ring was briefly `--border-strong` inset, which measured fine and was
+   invisible in practice: on a dark theme that token is a dark navy sitting on
+   top of a card's own black border, over art. Checked in a browser at both
+   ends of the theme range, not read off the sheet. */
 @media (hover: hover) and (pointer: fine) {
   .playtest-battlefield
     .playtest-card:hover:not(.playtest-card--dragging, .playtest-card--selected) {
     box-shadow:
-      inset 0 0 0 2px var(--border-strong),
+      0 0 0 2px var(--accent),
       var(--shadow-card);
   }
 }
