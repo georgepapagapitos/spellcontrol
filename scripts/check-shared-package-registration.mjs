@@ -76,8 +76,23 @@ for (const pkg of onDisk) {
 
 const stepText = (step) => `${step?.run ?? ''}\n${step?.['working-directory'] ?? ''}`;
 
-/** Which consumer, if any, this step installs with `npm ci`. */
+/**
+ * Which consumer, if any, this step installs.
+ *
+ * Two shapes count, and BOTH must stay recognized: a literal `run: npm ci`, and
+ * a `uses:` of `.github/actions/npm-ci` (the retried install — see that action
+ * for why it exists). Teaching this function only the `run:` shape is how this
+ * gate goes quietly vacuous: ci.yml's installs would stop being seen at all and
+ * every "installs X but never builds packages/Y" check would pass by finding
+ * nothing to check. The composite action does not inherit the job's
+ * `defaults.run.working-directory`, so it always carries its own
+ * `with.working-directory` — read that first.
+ */
 function installedConsumer(step, jobDefaultDir) {
+  if (/\/actions\/npm-ci(@|$)/.test(step?.uses ?? '')) {
+    const dir = step?.with?.['working-directory'] ?? jobDefaultDir;
+    return CONSUMERS.includes(dir) ? dir : null;
+  }
   const run = step?.run ?? '';
   if (!/\bnpm\b[^\n]*\bci\b/.test(run)) return null;
   const prefixed = /npm\s+--prefix\s+(backend|frontend)\s+ci/.exec(run);

@@ -1,0 +1,60 @@
+name: npm ci with retry
+description: >-
+  `npm ci`, retried on failure. An install reaches the network twice: npm's own
+  registry fetches, and any dependency's install script fetching its native
+  binary. `setup-node`'s npm cache covers the first and NOT the second, so
+  backend/'s onnxruntime-node (card scanner; `hasInstallScript: true`) re-downloads
+  its runtime from an Azure CDN on every run and a blip there fails the job.
+  That is what happened on 2026-09-21: `connect ETIMEDOUT 150.171.110.210:443`
+  in the Backend job on main, which — because Deploy to Fly is gated on CI's
+  conclusion — silently SKIPPED the deploy and left production on the previous
+  build with every PR check green. PR #1118 died the same way.
+
+  Retrying an install is safe in a way that retrying tests is not: an install has
+  no product behaviour to hide, so a real failure (bad lockfile, missing package,
+  genuinely unreachable registry) still fails all attempts and still fails the
+  job. Do NOT reach for this action to paper over a flaky test.
+
+inputs:
+  working-directory:
+    description: >-
+      Directory to install in. Composite actions do NOT inherit the calling
+      job's `defaults.run.working-directory`, so pass it explicitly.
+    required: false
+    default: '.'
+  flags:
+    description: Extra flags appended to `npm ci`.
+    required: false
+    default: '--no-audit --no-fund'
+  attempts:
+    description: How many times to try before giving up.
+    required: false
+    default: '3'
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        NPM_CI_FLAGS: ${{ inputs.flags }}
+        NPM_CI_ATTEMPTS: ${{ inputs.attempts }}
+      run: |
+        set -uo pipefail
+        for i in $(seq 1 "$NPM_CI_ATTEMPTS"); do
+          echo "::group::npm ci (attempt $i/$NPM_CI_ATTEMPTS)"
+          # Unquoted on purpose: the flags are a word list, not one argument.
+          # shellcheck disable=SC2086
+          npm ci $NPM_CI_FLAGS && ok=1 || ok=0
+          echo "::endgroup::"
+          if [ "$ok" = "1" ]; then exit 0; fi
+          if [ "$i" -lt "$NPM_CI_ATTEMPTS" ]; then
+            echo "::warning::npm ci failed on attempt $i of $NPM_CI_ATTEMPTS; retrying"
+            # `npm ci` starts by deleting node_modules, but a half-written tree
+            # from an interrupted install script can confuse the retry.
+            rm -rf node_modules
+            sleep $(( i * 20 ))
+          fi
+        done
+        echo "::error::npm ci failed after $NPM_CI_ATTEMPTS attempts — read the log above, this is not automatically a flake"
+        exit 1
