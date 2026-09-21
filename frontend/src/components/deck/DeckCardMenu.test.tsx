@@ -185,6 +185,78 @@ describe('deck card menu', () => {
       expect(onSetCardTags).toHaveBeenCalledWith('cards', ['s0'], ['Wincon']);
     });
 
+    it('adds a tag WITHOUT re-filing the card, which Move to tag cannot do', () => {
+      // The gap this page exists to close: before it, the only fast way to
+      // tag a card also moved it out of the section it was in.
+      const onSetCardTags = vi.fn();
+      const cards: DeckDisplayCard[] = [
+        { slotId: 's0', card: card('Brago', 'Creature'), tags: ['Blink'] },
+        { slotId: 's1', card: card('Bear', 'Creature'), tags: ['Wincon'] },
+      ];
+      const { container, getByRole } = renderDeck({ cards, onSetCardTags });
+      fireEvent.contextMenu(rowFor(container, 'Brago'));
+      fireEvent.click(getByRole('menuitem', { name: /Add tag/ }));
+      fireEvent.click(getByRole('menuitemcheckbox', { name: 'Wincon' }));
+      // Appended, not hoisted: Blink is still first, so Brago stays filed
+      // under Blink.
+      expect(onSetCardTags).toHaveBeenCalledWith('cards', ['s0'], ['Blink', 'Wincon']);
+    });
+
+    it('marks every tag the card carries on the add page, not just the primary', () => {
+      const cards: DeckDisplayCard[] = [
+        { slotId: 's0', card: card('Brago', 'Creature'), tags: ['Blink', 'Wincon'] },
+      ];
+      const { container, getByRole } = renderDeck({ cards, onSetCardTags: vi.fn() });
+      fireEvent.contextMenu(rowFor(container, 'Brago'));
+      fireEvent.click(getByRole('menuitem', { name: /Add tag/ }));
+      expect(getByRole('menuitemcheckbox', { name: 'Blink' }).getAttribute('aria-checked')).toBe(
+        'true'
+      );
+      expect(getByRole('menuitemcheckbox', { name: 'Wincon' }).getAttribute('aria-checked')).toBe(
+        'true'
+      );
+    });
+
+    it('un-toggles a tag from the add page', () => {
+      const onSetCardTags = vi.fn();
+      const cards: DeckDisplayCard[] = [
+        { slotId: 's0', card: card('Brago', 'Creature'), tags: ['Blink', 'Wincon'] },
+      ];
+      const { container, getByRole } = renderDeck({ cards, onSetCardTags });
+      fireEvent.contextMenu(rowFor(container, 'Brago'));
+      fireEvent.click(getByRole('menuitem', { name: /Add tag/ }));
+      fireEvent.click(getByRole('menuitemcheckbox', { name: 'Wincon' }));
+      expect(onSetCardTags).toHaveBeenCalledWith('cards', ['s0'], ['Blink']);
+    });
+
+    it('a new tag from the add page appends, so the section does not change', () => {
+      const onSetCardTags = vi.fn();
+      const cards: DeckDisplayCard[] = [
+        { slotId: 's0', card: card('Brago', 'Creature'), tags: ['Blink'] },
+      ];
+      const { container, getByRole, getByLabelText } = renderDeck({ cards, onSetCardTags });
+      fireEvent.contextMenu(rowFor(container, 'Brago'));
+      fireEvent.click(getByRole('menuitem', { name: /Add tag/ }));
+      const input = getByLabelText('New tag');
+      fireEvent.change(input, { target: { value: 'Combo' } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+      expect(onSetCardTags).toHaveBeenCalledWith('cards', ['s0'], ['Blink', 'Combo']);
+    });
+
+    it('a new tag from the MOVE page still hoists, so the card re-files', () => {
+      const onSetCardTags = vi.fn();
+      const cards: DeckDisplayCard[] = [
+        { slotId: 's0', card: card('Brago', 'Creature'), tags: ['Blink'] },
+      ];
+      const { container, getByRole, getByLabelText } = renderDeck({ cards, onSetCardTags });
+      fireEvent.contextMenu(rowFor(container, 'Brago'));
+      fireEvent.click(getByRole('menuitem', { name: /Move to tag/ }));
+      const input = getByLabelText('New tag');
+      fireEvent.change(input, { target: { value: 'Combo' } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+      expect(onSetCardTags).toHaveBeenCalledWith('cards', ['s0'], ['Combo', 'Blink']);
+    });
+
     it('offers no tag actions when the deck is read-only', () => {
       const { container, getByRole } = renderDeck({ onSetCardTags: undefined });
       fireEvent.contextMenu(rowFor(container, 'Brago'));
