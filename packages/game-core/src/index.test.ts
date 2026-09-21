@@ -1117,36 +1117,44 @@ describe('reseat', () => {
 });
 
 describe('watching and voice', () => {
-  it('starts closed: a new table is seats only, with nowhere to talk', () => {
+  it('starts private: a new table is seats only, with nowhere to talk', () => {
     const s = lobby();
-    expect(s.spectatorsAllowed).toBe(false);
+    expect(s.visibility).toBe('private');
     expect(s.voiceUrl).toBe(null);
   });
 
-  it('reads a game persisted before either field as closed, not open', () => {
+  it('reads a game persisted before either field as private, not public', () => {
     const legacy = lobby() as Partial<GameState>;
-    delete legacy.spectatorsAllowed;
+    delete legacy.visibility;
     delete legacy.voiceUrl;
     const s = applyAction(legacy as GameState, { type: 'note', message: 'hi', actorSeat: 0 });
-    expect(s.spectatorsAllowed).toBe(false);
+    expect(s.visibility).toBe('private');
     expect(s.voiceUrl).toBe(null);
+  });
+
+  it('reads a game persisted with the old spectatorsAllowed flag set, as public', () => {
+    const legacy = lobby() as Partial<GameState> & { spectatorsAllowed?: boolean };
+    delete legacy.visibility;
+    legacy.spectatorsAllowed = true;
+    const s = applyAction(legacy as GameState, { type: 'note', message: 'hi', actorSeat: 0 });
+    expect(s.visibility).toBe('public');
   });
 
   it('opens and closes watching through settings', () => {
     const open = applyAction(lobby(), {
       type: 'settings',
-      patch: { spectatorsAllowed: true },
+      patch: { visibility: 'public' },
     });
-    expect(open.spectatorsAllowed).toBe(true);
-    const shut = applyAction(open, { type: 'settings', patch: { spectatorsAllowed: false } });
-    expect(shut.spectatorsAllowed).toBe(false);
+    expect(open.visibility).toBe('public');
+    const shut = applyAction(open, { type: 'settings', patch: { visibility: 'private' } });
+    expect(shut.visibility).toBe('private');
   });
 
   it('tells the table when watching is opened, because the table has a right to know', () => {
     const before = lobby().events.length;
     const open = applyAction(lobby(), {
       type: 'settings',
-      patch: { spectatorsAllowed: true },
+      patch: { visibility: 'public' },
     });
     expect(open.events.length).toBe(before + 1);
     expect(open.events.at(-1)?.kind).toBe('settings');
@@ -1161,5 +1169,33 @@ describe('watching and voice', () => {
     expect(withUrl.events.length).toBe(lobby().events.length);
     const cleared = applyAction(withUrl, { type: 'settings', patch: { voiceUrl: null } });
     expect(cleared.voiceUrl).toBe(null);
+  });
+});
+
+describe('table name', () => {
+  it('starts unnamed', () => {
+    expect(lobby().name).toBe('');
+  });
+
+  it('takes a name at creation', () => {
+    const s = lobby(2, { name: 'Bracket 3 chill' });
+    expect(s.name).toBe('Bracket 3 chill');
+  });
+
+  it('reads a game persisted before the field as unnamed', () => {
+    const legacy = lobby() as Partial<GameState>;
+    delete legacy.name;
+    const s = applyAction(legacy as GameState, { type: 'note', message: 'hi', actorSeat: 0 });
+    expect(s.name).toBe('');
+  });
+
+  it('renames through settings, without announcing it', () => {
+    const before = lobby().events.length;
+    const renamed = applyAction(lobby(), {
+      type: 'settings',
+      patch: { name: 'Table Two' },
+    });
+    expect(renamed.name).toBe('Table Two');
+    expect(renamed.events.length).toBe(before);
   });
 });

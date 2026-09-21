@@ -10,7 +10,7 @@ import '@/styles/play-layout-editor.css';
 import '@/styles/play-counters-panel.css';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { Check, Copy, Eye, Swords, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
 import { useAuth } from '../store/auth';
@@ -1114,6 +1114,8 @@ function OnlineSetup({
     hostCommander: string | null;
     hostPartner: string | null;
     hostColorIdentity: string[];
+    name: string;
+    visibility: GameState['visibility'];
   }) => void;
   onJoin: (
     code: string,
@@ -1137,6 +1139,11 @@ function OnlineSetup({
   const [name, setName] = useState(defaultName);
   const [deck, setDeck] = useState<PickedDeck | null>(null);
   const [code, setCode] = useState('');
+  // Identity/visibility for the TABLE, not the player — tuned at create,
+  // unlike every rules field below which is left for the lobby to argue over.
+  const [tableName, setTableName] = useState('');
+  const [visibility, setVisibility] = useState<GameState['visibility']>('private');
+  const visibilityGroup = useId();
 
   // The format decides the table's opening rules; the host tunes them in the
   // lobby afterwards, so they are derived here rather than held as state.
@@ -1179,6 +1186,8 @@ function OnlineSetup({
               hostDeckName: deck?.name ?? null,
               hostCommander: deck?.commander ?? null,
               hostPartner: deck?.partner ?? null,
+              name: tableName.trim(),
+              visibility,
             });
           }}
         >
@@ -1196,7 +1205,10 @@ function OnlineSetup({
           {/* Format alone: it sets the defaults for everything else, and
               every other table rule (life, commander damage, poison, the
               mulligan, the timer) belongs in the lobby, where the pod can see
-              and argue about it. Asking twice was the old shape. */}
+              and argue about it. Asking twice was the old shape. Name and
+              visibility aren't rules either, but they're the table's
+              identity rather than something to tune later, so they join
+              Format here. */}
           <section className="play-setup-row play-setup-game">
             <div className="play-field play-field-inline">
               <span>Format</span>
@@ -1207,6 +1219,45 @@ function OnlineSetup({
                 options={FORMAT_OPTIONS.map((f) => ({ value: f.value, label: f.label }))}
               />
             </div>
+            <label className="play-field play-field-inline">
+              <span>Name</span>
+              <input
+                value={tableName}
+                onChange={(e) => setTableName(e.target.value)}
+                maxLength={60}
+                placeholder="Bracket 3 chill"
+              />
+            </label>
+          </section>
+
+          <section className="play-setup-row">
+            <fieldset className="share-audience" aria-label="Table visibility">
+              {(
+                [
+                  { value: 'private' as const, label: 'Private' },
+                  { value: 'public' as const, label: 'Public' },
+                ] as const
+              ).map((opt) => (
+                <label
+                  key={opt.value}
+                  className={`share-audience-option${visibility === opt.value ? ' is-active' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name={visibilityGroup}
+                    value={opt.value}
+                    checked={visibility === opt.value}
+                    onChange={() => setVisibility(opt.value)}
+                  />
+                  <span>{opt.label}</span>
+                </label>
+              ))}
+            </fieldset>
+            <p className="play-setup-help">
+              {visibility === 'public'
+                ? 'Anyone with the code can watch without a seat.'
+                : 'Reachable by code only. Nobody can watch without a seat.'}
+            </p>
           </section>
 
           <section className="play-setup-roster" aria-label="You">

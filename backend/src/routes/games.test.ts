@@ -2731,7 +2731,7 @@ describe('watching a table without a seat', () => {
         .set('Cookie', hostCookie)
         .send({
           baseVersion: created.body.game.version,
-          actions: [{ type: 'settings', patch: { spectatorsAllowed: true } }],
+          actions: [{ type: 'settings', patch: { visibility: 'public' } }],
         });
     }
     return { hostCookie, code };
@@ -2828,5 +2828,75 @@ describe('the table voice link', () => {
     const cleared = await setVoice(hostCookie, code, set.body.game.version, null);
     expect(cleared.status).toBe(200);
     expect(cleared.body.game.voiceUrl).toBe(null);
+  });
+});
+
+describe('table name and visibility', () => {
+  async function hostGame(tag: string, body: Record<string, unknown> = {}) {
+    const hostCookie = await registerAndGetCookie(tag);
+    const created = await request(app).post('/api/games').set('Cookie', hostCookie).send(body);
+    return {
+      hostCookie,
+      code: created.body.game.code as string,
+      version: created.body.game.version as number,
+      game: created.body.game as Record<string, unknown>,
+    };
+  }
+
+  function patchSettings(cookie: string, code: string, version: number, patch: unknown) {
+    return request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', cookie)
+      .send({ baseVersion: version, actions: [{ type: 'settings', patch }] });
+  }
+
+  it('creates unnamed and private by default', async () => {
+    const { game } = await hostGame('name_default');
+    expect(game.name).toBe('');
+    expect(game.visibility).toBe('private');
+  });
+
+  it('takes a name and visibility at creation', async () => {
+    const { game } = await hostGame('name_create', {
+      name: 'Bracket 3 chill',
+      visibility: 'public',
+    });
+    expect(game.name).toBe('Bracket 3 chill');
+    expect(game.visibility).toBe('public');
+  });
+
+  it('trims and caps a name given at creation', async () => {
+    const { game } = await hostGame('name_create_cap', { name: `  ${'x'.repeat(80)}  ` });
+    expect(game.name).toBe('x'.repeat(60));
+  });
+
+  it('renames and re-visibilities the table through settings', async () => {
+    const { hostCookie, code, version } = await hostGame('name_settings');
+    const res = await patchSettings(hostCookie, code, version, {
+      name: '  Table Two  ',
+      visibility: 'public',
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.game.name).toBe('Table Two');
+    expect(res.body.game.visibility).toBe('public');
+  });
+
+  it('caps a settings-patch name at 60 characters', async () => {
+    const { hostCookie, code, version } = await hostGame('name_settings_cap');
+    const res = await patchSettings(hostCookie, code, version, { name: 'y'.repeat(80) });
+    expect(res.status).toBe(200);
+    expect(res.body.game.name).toBe('y'.repeat(60));
+  });
+
+  it('refuses a non-string name', async () => {
+    const { hostCookie, code, version } = await hostGame('name_settings_bad');
+    const res = await patchSettings(hostCookie, code, version, { name: 42 });
+    expect(res.status).toBe(400);
+  });
+
+  it('refuses a visibility that is not public or private', async () => {
+    const { hostCookie, code, version } = await hostGame('visibility_bad');
+    const res = await patchSettings(hostCookie, code, version, { visibility: 'unlisted' });
+    expect(res.status).toBe(400);
   });
 });
