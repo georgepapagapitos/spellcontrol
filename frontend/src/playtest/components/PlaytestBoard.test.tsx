@@ -54,6 +54,16 @@ function seededState() {
   });
 }
 
+// `.playtest-pile__label`'s count lives in its own reserved-width span
+// (ZonePile.tsx), so the label's own text node no longer equals the whole
+// "Zone (N)" string `screen.getByText` matches against — its full textContent
+// still does.
+function pileLabel(text: string): Element | undefined {
+  return Array.from(document.querySelectorAll('.playtest-pile__label')).find(
+    (el) => el.textContent === text
+  );
+}
+
 function opponent(seat: number): OpponentSeat {
   return {
     name: `Player ${seat}`,
@@ -167,11 +177,14 @@ describe('PlaytestBoard', () => {
 
     // The four zone piles (table layout — isNarrow is false at the default
     // happy-dom viewport width). Each tile carries its own count in the
-    // label now, which is the whole point of the corner row.
-    expect(screen.getByText('Library (3)')).toBeTruthy();
-    expect(screen.getByText('Graveyard (0)')).toBeTruthy();
-    expect(screen.getByText('Exile (0)')).toBeTruthy();
-    expect(screen.getByText('Command (0)')).toBeTruthy();
+    // label now, which is the whole point of the corner row. The count lives
+    // in its own reserved-width span (stops the tile resizing as it crosses
+    // a digit boundary), so match on the label's full text rather than a
+    // single text node.
+    expect(pileLabel('Library (3)')).toBeTruthy();
+    expect(pileLabel('Graveyard (0)')).toBeTruthy();
+    expect(pileLabel('Exile (0)')).toBeTruthy();
+    expect(pileLabel('Command (0)')).toBeTruthy();
   });
 
   it('puts the game menu and the turn chip in the corner instead of a toolbar row', () => {
@@ -1250,7 +1263,7 @@ describe('PlaytestBoard — Space moves the game on', () => {
     );
 
     const board = document.querySelector('.playtest-board')!;
-    const pile = screen.getByText('Library (3)');
+    const pile = pileLabel('Library (3)')!;
     const card = screen.getAllByText(state.zones.hand[0].name)[0];
 
     for (const target of [board, pile, card]) {

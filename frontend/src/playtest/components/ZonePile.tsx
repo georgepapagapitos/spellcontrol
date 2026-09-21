@@ -98,7 +98,7 @@ export function ZonePile({
       {isCommandRow ? (
         <div className="playtest-pile__open playtest-pile__open--row">
           <span className="playtest-pile__label">
-            {label} ({cards.length})
+            {label} <span className="playtest-pile__count">({cards.length})</span>
           </span>
           <span className="playtest-pile__commanders">
             {cards.map((c) => {
@@ -153,7 +153,7 @@ export function ZonePile({
           {/* The count rides in the label, so each tile is one line of text over
             its art and four of them fit a bottom-right corner row. */}
           <span className="playtest-pile__label">
-            {label} ({cards.length})
+            {label} <span className="playtest-pile__count">({cards.length})</span>
           </span>
           <span className="playtest-pile__stack">
             {faceUp && top?.imageUrl && top.id !== erroredId ? (
