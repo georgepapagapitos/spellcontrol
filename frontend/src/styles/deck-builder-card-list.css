@@ -33,6 +33,17 @@
   gap: var(--card-grid-gap);
 }
 
+/* Collapsing a section puts `hidden` on its list, and `hidden` is only a UA
+   `display: none` — which the author `display` above outranks. So a collapsed
+   section kept every card on screen in all three layouts: the chevron turned,
+   the stack narrowed to `width: auto`, and nothing went away. The attribute is
+   what carries the a11y too, so the override belongs on it rather than on
+   `.is-collapsed`. */
+.deck-card-grid[hidden],
+.deck-section-rows[hidden] {
+  display: none;
+}
+
 @media (max-width: 1024px) {
   .deck-card-grid {
     --card-min: var(--card-min-mobile, 110px);
@@ -89,7 +100,14 @@
 
 .deck-card-stack .deck-card-grid-cell + .deck-card-grid-cell {
   margin-top: calc(var(--stack-peek) - var(--stack-card-h));
-  transition: margin-top var(--motion-fast) var(--ease-out-soft);
+  /* A full card of travel (~190px), so it takes the drawer pair rather than
+     the 120ms hover one: at --motion-fast the column jumped rather than moved.
+     --ease-drawer is the sheet curve, and the duration is measured, not
+     guessed — rAF sampling of the real slide puts --motion-base at 78% of the
+     distance within 50ms, which still reads as a snap with a tail, against 49%
+     at --motion-gentle. 500ms (--motion-drawer) is the full-screen rise and
+     drags when the cursor sweeps a column. */
+  transition: margin-top var(--motion-gentle) var(--ease-drawer);
 }
 
 /* Later siblings paint over earlier ones by DOM order; hovering or focusing a
