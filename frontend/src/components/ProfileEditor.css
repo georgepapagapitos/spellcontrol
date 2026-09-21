@@ -111,24 +111,3 @@
     min-height: 44px;
   }
 }
-
-/* Read-only handle line under the identity row: the value leads, the reason
-   it matters follows in the hint voice the settings cards already use. */
-.profile-editor-handle {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-1) var(--space-2);
-  margin: calc(var(--space-3) * -1) 0 0;
-}
-
-.profile-editor-handle-value {
-  color: var(--text-primary);
-  font-size: var(--text-sm);
-  font-weight: 600;
-}
-
-.profile-editor-handle-hint {
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-}

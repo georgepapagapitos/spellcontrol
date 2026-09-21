@@ -157,19 +157,6 @@ export function ProfileEditor() {
         </div>
       </div>
 
-      {/* The handle has no editor of its own (usernames are fixed at sign-up),
-          but it is how friends search for you and what every /u/ link and
-          attribution line falls back to when no display name is set. Leaving
-          it off this screen meant nobody could find out what theirs was. */}
-      {username && (
-        <p className="profile-editor-handle">
-          <span className="profile-editor-handle-value">@{username}</span>
-          <span className="profile-editor-handle-hint">
-            Your username, how friends find you. It stays the same.
-          </span>
-        </p>
-      )}
-
       <div className="field profile-editor-field">
         <label htmlFor={bioId}>Bio</label>
         <textarea
