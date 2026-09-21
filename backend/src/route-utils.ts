@@ -9,30 +9,36 @@ export type TaggedLimiter = ((req: Request, res: Response, next: () => void) => 
 };
 
 /**
- * Marks a middleware as "this is the rate limiter".
- *
- * Needed because the middleware has two shapes: a real express-rate-limit
- * instance in production and a passthrough under test. Nothing about the
- * passthrough says "limiter", so `rate-limit-coverage.test.ts` — which runs in
- * the test env, where the passthrough is what it sees — could not otherwise
- * tell a limited route from an unlimited one.
+ * Marks a middleware as "this is the rate limiter", so
+ * `rate-limit-coverage.test.ts` can assert every route carries one without
+ * depending on what express-rate-limit's instance happens to look like.
  */
 export const RATE_LIMITED = Symbol.for('spellcontrol.rateLimited');
 
 /**
- * Returns a passthrough middleware in test environments and a real
- * express-rate-limit middleware in production. Avoids rate-limit state
- * leaking between test cases while keeping the production path identical.
+ * The rate limiter every `/api` route mounts.
  *
- * Both shapes carry `RATE_LIMITED`. CodeQL's `js/missing-rate-limiting` cannot
- * see through this branch and flags every route on every router that uses it
- * (~99 dismissed instances and counting), so the repo's real check that no
- * route ships unlimited is `rate-limit-coverage.test.ts`, not CodeQL.
+ * Always a real express-rate-limit instance. Tests are exempted per request via
+ * `skip` rather than by swapping the middleware for a passthrough, which is the
+ * same behaviour by a better route:
+ *
+ *   - `skip` is evaluated before the key generator and before any store write
+ *     (see express-rate-limit's `index.cjs`), so a test still accumulates no
+ *     counter state between cases — the entire reason the old branch existed.
+ *   - CodeQL's `js/missing-rate-limiting` follows the value that flows into the
+ *     route. A ternary returning either `rateLimit(...)` or a bare `next()` lost
+ *     it, so the query flagged every route on every router that used one: ~99
+ *     instances dismissed as false positives by 2026-09-21, three more on every
+ *     PR that touched a router. A check that is wrong every time stops being
+ *     read and starts being dismissed on reflex, and the first true positive
+ *     gets dismissed with it. Now the query sees a `rateLimit()` and stays
+ *     useful for a route that genuinely ships unlimited.
+ *
+ * Production is unchanged: `isTest` is false there, so `skip` always returns
+ * false and the limiter counts every request exactly as before.
  */
 export function testAwareLimiter(opts: Partial<Options>): TaggedLimiter {
-  const mw: TaggedLimiter = isTest
-    ? (_req: Request, _res: Response, next: () => void) => next()
-    : (rateLimit(opts) as unknown as TaggedLimiter);
+  const mw = rateLimit({ ...opts, skip: () => isTest }) as unknown as TaggedLimiter;
   mw[RATE_LIMITED] = true;
   return mw;
 }
