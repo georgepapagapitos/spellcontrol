@@ -1204,7 +1204,9 @@ body[data-sleeve='purple'] {
   position: absolute;
   top: var(--space-1);
   right: var(--space-1);
-  z-index: 1;
+  /* Above the token ribbon, which crosses the same corner — an attached
+     token has to show both. */
+  z-index: 3;
   font-size: var(--text-xs);
   line-height: 1;
   padding: 2px;
@@ -1262,6 +1264,30 @@ body[data-sleeve='purple'] {
   text-transform: uppercase;
   color: #2b2b2b;
   background: var(--mtg-counter-gold);
+  pointer-events: none;
+}
+
+/* A token copy. The same physical-ribbon treatment as the stack banner, on
+   the opposite corner and in ink rather than gold: the two can be true at
+   once, and a token on the stack must read as both. Slate, not a status
+   colour — being a token is what the card IS, not something happening to
+   it. */
+.playtest-card__token-ribbon {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  transform: translate(29%, 34%) rotate(45deg);
+  transform-origin: center;
+  width: 100%;
+  padding: 1px 0;
+  font-size: var(--text-xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+  color: #f3f4f6;
+  background: rgba(31, 41, 55, 0.92);
   pointer-events: none;
 }
 
