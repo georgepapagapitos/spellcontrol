@@ -274,6 +274,44 @@ function logEntry(overrides: Partial<GameLogEntry> = {}): GameLogEntry {
   return { seq: 1, turn: 1, kind: 'play', text: 'Grizzly Bears played from hand', ...overrides };
 }
 
+describe('toPublicBoard — the revealed library', () => {
+  it('leaves the field off entirely while the library is private', () => {
+    expect(toPublicBoard(baseState(), 1).revealedLibrary).toBeUndefined();
+    expect(toPublicBoard(baseState({ libraryReveal: 'none' }), 1).revealedLibrary).toBeUndefined();
+    // An empty library has nothing to show even in a revealing mode.
+    const emptied = baseState({ libraryReveal: 'all' });
+    emptied.zones.library = [];
+    expect(toPublicBoard(emptied, 1).revealedLibrary).toBeUndefined();
+  });
+
+  it('shows exactly the top card while playing with the top revealed', () => {
+    const state = baseState({ libraryReveal: 'top' });
+    const shown = toPublicBoard(state, 1).revealedLibrary;
+    expect(shown).toHaveLength(1);
+    expect(shown?.[0].id).toBe(state.zones.library[0].id);
+  });
+
+  it('shows the whole library, in order, while revealing all of it', () => {
+    const state = baseState({ libraryReveal: 'all' });
+    const shown = toPublicBoard(state, 1).revealedLibrary;
+    expect(shown?.map((c) => c.id)).toEqual(state.zones.library.map((c) => c.id));
+  });
+
+  it('is read off the live library, so a draw changes what the table sees', () => {
+    const state = baseState({ libraryReveal: 'top' });
+    const was = toPublicBoard(state, 1).revealedLibrary?.[0].id;
+    const drawn = { ...state, zones: { ...state.zones, library: state.zones.library.slice(1) } };
+    const now = toPublicBoard(drawn, 1).revealedLibrary?.[0].id;
+    expect(now).not.toBe(was);
+    expect(now).toBe(drawn.zones.library[0].id);
+  });
+
+  it('projects cards, so no image url rides along with them', () => {
+    const shown = toPublicBoard(baseState({ libraryReveal: 'all' }), 1).revealedLibrary ?? [];
+    for (const c of shown) expect(c).not.toHaveProperty('imageUrl');
+  });
+});
+
 describe('toPublicTicker', () => {
   it('keeps public kinds and projects seq/kind/text/cardName only', () => {
     const ticker = toPublicTicker([

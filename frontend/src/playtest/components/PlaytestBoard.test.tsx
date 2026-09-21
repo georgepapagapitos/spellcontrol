@@ -267,6 +267,127 @@ describe('PlaytestBoard', () => {
     expect(dispatch).toHaveBeenCalledWith({ type: 'SHUFFLE_LIBRARY' });
   });
 
+  // Every EDHPlay library action our menu was missing. They all hang off the
+  // same right-click, so they are exercised through it rather than by
+  // reaching for the component.
+  function openLibraryMenu() {
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^Draw a card\./ }), {
+      clientX: 20,
+      clientY: 20,
+    });
+  }
+
+  it('draws a chosen number of cards from the Draw several page', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    openLibraryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /Draw several/ }));
+    // Opens on 2 — one card is what the row above it already does.
+    fireEvent.click(screen.getByRole('button', { name: 'One more card' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Draw 3 cards' }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'DRAW', n: 3 });
+  });
+
+  it('never offers to draw more cards than the library holds', () => {
+    // A three-card library (seededState deals 7 of 10 to hand).
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    openLibraryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /Draw several/ }));
+    const more = screen.getByRole('button', { name: 'One more card' });
+    fireEvent.click(more);
+    fireEvent.click(more);
+    fireEvent.click(more);
+    expect(screen.getByRole('button', { name: 'Draw 3 cards' })).toBeTruthy();
+    expect((more as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('shows a random card without moving it', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    openLibraryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Select a random card' }));
+    expect(screen.getByText('A random card from the library')).toBeTruthy();
+    // Looking is not a move: the reducer never hears about it.
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('plays with the top card revealed, and turns the pile face up while it is on', () => {
+    const { rerender } = render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    // Off to begin with: the library shows a card back, not a card.
+    expect(document.querySelector('.playtest-pile__back--library')).toBeTruthy();
+
+    openLibraryMenu();
+    const row = screen.getByRole('menuitemcheckbox', {
+      name: /Play with the top card revealed/,
+    });
+    expect(row.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(row);
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_LIBRARY_REVEAL', reveal: 'top' });
+
+    const revealed = applyAction(seededState(), { type: 'SET_LIBRARY_REVEAL', reveal: 'top' });
+    rerender(
+      <MemoryRouter>
+        <PlaytestBoard state={revealed} />
+      </MemoryRouter>
+    );
+    expect(document.querySelector('.playtest-pile__back--library')).toBeNull();
+    openLibraryMenu();
+    expect(
+      screen
+        .getByRole('menuitemcheckbox', { name: /Play with the top card revealed/ })
+        .getAttribute('aria-checked')
+    ).toBe('true');
+  });
+
+  it('keeps the whole-library reveal off the solo menu — there is nobody to show', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    openLibraryMenu();
+    expect(
+      screen.queryByRole('menuitemcheckbox', { name: /Reveal the library to the table/ })
+    ).toBeNull();
+    // The solo-safe one is still there.
+    expect(
+      screen.getByRole('menuitemcheckbox', { name: /Play with the top card revealed/ })
+    ).toBeTruthy();
+  });
+
+  it('empties a zone into another from Move all to', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    openLibraryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /Move all to/ }));
+    // The zone the cards are already in is not a destination.
+    expect(screen.queryByRole('menuitem', { name: /^Library/ })).toBeNull();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Graveyard' }));
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'MOVE_ALL_TO',
+      from: 'library',
+      to: 'graveyard',
+      toIndex: undefined,
+    });
+  });
+
   it('gives every pile a menu, with the graveyard its shuffle-back', () => {
     render(
       <MemoryRouter>

@@ -150,6 +150,21 @@ export function classifyAction(
     case 'MOVE_TO_ZONE':
       return moveToZoneVerdict(locateZone(current, action.cardId));
 
+    case 'MOVE_ALL_TO':
+      // Same rule as one card moving, applied to the whole zone: emptying
+      // the library into somewhere public shows the actor every card that
+      // was in it, which no replay can un-show.
+      return moveToZoneVerdict(action.from);
+
+    case 'SET_LIBRARY_REVEAL':
+      // The mirror of TOGGLE_REVEAL, for the other private zone: the actor
+      // learned nothing, the table saw something, and hiding it again is
+      // theirs to overlook.
+      return classification(
+        'consent',
+        'The table saw the library. Hiding it again is something the others have to agree to overlook.'
+      );
+
     case 'MOVE_TO_BATTLEFIELD':
       return moveToBattlefieldVerdict(locateZone(current, action.cardId));
 
