@@ -25,8 +25,12 @@ interface Props {
  */
 export function CardStatusStrip({ card, bf, attachedToName, tax = 0 }: Props) {
   const counters = Object.entries(bf?.counters ?? {}).filter(([, n]) => n > 0);
-  const pt = bf?.pt;
-  const pumped = pt && (pt.power !== 0 || pt.toughness !== 0) ? displayPT(card, bf) : null;
+  // The body as the board reads it, which folds in BOTH the hand-applied
+  // modifier and the ±1/±1 counters (see `displayPT`). `modified` is what
+  // says the printed values are no longer the true ones, so it is the whole
+  // condition for printing a current body at all.
+  const body = displayPT(card, bf);
+  const pumped = body?.modified ? body : null;
 
   const chips: Array<{ key: string; tone: 'state' | 'counter' | 'link'; text: string }> = [];
   if (bf?.tapped) chips.push({ key: 'tapped', tone: 'state', text: 'Tapped' });

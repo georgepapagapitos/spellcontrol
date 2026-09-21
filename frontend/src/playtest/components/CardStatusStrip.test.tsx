@@ -38,7 +38,7 @@ describe('CardStatusStrip', () => {
     expect(screen.getByText('Face down')).toBeTruthy();
   });
 
-  it('tallies counters and the body the player has pumped it to', () => {
+  it('tallies counters and prints the body the board actually reads', () => {
     render(
       <CardStatusStrip
         card={card}
@@ -48,7 +48,15 @@ describe('CardStatusStrip', () => {
     expect(screen.getByText('+1/+1 ×3')).toBeTruthy();
     // A counter kind stepped back to zero is not a fact about the card.
     expect(screen.queryByText(/stun/)).toBeNull();
-    expect(screen.getByText('Now 4/2')).toBeTruthy();
+    // 2/2, three +1/+1 counters and a +2/+0 pump. The counters are part of the
+    // body (`displayPT`), so the strip must not print the pump alone as 4/2 —
+    // that is a size the permanent does not have.
+    expect(screen.getByText('Now 7/5')).toBeTruthy();
+  });
+
+  it('prints a body changed by counters alone, with no hand-applied pump', () => {
+    render(<CardStatusStrip card={card} bf={bf({ counters: { '-1/-1': 1 } })} />);
+    expect(screen.getByText('Now 1/1')).toBeTruthy();
   });
 
   it('points at the host and the tax', () => {
