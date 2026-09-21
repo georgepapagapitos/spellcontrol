@@ -2776,7 +2776,13 @@ i.ss.set-symbol--mythic {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 44px;
+    /* Capped at the badge's own pitch (its box plus the row's gap), for the
+       same reason the height is capped at the row: the two badges sit 33.8px
+       apart in the tile corner, so a 44px-wide ghost overlapped its
+       neighbour by ~10px and the badge painted later won that strip — a tap
+       on the deck badge opened the BINDER sheet. The nightly journey's
+       overlapping-target check caught it. */
+    width: calc(100% + var(--space-1));
     height: 36px;
     transform: translate(-50%, -50%);
   }
@@ -2790,7 +2796,13 @@ i.ss.set-symbol--mythic {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 44px;
+    /* Capped at the badge's own pitch (its box plus the row's gap), for the
+       same reason the height is capped at the row: the two badges sit 33.8px
+       apart in the tile corner, so a 44px-wide ghost overlapped its
+       neighbour by ~10px and the badge painted later won that strip — a tap
+       on the deck badge opened the BINDER sheet. The nightly journey's
+       overlapping-target check caught it. */
+    width: calc(100% + var(--space-1));
     height: 36px;
     transform: translate(-50%, -50%);
   }

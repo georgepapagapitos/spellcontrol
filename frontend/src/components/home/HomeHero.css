@@ -314,10 +314,18 @@
     content: '';
     position: absolute;
     top: 50%;
-    left: 50%;
+    /* Anchored to the button's LEFT edge, not centred on it: a centred 44px
+       ghost around a 1.6rem circle reaches ~9px past the button on each side,
+       and the left reach measured 2.8px INTO the search field — a tap aimed
+       at the end of the query submitted it instead of placing the caret.
+       Growing rightwards puts the extra target in the row's own trailing
+       padding, where there is nothing to steal. Giving the field a margin
+       does NOT work: the pill is `flex: 1 1 12rem`, so it absorbs the margin
+       by shrinking and the button slides left with it. */
+    left: 0;
     width: 44px;
     height: 44px;
-    transform: translate(-50%, -50%);
+    transform: translateY(-50%);
   }
 }
 

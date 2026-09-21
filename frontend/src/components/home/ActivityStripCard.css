@@ -6,7 +6,9 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  /* No gap: each row owns its full 44px and they meet edge to edge. The gap
+     was separating rows that pulled 8px into each other. */
+  gap: 0;
 }
 
 .activity-strip-link {
@@ -14,7 +16,10 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2);
-  margin: calc(var(--space-2) * -1);
+  /* INLINE only — see .new-from-friends-link: a negative block margin overlaps
+     the row above and below, and the row painted later wins the strip, so the
+     bottom of each row opened the wrong notification. */
+  margin-inline: calc(var(--space-2) * -1);
   border-radius: var(--radius);
   text-decoration: none;
   color: inherit;
