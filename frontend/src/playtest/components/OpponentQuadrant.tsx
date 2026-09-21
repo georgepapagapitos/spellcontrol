@@ -16,10 +16,17 @@ import './OpponentQuadrant.css';
  *  exact count is in the aria-label and the inspector either way. */
 const MAX_HAND_BACKS = 10;
 
-/** The seat grid's gate. At 1440px and up a 2x2 of boards each still gets a
- *  legible ~700px half, which is what makes equal boards right here and wrong
- *  everywhere narrower (STYLE_GUIDE). */
-export const TABLE_GRID_QUERY = '(min-width: 1440px)';
+/** The seat grid's gate. Shares the same 1024px floor as every other "table
+ *  chrome" tier in this file's CSS (`useNarrowViewport`'s `isNarrow`,
+ *  playtest.css's corner-chrome rules) rather than a breakpoint of its own —
+ *  below it the whole layout switches to the mobile shell (row hand, sheet
+ *  drawers), which a seat grid can't coexist with regardless of width.
+ *  Card size inside a quadrant is container-driven, not viewport-driven (see
+ *  OpponentQuadrant.css), and floors at 36px — a floor the CSS already hits
+ *  at the old 1440px gate on a typical laptop height, so pushing the gate
+ *  down to 1024 asks nothing of the quadrant it wasn't already doing
+ *  (STYLE_GUIDE "Desktop table with opponents: 2x2, not a rail"). */
+export const TABLE_GRID_QUERY = '(min-width: 1024px)';
 
 /** A 2x2 grid seats four. A fifth player would have to be hidden, and no
  *  opponent is ever hidden — that table keeps the rail. */

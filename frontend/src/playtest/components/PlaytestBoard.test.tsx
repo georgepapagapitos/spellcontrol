@@ -115,7 +115,7 @@ function seatedTable(opponents: OpponentSeat[]): OnlineTable {
 }
 
 /** Evaluate the board's real media queries against a width, the way
- *  OpponentRail.test.tsx does, so the seat grid's own `(min-width: 1440px)`
+ *  OpponentRail.test.tsx does, so the seat grid's own `(min-width: 1024px)`
  *  gate is exercised rather than stubbed away. */
 function stubWidth(width: number, finePointer = false) {
   Object.defineProperty(window, 'matchMedia', {
@@ -612,7 +612,7 @@ describe('PlaytestBoard', () => {
     expect(dispatch).toHaveBeenCalledWith({ type: 'DRAW', n: 1 });
   });
 
-  it('lays every seat out as a quadrant at 1440px and up, and keeps the rail below it', () => {
+  it('lays every seat out as a quadrant at 1024px and up, and keeps the rail below it', () => {
     onlineTable = seatedTable([opponent(1), opponent(2), opponent(3)]);
     stubWidth(1920);
     const { container, unmount } = render(
@@ -625,8 +625,20 @@ describe('PlaytestBoard', () => {
     expect(container.querySelector('.opponent-rail')).toBeNull();
     unmount();
 
-    // One pixel under the gate, the rail is still the answer.
-    stubWidth(1439);
+    // Right at the gate, still a grid — an ordinary laptop window, not just a
+    // maximised one, keeps real boards.
+    stubWidth(1024);
+    const atGate = render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(atGate.container.querySelector('.playtest-main--grid')).toBeTruthy();
+    atGate.unmount();
+
+    // One pixel under the gate — the same floor `isNarrow` already draws —
+    // the rail is still the answer.
+    stubWidth(1023);
     const below = render(
       <MemoryRouter>
         <PlaytestBoard state={seededState()} />

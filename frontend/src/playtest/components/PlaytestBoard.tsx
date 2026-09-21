@@ -457,11 +457,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
 
   const takeback = useTakeback(onlineTable);
   // Desktop seat grid (STYLE_GUIDE "Desktop table with opponents: 2x2, not a
-  // rail"): at 1440px and up, an online table with opponents lays every seat
-  // out as an equal quadrant instead of a board plus a rail. Capped at three
-  // opponents — a 2x2 grid holds four seats, and a fifth would have to hide
-  // one, which the rail exists precisely never to do. Below 1440, on phones,
-  // and at a five-seat pod, the rail is still the answer.
+  // rail"): at 1024px and up (the same "table chrome" floor `isNarrow` already
+  // draws), an online table with opponents lays every seat out as an equal
+  // quadrant instead of a board plus a rail — an opponent's battlefield is the
+  // point of the table, and it stays a real board at any width that tier can
+  // physically hold it at. Capped at three opponents — a 2x2 grid holds four
+  // seats, and a fifth would have to hide one, which the rail exists precisely
+  // never to do. Below 1024, on phones, and at a five-seat pod, the rail is
+  // still the answer.
   const wideTable = useMediaQuery(TABLE_GRID_QUERY);
   const opponents = onlineTable?.opponents ?? NO_OPPONENTS;
   // A five-seat pod and the narrow tiers are still rail-only whatever the
