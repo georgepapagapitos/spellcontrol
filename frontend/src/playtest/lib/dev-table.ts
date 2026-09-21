@@ -1,5 +1,6 @@
 import { createGameState, makePlayer, type GameState } from '@/lib/game-state';
 import type { GameRequest, GameSignal } from '@/lib/games-api';
+import type { PublicBoard } from '@/lib/playtest/projection';
 import { usePlayStore } from '@/store/play';
 import { logger } from '@/lib/logger';
 
@@ -20,6 +21,12 @@ import { logger } from '@/lib/logger';
  *  - `online`          the table itself, built by game-core's own
  *                      `createGameState`, so the fake is the same shape the
  *                      server would have sent
+ *  - `onlineBoards`    one published board per opponent, each already having
+ *                      kept its opening hand. Without these the opening-hand
+ *                      takeover never lifts: it waits on every other seat, and
+ *                      a seat with no published board reads as still choosing,
+ *                      so the table sits on "Waiting for Maya, Devon and
+ *                      Priya" forever
  *  - `onlineRequests`  holds (`kind: 'hold'`) and takebacks (`kind: 'rewind'`)
  *  - `onlineSignal`    an incoming reaction
  *
@@ -129,6 +136,28 @@ export function seedDevTable(opts: DevTableOptions): GameState {
     ts: Date.now(),
   });
 
+  // Every opponent has already kept, so keeping your own hand starts the game
+  // instead of waiting on seats that will never answer.
+  const onlineBoards: Record<number, PublicBoard> = {};
+  for (let seat = 1; seat < seats; seat++) {
+    onlineBoards[seat] = {
+      seat,
+      turn: 1,
+      life: 40,
+      commanderTax: {},
+      monarch: false,
+      initiative: false,
+      citysBlessing: false,
+      battlefield: [],
+      graveyard: [],
+      exile: [],
+      command: [],
+      handCount: 7,
+      libraryCount: 92,
+      keptHand: true,
+    };
+  }
+
   const onlineRequests: Record<number, GameRequest> = {};
   if (opts.hold) onlineRequests[1] = request('hold', 1, 'Holding. Anyone respond?');
   if (opts.takeback) {
@@ -142,7 +171,7 @@ export function seedDevTable(opts: DevTableOptions): GameState {
     online,
     onlineRequests,
     onlineSignal,
-    onlineBoards: {},
+    onlineBoards,
     onlineArrows: [],
     onlineTicker: [],
     boardVisible: true,
