@@ -79,6 +79,8 @@ import {
 } from './OpponentQuadrant';
 import { OpponentBoardModal } from './OpponentBoardModal';
 import { TableMoments } from './TableMoments';
+import { TriggerReminder, type TriggerCard } from './TriggerReminder';
+import { matchTriggers } from '../lib/triggers';
 import { TableTicker, tickerSeatName } from './TableTicker';
 import { TakebackModePicker } from './TakebackModePicker';
 import { TakebackPendingBanner } from './TakebackPendingBanner';
@@ -1209,6 +1211,43 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     return true;
   }, []);
 
+  /**
+   * Your permanents that carry an "at the beginning of …" trigger, for the
+   * boundary reminder. Read off `cardLookup` rather than the reducer, since
+   * `PlaytestCard` deliberately holds no oracle text.
+   *
+   * Face-down and phased-out permanents are left out: a face-down card is a
+   * 2/2 with no abilities, and a phased-out one is not there to trigger. A
+   * token, or any card the lookup can't key, has no oracle text to read and so
+   * never reminds.
+   */
+  const triggerCards = useMemo<TriggerCard[]>(() => {
+    if (!cardLookup) return [];
+    const out: TriggerCard[] = [];
+    for (const bf of state.battlefield) {
+      if (bf.faceDown || bf.phased) continue;
+      const sc = cardLookup.get(bf.card.id);
+      if (!sc) continue;
+      const faces = sc.card_faces;
+      const text = bf.showBackFace
+        ? (faces?.[1]?.oracle_text ?? sc.oracle_text)
+        : (sc.oracle_text ?? faces?.[0]?.oracle_text);
+      const hits = matchTriggers(text);
+      if (hits.length > 0) out.push({ id: bf.card.id, name: bf.card.name, hits });
+    }
+    return out;
+  }, [cardLookup, state.battlefield]);
+
+  /** Bring one card into view and select it, so a name in the reminder leads
+   *  to the permanent it names. Selection, not a ping: a ping is a table
+   *  signal, and your own bookkeeping is nobody else's business. */
+  const locateCard = useCallback((cardId: string) => {
+    setSelected(new Set([cardId]));
+    document
+      .querySelector<HTMLElement>(`[data-card-id="${CSS.escape(cardId)}"]`)
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, []);
+
   /** Look at one card off an end of the library without moving it. */
   const peekLibrary = useCallback(
     (where: 'top' | 'bottom') => {
@@ -2134,6 +2173,13 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           here only decides conditional gating, not layout. */}
       {onlineTable && <TakebackConsentPrompt onlineTable={onlineTable} />}
       {onlineTable && <TableMoments onlineTable={onlineTable} />}
+      <TriggerReminder
+        cards={triggerCards}
+        beat={onlineTable?.phase ?? null}
+        turn={state.turn}
+        myTurn={onlineTable === null || myTurn}
+        onLocate={locateCard}
+      />
       {onlineTable &&
         viewingBoardSeat != null &&
         (() => {
