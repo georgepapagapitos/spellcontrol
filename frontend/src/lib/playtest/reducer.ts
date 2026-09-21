@@ -125,6 +125,7 @@ function snapshot(state: PlaytestState): Omit<PlaytestState, 'past'> {
     manaPool: state.manaPool ? { ...state.manaPool } : undefined,
     stack: state.stack ? state.stack.slice() : undefined,
     revealed: state.revealed ? state.revealed.slice() : undefined,
+    libraryReveal: state.libraryReveal,
   };
 }
 
@@ -355,6 +356,12 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       next.zones[action.to] = action.toIndex === 0 ? moving.concat(dest) : dest.concat(moving);
       return withHistory(state, next);
     }
+    case 'REVEAL_TOP_CARD':
+      // Deliberately returns the state it was given: showing a card moves
+      // nothing and changes nothing, so there is no snapshot to push and
+      // nothing to undo. `buildLogEntries` still runs, and the line it
+      // writes (naming the card, on the public ticker) is the whole action.
+      return state;
     case 'SET_LIBRARY_REVEAL': {
       if ((state.libraryReveal ?? 'none') === action.reveal) return state;
       const next = snapshot(state);

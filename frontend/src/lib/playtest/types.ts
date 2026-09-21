@@ -209,7 +209,17 @@ export interface PlaytestState {
  *  library and redistribute it — differing only in where the cards you don't
  *  keep on top are allowed to go (bottom for scry, graveyard for the other
  *  two) and, for mill, in nothing going back on top by default. */
-export type LibraryReveal = 'none' | 'top' | 'all';
+/**
+ * How much of the library its owner is showing, and to whom.
+ *
+ * `top` and `all` are shown to the table. `top-me` is the SAME face-up pile
+ * shown only to the player whose library it is: the projection leaves it out
+ * entirely, so "Me" is private at the wire and not merely hidden in an
+ * opponent's UI. There is deliberately no `all-me` — you can already read
+ * your own library with the viewer, so revealing it to yourself would be a
+ * second way to do nothing.
+ */
+export type LibraryReveal = 'none' | 'top' | 'top-me' | 'all';
 
 export type ScryMode = 'scry' | 'surveil' | 'mill';
 
@@ -231,6 +241,11 @@ export type PlaytestAction =
   /** Show the table the top of your library, all of it, or none of it. See
    *  `PlaytestState.libraryReveal`. */
   | { type: 'SET_LIBRARY_REVEAL'; reveal: LibraryReveal }
+  /** Show the table the card on top of your library, once. Changes nothing —
+   *  it is an event, not a state: the log line naming the card IS the whole
+   *  effect, and it rides the public ticker out to the table. Distinct from
+   *  `SET_LIBRARY_REVEAL`, which is the standing "play with it face up". */
+  | { type: 'REVEAL_TOP_CARD' }
   | {
       /** Resolve a look-at-the-top-N. Ids not currently in the library — and
        *  repeats across the three lists — are ignored; `top` keeps cards on

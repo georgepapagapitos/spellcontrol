@@ -176,7 +176,10 @@ export interface PublicBoard {
  *  the wire for the overwhelmingly common private case. */
 function projectRevealedLibrary(state: PlaytestState): ProjectedCard[] | undefined {
   const mode = state.libraryReveal ?? 'none';
-  if (mode === 'none' || state.zones.library.length === 0) return undefined;
+  // `top-me` is the whole point of the audience split: the owner sees a
+  // face-up pile, and nothing about it crosses the wire. Filtering it in an
+  // opponent's UI instead would put the card name in every client's payload.
+  if (mode === 'none' || mode === 'top-me' || state.zones.library.length === 0) return undefined;
   const shown = mode === 'top' ? state.zones.library.slice(0, 1) : state.zones.library;
   return shown.map(toProjectedCard);
 }

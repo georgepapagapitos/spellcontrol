@@ -633,3 +633,52 @@ describe('buildLogEntries — attachments and player counters', () => {
     expect(buildLogEntries(s, under, applyAction(s, under))).toEqual([]);
   });
 });
+
+/**
+ * `reveal` is a PUBLIC ticker kind (see `TICKER_KINDS`), so anything logged
+ * here reaches the table. The Me audience exists precisely so the table is
+ * NOT told, which makes the absence of a line the feature, not an omission.
+ */
+describe('buildLogEntries — a reveal says only what the table may hear', () => {
+  function log(before: PlaytestState, action: Parameters<typeof applyAction>[1]) {
+    return buildLogEntries(before, action, applyAction(before, action));
+  }
+
+  it('announces a reveal meant for everyone', () => {
+    const entries = log(init(10), { type: 'SET_LIBRARY_REVEAL', reveal: 'top' });
+    expect(entries).toHaveLength(1);
+    expect(entries[0].kind).toBe('reveal');
+    expect(entries[0].text).toContain('top card');
+  });
+
+  it('says nothing at all for the Me audience', () => {
+    expect(log(init(10), { type: 'SET_LIBRARY_REVEAL', reveal: 'top-me' })).toEqual([]);
+  });
+
+  it('does not announce turning a private reveal back off', () => {
+    const priv = applyAction(init(10), { type: 'SET_LIBRARY_REVEAL', reveal: 'top-me' });
+    // Nothing was public, so there is nothing to say stopped.
+    expect(log(priv, { type: 'SET_LIBRARY_REVEAL', reveal: 'none' })).toEqual([]);
+  });
+
+  it('does announce turning a public reveal off', () => {
+    const shown = applyAction(init(10), { type: 'SET_LIBRARY_REVEAL', reveal: 'all' });
+    const entries = log(shown, { type: 'SET_LIBRARY_REVEAL', reveal: 'none' });
+    expect(entries).toHaveLength(1);
+    expect(entries[0].text).toContain('Stopped');
+  });
+
+  it('names the card for a one-shot reveal — the line IS the action', () => {
+    const s = init(10, 1, 0);
+    const entries = log(s, { type: 'REVEAL_TOP_CARD' });
+    expect(entries).toHaveLength(1);
+    expect(entries[0].kind).toBe('reveal');
+    expect(entries[0].cardName).toBe(s.zones.library[0].name);
+    expect(entries[0].text).toContain(s.zones.library[0].name);
+  });
+
+  it('says nothing when there is no library left to reveal', () => {
+    const empty = init(10, 1, 10);
+    expect(log(empty, { type: 'REVEAL_TOP_CARD' })).toEqual([]);
+  });
+});

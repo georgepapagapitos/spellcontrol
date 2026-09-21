@@ -176,8 +176,30 @@ function buildRawLogEntries(
       ];
     }
 
+    case 'REVEAL_TOP_CARD': {
+      // Reads `current`, not `next` — the action changes nothing, so the two
+      // are the same object and only the card matters.
+      const card = current.zones.library[0];
+      if (!card) return [];
+      return [
+        {
+          turn,
+          kind: 'reveal',
+          text: `Revealed ${card.name} from the top of the library`,
+          cardName: card.name,
+        },
+      ];
+    }
+
     case 'SET_LIBRARY_REVEAL': {
       if (next === current) return []; // already in that mode
+      // `reveal` is a PUBLIC ticker kind, so a line here reaches the table.
+      // Showing yourself your own top card is the one mode that must not
+      // write one — announcing it is exactly the leak `top-me` exists to
+      // avoid — and neither must switching that private mode back off.
+      if (action.reveal === 'top-me') return [];
+      const was = current.libraryReveal ?? 'none';
+      if (action.reveal === 'none' && was !== 'top' && was !== 'all') return [];
       const text =
         action.reveal === 'top'
           ? 'Playing with the top card of the library revealed'
