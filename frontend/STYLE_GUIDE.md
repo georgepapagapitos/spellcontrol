@@ -5505,6 +5505,31 @@ somebody indicating a card still has to get through.
 
 ---
 
+## Card corner ribbons — state on the left, identity on the right (2026-09-20 ruling)
+
+A ribbon is the only card mark that survives the card being half-buried under
+another one, so it is reserved for the two things a player must never misread,
+and the corner says which kind it is:
+
+- **Top-left, gold: what is happening to the card.** `Stack` — waiting to
+  resolve. Transient, paired with a ring so a covered card still reads.
+- **Top-right, slate: what the card is.** `Token` — this one is a token copy,
+  not the printed card it is a picture of. Permanent for the card's whole life,
+  and deliberately ink rather than a status colour: being a token is not
+  something happening to the permanent.
+
+Both can be true at once, which is why they take opposite corners rather than
+one shared slot. A ribbon is `aria-hidden` (a 45° banner read aloud mid-name is
+noise) — the fact goes in the card's own `aria-label` instead. Anything that
+shares a ribbon's corner, like the attachment link glyph, layers above it.
+Face-down hides the token ribbon along with the power/toughness and counters:
+the back of a card gives nothing away.
+
+Everything else about a card — counters, stickers, phasing, attachment — is a
+badge, not a ribbon. If a third ribbon ever seems necessary, it is a badge.
+
+---
+
 ## Extending this guide
 
 When you and a reviewer settle a recurring visual question ("should X be a pill?",

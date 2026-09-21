@@ -97,6 +97,15 @@ export const PlaytestCardFace = memo(
             Stack
           </span>
         )}
+        {/* A token wears the word, the way a proxy at a real table does — a
+            token copy of a printed card is otherwise pixel-identical to the
+            card it copied, and the difference decides what survives a bounce.
+            Hidden face-down along with everything else the back conceals. */}
+        {card.isToken && !faceDown && (
+          <span className="playtest-card__token-ribbon" aria-hidden>
+            Token
+          </span>
+        )}
         {counterList.length > 0 && (
           <div className="playtest-card__counters">
             {counterList.slice(0, MAX_VISIBLE_COUNTERS).map(([kind, n]) => (

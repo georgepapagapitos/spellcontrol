@@ -146,7 +146,12 @@ export const PlaytestCardView = memo(function PlaytestCardView({
       onTouchCancel={onLongPress ? longPress.onTouchCancel : undefined}
       role="button"
       tabIndex={0}
-      aria-label={[card.name, bf?.phased && 'phased out', onStack && 'on the stack']
+      aria-label={[
+        card.name,
+        card.isToken && !bf?.faceDown && 'token',
+        bf?.phased && 'phased out',
+        onStack && 'on the stack',
+      ]
         .filter(Boolean)
         .join(', ')}
       aria-pressed={selected || undefined}

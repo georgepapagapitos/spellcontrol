@@ -1,6 +1,9 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import type { BattlefieldCard, PlaytestCard } from '@/lib/playtest';
 import { PlaytestCardFace } from './PlaytestCardFace';
 
@@ -83,5 +86,39 @@ describe('PlaytestCardFace — counters and the body', () => {
     expect(container.querySelector('.playtest-card__pt')?.className).not.toContain('is-modified');
     rerender(<PlaytestCardFace card={c} bf={bf({ card: c, counters: { '+1/+1': 1 } })} />);
     expect(container.querySelector('.playtest-card__pt')?.className).toContain('is-modified');
+  });
+});
+
+/**
+ * A token copy of a printed card is pixel-identical to the card it copied,
+ * and the difference decides what survives a bounce — so the face says so.
+ */
+describe('PlaytestCardFace — the token ribbon', () => {
+  it('marks a token', () => {
+    render(<PlaytestCardFace card={card({ isToken: true })} bf={bf()} />);
+    expect(screen.getByText('Token')).toBeTruthy();
+  });
+
+  it('leaves a real card unmarked', () => {
+    render(<PlaytestCardFace card={card()} bf={bf()} />);
+    expect(screen.queryByText('Token')).toBeNull();
+  });
+
+  // The back of a card gives nothing away, the same rule the counters keep.
+  it('hides the ribbon while the card is face down', () => {
+    render(<PlaytestCardFace card={card({ isToken: true })} bf={bf({ faceDown: true })} />);
+    expect(screen.queryByText('Token')).toBeNull();
+  });
+
+  // Identity right, state left: a token waiting to resolve wears both, so the
+  // two ribbons must never claim the same corner.
+  it('takes the corner the stack banner leaves free', () => {
+    const css = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '../../styles/playtest.css'),
+      'utf8'
+    );
+    const ribbon = /\.playtest-card__token-ribbon\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(ribbon).toContain('right: 0');
+    expect(ribbon).not.toContain('left: 0');
   });
 });
