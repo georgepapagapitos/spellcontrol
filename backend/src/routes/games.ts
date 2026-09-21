@@ -581,6 +581,12 @@ function sanitizeAction(action: GameAction): GameAction {
   if (action.type === 'add-player' && action.player) {
     return { ...action, player: sanitizeAddedPlayer(action.player) };
   }
+  if (action.type === 'settings' && typeof action.patch.name === 'string') {
+    return {
+      ...action,
+      patch: { ...action.patch, name: action.patch.name.trim().slice(0, MAX_GAME_NAME_LEN) },
+    };
+  }
   return action;
 }
 
@@ -658,6 +664,28 @@ function invalidPhaseError(action: GameAction): string | null {
   return (GAME_PHASES as readonly string[]).includes(action.phase) ? null : 'Invalid phase.';
 }
 
+/**
+ * Reject a `visibility` patch that isn't exactly `'public'` or `'private'` —
+ * the reducer stores it verbatim (see `packages/game-core`), so, like `phase`
+ * and the voice link above, this route is the only place it is checked.
+ */
+function invalidVisibilityError(action: GameAction): string | null {
+  if (action.type !== 'settings') return null;
+  const visibility = action.patch.visibility;
+  if (visibility === undefined) return null;
+  return visibility === 'public' || visibility === 'private' ? null : 'Invalid visibility.';
+}
+
+/** Longest a table name may be — a lobby heading, not a paragraph. */
+const MAX_GAME_NAME_LEN = 60;
+
+function invalidNameError(action: GameAction): string | null {
+  if (action.type !== 'settings') return null;
+  const name = action.patch.name;
+  if (name === undefined) return null;
+  return typeof name === 'string' ? null : 'Invalid name.';
+}
+
 function isParticipant(state: GameState, userId: string): boolean {
   if (state.hostUserId === userId) return true;
   return state.players.some((p) => p.userId === userId);
@@ -671,8 +699,9 @@ function isParticipant(state: GameState, userId: string): boolean {
  * characters — about a million of them — which is why the read routes answer
  * a stranger with the same 404 an unknown code gets, and why simply holding a
  * code cannot be enough to watch: otherwise a code sweep would turn up every
- * live table in the app. With `spectatorsAllowed` off (the default, including
- * for every game persisted before this existed) nothing changes at all.
+ * live table in the app. With `visibility` at `'private'` (the default,
+ * including for every game persisted before it existed) nothing changes at
+ * all.
  *
  * Reading is all it grants. Every mutation still goes through
  * `isParticipant`, so a spectator can watch and do nothing else, and what
@@ -681,7 +710,7 @@ function isParticipant(state: GameState, userId: string): boolean {
  * ever reaches the server.
  */
 function canRead(state: GameState, userId: string): boolean {
-  return isParticipant(state, userId) || state.spectatorsAllowed === true;
+  return isParticipant(state, userId) || state.visibility === 'public';
 }
 
 function nextOpenSeat(state: GameState, max: number): number {
@@ -731,6 +760,8 @@ gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Resp
     hostCommander?: unknown;
     hostPartner?: unknown;
     hostColorIdentity?: unknown;
+    name?: unknown;
+    visibility?: unknown;
   };
 
   const format =
@@ -752,6 +783,8 @@ gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Resp
     typeof body.hostName === 'string' && body.hostName.trim().length > 0
       ? body.hostName.trim().slice(0, 40)
       : await resolveDisplayLabel(req.user!.id);
+  const name = typeof body.name === 'string' ? body.name.trim().slice(0, MAX_GAME_NAME_LEN) : '';
+  const visibility = body.visibility === 'public' ? 'public' : 'private';
 
   void sweepStale().catch((err) => logger.warn('[games] sweep failed', err));
 
@@ -788,6 +821,8 @@ gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Resp
       startingLife,
       commanderDamageEnabled,
       poisonEnabled,
+      name,
+      visibility,
       players: [hostPlayer],
       ts: now,
     });
@@ -1860,6 +1895,10 @@ gamesRouter.patch('/:code', writeLimiter, requireAuth, async (req: Request, res:
     if (phaseErr) return res.status(400).json({ error: phaseErr });
     const voiceErr = invalidVoiceUrlError(raw);
     if (voiceErr) return res.status(400).json({ error: voiceErr });
+    const visibilityErr = invalidVisibilityError(raw);
+    if (visibilityErr) return res.status(400).json({ error: visibilityErr });
+    const nameErr = invalidNameError(raw);
+    if (nameErr) return res.status(400).json({ error: nameErr });
     const action = sanitizeAction(raw);
     try {
       next = applyAction(next, action);

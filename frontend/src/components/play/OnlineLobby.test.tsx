@@ -62,6 +62,16 @@ function renderLobby(game: GameState, userId = 'u0', dispatch = vi.fn(), decks: 
 }
 
 describe('OnlineLobby', () => {
+  it('titles the lobby with the format when the table has no name', () => {
+    renderLobby(table());
+    expect(screen.getByRole('heading', { name: 'Commander table' })).toBeTruthy();
+  });
+
+  it('titles the lobby with the table name once the host sets one', () => {
+    renderLobby({ ...table(), name: 'Bracket 3 chill' });
+    expect(screen.getByRole('heading', { name: 'Bracket 3 chill' })).toBeTruthy();
+  });
+
   it('renders one card per seated player and pads the pod out with open seats', () => {
     renderLobby(table(2));
     const seats = within(screen.getByRole('list', { name: 'Seats' })).getAllByRole('listitem');
@@ -306,17 +316,17 @@ describe('the deck picker', () => {
 describe('watchers and the voice link', () => {
   it('lets the host open the table to watchers', () => {
     const dispatch = renderLobby(table(2), 'u0');
-    fireEvent.click(screen.getByRole('switch', { name: 'Anyone with the code can watch' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
     expect(dispatch).toHaveBeenCalledWith({
       type: 'settings',
-      patch: { spectatorsAllowed: true },
+      patch: { visibility: 'public' },
     });
   });
 
   it('tells everyone else where the table stands without letting them change it', () => {
     renderLobby(table(2), 'u1');
-    expect(screen.queryByRole('switch', { name: 'Anyone with the code can watch' })).toBe(null);
-    expect(screen.getByText('Seats only')).toBeTruthy();
+    expect(screen.queryByRole('radio', { name: 'Public' })).toBe(null);
+    expect(screen.getByText('Private')).toBeTruthy();
   });
 
   it('saves a voice link on Enter', () => {
