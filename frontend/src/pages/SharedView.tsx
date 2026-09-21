@@ -93,9 +93,18 @@ function SharedViewInner({ token }: { token: string }) {
     };
   }, [token]);
 
-  // Undefined until the share loads — the hook no-ops until then, so the tab
-  // keeps whatever title it already had through the loading/error states.
-  useDocumentTitle(state.status === 'ready' ? sharedViewTitle(state.payload) : undefined);
+  // Undefined while the share is still loading — the hook no-ops until then, so
+  // the tab keeps whatever title it already had. The gated states name
+  // themselves for the same reason the dead ends do (E344): the shell arrives
+  // carrying the homepage title, and a tab reading "Organize MTG binders…" over
+  // a wall is the page claiming to be something it isn't.
+  useDocumentTitle(
+    state.status === 'ready'
+      ? sharedViewTitle(state.payload)
+      : state.status === 'authRequired' || state.status === 'forbidden'
+        ? 'Friends only'
+        : undefined
+  );
 
   if (state.status === 'loading') {
     return (

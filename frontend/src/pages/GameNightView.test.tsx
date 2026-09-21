@@ -17,6 +17,7 @@ vi.mock('../lib/game-nights-api', async (importOriginal) => {
   return { ...real, fetchPublicGameNight: fetchPublicGameNightMock };
 });
 
+import { GameNightNotFoundError } from '../lib/game-nights-api';
 import { GameNightView } from './GameNightView';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -82,5 +83,19 @@ describe('GameNightView — a night that already happened', () => {
     fetchPublicGameNightMock.mockResolvedValue(night(Date.now() - 6 * 60 * 60 * 1000));
     renderNight();
     expect(await screen.findByRole('button', { name: 'Going' })).toBeTruthy();
+  });
+});
+
+describe('GameNightView — a link that goes nowhere', () => {
+  // E344: this page carried its own copy of the dead-end view, so it missed the
+  // tab title the shared one now sets and the tab kept claiming to be the
+  // homepage. Asserting the title here is what keeps the copy from coming back.
+  it('names itself in the tab, not the homepage it was served as', async () => {
+    document.title = 'SpellControl — Organize MTG binders, build decks & track games';
+    fetchPublicGameNightMock.mockRejectedValue(new GameNightNotFoundError());
+    renderNight();
+    expect(await screen.findByRole('heading', { name: 'Link not found' })).toBeTruthy();
+    expect(screen.getByText('This game night link is invalid or no longer exists.')).toBeTruthy();
+    expect(document.title).toBe('Link not found · SpellControl');
   });
 });
