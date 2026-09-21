@@ -2644,6 +2644,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         <CardContextMenu
           x={ctx.x}
           y={ctx.y}
+          libraryCount={libraryCount}
           cardName={ctxCard.card.name}
           stickers={ctxCard.stickers}
           counters={ctxCard.counters}
