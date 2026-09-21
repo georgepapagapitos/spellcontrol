@@ -396,7 +396,10 @@ body:has(.playtest-page) {
   top: calc(var(--safe-top) + 6rem);
   left: 50%;
   transform: translateX(-50%);
-  z-index: var(--z-table-panel);
+  /* Body-portaled (TakebackPendingBanner), so it has to clear the board at
+     --z-overlay; --z-table-panel only orders things inside the page, which is
+     why `.playtest-zones-panel` below keeps it. */
+  z-index: var(--z-overlay);
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -458,7 +461,10 @@ body:has(.playtest-page) {
   top: calc(var(--safe-top) + 6rem);
   left: 50%;
   transform: translateX(-50%);
-  z-index: var(--z-table-consent);
+  /* Body-portaled (TakebackConsentPrompt) — same reason as the pending
+     banner above. This one decides whether the pod can agree to a take-back
+     at all, so being painted under the board hid the whole exchange. */
+  z-index: var(--z-overlay);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
