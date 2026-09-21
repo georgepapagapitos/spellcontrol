@@ -1497,6 +1497,44 @@ describe('MOVE_ALL_TO', () => {
     expect(applyAction(s, { type: 'MOVE_ALL_TO', from: 'library', to: 'library' })).toBe(s);
   });
 
+  it('randomises the moved block on request, and only then', () => {
+    const base = init(20, 7, 0);
+    // Everything into the graveyard first, so the block has an order to lose.
+    const filled = applyAction(base, { type: 'MOVE_ALL_TO', from: 'library', to: 'graveyard' });
+    const order = filled.zones.graveyard.map((c) => c.id);
+
+    const kept = applyAction(filled, { type: 'MOVE_ALL_TO', from: 'graveyard', to: 'library' });
+    expect(kept.zones.library.map((c) => c.id)).toEqual(order);
+    expect(kept.rngSeed).toBe(filled.rngSeed);
+
+    const rolled = applyAction(filled, {
+      type: 'MOVE_ALL_TO',
+      from: 'graveyard',
+      to: 'library',
+      random: true,
+    });
+    expect(rolled.zones.library.map((c) => c.id)).not.toEqual(order);
+    // Same cards, different order — nothing is lost or duplicated.
+    expect([...rolled.zones.library.map((c) => c.id)].sort()).toEqual([...order].sort());
+    // The seed advanced, so the next shuffle can't repeat this one.
+    expect(rolled.rngSeed).not.toBe(filled.rngSeed);
+  });
+
+  it('randomises only the block, leaving what was already there in place', () => {
+    const base = init(20, 3, 0);
+    // Two cards already on top of the library, then a graveyard block under.
+    const some = applyAction(base, { type: 'MOVE_TOP_N', n: 5, to: 'graveyard' });
+    const libBefore = some.zones.library.map((c) => c.id);
+    const after = applyAction(some, {
+      type: 'MOVE_ALL_TO',
+      from: 'graveyard',
+      to: 'library',
+      random: true,
+    });
+    // Appended under, so the untouched part keeps its exact order.
+    expect(after.zones.library.slice(0, libBefore.length).map((c) => c.id)).toEqual(libBefore);
+  });
+
   it('is undoable — it is bookkeeping, not a shuffle', () => {
     const before = init(8, 1, 0);
     const after = applyAction(before, { type: 'MOVE_ALL_TO', from: 'library', to: 'hand' });
