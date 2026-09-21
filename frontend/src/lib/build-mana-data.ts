@@ -109,7 +109,7 @@ const isLand = (card: ScryfallCard) =>
  * production can be clamped to the deck's color identity (Command Tower etc.).
  */
 export function buildManaData(
-  allCards: ScryfallCard[],
+  allCards: readonly ScryfallCard[],
   commander: ScryfallCard | null,
   partnerCommander?: ScryfallCard | null
 ): DeckManaData {
