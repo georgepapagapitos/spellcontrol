@@ -155,6 +155,22 @@ export function getCardTags(name: string): string[] {
   return tagsByName?.get(name) ?? [];
 }
 
+/**
+ * Is this a slug the corpus can actually match? False until the snapshot has
+ * loaded, so a caller must gate on `useCardTagsReady()` before treating false
+ * as "no such tag" (board E340: /tags?t=not-a-real-tag-xyz rendered the chip
+ * "Not a real tag xyz" and a matching results title, because nothing checked
+ * the slug against the corpus at all).
+ *
+ * Legacy aliases count as known. They are deliberately absent from
+ * `listCardTagsRanked()` — match-compatibility duplicates, not browsable
+ * concepts — but a URL carrying one still has to resolve, so validating
+ * against the ranked list alone would break a link someone saved.
+ */
+export function isKnownCardTag(slug: string): boolean {
+  return tagMeta.has(slug) || Object.hasOwn(LEGACY_TAG_ALIASES, slug);
+}
+
 /** Tag keys available in the corpus. Empty until loaded. */
 export function listCardTags(): string[] {
   return availableTags;

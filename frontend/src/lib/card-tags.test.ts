@@ -101,6 +101,23 @@ describe('card-tags snapshot load + decorate', () => {
     expect(mod.getCardTags('Wrath of God')).toEqual(['sweeper', 'boardwipe']);
   });
 
+  it('answers whether a slug is a tag at all, aliases included (board E340)', async () => {
+    const mod = await import('./card-tags');
+    // Before load nothing is known — the caller has to gate on ready, or a
+    // real deep link would be told its tag does not exist.
+    expect(mod.isKnownCardTag('sweeper')).toBe(false);
+
+    await mod.ensureCardTags();
+    expect(mod.isKnownCardTag('sweeper')).toBe(true);
+    expect(mod.isKnownCardTag('mana-rock')).toBe(true);
+    // A legacy alias resolves even though it is absent from the ranked list.
+    expect(mod.listCardTagsRanked().some((t) => t.slug === 'boardwipe')).toBe(false);
+    expect(mod.isKnownCardTag('boardwipe')).toBe(true);
+    // And the made-up slug from the report does not.
+    expect(mod.isKnownCardTag('not-a-real-tag-xyz')).toBe(false);
+    expect(mod.isKnownCardTag('')).toBe(false);
+  });
+
   it('exposes the corpus description, empty when the tag has none', async () => {
     const mod = await import('./card-tags');
     await mod.ensureCardTags();
