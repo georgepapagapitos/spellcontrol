@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Clock, Radiation, Skull, Ticket, Zap, type LucideIcon } from 'lucide-react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
@@ -446,7 +447,19 @@ export function LifeAdjustPanel({
     );
   }
 
-  return (
+  // Portaled to <body>, and that is load-bearing rather than tidiness. This
+  // panel is `position: fixed` and positioned from viewport coordinates, but
+  // it renders as a child of `.playtest-life-table`, which carries
+  // `backdrop-filter: blur(6px)` — and a backdrop-filter makes an element a
+  // containing block for fixed descendants, exactly as a transform does. Left
+  // in place, the viewport coordinates were applied relative to that little
+  // chip instead of the screen.
+  //
+  // On the local board the chip sits at (12, 12), so the error was 13px and
+  // nobody saw it. At an online table's 2x2 grid the chip sits in a quadrant
+  // ~530px down, so the panel landed off the bottom of the screen and the
+  // chevron appeared to do nothing. Measured in a browser before and after.
+  return createPortal(
     <>
       <div className="playtest-ctx__backdrop" role="presentation" onClick={onClose} />
       <div
@@ -464,6 +477,7 @@ export function LifeAdjustPanel({
         <div className="playtest-life-panel__title">{title}</div>
         <div className="playtest-life-panel">{body}</div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }
