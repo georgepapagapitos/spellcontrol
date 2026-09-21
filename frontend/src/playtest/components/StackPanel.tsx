@@ -5,7 +5,9 @@ import './StackPanel.css';
 
 export interface StackPanelItem {
   /** Unique per row. Your own rows use the card's own instance id; an
-   *  opponent's use the seat-scoped one, so the two can never collide. */
+   *  opponent's use the seat-scoped one, so the two can never collide.
+   *  Either way it is the id `CardHoverPreview` resolves art from, which is
+   *  what lets a row on this panel raise the same preview the board does. */
   id: string;
   name: string;
   imageUrl?: string;
@@ -39,17 +41,58 @@ interface Props {
 const DEFAULT_POS = { right: 24, top: 96 };
 
 /**
- * The stack: a floating panel listing every card currently waiting to
- * resolve, bottom of the stack first, with the TOP one opened out to its
- * full face because it is the only one anybody is about to act on.
+ * One entry in the pile, rendered from the card's real face. The ones
+ * underneath are clipped to the printed title bar, so what you read is the
+ * card's own name and mana cost over its own frame colour and the pile
+ * looks like cardboard tucked under cardboard rather than a list.
+ *
+ * A clipped card carries `data-preview-id`, which is all the delegated
+ * `CardHoverPreview` needs to raise the full face on hover — the same
+ * preview resting on the card itself gives you. The top card is already
+ * open to its full face, so it does not ask for one.
+ */
+function StackCard({ item, clipped }: { item: StackPanelItem; clipped?: boolean }) {
+  const art = item.imageUrl;
+  return (
+    <div
+      className={`stack-panel__card${clipped && art ? ' stack-panel__card--clipped' : ''}`}
+      data-preview-id={clipped && art ? item.id : undefined}
+    >
+      {art ? (
+        <img
+          className="stack-panel__face"
+          src={art}
+          alt={item.name}
+          draggable={false}
+          decoding="async"
+        />
+      ) : (
+        <div className="stack-panel__bar">
+          <span className="stack-panel__name">{item.name}</span>
+          {item.manaCost && (
+            <span className="stack-panel__cost" aria-hidden>
+              <ManaCost cost={item.manaCost} />
+            </span>
+          )}
+        </div>
+      )}
+      <span className="stack-panel__seat">{item.seatName ?? 'A player'}</span>
+    </div>
+  );
+}
+
+/**
+ * The stack: a floating panel showing every card waiting to resolve as a
+ * physical pile, bottom of the stack first, with the TOP one opened out to
+ * its full face because it is the only one anybody is about to act on.
  *
  * ⚠️ A card on the stack has NOT left the battlefield — it keeps its place
  * and wears a ribbon (`playtest-card--on-stack`). This panel is a view onto
  * those marked cards, which is why every row resolves its art and name from
  * live board state rather than holding a copy of the card.
  *
- * Draggable by its header, because it necessarily covers part of the board
- * and only the player knows which part they need. Closable, because a
+ * Draggable by the whole header, because it necessarily covers part of the
+ * board and only the player knows which part they need. Closable, because a
  * player who is tracking the stack in their head should be able to put it
  * away — the ribbons on the cards are the durable signal, not this panel.
  *
@@ -81,11 +124,14 @@ export function StackPanel({
     prevCount.current = count;
   }, [count]);
 
-  const onPointerDown = useCallback((e: React.PointerEvent) => {
+  const onPointerDown = useCallback((e: React.PointerEvent<HTMLElement>) => {
+    // The close button sits in the header too, and pressing it is not a
+    // drag. Anywhere else in the bar is.
+    if ((e.target as Element).closest?.('button')) return;
     const rect = panelRef.current?.getBoundingClientRect();
     if (!rect) return;
     drag.current = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
-    (e.target as Element).setPointerCapture?.(e.pointerId);
+    e.currentTarget.setPointerCapture?.(e.pointerId);
   }, []);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
@@ -117,18 +163,16 @@ export function StackPanel({
       role="region"
       aria-label={`The stack, ${items.length} waiting to resolve`}
     >
-      <header className="stack-panel__head">
-        <button
-          type="button"
-          className="stack-panel__grip"
-          aria-label="Move the stack panel"
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-        >
-          <Move width={16} height={16} aria-hidden />
-        </button>
+      <header
+        className="stack-panel__head"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      >
+        <span className="stack-panel__grip" aria-hidden>
+          <Move width={16} height={16} />
+        </span>
         <h2 className="stack-panel__title">Stack ({items.length})</h2>
         <button
           type="button"
@@ -143,39 +187,12 @@ export function StackPanel({
       <ol className="stack-panel__list">
         {rest.map((item) => (
           <li key={item.id} className="stack-panel__row">
-            <span className="stack-panel__seat">{item.seatName ?? 'A player'}</span>
-            <span className="stack-panel__bar">
-              <span className="stack-panel__name">{item.name}</span>
-              {item.manaCost && (
-                <span className="stack-panel__cost" aria-hidden>
-                  <ManaCost cost={item.manaCost} />
-                </span>
-              )}
-            </span>
+            <StackCard item={item} clipped />
           </li>
         ))}
 
         <li className="stack-panel__row stack-panel__row--top">
-          <span className="stack-panel__seat">{top.seatName ?? 'A player'}</span>
-          <span className="stack-panel__bar">
-            <span className="stack-panel__name">{top.name}</span>
-            {top.manaCost && (
-              <span className="stack-panel__cost" aria-hidden>
-                <ManaCost cost={top.manaCost} />
-              </span>
-            )}
-          </span>
-          {top.imageUrl ? (
-            <img
-              className="stack-panel__art"
-              src={top.imageUrl}
-              alt={top.name}
-              draggable={false}
-              decoding="async"
-            />
-          ) : (
-            <div className="stack-panel__art stack-panel__art--placeholder">{top.name}</div>
-          )}
+          <StackCard item={top} />
         </li>
       </ol>
 
