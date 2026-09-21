@@ -368,6 +368,25 @@ function findInArray(arr: unknown, id: string): unknown {
  * below is the market price, which is public Scryfall reference data.
  */
 /**
+ * How long a deck name may be anywhere the public sees it (board E342).
+ *
+ * The editor's rename input is capped at the same number and the sync route
+ * takes the name as opaque JSONB, so a name this long only arrives from an
+ * older client or a hand-written payload — but it arrives: a 400-character
+ * name titled the browser tab, filled the `og:title`, set the hero `h1` and
+ * stretched the /u/ tile. 80 is what Moxfield allows.
+ *
+ * The STORED name is left alone. It is the user's data, and truncating what
+ * someone already saved is a worse trade than truncating how it is displayed.
+ */
+export const DECK_NAME_MAX = 80;
+
+/** A deck name trimmed to what a title, an og tag or a tile can carry. */
+export function clampDeckName(name: string): string {
+  return name.length <= DECK_NAME_MAX ? name : name.slice(0, DECK_NAME_MAX).trimEnd();
+}
+
+/**
  * Can the public view render this collection row / list entry at all?
  *
  * This is `projectCard`'s own guard, exported so a caller that only needs a
@@ -506,8 +525,9 @@ export function projectDeck(owner: ShareOwner, deckRaw: unknown): PublicDeck | n
   const r = asRecord(deckRaw);
   if (!r) return null;
   const id = asString(r.id);
-  const name = asString(r.name);
-  if (!id || !name) return null;
+  const rawName = asString(r.name);
+  if (!id || !rawName) return null;
+  const name = clampDeckName(rawName);
   // DeckCard already wraps `card: ScryfallCard` and `slotId` — for public,
   // only the card data matters (slotId is owner-side).
   const projectSlots = (xs: unknown): PublicDeckCard[] => {
