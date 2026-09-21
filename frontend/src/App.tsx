@@ -74,6 +74,7 @@ const CubePage = lazyPage(() => import('./pages/CubePage'), 'CubePage');
 // Play
 const PlayPage = lazyPage(() => import('./pages/PlayPage'), 'PlayPage');
 const PlaytestPage = lazyPage(() => import('./pages/PlaytestPage'), 'PlaytestPage');
+const GoldfishListPage = lazyPage(() => import('./pages/GoldfishListPage'), 'GoldfishListPage');
 const PlaytestLogPage = lazyPage(() => import('./pages/PlaytestLogPage'), 'PlaytestLogPage');
 // Social
 const YouPage = lazyPage(() => import('./pages/YouPage'), 'YouPage');
@@ -458,6 +459,7 @@ export default function App() {
             <Route path="/decks/saved" element={<SavedDecksPage />} />
             <Route path="/decks/new" element={<DeckNewPage />} />
             <Route path="/decks/new/brew" element={<BrewBuildPage />} />
+            <Route path="/decks/goldfish" element={<GoldfishListPage />} />
             <Route path="/decks/compare" element={<DeckComparePage />} />
             <Route path="/decks/cube" element={<CubePage />} />
             <Route path="/decks/cube/:id" element={<CubePage />} />
