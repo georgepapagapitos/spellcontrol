@@ -4,11 +4,15 @@ import { normalizeTagText } from '../../lib/deck-tags';
 import {
   deckCardActions,
   tagPickActions,
+  tagToggleActions,
   SECTION_ORDER,
   SECTION_TITLES,
   type DeckCardActionCtx,
 } from './deck-card-actions';
 import type { Row } from './deck-display-rows';
+
+/** Root, or one of the two tag submenu pages. */
+export type DeckCardMenuPage = 'root' | 'tag' | 'tag-add';
 
 /**
  * The items of a card's menu, rendered identically wherever the menu opens:
@@ -36,28 +40,29 @@ export function DeckCardMenuBody({
   ctx: DeckCardActionCtx;
   /** Every tag already used anywhere in this deck, for the tag picker. */
   deckTags: string[];
-  page: 'root' | 'tag';
-  onPageChange: (page: 'root' | 'tag') => void;
+  page: DeckCardMenuPage;
+  onPageChange: (page: DeckCardMenuPage) => void;
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState('');
   const actions = deckCardActions(ctx);
 
-  const commitNewTag = () => {
+  // 'move' hoists the new tag to primary, so the card lands in that section.
+  // 'add' appends, so the card keeps the section it is already in.
+  const commitNewTag = (mode: 'move' | 'add') => {
     const tag = normalizeTagText(draft);
     if (!tag || !ctx.onSetRowTags) return;
-    // Hoisted to primary, like picking an existing tag: this row moves
-    // there rather than merely gaining one more tag.
-    ctx.onSetRowTags(row.slotIds, [
-      tag,
-      ...row.tags.filter((t) => t.toLowerCase() !== tag.toLowerCase()),
-    ]);
+    const without = row.tags.filter((t) => t.toLowerCase() !== tag.toLowerCase());
+    ctx.onSetRowTags(row.slotIds, mode === 'move' ? [tag, ...without] : [...without, tag]);
     setDraft('');
     onClose();
   };
 
-  if (page === 'tag' && ctx.onSetRowTags) {
-    const picks = tagPickActions(row, deckTags, ctx.onSetRowTags);
+  if ((page === 'tag' || page === 'tag-add') && ctx.onSetRowTags) {
+    const adding = page === 'tag-add';
+    const rows = adding
+      ? tagToggleActions(row, deckTags, ctx.onSetRowTags)
+      : tagPickActions(row, deckTags, ctx.onSetRowTags);
     return (
       <>
         <button
@@ -72,11 +77,14 @@ export function DeckCardMenuBody({
           <ChevronLeft width={14} height={14} strokeWidth={2} aria-hidden />
           Back
         </button>
-        {picks.map((p) => (
+        {/* Radio on the move page (a card has ONE section), checkbox on the
+            add page (it can carry many tags). The role is the whole
+            explanation of what the click will do. */}
+        {rows.map((p) => (
           <button
             key={p.key}
             type="button"
-            role="menuitemradio"
+            role={adding ? 'menuitemcheckbox' : 'menuitemradio'}
             aria-checked={p.checked}
             className="deck-row-menu-item deck-card-menu-pick"
             onClick={(e) => {
@@ -107,7 +115,7 @@ export function DeckCardMenuBody({
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                commitNewTag();
+                commitNewTag(adding ? 'add' : 'move');
               }
             }}
           />
@@ -134,7 +142,7 @@ export function DeckCardMenuBody({
                   className="deck-row-menu-item deck-card-menu-drill"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onPageChange('tag');
+                    onPageChange(action.submenu === 'add' ? 'tag-add' : 'tag');
                   }}
                 >
                   {action.label}

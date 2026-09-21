@@ -1348,6 +1348,14 @@ panel's existing light-on-dark contract — never theme tokens there.
   drift. It is also the only way tagging is reachable at all from the grid
   and stacks layouts, which have no row to hang chips on. The prohibition on
   **inline** tag controls on a row or tile stands unchanged.
+- **Filing and membership are two intents, and the menu says which is which.**
+  The card menu's Tags section offers "Move to tag" (a `menuitemradio` list
+  that HOISTS the picked tag to `tags[0]`, so the card changes section) and
+  "Add tag" (a `menuitemcheckbox` list that APPENDS or removes, so the card
+  keeps its section). The ARIA role is the whole explanation of what a click
+  will do, which is why they differ. Added 2026-09-21: before it, the fast
+  path could not express something the card-preview panel could, so "also
+  mark this a Wincon" silently moved the card out of Blink.
 - **A right-click affordance always ships a visible control in the same
   place.** Right-click does not exist on touch and cannot be reached by
   keyboard, so a surface that opens a menu on `contextmenu` also renders a

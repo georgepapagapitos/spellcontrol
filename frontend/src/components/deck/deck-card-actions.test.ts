@@ -3,6 +3,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import {
   deckCardActions,
   tagPickActions,
+  tagToggleActions,
   SECTION_ORDER,
   type DeckCardActionCtx,
 } from './deck-card-actions';
@@ -115,6 +116,15 @@ describe('deckCardActions', () => {
     expect(keys({ row: row({ isPartner: true }), onMoveToAnotherDeck })).not.toContain('move-deck');
   });
 
+  it('offers BOTH tag intents: move (re-file) and add (membership)', () => {
+    const onSetRowTags = vi.fn();
+    const k = keys({ row: row(), onSetRowTags });
+    expect(k).toContain('tag-pick');
+    expect(k).toContain('tag-add');
+    expect(byKey({ row: row(), onSetRowTags }, 'tag-pick')!.submenu).toBe('move');
+    expect(byKey({ row: row(), onSetRowTags }, 'tag-add')!.submenu).toBe('add');
+  });
+
   it('offers the tag picker only with a tag handler, and clear only when tagged', () => {
     expect(keys({ row: row({ tags: ['Blink'] }) })).not.toContain('tag-pick');
     const onSetRowTags = vi.fn();
@@ -146,6 +156,48 @@ describe('deckCardActions', () => {
     });
     expect(all.length).toBeGreaterThan(8);
     for (const a of all) expect(SECTION_ORDER).toContain(a.section);
+  });
+});
+
+describe('tagToggleActions', () => {
+  it('checks every tag the card carries, not just the one filing it', () => {
+    const picks = tagToggleActions(
+      row({ tags: ['Blink', 'Wincon'] }),
+      ['Blink', 'Wincon', 'Ramp'],
+      vi.fn()
+    );
+    expect(picks.map((p) => [p.label, p.checked])).toEqual([
+      ['Blink', true],
+      ['Wincon', true],
+      ['Ramp', false],
+    ]);
+  });
+
+  it('APPENDS without reordering, so the card keeps the section it is in', () => {
+    // This is the whole difference from tagPickActions, which hoists.
+    const onSetRowTags = vi.fn();
+    const picks = tagToggleActions(row({ tags: ['Blink', 'Wincon'] }), ['Combo'], onSetRowTags);
+    picks[0].run!();
+    expect(onSetRowTags).toHaveBeenCalledWith(['s1'], ['Blink', 'Wincon', 'Combo']);
+  });
+
+  it('un-toggles a tag it already has, leaving the rest in order', () => {
+    const onSetRowTags = vi.fn();
+    const picks = tagToggleActions(row({ tags: ['Blink', 'Wincon'] }), ['Wincon'], onSetRowTags);
+    picks[0].run!();
+    expect(onSetRowTags).toHaveBeenCalledWith(['s1'], ['Blink']);
+  });
+
+  it('files an untagged card, because its first tag is necessarily primary', () => {
+    const onSetRowTags = vi.fn();
+    const picks = tagToggleActions(row({ tags: [] }), ['Ramp'], onSetRowTags);
+    picks[0].run!();
+    expect(onSetRowTags).toHaveBeenCalledWith(['s1'], ['Ramp']);
+  });
+
+  it('matches case-insensitively, so a tag is never added twice', () => {
+    const picks = tagToggleActions(row({ tags: ['blink'] }), ['Blink'], vi.fn());
+    expect(picks[0].checked).toBe(true);
   });
 });
 

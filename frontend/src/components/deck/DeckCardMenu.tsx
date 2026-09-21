@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CtxMenuShell } from '@/components/shared/CtxMenuShell';
 import { useMediaQuery } from '../../lib/use-media-query';
-import { DeckCardMenuBody } from './DeckCardMenuBody';
+import { DeckCardMenuBody, type DeckCardMenuPage } from './DeckCardMenuBody';
 import type { DeckCardActionCtx } from './deck-card-actions';
 import type { Row } from './deck-display-rows';
 
@@ -30,7 +30,7 @@ export function DeckCardMenu({
   deckTags: string[];
   onClose: () => void;
 }) {
-  const [page, setPage] = useState<'root' | 'tag'>('root');
+  const [page, setPage] = useState<DeckCardMenuPage>('root');
   // Same boundary the shell's own sheet styling assumes. A floating popover
   // anchored to a fingertip is unusable on a phone; the sheet is not.
   const narrow = useMediaQuery('(max-width: 1023px)');
