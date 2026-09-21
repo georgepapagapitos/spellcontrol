@@ -132,6 +132,7 @@ import { REACTION_EMOTES } from '../lib/table-signals';
 import { CardContextMenu, type CardMenuPage } from './CardContextMenu';
 import { CardStatusStrip } from './CardStatusStrip';
 import { MobileZonesPanel } from './MobileZonesPanel';
+import { DrawCountPage } from './DrawCountPage';
 import { OpeningHandSheet } from './OpeningHandSheet';
 import { PlaytestCardFace } from './PlaytestCardFace';
 import { ScrySheet } from './ScrySheet';
@@ -145,7 +146,7 @@ import { DesignationsPicker } from './DesignationsPicker';
 import { RESISTANCE_LEVEL_ANNOUNCE, RESISTANCE_LEVEL_LABEL } from '../lib/resistance';
 import { PlaytestSessionSummary } from './PlaytestSessionSummary';
 import { resolveTokenArt } from '../lib/token-art';
-import { commanderTaxAmount } from '../lib/zones';
+import { commanderTaxAmount, MOVE_DESTINATIONS, ZONE_VIEWER_LABEL } from '../lib/zones';
 import { LifeStrip } from './LifeStrip';
 import { ManaPool } from './ManaPool';
 import { useSealMoment } from '@/components/shared/SealMoment';
@@ -273,7 +274,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // the "is my top card a land" check that a whole scry sheet is too much
   // ceremony for. Holds the card itself, not an index, so the panel can't
   // end up showing a different card than the one that was peeked.
-  const [peek, setPeek] = useState<{ card: PlaytestCard; where: 'top' | 'bottom' } | null>(null);
+  const [peek, setPeek] = useState<{
+    card: PlaytestCard;
+    where: 'top' | 'bottom' | 'random';
+  } | null>(null);
   const [showStats, setShowStats] = useState(false);
   // The corner hamburger's drawer, and the host-only winner picker it opens.
   const [showGameMenu, setShowGameMenu] = useState(false);
@@ -911,6 +915,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const canAdvanceTurn = onlineTable === null || canPassTurn;
 
   const libraryCount = state.zones.library.length;
+  const libraryReveal = state.libraryReveal ?? 'none';
   const doDraw = useCallback(() => {
     if (libraryCount === 0) return;
     haptics.tap();
@@ -1250,8 +1255,17 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
 
   /** Look at one card off an end of the library without moving it. */
   const peekLibrary = useCallback(
-    (where: 'top' | 'bottom') => {
-      const card = where === 'top' ? state.zones.library[0] : state.zones.library.at(-1);
+    (where: 'top' | 'bottom' | 'random') => {
+      const lib = state.zones.library;
+      // `Math.random` rather than the state's seeded RNG on purpose: looking
+      // at a card moves nothing and advances no seed, so there is no game
+      // state here to keep reproducible.
+      const card =
+        where === 'top'
+          ? lib[0]
+          : where === 'bottom'
+            ? lib.at(-1)
+            : lib[Math.floor(Math.random() * lib.length)];
       if (!card) return false;
       setPeek({ card, where });
       return true;
@@ -1987,14 +2001,17 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     </div>
   );
 
-  /** The label a pile's menu and its click use for the zone itself. */
-  const ZONE_TITLE: Record<Zone, string> = {
-    library: 'Library',
-    hand: 'Hand',
-    graveyard: 'Graveyard',
-    exile: 'Exile',
-    command: 'Command',
-  };
+  /**
+   * Empty this whole zone into another. Every destination the card menu's
+   * "Move to" offers, minus the zone the cards are already in — and minus
+   * the battlefield, which `MOVE_DESTINATIONS` already leaves out and which
+   * has no sensible layout for N cards landing at once.
+   */
+  const moveAllItems = (from: Zone): TableMenuItem[] =>
+    MOVE_DESTINATIONS.filter((d) => d.key !== from).map((d) => ({
+      label: d.label,
+      onClick: () => dispatch({ type: 'MOVE_ALL_TO', from, to: d.key, toIndex: d.toIndex }),
+    }));
 
   /**
    * A pile's menu. Every action that belongs to a zone lives here, on the
@@ -2011,6 +2028,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       onClick: () => setViewer({ zone }),
       disabled: empty,
     };
+    const moveAll = { label: 'Move all to', items: moveAllItems(zone), disabled: empty };
     if (zone !== 'library') {
       return [
         view,
@@ -2023,10 +2041,24 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               },
             ]
           : []),
+        moveAll,
       ];
     }
     return [
       { label: 'Draw a card', shortcut: keyFor('draw'), onClick: doDraw, disabled: empty },
+      {
+        label: 'Draw several',
+        disabled: empty,
+        content: (
+          <DrawCountPage
+            max={libraryCount}
+            onDraw={(n) => {
+              setPileMenu(null);
+              dispatch({ type: 'DRAW', n });
+            }}
+          />
+        ),
+      },
       {
         label: 'Shuffle',
         shortcut: keyFor('shuffle'),
@@ -2065,6 +2097,40 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         onClick: () => void peekLibrary('bottom'),
         disabled: empty,
       },
+      {
+        label: 'Select a random card',
+        onClick: () => void peekLibrary('random'),
+        disabled: empty,
+      },
+      {
+        // Future Sight / Bolas's Citadel: the pile turns face up and stays
+        // that way as the top card changes, rather than being a one-off look.
+        label: 'Play with the top card revealed',
+        pressed: libraryReveal === 'top',
+        onClick: () =>
+          dispatch({
+            type: 'SET_LIBRARY_REVEAL',
+            reveal: libraryReveal === 'top' ? 'none' : 'top',
+          }),
+        disabled: empty,
+      },
+      // Showing the whole library is a thing you do TO a table. Solo there is
+      // nobody it could be shown to, so the row is not offered.
+      ...(onlineTable
+        ? [
+            {
+              label: 'Reveal the library to the table',
+              pressed: libraryReveal === 'all',
+              onClick: () =>
+                dispatch({
+                  type: 'SET_LIBRARY_REVEAL',
+                  reveal: libraryReveal === 'all' ? 'none' : 'all',
+                }),
+              disabled: empty,
+            },
+          ]
+        : []),
+      moveAll,
     ];
   };
 
@@ -2074,7 +2140,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     <aside className="playtest-piles">
       <ZonePile
         zone="library"
-        label={ZONE_TITLE.library}
+        label="Library"
         cards={state.zones.library}
         // The library's click draws. It is the one pile with an action taken
         // often enough to own the click outright, which is what frees the
@@ -2082,24 +2148,25 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         // players arrive with is the right one here).
         click={{ label: 'Draw a card', onClick: doDraw, disabled: libraryCount === 0 }}
         onMenu={openPileMenu('library')}
+        revealTop={libraryReveal !== 'none'}
       />
       <ZonePile
         zone="graveyard"
-        label={ZONE_TITLE.graveyard}
+        label="Graveyard"
         cards={state.zones.graveyard}
         click={{ label: 'View the graveyard', onClick: () => setViewer({ zone: 'graveyard' }) }}
         onMenu={openPileMenu('graveyard')}
       />
       <ZonePile
         zone="exile"
-        label={ZONE_TITLE.exile}
+        label="Exile"
         cards={state.zones.exile}
         click={{ label: 'View exile', onClick: () => setViewer({ zone: 'exile' }) }}
         onMenu={openPileMenu('exile')}
       />
       <ZonePile
         zone="command"
-        label={ZONE_TITLE.command}
+        label="Command"
         cards={state.zones.command}
         commanderTax={state.commanderTax}
         click={{ label: 'View the command zone', onClick: () => setViewer({ zone: 'command' }) }}
@@ -2425,7 +2492,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           x={pileMenu.x}
           y={pileMenu.y}
           variant="floating"
-          title={ZONE_TITLE[pileMenu.zone]}
+          title={ZONE_VIEWER_LABEL[pileMenu.zone]}
           items={pileMenuItems(pileMenu.zone)}
           onClose={() => setPileMenu(null)}
         />
@@ -2701,7 +2768,11 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           className="playtest-peek"
         >
           <h2 id="playtest-peek-title" className="playtest-peek__title">
-            {peek.where === 'top' ? 'Top of library' : 'Bottom of library'}
+            {peek.where === 'top'
+              ? 'Top of library'
+              : peek.where === 'bottom'
+                ? 'Bottom of library'
+                : 'A random card from the library'}
           </h2>
           {/* Shown, not moved: the card is still exactly where it was, which
               is the whole point of this over the scry sheet. */}

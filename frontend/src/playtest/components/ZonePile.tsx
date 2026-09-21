@@ -25,15 +25,34 @@ interface Props {
    * different panel for everyone else.
    */
   onMenu(x: number, y: number): void;
+  /**
+   * Show the card on top face up instead of a card back — the library while
+   * it is being played with the top revealed. Only the library has a back to
+   * replace; every other pile already shows its top card.
+   */
+  revealTop?: boolean;
 }
 
-export function ZonePile({ zone, label, cards, commanderTax, click, onMenu }: Props) {
+export function ZonePile({
+  zone,
+  label,
+  cards,
+  commanderTax,
+  click,
+  onMenu,
+  revealTop = false,
+}: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: `zone:${zone}` });
-  const top = cards[cards.length - 1];
+  // Which end is "top" differs by zone: the library is drawn from index 0,
+  // while a discard pile's top is the card put there last.
+  const top = zone === 'library' ? cards[0] : cards[cards.length - 1];
   // Tracks the id of a card whose image failed, so a new top card (the pile
   // shuffles/draws constantly) always gets a fresh chance to load.
   const [erroredId, setErroredId] = useState<string | null>(null);
   const tax = zone === 'command' ? commanderTaxAmount(commanderTax ?? {}, top?.id) : 0;
+  // The library is the only pile with something to hide, and only while it
+  // is not being revealed. Everything else is a face-up pile by definition.
+  const faceUp = Boolean(top) && (zone !== 'library' || revealTop);
   return (
     <div
       ref={setNodeRef}
@@ -75,7 +94,7 @@ export function ZonePile({ zone, label, cards, commanderTax, click, onMenu }: Pr
           {label} ({cards.length})
         </span>
         <span className="playtest-pile__stack">
-          {top && zone !== 'library' && top.imageUrl && top.id !== erroredId ? (
+          {faceUp && top?.imageUrl && top.id !== erroredId ? (
             <img
               src={top.imageUrl}
               alt={top.name}
@@ -84,6 +103,11 @@ export function ZonePile({ zone, label, cards, commanderTax, click, onMenu }: Pr
               decoding="async"
               onError={() => setErroredId(top.id)}
             />
+          ) : faceUp && top ? (
+            // A card whose art is missing or slow is still a card the player
+            // is entitled to read — the same text placeholder a card face
+            // degrades to, never a card back, which would say "hidden".
+            <span className="playtest-card__placeholder">{top.name}</span>
           ) : (
             <span className={`playtest-pile__back playtest-pile__back--${zone}`} />
           )}

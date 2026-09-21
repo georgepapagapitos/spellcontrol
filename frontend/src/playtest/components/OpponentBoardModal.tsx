@@ -20,7 +20,9 @@ import { useTablePointer } from '../hooks/use-table-pointer';
 import { PlaytestCardFace } from './PlaytestCardFace';
 import './OpponentBoardModal.css';
 
-type BoardZone = 'battlefield' | 'graveyard' | 'exile' | 'command';
+/** `library` only ever appears while its owner is revealing it — see
+ *  `PublicBoard.revealedLibrary`. Every other zone here is always public. */
+type BoardZone = 'battlefield' | 'graveyard' | 'exile' | 'command' | 'library';
 
 interface Props {
   opp: OpponentSeat;
@@ -106,14 +108,18 @@ export function OpponentBoardModal({ opp, active, onClose, onArrowTarget }: Prop
 
   // Every resolvable card across the whole board, batch-resolved once. Face-
   // down permanents never enter this list (see doc comment above).
+  // Absent means the library is private, which is the normal case — the one
+  // read of it, so the rest of the component never has to repeat the `??`.
+  const revealedLibrary = useMemo(() => board.revealedLibrary ?? [], [board.revealedLibrary]);
   const entries = useMemo(
     () => [
       ...visibleBattlefield.map((bf) => toListEntry(bf.card)),
       ...board.graveyard.map(toListEntry),
       ...board.exile.map(toListEntry),
       ...board.command.map(toListEntry),
+      ...revealedLibrary.map(toListEntry),
     ],
-    [visibleBattlefield, board.graveyard, board.exile, board.command]
+    [visibleBattlefield, board.graveyard, board.exile, board.command, revealedLibrary]
   );
   const { rows } = useEnrichedListEntries(entries);
   const byId = useMemo(() => new Map(rows.map((r) => [r.entry.id, r.card])), [rows]);
@@ -130,8 +136,11 @@ export function OpponentBoardModal({ opp, active, onClose, onArrowTarget }: Prop
       command: board.command
         .map((c) => byId.get(c.id))
         .filter((c): c is EnrichedCard => Boolean(c)),
+      library: revealedLibrary
+        .map((c) => byId.get(c.id))
+        .filter((c): c is EnrichedCard => Boolean(c)),
     }),
-    [visibleBattlefield, board.graveyard, board.exile, board.command, byId]
+    [visibleBattlefield, board.graveyard, board.exile, board.command, revealedLibrary, byId]
   );
 
   function inspect(zone: BoardZone, cardId: string) {
@@ -161,6 +170,18 @@ export function OpponentBoardModal({ opp, active, onClose, onArrowTarget }: Prop
     },
     { id: 'exile', label: 'Exile', count: board.exile.length, controls: 'opp-board-panel' },
     { id: 'command', label: 'Command', count: board.command.length, controls: 'opp-board-panel' },
+    // Only while they are showing it. The count is what they have revealed,
+    // not `libraryCount` — one card, while they play with the top face up.
+    ...(revealedLibrary.length > 0
+      ? [
+          {
+            id: 'library' as const,
+            label: 'Library',
+            count: revealedLibrary.length,
+            controls: 'opp-board-panel',
+          },
+        ]
+      : []),
   ];
 
   const zoneLabel: Record<BoardZone, string> = {
@@ -168,7 +189,12 @@ export function OpponentBoardModal({ opp, active, onClose, onArrowTarget }: Prop
     graveyard: 'Graveyard',
     exile: 'Exile',
     command: 'Command zone',
+    library: 'Library',
   };
+
+  // They can stop revealing while you are reading it, which takes the tab
+  // out from under you — fall back rather than render a panel with no tab.
+  const zone: BoardZone = tabs.some((t) => t.id === activeZone) ? activeZone : 'battlefield';
 
   return createPortal(
     <div
@@ -248,7 +274,7 @@ export function OpponentBoardModal({ opp, active, onClose, onArrowTarget }: Prop
           <>
             <Tabs
               tabs={tabs}
-              value={activeZone}
+              value={zone}
               onChange={setActiveZone}
               ariaLabel={`${name}'s zones`}
               className="opponent-board-tabs"
@@ -256,10 +282,10 @@ export function OpponentBoardModal({ opp, active, onClose, onArrowTarget }: Prop
             <div
               id="opp-board-panel"
               role="tabpanel"
-              aria-labelledby={`sc-tab-${activeZone}`}
+              aria-labelledby={`sc-tab-${zone}`}
               className="opponent-board-panel"
             >
-              {activeZone === 'battlefield' ? (
+              {zone === 'battlefield' ? (
                 board.battlefield.length === 0 ? (
                   <p className="playtest-zone-empty">No permanents.</p>
                 ) : (
@@ -279,10 +305,10 @@ export function OpponentBoardModal({ opp, active, onClose, onArrowTarget }: Prop
                 )
               ) : (
                 <ZoneGrid
-                  zone={activeZone}
-                  cards={board[activeZone]}
-                  commanderTax={activeZone === 'command' ? board.commanderTax : undefined}
-                  onInspect={(id) => inspect(activeZone, id)}
+                  zone={zone}
+                  cards={zone === 'library' ? revealedLibrary : board[zone]}
+                  commanderTax={zone === 'command' ? board.commanderTax : undefined}
+                  onInspect={(id) => inspect(zone, id)}
                 />
               )}
             </div>
@@ -453,7 +479,7 @@ function ZoneGrid({
 }
 
 function zoneNoun(zone: BoardZone): string {
-  return zone === 'command' ? 'the command zone' : zone;
+  return zone === 'command' ? 'the command zone' : zone === 'library' ? 'the library' : zone;
 }
 
 function ZoneTile({

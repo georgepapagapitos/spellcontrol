@@ -389,6 +389,56 @@ describe('OpponentBoardModal', () => {
   });
 });
 
+/**
+ * The library is MTG's other hidden zone, so it gets a tab here only while
+ * its owner is actually showing it — see `PublicBoard.revealedLibrary`.
+ */
+describe('OpponentBoardModal — a revealed library', () => {
+  it('offers no library tab while their library is private', () => {
+    render(<OpponentBoardModal opp={opp()} active={false} onClose={() => {}} />);
+    expect(screen.queryByRole('tab', { name: /Library/ })).toBeNull();
+    // The count is still public, the way it always was.
+    expect(screen.getByText(/Library 90/)).toBeTruthy();
+  });
+
+  it('shows the one card they are playing with revealed', async () => {
+    const top = { id: 'top1', name: 'Bolas’s Citadel', scryfallId: 'top1' };
+    resolveAll([scryCard('top1', 'Bolas’s Citadel')]);
+    render(
+      <OpponentBoardModal
+        opp={opp({}, { revealedLibrary: [top] })}
+        active={false}
+        onClose={() => {}}
+      />
+    );
+    const tab = screen.getByRole('tab', { name: /Library/ });
+    fireEvent.click(tab);
+    await waitFor(() => expect(document.body.querySelector('.playtest-zone-grid')).toBeTruthy());
+    expect(document.body.querySelectorAll('.playtest-zone-grid > *').length).toBe(1);
+  });
+
+  it('falls back to the battlefield if they stop revealing while you are reading it', async () => {
+    const top = { id: 'top1', name: 'Sensei’s Divining Top', scryfallId: 'top1' };
+    resolveAll([scryCard('top1', 'Sensei’s Divining Top')]);
+    const { rerender } = render(
+      <OpponentBoardModal
+        opp={opp({}, { revealedLibrary: [top] })}
+        active={false}
+        onClose={() => {}}
+      />
+    );
+    fireEvent.click(screen.getByRole('tab', { name: /Library/ }));
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Library/ })).toBeTruthy());
+
+    rerender(<OpponentBoardModal opp={opp()} active={false} onClose={() => {}} />);
+    expect(screen.queryByRole('tab', { name: /Library/ })).toBeNull();
+    // Not a panel with no tab: the battlefield is showing again.
+    expect(screen.getByRole('tab', { name: /Battlefield/ }).getAttribute('aria-selected')).toBe(
+      'true'
+    );
+  });
+});
+
 describe('OpponentBoardModal — pointing', () => {
   /** Seat this device at an online table so `useOnlineSignals` links up; the
    *  point affordances are gated on exactly that (solo playtest has no table
