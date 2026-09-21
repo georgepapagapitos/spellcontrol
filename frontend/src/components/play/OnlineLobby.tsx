@@ -183,7 +183,7 @@ export function OnlineLobby({
           )}
         </div>
 
-        <div className="lobby-bar-group">
+        <div className="lobby-bar-group lobby-bar-group--actions">
           <button
             type="button"
             className={`btn lobby-bar-btn lobby-ready-btn ${mySeat.ready === true ? 'is-ready' : ''}`}
@@ -201,11 +201,18 @@ export function OnlineLobby({
 
           {isHost ? (
             <>
-              {!allReady && (
-                <span className="lobby-ready-count" aria-live="polite">
-                  {readyCount} of {game.players.length} ready
-                </span>
-              )}
+              {/* The count still stops nagging once everyone is ready, but the
+                  SLOT it lives in does not: emptying it used to pull Start
+                  game sideways under the host's cursor at exactly the moment
+                  they reached for it. The slot holds its width; the warning
+                  comes and goes inside it. */}
+              <span className="lobby-ready-slot">
+                {!allReady && (
+                  <span className="lobby-ready-count" aria-live="polite">
+                    {readyCount} of {game.players.length} ready
+                  </span>
+                )}
+              </span>
               <button
                 type="button"
                 className="btn btn-primary lobby-bar-btn"

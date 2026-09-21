@@ -103,6 +103,17 @@ describe('OnlineLobby', () => {
     expect(dispatch).toHaveBeenCalledWith({ type: 'start' });
   });
 
+  // The warning goes; the space it occupied does not. Emptying the slot used
+  // to pull Start game sideways under the host's cursor at the exact moment
+  // they reached for it.
+  it('keeps the slot when the warning goes, so Start game does not move', () => {
+    let game = applyAction(table(2), { type: 'set-ready', actorSeat: 0, ready: true });
+    game = applyAction(game, { type: 'set-ready', actorSeat: 1, ready: true });
+    renderLobby(game, 'u0');
+    expect(document.querySelector('.lobby-ready-slot')).toBeTruthy();
+    expect(screen.queryByText('2 of 2 ready')).toBeNull();
+  });
+
   it('drops the warning once everyone is ready', () => {
     let game = applyAction(table(2), { type: 'set-ready', actorSeat: 0, ready: true });
     game = applyAction(game, { type: 'set-ready', actorSeat: 1, ready: true });
