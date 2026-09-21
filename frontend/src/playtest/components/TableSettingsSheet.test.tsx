@@ -78,51 +78,36 @@ describe('the preferences it gathers', () => {
  * E347: the felt and the sleeves are per-device preferences that live here,
  * next to card size — not table-wide state a pod agrees on. The picker is
  * native radios (the `no-aria-only-radiogroups` guard is the other half of
- * this), and the two rows must be separate groups or picking a felt would
- * clear the sleeve.
+ * this).
  */
-describe('TableSettingsSheet — how the table looks (E347)', () => {
-  function renderSkin(felt = 'theme', sleeve = 'original') {
+describe('TableSettingsSheet — how the table looks', () => {
+  function renderSkin(felt = 'theme') {
     const onFelt = vi.fn();
-    const onSleeve = vi.fn();
-    render(
-      <TableSettingsSheet
-        skin={{ felt, sleeve, onFelt, onSleeve }}
-        links={links()}
-        onClose={vi.fn()}
-      />
-    );
-    return { onFelt, onSleeve };
+    render(<TableSettingsSheet skin={{ felt, onFelt }} links={links()} onClose={vi.fn()} />);
+    return { onFelt };
   }
 
-  it('picks a felt and a sleeve, each from its own group', () => {
-    const { onFelt, onSleeve } = renderSkin();
+  it('picks a felt from a real radio group', () => {
+    const { onFelt } = renderSkin();
     const felt = screen.getByRole('group', { name: 'Felt' });
-    const sleeves = screen.getByRole('group', { name: 'Sleeves' });
     expect(within(felt).getByRole('radio', { name: 'Theme' })).toBeTruthy();
-
     fireEvent.click(within(felt).getByRole('radio', { name: 'Green' }));
     expect(onFelt).toHaveBeenCalledWith('green');
-    fireEvent.click(within(sleeves).getByRole('radio', { name: 'Purple' }));
-    expect(onSleeve).toHaveBeenCalledWith('purple');
-
-    const names = (el: HTMLElement) =>
-      within(el)
-        .getAllByRole('radio')
-        .map((r) => (r as HTMLInputElement).name);
-    expect(new Set([...names(felt), ...names(sleeves)]).size).toBe(2);
   });
 
   it('checks the swatch that is in use', () => {
-    renderSkin('wine', 'red');
+    renderSkin('wine');
     const felt = screen.getByRole('group', { name: 'Felt' });
     expect((within(felt).getByRole('radio', { name: 'Wine' }) as HTMLInputElement).checked).toBe(
       true
     );
-    const sleeves = screen.getByRole('group', { name: 'Sleeves' });
-    expect((within(sleeves).getByRole('radio', { name: 'Red' }) as HTMLInputElement).checked).toBe(
-      true
-    );
+  });
+
+  // The picker was removed; the row must not come back by accident.
+  it('offers no sleeve picker', () => {
+    renderSkin();
+    expect(screen.queryByRole('group', { name: 'Sleeves' })).toBeNull();
+    expect(screen.queryByText(/sleeve/i)).toBeNull();
   });
 
   it('says whose table it is, because a pod setting would read the same', () => {
