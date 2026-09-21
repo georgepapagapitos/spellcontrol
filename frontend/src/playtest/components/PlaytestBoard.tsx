@@ -607,11 +607,12 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // React.memo(PlaytestCardView), and a fresh identity here would defeat
   // that memo for the whole battlefield on every dispatch.
   // Modifier-click builds a selection. What a PLAIN click does depends on
-  // what is pointing at the card: with a mouse it selects the permanent and
-  // tapping is a deliberate act (T, or Tap in the card menu) the way it is at
-  // EDHPlay — a click is how you pick a card up, and tapping on every stray
-  // click was the misfire. A finger has neither key nor right-click, so on a
-  // touch device a tap still taps.
+  // what is pointing at the card: with a mouse it does NOTHING (user,
+  // 2026-09-21) — the click is the start of a drag, selecting is the box or
+  // ⌘/ctrl-click, and tapping is a deliberate act (T, or Tap in the card
+  // menu) the way it is at EDHPlay. Tapping on every stray click was the
+  // first misfire; selecting on every stray click was the second. A finger
+  // has neither key nor right-click, so on a touch device a tap still taps.
   const handleCardClick = useCallback(
     (cardId: string, e: React.MouseEvent | React.KeyboardEvent) => {
       // Drawing an arrow: this tap is where it lands, not a tap of the card.
@@ -624,7 +625,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       // gesture: the player is already pointing at the card with their
       // hand, and the ring is the table seeing them do it.
       ping(cardId);
-      if (selectMode || e.shiftKey || e.metaKey || e.ctrlKey) {
+      // Enter/Space on a focused card is the keyboard's ⌘-click: a keyboard
+      // can neither drag a box nor hold a modifier over a card, so without
+      // this there is no keyboard route into a selection at all.
+      if (selectMode || e.type === 'keydown' || e.shiftKey || e.metaKey || e.ctrlKey) {
         setSelected((prev) => {
           const next = new Set(prev);
           if (!next.delete(cardId)) next.add(cardId);
@@ -632,12 +636,11 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         });
         return;
       }
-      if (mouseDriven) {
-        // A plain click is "this one, and only this one" — the selection
-        // readout then offers Tap, and T does it from the keyboard.
-        setSelected((prev) => (prev.size === 1 && prev.has(cardId) ? prev : new Set([cardId])));
-        return;
-      }
+      // A plain click with a mouse says nothing beyond the ring it just put
+      // round the card: it leaves the selection exactly as it found it, so a
+      // stray click can neither tap a permanent nor throw away a box you
+      // spent a gesture building.
+      if (mouseDriven) return;
       setSelected((prev) => (prev.size === 0 ? prev : new Set()));
       dispatch({ type: 'TAP', cardId });
     },
@@ -659,11 +662,20 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     []
   );
 
+  // A box dragged across bare felt. Holding a modifier as the drag starts
+  // adds to what was already selected; a plain drag is a fresh selection.
+  const selectArea = useCallback((ids: string[], additive: boolean) => {
+    setSelected((prev) => {
+      if (!additive) return new Set(ids);
+      const next = new Set(prev);
+      for (const id of ids) next.add(id);
+      return next;
+    });
+  }, []);
+
   // Batch actions over the selection (Archidekt/Moxfield `T` parity). Each
   // card is its own reducer step — the takeback trail counts them, which is
   // honest: a "tap all" of five creatures is five taps at the table too.
-  const selectedCards = state.battlefield.filter((b) => selected.has(b.card.id));
-  const anySelectedUntapped = selectedCards.some((b) => !b.tapped);
   const tapSelection = useCallback(() => {
     const cards = state.battlefield.filter((b) => selected.has(b.card.id));
     if (cards.length === 0) return;
@@ -674,8 +686,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     haptics.tap();
   }, [dispatch, selected, state.battlefield]);
   const moveSelection = useCallback(
-    (to: Zone) => {
-      for (const id of selected) dispatch({ type: 'MOVE_TO_ZONE', cardId: id, to });
+    (to: Zone, toIndex?: number) => {
+      for (const id of selected) dispatch({ type: 'MOVE_TO_ZONE', cardId: id, to, toIndex });
       setSelected(new Set());
       haptics.tap();
     },
@@ -2413,6 +2425,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               selectedIds={selected}
               stackIds={stackIdSet}
               onBackgroundClick={clearSelection}
+              onMarqueeSelect={selectArea}
               onBackgroundContextMenu={isNarrow ? undefined : openTableMenu}
               onCardClick={handleCardClick}
               onCardContextMenu={handleCardContext}
@@ -2421,46 +2434,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                 dispatch({ type: 'ADJUST_PT', cardId, power, toughness })
               }
             />
-            {/* Selection readout. Renders nothing at all when nothing is selected,
-            so it never displaces the board — and a selection can only exist on a
-            device with modifier keys, which is exactly where the shortcuts it
-            names are usable. */}
-            {selected.size > 0 && (
-              <div className="playtest-selection" role="status">
-                <span className="playtest-selection__count">
-                  {selected.size} selected
-                  {clipboard.length > 0 && ` · ${clipboard.length} copied`}
-                </span>
-                <button type="button" onClick={tapSelection}>
-                  {anySelectedUntapped ? 'Tap' : 'Untap'} <kbd>T</kbd>
-                </button>
-                <button type="button" onClick={() => moveSelection('graveyard')}>
-                  Graveyard
-                </button>
-                <button type="button" onClick={() => moveSelection('exile')}>
-                  Exile
-                </button>
-                <button type="button" onClick={() => moveSelection('hand')}>
-                  Hand
-                </button>
-                <button type="button" onClick={() => setClipboard([...selected])}>
-                  Copy <kbd>Ctrl/⌘C</kbd>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const made = cloneCards(clipboard);
-                    if (made) setClipboard(made);
-                  }}
-                  disabled={clipboard.length === 0}
-                >
-                  Paste <kbd>Ctrl/⌘V</kbd>
-                </button>
-                <button type="button" onClick={clearSelection}>
-                  Clear <kbd>Esc</kbd>
-                </button>
-              </div>
-            )}
             {/* The table tier's four corner clusters, floating over the felt
                 rather than taking rows off the board's height. */}
             {!isNarrow && (
@@ -2676,8 +2649,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           initialPage={ctx.page}
           keyFor={keyFor}
           onClose={() => setCtx(null)}
+          // Every action here reads the selection the same way the copy does:
+          // open the menu on a card that is part of it and the menu is the
+          // selection's menu, which is what the "N cards selected" heading
+          // says. Open it on a card outside the selection and it is that
+          // card's menu alone.
           onTap={() => {
-            dispatch({ type: 'TAP', cardId: ctx.cardId });
+            if (selected.has(ctx.cardId) && selected.size > 1) tapSelection();
+            else dispatch({ type: 'TAP', cardId: ctx.cardId });
             setCtx(null);
           }}
           onFlip={() => {
@@ -2730,7 +2709,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
             dispatch({ type: 'REMOVE_STICKER', cardId: ctx.cardId, index })
           }
           onMoveTo={(zone, toIndex) => {
-            dispatch({ type: 'MOVE_TO_ZONE', cardId: ctx.cardId, to: zone, toIndex });
+            if (selected.has(ctx.cardId) && selected.size > 1) moveSelection(zone, toIndex);
+            else dispatch({ type: 'MOVE_TO_ZONE', cardId: ctx.cardId, to: zone, toIndex });
             setCtx(null);
           }}
         />
