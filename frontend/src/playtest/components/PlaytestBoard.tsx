@@ -607,11 +607,12 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // React.memo(PlaytestCardView), and a fresh identity here would defeat
   // that memo for the whole battlefield on every dispatch.
   // Modifier-click builds a selection. What a PLAIN click does depends on
-  // what is pointing at the card: with a mouse it selects the permanent and
-  // tapping is a deliberate act (T, or Tap in the card menu) the way it is at
-  // EDHPlay — a click is how you pick a card up, and tapping on every stray
-  // click was the misfire. A finger has neither key nor right-click, so on a
-  // touch device a tap still taps.
+  // what is pointing at the card: with a mouse it does NOTHING (user,
+  // 2026-09-21) — the click is the start of a drag, selecting is the box or
+  // ⌘/ctrl-click, and tapping is a deliberate act (T, or Tap in the card
+  // menu) the way it is at EDHPlay. Tapping on every stray click was the
+  // first misfire; selecting on every stray click was the second. A finger
+  // has neither key nor right-click, so on a touch device a tap still taps.
   const handleCardClick = useCallback(
     (cardId: string, e: React.MouseEvent | React.KeyboardEvent) => {
       // Drawing an arrow: this tap is where it lands, not a tap of the card.
@@ -624,7 +625,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       // gesture: the player is already pointing at the card with their
       // hand, and the ring is the table seeing them do it.
       ping(cardId);
-      if (selectMode || e.shiftKey || e.metaKey || e.ctrlKey) {
+      // Enter/Space on a focused card is the keyboard's ⌘-click: a keyboard
+      // can neither drag a box nor hold a modifier over a card, so without
+      // this there is no keyboard route into a selection at all.
+      if (selectMode || e.type === 'keydown' || e.shiftKey || e.metaKey || e.ctrlKey) {
         setSelected((prev) => {
           const next = new Set(prev);
           if (!next.delete(cardId)) next.add(cardId);
@@ -632,12 +636,11 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         });
         return;
       }
-      if (mouseDriven) {
-        // A plain click is "this one, and only this one" — the selection
-        // readout then offers Tap, and T does it from the keyboard.
-        setSelected((prev) => (prev.size === 1 && prev.has(cardId) ? prev : new Set([cardId])));
-        return;
-      }
+      // A plain click with a mouse says nothing beyond the ring it just put
+      // round the card: it leaves the selection exactly as it found it, so a
+      // stray click can neither tap a permanent nor throw away a box you
+      // spent a gesture building.
+      if (mouseDriven) return;
       setSelected((prev) => (prev.size === 0 ? prev : new Set()));
       dispatch({ type: 'TAP', cardId });
     },

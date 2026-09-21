@@ -804,10 +804,12 @@ describe('PlaytestBoard — card size', () => {
 
 /**
  * A click on a permanent is not a tap when a mouse is driving (EDHPlay's
- * rule, user 2026-09-20): it picks the card, and tapping is the deliberate
- * act — T, or Tap in the card menu. A finger has neither key nor right-click,
- * so on a touch device a tap still taps, and these two tests are what keeps
- * one device tier from quietly taking the other's behaviour.
+ * rule, user 2026-09-20) and, since 2026-09-21, not a selection either: it
+ * says nothing at all, because the click is the start of a drag. Selecting is
+ * the box or ⌘/ctrl-click, tapping is T or the card menu. A finger has
+ * neither key nor right-click, so on a touch device a tap still taps, and
+ * these tests are what keeps one device tier from quietly taking the other's
+ * behaviour.
  */
 describe('PlaytestBoard — what a click on a permanent means', () => {
   function onBattlefield() {
@@ -819,7 +821,7 @@ describe('PlaytestBoard — what a click on a permanent means', () => {
     });
   }
 
-  it('with a mouse: a click selects the card, and T taps it', () => {
+  it('with a mouse: a plain click neither taps the card nor selects it', () => {
     stubWidth(1440, true);
     render(
       <MemoryRouter>
@@ -828,10 +830,34 @@ describe('PlaytestBoard — what a click on a permanent means', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Card 0' }));
     expect(dispatch).not.toHaveBeenCalledWith({ type: 'TAP', cardId: 'card-0' });
+    expect(document.querySelector('.playtest-card--selected')).toBeNull();
+  });
+
+  it('with a mouse: ctrl-click selects the card, and T taps it', () => {
+    stubWidth(1440, true);
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={onBattlefield()} />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Card 0' }), { ctrlKey: true });
+    expect(dispatch).not.toHaveBeenCalledWith({ type: 'TAP', cardId: 'card-0' });
     expect(document.querySelector('.playtest-card--selected')).toBeTruthy();
 
     fireEvent.keyDown(window, { key: 't' });
     expect(dispatch).toHaveBeenCalledWith({ type: 'TAP', cardId: 'card-0', tapped: true });
+  });
+
+  it('with a keyboard: Enter on a focused card selects it, since it can hold no modifier', () => {
+    stubWidth(1440, true);
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={onBattlefield()} />
+      </MemoryRouter>
+    );
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Card 0' }), { key: 'Enter' });
+    expect(document.querySelector('.playtest-card--selected')).toBeTruthy();
+    expect(dispatch).not.toHaveBeenCalledWith({ type: 'TAP', cardId: 'card-0' });
   });
 
   it('with a finger: a tap still taps the permanent', () => {
@@ -906,7 +932,7 @@ describe('PlaytestBoard — drag a box across the felt', () => {
         <PlaytestBoard state={twoLands()} />
       </MemoryRouter>
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Card 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Card 1' }), { ctrlKey: true });
     dragBox(placeCards(), { x: 300, y: 400 }, { shiftKey: true });
     expect(selectedNames().sort()).toEqual(['Card 0', 'Card 1']);
   });
@@ -917,7 +943,7 @@ describe('PlaytestBoard — drag a box across the felt', () => {
         <PlaytestBoard state={twoLands()} />
       </MemoryRouter>
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Card 0' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Card 0' }), { ctrlKey: true });
     const felt = placeCards();
     fireEvent.pointerDown(felt, { clientX: 50, clientY: 50, button: 0 });
     fireEvent.pointerUp(felt, { clientX: 51, clientY: 50 });
