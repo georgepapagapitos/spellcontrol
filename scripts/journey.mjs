@@ -842,6 +842,24 @@ async function main() {
             return { ok: observed === 'Admin', expected: 'Admin', observed };
           });
         }
+        if (r === '/search?q=sol+ring') {
+          // E339: the box used to render the `?q=` param, so each keystroke
+          // made a round trip through the router and a burst outran it — 19
+          // characters in, 4 in the box at 0ms/key. This types faster than any
+          // human and counts what survived; the value has to be the input's
+          // own state for that to hold.
+          await assertPage(rec, 'a burst of keystrokes all reach the search box', async () => {
+            const sel = 'input[aria-label="Search any card"]';
+            const typed = 'Sol Ring t:artifact';
+            await page.click(sel);
+            await page.$eval(sel, (el) => el.select());
+            await page.keyboard.press('Backspace');
+            await page.keyboard.type(typed, { delay: 0 });
+            await sleep(600);
+            const observed = await page.$eval(sel, (el) => el.value);
+            return { ok: observed === typed, expected: typed, observed };
+          });
+        }
         if (r === '/collection') {
           await assertPage(rec, 'collection card count', async () => {
             const observed = await page.evaluate(() => {
