@@ -11,7 +11,7 @@ export const SWEEP_MS = 600;
  * Edge-triggered off `activeSeat` CHANGING — never on mount, never re-firing
  * while it holds the same value — mirroring PlaytestBoard's
  * `tableDefeatedTurn` transition guard. Shared by the opponent rail (below
- * 1440px) and the desktop seat grid (at 1440px and up) so the two surfaces
+ * 1024px) and the desktop seat grid (at 1024px and up) so the two surfaces
  * flash the same moment on the same clock.
  */
 export function useTurnSweep(activeSeat: number | undefined): number | null {

@@ -184,7 +184,7 @@ function OpponentEntry({
     // The rail is the phone/5-seat presentation, so these two have to be
     // here as well as on the quadrant — a card someone is deliberately
     // showing the table, and a spell waiting to resolve, are exactly the
-    // things you cannot afford to only see at 1440px.
+    // things you cannot afford to only see at 1024px.
     !pending &&
       (board.revealed?.length ?? 0) > 0 &&
       `showing ${board.revealed!.map((c) => c.name ?? 'a card').join(', ')}`,
