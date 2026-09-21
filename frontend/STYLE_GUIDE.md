@@ -3275,6 +3275,34 @@ preview) and Archidekt's static-card panel, these rulings now hold:
   Toggle order is grid → stacks → list. Never fork the tile for stacks: every
   pip, badge and allocation cue must stay shared with the grid.
 
+### Amendment: what a stack opening should look like (2026-09-21)
+
+Three passes at the slide read as the card *popping in* rather than the stack
+moving off it. The rulings, guarded by `styles/stack-hover-reachable.test.ts`:
+
+- **The stack moves; the card does not.** The open card stays exactly where it
+  lives in the column, and every card BELOW it carries the same
+  `transform: translateY(--stack-open)` — `~`, not `+`, so each one travels
+  from its own place and the tail arrives as one block of cards. The cursor is
+  on the open card's name strip throughout.
+- **Never lift the open card by `z-index`.** Painted over its neighbours it
+  appears whole on the first frame and the tail slides out from under it, which
+  is the pop. In DOM order the tail slides ACROSS its face and uncovers it top
+  to bottom. That uncovering IS the animation.
+- **The overlap is layout and never animates.** `margin-top` puts each card in
+  the stack; transitioning it re-lays-out the deck every frame and moves the
+  tail by reflowing the card in front of it. Room for the slide is reserved on
+  the column in one step (on pointer-enter, given back one slide after leave),
+  so the cards move with no layout at all in between.
+- **Stacks pack, they do not wrap.** `packStacks` fills the shortest column, so
+  a 28-card Creature stack never holds a screen-high hole beside a 1-card
+  Commander. On a phone there is exactly ONE stack, as wide as the screen: a
+  stack is a name strip you have to be able to read, and the −/+ stepper hides
+  there because the screen sets the size.
+- **A stack header is words.** No collapse chevron (the column is already its
+  own collapse, one card open at a time) and no type glyph (the column below it
+  is a wall of card art). Name, count, price.
+
 ### Amendment: the card inspector (2026-09-20)
 
 The rail above lasted one day. It showed name, mana, type line and price — three

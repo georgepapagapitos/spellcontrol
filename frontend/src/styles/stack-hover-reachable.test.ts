@@ -9,19 +9,29 @@ const css = readFileSync(join(here, 'deck-builder-card-list.css'), 'utf8');
 
 /**
  * In the stacks view a card must not become unreachable because its neighbour
- * is open.
+ * is open, and the opening has to read as the stack moving OFF that card.
  *
  * The column overlaps its tiles so only each card's name strip shows, and the
- * card under the cursor opens to full size. The first cut opened it by z-order
- * alone: the open card then covered the strips of the four or five cards below
- * it, and the only way to reach one of those was to leave the stack entirely
- * and re-enter from underneath. Archidekt pushes the rest of the column down
- * instead, which keeps every strip on screen.
+ * card under the cursor opens to full size. Three cuts got this wrong, each by
+ * reaching for the obvious rule, so each one is pinned here:
  *
- * The push is one declaration — the tile directly after the open one drops its
- * negative margin, and the tail travels down with it — so this guard checks
- * that the declaration exists for BOTH ways a card opens (pointer and
- * keyboard), and that the overlap it cancels is still there to cancel.
+ *  1. Opening by z-order alone. The open card then covered the strips of the
+ *     four or five cards below it, and the only way to reach one of those was
+ *     to leave the stack entirely and re-enter from underneath.
+ *  2. Pushing the tail by animating `margin-top` on the tile directly after
+ *     the open one. The overlap is where a card LIVES in the stack: animating
+ *     it re-lays-out the deck every frame (the growing column shoved every
+ *     later column of the wrapped row down, a frame at a time), and it moves
+ *     the tail by reflowing the card in front of it rather than by moving each
+ *     card, so the cards never travel from their own place in the stack.
+ *  3. Lifting the open card over its neighbours with `z-index`. It then paints
+ *     whole on the first frame and the tail slides out from under it, which is
+ *     the card popping in rather than the stack moving. Left in DOM order, the
+ *     tail slides across its face and uncovers it top to bottom.
+ *
+ * What survives: a static overlap, and `transform: translateY(--stack-open)` on
+ * every following sibling (`~`) so the whole tail travels as one stack, for
+ * both ways a card opens (pointer and keyboard).
  */
 
 type Rule = { selector: string; body: string };
@@ -57,89 +67,140 @@ function rules(sheet: string): Rule[] {
 }
 
 const all = rules(css);
+const stack = all.filter((r) => r.selector.includes('.deck-card-stack'));
 
-/** Rules that set the stacked tile's own margin-top, in any state. */
-function marginRules(match: (selector: string) => boolean): Rule[] {
-  return all.filter(
+/** The rules that displace the cards below the open one, per opening state. */
+function tailRules(state: 'hover' | 'focus'): Rule[] {
+  return stack.filter(
     (r) =>
-      r.selector.includes('.deck-card-stack') &&
-      match(r.selector) &&
-      /(^|[;{\s])margin-top\s*:/.test(r.body)
+      r.selector.includes('~') &&
+      (state === 'hover' ? r.selector.includes(':hover') : r.selector.includes('focus'))
   );
 }
 
 describe('stacks view keeps buried cards reachable', () => {
-  it('still overlaps the tiles at rest', () => {
+  it('overlaps the tiles at rest, as static layout', () => {
     // If this goes, the stack is a plain column and the rest of the file's
     // geometry (the peek strip, the qty pip shrink) is dead weight.
-    const rest = marginRules(
-      (s) => s.includes('+') && !s.includes(':hover') && !s.includes('focus')
+    const rest = stack.filter(
+      (r) =>
+        r.selector.includes('+') &&
+        !r.selector.includes(':hover') &&
+        !r.selector.includes('focus') &&
+        /(^|[;{\s])margin-top\s*:/.test(r.body)
     );
     expect(rest.length, 'the stack no longer overlaps its tiles').toBeGreaterThan(0);
     expect(rest.some((r) => r.body.includes('var(--stack-card-h)'))).toBe(true);
+    for (const r of rest) {
+      expect(
+        r.body,
+        'the overlap must never animate. Transition `transform` on the cell instead'
+      ).not.toMatch(/transition/);
+    }
   });
 
-  it('pushes the column down when a card opens under the cursor', () => {
-    const pushed = marginRules((s) => s.includes(':hover') && s.includes('+'));
+  it('slides the whole tail below the open card, not just the next one', () => {
+    for (const state of ['hover', 'focus'] as const) {
+      const tail = tailRules(state);
+      expect(
+        tail.map((r) => r.selector),
+        `nothing moves the cards below the card opened by ${state}`
+      ).not.toEqual([]);
+      for (const r of tail) {
+        expect(r.body).toMatch(/transform\s*:\s*translateY\(var\(--stack-open\)\)/);
+      }
+    }
+    // A `+` displacement moves the tail by reflowing the card in front of it,
+    // so the cards do not travel from their own place in the stack.
+    const nextOnly = stack.filter(
+      (r) => /(:hover|focus)[^,{]*\+/.test(r.selector) && /margin|transform/.test(r.body)
+    );
     expect(
-      pushed.map((r) => r.selector),
-      'a hovered stack tile must push its following sibling down — z-index alone buries the cards under it'
-    ).not.toEqual([]);
-    for (const r of pushed) expect(r.body).toMatch(/margin-top\s*:\s*0/);
+      nextOnly.map((r) => r.selector),
+      'displace every following sibling (`~`), not just the next one (`+`)'
+    ).toEqual([]);
   });
 
-  it('pushes it down for keyboard focus too', () => {
-    const pushed = marginRules((s) => s.includes('focus') && s.includes('+'));
-    expect(
-      pushed.map((r) => r.selector),
-      'tabbing through a stack must open a card the same way hovering does'
-    ).not.toEqual([]);
-    for (const r of pushed) {
-      expect(r.body).toMatch(/margin-top\s*:\s*0/);
+  it('opens on the keyboard the same way, and only for :focus-visible', () => {
+    for (const r of tailRules('focus')) {
       // Plain :focus would leave the column parted after a click, with the
       // cursor long gone and nothing visibly focused.
       expect(r.selector).toContain(':focus-visible');
     }
   });
 
-  it("keeps each card's own chrome inside that card", () => {
+  it('travels on a transform the cards can be composited on', () => {
+    const cell = all.find((r) => r.selector.trim() === '.deck-card-stack .deck-card-grid-cell');
+    expect(cell?.body, 'the stacked cell rule went missing').toBeTruthy();
+    // Every card carries the same duration and curve, so the tail keeps its
+    // overlap exactly and arrives as one block of cards.
+    expect(cell?.body).toMatch(/transition\s*:\s*transform\s+var\(--motion-\w+\)\s+var\(--ease-/);
+    expect(
+      all.find((r) => r.selector.trim() === '.deck-grid-section--stack')?.body,
+      'the travel distance is the card minus the strip it already shows'
+    ).toMatch(/--stack-open:\s*calc\(var\(--stack-card-h\) - var\(--stack-peek\)\)/);
+  });
+
+  it('reserves the room the tail slides into, on the column and in one step', () => {
+    // The section draws a surface and a border, so a card that overflowed it
+    // would sit outside its own column; and the reservation cannot be animated,
+    // because that is the per-frame layout this rewrite exists to remove.
+    const reserves = stack.filter((r) => /padding-bottom:\s*var\(--stack-open\)/.test(r.body));
+    expect(
+      reserves.map((r) => r.selector),
+      'nothing reserves the room'
+    ).not.toEqual([]);
+    for (const r of reserves) {
+      expect(
+        r.selector,
+        'reserve on the COLUMN, so the box has finished resizing before a card opens'
+      ).toMatch(/\.deck-grid-section--stack:(hover|has\()/);
+      expect(
+        r.body,
+        'a transitioned reservation puts the deck through layout every frame'
+      ).not.toMatch(/transition\s*:\s*padding-bottom\s+[^0]/);
+    }
+    // Given back a slide later, so the cards are home before the box closes.
+    expect(
+      all
+        .filter((r) => r.selector.trim() === '.deck-card-stack')
+        .some((r) => /transition:\s*padding-bottom\s+0s\s+var\(--motion-\w+\)/.test(r.body)),
+      'the reservation must outlast the slide home: 0s duration, one slide of delay'
+    ).toBe(true);
+  });
+
+  it('keeps every card chrome inside that card', () => {
     // A buried tile is still a full card tall behind the cards stacked on it,
     // and its badge cluster (z-index: 2) and kebab (z-index: 3) sit at that
-    // full card's edges — deep inside whatever card is in front. Without a
+    // full card's edges, deep inside whatever card is in front. Without a
     // stacking context per cell those z-indexes resolve against the whole
     // column, and every buried card's icons punch through the open card's art
     // in a ragged line down its right-hand side.
     const cell = all.find((r) => r.selector.trim() === '.deck-card-stack .deck-card-grid-cell');
-    expect(cell?.body, 'the stacked cell rule went missing').toBeTruthy();
     expect(
       cell?.body,
-      'a stacked cell must isolate, or a buried card’s badges paint over the open card'
+      'a stacked cell must isolate, or a buried card badge paints over the open card'
     ).toMatch(/isolation\s*:\s*isolate/);
   });
 
-  it('lifts the open card by the cell, not by something inside it', () => {
-    // The corollary of isolating: a z-index raised on the tile can no longer
-    // lift the card it belongs to, so the lift has to be on the cell itself.
-    const lifts = all.filter(
-      (r) => r.selector.includes('.deck-card-stack') && /z-index\s*:\s*[1-9]/.test(r.body)
+  it('never paints the open card over the tail sliding off it', () => {
+    // The reveal IS the tail sliding across the card's face. Lifting the card
+    // instead shows it whole on the first frame, which reads as a pop.
+    const lifts = stack.filter(
+      (r) => /:(hover|focus)/.test(r.selector) && /z-index\s*:\s*[1-9]/.test(r.body)
     );
-    expect(lifts.length, 'nothing lifts the open card over its neighbours').toBeGreaterThan(0);
-    const onTile = lifts.filter((r) => r.selector.includes('.deck-card-grid-tile'));
     expect(
-      onTile.map((r) => r.selector),
-      'an isolated cell contains its children — lift .deck-card-grid-cell instead'
+      lifts.map((r) => r.selector),
+      'z-index on an opening stack card makes it pop in whole; DOM order is the reveal'
     ).toEqual([]);
   });
 
-  it('opens the card downward, never by moving it under the cursor', () => {
-    // The cursor sits in the exposed top strip of the card it opens. Growing
-    // downward keeps it there; a transform or a negative margin on the OPEN
-    // tile would slide the card out from under the pointer and flicker.
-    const active = all.filter(
-      (r) =>
-        r.selector.includes('.deck-card-stack') &&
-        /:hover\s*(,|\{|$)/.test(`${r.selector}{`) &&
-        !r.selector.includes('+')
+  it('never moves the card the cursor is already on', () => {
+    // The cursor sits in the exposed top strip of the card it opens. Leaving
+    // that card exactly where it lives in the stack keeps it there; displacing
+    // it would slide the card out from under the pointer and flicker.
+    const active = stack.filter(
+      (r) => /:hover\s*(,|$)/.test(r.selector.trim()) && !/[+~]/.test(r.selector)
     );
     for (const r of active) {
       expect(r.body, `${r.selector} displaces the card the cursor is already on`).not.toMatch(

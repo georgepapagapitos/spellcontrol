@@ -8,6 +8,7 @@ import { render, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { DeckDisplay, type DeckDisplayCard } from './DeckDisplay';
+import { packStacks, stackLayout } from './DeckCardGrid';
 import { readStoredViewMode } from './deck-display-rows';
 
 vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
@@ -80,6 +81,32 @@ describe('deck Stacks view', () => {
     expect(container.querySelector('.deck-card-inspector')).toBeNull();
   });
 
+  it('carries no collapse chevron — a stack is already its own collapse', () => {
+    localStorage.setItem('mtg-decks-view-mode', 'stacks');
+    const { container } = renderDeck();
+    expect(container.querySelectorAll('.deck-grid-section--stack').length).toBeGreaterThan(0);
+    expect(
+      container.querySelector('.deck-grid-section--stack .deck-section-collapse'),
+      'the column shows one strip per card and opens one at a time; a chevron that hides the whole column is a second control in a header trying to be a label'
+    ).toBeNull();
+    // And a section collapsed in the grid must not arrive here as an empty
+    // column with no way to open it.
+    expect(container.querySelector('.deck-card-stack[hidden]')).toBeNull();
+  });
+
+  it('drops the type glyph from a stack header, keeping the words', () => {
+    localStorage.setItem('mtg-decks-view-mode', 'stacks');
+    const { container } = renderDeck();
+    expect(container.querySelectorAll('.deck-grid-section--stack').length).toBeGreaterThan(0);
+    expect(
+      container.querySelector('.deck-grid-section--stack .deck-section-icon'),
+      'the column is already a wall of card art; the header above it reads as words alone'
+    ).toBeNull();
+    expect(
+      container.querySelector('.deck-grid-section--stack .deck-section-title')?.textContent
+    ).toContain('Creature');
+  });
+
   it('sets a per-zoom card width on each stack', () => {
     localStorage.setItem('mtg-decks-view-mode', 'stacks');
     const { container } = renderDeck();
@@ -106,5 +133,60 @@ describe('deck Stacks view', () => {
     localStorage.setItem('mtg-decks-view-mode', 'stacks');
     const { queryByRole } = renderDeck();
     expect(queryByRole('button', { name: 'Bigger cards' })).not.toBeNull();
+  });
+});
+
+// Packing is pure and computed from the stack width, so it is checked here
+// rather than through a render: happy-dom reports a 0px container, which is
+// the unmeasured case the component deliberately falls back to a flat row for.
+describe('packStacks', () => {
+  const g = (title: string, n: number) => ({ title, rows: new Array(n).fill(0) });
+
+  it('fills the shortest column, so a tall stack never holds a row hostage', () => {
+    // The flex-wrap bug: Creature (28) made its whole row 28 cards tall, and
+    // Sorcery/Land landed below all of it. Here they sit beside it.
+    const packed = packStacks([g('Commander', 1), g('Creature', 28), g('Sorcery', 2)], 2, 210);
+    expect(packed.map((c) => c.map((s) => s.title))).toEqual([
+      ['Commander', 'Sorcery'],
+      ['Creature'],
+    ]);
+  });
+
+  it('keeps every group exactly once, and drops the columns it did not need', () => {
+    const groups = [g('a', 3), g('b', 3), g('c', 3)];
+    const packed = packStacks(groups, 8, 210);
+    expect(packed.flat()).toHaveLength(3);
+    expect(packed).toHaveLength(3);
+  });
+
+  it('never renders zero columns', () => {
+    expect(packStacks([g('a', 1)], 0, 210)).toEqual([[g('a', 1)]]);
+  });
+});
+
+describe('stackLayout', () => {
+  it('gives a phone one stack, as wide as the screen', () => {
+    // Two 154px columns put four cards on the first screen and made every
+    // name strip a squint.
+    const { phone, columns, stackW } = stackLayout(390, 374, 1);
+    expect(phone).toBe(true);
+    expect(columns).toBe(1);
+    expect(stackW).toBe(374 - 27);
+  });
+
+  it('keeps the size stepper in charge on anything wider', () => {
+    const narrow = stackLayout(900, 860, 1).stackW;
+    const wide = stackLayout(1440, 1400, 1).stackW;
+    expect(narrow).toBe(154); // the mobile ladder, at the default step
+    expect(wide).toBe(210); // the desktop ladder
+    expect(stackLayout(1440, 1400, 4).stackW).toBeGreaterThan(wide); // + is still +
+  });
+
+  it('fits as many columns as the CONTAINER holds, never the viewport', () => {
+    // A 1400px container of 210px stacks: 237px a column including its chrome,
+    // 16px between them.
+    expect(stackLayout(1440, 1400, 1).columns).toBe(5);
+    expect(stackLayout(1440, 700, 1).columns).toBe(2);
+    expect(stackLayout(1440, 0, 1).columns).toBe(1);
   });
 });

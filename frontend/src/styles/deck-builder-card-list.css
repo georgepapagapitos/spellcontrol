@@ -61,9 +61,21 @@
    the column down.
    Same tile markup as the grid (DeckCardGrid `layout="stacks"`), so every
    pip and badge is shared — these rules only change the geometry. */
+/* Stacks pack into page columns (`packStacks` in DeckCardGrid) rather than
+   wrapping. `flex-wrap` made every row of columns as tall as its tallest
+   stack, so a 28-card Creature column left a screen-high hole beside Commander
+   and pushed Sorcery and Land far below the fold. The columns are explicit
+   here, so this row never wraps. */
 .deck-card-grid-sections--stacks {
   flex-direction: row;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.deck-stack-column {
+  display: flex;
+  flex-direction: column;
   align-items: flex-start;
   gap: var(--space-4);
 }
@@ -77,6 +89,10 @@
      ~11% of it, which is the name bar plus a hair of art on a normal frame. */
   --stack-card-h: calc(var(--stack-w) * 680 / 488);
   --stack-peek: calc(var(--stack-card-h) * 0.11);
+  /* How far the cards below the open one travel: from overlapped (only their
+     strip showing) to clear of a full card. Every tile in the tail moves by
+     exactly this, together, so the tail stays a stack while it moves. */
+  --stack-open: calc(var(--stack-card-h) - var(--stack-peek));
 }
 
 @media (max-width: 1024px) {
@@ -94,6 +110,33 @@
   width: var(--stack-w);
 }
 
+/* The tail slides on `transform`, which does not grow the column, so the room it
+   slides into is reserved instead — the section draws a surface and a border, so
+   a card that overflowed it would sit outside its own column.
+
+   The reservation is a single step, never a transition: animating it would put
+   the whole deck through layout on every frame, which is what made the old
+   slide judder (the growing column shoved every later column of the wrapped row
+   down, a frame at a time). It is taken on entering the COLUMN rather than a
+   card, so the box has finished resizing before a card opens, and it is given
+   back a slide later (`0s` duration, `--motion-gentle` delay) so the cards are
+   home before the box closes around them. Between those two steps the column's
+   height is fixed, and the cards move without any layout at all. */
+@media (hover: hover) and (pointer: fine) {
+  .deck-card-stack {
+    transition: padding-bottom 0s var(--motion-gentle);
+  }
+
+  .deck-grid-section--stack:hover .deck-card-stack {
+    padding-bottom: var(--stack-open);
+    transition-delay: 0s;
+  }
+}
+
+.deck-grid-section--stack:has(:focus-visible) .deck-card-stack {
+  padding-bottom: var(--stack-open);
+}
+
 .deck-card-stack .deck-card-grid-cell {
   width: var(--stack-w);
   /* A buried tile is still a FULL card tall behind the cards stacked on it,
@@ -105,59 +148,56 @@
      matters here is DOM order between cards, never a z-index raised for
      something within one. */
   isolation: isolate;
+  /* Every card in the tail carries the same duration and curve, so the tail
+     keeps its overlap exactly and arrives as one block of cards. */
+  transition: transform var(--motion-gentle) var(--ease-drawer);
 }
 
+/* The overlap is pure layout and never animates: it is where each card LIVES in
+   the stack. Animating it (the first cut transitioned `margin-top`) made the
+   browser re-lay-out the whole deck every frame and, worse, moved one card by
+   changing its box while its followers were dragged along by reflow rather than
+   moving themselves. */
 .deck-card-stack .deck-card-grid-cell + .deck-card-grid-cell {
   margin-top: calc(var(--stack-peek) - var(--stack-card-h));
-  /* A full card of travel (~190px), so it takes the drawer pair rather than
-     the 120ms hover one: at --motion-fast the column jumped rather than moved.
-     --ease-drawer is the sheet curve, and the duration is measured, not
-     guessed — rAF sampling of the real slide puts --motion-base at 78% of the
-     distance within 50ms, which still reads as a snap with a tail, against 49%
-     at --motion-gentle. 500ms (--motion-drawer) is the full-screen rise and
-     drags when the cursor sweeps a column. */
-  transition: margin-top var(--motion-gentle) var(--ease-drawer);
 }
 
-/* The open card floats over its neighbours for the length of the slide — the
-   one below has not finished moving out of the way yet. This is on the CELL,
-   not the tile: an isolated cell's children can no longer lift it, which is
-   the entire point of the rule above. */
+/* Opening a card slides the ENTIRE tail below it off the card, on `transform`.
+   Every following sibling (`~`, not `+`) gets the same translate, the same
+   duration and the same curve, so the tail keeps its own overlap exactly and
+   arrives as one block of cards — each one travelling from where it sits in
+   the stack, which is what a hand of cards pushed down actually does. Nothing
+   above the open card moves, and the open card itself does not move: the
+   cursor is on its name strip and the reveal happens away from the pointer.
+
+   The open card is deliberately NOT lifted by z-order. Painting it over its
+   neighbours made it appear whole on the first frame and the cards then slid
+   out from under it — the "pops in" read. Left in DOM order, the tail slides
+   down ACROSS its face and uncovers it top to bottom, which is the motion.
+
+   Sweeping down a column: the next card's strip sits under the cursor in its
+   pushed-down position, and taking over as the open card returns it to its own
+   place in the stack while the tail below it opens — one continuous ripple
+   down the column, with the cursor never losing the card it is on.
+
+   A full card of travel (~190px), so it takes the drawer pair rather than the
+   120ms hover one: at --motion-fast the column jumped rather than moved.
+   --ease-drawer is the sheet curve. */
 @media (hover: hover) and (pointer: fine) {
-  .deck-card-stack .deck-card-grid-cell:hover {
-    z-index: 3;
-  }
-}
-.deck-card-stack .deck-card-grid-cell:has(:focus-visible) {
-  z-index: 3;
-}
-
-/* …and the rest of the column moves down to make room (2026-09-21), the way
-   Archidekt's stacks do. Lifting by z-order alone was a dead end: the card
-   revealed under the cursor covered the name strips of every card beneath it,
-   so the only way to reach one of those was to leave the stack and come back
-   from below. Dropping the overlap on the tile DIRECTLY after the active one
-   is enough — the tail keeps its own overlap and travels down as a unit.
-
-   Only the top strip of a buried card is exposed to the cursor, so the pointer
-   is always in the top ~11% of the card that opens; the card grows downward,
-   away from it, and nothing moves under the cursor. Moving on to the next card
-   lands on its strip in its pushed-down position, which then opens in place. */
-@media (hover: hover) and (pointer: fine) {
-  .deck-card-stack .deck-card-grid-cell:hover + .deck-card-grid-cell {
-    margin-top: 0;
+  .deck-card-stack .deck-card-grid-cell:hover ~ .deck-card-grid-cell {
+    transform: translateY(var(--stack-open));
   }
 }
 
 /* Keyboard parity, on the cell so the tile's kebab holds the card open too.
    :focus-visible (not plain :focus) keeps a click from leaving the column
    parted after the pointer has gone. */
-.deck-card-stack .deck-card-grid-cell:has(:focus-visible) + .deck-card-grid-cell {
-  margin-top: 0;
+.deck-card-stack .deck-card-grid-cell:has(:focus-visible) ~ .deck-card-grid-cell {
+  transform: translateY(var(--stack-open));
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .deck-card-stack .deck-card-grid-cell + .deck-card-grid-cell {
+  .deck-card-stack .deck-card-grid-cell {
     transition: none;
   }
 }
