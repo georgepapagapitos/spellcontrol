@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
+import { MoreVertical } from 'lucide-react';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
 import { commanderTaxAmount } from '../lib/zones';
 
@@ -7,8 +7,14 @@ interface Props {
   zones: Record<Zone, PlaytestCard[]>;
   commanderTax: Record<string, number>;
   onOpenZone(zone: Zone): void;
-  onShuffleLibrary(): void;
-  onScry(): void;
+  /**
+   * Open this zone's menu. The same list of items the table tier's pile
+   * menu carries, rendered by the same component as a bottom sheet — a
+   * phone has no right-click, but it has no reason to be offered fewer
+   * actions either. The drawer closes behind it: a sheet over a drawer is
+   * two dismissals deep, and the drawer is one tap to reopen.
+   */
+  onMenu(zone: Zone): void;
 }
 
 interface ZoneEntry {
@@ -18,13 +24,7 @@ interface ZoneEntry {
   peek: 'top' | 'back';
 }
 
-export function MobileZonesPanel({
-  zones,
-  commanderTax,
-  onOpenZone,
-  onShuffleLibrary,
-  onScry,
-}: Props) {
+export function MobileZonesPanel({ zones, commanderTax, onOpenZone, onMenu }: Props) {
   const [open, setOpen] = useState(false);
   // Per-zone map of a top-card id whose image failed, so a new top card
   // always gets a fresh chance to load (mirrors ZonePile).
@@ -54,31 +54,6 @@ export function MobileZonesPanel({
           {entries.map((e) => {
             const top = e.cards[e.cards.length - 1];
             const tax = e.key === 'command' ? commanderTaxAmount(commanderTax, top?.id) : 0;
-            // Browse and Scry dismiss the whole drawer; Shuffle keeps it open.
-            const items: OverflowMenuItem[] = [
-              {
-                label: 'Browse',
-                onClick: () => {
-                  setOpen(false);
-                  onOpenZone(e.key);
-                },
-              },
-              ...(e.key === 'library'
-                ? [
-                    { label: 'Shuffle', onClick: () => onShuffleLibrary() },
-                    {
-                      // The sheet picks the mode (scry / surveil / mill) and
-                      // the count, so the entry stays generic: a fixed
-                      // "Scry 3" here would mislead about what happens.
-                      label: 'Top cards',
-                      onClick: () => {
-                        setOpen(false);
-                        onScry();
-                      },
-                    },
-                  ]
-                : []),
-            ];
             return (
               <div key={e.key} className="playtest-zone-tile">
                 <div className="playtest-zone-tile__head">
@@ -86,12 +61,18 @@ export function MobileZonesPanel({
                     {e.label} ({e.cards.length})
                     {tax > 0 && <span className="playtest-zone-tile__tax"> · Tax +{tax}</span>}
                   </span>
-                  <OverflowMenu
-                    items={items}
-                    ariaLabel={`${e.label} actions`}
-                    triggerClassName="playtest-zone-tile__kebab"
-                    panelClassName="playtest-zone-menu-popover"
-                  />
+                  <button
+                    type="button"
+                    className="playtest-zone-tile__kebab"
+                    aria-haspopup="menu"
+                    aria-label={`${e.label} actions`}
+                    onClick={() => {
+                      setOpen(false);
+                      onMenu(e.key);
+                    }}
+                  >
+                    <MoreVertical width={16} height={16} strokeWidth={2} aria-hidden />
+                  </button>
                 </div>
                 <button
                   type="button"

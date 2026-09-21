@@ -2507,8 +2507,9 @@ button.playtest-card-pt__value--editable:focus-visible {
 
 /* 44px touch-target floor via a centered ghost hit-area (the
    `.set-filter-chip-x` technique) — the visible kebab stays compact so it
-   doesn't crowd the tile's zone-name label, but this is the primary "pile
-   menu" (Browse/Shuffle/Scry) affordance on the ≤1024px zones drawer. */
+   doesn't crowd the tile's zone-name label. This is how the ≤1024px zones
+   drawer reaches the pile menu, which right-click opens on the table tier,
+   so it is the one control here that must clear the floor. */
 @media (pointer: coarse) {
   .playtest-zone-tile__kebab::after {
     content: '';
