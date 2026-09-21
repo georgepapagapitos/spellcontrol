@@ -59,6 +59,7 @@ function table(overrides: Partial<OnlineTable> = {}): OnlineTable {
   return {
     activeSeat: null,
     mySeat: 0,
+    isHost: false,
     me: fakePlayer(0),
     players: [fakePlayer(0), fakePlayer(1, 'Maya'), fakePlayer(2, 'Rin')],
     phase: undefined,

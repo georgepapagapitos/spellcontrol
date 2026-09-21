@@ -1,5 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Menu } from 'lucide-react';
+import {
+  ArrowLeft,
+  BarChart3,
+  BookOpen,
+  Eraser,
+  Flag,
+  Gavel,
+  Keyboard,
+  LayoutGrid,
+  LogOut,
+  Maximize2,
+  Menu,
+  Minimize2,
+  RotateCcw,
+  Rows3,
+  ScrollText,
+  Settings,
+} from 'lucide-react';
 import { useConfirm } from '@/lib/use-confirm';
 import {
   DndContext,
@@ -83,8 +100,10 @@ import { ZoneViewerModal } from './ZoneViewerModal';
 import { ActionBar } from './ActionBar';
 import { TableContextMenu, type TableMenuItem } from './TableContextMenu';
 import { LogDock } from './LogDock';
-import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
 import { Modal } from '@/components/Modal';
+import { EndGameDialog } from '@/components/play/EndGameDialog';
+import { useRulesReferenceStore } from '@/store/rules-reference';
+import { GameMenuSheet, type GameMenuSection } from './GameMenuSheet';
 import { cardsToBottom, GAME_PHASES, type MulliganType } from '@/lib/game-state';
 import { formatClock } from '@/lib/game-clock';
 import { useNow } from '@/lib/use-now';
@@ -254,6 +273,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // end up showing a different card than the one that was peeked.
   const [peek, setPeek] = useState<{ card: PlaytestCard; where: 'top' | 'bottom' } | null>(null);
   const [showStats, setShowStats] = useState(false);
+  // The corner hamburger's drawer, and the host-only winner picker it opens.
+  const [showGameMenu, setShowGameMenu] = useState(false);
+  const [endingTable, setEndingTable] = useState(false);
   const [showLog, setShowLog] = useState(false);
   // Highest resistance-entry seq seen so far — drives the ActionBar's unread
   // dot; not persisted, a soft nice-to-have that resets on remount.
@@ -815,6 +837,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     showDice ||
     peek !== null ||
     showShortcuts ||
+    showGameMenu ||
+    endingTable ||
     showTableSettings ||
     showResistancePicker ||
     showDesignations ||
@@ -903,9 +927,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   }, [onlineTable]);
   const doReset = useCallback(async () => {
     const ok = await confirm({
-      title: 'Reset the game?',
+      title: 'Start a new game?',
       body: 'This clears undo history and returns all cards to the starting state.',
-      confirmLabel: 'Reset',
+      confirmLabel: 'Start a new game',
       danger: true,
     });
     if (ok) dispatch({ type: 'RESET' });
@@ -922,6 +946,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       onlineTable.dispatch({ type: 'eliminate', seat: onlineTable.mySeat, eliminated: true });
     }
   }, [confirm, onlineTable]);
+  const openRules = useRulesReferenceStore((s) => s.open);
   const leaveOnline = usePlayStore((s) => s.leaveOnline);
   const leaveTable = useCallback(async () => {
     if (!onlineTable) return;
@@ -1559,47 +1584,102 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     },
   ];
 
-  const gameMenuItems: OverflowMenuItem[] = [
-    ...(onBack ? [{ label: `Back to ${backLabel ?? 'deck'}`, onClick: onBack }] : []),
-    { label: 'Stats', onClick: () => setShowStats(true) },
-    { label: hasUnreadLog ? 'Log (new events)' : 'Log', onClick: handleOpenLog },
-    ...(gridFits
-      ? [
-          {
-            label: gridMode ? 'Show the rail' : 'Show the seat grid',
-            onClick: toggleLayout,
-          },
-        ]
-      : []),
-    { label: 'Keyboard shortcuts', onClick: () => setShowShortcuts(true) },
-    { label: 'Table settings', onClick: () => setShowTableSettings(true) },
-    // Fullscreen is offered only where the browser offers it (not inside the
-    // native shell, and not in every embedded WebView).
-    ...(typeof document !== 'undefined' && document.fullscreenEnabled
-      ? [
-          {
-            label: isFullscreen ? 'Exit fullscreen' : 'Fullscreen',
-            onClick: () => {
-              if (document.fullscreenElement) void document.exitFullscreen();
-              else void document.documentElement.requestFullscreen();
-            },
-          },
-        ]
-      : []),
-    { label: 'Reset', onClick: () => void doReset(), danger: true },
-    // Online, the table is shared: conceding marks this seat out for everyone
-    // and leaving gives the seat up. Both ask first; both are the game's
-    // truth, not this device's, so they go through the session.
-    ...(onlineTable
-      ? [
-          ...(myArrowCount > 0
-            ? [{ label: `Clear my arrows (${myArrowCount})`, onClick: () => void clearMyArrows() }]
-            : []),
-          { label: 'Concede', danger: true, onClick: () => void concedeOnline() },
-          { label: 'Leave the table', danger: true, onClick: () => void leaveTable() },
-        ]
-      : []),
+  // What the drawer carries, in the order you reach for it: the things you
+  // open mid-game, the things you set once, and — kept at the foot, off the
+  // scroller — the ones that end a game.
+  const gameMenuSections: GameMenuSection[] = [
+    {
+      title: 'Table',
+      items: [
+        { label: 'Stats', icon: BarChart3, onClick: () => setShowStats(true) },
+        {
+          label: 'Log',
+          icon: ScrollText,
+          note: hasUnreadLog ? 'New' : undefined,
+          onClick: handleOpenLog,
+        },
+        ...(gridFits
+          ? [
+              {
+                label: gridMode ? 'Show the rail' : 'Show the seat grid',
+                icon: gridMode ? Rows3 : LayoutGrid,
+                onClick: toggleLayout,
+              },
+            ]
+          : []),
+        ...(myArrowCount > 0
+          ? [
+              {
+                label: `Clear my arrows (${myArrowCount})`,
+                icon: Eraser,
+                onClick: () => void clearMyArrows(),
+              },
+            ]
+          : []),
+        // The same quick-look reference the live tracker's menu opens — one
+        // sheet, mounted once in Layout, so the board just asks for it.
+        { label: 'Rules reference', icon: BookOpen, onClick: openRules },
+      ],
+    },
+    {
+      title: 'Settings',
+      items: [
+        { label: 'Table settings', icon: Settings, onClick: () => setShowTableSettings(true) },
+        { label: 'Keyboard shortcuts', icon: Keyboard, onClick: () => setShowShortcuts(true) },
+        // Fullscreen is offered only where the browser offers it (not inside
+        // the native shell, and not in every embedded WebView).
+        ...(typeof document !== 'undefined' && document.fullscreenEnabled
+          ? [
+              {
+                label: isFullscreen ? 'Exit fullscreen' : 'Fullscreen',
+                icon: isFullscreen ? Minimize2 : Maximize2,
+                onClick: () => {
+                  if (document.fullscreenElement) void document.exitFullscreen();
+                  else void document.documentElement.requestFullscreen();
+                },
+              },
+            ]
+          : []),
+      ],
+    },
   ];
+
+  // Online, the table is shared: conceding marks this seat out for everyone,
+  // ending it finishes the game for the whole pod, and leaving gives the seat
+  // up. All three ask first; all three are the game's truth, not this
+  // device's, so they go through the session.
+  const gameMenuFooter: GameMenuSection = {
+    title: 'Game',
+    items: [
+      ...(onBack
+        ? [{ label: `Back to ${backLabel ?? 'deck'}`, icon: ArrowLeft, onClick: onBack }]
+        : []),
+      { label: 'Start a new game', icon: RotateCcw, danger: true, onClick: () => void doReset() },
+      ...(onlineTable
+        ? [
+            { label: 'Concede', icon: Flag, danger: true, onClick: () => void concedeOnline() },
+            // Only the host can end the table — the server enforces the same
+            // rule, so nobody else is offered a button that would bounce.
+            ...(onlineTable.isHost
+              ? [
+                  {
+                    label: 'End the table for everyone',
+                    icon: Gavel,
+                    danger: true,
+                    onClick: () => setEndingTable(true),
+                  },
+                ]
+              : []),
+            {
+              label: 'Leave the table',
+              icon: LogOut,
+              danger: true,
+              onClick: () => void leaveTable(),
+            },
+          ]
+        : []),
+    ],
+  };
 
   // Takeback's glance cue: the count, a lock, or "Off". Read by the table
   // menu's own row, so it is resolved before that list is built.
@@ -1774,19 +1854,18 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
 
   const cornerActions = (
     <div className="playtest-corner playtest-corner--tr">
-      <OverflowMenu
-        items={gameMenuItems}
-        ariaLabel="Game menu"
-        align="right"
-        triggerClassName="playtest-corner-btn"
-        panelClassName="playtest-zone-menu-popover"
-        trigger={
-          <>
-            <Menu width={20} height={20} aria-hidden />
-            {hasUnreadLog && <span className="playtest-corner__dot" aria-hidden />}
-          </>
-        }
-      />
+      <button
+        type="button"
+        className="playtest-corner-btn"
+        aria-label="Game menu"
+        title="Game menu"
+        aria-haspopup="dialog"
+        aria-expanded={showGameMenu}
+        onClick={() => setShowGameMenu(true)}
+      >
+        <Menu width={20} height={20} aria-hidden />
+        {hasUnreadLog && <span className="playtest-corner__dot" aria-hidden />}
+      </button>
       {/* The turn count IS the control: pressing it moves the game on, the
           same thing Space does. A "Next turn" button sitting beside a turn
           counter was two pieces of chrome saying one thing. When it is not
@@ -2620,6 +2699,28 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           cardLookup={cardLookup}
           mulliganCount={mulliganCount}
           onClose={() => setShowStats(false)}
+        />
+      )}
+
+      {showGameMenu && (
+        <GameMenuSheet
+          sections={gameMenuSections}
+          footer={gameMenuFooter}
+          onClose={() => setShowGameMenu(false)}
+        />
+      )}
+
+      {/* Ending the table is the host saying the game is over, so it records a
+          result: the same winner picker /play ends a game with. */}
+      {endingTable && onlineTable && (
+        <EndGameDialog
+          game={{ players: onlineTable.players }}
+          onCancel={() => setEndingTable(false)}
+          onConfirm={(winnerSeat) => {
+            setEndingTable(false);
+            onlineTable.dispatch({ type: 'end', winnerSeat });
+            navigate('/play');
+          }}
         />
       )}
 

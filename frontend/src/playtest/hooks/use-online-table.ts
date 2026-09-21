@@ -33,6 +33,9 @@ export interface OnlineTable {
   me: GamePlayer;
   /** Every seated player, in seat order (own seat included). */
   players: GamePlayer[];
+  /** Whether this device's seat is the table's host. The server lets only the
+   *  host start or end a game, so host-only actions are offered only here. */
+  isHost: boolean;
   /** Advisory phase clock — absent means the clock hasn't been started. */
   phase: GamePhase | undefined;
   poisonEnabled: boolean;
@@ -200,6 +203,7 @@ export function useOnlineTable(state: PlaytestState): OnlineTable | null {
       mySeat: mine.seat,
       me: mine,
       players,
+      isHost: online.hostUserId != null && online.hostUserId === mine.userId,
       phase: online.phase,
       poisonEnabled: online.poisonEnabled,
       commanderDamageEnabled: online.commanderDamageEnabled,
