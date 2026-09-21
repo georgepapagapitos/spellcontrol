@@ -140,7 +140,7 @@ import { REACTION_EMOTES } from '../lib/table-signals';
 import { CardContextMenu, type CardMenuPage } from './CardContextMenu';
 import { CardInfoDialog } from './CardInfoDialog';
 import { MobileZonesPanel } from './MobileZonesPanel';
-import { DrawCountPage } from './DrawCountPage';
+import { CountPage } from './CountPage';
 import { OpeningHandSheet } from './OpeningHandSheet';
 import { PlaytestCardFace } from './PlaytestCardFace';
 import { ScrySheet } from './ScrySheet';
@@ -923,6 +923,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
 
   const libraryCount = state.zones.library.length;
   const libraryReveal = state.libraryReveal ?? 'none';
+  // Exile's face-down cards, as a set for the viewer's per-card badge.
+  const faceDownExile = useMemo(() => new Set(state.faceDownExile ?? []), [state.faceDownExile]);
   const doDraw = useCallback(() => {
     if (libraryCount === 0) return;
     haptics.tap();
@@ -2063,14 +2065,63 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         label: 'Draw several',
         disabled: empty,
         content: (
-          <DrawCountPage
+          <CountPage
             max={libraryCount}
-            onDraw={(n) => {
+            initial={2}
+            label={(n) => `Draw ${n} card${n === 1 ? '' : 's'}`}
+            onConfirm={(n) => {
               setPileMenu(null);
               dispatch({ type: 'DRAW', n });
             }}
           />
         ),
+      },
+      {
+        // Bulk mill and bulk exile: take N off the top without looking at
+        // them one by one, which is what the scry sheet behind View is for.
+        label: 'Move top cards to',
+        disabled: empty,
+        items: [
+          {
+            label: 'Graveyard',
+            content: (
+              <CountPage
+                max={libraryCount}
+                label={(n) => `Mill ${n} card${n === 1 ? '' : 's'}`}
+                onConfirm={(n) => {
+                  setPileMenu(null);
+                  dispatch({ type: 'MOVE_TOP_N', n, to: 'graveyard' });
+                }}
+              />
+            ),
+          },
+          {
+            label: 'Exile',
+            content: (
+              <CountPage
+                max={libraryCount}
+                label={(n) => `Exile ${n} card${n === 1 ? '' : 's'}`}
+                onConfirm={(n) => {
+                  setPileMenu(null);
+                  dispatch({ type: 'MOVE_TOP_N', n, to: 'exile' });
+                }}
+              />
+            ),
+          },
+          {
+            label: 'Exile face down',
+            content: (
+              <CountPage
+                max={libraryCount}
+                label={(n) => `Exile ${n} card${n === 1 ? '' : 's'} face down`}
+                onConfirm={(n) => {
+                  setPileMenu(null);
+                  dispatch({ type: 'MOVE_TOP_N', n, to: 'exile', faceDown: true });
+                }}
+              />
+            ),
+          },
+        ],
       },
       {
         // Five ways of looking, grouped rather than spent as five rows on the
@@ -2562,6 +2613,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                 }
               : undefined
           }
+          hiddenIds={viewer.zone === 'exile' ? faceDownExile : undefined}
           onShuffleIntoLibrary={
             viewer.zone === 'graveyard' || viewer.zone === 'exile'
               ? () => {
@@ -2789,15 +2841,65 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               ? 'Top of library'
               : peek.where === 'bottom'
                 ? 'Bottom of library'
-                : 'A random card from the library'}
+                : 'Random card selected'}
           </h2>
-          {/* Shown, not moved: the card is still exactly where it was, which
-              is the whole point of this over the scry sheet. */}
+          {/* Looking at an end of the library moves nothing — that is the
+              whole point of this over the scry sheet. A RANDOM card is a
+              different job: the effects that pick one (a discard, an exile)
+              then do something to it, so that one offers somewhere to put
+              it and "Put back" as the way out. */}
           <PlaytestCardFace card={peek.card} size="lg" />
           <p className="playtest-peek__name">{peek.card.name}</p>
-          <button type="button" className="btn" onClick={() => setPeek(null)}>
-            Done
-          </button>
+          {peek.where === 'random' ? (
+            <div className="playtest-peek__moves">
+              <span className="playtest-peek__moves-label" id="playtest-peek-moves">
+                Move to
+              </span>
+              <div
+                className="playtest-peek__moves-row"
+                role="group"
+                aria-labelledby="playtest-peek-moves"
+              >
+                {(['hand', 'battlefield', 'graveyard', 'exile'] as const).map((to) => (
+                  <button
+                    key={to}
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      const card = peek.card;
+                      setPeek(null);
+                      if (to === 'battlefield') {
+                        const pos = placeOnBattlefield(card);
+                        dispatch({
+                          type: 'MOVE_TO_BATTLEFIELD',
+                          cardId: card.id,
+                          x: pos.x,
+                          y: pos.y,
+                        });
+                      } else {
+                        dispatch({ type: 'MOVE_TO_ZONE', cardId: card.id, to });
+                      }
+                    }}
+                  >
+                    {to === 'hand'
+                      ? 'Hand'
+                      : to === 'battlefield'
+                        ? 'Battlefield'
+                        : to === 'graveyard'
+                          ? 'Graveyard'
+                          : 'Exile'}
+                  </button>
+                ))}
+              </div>
+              <button type="button" className="btn" onClick={() => setPeek(null)}>
+                Put back
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="btn" onClick={() => setPeek(null)}>
+              Done
+            </button>
+          )}
         </Modal>
       )}
       {showDice && <DiceRoller onClose={() => setShowDice(false)} />}

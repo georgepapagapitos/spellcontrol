@@ -309,7 +309,7 @@ describe('PlaytestBoard', () => {
     openLibraryMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: /Draw several/ }));
     // Opens on 2 — one card is what the row above it already does.
-    fireEvent.click(screen.getByRole('button', { name: 'One more card' }));
+    fireEvent.click(screen.getByRole('button', { name: 'One more' }));
     fireEvent.click(screen.getByRole('button', { name: 'Draw 3 cards' }));
     expect(dispatch).toHaveBeenCalledWith({ type: 'DRAW', n: 3 });
   });
@@ -323,7 +323,7 @@ describe('PlaytestBoard', () => {
     );
     openLibraryMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: /Draw several/ }));
-    const more = screen.getByRole('button', { name: 'One more card' });
+    const more = screen.getByRole('button', { name: 'One more' });
     fireEvent.click(more);
     fireEvent.click(more);
     fireEvent.click(more);
@@ -339,9 +339,83 @@ describe('PlaytestBoard', () => {
     );
     openLibraryMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: 'Select a random card' }));
-    expect(screen.getByText('A random card from the library')).toBeTruthy();
-    // Looking is not a move: the reducer never hears about it.
+    expect(screen.getByText('Random card selected')).toBeTruthy();
+    // Selecting one is not yet a move — the reducer hears nothing until a
+    // destination is picked.
     expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('gives the random card somewhere to go, and a way to put it back', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    openLibraryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Select a random card' }));
+    const moves = screen.getByRole('group', { name: 'Move to' });
+    for (const label of ['Hand', 'Battlefield', 'Graveyard', 'Exile']) {
+      expect(within(moves).getByRole('button', { name: label }), label).toBeTruthy();
+    }
+
+    fireEvent.click(within(moves).getByRole('button', { name: 'Graveyard' }));
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'MOVE_TO_ZONE', to: 'graveyard' })
+    );
+    // The panel closes behind the move rather than sitting on a card that
+    // is no longer where it was found.
+    expect(screen.queryByText('Random card selected')).toBeNull();
+  });
+
+  it('puts the random card back without touching the reducer', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    openLibraryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Select a random card' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put back' }));
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(screen.queryByText('Random card selected')).toBeNull();
+  });
+
+  it('sends the top cards to the graveyard or exile in bulk, face down on request', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    openLibraryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /Move top cards to/ }));
+    for (const label of ['Graveyard', 'Exile', 'Exile face down']) {
+      expect(screen.getByRole('menuitem', { name: label }), label).toBeTruthy();
+    }
+
+    // Each destination names its own verb on the button that does it.
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Graveyard' }));
+    expect(screen.getByRole('button', { name: 'Mill 1 card' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'One more' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mill 2 cards' }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'MOVE_TOP_N', n: 2, to: 'graveyard' });
+  });
+
+  it('carries face down through to the action, not just the label', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    openLibraryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /Move top cards to/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Exile face down' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Exile 1 card face down' }));
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'MOVE_TOP_N',
+      n: 1,
+      to: 'exile',
+      faceDown: true,
+    });
   });
 
   // Solo there is no audience, so the standing reveal collapses to its
@@ -1006,6 +1080,96 @@ describe('PlaytestBoard — Space moves the game on', () => {
 
     for (const target of [board, pile, card]) {
       expect(fireEvent.contextMenu(target)).toBe(false);
+    }
+  });
+});
+
+/**
+ * Every reveal in the real thing is Everyone or Me — a two-option audience,
+ * not a list of opponents. "Me" has to be private at the WIRE (see
+ * `projectRevealedLibrary`), not merely filtered in an opponent's UI, so
+ * these cover both the menu shape and the projection behind it.
+ */
+describe('PlaytestBoard — who a reveal is for', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    dispatch.mockClear();
+    onlineTable = seatedTable([opponent(1), opponent(2)]);
+  });
+
+  function openLibraryMenu() {
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^Draw a card\./ }), {
+      clientX: 20,
+      clientY: 20,
+    });
+  }
+
+  function mount(state = seededState()) {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={state} />
+      </MemoryRouter>
+    );
+  }
+
+  it('offers Everyone and Me for the standing reveal, and marks which is on', () => {
+    mount(applyAction(seededState(), { type: 'SET_LIBRARY_REVEAL', reveal: 'top-me' }));
+    openLibraryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Play with top revealed/ }));
+
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Me' }).getAttribute('aria-checked')).toBe(
+      'true'
+    );
+    expect(
+      screen.getByRole('menuitemcheckbox', { name: 'Everyone' }).getAttribute('aria-checked')
+    ).toBe('false');
+
+    // Switching audience is one step, not off-then-on.
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Everyone' }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_LIBRARY_REVEAL', reveal: 'top' });
+  });
+
+  it('reveals the top card once as an event, not a mode', () => {
+    mount();
+    openLibraryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Reveal top card/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Everyone' }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'REVEAL_TOP_CARD' });
+    // Not a standing reveal — nothing was switched on.
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'SET_LIBRARY_REVEAL' })
+    );
+  });
+
+  it('shows the top card to you alone when the audience is Me', () => {
+    mount();
+    openLibraryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Reveal top card/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Me' }));
+    expect(screen.getByText('Top of library')).toBeTruthy();
+    // Showing yourself a card is not an action the table hears about.
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('gives the whole-library reveal no Me — you can already read your own', () => {
+    mount();
+    openLibraryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Reveal library/ }));
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Everyone' })).toBeTruthy();
+    expect(screen.queryByRole('menuitemcheckbox', { name: 'Me' })).toBeNull();
+  });
+
+  it('turns the pile face up for either audience — Me is about them, not you', () => {
+    for (const reveal of ['top', 'top-me'] as const) {
+      const { unmount } = render(
+        <MemoryRouter>
+          <PlaytestBoard
+            state={applyAction(seededState(), { type: 'SET_LIBRARY_REVEAL', reveal })}
+          />
+        </MemoryRouter>
+      );
+      expect(document.querySelector('.playtest-pile__back--library'), reveal).toBeNull();
+      unmount();
     }
   });
 });

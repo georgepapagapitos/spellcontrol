@@ -25,6 +25,9 @@ interface Props {
   /** Elixir of Immortality / Feldon's Cane: shuffle every card here into the
    *  library and close. Only offered for graveyard/exile. */
   onShuffleIntoLibrary?(): void;
+  /** Ids in this zone the rest of the table cannot see — exile's face-down
+   *  cards. Only ever populated for exile; see `PlaytestState.faceDownExile`. */
+  hiddenIds?: Set<string>;
   /** Lookup for the full ScryfallCard behind each PlaytestCard — powers the
    *  tap-to-preview wiring (B6-07), same lookup `PlaytestBoard` already
    *  builds for `OpeningHandSheet`. */
@@ -87,6 +90,7 @@ export function ZoneViewerModal({
   onMove,
   onShuffleAfter,
   onShuffleIntoLibrary,
+  hiddenIds,
   cardLookup,
 }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
@@ -199,6 +203,7 @@ export function ZoneViewerModal({
                 card={c}
                 zone={zone}
                 isTop={!isFiltering && i === 0 && Boolean(hint)}
+                isHidden={hiddenIds?.has(c.id) ?? false}
                 tax={zone === 'command' ? commanderTaxAmount(commanderTax, c.id) : 0}
                 primary={primary}
                 overflow={overflow}
@@ -252,6 +257,8 @@ interface ZoneCardProps {
   zone: Zone;
   /** Renders the "Top" badge over the card face. */
   isTop: boolean;
+  /** This card is in exile face down — you can read it, the table cannot. */
+  isHidden: boolean;
   /** Commander tax (already ×2) — 0 outside the command zone. */
   tax: number;
   primary: ViewerDestination;
@@ -273,6 +280,7 @@ function ZoneCard({
   card: c,
   zone,
   isTop,
+  isHidden,
   tax,
   primary,
   overflow,
@@ -301,6 +309,9 @@ function ZoneCard({
           Top
         </span>
       )}
+      {/* Your own face-down exile: shown to you (you know what you put
+          there) with a badge saying the table does not see it. */}
+      {isHidden && <span className="playtest-zone-card__badge">Face down</span>}
       {onPreview ? (
         <button
           type="button"

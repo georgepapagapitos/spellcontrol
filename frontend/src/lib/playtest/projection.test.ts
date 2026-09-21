@@ -427,3 +427,46 @@ describe('toProjectedCard', () => {
     expect(projected).not.toHaveProperty('backImageUrl');
   });
 });
+
+/**
+ * Exile is otherwise fully public, so a face-down card in it is the one
+ * thing there that must not reach the table — redacted the same way a
+ * face-down permanent is, rather than simply omitted (it is visibly THERE).
+ */
+describe('toPublicBoard — face-down exile', () => {
+  function exiled(faceDown: boolean) {
+    const s = baseState();
+    const [a, b] = s.zones.library;
+    return {
+      ...s,
+      zones: { ...s.zones, exile: [a, b] },
+      faceDownExile: faceDown ? [a.id] : [],
+    };
+  }
+
+  it('passes an ordinary exiled card through in full', () => {
+    // Read the names off the fixture — createPlaytestState shuffles, so
+    // which cards land in exile is not fixed.
+    const state = exiled(false);
+    const board = toPublicBoard(state, 1);
+    expect(board.exile.map((c) => c.name)).toEqual(state.zones.exile.map((c) => c.name));
+  });
+
+  it('redacts the face-down one to a masked id and nothing else', () => {
+    const state = exiled(true);
+    const board = toPublicBoard(state, 1);
+    expect(board.exile).toHaveLength(2);
+    const [hiddenCard, openCard] = board.exile;
+    expect(hiddenCard.name).toBeUndefined();
+    expect(hiddenCard.oracleId).toBeUndefined();
+    expect(hiddenCard.scryfallId).toBeUndefined();
+    expect(openCard.name).toBe(state.zones.exile[1].name);
+    // The real id is masked too, so it can't be matched against anything.
+    expect(hiddenCard.id).not.toBe(state.zones.exile[0].id);
+    expect(JSON.stringify(board)).not.toContain(state.zones.exile[0].name);
+  });
+
+  it('keeps the count honest — a hidden card is still a card in exile', () => {
+    expect(toPublicBoard(exiled(true), 1).exile).toHaveLength(2);
+  });
+});

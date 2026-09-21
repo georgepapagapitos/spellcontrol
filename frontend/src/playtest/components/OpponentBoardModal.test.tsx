@@ -393,6 +393,38 @@ describe('OpponentBoardModal', () => {
  * The library is MTG's other hidden zone, so it gets a tab here only while
  * its owner is actually showing it — see `PublicBoard.revealedLibrary`.
  */
+/**
+ * A card exiled face down projects as a bare masked id (see `toPublicBoard`),
+ * so this view has to render "a card is there" without a name to render.
+ */
+describe('OpponentBoardModal — face-down exile', () => {
+  it('shows a redacted exile card as face down, with nothing to inspect', async () => {
+    resolveAll([scryCard('open1', 'Swords to Plowshares')]);
+    render(
+      <OpponentBoardModal
+        opp={opp(
+          {},
+          {
+            exile: [{ id: 'masked-abc' }, { id: 'open1', name: 'Swords to Plowshares' }],
+          }
+        )}
+        active={false}
+        onClose={() => {}}
+      />
+    );
+    fireEvent.click(screen.getByRole('tab', { name: /Exile/ }));
+    await waitFor(() => expect(document.body.querySelector('.playtest-zone-grid')).toBeTruthy());
+
+    // Both cards are present — a hidden card is still a card in exile.
+    expect(document.body.querySelectorAll('.playtest-zone-card').length).toBe(2);
+    expect(screen.getByText('Face down')).toBeTruthy();
+    expect(document.body.querySelector('.playtest-zone-card__facedown')).toBeTruthy();
+    // The named one is still inspectable; the redacted one is not a button.
+    expect(screen.getByRole('button', { name: /Inspect Swords to Plowshares/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Inspect card/ })).toBeNull();
+  });
+});
+
 describe('OpponentBoardModal — a revealed library', () => {
   it('offers no library tab while their library is private', () => {
     render(<OpponentBoardModal opp={opp()} active={false} onClose={() => {}} />);

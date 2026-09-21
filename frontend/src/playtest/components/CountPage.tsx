@@ -4,25 +4,31 @@ import { Minus, Plus } from 'lucide-react';
 interface Props {
   /** Cards left in the library — the count can't exceed it. */
   max: number;
-  onDraw(n: number): void;
+  /** The confirm button's whole label for a given count, so each caller
+   *  names its own action ("Draw 3 cards", "Mill 3 cards"). */
+  label(n: number): string;
+  /** Where the counter opens. Draw starts at 2 — one card is what the row
+   *  above it already does; the bulk moves start at 1. */
+  initial?: number;
+  onConfirm(n: number): void;
 }
 
 /**
- * The library menu's "Draw several" page: a count and a button that draws
- * it. A stepper rather than a row per number, because the count a player
- * wants is occasionally 11 (a big Blue Sun's Zenith) and a menu cannot list
- * every number — and because `Draw 2` is still one press away either way.
+ * A count, and a button that does the thing that many times — the library
+ * menu's "Draw several" and each of its bulk moves. A stepper rather than a
+ * row per number, because the count a player wants is occasionally 11 (a big
+ * Blue Sun's Zenith) and a menu cannot list every number.
  */
-export function DrawCountPage({ max, onDraw }: Props) {
-  const [n, setN] = useState(2);
+export function CountPage({ max, label, initial = 1, onConfirm }: Props) {
+  const [n, setN] = useState(initial);
   const clamp = (v: number) => Math.max(1, Math.min(v, Math.max(1, max)));
   const count = clamp(n);
   return (
-    <div className="playtest-ctx-draw">
-      <div className="playtest-ctx-draw__step">
+    <div className="playtest-ctx-count">
+      <div className="playtest-ctx-count__step">
         <button
           type="button"
-          aria-label="One fewer card"
+          aria-label="One fewer"
           disabled={count <= 1}
           onClick={() => setN(clamp(count - 1))}
         >
@@ -33,12 +39,12 @@ export function DrawCountPage({ max, onDraw }: Props) {
           min={1}
           max={Math.max(1, max)}
           value={count}
-          aria-label="Cards to draw"
+          aria-label="How many cards"
           onChange={(e) => setN(clamp(Number(e.target.value)))}
         />
         <button
           type="button"
-          aria-label="One more card"
+          aria-label="One more"
           disabled={count >= max}
           onClick={() => setN(clamp(count + 1))}
         >
@@ -49,11 +55,9 @@ export function DrawCountPage({ max, onDraw }: Props) {
         type="button"
         className="playtest-ctx-action playtest-ctx-action--table"
         disabled={max === 0}
-        onClick={() => onDraw(count)}
+        onClick={() => onConfirm(count)}
       >
-        <span>
-          Draw {count} card{count === 1 ? '' : 's'}
-        </span>
+        <span>{label(count)}</span>
       </button>
     </div>
   );

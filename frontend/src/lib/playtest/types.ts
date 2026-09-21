@@ -201,6 +201,17 @@ export interface PlaytestState {
    * reads as `none`, which keeps a library that predates this private.
    */
   libraryReveal?: LibraryReveal;
+  /**
+   * Ids of cards in exile that were put there FACE DOWN. Exile is otherwise
+   * a fully public zone, so this is the one thing that keeps a card in it
+   * hidden: the projection redacts these to a bare masked id, the way a
+   * face-down permanent is redacted. Their owner still sees them — you know
+   * what you exiled — which is the asymmetry the flag exists to create.
+   *
+   * A card leaving exile drops off this list. Optional for snapshot
+   * back-compat; absent means nothing in exile is hidden.
+   */
+  faceDownExile?: string[];
   /** Snapshots of prior states (cap kept inside reducer). UNDO pops the head. */
   past: Omit<PlaytestState, 'past'>[];
 }
@@ -238,6 +249,11 @@ export type PlaytestAction =
    *  the same. The battlefield is deliberately not a destination: N cards
    *  would all land on one point, and there is no sensible layout for it. */
   | { type: 'MOVE_ALL_TO'; from: Zone; to: Zone; toIndex?: number }
+  /** Take the top `n` off the library and put them in `to`, in order — mill
+   *  and bulk-exile. `faceDown` only means anything for exile (it is what
+   *  `faceDownExile` records) and is ignored anywhere else. No-op for n <= 0,
+   *  an empty library, or a move back into the library. */
+  | { type: 'MOVE_TOP_N'; n: number; to: Zone; faceDown?: boolean }
   /** Show the table the top of your library, all of it, or none of it. See
    *  `PlaytestState.libraryReveal`. */
   | { type: 'SET_LIBRARY_REVEAL'; reveal: LibraryReveal }
