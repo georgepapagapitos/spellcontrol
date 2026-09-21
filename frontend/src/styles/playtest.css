@@ -841,6 +841,68 @@ body[data-felt='slate'] {
   white-space: nowrap;
 }
 
+/* The command zone lays its commanders out in a row instead of stacking
+   them: with partners (or a Background, or Grand Arbiter + partner) there
+   are two sitting there at once and either may be the one being cast, so
+   neither may be hidden behind the other. */
+.playtest-pile__open--row {
+  cursor: default;
+}
+
+.playtest-pile__commanders {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.playtest-pile__commander {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+
+.playtest-pile__commander:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playtest-pile__commander:hover {
+    outline: 1px solid var(--accent);
+  }
+}
+
+/* Each commander's own tax, above its art the way the coin counters are —
+   a cost you read before deciding, not a footnote under the card. A zero
+   still holds its place: the row must not reflow the moment one is cast. */
+.playtest-pile__tax--own {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6rem;
+  padding: 0 var(--space-1);
+  background: transparent;
+  border-radius: 999px;
+  line-height: 1.4;
+}
+
+.playtest-pile__tax--own.is-zero {
+  color: var(--text-muted);
+}
+
+@media (pointer: coarse) {
+  .playtest-pile__commander {
+    min-height: 44px;
+  }
+}
+
 .playtest-pile__stack {
   position: relative;
   /* Card width, so the piles read as the same objects as the battlefield and

@@ -1482,3 +1482,84 @@ describe('PlaytestBoard — the phone gets the same zone menus', () => {
     expect(screen.getByRole('menuitem', { name: /^Move all to/ })).toBeTruthy();
   });
 });
+
+/**
+ * Partners put two commanders in the command zone at once, each accruing its
+ * OWN tax. A pile that renders a single top card cannot say which one you
+ * are casting, so the command zone is a row: both cards visible, both
+ * clickable, a tax badge on each.
+ */
+describe('PlaytestBoard — the command zone with partners', () => {
+  function withCommanders(names: string[], tax: Record<string, number> = {}) {
+    const base = seededState();
+    return {
+      ...base,
+      zones: {
+        ...base.zones,
+        command: names.map((n, i) => ({ id: `cmd-${i}`, name: n })),
+      },
+      commanderTax: tax,
+    };
+  }
+
+  function mount(state: ReturnType<typeof withCommanders>) {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={state} />
+      </MemoryRouter>
+    );
+  }
+
+  it('shows both commanders, each castable by name', () => {
+    mount(withCommanders(['Halana, Kessig Ranger', 'Alena, Kessig Trapper']));
+    expect(screen.getByRole('button', { name: /^Cast Halana, Kessig Ranger/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Cast Alena, Kessig Trapper/ })).toBeTruthy();
+    expect(document.querySelectorAll('.playtest-pile__commander').length).toBe(2);
+  });
+
+  it('casts the one you clicked, not the top of the pile', () => {
+    mount(withCommanders(['Halana', 'Alena']));
+    fireEvent.click(screen.getByRole('button', { name: /^Cast Alena/ }));
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'MOVE_TO_BATTLEFIELD', cardId: 'cmd-1' })
+    );
+    expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ cardId: 'cmd-0' }));
+  });
+
+  it('gives each commander its own tax, not one number for the zone', () => {
+    // cmd-0 cast twice (+4), cmd-1 never (+0) — the reducer stores casts, the
+    // badge doubles them (MTG 903.10).
+    mount(withCommanders(['Halana', 'Alena'], { 'cmd-0': 2 }));
+    const halana = screen.getByRole('button', { name: /^Cast Halana/ });
+    const alena = screen.getByRole('button', { name: /^Cast Alena/ });
+    expect(halana.getAttribute('aria-label')).toContain('tax +4');
+    expect(alena.getAttribute('aria-label')).not.toContain('tax');
+    // Both badges render, so the row cannot reflow when one goes from 0.
+    expect(document.querySelectorAll('.playtest-pile__tax--own').length).toBe(2);
+  });
+
+  it('still works with a single commander', () => {
+    mount(withCommanders(['Krenko, Mob Boss'], { 'cmd-0': 1 }));
+    const btn = screen.getByRole('button', { name: /^Cast Krenko, Mob Boss/ });
+    expect(btn.getAttribute('aria-label')).toContain('tax +2');
+    fireEvent.click(btn);
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'MOVE_TO_BATTLEFIELD', cardId: 'cmd-0' })
+    );
+  });
+
+  it('is an empty well with no commanders, not a labelled gap', () => {
+    mount(withCommanders([]));
+    expect(document.querySelectorAll('.playtest-pile__commander').length).toBe(0);
+    expect(screen.getByRole('button', { name: /^View the command zone\./ })).toBeTruthy();
+  });
+
+  it('keeps its menu — the row does not swallow the right-click', () => {
+    mount(withCommanders(['Halana', 'Alena']));
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^Cast Halana/ }), {
+      clientX: 10,
+      clientY: 10,
+    });
+    expect(screen.getByRole('menu', { name: 'Command zone' })).toBeTruthy();
+  });
+});
