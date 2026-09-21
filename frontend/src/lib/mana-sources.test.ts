@@ -243,6 +243,60 @@ describe('producedManaColors', () => {
     const bear = card({ name: 'Grizzly Bears', type_line: 'Creature — Bear' });
     expect(producedManaColors(bear, WU)).toEqual([]);
   });
+
+  describe('the clamp only listens to clauses that add mana', () => {
+    // War Room's mana ability is "{T}: Add {C}". The words "color identity"
+    // belong to a SEPARATE draw ability. Matched against the whole card, the
+    // contextual-fixer clamp fired on it: a land that taps for {C} reported
+    // the deck's full identity in a colored deck, and nothing at all in a
+    // colorless one. Real Scryfall text.
+    const warRoom = card({
+      name: 'War Room',
+      type_line: 'Land',
+      oracle_text:
+        "{T}: Add {C}.\n{3}, {T}, Pay life equal to the number of colors in your commanders' color identity: Draw a card.",
+    });
+
+    it('does not clamp War Room in a colored deck — it taps for {C}, not the identity', () => {
+      expect(producedManaColors(warRoom, new Set(['W', 'U', 'B', 'R', 'G']))).toEqual(['C']);
+    });
+
+    it('does not erase War Room in a colorless deck', () => {
+      // The identity is empty here, so clamping returned nothing at all and a
+      // colorless deck lost a real mana source.
+      expect(producedManaColors(warRoom, new Set())).toEqual(['C']);
+    });
+
+    it('still clamps a real fixer whose phrase IS in the mana clause', () => {
+      // The regression this must not cause. Real Scryfall text, unhydrated so
+      // the clamp is the only thing deciding the answer.
+      const tower = card({
+        name: 'Command Tower',
+        type_line: 'Land',
+        oracle_text: "{T}: Add one mana of any color in your commander's color identity.",
+      });
+      const fellwar = card({
+        name: 'Fellwar Stone',
+        type_line: 'Artifact',
+        oracle_text:
+          '{T}: Add one mana of any color that a land an opponent controls could produce.',
+      });
+      expect(sorted(producedManaColors(tower, new Set(['B', 'G'])))).toEqual(['B', 'G']);
+      expect(sorted(producedManaColors(fellwar, new Set(['B', 'G'])))).toEqual(['B', 'G']);
+    });
+
+    it('still clamps a hydrated rainbow fixer', () => {
+      // Scryfall reports Command Tower as all five colors; the clamp is what
+      // stops it counting as a true five-color source.
+      const tower = card({
+        name: 'Command Tower',
+        type_line: 'Land',
+        oracle_text: "{T}: Add one mana of any color in your commander's color identity.",
+        produced_mana: ['W', 'U', 'B', 'R', 'G'],
+      });
+      expect(sorted(producedManaColors(tower, new Set(['B', 'G'])))).toEqual(['B', 'G']);
+    });
+  });
 });
 
 describe('isManaSourceType', () => {
