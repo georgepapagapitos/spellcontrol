@@ -858,6 +858,17 @@ body[data-felt='slate'] {
   white-space: nowrap;
 }
 
+/* Reserves room for a second digit so a zone crossing the single/double-digit
+   boundary (a draw, a mill) does not resize the tile and shift the row next
+   to it — the tile otherwise shrink-wraps this text, and "Library (9)" is
+   narrower than "Library (10)". */
+.playtest-pile__count {
+  display: inline-block;
+  min-width: 2ch;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 /* The command zone lays its commanders out in a row instead of stacking
    them: with partners (or a Background, or Grand Arbiter + partner) there
    are two sitting there at once and either may be the one being cast, so
@@ -4169,19 +4180,25 @@ button.playtest-card-pt__value--editable:focus-visible {
 /* ── The felt itself ───────────────────────────────────────────────────── */
 @media (min-width: 1024px) {
   /* Full-bleed table: the two theme accent glows it already had, plus a faint
-     40px grid so the surface reads as a table rather than a void. */
+     20px grid so the surface reads as a table rather than a void — a finer
+     weave than the felt used to carry, closer to how a real playmat reads. */
   .playtest-battlefield-wrap {
     background:
-      repeating-linear-gradient(to right, var(--felt-line) 0 1px, transparent 1px 40px),
-      repeating-linear-gradient(to bottom, var(--felt-line) 0 1px, transparent 1px 40px),
+      repeating-linear-gradient(to right, var(--felt-line) 0 1px, transparent 1px 20px),
+      repeating-linear-gradient(to bottom, var(--felt-line) 0 1px, transparent 1px 20px),
       radial-gradient(circle at 30% 30%, var(--felt-glow), transparent 60%),
       radial-gradient(circle at 70% 70%, var(--felt-glow), transparent 60%), var(--felt-base);
   }
 
   /* Your turn at an online table: a gold ring around the whole felt. Solo
-     play has no turn order to signal, so it never lights. */
+     play has no turn order to signal, so it never lights. Same weight and
+     colour as the opponent quadrant's own ring (OpponentQuadrant.css
+     `.opponent-quadrant.is-active-turn`) — one signal, wherever the active
+     seat sits. */
   .playtest-battlefield-wrap.is-my-turn {
-    box-shadow: inset 0 0 0 2px var(--brand-seal-gold);
+    box-shadow:
+      inset 0 0 0 4px var(--brand-seal-gold),
+      0 0 20px 2px color-mix(in oklab, var(--brand-seal-gold) 45%, transparent);
   }
 
   /* The empty-table hint is a nudge, not a headline: it sits in the middle of
