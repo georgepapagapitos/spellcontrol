@@ -632,7 +632,11 @@ body:has(.playtest-page) {
    Each named felt replaces the base and dims its glow to a tint of itself, so
    a coloured table still reads as one surface rather than a colour with two
    accent blobs on it. */
-.playtest-page,
+/* On `body` ALONE, deliberately. A custom property resolves from the nearest
+   declaring ancestor, not by specificity across elements — so listing
+   `.playtest-page` here too (as this once did) put a reset between
+   `body[data-felt='…']` and the felt that reads these, and every colour but
+   the default silently did nothing. */
 body {
   --felt-base: var(--bg);
   --felt-glow: var(--accent-light);
@@ -1205,42 +1209,11 @@ body[data-felt='slate'] {
 .playtest-pile__back--library {
   width: 100%;
   height: 100%;
-  background-color: var(--sleeve-color, #1e130b);
+  background-color: #1e130b;
   background-image: url('/card-back.webp');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  background-blend-mode: var(--sleeve-blend, normal);
-}
-
-/* Sleeves (E347). Per-device, set as `data-sleeve` on <body>. A sleeve is the
-   SAME card back in a different colour, never a second image: `luminosity`
-   keeps the printed back's light and shade and takes its hue from the colour
-   underneath, so every sleeve stays a card back rather than a flat rectangle.
-   `original` writes no attribute — the printed back is the default. */
-body[data-sleeve] .playtest-card__back,
-body[data-sleeve] .playtest-pile__back--library {
-  --sleeve-blend: luminosity;
-}
-
-body[data-sleeve='black'] {
-  --sleeve-color: #141414;
-}
-
-body[data-sleeve='blue'] {
-  --sleeve-color: #1c3f6e;
-}
-
-body[data-sleeve='red'] {
-  --sleeve-color: #6e1c1c;
-}
-
-body[data-sleeve='green'] {
-  --sleeve-color: #1c5a34;
-}
-
-body[data-sleeve='purple'] {
-  --sleeve-color: #452a6e;
 }
 
 .playtest-card--tapped {

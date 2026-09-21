@@ -343,3 +343,50 @@ describe('the desktop seat grid', () => {
     );
   });
 });
+
+/**
+ * The felt colour setting did nothing for its entire life: the defaults were
+ * declared on `.playtest-page, body`, and a custom property resolves from the
+ * NEAREST declaring ancestor rather than by specificity across elements — so
+ * `.playtest-page` sat between `body[data-felt='…']` and the felt that reads
+ * the vars, resetting all three on the way down.
+ *
+ * This is a CSS-shape guard rather than a computed-style one on purpose: the
+ * bug is which SELECTOR declares the defaults, and that is exactly what can
+ * be read off the stylesheet.
+ */
+describe('the felt setting can actually reach the felt', () => {
+  it('declares the felt defaults on body alone', () => {
+    const decl = block('body {');
+    expect(decl).toContain('--felt-base');
+    expect(decl).toContain('--felt-glow');
+    expect(decl).toContain('--felt-line');
+  });
+
+  it('never re-declares them below body, where they would shadow the override', () => {
+    // Comments carry the word too, and they are not selectors.
+    const bare = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    for (const v of ['--felt-base', '--felt-glow', '--felt-line']) {
+      const re = new RegExp('([^{}]*)\\{[^{}]*' + v + '\\s*:', 'g');
+      for (const m of bare.matchAll(re)) {
+        const selector = m[1].split('}').pop()!.trim();
+        expect(selector.startsWith('body'), `${v} declared on "${selector}"`).toBe(true);
+      }
+    }
+  });
+
+  it('keeps a named felt overriding all three, so a colour is one surface', () => {
+    for (const felt of ['green', 'blue', 'wine', 'slate']) {
+      const b = block(`body[data-felt='${felt}'] {`);
+      expect(b, felt).toContain('--felt-base');
+      expect(b, felt).toContain('--felt-glow');
+      expect(b, felt).toContain('--felt-line');
+    }
+  });
+
+  it('has no sleeve rules left — the picker is gone', () => {
+    expect(css).not.toContain('data-sleeve');
+    expect(css).not.toContain('--sleeve-color');
+    expect(css).not.toContain('--sleeve-blend');
+  });
+});
