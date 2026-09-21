@@ -1783,13 +1783,16 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     ...(onlineTable ? [{ label: 'Reactions', onClick: () => setReactionToken((t) => t + 1) }] : []),
   ];
 
-  // The table tier's mana row, folded into the life panel as its last row.
-  // Closed and empty it is nothing at all (six always-zero steppers have no
-  // business sitting on the table all game); closed with mana floating it is
-  // one "Mana · 3" chip; M or the chip opens the real pool.
+  // The table tier's mana tracker, in its own bottom-left dock above the log
+  // dock rather than inside the life panel — floating mana is something you
+  // read while looking at your lands and your hand, not while looking at your
+  // life total. Closed and empty it is nothing at all (six always-zero
+  // steppers have no business sitting on the table all game); closed with
+  // mana floating it is one "Mana · 3" chip; M or the chip opens the pool.
   const manaTotal = Object.values(state.manaPool ?? ZERO_MANA_POOL).reduce((a, b) => a + b, 0);
   const manaPool = (
     <ManaPool
+      layout={isNarrow ? 'row' : 'column'}
       pool={state.manaPool ?? ZERO_MANA_POOL}
       onAdjust={(color, delta) => {
         haptics.tap();
@@ -1841,7 +1844,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         onlineTable={onlineTable}
         onViewOpponentBoard={setViewingBoardSeat}
         variant={isNarrow ? 'strip' : 'table'}
-        footer={isNarrow ? undefined : manaRow}
       />
       {isNarrow && manaPool}
     </div>
@@ -2531,32 +2533,42 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         </DragOverlay>
       </DndContext>
 
-      {/* Non-modal docked log (table tier). The narrow tier keeps the sheet. */}
-      {showLog && !isNarrow && (
-        <LogDock
-          log={gameLog}
-          popoutHref={playtestDeckId ? `/decks/${playtestDeckId}/playtest/log` : undefined}
-          table={
-            onlineTable
-              ? { items: onlineTicker, nameFor: (seat) => tickerSeatName(onlineTable, seat) }
-              : undefined
-          }
-          phase={
-            onlineTable
-              ? {
-                  current: onlineTable.phase,
-                  mine: onlineTable.activeSeat === onlineTable.mySeat,
-                  onSet: (p) =>
-                    onlineTable.dispatch({
-                      type: 'phase',
-                      phase: p,
-                      actorSeat: onlineTable.mySeat,
-                    }),
-                }
-              : undefined
-          }
-          onClose={() => setShowLog(false)}
-        />
+      {/* Bottom-left dock column (table tier; the narrow tier keeps the log
+          sheet and puts mana in the trackers row). Mana sits above the log,
+          and they stack with flexbox rather than arithmetic: the log's height
+          is content-driven and capped at a MAX, and it is unmounted entirely
+          when closed — any hand-computed offset is wrong in both directions
+          (an early one put the mana column off the top of the screen). */}
+      {!isNarrow && (manaRow || showLog) && (
+        <div className="playtest-left-dock">
+          {manaRow && <div className="playtest-mana-dock">{manaRow}</div>}
+          {showLog && (
+            <LogDock
+              log={gameLog}
+              popoutHref={playtestDeckId ? `/decks/${playtestDeckId}/playtest/log` : undefined}
+              table={
+                onlineTable
+                  ? { items: onlineTicker, nameFor: (seat) => tickerSeatName(onlineTable, seat) }
+                  : undefined
+              }
+              phase={
+                onlineTable
+                  ? {
+                      current: onlineTable.phase,
+                      mine: onlineTable.activeSeat === onlineTable.mySeat,
+                      onSet: (p) =>
+                        onlineTable.dispatch({
+                          type: 'phase',
+                          phase: p,
+                          actorSeat: onlineTable.mySeat,
+                        }),
+                    }
+                  : undefined
+              }
+              onClose={() => setShowLog(false)}
+            />
+          )}
+        </div>
       )}
 
       {tableMenu && (

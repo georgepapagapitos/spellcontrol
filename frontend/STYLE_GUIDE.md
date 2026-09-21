@@ -2100,27 +2100,50 @@ only shared elements (the felt itself, the density cap) are gated on
 - **Four corners, anchored to the felt.** The clusters are `position:
 absolute` inside `.playtest-battlefield-wrap`, not inside `.playtest-board`,
   so an opponent rail (a flex sibling of the wrap) is never underneath one.
-  Top-left: **your own** life as the panel's headline, a display numeral
-  between two 44px ±1 steppers (`usePressRepeat`, so a ten-point swing is one
-  hold), with a bare chevron and the numeral itself both opening the same
-  `LifeAdjustPanel` the strip uses. The chevron carries no "Details" label
-  and no opponent count: the chips under it are the opponents. Everyone
-  else, virtual opponent or real seat, is a secondary row of small name+life
-  chips underneath: four equal-weight chips told you nothing about whose
-  board you were looking at. The popover under the chevron is **one list**:
-  the five player counters modern Magic actually uses (poison, energy,
-  experience, rad, tickets) as icon rows, listed even at zero, then one
-  commander-damage row per commander (solo: dealt to each virtual opponent;
-  online: taken from each seat), each a name, a value and a ±1 stepper. No
-  life row on the wide tier (the steppers are already on the panel; the
-  narrow strip's sheet keeps it, since the chip has none), and the by-name
-  counter field folds behind an "Another counter" link so the fixed list is
-  the whole panel at rest. This is EDHPlay's shape; the earlier version put
-  life in twice and split commander damage across a per-opponent panel.
-  The mana tracker is the **last row of that same panel** — nothing at all
-  while the pool is empty and closed, a "Mana · 3" chip while mana is
-  floating, the full pool once opened by the chip or `M`. This is
-  `LifeStrip`'s `variant="table"`; the narrow tier keeps the strip untouched.
+  Top-left: **− 40 + on one line, with a chevron under it, and nothing else.**
+  That is the whole resting panel. It sits over the felt every second of
+  every game to show one number, so it earns its space by being small: a
+  `--text-lg` numeral between two 22px ±1 steppers (`usePressRepeat`, so a
+  ten-point swing is one hold), which take a **ghosted 44px hit box** on
+  coarse pointers rather than growing. Badges are the one exception, and only
+  when non-zero: a poison count or the Monarch must not need a panel to
+  notice. Everything else is behind the chevron, which carries no "Details"
+  label and no count. The popover under it is **one list, in the order a
+  table reads them**: the opponent seats (name + life + ±1; the name opens
+  that opponent's own panel, where life moves in ±5s), then one
+  commander-damage row per commander, then the five player counters modern
+  Magic actually uses (poison, energy, experience, rad, tickets) as icon
+  rows, listed even at zero. Commander damage sits **above** the counters
+  because it is the other way a game ends. No life row on the wide tier (the
+  steppers are already on the panel; the narrow strip's sheet keeps it, since
+  the chip has none), and the by-name counter field folds behind "Another
+  counter". Solo's virtual opponents are in that list because they have no
+  board of their own; **online leaves it out** — those seats are real
+  quadrants on the felt, and a second place to read the same life total is a
+  second place for it to be wrong. This is `LifeStrip`'s `variant="table"`;
+  the narrow tier keeps the strip untouched.
+- **The life change shows itself while you make it.** A transient `+5` /
+  `−6` badge beside the total, accumulating every step within 1.4s of the
+  last and then clearing (`useLifeDelta`). The numeral alone cannot answer
+  the question you actually have — you are on 34, but was that six off a
+  Blightning or one off a fetch. It is `aria-hidden`: the total's own button
+  already announces the value, and a live delta would make a screen reader
+  read every step of a press-and-hold. Render the loss with a real minus
+  sign; a raw negative number gives an ASCII hyphen next to the stepper's
+  `−`.
+- **Bottom-left is one dock column, stacked by the browser.** Floating mana
+  over the game log, both inside `.playtest-left-dock` — mana is read
+  alongside your lands and your hand, not folded into your life total. They
+  stack with **flexbox, never arithmetic**: the log's height is
+  content-driven, capped at a max it rarely reaches, and it is unmounted
+  when closed, so any offset computed from that max is wrong in both
+  directions (one put the mana column 117px above the top of the viewport).
+  The column caps its height in `vh` — a percentage resolves to `none`
+  against the board, silently doing nothing — leaving the life panel's
+  corner clear, and the log shrinks and scrolls rather than shoving mana up
+  into it. The pool is nothing at all while empty and closed, a "Mana · 3"
+  chip while mana is floating, and a vertical column of pips once opened by
+  the chip or `M`.
   Top-right: the `☰` game menu (44×44, an `OverflowMenu`
   so the keyboard nav is the shared one), the TURN chip (carrying the turn
   clock when the table turned one on), the primary turn action, then the
@@ -2131,9 +2154,9 @@ absolute` inside `.playtest-battlefield-wrap`, not inside `.playtest-board`,
   for exactly as long as it is live — a pending takeback says it is waiting
   on the table, and Select shows a "Done" button with its count while a
   selection is open. Bottom-right: the zone piles as a horizontal row, each
-  labelled `Library (92)` with the count in the label, Library carrying an
-  inline "Draw · D" (the live key, never a hard-coded one — it is the only
-  Draw control on the felt) and a kebab with Shuffle and Top cards.
+  labelled `Library (92)` with the count in the label, a click on the tile
+  itself doing that zone's one obvious action (the library draws; everything
+  else opens its viewer), and a kebab opening the zone's menu.
 - **The zone shelf is tucked, and opens on intent.** A pile shows its label,
   its count and the top 60% of its top card (`object-position: top`, so the
   slice you keep is the name and art, not the rules box). Hovering it, tabbing
@@ -3896,7 +3919,13 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   `--z-table-banner` (902, resistance banner) · `--z-table-consent` (950)
   sit between `--z-suggest` and `--z-modal`; the table's context menu and
   floating life panel ride `--z-overlay` (±1 for its backdrop and the zone
-  menu popover). `playtest.css` carries no bare three-digit z-index.
+  menu popover). `playtest.css` carries no bare three-digit z-index. The
+  felt's own chrome lives in a small 1–5 band, with two deliberate
+  exceptions: `.playtest-left-dock` at 30, and `.playtest-trackers--corner`
+  at 31 above it. **A popover is only ever as high as the stacking context
+  it is rendered into** — the life popover is a child of that corner, so at
+  the corner's old z-index of 3 it opened underneath the mana column and the
+  game log whatever `--z-overlay` said on the popover itself.
 - **Role ink colors are tokens too.** The four card-role hues (ramp, removal,
   wipe, draw) that tint role chips, curve-phase bars and analysis rows are
   `--role-ink-ramp` / `--role-ink-removal` / `--role-ink-wipe` /

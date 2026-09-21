@@ -17,6 +17,20 @@ export interface CmdDamageRow {
   onAdjust(delta: number): void;
 }
 
+/** One opponent seat in the self panel's list. Solo's virtual opponents have
+ *  no board of their own, and the wide table's corner panel is now just your
+ *  own total, so this list is the only place they can be damaged. Online
+ *  leaves it undefined: those seats are real quadrants on the felt. */
+export interface OpponentRow {
+  key: string;
+  name: string;
+  life: number;
+  defeated: boolean;
+  onAdjustLife(delta: number): void;
+  /** Opens that opponent's own panel — their counters, and life in ±5s. */
+  onOpen(): void;
+}
+
 /** Online-only panel content — absent in solo mode. `self` may carry the
  *  table's authoritative poison stepper, which takes the Poison row's place
  *  in the counter list; `opponent` gets a read-only life note and a "View
@@ -46,6 +60,8 @@ interface Props {
    *  panel already has the numeral between two steppers, so the popover under
    *  its chevron is counters and commander damage only (EDHPlay's shape). */
   hideLife?: boolean;
+  /** Opponent seats, self panel only — see `OpponentRow`. */
+  opponents?: OpponentRow[];
   /** Commander damage, one row per commander, self panel only. Solo passes a
    *  row per virtual opponent; online a row per other seat's commander(s). */
   cmdDamage?: CmdDamageRow[];
@@ -201,9 +217,11 @@ function CmdRow({ name, value, onAdjust, lethalAt }: CmdDamageRow & { lethalAt: 
  * popover on wide viewports, the shared card-picker bottom sheet on narrow
  * ones (both variant-agnostic content).
  *
- * The body is one list: life (unless the caller already shows it), then the
- * fixed player counters as icon rows, then commander damage as one row per
- * commander. Solo and online share the same rows; only where the numbers come
+ * The body is one list, in the order a table reads them: life (unless the
+ * caller already shows it), the opponent seats, commander damage one row per
+ * commander, then the fixed player counters as icon rows. Commander damage
+ * sits ABOVE the counters on purpose — it is the other way a game ends, so it
+ * belongs with the opponents it comes from rather than below poison. Solo and online share the same rows; only where the numbers come
  * from differs (see `OnlinePanelData`).
  */
 export function LifeAdjustPanel({
@@ -213,6 +231,7 @@ export function LifeAdjustPanel({
   life,
   lifeEditable,
   hideLife = false,
+  opponents,
   cmdDamage,
   commanderDamageThreshold,
   defeated,
@@ -290,6 +309,45 @@ export function LifeAdjustPanel({
           View board
         </button>
       )}
+      {opponents && opponents.length > 0 && (
+        <div className="playtest-life-panel__opponents">
+          <div className="playtest-life-panel__counters-heading">Opponents</div>
+          {opponents.map((o) => (
+            <div
+              key={o.key}
+              className={`playtest-life-panel__cmd-row${o.defeated ? ' is-lethal' : ''}`}
+            >
+              {/* The name opens that opponent's own panel, where life moves in
+                  ±5s and their counters live. The row's own stepper is the
+                  quick hit, so the common case never costs a second panel. */}
+              <button
+                type="button"
+                className="playtest-life-panel__opponent-name"
+                onClick={o.onOpen}
+                aria-haspopup="dialog"
+                aria-label={`${o.name}: ${o.life} life${o.defeated ? ', defeated' : ''}. Open their panel`}
+              >
+                {o.name}
+              </button>
+              <PlusMinusStepper label={`${o.name} life`} value={o.life} onAdjust={o.onAdjustLife} />
+            </div>
+          ))}
+        </div>
+      )}
+      {cmdDamage && cmdDamage.length > 0 && (
+        <div className="playtest-life-panel__cmd-list">
+          <div className="playtest-life-panel__counters-heading">Commander damage</div>
+          {cmdDamage.map((row) => (
+            <CmdRow
+              key={row.key}
+              name={row.name}
+              value={row.value}
+              onAdjust={row.onAdjust}
+              lethalAt={commanderDamageThreshold}
+            />
+          ))}
+        </div>
+      )}
       {(!online || online.kind === 'self') && (
         <div className="playtest-life-panel__counters">
           <div className="playtest-life-panel__counters-heading">{countersLabel ?? 'Counters'}</div>
@@ -352,20 +410,6 @@ export function LifeAdjustPanel({
               Another counter
             </button>
           )}
-        </div>
-      )}
-      {cmdDamage && cmdDamage.length > 0 && (
-        <div className="playtest-life-panel__cmd-list">
-          <div className="playtest-life-panel__counters-heading">Commander damage</div>
-          {cmdDamage.map((row) => (
-            <CmdRow
-              key={row.key}
-              name={row.name}
-              value={row.value}
-              onAdjust={row.onAdjust}
-              lethalAt={commanderDamageThreshold}
-            />
-          ))}
         </div>
       )}
       {defeated && (
