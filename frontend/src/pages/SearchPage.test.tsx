@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-import { fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SearchPage } from './SearchPage';
 
@@ -80,5 +80,25 @@ describe('SearchPage syntax helper', () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: /search syntax/i }));
     expect(screen.queryByText('online')).toBeNull();
+  });
+});
+
+describe('SearchPage query box', () => {
+  // E339: the box renders its own state, not `params.get('q')` — a keystroke
+  // round-tripping through the router lost characters typed faster than the
+  // echo. The burst itself only misbehaves in a real browser, so its guard is
+  // the journey's `/search?q=sol+ring` assert; what a DOM shim CAN hold is the
+  // other half of that trade: the URL must still be able to drive the box.
+  it('follows a Back/Forward move to another query', async () => {
+    const router = createMemoryRouter([{ path: '/search', element: <SearchPage /> }], {
+      initialEntries: ['/search?q=sol+ring', '/search?q=lightning+bolt'],
+      initialIndex: 1,
+    });
+    render(<RouterProvider router={router} />);
+    const input = screen.getByRole('textbox', { name: 'Search any card' }) as HTMLInputElement;
+    expect(input.value).toBe('lightning bolt');
+
+    await router.navigate(-1);
+    await waitFor(() => expect(input.value).toBe('sol ring'));
   });
 });
