@@ -14,7 +14,7 @@ import {
   MoreVertical,
   Plus,
 } from 'lucide-react';
-import { DeckCardMenuBody } from './DeckCardMenuBody';
+import { DeckCardMenuBody, type DeckCardMenuPage } from './DeckCardMenuBody';
 import {
   DndContext,
   DragOverlay,
@@ -465,7 +465,7 @@ function DeckCardRow({
   const multiPrinting = row.printings.length > 1;
   const [expanded, setExpanded] = useState(false);
   // The kebab's menu drills into a tag picker, same as the pointer menu.
-  const [menuPage, setMenuPage] = useState<'root' | 'tag'>('root');
+  const [menuPage, setMenuPage] = useState<DeckCardMenuPage>('root');
   const subListId = `printings-${row.slotIds[0] ?? row.name}`;
 
   const startEditQty = (e: React.MouseEvent) => {

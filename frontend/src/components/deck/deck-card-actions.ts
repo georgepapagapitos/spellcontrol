@@ -8,7 +8,7 @@
 // absent, which label a multi-copy row gets) is the part worth testing.
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getMaxCopies } from '../../lib/deck-validation';
-import { withTagRemoved } from '../../lib/deck-tags';
+import { withTagAdded, withTagRemoved } from '../../lib/deck-tags';
 import type { Row } from './deck-display-rows';
 
 /** Clusters, in render order. The menu runs past a dozen rows, and the style
@@ -36,8 +36,9 @@ export interface DeckCardAction {
   label: string;
   section: DeckCardActionSection;
   disabled?: boolean;
-  /** Drills into the tag picker instead of acting. */
-  submenu?: true;
+  /** Drills into a submenu page instead of acting. 'move' re-files the card
+   *  (hoists a tag to primary); 'add' toggles membership without moving it. */
+  submenu?: 'move' | 'add';
   run?: () => void;
 }
 
@@ -167,7 +168,13 @@ export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
   }
 
   if (onSetRowTags && hasSlots) {
-    out.push({ key: 'tag-pick', label: 'Move to tag', section: 'tag', submenu: true });
+    // Two intents, deliberately separate. "Move" answers "which section does
+    // this card belong in", which is the partition the Tags lens renders.
+    // "Add" answers "what else is this card", which only the card-preview
+    // panel could do before — so the fast path could not express something
+    // the slow path could.
+    out.push({ key: 'tag-pick', label: 'Move to tag', section: 'tag', submenu: 'move' });
+    out.push({ key: 'tag-add', label: 'Add tag', section: 'tag', submenu: 'add' });
     if (row.tags.length > 0) {
       out.push({
         key: 'tag-clear',
@@ -245,4 +252,34 @@ export function tagPickActions(
     checked: row.tags[0]?.toLowerCase() === tag.toLowerCase(),
     run: () => onSetRowTags(row.slotIds, [tag, ...withTagRemoved(row.tags, tag)]),
   }));
+}
+
+/**
+ * The "add tag" rows: membership, not filing. Toggling APPENDS or removes and
+ * never reorders, so a card keeps the section it is already in — unlike
+ * tagPickActions, which hoists on purpose.
+ *
+ * The one case where adding does move a card is an untagged one: its new tag
+ * is necessarily `tags[0]`, so it leaves the type fallback. That is the right
+ * outcome and needs no special handling.
+ */
+export function tagToggleActions(
+  row: Row,
+  deckTags: string[],
+  onSetRowTags: (slotIds: string[], tags: string[]) => void
+): Array<DeckCardAction & { checked: boolean }> {
+  return deckTags.map((tag) => {
+    const checked = row.tags.some((t) => t.toLowerCase() === tag.toLowerCase());
+    return {
+      key: `tag-toggle-${tag}`,
+      label: tag,
+      section: 'tag' as const,
+      checked,
+      run: () =>
+        onSetRowTags(
+          row.slotIds,
+          checked ? withTagRemoved(row.tags, tag) : withTagAdded(row.tags, tag)
+        ),
+    };
+  });
 }
