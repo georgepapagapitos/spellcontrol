@@ -156,6 +156,15 @@ export function classifyAction(
       // was in it, which no replay can un-show.
       return moveToZoneVerdict(action.from);
 
+    case 'REVEAL_TOP_CARD':
+      // Same shape as TOGGLE_REVEAL: the actor learned nothing they could
+      // not already look at, the table saw a card, and unseeing it is
+      // theirs to overlook.
+      return classification(
+        'consent',
+        'The table saw the top card. Taking that back is something the others have to agree to overlook.'
+      );
+
     case 'SET_LIBRARY_REVEAL':
       // The mirror of TOGGLE_REVEAL, for the other private zone: the actor
       // learned nothing, the table saw something, and hiding it again is

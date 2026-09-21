@@ -29,7 +29,14 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { useNavigate } from 'react-router-dom';
-import type { Designation, ManaColor, PlaytestCard, PlaytestState, Zone } from '@/lib/playtest';
+import type {
+  Designation,
+  LibraryReveal,
+  ManaColor,
+  PlaytestCard,
+  PlaytestState,
+  Zone,
+} from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useDecksStore } from '@/store/decks';
 import { effectiveMulliganType, usePlaytestStore } from '../store';
@@ -2022,16 +2029,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
    */
   const pileMenuItems = (zone: Zone): TableMenuItem[] => {
     const empty = state.zones[zone].length === 0;
-    const view = {
-      label: `View the ${zone === 'command' ? 'command zone' : zone}`,
-      shortcut: zone === 'library' ? keyFor('view-library') : undefined,
-      onClick: () => setViewer({ zone }),
-      disabled: empty,
-    };
     const moveAll = { label: 'Move all to', items: moveAllItems(zone), disabled: empty };
     if (zone !== 'library') {
       return [
-        view,
+        {
+          label: `View the ${zone === 'command' ? 'command zone' : zone}`,
+          onClick: () => setViewer({ zone }),
+          disabled: empty,
+        },
         ...(zone === 'graveyard' || zone === 'exile'
           ? [
               {
@@ -2044,6 +2049,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         moveAll,
       ];
     }
+
+    /** Set the standing reveal, or clear it by picking the mode it is in. */
+    const setReveal = (reveal: LibraryReveal) => () =>
+      dispatch({
+        type: 'SET_LIBRARY_REVEAL',
+        reveal: libraryReveal === reveal ? 'none' : reveal,
+      });
+
     return [
       { label: 'Draw a card', shortcut: keyFor('draw'), onClick: doDraw, disabled: empty },
       {
@@ -2060,76 +2073,90 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         ),
       },
       {
+        // Five ways of looking, grouped rather than spent as five rows on the
+        // root — the keys are the ones the board already listens for.
+        label: 'View',
+        disabled: empty,
+        items: [
+          { label: 'Top card', onClick: () => void peekLibrary('top') },
+          { label: 'Bottom card', onClick: () => void peekLibrary('bottom') },
+          {
+            // The sheet picks the mode (scry / surveil / mill) and the count,
+            // so the row stays generic — a fixed "Scry 3" would mislead.
+            label: 'Top X cards',
+            shortcut: keyFor('scry'),
+            onClick: () => {
+              setScryFrom('top');
+              setShowScry(true);
+            },
+          },
+          {
+            label: 'Bottom X cards',
+            shortcut: keyFor('scry-bottom'),
+            onClick: () => {
+              setScryFrom('bottom');
+              setShowScry(true);
+            },
+          },
+          {
+            label: 'All',
+            shortcut: keyFor('view-library'),
+            onClick: () => setViewer({ zone: 'library' }),
+          },
+        ],
+      },
+      {
         label: 'Shuffle',
         shortcut: keyFor('shuffle'),
         onClick: () => dispatch({ type: 'SHUFFLE_LIBRARY' }),
       },
-      view,
-      {
-        // The sheet picks the mode (scry / surveil / mill) and the count, so
-        // the row stays generic — a fixed "Scry 3" would mislead.
-        label: 'Look at the top cards',
-        shortcut: keyFor('scry'),
-        onClick: () => {
-          setScryFrom('top');
-          setShowScry(true);
-        },
-        disabled: empty,
-      },
-      {
-        label: 'Look at the bottom cards',
-        shortcut: keyFor('scry-bottom'),
-        onClick: () => {
-          setScryFrom('bottom');
-          setShowScry(true);
-        },
-        disabled: empty,
-      },
-      {
-        label: 'View the top card',
-        shortcut: keyFor('view-top-card'),
-        onClick: () => void peekLibrary('top'),
-        disabled: empty,
-      },
-      {
-        label: 'View the bottom card',
-        shortcut: keyFor('view-bottom-card'),
-        onClick: () => void peekLibrary('bottom'),
-        disabled: empty,
-      },
-      {
-        label: 'Select a random card',
-        onClick: () => void peekLibrary('random'),
-        disabled: empty,
-      },
-      {
-        // Future Sight / Bolas's Citadel: the pile turns face up and stays
-        // that way as the top card changes, rather than being a one-off look.
-        label: 'Play with the top card revealed',
-        pressed: libraryReveal === 'top',
-        onClick: () =>
-          dispatch({
-            type: 'SET_LIBRARY_REVEAL',
-            reveal: libraryReveal === 'top' ? 'none' : 'top',
-          }),
-        disabled: empty,
-      },
-      // Showing the whole library is a thing you do TO a table. Solo there is
-      // nobody it could be shown to, so the row is not offered.
+      { label: 'Select a random card', onClick: () => void peekLibrary('random'), disabled: empty },
+      // Showing something to the table needs a table. Solo, every "Everyone"
+      // is an audience of nobody, so the one-shot reveals are not offered at
+      // all and the standing one collapses to its private half.
       ...(onlineTable
         ? [
             {
-              label: 'Reveal the library to the table',
-              pressed: libraryReveal === 'all',
-              onClick: () =>
-                dispatch({
-                  type: 'SET_LIBRARY_REVEAL',
-                  reveal: libraryReveal === 'all' ? 'none' : 'all',
-                }),
+              label: 'Reveal top card',
               disabled: empty,
+              items: [
+                {
+                  // One-shot, and an event rather than a mode: the ticker
+                  // line naming the card is the whole of it.
+                  label: 'Everyone',
+                  onClick: () => dispatch({ type: 'REVEAL_TOP_CARD' }),
+                },
+                { label: 'Me', onClick: () => void peekLibrary('top') },
+              ],
+            },
+            {
+              // No "Me": you can already read your own library with All.
+              label: 'Reveal library',
+              disabled: empty,
+              items: [
+                { label: 'Everyone', pressed: libraryReveal === 'all', onClick: setReveal('all') },
+              ],
+            },
+            {
+              label: 'Play with top revealed',
+              disabled: empty,
+              items: [
+                { label: 'Everyone', pressed: libraryReveal === 'top', onClick: setReveal('top') },
+                { label: 'Me', pressed: libraryReveal === 'top-me', onClick: setReveal('top-me') },
+              ],
             },
           ]
-        : []),
+        : [
+            {
+              // Solo this is simply "keep my top card face up", so it is the
+              // private mode and a plain toggle rather than a choice of
+              // audience. It stays private if this seat later joins a table.
+              label: 'Play with top revealed',
+              pressed: libraryReveal === 'top-me',
+              onClick: setReveal('top-me'),
+              disabled: empty,
+            },
+          ]),
       moveAll,
     ];
   };
@@ -2148,7 +2175,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         // players arrive with is the right one here).
         click={{ label: 'Draw a card', onClick: doDraw, disabled: libraryCount === 0 }}
         onMenu={openPileMenu('library')}
-        revealTop={libraryReveal !== 'none'}
+        revealTop={libraryReveal === 'top' || libraryReveal === 'top-me'}
       />
       <ZonePile
         zone="graveyard"

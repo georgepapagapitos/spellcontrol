@@ -284,6 +284,15 @@ describe('toPublicBoard — the revealed library', () => {
     expect(toPublicBoard(emptied, 1).revealedLibrary).toBeUndefined();
   });
 
+  it('sends NOTHING for the Me audience — private at the wire, not in the UI', () => {
+    const state = baseState({ libraryReveal: 'top-me' });
+    const board = toPublicBoard(state, 1);
+    expect(board.revealedLibrary).toBeUndefined();
+    // The card's name must not reach an opponent's client by any other
+    // route either: filtering it in their UI would still ship it to them.
+    expect(JSON.stringify(board)).not.toContain(state.zones.library[0].name);
+  });
+
   it('shows exactly the top card while playing with the top revealed', () => {
     const state = baseState({ libraryReveal: 'top' });
     const shown = toPublicBoard(state, 1).revealedLibrary;
