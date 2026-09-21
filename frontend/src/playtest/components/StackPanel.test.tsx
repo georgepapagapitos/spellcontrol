@@ -175,4 +175,24 @@ describe('StackPanel', () => {
     );
     expect(screen.getByText('Stack (1)')).toBeTruthy();
   });
+
+  // A token copy on the stack is a picture of the card it copied; the row
+  // has to say which one it is.
+  it('marks a token copy, and only a token copy', () => {
+    renderPanel([
+      item({ id: 'a', name: 'Goblin Heelcutter' }),
+      item({ id: 'b', name: 'Goblin Heelcutter', isToken: true }),
+    ]);
+    expect(screen.getAllByText('Token')).toHaveLength(1);
+  });
+
+  it('carries token-ness on the row the hover preview reads', () => {
+    renderPanel([
+      item({ id: 'a', name: 'Goblin Heelcutter', isToken: true, imageUrl: 'https://img/g.jpg' }),
+      item({ id: 'b', name: 'Sol Ring' }),
+    ]);
+    const clipped = document.querySelector('.stack-panel__card--clipped')!;
+    expect(clipped.getAttribute('data-preview-id')).toBe('a');
+    expect(clipped.hasAttribute('data-token')).toBe(true);
+  });
 });

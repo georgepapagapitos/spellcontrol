@@ -90,6 +90,12 @@ export const PlaytestCardFace = memo(
         // over one has to be able to turn it back up, and an id on its own
         // reveals nothing the board doesn't already show.
         data-card-id={card.id}
+        // Token-ness for the hover preview, which is delegated off the same
+        // attributes rather than threaded props (CardHoverPreview.tsx). A
+        // boolean, unlike the image URL the preview resolves from React
+        // state — and absent face-down, so the attribute reveals no more
+        // than the ribbon above does.
+        data-token={card.isToken && !faceDown ? '' : undefined}
         {...rest}
       >
         {onStack && (
