@@ -162,6 +162,31 @@ function buildRawLogEntries(
     case 'MULLIGAN':
       return [{ turn, kind: 'mulligan', text: `Mulliganed to ${next.zones.hand.length}` }];
 
+    case 'MOVE_ALL_TO': {
+      if (next === current) return []; // no-op (empty source, or same zone)
+      const moved = current.zones[action.from].length;
+      return [
+        {
+          turn,
+          kind: 'zone-move',
+          text: `${moved} card${moved === 1 ? '' : 's'}: ${ZONE_LABEL[action.from]} → ${ZONE_LABEL[action.to]}`,
+          from: action.from,
+          to: action.to,
+        },
+      ];
+    }
+
+    case 'SET_LIBRARY_REVEAL': {
+      if (next === current) return []; // already in that mode
+      const text =
+        action.reveal === 'top'
+          ? 'Playing with the top card of the library revealed'
+          : action.reveal === 'all'
+            ? 'Revealed the library'
+            : 'Stopped revealing the library';
+      return [{ turn, kind: 'reveal', text }];
+    }
+
     case 'RESOLVE_TOP': {
       if (next === current) return []; // no-op (nothing resolvable in the lists)
       // Milled count comes from the resulting state, so ids the reducer

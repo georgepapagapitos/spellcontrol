@@ -2050,6 +2050,100 @@ button.playtest-card-pt__value--editable:focus-visible {
   color: var(--accent);
 }
 
+/* The library menu's "Draw several" page: a stepper over a Draw button, so
+   the count and the thing it does read top to bottom rather than as one
+   crowded row. Borrows the counter row's control styling. */
+.playtest-ctx-draw {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.15rem 0.65rem 0;
+}
+
+.playtest-ctx-draw__step {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.playtest-ctx-draw__step button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.9rem;
+  min-height: 1.9rem;
+  padding: 0.15rem var(--space-2);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  color: var(--text-primary);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.playtest-ctx-draw__step button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.playtest-ctx-draw__step button:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playtest-ctx-draw__step button:enabled:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
+.playtest-ctx-draw__step input {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  color: var(--text-primary);
+  border-radius: var(--radius);
+  padding: 0.15rem var(--space-2);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.playtest-ctx-draw__step input:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* The page's own submit reads as the primary thing on it, not as one more
+   row in a list. */
+.playtest-ctx-draw > .playtest-ctx-action {
+  justify-content: center;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.playtest-ctx-draw > .playtest-ctx-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Every control on a touch board clears the target floor, the draw page's
+   stepper included. */
+@media (pointer: coarse) {
+  .playtest-ctx-draw__step button,
+  .playtest-ctx-draw__step input {
+    min-height: 44px;
+  }
+}
+
 .playtest-ctx-sticker-add,
 .playtest-ctx-counter-add {
   display: flex;

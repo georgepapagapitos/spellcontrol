@@ -145,6 +145,15 @@ export interface PublicBoard {
    *  one thing that legitimately lets a hand card's identity out without a
    *  zone change — see `PlaytestState.revealed`. */
   revealed?: ProjectedCard[];
+  /**
+   * What this seat is currently showing of its library, top first — one
+   * card while it is playing with the top revealed, the whole library while
+   * it is revealing all of it, and absent (the normal case) while the
+   * library is private. See `PlaytestState.libraryReveal`. Optional like
+   * `ticker`: boards published by clients predating it arrive without one,
+   * which reads as private — the safe default for a hidden zone.
+   */
+  revealedLibrary?: ProjectedCard[];
   /** Trailing public log lines (see `toPublicTicker`) — the play ticker.
    *  Optional: boards published by clients predating the ticker arrive
    *  without it, and `toPublicBoard` itself doesn't attach one (the log
@@ -160,6 +169,16 @@ export interface PublicBoard {
    *  use-online-table.ts). Absent reads as "still choosing", which is the
    *  safe default. */
   keptHand?: boolean;
+}
+
+/** The slice of the library its owner is currently showing. `undefined`
+ *  rather than `[]` when nothing is revealed, so the field stays absent on
+ *  the wire for the overwhelmingly common private case. */
+function projectRevealedLibrary(state: PlaytestState): ProjectedCard[] | undefined {
+  const mode = state.libraryReveal ?? 'none';
+  if (mode === 'none' || state.zones.library.length === 0) return undefined;
+  const shown = mode === 'top' ? state.zones.library.slice(0, 1) : state.zones.library;
+  return shown.map(toProjectedCard);
 }
 
 /** Slim a `PlaytestCard` down to its projected shape — the one place that
@@ -262,5 +281,9 @@ export function toPublicBoard(state: PlaytestState, seat: number): PublicBoard {
     revealed: state.zones.hand
       .filter((c) => (state.revealed ?? []).includes(c.id))
       .map(toProjectedCard),
+    // Read off the live library rather than carried alongside it, so the
+    // revealed card is always the one actually on top — a draw or a shuffle
+    // changes what the table sees without anyone re-publishing a list.
+    revealedLibrary: projectRevealedLibrary(state),
   };
 }

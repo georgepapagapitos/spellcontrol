@@ -1466,3 +1466,67 @@ describe('REORDER_HAND', () => {
     expect(after.zones.library).toEqual(before.zones.library);
   });
 });
+
+describe('MOVE_ALL_TO', () => {
+  it('empties the source into the destination, keeping the order the cards sat in', () => {
+    const start = init(10, 1, 0);
+    const order = start.zones.library.map((c) => c.id);
+    const s = applyAction(start, { type: 'MOVE_ALL_TO', from: 'library', to: 'graveyard' });
+    expect(s.zones.library).toHaveLength(0);
+    expect(s.zones.graveyard.map((c) => c.id)).toEqual(order);
+    expect(allCardIds(s)).toEqual(allCardIds(init(10, 1, 0)));
+  });
+
+  it('lands under the destination by default and on top of it with toIndex 0', () => {
+    const base = init(6, 1, 0);
+    const lib = base.zones.library.map((c) => c.id);
+    const s = applyAction(base, { type: 'MOVE_TO_ZONE', cardId: lib[0], to: 'exile' });
+    const sitting = s.zones.exile.map((c) => c.id);
+    const rest = s.zones.library.map((c) => c.id);
+
+    const under = applyAction(s, { type: 'MOVE_ALL_TO', from: 'library', to: 'exile' });
+    expect(under.zones.exile.map((c) => c.id)).toEqual([...sitting, ...rest]);
+
+    const over = applyAction(s, { type: 'MOVE_ALL_TO', from: 'library', to: 'exile', toIndex: 0 });
+    expect(over.zones.exile.map((c) => c.id)).toEqual([...rest, ...sitting]);
+  });
+
+  it('is a no-op on an empty source or a move to the zone the cards are in', () => {
+    const s = init(5, 1, 0);
+    expect(applyAction(s, { type: 'MOVE_ALL_TO', from: 'graveyard', to: 'exile' })).toBe(s);
+    expect(applyAction(s, { type: 'MOVE_ALL_TO', from: 'library', to: 'library' })).toBe(s);
+  });
+
+  it('is undoable — it is bookkeeping, not a shuffle', () => {
+    const before = init(8, 1, 0);
+    const after = applyAction(before, { type: 'MOVE_ALL_TO', from: 'library', to: 'hand' });
+    const back = applyAction(after, { type: 'UNDO' });
+    expect(back.zones.library.map((c) => c.id)).toEqual(before.zones.library.map((c) => c.id));
+    expect(back.zones.hand).toHaveLength(0);
+  });
+});
+
+describe('SET_LIBRARY_REVEAL', () => {
+  it('starts private and moves between the three modes', () => {
+    let s = init(10);
+    expect(s.libraryReveal).toBe('none');
+    s = applyAction(s, { type: 'SET_LIBRARY_REVEAL', reveal: 'top' });
+    expect(s.libraryReveal).toBe('top');
+    s = applyAction(s, { type: 'SET_LIBRARY_REVEAL', reveal: 'all' });
+    expect(s.libraryReveal).toBe('all');
+    s = applyAction(s, { type: 'SET_LIBRARY_REVEAL', reveal: 'none' });
+    expect(s.libraryReveal).toBe('none');
+  });
+
+  it('is a no-op when it is already in that mode, so it cannot pad the undo stack', () => {
+    const s = applyAction(init(10), { type: 'SET_LIBRARY_REVEAL', reveal: 'top' });
+    expect(applyAction(s, { type: 'SET_LIBRARY_REVEAL', reveal: 'top' })).toBe(s);
+  });
+
+  it('moves no cards', () => {
+    const before = init(10);
+    const after = applyAction(before, { type: 'SET_LIBRARY_REVEAL', reveal: 'all' });
+    expect(allCardIds(after)).toEqual(allCardIds(before));
+    expect(after.zones.library).toEqual(before.zones.library);
+  });
+});

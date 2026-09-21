@@ -189,6 +189,18 @@ export interface PlaytestState {
    *  back-compat; absent === nothing revealed. A card leaving hand drops
    *  off this list. */
   revealed?: string[];
+  /**
+   * How much of the library its owner is currently showing the table. The
+   * library is MTG's other private zone, so like `revealed` this is the one
+   * thing that lets its contents out without a zone change, and the
+   * projection reads it to decide what an opponent may see.
+   *
+   * `top` is the persistent Future Sight / Bolas's Citadel mode — the card
+   * on top is played with face up and stays revealed as it changes. `all`
+   * is a whole-library reveal. Optional for snapshot back-compat; absent
+   * reads as `none`, which keeps a library that predates this private.
+   */
+  libraryReveal?: LibraryReveal;
   /** Snapshots of prior states (cap kept inside reducer). UNDO pops the head. */
   past: Omit<PlaytestState, 'past'>[];
 }
@@ -197,6 +209,8 @@ export interface PlaytestState {
  *  library and redistribute it — differing only in where the cards you don't
  *  keep on top are allowed to go (bottom for scry, graveyard for the other
  *  two) and, for mill, in nothing going back on top by default. */
+export type LibraryReveal = 'none' | 'top' | 'all';
+
 export type ScryMode = 'scry' | 'surveil' | 'mill';
 
 export type PlaytestAction =
@@ -208,6 +222,15 @@ export type PlaytestAction =
   | { type: 'SHUFFLE_ZONE_INTO_LIBRARY'; zone: 'graveyard' | 'exile' }
   | { type: 'MULLIGAN'; handSize?: number }
   | { type: 'MOVE_TO_ZONE'; cardId: string; to: Zone; toIndex?: number }
+  /** Empty one zone into another, in the order the cards already sit in.
+   *  `toIndex: 0` puts them on top of the destination, anything else (or
+   *  nothing) under it. No-op when the source is empty or the two zones are
+   *  the same. The battlefield is deliberately not a destination: N cards
+   *  would all land on one point, and there is no sensible layout for it. */
+  | { type: 'MOVE_ALL_TO'; from: Zone; to: Zone; toIndex?: number }
+  /** Show the table the top of your library, all of it, or none of it. See
+   *  `PlaytestState.libraryReveal`. */
+  | { type: 'SET_LIBRARY_REVEAL'; reveal: LibraryReveal }
   | {
       /** Resolve a look-at-the-top-N. Ids not currently in the library — and
        *  repeats across the three lists — are ignored; `top` keeps cards on

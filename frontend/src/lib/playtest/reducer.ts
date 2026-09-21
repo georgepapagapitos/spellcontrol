@@ -89,6 +89,7 @@ export function createPlaytestState(init: PlaytestInit): PlaytestState {
     manaPool: emptyManaPool(),
     stack: [],
     revealed: [],
+    libraryReveal: 'none',
     past: [],
   };
 }
@@ -285,6 +286,7 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         manaPool: emptyManaPool(),
         stack: [],
         revealed: [],
+        libraryReveal: 'none',
         past: [],
       };
     }
@@ -339,6 +341,24 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       const insertAt = action.toIndex ?? dest.length;
       dest.splice(Math.max(0, Math.min(insertAt, dest.length)), 0, card);
       next.zones[action.to] = dest;
+      return withHistory(state, next);
+    }
+    case 'MOVE_ALL_TO': {
+      const moving = state.zones[action.from];
+      if (action.from === action.to || moving.length === 0) return state;
+      const next = snapshot(state);
+      const dest = next.zones[action.to];
+      next.zones[action.from] = [];
+      // Order is preserved either way: the cards keep the order they already
+      // sat in, and `toIndex: 0` only decides whether the block lands above
+      // or below what is already there.
+      next.zones[action.to] = action.toIndex === 0 ? moving.concat(dest) : dest.concat(moving);
+      return withHistory(state, next);
+    }
+    case 'SET_LIBRARY_REVEAL': {
+      if ((state.libraryReveal ?? 'none') === action.reveal) return state;
+      const next = snapshot(state);
+      next.libraryReveal = action.reveal;
       return withHistory(state, next);
     }
     case 'RESOLVE_TOP': {

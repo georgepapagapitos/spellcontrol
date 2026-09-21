@@ -32,6 +32,8 @@ const SAMPLE_ACTIONS: Record<PlaytestAction['type'], PlaytestAction> = {
   SHUFFLE_ZONE_INTO_LIBRARY: { type: 'SHUFFLE_ZONE_INTO_LIBRARY', zone: 'graveyard' },
   MULLIGAN: { type: 'MULLIGAN' },
   MOVE_TO_ZONE: { type: 'MOVE_TO_ZONE', cardId: 'x', to: 'graveyard' },
+  MOVE_ALL_TO: { type: 'MOVE_ALL_TO', from: 'graveyard', to: 'exile' },
+  SET_LIBRARY_REVEAL: { type: 'SET_LIBRARY_REVEAL', reveal: 'top' },
   RESOLVE_TOP: { type: 'RESOLVE_TOP', mode: 'scry', top: [] },
   MOVE_TO_BATTLEFIELD: { type: 'MOVE_TO_BATTLEFIELD', cardId: 'x', x: 0, y: 0 },
   MOVE_BF_POSITION: { type: 'MOVE_BF_POSITION', cardId: 'x', x: 0, y: 0 },
