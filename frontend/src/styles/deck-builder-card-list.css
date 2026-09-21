@@ -96,6 +96,15 @@
 
 .deck-card-stack .deck-card-grid-cell {
   width: var(--stack-w);
+  /* A buried tile is still a FULL card tall behind the cards stacked on it,
+     and its own badge cluster (z-index: 2) and kebab (z-index: 3) sit at that
+     full card's edges — i.e. deep inside the card in front. Those z-indexes
+     resolved against the whole column, so every buried card's icons punched
+     through the open card's art in a ragged line down its right-hand side.
+     `isolation` keeps a card's chrome inside its own card: the ordering that
+     matters here is DOM order between cards, never a z-index raised for
+     something within one. */
+  isolation: isolate;
 }
 
 .deck-card-stack .deck-card-grid-cell + .deck-card-grid-cell {
@@ -110,16 +119,16 @@
   transition: margin-top var(--motion-gentle) var(--ease-drawer);
 }
 
-/* Later siblings paint over earlier ones by DOM order; hovering or focusing a
-   tile lifts it above the cards stacked on it. It targets the tile (the
-   button, which already carries the shared :focus-visible ring), not the
-   <li>, so keyboard focus lifts the same card. */
+/* The open card floats over its neighbours for the length of the slide — the
+   one below has not finished moving out of the way yet. This is on the CELL,
+   not the tile: an isolated cell's children can no longer lift it, which is
+   the entire point of the rule above. */
 @media (hover: hover) and (pointer: fine) {
-  .deck-card-stack .deck-card-grid-tile:hover {
+  .deck-card-stack .deck-card-grid-cell:hover {
     z-index: 3;
   }
 }
-.deck-card-stack .deck-card-grid-tile:focus-visible {
+.deck-card-stack .deck-card-grid-cell:has(:focus-visible) {
   z-index: 3;
 }
 
