@@ -115,7 +115,7 @@ export function OpponentBoardModal({ opp, active, onClose, onArrowTarget }: Prop
     () => [
       ...visibleBattlefield.map((bf) => toListEntry(bf.card)),
       ...board.graveyard.map(toListEntry),
-      ...board.exile.map(toListEntry),
+      ...board.exile.filter((c) => c.name).map(toListEntry),
       ...board.command.map(toListEntry),
       ...revealedLibrary.map(toListEntry),
     ],
@@ -492,13 +492,24 @@ function ZoneTile({
   onInspect: (cardId: string) => void;
 }) {
   const art = useCardThumb(card.name, 'normal');
+  // A projected card with no name is a redacted one — exiled face down (see
+  // `PlaytestState.faceDownExile`). It is a card that is visibly THERE and
+  // has nothing to inspect, so it renders as a back and is not a button.
+  if (!card.name) {
+    return (
+      <li className="playtest-zone-card">
+        <div className="playtest-zone-card__facedown" aria-hidden />
+        <div className="playtest-zone-card__name">Face down</div>
+      </li>
+    );
+  }
   return (
     <li className="playtest-zone-card">
       <button
         type="button"
         className="opponent-board-zone-trigger"
         onClick={() => onInspect(card.id)}
-        aria-label={`Inspect ${card.name ?? 'card'}`}
+        aria-label={`Inspect ${card.name}`}
       >
         {art ? (
           <img src={art} alt="" loading="lazy" decoding="async" />

@@ -258,6 +258,7 @@ function toPublicBattlefieldCard(bf: BattlefieldCard, hidden: Set<string>): Publ
  *  `toPublicBattlefieldCard`. */
 export function toPublicBoard(state: PlaytestState, seat: number): PublicBoard {
   const hidden = new Set(state.battlefield.filter((b) => b.faceDown).map((b) => b.card.id));
+  const faceDownExile = new Set(state.faceDownExile ?? []);
   return {
     seat,
     turn: state.turn,
@@ -270,7 +271,12 @@ export function toPublicBoard(state: PlaytestState, seat: number): PublicBoard {
     citysBlessing: state.citysBlessing,
     battlefield: state.battlefield.map((bf) => toPublicBattlefieldCard(bf, hidden)),
     graveyard: state.zones.graveyard.map(toProjectedCard),
-    exile: state.zones.exile.map(toProjectedCard),
+    // Exile is public except for what was put there face down, which is
+    // redacted to a bare masked id exactly the way a face-down permanent
+    // is — the card is visibly THERE, and what it is stays with its owner.
+    exile: state.zones.exile.map((c) =>
+      faceDownExile.has(c.id) ? { id: maskId(c.id) } : toProjectedCard(c)
+    ),
     command: state.zones.command.map(toProjectedCard),
     handCount: state.zones.hand.length,
     libraryCount: state.zones.library.length,

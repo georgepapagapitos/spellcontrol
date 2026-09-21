@@ -90,6 +90,7 @@ export function createPlaytestState(init: PlaytestInit): PlaytestState {
     stack: [],
     revealed: [],
     libraryReveal: 'none',
+    faceDownExile: [],
     past: [],
   };
 }
@@ -126,6 +127,7 @@ function snapshot(state: PlaytestState): Omit<PlaytestState, 'past'> {
     stack: state.stack ? state.stack.slice() : undefined,
     revealed: state.revealed ? state.revealed.slice() : undefined,
     libraryReveal: state.libraryReveal,
+    faceDownExile: state.faceDownExile ? state.faceDownExile.slice() : undefined,
   };
 }
 
@@ -229,6 +231,12 @@ function pluck(
     if (loc.zone === 'hand' && next.revealed?.length) {
       next.revealed = next.revealed.filter((id) => id !== card.id);
     }
+    // Same rule for the other hidden list: face down is a property of being
+    // in exile, so it ends when the card leaves. Without this, a card that
+    // came back to exile later would be hidden by a stale id.
+    if (loc.zone === 'exile' && next.faceDownExile?.length) {
+      next.faceDownExile = next.faceDownExile.filter((id) => id !== card.id);
+    }
     return { card };
   }
   const battlefield = next.battlefield.slice();
@@ -288,6 +296,7 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         stack: [],
         revealed: [],
         libraryReveal: 'none',
+        faceDownExile: [],
         past: [],
       };
     }
@@ -312,6 +321,9 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       const next = snapshot(state);
       const combined = next.zones.library.concat(next.zones[action.zone]);
       next.zones[action.zone] = [];
+      // Emptying a zone wholesale never goes through `pluck`, so the
+      // face-down list is cleared here instead.
+      if (action.zone === 'exile') next.faceDownExile = [];
       next.zones.library = shuffle(combined, mulberry32(state.rngSeed));
       next.rngSeed = nextSeed(state.rngSeed);
       return withHistory(state, next);
@@ -350,10 +362,26 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       const next = snapshot(state);
       const dest = next.zones[action.to];
       next.zones[action.from] = [];
+      // As in SHUFFLE_ZONE_INTO_LIBRARY: no `pluck`, so clear it by hand.
+      if (action.from === 'exile') next.faceDownExile = [];
       // Order is preserved either way: the cards keep the order they already
       // sat in, and `toIndex: 0` only decides whether the block lands above
       // or below what is already there.
       next.zones[action.to] = action.toIndex === 0 ? moving.concat(dest) : dest.concat(moving);
+      return withHistory(state, next);
+    }
+    case 'MOVE_TOP_N': {
+      const take = Math.min(Math.max(0, Math.floor(action.n)), state.zones.library.length);
+      if (take === 0 || action.to === 'library') return state;
+      const next = snapshot(state);
+      const moving = next.zones.library.slice(0, take);
+      next.zones.library = next.zones.library.slice(take);
+      next.zones[action.to] = next.zones[action.to].concat(moving);
+      // Face down is a property of being IN exile, so it is recorded only
+      // when that is where the cards landed.
+      if (action.faceDown && action.to === 'exile') {
+        next.faceDownExile = [...(next.faceDownExile ?? []), ...moving.map((c) => c.id)];
+      }
       return withHistory(state, next);
     }
     case 'REVEAL_TOP_CARD':
