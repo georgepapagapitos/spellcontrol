@@ -68,8 +68,13 @@ export function producedManaColors(card: ScryfallCard, identity: ReadonlySet<str
   if (tl.includes('swamp')) out.add('B');
   if (tl.includes('mountain')) out.add('R');
   if (tl.includes('forest')) out.add('G');
-  for (const [, clause] of ot.matchAll(/\badd\b([^.\n]*)/g)) {
-    for (const [, c] of clause.matchAll(/\{([wubrg])\}/g)) out.add(c.toUpperCase());
+  // `adds?` because a card can grant mana in the third person — Wild Growth's
+  // "its controller adds an additional {G}" is a real source a bare `add`
+  // missed. `c` because {C} is a mana this tally has a column for, and reading
+  // only WUBRG made every colorless source invisible: a Sol Ring read as
+  // producing nothing, and a deck of Wastes as having no mana at all.
+  for (const [, clause] of ot.matchAll(/\badds?\b([^.\n]*)/g)) {
+    for (const [, c] of clause.matchAll(/\{([wubrgc])\}/g)) out.add(c.toUpperCase());
   }
   if (ot.includes('any color') || ot.includes('any type')) {
     for (const c of COLOR_KEYS) out.add(c);
