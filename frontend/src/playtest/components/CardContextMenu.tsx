@@ -516,11 +516,18 @@ export function CardContextMenu({
     more: morePage,
   };
 
+  // What the page you are on is about. A "Move to" headed "Grizzly Bears"
+  // while it is about to move five cards was a lie the root page had already
+  // corrected — but counters and power/toughness DO act on the one card you
+  // opened the menu on, so there the card's name is the true heading.
+  const actsOnSelection = selectionSize > 1 && (page === 'root' || page === 'move');
+  const subject = actsOnSelection ? `${selectionSize} cards selected` : cardName;
+
   return (
     <CtxMenuShell
       x={x}
       y={y}
-      title={page === 'root' ? cardName : PAGE_TITLE[page]}
+      title={page === 'root' ? subject : PAGE_TITLE[page]}
       variant={variant}
       // A page swap changes the panel's height, so the floating variant
       // re-clamps, and focus lands on the new page's first row.
@@ -532,10 +539,10 @@ export function CardContextMenu({
           type="button"
           className="playtest-ctx-back"
           onClick={() => setPage('root')}
-          aria-label={`Back to ${cardName}`}
+          aria-label={`Back to ${subject}`}
         >
           <ChevronLeft width={14} height={14} aria-hidden />
-          <span>{cardName}</span>
+          <span>{subject}</span>
         </button>
       )}
       {pages[page]}
