@@ -25,8 +25,7 @@ vi.mock('../lib/card-tags', () => ({
   cardTagsGeneratedAt: () => '2026-09-01T15:12:06.395Z',
   // The corpus knows its three tags plus one legacy alias — aliases are absent
   // from the ranked list on purpose but must still resolve from a URL.
-  isKnownCardTag: (slug: string) =>
-    ['removal', 'mana-rock', 'typal', 'boardwipe'].includes(slug),
+  isKnownCardTag: (slug: string) => ['removal', 'mana-rock', 'typal', 'boardwipe'].includes(slug),
 }));
 
 const searchQueries: string[] = [];
