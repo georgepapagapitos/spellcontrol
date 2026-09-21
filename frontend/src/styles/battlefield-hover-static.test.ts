@@ -108,14 +108,28 @@ describe('battlefield cards do not move on hover', () => {
   // The first cut of this fix used an inset `--border-strong` ring. It passed
   // every check above and was invisible on screen: on a dark theme that token
   // is a dark navy, drawn on top of a card's own black border, over art. The
-  // cue has to carry contrast against card art in every theme, which is what
-  // `--accent` is for — and it is what the hand fan already uses for the card
-  // under the pointer.
-  it('draws the cue in the accent colour', () => {
-    const withoutAccent = hoverRules.filter((r) => !r.body.includes('var(--accent)'));
+  // second used `--accent`, which is visible but is a different colour in
+  // every theme — and the board has a SECOND ring to tell apart, the gold one
+  // a selected card wears, which an accent near it in some themes blurs into.
+  //
+  // So the cue is `--pt-ring-hover`: one fixed colour (EDHPlay's cyan) that
+  // carries over card art in every theme and can never drift into the
+  // selection's gold. A neutral border token or a raw hex here is the
+  // regression this guards.
+  it('draws the cue in the fixed hover-ring colour', () => {
+    const wrongColour = hoverRules.filter((r) => !r.body.includes('var(--pt-ring-hover)'));
     expect(
-      withoutAccent.map((r) => r.selector),
-      'a battlefield hover cue must use var(--accent) — neutral border tokens vanish over card art on dark themes'
+      wrongColour.map((r) => r.selector),
+      'a battlefield hover cue must use var(--pt-ring-hover) — neutral tokens vanish over card art, and a themed one can collide with the selection ring'
     ).toEqual([]);
+  });
+
+  // The other half of the pair: if the two rings ever resolve to the same
+  // token, "under the cursor" and "selected" stop being two states.
+  it('keeps the selection ring a different colour from the hover ring', () => {
+    const selected = rules(css).find((r) => r.selector === '.playtest-card--selected');
+    expect(selected, '.playtest-card--selected went missing').toBeTruthy();
+    expect(selected?.body).toContain('var(--pt-ring-selected)');
+    expect(selected?.body).not.toContain('var(--pt-ring-hover)');
   });
 });

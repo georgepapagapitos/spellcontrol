@@ -804,10 +804,12 @@ describe('PlaytestBoard — card size', () => {
 
 /**
  * A click on a permanent is not a tap when a mouse is driving (EDHPlay's
- * rule, user 2026-09-20): it picks the card, and tapping is the deliberate
- * act — T, or Tap in the card menu. A finger has neither key nor right-click,
- * so on a touch device a tap still taps, and these two tests are what keeps
- * one device tier from quietly taking the other's behaviour.
+ * rule, user 2026-09-20) and, since 2026-09-21, not a selection either: it
+ * says nothing at all, because the click is the start of a drag. Selecting is
+ * the box or ⌘/ctrl-click, tapping is T or the card menu. A finger has
+ * neither key nor right-click, so on a touch device a tap still taps, and
+ * these tests are what keeps one device tier from quietly taking the other's
+ * behaviour.
  */
 describe('PlaytestBoard — what a click on a permanent means', () => {
   function onBattlefield() {
@@ -819,7 +821,7 @@ describe('PlaytestBoard — what a click on a permanent means', () => {
     });
   }
 
-  it('with a mouse: a click selects the card, and T taps it', () => {
+  it('with a mouse: a plain click neither taps the card nor selects it', () => {
     stubWidth(1440, true);
     render(
       <MemoryRouter>
@@ -828,10 +830,34 @@ describe('PlaytestBoard — what a click on a permanent means', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Card 0' }));
     expect(dispatch).not.toHaveBeenCalledWith({ type: 'TAP', cardId: 'card-0' });
-    expect(screen.getByText('1 selected')).toBeTruthy();
+    expect(document.querySelector('.playtest-card--selected')).toBeNull();
+  });
+
+  it('with a mouse: ctrl-click selects the card, and T taps it', () => {
+    stubWidth(1440, true);
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={onBattlefield()} />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Card 0' }), { ctrlKey: true });
+    expect(dispatch).not.toHaveBeenCalledWith({ type: 'TAP', cardId: 'card-0' });
+    expect(document.querySelector('.playtest-card--selected')).toBeTruthy();
 
     fireEvent.keyDown(window, { key: 't' });
     expect(dispatch).toHaveBeenCalledWith({ type: 'TAP', cardId: 'card-0', tapped: true });
+  });
+
+  it('with a keyboard: Enter on a focused card selects it, since it can hold no modifier', () => {
+    stubWidth(1440, true);
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={onBattlefield()} />
+      </MemoryRouter>
+    );
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Card 0' }), { key: 'Enter' });
+    expect(document.querySelector('.playtest-card--selected')).toBeTruthy();
+    expect(dispatch).not.toHaveBeenCalledWith({ type: 'TAP', cardId: 'card-0' });
   });
 
   it('with a finger: a tap still taps the permanent', () => {
@@ -842,6 +868,103 @@ describe('PlaytestBoard — what a click on a permanent means', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Card 0' }));
     expect(dispatch).toHaveBeenCalledWith({ type: 'TAP', cardId: 'card-0' });
+  });
+});
+
+/**
+ * Building a selection without a bulk-action bar (user, 2026-09-21): you drag
+ * a box across bare felt the way you do at EDHPlay, the cards it touches wear
+ * the selected ring, and the actions live in the menu you already right-click
+ * for — which says how many cards it is about to act on.
+ */
+describe('PlaytestBoard — drag a box across the felt', () => {
+  function twoLands() {
+    let s = seededState();
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: 'card-0', x: 0.2, y: 0.3 });
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: 'card-1', x: 0.6, y: 0.3 });
+    return s;
+  }
+
+  /** happy-dom lays nothing out, so the geometry the hit test reads is ours:
+   *  the felt at the origin, card-0 inside the box the test drags, card-1
+   *  well outside it. */
+  function placeCards() {
+    const felt = document.querySelector('.playtest-battlefield') as HTMLElement;
+    const rect = (left: number, top: number, w: number, h: number) =>
+      ({ left, top, right: left + w, bottom: top + h, width: w, height: h }) as DOMRect;
+    felt.getBoundingClientRect = () => rect(0, 0, 1000, 600);
+    const slots = document.querySelectorAll<HTMLElement>('[data-bf-card]');
+    slots[0].getBoundingClientRect = () => rect(100, 100, 90, 126);
+    slots[1].getBoundingClientRect = () => rect(600, 100, 90, 126);
+    return felt;
+  }
+
+  function dragBox(felt: HTMLElement, to: { x: number; y: number }, init: object = {}) {
+    fireEvent.pointerDown(felt, { clientX: 50, clientY: 50, button: 0, ...init });
+    fireEvent.pointerMove(felt, { clientX: to.x, clientY: to.y });
+    fireEvent.pointerUp(felt, { clientX: to.x, clientY: to.y });
+    fireEvent.click(felt);
+  }
+
+  function selectedNames() {
+    return [...document.querySelectorAll('.playtest-card--selected')].map((el) =>
+      el.getAttribute('aria-label')
+    );
+  }
+
+  beforeEach(() => {
+    stubWidth(1440, true);
+  });
+
+  it('selects the cards the box touches and leaves the rest alone', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={twoLands()} />
+      </MemoryRouter>
+    );
+    dragBox(placeCards(), { x: 300, y: 400 });
+    expect(selectedNames()).toEqual(['Card 0']);
+  });
+
+  it('keeps the selection when the box is drawn with a modifier held', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={twoLands()} />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Card 1' }), { ctrlKey: true });
+    dragBox(placeCards(), { x: 300, y: 400 }, { shiftKey: true });
+    expect(selectedNames().sort()).toEqual(['Card 0', 'Card 1']);
+  });
+
+  it('clears the selection on a click that never became a box', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={twoLands()} />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Card 0' }), { ctrlKey: true });
+    const felt = placeCards();
+    fireEvent.pointerDown(felt, { clientX: 50, clientY: 50, button: 0 });
+    fireEvent.pointerUp(felt, { clientX: 51, clientY: 50 });
+    fireEvent.click(felt);
+    expect(selectedNames()).toEqual([]);
+  });
+
+  it('right-clicking a selected card opens the selection menu, and Tap taps them all', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={twoLands()} />
+      </MemoryRouter>
+    );
+    dragBox(placeCards(), { x: 800, y: 400 });
+    expect(selectedNames().sort()).toEqual(['Card 0', 'Card 1']);
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Card 0' }));
+    expect(screen.getByText('2 cards selected')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /^Tap/ }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'TAP', cardId: 'card-0', tapped: true });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'TAP', cardId: 'card-1', tapped: true });
   });
 });
 
