@@ -1,6 +1,6 @@
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { AlignJustify, HelpCircle, LayoutGrid, List } from 'lucide-react';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import './SearchPage.css';
 import { SearchPill } from '../components/SearchPill';
@@ -58,7 +58,33 @@ const SYNTAX_ENTRIES: SyntaxEntry[] = [
  */
 export function SearchPage() {
   const [params, setParams] = useSearchParams();
-  const query = params.get('q') ?? '';
+  const urlQuery = params.get('q') ?? '';
+  // The box owns its own value; the URL is mirrored FROM it, never read back
+  // into it. Rendering `params.get('q')` made the input only as fast as a
+  // re-render: typed in a burst, React restored a stale param onto the DOM node
+  // and ate every character typed in the gap — 19 in, 4 out at 0ms/key (E339).
+  const [query, setQuery] = useState(urlQuery);
+  // A foreign URL change — Back/Forward, or a link onto this same mount — still
+  // has to reach the box, and the only thing separating one from our own mirror
+  // write is that we know we asked for ours. `intent` is the URL we last asked
+  // for; while the router is still catching up to it (`pending`), every value it
+  // hands back is the echo of a keystroke, not a destination. Adjusted during
+  // render — React's "resetting state when a prop changes" — so the box never
+  // paints the stale query first.
+  const [mirror, setMirror] = useState({ url: urlQuery, intent: urlQuery, pending: false });
+  if (urlQuery !== mirror.url) {
+    if (urlQuery === mirror.intent) setMirror({ url: urlQuery, intent: urlQuery, pending: false });
+    else if (mirror.pending) setMirror({ ...mirror, url: urlQuery });
+    else {
+      setMirror({ url: urlQuery, intent: urlQuery, pending: false });
+      setQuery(urlQuery);
+    }
+  }
+  const commitQuery = (next: string) => {
+    setQuery(next);
+    setMirror((m) => ({ ...m, intent: next.trim() ? next : '', pending: true }));
+    setParams(next.trim() ? { q: next } : {}, { replace: true });
+  };
   const [view, setView] = useStoredView<InlineCardSearchView>(
     'mtg-search-view-mode',
     ['grid', 'list', 'compact'],
@@ -72,7 +98,7 @@ export function SearchPage() {
 
   const insertExample = (snippet: string) => {
     const next = query.trim() ? `${query.replace(/\s+$/, '')} ${snippet}` : snippet;
-    setParams({ q: next }, { replace: true });
+    commitQuery(next);
     inputRef.current?.focus();
   };
 
@@ -94,7 +120,7 @@ export function SearchPage() {
         className="search-page-pill"
         placeholder="Search Scryfall…"
         value={query}
-        onChange={(next) => setParams(next.trim() ? { q: next } : {}, { replace: true })}
+        onChange={commitQuery}
         ariaLabel="Search any card"
         autoFocus={autoFocusSearch}
       />
