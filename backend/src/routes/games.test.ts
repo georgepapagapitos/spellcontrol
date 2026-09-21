@@ -2718,3 +2718,115 @@ describe('POST /api/games/:code/signal (ephemeral table signals)', () => {
     expect(res.body.requests).toEqual([]);
   });
 });
+
+describe('watching a table without a seat', () => {
+  /** Host a game and open it to watchers, returning its code. */
+  async function openTable(tag: string, allow = true) {
+    const hostCookie = await registerAndGetCookie(tag);
+    const created = await request(app).post('/api/games').set('Cookie', hostCookie).send({});
+    const code = created.body.game.code as string;
+    if (allow) {
+      await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', hostCookie)
+        .send({
+          baseVersion: created.body.game.version,
+          actions: [{ type: 'settings', patch: { spectatorsAllowed: true } }],
+        });
+    }
+    return { hostCookie, code };
+  }
+
+  it('is off by default: a stranger still gets the unknown-code 404', async () => {
+    const { code } = await openTable('watch_closed_host', false);
+    const strangerCookie = await registerAndGetCookie('watch_closed_stranger');
+    const stranger = await request(app).get(`/api/games/${code}`).set('Cookie', strangerCookie);
+    const unknown = await request(app).get('/api/games/ZZZY').set('Cookie', strangerCookie);
+    expect(stranger.status).toBe(404);
+    expect(stranger.body).toEqual(unknown.body);
+  });
+
+  it('serves the state to a seatless stranger once the host opens it', async () => {
+    const { code } = await openTable('watch_open_host');
+    const watcherCookie = await registerAndGetCookie('watch_open_watcher');
+    const res = await request(app).get(`/api/games/${code}`).set('Cookie', watcherCookie);
+    expect(res.status).toBe(200);
+    expect(res.body.game.code).toBe(code);
+    // Watching is watching: no seat was taken by reading.
+    expect(res.body.game.players.length).toBe(1);
+  });
+
+  it('lets a watcher poll, so the board stays live', async () => {
+    const { code } = await openTable('watch_poll_host');
+    const watcherCookie = await registerAndGetCookie('watch_poll_watcher');
+    const res = await request(app)
+      .get(`/api/games/${code}/poll?since=-1&catchUp=1`)
+      .set('Cookie', watcherCookie);
+    expect(res.status).toBe(200);
+  });
+
+  it('refuses a watcher every mutation, including on an open table', async () => {
+    const { code } = await openTable('watch_mutate_host');
+    const watcherCookie = await registerAndGetCookie('watch_mutate_watcher');
+    const state = await request(app).get(`/api/games/${code}`).set('Cookie', watcherCookie);
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', watcherCookie)
+      .send({
+        baseVersion: state.body.game.version,
+        actions: [{ type: 'life', seat: 0, delta: -40 }],
+      });
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('the table voice link', () => {
+  async function hostGame(tag: string) {
+    const hostCookie = await registerAndGetCookie(tag);
+    const created = await request(app).post('/api/games').set('Cookie', hostCookie).send({});
+    return {
+      hostCookie,
+      code: created.body.game.code as string,
+      version: created.body.game.version as number,
+    };
+  }
+
+  function setVoice(cookie: string, code: string, version: number, voiceUrl: unknown) {
+    return request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', cookie)
+      .send({ baseVersion: version, actions: [{ type: 'settings', patch: { voiceUrl } }] });
+  }
+
+  it('takes an https link', async () => {
+    const { hostCookie, code, version } = await hostGame('voice_ok');
+    const res = await setVoice(hostCookie, code, version, 'https://discord.gg/example');
+    expect(res.status).toBe(200);
+    expect(res.body.game.voiceUrl).toBe('https://discord.gg/example');
+  });
+
+  // The link is rendered for every other seat to click, so a scheme that can
+  // run code is one player handing the pod a script.
+  it('refuses anything that is not https', async () => {
+    const { hostCookie, code, version } = await hostGame('voice_scheme');
+    for (const bad of ['javascript:alert(1)', 'http://discord.gg/x', 'data:text/html,<b>x']) {
+      const res = await setVoice(hostCookie, code, version, bad);
+      expect(res.status, bad).toBe(400);
+    }
+  });
+
+  it('refuses text that is not a URL, and a link past the length cap', async () => {
+    const { hostCookie, code, version } = await hostGame('voice_junk');
+    expect((await setVoice(hostCookie, code, version, 'come to discord')).status).toBe(400);
+    const long = `https://example.com/${'x'.repeat(2100)}`;
+    expect((await setVoice(hostCookie, code, version, long)).status).toBe(400);
+  });
+
+  it('clears back to nothing', async () => {
+    const { hostCookie, code, version } = await hostGame('voice_clear');
+    const set = await setVoice(hostCookie, code, version, 'https://meet.example.com/abc');
+    const cleared = await setVoice(hostCookie, code, set.body.game.version, null);
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.game.voiceUrl).toBe(null);
+  });
+});

@@ -199,3 +199,19 @@ describe('game log filtering', () => {
     expect(rowFor('P2')?.textContent).toContain('KO by P0');
   });
 });
+
+describe('the table voice link', () => {
+  it('is absent until the host sets one', () => {
+    openMenu(activeGame());
+    expect(screen.queryByRole('link', { name: 'Join the voice call' })).toBe(null);
+  });
+
+  // The lobby is where the link is set and the lobby is gone once the game
+  // starts, so the in-game menu is the only place left to find it.
+  it('opens the call the lobby pointed at, once the lobby is gone', () => {
+    openMenu({ ...activeGame(), voiceUrl: 'https://discord.gg/example' });
+    const link = screen.getByRole('link', { name: 'Join the voice call' });
+    expect(link.getAttribute('href')).toBe('https://discord.gg/example');
+    expect(link.getAttribute('rel')).toContain('noopener');
+  });
+});

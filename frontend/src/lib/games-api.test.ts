@@ -29,6 +29,8 @@ function mockState(overrides: Partial<GameState> = {}): GameState {
     poisonEnabled: false,
     mulliganType: 'commander' as const,
     turnTimerEnabled: false,
+    spectatorsAllowed: false,
+    voiceUrl: null,
     layout: 'pod',
     tapOrientation: 'horizontal',
     activeSeat: null,

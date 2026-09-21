@@ -329,6 +329,9 @@ interface PlayState {
   // ── Online game ─────────────────────────────────────────────────────────
   hostOnline(input: CreateGameInput): Promise<GameState>;
   joinOnline(code: string, input: JoinGameInput): Promise<GameState>;
+  /** Watch a table without taking a seat. Only possible while its host has
+   *  spectators switched on; otherwise the read 404s like any unknown code. */
+  watchOnline(code: string): Promise<GameState>;
   refreshOnline(): Promise<void>;
   dispatchOnline(actions: GameAction | GameAction[]): Promise<void>;
   leaveOnline(): Promise<void>;
@@ -934,6 +937,32 @@ export const usePlayStore = create<PlayState>()(
 
       joinOnline: async (code, input) => {
         const game = await apiJoinGame(code.toUpperCase(), input);
+        serverVersion = game.version;
+        serverCode = game.code;
+        tickerSeen.clear();
+        signalSeen.clear();
+        set({
+          online: game,
+          onlineError: null,
+          boardVisible: true,
+          onlineBoards: {},
+          onlineRequests: {},
+          onlineSignal: null,
+          onlineArrows: [],
+          onlineTicker: [],
+        });
+        get().startPolling();
+        return game;
+      },
+
+      watchOnline: async (code) => {
+        // No join, so no seat: the same fetch the poll loop already uses, then
+        // the same local reset joinOnline does. The board renders a seatless
+        // viewer already (OnlineGameView's "viewing this game without a
+        // seat"), and every mutation stays server-side participant-only, so
+        // there is nothing here to make read-only by hand.
+        const game = await apiGetGame(code.toUpperCase());
+        if (!game) throw new Error('Game not found.');
         serverVersion = game.version;
         serverCode = game.code;
         tickerSeen.clear();
