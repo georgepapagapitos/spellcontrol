@@ -146,6 +146,60 @@ describe('useSearchCards', () => {
     expect(result.current.loading).toBe(false);
   });
 
+  // ── the match count the page is allowed to state (board E341) ──────────
+  it('keeps Scryfall’s own match count, which is not the page it returned', async () => {
+    const cards = Array.from({ length: 80 }, (_, i) => makeCard(String(i)));
+    mockSearchCards.mockResolvedValue({ data: cards, total_cards: 942 });
+    const { result } = renderHook(() => useSearchCards('otag:sweeper'));
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+      await Promise.resolve();
+    });
+    // Capped at 60 held, 942 matched — a caller that only knows the first
+    // number tells a reader that 60 is the whole answer.
+    expect(result.current.results).toHaveLength(60);
+    expect(result.current.total).toBe(942);
+  });
+
+  it('reports an unknown total for a fetcher that returns a bare array', async () => {
+    const fetcher = vi.fn(async () => ['alpha', 'beta']);
+    const { result } = renderHook(() => useSearchCards<string>('bol', { fetcher }));
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+      await Promise.resolve();
+    });
+    expect(result.current.results).toEqual(['alpha', 'beta']);
+    // null, not 2: the endpoint never said how many matched, and guessing the
+    // page size is the same lie in a different place.
+    expect(result.current.total).toBeNull();
+  });
+
+  it('clears the total when the query drops below the minimum or the search fails', async () => {
+    mockSearchCards.mockResolvedValue({ data: [makeCard('1')], total_cards: 7 });
+    const { result, rerender } = renderHook(({ q }) => useSearchCards(q), {
+      initialProps: { q: 'bolt' },
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+      await Promise.resolve();
+    });
+    expect(result.current.total).toBe(7);
+
+    rerender({ q: 'b' });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(result.current.total).toBeNull();
+
+    mockSearchCards.mockRejectedValue(new Error('Network error'));
+    rerender({ q: 'bolt' });
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+      await Promise.resolve();
+    });
+    expect(result.current.total).toBeNull();
+  });
+
   it('trims whitespace from query before searching', async () => {
     mockSearchCards.mockResolvedValue({ data: [] });
     renderHook(() => useSearchCards('  bolt  '));

@@ -89,7 +89,7 @@ export function InlineCardSearch({ query, view = 'list', onClose, onAdd, onAdded
   const [previewPrintingsId, setPreviewPrintingsId] = useState<string | null>(null);
 
   const q = query.trim();
-  const { results, loading, error } = useSearchCards(query, RESULT_LIMIT);
+  const { results, loading, error, total } = useSearchCards(query, RESULT_LIMIT);
 
   // Reset per-result UI state when new results arrive. Defer to a microtask
   // to avoid synchronous setState inside an effect body (react-hooks/set-state-in-effect).
@@ -309,9 +309,19 @@ export function InlineCardSearch({ query, view = 'list', onClose, onAdd, onAdded
           className="inline-card-search-more"
           onClick={() => setVisible((v) => v + PAGE_SIZE)}
         >
-          Show {Math.min(PAGE_SIZE, results.length - visible)} more · {results.length - visible} not
-          shown
+          Show {Math.min(PAGE_SIZE, results.length - visible)} more
         </button>
+      )}
+      {/* The stack holds at most RESULT_LIMIT, so when the search matched more
+          than that it has to say so: the button used to read "· 50 not shown",
+          which counted the fetched-but-hidden rows and so told a reader that
+          60 was the whole answer. Picking a tag with 976 cards on /tags is the
+          case that made it obvious (board E341). */}
+      {total !== null && total > results.length && (
+        <p className="inline-card-search-total">
+          Showing {Math.min(visible, results.length).toLocaleString()} of {total.toLocaleString()}{' '}
+          matches. Narrow the search to see the rest.
+        </p>
       )}
 
       {previewIndex !== null && previewCards[previewIndex] && (
