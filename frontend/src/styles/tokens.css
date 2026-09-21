@@ -225,14 +225,21 @@
      panel *underneath* its own trigger's bar. */
   --z-menu: 120;
   --z-suggest: 200;
-  /* Solo-playtest table chrome: the zones tab and its panel, the takeback
-     and resistance banners and the consent prompt stack above the board's
-     own cards and below every modal. Named so playtest.css never carries a
-     bare literal in the 900s again. */
+  /* Solo-playtest table chrome: the zones tab and its panel, the resistance
+     banner and the card pings stack above the board's own cards and below
+     every modal. Named so playtest.css never carries a bare literal in the
+     900s again.
+
+     These order things INSIDE the board and nothing else. The board itself
+     is `.playtest-page`, fixed at --z-overlay, so an overlay portaled to
+     <body> is a SIBLING of it and one of these tokens cannot order it — it
+     would be painted under the whole board. Body-portaled overlays take
+     --z-overlay; see STYLE_GUIDE's z-index section and
+     playtest/components/body-portal-stacking.test.ts. (--z-table-consent
+     was removed for exactly that reason: the consent prompt portals.) */
   --z-table-chrome: 900;
   --z-table-panel: 901;
   --z-table-banner: 902;
-  --z-table-consent: 950;
   --z-modal: 1000;
   --z-overlay: 1100;
   /* Keyboard-docked tray (mobile commander search) — portaled to <body>, so it
