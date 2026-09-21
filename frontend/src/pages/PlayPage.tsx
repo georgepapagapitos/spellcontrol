@@ -41,6 +41,8 @@ import { aggregateMatchupRecords } from '../lib/matchup-records';
 import { FORMAT_OPTIONS, MAX_LOCAL_PLAYERS, MIN_LOCAL_PLAYERS } from '../lib/game-formats';
 import { MAX_COUNTERS_PER_SCOPE, MAX_COUNTER_NAME_LENGTH } from '../lib/game-state';
 import { DeckPicker, RulePill, SeatPips, Stepper } from '../components/play/SetupControls';
+import type { PickedDeck } from '../components/play/DeckPickerDialog';
+import { deckBoardPath } from '../lib/starter-decks';
 import { TableProfiles } from '../components/play/TableProfiles';
 import type { GameAction, GameFormat, GamePlayer, GameRecord, GameState } from '../lib/game-state';
 import type { PublicBoard } from '../lib/playtest/projection';
@@ -117,7 +119,7 @@ export function PlayPage() {
       // than never doing it. Skip rather than risk the loop.
       return;
     }
-    navigate(`/decks/${mySeatDeckId}/playtest`);
+    navigate(deckBoardPath(mySeatDeckId));
   }, [liveGameId, mySeatDeckId, navigate]);
 
   // Where the page opens: the tab you asked for; else the table you're in the
@@ -925,16 +927,16 @@ function LocalSetup({
                 decks={decks}
                 value={p.deckId}
                 deckName={p.deckName}
-                onChange={(deck) =>
+                onChange={(picked) =>
                   setPlayer(i, {
-                    deckId: deck?.id ?? null,
-                    deckName: deck?.name ?? null,
-                    commander: deck?.commander?.name ?? null,
+                    deckId: picked?.id ?? null,
+                    deckName: picked?.name ?? null,
+                    commander: picked?.commander ?? null,
                     // Decks already model the second commander, so a Partner
                     // seat splits its damage counter with no setup step —
                     // nobody stops mid-game to type in a commander name.
-                    partner: deck?.partnerCommander?.name ?? null,
-                    colorIdentity: deck?.commander?.color_identity ?? [],
+                    partner: picked?.partner ?? null,
+                    colorIdentity: picked?.colorIdentity ?? [],
                   })
                 }
               />
@@ -982,7 +984,7 @@ function SeatDeck({
   decks: Deck[];
   value: string | null;
   deckName: string | null;
-  onChange: (deck: Deck | null) => void;
+  onChange: (picked: PickedDeck | null) => void;
 }) {
   const [open, setOpen] = useState(false);
   if (!open && !value) {
@@ -999,7 +1001,7 @@ function SeatDeck({
   }
   return (
     <div className="play-setup-seat-deck">
-      <DeckPicker decks={decks} value={value} onChange={onChange} />
+      <DeckPicker decks={decks} value={value} valueName={deckName} onChange={onChange} />
       {value && deckName && (
         <button
           type="button"
@@ -1133,7 +1135,7 @@ function OnlineSetup({
   const [mode, setMode] = useState<'host' | 'join'>(initialMode ?? 'host');
   const [format, setFormat] = useState<GameFormat>('commander');
   const [name, setName] = useState(defaultName);
-  const [deck, setDeck] = useState<Deck | null>(null);
+  const [deck, setDeck] = useState<PickedDeck | null>(null);
   const [code, setCode] = useState('');
 
   // The format decides the table's opening rules; the host tunes them in the
@@ -1172,11 +1174,11 @@ function OnlineSetup({
               commanderDamageEnabled,
               poisonEnabled,
               hostName: name || defaultName,
-              hostColorIdentity: deck?.commander?.color_identity ?? [],
+              hostColorIdentity: deck?.colorIdentity ?? [],
               hostDeckId: deck?.id ?? null,
               hostDeckName: deck?.name ?? null,
-              hostCommander: deck?.commander?.name ?? null,
-              hostPartner: deck?.partnerCommander?.name ?? null,
+              hostCommander: deck?.commander ?? null,
+              hostPartner: deck?.partner ?? null,
             });
           }}
         >
@@ -1224,7 +1226,7 @@ function OnlineSetup({
                   aria-label="Your name"
                   placeholder={defaultName}
                 />
-                <SeatPips ci={deck?.commander?.color_identity ?? []} />
+                <SeatPips ci={deck?.colorIdentity ?? []} />
                 <SeatDeck
                   decks={decks}
                   value={deck?.id ?? null}
@@ -1249,9 +1251,9 @@ function OnlineSetup({
               name: name || defaultName,
               deckId: deck?.id ?? null,
               deckName: deck?.name ?? null,
-              commander: deck?.commander?.name ?? null,
-              partner: deck?.partnerCommander?.name ?? null,
-              colorIdentity: deck?.commander?.color_identity ?? [],
+              commander: deck?.commander ?? null,
+              partner: deck?.partner ?? null,
+              colorIdentity: deck?.colorIdentity ?? [],
             });
           }}
         >
@@ -1295,7 +1297,7 @@ function OnlineSetup({
                   aria-label="Your name"
                   placeholder={defaultName}
                 />
-                <SeatPips ci={deck?.commander?.color_identity ?? []} />
+                <SeatPips ci={deck?.colorIdentity ?? []} />
                 <SeatDeck
                   decks={decks}
                   value={deck?.id ?? null}
@@ -1416,17 +1418,17 @@ function OnlineBoardDoor({
             decks={decks}
             value={mine.deckId}
             deckName={mine.deckName}
-            onChange={(deck) => {
-              if (!deck) return;
+            onChange={(picked) => {
+              if (!picked) return;
               void dispatchOnline({
                 type: 'update-player',
                 seat: mine.seat,
                 patch: {
-                  deckId: deck.id,
-                  deckName: deck.name,
-                  commander: deck.commander?.name ?? null,
-                  partner: deck.partnerCommander?.name ?? null,
-                  colorIdentity: deck.commander?.color_identity ?? [],
+                  deckId: picked.id,
+                  deckName: picked.name,
+                  commander: picked.commander,
+                  partner: picked.partner,
+                  colorIdentity: picked.colorIdentity,
                 },
               });
             }}
@@ -1434,7 +1436,7 @@ function OnlineBoardDoor({
         </div>
       ) : (
         <Link
-          to={`/decks/${mine.deckId}/playtest`}
+          to={deckBoardPath(mine.deckId)}
           className={`btn play-board-door-cta ${urgent ? 'btn-primary' : ''}`}
         >
           {myBoardOpen ? 'Back to your board' : 'Open your board'}

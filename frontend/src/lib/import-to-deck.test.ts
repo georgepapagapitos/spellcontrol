@@ -31,14 +31,13 @@ describe('pastedListToken', () => {
 });
 
 describe('importToDeck', () => {
-  it('namespaces the id so it can never collide with a saved deck', () => {
-    const deck = importToDeck(result(), 'abc', 'Pasted list');
-    expect(deck.id).toBe(pastedDeckLocalId('abc'));
-    expect(deck.id.startsWith('pasted:')).toBe(true);
+  it('takes the caller’s namespaced id, so board state can never collide with a saved deck', () => {
+    expect(importToDeck(result(), pastedDeckLocalId('abc'), 'Pasted list').id).toBe('pasted:abc');
+    expect(importToDeck(result(), 'starter:x.json', 'Starter').id).toBe('starter:x.json');
   });
 
   it('claims no physical copy, because a pasted list owns nothing', () => {
-    const deck = importToDeck(result(), 'abc', 'Pasted list');
+    const deck = importToDeck(result(), pastedDeckLocalId('abc'), 'Pasted list');
     expect(deck.cards.every((c) => c.allocatedCopyId === null)).toBe(true);
     expect(deck.commanderAllocatedCopyId).toBe(null);
   });
@@ -46,7 +45,7 @@ describe('importToDeck', () => {
   it('carries the commander and the detected format through', () => {
     const deck = importToDeck(
       result({ commander: card('Atraxa, Praetors Voice'), detectedFormat: 'commander' }),
-      'abc',
+      pastedDeckLocalId('abc'),
       'Atraxa, Praetors Voice'
     );
     expect(deck.commander?.name).toBe('Atraxa, Praetors Voice');
