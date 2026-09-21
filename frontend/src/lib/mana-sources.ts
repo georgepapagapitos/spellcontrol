@@ -47,7 +47,18 @@ export function producedManaColors(card: ScryfallCard, identity: ReadonlySet<str
   // ("any color" with no qualifier — City of Brass) fall through and keep all
   // their reported colors. If the deck has no identity yet, fall back to the
   // reported colors rather than dropping the source entirely.
-  const clampToIdentity = ot.includes('color identity') || ot.includes('could produce');
+  //
+  // The phrase has to sit in a clause that ACTUALLY ADDS MANA. Scanning the
+  // whole card catches any other ability that happens to mention a color
+  // identity: War Room's mana ability is "{T}: Add {C}", and the words "color
+  // identity" belong to its unrelated draw ability ("Pay life equal to the
+  // number of colors in your commanders' color identity: Draw a card"). Read
+  // whole-card, an unhydrated War Room clamps to the deck's identity and so
+  // reads as a five-color fixer in a five-color deck, and as nothing at all in
+  // a colorless one — when it taps for {C} either way.
+  const clampToIdentity = [...ot.matchAll(/\badds?\b([^.\n]*)/g)].some(
+    ([, clause]) => clause.includes('color identity') || clause.includes('could produce')
+  );
   const rainbow = COLOR_KEYS.every((c) => pm.includes(c));
   if (clampToIdentity && (rainbow || pm.length === 0)) {
     return identityColors.length > 0 ? identityColors : pm;
