@@ -1,6 +1,6 @@
 import { useId, type CSSProperties } from 'react';
 import { Modal } from '@/components/Modal';
-import { FELTS, SLEEVES, type SkinOption } from '../lib/table-skin';
+import { FELTS, type SkinOption } from '../lib/table-skin';
 
 /** One preference that owns its own picker: this row states where it stands
  *  and opens that picker. Keeps each existing picker untouched while giving
@@ -15,9 +15,7 @@ export interface SettingLink {
  *  — opponents see the board you publish, never your CSS. */
 export interface TableSkin {
   felt: string;
-  sleeve: string;
   onFelt(id: string): void;
-  onSleeve(id: string): void;
 }
 
 /**
@@ -69,7 +67,7 @@ interface Props {
    *  narrow tier, where cards are sized for a thumb and there is nothing to
    *  set. */
   zoom?: { value: number; min: number; max: number; step: number; onZoom(zoom: number): void };
-  /** Felt colour and sleeves. Absent (tests, previews) hides both rows. */
+  /** Felt colour. Absent (tests, previews) hides the row. */
   skin?: TableSkin;
   /** Takeback rule, Resistance, Designations — in that order. */
   links: SettingLink[];
@@ -137,14 +135,8 @@ export function TableSettingsSheet({ zoom, skin, links, onClose }: Props) {
         {skin && (
           <>
             <SwatchRow label="Felt" options={FELTS} value={skin.felt} onChange={skin.onFelt} />
-            <SwatchRow
-              label="Sleeves"
-              options={SLEEVES}
-              value={skin.sleeve}
-              onChange={skin.onSleeve}
-            />
             <p className="playtest-settings__hint">
-              Your table only. Everyone else sees their own felt and their own sleeves.
+              Your table only. Everyone else sees their own felt.
             </p>
           </>
         )}
