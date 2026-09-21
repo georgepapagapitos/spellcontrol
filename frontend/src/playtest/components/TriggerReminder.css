@@ -4,9 +4,18 @@
 
 .trigger-reminder {
   position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 3.5rem);
+  /* Clears the board's top-right corner chrome (the game menu and the TURN
+     chip, ~120px tall) rather than landing on top of it. Covering the turn
+     counter would be a worse trade than the one this panel is making. */
+  top: calc(env(safe-area-inset-top, 0px) + 8.5rem);
   right: var(--space-3);
-  z-index: var(--z-table-banner);
+  /* --z-overlay, NOT --z-table-banner, because this portals to <body>: the
+     whole board is `.playtest-page`, position:fixed at --z-overlay, so a
+     body-level sibling below that value is painted under the entire board.
+     The board's own 900-series tokens only order things INSIDE the page.
+     Shipped at 902 once and was invisible in production — same token as
+     TableMoments, which is the portal idiom this copies. */
+  z-index: var(--z-overlay);
   width: min(15rem, calc(100vw - 1.5rem));
   max-height: min(18rem, 50vh);
   overflow-y: auto;
