@@ -13,6 +13,7 @@ import {
   listCardTagsRanked,
   useCardTagsError,
   useCardTagsReady,
+  isKnownCardTag,
 } from '../lib/card-tags';
 import { describeOtag } from '../lib/otag-descriptions';
 import { parseTagParam, searchTags, tagsToQuery } from '../lib/tag-explorer';
@@ -45,7 +46,25 @@ export function TagsPage() {
   );
   const ready = useCardTagsReady();
   const loadError = useCardTagsError();
-  const hasSelection = selected.length > 0;
+  /**
+   * `parseTagParam` only vets the CHARACTER CLASS of a `?t=` slug — that regex
+   * is what keeps arbitrary text out of a Scryfall query and must stay — so a
+   * made-up slug reaches this page looking exactly like a real one. Until this
+   * split, `/tags?t=not-a-real-tag-xyz` rendered the chip "Not a real tag
+   * xyz", titled the results with it, and only the empty result set gave the
+   * game away (board E340). Only ask the corpus once it has loaded: before
+   * that everything reads unknown, and flashing "there's no tag called…" at a
+   * real deep link would be a worse lie than the one being fixed.
+   */
+  const known = useMemo(
+    () => (ready ? selected.filter(isKnownCardTag) : selected),
+    [ready, selected]
+  );
+  const unknown = useMemo(
+    () => (ready ? selected.filter((slug) => !isKnownCardTag(slug)) : []),
+    [ready, selected]
+  );
+  const hasSelection = known.length > 0;
   // Browse mode is the whole page until something is selected; after that the
   // cards are the point and the browser is opt-in.
   const [browseOpen, setBrowseOpen] = useState(!hasSelection);
@@ -86,7 +105,7 @@ export function TagsPage() {
     if (next.trim()) setBrowseOpen(true);
   };
 
-  const query = tagsToQuery(selected);
+  const query = tagsToQuery(known);
 
   return (
     <div className={`tags-page${view === 'grid' ? ' tags-page--grid' : ''}`}>
@@ -111,10 +130,19 @@ export function TagsPage() {
         </p>
       )}
 
-      {selected.length > 0 && (
+      {unknown.length > 0 && (
+        <p className="tags-page-unknown" role="status">
+          {unknown.length === 1
+            ? `There's no tag called “${unknown[0]}”.`
+            : `These aren't tags: ${unknown.map((slug) => `“${slug}”`).join(', ')}.`}{' '}
+          Pick one from the list.
+        </p>
+      )}
+
+      {known.length > 0 && (
         <div className="tags-selected">
           <ul className="tags-selected-list" role="list">
-            {selected.map((slug) => (
+            {known.map((slug) => (
               <li key={slug}>
                 <button
                   type="button"
@@ -213,13 +241,11 @@ export function TagsPage() {
         </div>
       )}
 
-      {selected.length > 0 ? (
+      {known.length > 0 ? (
         <section className="tags-results" aria-label="Cards matching the selected tags">
           <div className="tags-results-toolbar">
             <h2 className="tags-results-title">
-              {selected.length === 1
-                ? cardTagLabel(selected[0])
-                : `${selected.length} tags, all at once`}
+              {known.length === 1 ? cardTagLabel(known[0]) : `${known.length} tags, all at once`}
             </h2>
             <ViewModeToggle<InlineCardSearchView>
               ariaLabel="Result layout"
@@ -242,7 +268,10 @@ export function TagsPage() {
           <InlineCardSearch query={query} view={view} />
         </section>
       ) : (
-        ready && (
+        // The unknown-slug note above already says what happened and what to
+        // do, so the generic invitation would just repeat it.
+        ready &&
+        unknown.length === 0 && (
           <div className="empty-state">
             <EmptyStateMark />
             <p className="empty-state-tagline">Pick a tag to see what it finds.</p>

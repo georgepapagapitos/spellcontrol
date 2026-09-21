@@ -23,6 +23,9 @@ vi.mock('../lib/card-tags', () => ({
     tag === 'mana-rock' ? 'Mana rock' : tag === 'typal' ? 'Typal' : 'Removal',
   cardTagDescription: () => '',
   cardTagsGeneratedAt: () => '2026-09-01T15:12:06.395Z',
+  // The corpus knows its three tags plus one legacy alias — aliases are absent
+  // from the ranked list on purpose but must still resolve from a URL.
+  isKnownCardTag: (slug: string) => ['removal', 'mana-rock', 'typal', 'boardwipe'].includes(slug),
 }));
 
 const searchQueries: string[] = [];
@@ -126,5 +129,44 @@ describe('TagsPage', () => {
     expect(screen.getByRole('alert').textContent).toContain("Couldn't load the tag list.");
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(ensureCardTags).toHaveBeenCalledTimes(1);
+  });
+
+  // ── board E340 — a `?t=` slug the corpus doesn't know ────────────────────
+  it("says there's no such tag instead of inventing a chip and a title", () => {
+    renderPage('/tags?t=not-a-real-tag-xyz');
+    // The defect: `parseTagParam` vets only the character class, so the page
+    // rendered the chip "Not a real tag xyz", titled the results with it, and
+    // searched `otag:not-a-real-tag-xyz`.
+    expect(screen.getByText(/There's no tag called “not-a-real-tag-xyz”\./)).toBeTruthy();
+    expect(screen.queryByText('Not a real tag xyz')).toBeNull();
+    expect(screen.queryByTestId('results')).toBeNull();
+    expect(searchQueries).toEqual([]);
+    // And the generic invitation doesn't pile on under the note.
+    expect(screen.queryByText('Pick a tag to see what it finds.')).toBeNull();
+  });
+
+  it('keeps the real tags in a mixed selection and names only the junk', () => {
+    renderPage('/tags?t=removal,not-a-tag');
+    expect(screen.getByTestId('results').textContent).toBe('otag:removal');
+    expect(screen.getByText(/There's no tag called “not-a-tag”\./)).toBeTruthy();
+    // The chip row is the real tag only.
+    expect(screen.getByRole('button', { name: /Remove Removal from the selection/ })).toBeTruthy();
+  });
+
+  it('resolves a legacy alias from a URL even though the list never offers it', () => {
+    // LEGACY_TAG_ALIASES slugs are excluded from the ranked list (they are
+    // match compatibility, not browsable concepts) — validating against that
+    // list alone would break a link someone saved.
+    renderPage('/tags?t=boardwipe');
+    expect(screen.getByTestId('results').textContent).toBe('otag:boardwipe');
+    expect(screen.queryByText(/There's no tag called/)).toBeNull();
+  });
+
+  it('says nothing about unknown slugs until the corpus has loaded', () => {
+    // Before the snapshot lands every slug reads unknown; flashing the note at
+    // a real deep link would be a worse lie than the one being fixed.
+    readyRef.value = false;
+    renderPage('/tags?t=removal');
+    expect(screen.queryByText(/There's no tag called/)).toBeNull();
   });
 });
