@@ -109,6 +109,7 @@ import { TableSignals } from './TableSignals';
 import { TAKEBACK_MODE_LABEL } from '../lib/takeback';
 import { REACTION_EMOTES } from '../lib/table-signals';
 import { CardContextMenu, type CardMenuPage } from './CardContextMenu';
+import { CardStatusStrip } from './CardStatusStrip';
 import { MobileZonesPanel } from './MobileZonesPanel';
 import { OpeningHandSheet } from './OpeningHandSheet';
 import { PlaytestCardFace } from './PlaytestCardFace';
@@ -2432,6 +2433,13 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           const zoneLabel = state.zones.hand.some((c) => c.id === previewCardId)
             ? 'Hand'
             : 'Battlefield';
+          // The permanent behind the inspected card, when it's on the
+          // battlefield — the inspector prints its live state (tapped,
+          // counters, attachments) above the card's rules text.
+          const bf = state.battlefield.find((b) => b.card.id === previewCardId);
+          const host = bf?.attachedTo
+            ? state.battlefield.find((b) => b.card.id === bf.attachedTo)?.card.name
+            : undefined;
           return (
             <CardPreview
               source="playtest"
@@ -2441,6 +2449,16 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               sectionLabels={[zoneLabel]}
               pageNumbers={[1]}
               totalPages={1}
+              renderPanelMeta={() =>
+                bf || commanderTaxAmount(state.commanderTax, previewCardId) > 0 ? (
+                  <CardStatusStrip
+                    card={bf?.card ?? { id: previewCardId, name: enriched.name }}
+                    bf={bf}
+                    attachedToName={host}
+                    tax={commanderTaxAmount(state.commanderTax, previewCardId)}
+                  />
+                ) : null
+              }
               onIndexChange={() => {}}
               onClose={() => setPreviewCardId(null)}
             />

@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { fetchCardRulings, type Ruling } from '../lib/card-rulings';
 import './CardRulings.css';
 
@@ -7,10 +7,22 @@ import './CardRulings.css';
  * Collapsible "Rulings" disclosure for the card preview panel. Rulings are
  * fetched lazily on first expand (not per card swipe) and the date is shown
  * formatted. Render with `key={scryfallId}` so it resets per card.
+ *
+ * `defaultOpen` starts it expanded and fetches on mount — for the playtest
+ * inspector, where a ruling is the reason the card was opened at all, so
+ * making the player find a chevron mid-game is the wrong default.
  */
-export function CardRulings({ scryfallId }: { scryfallId: string }) {
-  const [open, setOpen] = useState(false);
-  const [state, setState] = useState<'idle' | 'loading' | 'error' | 'done'>('idle');
+export function CardRulings({
+  scryfallId,
+  defaultOpen = false,
+}: {
+  scryfallId: string;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const [state, setState] = useState<'idle' | 'loading' | 'error' | 'done'>(
+    defaultOpen ? 'loading' : 'idle'
+  );
   const [rulings, setRulings] = useState<Ruling[]>([]);
 
   const load = () => {
@@ -23,6 +35,27 @@ export function CardRulings({ scryfallId }: { scryfallId: string }) {
       () => setState('error')
     );
   };
+
+  // Mount-time fetch for the `defaultOpen` case only; the collapsed default
+  // still loads lazily on first expand. The initial state is already
+  // 'loading', so nothing here sets state synchronously.
+  useEffect(() => {
+    if (!defaultOpen) return;
+    let alive = true;
+    fetchCardRulings(scryfallId).then(
+      (r) => {
+        if (!alive) return;
+        setRulings(r);
+        setState('done');
+      },
+      () => {
+        if (alive) setState('error');
+      }
+    );
+    return () => {
+      alive = false;
+    };
+  }, [defaultOpen, scryfallId]);
 
   const toggle = () => {
     const next = !open;
