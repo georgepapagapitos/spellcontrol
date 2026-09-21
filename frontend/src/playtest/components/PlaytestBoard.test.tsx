@@ -967,4 +967,25 @@ describe('PlaytestBoard — Space moves the game on', () => {
     fireEvent.click(advancers[0]);
     expect(dispatch).toHaveBeenCalledWith({ type: 'NEXT_TURN' });
   });
+  // The hole the per-element handlers left: right-click was cancelled on cards
+  // and on bare felt, so the native browser menu still popped on the zone
+  // piles, the chrome and every gap between them — one gesture meaning two
+  // different things a few pixels apart. `fireEvent` returns false when the
+  // event was cancelled, which is exactly "no native menu here".
+  it('keeps the native browser menu off the whole board, not just the cards', () => {
+    const state = seededState();
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={state} />
+      </MemoryRouter>
+    );
+
+    const board = document.querySelector('.playtest-board')!;
+    const pile = screen.getByText('Library (3)');
+    const card = screen.getAllByText(state.zones.hand[0].name)[0];
+
+    for (const target of [board, pile, card]) {
+      expect(fireEvent.contextMenu(target)).toBe(false);
+    }
+  });
 });

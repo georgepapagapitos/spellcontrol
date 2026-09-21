@@ -90,6 +90,7 @@ import { autoPlace } from '../lib/auto-place';
 import { makePlaytestCollision } from '../lib/attach-drop';
 import { handSlotFromDroppableId, hostFromDroppableId } from '../lib/zones';
 import { haptics } from '@/lib/haptics';
+import { suppressNativeContextMenu } from '@/lib/suppress-context-menu';
 import { cachedCardThumb } from '@/lib/card-thumbs';
 import { Battlefield } from './Battlefield';
 import { Hand } from './Hand';
@@ -2179,6 +2180,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       className={`playtest-board${isNarrow ? ' playtest-board--narrow' : ''}${
         selectMode ? ' is-selecting' : ''
       }`}
+      // The catch-all below the card/felt handlers, which open the real menus:
+      // by the time it runs the board has had its say, and everything it did
+      // not claim (badges, zone piles, chrome, gaps) loses the native menu too.
+      onContextMenu={suppressNativeContextMenu}
     >
       {isNarrow && (
         <ActionBar
