@@ -5,12 +5,14 @@ import {
   getGame,
   joinGame,
   leaveGame,
+  listGames,
   patchGame,
   pollGame,
   postBoard,
   raiseGameRequest,
   respondGameRequest,
   sendGameSignal,
+  type GameListing,
   type GameRequest,
 } from './games-api';
 import type { GameState } from './game-state';
@@ -159,6 +161,23 @@ describe('games-api', () => {
     fetchSpy.mockResolvedValueOnce(json({ game: mockState() }));
     const r = await leaveGame('EFGH');
     expect(r.game?.code).toBe('ABCD');
+  });
+
+  it('listGames GETs /api/games and returns the rows', async () => {
+    const games: GameListing[] = [
+      {
+        code: 'ABCD',
+        name: 'Bracket 3 chill',
+        format: 'commander',
+        status: 'lobby',
+        seated: 2,
+        max: 8,
+        joinable: true,
+      },
+    ];
+    fetchSpy.mockResolvedValueOnce(json({ games }));
+    expect(await listGames()).toEqual(games);
+    expect(fetchSpy.mock.calls[0][0]).toBe('/api/games');
   });
 
   it('pollGame builds the URL with since, and appends catchUp=1 only when requested', async () => {

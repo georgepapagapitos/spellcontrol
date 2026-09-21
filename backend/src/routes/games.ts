@@ -2,7 +2,7 @@ import { logger } from '../logger';
 import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import { testAwareLimiter, isTest } from '../route-utils';
-import { and, eq, lt } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, lt, sql } from 'drizzle-orm';
 import { requireAuth, resolveDisplayLabel } from '../auth';
 import { getDb, getPool } from '../db';
 import { gameSessions } from '../db/schema';
@@ -16,6 +16,7 @@ import {
   type GameFormat,
   type GamePlayer,
   type GameState,
+  type GameStatus,
 } from '../games/state';
 
 export const gamesRouter: Router = Router();
@@ -434,6 +435,12 @@ function removeSubscriber(code: string, sub: Subscriber): void {
   if (subs.size === 0) subscribers.delete(code);
 }
 
+/** Seat cap for every online table, shared by the join route and the room
+ *  browser's `max` field — a table format doesn't change how many physical
+ *  seats a session has, so this stays one constant rather than the two
+ *  hand-matched `8`s it used to be. */
+const MAX_SEATS = 8;
+
 export const VALID_FORMATS: ReadonlyArray<GameFormat> = [
   'commander',
   'standard',
@@ -746,6 +753,89 @@ export async function sweepStale(): Promise<number> {
   for (const { code } of deleted) broadcastGameDeleted(code);
   return deleted.length;
 }
+
+/**
+ * A table gone quiet this long is dropped from the room browser (see GET /
+ * below) even though it is far from `sweepStale`'s 24h deletion cutoff. The
+ * browser answers "would spectating find anyone home right now", not "does
+ * this session still exist" — a lobby or an active game that hasn't mutated
+ * in an hour is very likely a tab left open with nobody at the table. The
+ * row stays reachable by code (and by `sweepStale`'s own 24h clock) either
+ * way; this only hides it from discovery.
+ */
+const STALE_LISTING_MS = 60 * 60 * 1000;
+
+/** Page size for GET / (room browser) — newest-active first. */
+const LISTING_PAGE_SIZE = 50;
+
+/** The narrow row the room browser needs — never the full `GameState`,
+ *  which carries every seat's account id, deck name and commander. */
+export interface GameListing {
+  code: string;
+  name: string;
+  format: GameFormat;
+  status: GameStatus;
+  seated: number;
+  max: number;
+  /** True when there is an open seat and the table hasn't started — the
+   *  frontend's Join action. Spectating is instead always available once
+   *  `status` is 'active' (spectating never claims a seat). */
+  joinable: boolean;
+}
+
+/** A table nobody named falls back to its format, e.g. "Commander table" —
+ *  still identifies the game, never a placeholder that reads as broken. */
+function fallbackGameName(format: GameFormat): string {
+  return `${format.charAt(0).toUpperCase()}${format.slice(1)} table`;
+}
+
+/** Project a `GameState` down to what the room browser is allowed to show.
+ *  Only ever called on rows the query below already restricted to
+ *  `visibility: 'public'` — this function does not itself re-check that, so
+ *  it must never be handed a private session's state. */
+export function projectGameListing(state: GameState): GameListing {
+  const seated = state.players.length;
+  return {
+    code: state.code,
+    name: state.name || fallbackGameName(state.format),
+    format: state.format,
+    status: state.status,
+    seated,
+    max: MAX_SEATS,
+    joinable: state.status === 'lobby' && seated < MAX_SEATS,
+  };
+}
+
+/**
+ * GET /api/games — list public games for the room browser (board E367).
+ *
+ * Every other read route in this file (GET /:code, /events, /poll) requires
+ * already knowing the 4-character code; this is the one surface that answers
+ * "what tables exist" instead. Scoped hard to `visibility: 'public'` at the
+ * query itself — a private game (the default) must never appear here, and
+ * unlike GET /:code there's no per-code stealth-404 to fall back on, so the
+ * filter has to be correct in the SQL, not just in what gets projected after.
+ * Excludes `'finished'` tables and anything stale (see `STALE_LISTING_MS`),
+ * newest-active first, capped at `LISTING_PAGE_SIZE`.
+ */
+gamesRouter.get('/', readLimiter, requireAuth, async (_req: Request, res: Response) => {
+  const db = getDb();
+  const cutoff = Date.now() - STALE_LISTING_MS;
+  const rows = await db
+    .select({ state: gameSessions.state })
+    .from(gameSessions)
+    .where(
+      and(
+        sql`${gameSessions.state}->>'visibility' = 'public'`,
+        inArray(gameSessions.status, ['lobby', 'active']),
+        gt(gameSessions.updatedAt, cutoff)
+      )
+    )
+    .orderBy(desc(gameSessions.updatedAt))
+    .limit(LISTING_PAGE_SIZE);
+
+  res.json({ games: rows.map((r) => projectGameListing(r.state as GameState)) });
+});
 
 /** POST /api/games — create a new session (host). */
 gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Response) => {
@@ -1756,10 +1846,10 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
     return res.json({ game: next });
   }
 
-  if (current.players.length >= 8) {
+  if (current.players.length >= MAX_SEATS) {
     return res.status(409).json({ error: 'Game is full.' });
   }
-  const seat = nextOpenSeat(current, 8);
+  const seat = nextOpenSeat(current, MAX_SEATS);
   const player = makePlayer({
     id: req.user!.id,
     userId: req.user!.id,
