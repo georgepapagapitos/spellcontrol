@@ -284,6 +284,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const [peek, setPeek] = useState<{
     card: PlaytestCard;
     where: 'top' | 'bottom' | 'random';
+    zone: Zone;
   } | null>(null);
   const [showStats, setShowStats] = useState(false);
   // The corner hamburger's drawer, and the host-only winner picker it opens.
@@ -1275,9 +1276,11 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   }, []);
 
   /** Look at one card off an end of the library without moving it. */
-  const peekLibrary = useCallback(
-    (where: 'top' | 'bottom' | 'random') => {
-      const lib = state.zones.library;
+  /** Look at one card out of a pile without moving it. Only the library has
+   *  a top and a bottom worth naming; anywhere else the pick is random. */
+  const peekZone = useCallback(
+    (where: 'top' | 'bottom' | 'random', zone: Zone = 'library') => {
+      const lib = state.zones[zone];
       // `Math.random` rather than the state's seeded RNG on purpose: looking
       // at a card moves nothing and advances no seed, so there is no game
       // state here to keep reproducible.
@@ -1288,10 +1291,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
             ? lib.at(-1)
             : lib[Math.floor(Math.random() * lib.length)];
       if (!card) return false;
-      setPeek({ card, where });
+      setPeek({ card, where, zone });
       return true;
     },
-    [state.zones.library]
+    [state.zones]
   );
 
   /** Send one of the four keyboard-bound reactions. */
@@ -1476,8 +1479,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           setScryFrom('bottom');
           setShowScry(true);
         },
-        'view-top-card': () => peekLibrary('top'),
-        'view-bottom-card': () => peekLibrary('bottom'),
+        'view-top-card': () => peekZone('top'),
+        'view-bottom-card': () => peekZone('bottom'),
         dice: () => setShowDice(true),
         token: () => setTokenCreator(true),
         mana: () => setManaOpen((open) => !open),
@@ -1599,7 +1602,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     adjustPT,
     adjustAllCounters,
     openCounters,
-    peekLibrary,
+    peekZone,
     sendReaction,
     toggleLayout,
   ]);
@@ -2031,10 +2034,18 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
    * has no sensible layout for N cards landing at once.
    */
   const moveAllItems = (from: Zone): TableMenuItem[] =>
-    MOVE_DESTINATIONS.filter((d) => d.key !== from).map((d) => ({
-      label: d.label,
-      onClick: () => dispatch({ type: 'MOVE_ALL_TO', from, to: d.key, toIndex: d.toIndex }),
-    }));
+    MOVE_DESTINATIONS.filter((d) => d.key !== from).map((d) => {
+      // Everyone watched these cards go in, so a block that keeps its order
+      // would hand the caster a known deck order. The row says so, because
+      // "my graveyard is now the top of my library, in order" is a very
+      // different promise from what actually happens.
+      const random = d.key === 'library';
+      return {
+        label: random ? `${d.label}, random order` : d.label,
+        onClick: () =>
+          dispatch({ type: 'MOVE_ALL_TO', from, to: d.key, toIndex: d.toIndex, random }),
+      };
+    });
 
   /**
    * A pile's menu. Every action that belongs to a zone lives here, on the
@@ -2055,6 +2066,11 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         },
         ...(zone === 'graveyard' || zone === 'exile'
           ? [
+              {
+                label: 'Select a random card',
+                onClick: () => void peekZone('random', zone),
+                disabled: empty,
+              },
               {
                 label: 'Shuffle into the library',
                 onClick: () => dispatch({ type: 'SHUFFLE_ZONE_INTO_LIBRARY', zone }),
@@ -2143,8 +2159,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         label: 'View',
         disabled: empty,
         items: [
-          { label: 'Top card', onClick: () => void peekLibrary('top') },
-          { label: 'Bottom card', onClick: () => void peekLibrary('bottom') },
+          { label: 'Top card', onClick: () => void peekZone('top') },
+          { label: 'Bottom card', onClick: () => void peekZone('bottom') },
           {
             // The sheet picks the mode (scry / surveil / mill) and the count,
             // so the row stays generic — a fixed "Scry 3" would mislead.
@@ -2175,7 +2191,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         shortcut: keyFor('shuffle'),
         onClick: () => dispatch({ type: 'SHUFFLE_LIBRARY' }),
       },
-      { label: 'Select a random card', onClick: () => void peekLibrary('random'), disabled: empty },
+      { label: 'Select a random card', onClick: () => void peekZone('random'), disabled: empty },
       // Showing something to the table needs a table. Solo, every "Everyone"
       // is an audience of nobody, so the one-shot reveals are not offered at
       // all and the standing one collapses to its private half.
@@ -2191,7 +2207,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                   label: 'Everyone',
                   onClick: () => dispatch({ type: 'REVEAL_TOP_CARD' }),
                 },
-                { label: 'Me', onClick: () => void peekLibrary('top') },
+                { label: 'Me', onClick: () => void peekZone('top') },
               ],
             },
             {
@@ -2895,7 +2911,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                 ))}
               </div>
               <button type="button" className="btn" onClick={() => setPeek(null)}>
-                Put back
+                {/* Nothing moved to undo — the card never left its pile. */}
+                {peek.zone === 'library' ? 'Put back' : 'Leave it'}
               </button>
             </div>
           ) : (

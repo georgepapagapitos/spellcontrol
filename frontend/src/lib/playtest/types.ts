@@ -243,12 +243,15 @@ export type PlaytestAction =
   | { type: 'SHUFFLE_ZONE_INTO_LIBRARY'; zone: 'graveyard' | 'exile' }
   | { type: 'MULLIGAN'; handSize?: number }
   | { type: 'MOVE_TO_ZONE'; cardId: string; to: Zone; toIndex?: number }
-  /** Empty one zone into another, in the order the cards already sit in.
+  /** Empty one zone into another, in the order the cards already sit in —
+   *  or in a random one, which is what a move INTO the library means: a
+   *  pile whose order the table watched must not become a known deck order.
+   *  `random` shuffles only the moved block and advances the seed.
    *  `toIndex: 0` puts them on top of the destination, anything else (or
    *  nothing) under it. No-op when the source is empty or the two zones are
    *  the same. The battlefield is deliberately not a destination: N cards
    *  would all land on one point, and there is no sensible layout for it. */
-  | { type: 'MOVE_ALL_TO'; from: Zone; to: Zone; toIndex?: number }
+  | { type: 'MOVE_ALL_TO'; from: Zone; to: Zone; toIndex?: number; random?: boolean }
   /** Take the top `n` off the library and put them in `to`, in order — mill
    *  and bulk-exile. `faceDown` only means anything for exile (it is what
    *  `faceDownExile` records) and is ignored anywhere else. No-op for n <= 0,
