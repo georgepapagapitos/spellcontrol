@@ -14,6 +14,7 @@ import { usePlaytestStore, flushPendingPlaytestSnapshot, tryRecordSession } from
 import { PlaytestBoard } from '@/playtest/components/PlaytestBoard';
 import { useNarrowViewport } from '@/playtest/hooks/use-narrow-viewport';
 import { usePrintedBodies } from '@/playtest/hooks/use-printed-bodies';
+import { useDevTable } from '@/playtest/hooks/use-dev-table';
 
 export interface PlaytestBackTarget {
   label: string;
@@ -53,6 +54,10 @@ export function PlaytestSession({ deck, external: isExternal, back, title, empty
   const navigate = useNavigate();
   // Passed to the store so it never has to look this deck up by id.
   const external = isExternal ? deck : undefined;
+  // Dev-only `?table=N`: seats this board at a fake table so the table-only
+  // overlays can be looked at without a pod. No-ops in a production build.
+  useDevTable(deck);
+
   const state = usePlaytestStore((s) => s.state);
   const init = usePlaytestStore((s) => s.init);
   const hydrate = usePlaytestStore((s) => s.hydrate);
