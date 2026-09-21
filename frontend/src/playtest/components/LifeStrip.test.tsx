@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { OpponentLife } from '@/lib/playtest';
 import { makePlayer, type GamePlayer } from '@/lib/game-state';
@@ -121,16 +121,76 @@ describe('LifeStrip — the popover is one fixed list (EDHPlay shape)', () => {
     expect(props.onAdjustCounter).toHaveBeenCalledWith('self', 'oil', 1);
   });
 
-  it('table variant: a bare chevron opens the popover, which has no life row and no "Details" caption', () => {
+  it('table variant: the resting panel is the total, its steppers and a bare chevron — nothing else', () => {
     render(
-      <LifeStrip {...soloProps()} opponents={[{ life: 40, commanderDamage: 0 }]} variant="table" />
+      <LifeStrip
+        {...soloProps()}
+        opponents={[
+          { life: 40, commanderDamage: 0 },
+          { life: 38, commanderDamage: 0 },
+        ]}
+        variant="table"
+      />
     );
     expect(screen.queryByText('Details')).toBeNull();
-    expect(screen.queryByText(/opponents?$/)).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Counters and commander damage' }));
+    // The opponent chips used to sit here. They are behind the chevron now,
+    // so nothing but your own controls is on the felt at rest.
+    expect(screen.queryByRole('button', { name: /Opponent 1: 40 life/ })).toBeNull();
+    expect(screen.getAllByRole('button')).toHaveLength(4); // −, total, +, chevron
+  });
+
+  it('table variant: the chevron opens opponents, commander damage and counters, but no life row', () => {
+    render(
+      <LifeStrip
+        {...soloProps()}
+        opponents={[
+          { life: 40, commanderDamage: 0 },
+          { life: 38, commanderDamage: 0 },
+        ]}
+        variant="table"
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Opponents, commander damage and counters' })
+    );
     expect(screen.getByRole('dialog', { name: 'You' })).toBeTruthy();
+    // Life stays out: the corner panel already has the numeral and steppers.
     expect(screen.queryByRole('button', { name: 'Life +5' })).toBeNull();
+    expect(screen.getByText('Opponents')).toBeTruthy();
+    expect(screen.getByText('Commander damage')).toBeTruthy();
     expect(screen.getByText('Poison')).toBeTruthy();
+  });
+
+  it('table variant: an opponent is damaged from its own row, without a second panel', () => {
+    const onAdjustLife = vi.fn();
+    render(
+      <LifeStrip
+        {...soloProps()}
+        onAdjustLife={onAdjustLife}
+        opponents={[{ life: 40, commanderDamage: 0 }]}
+        variant="table"
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Opponents, commander damage and counters' })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Opponent life -1' }));
+    expect(onAdjustLife).toHaveBeenCalledWith(0, -1);
+  });
+
+  it('table variant: shows the running life change, then stops showing it', () => {
+    vi.useFakeTimers();
+    try {
+      const { rerender } = render(<LifeStrip {...soloProps()} variant="table" />);
+      // The numeral says 34; only the delta says whether that was one or six.
+      rerender(<LifeStrip {...soloProps()} life={37} variant="table" />);
+      rerender(<LifeStrip {...soloProps()} life={34} variant="table" />);
+      expect(screen.getByText('−6')).toBeTruthy();
+      act(() => void vi.advanceTimersByTime(2000));
+      expect(screen.queryByText('−6')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('strip variant keeps the life row in the sheet, since the chip has no steppers of its own', () => {

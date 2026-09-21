@@ -95,17 +95,60 @@ describe('table chrome at the wide tier', () => {
     expect(coarse.slice(0, coarse.indexOf('}'))).toContain('min-height: 44px');
   });
 
-  it('makes your own life the panel headline, with the others demoted and mana folded in', () => {
-    // The old corner was the narrow strip floated: four equal chips plus a
-    // stray mana chip. The table panel is one surface.
+  it('keeps the life panel to a total, its steppers and a chevron', () => {
+    // This panel is over the felt every second of every game, so everything
+    // that is not your own life moved behind the chevron (opponents, commander
+    // damage, counters) or out to its own corner (mana). A headline numeral
+    // between two 44px boxes, a row of opponent chips and the mana row is what
+    // it used to be; none of those may come back.
     const total = block('.playtest-life-table__total {');
-    expect(total).toContain('font-size: var(--text-3xl)');
-    expect(block('.playtest-life-table__step {')).toContain('width: 44px');
-    expect(block('.playtest-life-table__step {')).toContain('height: 44px');
-    expect(css).toContain('.playtest-life-table__seats {');
-    // Mana is the panel's last row, not a second floating chip.
-    expect(css).toContain('.playtest-life-table .playtest-mana-pool {');
+    expect(total).toContain('font-size: var(--text-lg)');
+    expect(total).not.toContain('var(--text-3xl)');
+    const step = block('.playtest-life-table__step {');
+    expect(step).toContain('width: 22px');
+    expect(step).not.toContain('width: 44px');
+    expect(css).not.toContain('.playtest-life-table__seats {');
+    expect(css).not.toContain('.playtest-life-table .playtest-mana-pool {');
     expect(css).not.toContain('.playtest-trackers--corner .playtest-life-strip');
+    // Small on screen, still a real target: the 44px floor is a ghost box, so
+    // it cannot grow the panel or reach out over the battlefield.
+    const coarse = css.slice(css.indexOf('@media (pointer: coarse) {', css.indexOf(step)));
+    expect(coarse).toContain('width: 44px');
+  });
+
+  it('gives the running life change its own transient badge, on live tokens', () => {
+    const delta = block('.playtest-life-table__delta {');
+    expect(delta).toContain('animation: life-delta-in');
+    // Retired tokens render transparent on the always-dark felt (ghost-tokens).
+    expect(css).toContain('.playtest-life-table__delta.is-gain {');
+    expect(css).toContain('.playtest-life-table__delta.is-loss {');
+    expect(block('.playtest-life-table__delta.is-loss {')).toContain('var(--err-text)');
+    // One-shot emphasis must be silent under reduced motion.
+    const reduced = css.slice(
+      css.indexOf('@media (prefers-reduced-motion: reduce) {', css.indexOf(delta))
+    );
+    expect(reduced.slice(0, 200)).toContain('animation: none');
+  });
+
+  it('stacks mana over the log in one bottom-left column, never by arithmetic', () => {
+    const dock = block('.playtest-left-dock {');
+    expect(dock).toContain('position: absolute');
+    expect(dock).toContain('left: var(--space-4)');
+    expect(dock).toContain('bottom: calc(var(--pt-card-h) + 56px)');
+    expect(dock).toContain('flex-direction: column');
+    // The log's height is content-driven, capped at a max it rarely reaches,
+    // and it is unmounted when closed — so the column must position it, not
+    // an offset computed from that max. An early attempt did the arithmetic
+    // and put the mana column 117px ABOVE the top of the viewport.
+    expect(block('.playtest-left-dock > .playtest-log-dock {')).toContain('position: static');
+    expect(css).not.toContain('min(60vh, 640px) + var(--space-2)');
+    // A long log must not push mana off the top either.
+    expect(dock).toContain('max-height');
+    // Same 15rem shift the log dock took alone when the rail owns the edge.
+    expect(css).toContain(
+      '.playtest-board:has(.playtest-main > .opponent-rail) .playtest-left-dock'
+    );
+    expect(block('.playtest-mana-pool--column {')).toContain('flex-direction: column');
   });
 
   it('bottom-anchors the hand toggle instead of floating it above the cards', () => {
