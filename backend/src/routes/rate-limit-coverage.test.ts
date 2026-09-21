@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isRateLimiter } from '../route-utils';
+import { isRateLimiter, testAwareLimiter } from '../route-utils';
 
 import { authRouter } from './auth';
 import { adminRouter } from './admin';
@@ -129,5 +129,49 @@ describe('every /api route is rate-limited', () => {
   it('has no stale exemptions', () => {
     const live = new Set(ROUTERS.flatMap(([n, r]) => routesOf(n, r).map((x) => x.id)));
     expect([...EXEMPT.keys()].filter((k) => !live.has(k))).toEqual([]);
+  });
+});
+
+describe('the limiter is live but skipped under test', () => {
+  /**
+   * The middleware is a REAL express-rate-limit instance in every environment,
+   * with tests exempted per request via `skip`. That is what lets CodeQL see a
+   * limiter on each route — it could not follow the ternary this replaced.
+   *
+   * If someone reverts to branching on `isTest`, this test still passes but the
+   * ~99-instance CodeQL false-positive stream comes back. If someone drops
+   * `skip` and leaves the real limiter counting, this test starts failing with
+   * a 429 and says exactly that.
+   */
+  it('never exhausts its quota in tests, however often it is called', async () => {
+    const limiter = testAwareLimiter({ windowMs: 60_000, max: 1 });
+    let passed = 0;
+    for (let i = 0; i < 25; i += 1) {
+      await new Promise<void>((resolve, reject) => {
+        const req = { ip: '203.0.113.9', headers: {}, method: 'GET', url: '/' };
+        const res = {
+          setHeader: () => {},
+          getHeader: () => undefined,
+          status: () => {
+            reject(new Error(`rate limited on call ${i + 1} - skip is not in effect`));
+            return res;
+          },
+          send: () => res,
+          json: () => res,
+          on: () => res,
+          once: () => res,
+          end: () => res,
+        };
+        (limiter as unknown as (q: unknown, s: unknown, n: () => void) => void)(req, res, () => {
+          passed += 1;
+          resolve();
+        });
+      });
+    }
+    expect(passed).toBe(25);
+  });
+
+  it('is still recognized as a limiter', () => {
+    expect(isRateLimiter(testAwareLimiter({ windowMs: 1000, max: 1 }))).toBe(true);
   });
 });
