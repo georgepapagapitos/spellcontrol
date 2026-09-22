@@ -366,8 +366,11 @@ function overlappingTouchTargets() {
    *  tab bar is the exception that needs naming, because it is deliberately a
    *  normal flex child of the non-scrolling shell rather than `position:
    *  fixed` (responsive-nav.css says why: --safe-bottom jumps on Android), so
-   *  content scrolled under it looks like an overlap from a rect alone. */
-  const CHROME = '.mobile-tab-bar, .skip-link, .site-header';
+   *  content scrolled under it looks like an overlap from a rect alone. The
+   *  Scan FAB is the same case: it floats over the page on purpose and is
+   *  `position:absolute` inside the shell for that same --safe-bottom reason,
+   *  so a rect alone reads it as stealing whatever it happens to sit over. */
+  const CHROME = '.mobile-tab-bar, .skip-link, .site-header, .scan-fab-root';
   const pinned = (el) => {
     if (el.closest(CHROME)) return true;
     for (let n = el; n && n !== document.body; n = n.parentElement) {
