@@ -1187,6 +1187,33 @@ body[data-felt='slate'] {
   top: calc(var(--pt-y) * (100% - var(--pt-card-h)));
 }
 
+/* Dragging a card that is part of the selection drags the selection. dnd-kit
+   only moves the grabbed card (as a <DragOverlay> copy over a dimmed source),
+   so the rest of the group follows the pointer here: one delta, written onto
+   the battlefield wrap as `--pt-ride-x`/`--pt-ride-y` while the drag runs, is
+   clamped by the whole group so the formation never closes up on itself at an
+   edge. `translate` rather than `transform` — a tapped permanent is already
+   spending its transform on the 90° rotation. No transition: this tracks a
+   pointer, and easing it would leave the group lagging behind the hand. They
+   lift above the rest of the felt for the same reason the grabbed card does —
+   a card in flight is over the board, not through it. */
+.playtest-card-slot.is-riding {
+  translate: var(--pt-ride-x, 0px) var(--pt-ride-y, 0px);
+  z-index: 3;
+}
+
+/* The <DragOverlay> wrapper. dnd-kit sizes it from the source card's bounding
+   box, which for a TAPPED (90°-rotated) permanent is the rotated box — width
+   and height swapped. The copy inside keeps its printed size and rotates about
+   its own centre, so left at the wrapper's top-left it sat half the difference
+   down and to the left of the card actually grabbed. Centring the copy puts
+   its rotated box back exactly where the source's was; for an untapped card
+   the two boxes are identical and this does nothing. */
+.playtest-drag-overlay {
+  display: grid;
+  place-items: center;
+}
+
 /* The editable body, bottom-right of the card the way it is printed. Stays
    upright when the card rotates 90°, so a tapped creature is still readable. */
 .playtest-card-pt {

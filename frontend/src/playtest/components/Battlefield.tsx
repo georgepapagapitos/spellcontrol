@@ -9,6 +9,11 @@ interface Props {
   cards: BattlefieldCard[];
   /** Ids in the current selection (E226 group copy); empty set = none. */
   selectedIds: ReadonlySet<string>;
+  /** Mid-drag only: the permanents riding along with the card under the
+   *  pointer, which the felt translates itself — dnd-kit moves the grabbed
+   *  card's <DragOverlay> copy and nothing else. Omitted the rest of the
+   *  time, and when a drag moves a single card. */
+  ridingIds?: ReadonlySet<string>;
   /** Ids currently waiting to resolve — they stay on the battlefield and
    *  wear a ribbon. Empty set = nothing on the stack. */
   stackIds: ReadonlySet<string>;
@@ -32,6 +37,7 @@ interface Props {
 export function Battlefield({
   cards,
   selectedIds,
+  ridingIds,
   stackIds,
   onBackgroundClick,
   onMarqueeSelect,
@@ -190,7 +196,7 @@ export function Battlefield({
         // `role="button"`, and a control nested in a control is unreachable.
         <div
           key={bf.card.id}
-          className="playtest-card-slot"
+          className={`playtest-card-slot${ridingIds?.has(bf.card.id) ? ' is-riding' : ''}`}
           // What the marquee hit-tests against: the slot is the card's box on
           // the felt, and it is here rather than on the card so a tapped
           // (rotated) permanent still measures as what the eye sees.
