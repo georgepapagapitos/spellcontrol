@@ -63,6 +63,14 @@ describe('the zone shelf’s tuck', () => {
     expect(stack).toMatch(/align-items:\s*flex-start/);
   });
 
+  it('shows the TOP of the library’s card back too', () => {
+    // The library renders a background image, not an <img>, so the slot's
+    // `align-items` does not reach it — `background-position` is what picks
+    // the slice, and `center` showed the middle of the back.
+    const back = rules(css, '.playtest-pile__back--library')[0] ?? '';
+    expect(back).toMatch(/background-position:\s*top/);
+  });
+
   it('is squared off where the edge cuts it', () => {
     const stack = rules(css, '.playtest-pile__stack')[0] ?? '';
     // Four-value radius with two zeros at the end: rounded on top, cut below.
