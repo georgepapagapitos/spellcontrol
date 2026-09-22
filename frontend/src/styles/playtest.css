@@ -2421,14 +2421,6 @@ button.playtest-card-pt__value--editable:focus-visible {
     overflow-y: visible;
   }
 
-  .playtest-zones-tab {
-    display: block;
-  }
-
-  .playtest-board--narrow .playtest-zones-panel {
-    display: grid;
-  }
-
   .playtest-hand {
     min-height: 110px;
     padding: var(--space-2) var(--space-3);
@@ -4484,16 +4476,20 @@ button.playtest-card-pt__value--editable:focus-visible {
     padding: var(--space-1) var(--space-2);
   }
 
-  /* One bottom band, hand on the left and the two piles on the right — the
-     fan centres itself on the felt at desk widths, where there is room
-     either side of it; here there is not, so it takes the left and stops
-     where the piles begin. */
+  /* One bottom band: the hand on the left, the piles on the right. The fan
+     centres itself on the felt at desk widths, where there is room either
+     side of it; here there is not, so it centres in what the piles leave —
+     centred on the viewport, its outermost card lands off the left edge and
+     under the library. `--pt-pile-span` is how much the piles take, which
+     depends on how many of them stand out here (four on a tablet, two on a
+     phone). */
+  .playtest-board {
+    --pt-pile-span: calc(4 * var(--pt-card-w) + 5 * var(--space-2));
+  }
+
   .playtest-hand--fan {
-    /* Centred in what the piles leave, rather than on the felt: a fan
-       centred on a 412px screen puts its outermost card off the left edge
-       and under the library. */
-    left: calc((100% - 2 * var(--pt-card-w) - 3 * var(--space-2)) / 2);
-    max-width: calc(100% - 2 * var(--pt-card-w) - 4 * var(--space-2));
+    left: calc((100% - var(--pt-pile-span)) / 2);
+    max-width: calc(100% - var(--pt-pile-span) - 2 * var(--space-2));
   }
 
   .playtest-piles {
@@ -4517,5 +4513,25 @@ button.playtest-card-pt__value--editable:focus-visible {
     top: auto;
     bottom: 0;
     right: 0;
+  }
+}
+
+/* ── Phone only ───────────────────────────────────────────────────────────
+   The one thing that is not shared with a tablet: four card-width piles
+   plus a hand do not fit 412px. The library and the graveyard stay out on
+   the felt (PlaytestBoard renders only those two below PHONE_MAX_WIDTH) and
+   the edge tab holds exile and the command zone. Keep this 767 in step with
+   `PHONE_MAX_WIDTH` in use-narrow-viewport.ts. */
+@media (max-width: 767px) {
+  .playtest-board {
+    --pt-pile-span: calc(2 * var(--pt-card-w) + 3 * var(--space-2));
+  }
+
+  .playtest-zones-tab {
+    display: block;
+  }
+
+  .playtest-board--narrow .playtest-zones-panel {
+    display: grid;
   }
 }
