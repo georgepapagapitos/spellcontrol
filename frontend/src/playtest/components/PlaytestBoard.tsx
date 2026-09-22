@@ -64,7 +64,7 @@ const MULLIGAN_TABLE_NOTE: Record<MulliganType, string> = {
   london: 'Table rule: London mulligans.',
   free: 'Table rule: free mulligans. Nothing goes to the bottom.',
 };
-import { useNarrowViewport } from '../hooks/use-narrow-viewport';
+import { PHONE_MAX_WIDTH, useNarrowViewport } from '../hooks/use-narrow-viewport';
 import { applyTableSkin, readFelt, writeFelt } from '../lib/table-skin';
 import { useTurnSweep } from '../hooks/use-turn-sweep';
 import { useTablePointer } from '../hooks/use-table-pointer';
@@ -379,6 +379,11 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // one from a later game) re-shows.
   const [dismissedSessionRecordId, setDismissedSessionRecordId] = useState<string | null>(null);
   const isNarrow = useNarrowViewport();
+  /* A phone, specifically. `isNarrow` is the tier boundary the CSS uses for
+     sizing (≤1023px covers a tablet too); this one answers the narrower
+     question of whether four card-width piles fit along the bottom beside
+     the hand. On a tablet they do. */
+  const isPhone = useNarrowViewport(PHONE_MAX_WIDTH);
   // How this device's table looks (E347): a per-device preference, like card
   // size — it never leaves the device and nothing about it is published.
   const [felt, setFelt] = useState(readFelt);
@@ -2248,11 +2253,11 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const openPileMenu = (zone: Zone) => (x: number, y: number) => setPileMenu({ zone, x, y });
 
   /* Which piles stand on the felt, and which live behind the edge tab. Four
-     card-width tiles plus a hand do not fit a phone, and the two that earn
+     card-width tiles plus a hand do not fit a PHONE, and the two that earn
      the room are the ones you touch every turn: the library (its click
      draws) and the graveyard. Exile and the command zone are a tap away in
-     the tab — the same split EDHPlay makes, for the same reason. Every width
-     above the phone has room for all four. */
+     the tab — the same split EDHPlay makes, for the same reason. A tablet
+     has the width for all four, so it keeps them. */
   const piles = (
     <aside className="playtest-piles">
       <ZonePile
@@ -2274,7 +2279,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         click={{ label: 'View the graveyard', onClick: () => setViewer({ zone: 'graveyard' }) }}
         onMenu={openPileMenu('graveyard')}
       />
-      {!isNarrow && (
+      {!isPhone && (
         <>
           <ZonePile
             zone="exile"
@@ -2555,7 +2560,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         />
       )}
 
-      {isNarrow && (
+      {isPhone && (
         <MobileZonesPanel
           zones={state.zones}
           commanderTax={state.commanderTax}

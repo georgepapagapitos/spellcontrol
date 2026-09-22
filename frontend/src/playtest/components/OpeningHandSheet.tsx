@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useMediaQuery } from '@/lib/use-media-query';
 import type { PlaytestCard } from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { scryfallToEnrichedCard } from '@/lib/scryfall-to-enriched';
@@ -65,8 +64,10 @@ interface Props {
 
 const MAX_MULLIGANS = 6;
 
-/** Tablet and up gets the full-screen takeover; phones keep the sheet. */
-export const TAKEOVER_QUERY = '(min-width: 1024px)';
+/* The hand is a fan over the felt at EVERY width (2026-09-22). A phone used
+   to get a bottom sheet with a grid of seven card images and a scroll, which
+   is a form to fill in rather than a hand to read; the fan is the same shape
+   a real opening hand has, and it leaves the board visible behind it. */
 
 /** Seconds the table counts down once every seat has kept, then a beat on
  *  "Game has started" before the curtain lifts. */
@@ -105,7 +106,6 @@ export function OpeningHandSheet({
   onMulligan,
   onConfirmBottom,
 }: Props) {
-  const takeover = useMediaQuery(TAKEOVER_QUERY);
   const [selected, setSelected] = useState<string[]>([]);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [peeking, setPeeking] = useState(false);
@@ -167,7 +167,7 @@ export function OpeningHandSheet({
   const hidden = curtainDone || (phase === 'playing' && !waiting);
   useLockBodyScroll(!hidden);
 
-  // The takeover shows the hand as the reducer dealt it. Arranging belongs to
+  // The fan shows the hand as the reducer dealt it. Arranging belongs to
   // the hand you play with, not to the one moment you are deciding
   // keep-or-mulligan — and in the bottom-N step these same cards are
   // tap-to-select, so a drag on that target only competed with the tap (E348,
@@ -267,17 +267,13 @@ export function OpeningHandSheet({
   // the countdown above can finish on its own schedule.
   if (hidden) return null;
 
-  // The sheet's titles are unchanged; the takeover names the thing you're
-  // looking at, since it has the room and nothing else on screen says it.
+  // The title names the thing you are looking at: nothing else on screen
+  // says which deck this is.
   const title = isMulliganBottom
-    ? takeover
-      ? `Put ${requiredBottom} on the bottom`
-      : 'Bottom of library'
-    : takeover
-      ? online
-        ? 'Your opening hand'
-        : (deckName ?? 'Opening hand')
-      : 'Opening hand';
+    ? `Put ${requiredBottom} on the bottom`
+    : online
+      ? 'Your opening hand'
+      : (deckName ?? 'Opening hand');
 
   const status = !onlineWaiting
     ? null
@@ -294,8 +290,8 @@ export function OpeningHandSheet({
   const rootClass = [
     'card-picker-root',
     'playtest-opening-root',
-    takeover && 'is-takeover',
-    takeover && peeking && 'is-peeking',
+    'is-takeover',
+    peeking && 'is-peeking',
     waiting && 'is-waiting',
   ]
     .filter(Boolean)
@@ -304,7 +300,7 @@ export function OpeningHandSheet({
   return (
     <div className={rootClass} role="presentation">
       <div className="card-picker-backdrop" />
-      {takeover && peeking && (
+      {peeking && (
         <button type="button" className="playtest-opening-peek" onClick={() => setPeeking(false)}>
           Back to hand
         </button>
@@ -320,7 +316,7 @@ export function OpeningHandSheet({
             the mulligan-bottom phase). Showing the swipe-affordance handle
             here was misleading users into trying to drag-down to dismiss. */}
         <div className="card-picker-header">
-          {takeover && onExit && !waiting && (
+          {onExit && !waiting && (
             <button type="button" className="playtest-opening-back" onClick={onExit}>
               ← {exitLabel ?? 'Back to deck'}
             </button>
@@ -398,16 +394,9 @@ export function OpeningHandSheet({
 
         {!waiting && (
           <div className="card-picker-footer playtest-opening-footer">
-            {!takeover && onExit && (
-              <button type="button" className="playtest-opening-back" onClick={onExit}>
-                ← {exitLabel ?? 'Back to deck'}
-              </button>
-            )}
-            {takeover && (
-              <button type="button" className="btn" onClick={() => setPeeking(true)}>
-                View battlefield
-              </button>
-            )}
+            <button type="button" className="btn" onClick={() => setPeeking(true)}>
+              View battlefield
+            </button>
             {isMulliganBottom ? (
               <button
                 type="button"
@@ -433,10 +422,10 @@ export function OpeningHandSheet({
                   // Focus starts on the action the hand is usually answered
                   // with; jsx-a11y's no-autofocus is off for exactly this
                   // (a modal that owns the screen).
-                  autoFocus={takeover}
+                  autoFocus
                   onClick={onKeep}
                 >
-                  {takeover ? 'Keep hand' : 'Keep this hand'}
+                  Keep hand
                 </button>
               </>
             )}

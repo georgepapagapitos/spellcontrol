@@ -7,6 +7,15 @@ import { useEffect, useState } from 'react';
  * (JS said narrow) while the CSS still hid the Zones tab (CSS said desktop),
  * so an iPad-landscape board had no way to reach any zone.
  */
+/**
+ * The phone boundary, as opposed to the tier boundary above. The board's
+ * layout is the same at every width; this is the one question that is not —
+ * whether four card-width zone piles fit along the bottom beside the hand.
+ * MUST agree with playtest.css's `@media (max-width: 767px)` block, which
+ * sizes the same split.
+ */
+export const PHONE_MAX_WIDTH = 767;
+
 export function useNarrowViewport(maxWidth = 1023): boolean {
   const [narrow, setNarrow] = useState(() => {
     if (typeof window === 'undefined') return false;

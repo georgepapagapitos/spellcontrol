@@ -1,15 +1,15 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { OpeningHandSheet, TAKEOVER_QUERY } from './OpeningHandSheet';
+import { OpeningHandSheet } from './OpeningHandSheet';
 import type { PlaytestCard } from '@/lib/playtest';
 
-/** `useMediaQuery` reads `window.matchMedia`; happy-dom has none by default.
- *  `wide` decides only the takeover query, so the same stub serves the sheet
- *  tier (phone) and the takeover tier (tablet and up). */
-function stubViewport(wide: boolean) {
+/** Other hooks under this tree still read `window.matchMedia`, which
+ *  happy-dom does not provide. The opening hand itself no longer asks it
+ *  anything: the fan is the treatment at every width. */
+function stubViewport() {
   vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: query === TAKEOVER_QUERY ? wide : false,
+    matches: false,
     media: query,
     onchange: null,
     addEventListener: () => {},
@@ -54,28 +54,23 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('OpeningHandSheet tier', () => {
-  it('renders the takeover at tablet and up', () => {
-    stubViewport(true);
+/**
+ * The hand is a fan over the felt at every width. A phone used to get a
+ * bottom sheet with a grid of seven card images and a scroll — a form to
+ * fill in rather than a hand to read, and it hid the board it was dealt on.
+ */
+describe('OpeningHandSheet', () => {
+  it('is the fan at every width, naming the deck and keeping the peek', () => {
+    stubViewport();
     renderSheet({ deckName: 'Atraxa' });
     expect(root()?.className).toContain('is-takeover');
-    // The takeover names the deck and carries the peek action; the sheet does
-    // neither.
     expect(screen.getByRole('heading', { name: 'Atraxa' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'View battlefield' })).toBeTruthy();
-  });
-
-  it('renders the sheet below tablet, unchanged', () => {
-    stubViewport(false);
-    renderSheet({ deckName: 'Atraxa' });
-    expect(root()?.className).not.toContain('is-takeover');
-    expect(screen.getByRole('heading', { name: 'Opening hand' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'View battlefield' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Keep this hand' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Keep hand' })).toBeTruthy();
   });
 
   it('gives every card a fan index so the geometry has something to read', () => {
-    stubViewport(true);
+    stubViewport();
     renderSheet();
     const slots = document.querySelectorAll<HTMLElement>('.playtest-opening-slot');
     expect(slots).toHaveLength(7);
@@ -89,7 +84,7 @@ describe('OpeningHandSheet tier', () => {
 
 describe('OpeningHandSheet peek', () => {
   it('pulls the takeover aside and back again', () => {
-    stubViewport(true);
+    stubViewport();
     renderSheet();
     fireEvent.click(screen.getByRole('button', { name: 'View battlefield' }));
     expect(root()?.className).toContain('is-peeking');
@@ -99,7 +94,7 @@ describe('OpeningHandSheet peek', () => {
   });
 
   it('ends on Escape — the only thing Escape does here', () => {
-    stubViewport(true);
+    stubViewport();
     renderSheet();
     fireEvent.keyDown(window, { key: 'Escape' });
     // Nothing to end yet: the opening hand is non-dismissable.
@@ -115,7 +110,7 @@ describe('OpeningHandSheet peek', () => {
 describe('OpeningHandSheet online curtain', () => {
   it('waits on the seats still choosing, counts the table in, then lifts', () => {
     vi.useFakeTimers();
-    stubViewport(true);
+    stubViewport();
     const { rerender, props } = renderSheet({
       phase: 'playing',
       online: { waitingOn: ['Bo', 'Cy'], allKept: false },
@@ -144,7 +139,7 @@ describe('OpeningHandSheet online curtain', () => {
 
   it('waits for arrivals, never counts itself in, when nobody else is seated', () => {
     vi.useFakeTimers();
-    stubViewport(true);
+    stubViewport();
     // PlaytestBoard checks the opponent COUNT before `every()` — an empty
     // table would otherwise report itself all-kept and start the countdown.
     renderSheet({ phase: 'playing', online: { waitingOn: [], allKept: false } });
@@ -156,7 +151,7 @@ describe('OpeningHandSheet online curtain', () => {
   });
 
   it('is nothing at all once the phase moves on solo', () => {
-    stubViewport(true);
+    stubViewport();
     renderSheet({ phase: 'playing' });
     expect(root()).toBeNull();
   });
@@ -189,14 +184,14 @@ describe('the mulligan rule in force', () => {
  */
 describe('OpeningHandSheet — no dragging here (E348)', () => {
   it('never tells the player to drag, in copy or in the accessible name', () => {
-    stubViewport(true);
+    stubViewport();
     const { container } = renderSheet();
     expect(container.textContent).not.toMatch(/drag/i);
     expect(screen.getByLabelText(/^Opening hand:/).getAttribute('aria-label')).not.toMatch(/drag/i);
   });
 
   it('leaves the cards in the order they were dealt', () => {
-    stubViewport(true);
+    stubViewport();
     renderSheet({ hand: hand(3) });
     const names = Array.from(document.querySelectorAll('.playtest-opening-card')).map((el) =>
       el.getAttribute('aria-label')

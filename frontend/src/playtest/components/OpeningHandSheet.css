@@ -379,16 +379,16 @@
 /*  At 1024px and wider the opening hand stops being a sheet docked over the
  *  board and becomes the screen: the table dims to near-black, the seven
  *  cards fan across the middle, and Keep / Mulligan / View battlefield sit
- *  under them. Below 1024px the sheet above is unchanged.
+ *  under them.
  *
- *  Gated by the `is-takeover` class (a `matchMedia` read in the component),
- *  not a media query: the peek and countdown states the takeover owns live
- *  in the same switch, so one boolean decides both the markup and the
- *  layout rather than the two drifting apart.
+ *  This is the treatment at EVERY width now (2026-09-22). A phone used to
+ *  get a bottom sheet with a grid of seven card images and a scroll, which
+ *  is a form to fill in rather than a hand to read. The class stays (rather
+ *  than becoming the plain selector) because the peek and countdown states
+ *  hang off the same switch.
  *
  *  The DOM order is header → cards → footer → stats → status → variants,
- *  which is the takeover's reading AND tab order. The sheet reorders the
- *  last three with `order` below so its own layout is untouched. */
+ *  which is the reading AND tab order. */
 
 .playtest-opening-root.is-takeover {
   background: color-mix(in oklab, var(--bg) 82%, transparent);
@@ -415,20 +415,6 @@
   padding: var(--space-6) var(--space-5);
   overflow: hidden;
   animation: none;
-}
-
-/* Sheet layout only: the three blocks below the cards read stats → variants
-   → footer there, and footer → stats → status → variants in the takeover. */
-.playtest-opening-root:not(.is-takeover) .playtest-opening-stats {
-  order: 1;
-}
-
-.playtest-opening-root:not(.is-takeover) .playtest-opening-variants {
-  order: 2;
-}
-
-.playtest-opening-root:not(.is-takeover) .playtest-opening-footer {
-  order: 3;
 }
 
 /* The shell's header and footer rules are a panel's — a fill and an edge.
@@ -705,4 +691,41 @@
 .is-takeover.is-waiting .card-picker-title {
   font-size: var(--text-xl);
   color: var(--text-secondary);
+}
+
+/* ── The fan below the desk tier ──────────────────────────────────────────
+   The card width above is bounded by a share of the viewport WIDTH and a
+   150px floor, which is right on a desk and impossible on a phone: seven
+   150px cards at 35% overlap are 735px of fan on a 412px screen, so the
+   hand ran off both edges — and off a 820px tablet's, where the floor also
+   binds. Here the width is derived from the space the fan actually has, and
+   the component publishes `--hand-n`, so a short hand after a mulligan gets
+   the same treatment without a second formula. */
+@media (max-width: 1023px) {
+  .is-takeover .playtest-opening-cards {
+    /* The slots are rotated, so each end card's BOX is wider than the card
+       (a 12deg turn on a 5:7 card adds ~25%); the extra subtraction is that
+       overhang, measured at 412 and 820. The 140px cap keeps a tablet's fan
+       inside its screen, where the desk tier's 150px floor did not. */
+    --oh-w: clamp(
+      56px,
+      calc((100vw - 6 * var(--space-4)) / (1 + (var(--hand-n) - 1) * 0.65)),
+      140px
+    );
+    /* The arc drops the outer cards ~36px below the middle one, and at this
+       size that lands them on the first button. */
+    padding: var(--space-3) 0 var(--space-7);
+  }
+
+  /* The column is tighter than a desk's, so its spend outside the cards has
+     to come down with it: a page-sized title and 32px gaps push the actions
+     under the fold. */
+  .is-takeover .playtest-opening-sheet {
+    gap: var(--space-2);
+    padding: var(--space-4) var(--space-3);
+  }
+
+  .is-takeover .card-picker-title {
+    font-size: var(--text-xl);
+  }
 }

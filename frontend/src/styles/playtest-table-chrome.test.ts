@@ -261,11 +261,29 @@ describe('the narrow tier is the same board, sized for a thumb', () => {
   }
   const narrow = narrowBlock('first');
   const phone = narrowBlock('last');
+  const phoneOnly = (() => {
+    const start = css.indexOf('@media (max-width: 767px) {');
+    expect(start, 'the phone-only block is missing').toBeGreaterThan(-1);
+    return css.slice(start);
+  })();
 
-  it('keeps the card size and the zones tab it has always had', () => {
+  it('keeps the thumb-sized cards', () => {
     expect(narrow).toContain('--pt-card-w: 72px;');
     expect(narrow).toContain('--pt-card-h: 100px;');
-    expect(narrow).toContain('.playtest-zones-tab {\n    display: block;\n  }');
+  });
+
+  /* The edge tab is a PHONE answer, not a tier answer: four card-width
+     piles plus a hand do not fit 412px, but a tablet has the width for all
+     four and keeps them on the felt. The 767 here must stay in step with
+     PHONE_MAX_WIDTH in use-narrow-viewport.ts, which decides the same split
+     in the markup. */
+  it('hands the zones tab to phones alone, and sizes the fan around the piles', () => {
+    expect(phoneOnly).toContain('.playtest-zones-tab {\n    display: block;\n  }');
+    expect(narrow).not.toContain('.playtest-zones-tab');
+    // Two piles beside the hand on a phone, four above it.
+    expect(phoneOnly).toContain('--pt-pile-span: calc(2 * var(--pt-card-w)');
+    expect(phone).toContain('--pt-pile-span: calc(4 * var(--pt-card-w)');
+    expect(phone).toContain('left: calc((100% - var(--pt-pile-span)) / 2)');
   });
 
   it('no longer hides the piles or carries an action bar', () => {
