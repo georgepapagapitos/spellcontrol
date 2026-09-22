@@ -18,16 +18,20 @@ export interface CmdDamageRow {
   onAdjust(delta: number): void;
 }
 
-/** One opponent seat in the self panel's list. Solo's virtual opponents have
- *  no board of their own, and the wide table's corner panel is now just your
- *  own total, so this list is the only place they can be damaged. Online
- *  leaves it undefined: those seats are real quadrants on the felt. */
+/** One opponent seat in the self panel's list — an "Opponents" section that
+ *  only a real game gets. Goldfishing has no opponents worth a section: you
+ *  are testing a deck against nobody, so the popover there is your counters
+ *  and nothing else (EDHPlay's shape).
+ *
+ *  `onAdjustLife` is omitted where their life is not yours to change — an
+ *  online seat owns its own total — and the row is then a read-only number
+ *  next to the name, which stays a button into their full panel. */
 export interface OpponentRow {
   key: string;
   name: string;
   life: number;
   defeated: boolean;
-  onAdjustLife(delta: number): void;
+  onAdjustLife?(delta: number): void;
   /** Opens that opponent's own panel — their counters, and life in ±5s. */
   onOpen(): void;
 }
@@ -61,6 +65,10 @@ interface Props {
    *  panel already has the numeral between two steppers, so the popover under
    *  its chevron is counters and commander damage only (EDHPlay's shape). */
   hideLife?: boolean;
+  /** True drops the floating panel's heading. The popover hangs off the
+   *  chevron of the very panel showing your total, so "You" above it names
+   *  what you are already looking at. `aria-label` still carries it. */
+  hideTitle?: boolean;
   /** Opponent seats, self panel only — see `OpponentRow`. */
   opponents?: OpponentRow[];
   /** Commander damage, one row per commander, self panel only. Solo passes a
@@ -165,6 +173,12 @@ function PlusMinusStepper({
 }) {
   return (
     <div className="playtest-life-panel__pm-row">
+      <span
+        className={`playtest-life-panel__value${lethal ? ' is-lethal' : ''}`}
+        aria-live="polite"
+      >
+        {value}
+      </span>
       <StepButton
         className="playtest-life-panel__pm-step"
         label={`${label} -1`}
@@ -172,12 +186,6 @@ function PlusMinusStepper({
       >
         −
       </StepButton>
-      <span
-        className={`playtest-life-panel__value${lethal ? ' is-lethal' : ''}`}
-        aria-live="polite"
-      >
-        {value}
-      </span>
       <StepButton
         className="playtest-life-panel__pm-step"
         label={`${label} +1`}
@@ -222,8 +230,11 @@ function CmdRow({ name, value, onAdjust, lethalAt }: CmdDamageRow & { lethalAt: 
  * caller already shows it), the opponent seats, commander damage one row per
  * commander, then the fixed player counters as icon rows. Commander damage
  * sits ABOVE the counters on purpose — it is the other way a game ends, so it
- * belongs with the opponents it comes from rather than below poison. Solo and online share the same rows; only where the numbers come
- * from differs (see `OnlinePanelData`).
+ * belongs with the opponents it comes from rather than below poison.
+ *
+ * Every section above the counters belongs to a REAL GAME. Goldfishing passes
+ * none of them, and the popover is the counter list alone — no title, no
+ * heading, no dividers. See `OpponentRow`.
  */
 export function LifeAdjustPanel({
   variant,
@@ -232,6 +243,7 @@ export function LifeAdjustPanel({
   life,
   lifeEditable,
   hideLife = false,
+  hideTitle = false,
   opponents,
   cmdDamage,
   commanderDamageThreshold,
@@ -279,6 +291,16 @@ export function LifeAdjustPanel({
   // table's authoritative one ("one fact, one place"), never the local bag's.
   const onlinePoison = online?.kind === 'self' ? online.poison : undefined;
   const customKinds = Object.keys(counters).filter((k) => !PRESET_KINDS.includes(k));
+
+  // Goldfishing leaves only the counters, and a lone section heading over a
+  // lone section is a label for the panel, not for a group inside it — so the
+  // heading (and its divider) drop out and the list is the whole popover.
+  const countersAreTheWholePanel =
+    hideLife &&
+    !online &&
+    (opponents?.length ?? 0) === 0 &&
+    (cmdDamage?.length ?? 0) === 0 &&
+    !defeated;
 
   const body = (
     <>
@@ -330,7 +352,20 @@ export function LifeAdjustPanel({
               >
                 {o.name}
               </button>
-              <PlusMinusStepper label={`${o.name} life`} value={o.life} onAdjust={o.onAdjustLife} />
+              {o.onAdjustLife ? (
+                <PlusMinusStepper
+                  label={`${o.name} life`}
+                  value={o.life}
+                  onAdjust={o.onAdjustLife}
+                />
+              ) : (
+                <span
+                  className="playtest-life-panel__value playtest-life-panel__value--readonly"
+                  aria-hidden
+                >
+                  {o.life}
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -351,7 +386,11 @@ export function LifeAdjustPanel({
       )}
       {(!online || online.kind === 'self') && (
         <div className="playtest-life-panel__counters">
-          <div className="playtest-life-panel__counters-heading">{countersLabel ?? 'Counters'}</div>
+          {!countersAreTheWholePanel && (
+            <div className="playtest-life-panel__counters-heading">
+              {countersLabel ?? 'Counters'}
+            </div>
+          )}
           {PLAYER_COUNTERS.map(({ kind, label, Icon }) => {
             const authoritative = kind === 'poison' ? onlinePoison : undefined;
             const value = authoritative?.value ?? counters[kind] ?? 0;
@@ -474,7 +513,7 @@ export function LifeAdjustPanel({
         aria-modal="true"
         aria-label={title}
       >
-        <div className="playtest-life-panel__title">{title}</div>
+        {!hideTitle && <div className="playtest-life-panel__title">{title}</div>}
         <div className="playtest-life-panel">{body}</div>
       </div>
     </>,
