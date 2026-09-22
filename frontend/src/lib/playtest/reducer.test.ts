@@ -620,16 +620,23 @@ describe('CREATE_TOKEN', () => {
 });
 
 describe('NEXT_TURN', () => {
-  it('increments turn, untaps all, and draws one', () => {
+  it('increments turn and untaps all', () => {
     let s = init(20, 1, 3);
     const id = s.zones.hand[0].id;
     s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: id, x: 0, y: 0, tapped: true });
-    const libBefore = s.zones.library.length;
     const next = applyAction(s, { type: 'NEXT_TURN' });
     expect(next.turn).toBe(2);
     expect(next.battlefield[0].tapped).toBe(false);
-    expect(next.zones.library).toHaveLength(libBefore - 1);
-    expect(next.zones.hand.length).toBe(s.zones.hand.length + 1);
+  });
+
+  /** Guard: the turn boundary never draws for the player. Drawing on their
+   *  behalf put a card in hand they could only take back with an undo — the
+   *  draw belongs to the draw key. */
+  it('never draws a card', () => {
+    const s = init(20, 1, 3);
+    const next = applyAction(s, { type: 'NEXT_TURN' });
+    expect(next.zones.library).toHaveLength(s.zones.library.length);
+    expect(next.zones.hand).toHaveLength(s.zones.hand.length);
   });
 
   it('still advances turn when the library is empty', () => {

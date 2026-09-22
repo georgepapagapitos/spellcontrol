@@ -820,10 +820,12 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       // together they mean floating mana only ever disappears on a moment the
       // player caused, never as a surprise mid-sequence.
       next.manaPool = emptyManaPool();
-      if (state.zones.library.length > 0) {
-        next.zones.library = next.zones.library.slice(1);
-        next.zones.hand = next.zones.hand.concat(state.zones.library[0]);
-      }
+      // No draw. The turn boundary untaps and empties mana because those are
+      // unconditional; the draw is not — you skip it on turn one on the play,
+      // you have already drawn it off an effect, or you are counting the
+      // library for a mill line. Drawing for the player put a card in hand
+      // they did not ask for and could only fix with an undo. Draw is its own
+      // key (`d`) and its own button.
       return withHistory(state, next);
     }
     case 'ADJUST_LIFE': {
