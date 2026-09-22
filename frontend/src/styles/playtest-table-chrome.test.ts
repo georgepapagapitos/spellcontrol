@@ -69,7 +69,11 @@ describe('table chrome at the wide tier', () => {
     // selector and not the is-over/hover rules that END in the same class.
     const stack = block('\n.playtest-pile__stack {');
     expect(stack).toContain('width: var(--pt-card-w)');
-    expect(stack).toContain('height: calc(var(--pt-card-h) * 0.6)');
+    // A slice, not most of the card: the shelf rests ON the table edge (see
+    // zone-shelf-tuck.test.ts) and what shows above it is the name and a band
+    // of art. This file owns the ratio — the tuck guard asserts only that it
+    // stays a slice.
+    expect(stack).toContain('height: calc(var(--pt-card-h) * 0.35)');
     expect(stack).not.toContain('height: 72px');
     // Nothing is hidden, only deferred — pointing at a pile, tabbing into it
     // or dragging a card onto it opens the whole card. All three, or the
