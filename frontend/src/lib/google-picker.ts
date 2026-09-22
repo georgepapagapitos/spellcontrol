@@ -1,5 +1,3 @@
-import { isNativePlatform } from './platform';
-
 /**
  * Google Drive file picker — the real "open my Drive" flow.
  *
@@ -12,10 +10,9 @@ import { isNativePlatform } from './platform';
  * the user explicitly picks in that dialog — not "read my Drive". That is also
  * why it avoids the security assessment `drive.readonly` would drag in.
  *
- * **Web only.** Google refuses OAuth inside embedded WebViews, so this cannot
- * run in the Capacitor app. Native is not left short: its system document
- * picker already lists Drive (see `native-file-picker.ts`), and the pasted-link
- * path still covers native Sheets. `googlePickerAvailable()` is the gate.
+ * Google refuses OAuth inside embedded WebViews, so an in-app browser cannot
+ * run this; the import screen's paste-a-link field covers those.
+ * `googlePickerAvailable()` is the gate.
  *
  * ⛔ **The API key must NOT carry a Websites (HTTP referrer) restriction.** The
  * Picker's backend never receives the hosting page's `Referer`, so such a
@@ -80,11 +77,11 @@ function appId(): string {
 
 /**
  * True when the Picker can actually run here. Keep every call site behind this
- * — an un-keyed build or the native app must fall back, not render a button
- * that throws when tapped.
+ * — an un-keyed build must fall back, not render a button that throws when
+ * tapped.
  */
 export function googlePickerAvailable(): boolean {
-  return googlePickerConfigured() && !isNativePlatform();
+  return googlePickerConfigured();
 }
 
 // ── script loading ──────────────────────────────────────────────────────────

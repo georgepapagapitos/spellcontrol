@@ -7,9 +7,6 @@ vi.mock('../lib/auth-api', () => ({
   fetchProviders: vi.fn(() => Promise.resolve({ google: false })),
   googleSignInUrl: vi.fn(() => 'https://example.test/oauth'),
 }));
-vi.mock('../lib/platform', () => ({
-  isNativePlatform: () => false,
-}));
 
 import AuthPage from './AuthPage';
 

@@ -13,14 +13,11 @@ const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m
 const ICON_PROPS = { width: 22, height: 22, strokeWidth: 1.7, 'aria-hidden': true } as const;
 
 /**
- * Native-only floating Scan action.
+ * Floating Scan action.
  *
- * Replaces NavFab now that Layout renders the same `MobileTabBar` on native
- * as web mobile — the tab bar already covers every destination NavFab used
- * to fan out to (plus Home/You, which NavFab never had). This FAB keeps only
- * the one action the tab bar can't: launching the camera scanner directly,
- * one tap, no intermediate menu. Renders nothing when the device can't scan
- * (a behavior change from NavFab, which always rendered the FAB shell).
+ * The tab bar already covers every destination, so this FAB keeps only the one
+ * action it can't: launching the camera scanner directly, one tap, no
+ * intermediate menu. Renders nothing when the device can't scan.
  *
  * `position:absolute` inside `.app-shell` (a stable 100dvh box), not
  * `position:fixed`, so it never gets caught by the mobile URL-bar shift the

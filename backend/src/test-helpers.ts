@@ -154,11 +154,6 @@ export async function createTestEnv(): Promise<TestEnv> {
       PRIMARY KEY (provider, provider_subject)
     );
     CREATE INDEX auth_identities_user_idx ON auth_identities(user_id);
-    CREATE TABLE oauth_handoff_codes (
-      code TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      expires_at BIGINT NOT NULL
-    );
     CREATE TABLE auth_tokens (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

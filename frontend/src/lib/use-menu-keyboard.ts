@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
-import { App as CapacitorApp } from '@capacitor/app';
-import { isNativePlatform } from './platform';
 import { focusInto, trapTab, useOverlayLayer } from './overlay-layer';
 
 export interface UseMenuKeyboardOptions {
@@ -59,7 +57,6 @@ function getItems(panel: HTMLElement, selector: string): HTMLElement[] {
  * - a `pointerdown` outside the panel + trigger closes (pointerdown, not
  *   mousedown, so touch works and the close beats underlying click handlers);
  * - a scroll outside the panel closes;
- * - the Android hardware back button closes.
  *
  * Every panel on this hook is portaled to `<body>` with `position: fixed` and
  * has its coordinates computed once, when it opens. Nothing re-anchors it, so
@@ -215,22 +212,6 @@ export function useMenuKeyboard({
     ignoreSelector,
     isTopmost,
   ]);
-
-  // Android hardware back button. Without a listener Capacitor navigates the
-  // WebView's own history, which left the page changing underneath an open
-  // popover. Same shared layer stack as Modal/useSheetExit, so only the topmost
-  // overlay answers one press.
-  useEffect(() => {
-    if (!open || !isNativePlatform()) return;
-    const handle = CapacitorApp.addListener('backButton', () => {
-      if (!isTopmost()) return;
-      onCloseRef.current();
-      triggerRef.current?.focus({ preventScroll: true });
-    });
-    return () => {
-      void handle.then((h) => h.remove());
-    };
-  }, [open, isTopmost, triggerRef]);
 
   return { closeAndReturnFocus };
 }

@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Check, Clipboard, Download, X } from 'lucide-react';
-import { Share } from '@capacitor/share';
+import { canShare, openShareSheet } from '@/lib/web-share';
 import { Modal } from './Modal';
 import { SelectMenu } from './SelectMenu';
-import { isNativePlatform } from '../lib/platform';
 import { toast } from '../store/toasts';
 import { useCurrencyStore } from '../lib/currency';
 import type { EnrichedCard } from '../types';
@@ -81,13 +80,8 @@ export function CollectionExportDialog({ cards, binderName, onClose }: Props) {
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
-  const handleNativeShare = async () => {
-    try {
-      await Share.share({ title: fileName, text, dialogTitle: 'Share export' });
-    } catch (err) {
-      if (err && (err as { message?: string }).message?.includes('cancel')) return;
-      toast.show({ message: "Couldn't open share sheet", tone: 'warn' });
-    }
+  const handleShare = async () => {
+    await openShareSheet({ title: fileName, text });
   };
 
   return (
@@ -140,8 +134,8 @@ export function CollectionExportDialog({ cards, binderName, onClose }: Props) {
               )}
               <span>{copied ? 'Copied' : 'Copy'}</span>
             </button>
-            {isNativePlatform() && (
-              <button type="button" className="btn" onClick={handleNativeShare}>
+            {canShare() && (
+              <button type="button" className="btn" onClick={handleShare}>
                 Share…
               </button>
             )}

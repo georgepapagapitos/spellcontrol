@@ -804,7 +804,7 @@ if (typeof window !== 'undefined') {
     if (snapshotTimer) clearTimeout(snapshotTimer);
     snapshotTimer = setTimeout(flushPendingPlaytestSnapshot, SNAPSHOT_DEBOUNCE_MS);
   });
-  // Capacitor/mobile Safari can suspend the tab before the debounce fires —
+  // Mobile Safari can suspend the tab before the debounce fires —
   // flush on both signals so backgrounding never loses the last few plays.
   window.addEventListener('pagehide', flushPendingPlaytestSnapshot);
   document.addEventListener('visibilitychange', () => {

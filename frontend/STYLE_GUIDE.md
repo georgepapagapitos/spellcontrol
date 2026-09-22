@@ -1719,25 +1719,25 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   `src/lib/no-unscrimmed-sheet-roots.test.ts` pins the shell rule and the
   backdrop's background-free invariant.)
 - **Destructive confirmations go through the shared `<Modal>`, never
-  `window.confirm()`.** The native dialog can't be themed, freezes the event
-  loop, loses focus on dismiss, and renders inconsistently in Capacitor
-  WebViews. Use a two-step `<Modal dismissable={!busy}>` with a red confirm
+  `window.confirm()`.** The browser dialog can't be themed, freezes the event
+  loop, loses focus on dismiss, and renders inconsistently across browsers.
+  Use a two-step `<Modal dismissable={!busy}>` with a red confirm
   (reference: `ConfirmDialog.tsx`). Hand-rolled `.modal-backdrop` dialogs are
   also discouraged — route through `<Modal>` so the exit animation, focus-trap,
-  and Escape/hardware-back handling come for free (see § Motion).
-- **An overlay that can't portal still answers Escape and hardware back.**
+  and Escape handling come for free (see § Motion).
+- **An overlay that can't portal still answers Escape.**
   The game board's in-panel covers (seat menu, counters, life keypad), its
   bottom-sheet game menu and the custom layout editor render in place —
   the seat menu inherits its panel's rotation, the menu rises from the
   board's own edge — so they can't be a `<Modal>`. They use
   `lib/use-overlay-dismiss.ts` (`useOverlayDismiss(onClose, panelRef)`):
-  the same shared layer stack, topmost-only Escape and Android back, Tab
-  trap and focus restoration, no exit animation. A new in-place overlay
+  the same shared layer stack, topmost-only Escape, Tab trap and focus
+  restoration, no exit animation. A new in-place overlay
   takes this hook; it never hand-rolls a keydown listener again.
 - **Document key listeners subscribe once; the latest callback lives in a
   ref.** `Modal`, `useSheetExit`, `useEscapeKey`, `useOverlayDismiss` and
   `useMenuKeyboard` all keep `onClose` in a ref and register their
-  `keydown`/`backButton` listeners for the component's lifetime. Putting an
+  `keydown` listeners for the component's lifetime. Putting an
   inline callback in the effect deps re-subscribes on every render, and a
   listener swapped out mid-dispatch never fires: the browser runs a
   microtask checkpoint between the listeners of a trusted key event, React
@@ -2652,10 +2652,9 @@ Rulings settled while building this:
 [role="menuitem"]')` before starting the timer, so they're completely
   unaffected rather than merely "usually fine".
 - **`-webkit-touch-callout: none` + `user-select: none` scoped to
-  `[data-peek-name]`** (not global) suppress the native image-save/text-select
-  long-press callout on the elements this gesture actually touches — the
-  `.capacitor` global reset already covers the packaged app, this closes the
-  gap for mobile web.
+  `[data-peek-name]`** (not global) suppress the browser's image-save /
+  text-select long-press callout on the elements this gesture actually
+  touches, without taking selection away from the rest of the page.
 - **A fired long-press `preventDefault`s its terminating touchend**, so a
   hybrid pointer+touch device's synthetic compat mouse events can't chain
   into the desktop hover-peek right as the touch one closes (no double-peek).
@@ -2679,12 +2678,6 @@ What it costs instead is configuration — invisible, and easy to break:
   — silently, with the carousel still swiping perfectly. Write
   `touch-action: pan-x pinch-zoom`, never bare `pan-x`. CI-guarded by
   `styles/card-preview-touch-contract.test.ts`.
-- **Android needs `zoomEnabled: true` in `capacitor.config.ts`.** Android's
-  WebView ships pinch-to-zoom **off** and Capacitor's default keeps it off, so
-  the packaged app is the one surface where "the browser handles it" is false
-  until you say otherwise. Capacitor already sets
-  `setDisplayZoomControls(false)`, so this is the gesture without the legacy
-  on-screen ± widget.
 - **Leave the viewport meta zoomable** — no `user-scalable=no`, no
   `maximum-scale`. Accessibility floor, not a preference.
 - **No zoom button.** The gesture is universal on touch and pointer/keyboard
@@ -5232,8 +5225,8 @@ landing, future splash/onboarding surfaces) MUST be a self-scrolling viewport,
 never `min-height: 100vh` + flex centering.** The app shell sets
 `body { overflow: hidden }` and `#root` has no height cap, so a `min-height`
 page that grows past the viewport spills into the clipped region with **no way
-to scroll** — the bottom is silently cut off on short screens, native (under the
-notch / home indicator), and any browser whose chrome eats height.
+to scroll** — the bottom is silently cut off on short screens, on phones (under
+the notch / home indicator), and in any browser whose chrome eats height.
 `align-items`/`justify-content: center` can't scroll into overflow; they strand it.
 
 The canonical pattern (`.auth-page`, `.welcome-page`):
@@ -5257,7 +5250,7 @@ The canonical pattern (`.auth-page`, `.welcome-page`):
   taller — they never strand the overflow.
 - **Safe-area inset padding is mandatory**, not optional — these pages render
   outside the app's `Layout` chrome, so nothing else accounts for the notch /
-  home indicator on native. Add `--keyboard-inset` to the bottom padding only if
+  home indicator on a phone. Add `--keyboard-inset` to the bottom padding only if
   the page has focusable text inputs (auth does; the landing doesn't).
 - This is a real bug that has shipped twice (auth register mode; the `/` landing
   footer). Treat it as a hard constraint.

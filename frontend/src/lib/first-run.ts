@@ -1,7 +1,7 @@
 /**
  * "Have we ever shown this device past the first-run gate?"
  *
- * On a brand-new install (web or native APK) we route the user to the
+ * On a brand-new install we route the user to the
  * welcome storefront at `/` before dropping them into the main app, so
  * signing in (one of its own doors) is an obvious early choice instead of an
  * afterthought hidden in Settings. The gate is one-shot: as soon as the user

@@ -1,6 +1,4 @@
-import { WEB_ORIGIN } from './share-client';
 import { apiUrl } from './api-base';
-import { isNativePlatform } from './platform';
 
 /**
  * Owner-facing view of a deck's publish status (`w0-publish-schema-endpoints`'s
@@ -136,15 +134,13 @@ export async function unpublishDeck(deckId: string): Promise<void> {
 }
 
 /**
- * Build the owner-facing, *displayed* URL for a published deck. Mirrors
- * shareUrl()'s exact native-origin-pinning logic. The server's own
- * `publication.url` field always bakes in the hardcoded prod origin (correct
+ * Build the owner-facing, *displayed* URL for a published deck. The server's
+ * own `publication.url` field always bakes in the hardcoded prod origin (correct
  * for OG meta — see shares/og.ts's ORIGIN — but wrong for a dev-mode
  * user-facing copy button), so the dialog builds its own URL here instead of
  * trusting that field.
  */
 export function publicationUrl(slug: string): string {
-  if (isNativePlatform()) return `${WEB_ORIGIN}/d/${slug}`;
   if (typeof window === 'undefined') return `/d/${slug}`;
   return `${window.location.origin}/d/${slug}`;
 }

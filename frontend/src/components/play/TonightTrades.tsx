@@ -117,7 +117,7 @@ export function TonightTrades({
     // scrolling panel puts a `position: fixed` backdrop inside an ancestor
     // that can form a containing block for it. Two sibling overlays are what
     // the shared overlay-layer stack already expects — it tracks them
-    // module-globally, so Escape / Android back still resolve to the topmost.
+    // module-globally, so Escape still resolves to the topmost.
     <>
       <Modal onClose={onClose} labelledBy={titleId}>
         <div className="game-night-dialog tonight-trades-dialog">

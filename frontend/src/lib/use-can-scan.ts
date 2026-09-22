@@ -1,20 +1,17 @@
 import { useEffect, useState } from 'react';
-import { isNativePlatform } from './platform';
 
 /**
  * Detects whether the user can use the camera-based card scanner.
  *
- * **The scanner is native-only.** Shipping it on
- * the web build means a ~50 MB lazy-load (opencv WASM + ONNX model +
- * embedding DB) the first time the user opens the scanner, which is a
- * non-starter for casual web visitors. The native APK bundles the assets
- * once and pays no per-open cost. The web flow funnels users to the APK
- * download instead.
+ * Gated to phones and tablets: `(pointer: coarse)` OR a narrow viewport, plus
+ * `mediaDevices.getUserMedia`. Scanning from a desktop webcam points a fixed
+ * lens at a card the user has to hold steady in front of it, which never
+ * produced a usable frame.
  *
- * Secondary gates (still evaluated for forward-compat / unit-test parity):
- * `(pointer: coarse)` OR a narrow viewport matches phones and tablets, and
- * `mediaDevices.getUserMedia` must exist. These rarely fail on a native
- * Capacitor WebView but the checks keep the test contract honest.
+ * The scanner's assets (opencv WASM + ONNX model + embedding DB) are a ~50 MB
+ * lazy-load on first open, so the entry point stays behind this gate and the
+ * component itself behind `React.lazy` — a visitor who never taps Scan pays
+ * nothing.
  */
 const QUERY = '(pointer: coarse), (max-width: 1024px)';
 
@@ -32,7 +29,6 @@ export function useCanScan(): boolean {
 
 function evaluate(): boolean {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
-  if (!isNativePlatform()) return false;
   if (!navigator.mediaDevices?.getUserMedia) return false;
   return window.matchMedia(QUERY).matches;
 }

@@ -226,7 +226,7 @@
 
 /* Per-zone card grid. Responsive + native-safe: auto-fill with a minmax floor
    so it reflows from 320px phones to desktop, `min-width: 0` on cells so a
-   single-column row can't blow out the Capacitor WebView, fixed 5/7 art ratio. */
+   single-column row can't blow out a narrow phone, fixed 5/7 art ratio. */
 .product-zone {
   margin-top: var(--space-3);
 }

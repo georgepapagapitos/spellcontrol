@@ -134,28 +134,11 @@ export async function fetchProviders(): Promise<AuthProviders> {
 }
 
 /**
- * Absolute URL that starts the Google OAuth flow. Web navigates the top-level
- * page here; native opens it in the system browser. `platform=native` tells
- * the backend callback to deep-link a handoff code back instead of setting a
- * cookie (the system browser's cookie jar is unreachable from the WebView).
+ * Absolute URL that starts the Google OAuth flow. The top-level page navigates
+ * here; the backend callback sets the session cookie and redirects back.
  */
-export function googleSignInUrl(platform: 'web' | 'native'): string {
-  return apiUrl(`/api/auth/google${platform === 'native' ? '?platform=native' : ''}`);
-}
-
-/**
- * Native only: trade the single-use handoff code from the OAuth deep link for
- * a real session. The response's Set-Cookie lands in the native cookie jar
- * because this request goes through the Capacitor HTTP bridge.
- */
-export async function exchangeGoogleCode(code: string): Promise<AuthUser> {
-  const res = await authedFetch('/api/auth/google/exchange', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code }),
-  });
-  const data = await handleResponse<{ user: AuthUser }>(res);
-  return data.user;
+export function googleSignInUrl(): string {
+  return apiUrl('/api/auth/google');
 }
 
 /**
@@ -302,28 +285,11 @@ export async function updatePassword(input: {
 }
 
 /**
- * Absolute URL that starts the link-Google flow. Web navigates top-level here
- * (the session cookie travels). Native must POST `requestGoogleLinkIntent`
- * first and pass the returned token, because the system browser is cookieless.
+ * Absolute URL that starts the link-Google flow. The top-level page navigates
+ * here so the session cookie travels.
  */
-export function googleLinkUrl(platform: 'web' | 'native', intent?: string): string {
-  if (platform === 'native') {
-    return apiUrl(
-      `/api/auth/google/link?platform=native&intent=${encodeURIComponent(intent ?? '')}`
-    );
-  }
+export function googleLinkUrl(): string {
   return apiUrl('/api/auth/google/link');
-}
-
-/**
- * Native only: ask the backend for a short-lived "I approved linking" token
- * to pass through the system browser. The POST runs through the Capacitor
- * HTTP bridge so the session cookie travels.
- */
-export async function requestGoogleLinkIntent(): Promise<string> {
-  const res = await authedFetch('/api/auth/google/link-intent', { method: 'POST' });
-  const data = await handleResponse<{ intent: string }>(res);
-  return data.intent;
 }
 
 /** Detach the Google identity from the authed user. */

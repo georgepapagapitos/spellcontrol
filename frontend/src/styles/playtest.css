@@ -19,7 +19,7 @@
   background: var(--bg);
   color: var(--text-primary);
   /* Honor the OS chrome (status bar overlay, home gesture, notch) so the
-     header/hand strip aren't tucked under it on Capacitor builds. */
+     header/hand strip aren't tucked under it. */
   padding-top: var(--safe-top);
   padding-right: var(--safe-right);
   padding-bottom: var(--safe-bottom);

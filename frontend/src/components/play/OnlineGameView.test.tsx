@@ -2,7 +2,7 @@
 /**
  * OnlineGameView (T99) — the per-device online surface that replaced
  * GameBoard for online games. Mock harness mirrors GameBoard's own test
- * suites (haptics stubbed so no real Capacitor/vibration path runs); the
+ * suites (haptics stubbed so no real vibration path runs); the
  * store mocks follow PlayPage.board-door.test.tsx's simple selector style
  * since this component reads `usePlayStore`/`useAuth` directly rather than
  * taking them as props.

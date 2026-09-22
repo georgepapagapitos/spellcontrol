@@ -5,9 +5,6 @@ import { MemoryRouter } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import * as authApi from '../lib/auth-api';
 
-vi.mock('../lib/platform', () => ({ isNativePlatform: vi.fn(() => false) }));
-vi.mock('@capacitor/share', () => ({ Share: { share: vi.fn() } }));
-
 const {
   createShareMock,
   listSharesMock,

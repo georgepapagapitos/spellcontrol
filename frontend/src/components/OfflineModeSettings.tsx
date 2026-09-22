@@ -1,19 +1,17 @@
 import { useEffect } from 'react';
 import { useOfflineStore } from '@/store/offline';
-import { isNativePlatform } from '@/lib/platform';
 import type { DownloadPhase } from '@/lib/offline';
 import { formatBytes } from '@/lib/format-bytes';
 import { formatRelativeTime } from '@/lib/format-time';
 
 /**
- * Status for the always-on local card data, plus a manual "Refresh" and an
- * escape-hatch "Clear". The download runs silently in the background after
- * sign-in (see `lib/offline/auto-sync.ts`) and self-heals on a 3h cadence —
- * the Refresh button just makes that immediate when the user knows a server
- * update landed (e.g. a new card-data field) and doesn't want to wait.
+ * Status for the local card data, plus "Refresh" to download or update it and
+ * an escape-hatch "Clear".
  *
- * Native-only — the browser app always reaches the backend directly, so
- * there's no local cache to surface and the section is hidden.
+ * The download is opt-in and never runs on its own: the backend is always one
+ * round-trip away, so seeding tens of megabytes into IndexedDB is a cost the
+ * user chooses, not one we impose. Once seeded, card and combo reads
+ * short-circuit against it.
  */
 
 /** User-facing labels for each sync phase, shown in the status line. */
@@ -30,7 +28,6 @@ const PHASE_LABELS: Record<DownloadPhase, string> = {
 };
 
 export function OfflineModeSettings(): React.ReactElement | null {
-  const native = isNativePlatform();
   const manifest = useOfflineStore((s) => s.manifest);
   const stats = useOfflineStore((s) => s.stats);
   const progress = useOfflineStore((s) => s.progress);
@@ -41,10 +38,8 @@ export function OfflineModeSettings(): React.ReactElement | null {
   const clear = useOfflineStore((s) => s.clear);
 
   useEffect(() => {
-    if (native && !bootstrapped) void bootstrap();
-  }, [native, bootstrap, bootstrapped]);
-
-  if (!native) return null;
+    if (!bootstrapped) void bootstrap();
+  }, [bootstrap, bootstrapped]);
 
   const hasData = !!manifest && manifest.oracleCardCount > 0;
   const cardCount = stats?.cardCount ?? manifest?.oracleCardCount ?? 0;

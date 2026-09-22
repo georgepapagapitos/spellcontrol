@@ -1,5 +1,4 @@
 import { apiUrl } from './api-base';
-import { isNativePlatform } from './platform';
 import type { ListDef } from '../types';
 import type { FriendCard } from './cube/pool';
 
@@ -564,19 +563,14 @@ export async function fetchTonightTrades(nightId: string): Promise<TonightTradeA
   return body.attendees;
 }
 
-/** Public web origin — see shareUrl in share-client.ts for the native rationale. */
-const WEB_ORIGIN = 'https://spellcontrol.com';
-
 /** Full shareable URL for a game night token. */
 export function gameNightUrl(token: string): string {
-  if (isNativePlatform()) return `${WEB_ORIGIN}/gn/${token}`;
   if (typeof window === 'undefined') return `/gn/${token}`;
   return `${window.location.origin}/gn/${token}`;
 }
 
 /** Stable URL for a weekly series — always opens the upcoming occurrence. */
 export function gameNightSeriesUrl(token: string): string {
-  if (isNativePlatform()) return `${WEB_ORIGIN}/gn/s/${token}`;
   if (typeof window === 'undefined') return `/gn/s/${token}`;
   return `${window.location.origin}/gn/s/${token}`;
 }

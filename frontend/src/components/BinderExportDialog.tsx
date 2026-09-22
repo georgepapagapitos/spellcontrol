@@ -12,7 +12,6 @@ import {
   allBindersBackupFileName,
 } from '../lib/backup';
 import { CollectionExportDialog } from './CollectionExportDialog';
-import { isNativePlatform } from '../lib/platform';
 
 interface Props {
   binders: MaterializedBinder[];
@@ -116,22 +115,20 @@ export function BinderExportDialog({ binders, activeId, onClose }: Props) {
             list. No rule definitions.
           </span>
         </button>
-        {!isNativePlatform() && (
-          <button
-            type="button"
-            className="choice-dialog-option"
-            onClick={() => handlePick('binder-print')}
-            disabled={!active}
-          >
-            <span className="choice-dialog-option-title">
-              {active ? `Print checklist: ${active.def.name}` : 'Print checklist'}
-            </span>
-            <span className="choice-dialog-option-desc">
-              A plain checklist: name, quantity, set/collector number. Grouped the same way this
-              binder is.
-            </span>
-          </button>
-        )}
+        <button
+          type="button"
+          className="choice-dialog-option"
+          onClick={() => handlePick('binder-print')}
+          disabled={!active}
+        >
+          <span className="choice-dialog-option-title">
+            {active ? `Print checklist: ${active.def.name}` : 'Print checklist'}
+          </span>
+          <span className="choice-dialog-option-desc">
+            A plain checklist: name, quantity, set/collector number. Grouped the same way this
+            binder is.
+          </span>
+        </button>
         <button
           type="button"
           className="choice-dialog-option"

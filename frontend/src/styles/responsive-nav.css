@@ -556,17 +556,6 @@
     border-top: 1px solid var(--chrome-border);
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
   }
-  /* The URL-bar quirk that motivated omitting var(--safe-bottom)
-     doesn't apply inside the Capacitor WebView — there's no URL bar to
-     collapse, and the inset reports a stable non-zero value for the
-     gesture/home-indicator area. Pad below the icons so they don't sit
-     under the system gesture strip. --mobile-tabbar-h already includes
-     --safe-bottom under .capacitor (tokens.css), so only the padding
-     needs the explicit var here. */
-  .capacitor .mobile-tab-bar {
-    padding-bottom: var(--safe-bottom);
-  }
-
   .mobile-tab-bar-link {
     flex: 1;
     min-width: 0;

@@ -14,12 +14,9 @@ import { Modal } from './Modal';
 import { SelectMenu } from './SelectMenu';
 import { ColorPicker } from './ColorPicker';
 import { PRESET_COLORS, pickRandomPresetColor } from '../lib/preset-colors';
-import { isNativePlatform } from '../lib/platform';
-import { pickNativeFiles } from '../lib/native-file-picker';
 import { InfoTip } from './InfoTip';
 import { FilterGroupList, cloneChips, validateRanges } from './FilterGroupEditor';
 
-const BINDER_IMPORT_MIME = ['text/csv', 'text/tab-separated-values', 'text/plain'];
 import type {
   BinderFilter,
   BinderFilterGroup,
@@ -323,7 +320,7 @@ export function BinderEditor() {
     return () => window.clearTimeout(id);
   }, [isOpen]);
 
-  // Body-scroll lock, Escape, focus trap/restore and Android back all come from
+  // Body-scroll lock, Escape and focus trap/restore all come from
   // <Modal> below. The hand-rolled Escape listener this replaced also had to
   // special-case "collision prompt wins"; useOverlayLayer resolves that by
   // mount order instead.
@@ -600,7 +597,7 @@ export function BinderEditor() {
       {/* The shared Modal, not a hand-rolled backdrop+dialog pair. This was the
           one dialog in the app outside it, and it was missing everything the
           primitive provides: no focus trap (Tab walked straight out into the
-          page behind), no focus restore on close, no exit animation, no Android
+          page behind), no focus restore on close, no exit animation, no
           hardware-back handling, and an Escape listener that ignored the
           overlay-layer stack. `dismissable={!saving}` also stops a stray
           backdrop click from tearing the editor down mid-import. */}
@@ -1176,21 +1173,7 @@ export function BinderEditor() {
                 <button
                   type="button"
                   className="btn"
-                  onClick={async () => {
-                    if (isNativePlatform()) {
-                      try {
-                        const files = await pickNativeFiles({
-                          types: BINDER_IMPORT_MIME,
-                          multiple: true,
-                        });
-                        stageIncoming(files);
-                      } catch (err) {
-                        setErrorMsg(userMessage(err, "Couldn't open the file picker. Try again."));
-                      }
-                      return;
-                    }
-                    importFileRef.current?.click();
-                  }}
+                  onClick={() => importFileRef.current?.click()}
                   disabled={saving}
                 >
                   Upload files

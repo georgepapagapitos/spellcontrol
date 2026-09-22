@@ -28,15 +28,12 @@ import {
   exchangeGoogleCode,
   findGoogleUser,
   createGoogleUser,
-  mintHandoffCode,
-  consumeHandoffCode,
 } from './google';
 
 beforeAll(() => {
   process.env.GOOGLE_CLIENT_ID = 'test-client-id';
   process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
   process.env.OAUTH_WEB_REDIRECT_URI = 'http://localhost:5173/api/auth/google/callback';
-  process.env.OAUTH_NATIVE_REDIRECT_URI = 'http://localhost:3737/api/auth/google/callback';
 });
 
 beforeEach(() => {
@@ -67,7 +64,7 @@ describe('getGoogleConfig', () => {
 describe('buildGoogleAuthUrl', () => {
   it('produces a consent URL carrying the state', () => {
     const cfg = getGoogleConfig()!;
-    const url = buildGoogleAuthUrl(cfg, 'web', 'state-abc');
+    const url = buildGoogleAuthUrl(cfg, 'state-abc');
     expect(url).toContain('accounts.google.com');
     expect(url).toContain('state-abc');
   });
@@ -76,7 +73,7 @@ describe('buildGoogleAuthUrl', () => {
 describe('exchangeGoogleCode', () => {
   it('returns verified identity claims', async () => {
     payload({ sub: 'g-123', email: 'pat@example.com', email_verified: true, name: 'Pat' });
-    const identity = await exchangeGoogleCode(getGoogleConfig()!, 'web', 'auth-code');
+    const identity = await exchangeGoogleCode(getGoogleConfig()!, 'auth-code');
     expect(identity).toEqual({
       sub: 'g-123',
       email: 'pat@example.com',
@@ -87,20 +84,20 @@ describe('exchangeGoogleCode', () => {
 
   it('treats an unverified email as such', async () => {
     payload({ sub: 'g-9', email: 'x@example.com', email_verified: false });
-    const identity = await exchangeGoogleCode(getGoogleConfig()!, 'native', 'auth-code');
+    const identity = await exchangeGoogleCode(getGoogleConfig()!, 'auth-code');
     expect(identity.emailVerified).toBe(false);
     expect(identity.name).toBeNull();
   });
 
   it('throws when Google returns no ID token', async () => {
     mockGetToken.mockResolvedValue({ tokens: {} });
-    await expect(exchangeGoogleCode(getGoogleConfig()!, 'web', 'c')).rejects.toThrow(/ID token/);
+    await expect(exchangeGoogleCode(getGoogleConfig()!, 'c')).rejects.toThrow(/ID token/);
   });
 
   it('throws when the ID token has no subject', async () => {
     mockGetToken.mockResolvedValue({ tokens: { id_token: 't' } });
     mockVerifyIdToken.mockResolvedValue({ getPayload: () => ({ email: 'a@b.com' }) });
-    await expect(exchangeGoogleCode(getGoogleConfig()!, 'web', 'c')).rejects.toThrow(/subject/);
+    await expect(exchangeGoogleCode(getGoogleConfig()!, 'c')).rejects.toThrow(/subject/);
   });
 });
 
@@ -142,23 +139,6 @@ describe('findGoogleUser / createGoogleUser', () => {
       .from(authIdentities)
       .where(eq(authIdentities.providerSubject, 'sub-persist'));
     expect(ids[0].userId).toBe(user.id);
-  });
-});
-
-describe('handoff codes', () => {
-  it('round-trips a single-use code', async () => {
-    const user = await createGoogleUser(
-      { sub: 'sub-handoff', email: 'handoff@example.com', emailVerified: true, name: null },
-      'handoff-user'
-    );
-    const code = await mintHandoffCode(user.id);
-    expect(await consumeHandoffCode(code)).toBe(user.id);
-    // Single use — a second redemption fails.
-    expect(await consumeHandoffCode(code)).toBeNull();
-  });
-
-  it('rejects an unknown code', async () => {
-    expect(await consumeHandoffCode('never-minted')).toBeNull();
   });
 });
 

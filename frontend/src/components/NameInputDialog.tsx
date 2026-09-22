@@ -20,7 +20,7 @@ interface Props {
 /**
  * Shared "name this thing" prompt: the themed Modal + a single text input.
  * Replaces native `window.prompt`, which breaks the app theme and the native
- * (Capacitor) feel. Submits on Enter, disables the action when empty, and
+ * feel. Submits on Enter, disables the action when empty, and
  * focuses the field on open.
  */
 export function NameInputDialog({

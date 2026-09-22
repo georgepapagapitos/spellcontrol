@@ -274,24 +274,6 @@
   background: #000;
 }
 
-/* In the Capacitor WebView we don't use the <video> element at all — the
-   native camera-preview plugin renders behind the (transparent) WebView.
-   When the scanner is active we hide the rest of the app entirely so the
-   WebView paints only the scanner overlay (viewfinder, hints, buttons),
-   and everywhere else is transparent — letting the native preview show
-   through. The scanner is portalled to document.body so it lives outside
-   #root and stays visible. */
-.capacitor.scanner-active,
-.capacitor.scanner-active body {
-  background: transparent;
-}
-.capacitor.scanner-active #root {
-  visibility: hidden;
-}
-.capacitor .scanner-root {
-  background: transparent;
-}
-
 /* Tap-to-rescan surface: transparent full-bleed button beneath the corner
    chrome (which sits at z-index ≥ 3). A bare-camera tap forces a capture so
    the user can intentionally add another copy of the same card. */

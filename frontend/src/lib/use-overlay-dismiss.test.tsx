@@ -1,30 +1,11 @@
 // @vitest-environment happy-dom
 import { createRef } from 'react';
-import { act, fireEvent, renderHook } from '@testing-library/react';
+import { fireEvent, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-const { isNativePlatform } = vi.hoisted(() => ({ isNativePlatform: vi.fn(() => false) }));
-vi.mock('./platform', () => ({ isNativePlatform }));
-
-const { addListener, remove } = vi.hoisted(() => ({
-  addListener: vi.fn(),
-  remove: vi.fn(),
-}));
-vi.mock('@capacitor/app', () => ({ App: { addListener } }));
 
 import { useOverlayDismiss } from './use-overlay-dismiss';
 
-/** Invoke the most recently registered Capacitor `backButton` handler. */
-function pressBack() {
-  const calls = addListener.mock.calls.filter((c) => c[0] === 'backButton');
-  const handler = calls[calls.length - 1]?.[1] as (() => void) | undefined;
-  act(() => handler?.());
-}
-
 beforeEach(() => {
-  addListener.mockReset();
-  addListener.mockImplementation(async () => ({ remove }));
-  isNativePlatform.mockReturnValue(false);
   document.body.innerHTML = '';
 });
 
@@ -67,33 +48,6 @@ describe('useOverlayDismiss — Escape', () => {
     unmount();
     fireEvent.keyDown(document.body, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
-  });
-});
-
-describe('useOverlayDismiss — Android hardware back', () => {
-  it('closes instead of letting the WebView navigate', async () => {
-    isNativePlatform.mockReturnValue(true);
-    const onClose = vi.fn();
-    renderHook(() => useOverlayDismiss(onClose));
-    await act(async () => {});
-    expect(addListener).toHaveBeenCalledWith('backButton', expect.any(Function));
-    pressBack();
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('registers nothing on web, where there is no hardware back', async () => {
-    renderHook(() => useOverlayDismiss(vi.fn()));
-    await act(async () => {});
-    expect(addListener).not.toHaveBeenCalled();
-  });
-
-  it('removes its listener on unmount', async () => {
-    isNativePlatform.mockReturnValue(true);
-    const { unmount } = renderHook(() => useOverlayDismiss(vi.fn()));
-    await act(async () => {});
-    unmount();
-    await act(async () => {});
-    expect(remove).toHaveBeenCalled();
   });
 });
 

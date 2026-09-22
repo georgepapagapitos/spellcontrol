@@ -15,10 +15,6 @@ vi.mock('./auth-api', () => ({
   pullSync: vi.fn(),
   pushSync: vi.fn(),
 }));
-vi.mock('./platform', () => ({ isNativePlatform: vi.fn(() => false) }));
-vi.mock('@capacitor/app', () => ({
-  App: { addListener: vi.fn(async () => ({ remove: vi.fn() })) },
-}));
 
 import { startSync, stopSyncAndWipeLocal } from './sync';
 import { pullSync, pushSync } from './auth-api';

@@ -83,13 +83,6 @@ interface AuthState {
    */
   resetPasswordWithToken: (token: string, password: string) => Promise<boolean>;
   /**
-   * Native only: finish a Google sign-in by exchanging the handoff code that
-   * arrived on the OAuth deep link. The web flow needs no store method — its
-   * callback sets the session cookie server-side and `bootstrap()` picks it up
-   * on the reload. Resolves to false (and sets `error`) on failure.
-   */
-  completeGoogleOAuth: (code: string) => Promise<boolean>;
-  /**
    * Finish a first-time Google sign-in: create the account with the username
    * the user chose, using the signup token from the OAuth callback. Returns
    * `{ ok, status }` so the choose-username screen can distinguish a "taken"
@@ -128,7 +121,7 @@ interface AuthState {
   clearError: () => void;
 }
 
-export const useAuth = create<AuthState>((set, get) => {
+export const useAuth = create<AuthState>((set) => {
   /** Shared success path: persist user identity, update store, mark visited. */
   function signInAs(user: AuthUser): void {
     storeUser(user);
@@ -259,29 +252,6 @@ export const useAuth = create<AuthState>((set, get) => {
           ),
         });
         return false;
-      }
-    },
-
-    completeGoogleOAuth: async (code) => {
-      set({ error: null });
-      try {
-        const user = await authApi.exchangeGoogleCode(code);
-        signInAs(user);
-        return true;
-      } catch (err) {
-        // Don't downgrade an already-authed session: a replayed handoff code
-        // (e.g. the user taps "Open SpellControl" on the stranded /oauth/callback
-        // page after the first deep-link delivery already signed them in, or
-        // Android fires appUrlOpen twice) returns 401 because handoff codes are
-        // single-use — that must be a no-op, not a logout.
-        const stillAuthed = get().status === 'authed';
-        set({
-          error: stillAuthed
-            ? null
-            : userMessage(err, "Couldn't finish signing in with Google. Try again."),
-          status: stillAuthed ? 'authed' : 'guest',
-        });
-        return stillAuthed;
       }
     },
 

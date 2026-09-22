@@ -67,12 +67,11 @@ import './styles/shared.css';
 // Last on purpose: print rules must win over everything else in print media
 // regardless of specificity elsewhere in the cascade (see the file header).
 import './styles/print.css';
-import { bootstrapTheme, useThemeStore } from './store/theme';
+import { bootstrapTheme } from './store/theme';
 import { bootstrapTypeSet } from './store/typeset';
 import { loadTaggerData } from './deck-builder/services/tagger/client';
 import { loadCardSimilar } from './deck-builder/services/deckBuilder/cardSimilar';
 import { registerPwa } from './lib/register-pwa';
-import { tagPlatform, syncStatusBar, hideSplashWhenReady } from './lib/platform';
 import { initKeyboardLayer } from './lib/keyboard';
 import { installErrorReporting, startVitals } from './lib/analytics';
 import { hasEverVisited } from './lib/first-run';
@@ -80,16 +79,9 @@ import { hasEverVisited } from './lib/first-run';
 // First, so an exception anywhere in the boot below is counted too.
 installErrorReporting();
 startVitals();
-tagPlatform();
 bootstrapTheme();
 bootstrapTypeSet();
-void syncStatusBar();
 initKeyboardLayer();
-// Re-sync the native status bar icons whenever the user switches themes;
-// no-op on web.
-useThemeStore.subscribe(() => {
-  void syncStatusBar();
-});
 // Warm the two deck-builder corpora — the tagger role index and the EDHREC
 // substitute index — so the first deck build / Coach pass has them in hand.
 // Together they are ~500 KB gzipped, so they are NOT part of the boot: a
@@ -118,6 +110,3 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </ErrorBoundary>
   </React.StrictMode>
 );
-
-// Splash stays up until the first frame is actually on screen; no-op on web.
-hideSplashWhenReady();

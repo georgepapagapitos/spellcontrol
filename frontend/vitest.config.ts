@@ -99,8 +99,7 @@ export default defineConfig({
       // meaningfully under the node test env — verified via integration use:
       //   - ocr.ts: tesseract.js worker + WASM
       //   - use-wake-lock.ts: navigator.wakeLock + visibilitychange
-      //   - keyboard.ts: window.visualViewport resize/scroll glue +
-      //     Capacitor Keyboard plugin listeners (platform-branched)
+      //   - keyboard.ts: window.visualViewport resize/scroll glue
       exclude: [
         'src/lib/use-wake-lock.ts',
         'src/lib/keyboard.ts',
@@ -108,20 +107,6 @@ export default defineConfig({
         // progress callbacks). Verified via integration; not unit-testable
         // without a streaming-fetch shim that fights real-runtime behavior.
         'src/lib/offline/download.ts',
-        // Capacitor plugin wrappers + DOM probing — paths are
-        // platform-branched (`isNativePlatform()`) and the native side
-        // calls plugins that don't exist outside the Capacitor WebView.
-        // Verified on-device, not in the node test env:
-        //   - platform.ts: StatusBar + theme luminance probe
-        //   - native-file-picker.ts: FilePicker + fetch(content://)
-        //   - haptics.ts: Capacitor Haptics + navigator.vibrate
-        //   - deep-links.ts: App.appUrlOpen / getLaunchUrl listener glue
-        //     (`parseDeepLink` is still unit-tested separately —
-        //     excluding the file drops the measurement, not the test.)
-        'src/lib/platform.ts',
-        'src/lib/native-file-picker.ts',
-        'src/lib/haptics.ts',
-        'src/lib/deep-links.ts',
         // Scanner OpenCV.js (WASM) loader + classical detector. The
         // heavy lifting is a ~10MB WASM module that won't initialize
         // under node, so the pipeline is device-validated, not

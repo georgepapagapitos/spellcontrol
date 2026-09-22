@@ -3,7 +3,7 @@
  * Focused route-resolution test for App.tsx's "/" and "*" route elements
  * (w3-nav-activation): which element each renders across guest-fresh /
  * guest-returning / authed. Everything App mounts unconditionally on
- * mount (bootstrap, sync, offline, deep-links, the first-run gate) is
+ * mount (bootstrap, sync, offline, the first-run gate) is
  * stubbed so this stays scoped to the routing ternaries themselves —
  * those pieces each have their own dedicated test coverage elsewhere.
  * `Navigate` is stubbed to a marker element so a redirect doesn't cascade
@@ -11,7 +11,7 @@
  */
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Outlet } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('react-router-dom', async (importOriginal) => {
   const real = await importOriginal<typeof import('react-router-dom')>();
@@ -166,7 +166,6 @@ describe('App — "*" (unmatched path) route resolution', () => {
   });
 });
 
-// OAuthCallbackLanding (the App Link fallback for the rare case Android
 // doesn't hand the URL straight to the installed APK): "Continue on the web
 // instead" should only disappear for the genuinely inert "nothing to finish
 // here" state — every other branch (including errored, which can arrive
@@ -189,30 +188,5 @@ describe('App — the public playtest is a page of the app', () => {
     renderAt('/s/tok/playtest');
     expect(await screen.findByTestId('public-playtest')).toBeTruthy();
     expect(screen.getByTestId('layout').contains(screen.getByTestId('public-playtest'))).toBe(true);
-  });
-});
-
-describe('App — /oauth/callback landing', () => {
-  beforeEach(() => {
-    authState.status = 'guest';
-    hasEverVisitedMock.mockReturnValue(true);
-  });
-
-  it('shows the brand mark and the web-fallback link when a payload is present', () => {
-    renderAt('/oauth/callback?code=abc123');
-    expect(screen.getByText('Finish on your phone')).toBeTruthy();
-    expect(screen.getByText('Continue on the web instead')).toBeTruthy();
-  });
-
-  it('shows the web-fallback link on an error, even with no code/signup param', () => {
-    renderAt('/oauth/callback?error=access_denied');
-    expect(screen.getByText("Sign-in didn't finish")).toBeTruthy();
-    expect(screen.getByText('Continue on the web instead')).toBeTruthy();
-  });
-
-  it('hides the web-fallback link when there is truly nothing to finish', () => {
-    renderAt('/oauth/callback');
-    expect(screen.getByText('Nothing to finish here')).toBeTruthy();
-    expect(screen.queryByText('Continue on the web instead')).toBeNull();
   });
 });

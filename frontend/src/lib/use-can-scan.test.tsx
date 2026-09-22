@@ -2,14 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
-// Stub isNativePlatform — the scanner is native-only, so we need to be able
-// to flip this independently of the other capability gates. Default to
-// `true` (native) so the existing "capable device" tests still measure the
-// other gates instead of being trivially false.
-vi.mock('./platform', () => ({ isNativePlatform: vi.fn(() => true) }));
-
 import { useCanScan } from './use-can-scan';
-import { isNativePlatform } from './platform';
 
 type Listener = (e: MediaQueryListEvent) => void;
 
@@ -73,14 +66,6 @@ describe('useCanScan', () => {
   it('returns false when getUserMedia is unavailable even on coarse-pointer devices', () => {
     installMatchMedia(true);
     installGetUserMedia(false);
-    const { result } = renderHook(() => useCanScan());
-    expect(result.current).toBe(false);
-  });
-
-  it('returns false on web (non-native platform) even when device is capable', () => {
-    installMatchMedia(true);
-    installGetUserMedia(true);
-    vi.mocked(isNativePlatform).mockReturnValueOnce(false);
     const { result } = renderHook(() => useCanScan());
     expect(result.current).toBe(false);
   });

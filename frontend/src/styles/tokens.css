@@ -210,7 +210,7 @@
      1024px, where it doesn't render at all. Single source of truth so any
      other viewport-bottom-anchored fixed element (the toast viewport) can
      clear it instead of painting underneath/through it; see the media
-     query + .capacitor override just below tokens.css's `:root` block. */
+     query just below tokens.css's `:root` block. */
   --mobile-tabbar-h: 0px;
 
   /* ── Z-index scale ───────────────────────────────────────────────────── */
@@ -255,8 +255,8 @@
 
   /* ── Safe-area insets ─────────────────────────────────────────────────────
      Single source of truth for system-chrome padding. Resolves to 0 on
-     desktop browsers and most mobile browsers; non-zero in a Capacitor
-     WebView and on iOS Safari with viewport-fit=cover (set in index.html).
+     desktop browsers and most mobile browsers; non-zero on iOS Safari
+     with viewport-fit=cover (set in index.html).
      Two helpers built on top:
        --overlay-pad-{top,bottom}: padding for backdrops that center a
          child modal. max(base, safe + cushion) keeps web behavior
@@ -275,7 +275,7 @@
 
   /* ── Keyboard inset ───────────────────────────────────────────────────────
      Pixels the on-screen keyboard occupies, published by lib/keyboard.ts.
-     ~0 on native (the WebView resizes) and on browsers honoring
+     ~0 on browsers honoring
      interactive-widget=resizes-content; the real gap on iOS Safari. Surfaces
      pinned to the bottom edge (sheets, the toast viewport) dock at
      `var(--keyboard-inset)` so they ride above the keyboard; scroll regions
@@ -397,8 +397,5 @@
 @media (max-width: 1023px) {
   :root {
     --mobile-tabbar-h: 3.5rem;
-  }
-  .capacitor {
-    --mobile-tabbar-h: calc(3.5rem + var(--safe-bottom));
   }
 }

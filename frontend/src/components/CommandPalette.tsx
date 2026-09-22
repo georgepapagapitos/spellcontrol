@@ -24,7 +24,7 @@ interface Props {
  * self-hiding AI commands, and an async Scryfall card lane.
  *
  * Built on `<Modal>` rather than a bespoke overlay so it inherits the whole
- * overlay contract for free: shared layer stack, Escape, Android hardware
+ * overlay contract for free: shared layer stack, Escape,
  * back, focus trap and focus restore (see `project_overlay_contract`).
  *
  * Keyboard model is the standard combobox one: focus never leaves the input,

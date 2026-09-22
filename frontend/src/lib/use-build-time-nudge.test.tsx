@@ -6,7 +6,7 @@ import { renderHook, act, cleanup } from '@testing-library/react';
 // `import('../lib/sync')` on every local mutation (see the E133 comment on
 // `useDecksStore.subscribe` in store/decks.ts). Mock it out — same as
 // store/decks.test.ts does — so these tests exercise the real mutator/touch()
-// codepath without a real Capacitor/network-touching module resolving in the
+// codepath without a real network-touching module resolving in the
 // background across test boundaries.
 vi.mock('./sync', () => ({
   persistDecksState: vi.fn().mockResolvedValue(undefined),

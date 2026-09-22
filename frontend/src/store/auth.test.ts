@@ -225,28 +225,6 @@ describe('login / register', () => {
   });
 });
 
-describe('completeGoogleOAuth', () => {
-  it('exchanges the handoff code and authes the user', async () => {
-    vi.spyOn(authApi, 'exchangeGoogleCode').mockResolvedValue({
-      id: 'g1',
-      username: 'googler',
-      role: 'user',
-    });
-    const ok = await useAuth.getState().completeGoogleOAuth('handoff-code');
-    expect(ok).toBe(true);
-    expect(useAuth.getState().status).toBe('authed');
-    expect(useAuth.getState().user?.username).toBe('googler');
-  });
-
-  it('surfaces an error and stays a guest when the exchange fails', async () => {
-    vi.spyOn(authApi, 'exchangeGoogleCode').mockRejectedValue(new Error('expired'));
-    const ok = await useAuth.getState().completeGoogleOAuth('stale-code');
-    expect(ok).toBe(false);
-    expect(useAuth.getState().status).toBe('guest');
-    expect(useAuth.getState().error).toMatch(/expired/i);
-  });
-});
-
 describe('completeGoogleSignup', () => {
   it('creates the account and authes on a chosen username', async () => {
     vi.spyOn(authApi, 'completeGoogleSignup').mockResolvedValue({
@@ -287,16 +265,6 @@ describe('first-run flag side effect', () => {
   it('register success marks the device', async () => {
     vi.spyOn(authApi, 'register').mockResolvedValue({ id: 'u', username: 'a', role: 'user' });
     await useAuth.getState().register('a', 'pw', 'a@example.test');
-    expect(hasEverVisited()).toBe(true);
-  });
-
-  it('completeGoogleOAuth success marks the device', async () => {
-    vi.spyOn(authApi, 'exchangeGoogleCode').mockResolvedValue({
-      id: 'g',
-      username: 'g',
-      role: 'user',
-    });
-    await useAuth.getState().completeGoogleOAuth('code');
     expect(hasEverVisited()).toBe(true);
   });
 

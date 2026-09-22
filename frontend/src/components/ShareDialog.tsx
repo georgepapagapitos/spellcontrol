@@ -16,8 +16,7 @@ import {
 import { shouldCelebrateFirstPublish } from '../lib/first-publish-celebration';
 import { updateProfile } from '../lib/auth-api';
 import { listFriends, type Friend } from '../lib/friends-client';
-import { isNativePlatform } from '../lib/platform';
-import { Share } from '@capacitor/share';
+import { canShare, openShareSheet } from '@/lib/web-share';
 import type { ShareKind, ShareRow } from '../lib/shared-types';
 import { toast } from '../store/toasts';
 import { useAuth } from '../store/auth';
@@ -463,21 +462,13 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
     }
   };
 
-  const handleNativeShare = async () => {
+  const handleShare = async () => {
     if (!url) return;
-    try {
-      await Share.share({
-        title: `Share ${resourceLabel}`,
-        text: `${resourceLabel} on SpellControl`,
-        url,
-        dialogTitle: 'Share link',
-      });
-    } catch (err) {
-      // The user cancelling the system sheet rejects with a generic error;
-      // treat anything from this call as a soft no-op rather than a toast.
-      if (err && (err as { message?: string }).message?.includes('cancel')) return;
-      toast.show({ message: "Couldn't open share sheet", tone: 'warn' });
-    }
+    await openShareSheet({
+      title: `Share ${resourceLabel}`,
+      text: `${resourceLabel} on SpellControl`,
+      url,
+    });
   };
 
   if (isGuest) {
@@ -616,8 +607,8 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
             >
               Copy
             </button>
-            {isNativePlatform() && (
-              <button type="button" className="btn" onClick={handleNativeShare} disabled={working}>
+            {canShare() && (
+              <button type="button" className="btn" onClick={handleShare} disabled={working}>
                 Share…
               </button>
             )}
@@ -722,8 +713,8 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
             >
               Copy
             </button>
-            {isNativePlatform() && (
-              <button type="button" className="btn" onClick={handleNativeShare} disabled={working}>
+            {canShare() && (
+              <button type="button" className="btn" onClick={handleShare} disabled={working}>
                 Share…
               </button>
             )}

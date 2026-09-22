@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef } from 'react';
  * (CardScanner) that predate both.
  *
  * This used to live entirely inside `Modal.tsx`, which is why only Modal
- * dialogs trapped Tab and answered the Android hardware back button: the ~30
+ * dialogs trapped Tab: the ~30
  * sheets on `useSheetExit` had none of it, so back navigated the page out from
  * under an open sheet and Tab walked into the content behind it.
  *
@@ -78,7 +78,7 @@ const layerStack: symbol[] = [];
 
 /**
  * Registers this overlay as a layer while `active` and reports whether it is
- * the topmost one. Only the topmost layer should answer Escape, the Android
+ * the topmost one. Only the topmost layer should answer Escape, the
  * back button, or trap Tab.
  *
  * `active` exists because not every overlay unmounts when it closes. Modals and

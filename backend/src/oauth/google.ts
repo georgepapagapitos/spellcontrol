@@ -1,24 +1,19 @@
 import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
-import { and, eq, isNull, lt } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { getDb } from '../db';
-import { users, authIdentities, oauthHandoffCodes } from '../db/schema';
-import { getAdminEmails, type AuthedUser, type OAuthPlatform, type UserRole } from '../auth';
+import { users, authIdentities } from '../db/schema';
+import { getAdminEmails, type AuthedUser, type UserRole } from '../auth';
 import { promoteIfSeededAdmin } from '../admin/bootstrap';
 
 /** Provider key stored in `auth_identities.provider`. */
 const PROVIDER = 'google';
 
-/** Native handoff codes live just long enough to deep-link back into the app. */
-const HANDOFF_TTL_MS = 60_000;
-
 export interface GoogleConfig {
   clientId: string;
   clientSecret: string;
-  /** Backend callback URL the web flow registers with Google. */
+  /** Backend callback URL registered with Google. */
   webRedirectUri: string;
-  /** Backend callback URL the native flow registers with Google. */
-  nativeRedirectUri: string;
 }
 
 /**
@@ -31,17 +26,12 @@ export function getGoogleConfig(): GoogleConfig | null {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const webRedirectUri = process.env.OAUTH_WEB_REDIRECT_URI;
-  const nativeRedirectUri = process.env.OAUTH_NATIVE_REDIRECT_URI;
-  if (!clientId || !clientSecret || !webRedirectUri || !nativeRedirectUri) return null;
-  return { clientId, clientSecret, webRedirectUri, nativeRedirectUri };
+  if (!clientId || !clientSecret || !webRedirectUri) return null;
+  return { clientId, clientSecret, webRedirectUri };
 }
 
 export function isGoogleOAuthConfigured(): boolean {
   return getGoogleConfig() !== null;
-}
-
-function redirectUriFor(cfg: GoogleConfig, platform: OAuthPlatform): string {
-  return platform === 'native' ? cfg.nativeRedirectUri : cfg.webRedirectUri;
 }
 
 function clientFor(cfg: GoogleConfig): OAuth2Client {
@@ -49,13 +39,9 @@ function clientFor(cfg: GoogleConfig): OAuth2Client {
 }
 
 /** Build the Google consent-screen URL to redirect the user to. */
-export function buildGoogleAuthUrl(
-  cfg: GoogleConfig,
-  platform: OAuthPlatform,
-  state: string
-): string {
+export function buildGoogleAuthUrl(cfg: GoogleConfig, state: string): string {
   return clientFor(cfg).generateAuthUrl({
-    redirect_uri: redirectUriFor(cfg, platform),
+    redirect_uri: cfg.webRedirectUri,
     scope: ['openid', 'email', 'profile'],
     state,
     // Always show the account chooser so a shared device can switch accounts.
@@ -74,18 +60,14 @@ export interface GoogleIdentity {
 
 /**
  * Exchange the authorization `code` for tokens and verify the returned ID
- * token. The `redirect_uri` must match the one used to start the flow, hence
- * the `platform` argument. Throws if Google returns no/invalid ID token.
+ * token. The `redirect_uri` must match the one used to start the flow. Throws
+ * if Google returns no/invalid ID token.
  */
-export async function exchangeGoogleCode(
-  cfg: GoogleConfig,
-  platform: OAuthPlatform,
-  code: string
-): Promise<GoogleIdentity> {
+export async function exchangeGoogleCode(cfg: GoogleConfig, code: string): Promise<GoogleIdentity> {
   const client = clientFor(cfg);
   const { tokens } = await client.getToken({
     code,
-    redirect_uri: redirectUriFor(cfg, platform),
+    redirect_uri: cfg.webRedirectUri,
   });
   if (!tokens.id_token) throw new Error('Google did not return an ID token.');
   const ticket = await client.verifyIdToken({
@@ -262,37 +244,4 @@ export async function createGoogleUser(
     createdAt: now,
   });
   return { id, username, role };
-}
-
-/**
- * Mint a single-use code that bridges the native flow: the system-browser
- * callback cannot set the WebView's session cookie, so it deep-links this code
- * back into the app, which trades it for a real session via `/google/exchange`.
- */
-export async function mintHandoffCode(userId: string): Promise<string> {
-  const db = getDb();
-  const code = crypto.randomBytes(32).toString('base64url');
-  const now = Date.now();
-  // Sweep expired rows opportunistically so the table can't grow unbounded.
-  await db.delete(oauthHandoffCodes).where(lt(oauthHandoffCodes.expiresAt, now));
-  await db.insert(oauthHandoffCodes).values({ code, userId, expiresAt: now + HANDOFF_TTL_MS });
-  return code;
-}
-
-/**
- * Atomically redeem a handoff code. Deletes the row (single use) and returns
- * the user id, or null if the code is unknown or expired.
- */
-export async function consumeHandoffCode(code: string): Promise<string | null> {
-  const db = getDb();
-  const rows = await db
-    .delete(oauthHandoffCodes)
-    .where(eq(oauthHandoffCodes.code, code))
-    .returning({
-      userId: oauthHandoffCodes.userId,
-      expiresAt: oauthHandoffCodes.expiresAt,
-    });
-  const row = rows[0];
-  if (!row || row.expiresAt < Date.now()) return null;
-  return row.userId;
 }

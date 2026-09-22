@@ -5,7 +5,7 @@ import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 
 // Stub only the Google network call (`exchangeGoogleCode`); the user-resolution
-// and handoff-code helpers stay real so the DB-backed logic is exercised.
+// helpers stay real so the DB-backed logic is exercised.
 const { mockExchange } = vi.hoisted(() => ({ mockExchange: vi.fn() }));
 vi.mock('../oauth/google', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../oauth/google')>();
@@ -47,7 +47,7 @@ let nonceSeq = 0;
  */
 function callbackRequest(
   query: Record<string, string>,
-  input: { platform: 'web' | 'native'; mode?: 'link'; userId?: string }
+  input: { mode?: 'link'; userId?: string } = {}
 ) {
   const nonce = `test-nonce-${++nonceSeq}`;
   return request(app)
@@ -57,17 +57,17 @@ function callbackRequest(
 }
 
 /** Run the Google callback for a given identity and return the 302 response. */
-function callback(sub: string, email: string, platform: 'web' | 'native' = 'web') {
+function callback(sub: string, email: string) {
   mockExchange.mockResolvedValue({ sub, email, emailVerified: true, name: null });
-  return callbackRequest({ code: 'auth-code' }, { platform });
+  return callbackRequest({ code: 'auth-code' });
 }
 
 /** Link-mode callback for `userId`, with the matching nonce cookie. */
-function linkCallback(userId: string, platform: 'web' | 'native' = 'web', code = 'auth-code') {
-  return callbackRequest({ code }, { platform, mode: 'link', userId });
+function linkCallback(userId: string, code = 'auth-code') {
+  return callbackRequest({ code }, { mode: 'link', userId });
 }
 
-/** Pull the signup token out of a first-time callback redirect (web hash). */
+/** Pull the signup token out of a first-time callback redirect. */
 function signupTokenFromWeb(location: string): string {
   const hash = new URL(location, 'http://x').hash.slice(1);
   return new URLSearchParams(hash).get('token')!;
@@ -75,7 +75,7 @@ function signupTokenFromWeb(location: string): string {
 
 /** Drive a first-time sign-in all the way through to a created account. */
 async function createGoogleAccount(sub: string, email: string, username: string) {
-  const cb = await callback(sub, email, 'web');
+  const cb = await callback(sub, email);
   const token = signupTokenFromWeb(cb.headers.location);
   return request(app)
     .post('/api/auth/google/complete-signup')
@@ -135,7 +135,7 @@ describe('GET /api/auth/google/callback — CSRF state binding', () => {
     });
     const res = await request(app)
       .get('/api/auth/google/callback')
-      .query({ code: 'auth-code', state: signOAuthState({ platform: 'web', nonce: 'loose' }) });
+      .query({ code: 'auth-code', state: signOAuthState({ nonce: 'loose' }) });
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe('/auth?error=google');
     expect(extractSessionCookie(res.headers['set-cookie'])).toBeNull();
@@ -151,23 +151,10 @@ describe('GET /api/auth/google/callback — CSRF state binding', () => {
     const res = await request(app)
       .get('/api/auth/google/callback')
       .set('Cookie', 'spellcontrol_oauth=browser-nonce')
-      .query({ code: 'auth-code', state: signOAuthState({ platform: 'web', nonce: 'other' }) });
+      .query({ code: 'auth-code', state: signOAuthState({ nonce: 'other' }) });
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe('/auth?error=google');
     expect(extractSessionCookie(res.headers['set-cookie'])).toBeNull();
-  });
-
-  it('sends a native rejection back through the deep-link error route', async () => {
-    mockExchange.mockResolvedValue({
-      sub: 'csrf-native-sub',
-      email: 'native@example.com',
-      emailVerified: true,
-      name: null,
-    });
-    const res = await request(app)
-      .get('/api/auth/google/callback')
-      .query({ code: 'auth-code', state: signOAuthState({ platform: 'native', nonce: 'loose' }) });
-    expect(res.headers.location).toBe('https://spellcontrol.com/oauth/callback?error=google');
   });
 
   it('clears the nonce cookie so a captured state cannot be replayed', async () => {
@@ -178,7 +165,7 @@ describe('GET /api/auth/google/callback — CSRF state binding', () => {
       name: null,
     });
     const nonce = 'replay-nonce';
-    const state = signOAuthState({ platform: 'web', nonce });
+    const state = signOAuthState({ nonce });
     const first = await request(app)
       .get('/api/auth/google/callback')
       .set('Cookie', `spellcontrol_oauth=${nonce}`)
@@ -198,7 +185,7 @@ describe('GET /api/auth/google/callback — CSRF state binding', () => {
 
 describe('GET /api/auth/google/callback — first-time sign-in', () => {
   it('sends a new web user to the choose-username screen, creating no account', async () => {
-    const res = await callback('new-web-sub', 'newweb@example.com', 'web');
+    const res = await callback('new-web-sub', 'newweb@example.com');
     expect(res.status).toBe(302);
     expect(res.headers.location).toMatch(/^\/auth\/choose-username#/);
     expect(signupTokenFromWeb(res.headers.location)).toBeTruthy();
@@ -208,12 +195,6 @@ describe('GET /api/auth/google/callback — first-time sign-in', () => {
       `SELECT count(*)::int AS n FROM auth_identities WHERE provider_subject = 'new-web-sub'`
     );
     expect(rows[0].n).toBe(0);
-  });
-
-  it('deep-links a signup token to a new native user', async () => {
-    const res = await callback('new-native-sub', 'newnative@example.com', 'native');
-    expect(res.status).toBe(302);
-    expect(res.headers.location).toMatch(/^https:\/\/spellcontrol\.com\/oauth\/callback\?signup=/);
   });
 
   it('redirects to an error page when the state is invalid', async () => {
@@ -241,7 +222,7 @@ describe('POST /api/auth/google/complete-signup', () => {
 
   it('rejects a username that is already taken', async () => {
     await createGoogleAccount('taken-sub-1', 'taken1@example.com', 'duplicate-name');
-    const cb = await callback('taken-sub-2', 'taken2@example.com', 'web');
+    const cb = await callback('taken-sub-2', 'taken2@example.com');
     const res = await request(app)
       .post('/api/auth/google/complete-signup')
       .send({ signupToken: signupTokenFromWeb(cb.headers.location), username: 'duplicate-name' });
@@ -249,7 +230,7 @@ describe('POST /api/auth/google/complete-signup', () => {
   });
 
   it('rejects a malformed username', async () => {
-    const cb = await callback('badname-sub', 'badname@example.com', 'web');
+    const cb = await callback('badname-sub', 'badname@example.com');
     const res = await request(app)
       .post('/api/auth/google/complete-signup')
       .send({ signupToken: signupTokenFromWeb(cb.headers.location), username: 'No Spaces!' });
@@ -267,31 +248,15 @@ describe('POST /api/auth/google/complete-signup', () => {
 describe('GET /api/auth/google/callback — returning user', () => {
   it('signs a returning web user straight in', async () => {
     await createGoogleAccount('return-web-sub', 'returnweb@example.com', 'return-web');
-    const res = await callback('return-web-sub', 'returnweb@example.com', 'web');
+    const res = await callback('return-web-sub', 'returnweb@example.com');
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe('/');
     expect(extractSessionCookie(res.headers['set-cookie'])).toBeTruthy();
   });
 
-  it('deep-links a handoff code to a returning native user, and exchange works', async () => {
-    await createGoogleAccount('return-native-sub', 'returnnative@example.com', 'return-native');
-    const cb = await callback('return-native-sub', 'returnnative@example.com', 'native');
-    expect(cb.headers.location).toMatch(/^https:\/\/spellcontrol\.com\/oauth\/callback\?code=/);
-    const handoff = new URL(cb.headers.location).searchParams.get('code')!;
-
-    const res = await request(app).post('/api/auth/google/exchange').send({ code: handoff });
-    expect(res.status).toBe(200);
-    expect(res.body.user.username).toBe('return-native');
-    expect(extractSessionCookie(res.headers['set-cookie'])).toBeTruthy();
-
-    // Single-use — a replay fails.
-    const replay = await request(app).post('/api/auth/google/exchange').send({ code: handoff });
-    expect(replay.status).toBe(401);
-  });
-
   it('does not create a duplicate account on repeat sign-in', async () => {
     await createGoogleAccount('once-sub', 'once@example.com', 'once-only');
-    await callback('once-sub', 'once@example.com', 'web');
+    await callback('once-sub', 'once@example.com');
     const { rows } = await pool.query(
       `SELECT count(*)::int AS n FROM auth_identities WHERE provider_subject = 'once-sub'`
     );
@@ -311,7 +276,7 @@ describe('POST /api/auth/google/link-with-password', () => {
 
   /** Drive a Google callback for a fresh identity and return its signup token. */
   async function freshSignupToken(sub: string) {
-    const cb = await callback(sub, `${sub}@example.com`, 'web');
+    const cb = await callback(sub, `${sub}@example.com`);
     return signupTokenFromWeb(cb.headers.location);
   }
 
@@ -331,7 +296,7 @@ describe('POST /api/auth/google/link-with-password', () => {
     expect(rows.length).toBe(1);
     // After linking, a follow-up Google callback for the same sub signs the
     // user straight in to the *existing* account (no second account created).
-    const cb2 = await callback('link-alice-sub', 'link-alice-sub@example.com', 'web');
+    const cb2 = await callback('link-alice-sub', 'link-alice-sub@example.com');
     expect(cb2.headers.location).toBe('/');
   });
 
@@ -377,7 +342,7 @@ describe('POST /api/auth/google/link-with-password', () => {
     // A second Google account that reports the SAME address links to a
     // different SpellControl account.
     await registerPassword('link-taken', 'correct horse battery');
-    const cb = await callback('link-taken-sub', 'link-owner-sub@example.com', 'web');
+    const cb = await callback('link-taken-sub', 'link-owner-sub@example.com');
     const token = signupTokenFromWeb(cb.headers.location);
     const res = await request(app)
       .post('/api/auth/google/link-with-password')
@@ -404,7 +369,7 @@ describe('POST /api/auth/google/link-with-password', () => {
       `UPDATE users SET email = NULL, email_verified = false WHERE username = 'link-old'`
     );
 
-    const cb = await callback('link-old-sub', 'link-old-sub@example.com', 'web');
+    const cb = await callback('link-old-sub', 'link-old-sub@example.com');
     expect(cb.headers.location).toBe('/');
 
     const { rows } = await pool.query(
@@ -455,13 +420,6 @@ describe('POST /api/auth/google/link-with-password', () => {
   });
 });
 
-describe('POST /api/auth/google/exchange', () => {
-  it('rejects an unknown handoff code', async () => {
-    const res = await request(app).post('/api/auth/google/exchange').send({ code: 'never-minted' });
-    expect(res.status).toBe(401);
-  });
-});
-
 describe('GET /api/auth/me/identities', () => {
   it('reports password=true and google=null for a fresh password account', async () => {
     const { cookie } = await registerWithSession('ident-alice');
@@ -488,7 +446,7 @@ describe('GET /api/auth/me/identities', () => {
       emailVerified: true,
       name: null,
     });
-    await linkCallback(userId, 'web', 'c');
+    await linkCallback(userId, 'c');
     const res = await request(app).get('/api/auth/me/identities').set('Cookie', cookie);
     expect(res.body.google?.linkedAt).toBeTypeOf('number');
   });
@@ -507,32 +465,15 @@ describe('GET /api/auth/google/link', () => {
     expect(res.headers.location).toContain('accounts.google.com');
   });
 
-  it('sends a web user with no session to /auth', async () => {
+  it('sends a user with no session to /auth', async () => {
     const res = await request(app).get('/api/auth/google/link');
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe('/auth');
   });
-
-  it('401s for native without an intent token', async () => {
-    const res = await request(app).get('/api/auth/google/link').query({ platform: 'native' });
-    expect(res.status).toBe(401);
-  });
-
-  it('accepts a valid intent token for the native flow', async () => {
-    const { cookie } = await registerWithSession('linkstart-native');
-    const intentRes = await request(app).post('/api/auth/google/link-intent').set('Cookie', cookie);
-    expect(intentRes.status).toBe(200);
-    const intent = intentRes.body.intent;
-    const res = await request(app)
-      .get('/api/auth/google/link')
-      .query({ platform: 'native', intent });
-    expect(res.status).toBe(302);
-    expect(res.headers.location).toContain('accounts.google.com');
-  });
 });
 
 describe('GET /api/auth/google/callback — link mode', () => {
-  it('attaches a Google identity to the authed user (web)', async () => {
+  it('attaches a Google identity to the authed user', async () => {
     const { userId } = await registerWithSession('linkcb-alice');
     mockExchange.mockResolvedValue({
       sub: 'linkcb-alice-sub',
@@ -572,14 +513,14 @@ describe('GET /api/auth/google/callback — link mode', () => {
       emailVerified: true,
       name: null,
     });
-    await linkCallback(userId, 'web', 'c1');
+    await linkCallback(userId, 'c1');
     mockExchange.mockResolvedValue({
       sub: 'linkcb-cara-2',
       email: 'cara2@example.com',
       emailVerified: true,
       name: null,
     });
-    const res = await linkCallback(userId, 'web', 'c2');
+    const res = await linkCallback(userId, 'c2');
     expect(res.headers.location).toBe('/settings?linkError=has_google');
   });
 
@@ -591,21 +532,9 @@ describe('GET /api/auth/google/callback — link mode', () => {
       emailVerified: true,
       name: null,
     });
-    await linkCallback(userId, 'web', 'c1');
-    const res = await linkCallback(userId, 'web', 'c2');
+    await linkCallback(userId, 'c1');
+    const res = await linkCallback(userId, 'c2');
     expect(res.headers.location).toBe('/settings?linked=google');
-  });
-
-  it('deep-links success back to the native app', async () => {
-    const { userId } = await registerWithSession('linkcb-erin');
-    mockExchange.mockResolvedValue({
-      sub: 'linkcb-erin-sub',
-      email: 'erin@example.com',
-      emailVerified: true,
-      name: null,
-    });
-    const res = await linkCallback(userId, 'native');
-    expect(res.headers.location).toBe('https://spellcontrol.com/oauth/callback?linked=google');
   });
 });
 
@@ -618,7 +547,7 @@ describe('DELETE /api/auth/me/identities/google', () => {
       emailVerified: true,
       name: null,
     });
-    await linkCallback(userId, 'web', 'c');
+    await linkCallback(userId, 'c');
 
     const res = await request(app).delete('/api/auth/me/identities/google').set('Cookie', cookie);
     expect(res.status).toBe(200);
@@ -668,7 +597,7 @@ describe('Google callback — same-email auto-link', () => {
     );
     expect(before.rows[0].n).toBe(0);
 
-    const res = await callback('google-alice-sub', 'alice@example.com', 'web');
+    const res = await callback('google-alice-sub', 'alice@example.com');
     expect(res.status).toBe(302);
     // Signed straight in — no choose-username detour.
     expect(res.headers.location).toBe('/');
@@ -691,13 +620,6 @@ describe('Google callback — same-email auto-link', () => {
     expect(userRow.rows[0].email_verified).toBe(true);
   });
 
-  it('deep-links a native handoff code on auto-link', async () => {
-    await registerAndSetEmail('autolink-native', 'native@example.com');
-    const res = await callback('google-native-sub', 'native@example.com', 'native');
-    expect(res.status).toBe(302);
-    expect(res.headers.location).toMatch(/^https:\/\/spellcontrol\.com\/oauth\/callback\?code=/);
-  });
-
   it('does NOT auto-link when Google says email is unverified', async () => {
     await registerAndSetEmail('autolink-unverified', 'unverified@example.com');
     mockExchange.mockResolvedValue({
@@ -706,7 +628,7 @@ describe('Google callback — same-email auto-link', () => {
       emailVerified: false,
       name: null,
     });
-    const res = await callbackRequest({ code: 'auth-code' }, { platform: 'web' });
+    const res = await callbackRequest({ code: 'auth-code' });
     // Falls through to choose-username — no silent link.
     expect(res.headers.location).toMatch(/^\/auth\/choose-username#/);
     const identities = await pool.query(
@@ -728,20 +650,20 @@ describe('Google callback — same-email auto-link', () => {
       emailVerified: true,
       name: null,
     });
-    const res = await callbackRequest({ code: 'auth-code' }, { platform: 'web' });
+    const res = await callbackRequest({ code: 'auth-code' });
     // Not silently linked into the existing user; sent to choose-username instead.
     expect(res.headers.location).toMatch(/^\/auth\/choose-username#/);
   });
 
   it('does NOT auto-link when no account has that email', async () => {
     // Email mismatch — no user with this email exists. Falls through to choose-username.
-    const res = await callback('lonely-sub', 'nobody@example.com', 'web');
+    const res = await callback('lonely-sub', 'nobody@example.com');
     expect(res.headers.location).toMatch(/^\/auth\/choose-username#/);
   });
 
   it('GET /me exposes autoLinkedAt for the user; POST /me/acknowledge-auto-link clears it', async () => {
     await registerAndSetEmail('autolink-ack', 'ack@example.com');
-    const cbRes = await callback('ack-sub', 'ack@example.com', 'web');
+    const cbRes = await callback('ack-sub', 'ack@example.com');
     const cookie = extractSessionCookie(cbRes.headers['set-cookie'])!;
 
     const me1 = await request(app).get('/api/auth/me').set('Cookie', cookie);
@@ -757,7 +679,7 @@ describe('Google callback — same-email auto-link', () => {
 
   it('unlinking the auto-linked Google identity also clears the banner', async () => {
     await registerAndSetEmail('autolink-unlink', 'unlinkme@example.com');
-    const cbRes = await callback('unlinkme-sub', 'unlinkme@example.com', 'web');
+    const cbRes = await callback('unlinkme-sub', 'unlinkme@example.com');
     const cookie = extractSessionCookie(cbRes.headers['set-cookie'])!;
 
     const unlink = await request(app)

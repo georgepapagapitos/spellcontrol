@@ -12,7 +12,7 @@ import { CommandPalette } from './CommandPalette';
 import { RulesReferenceSheet } from './RulesReferenceSheet';
 import { ActivityLiveRegion } from './ActivityLiveRegion';
 import { ScrollContainerContext } from '../lib/scroll-container';
-import { isNativePlatform, isTouchDevice } from '../lib/platform';
+import { isTouchDevice } from '../lib/platform';
 import { PullToRefresh } from './PullToRefresh';
 import { refreshNow } from '../lib/sync';
 import { useDocumentTitle } from '../lib/use-document-title';
@@ -200,10 +200,11 @@ function LayoutShell() {
           </div>
         </ScrollContainerContext.Provider>
       </main>
-      {/* Same tab bar on mobile + native. Native additionally floats a
-          Scan-only FAB on top — the one action the tab bar has no room for. */}
+      {/* A scan-capable device additionally floats a Scan-only FAB on top of
+          the tab bar — the one action the tab bar has no room for. ScanFab
+          renders nothing where scanning isn't available. */}
       <MobileTabBar />
-      {isNativePlatform() && <ScanFab />}
+      <ScanFab />
       <ToastViewport />
       <ConflictPanel />
       <RulesReferenceSheet />

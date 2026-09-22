@@ -1,88 +1,31 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { isTouchDevice } from './platform';
 
-const { isNative, hide, browserOpen } = vi.hoisted(() => ({
-  isNative: vi.fn(() => true),
-  hide: vi.fn(() => Promise.resolve()),
-  browserOpen: vi.fn(() => Promise.resolve()),
-}));
-
-vi.mock('@capacitor/core', () => ({
-  Capacitor: { isNativePlatform: isNative, getPlatform: () => 'android' },
-}));
-vi.mock('@capacitor/splash-screen', () => ({ SplashScreen: { hide } }));
-vi.mock('@capacitor/status-bar', () => ({
-  StatusBar: { setStyle: vi.fn(), setOverlaysWebView: vi.fn() },
-  Style: { Dark: 'DARK', Light: 'LIGHT' },
-}));
-vi.mock('@capacitor/browser', () => ({ Browser: { open: browserOpen } }));
-
-import { hideSplashWhenReady, openExternal } from './platform';
-
-let frames: FrameRequestCallback[] = [];
-
-/** Run every callback queued for the current frame (callbacks may queue more). */
-function flushFrame(): void {
-  const queued = frames;
-  frames = [];
-  queued.forEach((cb) => cb(0));
+function setMaxTouchPoints(n: number): void {
+  Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, value: n });
 }
 
-describe('hideSplashWhenReady', () => {
-  beforeEach(() => {
-    hide.mockClear();
-    isNative.mockReturnValue(true);
-    frames = [];
-    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => frames.push(cb));
-  });
-
-  it('waits for a second frame so the first paint is on screen before hiding', () => {
-    hideSplashWhenReady();
-
-    // One frame in, React has committed but the browser has not painted it.
-    // Hiding here is the bug this replaced: splash gone, screen still blank.
-    flushFrame();
-    expect(hide).not.toHaveBeenCalled();
-
-    flushFrame();
-    expect(hide).toHaveBeenCalledWith({ fadeOutDuration: 200 });
-  });
-
-  it('is a no-op on web, where there is no splash to dismiss', () => {
-    isNative.mockReturnValue(false);
-
-    hideSplashWhenReady();
-    flushFrame();
-    flushFrame();
-
-    expect(hide).not.toHaveBeenCalled();
-  });
+afterEach(() => {
+  setMaxTouchPoints(0);
 });
 
-describe('openExternal', () => {
-  const openSpy = vi.fn();
-
-  beforeEach(() => {
-    browserOpen.mockClear();
-    openSpy.mockClear();
-    vi.stubGlobal('open', openSpy);
+describe('isTouchDevice', () => {
+  it('is false on a pointer-only device', () => {
+    setMaxTouchPoints(0);
+    expect(isTouchDevice()).toBe(false);
   });
 
-  it('opens via the Capacitor Browser plugin on native, not window.open', () => {
-    isNative.mockReturnValue(true);
-
-    openExternal('https://scryfall.com');
-
-    expect(browserOpen).toHaveBeenCalledWith({ url: 'https://scryfall.com' });
-    expect(openSpy).not.toHaveBeenCalled();
+  it('is true once the device reports any touch points', () => {
+    setMaxTouchPoints(1);
+    expect(isTouchDevice()).toBe(true);
   });
 
-  it('falls back to window.open on web, not the Browser plugin', () => {
-    isNative.mockReturnValue(false);
-
-    openExternal('https://scryfall.com');
-
-    expect(openSpy).toHaveBeenCalledWith('https://scryfall.com', '_blank', 'noopener,noreferrer');
-    expect(browserOpen).not.toHaveBeenCalled();
+  // A touchscreen laptop reports touch points while the user is on a mouse.
+  // Touch-only affordances gated on this simply never fire there, which is
+  // why the check is deliberately not combined with a hover media query.
+  it('is true on a multi-touch screen', () => {
+    setMaxTouchPoints(10);
+    expect(isTouchDevice()).toBe(true);
   });
 });

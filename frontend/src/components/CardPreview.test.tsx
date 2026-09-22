@@ -36,13 +36,6 @@ vi.mock('./CardImageFrame', () => ({
   ),
 }));
 
-const shareMock = vi.fn();
-vi.mock('@capacitor/share', () => ({ Share: { share: (o: unknown) => shareMock(o) } }));
-const writeFileMock = vi.fn(async (o: { path: string }) => ({ uri: `file:///cache/${o.path}` }));
-vi.mock('@capacitor/filesystem', () => ({
-  Directory: { Cache: 'CACHE' },
-  Filesystem: { writeFile: (o: { path: string }) => writeFileMock(o) },
-}));
 // Rulings come from the backend; the playtest inspector opens them on mount,
 // so the fetch is stubbed rather than left to hit the network.
 const rulingsMock = vi.fn(async () => [
@@ -55,11 +48,6 @@ const rulingsMock = vi.fn(async () => [
 vi.mock('../lib/card-rulings', () => ({ fetchCardRulings: () => rulingsMock() }));
 
 const fetchMock = vi.fn();
-const nativeMock = vi.fn(() => false);
-vi.mock('../lib/platform', () => ({
-  isNativePlatform: () => nativeMock(),
-  openExternal: vi.fn(),
-}));
 
 import { CardPreview } from './CardPreview';
 
@@ -206,9 +194,6 @@ describe('CardPreview share', () => {
   });
 
   beforeEach(() => {
-    shareMock.mockClear();
-    writeFileMock.mockClear();
-    nativeMock.mockReturnValue(false);
     fetchMock.mockClear();
     fetchMock.mockResolvedValue({ blob: async () => new Blob(['art'], { type: 'image/jpeg' }) });
     vi.stubGlobal('fetch', fetchMock);
@@ -238,22 +223,6 @@ describe('CardPreview share', () => {
     await waitFor(() => expect(shared).toHaveLength(2));
     // No back-large printing → falls back to the back's normal art.
     expect(artFetches()[1]).toBe('https://img/back-normal.jpg');
-  });
-
-  it('stages the file in the app cache dir and shares the URI on native', async () => {
-    nativeMock.mockReturnValue(true);
-    renderPreview(flipCard);
-    fireEvent.click(screen.getByRole('button', { name: 'Share card image' }));
-
-    await waitFor(() => expect(shareMock).toHaveBeenCalled());
-    expect(writeFileMock.mock.calls[0][0]).toMatchObject({
-      path: 'delver-of-secrets.jpg',
-      directory: 'CACHE',
-    });
-    expect(shareMock.mock.calls[0][0]).toMatchObject({
-      title: 'Delver of Secrets',
-      files: ['file:///cache/delver-of-secrets.jpg'],
-    });
   });
 
   it('renders no Share button for a card with no art', () => {

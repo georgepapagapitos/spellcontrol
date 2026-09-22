@@ -29,7 +29,6 @@ export function isFirstRunExempt(pathname: string): boolean {
     pathname === '/forgot-password' ||
     pathname === '/reset-password' ||
     pathname === '/verify-email' ||
-    pathname === '/oauth/callback' ||
     pathname.startsWith('/s/') ||
     pathname.startsWith('/u/') ||
     pathname.startsWith('/d/') ||

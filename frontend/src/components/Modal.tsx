@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { App as CapacitorApp } from '@capacitor/app';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { focusInto, trapTab, useOverlayLayer } from '../lib/overlay-layer';
-import { isNativePlatform } from '../lib/platform';
 
 interface Props {
   onClose: () => void;
@@ -138,22 +136,6 @@ export function Modal({
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [beginClose, isTopmost]);
-
-  // Android hardware back button (T11): without a listener, Capacitor's
-  // default is to navigate the WebView's own history — which would leave
-  // this modal visually stuck open while the page underneath changes. Close
-  // the modal instead, same topmost-modal + dismissable gating as Escape
-  // above. Native-only; no-op on web (no hardware back event exists there).
-  useEffect(() => {
-    if (!isNativePlatform()) return;
-    const handle = CapacitorApp.addListener('backButton', () => {
-      if (!isTopmost()) return;
-      if (dismissableRef.current) beginClose();
-    });
-    return () => {
-      void handle.then((h) => h.remove());
-    };
   }, [beginClose, isTopmost]);
 
   // Portal to <body>. A modal rendered in place inherits any ancestor's
