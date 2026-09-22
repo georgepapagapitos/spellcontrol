@@ -156,7 +156,6 @@ import { resolveTokenArt } from '../lib/token-art';
 import { commanderTaxAmount, MOVE_DESTINATIONS, ZONE_VIEWER_LABEL } from '../lib/zones';
 import { LifeStrip } from './LifeStrip';
 import { ManaPool } from './ManaPool';
-import { useSealMoment } from '@/components/shared/SealMoment';
 
 interface Props {
   state: PlaytestState;
@@ -224,7 +223,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const setResistanceLevel = usePlaytestStore((s) => s.setResistanceLevel);
   const lastResistanceEvent = usePlaytestStore((s) => s.lastResistanceEvent);
   const lastSessionRecord = usePlaytestStore((s) => s.lastSessionRecord);
-  const lastSessionAggregates = usePlaytestStore((s) => s.lastSessionAggregates);
   const gameLog = usePlaytestStore((s) => s.gameLog);
   const playtestDeckId = usePlaytestStore((s) => s.deckId);
   // A shared or public deck is NOT in the viewer's decks store — it is
@@ -1007,7 +1005,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           actorSeat: onlineTable.mySeat,
         });
       } else {
-        dispatch({ type: 'ADJUST_LIFE', player: 'self', delta });
+        dispatch({ type: 'ADJUST_LIFE', delta });
       }
     },
     [dispatch, onlineTable]
@@ -1349,31 +1347,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     setPrevEventId(lastEventId);
     if (lastEventId !== undefined) setResistanceIntro(false);
   }
-
-  // Table-defeated moment (E138): the goldfish payoff — every opponent flips
-  // to defeated. Fires only on the false→true transition observed while
-  // mounted (a `prev === null` first render, e.g. resuming an
-  // already-defeated snapshot, never fires) — mirrors DeckDisplay's
-  // deck-complete guard. RESET clears `tableDefeatedTurn` back to null, so a
-  // fresh game can legitimately earn the celebration again.
-  const { fire: fireSealMoment, moment: sealMoment } = useSealMoment();
-  const tableDefeatedTurn = state.tableDefeatedTurn;
-  const [showTableDefeatedBanner, setShowTableDefeatedBanner] = useState(false);
-  const prevTableDefeatedRef = useRef<number | null>(tableDefeatedTurn);
-  useEffect(() => {
-    if (prevTableDefeatedRef.current === null && tableDefeatedTurn !== null) {
-      setShowTableDefeatedBanner(true);
-      haptics.eliminate();
-      const colors = [
-        ...new Set([
-          ...(deck?.commander?.color_identity ?? []),
-          ...(deck?.partnerCommander?.color_identity ?? []),
-        ]),
-      ];
-      fireSealMoment(colors);
-    }
-    prevTableDefeatedRef.current = tableDefeatedTurn;
-  }, [tableDefeatedTurn, deck, fireSealMoment]);
 
   // The app-wide `?` overlay, where one is mounted, reads the live bindings so
   // a rebound key is what it prints.
@@ -1840,24 +1813,18 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     <div className="playtest-trackers playtest-trackers--corner">
       <LifeStrip
         life={state.life}
-        opponents={state.opponents}
-        commanderDamageThreshold={state.commanderDamageThreshold}
         isNarrow={isNarrow}
         monarch={state.monarch}
         initiative={state.initiative}
         citysBlessing={state.citysBlessing}
         playerCounters={state.playerCounters ?? {}}
-        onAdjustLife={(player, delta) => {
+        onAdjustLife={(delta) => {
           haptics.tap();
-          dispatch({ type: 'ADJUST_LIFE', player, delta });
+          dispatch({ type: 'ADJUST_LIFE', delta });
         }}
-        onAdjustCommanderDamage={(opponent, delta) => {
+        onAdjustCounter={(kind, delta) => {
           haptics.tap();
-          dispatch({ type: 'ADJUST_COMMANDER_DAMAGE', opponent, delta });
-        }}
-        onAdjustCounter={(player, kind, delta) => {
-          haptics.tap();
-          dispatch({ type: 'SET_PLAYER_COUNTER', player, counter: kind, delta });
+          dispatch({ type: 'SET_PLAYER_COUNTER', counter: kind, delta });
         }}
         onOpenChange={setLifePanelOpen}
         onlineTable={onlineTable}
@@ -1869,27 +1836,11 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
 
   const banners = (
     <>
-      {showTableDefeatedBanner && lastSessionRecord ? (
-        // The richer E141 recap supersedes the plain "Table defeated" line —
-        // it already names the kill turn plus mulligans/interaction survived.
+      {lastSessionRecord && lastSessionRecord.id !== dismissedSessionRecordId ? (
+        // A Reset-triggered session end gets the E141 recap.
         <PlaytestSessionSummary
           key={lastSessionRecord.id}
           record={lastSessionRecord}
-          aggregates={lastSessionAggregates}
-          onDismiss={() => setShowTableDefeatedBanner(false)}
-        />
-      ) : showTableDefeatedBanner ? (
-        <ResistanceBanner
-          key={`table-defeated-${tableDefeatedTurn}`}
-          message={`Table defeated: turn ${tableDefeatedTurn}`}
-          onDismiss={() => setShowTableDefeatedBanner(false)}
-        />
-      ) : lastSessionRecord && lastSessionRecord.id !== dismissedSessionRecordId ? (
-        // A Reset-triggered session end (no table defeat) still gets a recap.
-        <PlaytestSessionSummary
-          key={lastSessionRecord.id}
-          record={lastSessionRecord}
-          aggregates={lastSessionAggregates}
           onDismiss={() => setDismissedSessionRecordId(lastSessionRecord.id)}
         />
       ) : lastResistanceEvent && lastResistanceEvent.id !== dismissedResistanceId ? (
@@ -2318,7 +2269,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       // not claim (badges, zone piles, chrome, gaps) loses the native menu too.
       onContextMenu={suppressNativeContextMenu}
     >
-      {sealMoment}
       {/* All three portal to <body> (see their own doc comments) so placement
           here only decides conditional gating, not layout. */}
       {onlineTable && <TakebackConsentPrompt onlineTable={onlineTable} />}

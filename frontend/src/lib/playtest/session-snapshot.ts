@@ -88,7 +88,6 @@ function isValidSnapshot(v: unknown): v is PlaytestSnapshot {
   // present at all, they must be well-formed (a half-corrupt shape is
   // rejected outright rather than fed to the reducer).
   if (state.life !== undefined && typeof state.life !== 'number') return false;
-  if (state.opponents !== undefined && !Array.isArray(state.opponents)) return false;
   // Designation fields are optional the same way — an older snapshot predates
   // them and gets backfilled to `false` in `usePlaytestStore.hydrate`.
   if (state.monarch !== undefined && typeof state.monarch !== 'boolean') return false;
@@ -190,22 +189,9 @@ export function migrateSnapshotState(
 ): Omit<PlaytestState, 'past'> {
   const battlefield = migrateBattlefieldCoords(state.battlefield);
   const withCoords = battlefield === state.battlefield ? state : { ...state, battlefield };
-  if (typeof withCoords.life === 'number' && Array.isArray(withCoords.opponents)) {
-    return withCoords;
-  }
+  if (typeof withCoords.life === 'number') return withCoords;
   const cfg = playtestLifeConfig(deck?.format);
-  return {
-    ...withCoords,
-    life: cfg.life,
-    opponents: Array.from({ length: cfg.opponentCount }, () => ({
-      life: cfg.opponentLife,
-      commanderDamage: 0,
-    })),
-    startingLife: cfg.life,
-    startingOpponentLife: cfg.opponentLife,
-    commanderDamageThreshold: cfg.commanderDamageThreshold,
-    tableDefeatedTurn: null,
-  };
+  return { ...withCoords, life: cfg.life, startingLife: cfg.life };
 }
 
 /**

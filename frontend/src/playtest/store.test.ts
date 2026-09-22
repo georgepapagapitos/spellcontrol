@@ -384,11 +384,7 @@ describe('hydrate (E137 resume)', () => {
         turn: 4,
         commanderTax: {},
         life: 40,
-        opponents: [{ life: 40, commanderDamage: 0 }],
         startingLife: 40,
-        startingOpponentLife: 40,
-        commanderDamageThreshold: 21,
-        tableDefeatedTurn: null,
         monarch: false,
         initiative: false,
         citysBlessing: false,
@@ -579,13 +575,7 @@ describe('game log (E140 + E142)', () => {
     // Format-aware defaults, not the generic 20-life fallback — the deck's
     // format was consulted during migration.
     expect(store().state?.life).toBe(30);
-    expect(store().state?.opponents).toEqual([
-      { life: 30, commanderDamage: 0 },
-      { life: 30, commanderDamage: 0 },
-      { life: 30, commanderDamage: 0 },
-    ]);
-    expect(store().state?.commanderDamageThreshold).toBe(16);
-    expect(store().state?.tableDefeatedTurn).toBeNull();
+    expect(store().state?.startingLife).toBe(30);
     // commanderTax (E139) also backfills on this same legacy path.
     expect(store().state?.commanderTax).toEqual({});
     // ...and so do designations, which postdate even commanderTax.
@@ -692,13 +682,6 @@ describe('E141 — session record capture', () => {
     useDecksStore.setState({ decks: [makeDeck()], hydrated: true });
   });
 
-  /** Advances to turn 2 (so the session counts as meaningfully-played) then
-   *  wipes the lone opponent's life to trigger a table defeat that turn. */
-  function defeatOpponent() {
-    store().dispatch({ type: 'NEXT_TURN' });
-    store().dispatch({ type: 'ADJUST_LIFE', player: 0, delta: -100 });
-  }
-
   it('records a session on RESET once the game was meaningfully played', () => {
     store().init('deck-1', { library: threatLibrary(3), seed: 1 });
     store().dispatch({ type: 'NEXT_TURN' });
@@ -714,22 +697,6 @@ describe('E141 — session record capture', () => {
 
     expect(store().lastSessionRecord).toBeNull();
     expect(loadSessionHistory('deck-1')).toEqual([]);
-  });
-
-  it('auto-captures a session the moment the table is defeated, with the kill turn', () => {
-    store().init('deck-1', { library: threatLibrary(3), seed: 1 });
-    defeatOpponent();
-
-    expect(store().lastSessionRecord?.killTurn).toBe(2);
-    expect(loadSessionHistory('deck-1')).toHaveLength(1);
-  });
-
-  it('does not double-record when RESET follows an already-captured table defeat', () => {
-    store().init('deck-1', { library: threatLibrary(3), seed: 1 });
-    defeatOpponent();
-    store().dispatch({ type: 'RESET' });
-
-    expect(loadSessionHistory('deck-1')).toHaveLength(1);
   });
 
   it('captures the abandoned session when init() replaces a live, meaningfully-played game', () => {
@@ -757,22 +724,6 @@ describe('E141 — session record capture', () => {
     store().teardown();
 
     expect(loadSessionHistory('deck-1')).toHaveLength(1);
-  });
-
-  it('does not double-record on teardown after an already-captured table defeat', () => {
-    store().init('deck-1', { library: threatLibrary(3), seed: 1 });
-    defeatOpponent();
-    store().teardown();
-
-    expect(loadSessionHistory('deck-1')).toHaveLength(1);
-  });
-
-  it('exposes lastSessionAggregates alongside the record, reflecting the updated history', () => {
-    store().init('deck-1', { library: threatLibrary(3), seed: 1 });
-    defeatOpponent();
-
-    expect(store().lastSessionAggregates?.sessionsPlayed).toBe(1);
-    expect(store().lastSessionAggregates?.bestKillTurn).toBe(2);
   });
 });
 

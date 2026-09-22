@@ -1,8 +1,8 @@
 /**
  * Playtest session records (E141) — a compact per-game summary derived from
- * the E140 game log + final reducer state, so cross-session analytics (kill
- * rate, land-drop consistency, opponent-interaction survival) can accumulate
- * without replaying full games.
+ * the E140 game log + final reducer state, so cross-session analytics
+ * (land-drop consistency, interaction survived) can accumulate without
+ * replaying full games.
  *
  * Pure derivation only — no localStorage here (see `session-history.ts`) and
  * no store/React coupling. Every function takes plain data in, returns plain
@@ -11,7 +11,6 @@
 
 import type { GameLogEntry } from './game-log';
 import type { PlaytestState } from './types';
-import { isOpponentDefeated } from './life-config';
 import { isPlaytestLand } from '@/playtest/lib/zones';
 import type { Deck } from '@/store/decks';
 
@@ -22,10 +21,6 @@ export interface PlaytestSessionRecord {
   /** Final turn number reached this session. */
   turns: number;
   mulligans: number;
-  /** `state.tableDefeatedTurn` — null if the table was never swept. */
-  killTurn: number | null;
-  opponentCount: number;
-  opponentsDefeated: number;
   resistance: boolean;
   /** Opponent interaction survived, tallied from 'resistance' log entries —
    *  see `countResistanceEvents` for the exact text-matching this relies on. */
@@ -45,10 +40,6 @@ export interface PlaytestSessionRecord {
 
 export interface SessionAggregates {
   sessionsPlayed: number;
-  medianKillTurn: number | null;
-  bestKillTurn: number | null;
-  /** Fraction (0..1) of sessions that ended in a table defeat. */
-  killRate: number;
   avgMulligans: number;
   /** Fraction (0..1) of checked turns with no land played, pooled across every
    *  session with a checkable window. Null when no session has one. */
@@ -56,12 +47,10 @@ export interface SessionAggregates {
   /** Fraction (0..1) of Resistance-on sessions that survived >=1 board wipe.
    *  Null when no session had Resistance on. */
   wipeSurvivalRate: number | null;
-  /** Kill turn -> count, sorted ascending, zero-count turns omitted. */
-  killTurnHistogram: Array<{ turn: number; count: number }>;
 }
 
-/** Sessions below this count don't get rate/median stats shown — see
- *  `formatVsAverageLine` and the History tab's own gate. */
+/** Sessions below this count don't get rate stats shown — see the History
+ *  tab's own gate. */
 export const MIN_SESSIONS_FOR_STATS = 3;
 
 /** Land-drop counting only looks at the first N turns of a session. */
@@ -191,9 +180,6 @@ export interface DeriveSessionRecordInput {
 export function deriveSessionRecord(input: DeriveSessionRecordInput): PlaytestSessionRecord {
   const { state } = input;
   const segment = sessionLogSegment(input.log);
-  const opponentsDefeated = state.opponents.filter((o) =>
-    isOpponentDefeated(o, state.commanderDamageThreshold)
-  ).length;
   const resistanceEvents = countResistanceEvents(segment);
   const landDrops = countLandDrops(segment, state.turn, input.isLandName);
   const battlefieldNonToken = state.battlefield.filter((b) => !b.card.isToken).length;
@@ -213,9 +199,6 @@ export function deriveSessionRecord(input: DeriveSessionRecordInput): PlaytestSe
     endedAt: Date.now(),
     turns: state.turn,
     mulligans: input.mulliganCount,
-    killTurn: state.tableDefeatedTurn,
-    opponentCount: state.opponents.length,
-    opponentsDefeated,
     resistance: input.resistance,
     resistanceCounters: resistanceEvents.counters,
     resistanceRemovals: resistanceEvents.removals,
@@ -228,35 +211,15 @@ export function deriveSessionRecord(input: DeriveSessionRecordInput): PlaytestSe
   };
 }
 
-function median(nums: readonly number[]): number | null {
-  if (nums.length === 0) return null;
-  const sorted = [...nums].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
-}
-
 export function computeSessionAggregates(
   records: readonly PlaytestSessionRecord[]
 ): SessionAggregates {
   const n = records.length;
-  const killTurns = records
-    .map((r) => r.killTurn)
-    .filter((t): t is number => t !== null)
-    .sort((a, b) => a - b);
   const landRecords = records.filter((r) => r.landDropTurnsChecked > 0);
   const resistanceRecords = records.filter((r) => r.resistance);
 
-  const histogramCounts = new Map<number, number>();
-  for (const turn of killTurns) histogramCounts.set(turn, (histogramCounts.get(turn) ?? 0) + 1);
-  const killTurnHistogram = [...histogramCounts.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([turn, count]) => ({ turn, count }));
-
   return {
     sessionsPlayed: n,
-    medianKillTurn: median(killTurns),
-    bestKillTurn: killTurns.length > 0 ? killTurns[0] : null,
-    killRate: n > 0 ? killTurns.length / n : 0,
     avgMulligans: n > 0 ? records.reduce((sum, r) => sum + r.mulligans, 0) / n : 0,
     landDropMissRate:
       landRecords.length > 0
@@ -268,15 +231,12 @@ export function computeSessionAggregates(
         ? resistanceRecords.filter((r) => r.resistanceWipesSurvived > 0).length /
           resistanceRecords.length
         : null,
-    killTurnHistogram,
   };
 }
 
-/** "Turn 8 kill" / "Turn 5: game ended" for the end-of-session summary's headline. */
+/** "Turn 5: game ended" for the end-of-session summary's headline. */
 export function sessionHeadline(record: PlaytestSessionRecord): string {
-  return record.killTurn !== null
-    ? `Turn ${record.killTurn} kill`
-    : `Turn ${record.turns}: game ended`;
+  return `Turn ${record.turns}: game ended`;
 }
 
 /**
@@ -312,13 +272,4 @@ export function formatSessionSummaryLine(record: PlaytestSessionRecord): string 
   return parts.length > 0
     ? parts.join(' · ')
     : `${record.turns} turn${record.turns === 1 ? '' : 's'} played`;
-}
-
-/** "your median kill: turn 9" once there's enough history to say anything
- *  honest — null before `MIN_SESSIONS_FOR_STATS` sessions or with no kills yet. */
-export function formatVsAverageLine(aggregates: SessionAggregates): string | null {
-  if (aggregates.sessionsPlayed < MIN_SESSIONS_FOR_STATS || aggregates.medianKillTurn === null) {
-    return null;
-  }
-  return `your median kill: turn ${aggregates.medianKillTurn}`;
 }

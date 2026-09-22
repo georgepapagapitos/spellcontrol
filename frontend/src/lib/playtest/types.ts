@@ -84,18 +84,6 @@ export interface BattlefieldCard {
   pt?: { power: number; toughness: number };
 }
 
-/** One virtual opponent's damage bookkeeping. `commanderDamage` is damage
- *  dealt by *your* commander specifically — the alternate 21-damage kill
- *  condition, tracked separately from general life loss. */
-export interface OpponentLife {
-  life: number;
-  commanderDamage: number;
-  /** Player-scoped counters on this opponent — poison above all, the one
-   *  alternate kill condition the life/commander-damage pair can't express.
-   *  Optional so snapshots predating it load unchanged; absent === empty. */
-  counters?: Record<string, number>;
-}
-
 /** Table designations. Monarch/initiative are vocabulary-matched to
  *  game-core's `DesignationKind` (the multiplayer GameBoard); City's Blessing
  *  has no game-core equivalent (it's a permanent per-player status, not a
@@ -130,24 +118,13 @@ export interface PlaytestState {
    *  moves command → battlefield, never decremented (undo restores it via the
    *  normal snapshot mechanism). */
   commanderTax: Record<string, number>;
-  /** Your life total. */
+  /** Your life total. Goldfishing tracks nobody else's: there are no virtual
+   *  opponents, no commander damage dealt outward and no table to sweep. A
+   *  real table's seats live on the online `GameState`, not here. */
   life: number;
-  /** N virtual opponents (E138) — no opponent board/rules engine, just
-   *  damage bookkeeping so a goldfish session can answer "what turn do I win." */
-  opponents: OpponentLife[];
-  /** Starting values, remembered so RESET can restore them (format-aware —
-   *  see `playtestLifeConfig`). Every format table entry currently has
-   *  starting life equal for you and opponents, but both are kept in case a
-   *  future caller diverges them. */
+  /** Starting value, remembered so RESET can restore it (format-aware — see
+   *  `playtestLifeConfig`). */
   startingLife: number;
-  startingOpponentLife: number;
-  /** Commander damage at/above this is lethal (21 normal, 16 for PDH). */
-  commanderDamageThreshold: number;
-  /** Turn number on which the last opponent flipped to defeated, or null if
-   *  the table hasn't been swept yet. Recorded (not derived) because
-   *  "defeated" itself is recomputed live — see `isOpponentDefeated` — but
-   *  the turn it *first* happened on isn't recoverable after the fact. */
-  tableDefeatedTurn: number | null;
   /** Table designations you currently hold (E-123-ish playtest badges). See
    *  `Designation` for the model. Monarch/initiative reset with RESET (a new
    *  game); City's Blessing does too — it's permanent only *for the game it
@@ -156,9 +133,8 @@ export interface PlaytestState {
   initiative: boolean;
   citysBlessing: boolean;
   /** Your own player-scoped counters — energy, experience, and anything else
-   *  a deck tracks on the player rather than on a permanent. Opponents carry
-   *  their own bag on `OpponentLife`. Optional for snapshot back-compat;
-   *  absent === empty. */
+   *  a deck tracks on the player rather than on a permanent. Optional for
+   *  snapshot back-compat; absent === empty. */
   playerCounters?: Record<string, number>;
   /** Floating mana, by color (E-goldfish-wave-3) — display/tracking only, the
    *  same bookkeeping-not-rules-engine model as everything else here: the
@@ -374,13 +350,11 @@ export type PlaytestAction =
   | { type: 'NEXT_TURN' }
   | { type: 'RESET' }
   | { type: 'UNDO' }
-  /** `player: 'self'` adjusts your life; a number adjusts `opponents[n]`'s life. */
-  | { type: 'ADJUST_LIFE'; player: 'self' | number; delta: number }
-  | { type: 'ADJUST_COMMANDER_DAMAGE'; opponent: number; delta: number }
+  | { type: 'ADJUST_LIFE'; delta: number }
   /** Adjust a player-scoped counter (poison/energy/experience/…). Mirrors
    *  `SET_COUNTER`'s shape for permanents; floors at zero, and hitting zero
    *  removes the key rather than storing a 0. */
-  | { type: 'SET_PLAYER_COUNTER'; player: 'self' | number; counter: string; delta: number }
+  | { type: 'SET_PLAYER_COUNTER'; counter: string; delta: number }
   /** Claim/clear a table designation. City's Blessing is one-way in the UI
    *  (only ever dispatched with `held: true`) but the reducer itself doesn't
    *  enforce that — see `Designation`. */
@@ -391,10 +365,7 @@ export interface PlaytestInit {
   command?: PlaytestCard[];
   seed?: number;
   openingHandSize?: number;
-  /** Format-aware life/opponent setup — see `playtestLifeConfig`. All optional
-   *  so existing callers (tests, ad-hoc inits) default to a 1v1 20-life game. */
+  /** Format-aware starting life — see `playtestLifeConfig`. Optional so
+   *  existing callers (tests, ad-hoc inits) default to a 20-life game. */
   life?: number;
-  opponentCount?: number;
-  opponentLife?: number;
-  commanderDamageThreshold?: number;
 }

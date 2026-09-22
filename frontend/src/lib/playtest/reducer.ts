@@ -1,10 +1,8 @@
 import { mulberry32, nextSeed, shuffle } from './rng';
-import { isOpponentDefeated } from './life-config';
 import { MANA_COLORS } from './types';
 import type {
   BattlefieldCard,
   ManaColor,
-  OpponentLife,
   PlaytestAction,
   PlaytestCard,
   PlaytestInit,
@@ -59,8 +57,6 @@ export function createPlaytestState(init: PlaytestInit): PlaytestState {
   const hand = shuffled.slice(0, handSize);
   const library = shuffled.slice(handSize);
   const life = init.life ?? 20;
-  const opponentLife = init.opponentLife ?? life;
-  const opponentCount = init.opponentCount ?? 1;
   return {
     zones: {
       ...emptyZones(),
@@ -73,15 +69,7 @@ export function createPlaytestState(init: PlaytestInit): PlaytestState {
     turn: 1,
     commanderTax: {},
     life,
-    opponents: Array.from({ length: opponentCount }, () => ({
-      life: opponentLife,
-      commanderDamage: 0,
-      counters: {},
-    })),
     startingLife: life,
-    startingOpponentLife: opponentLife,
-    commanderDamageThreshold: init.commanderDamageThreshold ?? 21,
-    tableDefeatedTurn: null,
     monarch: false,
     initiative: false,
     citysBlessing: false,
@@ -114,11 +102,7 @@ function snapshot(state: PlaytestState): Omit<PlaytestState, 'past'> {
     turn: state.turn,
     commanderTax: { ...state.commanderTax },
     life: state.life,
-    opponents: state.opponents.slice(),
     startingLife: state.startingLife,
-    startingOpponentLife: state.startingOpponentLife,
-    commanderDamageThreshold: state.commanderDamageThreshold,
-    tableDefeatedTurn: state.tableDefeatedTurn,
     monarch: state.monarch,
     initiative: state.initiative,
     citysBlessing: state.citysBlessing,
@@ -129,20 +113,6 @@ function snapshot(state: PlaytestState): Omit<PlaytestState, 'past'> {
     libraryReveal: state.libraryReveal,
     faceDownExile: state.faceDownExile ? state.faceDownExile.slice() : undefined,
   };
-}
-
-/** Sticky: once the table is swept, further defeats/heals don't move the
- *  recorded turn. Only fires the first time every opponent is defeated. */
-function deriveTableDefeatedTurn(
-  turn: number,
-  priorTableDefeatedTurn: number | null,
-  opponents: readonly OpponentLife[],
-  commanderDamageThreshold: number
-): number | null {
-  if (priorTableDefeatedTurn !== null) return priorTableDefeatedTurn;
-  if (opponents.length === 0) return null;
-  const allDefeated = opponents.every((o) => isOpponentDefeated(o, commanderDamageThreshold));
-  return allDefeated ? turn : null;
 }
 
 function withHistory(prev: PlaytestState, next: Omit<PlaytestState, 'past'>): PlaytestState {
@@ -275,15 +245,7 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         // A new game: tax paid in the last game doesn't carry over.
         commanderTax: {},
         life: state.startingLife,
-        opponents: state.opponents.map(() => ({
-          life: state.startingOpponentLife,
-          commanderDamage: 0,
-          counters: {},
-        })),
         startingLife: state.startingLife,
-        startingOpponentLife: state.startingOpponentLife,
-        commanderDamageThreshold: state.commanderDamageThreshold,
-        tableDefeatedTurn: null,
         // A new game: designations (including City's Blessing) don't carry
         // over — each is scoped to the game it was earned in.
         monarch: false,
@@ -716,34 +678,16 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       return withHistory(state, next);
     }
     case 'SET_PLAYER_COUNTER': {
-      const isSelf = action.player === 'self';
-      // Narrowed off `action.player` directly rather than via `isSelf` — a
-      // boolean alias doesn't carry the narrowing into the branches below.
-      const idx = action.player === 'self' ? -1 : action.player;
-      if (!isSelf && (!Number.isInteger(idx) || idx < 0 || idx >= state.opponents.length)) {
-        return state;
-      }
-      const current = isSelf
-        ? (state.playerCounters?.[action.counter] ?? 0)
-        : (state.opponents[idx].counters?.[action.counter] ?? 0);
+      const current = state.playerCounters?.[action.counter] ?? 0;
       // Player counters floor at zero — healing poison out means "none", not a
       // debt. Mirrors SET_COUNTER, where hitting zero drops the key entirely.
       const updated = Math.max(0, current + action.delta);
       if (updated === current) return state;
-      const rebag = (bag: Record<string, number> | undefined): Record<string, number> => {
-        const out = { ...bag };
-        if (updated <= 0) delete out[action.counter];
-        else out[action.counter] = updated;
-        return out;
-      };
       const next = snapshot(state);
-      if (isSelf) {
-        next.playerCounters = rebag(state.playerCounters);
-      } else {
-        next.opponents = next.opponents.map((o, i) =>
-          i === idx ? { ...o, counters: rebag(o.counters) } : o
-        );
-      }
+      const bag = { ...state.playerCounters };
+      if (updated <= 0) delete bag[action.counter];
+      else bag[action.counter] = updated;
+      next.playerCounters = bag;
       return withHistory(state, next);
     }
     case 'FLIP_FACE': {
@@ -830,41 +774,8 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
     }
     case 'ADJUST_LIFE': {
       if (action.delta === 0) return state;
-      if (action.player === 'self') {
-        const next = snapshot(state);
-        next.life = state.life + action.delta;
-        return withHistory(state, next);
-      }
-      const idx = action.player;
-      if (!Number.isInteger(idx) || idx < 0 || idx >= state.opponents.length) return state;
       const next = snapshot(state);
-      next.opponents = next.opponents.map((o, i) =>
-        i === idx ? { ...o, life: o.life + action.delta } : o
-      );
-      next.tableDefeatedTurn = deriveTableDefeatedTurn(
-        state.turn,
-        state.tableDefeatedTurn,
-        next.opponents,
-        state.commanderDamageThreshold
-      );
-      return withHistory(state, next);
-    }
-    case 'ADJUST_COMMANDER_DAMAGE': {
-      if (action.delta === 0) return state;
-      const idx = action.opponent;
-      if (!Number.isInteger(idx) || idx < 0 || idx >= state.opponents.length) return state;
-      const next = snapshot(state);
-      // Commander damage never goes negative — healing it out just means "no
-      // damage yet," not a debt.
-      next.opponents = next.opponents.map((o, i) =>
-        i === idx ? { ...o, commanderDamage: Math.max(0, o.commanderDamage + action.delta) } : o
-      );
-      next.tableDefeatedTurn = deriveTableDefeatedTurn(
-        state.turn,
-        state.tableDefeatedTurn,
-        next.opponents,
-        state.commanderDamageThreshold
-      );
+      next.life = state.life + action.delta;
       return withHistory(state, next);
     }
     case 'SET_DESIGNATION': {

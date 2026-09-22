@@ -764,7 +764,7 @@ describe('PlaytestBoard — rebindable shortcuts', () => {
     fireEvent.keyDown(window, { key: 's' });
     expect(dispatch).toHaveBeenCalledWith({ type: 'SHUFFLE_LIBRARY' });
     fireEvent.keyDown(window, { key: 'ArrowUp' });
-    expect(dispatch).toHaveBeenCalledWith({ type: 'ADJUST_LIFE', player: 'self', delta: 1 });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'ADJUST_LIFE', delta: 1 });
     fireEvent.keyDown(window, { key: 'i' });
     expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeTruthy();
     // With the sheet open the board's keys are off — the sheet owns the keyboard.

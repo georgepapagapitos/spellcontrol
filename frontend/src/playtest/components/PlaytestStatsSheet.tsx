@@ -4,7 +4,7 @@ import { Hourglass, Loader2 } from 'lucide-react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
-import { isOpponentDefeated, type PlaytestState } from '@/lib/playtest';
+import type { PlaytestState } from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Deck } from '@/store/decks';
 import {
@@ -12,7 +12,6 @@ import {
   computeBattlefieldStats,
   computeDeckStats,
   toHandSimCards,
-  medianActualKillTurn,
 } from '@/lib/playtest-stats';
 import {
   isKeepableHand,
@@ -277,45 +276,12 @@ function DeckStatsSection({
     return simulateOpeningHands(simCards, { iterations: 500, seed: 42 });
   }, [deck?.id, deck?.cards.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const defeatedCount = state.opponents.filter((o) =>
-    isOpponentDefeated(o, state.commanderDamageThreshold)
-  ).length;
-
   return (
     <div className="playtest-stats-rows">
-      {/* Life / commander damage (E138) — the goldfish payoff: what turn do I win. */}
       <div className="playtest-stats-row">
         <span className="playtest-stats-row__label">You</span>
         <span className="playtest-stats-row__value">{state.life} life</span>
       </div>
-      {state.opponents.map((o, i) => (
-        <div key={i} className="playtest-stats-row">
-          <span className="playtest-stats-row__label">
-            {state.opponents.length > 1 ? `Opponent ${i + 1}` : 'Opponent'}
-          </span>
-          <span className="playtest-stats-row__value">
-            {o.life} life
-            {o.commanderDamage > 0 ? ` · ${o.commanderDamage} cmdr dmg` : ''}
-            {isOpponentDefeated(o, state.commanderDamageThreshold) ? ' · defeated' : ''}
-          </span>
-        </div>
-      ))}
-      {state.opponents.length > 1 && (
-        <div className="playtest-stats-row">
-          <span className="playtest-stats-row__label">Defeated</span>
-          <span className="playtest-stats-row__value">
-            {defeatedCount} / {state.opponents.length}
-          </span>
-        </div>
-      )}
-      {state.tableDefeatedTurn !== null && (
-        <div className="playtest-stats-row">
-          <span className="playtest-stats-row__label">Table defeated</span>
-          <span className="playtest-stats-verdict playtest-stats-verdict--keep">
-            Turn {state.tableDefeatedTurn}
-          </span>
-        </div>
-      )}
       <hr className="playtest-stats-divider" />
 
       {/* Session info */}
@@ -484,7 +450,7 @@ function runSimBatch(deck: Deck, key: string): SimBatch {
   };
 }
 
-function SimulateSection({ state, deck }: { state: PlaytestState; deck: Deck | undefined }) {
+function SimulateSection({ deck }: { deck: Deck | undefined }) {
   const deckKey = deck ? `${deck.id}:${deck.cards.length}` : null;
   const [batch, setBatch] = useState<SimBatch | null>(null);
   const [running, setRunning] = useState(false);
@@ -524,7 +490,6 @@ function SimulateSection({ state, deck }: { state: PlaytestState; deck: Deck | u
     return <p className="playtest-stats-empty">Deck must have at least 7 cards to simulate.</p>;
   }
 
-  const actualMedianTurn = medianActualKillTurn(deck.id);
   const maxLandBucket = batch ? Math.max(...batch.landHistogram, 1) : 1;
 
   return (
@@ -659,18 +624,6 @@ function SimulateSection({ state, deck }: { state: PlaytestState; deck: Deck | u
                     text={assemblyClockTip()}
                   />
                 </p>
-                {(state.tableDefeatedTurn !== null || actualMedianTurn !== null) && (
-                  <div className="playtest-stats-row" style={{ alignItems: 'flex-start' }}>
-                    <span className="playtest-stats-row__label">Predicted vs actual</span>
-                    <span style={{ flex: 1, textAlign: 'left' }}>
-                      Predicted ~T{batch.clock.typicalTurn}
-                      {state.tableDefeatedTurn !== null
-                        ? ` · this game T${state.tableDefeatedTurn}`
-                        : ''}
-                      {actualMedianTurn !== null ? ` · median actual T${actualMedianTurn}` : ''}
-                    </span>
-                  </div>
-                )}
               </>
             ) : (
               <p className="playtest-stats-sim-note">
@@ -708,8 +661,6 @@ function HistorySection({ deck }: { deck: Deck | undefined }) {
   }
 
   const hasEnoughForRates = aggregates.sessionsPlayed >= MIN_SESSIONS_FOR_STATS;
-  const totalKillTurnSamples = aggregates.killTurnHistogram.reduce((sum, b) => sum + b.count, 0);
-  const maxHistogramCount = Math.max(1, ...aggregates.killTurnHistogram.map((b) => b.count));
   const sessionsToGo = MIN_SESSIONS_FOR_STATS - aggregates.sessionsPlayed;
 
   return (
@@ -719,41 +670,12 @@ function HistorySection({ deck }: { deck: Deck | undefined }) {
         <span className="playtest-stats-row__value">{aggregates.sessionsPlayed}</span>
       </div>
 
-      {aggregates.bestKillTurn !== null && (
-        <div className="playtest-stats-row">
-          <span className="playtest-stats-row__label">Best kill</span>
-          <span className="playtest-stats-verdict playtest-stats-verdict--keep">
-            Turn {aggregates.bestKillTurn}
-          </span>
-        </div>
-      )}
-
       {!hasEnoughForRates ? (
         <p className="playtest-stats-sim-note">
           Play {sessionsToGo} more game{sessionsToGo === 1 ? '' : 's'} to see rate stats.
         </p>
       ) : (
         <>
-          {aggregates.medianKillTurn !== null && (
-            <div className="playtest-stats-row">
-              <span className="playtest-stats-row__label">Median kill</span>
-              <span className="playtest-stats-row__value">Turn {aggregates.medianKillTurn}</span>
-            </div>
-          )}
-
-          <div className="playtest-stats-row">
-            <span className="playtest-stats-row__label">Kill rate</span>
-            <span className="playtest-stats-row__value">
-              {Math.round(aggregates.killRate * 100)}%
-            </span>
-            <MeterBar
-              value={aggregates.killRate * 100}
-              max={100}
-              color="var(--mtg-g)"
-              className="playtest-stats-row__bar"
-            />
-          </div>
-
           <div className="playtest-stats-row">
             <span className="playtest-stats-row__label">Avg mulligans</span>
             <span className="playtest-stats-row__value">{aggregates.avgMulligans.toFixed(1)}</span>
@@ -787,34 +709,6 @@ function HistorySection({ deck }: { deck: Deck | undefined }) {
                 className="playtest-stats-row__bar"
               />
             </div>
-          )}
-
-          {totalKillTurnSamples >= 5 && (
-            <>
-              <p className="playtest-stats-section-title" style={{ marginTop: '0.5rem' }}>
-                Kill-turn distribution
-              </p>
-              <div className="playtest-stats-histogram" aria-label="Kill turn distribution">
-                {aggregates.killTurnHistogram.map((bucket) => (
-                  <div key={bucket.turn} className="playtest-stats-histogram__row">
-                    <span className="playtest-stats-histogram__bucket" aria-hidden>
-                      T{bucket.turn}
-                    </span>
-                    <MeterBar
-                      value={bucket.count}
-                      max={maxHistogramCount}
-                      color="var(--accent)"
-                      className="playtest-stats-histogram__bar"
-                    />
-                    <span className="playtest-stats-histogram__count">{bucket.count}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="playtest-stats-sim-note">
-                Based on {totalKillTurnSamples} recorded kill{totalKillTurnSamples === 1 ? '' : 's'}
-                .
-              </p>
-            </>
           )}
         </>
       )}
@@ -880,7 +774,7 @@ export function PlaytestStatsSheet({ state, deck, cardLookup, mulliganCount, onC
               id="playtest-stats-panel-simulate"
               aria-labelledby="sc-tab-simulate"
             >
-              <SimulateSection state={state} deck={deck} />
+              <SimulateSection deck={deck} />
             </div>
           )}
           {activeTab === 'history' && (

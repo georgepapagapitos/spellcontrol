@@ -329,10 +329,9 @@ export function classifyAction(
       );
 
     case 'ADJUST_LIFE':
-    case 'ADJUST_COMMANDER_DAMAGE':
       return classification(
         'consent',
-        'Life and commander damage are shared numbers the whole table tracks and reacts to.'
+        'Life is a shared number the whole table tracks and reacts to.'
       );
 
     case 'SET_PLAYER_COUNTER':

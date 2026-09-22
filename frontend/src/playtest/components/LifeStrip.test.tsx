@@ -1,7 +1,6 @@
 // @vitest-environment happy-dom
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { OpponentLife } from '@/lib/playtest';
 import { makePlayer, type GamePlayer } from '@/lib/game-state';
 import type { OnlineTable } from '../hooks/use-online-table';
 import { LifeStrip } from './LifeStrip';
@@ -9,15 +8,12 @@ import { LifeStrip } from './LifeStrip';
 function soloProps() {
   return {
     life: 40,
-    opponents: [] as OpponentLife[],
-    commanderDamageThreshold: 21,
     isNarrow: false,
     monarch: false,
     initiative: false,
     citysBlessing: false,
     playerCounters: {},
     onAdjustLife: vi.fn(),
-    onAdjustCommanderDamage: vi.fn(),
     onAdjustCounter: vi.fn(),
     onlineTable: null,
   };
@@ -75,39 +71,18 @@ describe('LifeStrip — solo mode', () => {
     expect(screen.getByRole('button', { name: /You: 40 life/ })).toBeTruthy();
   });
 
-  /** Goldfishing is a deck against nobody. Your own popover listing three
-   *  virtual seats and their commander damage was the whole reason it ran
-   *  650px tall while EDHPlay's is a counter list. */
-  it('keeps opponents out of MY panel entirely — goldfishing has none to list', () => {
-    render(
-      <LifeStrip
-        {...soloProps()}
-        opponents={[
-          { life: 40, commanderDamage: 5 },
-          { life: 40, commanderDamage: 0 },
-        ]}
-      />
-    );
+  /** Goldfishing is a deck tested against nobody: no opponent chips on the
+   *  strip, no opponents or commander damage in the panel, and no table to
+   *  sweep. The one player is you. */
+  it('renders no opponent anywhere — chip strip or panel', () => {
+    render(<LifeStrip {...soloProps()} playerCounters={{ poison: 2 }} />);
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(screen.queryByText(/Opponent/)).toBeNull();
+
     fireEvent.click(screen.getByRole('button', { name: /You: 40 life/ }));
     expect(screen.queryByText('Opponents')).toBeNull();
     expect(screen.queryByText('Commander damage')).toBeNull();
     expect(screen.getByText('Poison')).toBeTruthy();
-  });
-
-  /** It moved rather than went: this is what still feeds the "swept the table
-   *  on turn N" kill clock (`deriveTableDefeatedTurn`), and it belongs on the
-   *  opponent taking the damage, not in your counter list. */
-  it("steps commander damage from the opponent's own panel", () => {
-    const props = soloProps();
-    render(<LifeStrip {...props} opponents={[{ life: 40, commanderDamage: 5 }]} />);
-    fireEvent.click(screen.getByRole('button', { name: /Opponent: 40 life/ }));
-    expect(screen.getByRole('button', { name: 'Life +1' })).toBeTruthy();
-    expect(screen.getByText('Commander damage')).toBeTruthy();
-    expect(screen.getByText('16 to lethal')).toBeTruthy();
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Commander damage from Your commander +1' })
-    );
-    expect(props.onAdjustCommanderDamage).toHaveBeenCalledWith(0, 1);
   });
 });
 
@@ -128,38 +103,18 @@ describe('LifeStrip — the popover is one fixed list (EDHPlay shape)', () => {
     render(<LifeStrip {...props} playerCounters={{ oil: 2 }} />);
     fireEvent.click(screen.getByRole('button', { name: /You: 40 life/ }));
     fireEvent.click(screen.getByRole('button', { name: 'oil +1' }));
-    expect(props.onAdjustCounter).toHaveBeenCalledWith('self', 'oil', 1);
+    expect(props.onAdjustCounter).toHaveBeenCalledWith('oil', 1);
   });
 
   it('table variant: the resting panel is the total, its steppers and a bare chevron — nothing else', () => {
-    render(
-      <LifeStrip
-        {...soloProps()}
-        opponents={[
-          { life: 40, commanderDamage: 0 },
-          { life: 38, commanderDamage: 0 },
-        ]}
-        variant="table"
-      />
-    );
+    render(<LifeStrip {...soloProps()} variant="table" />);
     expect(screen.queryByText('Details')).toBeNull();
-    // The opponent chips used to sit here. They are behind the chevron now,
-    // so nothing but your own controls is on the felt at rest.
-    expect(screen.queryByRole('button', { name: /Opponent 1: 40 life/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Opponent/ })).toBeNull();
     expect(screen.getAllByRole('button')).toHaveLength(4); // −, total, +, chevron
   });
 
   it('table variant: goldfishing, the chevron opens the counter list and nothing else', () => {
-    render(
-      <LifeStrip
-        {...soloProps()}
-        opponents={[
-          { life: 40, commanderDamage: 0 },
-          { life: 38, commanderDamage: 0 },
-        ]}
-        variant="table"
-      />
-    );
+    render(<LifeStrip {...soloProps()} variant="table" />);
     fireEvent.click(screen.getByRole('button', { name: 'Counters' }));
     expect(screen.getByRole('dialog', { name: 'You' })).toBeTruthy();
     // Life stays out: the corner panel already has the numeral and steppers.
@@ -231,13 +186,12 @@ describe('LifeStrip — the popover is one fixed list (EDHPlay shape)', () => {
 });
 
 describe('LifeStrip — online mode', () => {
-  it('renders real seats (You + opponent by name), never the solo virtual opponents', () => {
+  it('renders real seats (You + opponent by name), never the local playtest life', () => {
     const table = onlineTable();
     render(
       <LifeStrip
         {...soloProps()}
         life={999} // local playtest life — must NOT appear anywhere
-        opponents={[{ life: 1, commanderDamage: 0 }]} // solo virtual opponent — must NOT render
         onlineTable={table}
       />
     );
@@ -365,6 +319,23 @@ describe('LifeStrip — the table popover escapes its chip', () => {
     const panel = document.querySelector('.playtest-life-panel-floating');
     expect(panel).toBeTruthy();
     expect(panel?.closest('.playtest-life-table')).toBeNull();
+  });
+
+  /**
+   * The SHEET variant needs the portal every bit as much as the floating one,
+   * and it went without: it is `position: fixed` too, and once every tier
+   * moved onto the corner panel (#2111) its `backdrop-filter` parent became
+   * the containing block. The phone's bottom sheet laid out INSIDE that
+   * corner panel — measured at 98px wide and 295px above the viewport rather
+   * than full-width along the bottom.
+   */
+  it('portals the narrow bottom sheet to the body as well', () => {
+    render(<LifeStrip {...soloProps()} isNarrow variant="table" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Counters' }));
+    const sheet = document.querySelector('.playtest-life-panel-sheet');
+    expect(sheet).toBeTruthy();
+    expect(sheet?.closest('.playtest-life-table')).toBeNull();
+    expect(document.querySelector('.card-picker-root')?.parentElement).toBe(document.body);
   });
 
   it('opens from the chevron at an online table too, not only solo', () => {

@@ -23,9 +23,6 @@ function isValidRecord(v: unknown): v is PlaytestSessionRecord {
     typeof r.endedAt === 'number' &&
     typeof r.turns === 'number' &&
     typeof r.mulligans === 'number' &&
-    (r.killTurn === null || typeof r.killTurn === 'number') &&
-    typeof r.opponentCount === 'number' &&
-    typeof r.opponentsDefeated === 'number' &&
     typeof r.resistance === 'boolean' &&
     typeof r.resistanceCounters === 'number' &&
     typeof r.resistanceRemovals === 'number' &&

@@ -203,11 +203,8 @@ describe('toPublicBoard', () => {
     expect(serialized).not.toContain('backImageUrl');
   });
 
-  it('omits solo-only virtual-opponent bookkeeping and the undo stack', () => {
+  it('omits the undo stack — local bookkeeping, never shared', () => {
     const s = baseState({
-      opponents: [{ life: 40, commanderDamage: 21, counters: { poison: 3 } }],
-      tableDefeatedTurn: 5,
-      startingOpponentLife: 40,
       past: [
         {
           ...baseState(),
@@ -216,14 +213,7 @@ describe('toPublicBoard', () => {
       ],
     });
     const board = toPublicBoard(s, 0);
-    const serialized = JSON.stringify(board);
-    expect(serialized).not.toContain('opponents');
-    expect(serialized).not.toContain('tableDefeatedTurn');
-    expect(serialized).not.toContain('startingOpponentLife');
-    expect(serialized).not.toContain('"past"');
-    expect(board).not.toHaveProperty('opponents');
-    expect(board).not.toHaveProperty('tableDefeatedTurn');
-    expect(board).not.toHaveProperty('startingOpponentLife');
+    expect(JSON.stringify(board)).not.toContain('"past"');
     expect(board).not.toHaveProperty('past');
   });
 

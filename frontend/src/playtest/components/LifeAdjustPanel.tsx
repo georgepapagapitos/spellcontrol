@@ -458,8 +458,16 @@ export function LifeAdjustPanel({
     </>
   );
 
+  // Portaled for the same reason the floating variant below is, and it was
+  // missed here: the sheet is `position: fixed` too, and its parent
+  // `.playtest-life-table` carries `backdrop-filter: blur(6px)`, which makes
+  // that little corner panel a containing block for fixed descendants. While
+  // the phone still rendered the chip strip this branch never had such a
+  // parent; once every tier moved onto the corner panel the bottom sheet
+  // started laying out inside it — measured at 98px wide, 295px ABOVE the
+  // viewport, instead of full-width along the bottom.
   if (variant === 'sheet') {
-    return (
+    return createPortal(
       <div className="card-picker-root">
         {/* The backdrop fully covers the root (both `inset: 0`), so it — not
             root — is what a "click outside the sheet" actually lands on. */}
@@ -482,7 +490,8 @@ export function LifeAdjustPanel({
             </button>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   }
 

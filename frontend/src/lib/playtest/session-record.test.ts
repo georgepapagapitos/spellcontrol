@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  MIN_SESSIONS_FOR_STATS,
   buildLandNameSet,
   computeSessionAggregates,
   countLandDrops,
   countResistanceEvents,
   deriveSessionRecord,
   formatSessionSummaryLine,
-  formatVsAverageLine,
   isMeaningfulSession,
   sessionHeadline,
   sessionLogSegment,
@@ -26,11 +24,7 @@ function baseState(
     turn: 1,
     commanderTax: {},
     life: 20,
-    opponents: [{ life: 20, commanderDamage: 0 }],
     startingLife: 20,
-    startingOpponentLife: 20,
-    commanderDamageThreshold: 21,
-    tableDefeatedTurn: null,
     monarch: false,
     initiative: false,
     citysBlessing: false,
@@ -196,11 +190,9 @@ describe('countResistanceEvents', () => {
 // ── deriveSessionRecord ──────────────────────────────────────────────────────
 
 describe('deriveSessionRecord', () => {
-  it('derives a kill session', () => {
+  it('derives a session from the final state', () => {
     const state = baseState({
       turn: 8,
-      tableDefeatedTurn: 8,
-      opponents: [{ life: 0, commanderDamage: 0 }],
       battlefield: [{ card: { id: 'c1', name: 'X', isToken: false } } as never],
     });
     const record = deriveSessionRecord({
@@ -214,26 +206,26 @@ describe('deriveSessionRecord', () => {
     });
     expect(record.deckId).toBe('deck-1');
     expect(record.turns).toBe(8);
-    expect(record.killTurn).toBe(8);
-    expect(record.opponentsDefeated).toBe(1);
     expect(record.mulligans).toBe(1);
     expect(record.cardsDrawn).toBeNull();
     expect(record.id).toContain('deck-1');
   });
 
-  it('derives a no-kill session (killTurn stays null)', () => {
-    const state = baseState({ turn: 5, tableDefeatedTurn: null });
+  /** Goldfishing tracks nobody else, so a record has no kill clock to carry
+   *  and the History tab has none to aggregate. */
+  it('records nothing about opponents', () => {
     const record = deriveSessionRecord({
       deckId: 'deck-2',
       log: [],
-      state,
+      state: baseState({ turn: 5 }),
       mulliganCount: 0,
       resistance: false,
       deckSize: null,
       isLandName: () => false,
     });
-    expect(record.killTurn).toBeNull();
-    expect(record.opponentsDefeated).toBe(0);
+    for (const gone of ['killTurn', 'opponentCount', 'opponentsDefeated']) {
+      expect(record).not.toHaveProperty(gone);
+    }
   });
 
   it('only counts resistance/land-drop evidence from the segment since the last reset', () => {
@@ -314,9 +306,6 @@ function makeRecord(overrides: Partial<PlaytestSessionRecord> = {}): PlaytestSes
     endedAt: 0,
     turns: 5,
     mulligans: 0,
-    killTurn: null,
-    opponentCount: 1,
-    opponentsDefeated: 0,
     resistance: false,
     resistanceCounters: 0,
     resistanceRemovals: 0,
@@ -334,48 +323,9 @@ describe('computeSessionAggregates', () => {
   it('returns zeroed/null aggregates for an empty history', () => {
     const agg = computeSessionAggregates([]);
     expect(agg.sessionsPlayed).toBe(0);
-    expect(agg.medianKillTurn).toBeNull();
-    expect(agg.bestKillTurn).toBeNull();
-    expect(agg.killRate).toBe(0);
+    expect(agg.avgMulligans).toBe(0);
     expect(agg.landDropMissRate).toBeNull();
     expect(agg.wipeSurvivalRate).toBeNull();
-    expect(agg.killTurnHistogram).toEqual([]);
-  });
-
-  it('computes median kill turn (odd and even counts)', () => {
-    const odd = computeSessionAggregates([
-      makeRecord({ killTurn: 6 }),
-      makeRecord({ killTurn: 8 }),
-      makeRecord({ killTurn: 10 }),
-    ]);
-    expect(odd.medianKillTurn).toBe(8);
-
-    const even = computeSessionAggregates([
-      makeRecord({ killTurn: 6 }),
-      makeRecord({ killTurn: 8 }),
-      makeRecord({ killTurn: 10 }),
-      makeRecord({ killTurn: 12 }),
-    ]);
-    expect(even.medianKillTurn).toBe(9);
-  });
-
-  it('computes best (minimum) kill turn', () => {
-    const agg = computeSessionAggregates([
-      makeRecord({ killTurn: 10 }),
-      makeRecord({ killTurn: 6 }),
-      makeRecord({ killTurn: null }),
-    ]);
-    expect(agg.bestKillTurn).toBe(6);
-  });
-
-  it('computes kill rate as wins / total sessions', () => {
-    const agg = computeSessionAggregates([
-      makeRecord({ killTurn: 6 }),
-      makeRecord({ killTurn: null }),
-      makeRecord({ killTurn: null }),
-      makeRecord({ killTurn: null }),
-    ]);
-    expect(agg.killRate).toBe(0.25);
   });
 
   it('pools land-drop miss rate only across sessions with a checkable window', () => {
@@ -400,30 +350,13 @@ describe('computeSessionAggregates', () => {
     const agg = computeSessionAggregates([makeRecord({ resistance: false })]);
     expect(agg.wipeSurvivalRate).toBeNull();
   });
-
-  it('builds a sorted, zero-omitted kill-turn histogram', () => {
-    const agg = computeSessionAggregates([
-      makeRecord({ killTurn: 8 }),
-      makeRecord({ killTurn: 6 }),
-      makeRecord({ killTurn: 8 }),
-      makeRecord({ killTurn: null }),
-    ]);
-    expect(agg.killTurnHistogram).toEqual([
-      { turn: 6, count: 1 },
-      { turn: 8, count: 2 },
-    ]);
-  });
 });
 
 // ── formatting helpers ───────────────────────────────────────────────────────
 
 describe('sessionHeadline', () => {
-  it('names the kill turn when there is one', () => {
-    expect(sessionHeadline(makeRecord({ killTurn: 8, turns: 8 }))).toBe('Turn 8 kill');
-  });
-
-  it('falls back to a neutral headline with no kill', () => {
-    expect(sessionHeadline(makeRecord({ killTurn: null, turns: 5 }))).toBe('Turn 5: game ended');
+  it('names the turn the game ended on', () => {
+    expect(sessionHeadline(makeRecord({ turns: 5 }))).toBe('Turn 5: game ended');
   });
 });
 
@@ -455,30 +388,5 @@ describe('formatSessionSummaryLine', () => {
   it('singularizes a single missed land drop and single mulligan', () => {
     const record = makeRecord({ mulligans: 1, landDropTurnsChecked: 1, landDropsMissed: 1 });
     expect(formatSessionSummaryLine(record)).toBe('1 mulligan · 1 missed land drop');
-  });
-});
-
-describe('formatVsAverageLine', () => {
-  it('is null below MIN_SESSIONS_FOR_STATS', () => {
-    const agg = computeSessionAggregates(
-      Array.from({ length: MIN_SESSIONS_FOR_STATS - 1 }, () => makeRecord({ killTurn: 8 }))
-    );
-    expect(formatVsAverageLine(agg)).toBeNull();
-  });
-
-  it('is null when there is no kill data yet, even with enough sessions', () => {
-    const agg = computeSessionAggregates(
-      Array.from({ length: MIN_SESSIONS_FOR_STATS }, () => makeRecord({ killTurn: null }))
-    );
-    expect(formatVsAverageLine(agg)).toBeNull();
-  });
-
-  it('names the median kill turn once there are enough sessions', () => {
-    const agg = computeSessionAggregates([
-      makeRecord({ killTurn: 8 }),
-      makeRecord({ killTurn: 9 }),
-      makeRecord({ killTurn: 10 }),
-    ]);
-    expect(formatVsAverageLine(agg)).toBe('your median kill: turn 9');
   });
 });

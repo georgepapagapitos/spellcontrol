@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { isOpponentDefeated, type OpponentLife } from '@/lib/playtest';
 import { paletteForIndex } from '@/lib/seat-palette';
 import { usePressRepeat } from '@/lib/use-press-repeat';
 import { cmdDamageKey, type GamePlayer } from '@/lib/game-state';
@@ -9,19 +8,16 @@ import type { OnlineTable } from '../hooks/use-online-table';
 
 interface Props {
   life: number;
-  opponents: OpponentLife[];
-  commanderDamageThreshold: number;
   isNarrow: boolean;
   /** Table designations you currently hold — badged on the "You" chip only;
    *  solo play has no per-opponent holder to badge. */
   monarch: boolean;
   initiative: boolean;
   citysBlessing: boolean;
-  /** Your own player-scoped counters; each opponent's live on `opponents[i]`. */
+  /** Your own player-scoped counters. */
   playerCounters: Record<string, number>;
-  onAdjustLife(player: 'self' | number, delta: number): void;
-  onAdjustCommanderDamage(opponent: number, delta: number): void;
-  onAdjustCounter(player: 'self' | number, kind: string, delta: number): void;
+  onAdjustLife(delta: number): void;
+  onAdjustCounter(kind: string, delta: number): void;
   /** Lets the parent fold the adjust popover into its "any sheet open" gate
    *  (e.g. to suspend keyboard shortcuts while it's up). */
   onOpenChange?(open: boolean): void;
@@ -34,9 +30,8 @@ interface Props {
   /**
    * `strip` (default) is the one-row chip strip every narrow tier uses.
    * `table` is the ≥1024px corner panel: YOUR life as a display numeral with
-   * inline steppers, a chevron that opens the same `LifeAdjustPanel` (minus
-   * its life row — the steppers are already on the panel), and the other
-   * players demoted to a secondary row of small chips underneath. Same data,
+   * inline steppers and a chevron that opens the same `LifeAdjustPanel`
+   * (minus its life row — the steppers are already on the panel). Same data,
    * same panel, same handlers — only the arrangement differs.
    */
   variant?: 'strip' | 'table';
@@ -77,30 +72,27 @@ function cmdDamageRows(
 }
 
 /**
- * Compact life/commander-damage strip: you + N players as tappable chips
- * (E138). One row, doesn't displace the battlefield — the adjust UI lives
- * entirely in a popover/sheet opened per chip.
+ * Compact life strip (E138). One row, doesn't displace the battlefield — the
+ * adjust UI lives entirely in a popover/sheet opened from a chip.
  *
- * Two independent worlds: **solo** (default) renders `opponents`, the
- * virtual playtest opponents dispatched through local reducer actions.
- * **Online** (`onlineTable` set) renders the table's real seats instead —
- * the solo `opponents`/`life`/designation props are ignored entirely, since
- * the table's `GameState` is now the one authoritative source (see
+ * Two independent worlds: **solo** (default) is you alone. Goldfishing is a
+ * deck tested against nobody, so there are no opponent chips, no commander
+ * damage dealt outward and no table to sweep — just your life and your own
+ * counters. **Online** (`onlineTable` set) renders the table's real seats
+ * instead, and the solo `life`/designation props are ignored entirely: the
+ * table's `GameState` is the one authoritative source (see
  * `use-online-table.ts`'s `me`/`players` doc comments for why the local
  * `life` prop would otherwise show a second, fake total next to the rail's
  * real one).
  */
 export function LifeStrip({
   life,
-  opponents,
-  commanderDamageThreshold,
   isNarrow,
   monarch,
   initiative,
   citysBlessing,
   playerCounters,
   onAdjustLife,
-  onAdjustCommanderDamage,
   onAdjustCounter,
   onOpenChange,
   onlineTable,
@@ -147,8 +139,6 @@ export function LifeStrip({
     );
   }
 
-  const opponentLabel = (i: number) => (opponents.length > 1 ? `Opponent ${i + 1}` : 'Opponent');
-
   /** "poison 3, energy 1" — reused for both the aria-label and the visible
    *  badges so the two can never describe different state. */
   const counterEntries = (bag: Record<string, number> | undefined) =>
@@ -162,39 +152,23 @@ export function LifeStrip({
 
   const selfCounters = counterEntries(playerCounters);
 
+  // Goldfishing is a deck against nobody: the only player is you, so the
+  // panel is always your own.
   const adjustPanel = selected !== null && (
     <LifeAdjustPanel
       variant={isNarrow ? 'sheet' : 'floating'}
       anchorRect={anchorRect}
-      title={selected === 'self' ? 'You' : opponentLabel(selected)}
-      life={selected === 'self' ? life : opponents[selected].life}
+      title="You"
+      life={life}
       lifeEditable
-      hideLife={selected === 'self' && variant === 'table'}
-      hideTitle={selected === 'self' && variant === 'table'}
-      // Your own panel is your counters, full stop: goldfishing has no
-      // opponents to list. The virtual ones stay reachable from their own
-      // chips, where each carries its own life, counters and the commander
-      // damage your general has dealt it.
-      cmdDamage={
-        selected !== 'self'
-          ? [
-              {
-                key: 'self-commander',
-                name: 'Your commander',
-                value: opponents[selected].commanderDamage,
-                onAdjust: (delta: number) => onAdjustCommanderDamage(selected, delta),
-              },
-            ]
-          : undefined
-      }
-      commanderDamageThreshold={commanderDamageThreshold}
-      defeated={
-        selected !== 'self' && isOpponentDefeated(opponents[selected], commanderDamageThreshold)
-      }
-      counters={(selected === 'self' ? playerCounters : opponents[selected].counters) ?? {}}
+      hideLife={variant === 'table'}
+      hideTitle={variant === 'table'}
+      commanderDamageThreshold={21}
+      defeated={false}
+      counters={playerCounters}
       onClose={closePanel}
-      onAdjustCounter={(kind, delta) => onAdjustCounter(selected, kind, delta)}
-      onAdjustLife={(delta) => onAdjustLife(selected, delta)}
+      onAdjustCounter={onAdjustCounter}
+      onAdjustLife={onAdjustLife}
     />
   );
 
@@ -205,7 +179,7 @@ export function LifeStrip({
         isOpen={selected === 'self'}
         detailsLabel="Counters"
         onToggleSelf={(e) => (selected === 'self' ? closePanel() : openPanel('self', e))}
-        onAdjustLife={(delta) => onAdjustLife('self', delta)}
+        onAdjustLife={onAdjustLife}
         onOpenSelf={(e) => openPanel('self', e)}
         designations={heldDesignationLabels}
         counters={selfCounters}
@@ -244,52 +218,6 @@ export function LifeStrip({
           </span>
         )}
       </button>
-      {opponents.map((o, i) => {
-        const defeated = isOpponentDefeated(o, commanderDamageThreshold);
-        const oppCounters = counterEntries(o.counters);
-        return (
-          <button
-            key={i}
-            type="button"
-            className={`playtest-life-chip playtest-life-chip--opponent${
-              defeated ? ' is-defeated' : ''
-            }`}
-            onClick={(e) => openPanel(i, e)}
-            aria-label={`${opponentLabel(i)}: ${o.life} life${
-              o.commanderDamage > 0 ? `, ${o.commanderDamage} commander damage` : ''
-            }${
-              oppCounters.length > 0
-                ? `, ${oppCounters.map(([k, v]) => `${k} ${v}`).join(', ')}`
-                : ''
-            }${defeated ? ', defeated' : ''}`}
-          >
-            <span className="playtest-life-chip__label">
-              {opponents.length > 1 ? `Opp ${i + 1}` : 'Opponent'}
-            </span>
-            <span className="playtest-life-chip__life">{o.life}</span>
-            {o.commanderDamage > 0 && (
-              <span className="playtest-life-chip__cmdr" aria-hidden>
-                {o.commanderDamage}
-              </span>
-            )}
-            {oppCounters.length > 0 && (
-              <span className="playtest-life-chip__counters" aria-hidden>
-                {oppCounters.map(([k, v]) => (
-                  <span key={k} className="playtest-life-chip__counter" title={k}>
-                    {k.slice(0, 3)}:{v}
-                  </span>
-                ))}
-              </span>
-            )}
-            {defeated && (
-              <span className="playtest-life-chip__skull" aria-hidden>
-                ☠
-              </span>
-            )}
-          </button>
-        );
-      })}
-
       {adjustPanel}
     </div>
   );
@@ -315,7 +243,7 @@ function OnlineLifeStrip({
   onlineTable: OnlineTable;
   isNarrow: boolean;
   playerCounters: Record<string, number>;
-  onAdjustCounter(player: 'self' | number, kind: string, delta: number): void;
+  onAdjustCounter(kind: string, delta: number): void;
   onViewOpponentBoard?(seat: number): void;
   selected: Selected;
   anchorRect: DOMRect | null;
@@ -379,7 +307,7 @@ function OnlineLifeStrip({
         countersLabel="Counters (this device)"
         onClose={closePanel}
         onAdjustLife={(delta) => dispatch({ type: 'life', seat: mySeat, delta, actorSeat: mySeat })}
-        onAdjustCounter={(kind, delta) => onAdjustCounter('self', kind, delta)}
+        onAdjustCounter={onAdjustCounter}
         online={online}
       />
     );
@@ -506,8 +434,9 @@ function useLifeDelta(life: number): number {
  *
  * It used to be a headline numeral between two 44px boxes, then a row of
  * opponent chips, then the mana row — a block of chrome sitting over the felt
- * all game to show one number that changes a dozen times. Everything else
- * moved behind the chevron (opponents, commander damage, counters) or out to
+ * all game to show one number that changes a dozen times. The chips are gone
+ * with solo opponent tracking itself; the rest moved behind the chevron
+ * (counters, and at a real table the seats and commander damage) or out to
  * its own corner (mana). What stays on the felt is what you look at between
  * every spell; what you touch a few times a game is one click away.
  *
