@@ -536,11 +536,6 @@ body[data-felt='slate'] {
   background: color-mix(in srgb, var(--pt-ring-hover) 14%, transparent);
 }
 
-.playtest-battlefield.is-over {
-  outline: 2px dashed var(--accent);
-  outline-offset: -4px;
-}
-
 /* Bottom-right corner cluster (table tier; `display: none` below 1024px,
    where MobileZonesPanel owns the zones instead). A horizontal row of tiles
    floating over the felt, each labelled with its own count. */
@@ -4029,17 +4024,21 @@ button.playtest-card-pt__value--editable:focus-visible {
       radial-gradient(circle at 30% 30%, var(--felt-glow), transparent 60%),
       radial-gradient(circle at 70% 70%, var(--felt-glow), transparent 60%), var(--felt-base);
   }
+}
 
-  /* Your turn at an online table: a gold ring around the whole felt. Solo
-     play has no turn order to signal, so it never lights. Same weight and
-     colour as the opponent quadrant's own ring (OpponentQuadrant.css
-     `.opponent-quadrant.is-active-turn`) — one signal, wherever the active
-     seat sits. */
-  .playtest-battlefield-wrap.is-my-turn {
-    box-shadow:
-      inset 0 0 0 4px var(--brand-seal-gold),
-      0 0 20px 2px color-mix(in oklab, var(--brand-seal-gold) 45%, transparent);
-  }
+/* The board you are acting on wears a gold ring: your own turn at an online
+   table, and always in solo play, where every turn is yours. The only border
+   the felt carries — drag feedback was a second one saying less.
+   
+   Outside the >=1024px block above on purpose: a phone plays the same game
+   and needs the signal more, not less. Same weight and colour as the opponent
+   quadrant's ring (OpponentQuadrant.css `.opponent-quadrant.is-active-turn`),
+   so at a 2/3/4-seat table "whose turn" reads as one signal wherever the
+   active seat sits — your own quadrant here, theirs there. */
+.playtest-battlefield-wrap.is-my-turn {
+  box-shadow:
+    inset 0 0 0 4px var(--brand-seal-gold),
+    0 0 20px 2px color-mix(in oklab, var(--brand-seal-gold) 45%, transparent);
 }
 
 /* The fan re-centres itself in whatever the pile row leaves free (see its

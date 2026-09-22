@@ -2434,7 +2434,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           {gridMode && opponents.length > 1 && opponents.slice(0, 2).map(renderQuadrant)}
           <div
             ref={battlefieldRef}
-            className={`playtest-battlefield-wrap${myTurn ? ' is-my-turn' : ''}`}
+            // Solo play has no seat order, so every turn is yours and the
+            // ring is always lit — the same expression the trigger reminder
+            // already reads the board's turn with.
+            className={`playtest-battlefield-wrap${onlineTable === null || myTurn ? ' is-my-turn' : ''}`}
             data-seat-anchor={onlineTable?.mySeat}
           >
             <Battlefield
