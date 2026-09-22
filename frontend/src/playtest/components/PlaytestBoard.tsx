@@ -107,7 +107,6 @@ import { HandDrawer, SHORT_LANDSCAPE_QUERY } from './HandDrawer';
 import { useMediaQuery } from '@/lib/use-media-query';
 import { ZonePile } from './ZonePile';
 import { ZoneViewerModal } from './ZoneViewerModal';
-import { ActionBar } from './ActionBar';
 import { TableContextMenu, type TableMenuItem } from './TableContextMenu';
 import { LogDock } from './LogDock';
 import { Modal } from '@/components/Modal';
@@ -762,10 +761,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     // played land lands under the fan. One card height plus the fan's own
     // chrome ≈ 1.3 card heights; narrow keeps its rows beside the board and
     // reserves nothing.
-    const reservedBottom = isNarrow ? 0 : Math.min(0.5, (cardH * 1.3) / height);
+    const reservedBottom = Math.min(0.5, (cardH * 1.3) / height);
     // And the life panel floats over the top-left: the first permanent used
     // to land straight under it. Its box is ~1.1 card heights tall.
-    const reservedTop = isNarrow ? 0 : Math.min(0.3, (cardH * 1.1) / height);
+    const reservedTop = Math.min(0.3, (cardH * 1.1) / height);
     return { width, height, cardW, cardH, reservedBottom, reservedTop };
   }
 
@@ -1812,7 +1811,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const manaTotal = Object.values(state.manaPool ?? ZERO_MANA_POOL).reduce((a, b) => a + b, 0);
   const manaPool = (
     <ManaPool
-      layout={isNarrow ? 'row' : 'column'}
+      layout="column"
       pool={state.manaPool ?? ZERO_MANA_POOL}
       onAdjust={(color, delta) => {
         haptics.tap();
@@ -1838,7 +1837,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   ) : null;
 
   const trackers = (
-    <div className={`playtest-trackers${isNarrow ? '' : ' playtest-trackers--corner'}`}>
+    <div className="playtest-trackers playtest-trackers--corner">
       <LifeStrip
         life={state.life}
         opponents={state.opponents}
@@ -1863,9 +1862,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         onOpenChange={setLifePanelOpen}
         onlineTable={onlineTable}
         onViewOpponentBoard={setViewingBoardSeat}
-        variant={isNarrow ? 'strip' : 'table'}
+        variant="table"
       />
-      {isNarrow && manaPool}
     </div>
   );
 
@@ -2249,6 +2247,12 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
 
   const openPileMenu = (zone: Zone) => (x: number, y: number) => setPileMenu({ zone, x, y });
 
+  /* Which piles stand on the felt, and which live behind the edge tab. Four
+     card-width tiles plus a hand do not fit a phone, and the two that earn
+     the room are the ones you touch every turn: the library (its click
+     draws) and the graveyard. Exile and the command zone are a tap away in
+     the tab — the same split EDHPlay makes, for the same reason. Every width
+     above the phone has room for all four. */
   const piles = (
     <aside className="playtest-piles">
       <ZonePile
@@ -2270,29 +2274,37 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         click={{ label: 'View the graveyard', onClick: () => setViewer({ zone: 'graveyard' }) }}
         onMenu={openPileMenu('graveyard')}
       />
-      <ZonePile
-        zone="exile"
-        label="Exile"
-        cards={state.zones.exile}
-        click={{ label: 'View exile', onClick: () => setViewer({ zone: 'exile' }) }}
-        onMenu={openPileMenu('exile')}
-      />
-      <ZonePile
-        zone="command"
-        label="Command"
-        cards={state.zones.command}
-        commanderTax={state.commanderTax}
-        click={{ label: 'View the command zone', onClick: () => setViewer({ zone: 'command' }) }}
-        onMenu={openPileMenu('command')}
-        // Clicking a commander casts it. It is the command zone's one
-        // obvious action (the viewer's primary is already "Cast"), and with
-        // partners the pile cannot guess which of the two you meant — so the
-        // choice IS the click. The reducer bumps that commander's own tax.
-        onCastCommander={(card) => {
-          const pos = placeOnBattlefield(card);
-          dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: card.id, x: pos.x, y: pos.y });
-        }}
-      />
+      {!isNarrow && (
+        <>
+          <ZonePile
+            zone="exile"
+            label="Exile"
+            cards={state.zones.exile}
+            click={{ label: 'View exile', onClick: () => setViewer({ zone: 'exile' }) }}
+            onMenu={openPileMenu('exile')}
+          />
+          <ZonePile
+            zone="command"
+            label="Command"
+            cards={state.zones.command}
+            commanderTax={state.commanderTax}
+            click={{
+              label: 'View the command zone',
+              onClick: () => setViewer({ zone: 'command' }),
+            }}
+            onMenu={openPileMenu('command')}
+            // Clicking a commander casts it. It is the command zone's one
+            // obvious action (the viewer's primary is already "Cast"), and
+            // with partners the pile cannot guess which of the two you meant
+            // — so the choice IS the click. The reducer bumps that
+            // commander's own tax.
+            onCastCommander={(card) => {
+              const pos = placeOnBattlefield(card);
+              dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: card.id, x: pos.x, y: pos.y });
+            }}
+          />
+        </>
+      )}
     </aside>
   );
 
@@ -2306,60 +2318,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       // not claim (badges, zone piles, chrome, gaps) loses the native menu too.
       onContextMenu={suppressNativeContextMenu}
     >
-      {isNarrow && (
-        <ActionBar
-          turn={state.turn}
-          libraryCount={libraryCount}
-          isNarrow={isNarrow}
-          backLabel={backLabel}
-          onBack={onBack}
-          onDraw={doDraw}
-          onShuffle={() => dispatch({ type: 'SHUFFLE_LIBRARY' })}
-          onMulligan={() => {
-            haptics.warning();
-            dispatch({ type: 'MULLIGAN' });
-          }}
-          onUntapAll={doUntapAll}
-          onNextTurn={doNextTurn}
-          takeback={{
-            stepsAvailable: takeback.stepsAvailable,
-            verdict: takeback.verdict,
-            mode: takeback.mode,
-            boundaryReason: takeback.boundaryReason,
-            isPending: takeback.pendingRequest !== null,
-            onClick: handleTakebackClick,
-            onOpenSettings: () => setShowTakebackSettings(true),
-          }}
-          onReset={doReset}
-          onScry={() => setShowScry(true)}
-          onCreateToken={() => setTokenCreator(true)}
-          onOpenStats={() => setShowStats(true)}
-          onOpenLog={handleOpenLog}
-          onOpenDice={() => setShowDice(true)}
-          onOpenResistance={() => setShowResistancePicker(true)}
-          onOpenDesignations={() => setShowDesignations(true)}
-          resistanceLevel={resistanceLevel}
-          monarch={state.monarch}
-          initiative={state.initiative}
-          citysBlessing={state.citysBlessing}
-          selectMode={selectMode}
-          onToggleSelectMode={toggleSelectMode}
-          selectionSize={selected.size}
-          hasUnreadLog={hasUnreadLog}
-          online={
-            onlineTable && {
-              phase: onlineTable.phase,
-              activeSeat: onlineTable.activeSeat,
-              mySeat: onlineTable.mySeat,
-              activeName,
-              dispatch: onlineTable.dispatch,
-              onPassTurn: doPassTurn,
-            }
-          }
-        />
-      )}
-      {isNarrow && trackers}
-      {isNarrow && banners}
       {sealMoment}
       {/* All three portal to <body> (see their own doc comments) so placement
           here only decides conditional gating, not layout. */}
@@ -2392,7 +2350,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
             />
           ) : null;
         })()}
-      {isNarrow && pendingBanner}
       {arrowFrom && (
         <div className="playtest-arrow-mode" role="status">
           <span>
@@ -2455,7 +2412,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               stackIds={stackIdSet}
               onBackgroundClick={clearSelection}
               onMarqueeSelect={selectArea}
-              onBackgroundContextMenu={isNarrow ? undefined : openTableMenu}
+              onBackgroundContextMenu={openTableMenu}
               onCardClick={handleCardClick}
               onCardContextMenu={handleCardContext}
               onCardLongPress={handleCardLongPress}
@@ -2463,9 +2420,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                 dispatch({ type: 'ADJUST_PT', cardId, power, toughness })
               }
             />
-            {/* The table tier's four corner clusters, floating over the felt
-                rather than taking rows off the board's height. */}
-            {!isNarrow && (
+            {/* The four corner clusters, floating over the felt rather than
+                taking rows off the board's height — at EVERY width. A phone
+                used to get a different board entirely: a title bar, eleven
+                buttons in two rows, a life row and a mana row, which between
+                them ate 40% of the screen before a single card was played.
+                The felt is the thing worth the pixels, so the phone gets the
+                same table the desktop does, sized for a thumb. */}
+            {
               <>
                 <div className="playtest-banners">
                   {pendingBanner}
@@ -2482,16 +2444,18 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                   </div>
                 )}
                 {piles}
-                <Hand
-                  cards={state.zones.hand}
-                  fan
-                  reorderable
-                  onCardClick={handleHandCardClick}
-                  onCardMenu={handleHandCardMenu}
-                  revealedIds={revealedIds}
-                />
+                {!shortLandscape && (
+                  <Hand
+                    cards={state.zones.hand}
+                    fan
+                    reorderable
+                    onCardClick={handleHandCardClick}
+                    onCardMenu={handleHandCardMenu}
+                    revealedIds={revealedIds}
+                  />
+                )}
               </>
-            )}
+            }
           </div>
           {gridMode &&
             (opponents.length === 1
@@ -2499,26 +2463,17 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               : opponents.slice(2).map(renderQuadrant))}
           {gridMode && opponents.length === 2 && <OpenSeatQuadrant />}
         </div>
-        {isNarrow &&
-          (shortLandscape ? (
-            <HandDrawer
-              cards={state.zones.hand}
-              open={handOpen}
-              onOpen={() => setHandOpen(true)}
-              onClose={() => setHandOpen(false)}
-              onCardClick={handleHandCardClick}
-              onCardMenu={handleHandCardMenu}
-              revealedIds={revealedIds}
-            />
-          ) : (
-            <Hand
-              cards={state.zones.hand}
-              reorderable
-              onCardClick={handleHandCardClick}
-              onCardMenu={handleHandCardMenu}
-              revealedIds={revealedIds}
-            />
-          ))}
+        {shortLandscape && (
+          <HandDrawer
+            cards={state.zones.hand}
+            open={handOpen}
+            onOpen={() => setHandOpen(true)}
+            onClose={() => setHandOpen(false)}
+            onCardClick={handleHandCardClick}
+            onCardMenu={handleHandCardMenu}
+            revealedIds={revealedIds}
+          />
+        )}
         <CardHoverPreview suspended={activeId !== null || anySheetOpen} resolve={resolvePreview} />
         {/* Above `--z-overlay` so a card dragged out of the hand sheet renders
             over the sheet, not behind it. */}
@@ -2544,7 +2499,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           the top of the screen). The dock mounts for an online table even
           with no mana and the log closed: the table log toggle (#2073) has
           to stay reachable, not appear only when something else is open. */}
-      {!isNarrow && (manaRow || showLog || onlineTable) && (
+      {(manaRow || showLog || onlineTable) && (
         <div className="playtest-left-dock">
           {manaRow && <div className="playtest-mana-dock">{manaRow}</div>}
           {showLog && (
@@ -2581,7 +2536,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         <TableContextMenu
           x={tableMenu.x}
           y={tableMenu.y}
-          variant="floating"
+          variant={isNarrow ? 'sheet' : 'floating'}
           items={tableMenuItems}
           onClose={() => setTableMenu(null)}
         />

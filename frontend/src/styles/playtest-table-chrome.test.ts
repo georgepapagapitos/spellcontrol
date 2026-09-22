@@ -175,7 +175,9 @@ describe('table chrome at the wide tier', () => {
   });
 
   it('bottom-anchors the hand toggle instead of floating it above the cards', () => {
-    const toggle = lastBlock('.playtest-hand--fan .playtest-hand__toggle {');
+    // A leading newline pins this to the desktop rule: the phone tier
+    // re-anchors the same selector, indented, further down the file.
+    const toggle = lastBlock('\n.playtest-hand--fan .playtest-hand__toggle {');
     // Anchored at the table edge while the fan itself hangs below it.
     expect(toggle).toContain('bottom: calc(var(--pt-card-h) * 0.38 + var(--space-2))');
     expect(toggle).not.toContain('bottom: 100%');
@@ -231,11 +233,23 @@ describe('table chrome at the wide tier', () => {
   });
 });
 
-describe('the narrow tier keeps everything it had', () => {
-  const narrow = (() => {
-    const start = css.indexOf('@media (max-width: 1023px) {');
+/**
+ * The phone and tablet tier has no layout of its own any more (2026-09-22).
+ * It used to be a different board entirely — a title row, eleven buttons in
+ * two rows, a life row and a mana row, which between them took 40% of the
+ * screen before a card was played. It now gets the SAME corner composition
+ * the desktop does, and the ≤1023px rules only size it for a thumb. That is
+ * two blocks: the first sizes the shared pieces, and a second one at the end
+ * of the file sizes the corner chrome — it has to come after the corner
+ * rules it overrides, because a media query adds no specificity.
+ */
+describe('the narrow tier is the same board, sized for a thumb', () => {
+  function narrowBlock(which: 'first' | 'last'): string {
+    const start =
+      which === 'first'
+        ? css.indexOf('@media (max-width: 1023px) {')
+        : css.lastIndexOf('@media (max-width: 1023px) {');
     expect(start).toBeGreaterThan(-1);
-    // Brace-match so the nested rules inside don't end the slice early.
     let depth = 0;
     let i = css.indexOf('{', start);
     const from = i;
@@ -244,34 +258,38 @@ describe('the narrow tier keeps everything it had', () => {
       else if (css[i] === '}' && --depth === 0) break;
     }
     return css.slice(from, i);
-  })();
+  }
+  const narrow = narrowBlock('first');
+  const phone = narrowBlock('last');
 
-  it('still stacks the board, hides the desktop piles and fixes the card size', () => {
-    expect(narrow).toContain('.playtest-main {');
-    expect(narrow).toContain('flex-direction: column');
-    expect(narrow).toContain('.playtest-piles {\n    display: none;\n  }');
+  it('keeps the card size and the zones tab it has always had', () => {
     expect(narrow).toContain('--pt-card-w: 72px;');
     expect(narrow).toContain('--pt-card-h: 100px;');
-  });
-
-  it('still keeps the action bar, hand strip and zones tab it has always had', () => {
-    expect(narrow).toContain('.playtest-actionbar {');
-    expect(narrow).toContain('.playtest-hand {');
-    expect(narrow).toContain('min-height: 110px');
     expect(narrow).toContain('.playtest-zones-tab {\n    display: block;\n  }');
-    expect(narrow).toContain('.playtest-card--sm {');
   });
 
-  it('never carries a fan or corner rule into the narrow block', () => {
-    for (const cls of [
-      'playtest-hand--fan',
-      'playtest-corner',
-      'playtest-trackers--corner',
-      'playtest-turn-chip',
-      'playtest-banners',
-    ]) {
-      expect(narrow, `${cls} leaked into the ≤1023px tier`).not.toContain(cls);
-    }
+  it('no longer hides the piles or carries an action bar', () => {
+    // The piles stand on the felt at every width now — the library and the
+    // graveyard out here, exile and the command zone behind the tab.
+    expect(css).not.toContain('.playtest-piles {\n    display: none;\n  }');
+    // The action bar is gone from the board, so no rule should style one.
+    expect(css).not.toContain('.playtest-actionbar');
+  });
+
+  it('sizes the corner composition for a phone AFTER the rules it overrides', () => {
+    // Desk-sized pills are a quarter of a phone's width each.
+    expect(phone).toContain('.playtest-corner-btn,');
+    expect(phone).toContain('min-width: 0');
+    // The header row goes: the game menu carries "Back to …".
+    expect(phone).toContain('.playtest-page__header {\n    display: none;\n  }');
+    // The fan centres in what the piles leave, or its outer card lands off
+    // the left edge and under the library.
+    expect(phone).toContain('.playtest-hand--fan {');
+    // Ordering is the whole point: a media query adds no specificity, so
+    // this block only wins by coming last.
+    expect(css.lastIndexOf('@media (max-width: 1023px) {')).toBeGreaterThan(
+      css.lastIndexOf('.playtest-corner-btn {\n  position: relative;')
+    );
   });
 });
 

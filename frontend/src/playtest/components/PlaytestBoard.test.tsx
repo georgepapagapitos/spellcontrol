@@ -1518,8 +1518,9 @@ describe('PlaytestBoard — the phone gets the same zone menus', () => {
     dispatch.mockClear();
     onlineTable = null;
     // Undo the desktop-forcing matchMedia from the outer beforeEach: this
-    // block wants the board's narrow layout, which is what mounts the
-    // zones drawer in place of the four piles.
+    // block wants the board's narrow layout — the same corner composition
+    // the desktop has, with the library and graveyard out on the felt and
+    // exile and the command zone behind the edge tab.
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       writable: true,
@@ -1532,8 +1533,9 @@ describe('PlaytestBoard — the phone gets the same zone menus', () => {
     });
   });
 
+  /** The library stands on the felt at every width now, so its menu comes
+   *  off its own kebab rather than out of the zones drawer. */
   function openLibrarySheet() {
-    fireEvent.click(screen.getByRole('button', { name: 'Show other zones' }));
     fireEvent.click(screen.getByRole('button', { name: 'Library actions' }));
   }
 
@@ -1589,16 +1591,28 @@ describe('PlaytestBoard — the phone gets the same zone menus', () => {
     });
   });
 
-  it('gives the other three zones their menus as well', () => {
+  it('gives the graveyard on the felt the same menu', () => {
     render(
       <MemoryRouter>
         <PlaytestBoard state={seededState()} />
       </MemoryRouter>
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Show other zones' }));
     fireEvent.click(screen.getByRole('button', { name: 'Graveyard actions' }));
     expect(screen.getByRole('dialog', { name: 'Graveyard' })).toBeTruthy();
     expect(screen.getByRole('menuitem', { name: /^Move all to/ })).toBeTruthy();
+  });
+
+  /* The two zones a 412px screen has no width for sit behind the edge tab,
+     and reach the same sheet from there. */
+  it('gives exile and the command zone their menus from the tab', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Show exile and the command zone' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Exile actions' }));
+    expect(screen.getByRole('dialog', { name: 'Exile' })).toBeTruthy();
   });
 });
 
