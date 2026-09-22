@@ -83,6 +83,12 @@ body:has(.playtest-page) {
      slot: the battlefield keeps this much clear on each side so a tapped
      card at x = 0 or x = 1 is never clipped by the wrap's overflow. */
   --pt-edge: calc((var(--pt-card-h) - var(--pt-card-w)) / 2);
+  /* The table's own edge: the width of the turn ring drawn inside the felt's
+     border, and therefore how far anything resting at the edge has to stay
+     clear of it. Read by that ring (here and on an opponent quadrant) and by
+     the pile shelf that tucks against it, so the band and the tuck cannot
+     drift apart into a notch. */
+  --pt-table-edge: 4px;
   /* The two card rings: cyan under the pointer, gold in the selection — the
      pair EDHPlay uses, and fixed rather than themed on purpose. See
      `.playtest-card--selected`. */
@@ -542,7 +548,12 @@ body[data-felt='slate'] {
 .playtest-piles {
   position: absolute;
   right: var(--space-3);
-  bottom: var(--space-3);
+  /* Flush with the table edge, so the piles read as cards resting at the near
+     edge and running off it rather than a shelf hovering over the felt. Not
+     `0`: the felt's turn ring is an inset band of exactly this width
+     (`--pt-table-edge`, declared with the ring), and a pile crossing it would
+     cut a notch out of the one border the board wears. */
+  bottom: var(--pt-table-edge);
   z-index: 3;
   display: flex;
   flex-direction: row;
@@ -765,10 +776,14 @@ body[data-felt='slate'] {
      shelf is a tucked-away reference, not a fifth row of cards: at rest it
      shows the label, the count and enough art to recognise the top card,
      and gives the felt back the corner it used to eat. Hover/focus/drag-over
-     below opens it to the full card. */
+     below opens it to the full card, growing UPWARD off the edge because the
+     row is anchored to the table's bottom. */
   width: var(--pt-card-w);
-  height: calc(var(--pt-card-h) * 0.6);
-  border-radius: var(--radius);
+  height: calc(var(--pt-card-h) * 0.35);
+  /* Square at the bottom: the table edge is what cuts the card off, and an
+     edge does not round the thing it cuts. The rounded top is the card's own
+     corner, still its own. */
+  border-radius: var(--radius) var(--radius) 0 0;
   overflow: hidden;
   background: var(--surface-raised);
   display: flex;
@@ -4037,7 +4052,7 @@ button.playtest-card-pt__value--editable:focus-visible {
    active seat sits — your own quadrant here, theirs there. */
 .playtest-battlefield-wrap.is-my-turn {
   box-shadow:
-    inset 0 0 0 4px var(--brand-seal-gold),
+    inset 0 0 0 var(--pt-table-edge) var(--brand-seal-gold),
     0 0 20px 2px color-mix(in oklab, var(--brand-seal-gold) 45%, transparent);
 }
 
@@ -4511,7 +4526,6 @@ button.playtest-card-pt__value--editable:focus-visible {
 
   .playtest-piles {
     right: var(--space-2);
-    bottom: var(--space-2);
     gap: var(--space-2);
   }
 
