@@ -183,9 +183,6 @@ export function Battlefield({
           style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
         />
       )}
-      {cards.length === 0 && (
-        <p className="playtest-battlefield__empty">Tap or drag a card from your hand to play it</p>
-      )}
       {cards.map((bf) => (
         // One card-sized slot per permanent: it owns the position, and the
         // card and its power/toughness badges sit inside it as siblings. The

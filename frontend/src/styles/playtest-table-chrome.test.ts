@@ -65,7 +65,9 @@ describe('table chrome at the wide tier', () => {
     // Card WIDTH always (the shelf reads as the same objects as the felt and
     // follows the card-size setting), but only a slice of the height at rest:
     // the corner the piles used to eat belongs to the battlefield.
-    const stack = block('.playtest-pile__stack {');
+    // A leading newline in the header, so it matches the rule's own
+    // selector and not the is-over/hover rules that END in the same class.
+    const stack = block('\n.playtest-pile__stack {');
     expect(stack).toContain('width: var(--pt-card-w)');
     expect(stack).toContain('height: calc(var(--pt-card-h) * 0.6)');
     expect(stack).not.toContain('height: 72px');
@@ -79,6 +81,27 @@ describe('table chrome at the wide tier', () => {
     expect(block('.playtest-pile__stack img {')).toContain('object-position: top');
     // An empty zone is a well, not a filled fake card.
     expect(css).toContain('.playtest-pile.is-empty .playtest-pile__back {');
+  });
+
+  /* A zone is its label and the card under it, on the felt. The frosted tile
+     that used to wrap each pile made four card-sized panels out of what are
+     really four cards, and an empty graveyard read as one big blank card —
+     so the pile root carries no box of its own, and the states the box used
+     to show (hover, drop-over) live on the card slot instead. */
+  it('sits the piles on the felt with no tile around them', () => {
+    const pile = block('.playtest-pile {');
+    expect(pile).not.toContain('background');
+    expect(pile).not.toContain('border');
+    expect(pile).not.toContain('backdrop-filter');
+    // The label prints on the felt, so it takes the felt's own text colour
+    // rather than a surface's — every named felt is dark whatever theme the
+    // app is in.
+    expect(block('.playtest-pile__label {')).toContain('color: var(--felt-text)');
+    expect(block("body[data-felt='green'] {")).toContain('--felt-text');
+    // Hover and drop-over ring the slot the card lands in, not a tile.
+    expect(block('.playtest-pile.is-over .playtest-pile__stack {')).toContain(
+      'outline: 2px solid var(--accent)'
+    );
   });
 
   it('gives the mana row one control per color instead of a box with two steppers', () => {
@@ -158,13 +181,11 @@ describe('table chrome at the wide tier', () => {
     expect(toggle).not.toContain('bottom: 100%');
   });
 
-  it('keeps the empty-table hint quiet, and silent once the hand is collapsed', () => {
-    const wide = css.slice(css.lastIndexOf('@media (min-width: 1024px) {'));
-    expect(wide).toContain('.playtest-battlefield__empty {');
-    expect(wide).toContain('opacity: 0.6');
-    expect(wide).toContain(
-      '.playtest-battlefield-wrap:has(.playtest-hand--fan.is-collapsed) .playtest-battlefield__empty'
-    );
+  // The hint it used to style ("Tap or drag a card from your hand to play
+  // it") is gone: an empty felt with a full hand in front of it is not a
+  // state that needs narrating, and the app does not narrate itself.
+  it('has no empty-table hint to style', () => {
+    expect(css).not.toContain('.playtest-battlefield__empty');
   });
 
   it('pins the four corner clusters absolutely rather than stacking them as rows', () => {

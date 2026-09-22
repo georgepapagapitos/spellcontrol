@@ -585,6 +585,27 @@ describe('PlaytestBoard', () => {
     expect(screen.getByRole('menuitem', { name: /Untap all/ }).textContent).toContain('U');
   });
 
+  /**
+   * Guard: Escape backs out of things, it never summons one. It used to fall
+   * through to "open the table menu" once there was no selection to clear,
+   * so the key every app uses for "get me out of this" put a panel in the
+   * middle of the felt. The Context Menu key and Shift+F10 are the keyboard's
+   * way IN, and they are unchanged.
+   */
+  it('never opens the table menu on Escape, but still does on the Context Menu key', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('menu', { name: 'Table actions' })).toBeNull();
+
+    fireEvent.keyDown(window, { key: 'ContextMenu' });
+    expect(screen.getByRole('menu', { name: 'Table actions' })).toBeTruthy();
+  });
+
   it('ignores a letter shortcut typed into a text field', () => {
     render(
       <MemoryRouter>

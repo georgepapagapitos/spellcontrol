@@ -654,27 +654,36 @@ body {
   --felt-base: var(--bg);
   --felt-glow: var(--accent-light);
   --felt-line: color-mix(in oklab, var(--border) 45%, transparent);
+  /* Text printed ON the felt rather than on a surface above it — the zone
+     labels. The theme felt IS the app background, so theme text is already
+     right; every named felt below is dark whatever theme the app is in, so
+     each overrides this alongside its own colours. */
+  --felt-text: var(--text-primary);
 }
 
 body[data-felt='green'] {
+  --felt-text: rgb(255 255 255 / 88%);
   --felt-base: #12301f;
   --felt-glow: #1b4332;
   --felt-line: rgb(255 255 255 / 7%);
 }
 
 body[data-felt='blue'] {
+  --felt-text: rgb(255 255 255 / 88%);
   --felt-base: #0e2338;
   --felt-glow: #14304d;
   --felt-line: rgb(255 255 255 / 7%);
 }
 
 body[data-felt='wine'] {
+  --felt-text: rgb(255 255 255 / 88%);
   --felt-base: #2e0f16;
   --felt-glow: #45161f;
   --felt-line: rgb(255 255 255 / 7%);
 }
 
 body[data-felt='slate'] {
+  --felt-text: rgb(255 255 255 / 88%);
   --felt-base: #191b1f;
   --felt-glow: #23262b;
   --felt-line: rgb(255 255 255 / 6%);
@@ -704,15 +713,6 @@ body[data-felt='slate'] {
 .playtest-battlefield.is-over {
   outline: 2px dashed var(--accent);
   outline-offset: -4px;
-}
-
-.playtest-battlefield__empty {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  opacity: 0.5;
-  pointer-events: none;
 }
 
 /* Bottom-right corner cluster (table tier; `display: none` below 1024px,
@@ -750,13 +750,14 @@ body[data-felt='slate'] {
   overflow-y: auto;
 }
 
+/* No tile. A zone is its label and the card under it, sitting on the felt —
+   a frosted box around each pile made four card-sized panels out of what are
+   really four cards, and an empty graveyard read as one big blank card. The
+   card slot below (`__stack`) carries every state the box used to: the
+   peek/open height, the drop highlight, the empty well. */
 .playtest-pile {
   position: relative;
   flex: none;
-  border: 0.5px solid var(--border);
-  background: color-mix(in oklab, var(--surface) 70%, transparent);
-  border-radius: var(--radius-lg);
-  backdrop-filter: blur(6px);
 }
 
 /* The pile's menu, the same one right-click opens. Parked in the tile's
@@ -765,8 +766,10 @@ body[data-felt='slate'] {
    present, because right-click is not reachable from a keyboard alone. */
 .playtest-pile__kebab {
   position: absolute;
-  top: 2px;
-  left: 2px;
+  /* The label line, not the art: with the tile gone there is no corner to
+     park in, and the count's reserved slot leaves its slack on this side. */
+  top: 0;
+  right: 0;
   z-index: 2;
   display: flex;
   align-items: center;
@@ -810,9 +813,11 @@ body[data-felt='slate'] {
   outline-offset: 2px;
 }
 
-.playtest-pile.is-over {
-  background: var(--accent-light);
-  border-color: var(--accent);
+/* A card is being dragged onto this pile: the slot lights up, because the
+   slot is the thing it lands in. */
+.playtest-pile.is-over .playtest-pile__stack {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 /* The tile's own trigger: draws on the library, opens the viewer elsewhere.
@@ -823,7 +828,7 @@ body[data-felt='slate'] {
   flex-direction: column;
   align-items: center;
   gap: var(--space-1);
-  padding: 6px;
+  padding: 0;
   border: 0;
   background: none;
   border-radius: var(--radius-lg);
@@ -837,24 +842,20 @@ body[data-felt='slate'] {
   cursor: not-allowed;
 }
 
-/* The disabled tile still carries a menu, so the hover tint would promise a
-   click that does nothing — light the tile only where one lands. */
+/* The pile keeps its menu even when its own click is disabled, so a ring on
+   the whole pile would promise a draw that does nothing — ring the slot only
+   where a click lands. */
 @media (hover: hover) and (pointer: fine) {
-  .playtest-pile:not(:has(.playtest-pile__open:disabled)):hover {
-    background: var(--accent-light);
-    border-color: var(--accent);
+  .playtest-pile:not(:has(.playtest-pile__open:disabled)):hover .playtest-pile__stack {
+    outline: 1px solid var(--accent);
+    outline-offset: 1px;
   }
-}
-
-/* The tile is a div wrapping two buttons, so focus lands on a child: light
-   the whole tile the way hover does. */
-.playtest-pile:has(:focus-visible) {
-  border-color: var(--accent);
 }
 
 .playtest-pile__label {
   font-weight: 600;
-  color: var(--text-secondary);
+  /* Printed on the felt now, not on a tile — see `--felt-text`. */
+  color: var(--felt-text);
   white-space: nowrap;
 }
 
@@ -1003,10 +1004,17 @@ body[data-felt='slate'] {
 /* An empty zone is an empty well, not a filled card. The tinted backs above
    are the look of a pile that HAS something in it (and the fallback for a top
    card whose art failed to load); a graveyard at 0 rendering as a solid brown
-   card reads as a card, which is half of what made this shelf so loud. */
+   card reads as a card, which is half of what made this shelf so loud.
+   Washed out of the felt's own text colour rather than a surface: with the
+   tile gone the well sits directly on the felt, and a light-theme
+   `--surface-raised` on a dark felt glowed like a lightbox. */
+.playtest-pile.is-empty .playtest-pile__stack {
+  background: transparent;
+}
+
 .playtest-pile.is-empty .playtest-pile__back {
-  background: color-mix(in oklab, var(--surface-raised) 55%, transparent);
-  box-shadow: inset 0 0 0 0.5px var(--border);
+  background: color-mix(in oklab, var(--felt-text) 7%, transparent);
+  box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--felt-text) 25%, transparent);
 }
 
 /* Commander tax badge — overlaid on the command pile's card stack, shown
@@ -4204,18 +4212,6 @@ button.playtest-card-pt__value--editable:focus-visible {
     box-shadow:
       inset 0 0 0 4px var(--brand-seal-gold),
       0 0 20px 2px color-mix(in oklab, var(--brand-seal-gold) 45%, transparent);
-  }
-
-  /* The empty-table hint is a nudge, not a headline: it sits in the middle of
-     the felt for the whole first turn, so it stays quiet. And it names the
-     hand, so it has nothing to say once the hand is collapsed. */
-  .playtest-battlefield__empty {
-    color: var(--text-secondary);
-    opacity: 0.6;
-  }
-
-  .playtest-battlefield-wrap:has(.playtest-hand--fan.is-collapsed) .playtest-battlefield__empty {
-    display: none;
   }
 }
 
