@@ -372,3 +372,23 @@ select {
 .scroll-heading-target:focus {
   outline: none;
 }
+
+/* Icon glyphs while their stylesheet is still in flight.
+ *
+ * The mana + keyrune sheets load off the critical path (see
+ * styles/icon-fonts-async.ts and the dynamic import in main.tsx). Until they
+ * arrive an `<i class="ms ms-r">` is an empty inline box of no width, so every
+ * symbol on screen would pop from nothing to ~1em at the same moment and shove
+ * the text beside it — a layout shift on the exact routes that show the most
+ * symbols. Reserving the square costs nothing and holds the line.
+ *
+ * Scoped to the `icons-pending` class main.tsx puts on <html> and removes when
+ * the import resolves: the vendor rules size the glyphs from their own metrics,
+ * and a permanent 1em box here would fight them (a `ms-cost` circle is wider).
+ */
+.icons-pending .ms,
+.icons-pending .ss {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+}
