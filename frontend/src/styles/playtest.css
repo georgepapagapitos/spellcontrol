@@ -787,7 +787,15 @@ body[data-felt='slate'] {
   overflow: hidden;
   background: var(--surface-raised);
   display: flex;
-  align-items: center;
+  /* TOP, not centre. The card inside is a FULL card height inside a box a
+     third of that, so this is what decides which third of it you see —
+     centring showed the middle of the card (type line and rules text, with
+     the name and art cut off above), which is the one slice that identifies
+     nothing. The card now hangs from the top of the box the way it rests on
+     a table: name, then art, then the table edge cuts it off.
+     `object-position` on the image cannot do this — the image element is
+     full height, so it has nothing to crop. */
+  align-items: flex-start;
   justify-content: center;
   transition: height var(--motion-fast) var(--ease-out-soft);
 }
@@ -812,8 +820,10 @@ body[data-felt='slate'] {
   }
 }
 
-/* Anchored to the top of the art, so the slice that survives the peek is the
-   card's name and illustration rather than its rules text. */
+/* Full card height inside a shorter, clipping box — the box's
+   `align-items: flex-start` is what keeps the visible slice the card's name
+   and art. `object-position: top` only governs the crop WITHIN this element,
+   which matters when a non-card aspect ratio has to be covered. */
 .playtest-pile__stack img {
   width: 100%;
   height: var(--pt-card-h);
@@ -4051,9 +4061,25 @@ button.playtest-card-pt__value--editable:focus-visible {
    so at a 2/3/4-seat table "whose turn" reads as one signal wherever the
    active seat sits — your own quadrant here, theirs there. */
 .playtest-battlefield-wrap.is-my-turn {
-  box-shadow:
-    inset 0 0 0 var(--pt-table-edge) var(--brand-seal-gold),
-    0 0 20px 2px color-mix(in oklab, var(--brand-seal-gold) 45%, transparent);
+  /* The outer glow stays on the element itself: the wrap is `overflow:
+     hidden`, which would clip a glow drawn by a child, but never clips the
+     element's own shadow. */
+  box-shadow: 0 0 20px 2px color-mix(in oklab, var(--brand-seal-gold) 45%, transparent);
+}
+
+/* The band itself is an overlay, not an inset shadow on the wrap. An inset
+   shadow paints with the element's background — UNDER every descendant — so
+   the hand fan and the pile shelf, which sit at the table's near edge by
+   design, cut straight through it. The edge of a table is in front of what
+   rests on it. Above the felt's whole card layer (the marquee is the tallest
+   at 4) and inert to the pointer, so nothing it covers stops being clickable. */
+.playtest-battlefield-wrap.is-my-turn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 var(--pt-table-edge) var(--brand-seal-gold);
 }
 
 /* The fan re-centres itself in whatever the pile row leaves free (see its

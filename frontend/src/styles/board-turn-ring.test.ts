@@ -19,7 +19,13 @@ const battlefield = readFileSync(
 function rule(sheet: string, selector: string): string | null {
   for (const m of sheet.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     const sel = m[1].trim().split('\n').pop()!.trim();
-    if (sel === selector) return m[2].replace(/\s+/g, ' ').trim();
+    // Declarations only: a rule may carry a comment explaining itself, and
+    // two rules that differ solely in their prose are still one signal.
+    if (sel === selector)
+      return m[2]
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
   }
   return null;
 }
@@ -40,11 +46,30 @@ function rule(sheet: string, selector: string): string | null {
  */
 describe('the board’s turn ring', () => {
   it('is the same signal on your board and on an opponent quadrant', () => {
-    const mine = rule(css, '.playtest-battlefield-wrap.is-my-turn');
-    const theirs = rule(quadrant, '.opponent-quadrant.is-active-turn');
-    expect(mine).not.toBeNull();
-    expect(theirs).not.toBeNull();
-    expect(mine).toBe(theirs);
+    for (const part of ['', '::after']) {
+      const mine = rule(css, `.playtest-battlefield-wrap.is-my-turn${part}`);
+      const theirs = rule(quadrant, `.opponent-quadrant.is-active-turn${part}`);
+      expect(mine).not.toBeNull();
+      expect(theirs).not.toBeNull();
+      expect(mine).toBe(theirs);
+    }
+  });
+
+  it('paints in front of the cards, not under them', () => {
+    // As an inset shadow on the board itself the band painted with the
+    // background, under every descendant — so the hand fan and the pile
+    // shelf, which sit at the table's near edge by design, cut through it.
+    // The band is an overlay above the felt's whole card layer instead.
+    const base = rule(css, '.playtest-battlefield-wrap.is-my-turn') ?? '';
+    expect(base).not.toMatch(/inset 0 0 0/);
+    const band = rule(css, '.playtest-battlefield-wrap.is-my-turn::after') ?? '';
+    expect(band).toMatch(/box-shadow:\s*inset 0 0 0 var\(--pt-table-edge\)/);
+    // Above the marquee at 4, the tallest thing on the felt.
+    const z = /(?<![-\w])z-index:\s*(\d+)/.exec(band);
+    expect(z).not.toBeNull();
+    expect(Number(z![1])).toBeGreaterThan(4);
+    // And it must not eat clicks on what it covers.
+    expect(band).toMatch(/pointer-events:\s*none/);
   });
 
   it('reads at every width, not only on a wide table', () => {

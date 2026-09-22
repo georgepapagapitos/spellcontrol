@@ -52,6 +52,17 @@ describe('the zone shelf’s tuck', () => {
     expect(Number(height![1])).toBeLessThanOrEqual(0.4);
   });
 
+  it('shows the TOP of the card, the part that identifies it', () => {
+    // The card inside is a full card height in a box a third of that, so the
+    // box's cross-axis alignment picks which third you see. Centred, it
+    // showed the middle — type line and rules text, name and art cut off
+    // above — which identifies nothing. `object-position` on the image
+    // cannot fix this: the image element is full height and has nothing to
+    // crop.
+    const stack = rules(css, '.playtest-pile__stack')[0] ?? '';
+    expect(stack).toMatch(/align-items:\s*flex-start/);
+  });
+
   it('is squared off where the edge cuts it', () => {
     const stack = rules(css, '.playtest-pile__stack')[0] ?? '';
     // Four-value radius with two zeros at the end: rounded on top, cut below.
