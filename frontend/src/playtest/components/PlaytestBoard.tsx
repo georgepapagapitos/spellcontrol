@@ -21,11 +21,13 @@ import { useConfirm } from '@/lib/use-confirm';
 import {
   DndContext,
   DragOverlay,
+  getClientRect,
   PointerSensor,
   KeyboardSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragMoveEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { useNavigate } from 'react-router-dom';
@@ -95,6 +97,7 @@ import { TakebackConsentPrompt } from './TakebackConsentPrompt';
 import { toast } from '@/store/toasts';
 import { autoPlace } from '../lib/auto-place';
 import { makePlaytestCollision } from '../lib/attach-drop';
+import { clampGroupDelta, planGroupDrag } from '../lib/group-drag';
 import { handSlotFromDroppableId, hostFromDroppableId } from '../lib/zones';
 import { haptics } from '@/lib/haptics';
 import { suppressNativeContextMenu } from '@/lib/suppress-context-menu';
@@ -507,6 +510,39 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     return null;
   }, [activeId, state.battlefield, state.zones.hand]);
 
+  // A battlefield drag that carries more than the card under the pointer:
+  // the cards it moves, and — `riding` — the ones the board has to translate
+  // itself, since dnd-kit only animates the grabbed card's <DragOverlay>
+  // copy. Null whenever the drag moves one card, which is the common case
+  // and costs the board nothing.
+  const dragGroup = useMemo(() => {
+    const parsed = activeId ? parseDraggable(activeId) : null;
+    if (!parsed || parsed.source !== 'bf') return null;
+    const { ids } = planGroupDrag(state.battlefield, parsed.cardId, selected, 0, 0);
+    if (ids.size < 2) return null;
+    const riding = new Set(ids);
+    riding.delete(parsed.cardId);
+    return { cards: state.battlefield.filter((b) => ids.has(b.card.id)), riding };
+  }, [activeId, state.battlefield, selected]);
+
+  // Measure drag sources and drop targets with the box the browser actually
+  // paints. dnd-kit's default is "transform-agnostic": it reads the element's
+  // own `transform` and inverts it, so a card dnd-kit itself has translated
+  // still measures where it started. That routine understands translate and
+  // scale only — it reads a rotation matrix's `a`/`d` as scaleX/scaleY, and
+  // for `rotate(90deg)` both are 0, so the box it hands back is half a card
+  // up and to the left of the real one. A TAPPED permanent wears exactly that
+  // rotation: its drag copy jumped off the card as you picked it up, and the
+  // attach-drop target sat beside the creature rather than on it. Nothing
+  // here needs the inversion — the source card is never translated (the
+  // moving copy is a top-level <DragOverlay>), and the hand's fan rotation
+  // lives on the slot wrapper rather than the card, so this changes the
+  // measurement of tapped permanents and nothing else.
+  const measuring = useMemo(
+    () => ({ draggable: { measure: getClientRect }, droppable: { measure: getClientRect } }),
+    []
+  );
+
   // Any card the pointer could be dragging — battlefield or hand — by id,
   // so the collision function can tell an Aura from a creature.
   const collisionDetection = useMemo(
@@ -528,8 +564,35 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     setActiveId(String(event.active.id));
   }
 
+  /** Mid-drag, the cards riding along with the grabbed one follow the pointer
+   *  through one custom property pair on the felt rather than through React
+   *  state: every rider shares the same delta, and a `setState` per pointer
+   *  move would re-render the whole board (the marquee avoids it the same
+   *  way). Written here, read by `.playtest-card-slot.is-riding`. */
+  function handleDragMove(event: DragMoveEvent) {
+    const el = battlefieldRef.current;
+    if (!el || !dragGroup) return;
+    const { width, height, cardW, cardH } = getBattlefieldGeometry();
+    const spanX = Math.max(1, width - cardW);
+    const spanY = Math.max(1, height - cardH);
+    const { dx, dy } = clampGroupDelta(
+      dragGroup.cards,
+      event.delta.x / spanX,
+      event.delta.y / spanY
+    );
+    el.style.setProperty('--pt-ride-x', `${dx * spanX}px`);
+    el.style.setProperty('--pt-ride-y', `${dy * spanY}px`);
+  }
+
+  function clearRideOffset() {
+    const el = battlefieldRef.current;
+    el?.style.removeProperty('--pt-ride-x');
+    el?.style.removeProperty('--pt-ride-y');
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     setActiveId(null);
+    clearRideOffset();
     const parsed = parseDraggable(String(event.active.id));
     if (!parsed) return;
     const overId = event.over?.id ? String(event.over.id) : null;
@@ -561,15 +624,23 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
 
     if (parsed.source === 'bf') {
       if (overId === 'battlefield' || overId === null) {
-        const bf = state.battlefield.find((b) => b.card.id === parsed.cardId);
-        if (!bf) return;
         // event.delta is a pixel pointer delta; bf.x/y are fractions of the
         // battlefield box, so convert through the same (container - card)
         // denominator the renderer's `left: calc(x * (100% - cardW))` uses.
+        // Grabbing a card that is part of the selection drags the whole
+        // selection by that one delta (see `planGroupDrag`); grabbing
+        // anything else drags it alone. One dispatch per card, the same way
+        // `tapSelection` taps a group — each move is its own takeback step,
+        // which is what moving five cards is at a real table too.
         const { width, height, cardW, cardH } = getBattlefieldGeometry();
-        const x = bf.x + event.delta.x / Math.max(1, width - cardW);
-        const y = bf.y + event.delta.y / Math.max(1, height - cardH);
-        dispatch({ type: 'MOVE_BF_POSITION', cardId: parsed.cardId, x, y });
+        const plan = planGroupDrag(
+          state.battlefield,
+          parsed.cardId,
+          selected,
+          event.delta.x / Math.max(1, width - cardW),
+          event.delta.y / Math.max(1, height - cardH)
+        );
+        for (const move of plan.moves) dispatch({ type: 'MOVE_BF_POSITION', ...move });
         return;
       }
       const zoneMatch = /^zone:(.+)$/.exec(overId);
@@ -2335,9 +2406,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       <DndContext
         sensors={sensors}
         collisionDetection={collisionDetection}
+        measuring={measuring}
         onDragStart={handleDragStart}
+        onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
-        onDragCancel={() => setActiveId(null)}
+        onDragCancel={() => {
+          setActiveId(null);
+          clearRideOffset();
+        }}
       >
         <div
           className={`playtest-main${gridMode ? ' playtest-main--grid' : ''}${
@@ -2364,6 +2440,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
             <Battlefield
               cards={state.battlefield}
               selectedIds={selected}
+              ridingIds={dragGroup?.riding}
               stackIds={stackIdSet}
               onBackgroundClick={clearSelection}
               onMarqueeSelect={selectArea}
@@ -2432,7 +2509,13 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         <CardHoverPreview suspended={activeId !== null || anySheetOpen} resolve={resolvePreview} />
         {/* Above `--z-overlay` so a card dragged out of the hand sheet renders
             over the sheet, not behind it. */}
-        <DragOverlay dropAnimation={null} zIndex={1200}>
+        {/* `playtest-drag-overlay` centres the copy in the wrapper, which
+            dnd-kit sizes from the source's box. For a TAPPED card that box is
+            the rotated one — width and height swapped — while the copy inside
+            keeps the printed card's size and rotates about its own centre, so
+            left at the wrapper's top-left it sits half the difference off the
+            card. A no-op for an untapped card: the two boxes are the same. */}
+        <DragOverlay dropAnimation={null} zIndex={1200} className="playtest-drag-overlay">
           {activeDrag && (
             <PlaytestCardFace
               card={activeDrag.card}
