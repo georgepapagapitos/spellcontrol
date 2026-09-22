@@ -34,6 +34,9 @@ export interface PublicGameResult {
   mode: 'local' | 'online';
   /** Who posted a local result; null for online rows. Only they may delete it. */
   recordedByUserId: string | null;
+  /** Who hosted an online game — the only account that may delete that row.
+   *  Null for local rows and for online rows recorded before it was captured. */
+  hostUserId: string | null;
   format: string;
   startingLife: number;
   winnerSeat: number | null;
@@ -277,6 +280,7 @@ export function resultToRecord(r: PublicGameResult): GameRecord {
     durationMs: r.durationMs,
     mode: r.mode,
     recordedByUserId: r.recordedByUserId,
+    ...(r.hostUserId !== null ? { hostUserId: r.hostUserId } : {}),
     ...(r.summary ? { summary: r.summary } : {}),
   };
 }

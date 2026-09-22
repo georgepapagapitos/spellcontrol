@@ -1279,11 +1279,15 @@ export const usePlayStore = create<PlayState>()(
           history: s.history.filter((r) => r.id !== id),
           pendingResults: s.pendingResults.filter((g) => g.id !== id),
         }));
-        // Only a local game this account posted has a server row to remove
-        // (the server refuses anything else anyway). A game still queued
-        // never reached it, so dropping it from the queue is the whole delete.
+        // Two kinds have a server row this account may remove: a local game it
+        // posted, and an online game it hosted. Everything else is either
+        // someone else's to delete (the server refuses it anyway) or still
+        // queued, in which case dropping it from the queue IS the whole
+        // delete — it never reached the server.
         const me = useAuth.getState().user?.id ?? null;
-        if (!wasPending && rec?.mode === 'local' && me && rec.recordedByUserId === me) {
+        const ownsLocal = rec?.mode === 'local' && !!me && rec.recordedByUserId === me;
+        const hostsOnline = rec?.mode === 'online' && !!me && rec.hostUserId === me;
+        if (!wasPending && (ownsLocal || hostsOnline)) {
           deleteGameResult(id).catch((err) =>
             logger.warn('[store] Failed to remove game from the server record:', err)
           );

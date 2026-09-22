@@ -233,18 +233,21 @@ describe('History — removing a game asks first', () => {
 
   const openRowMenu = () => fireEvent.click(screen.getByRole('button', { name: /^Game options:/ }));
 
+  // Delete is a VISIBLE control, not a menu entry — it was moved behind the
+  // kebab once and became unfindable. Asserting the visible button keeps that
+  // from silently regressing again.
+  const clickRemove = () => fireEvent.click(screen.getByRole('button', { name: /^Remove game:/ }));
+
   it('keeps the row on Cancel and removes it only on confirm', () => {
     renderPage('/play?tab=history');
     expect(screen.getByText('Winner: Ana')).toBeTruthy();
-    openRowMenu();
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }));
+    clickRemove();
     expect(screen.getByText('Remove this game?')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.getByText('Winner: Ana')).toBeTruthy();
     expect(usePlayStore.getState().history).toHaveLength(1);
-    openRowMenu();
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+    clickRemove();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remove' }));
     expect(usePlayStore.getState().history).toHaveLength(0);
     expect(screen.queryByText('Winner: Ana')).toBeNull();
   });
@@ -488,25 +491,58 @@ describe('History tab — local and online records together', () => {
       ],
     });
     renderPage('/play?tab=history');
+    const rowFor = (winner: string) =>
+      [...document.querySelectorAll('.play-history-item')].find((el) =>
+        el.textContent?.includes(`Winner: ${winner}`)
+      )!;
     const menuFor = (winner: string) =>
-      screen
-        .getAllByRole('button', { name: /^Game options:/ })
-        .find((b) => b.closest('.play-history-item')?.textContent?.includes(`Winner: ${winner}`))!;
+      rowFor(winner).querySelector<HTMLButtonElement>('[aria-label^="Game options:"]')!;
+    const removeIn = (winner: string) =>
+      rowFor(winner).querySelector('[aria-label^="Remove game:"]');
 
-    // Your own local game: correctable, and gone for good if you say so.
+    // Your own local game: correctable, and deletable from the visible ×.
+    expect(removeIn('Ana')).toBeTruthy();
     fireEvent.click(menuFor('Ana'));
     expect(screen.getByRole('menuitem', { name: 'Correct this game' })).toBeTruthy();
-    expect(screen.getByRole('menuitem', { name: 'Remove' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'Hide from my list' })).toBeNull();
     fireEvent.keyDown(document, { key: 'Escape' });
 
-    // A friend's local game and any online game are the shared record: they
-    // leave your list, and there is nothing to correct.
+    // A friend's local game, and an online game you did not host, are someone
+    // else's record: no × at all, and nothing to correct.
     for (const winner of ['Cal', 'Ben']) {
+      expect(removeIn(winner)).toBeNull();
       fireEvent.click(menuFor(winner));
       expect(screen.queryByRole('menuitem', { name: 'Correct this game' })).toBeNull();
       expect(screen.getByRole('menuitem', { name: 'Hide from my list' })).toBeTruthy();
       fireEvent.keyDown(document, { key: 'Escape' });
     }
+  });
+
+  it('gives the host of an online game a delete, and says it hits everyone', () => {
+    useAuth.setState({ user: { id: 'me', username: 'me', role: 'user' }, status: 'authed' });
+    usePlayStore.setState({
+      history: [rec('mine-table', 'online', 'Ana', { hostUserId: 'me' })],
+    });
+    renderPage('/play?tab=history');
+
+    // The host gets the destructive control, not the hide-it-from-me one.
+    fireEvent.click(screen.getByRole('button', { name: /^Remove game:/ }));
+    expect(screen.getByText('Remove this game?')).toBeTruthy();
+    // The copy must not claim this only leaves YOUR history — it does not.
+    expect(screen.getByText(/leaves the record for everyone who played it/)).toBeTruthy();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remove' }));
+    expect(usePlayStore.getState().history).toHaveLength(0);
+  });
+
+  it('a seat that did not host the online game still only gets hide', () => {
+    useAuth.setState({ user: { id: 'me', username: 'me', role: 'user' }, status: 'authed' });
+    usePlayStore.setState({
+      history: [rec('their-table', 'online', 'Ben', { hostUserId: 'someone-else' })],
+    });
+    renderPage('/play?tab=history');
+    expect(screen.queryByRole('button', { name: /^Remove game:/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /^Game options:/ }));
+    expect(screen.getByRole('menuitem', { name: 'Hide from my list' })).toBeTruthy();
   });
 });
 

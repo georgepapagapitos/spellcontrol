@@ -58,10 +58,19 @@ type PodParticipant = Omit<GameResultParticipant, 'userId' | 'username'> & {
  *    the winner's display name via `winnerSeat` against `participants`.
  *  - `notableEvents` / `summary` — never declared by the client's
  *    `PodGameResult` nor read by the hub, and `notableEvents` carries
- *    free-text `note` messages typed at the table. */
+ *    free-text `note` messages typed at the table.
+ *  - `hostUserId` — an account id, out for the same reason as the two above.
+ *    It decides who may DELETE an online row; the pod hub has no such control
+ *    and should not learn who hosted. */
 type PodGameResult = Omit<
   PublicGameResult,
-  'code' | 'winnerUserId' | 'recordedByUserId' | 'participants' | 'notableEvents' | 'summary'
+  | 'code'
+  | 'winnerUserId'
+  | 'recordedByUserId'
+  | 'hostUserId'
+  | 'participants'
+  | 'notableEvents'
+  | 'summary'
 > & { participants: PodParticipant[] };
 
 function toPublicForPod(r: ResultRow): PodGameResult {

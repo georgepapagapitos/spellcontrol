@@ -35,6 +35,12 @@ export interface PublicGameResult {
   mode: GameResultMode;
   /** Who posted a local result; null for online rows. Only they may delete it. */
   recordedByUserId: string | null;
+  /**
+   * Who hosted an ONLINE game — the only account that may delete that row.
+   * Null for local rows, and for online rows recorded before this was captured
+   * (those remain hide-only).
+   */
+  hostUserId: string | null;
   format: string;
   startingLife: number;
   winnerSeat: number | null;
