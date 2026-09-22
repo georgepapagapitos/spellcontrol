@@ -3292,11 +3292,15 @@ moving off it. The rulings, guarded by `styles/stack-hover-reachable.test.ts`:
 - **The overlap is layout and never animates.** `margin-top` puts each card in
   the stack; transitioning it re-lays-out the deck every frame and moves the
   tail by reflowing the card in front of it. Room for the slide is reserved on
-  the column in one step, and only when the open card HAS a tail — a one-card
-  stack, and the last card of any stack, move nothing, and reserving on
-  column-enter left those hanging under an empty half-column of surface. It is
-  given back one slide after leave, so the cards move with no layout at all in
-  between.
+  the column, and only when the open card HAS a tail — a one-card stack, and
+  the last card of any stack, move nothing, so they reserve nothing. The
+  reservation rides the same duration and curve as the cards, so the column's
+  floor tracks the tail: released in one step it either holds an empty
+  half-column of surface after the cards are home (delayed) or lets the
+  returning cards spill out of the panel (immediate). Animating the box is not
+  the reflow-per-frame mistake above — that one animated `margin-top` on a
+  CARD, moving the cards themselves by layout; here the cards are on transforms
+  throughout and only their container animates.
 - **Stacks pack, they do not wrap.** `packStacks` fills the shortest column, so
   a 28-card Creature stack never holds a screen-high hole beside a 1-card
   Commander. On a phone there is exactly ONE stack, as wide as the screen: a

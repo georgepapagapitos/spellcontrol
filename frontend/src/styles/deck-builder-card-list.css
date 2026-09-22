@@ -114,27 +114,31 @@
    slides into is reserved instead — the section draws a surface and a border, so
    a card that overflowed it would sit outside its own column.
 
-   The reservation is a single step, never a transition: animating it would put
-   the whole deck through layout on every frame, which is what made the old
-   slide judder (the growing column shoved every later column of the wrapped row
-   down, a frame at a time). It is given back a slide later (`0s` duration,
-   `--motion-gentle` delay) so the cards are home before the box closes around
-   them, and between the two steps the column's height is fixed and the cards
-   move without any layout at all.
+   It rides the SAME duration and curve as the cards, so the column's floor
+   tracks the tail exactly. Two single-step versions came first and each left an
+   artifact: released on a delay, the box held its full height for a slide after
+   the cards were home and the stack sat above an empty half-column of surface
+   (most visible closing the LAST card, which reserves nothing of its own);
+   released at once, the returning cards spill out of the panel and across
+   whatever the column holds below them.
+
+   Animating this is NOT the reflow-per-frame mistake that made the first cut
+   judder. That was `margin-top` on a CARD: it moved the cards themselves by
+   layout, so they stuttered and dragged the whole wrapped row with them. The
+   cards here never touch layout — they are on transforms throughout, and what
+   animates is only the box they sit in.
 
    It is taken only when a card that HAS a tail is open — `:has(:hover ~ *)`,
-   not `:hover` on the column. A one-card stack, or the last card of any stack,
-   moves nothing, and reserving on column-enter left those hanging under an
-   empty half-column of surface. */
+   not `:hover` on the column. A one-card stack, and the last card of any stack,
+   move nothing and so need no room. */
 @media (hover: hover) and (pointer: fine) {
   .deck-card-stack {
-    transition: padding-bottom 0s var(--motion-gentle);
+    transition: padding-bottom var(--motion-gentle) var(--ease-drawer);
   }
 
   .deck-grid-section--stack:has(.deck-card-grid-cell:hover ~ .deck-card-grid-cell)
     .deck-card-stack {
     padding-bottom: var(--stack-open);
-    transition-delay: 0s;
   }
 }
 
@@ -203,6 +207,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .deck-card-stack,
   .deck-card-stack .deck-card-grid-cell {
     transition: none;
   }

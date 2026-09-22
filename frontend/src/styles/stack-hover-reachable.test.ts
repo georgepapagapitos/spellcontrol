@@ -167,17 +167,29 @@ describe('stacks view keeps buried cards reachable', () => {
         r.selector,
         'reserve only when the open card HAS a tail: `:has(<open> ~ <cell>)`'
       ).toMatch(/~\s*\.deck-card-grid-cell/);
+      // The reservation is NOT allowed to be a single step. Released on a
+      // delay, the box holds its full height for a slide after the cards are
+      // home and the stack sits above an empty half-column of surface;
+      // released at once, the returning cards spill out of the panel.
       expect(
         r.body,
-        'a transitioned reservation puts the deck through layout every frame'
-      ).not.toMatch(/transition\s*:\s*padding-bottom\s+[^0]/);
+        'the reservation must not be released in one step — it has to track the tail'
+      ).not.toMatch(/transition[^;]*padding-bottom\s+0s/);
     }
-    // Given back a slide later, so the cards are home before the box closes.
+    // The column's floor rides the same duration and curve as the cards, so it
+    // tracks the tail exactly instead of snapping before or after it. This is
+    // not the reflow-per-frame mistake the header describes: that one animated
+    // `margin-top` on a CARD and moved the cards themselves by layout. These
+    // cards are on transforms throughout; only the box they sit in animates.
     expect(
       all
         .filter((r) => r.selector.trim() === '.deck-card-stack')
-        .some((r) => /transition:\s*padding-bottom\s+0s\s+var\(--motion-\w+\)/.test(r.body)),
-      'the reservation must outlast the slide home: 0s duration, one slide of delay'
+        .some((r) =>
+          /transition:\s*padding-bottom\s+var\(--motion-gentle\)\s+var\(--ease-drawer\)/.test(
+            r.body
+          )
+        ),
+      'the reserved room must animate on the same pair as the cards it makes room for'
     ).toBe(true);
   });
 
