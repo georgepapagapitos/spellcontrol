@@ -40,27 +40,30 @@ function renderPanel(overrides: Partial<Parameters<typeof MobileZonesPanel>[0]> 
 }
 
 function openDrawer() {
-  fireEvent.click(screen.getByRole('button', { name: 'Show other zones' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Show exile and the command zone' }));
 }
 
 describe('MobileZonesPanel', () => {
-  it('lists every zone with its count once opened', () => {
+  /* The tab holds the two zones the phone's corner row has no width for.
+     The library and the graveyard stand on the felt beside the hand now, so
+     listing them here too would be the same pile in two places. */
+  it('holds exile and the command zone, and leaves the felt its two piles', () => {
     renderPanel();
-    expect(screen.queryByRole('region', { name: 'Other zones' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Exile and the command zone' })).toBeNull();
     openDrawer();
 
-    const drawer = screen.getByRole('region', { name: 'Other zones' });
-    expect(within(drawer).getByText(/Library \(2\)/)).toBeTruthy();
-    expect(within(drawer).getByText(/Graveyard \(1\)/)).toBeTruthy();
+    const drawer = screen.getByRole('region', { name: 'Exile and the command zone' });
     expect(within(drawer).getByText(/Exile \(0\)/)).toBeTruthy();
     expect(within(drawer).getByText(/Command \(0\)/)).toBeTruthy();
+    expect(within(drawer).queryByText(/Library/)).toBeNull();
+    expect(within(drawer).queryByText(/Graveyard/)).toBeNull();
   });
 
   it('hands the zone up instead of carrying its own list of actions', () => {
     const { onMenu } = renderPanel();
     openDrawer();
-    fireEvent.click(screen.getByRole('button', { name: 'Library actions' }));
-    expect(onMenu).toHaveBeenCalledWith('library');
+    fireEvent.click(screen.getByRole('button', { name: 'Exile actions' }));
+    expect(onMenu).toHaveBeenCalledWith('exile');
 
     // The three rows it used to own are gone from here — the board's menu
     // has them, along with the seven it never had.
@@ -69,9 +72,9 @@ describe('MobileZonesPanel', () => {
     }
   });
 
-  it('gives every zone a menu, not just the library', () => {
+  it('gives both zones a menu', () => {
     const { onMenu } = renderPanel();
-    for (const zone of ['Graveyard', 'Exile', 'Command'] as const) {
+    for (const zone of ['Exile', 'Command'] as const) {
       // Reopened each time: the kebab closes the drawer behind it.
       openDrawer();
       fireEvent.click(screen.getByRole('button', { name: `${zone} actions` }));
@@ -82,27 +85,27 @@ describe('MobileZonesPanel', () => {
   it('closes the drawer behind the menu — a sheet over a drawer is two deep', () => {
     renderPanel();
     openDrawer();
-    fireEvent.click(screen.getByRole('button', { name: 'Library actions' }));
-    expect(screen.queryByRole('region', { name: 'Other zones' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Exile actions' }));
+    expect(screen.queryByRole('region', { name: 'Exile and the command zone' })).toBeNull();
   });
 
   it('still browses a zone from the tile itself, and closes behind that too', () => {
     const { onOpenZone } = renderPanel();
     openDrawer();
-    // The tile body, not the kebab: the narrow tier keeps tap-to-browse
-    // rather than mirroring the table tier's tap-to-draw, because the
-    // action bar already owns Draw on a phone.
+    // The tile body, not the kebab: browsing is what these two piles are
+    // for, and neither has a one-obvious-action click the way the library
+    // (draw) does out on the felt.
     const tiles = document.querySelectorAll('.playtest-zone-tile__body');
     fireEvent.click(tiles[0]);
-    expect(onOpenZone).toHaveBeenCalledWith('library');
-    expect(screen.queryByRole('region', { name: 'Other zones' })).toBeNull();
+    expect(onOpenZone).toHaveBeenCalledWith('exile');
+    expect(screen.queryByRole('region', { name: 'Exile and the command zone' })).toBeNull();
   });
 
   it('marks the kebab as opening a menu', () => {
     renderPanel();
     openDrawer();
     expect(
-      screen.getByRole('button', { name: 'Library actions' }).getAttribute('aria-haspopup')
+      screen.getByRole('button', { name: 'Exile actions' }).getAttribute('aria-haspopup')
     ).toBe('menu');
   });
 });

@@ -30,9 +30,11 @@ export function MobileZonesPanel({ zones, commanderTax, onOpenZone, onMenu }: Pr
   // always gets a fresh chance to load (mirrors ZonePile).
   const [erroredIds, setErroredIds] = useState<Partial<Record<Zone, string>>>({});
 
+  // The two zones the phone's corner row has no width for. The library and
+  // the graveyard stand on the felt beside the hand (PlaytestBoard `piles`),
+  // because they are the two you touch every turn; these two are a tap away
+  // instead of a scroll away, which is the trade a 400px screen forces.
   const entries: ZoneEntry[] = [
-    { key: 'library', label: 'Library', cards: zones.library, peek: 'back' },
-    { key: 'graveyard', label: 'Graveyard', cards: zones.graveyard, peek: 'top' },
     { key: 'exile', label: 'Exile', cards: zones.exile, peek: 'top' },
     { key: 'command', label: 'Command', cards: zones.command, peek: 'top' },
   ];
@@ -43,14 +45,14 @@ export function MobileZonesPanel({ zones, commanderTax, onOpenZone, onMenu }: Pr
         type="button"
         className={`playtest-zones-tab${open ? ' is-open' : ''}`}
         aria-expanded={open}
-        aria-label={open ? 'Hide other zones' : 'Show other zones'}
+        aria-label={open ? 'Hide exile and the command zone' : 'Show exile and the command zone'}
         onClick={() => setOpen((v) => !v)}
       >
-        <span>{open ? 'Hide' : 'Zones'}</span>
+        <span>{open ? 'Hide' : 'Exile / Command'}</span>
       </button>
 
       {open && (
-        <div className="playtest-zones-panel" role="region" aria-label="Other zones">
+        <div className="playtest-zones-panel" role="region" aria-label="Exile and the command zone">
           {entries.map((e) => {
             const top = e.cards[e.cards.length - 1];
             const tax = e.key === 'command' ? commanderTaxAmount(commanderTax, top?.id) : 0;

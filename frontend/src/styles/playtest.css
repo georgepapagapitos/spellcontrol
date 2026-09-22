@@ -156,181 +156,7 @@ body:has(.playtest-page) {
   position: relative;
 }
 
-.playtest-actionbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 0.5px solid var(--border);
-  background: var(--surface);
-}
-
-.playtest-actionbar__turn {
-  font-weight: 600;
-  padding: var(--space-1) 10px;
-  color: var(--accent);
-  background: var(--accent-light);
-  border-radius: var(--radius);
-  margin-right: var(--space-2);
-}
-
-/* Online-only: non-interactive "{Name}'s turn" chip shown to everyone but
-   the active seat (see ActionBar's `online` prop). Muted/italic, matching
-   OnlineGameView's own `.ogv-turn-waiting`. */
-.playtest-actionbar__pass-turn-waiting {
-  padding: var(--space-1) 10px;
-  color: var(--text-muted);
-  font-style: italic;
-  font-size: var(--text-sm);
-}
-
-/* B6-04: hidden everywhere `.playtest-page__header` already covers back-
-   navigation — shown only in the short-landscape tier below, where it folds
-   into this row instead. */
-.playtest-actionbar__back {
-  display: none;
-  flex-shrink: 0;
-}
-
-.playtest-actionbar button {
-  background: var(--surface-raised);
-  border: 0.5px solid var(--border);
-  color: var(--text-primary);
-  padding: 5px 11px;
-  border-radius: var(--radius);
-  cursor: pointer;
-  font-size: var(--text-sm);
-}
-
 @media (hover: hover) and (pointer: fine) {
-  .playtest-actionbar button:hover:not(:disabled) {
-    background: var(--accent-light);
-    border-color: var(--accent);
-  }
-}
-
-.playtest-actionbar button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.playtest-actionbar__reset {
-  margin-left: auto;
-  border-color: var(--err-border) !important;
-}
-
-/* E262: Draw and Next turn are the two actions taken every single turn — an
-   accent tint singles them out from the bar's otherwise equal-weight buttons
-   without restructuring it. Same accent shape as the active-state rules
-   below, just always-on rather than conditional. */
-.playtest-actionbar button.playtest-actionbar__primary {
-  background: var(--accent-light);
-  border-color: var(--accent);
-  color: var(--accent);
-  font-weight: 600;
-}
-
-/* Resistance entry — armed state reads like the accented turn chip so the
-   current difficulty is visible at a glance without opening the picker. */
-.playtest-actionbar button.playtest-actionbar__resistance.is-active {
-  background: var(--accent-light);
-  border-color: var(--accent);
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.playtest-actionbar__resistance-badge {
-  margin-left: var(--space-2);
-  padding: 1px var(--space-2);
-  border-radius: 999px;
-  background: var(--surface);
-  border: 0.5px solid var(--border-strong);
-  font-size: var(--text-xs);
-  font-weight: 500;
-}
-
-/* Designations entry — same "armed state reads like the accented turn chip"
-   treatment as Resistance, so a held designation is visible at a glance
-   without opening the sheet. */
-.playtest-actionbar button.playtest-actionbar__designations.is-active {
-  background: var(--accent-light);
-  border-color: var(--accent);
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.playtest-actionbar__designations-badge {
-  margin-left: var(--space-2);
-  padding: 1px var(--space-2);
-  border-radius: 999px;
-  background: var(--surface);
-  border: 0.5px solid var(--border-strong);
-  font-size: var(--text-xs);
-  font-weight: 500;
-}
-
-/* Log entry point — unread dot fires when a Resistance event landed since
-   the log was last opened. */
-.playtest-actionbar__log {
-  position: relative;
-}
-
-.playtest-actionbar__log-dot {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
-  border: 1px solid var(--surface-raised);
-}
-
-/* ── Takeback control ──────────────────────────────────────────────────
-   Replaces the old unconditional Undo button. Badge/lock mirror the
-   Resistance/Designations badge idiom so depth — or the wall — is
-   glanceable without opening anything ("before they reach for it"). */
-.playtest-actionbar__takeback {
-  position: relative;
-}
-
-.playtest-actionbar__takeback.is-pending {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.playtest-actionbar__takeback-badge {
-  margin-left: var(--space-2);
-  padding: 1px var(--space-2);
-  border-radius: 999px;
-  background: var(--surface);
-  border: 0.5px solid var(--border-strong);
-  font-size: var(--text-xs);
-  font-weight: 500;
-}
-
-.playtest-actionbar__takeback-lock {
-  margin-left: var(--space-2);
-  vertical-align: -2px;
-  color: var(--text-secondary);
-}
-
-.playtest-actionbar__takeback-dot {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
-  border: 1px solid var(--surface-raised);
-}
-
-.playtest-actionbar__takeback-settings {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
 }
 
 /* ── Resistance event banner ─────────────────────────────────────────── */
@@ -1171,23 +997,6 @@ body[data-felt='slate'] {
    rather than "tap this permanent". */
 .playtest-board.is-selecting .playtest-battlefield .playtest-card {
   cursor: pointer;
-}
-
-.playtest-actionbar button.playtest-actionbar__select.is-active {
-  background: var(--accent-light);
-  border-color: var(--accent);
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.playtest-actionbar__select-badge {
-  margin-left: var(--space-2);
-  padding: 1px var(--space-2);
-  border-radius: 999px;
-  background: var(--surface);
-  border: 0.5px solid var(--border-strong);
-  font-size: var(--text-xs);
-  font-weight: 500;
 }
 
 /* a11y: keyboard focus for the battlefield/hand card itself (role="button",
@@ -2585,14 +2394,18 @@ button.playtest-card-pt__value--editable:focus-visible {
      own header is the way out. Boundary is 1023 to match the shell
      (base-layout.css) — this fullscreen takeover assumes the mobile
      shell's tab bar is the thing being covered, which only exists
-     below the 1024 desktop tier. */
+     below the 1024 desktop tier.
+
+     This tier no longer has a LAYOUT of its own. A phone used to get a
+     different board entirely — a title row, eleven buttons in two rows, a
+     life row and a mana row above a squeezed felt — and the felt is the
+     thing worth the pixels. It now gets the same corner composition the
+     desktop does (life top-left, menu and turn top-right, mana column
+     bottom-left, hand fan and piles along the bottom), and this block only
+     SIZES it for a thumb. */
 
   .playtest-main {
     flex-direction: column;
-  }
-
-  .playtest-piles {
-    display: none;
   }
 
   /* `.playtest-main` is now a column, so the rail's "glance" side-column
@@ -2614,22 +2427,6 @@ button.playtest-card-pt__value--editable:focus-visible {
 
   .playtest-board--narrow .playtest-zones-panel {
     display: grid;
-  }
-
-  .playtest-actionbar {
-    padding: 6px var(--space-2);
-    gap: var(--space-1);
-  }
-
-  .playtest-actionbar button {
-    padding: 6px 10px;
-    font-size: var(--text-xs);
-  }
-
-  .playtest-actionbar__turn {
-    margin-right: var(--space-1);
-    padding: var(--space-1) var(--space-2);
-    font-size: var(--text-xs);
   }
 
   .playtest-hand {
@@ -2659,18 +2456,8 @@ button.playtest-card-pt__value--editable:focus-visible {
 }
 
 @media (max-width: 480px) {
-  .playtest-actionbar button {
-    padding: 5px var(--space-2);
-  }
 }
 
-/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover.
- * The playtest board follows the app theme (unlike the always-dark
- * multiplayer game board) — standard accent ring, not a white one. */
-.playtest-actionbar button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-}
 .playtest-pile__open:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
@@ -2689,9 +2476,6 @@ button.playtest-card-pt__value--editable:focus-visible {
 /* a11y (UX-cohesion): 44px touch targets on coarse pointers (tablet is the
    primary playtest device). */
 @media (pointer: coarse) {
-  .playtest-actionbar button {
-    min-height: 44px;
-  }
 }
 
 /* ── Life strip (E138) ──────────────────────────────────────────────────── */
@@ -3361,16 +3145,10 @@ button.playtest-card-pt__value--editable:focus-visible {
    least 40% of viewport height. */
 @media (max-height: 420px) and (orientation: landscape) {
   /* The standalone header is an entire 44px+-touch-target row on its own
-     (back button) for two facts (deck name, "Playtest") the ActionBar's
-     folded-in `.playtest-actionbar__back` below already carries — cut the
-     row, not the touch target. */
+     (back button) for two facts (deck name, "Playtest") that the game menu
+     carries as "Back to <deck>" — cut the row, not the way out. */
   .playtest-page__header {
     display: none;
-  }
-
-  .playtest-actionbar__back {
-    display: inline-flex;
-    align-items: center;
   }
 
   /* Presence rail: keep name + life (the "who's alive" glance), drop the
@@ -3391,19 +3169,6 @@ button.playtest-card-pt__value--editable:focus-visible {
 
   .opponent-entry__battlefield {
     display: none;
-  }
-
-  /* Never wrap to a second row — scroll horizontally instead, same trade
-     Tabs/deck-builder-tabs.css already makes for a strip that can't fit. */
-  .playtest-actionbar {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    padding: 2px var(--space-2);
-  }
-
-  .playtest-actionbar button {
-    padding: 3px var(--space-2);
-    flex-shrink: 0;
   }
 
   .playtest-life-strip,
@@ -4687,4 +4452,70 @@ button.playtest-card-pt__value--editable:focus-visible {
 .playtest-settings__range:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 4px;
+}
+
+/* ── The phone board (2026-09-22) ─────────────────────────────────────────
+   Sizing for the corner composition below the desk tier, and it has to come
+   after the corner/fan/chip rules above: a media query adds no specificity,
+   so an override of `.playtest-corner-btn` written earlier in the file
+   simply loses to the base rule. (An earlier revision of this block sat up
+   with the rest of the ≤1023px tier and did nothing at all.) */
+@media (max-width: 1023px) {
+  /* The board owns the screen. The header's back button is the game menu's
+     "Back to …" row and its title names the deck you are looking at, so the
+     row is two facts and a 44px band of chrome. */
+  .playtest-page__header {
+    display: none;
+  }
+
+  /* Thumb-sized corners, not desk-sized: the 8rem floor that keeps the
+     desktop's right-hand pills one width is a quarter of a phone per pill. */
+  .playtest-corner-btn,
+  .playtest-turn-chip {
+    min-width: 0;
+  }
+
+  .playtest-corner-btn {
+    width: 44px;
+    padding: var(--space-1);
+  }
+
+  .playtest-turn-chip {
+    padding: var(--space-1) var(--space-2);
+  }
+
+  /* One bottom band, hand on the left and the two piles on the right — the
+     fan centres itself on the felt at desk widths, where there is room
+     either side of it; here there is not, so it takes the left and stops
+     where the piles begin. */
+  .playtest-hand--fan {
+    /* Centred in what the piles leave, rather than on the felt: a fan
+       centred on a 412px screen puts its outermost card off the left edge
+       and under the library. */
+    left: calc((100% - 2 * var(--pt-card-w) - 3 * var(--space-2)) / 2);
+    max-width: calc(100% - 2 * var(--pt-card-w) - 4 * var(--space-2));
+  }
+
+  .playtest-piles {
+    right: var(--space-2);
+    bottom: var(--space-2);
+    gap: var(--space-2);
+  }
+
+  /* The toggle parks to the RIGHT of the fan at desk widths, on free felt.
+     Here that felt is the library, so it comes back over the fan's own last
+     card — where EDHPlay puts it too. */
+  .playtest-hand--fan .playtest-hand__toggle {
+    left: auto;
+    right: 0;
+  }
+
+  /* The kebab is always visible on a touch screen, at 44px — in the label
+     row that puts it straight through "Graveyard (0)". Over the card's own
+     corner it covers art instead of the count. */
+  .playtest-pile__kebab {
+    top: auto;
+    bottom: 0;
+    right: 0;
+  }
 }
