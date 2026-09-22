@@ -47,7 +47,12 @@ export function Battlefield({
   onCardLongPress,
   onAdjustPT,
 }: Props) {
-  const { setNodeRef, isOver } = useDroppable({ id: 'battlefield' });
+  // No `isOver` here on purpose: the felt does not light up as a drop target.
+  // It is the whole board, always the destination, and the card already
+  // follows the pointer — a dashed ring drawn round the table every time a
+  // card moves is chrome for something the player cannot get wrong. The one
+  // border the felt wears is the turn ring (playtest.css `.is-my-turn`).
+  const { setNodeRef } = useDroppable({ id: 'battlefield' });
   // Drag a box across bare felt to select what it touches (EDHPlay's
   // gesture). Pointer state lives in a ref — only the drawn box is state, so
   // a drag re-renders the overlay and not every card on the board.
@@ -82,7 +87,7 @@ export function Battlefield({
   return (
     <div
       ref={setNodeRef}
-      className={`playtest-battlefield${isOver ? ' is-over' : ''}`}
+      className="playtest-battlefield"
       aria-label="Battlefield"
       // Decorative from an interaction standpoint: neither gesture the felt
       // carries is the only way to reach what it does — Escape clears a
