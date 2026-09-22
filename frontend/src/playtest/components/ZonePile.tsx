@@ -4,6 +4,10 @@ import { MoreVertical } from 'lucide-react';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
 import { commanderTaxAmount } from '../lib/zones';
 
+/** How many command-zone cards the corner row draws. Two, because that is a
+ *  commander and a partner — the zone may hold any number. */
+const COMMAND_ROW_MAX = 2;
+
 interface Props {
   zone: Zone;
   label: string;
@@ -94,14 +98,21 @@ export function ZonePile({
       {/* The command zone is a row of commanders, not a pile with a top card:
           partners put two there at once, each with its own tax, and either
           may be the one you are casting. Every other zone keeps the single
-          stack, where "the top card" is a real and sufficient answer. */}
+          stack, where "the top card" is a real and sufficient answer.
+
+          The row shows the two most recent and no more. The zone itself
+          holds whatever was put there — nothing stops you dragging ten
+          lands in, and nothing should: this is a table, not a rules engine.
+          But a row that grew with the zone would push the corner across the
+          felt, so the count tells the truth (it says ten) and the viewer is
+          where the rest live. */}
       {isCommandRow ? (
         <div className="playtest-pile__open playtest-pile__open--row">
           <span className="playtest-pile__label">
             {label} <span className="playtest-pile__count">({cards.length})</span>
           </span>
           <span className="playtest-pile__commanders">
-            {cards.map((c) => {
+            {cards.slice(-COMMAND_ROW_MAX).map((c) => {
               const ctax = commanderTaxAmount(commanderTax ?? {}, c.id);
               return (
                 <button

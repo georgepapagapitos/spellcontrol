@@ -163,3 +163,64 @@ describe('makePlaytestCollision — arranging the hand', () => {
     expect(hits.some((id) => id.startsWith('handslot:'))).toBe(false);
   });
 });
+
+/**
+ * The zone piles float on the felt at the wide tier, INSIDE the battlefield
+ * droppable's box — the battlefield contains the dragged card outright. What
+ * keeps "drag this to the graveyard" working is that rect intersection ranks
+ * by the ratio of the overlap to the two boxes, not by raw area, so a huge
+ * container never outranks the small pile you are aiming at. dnd-kit takes
+ * the FIRST collision as `over`, so that order is the behaviour; asserted
+ * here because a collision-detection change is exactly what would silently
+ * turn every send-to-zone drop back into a reposition.
+ */
+function pileArgs(pointer: { x: number; y: number }): Parameters<CollisionDetection>[0] {
+  const rect = (left: number, top: number, w: number, h: number) => ({
+    left,
+    top,
+    width: w,
+    height: h,
+    right: left + w,
+    bottom: top + h,
+  });
+  const droppableRects = new Map<string, ReturnType<typeof rect>>([
+    ['battlefield', rect(0, 0, 1000, 600)],
+    ['zone:graveyard', rect(800, 440, 100, 140)],
+    ['zone:command', rect(900, 440, 100, 140)],
+  ]);
+  return {
+    active: { id: 'bf:b1', data: { current: { cardId: 'b1' } } },
+    // The card hangs off the pile it is aimed at — you drag a card by the
+    // point you grabbed it at, so the pointer reaches the pile while most of
+    // the card's box is still felt.
+    collisionRect: rect(pointer.x, pointer.y, 100, 140),
+    droppableRects,
+    droppableContainers: [...droppableRects.keys()].map((id) => ({
+      id,
+      data: { current: undefined },
+      disabled: false,
+      node: { current: null },
+      rect: { current: droppableRects.get(id)! },
+      key: id,
+    })),
+    pointerCoordinates: pointer,
+  } as unknown as Parameters<CollisionDetection>[0];
+}
+
+describe('makePlaytestCollision — sending a card to a zone', () => {
+  const detect = makePlaytestCollision(() => undefined);
+
+  it('gives the drop to the pile, not the battlefield the card is inside', () => {
+    expect(String(detect(pileArgs({ x: 850, y: 500 }))[0].id)).toBe('zone:graveyard');
+  });
+
+  it('treats the command zone as a pile like any other — legal or not', () => {
+    expect(String(detect(pileArgs({ x: 950, y: 500 }))[0].id)).toBe('zone:command');
+  });
+
+  it('still repositions on bare felt, where no pile is in reach', () => {
+    const hits = detect(pileArgs({ x: 300, y: 200 })).map((h) => String(h.id));
+    expect(hits[0]).toBe('battlefield');
+    expect(hits.some((id) => id.startsWith('zone:'))).toBe(false);
+  });
+});
