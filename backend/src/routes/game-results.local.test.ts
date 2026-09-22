@@ -113,6 +113,8 @@ async function insertOnlineRow(opts: {
   winnerUserId: string | null;
   participants: Array<{ userId: string | null }>;
   endedAt?: number;
+  /** Omit to mimic a row written before host_user_id existed (stays NULL). */
+  hostUserId?: string | null;
 }): Promise<void> {
   const participants = opts.participants.map((p, i) => ({
     seat: i,
@@ -129,9 +131,16 @@ async function insertOnlineRow(opts: {
   await pool.query(
     `INSERT INTO game_results
        (session_id, code, format, starting_life, winner_seat, winner_user_id,
-        started_at, ended_at, duration_ms, participants, notable_events, created_at)
-     VALUES ($1, 'CODE', 'commander', 40, 0, $2, 1, $4, 99, $3, NULL, 100)`,
-    [opts.sessionId, opts.winnerUserId, JSON.stringify(participants), opts.endedAt ?? 100]
+        started_at, ended_at, duration_ms, participants, notable_events, created_at,
+        host_user_id)
+     VALUES ($1, 'CODE', 'commander', 40, 0, $2, 1, $4, 99, $3, NULL, 100, $5)`,
+    [
+      opts.sessionId,
+      opts.winnerUserId,
+      JSON.stringify(participants),
+      opts.endedAt ?? 100,
+      opts.hostUserId ?? null,
+    ]
   );
 }
 
@@ -643,5 +652,106 @@ describe('PUT/DELETE /api/game-results/:sessionId/hidden', () => {
       .put('/api/game-results/hide-strangers-game/hidden')
       .set('Cookie', bob);
     expect(stranger.status).toBe(404);
+  });
+});
+
+// ─── The host can delete the online game they made ───────────────────────────
+
+describe('DELETE /api/game-results/:sessionId (online, as host)', () => {
+  it('lets the host delete it, and nobody else at the table', async () => {
+    const ana = await makeUser('hostdel-ana');
+    const bob = await makeUser('hostdel-bob');
+    const anaId = await userId('hostdel-ana');
+    const bobId = await userId('hostdel-bob');
+    await insertOnlineRow({
+      sessionId: 'hostdel-1',
+      winnerUserId: anaId,
+      participants: [{ userId: anaId }, { userId: bobId }],
+      hostUserId: anaId,
+    });
+
+    // Bob played in it but did not make the table.
+    const notHost = await request(app).delete('/api/game-results/hostdel-1').set('Cookie', bob);
+    expect(notHost.status).toBe(404);
+    expect(
+      (await pool.query(`SELECT 1 FROM game_results WHERE session_id = 'hostdel-1'`)).rowCount
+    ).toBe(1);
+
+    const host = await request(app).delete('/api/game-results/hostdel-1').set('Cookie', ana);
+    expect(host.status).toBe(200);
+    expect(
+      (await pool.query(`SELECT 1 FROM game_results WHERE session_id = 'hostdel-1'`)).rowCount
+    ).toBe(0);
+
+    // It is gone for the other seat too — that is the whole point, and why
+    // only the host gets to do it.
+    const theirs = await request(app).get('/api/game-results/mine').set('Cookie', bob);
+    expect(theirs.body.results.map((r: { sessionId: string }) => r.sessionId)).not.toContain(
+      'hostdel-1'
+    );
+  });
+
+  it('offers the host delete instead of hide, never both', async () => {
+    const ana = await makeUser('hostdel-both');
+    const anaId = await userId('hostdel-both');
+    await insertOnlineRow({
+      sessionId: 'hostdel-2',
+      winnerUserId: anaId,
+      participants: [{ userId: anaId }, { userId: null }],
+      hostUserId: anaId,
+    });
+    // Hiding a row you can delete outright would be a second path to one thing.
+    const hide = await request(app).put('/api/game-results/hostdel-2/hidden').set('Cookie', ana);
+    expect(hide.status).toBe(404);
+    expect(
+      (await request(app).delete('/api/game-results/hostdel-2').set('Cookie', ana)).status
+    ).toBe(200);
+  });
+
+  /**
+   * Every online row recorded before host_user_id existed carries NULL. Those
+   * must keep the behaviour they had — nobody deletes them, everyone at the
+   * table can still hide them. Written as a test because the obvious SQL for
+   * the hide rule (`NOT (mode = 'online' AND host_user_id = $3)`) evaluates to
+   * NULL on exactly these rows and quietly filters them out, taking hide away
+   * from the only games that ever needed it.
+   */
+  it('leaves a pre-migration online row un-deletable but still hideable', async () => {
+    const ana = await makeUser('hostdel-legacy');
+    const anaId = await userId('hostdel-legacy');
+    await insertOnlineRow({
+      sessionId: 'hostdel-legacy-1',
+      winnerUserId: anaId,
+      participants: [{ userId: anaId }, { userId: null }],
+      // no hostUserId — as if written before the column existed
+    });
+    const host = await pool.query<{ host_user_id: string | null }>(
+      `SELECT host_user_id FROM game_results WHERE session_id = 'hostdel-legacy-1'`
+    );
+    expect(host.rows[0].host_user_id).toBe(null);
+
+    expect(
+      (await request(app).delete('/api/game-results/hostdel-legacy-1').set('Cookie', ana)).status
+    ).toBe(404);
+    expect(
+      (await request(app).put('/api/game-results/hostdel-legacy-1/hidden').set('Cookie', ana))
+        .status
+    ).toBe(200);
+  });
+
+  it('carries the host through /mine so the client knows who may delete', async () => {
+    const ana = await makeUser('hostdel-read');
+    const anaId = await userId('hostdel-read');
+    await insertOnlineRow({
+      sessionId: 'hostdel-3',
+      winnerUserId: anaId,
+      participants: [{ userId: anaId }, { userId: null }],
+      hostUserId: anaId,
+    });
+    const mine = await request(app).get('/api/game-results/mine').set('Cookie', ana);
+    const row = mine.body.results.find(
+      (r: { sessionId: string }) => r.sessionId === 'hostdel-3'
+    ) as { hostUserId: string | null };
+    expect(row.hostUserId).toBe(anaId);
   });
 });

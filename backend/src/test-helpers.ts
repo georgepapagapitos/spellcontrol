@@ -458,11 +458,13 @@ export async function createTestEnv(): Promise<TestEnv> {
       summary JSONB,
       created_at BIGINT NOT NULL,
       mode TEXT NOT NULL DEFAULT 'online',
-      recorded_by_user_id TEXT
+      recorded_by_user_id TEXT,
+      host_user_id TEXT
     );
     CREATE INDEX game_results_participants_idx ON game_results USING GIN (participants);
     CREATE INDEX game_results_ended_idx ON game_results(ended_at DESC);
     CREATE INDEX game_results_recorded_by_idx ON game_results(recorded_by_user_id);
+    CREATE INDEX game_results_host_idx ON game_results(host_user_id);
     CREATE TABLE game_result_hidden (
       session_id TEXT NOT NULL,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

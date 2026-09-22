@@ -10,6 +10,7 @@ export interface GameResultRow {
   code: string;
   mode: GameResultMode;
   recordedByUserId: string | null;
+  hostUserId: string | null;
   format: string;
   startingLife: number;
   winnerSeat: number | null;
@@ -78,6 +79,9 @@ export async function buildGameResultRow(
     code: state.code,
     mode: state.mode,
     recordedByUserId,
+    // Captured now because game_sessions is swept at 24h; hostUserId is set
+    // once at creation and never reassigned, so this is stable.
+    hostUserId: state.hostUserId,
     format: state.format,
     startingLife: state.startingLife,
     winnerSeat: state.winnerSeat,
@@ -104,8 +108,8 @@ export async function insertGameResult(row: GameResultRow, pool: Pool): Promise<
     `INSERT INTO game_results
        (session_id, code, format, starting_life, winner_seat, winner_user_id,
         started_at, ended_at, duration_ms, participants, notable_events, summary, created_at,
-        mode, recorded_by_user_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+        mode, recorded_by_user_id, host_user_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
      ON CONFLICT (session_id) DO NOTHING`,
     [
       row.sessionId,
@@ -123,6 +127,7 @@ export async function insertGameResult(row: GameResultRow, pool: Pool): Promise<
       row.endedAt,
       row.mode,
       row.recordedByUserId,
+      row.hostUserId,
     ]
   );
   return (res.rowCount ?? 0) > 0;

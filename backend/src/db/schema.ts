@@ -861,10 +861,19 @@ export const gameResults = pgTable(
      * `participants[].userId` does.
      */
     recordedByUserId: text('recorded_by_user_id'),
+    /**
+     * Who hosted an ONLINE game — the only account allowed to delete that row.
+     * Captured at persist time from `GameState.hostUserId` (set once at
+     * creation, never reassigned), because `game_sessions` is swept at 24h and
+     * cannot answer this later. Null for local rows and for online rows
+     * written before this column existed.
+     */
+    hostUserId: text('host_user_id'),
   },
   (t) => ({
     endedIdx: index('game_results_ended_idx').on(t.endedAt),
     recordedByIdx: index('game_results_recorded_by_idx').on(t.recordedByUserId),
+    hostIdx: index('game_results_host_idx').on(t.hostUserId),
   })
 );
 

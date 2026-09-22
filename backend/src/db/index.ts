@@ -595,6 +595,15 @@ export async function ensureSchema(): Promise<void> {
     -- user_games owner.
     ALTER TABLE game_results ADD COLUMN IF NOT EXISTS recorded_by_user_id TEXT;
     CREATE INDEX IF NOT EXISTS game_results_recorded_by_idx ON game_results(recorded_by_user_id);
+    -- Who hosted an ONLINE game: the one account allowed to delete that row.
+    -- Stamped at persist time and NOT looked up later on purpose —
+    -- game_sessions is swept 24h after a table goes quiet (games.ts
+    -- sweepStale), so by the time anyone wants to delete the game its session
+    -- is usually gone. Null for local rows (recorded_by_user_id is their
+    -- owner) and for online rows written before this column existed; those
+    -- stay hide-only, which is what they were before.
+    ALTER TABLE game_results ADD COLUMN IF NOT EXISTS host_user_id TEXT;
+    CREATE INDEX IF NOT EXISTS game_results_host_idx ON game_results(host_user_id);
     -- Per-account hide list for ONLINE rows. An online game is the table's
     -- shared record, so one seat may not retract it — but they can drop it out
     -- of their own history list (a test table, a game they would rather not

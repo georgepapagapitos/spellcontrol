@@ -43,6 +43,7 @@ export interface ResultRow {
   code: string;
   mode: GameResultMode;
   recorded_by_user_id: string | null;
+  host_user_id: string | null;
   format: string;
   starting_life: number;
   winner_seat: number | null;
@@ -61,6 +62,7 @@ export function toPublic(r: ResultRow): PublicGameResult {
     code: r.code,
     mode: r.mode,
     recordedByUserId: r.recorded_by_user_id,
+    hostUserId: r.host_user_id,
     format: r.format,
     startingLife: r.starting_life,
     winnerSeat: r.winner_seat,
@@ -77,7 +79,7 @@ export function toPublic(r: ResultRow): PublicGameResult {
 /** Columns every read route selects. Keeps the SELECT list and `ResultRow` in
  *  step — adding a column in one place and not the other silently yields
  *  `undefined` at runtime with no type error. */
-export const RESULT_COLUMNS = `session_id, code, mode, recorded_by_user_id, format, starting_life,
+export const RESULT_COLUMNS = `session_id, code, mode, recorded_by_user_id, host_user_id, format, starting_life,
             winner_seat, winner_user_id, started_at, ended_at, duration_ms, participants,
             notable_events, summary`;
 
@@ -204,9 +206,29 @@ gameResultsRouter.get('/mine', requireAuth, readLimiter, async (req: Request, re
 
 // ────────────────────────────────────────────────
 // DELETE /api/game-results/:sessionId
-// Only the account that recorded a LOCAL game may remove it — an online row
-// is the table's shared truth and nobody owns it. Uniform 404 for "not
-// yours", "not local" and "no such row" (no existence oracle).
+// Two accounts can delete a game outright, and nobody else:
+//   - the account that recorded a LOCAL game, and
+//   - the account that HOSTED an online one.
+//
+// The host case is deliberate and is not the same as the others: an online row
+// is the table's shared record, so deleting it takes the game out of every
+// participant's history and out of the win-loss both of them played into. The
+// host is the one who made the table, which makes them the right (and only)
+// person to be able to bin a mis-started or test one. Everyone else at that
+// table gets `PUT /hidden` instead, which is theirs alone.
+//
+// The two exclusions below are written as `mode <> x OR col IS DISTINCT FROM`
+// rather than `NOT (mode = x AND col = $3)`: host_user_id is NULL on every
+// online row recorded before that column existed, and `NULL = $3` is NULL, so
+// the NOT form evaluates to NULL and silently filters those rows OUT — taking
+// hide away from exactly the games that only ever had it.
+//
+// `host_user_id` is stamped at persist time (game_sessions is swept at 24h, so
+// it cannot be looked up later); online rows written before that column existed
+// carry null and stay hide-only for everyone, exactly as they were.
+//
+// Uniform 404 for "not yours", "not deletable" and "no such row" — no
+// existence oracle.
 // ────────────────────────────────────────────────
 gameResultsRouter.delete(
   '/:sessionId',
@@ -217,7 +239,11 @@ gameResultsRouter.delete(
     const sessionId = String(req.params.sessionId ?? '');
     const r = await getPool().query(
       `DELETE FROM game_results
-        WHERE session_id = $1 AND mode = 'local' AND recorded_by_user_id = $2`,
+        WHERE session_id = $1
+          AND (
+                (mode = 'local' AND recorded_by_user_id = $2)
+             OR (mode = 'online' AND host_user_id = $2)
+          )`,
       [sessionId, callerId]
     );
     if ((r.rowCount ?? 0) === 0) return res.status(404).json({ error: 'No such game.' });
@@ -292,11 +318,11 @@ gameResultsRouter.patch(
 // PUT / DELETE /api/game-results/:sessionId/hidden
 // Drop a row out of the caller's own history list, or put it back.
 //
-// Exactly the rows they can see but cannot delete: every online game (the
-// table's shared record) and every local game a FRIEND recorded them into.
-// Both land in their history with no other way off it. A local row the caller
-// recorded themselves is excluded on purpose — that one is deleted outright,
-// and hiding it would be a second path to the same thing.
+// Exactly the rows they can see but cannot delete: an online game they did not
+// host, and a local game a FRIEND recorded them into. Both land in their
+// history with no other way off it. A row the caller can delete outright — a
+// local one they recorded, or an online one they hosted — is excluded on
+// purpose, so there is never two paths to the same thing.
 //
 // Hiding is list curation and never a retraction: every stats read still
 // counts the game, so a seat cannot use this to quietly rewrite a shared
@@ -307,7 +333,8 @@ async function callerCanHide(sessionId: string, callerId: string): Promise<boole
     `SELECT 1 FROM game_results
       WHERE session_id = $1
         AND (participants @> $2::jsonb OR recorded_by_user_id = $3)
-        AND NOT (mode = 'local' AND recorded_by_user_id = $3)`,
+        AND (mode <> 'local' OR recorded_by_user_id IS DISTINCT FROM $3)
+        AND (mode <> 'online' OR host_user_id IS DISTINCT FROM $3)`,
     [sessionId, participantFilter(callerId), callerId]
   );
   return (r.rowCount ?? 0) > 0;

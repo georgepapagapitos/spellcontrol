@@ -1307,6 +1307,13 @@ export interface GameRecord {
    */
   recordedByUserId?: string | null;
   /**
+   * Who hosted an ONLINE game — the only account that may delete that record
+   * outright (everyone else at the table can hide it from their own list).
+   * Absent on a local record and on an online one written before the server
+   * captured it.
+   */
+  hostUserId?: string | null;
+  /**
    * Derived stats, computed once here so history rollups never re-walk a log
    * the record doesn't even carry. **Optional by design**: records written
    * before this field read as `undefined` — "no data captured" — and must
@@ -1337,6 +1344,7 @@ export function gameToRecord(state: GameState, endedAt: number = Date.now()): Ga
     endedAt,
     durationMs: state.startedAt ? endedAt - state.startedAt : 0,
     mode: state.mode,
+    ...(state.hostUserId !== null ? { hostUserId: state.hostUserId } : {}),
     summary: summarizeGame(state, endedAt),
   };
 }

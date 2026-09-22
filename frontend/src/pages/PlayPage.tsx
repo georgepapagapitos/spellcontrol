@@ -1523,7 +1523,8 @@ type HistoryFilter = 'all' | 'local' | 'online';
 
 /**
  * A local row this device or account owns. The only kind that can be
- * corrected, and the only kind that can be deleted outright.
+ * CORRECTED — the winner and deck attribution are the recorder's to fix, and
+ * an online game's are the server's.
  */
 function ownsRecord(rec: GameRecord, userId: string | null): boolean {
   if (rec.mode !== 'local') return false;
@@ -1531,18 +1532,34 @@ function ownsRecord(rec: GameRecord, userId: string | null): boolean {
   return rec.recordedByUserId === undefined || rec.recordedByUserId === userId;
 }
 
+/** An online game this account made the table for. */
+function hostsRecord(rec: GameRecord, userId: string | null): boolean {
+  return rec.mode === 'online' && userId !== null && rec.hostUserId === userId;
+}
+
 /**
- * A row this account can see but never delete: an online game (the table's
- * shared record) or a local one a friend recorded them into. It leaves their
- * list and nothing else - the game still counts in every win-loss.
+ * A row this account may delete outright: a local one it owns, or an online one
+ * it HOSTED. The second is different in kind and the copy says so — deleting a
+ * shared row takes the game out of every participant's history and out of the
+ * win-loss they played into. The host made the table, which makes them the one
+ * person who gets to bin a mis-started or test one.
+ */
+function canDeleteRecord(rec: GameRecord, userId: string | null): boolean {
+  return ownsRecord(rec, userId) || hostsRecord(rec, userId);
+}
+
+/**
+ * A row this account can see but never delete: an online game it did not host,
+ * or a local one a friend recorded it into. It leaves their list and nothing
+ * else - the game still counts in every win-loss.
  */
 function canHideRecord(rec: GameRecord, userId: string | null): boolean {
-  return userId !== null && !ownsRecord(rec, userId);
+  return userId !== null && !canDeleteRecord(rec, userId);
 }
 
 /** A guest's history is this device's alone, so anything on it can leave it. */
 function canDropRecord(rec: GameRecord, userId: string | null): boolean {
-  return userId === null || ownsRecord(rec, userId) || canHideRecord(rec, userId);
+  return userId === null || canDeleteRecord(rec, userId) || canHideRecord(rec, userId);
 }
 
 /** What leaving the list means for a row: gone for good, or out of sight. */
@@ -1556,14 +1573,26 @@ function dropKind(rec: GameRecord, userId: string | null): 'remove' | 'hide' {
  * single sentence covering both would be true of neither.
  */
 function dropConfirmBody(records: GameRecord[], userId: string | null): string {
-  const removing = records.filter((r) => dropKind(r, userId) === 'remove').length;
-  const hiding = records.length - removing;
+  const dropping = records.filter((r) => dropKind(r, userId) === 'remove');
+  // A hosted online game is a removal too, but not the same one: it is the
+  // table's shared record, so it leaves everyone's history, not just yours.
+  // Saying "leaves your history" about it would be false.
+  const shared = dropping.filter((r) => r.mode === 'online').length;
+  const removing = dropping.length - shared;
+  const hiding = records.length - dropping.length;
   const parts: string[] = [];
   if (removing > 0) {
     parts.push(
       removing === 1
         ? 'One game leaves your history for good, along with the deck records built from it.'
         : `${removing} games leave your history for good, along with the deck records built from them.`
+    );
+  }
+  if (shared > 0) {
+    parts.push(
+      shared === 1
+        ? 'One game you hosted leaves the record for everyone who played it, and their win-loss with it.'
+        : `${shared} games you hosted leave the record for everyone who played them, and their win-loss with them.`
     );
   }
   if (hiding > 0) {
@@ -1573,7 +1602,7 @@ function dropConfirmBody(records: GameRecord[], userId: string | null): string {
         : `${hiding} games leave your list. The table keeps its record, and your win-loss still counts them.`
     );
   }
-  if (removing > 0) parts.push("Removing can't be undone.");
+  if (removing + shared > 0) parts.push("Removing can't be undone.");
   return parts.join(' ');
 }
 
@@ -1812,14 +1841,18 @@ function HistoryTab({
               rec.winnerSeat != null ? rec.players.find((p) => p.seat === rec.winnerSeat) : null;
             const when = new Date(rec.endedAt).toLocaleString();
             const kind = dropKind(rec, userId);
+            // Delete is a visible control, not a menu entry. It used to be one
+            // and moving it behind the kebab made it unfindable — the first
+            // question asked of this screen was "where is the option to
+            // outright delete games?". Hiding stays in the menu: it is the
+            // quieter, reversible one.
             const menuItems: OverflowMenuItem[] = [];
             if (ownsRecord(rec, userId)) {
               menuItems.push({ label: 'Correct this game', onClick: () => setEditing(rec) });
             }
-            if (canDropRecord(rec, userId)) {
+            if (canHideRecord(rec, userId)) {
               menuItems.push({
-                label: kind === 'hide' ? 'Hide from my list' : 'Remove',
-                danger: kind === 'remove',
+                label: 'Hide from my list',
                 onClick: () => setPendingDrop([rec]),
               });
             }
@@ -1848,6 +1881,16 @@ function HistoryTab({
                   </button>
                   {menuItems.length > 0 && (
                     <OverflowMenu items={menuItems} ariaLabel={`Game options: ${when}`} />
+                  )}
+                  {kind === 'remove' && canDropRecord(rec, userId) && (
+                    <button
+                      type="button"
+                      className="play-history-remove"
+                      aria-label={`Remove game: ${when}`}
+                      onClick={() => setPendingDrop([rec])}
+                    >
+                      ×
+                    </button>
                   )}
                 </div>
                 <div className="play-history-winner">

@@ -99,6 +99,7 @@ function serverCopy(game: GameState, recordedBy = 'me'): PublicGameResult {
     code: '',
     mode: 'local',
     recordedByUserId: recordedBy,
+    hostUserId: null,
     format: game.format,
     startingLife: game.startingLife,
     winnerSeat: game.winnerSeat,
@@ -324,6 +325,26 @@ describe('removeHistory', () => {
     });
     usePlayStore.getState().removeHistory('queued');
     expect(usePlayStore.getState().pendingResults).toEqual([]);
+    expect(mockDelete).not.toHaveBeenCalled();
+  });
+
+  it('removes an online game this account hosted from the server too', async () => {
+    await signIn();
+    mockDelete.mockResolvedValue();
+    usePlayStore.setState({
+      history: [{ ...record('hosted', 'online', null), hostUserId: 'me' }],
+    });
+    usePlayStore.getState().removeHistory('hosted');
+    expect(usePlayStore.getState().history).toEqual([]);
+    expect(mockDelete).toHaveBeenCalledWith('hosted');
+  });
+
+  it('never calls the server for an online game someone else hosted', async () => {
+    await signIn();
+    usePlayStore.setState({
+      history: [{ ...record('theirs-online', 'online', null), hostUserId: 'someone-else' }],
+    });
+    usePlayStore.getState().removeHistory('theirs-online');
     expect(mockDelete).not.toHaveBeenCalled();
   });
 
