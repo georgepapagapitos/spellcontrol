@@ -1446,13 +1446,16 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       // focused button still presses it).
       const handlers: Record<ShortcutId, () => boolean | void> = {
         menu: () => {
-          // "Clear selection / close / open menu", in that order: Escape
-          // always undoes the most recent thing you are in the middle of,
-          // and with nothing to undo it becomes the way in to the table
-          // menu — which is otherwise right-click only.
+          // Escape only ever backs out of something: an armed arrow, then a
+          // selection. With nothing to back out of it does NOTHING and the
+          // key falls through — it used to open the table menu instead,
+          // which made the universal "get me out of this" key summon a
+          // panel in the middle of the felt. The menu's own ways in are
+          // unchanged: right-click, the Context Menu key, Shift+F10 and the
+          // corner button.
           if (arrowFrom) setArrowFrom(null);
           else if (selected.size > 0) clearSelection();
-          else setTableMenu({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+          else return false;
         },
         arrow: () => beginArrow(new Set(targets)),
         'arrows-clear': () => (myArrowCount > 0 ? clearMyArrows() : false),
