@@ -3,11 +3,6 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import 'mana-font/css/mana.min.css';
-import 'keyrune/css/keyrune.min.css';
-// Must follow the two vendor stylesheets — it re-points their @font-face rules
-// at our bbox-corrected woff2 builds (see the file header).
-import './styles/icon-fonts.css';
 // Split from the former styles/global.css — imported in original cascade order
 // so the split is a pure file-organization change (no behavior change).
 import './styles/fonts.css';
@@ -100,6 +95,21 @@ if (hasEverVisited()) {
 // Register the service worker for installable / offline-capable behavior.
 // No-op in dev (devOptions.enabled = false in vite.config.ts).
 void registerPwa();
+
+// Mana + keyrune glyph CSS, off the critical path. Between them they were
+// 13.7 KB gzipped of the render-blocking payload — the two largest stylesheets
+// in it, larger than any of the app's own — and they define a class for every
+// mana symbol and every set symbol ever printed. The first paint shows the
+// shell, the nav and the hero; not one card symbol. They travel together with
+// our @font-face overrides (see styles/icon-fonts-async.ts) because those only
+// win by coming later in the cascade.
+//
+// `icons-pending` reserves each glyph's square until the sheet lands, so the
+// symbols do not all pop from zero width at once and shove the text beside
+// them (styles/base-layout.css).
+const docEl = document.documentElement;
+docEl.classList.add('icons-pending');
+void import('./styles/icon-fonts-async').finally(() => docEl.classList.remove('icons-pending'));
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

@@ -11,13 +11,17 @@
 // combos-list, import-dialog and scanner/admin sheets moved into their page
 // chunks: 99 KB → 76 KB gzipped at gzip -6 of dist). Raising one is fine —
 // say why in the commit that raises it. Lowering one when a split lands keeps
-// the ratchet honest.
+// the ratchet honest — which is why CSS came down to 68 on 2026-09-22, when the
+// mana-font + keyrune glyph sheets (13.7 KB gzipped between them, the two
+// largest items in the payload and neither one ours) moved off the critical
+// path into a dynamic import. 80 → 65 measured; 68 leaves the same slim margin
+// over the measurement that every other number here does.
 import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const BUDGET_KB = { js: 410, css: 80 };
+export const BUDGET_KB = { js: 410, css: 68 };
 
 const dist = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 // Vite emits multi-line <link> tags; a line-based scan misses them.
