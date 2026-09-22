@@ -1078,7 +1078,14 @@ body[data-felt='slate'] {
   background-color: #1e130b;
   background-image: url('/card-back.webp');
   background-size: cover;
-  background-position: center;
+  /* TOP, for the same reason the face-up slot anchors its image there: this
+     box is a third of a card high, so `cover` scales the back to the box's
+     width and `center` showed the middle of it — the brown oval, with the
+     back's own top edge and border cut off above. A card on a table shows
+     its top. (The other two card backs, on the opponent quadrant and rail,
+     keep `center`: their boxes are a whole card's aspect, so there is no
+     slice to choose.) */
+  background-position: top;
   background-repeat: no-repeat;
 }
 
