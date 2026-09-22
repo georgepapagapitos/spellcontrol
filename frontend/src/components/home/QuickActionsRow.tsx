@@ -55,11 +55,7 @@ export function QuickActionsRow() {
           New deck
         </span>
       </Link>
-      <Link
-        to="/play?tab=nights"
-        className="pill-btn home-quick-action"
-        aria-label="Plan a game night"
-      >
+      <Link to="/play/nights" className="pill-btn home-quick-action" aria-label="Plan a game night">
         <CalendarPlus width={14} height={14} strokeWidth={1.8} aria-hidden />
         <span className="home-qa-label">Plan a game night</span>
         <span className="home-qa-label-short" aria-hidden="true">

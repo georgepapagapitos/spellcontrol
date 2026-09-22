@@ -158,7 +158,7 @@ describe('HomePage', () => {
     renderPage();
     expect(screen.getByRole('link', { name: /New deck/i }).getAttribute('href')).toBe('/decks/new');
     expect(screen.getByRole('link', { name: /Plan a game night/i }).getAttribute('href')).toBe(
-      '/play?tab=nights'
+      '/play/nights'
     );
     expect(screen.getByRole('button', { name: /Import cards/i })).toBeTruthy();
   });

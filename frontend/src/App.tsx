@@ -477,6 +477,7 @@ export default function App() {
             <Route path="/decks/:id/playtest" element={<PlaytestPage />} />
             <Route path="/decks/:id/playtest/log" element={<PlaytestLogPage />} />
             <Route path="/play" element={<PlayPage />} />
+            <Route path="/play/:section" element={<PlayPage />} />
             <Route path="/rules" element={<RulesPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/tags" element={<TagsPage />} />

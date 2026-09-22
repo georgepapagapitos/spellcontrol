@@ -11,7 +11,7 @@
  */
 import 'fake-indexeddb/auto';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GameState } from '../lib/game-state';
 
@@ -148,8 +148,11 @@ import { PlayPage } from './PlayPage';
 
 function renderOnlineTab() {
   return render(
-    <MemoryRouter initialEntries={['/play?tab=online']}>
-      <PlayPage />
+    <MemoryRouter initialEntries={['/play/online']}>
+      <Routes>
+        <Route path="/play" element={<PlayPage />} />
+        <Route path="/play/:section" element={<PlayPage />} />
+      </Routes>
     </MemoryRouter>
   );
 }

@@ -94,6 +94,7 @@ function renderAt(path: string) {
           <Route path="/decks/:id/playtest" element={<PlaytestPage />} />
           <Route path="/decks/:id" element={<div>deck page</div>} />
           <Route path="/play" element={<div>play page</div>} />
+          <Route path="/play/:section" element={<div>play page</div>} />
         </Routes>
       </MemoryRouter>
     </StrictMode>

@@ -78,14 +78,14 @@ export function GameNightCard() {
       onRetry={refresh}
       empty={empty}
       emptyText="No game nights on the calendar."
-      viewAllHref="/play?tab=nights"
+      viewAllHref="/play/nights"
       viewAllLabel={empty ? 'Plan one' : undefined}
     >
       <ul className="home-game-nights-list">
         {upcoming.map((night) => (
           <li key={night.id}>
             <Link
-              to="/play?tab=nights"
+              to="/play/nights"
               className="home-game-night-row"
               aria-label={`Open game night: ${night.title}, ${formatSlot(night.startsAt)}, ${rsvpLabel(night)}`}
             >

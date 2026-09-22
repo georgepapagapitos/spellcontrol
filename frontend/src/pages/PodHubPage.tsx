@@ -639,7 +639,7 @@ export function PodHubPage() {
               ) : gamesFetch.games.length === 0 ? (
                 <div className="pod-hub-stats-empty pod-hub-stats-empty-cta">
                   <p>No games yet.</p>
-                  <Link to="/play?tab=nights" className="btn btn-primary">
+                  <Link to="/play/nights" className="btn btn-primary">
                     Plan a game night
                   </Link>
                 </div>

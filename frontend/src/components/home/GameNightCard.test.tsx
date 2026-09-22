@@ -108,7 +108,7 @@ describe('GameNightCard', () => {
     renderCard();
     expect(screen.getByText('No game nights on the calendar.')).toBeTruthy();
     const cta = screen.getByRole('link', { name: 'Plan one' });
-    expect(cta.getAttribute('href')).toBe('/play?tab=nights');
+    expect(cta.getAttribute('href')).toBe('/play/nights');
   });
 
   it('lists upcoming nights soonest-first with an RSVP chip and full aria-label', () => {
@@ -130,7 +130,7 @@ describe('GameNightCard', () => {
     expect(screen.getByText('Maybe')).toBeTruthy();
     const links = screen
       .getAllByRole('link')
-      .filter((l) => l.getAttribute('href') === '/play?tab=nights');
+      .filter((l) => l.getAttribute('href') === '/play/nights');
     // Every row links to the same full RSVP UI — never a per-night deep link
     // or a second mutation path on Home.
     expect(links.length).toBeGreaterThanOrEqual(2);
