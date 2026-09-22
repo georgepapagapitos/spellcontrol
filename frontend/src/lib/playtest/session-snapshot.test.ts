@@ -22,11 +22,7 @@ function baseState(
     turn: 1,
     commanderTax: {},
     life: 20,
-    opponents: [{ life: 20, commanderDamage: 0 }],
     startingLife: 20,
-    startingOpponentLife: 20,
-    commanderDamageThreshold: 21,
-    tableDefeatedTurn: null,
     monarch: false,
     initiative: false,
     citysBlessing: false,
@@ -225,21 +221,13 @@ describe('E138 life fields — backward compat with pre-E138 snapshots', () => {
     expect(loadPlaytestSnapshot('deck-1', '100:60')).toBeNull();
   });
 
-  it('rejects a snapshot whose opponents field is present but not an array', () => {
-    localStorage.setItem(
-      'spellcontrol:playtest:deck-1',
-      JSON.stringify(baseSnapshot({ state: { ...baseState(), opponents: 'nope' as never } }))
-    );
-    expect(loadPlaytestSnapshot('deck-1', '100:60')).toBeNull();
-  });
-
   describe('migrateSnapshotState', () => {
     it('passes a state that already has life fields through unchanged', () => {
       const state = baseState();
       expect(migrateSnapshotState(state, { format: 'commander' })).toBe(state);
     });
 
-    it('backfills commander defaults (40 life, 3 opponents, 21 threshold) when format is commander-family', () => {
+    it('backfills commander starting life (40) when format is commander-family', () => {
       const legacy = {
         zones: baseState().zones,
         battlefield: [],
@@ -248,16 +236,10 @@ describe('E138 life fields — backward compat with pre-E138 snapshots', () => {
       } as unknown as Omit<PlaytestState, 'past'>;
       const migrated = migrateSnapshotState(legacy, { format: 'commander' });
       expect(migrated.life).toBe(40);
-      expect(migrated.opponents).toEqual([
-        { life: 40, commanderDamage: 0 },
-        { life: 40, commanderDamage: 0 },
-        { life: 40, commanderDamage: 0 },
-      ]);
-      expect(migrated.commanderDamageThreshold).toBe(21);
-      expect(migrated.tableDefeatedTurn).toBeNull();
+      expect(migrated.startingLife).toBe(40);
     });
 
-    it('backfills paupercommander defaults (30 life, 16 threshold)', () => {
+    it('backfills paupercommander starting life (30)', () => {
       const legacy = {
         zones: baseState().zones,
         battlefield: [],
@@ -266,11 +248,9 @@ describe('E138 life fields — backward compat with pre-E138 snapshots', () => {
       } as unknown as Omit<PlaytestState, 'past'>;
       const migrated = migrateSnapshotState(legacy, { format: 'paupercommander' });
       expect(migrated.life).toBe(30);
-      expect(migrated.opponents).toHaveLength(3);
-      expect(migrated.commanderDamageThreshold).toBe(16);
     });
 
-    it('falls back to the generic 1v1/20-life config when there is no deck', () => {
+    it('falls back to the generic 20-life config when there is no deck', () => {
       const legacy = {
         zones: baseState().zones,
         battlefield: [],
@@ -279,8 +259,20 @@ describe('E138 life fields — backward compat with pre-E138 snapshots', () => {
       } as unknown as Omit<PlaytestState, 'past'>;
       const migrated = migrateSnapshotState(legacy, undefined);
       expect(migrated.life).toBe(20);
-      expect(migrated.opponents).toEqual([{ life: 20, commanderDamage: 0 }]);
-      expect(migrated.commanderDamageThreshold).toBe(21);
+      expect(migrated.startingLife).toBe(20);
+    });
+
+    /** An older snapshot still carries `opponents`/`tableDefeatedTurn`. It
+     *  loads fine — nothing reads them, and the reducer's own `snapshot()`
+     *  drops them on the first action. */
+    it('loads a snapshot that still carries the old opponent bookkeeping', () => {
+      const legacy = {
+        ...baseState(),
+        opponents: [{ life: 40, commanderDamage: 3 }],
+        tableDefeatedTurn: 7,
+      } as unknown as Omit<PlaytestState, 'past'>;
+      const migrated = migrateSnapshotState(legacy, { format: 'commander' });
+      expect(migrated.life).toBe(20);
     });
   });
 });

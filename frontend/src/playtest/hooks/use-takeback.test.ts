@@ -79,7 +79,7 @@ afterEach(() => {
  *  hand-built fixture. */
 function pushConsentStep() {
   act(() => {
-    usePlaytestStore.getState().dispatch({ type: 'ADJUST_LIFE', player: 'self', delta: -1 });
+    usePlaytestStore.getState().dispatch({ type: 'ADJUST_LIFE', delta: -1 });
   });
 }
 

@@ -62,9 +62,8 @@ const SAMPLE_ACTIONS: Record<PlaytestAction['type'], PlaytestAction> = {
   NEXT_TURN: { type: 'NEXT_TURN' },
   RESET: { type: 'RESET' },
   UNDO: { type: 'UNDO' },
-  ADJUST_LIFE: { type: 'ADJUST_LIFE', player: 'self', delta: -1 },
-  ADJUST_COMMANDER_DAMAGE: { type: 'ADJUST_COMMANDER_DAMAGE', opponent: 0, delta: 1 },
-  SET_PLAYER_COUNTER: { type: 'SET_PLAYER_COUNTER', player: 'self', counter: 'poison', delta: 1 },
+  ADJUST_LIFE: { type: 'ADJUST_LIFE', delta: -1 },
+  SET_PLAYER_COUNTER: { type: 'SET_PLAYER_COUNTER', counter: 'poison', delta: 1 },
   SET_DESIGNATION: { type: 'SET_DESIGNATION', designation: 'monarch', held: true },
 };
 

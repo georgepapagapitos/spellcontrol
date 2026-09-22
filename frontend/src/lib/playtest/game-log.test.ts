@@ -410,40 +410,9 @@ describe('buildLogEntries', () => {
       ]);
     });
 
-    it('logs an opponent life change, labeled by index when there are several', () => {
-      const s = createPlaytestState({
-        library: deck(5),
-        seed: 1,
-        openingHandSize: 0,
-        opponentCount: 2,
-        opponentLife: 40,
-      });
-      const action = { type: 'ADJUST_LIFE', player: 1, delta: -10 } as const;
-      const next = applyAction(s, action);
-      expect(buildLogEntries(s, action, next)).toEqual([
-        { turn: 1, kind: 'life', text: 'Opponent 2 life: 40 → 30', verdict: 'consent' },
-      ]);
-    });
-
-    it('does not log a no-op life adjustment (out-of-range index)', () => {
+    it('does not log a no-op life adjustment (zero delta)', () => {
       const s = init(5, 1, 0);
-      const action = { type: 'ADJUST_LIFE', player: 5, delta: -1 } as const;
-      const next = applyAction(s, action);
-      expect(buildLogEntries(s, action, next)).toEqual([]);
-    });
-
-    it('logs commander damage, singular "Opponent" label with only one', () => {
-      const s = init(5, 1, 0);
-      const action = { type: 'ADJUST_COMMANDER_DAMAGE', opponent: 0, delta: 6 } as const;
-      const next = applyAction(s, action);
-      expect(buildLogEntries(s, action, next)).toEqual([
-        { turn: 1, kind: 'life', text: 'Opponent commander damage: 0 → 6', verdict: 'consent' },
-      ]);
-    });
-
-    it('does not log a no-op commander damage adjustment (out-of-range index)', () => {
-      const s = init(5, 1, 0);
-      const action = { type: 'ADJUST_COMMANDER_DAMAGE', opponent: 5, delta: 1 } as const;
+      const action = { type: 'ADJUST_LIFE', delta: 0 } as const;
       const next = applyAction(s, action);
       expect(buildLogEntries(s, action, next)).toEqual([]);
     });
@@ -605,31 +574,16 @@ describe('buildLogEntries — attachments and player counters', () => {
   });
 
   it('logs a player counter as a before → after transition', () => {
-    const s = createPlaytestState({ library: deck(20), seed: 1, life: 40, opponentCount: 2 });
-    const poison = { type: 'SET_PLAYER_COUNTER' as const, player: 0, counter: 'poison', delta: 3 };
-    expect(buildLogEntries(s, poison, applyAction(s, poison))).toEqual([
-      { turn: 1, kind: 'counter', text: 'Opponent 1: poison 0 → 3', verdict: 'free' },
-    ]);
-
-    const mine = {
-      type: 'SET_PLAYER_COUNTER' as const,
-      player: 'self' as const,
-      counter: 'energy',
-      delta: 1,
-    };
+    const s = createPlaytestState({ library: deck(20), seed: 1, life: 40 });
+    const mine = { type: 'SET_PLAYER_COUNTER' as const, counter: 'energy', delta: 1 };
     expect(buildLogEntries(s, mine, applyAction(s, mine))).toEqual([
       { turn: 1, kind: 'counter', text: 'You: energy 0 → 1', verdict: 'free' },
     ]);
   });
 
   it('logs nothing when a counter adjustment is floored away', () => {
-    const s = createPlaytestState({ library: deck(20), seed: 1, life: 40, opponentCount: 1 });
-    const under = {
-      type: 'SET_PLAYER_COUNTER' as const,
-      player: 'self' as const,
-      counter: 'poison',
-      delta: -1,
-    };
+    const s = createPlaytestState({ library: deck(20), seed: 1, life: 40 });
+    const under = { type: 'SET_PLAYER_COUNTER' as const, counter: 'poison', delta: -1 };
     expect(buildLogEntries(s, under, applyAction(s, under))).toEqual([]);
   });
 });

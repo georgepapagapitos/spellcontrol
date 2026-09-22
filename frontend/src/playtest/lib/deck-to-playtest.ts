@@ -51,16 +51,10 @@ export function deckToPlaytestInit(deck: Deck, opts: { seed?: number } = {}): Pl
   if (deck.partnerCommander) {
     command.push(toPlaytestCard(deck.partnerCommander, `cmd-${deck.partnerCommander.id}`));
   }
-  const { life, opponentCount, opponentLife, commanderDamageThreshold } = playtestLifeConfig(
-    deck.format
-  );
   return {
     library,
     command,
     seed: opts.seed,
-    life,
-    opponentCount,
-    opponentLife,
-    commanderDamageThreshold,
+    life: playtestLifeConfig(deck.format).life,
   };
 }
