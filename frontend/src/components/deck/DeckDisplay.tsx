@@ -968,6 +968,18 @@ export function DeckDisplay({
     [consideringGroups, search, sort, sortDir]
   );
 
+  // Stacks lens: the out-zone is ONE column, not one per type. It is a holding
+  // pile of a handful of cards — splitting it by type would put a header over
+  // every second card — so the type groups collapse back into a single stack
+  // that keeps the lens's sort and filter.
+  const outzoneStack = useCallback(
+    (groups: TypedGroup[]): TypedGroup[] =>
+      groups.length === 0
+        ? []
+        : [{ ...groups[0], target: undefined, rows: groups.flatMap((g) => g.rows) }],
+    []
+  );
+
   // No card in the deck (main, sideboard, or considering) matches the current
   // query — the cue to surface the "search Scryfall to add it" trigger.
   const noDeckMatches =
@@ -1350,6 +1362,13 @@ export function DeckDisplay({
   // former list-view-only sideboard section). false → the switch collapses
   // to Considering alone (a 1-item tablist would be an anti-pattern).
   const showSideboardTab = formatConfig.sideboardSize > 0;
+  // Which pile the out-zone is showing, and whether it holds anything after
+  // the lens's search/filter. Both the stack and its menus key off this.
+  const outzoneZone: DeckZone =
+    outzoneTab === 'sideboard' && showSideboardTab ? 'sideboard' : 'considering';
+  const outzoneRows = (
+    outzoneZone === 'sideboard' ? visibleSideboardGroups : visibleConsideringGroups
+  ).reduce((n, g) => n + g.rows.length, 0);
 
   const ctxValue = useMemo(
     () => ({
@@ -1429,8 +1448,24 @@ export function DeckDisplay({
     moveZone: zone === 'cards' ? (showSideboardTab ? 'sideboard' : undefined) : 'mainboard',
     onEditCard,
     onSetQty: onSetQtyForZone(zone),
-    onRemoveCard: zone === 'cards' ? onRemoveCard : undefined,
-    onMoveToZone: zone === 'cards' && showSideboardTab ? onMoveToSideboard : undefined,
+    // Out-zone rows get their own remover and their own way back. Both were
+    // `undefined` for anything but `cards` while the out-zone was list-only and
+    // took these as CategorySection props; the stacks lens reaches them through
+    // this menu instead, and a pile you cannot empty is a dead end.
+    onRemoveCard:
+      zone === 'cards'
+        ? onRemoveCard
+        : zone === 'sideboard'
+          ? onRemoveSideboardCard
+          : onRemoveConsideringCard,
+    onMoveToZone:
+      zone === 'cards'
+        ? showSideboardTab
+          ? onMoveToSideboard
+          : undefined
+        : zone === 'sideboard'
+          ? onMoveToMainboard
+          : onMoveFromConsidering,
     onMoveToConsidering: zone === 'cards' ? onMoveToConsidering : undefined,
     onUseOwnCopy,
     onMoveToAnotherDeck,
@@ -1976,7 +2011,28 @@ export function DeckDisplay({
                         role={showSideboardTab ? 'tabpanel' : undefined}
                         aria-labelledby={showSideboardTab ? `sc-tab-${outzoneTab}` : undefined}
                       >
-                        {outzoneTab === 'sideboard' && showSideboardTab ? (
+                        {viewMode === 'stacks' && outzoneRows > 0 ? (
+                          <DeckCardGrid
+                            layout="stacks"
+                            hideHeaders
+                            groups={outzoneStack(
+                              outzoneTab === 'sideboard' && showSideboardTab
+                                ? visibleSideboardGroups
+                                : visibleConsideringGroups
+                            )}
+                            currency={currency}
+                            showPrice={showPrefs.price}
+                            onRowContextMenu={openCardMenu(outzoneZone)}
+                            onRowMenu={openCardMenuAt(outzoneZone)}
+                            onRowClick={openPreview}
+                            gridZoom={effectiveGridZoom}
+                            gridWidth={gridWidth}
+                            showRoles={showPrefs.roles}
+                            roleFilter={activeRoleFilter}
+                            synergyByName={synergyByName}
+                            binderByCopyId={binderByCopyId}
+                          />
+                        ) : outzoneTab === 'sideboard' && showSideboardTab ? (
                           visibleSideboardGroups.length > 0 ? (
                             visibleSideboardGroups.map((g) => (
                               <CategorySection

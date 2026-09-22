@@ -235,7 +235,10 @@ function DeckViewPopoverPanel({
         <span className="view-popover-row-label">Group by</span>
         <DeckGroupByMenu value={groupBy} onChange={onGroupByChange} labelled={false} />
       </div>
-      {viewMode !== 'list' && (
+      {/* This panel only exists on a phone, where a stack is one full-width
+          column and the card is as wide as the screen already — the size
+          stepper has nothing left to change there, so it is a grid control. */}
+      {viewMode === 'grid' && (
         <div className="view-popover-row">
           <span className="view-popover-row-label">Card size</span>
           <ZoomControl
