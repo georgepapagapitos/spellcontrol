@@ -75,11 +75,13 @@ describe('LifeStrip — solo mode', () => {
     expect(screen.getByRole('button', { name: /You: 40 life/ })).toBeTruthy();
   });
 
-  it('lists commander damage per opponent in MY panel and steps it onto that opponent', () => {
-    const props = soloProps();
+  /** Goldfishing is a deck against nobody. Your own popover listing three
+   *  virtual seats and their commander damage was the whole reason it ran
+   *  650px tall while EDHPlay's is a counter list. */
+  it('keeps opponents out of MY panel entirely — goldfishing has none to list', () => {
     render(
       <LifeStrip
-        {...props}
+        {...soloProps()}
         opponents={[
           { life: 40, commanderDamage: 5 },
           { life: 40, commanderDamage: 0 },
@@ -87,17 +89,25 @@ describe('LifeStrip — solo mode', () => {
       />
     );
     fireEvent.click(screen.getByRole('button', { name: /You: 40 life/ }));
-    expect(screen.getByText('Commander damage')).toBeTruthy();
-    expect(screen.getByText('16 to lethal')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Commander damage from Opponent 2 +1' }));
-    expect(props.onAdjustCommanderDamage).toHaveBeenCalledWith(1, 1);
+    expect(screen.queryByText('Opponents')).toBeNull();
+    expect(screen.queryByText('Commander damage')).toBeNull();
+    expect(screen.getByText('Poison')).toBeTruthy();
   });
 
-  it("an opponent's own panel is life and counters, not a second commander-damage stepper", () => {
-    render(<LifeStrip {...soloProps()} opponents={[{ life: 40, commanderDamage: 5 }]} />);
+  /** It moved rather than went: this is what still feeds the "swept the table
+   *  on turn N" kill clock (`deriveTableDefeatedTurn`), and it belongs on the
+   *  opponent taking the damage, not in your counter list. */
+  it("steps commander damage from the opponent's own panel", () => {
+    const props = soloProps();
+    render(<LifeStrip {...props} opponents={[{ life: 40, commanderDamage: 5 }]} />);
     fireEvent.click(screen.getByRole('button', { name: /Opponent: 40 life/ }));
     expect(screen.getByRole('button', { name: 'Life +1' })).toBeTruthy();
-    expect(screen.queryByText('Commander damage')).toBeNull();
+    expect(screen.getByText('Commander damage')).toBeTruthy();
+    expect(screen.getByText('16 to lethal')).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Commander damage from Your commander +1' })
+    );
+    expect(props.onAdjustCommanderDamage).toHaveBeenCalledWith(0, 1);
   });
 });
 
@@ -139,7 +149,7 @@ describe('LifeStrip — the popover is one fixed list (EDHPlay shape)', () => {
     expect(screen.getAllByRole('button')).toHaveLength(4); // −, total, +, chevron
   });
 
-  it('table variant: the chevron opens opponents, commander damage and counters, but no life row', () => {
+  it('table variant: goldfishing, the chevron opens the counter list and nothing else', () => {
     render(
       <LifeStrip
         {...soloProps()}
@@ -150,32 +160,35 @@ describe('LifeStrip — the popover is one fixed list (EDHPlay shape)', () => {
         variant="table"
       />
     );
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Opponents, commander damage and counters' })
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Counters' }));
     expect(screen.getByRole('dialog', { name: 'You' })).toBeTruthy();
     // Life stays out: the corner panel already has the numeral and steppers.
     expect(screen.queryByRole('button', { name: 'Life +5' })).toBeNull();
-    expect(screen.getByText('Opponents')).toBeTruthy();
-    expect(screen.getByText('Commander damage')).toBeTruthy();
+    expect(screen.queryByText('Opponents')).toBeNull();
+    expect(screen.queryByText('Commander damage')).toBeNull();
+    // A lone section needs no heading naming it, and no title above it: the
+    // chevron it hangs from is on the panel showing your own total.
+    expect(document.querySelector('.playtest-life-panel__counters-heading')).toBeNull();
+    expect(document.querySelector('.playtest-life-panel__title')).toBeNull();
     expect(screen.getByText('Poison')).toBeTruthy();
   });
 
-  it('table variant: an opponent is damaged from its own row, without a second panel', () => {
-    const onAdjustLife = vi.fn();
-    render(
-      <LifeStrip
-        {...soloProps()}
-        onAdjustLife={onAdjustLife}
-        opponents={[{ life: 40, commanderDamage: 0 }]}
-        variant="table"
-      />
-    );
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Opponents, commander damage and counters' })
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Opponent life -1' }));
-    expect(onAdjustLife).toHaveBeenCalledWith(0, -1);
+  /** The chevron only ever opened. A second press did close the popover, but
+   *  by landing on the full-screen backdrop rather than on the chevron, and
+   *  the glyph pointed down the entire time it was open. */
+  it('table variant: the chevron is one toggle — it flips, and it closes', () => {
+    render(<LifeStrip {...soloProps()} variant="table" />);
+    const shut = () => screen.getByRole('button', { expanded: false });
+    expect(shut().querySelector('.lucide-chevron-down')).toBeTruthy();
+
+    fireEvent.click(shut());
+    const open = screen.getByRole('button', { expanded: true });
+    expect(open.querySelector('.lucide-chevron-up')).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'You' })).toBeTruthy();
+
+    fireEvent.click(open);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(shut()).toBeTruthy();
   });
 
   it('table variant: shows the running life change, then stops showing it', () => {
@@ -304,6 +317,35 @@ describe('LifeStrip — online mode', () => {
   });
 });
 
+describe('LifeStrip — a real game gets the Opponents section goldfishing does not', () => {
+  it('lists every other seat with its life, and opens that seat from its name', () => {
+    render(
+      <LifeStrip
+        {...soloProps()}
+        variant="table"
+        onlineTable={onlineTable({
+          players: [
+            player({ seat: 0, name: 'Me', life: 40 }),
+            player({ seat: 1, name: 'Maya', life: 34 }),
+            player({ seat: 2, name: 'Rin', life: 21 }),
+          ],
+        })}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Opponents, commander damage and counters' })
+    );
+    expect(screen.getByText('Opponents')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Maya: 34 life/ })).toBeTruthy();
+
+    // No stepper on their row: a seat owns its own total, so this section
+    // reads the table and hands you a way into any seat's full panel.
+    expect(screen.queryByRole('button', { name: 'Maya life -1' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Rin: 21 life/ }));
+    expect(screen.getByRole('dialog', { name: 'Rin' })).toBeTruthy();
+  });
+});
+
 describe('LifeStrip — the table popover escapes its chip', () => {
   /**
    * `.playtest-life-table` carries `backdrop-filter: blur(6px)`, which makes it
@@ -319,9 +361,7 @@ describe('LifeStrip — the table popover escapes its chip', () => {
    */
   it('portals the popover to the body, not inside the life chip', () => {
     render(<LifeStrip {...soloProps()} variant="table" />);
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Opponents, commander damage and counters' })
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Counters' }));
     const panel = document.querySelector('.playtest-life-panel-floating');
     expect(panel).toBeTruthy();
     expect(panel?.closest('.playtest-life-table')).toBeNull();

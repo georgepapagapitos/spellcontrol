@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { isOpponentDefeated, type OpponentLife } from '@/lib/playtest';
 import { paletteForIndex } from '@/lib/seat-palette';
 import { usePressRepeat } from '@/lib/use-press-repeat';
@@ -121,6 +121,14 @@ export function LifeStrip({
     onOpenChange?.(false);
   }
 
+  /** Swaps which player the open popover is about, keeping the anchor it was
+   *  placed against — following a row inside it to that seat's own panel,
+   *  where `openPanel` would need a trigger rect it has no event for. */
+  function selectPanel(target: Selected) {
+    setSelected(target);
+    onOpenChange?.(true);
+  }
+
   if (onlineTable) {
     return (
       <OnlineLifeStrip
@@ -132,6 +140,7 @@ export function LifeStrip({
         selected={selected}
         anchorRect={anchorRect}
         openPanel={openPanel}
+        selectPanel={selectPanel}
         closePanel={closePanel}
         variant={variant}
       />
@@ -161,31 +170,21 @@ export function LifeStrip({
       life={selected === 'self' ? life : opponents[selected].life}
       lifeEditable
       hideLife={selected === 'self' && variant === 'table'}
-      // The corner panel is just your own total now, so the virtual opponents
-      // are reachable only from here. Their life is the row's own stepper;
-      // their name opens their full panel (±5s, their counters).
-      opponents={
-        selected === 'self'
-          ? opponents.map((o, i) => ({
-              key: String(i),
-              name: opponentLabel(i),
-              life: o.life,
-              defeated: isOpponentDefeated(o, commanderDamageThreshold),
-              onAdjustLife: (delta: number) => onAdjustLife(i, delta),
-              onOpen: () => setSelected(i),
-            }))
-          : undefined
-      }
-      // Solo tracks the damage YOU dealt each virtual opponent's way; it's one
-      // row per opponent in your own panel, the same list online shows.
+      hideTitle={selected === 'self' && variant === 'table'}
+      // Your own panel is your counters, full stop: goldfishing has no
+      // opponents to list. The virtual ones stay reachable from their own
+      // chips, where each carries its own life, counters and the commander
+      // damage your general has dealt it.
       cmdDamage={
-        selected === 'self'
-          ? opponents.map((o, i) => ({
-              key: String(i),
-              name: opponentLabel(i),
-              value: o.commanderDamage,
-              onAdjust: (delta: number) => onAdjustCommanderDamage(i, delta),
-            }))
+        selected !== 'self'
+          ? [
+              {
+                key: 'self-commander',
+                name: 'Your commander',
+                value: opponents[selected].commanderDamage,
+                onAdjust: (delta: number) => onAdjustCommanderDamage(selected, delta),
+              },
+            ]
           : undefined
       }
       commanderDamageThreshold={commanderDamageThreshold}
@@ -203,6 +202,9 @@ export function LifeStrip({
     return (
       <TableLifePanel
         life={life}
+        isOpen={selected === 'self'}
+        detailsLabel="Counters"
+        onToggleSelf={(e) => (selected === 'self' ? closePanel() : openPanel('self', e))}
         onAdjustLife={(delta) => onAdjustLife('self', delta)}
         onOpenSelf={(e) => openPanel('self', e)}
         designations={heldDesignationLabels}
@@ -306,6 +308,7 @@ function OnlineLifeStrip({
   selected,
   anchorRect,
   openPanel,
+  selectPanel,
   closePanel,
   variant,
 }: {
@@ -317,6 +320,7 @@ function OnlineLifeStrip({
   selected: Selected;
   anchorRect: DOMRect | null;
   openPanel(target: Selected, e: React.MouseEvent<HTMLButtonElement>): void;
+  selectPanel(target: Selected): void;
   closePanel(): void;
   variant: 'strip' | 'table';
 }) {
@@ -333,6 +337,8 @@ function OnlineLifeStrip({
 
   const selectedPlayer =
     typeof selected === 'number' ? players.find((p) => p.seat === selected) : null;
+
+  const otherSeats = players.filter((p) => p.seat !== mySeat);
 
   let panel: React.ReactNode = null;
   if (selected === 'self') {
@@ -354,6 +360,18 @@ function OnlineLifeStrip({
         life={me.life}
         lifeEditable
         hideLife={variant === 'table'}
+        hideTitle={variant === 'table'}
+        // A real game gets an Opponents section; goldfishing does not. Their
+        // life is a number here, not a stepper — a seat owns its own total
+        // (see the `opponent` panel's note) — so this is the table at a
+        // glance plus a way into any seat's full panel.
+        opponents={otherSeats.map((p) => ({
+          key: String(p.seat),
+          name: p.name,
+          life: p.life,
+          defeated: p.eliminated || p.life <= 0,
+          onOpen: () => selectPanel(p.seat),
+        }))}
         cmdDamage={commanderDamageEnabled ? cmdDamageRows(me, players, dispatch) : undefined}
         commanderDamageThreshold={21}
         defeated={false}
@@ -397,12 +415,12 @@ function OnlineLifeStrip({
       designations.monarch === mySeat && 'Monarch',
       designations.initiative === mySeat && 'Initiative',
     ].filter((v): v is string => Boolean(v));
-    // No `opponents` list online: those seats are real quadrants on the felt
-    // (OpponentRail / OpponentQuadrant), so duplicating them in the popover
-    // would be a second place to read the same number.
     return (
       <TableLifePanel
         life={me.life}
+        isOpen={selected !== null}
+        detailsLabel="Opponents, commander damage and counters"
+        onToggleSelf={(e) => (selected !== null ? closePanel() : openPanel('self', e))}
         onAdjustLife={(delta) => dispatch({ type: 'life', seat: mySeat, delta, actorSeat: mySeat })}
         onOpenSelf={(e) => openPanel('self', e)}
         designations={held}
@@ -499,6 +517,9 @@ function useLifeDelta(life: number): number {
  */
 function TableLifePanel({
   life,
+  isOpen,
+  detailsLabel,
+  onToggleSelf,
   onAdjustLife,
   onOpenSelf,
   designations,
@@ -506,6 +527,13 @@ function TableLifePanel({
   children,
 }: {
   life: number;
+  /** Drives the chevron's direction and `aria-expanded` — the popover hangs
+   *  off this panel, so the chevron has to say which way it goes. */
+  isOpen: boolean;
+  /** What the chevron actually reveals, which differs by world: counters
+   *  alone when goldfishing, the whole table's list at a real one. */
+  detailsLabel: string;
+  onToggleSelf(e: React.MouseEvent<HTMLButtonElement>): void;
   onAdjustLife(delta: number): void;
   onOpenSelf(e: React.MouseEvent<HTMLButtonElement>): void;
   designations: string[];
@@ -556,14 +584,24 @@ function TableLifePanel({
           ))}
         </div>
       )}
+      {/* One control, both directions. It used to only ever open: a second
+          press closed the popover, but by landing on the full-screen backdrop
+          behind it rather than on the chevron, and the glyph kept pointing
+          down the whole time it was open. Now the press it looks like it
+          takes is the press it takes. */}
       <button
         type="button"
-        className="playtest-life-table__details"
-        onClick={onOpenSelf}
+        className={`playtest-life-table__details${isOpen ? ' is-open' : ''}`}
+        onClick={onToggleSelf}
         aria-haspopup="dialog"
-        aria-label="Opponents, commander damage and counters"
+        aria-expanded={isOpen}
+        aria-label={isOpen ? `Close ${detailsLabel.toLowerCase()}` : detailsLabel}
       >
-        <ChevronDown aria-hidden width={14} height={14} />
+        {isOpen ? (
+          <ChevronUp aria-hidden width={14} height={14} />
+        ) : (
+          <ChevronDown aria-hidden width={14} height={14} />
+        )}
       </button>
       {children}
     </div>
