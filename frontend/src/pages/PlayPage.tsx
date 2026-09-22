@@ -11,7 +11,7 @@ import '@/styles/play-counters-panel.css';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { Check, Copy, Eye, Swords, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
 import { useAuth } from '../store/auth';
 import { useDecksStore, type Deck } from '../store/decks';
@@ -125,40 +125,39 @@ export function PlayPage() {
     navigate(deckBoardPath(mySeatDeckId));
   }, [liveGameId, mySeatDeckId, navigate]);
 
-  // Where the page opens: the tab you asked for; else the table you're in the
-  // middle of (a board on screen, or a live online seat); else the landing.
-  // The landing page's "Start a game" door (`?new=1`) starts a local table
-  // below, so it lands on the board, not on a dashboard offering to start one.
-  const requested = params.get('tab');
-  const initialTab: Tab =
-    requested && TABS.has(requested)
-      ? (requested as Tab)
-      : params.get('new') === '1' || (local && boardVisible)
-        ? 'local'
-        : online
-          ? 'online'
-          : 'home';
-  const [tab, setTabRaw] = useState<Tab>(initialTab);
+  // The section is the route, not a query param (E375) — real routes are
+  // deep-linkable/bookmarkable the way the other three hubs already are, and
+  // deriving `tab` fresh every render (instead of the old mount-only
+  // useState) fixes browser back/forward across Play's tabs for free.
+  const { section } = useParams<{ section?: string }>();
+  const tab: Tab = section && TABS.has(section) ? (section as Tab) : 'home';
   const setTab = (t: Tab) => {
-    setTabRaw(t);
-    setParams((p) => {
-      p.set('tab', t);
-      p.delete('mode');
-      return p;
-    });
+    navigate(t === 'home' ? '/play' : `/play/${t}`);
   };
   // A dashboard door that opens Online can also say which form: host or join.
   const openFromHome = (target: PlayHomeTarget) => {
-    setTabRaw(target.tab);
-    setParams((p) => {
-      p.set('tab', target.tab);
-      if (target.tab === 'online' && target.mode) p.set('mode', target.mode);
-      else p.delete('mode');
-      return p;
-    });
+    const path = `/play/${target.tab}`;
+    navigate(target.tab === 'online' && target.mode ? `${path}?mode=${target.mode}` : path);
   };
   const onlineMode: 'host' | 'join' | 'browse' =
     params.get('mode') === 'join' ? 'join' : params.get('mode') === 'browse' ? 'browse' : 'host';
+
+  // Landing on bare /play: the table you're in the middle of (a board on
+  // screen, or a live online seat) wins over the dashboard, so a refresh or a
+  // fresh visit mid-game goes straight back to it instead of making you click
+  // through Home again. Only on the very first mount — a deliberate
+  // navigation back to /play while already at the table (e.g. the Play nav
+  // link) is honored literally, not redirected away from again.
+  useEffect(() => {
+    if (section) return;
+    if (params.get('new') === '1') return;
+    if (local && boardVisible) {
+      navigate('/play/local', { replace: true });
+      return;
+    }
+    if (online) navigate('/play/online', { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Deep link from the landing page's "Start a game" door (`/play?new=1`):
   // start a table on arrival, so the promise is one tap rather than a tap plus
@@ -166,7 +165,8 @@ export function PlayPage() {
   // so the door and the form can never disagree. The param is stripped with
   // `replace` first — before any early return — so a refresh or a Back never
   // restarts a game, and an already-running game always wins over the deep
-  // link rather than being silently clobbered.
+  // link rather than being silently clobbered (it still lands on Local either
+  // way, matching what the landing page promised).
   useEffect(() => {
     if (params.get('new') !== '1') return;
     setParams(
@@ -176,15 +176,19 @@ export function PlayPage() {
       },
       { replace: true }
     );
-    if (usePlayStore.getState().local) return;
-    const fmt = FORMAT_OPTIONS[0];
-    startLocal({
-      format: fmt.value,
-      startingLife: fmt.defaultLife,
-      commanderDamageEnabled: fmt.cmdDmg,
-      poisonEnabled: false,
-      players: Array.from({ length: MIN_LOCAL_PLAYERS }, (_, i) => blankPlayer(`Player ${i + 1}`)),
-    });
+    if (!usePlayStore.getState().local) {
+      const fmt = FORMAT_OPTIONS[0];
+      startLocal({
+        format: fmt.value,
+        startingLife: fmt.defaultLife,
+        commanderDamageEnabled: fmt.cmdDmg,
+        poisonEnabled: false,
+        players: Array.from({ length: MIN_LOCAL_PLAYERS }, (_, i) =>
+          blankPlayer(`Player ${i + 1}`)
+        ),
+      });
+    }
+    navigate('/play/local', { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

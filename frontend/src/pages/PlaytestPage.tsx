@@ -59,7 +59,7 @@ export function PlaytestPage() {
   }
 
   const back = tableCode
-    ? { label: `Game ${tableCode}`, to: '/play?tab=online' }
+    ? { label: `Game ${tableCode}`, to: '/play/online' }
     : { label: deck.name, to: `/decks/${deck.id}` };
 
   return (

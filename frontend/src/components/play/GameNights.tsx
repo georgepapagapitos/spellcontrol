@@ -334,7 +334,7 @@ function NightCard({
         commanderDamageEnabled: fmt.cmdDmg,
         poisonEnabled: false,
       });
-      navigate('/play?tab=online');
+      navigate('/play/online');
     } catch (err) {
       toast.show({
         message: userMessage(err, "Couldn't open the online table. Check your connection."),
@@ -361,7 +361,7 @@ function NightCard({
         message: `Added the first ${MAX_LOCAL_PLAYERS} players. Add the rest from the seat list.`,
       });
     }
-    navigate('/play?tab=local');
+    navigate('/play/local');
   }
 
   async function reply(status: RsvpStatus) {

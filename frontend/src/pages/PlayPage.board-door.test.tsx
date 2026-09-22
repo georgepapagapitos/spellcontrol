@@ -12,7 +12,7 @@
  */
 import 'fake-indexeddb/auto';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 /** `useNavigate` is how Start hands the player to their board; spying on it
  *  is the only way to assert that hand-off without a real router history. */
@@ -208,8 +208,11 @@ import { PlayPage } from './PlayPage';
 
 function renderOnlineTab() {
   return render(
-    <MemoryRouter initialEntries={['/play?tab=online']}>
-      <PlayPage />
+    <MemoryRouter initialEntries={['/play/online']}>
+      <Routes>
+        <Route path="/play" element={<PlayPage />} />
+        <Route path="/play/:section" element={<PlayPage />} />
+      </Routes>
     </MemoryRouter>
   );
 }
@@ -253,8 +256,11 @@ describe('Open-your-board door — visibility', () => {
     // never reaches it.
     mockState.local = makeOnlineGame({ mode: 'local', hostUserId: null });
     render(
-      <MemoryRouter initialEntries={['/play?tab=local']}>
-        <PlayPage />
+      <MemoryRouter initialEntries={['/play/local']}>
+        <Routes>
+          <Route path="/play" element={<PlayPage />} />
+          <Route path="/play/:section" element={<PlayPage />} />
+        </Routes>
       </MemoryRouter>
     );
     expect(screen.getByTestId('game-board')).toBeTruthy();

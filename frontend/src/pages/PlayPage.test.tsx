@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlayPage } from './PlayPage';
 import { usePlayStore } from '../store/play';
@@ -75,14 +75,17 @@ vi.mock('../lib/pods-client', () => ({
 function renderPage(initialEntry = '/play') {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
-      <PlayPage />
+      <Routes>
+        <Route path="/play" element={<PlayPage />} />
+        <Route path="/play/:section" element={<PlayPage />} />
+      </Routes>
     </MemoryRouter>
   );
 }
 
 describe('PlayPage tabs', () => {
   it('renders Local/Online/Game nights/History through the shared Tabs primitive', () => {
-    const { container } = renderPage('/play?tab=local');
+    const { container } = renderPage('/play/local');
     const tablist = screen.getByRole('tablist', { name: 'Play sections' });
     expect(tablist.classList.contains('sc-tabs')).toBe(true);
     const tabs = screen.getAllByRole('tab');
@@ -146,15 +149,15 @@ describe('PlayPage tabs', () => {
   });
 
   it('switches panels on tab click', () => {
-    renderPage('/play?tab=local');
+    renderPage('/play/local');
     fireEvent.click(screen.getByRole('tab', { name: 'History' }));
     expect(screen.getByRole('tab', { name: 'History' }).getAttribute('aria-selected')).toBe('true');
     expect(screen.getByText('No games yet.')).toBeTruthy();
     expect(screen.queryByText('New local game')).toBeNull();
   });
 
-  it('honors the ?tab= query param for the initial tab', () => {
-    renderPage('/play?tab=history');
+  it('honors the /play/:section route for the initial tab', () => {
+    renderPage('/play/history');
     expect(screen.getByRole('tab', { name: 'History' }).getAttribute('aria-selected')).toBe('true');
     expect(screen.getByText('No games yet.')).toBeTruthy();
   });
@@ -162,14 +165,14 @@ describe('PlayPage tabs', () => {
 
 describe('Local setup — seat name field (B7-05)', () => {
   it('seeds the name field empty, not a live "Player N" value', () => {
-    renderPage('/play?tab=local');
+    renderPage('/play/local');
     const seat1 = screen.getByRole('textbox', { name: 'Player 1 name' }) as HTMLInputElement;
     expect(seat1.value).toBe('');
     expect(seat1.placeholder).toBe('Player 1');
   });
 
   it('falls back to "Player N" for a seat left blank, without concatenating a typed name', () => {
-    renderPage('/play?tab=local');
+    renderPage('/play/local');
     const seat2 = screen.getByRole('textbox', { name: 'Player 2 name' }) as HTMLInputElement;
     fireEvent.change(seat2, { target: { value: 'Bob' } });
     fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
@@ -183,7 +186,7 @@ describe('PlayPage rules door', () => {
   // The hero's own Rules pill duplicated the header door one row above it
   // (settled 2026-09-19): mid-game has the game menu, setup has the header.
   it('has no Rules button of its own', () => {
-    renderPage('/play?tab=local');
+    renderPage('/play/local');
     expect(screen.queryByRole('button', { name: 'Rules' })).toBeNull();
   });
 });
@@ -239,7 +242,7 @@ describe('History — removing a game asks first', () => {
   const clickRemove = () => fireEvent.click(screen.getByRole('button', { name: /^Remove game:/ }));
 
   it('keeps the row on Cancel and removes it only on confirm', () => {
-    renderPage('/play?tab=history');
+    renderPage('/play/history');
     expect(screen.getByText('Winner: Ana')).toBeTruthy();
     clickRemove();
     expect(screen.getByText('Remove this game?')).toBeTruthy();
@@ -253,7 +256,7 @@ describe('History — removing a game asks first', () => {
   });
 
   it('corrects the winner from the row menu without deleting anything', () => {
-    renderPage('/play?tab=history');
+    renderPage('/play/history');
     openRowMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: 'Correct this game' }));
     // Ben was eliminated, so he is offered but not selectable as the winner.
@@ -274,7 +277,7 @@ describe('History — removing a game asks first', () => {
         { ...prev.history[0], id: 'rec-3', endedAt: 63_000 },
       ],
     }));
-    renderPage('/play?tab=history');
+    renderPage('/play/history');
     fireEvent.click(screen.getByRole('button', { name: 'Select' }));
     fireEvent.click(screen.getByRole('button', { name: 'Select all' }));
     expect(screen.getByText('3 selected')).toBeTruthy();
@@ -349,7 +352,7 @@ describe('Local setup — seats are people', () => {
   });
 
   it('seats a friend: the name fills in and the started game carries their account', async () => {
-    renderPage('/play?tab=local');
+    renderPage('/play/local');
     const who = await screen.findByRole('button', { name: 'Who is in seat 2' });
     fireEvent.click(who);
     fireEvent.click(screen.getByRole('option', { name: 'Bobby' }));
@@ -371,7 +374,7 @@ describe('Local setup — seats are people', () => {
   });
 
   it('never offers an account that already holds another seat', async () => {
-    renderPage('/play?tab=local');
+    renderPage('/play/local');
     fireEvent.click(await screen.findByRole('button', { name: 'Who is in seat 1' }));
     fireEvent.click(screen.getByRole('option', { name: 'Bobby' }));
     fireEvent.click(screen.getByRole('button', { name: 'Who is in seat 2' }));
@@ -381,7 +384,7 @@ describe('Local setup — seats are people', () => {
   });
 
   it('seats a whole pod in one tap, you first', async () => {
-    renderPage('/play?tab=local');
+    renderPage('/play/local');
     fireEvent.click(await screen.findByRole('button', { name: 'Thursday' }));
     await waitFor(() =>
       expect(screen.getByRole('textbox', { name: 'Player 3 name' })).toBeTruthy()
@@ -406,7 +409,7 @@ describe('Local setup — seats are people', () => {
       ],
       'commander'
     );
-    renderPage('/play?tab=local');
+    renderPage('/play/local');
     // The seat shows the account once the friends list has resolved it.
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Who is in seat 1' }).textContent).toContain(
@@ -463,12 +466,12 @@ describe('History tab — local and online records together', () => {
 
   it('shows the All / Local / Online filter only when both kinds exist, and it narrows the list', () => {
     usePlayStore.setState({ history: [rec('l', 'local', 'Ana')] });
-    const { unmount } = renderPage('/play?tab=history');
+    const { unmount } = renderPage('/play/history');
     expect(screen.queryByRole('tablist', { name: 'Which games' })).toBeNull();
     unmount();
 
     usePlayStore.setState({ history: [rec('l', 'local', 'Ana'), rec('o', 'online', 'Ben')] });
-    renderPage('/play?tab=history');
+    renderPage('/play/history');
     expect(screen.getByText('Winner: Ana')).toBeTruthy();
     expect(screen.getByText('Winner: Ben')).toBeTruthy();
     // The page's own Local/Online tabs share these names — scope to the filter.
@@ -490,7 +493,7 @@ describe('History tab — local and online records together', () => {
         rec('online', 'online', 'Ben'),
       ],
     });
-    renderPage('/play?tab=history');
+    renderPage('/play/history');
     const rowFor = (winner: string) =>
       [...document.querySelectorAll('.play-history-item')].find((el) =>
         el.textContent?.includes(`Winner: ${winner}`)
@@ -523,7 +526,7 @@ describe('History tab — local and online records together', () => {
     usePlayStore.setState({
       history: [rec('mine-table', 'online', 'Ana', { hostUserId: 'me' })],
     });
-    renderPage('/play?tab=history');
+    renderPage('/play/history');
 
     // The host gets the destructive control, not the hide-it-from-me one.
     fireEvent.click(screen.getByRole('button', { name: /^Remove game:/ }));
@@ -539,7 +542,7 @@ describe('History tab — local and online records together', () => {
     usePlayStore.setState({
       history: [rec('their-table', 'online', 'Ben', { hostUserId: 'someone-else' })],
     });
-    renderPage('/play?tab=history');
+    renderPage('/play/history');
     expect(screen.queryByRole('button', { name: /^Remove game:/ })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /^Game options:/ }));
     expect(screen.getByRole('menuitem', { name: 'Hide from my list' })).toBeTruthy();
