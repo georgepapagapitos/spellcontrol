@@ -1,8 +1,8 @@
 /* FriendHubPage.css — /friends/:friendId route */
 
-/* Collection is a heavier grid surface than the rest of the hub — widen the
-   column while that tab is active rather than cramping a card grid into the
-   640px identity/list column width. */
+/* Collection is a heavier grid surface than the rest of the hub, so the shell
+   is always this wide, not just while that tab is active — toggling the width
+   per tab made the tab strip itself shift horizontally on every tab switch. */
 .social-page-shell.friend-hub--wide {
   max-width: 960px;
 }
