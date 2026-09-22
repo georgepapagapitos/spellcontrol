@@ -21,17 +21,13 @@ export interface GameEventHandlers {
  * mutation; a version check happens on the caller's side (see
  * store/play.ts's `applyServerGameState`), not here.
  *
- * `withCredentials: true` is required for the native app's cross-origin
- * build (VITE_API_BASE_URL set — see api-base.ts) to even attempt sending
- * the session cookie; on same-origin web deploys it's a no-op. Native's
- * CapacitorHttp plugin only patches `fetch`/`XHR`, not `EventSource`, so
- * this stream is a genuine cross-origin browser request there — with no
- * CORS headers configured on the backend (matching the existing pattern:
- * none of this app's other routes send Access-Control-Allow-Origin either),
- * it will fail to connect and `onError` fires immediately. That's fine: the
- * caller's poll fallback (which native's fetch patch lets through cross-
- * origin without issue) keeps the game usable there exactly as before this
- * feature shipped.
+ * `withCredentials: true` is required for a cross-origin build
+ * (VITE_API_BASE_URL set — see api-base.ts) to even attempt sending the
+ * session cookie; on same-origin deploys it's a no-op. With no CORS headers
+ * configured on the backend (matching the existing pattern: none of this
+ * app's other routes send Access-Control-Allow-Origin either), a cross-origin
+ * stream fails to connect and `onError` fires immediately. That's fine: the
+ * caller's long-poll fallback keeps the game usable there.
  *
  * Returns a teardown function — call it once the subscriber no longer cares
  * (leave, unmount, switching games).

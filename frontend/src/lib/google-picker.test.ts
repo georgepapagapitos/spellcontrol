@@ -1,9 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const isNative = vi.fn(() => false);
-vi.mock('./platform', () => ({ isNativePlatform: () => isNative() }));
-
 /** Re-import with a chosen env, since the module reads import.meta.env at load. */
 async function load(env: { key?: string; clientId?: string } = {}) {
   vi.resetModules();
@@ -119,7 +116,6 @@ function stubGoogle(
 }
 
 beforeEach(() => {
-  isNative.mockReturnValue(false);
   // The module appends <script> tags; resolve them immediately.
   vi.spyOn(document.head, 'appendChild').mockImplementation(((el: HTMLScriptElement) => {
     queueMicrotask(() => el.onload?.(new Event('load')));
@@ -146,16 +142,7 @@ describe('availability gating', () => {
     expect(m.googlePickerConfigured()).toBe(false);
   });
 
-  it('is off on native even when fully configured', async () => {
-    // Google refuses OAuth in an embedded WebView, so the button must not
-    // render there — this gate is what keeps the app from offering a dead one.
-    isNative.mockReturnValue(true);
-    const m = await load(KEYED);
-    expect(m.googlePickerConfigured()).toBe(true);
-    expect(m.googlePickerAvailable()).toBe(false);
-  });
-
-  it('is on for a keyed web build', async () => {
+  it('is on for a keyed build', async () => {
     const m = await load(KEYED);
     expect(m.googlePickerAvailable()).toBe(true);
   });

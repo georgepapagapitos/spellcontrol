@@ -13,15 +13,12 @@ import {
   RotateCcw,
   X,
 } from 'lucide-react';
-import { CameraPreview } from '@capacitor-community/camera-preview';
-import { App as CapacitorApp } from '@capacitor/app';
 import { focusInto, trapTab, useOverlayLayer } from '../lib/overlay-layer';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useWakeLock } from '../lib/use-wake-lock';
 import { getCardById } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
 import { haptics } from '../lib/haptics';
-import { isNativePlatform } from '../lib/platform';
 import {
   FINISH_LABELS,
   availableFinishes,
@@ -41,7 +38,6 @@ import { ScannerQueueSheet } from './ScannerQueueSheet';
 import { entryKey, useScanQueue } from '../lib/use-scan-queue';
 import type { ScryfallCard } from '@/deck-builder/types';
 
-import { userMessage } from '@/lib/user-error';
 /**
  * Compute the on-screen rectangle of the visible video band given a fit mode.
  * `contain` letterboxes (rect may be smaller than the container);
@@ -246,13 +242,6 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   }, []);
 
   const stopCamera = useCallback(() => {
-    if (isNativePlatform()) {
-      void CameraPreview.stop().catch(() => {
-        /* idempotent — fine to ignore if already stopped */
-      });
-      document.documentElement.classList.remove('scanner-active');
-      return;
-    }
     if (streamRef.current) {
       for (const track of streamRef.current.getTracks()) track.stop();
       streamRef.current = null;
@@ -263,29 +252,6 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   const startCamera = useCallback(async () => {
     setStatus('starting');
     setErrorMsg(null);
-    if (isNativePlatform()) {
-      try {
-        await CameraPreview.start({
-          position: 'rear',
-          // Render the native preview behind the (transparent) WebView so
-          // the HTML overlay (viewfinder, hints, controls) layers on top.
-          toBack: true,
-          disableAudio: true,
-          // Lock to portrait — we don't want the preview rotating mid-scan,
-          // and the viewfinder geometry assumes a portrait viewport.
-          lockAndroidOrientation: true,
-        });
-        document.documentElement.classList.add('scanner-active');
-        setStatus('ready');
-        void prewarm();
-      } catch (err) {
-        logger.error('[scanner] native preview failed:', err);
-        const msg = userMessage(err, "Couldn't start the camera.");
-        setErrorMsg(msg);
-        setStatus('error');
-      }
-      return;
-    }
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error("Camera isn't available in this browser.");
@@ -405,7 +371,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   // Escape + Tab containment. The scanner predates both `<Modal>` and
   // `useSheetExit`, so it had a bare Escape handler and nothing else: Tab
   // walked straight out into the page behind it despite `aria-modal="true"`,
-  // and the Android back button navigated the WebView's history out from
+  // and a back navigation took the page out from
   // under a live camera. Same shared layer stack as Modal/useSheetExit, so a
   // dialog opened on top of the scanner is the one that answers a press.
   useEffect(() => {
@@ -427,19 +393,6 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       // Don't drop keyboard/screen-reader users at the top of the page when
       // the scanner closes.
       if (prevFocused?.isConnected) prevFocused.focus?.();
-    };
-  }, [onClose, isTopmost]);
-
-  // Android hardware back button — closes the scanner (releasing the camera
-  // via the unmount cleanup) instead of navigating the page underneath it.
-  useEffect(() => {
-    if (!isNativePlatform()) return;
-    const handle = CapacitorApp.addListener('backButton', () => {
-      if (!isTopmost()) return;
-      onClose();
-    });
-    return () => {
-      void handle.then((h) => h.remove());
     };
   }, [onClose, isTopmost]);
 
@@ -468,28 +421,16 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       // On native the preview cover-fits the sensor to the screen, so the
       // visible band IS the screen — no need to consult video.videoWidth
       // (which doesn't exist anyway, there's no <video> element).
-      let dispX: number;
-      let dispY: number;
-      let dispW: number;
-      let dispH: number;
-      if (isNativePlatform()) {
-        dispX = 0;
-        dispY = 0;
-        dispW = cW;
-        dispH = cH;
-      } else {
-        if (!video) return;
-        const vW = video.videoWidth;
-        const vH = video.videoHeight;
-        if (!vW || !vH) return;
-        ({ dispX, dispY, dispW, dispH } = computeDisplayRect(vW, vH, cW, cH, 'contain'));
-      }
-      const fit: 'contain' | 'cover' = isNativePlatform() ? 'cover' : 'contain';
+      if (!video) return;
+      const vW = video.videoWidth;
+      const vH = video.videoHeight;
+      if (!vW || !vH) return;
+      const { dispX, dispY, dispW, dispH } = computeDisplayRect(vW, vH, cW, cH, 'contain');
 
-      const visW = fit === 'cover' ? cW : dispW;
-      const visH = fit === 'cover' ? cH : dispH;
-      const visX = fit === 'cover' ? 0 : dispX;
-      const visY = fit === 'cover' ? 0 : dispY;
+      const visW = dispW;
+      const visH = dispH;
+      const visX = dispX;
+      const visY = dispY;
 
       // Default viewfinder: a 5:7 portrait box at ~78% of the smaller
       // axis. The user sees this when nothing has been detected yet.
@@ -573,9 +514,8 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   const captureAndIdentify = useCallback(
     async (manual = false) => {
       if (busyRef.current) return;
-      const native = isNativePlatform();
       const video = videoRef.current;
-      if (!native && (!video || video.readyState < 2)) return;
+      if (!video || video.readyState < 2) return;
       busyRef.current = true;
       setStatus('scanning');
       try {
@@ -587,29 +527,13 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         // searchRect gives v2 a generous margin around the card.
         const rect = searchRect;
         if (!root || !rect) return;
-        // Acquire a frame: on native this is a still snapshot from the live
-        // preview; on web it's the current frame of the playing <video>.
-        let frameSource: CanvasImageSource;
-        let vw: number;
-        let vh: number;
-        if (native) {
-          const { value } = await CameraPreview.captureSample({ quality: 85 });
-          const frameImg = new Image();
-          frameImg.src = `data:image/jpeg;base64,${value}`;
-          await (frameImg.decode?.() ??
-            new Promise<void>((resolve) => (frameImg.onload = () => resolve())));
-          frameSource = frameImg;
-          vw = frameImg.naturalWidth;
-          vh = frameImg.naturalHeight;
-        } else {
-          frameSource = video!;
-          vw = video!.videoWidth;
-          vh = video!.videoHeight;
-        }
+        // Acquire a frame: the current frame of the playing <video>.
+        const frameSource: CanvasImageSource = video;
+        const vw = video.videoWidth;
+        const vh = video.videoHeight;
         const cW = root.clientWidth;
         const cH = root.clientHeight;
-        const fit = isNativePlatform() ? 'cover' : 'contain';
-        const { dispX, dispY, dispW } = computeDisplayRect(vw, vh, cW, cH, fit);
+        const { dispX, dispY, dispW } = computeDisplayRect(vw, vh, cW, cH, 'contain');
         const scale = vw / dispW;
         const cardX = (rect.left - dispX) * scale;
         const cardY = (rect.top - dispY) * scale;
@@ -736,7 +660,6 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     if (!searchRect || !defaultViewfinderRect) return;
 
     let lastTick = 0;
-    const native = isNativePlatform();
     const bufW = detectorBufSize.w;
     const bufH = detectorBufSize.h;
 
@@ -761,21 +684,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       let frameSource: CanvasImageSource | null = null;
       let vw = 0;
       let vh = 0;
-      if (native) {
-        // Native: pull a small snapshot. captureSample is the only frame
-        // grab the plugin exposes — quality 40 keeps it cheap.
-        try {
-          const { value } = await CameraPreview.captureSample({ quality: 40 });
-          const img = new Image();
-          img.src = `data:image/jpeg;base64,${value}`;
-          await (img.decode?.() ?? new Promise<void>((resolve) => (img.onload = () => resolve())));
-          frameSource = img;
-          vw = img.naturalWidth;
-          vh = img.naturalHeight;
-        } catch {
-          return null;
-        }
-      } else {
+      {
         const video = videoRef.current;
         if (!video || video.readyState < 2) return null;
         frameSource = video;
@@ -784,8 +693,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       }
       if (!frameSource || !vw || !vh) return null;
 
-      const fit = native ? 'cover' : 'contain';
-      const { dispX, dispY, dispW } = computeDisplayRect(vw, vh, cW, cH, fit);
+      const { dispX, dispY, dispW } = computeDisplayRect(vw, vh, cW, cH, 'contain');
       const scale = vw / dispW;
       const sx = (searchRect.left - dispX) * scale;
       const sy = (searchRect.top - dispY) * scale;
@@ -997,15 +905,15 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       aria-label="Card scanner"
       aria-modal="true"
     >
-      {!isNativePlatform() && <video ref={videoRef} className="scanner-video" playsInline muted />}
+      <video ref={videoRef} className="scanner-video" playsInline muted />
 
-      {/* Tap-to-rescan surface (native only). A transparent full-bleed button
-          sitting *below* the corner chrome (z-index): tapping bare camera
-          forces a capture — letting the user intentionally add another copy
-          of the same card, which the auto loop deliberately won't. Taps on
-          the close/queue/torch/panel controls land on those (higher z) instead.
+      {/* Tap-to-rescan surface. A transparent full-bleed button sitting *below*
+          the corner chrome (z-index): tapping bare camera forces a capture —
+          letting the user intentionally add another copy of the same card,
+          which the auto loop deliberately won't. Taps on the
+          close/queue/torch/panel controls land on those (higher z) instead.
           Gated to `ready` so it doesn't fire mid-capture or during errors. */}
-      {isNativePlatform() && status === 'ready' && (
+      {status === 'ready' && (
         <button
           type="button"
           className="scanner-capture-surface"

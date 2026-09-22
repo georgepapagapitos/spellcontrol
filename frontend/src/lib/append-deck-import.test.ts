@@ -14,7 +14,7 @@ import {
 // subscriber fire-and-forgets a dynamic `import('./sync').then(sync =>
 // sync.persistDecksState(...))` on every decks-store write it doesn't guard
 // off. Mocked here so the "exactly once" assertion below is real, not a
-// guess about the unmocked module's network/Capacitor internals.
+// guess about the unmocked module's network internals.
 const persistDecksState = vi.fn().mockResolvedValue(undefined);
 vi.mock('./sync', () => ({
   persistDecksState: (...args: unknown[]) => persistDecksState(...args),

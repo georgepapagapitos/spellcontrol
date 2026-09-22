@@ -9,7 +9,6 @@ import {
   useLocation,
   useNavigate,
   useParams,
-  useSearchParams,
 } from 'react-router-dom';
 import { EmptyStateMark } from '@/components/shared/EmptyStateMark';
 import { Layout } from './components/Layout';
@@ -33,8 +32,6 @@ const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
 import { useAuth } from './store/auth';
 import { useCollectionStore } from './store/collection';
 import { startSync, hydrateLocal } from './lib/sync';
-import { autoSyncOfflineData, registerOfflineSyncOnResume } from './lib/offline/auto-sync';
-import { initDeepLinks } from './lib/deep-links';
 import { setAppNavigator } from './lib/navigate-bridge';
 import { AutoLinkBanner } from './components/AutoLinkBanner';
 import { RecoveryBanner } from './components/RecoveryBanner';
@@ -108,71 +105,6 @@ const GameNightInviteView = lazyPage(
   () => import('./pages/GameNightLinkForward'),
   'GameNightInviteView'
 );
-
-// Fallback for the OAuth App Link landing path. In the happy path Android
-// intercepts https://spellcontrol.com/oauth/callback and hands the URL to
-// the installed APK, where deep-links.ts finishes the sign-in — so this
-// component is never rendered. It exists for the rare case where App Link
-// verification glitches (cleared defaults, unverified install) and the URL
-// loads in the system browser SPA instead.
-//
-// On Android we offer a Chrome-specific intent:// URL that explicitly names
-// the SpellControl package, which forces the OS to hand the URL to our APK
-// even when the App Link auto-verify chain didn't fire.
-function OAuthCallbackLanding() {
-  const [params] = useSearchParams();
-  const hasPayload = params.has('code') || params.has('signup');
-  const errored = params.has('error') || params.has('linkError');
-  const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
-  const intentUrl = `intent://spellcontrol.com/oauth/callback?${params.toString()}#Intent;scheme=https;package=com.spellcontrol.app;end`;
-
-  // The only state with genuinely nothing to act on: no payload, no error.
-  // Every other branch describes an in-progress or failed attempt, so
-  // "Continue on the web instead" stays a sensible fallback for all of them.
-  const nothingToFinish = !errored && !hasPayload;
-
-  let title: string;
-  let message: string;
-  if (errored) {
-    title = "Sign-in didn't finish";
-    message = 'Open SpellControl and try signing in again.';
-  } else if (!hasPayload) {
-    title = 'Nothing to finish here';
-    message = 'You can safely close this tab.';
-  } else if (isAndroid) {
-    title = 'Almost there';
-    message = 'Tap below to finish signing in inside SpellControl.';
-  } else {
-    title = 'Finish on your phone';
-    message = 'Open SpellControl on the device you started signing in on.';
-  }
-
-  return (
-    <main className="auth-page">
-      <div className="auth-card auth-callback-card" role="status">
-        <div className="auth-brand-hero" aria-hidden="true">
-          <BrandMark size={48} motion="idle" />
-        </div>
-        <h1 className="auth-title">{title}</h1>
-        <p className="auth-subtitle">{message}</p>
-        {hasPayload && isAndroid ? (
-          <a className="auth-submit auth-submit-link" href={intentUrl}>
-            Open SpellControl
-          </a>
-        ) : null}
-        {/* Nothing to finish here already tells the user it's safe to close
-            the tab — a "continue" link right underneath would contradict
-            that, so it only shows when there's an actual sign-in to resume
-            or retry (errored counts — retrying is exactly the point). */}
-        {!nothingToFinish ? (
-          <a className="auth-back" href="/">
-            Continue on the web instead
-          </a>
-        ) : null}
-      </div>
-    </main>
-  );
-}
 
 /**
  * Full-viewport brand splash. Doubles as the auth-bootstrap holding state and
@@ -270,24 +202,12 @@ export default function App() {
   // has resolved to 'guest'; the bootstrap loading window is ignored.
   useFirstRunGate(status);
 
-  // Subscribe to native deep links once per mount. `initDeepLinks` is a
-  // no-op on web, so the listener is only ever registered inside the
-  // Capacitor APK. The teardown drops the listener if React ever remounts
-  // App (StrictMode, fast-refresh) so we don't double-handle URLs.
-  useEffect(() => initDeepLinks(navigate), [navigate]);
-
   // Hand the router to non-React callers (e.g. binder-move toasts fired from
   // the collection store need to route to the destination binder on tap).
   useEffect(() => {
     setAppNavigator(navigate);
     return () => setAppNavigator(null);
   }, [navigate]);
-
-  // Re-check the offline card catalog whenever the app returns to the
-  // foreground. No-op on web; throttled so frequent resumes don't spam the
-  // manifest endpoint. Keeps a long-lived native session from drifting onto
-  // stale data between cold starts.
-  useEffect(() => registerOfflineSyncOnResume(), []);
 
   // Apply any trade a friend accepted while this device wasn't looking. The
   // accepting side settles inline when they click Accept, so this is really
@@ -352,10 +272,6 @@ export default function App() {
         useCollectionStore.setState({ hydrating: false });
       }
     });
-    // Silently keep the local card catalog fresh. No-op if it's already
-    // up to date (cheap manifest check). Runs alongside startSync so the
-    // user never waits on offline-data setup.
-    void autoSyncOfflineData();
   }, [status, userId, username]);
 
   if (status === 'unknown' || status === 'loading') {
@@ -429,7 +345,6 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
-          <Route path="/oauth/callback" element={<OAuthCallbackLanding />} />
           <Route element={<Layout />}>
             {/* Public reads — someone else's shared link, published deck, or
               profile. In the shell like every other page (see the note above

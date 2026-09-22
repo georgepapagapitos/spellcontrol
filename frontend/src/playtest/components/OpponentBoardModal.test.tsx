@@ -29,7 +29,7 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
 vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => 'https://img.example/test.jpg' }));
 
 // CardPreview itself has its own test file and a large dependency tree
-// (Scryfall rulings, capacitor share, react-router Link…). Stub it here so
+// (Scryfall rulings, the share sheet, react-router Link…). Stub it here so
 // these tests exercise OpponentBoardModal's own inspect-wiring — which card
 // it hands off, at which index — without dragging all of that in.
 vi.mock('@/components/CardPreview', () => ({

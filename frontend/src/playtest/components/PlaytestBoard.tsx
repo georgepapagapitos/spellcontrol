@@ -1713,7 +1713,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         { label: 'Table settings', icon: Settings, onClick: () => setShowTableSettings(true) },
         { label: 'Keyboard shortcuts', icon: Keyboard, onClick: () => setShowShortcuts(true) },
         // Fullscreen is offered only where the browser offers it (not inside
-        // the native shell, and not in every embedded WebView).
+        // every embedded browser).
         ...(typeof document !== 'undefined' && document.fullscreenEnabled
           ? [
               {

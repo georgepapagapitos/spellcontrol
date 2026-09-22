@@ -243,7 +243,7 @@ export function BinderCardEditor({ binder, allCards, onClose }: Props) {
       </Modal>
 
       {/* Sibling of the Modal, not a child: CardPickerSheet is on useSheetExit,
-          so it registers its own layer above this dialog's and Escape / Android
+          so it registers its own layer above this dialog's and Escape
           back close the picker first, then the editor. Nested inside the old
           hand-rolled backdrop it also meant every click in the picker bubbled
           to the backdrop's onClose. */}

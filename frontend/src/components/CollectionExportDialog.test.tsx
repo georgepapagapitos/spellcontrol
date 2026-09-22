@@ -4,8 +4,6 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { CollectionExportDialog } from './CollectionExportDialog';
 import type { EnrichedCard } from '../types';
 
-vi.mock('@capacitor/share', () => ({ Share: { share: vi.fn() } }));
-
 const downloadText = vi.fn();
 vi.mock('../lib/collection-export', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/collection-export')>()),

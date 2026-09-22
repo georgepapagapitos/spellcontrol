@@ -6,8 +6,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import { App as CapacitorApp } from '@capacitor/app';
-import { isNativePlatform } from './platform';
 import { useOverlayLayer } from './overlay-layer';
 import { useFocusTrap } from './use-focus-trap';
 
@@ -121,23 +119,6 @@ export function useSheetExit(
       if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
     };
   }, []);
-
-  // Android hardware back button. Without a listener Capacitor's default is to
-  // navigate the WebView's own history, which left the sheet visually stuck
-  // open while the page underneath changed. `<Modal>` has answered back since
-  // T11; sheets never did, so this was broken on ~30 surfaces. Same shared
-  // layer stack as Modal, so a confirm dialog opened on top of a sheet is the
-  // one that answers — with two stacks both would close on one press.
-  useEffect(() => {
-    if (!isNativePlatform()) return;
-    const handle = CapacitorApp.addListener('backButton', () => {
-      if (!isTopmost()) return;
-      beginClose();
-    });
-    return () => {
-      void handle.then((h) => h.remove());
-    };
-  }, [beginClose, isTopmost]);
 
   // Focus containment — wired here, not per sheet, so all ~40 useSheetExit
   // consumers get it for free instead of each threading a panel ref through

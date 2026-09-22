@@ -183,7 +183,7 @@ export async function importText(
  * {@link importText} so chunked imports work uniformly on web and native.
  * The backend's multipart route still exists but only the text-JSON path is
  * exercised from the client now — chunkable, retry-friendly, and consistent
- * across platforms (CapacitorHttp's multipart bridge on native was unreliable
+ * across platforms (a multipart bridge proved unreliable
  * anyway).
  */
 export async function importFile(

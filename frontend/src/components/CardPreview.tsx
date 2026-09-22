@@ -13,14 +13,11 @@ import {
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { Share } from '@capacitor/share';
-import { Directory, Filesystem } from '@capacitor/filesystem';
 import { toast } from '../store/toasts';
 import type { EnrichedCard } from '../types';
 import { CardRulings } from './CardRulings';
 import { CardText, CardLegalities } from './CardDetails';
 import { useCardDetail } from '../lib/use-card-detail';
-import { isNativePlatform, openExternal } from '../lib/platform';
 import { getRoleBadge, multiRoleTitle, rolesForCard } from '../lib/role-badges';
 import { getSetMap, type SetMap } from '../lib/api';
 import { SLD_CODE, dropsForNumber, useSldDrops } from '../lib/sld-drops';
@@ -154,13 +151,11 @@ interface Props {
 }
 
 /**
- * Can the platform put an image file in a system share sheet? Native always
- * can (Capacitor's Share plugin); browsers answer via `canShare`, and an empty
- * probe File is enough to ask. Desktop browsers say no — they get our own
- * share dialog instead.
+ * Can the browser put an image file in a system share sheet? Answered via
+ * `canShare`, and an empty probe File is enough to ask. Desktop browsers say
+ * no — they get our own share dialog instead.
  */
 function canShareFiles(): boolean {
-  if (isNativePlatform()) return true;
   try {
     const probe = new File([], 'card.jpg', { type: 'image/jpeg' });
     return navigator.canShare?.({ files: [probe] }) ?? false;
@@ -443,27 +438,9 @@ export function CardPreview({
     setSharing(true);
     try {
       const filename = `${current.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.jpg`;
-      // Safe on native despite CapacitorHttp being enabled: its fetch patch
-      // routes GET through the original window.fetch (via a proxy URL), so the
-      // bytes arrive intact rather than round-tripped as text.
       const blob = await (await fetch(faceSrc!)).blob();
-      if (isNativePlatform()) {
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onerror = () => reject(reader.error);
-          reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '');
-          reader.readAsDataURL(blob);
-        });
-        const { uri } = await Filesystem.writeFile({
-          path: filename,
-          data: base64,
-          directory: Directory.Cache,
-        });
-        await Share.share({ title: current.name, files: [uri], dialogTitle: 'Share card image' });
-      } else {
-        const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
-        await navigator.share({ files: [file], title: current.name });
-      }
+      const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+      await navigator.share({ files: [file], title: current.name });
     } catch (err) {
       // Dismissing the system sheet rejects (AbortError on web, "Share canceled"
       // on Android) — a cancel is a no-op, not a failure worth a toast.
@@ -941,13 +918,6 @@ export function CardPreview({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="card-preview-ext-link"
-                onClick={(e) => {
-                  if (!isNativePlatform()) return;
-                  e.preventDefault();
-                  openExternal(
-                    `https://scryfall.com/card/${current.setCode.toLowerCase()}/${current.collectorNumber}`
-                  );
-                }}
               >
                 Scryfall
                 <ExternalLink
@@ -964,13 +934,6 @@ export function CardPreview({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="card-preview-ext-link"
-                  onClick={(e) => {
-                    if (!isNativePlatform()) return;
-                    e.preventDefault();
-                    openExternal(
-                      `https://www.tcgplayer.com/search/magic/product?q=${encodeURIComponent(current.name)}&view=grid`
-                    );
-                  }}
                 >
                   TCGPlayer
                   <ExternalLink

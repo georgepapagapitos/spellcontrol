@@ -135,11 +135,6 @@ export async function ensureSchema(): Promise<void> {
       PRIMARY KEY (provider, provider_subject)
     );
     CREATE INDEX IF NOT EXISTS auth_identities_user_idx ON auth_identities(user_id);
-    CREATE TABLE IF NOT EXISTS oauth_handoff_codes (
-      code TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      expires_at BIGINT NOT NULL
-    );
     -- Account recovery (T117): single-use email-verify / password-reset
     -- tokens. token_hash is the sha256 of the raw token mailed to the user.
     -- Changeable usernames: when this account last renamed (rate limit) and

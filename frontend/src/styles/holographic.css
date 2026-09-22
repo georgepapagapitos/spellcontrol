@@ -299,7 +299,7 @@
     opacity: var(--foil-strength, 0.35);
     /* Android WebView silently drops mix-blend-mode when the same element
        also carries a mask — the mask promotes the layer offscreen and the
-       blend then has no backdrop. Touch devices (including Capacitor) run
+       blend then has no backdrop. Touch devices run
        the ambient-drift mode where edge-to-edge rainbow is acceptable, so
        drop the vignette mask here to let the blend composite normally. */
     -webkit-mask-image: none;

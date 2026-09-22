@@ -11,7 +11,6 @@ import {
   Plus,
   Zap,
 } from 'lucide-react';
-import { isNativePlatform, openExternal } from '../../lib/platform';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { ColorPip } from '../shared/ManaSymbol';
 import type { EdhrecComboStat } from '../../lib/edhrec-combo-overlay';
@@ -405,11 +404,6 @@ export function ComboRow({
                         href={`https://edhrec.com${edhrec.href}`}
                         target="_blank"
                         rel="noreferrer"
-                        onClick={(e) => {
-                          if (!isNativePlatform()) return;
-                          e.preventDefault();
-                          openExternal(`https://edhrec.com${edhrec.href}`);
-                        }}
                       >
                         View on EDHREC
                       </a>

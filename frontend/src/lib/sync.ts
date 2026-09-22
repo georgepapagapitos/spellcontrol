@@ -1,7 +1,5 @@
-import { App as CapacitorApp } from '@capacitor/app';
 import { logger } from '@/lib/logger';
 import { setApplyingServer } from './applying-server';
-import { isNativePlatform } from './platform';
 import {
   pullSync,
   pushSync,
@@ -70,14 +68,14 @@ function cardGroupKeyStr(g: queue.CardGroup): string {
 
 /**
  * Whether a mutation should go to the durable IDB outbox + debounced drain
- * (vs. immediate server write-through). True for native (offline-capable), and
- * for a not-yet-signed-in web guest — a guest's local edits must persist and
- * promote to the server on sign-in (the "build logged-out, then sign in" flow,
- * e.g. copying a shared deck). A signed-in web client is a thin online client:
- * it writes straight through with no durable outbox.
+ * (vs. immediate server write-through). True for a not-yet-signed-in guest —
+ * their local edits must persist and promote to the server on sign-in (the
+ * "build logged-out, then sign in" flow, e.g. copying a shared deck). A
+ * signed-in client is a thin online client: it writes straight through with no
+ * durable outbox.
  */
 function shouldQueueLocally(): boolean {
-  return isNativePlatform() || !currentOwnerId;
+  return !currentOwnerId;
 }
 
 /**
@@ -167,9 +165,6 @@ let pushTimer: ReturnType<typeof setTimeout> | null = null;
 let lastFocusPullAt = 0;
 let listenersAttached = false;
 let broadcastChannel: BroadcastChannel | null = null;
-// Capacitor `resume` listener handle (native only). The plugin's addListener is
-// async, so we hold the promise and remove the resolved handle on detach.
-let resumeListener: ReturnType<typeof CapacitorApp.addListener> | null = null;
 /**
  * Suspend-rehydration depth. While > 0, applyServerRows skips the expensive
  * in-memory store rehydration so a caller doing many sync writes in a row
@@ -956,7 +951,7 @@ export async function backfillOracleIds(): Promise<void> {
  * so the in-memory stores rebuild exactly ONCE at the end. Without this, a
  * bootstrap pull of a large collection (~12k cards over 6 pages) rebuilt +
  * re-materialized the entire collection on every page — O(pages) full fat-array
- * copies + binder materializations that OOM'd the native WebView on load.
+ * copies + binder materializations that OOM'd a phone browser on load.
  * applyServerRows still writes each page to IDB per-page; only the expensive
  * in-memory hydration is deferred.
  */
@@ -1703,16 +1698,6 @@ function attachLifecycleListeners(): void {
   } else {
     window.addEventListener('storage', onStorageBroadcast);
   }
-
-  // Native: DOM focus/visibilitychange are unreliable in the Capacitor WebView,
-  // so a change made on another device wouldn't show until the app was killed
-  // and relaunched. The Capacitor `resume` event is the reliable "app
-  // foregrounded" signal — pull on it (throttled via onFocus) so returning to
-  // the app refreshes. onFocus's throttle also de-dupes if visibilitychange
-  // does fire alongside it.
-  if (isNativePlatform()) {
-    resumeListener = CapacitorApp.addListener('resume', onFocus);
-  }
 }
 
 function detachLifecycleListeners(): void {
@@ -1732,10 +1717,6 @@ function detachLifecycleListeners(): void {
     broadcastChannel = null;
   } else {
     window.removeEventListener('storage', onStorageBroadcast);
-  }
-  if (resumeListener) {
-    void resumeListener.then((h) => h.remove());
-    resumeListener = null;
   }
 }
 

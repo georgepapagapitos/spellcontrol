@@ -24,23 +24,19 @@ import {
   requireAuth,
   setSessionCookie,
   signSession,
-  signLinkIntent,
   signOAuthState,
   signSignupToken,
   userHasOtherSignInMethod,
   validatePassword,
-  verifyLinkIntent,
   verifyOAuthState,
   verifyPassword,
   verifySignupToken,
-  type OAuthPlatform,
   type UserRole,
 } from '../auth';
 import {
   adoptVerifiedGoogleEmail,
   autoLinkGoogleIdentity,
   buildGoogleAuthUrl,
-  consumeHandoffCode,
   createGoogleUser,
   exchangeGoogleCode,
   findAutoLinkCandidateByEmail,
@@ -48,7 +44,6 @@ import {
   getGoogleConfig,
   isGoogleOAuthConfigured,
   isUniqueViolation,
-  mintHandoffCode,
   type GoogleIdentity,
 } from '../oauth/google';
 import { logger } from '../logger';
@@ -64,18 +59,6 @@ import { sendMail } from '../mail';
  */
 export function publicWebOrigin(): string {
   return (process.env.APP_HTTPS_DEEPLINK_BASE ?? 'https://spellcontrol.com').replace(/\/+$/, '');
-}
-
-/**
- * HTTPS deep link the native OAuth flow returns into the app. An Android
- * App Link intent filter (manifest + /.well-known/assetlinks.json) hands
- * this URL straight to the installed APK, sidestepping the browser
- * compatibility issues that the previous `spellcontrol://oauth/callback`
- * custom scheme had (Firefox and Samsung Internet refused to follow the
- * HTTPS → custom-scheme hop, dead-ending the flow).
- */
-function nativeCallbackUrl(): string {
-  return `${publicWebOrigin()}/oauth/callback`;
 }
 
 // Disable rate limiting in tests to avoid state persisting across test cases
@@ -396,10 +379,6 @@ authRouter.get('/providers', sessionLimiter, (_req: Request, res: Response) => {
   res.json({ password: true, google: isGoogleOAuthConfigured() });
 });
 
-function oauthPlatform(raw: unknown): OAuthPlatform {
-  return raw === 'native' ? 'native' : 'web';
-}
-
 function qs(params: Record<string, string>): string {
   return Object.entries(params)
     .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
@@ -418,18 +397,12 @@ function qs(params: Record<string, string>): string {
  */
 async function handleLinkCallback(
   res: Response,
-  platform: OAuthPlatform,
   userId: string,
   identity: GoogleIdentity
 ): Promise<void> {
   const providerSubject = identity.sub;
-  const callback = nativeCallbackUrl();
-  const ok =
-    platform === 'native' ? `${callback}?${qs({ linked: 'google' })}` : '/settings?linked=google';
-  const err = (reason: string): string =>
-    platform === 'native'
-      ? `${callback}?${qs({ linkError: reason })}`
-      : `/settings?linkError=${encodeURIComponent(reason)}`;
+  const ok = '/settings?linked=google';
+  const err = (reason: string): string => `/settings?linkError=${encodeURIComponent(reason)}`;
 
   const existing = await findGoogleUser(providerSubject);
   if (existing) {
@@ -457,72 +430,42 @@ async function handleLinkCallback(
 }
 
 /**
- * Start the Google OAuth flow. Signs a `state` recording the platform, then
- * 302s the browser to Google's consent screen. `?platform=native` is passed
- * by the Capacitor app (system browser); the default is web.
+ * Start the Google OAuth flow. Signs a `state` carrying the CSRF nonce, then
+ * 302s the browser to Google's consent screen.
  */
-authRouter.get('/google', oauthLimiter, (req: Request, res: Response) => {
+authRouter.get('/google', oauthLimiter, (_req: Request, res: Response) => {
   const cfg = getGoogleConfig();
   if (!cfg) return res.status(503).json({ error: 'Google sign-in is not enabled.' });
-  const platform = oauthPlatform(req.query.platform);
-  const state = signOAuthState({ platform, nonce: issueOAuthNonce(res) });
-  res.redirect(buildGoogleAuthUrl(cfg, platform, state));
+  const state = signOAuthState({ nonce: issueOAuthNonce(res) });
+  res.redirect(buildGoogleAuthUrl(cfg, state));
 });
 
 /**
  * Start a link-mode Google flow: this attaches the Google identity to the
- * authed user instead of creating or signing in to an account. Web uses the
- * session cookie; native passes a short-lived `?intent` token (because the
- * system browser has no app cookies). Failures redirect the user to /auth
- * (web) or return JSON (native).
+ * authed user instead of creating or signing in to an account. The session
+ * cookie names the user; failures redirect to /auth.
  */
 authRouter.get('/google/link', oauthLimiter, async (req: Request, res: Response) => {
   const cfg = getGoogleConfig();
   if (!cfg) return res.status(503).json({ error: 'Google sign-in is not enabled.' });
-  const platform = oauthPlatform(req.query.platform);
 
-  let userId: string | null = null;
-  const intent = typeof req.query.intent === 'string' ? req.query.intent : '';
-  if (intent) {
-    const verified = verifyLinkIntent(intent);
-    if (verified) userId = verified.userId;
-  } else {
-    const token = readSessionCookie(req);
-    const user = token ? await loadAuthedUser(token) : null;
-    if (user) userId = user.id;
-  }
-  if (!userId) {
-    if (platform === 'native') {
-      return res.status(401).json({ error: 'Authentication required.' });
-    }
-    return res.redirect('/auth');
-  }
+  const token = readSessionCookie(req);
+  const user = token ? await loadAuthedUser(token) : null;
+  if (!user) return res.redirect('/auth');
 
   const state = signOAuthState({
-    platform,
     nonce: issueOAuthNonce(res),
     mode: 'link',
-    userId,
+    userId: user.id,
   });
-  res.redirect(buildGoogleAuthUrl(cfg, platform, state));
-});
-
-/**
- * Native-only helper: mint a short-lived intent token the app passes to
- * /google/link?intent=…. The system browser has no cookies, so this is how
- * the link route knows which authed user to attach Google to.
- */
-authRouter.post('/google/link-intent', oauthLimiter, requireAuth, (req: Request, res: Response) => {
-  res.json({ intent: signLinkIntent(req.user!.id) });
+  res.redirect(buildGoogleAuthUrl(cfg, state));
 });
 
 /**
  * Google redirects here with `?code&state`. Verifies the state and exchanges
  * the code, then branches on whether the account exists:
  *
- *   Returning user — web: set the session cookie, 302 to the app; native:
- *     mint a single-use handoff code and deep-link it back (the system
- *     browser cannot set the WebView's cookie).
+ *   Returning user — set the session cookie and 302 to the app.
  *   First-time user — no account is created yet. The verified identity is
  *     put in a short-lived signup token and the user is sent to the
  *     "choose a username" screen; the account is created at /complete-signup.
@@ -531,13 +474,9 @@ authRouter.get('/google/callback', oauthLimiter, async (req: Request, res: Respo
   const cfg = getGoogleConfig();
   if (!cfg) return res.status(503).json({ error: 'Google sign-in is not enabled.' });
 
-  // Decode the platform up-front (default web) so every error path can route
-  // the browser back to the right place even when the rest of the flow fails.
   const stateToken = typeof req.query.state === 'string' ? req.query.state : '';
   const state = verifyOAuthState(stateToken);
-  const platform: OAuthPlatform = state?.platform ?? 'web';
-  const errorRedirect =
-    platform === 'native' ? `${nativeCallbackUrl()}?error=google` : '/auth?error=google';
+  const errorRedirect = '/auth?error=google';
 
   try {
     if (!state) throw new Error('Invalid or expired OAuth state.');
@@ -553,12 +492,12 @@ authRouter.get('/google/callback', oauthLimiter, async (req: Request, res: Respo
     const code = typeof req.query.code === 'string' ? req.query.code : '';
     if (!code) throw new Error('Missing authorization code.');
 
-    const identity = await exchangeGoogleCode(cfg, platform, code);
+    const identity = await exchangeGoogleCode(cfg, code);
 
     // Link-mode branch: attach this Google identity to the user named in the
     // state (which only a signed-in /google/link request could have produced).
     if (state.mode === 'link' && state.userId) {
-      return handleLinkCallback(res, platform, state.userId, identity);
+      return handleLinkCallback(res, state.userId, identity);
     }
 
     const existing = await findGoogleUser(identity.sub);
@@ -567,10 +506,6 @@ authRouter.get('/google/callback', oauthLimiter, async (req: Request, res: Respo
       // Accounts that linked Google before the link paths stored the address
       // backfill their verified email here, on their next Google sign-in.
       await adoptVerifiedGoogleEmail(existing.id, identity);
-      if (platform === 'native') {
-        const handoff = await mintHandoffCode(existing.id);
-        return res.redirect(`${nativeCallbackUrl()}?${qs({ code: handoff })}`);
-      }
       setSessionCookie(res, signSession(existing));
       return res.redirect('/');
     }
@@ -584,10 +519,6 @@ authRouter.get('/google/callback', oauthLimiter, async (req: Request, res: Respo
       const candidate = await findAutoLinkCandidateByEmail(identity.email);
       if (candidate) {
         await autoLinkGoogleIdentity(candidate.id, identity);
-        if (platform === 'native') {
-          const handoff = await mintHandoffCode(candidate.id);
-          return res.redirect(`${nativeCallbackUrl()}?${qs({ code: handoff })}`);
-        }
         setSessionCookie(res, signSession(candidate));
         return res.redirect('/');
       }
@@ -601,9 +532,6 @@ authRouter.get('/google/callback', oauthLimiter, async (req: Request, res: Respo
       emailVerified: identity.emailVerified,
     });
     const suggested = await generateUsername(identity.email ?? 'player');
-    if (platform === 'native') {
-      return res.redirect(`${nativeCallbackUrl()}?${qs({ signup: signupToken, suggested })}`);
-    }
     return res.redirect(`/auth/choose-username#${qs({ token: signupToken, suggested })}`);
   } catch (err) {
     logger.error('[auth] google callback failed:', err);
@@ -740,25 +668,6 @@ authRouter.post('/google/link-with-password', oauthLimiter, async (req: Request,
   const authed = { id: user.id, username: user.username, role };
   setSessionCookie(res, signSession(authed));
   res.json({ user: authed });
-});
-
-/**
- * Native handoff exchange: the app posts the single-use code from the deep
- * link and gets a real session cookie back (this response goes through the
- * Capacitor HTTP bridge, so the cookie lands in the native cookie jar).
- */
-authRouter.post('/google/exchange', oauthLimiter, async (req: Request, res: Response) => {
-  const code = typeof req.body?.code === 'string' ? req.body.code : '';
-  if (!code) return res.status(400).json({ error: 'Missing handoff code.' });
-
-  const userId = await consumeHandoffCode(code);
-  if (!userId) return res.status(401).json({ error: 'That sign-in link has expired. Try again.' });
-
-  const user = await loadUserById(userId);
-  if (!user) return res.status(401).json({ error: 'Account not found.' });
-
-  setSessionCookie(res, signSession(user));
-  res.json({ user });
 });
 
 // Limited like every other session route. Logout is cheap and unauthenticated,

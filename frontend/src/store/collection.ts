@@ -880,7 +880,7 @@ export const useCollectionStore = create<CollectionState>()(
           // expected and recoverable — and BOTH must retry or a whole refresh
           // aborts on a blip:
           //   - the fetch rejects: a dropped connection on a flaky mobile link,
-          //     the abort timeout, or (native only) the CapacitorHttp/OkHttp
+          //     the abort timeout, or the browser's own
           //     layer reusing a pooled keep-alive socket the server already
           //     half-closed;
           //   - the response is a transient gateway/server status

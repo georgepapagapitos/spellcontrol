@@ -6,7 +6,6 @@ import type {
   ShareRow,
 } from './shared-types';
 import { apiUrl } from './api-base';
-import { isNativePlatform } from './platform';
 
 /** A friend's friends-visible share, with its resolved display label. */
 export interface FriendShareRow {
@@ -26,15 +25,6 @@ export interface InboxShareRow {
   label: string;
   createdAt: number;
 }
-
-/**
- * Public origin the web app is hosted at. Used to build share links inside the
- * native app, where `window.location.origin` is the WebView origin
- * (`https://localhost`) and would produce a dead link. Exported so
- * publications-client.ts's publicationUrl() can reuse it rather than
- * duplicating the constant.
- */
-export const WEB_ORIGIN = 'https://spellcontrol.com';
 
 async function readError(res: Response, fallback: string): Promise<string> {
   try {
@@ -175,13 +165,9 @@ export class ShareForbiddenError extends Error {
 /**
  * Build a full, shareable HTTPS URL for a share token.
  *
- * On native the WebView origin is `https://localhost`, so we hard-code the
- * public web origin — the recipient opens the link in a browser (or, once
- * HTTPS App Links are verified, straight into the app). On web we use the
- * actual page origin so dev / preview / prod each link to themselves.
+ * Uses the actual page origin so dev / preview / prod each link to themselves.
  */
 export function shareUrl(token: string): string {
-  if (isNativePlatform()) return `${WEB_ORIGIN}/s/${token}`;
   if (typeof window === 'undefined') return `/s/${token}`;
   return `${window.location.origin}/s/${token}`;
 }

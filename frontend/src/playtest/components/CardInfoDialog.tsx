@@ -7,7 +7,6 @@ import { CardRulings } from '@/components/CardRulings';
 import { RarityBadge } from '@/components/shared/RarityBadge';
 import { scryfallToEnrichedCard } from '@/lib/scryfall-to-enriched';
 import { formatMoney } from '@/lib/format-money';
-import { isNativePlatform, openExternal } from '@/lib/platform';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { CardStatusStrip, type CardStatusStripProps } from './CardStatusStrip';
@@ -143,17 +142,7 @@ export function CardInfoDialog({
  *  in-WebView navigation would replace the game the user is sitting in. */
 function ExternalAnchor({ href, label }: { href: string; label: string }) {
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="card-info-link"
-      onClick={(e) => {
-        if (!isNativePlatform()) return;
-        e.preventDefault();
-        openExternal(href);
-      }}
-    >
+    <a href={href} target="_blank" rel="noopener noreferrer" className="card-info-link">
       {label}
       <ExternalLink width={12} height={12} strokeWidth={2.4} aria-hidden />
     </a>

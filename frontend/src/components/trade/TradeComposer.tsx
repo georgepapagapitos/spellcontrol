@@ -450,7 +450,7 @@ export function TradeComposer({
   // The carousel is a SIBLING of the Modal, never a child: `Modal` renders in
   // place with no portal, so nesting one inside another's children stacks two
   // scroll-locking layers. The overlay stack is module-global, so Escape and
-  // Android back still resolve to whichever is topmost.
+  // still resolves to whichever is topmost.
   return (
     <>
       {/* Keeps .choice-dialog — its max-height / keyboard-inset / scroll

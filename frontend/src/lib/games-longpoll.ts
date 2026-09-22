@@ -21,17 +21,14 @@ export interface GameLongPollHandlers {
 
 /**
  * True when this build must use long-poll instead of SSE for real-time game
- * updates — i.e. exactly the native (Capacitor) build.
+ * updates — i.e. when it targets a cross-origin backend.
  *
- * `EventSource` *exists* in the Capacitor WebView, so `typeof EventSource
- * === 'undefined'` is not a valid signal — SSE simply fails to *connect*
- * there: CapacitorHttp patches `fetch`/`XHR` to route around cross-origin
- * cookie restrictions, but it does not patch `EventSource`, so an SSE
- * request from the WebView is a genuine cross-origin browser request with no
- * CORS headers on this backend (see games-sse.ts) and never connects.
+ * `EventSource` cannot send credentials cross-origin without CORS headers,
+ * and this backend sends none (see games-sse.ts), so an SSE request from a
+ * cross-origin build never connects. `typeof EventSource === 'undefined'` is
+ * not the signal — the constructor exists, it just fails to connect.
  * `API_BASE_URL` (api-base.ts) is non-empty exactly when the build targets a
- * cross-origin backend — i.e. exactly the native build — so it's the real
- * signal to key off, not a UA sniff.
+ * cross-origin backend, so it's the real signal to key off, not a UA sniff.
  */
 export function usesLongPoll(apiBaseUrl: string = API_BASE_URL): boolean {
   return apiBaseUrl !== '';

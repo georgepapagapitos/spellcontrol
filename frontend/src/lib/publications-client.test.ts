@@ -10,10 +10,6 @@ import {
   type Publication,
   type OwnedPublication,
 } from './publications-client';
-import { isNativePlatform } from './platform';
-
-vi.mock('./platform', () => ({ isNativePlatform: vi.fn(() => false) }));
-
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
     status: 200,
@@ -176,16 +172,7 @@ describe('unpublishDeck', () => {
 });
 
 describe('publicationUrl', () => {
-  beforeEach(() => {
-    vi.mocked(isNativePlatform).mockReturnValue(false);
-  });
-
-  it('builds an absolute URL using window.location.origin on web', () => {
+  it('builds an absolute URL using window.location.origin', () => {
     expect(publicationUrl('korvold-treasure')).toMatch(/\/d\/korvold-treasure$/);
-  });
-
-  it('uses the public web origin on native (WebView origin is unusable)', () => {
-    vi.mocked(isNativePlatform).mockReturnValue(true);
-    expect(publicationUrl('korvold-treasure')).toBe('https://spellcontrol.com/d/korvold-treasure');
   });
 });

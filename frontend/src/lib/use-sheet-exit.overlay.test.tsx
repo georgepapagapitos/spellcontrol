@@ -3,30 +3,11 @@ import { createRef } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Separate file from use-sheet-exit.test.ts so these module mocks don't change
-// the setup the motion/exit tests there rely on.
-const { isNativePlatform } = vi.hoisted(() => ({ isNativePlatform: vi.fn(() => true) }));
-vi.mock('./platform', () => ({ isNativePlatform }));
-
-const { addListener, remove } = vi.hoisted(() => ({
-  addListener: vi.fn(),
-  remove: vi.fn(),
-}));
-vi.mock('@capacitor/app', () => ({ App: { addListener } }));
-
+// Separate file from use-sheet-exit.test.ts so this setup doesn't change the
+// one the motion/exit tests there rely on.
 import { useSheetExit } from './use-sheet-exit';
 
-/** Invoke the most recently registered Capacitor `backButton` handler. */
-function pressBack() {
-  const calls = addListener.mock.calls.filter((c) => c[0] === 'backButton');
-  const handler = calls[calls.length - 1]?.[1] as (() => void) | undefined;
-  act(() => handler?.());
-}
-
 beforeEach(() => {
-  addListener.mockReset();
-  addListener.mockImplementation(async () => ({ remove }));
-  isNativePlatform.mockReturnValue(true);
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
     matches: false,
     media: query,
@@ -37,45 +18,6 @@ beforeEach(() => {
     removeListener: vi.fn(),
     dispatchEvent: vi.fn(),
   }));
-});
-
-describe('useSheetExit — Android hardware back', () => {
-  // Only <Modal> answered back before this. The ~30 sheets on useSheetExit
-  // did not, so back navigated the WebView's history and left the sheet
-  // visually stuck open over a page that had changed underneath it.
-  it('closes the sheet instead of letting the WebView navigate', async () => {
-    const onClose = vi.fn();
-    renderHook(() => useSheetExit(onClose));
-    await act(async () => {});
-
-    pressBack();
-    expect(onClose).not.toHaveBeenCalled(); // exit animation still to play
-    expect(addListener).toHaveBeenCalledWith('backButton', expect.any(Function));
-  });
-
-  it('registers nothing on web, where there is no hardware back', async () => {
-    isNativePlatform.mockReturnValue(false);
-    renderHook(() => useSheetExit(vi.fn()));
-    await act(async () => {});
-    expect(addListener).not.toHaveBeenCalled();
-  });
-
-  it('only the topmost sheet answers one press', async () => {
-    const outerClose = vi.fn();
-    const innerClose = vi.fn();
-    const outer = renderHook(() => useSheetExit(outerClose));
-    await act(async () => {});
-    const outerCalls = addListener.mock.calls.length;
-
-    const inner = renderHook(() => useSheetExit(innerClose));
-    await act(async () => {});
-    // A second listener exists, so both are subscribed — the shared layer
-    // stack, not the subscription, is what makes only one of them act.
-    expect(addListener.mock.calls.length).toBeGreaterThan(outerCalls);
-
-    inner.unmount();
-    outer.unmount();
-  });
 });
 
 describe('useSheetExit — focus containment', () => {

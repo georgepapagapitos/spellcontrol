@@ -1,5 +1,5 @@
 /* base-layout.css — split from global.css (#refactor).
-   App-shell layout + base element wiring (html/body/.app-shell/.app-main/.site-header) and Capacitor WebView touch polish. */
+   App-shell layout + base element wiring (html/body/.app-shell/.app-main/.site-header). */
 
 html,
 body {
@@ -12,7 +12,7 @@ body {
   /* Material grain (T53): a 5px repeating fleck field — paper tooth on light
      schemes, pebbled leather on dark (--grain swaps per data-scheme in
      themes.css). A static repeating gradient: DPI-independent, no asset,
-     cheap to paint in the Capacitor WebView. Surfaces stack their own
+     cheap to paint on a phone. Surfaces stack their own
      opaque backgrounds on top, so the tooth shows only on the page ground. */
   background-image: radial-gradient(var(--grain) 1px, transparent 1px);
   background-size: 5px 5px;
@@ -37,7 +37,7 @@ body {
      position:fixed, so the URL-bar shift this layout dodges can't reach it. */
   position: relative;
   /* Reserve the device's top safe-area strip (status bar / notch). Zero on
-     desktop and most mobile browsers; non-zero in a Capacitor WebView and
+     desktop and most mobile browsers; non-zero on
      on iOS Safari with notched devices. */
   padding-top: var(--safe-top);
 }
@@ -114,7 +114,7 @@ body {
    room at the bottom of the scroll region so the last row of any page
    clears it too. No var(--safe-bottom) term here — the in-flow tab bar
    already accounts for that once. */
-.capacitor .app-main {
+.app-main:has(.scan-fab-root) {
   padding-bottom: 5rem;
 }
 
@@ -161,31 +161,6 @@ button {
 input,
 select {
   font-family: var(--font-serif);
-}
-
-/* ── Native (Capacitor WebView) touch polish ────────────────────────────
-   Strip the browser-grade touch chrome that looks wrong in a packaged
-   app: the blue/grey tap-highlight flash that paints behind every
-   tappable element (Play history toggle, collection grid cards), and the
-   long-press text-selection "carousel"/callout menu. Scoped to
-   `.capacitor` (set on <html> by lib/platform.ts) so the web build keeps
-   normal selection + accessibility affordances. Editable and explicitly
-   selectable elements opt back in below. */
-.capacitor,
-.capacitor * {
-  -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
-  user-select: none;
-}
-
-/* Re-enable selection/callout where it's genuinely useful — editable
-   fields and anything explicitly marked `.selectable`. */
-.capacitor input,
-.capacitor textarea,
-.capacitor [contenteditable='true'],
-.capacitor .selectable {
-  -webkit-touch-callout: default;
-  user-select: text;
 }
 
 /* ── Route view transitions ─────────────────────────────────────────────

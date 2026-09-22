@@ -1,6 +1,4 @@
 import { useEffect, useRef, type RefObject } from 'react';
-import { App as CapacitorApp } from '@capacitor/app';
-import { isNativePlatform } from './platform';
 import { useOverlayLayer } from './overlay-layer';
 import { useFocusTrap } from './use-focus-trap';
 
@@ -11,7 +9,7 @@ import { useFocusTrap } from './use-focus-trap';
  * custom layout editor. Those render in place — the seat menu inherits its
  * panel's rotation, the game menu rises from the board's own edge — so
  * they can't portal through `<Modal>`, and until this hook existed they
- * answered neither Escape nor the Android hardware back button and let Tab
+ * did not answer Escape and let Tab
  * walk out onto the board behind them.
  *
  * Same shared layer stack as Modal and useSheetExit, so only the topmost
@@ -42,17 +40,6 @@ export function useOverlayDismiss(
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [isTopmost]);
-
-  useEffect(() => {
-    if (!isNativePlatform()) return;
-    const handle = CapacitorApp.addListener('backButton', () => {
-      if (!isTopmost()) return;
-      onCloseRef.current();
-    });
-    return () => {
-      void handle.then((h) => h.remove());
-    };
   }, [isTopmost]);
 
   useFocusTrap(isTopmost, panelRef);

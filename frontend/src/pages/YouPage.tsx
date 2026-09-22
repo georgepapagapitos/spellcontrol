@@ -6,7 +6,6 @@ import { preventFocusSteal } from '../lib/keyboard';
 // Admin + scanner sheet: shared with AdminPage and CardScanner, off the boot payload (E265).
 import '@/styles/admin-scanner.css';
 import { useSignInPath } from '../lib/sign-in-path';
-import { Browser } from '@capacitor/browser';
 import { useAuth } from '../store/auth';
 import { useThemeStore } from '../store/theme';
 import { useCollectionStore } from '../store/collection';
@@ -22,7 +21,6 @@ import {
   fetchIdentities,
   googleLinkUrl,
   requestEmailChange,
-  requestGoogleLinkIntent,
   resendEmailVerification,
   setNotifyEmail,
   unlinkGoogle,
@@ -32,7 +30,6 @@ import {
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { InfoTip } from '../components/InfoTip';
 import { SyncIndicator } from '../components/SyncIndicator';
-import { isNativePlatform, openExternal } from '../lib/platform';
 import { OfflineModeSettings } from '../components/OfflineModeSettings';
 import { SharedLinksSettings } from '../components/SharedLinksSettings';
 import { resetAppCacheAndReload } from '../lib/reset-app-cache';
@@ -244,33 +241,9 @@ export function YouPage() {
     };
   }, [sectionParam]);
 
-  // Native: clear the linking "busy" state when the system browser closes for
-  // any reason (success, our close, or user cancel). No-op on web.
-  useEffect(() => {
-    if (!isNativePlatform()) return;
-    const handle = Browser.addListener('browserFinished', () => setLinkBusy(false));
-    return () => {
-      void handle.then((h) => h.remove()).catch(() => {});
-    };
-  }, []);
-
-  async function handleLinkGoogle() {
+  function handleLinkGoogle() {
     setLinkBusy(true);
-    if (isNativePlatform()) {
-      try {
-        const intent = await requestGoogleLinkIntent();
-        await Browser.open({ url: googleLinkUrl('native', intent) });
-      } catch (err) {
-        toast.show({
-          message: userMessage(err, "Couldn't start linking."),
-          tone: 'error',
-        });
-        setLinkBusy(false);
-      }
-      // Stays busy until the system browser closes (browserFinished listener).
-    } else {
-      window.location.href = googleLinkUrl('web');
-    }
+    window.location.href = googleLinkUrl();
   }
 
   async function refreshIdentities() {
@@ -945,11 +918,6 @@ export function YouPage() {
             href="https://company.wizards.com/en/legal/fancontentpolicy"
             target="_blank"
             rel="noopener noreferrer"
-            onClick={(e) => {
-              if (!isNativePlatform()) return;
-              e.preventDefault();
-              openExternal('https://company.wizards.com/en/legal/fancontentpolicy');
-            }}
           >
             Fan Content Policy
           </a>

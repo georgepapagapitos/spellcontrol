@@ -31,8 +31,7 @@ function formatPlace(p: PhotonProperties): string {
  * shared promise, so overlapping keystrokes trigger one prompt; the answer —
  * including a denial — is cached for the session and never re-asked. The
  * position rides along as Photon bias params only: not stored, not synced,
- * never sent to our backend. Works identically on web and in the Capacitor
- * WebView (the bridge forwards the prompt to the Android runtime permission).
+ * never sent to our backend.
  */
 let biasPromise: Promise<{ lat: number; lon: number } | null> | undefined;
 

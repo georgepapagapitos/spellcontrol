@@ -149,21 +149,6 @@ export const authIdentities = pgTable(
 );
 
 /**
- * Single-use codes that bridge the native OAuth flow. The Google callback
- * runs in the system browser, whose cookie jar the Capacitor WebView cannot
- * read; instead the callback mints a code here and deep-links it back into the
- * app, which exchanges it for a real session cookie. Rows are deleted on
- * exchange and are short-lived (~60s) — see `routes/auth.ts`.
- */
-export const oauthHandoffCodes = pgTable('oauth_handoff_codes', {
-  code: text('code').primaryKey(),
-  userId: text('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  expiresAt: bigint('expires_at', { mode: 'number' }).notNull(),
-});
-
-/**
  * Single-use tokens backing account recovery (T117): email verification and
  * password reset. `tokenHash` is the sha256 hex of the raw token mailed to
  * the user — we never store the raw token itself, mirroring how
@@ -1152,7 +1137,6 @@ export const eventCounts = pgTable(
 
 export type UserRow = typeof users.$inferSelect;
 export type AuthIdentityRow = typeof authIdentities.$inferSelect;
-export type OauthHandoffCodeRow = typeof oauthHandoffCodes.$inferSelect;
 export type UserImportRow = typeof userImports.$inferSelect;
 export type UserCardRow = typeof userCards.$inferSelect;
 export type UserBinderRow = typeof userBinders.$inferSelect;

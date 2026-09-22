@@ -1,10 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Check, Clipboard, Download, Printer, X } from 'lucide-react';
-import { Share } from '@capacitor/share';
+import { canShare, openShareSheet } from '@/lib/web-share';
 import { Modal } from '../Modal';
 import { SelectMenu } from '../SelectMenu';
-import { isNativePlatform } from '../../lib/platform';
-import { toast } from '../../store/toasts';
 import type { ExportFormat } from '@/lib/deck-export';
 
 const EXPORT_FORMAT_LABEL: Record<ExportFormat, string> = {
@@ -30,7 +28,7 @@ interface Props {
 /**
  * Decklist export dialog: format picker (MTGA/Plaintext/Moxfield/MTGO), a
  * read-only preview, and copy-to-clipboard / download (.txt, or .dek for
- * MTGO) actions, plus a native OS share sheet (`Share…`) on Capacitor
+ * MTGO) actions, plus the system share sheet (`Share…`) where available
  * platforms, and a "Print list" checklist action on web (hidden on native,
  * where `window.print()` has no equivalent).
  * Shared by the deck editor, its decks-index deep link, and the public
@@ -68,21 +66,10 @@ export function DeckExportDialog({ text, format, onFormatChange, title, onClose 
     onClose();
     requestAnimationFrame(() => window.print());
   };
-  // Native system share sheet — parity with ShareDialog's handleNativeShare.
+  // System share sheet — parity with ShareDialog's handleShare.
   // No `url` field: this hands off the raw decklist text, not a link.
-  const handleNativeShare = async () => {
-    try {
-      await Share.share({
-        title: `${title} · decklist`,
-        text,
-        dialogTitle: 'Share decklist',
-      });
-    } catch (err) {
-      // The user cancelling the system sheet rejects with a generic error;
-      // treat anything from this call as a soft no-op rather than a toast.
-      if (err && (err as { message?: string }).message?.includes('cancel')) return;
-      toast.show({ message: "Couldn't open share sheet", tone: 'warn' });
-    }
+  const handleShare = async () => {
+    await openShareSheet({ title: `${title} · decklist`, text });
   };
 
   return (
@@ -135,12 +122,12 @@ export function DeckExportDialog({ text, format, onFormatChange, title, onClose 
               )}
               <span>{copied ? 'Copied' : 'Copy'}</span>
             </button>
-            {isNativePlatform() && (
-              <button type="button" className="btn" onClick={handleNativeShare}>
+            {canShare() && (
+              <button type="button" className="btn" onClick={handleShare}>
                 Share…
               </button>
             )}
-            {!isNativePlatform() && (
+            {!canShare() && (
               <button
                 type="button"
                 className="btn"

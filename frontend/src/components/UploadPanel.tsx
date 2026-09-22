@@ -8,16 +8,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
-import {
-  Suspense,
-  lazy,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  type MouseEvent,
-} from 'react';
+import { Suspense, lazy, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { formatRelativeTime } from '../lib/format-time';
 import { haptics } from '../lib/haptics';
 import { usePushProgress } from '../lib/use-push-progress';
@@ -61,8 +52,6 @@ import { InlineCardSearch } from './InlineCardSearch';
 import { InfoTip } from './InfoTip';
 import { mergeStagedFiles, stagedFilesNotice } from '../lib/staged-files';
 import { useFileDrop } from '../lib/use-file-drop';
-import { isNativePlatform, openExternal } from '../lib/platform';
-import { pickNativeFiles } from '../lib/native-file-picker';
 import {
   googlePickerAvailable,
   isCancelled,
@@ -71,18 +60,6 @@ import {
 } from '../lib/google-picker';
 
 import { userMessage } from '@/lib/user-error';
-const CSV_MIME_TYPES = ['text/csv', 'text/tab-separated-values', 'text/plain'];
-
-// Same handful of external import-tool links repeat below — one small closure
-// beats 5 copies of the same preventDefault/openExternal block.
-function extLinkClick(url: string) {
-  return (e: MouseEvent) => {
-    if (!isNativePlatform()) return;
-    e.preventDefault();
-    openExternal(url);
-  };
-}
-const JSON_MIME_TYPES = ['application/json'];
 
 // Per-format column/line examples for the import-source InfoTip (E130 —
 // discoverability for the 5 bare text links, which named the tools but
@@ -168,8 +145,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   const [linkBusy, setLinkBusy] = useState(false);
   const linkInputId = useId();
   const [driveBusy, setDriveBusy] = useState(false);
-  /** Web-only: Google blocks its OAuth popup inside the Capacitor WebView, and
-   *  an un-keyed build has no credentials. Both fall back to the link field. */
+  /** An un-keyed build has no credentials, and falls back to the link field. */
   const canPickDrive = googlePickerAvailable();
   // Load Google's scripts before the click, not during it: awaiting them inside
   // the handler spends the user activation the consent popup needs, and the
@@ -252,15 +228,6 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
 
   const handlePickFile = async () => {
     if (isLoading) return;
-    if (isNativePlatform()) {
-      try {
-        const files = await pickNativeFiles({ types: CSV_MIME_TYPES, multiple: true });
-        stageIncoming(files);
-      } catch (err) {
-        setError(userMessage(err, "Couldn't open the file picker. Try again."));
-      }
-      return;
-    }
     fileInputRef.current?.click();
   };
 
@@ -689,15 +656,6 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       });
       if (!ok) return;
     }
-    if (isNativePlatform()) {
-      try {
-        const [file] = await pickNativeFiles({ types: JSON_MIME_TYPES, multiple: false });
-        if (file) await applyBackupFile(file);
-      } catch (err) {
-        setError(userMessage(err, "Couldn't restore that import. Try again."));
-      }
-      return;
-    }
     backupInputRef.current?.click();
   };
 
@@ -985,7 +943,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
           )}
 
           {/* Fallback for the platforms the Drive picker can't run on (the
-              Capacitor WebView, or a build with no API key). A Sheet is the one
+              an embedded browser, or a build with no API key). A Sheet is the one
               source the OS document picker cannot reach, so native still needs
               a way in; the server fetches the link because Google's export
               endpoints send no CORS headers. */}
@@ -1057,39 +1015,19 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
           <div className="import-card-footer">
             <span className="import-card-hint">
               {'Plain CSV or TXT · '}
-              <a
-                href="https://manabox.app/"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={extLinkClick('https://manabox.app/')}
-              >
+              <a href="https://manabox.app/" target="_blank" rel="noopener noreferrer">
                 ManaBox
               </a>
               {' · '}
-              <a
-                href="https://archidekt.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={extLinkClick('https://archidekt.com/')}
-              >
+              <a href="https://archidekt.com/" target="_blank" rel="noopener noreferrer">
                 Archidekt
               </a>
               {' · '}
-              <a
-                href="https://moxfield.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={extLinkClick('https://moxfield.com/')}
-              >
+              <a href="https://moxfield.com/" target="_blank" rel="noopener noreferrer">
                 Moxfield
               </a>
               {' · '}
-              <a
-                href="https://deckbox.org/"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={extLinkClick('https://deckbox.org/')}
-              >
+              <a href="https://deckbox.org/" target="_blank" rel="noopener noreferrer">
                 Deckbox
               </a>
               {' · '}
@@ -1097,7 +1035,6 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                 href="https://magic.wizards.com/en/mtgarena"
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={extLinkClick('https://magic.wizards.com/en/mtgarena')}
               >
                 MTGA
               </a>{' '}

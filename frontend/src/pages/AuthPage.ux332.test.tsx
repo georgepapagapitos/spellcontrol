@@ -15,9 +15,6 @@ vi.mock('../lib/auth-api', () => ({
   fetchProviders: vi.fn(() => Promise.resolve({ google: false })),
   googleSignInUrl: vi.fn(() => 'https://example.test/oauth'),
 }));
-vi.mock('../lib/platform', () => ({
-  isNativePlatform: () => false,
-}));
 
 // Mock the collection store to control the local card count.
 const mockCardsLength = { value: 0 };

@@ -9,7 +9,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 // `import('../lib/sync').then(sync => sync.persistDecksState(...))` on every
 // decks change it decides to push. Mock it so those tests can assert a push
 // actually happened, instead of relying on the real module (which imports
-// Capacitor/network code irrelevant here) resolving or its errors being
+// network code irrelevant here) resolving or its errors being
 // silently swallowed by the subscriber's `.catch(() => {})`.
 const persistDecksState = vi.fn().mockResolvedValue(undefined);
 vi.mock('../lib/sync', () => ({

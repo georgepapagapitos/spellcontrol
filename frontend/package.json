@@ -33,16 +33,6 @@
     "refresh-otags": "node scripts/refresh-otag-index.mjs --force"
   },
   "dependencies": {
-    "@capacitor-community/camera-preview": "^8.0.1",
-    "@capacitor/app": "^8.1.1",
-    "@capacitor/browser": "^8.0.4",
-    "@capacitor/filesystem": "^8.1.3",
-    "@capacitor/haptics": "^8.0.2",
-    "@capacitor/keyboard": "^8.0.5",
-    "@capacitor/share": "^8.0.1",
-    "@capacitor/splash-screen": "^8.0.2",
-    "@capacitor/status-bar": "^8.0.3",
-    "@capawesome/capacitor-file-picker": "^8.1.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
@@ -64,11 +54,6 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@capacitor/android": "^8.5.2",
-    "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "^8.5.2",
-    "@capacitor/core": "^8.5.2",
-    "@capacitor/ios": "^8.5.2",
     "@eslint/js": "^9.39.4",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",

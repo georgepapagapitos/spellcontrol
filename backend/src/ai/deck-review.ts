@@ -370,7 +370,7 @@ export const isCollectionScope = (scope: AiScope): scope is 'owned' | 'uncommitt
   scope === 'owned' || scope === 'uncommitted';
 
 /** Parse an untrusted scope. `ownedOnly` is the pre-scope wire field a native
- *  bundle built before T112 still sends — honoured so an old APK keeps working. */
+ *  bundle built before T112 still sends — honoured so a stale bundle keeps working. */
 export function parseAiScope(scope: unknown, ownedOnly?: unknown): AiScope {
   if (scope === 'owned' || scope === 'uncommitted' || scope === 'budget') return scope;
   return ownedOnly === true ? 'owned' : 'any';

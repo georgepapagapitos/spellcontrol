@@ -3,34 +3,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { CardScanner } from './CardScanner';
 import { useScanQueueStore } from '../lib/use-scan-queue';
-import { isNativePlatform } from '../lib/platform';
 import type { ScryfallCard } from '@/deck-builder/types';
 
-// The scanner pulls in the opencv/WASM loader and the native camera bridge —
-// neither can run under happy-dom (see the sibling exclude-list rationale in
-// vitest.config.ts for scanner/opencv-loader.ts, scanner/detect.ts,
-// scanner/scan.ts). Mock the seams the same way the runtime does: platform
-// detection, the Capacitor plugins, and the scan pipeline's prewarm/scan.
+// The scanner pulls in the opencv/WASM loader, which can't run under
+// happy-dom (see the sibling exclude-list rationale in vitest.config.ts for
+// scanner/opencv-loader.ts, scanner/detect.ts, scanner/scan.ts). Mock the
+// pipeline's prewarm/scan seam the same way the runtime does.
 vi.mock('../lib/scanner/scan', () => ({
   prewarm: vi.fn().mockResolvedValue(undefined),
   scan: vi.fn(),
 }));
-vi.mock('@capacitor-community/camera-preview', () => ({
-  CameraPreview: {
-    start: vi.fn().mockResolvedValue(undefined),
-    stop: vi.fn().mockResolvedValue(undefined),
-    captureSample: vi.fn().mockResolvedValue({ value: '' }),
-  },
-}));
-vi.mock('@capacitor/app', () => ({
-  App: {
-    addListener: vi.fn().mockResolvedValue({ remove: vi.fn() }),
-  },
-}));
-vi.mock('../lib/platform', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../lib/platform')>();
-  return { ...actual, isNativePlatform: vi.fn(() => false) };
-});
 
 function makeCard(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
   return {
@@ -69,7 +51,6 @@ function installMediaDevices(value: unknown) {
 
 beforeEach(() => {
   useScanQueueStore.setState({ queue: [] });
-  vi.mocked(isNativePlatform).mockReturnValue(false);
 });
 
 afterEach(() => {
@@ -103,10 +84,24 @@ describe('CardScanner', () => {
   });
 
   it('shows the queue count badge once cards are queued', async () => {
-    // Native path — CameraPreview.start (mocked above) resolves immediately,
-    // sidestepping the getUserMedia/MediaStream track dance the web path
-    // needs just to reach 'ready'.
-    vi.mocked(isNativePlatform).mockReturnValue(true);
+    // The badge only renders while the camera is live, so the web path has to
+    // actually reach 'ready': a stream with one video track, and a play() that
+    // resolves (happy-dom has no media element implementation).
+    const track = {
+      getCapabilities: () => ({}),
+      applyConstraints: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn(),
+    };
+    const stream = { getTracks: () => [track], getVideoTracks: () => [track] };
+    installMediaDevices({ getUserMedia: vi.fn().mockResolvedValue(stream) });
+    HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+    // happy-dom type-checks srcObject against a real MediaStream; take the
+    // validation out of the way so the fake stream can be attached.
+    Object.defineProperty(HTMLMediaElement.prototype, 'srcObject', {
+      configurable: true,
+      writable: true,
+      value: null,
+    });
     useScanQueueStore.setState({
       queue: [
         {

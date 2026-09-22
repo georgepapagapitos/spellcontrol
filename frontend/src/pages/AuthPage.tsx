@@ -1,11 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
-import { Browser } from '@capacitor/browser';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 import { fetchProviders, googleSignInUrl } from '../lib/auth-api';
-import { isNativePlatform } from '../lib/platform';
 import { preventFocusSteal } from '../lib/keyboard';
 import { markEverVisited } from '../lib/first-run';
 import { toast } from '../store/toasts';
@@ -92,16 +90,6 @@ export default function AuthPage() {
     if (status === 'authed') navigate(returnTo, { replace: true });
   }, [status, navigate, returnTo]);
 
-  // Native: the system browser closing (success, our own close, or a user
-  // cancel) ends the "busy" state so the button is usable again.
-  useEffect(() => {
-    if (!isNativePlatform()) return;
-    const handle = Browser.addListener('browserFinished', () => setGoogleBusy(false));
-    return () => {
-      void handle.then((h) => h.remove()).catch(() => {});
-    };
-  }, []);
-
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (mode === 'register' && password !== confirm) {
@@ -151,13 +139,8 @@ export default function AuthPage() {
   function handleGoogle() {
     clearError();
     setGoogleBusy(true);
-    if (isNativePlatform()) {
-      // Completion returns via the spellcontrol://oauth/callback deep link.
-      void Browser.open({ url: googleSignInUrl('native') }).catch(() => setGoogleBusy(false));
-    } else {
-      // Top-level navigation; the callback sets the cookie and redirects back.
-      window.location.href = googleSignInUrl('web');
-    }
+    // Top-level navigation; the callback sets the cookie and redirects back.
+    window.location.href = googleSignInUrl();
   }
 
   function switchMode(next: Mode) {

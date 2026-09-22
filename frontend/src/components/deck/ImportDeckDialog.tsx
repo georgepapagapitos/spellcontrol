@@ -20,8 +20,6 @@ import {
   PartnerImportPicker,
   ImportParseSummary,
 } from './import-deck-shared';
-import { isNativePlatform } from '../../lib/platform';
-import { pickNativeFiles } from '../../lib/native-file-picker';
 import {
   googlePickerAvailable,
   isCancelled,
@@ -30,7 +28,6 @@ import {
 } from '../../lib/google-picker';
 import { usePublishOnCreate, type PublishOutcome } from '../../lib/use-publish-on-create';
 
-const DECK_IMPORT_MIME = ['text/csv', 'text/tab-separated-values', 'text/plain'];
 import {
   MAX_STAGED_FILES as MAX_FILES,
   mergeStagedFiles,
@@ -548,19 +545,10 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
     }
   }, [acceptFiles, driveBusy, isLoading]);
 
-  const handlePickFile = useCallback(async () => {
+  const handlePickFile = useCallback(() => {
     if (isLoading) return;
-    if (isNativePlatform()) {
-      try {
-        const files = await pickNativeFiles({ types: DECK_IMPORT_MIME, multiple: true });
-        acceptFiles(files);
-      } catch (err) {
-        setError(userMessage(err, "Couldn't open the file picker. Try again."));
-      }
-      return;
-    }
     fileInputRef.current?.click();
-  }, [acceptFiles, isLoading]);
+  }, [isLoading]);
 
   const handleDragEnter = useCallback(
     (e: React.DragEvent) => {
@@ -839,8 +827,8 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                   disabled={isLoading}
                   autoFocus
                 />
-                {/* Fallback for where the Drive picker can't run (Capacitor
-                    WebView / un-keyed build): a decklist in a Google Sheet is
+                {/* Fallback for where the Drive picker can't run (an embedded
+                    browser / un-keyed build): a decklist in a Google Sheet is
                     the one source no OS file picker can reach. The fetched
                     file joins the staged batch like any other. */}
                 {!canPickDrive && (

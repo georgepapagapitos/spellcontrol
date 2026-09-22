@@ -3,10 +3,6 @@ import 'fake-indexeddb/auto';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 // sync.ts imports these at module load — stub them so importing it doesn't blow up.
-vi.mock('./platform', () => ({ isNativePlatform: vi.fn(() => false) }));
-vi.mock('@capacitor/app', () => ({
-  App: { addListener: vi.fn(async () => ({ remove: vi.fn() })) },
-}));
 // The network leaf under test.
 vi.mock('./api/combos', () => ({ fetchOracleIds: vi.fn() }));
 

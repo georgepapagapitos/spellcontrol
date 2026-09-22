@@ -10,12 +10,6 @@ vi.mock('./auth-api', () => ({
   clearCollectionSync: vi.fn(),
 }));
 
-// Default to web; the native-resume test flips isNativePlatform to true.
-vi.mock('./platform', () => ({ isNativePlatform: vi.fn(() => false) }));
-vi.mock('@capacitor/app', () => ({
-  App: { addListener: vi.fn(async () => ({ remove: vi.fn() })) },
-}));
-
 import {
   startSync,
   stopSyncAndWipeLocal,
@@ -45,8 +39,6 @@ import {
   withSuspendedHydration,
 } from './sync';
 import { pullSync, pushSync, clearCollectionSync } from './auth-api';
-import { isNativePlatform } from './platform';
-import { App as CapacitorApp } from '@capacitor/app';
 import * as estore from './entity-store';
 import * as queue from './mutation-queue';
 import * as cardPrices from './card-prices';
@@ -55,8 +47,6 @@ import type { Deck } from '../store/decks';
 const mockPull = pullSync as unknown as ReturnType<typeof vi.fn>;
 const mockPush = pushSync as unknown as ReturnType<typeof vi.fn>;
 const mockClear = clearCollectionSync as unknown as ReturnType<typeof vi.fn>;
-const mockIsNative = isNativePlatform as unknown as ReturnType<typeof vi.fn>;
-const mockAddListener = CapacitorApp.addListener as unknown as ReturnType<typeof vi.fn>;
 
 // vi.waitFor defaults to a 1s budget — the tightest deadline in the suite, and
 // the one that made this file fail differently on every run while the machine
@@ -93,7 +83,6 @@ beforeEach(async () => {
   // Default: empty pull, empty push.
   mockPull.mockResolvedValue({ rows: [], cursor: 0, hasMore: false });
   mockPush.mockResolvedValue({ applied: [], cursor: 0 });
-  mockIsNative.mockReturnValue(false); // web by default; native test opts in
 });
 
 afterEach(async () => {
@@ -200,33 +189,12 @@ describe('lifecycle', () => {
   });
 });
 
-describe('native resume', () => {
-  it('pulls when the app is foregrounded (Capacitor resume)', async () => {
-    mockIsNative.mockReturnValue(true);
-    await startSync('user-1');
-    // Grab the handler registered for the Capacitor `resume` event.
-    const resumeCall = mockAddListener.mock.calls.find((c) => c[0] === 'resume');
-    expect(resumeCall).toBeDefined();
-    const onResume = resumeCall![1] as () => void;
-
-    const before = mockPull.mock.calls.length;
-    onResume(); // simulate the app coming back to the foreground
-    await vi.waitFor(() => expect(mockPull.mock.calls.length).toBe(before + 1), SETTLE);
-    await waitForLifecycleSyncToSettle();
-  });
-
-  it('does not register a resume listener on web', async () => {
-    mockIsNative.mockReturnValue(false);
-    await startSync('user-1');
-    expect(mockAddListener.mock.calls.some((c) => c[0] === 'resume')).toBe(false);
-  });
-});
-
 describe('refreshNow', () => {
   it('flushes pending mutations then pulls', async () => {
-    mockIsNative.mockReturnValue(true); // durable queue is native-only
     await startSync('user-1');
-    await recordUpsert('binder', 'b-ref', { id: 'b-ref' }); // queue something to flush
+    // Enqueue straight into the outbox: a signed-in client writes through, so
+    // a normal mutation would leave nothing queued for refreshNow to flush.
+    await queue.enqueue({ op: 'upsert', kind: 'binder', id: 'b-ref', data: { id: 'b-ref' } });
     mockPush.mockClear();
     mockPull.mockClear();
     await refreshNow();
@@ -241,14 +209,14 @@ describe('refreshNow', () => {
   });
 });
 
-describe('native drain progress', () => {
+describe('queue drain progress', () => {
   it('reports slice progress while draining a multi-batch queue, then clears it', async () => {
-    // Same signal the web write-through reports, so a queued bulk import on
-    // native shows "Saving 3/7…" in the header instead of a bare spinner.
-    mockIsNative.mockReturnValue(true);
+    // Same signal the write-through path reports, so a guest's queued bulk
+    // import shows "Saving 3/7…" in the header instead of a bare spinner.
     await startSync('user-1');
-    const cards = Array.from({ length: 1100 }, (_, i) => ({ copyId: `c-${i}` }));
-    await persistCardsState(cards); // queued; auto-push is off in tests
+    for (let i = 0; i < 1100; i++) {
+      await queue.enqueue({ op: 'upsert', kind: 'card', id: `c-${i}`, data: { copyId: `c-${i}` } });
+    }
     expect(getPushProgress()).toBeNull();
 
     const seen: Array<ReturnType<typeof getPushProgress>> = [];
@@ -266,9 +234,8 @@ describe('native drain progress', () => {
   });
 
   it('a single-batch drain reports nothing', async () => {
-    mockIsNative.mockReturnValue(true);
     await startSync('user-1');
-    await recordUpsert('binder', 'b-1', { id: 'b-1' });
+    await queue.enqueue({ op: 'upsert', kind: 'binder', id: 'b-1', data: { id: 'b-1' } });
     const seen: Array<ReturnType<typeof getPushProgress>> = [];
     const unsub = onSyncedChange(() => seen.push(getPushProgress()));
     await flushSync();
@@ -756,10 +723,6 @@ describe('push', () => {
 });
 
 describe('persistKind helpers', () => {
-  // The durable mutation queue is native-only; web write-through is covered in
-  // its own describe below.
-  beforeEach(() => mockIsNative.mockReturnValue(true));
-
   it('never tombstones a row a pull landed in IDB before the stores rehydrated (playtest batch 9)', async () => {
     // A multi-page pull writes page 1 to IDB and rehydrates the stores only
     // after the last page. A persist that runs in between — the trade
@@ -915,7 +878,6 @@ describe('persistKind helpers', () => {
 
 describe('card price stripping (prices are device-local, never synced)', () => {
   it('persistCardsState strips purchasePrice/pricedAt from the synced row + queue', async () => {
-    mockIsNative.mockReturnValue(true); // asserts the durable queue op
     await persistCardsState([
       { copyId: 'c-1', importId: 'imp-1', scryfallId: 's-1', purchasePrice: 12.5, pricedAt: 123 },
     ] as unknown as Array<{ copyId: string; importId?: string }>);
@@ -930,7 +892,6 @@ describe('card price stripping (prices are device-local, never synced)', () => {
   });
 
   it('persistCardsState rides priceOverride/priceOverrideCurrency through unstripped (E204) — it is per-copy user data, not device-local market reference data', async () => {
-    mockIsNative.mockReturnValue(true);
     await persistCardsState([
       {
         copyId: 'c-1',
@@ -1014,7 +975,6 @@ describe('card printing-group reject-stale (E129)', () => {
   // (scryfallId, finish) group. These cover the client side of the cross-
   // device drift fix: tagging cardinality-changing mutations, sending a
   // fresh baseline at send time, and converging when the server bounces one.
-  beforeEach(() => mockIsNative.mockReturnValue(true)); // durable queue is native-only
 
   it('tags a new copy joining an already-owned printing (candidate for the check)', async () => {
     await estore.putMany('card', [
@@ -1396,7 +1356,6 @@ describe('drift reconcile (E291)', () => {
   });
 
   it('holds off while local writes are still queued — they SHOULD differ', async () => {
-    mockIsNative.mockReturnValue(true); // durable queue is native-only
     await estore.putMany('card', [{ id: 'c-1', data: { copyId: 'c-1' }, rev: 0, deletedAt: null }]);
     await queue.enqueue({ op: 'upsert', kind: 'card', id: 'c-1', data: { copyId: 'c-1' } });
     saveCursorForTest(900);
@@ -1469,7 +1428,6 @@ describe('server-side collection clear', () => {
   });
 
   it('drops queued card ops so the next drain cannot resurrect a cleared row', async () => {
-    mockIsNative.mockReturnValue(true); // durable queue is native-only
     await queue.enqueue({ op: 'upsert', kind: 'card', id: 'c-1', data: { copyId: 'c-1' } });
     await queue.enqueue({ op: 'upsert', kind: 'binder', id: 'b-1', data: { id: 'b-1' } });
     mockPush.mockResolvedValue({ applied: [], cursor: 1 });
@@ -1506,10 +1464,10 @@ describe('server-side collection clear', () => {
 
 describe('legibility signals', () => {
   it('getPendingCount reflects the durable queue depth', async () => {
-    mockIsNative.mockReturnValue(true); // durable queue is native-only
-    await startSync('user-1');
+    // Signed out: mutations land in the durable queue and stay there until
+    // sign-in drains them, which is exactly what this counter reports.
+    await startSync();
     expect(getPendingCount()).toBe(0);
-    // A mutation enqueues but the push is debounced, so it stays pending.
     await recordUpsert('binder', 'b-1', { id: 'b-1' });
     await vi.waitFor(() => expect(getPendingCount()).toBe(1), SETTLE);
   });
@@ -1554,9 +1512,8 @@ describe('isApplyingServer', () => {
 });
 
 describe('recordUpsert / recordDelete', () => {
-  // These assert the native durable-queue path; web write-through has its own
-  // describe below.
-  beforeEach(() => mockIsNative.mockReturnValue(true));
+  // Signed out, so mutations land in the durable queue; a signed-in client
+  // writes straight through (its own describe below).
 
   it('recordUpsert writes IDB + enqueues a single op', async () => {
     const { recordUpsert } = await import('./sync');
@@ -1611,8 +1568,8 @@ describe('web guest (signed-out) keeps the durable queue', () => {
 });
 
 describe('web write-through (no durable outbox)', () => {
-  // isNativePlatform defaults to false (web). Write-through is gated on a
-  // signed-in owner — a guest still uses the durable queue — so sign in first.
+  // Write-through is gated on a signed-in owner — a guest still uses the
+  // durable queue — so sign in first.
   beforeEach(async () => {
     await startSync('user-1');
   });

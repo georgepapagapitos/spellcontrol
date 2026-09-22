@@ -82,7 +82,6 @@ vi.mock('../lib/backup', () => ({
   buildBackup: vi.fn(),
   downloadBackup: vi.fn(),
 }));
-vi.mock('../lib/platform', () => ({ isNativePlatform: () => false }));
 vi.mock('../lib/sync', () => ({ getPendingCount: () => 0 }));
 vi.mock('../lib/reset-app-cache', () => ({ resetAppCacheAndReload: vi.fn() }));
 vi.mock('../components/OfflineModeSettings', () => ({
@@ -103,9 +102,6 @@ vi.mock('../components/ProfileEditor', () => ({
 }));
 vi.mock('../lib/themes', () => ({
   THEMES: [{ id: 'default', name: 'Default', guild: 'None', swatch: ['#000', '#fff'] }],
-}));
-vi.mock('@capacitor/browser', () => ({
-  Browser: { addListener: vi.fn(() => Promise.resolve({ remove: vi.fn() })) },
 }));
 
 import { YouPage } from './YouPage';

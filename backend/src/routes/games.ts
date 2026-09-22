@@ -1110,7 +1110,7 @@ const POLL_TIMEOUT_MS = isTest ? 200 : 25_000;
 
 /**
  * GET /api/games/:code/poll?since=<version> — long-poll fallback for clients
- * that can't use SSE (native/Capacitor — see games-longpoll.ts's client-side
+ * that can't use SSE (a cross-origin build — see games-longpoll.ts's client-side
  * doc comment for why `EventSource` doesn't work there, even though it
  * exists in that WebView). Shares the `subscribers` registry with `/events`:
  * a poll request is just a subscriber that resolves once instead of

@@ -4,8 +4,6 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuth } from '../../store/auth';
 
-vi.mock('../../lib/platform', () => ({ isNativePlatform: vi.fn(() => false) }));
-vi.mock('@capacitor/share', () => ({ Share: { share: vi.fn() } }));
 vi.mock('../../lib/publications-client', () => ({
   getPublication: () => Promise.resolve(null),
   publishDeck: () => Promise.reject(new Error('not used in this suite')),

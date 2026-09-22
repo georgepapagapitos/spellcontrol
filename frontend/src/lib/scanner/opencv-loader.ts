@@ -1,5 +1,5 @@
 /* eslint-disable no-console -- Phase 0 diagnostics need to fire in the
-   production-mode Capacitor build (logger.info is dev-only), so we use
+   production build (logger.info is dev-only), so we use
    console.* directly. Remove this disable when the spike either ships
    or is replaced. */
 // Lazy-load OpenCV.js once per session.
@@ -7,7 +7,7 @@
 // We vendor @techstark/opencv-js's `opencv.js` into `public/scanner/` and
 // load it via a dynamically-injected classic `<script>` tag. This bypasses
 // Vite's ESM dynamic-import + chunk-graph machinery, which hung
-// indefinitely under Capacitor's `WebViewLocalServer` when fed the 10 MB
+// indefinitely under some embedded web servers when fed the 10 MB
 // chunk (request received, never resolved, JS engine idle at 0% CPU).
 // Classic-script loading is also the pattern the official OpenCV.js docs
 // use, and the resulting global `cv` is exactly what Emscripten expects.

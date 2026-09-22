@@ -36,7 +36,6 @@ describe('isFirstRunExempt', () => {
     ['/welcome', true],
     ['/auth', true],
     ['/auth/choose-username', true],
-    ['/oauth/callback', true],
     ['/s/abc123', true],
     // Regression: a first-time guest following a public link — /u, /d,
     // /gn/*, or the welcome hero's own "Browse public decks" CTA into
@@ -99,11 +98,6 @@ describe('useFirstRunGate', () => {
   it('keeps shared-link routes reachable for a first-run guest', () => {
     const { getByTestId } = render(<Harness status="guest" initialPath="/s/token-xyz" />);
     expect(getByTestId('path').textContent).toBe('/s/token-xyz');
-  });
-
-  it('keeps the OAuth callback reachable for a first-run guest', () => {
-    const { getByTestId } = render(<Harness status="guest" initialPath="/oauth/callback" />);
-    expect(getByTestId('path').textContent).toBe('/oauth/callback');
   });
 
   // Regression for the bug fixed alongside the isFirstRunExempt table above:

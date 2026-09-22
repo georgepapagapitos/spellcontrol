@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Share } from '@capacitor/share';
 import { Modal } from './Modal';
 import { ShareQrCode } from './shared/ShareQrCode';
 import { useAuth } from '../store/auth';
@@ -8,16 +7,15 @@ import { useDecksStore } from '../store/decks';
 import { useCubeStore } from '../store/cube';
 import { listShares, revokeShare, shareUrl } from '../lib/share-client';
 import { fetchPublicProfile } from '../lib/profile-client';
-import { isNativePlatform, openExternal } from '../lib/platform';
 import { useConfirm } from '../lib/use-confirm';
 import { toast } from '../store/toasts';
+import { canShare, openShareSheet } from '@/lib/web-share';
 import type { ShareKind, ShareRow } from '../lib/shared-types';
 
 import { userMessage } from '@/lib/user-error';
 /** Mirrors share-client.ts's shareUrl() exactly, one path prefix over — kept
  *  local rather than generalizing that helper for a single second call site. */
 function ownProfileUrl(username: string): string {
-  if (isNativePlatform()) return `https://spellcontrol.com/u/${username}`;
   if (typeof window === 'undefined') return `/u/${username}`;
   return `${window.location.origin}/u/${username}`;
 }
@@ -147,18 +145,8 @@ export function SharedLinksSettings() {
     }
   }, []);
 
-  const handleNativeShare = useCallback(async (url: string, label: string) => {
-    try {
-      await Share.share({
-        title: `Share ${label}`,
-        text: `${label} on SpellControl`,
-        url,
-        dialogTitle: 'Share link',
-      });
-    } catch (err) {
-      if (err && (err as { message?: string }).message?.includes('cancel')) return;
-      toast.show({ message: "Couldn't open share sheet", tone: 'warn' });
-    }
+  const handleShare = useCallback(async (url: string, label: string) => {
+    await openShareSheet({ title: `Share ${label}`, text: `${label} on SpellControl`, url });
   }, []);
 
   const handleRevoke = useCallback(
@@ -219,11 +207,6 @@ export function SharedLinksSettings() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="settings-share-url"
-                    onClick={(e) => {
-                      if (!isNativePlatform()) return;
-                      e.preventDefault();
-                      openExternal(myProfileUrl);
-                    }}
                   >
                     {myProfileUrl.replace(/^https?:\/\//, '')}
                   </a>
@@ -238,11 +221,11 @@ export function SharedLinksSettings() {
                 >
                   Copy
                 </button>
-                {isNativePlatform() && (
+                {canShare() && (
                   <button
                     type="button"
                     className="btn"
-                    onClick={() => void handleNativeShare(myProfileUrl, 'Your public profile')}
+                    onClick={() => void handleShare(myProfileUrl, 'Your public profile')}
                     aria-label="Share your public profile link"
                   >
                     Share…
@@ -308,11 +291,6 @@ export function SharedLinksSettings() {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="settings-share-url"
-                      onClick={(e) => {
-                        if (!isNativePlatform()) return;
-                        e.preventDefault();
-                        openExternal(url);
-                      }}
                     >
                       {url.replace(/^https?:\/\//, '')}
                     </a>
@@ -328,11 +306,11 @@ export function SharedLinksSettings() {
                   >
                     Copy
                   </button>
-                  {isNativePlatform() && (
+                  {canShare() && (
                     <button
                       type="button"
                       className="btn"
-                      onClick={() => void handleNativeShare(url, label.name)}
+                      onClick={() => void handleShare(url, label.name)}
                       disabled={revoking}
                       aria-label={`Share ${KIND_LABELS[s.kind].toLowerCase()} link`}
                     >

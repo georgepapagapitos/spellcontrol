@@ -1,7 +1,3 @@
-import { Keyboard } from '@capacitor/keyboard';
-import { isNativePlatform } from '@/lib/platform';
-import { logger } from '@/lib/logger';
-
 /**
  * Single keyboard layer for the whole app.
  *
@@ -17,19 +13,14 @@ import { logger } from '@/lib/logger';
  *   - **JS** — `useKeyboard()` for the rare component that must compute
  *     geometry (e.g. a portaled tray measuring its own max-height).
  *
- * Why `visualViewport` is the cross-platform primitive: on native the WebView
- * itself resizes when the keyboard shows (`resize: 'native'` on iOS,
- * `resizeOnFullScreen: true` on Android — see capacitor.config.ts), so the
- * layout already sits above the keyboard and the inset stays ~0. On the web
- * the keyboard floats over the layout viewport, so the inset is the gap a
- * `position: fixed; bottom: 0` element must clear. The same number is correct
- * in both worlds. Capacitor's `keyboardWillShow/Hide` events are layered on
- * only to make `isOpen` reliable on native (where the inset alone can't tell).
+ * Why `visualViewport` is the primitive: the on-screen keyboard floats over
+ * the layout viewport, so the inset is the gap a `position: fixed; bottom: 0`
+ * element must clear.
  */
 
 export interface KeyboardState {
   /** Pixels the on-screen keyboard occupies at the bottom of the layout
-   *  viewport. ~0 on native (the WebView resizes); the real gap on web. */
+   *  viewport. */
   inset: number;
   /** Visible viewport height in px (excludes the keyboard). */
   viewportHeight: number;
@@ -43,7 +34,6 @@ let state: KeyboardState = {
   isOpen: false,
 };
 
-let nativeOpen = false;
 let initialized = false;
 const subscribers = new Set<() => void>();
 
@@ -70,7 +60,7 @@ function recompute(): void {
     inset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
     viewportHeight = Math.round(vv.height);
   }
-  emit({ inset, viewportHeight, isOpen: nativeOpen || inset > 0 });
+  emit({ inset, viewportHeight, isOpen: inset > 0 });
 }
 
 function scrollFocusedIntoView(): void {
@@ -93,8 +83,7 @@ function isTextInput(el: HTMLElement): boolean {
 
 /**
  * Wire the keyboard layer once at boot, before the first render so the initial
- * paint already carries `--keyboard-inset: 0px`. Idempotent; errors swallowed
- * (the Capacitor plugin throws on web-debug builds).
+ * paint already carries `--keyboard-inset: 0px`. Idempotent.
  */
 export function initKeyboardLayer(): void {
   if (initialized || typeof window === 'undefined') return;
@@ -107,33 +96,15 @@ export function initKeyboardLayer(): void {
   }
   window.addEventListener('resize', recompute);
   recompute();
-
-  if (isNativePlatform()) {
-    void (async () => {
-      try {
-        await Keyboard.addListener('keyboardWillShow', () => {
-          nativeOpen = true;
-          recompute();
-        });
-        await Keyboard.addListener('keyboardWillHide', () => {
-          nativeOpen = false;
-          recompute();
-        });
-      } catch (err) {
-        logger.warn('[keyboard] native listener init failed:', err);
-      }
-    })();
-  }
 }
 
 /**
  * `onMouseDown`/`onPointerDown` handler for a control that sits beside a focused
  * text field but must NOT steal focus from it — e.g. a show/hide-password eye
- * toggle. Pressing such a button normally blurs the input, and on native
- * (Capacitor) a blur dismisses the on-screen keyboard, so the user loses the
- * keyboard every time they peek at their password. Preventing the default on the
- * press stops the focus shift; the button's `onClick` still fires, so the toggle
- * itself is unaffected.
+ * toggle. Pressing such a button normally blurs the input, and a blur dismisses
+ * the on-screen keyboard, so the user loses the keyboard every time they peek at
+ * their password. Preventing the default on the press stops the focus shift; the
+ * button's `onClick` still fires, so the toggle itself is unaffected.
  */
 export function preventFocusSteal(e: { preventDefault: () => void }): void {
   e.preventDefault();

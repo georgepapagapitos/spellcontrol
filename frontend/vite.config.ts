@@ -3,9 +3,7 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'node:path';
 
-// Build identifier baked in at build time. Native (Capacitor) boot uses it
-// to decide whether the previous build's service-worker cache needs nuking;
-// unchanged build id => same bundle => leave the offline cache alone.
+// Build identifier baked in at build time, so a bundle can identify itself.
 // Honor VITE_BUILD_ID if the CI/release pipeline sets one (stable, reproducible);
 // otherwise fall back to a per-build timestamp so each `npm run build` differs.
 const BUILD_ID = process.env.VITE_BUILD_ID || Date.now().toString();
@@ -38,8 +36,7 @@ export default defineConfig({
     // since a 404 on sw.js does not reliably unregister it). Keep this for a
     // few weeks until old SWs have aged out, then the plugin can be deleted
     // entirely (register-pwa.ts already only tears SWs down — see there).
-    // `injectRegister: false` leaves registration to register-pwa.ts so the
-    // native (Capacitor) path can opt out.
+    // `injectRegister: false` leaves the teardown to register-pwa.ts.
     VitePWA({
       selfDestroying: true,
       injectRegister: false,
