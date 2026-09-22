@@ -75,15 +75,21 @@ export const PlaytestCardView = memo(function PlaytestCardView({
   // reads the same 0..1 x/y fractions); the card just fills it. The tap
   // rotation stays a `transform` — the drag *transform* is intentionally NOT
   // applied here:
-  // the source card stays put (dimmed) while a top-level <DragOverlay>
-  // renders the moving copy. Translating the source instead would leave it
-  // clipped by the hand strip's / battlefield's `overflow` and stuck behind
-  // sibling surfaces.
+  // the source card stays in place while a top-level <DragOverlay> renders
+  // the moving copy. Translating the source instead would leave it clipped by
+  // the hand strip's / battlefield's `overflow` and stuck behind sibling
+  // surfaces.
+  //
+  // While the drag runs the source is fully transparent rather than dimmed:
+  // the card is in the player's hand, and a ghost of where it used to be is
+  // a second copy of it on the table saying nothing. It keeps its box (rather
+  // than `display: none`) so the layout it was holding open doesn't collapse
+  // under the pointer and dnd-kit can still measure the node it is tracking.
   const style: React.CSSProperties = {
     position: 'relative',
     transform: tapped ? 'rotate(90deg)' : undefined,
     transformOrigin: 'center center',
-    opacity: isDragging ? 0.4 : 1,
+    opacity: isDragging ? 0 : 1,
   };
 
   const activate = (e: React.MouseEvent | React.KeyboardEvent) => {
