@@ -134,7 +134,12 @@ export const PlaytestCardView = memo(function PlaytestCardView({
         // Same activation as a click — overrides dnd-kit's own keyboard-sensor
         // onKeyDown (an undiscoverable, arrow-key drag with no visual
         // affordance) with the far more useful "tap/play this card" a11y path.
-        if (e.key !== 'Enter' && e.key !== ' ') return;
+        //
+        // Enter only, deliberately: Space is the board's "move the game on"
+        // key and has to mean that everywhere. A card holds focus after every
+        // click, so honouring Space here made the biggest key on the keyboard
+        // tap whatever was last touched instead of taking the turn.
+        if (e.key !== 'Enter') return;
         e.preventDefault();
         activate(e);
       }}

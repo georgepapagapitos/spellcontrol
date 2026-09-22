@@ -1216,6 +1216,27 @@ describe('PlaytestBoard — Space moves the game on', () => {
     expect(dispatch).toHaveBeenCalledWith({ type: 'NEXT_TURN' });
   });
 
+  /**
+   * Guard: a card holds focus after every click, and a card is a
+   * `role="button"` element, so it used to swallow Space as "activate me" —
+   * Space then tapped whatever was last touched instead of taking the turn.
+   * Cards activate on Enter; Space belongs to the turn everywhere on the
+   * board.
+   */
+  it('takes the next turn with a card focused, instead of tapping it', () => {
+    const state = seededState();
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={state} />
+      </MemoryRouter>
+    );
+    const card = screen.getAllByRole('button', { name: state.zones.hand[0].name })[0];
+    card.focus();
+    fireEvent.keyDown(card, { key: ' ', bubbles: true });
+    // The turn, and ONLY the turn — the card is not played as a side effect.
+    expect(dispatch.mock.calls.map((c) => c[0].type)).toEqual(['NEXT_TURN']);
+  });
+
   it('passes the turn at a table when it is yours', () => {
     const tableDispatch = vi.fn();
     onlineTable = { ...seatedTable([opponent(1)]), dispatch: tableDispatch };
