@@ -28,6 +28,8 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   getRemovalSubtype: () => null,
   getBoardwipeSubtype: () => null,
   getCardDrawSubtype: () => null,
+  // The deck stats under the list count roles too.
+  getAllCardRoles: () => [],
 }));
 
 function card(

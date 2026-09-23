@@ -139,12 +139,14 @@ describe('SharedDeckSurface', () => {
     expect(screen.queryByRole('link', { name: /Playtest this deck/i })).toBeNull();
   });
 
-  it('shows Deck and Stats, and hides Power on a deck nobody has analyzed', () => {
+  it('puts the stats under the list, with no tab bar when there is no Power', () => {
     renderSurface();
-    expect(screen.getByRole('tab', { name: 'Deck' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Stats' })).toBeTruthy();
-    // An empty Power tab is worse than no Power tab.
-    expect(screen.queryByRole('tab', { name: 'Power' })).toBeNull();
+    // Stats are a section of the Deck view, the way deck sites lay a deck out.
+    expect(screen.getByRole('heading', { name: 'Deck stats' })).toBeTruthy();
+    expect(screen.queryByRole('tab', { name: 'Stats' })).toBeNull();
+    // An empty Power tab is worse than no Power tab, and a lone Deck tab is
+    // not a choice, so there is no bar at all.
+    expect(screen.queryByRole('tablist', { name: 'Deck views' })).toBeNull();
   });
 
   it('shows Power once the payload carries analysis to put in it', () => {
@@ -154,7 +156,9 @@ describe('SharedDeckSurface', () => {
         bracketEstimation: { bracket: 3, hardFloors: [] },
       })
     );
+    expect(screen.getByRole('tab', { name: 'Deck' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Power' })).toBeTruthy();
+    expect(screen.queryByRole('tab', { name: 'Stats' })).toBeNull();
   });
 
   it('links the owner to their profile only on the public page', () => {

@@ -16,6 +16,7 @@ import { ConfirmDialog } from '../ConfirmDialog';
 import { buildManaData, tallyNames } from '@/lib/build-mana-data';
 import { useProducedMana } from './use-produced-mana';
 import { useBanList } from '@/lib/use-ban-list';
+import { scrollToHeading } from '@/lib/scroll-to-heading';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
   validateDeck as runValidation,
@@ -69,7 +70,6 @@ import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commander
 import {
   buildValidationChecklist,
   summarizeValidation,
-  type ValidationSummary,
 } from '@/deck-builder/services/deckBuilder/validationChecklist';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import {
@@ -165,8 +165,6 @@ export interface DeckDisplayProps {
   /** When set, the card-preview's "In deck" chip is suppressed for this deck. */
   deckId?: string;
   format?: DeckFormat;
-  /** Deck accent color hex (from deck.color). Used in the identity hero banner. */
-  color?: string;
   commander: ScryfallCard | null;
   partnerCommander?: ScryfallCard | null;
   /** The deck's selected themes (generated decks); refines the identity strip's
@@ -370,12 +368,9 @@ export interface DeckDisplayProps {
    * hub tab bar lives in the page (`DeckEditorPage`), which owns this state.
    */
   activeView?: DeckView;
-  /**
-   * Reports the deck-health roll-up whenever it changes, so the page's view
-   * tabs can badge the Stats tab with the same verdict the Stats board shows.
-   * Must be referentially stable (the effect that calls it depends on it).
-   */
-  onDeckHealthChange?: (summary: ValidationSummary) => void;
+  /** False when the page shows no view tabs (a lone Deck view), so this is
+   *  not labelled as a tab panel. */
+  tabbed?: boolean;
   /** Reveal the standalone Test hand panel — surfaced in the Deck-view toolbar. */
   onShowTestHand?: () => void;
   /** Opens the add-cards sheet — used by the empty-deck state's CTA (E182). */
@@ -466,7 +461,6 @@ export function DeckDisplay({
   title,
   deckId,
   format = 'commander',
-  color,
   commander,
   partnerCommander,
   selectedThemes,
@@ -529,7 +523,7 @@ export function DeckDisplay({
   renderSwapSuggestions,
   renderSimilarCards,
   activeView = 'deck',
-  onDeckHealthChange,
+  tabbed = true,
   onShowTestHand,
   onAddCards,
   analysisState = 'ready',
@@ -1172,11 +1166,7 @@ export function DeckDisplay({
     ]
   );
 
-  // Report the roll-up to the page so the view tabs can badge it. The memo above
-  // is the only trigger, so this fires on real deck changes, not every render.
-  useEffect(() => {
-    onDeckHealthChange?.(summarizeValidation(validation));
-  }, [validation, onDeckHealthChange]);
+  const health = useMemo(() => summarizeValidation(validation), [validation]);
 
   const exportText = useMemo(
     () =>
@@ -1539,13 +1529,64 @@ export function DeckDisplay({
     />
   );
 
+  const renderAnalysis = (view: AnalysisTabId) => (
+    <DeckAnalysisView
+      view={view}
+      illegalCardNames={illegalCardNames}
+      formatLabel={formatConfig.label}
+      allCards={allCards}
+      manaData={manaData}
+      bracketEstimation={bracketEstimation}
+      deckCardsByName={deckCardsByName}
+      bracketOverride={bracketOverride}
+      onSetBracketOverride={onSetBracketOverride}
+      archetypeOverride={archetypeOverride}
+      onSetArchetypeOverride={onSetArchetypeOverride}
+      roleCounts={roleCounts}
+      roleTargets={roleTargets}
+      buildReport={buildReport}
+      rampSubtypeCounts={rampSubtypeCounts}
+      removalSubtypeCounts={removalSubtypeCounts}
+      boardwipeSubtypeCounts={boardwipeSubtypeCounts}
+      cardDrawSubtypeCounts={cardDrawSubtypeCounts}
+      averageSalt={averageSalt}
+      saltiestCards={saltiestCards}
+      planScore={planScore}
+      edhrecNumDecks={edhrecNumDecks}
+      combosSlot={combosSlot}
+      coachFeedSlot={coachFeedSlot}
+      engineSlot={engineSlot}
+      winConditionSlot={winConditionSlot}
+      powerHeroSlot={powerHeroSlot}
+      tableRecordSlot={tableRecordSlot}
+      aiReviewSlot={aiReviewSlot}
+      derivedRoles={derivedRoles}
+      validation={validation}
+      analysisState={analysisState}
+      onNavigateToTune={onNavigateToTune}
+      onRetryAnalysis={onRetryAnalysis}
+      commander={commander}
+      partnerCommander={partnerCommander}
+      format={format}
+      identity={identity}
+      scoreRevealKey={scoreRevealKey}
+      onAddSuggestedCard={onAddSuggestedCard}
+      addingSuggestedCardNames={addingSuggestedCardNames}
+      oneAwayCombos={oneAwayCombos}
+      ownedOracleIds={ownedOracleIds}
+      landUpgradeCount={landUpgradeCount}
+    />
+  );
+
   return (
     <CardPreviewContext.Provider value={ctxValue}>
       <div
         className="deck-display"
-        role="tabpanel"
-        id={`deck-view-panel-${activeView}`}
-        aria-labelledby={`sc-tab-${activeView}`}
+        {...(tabbed && {
+          role: 'tabpanel',
+          id: `deck-view-panel-${activeView}`,
+          'aria-labelledby': `sc-tab-${activeView}`,
+        })}
       >
         {/* Root-level so the deck-complete moment plays from any view (a
             Coach apply on the Tune view can complete the deck too). */}
@@ -1560,7 +1601,19 @@ export function DeckDisplay({
                 page hero does NOT already say — card count, value and bracket
                 ride the hero on every tab and every width, so repeating them
                 here was the same number twice on one screen. */}
-            <div className="deck-stat-strip" aria-label="Deck stats">
+            <div className="deck-stat-strip" aria-label="Deck at a glance">
+              {/* The checks verdict leads, the way a deck site's header says
+                  "Legal" first. It is also the phone's way down to the stats
+                  under a long one-column list. */}
+              <button
+                type="button"
+                className={`deck-stat deck-stat-btn deck-stat-health deck-stat-health--${health.tone}`}
+                onClick={scrollToDeckStats}
+                aria-label={`Deck checks: ${health.label}. ${health.reason} Show deck stats.`}
+              >
+                <span className="deck-stat-value">{health.label}</span>
+                <span className="deck-stat-label">deck checks</span>
+              </button>
               <span className="deck-stat">
                 <span className="deck-stat-value">{manaData.averageCmc.toFixed(2)}</span>
                 <span className="deck-stat-label">avg mana value</span>
@@ -2143,56 +2196,20 @@ export function DeckDisplay({
                 </div>
               </div>
             </div>
+            {/* Deck stats sit under the list, the way Moxfield and Archidekt
+                lay a deck out: edit the list, then read what it did to the
+                curve and colours without switching tabs. Power and Coach
+                stay tabs; they are verdicts and actions, and load async. */}
+            <section className="deck-stats-below" aria-labelledby={DECK_STATS_HEADING_ID}>
+              {/* h3, like its twin "Not in the deck"; the panels are h4. */}
+              <h3 id={DECK_STATS_HEADING_ID} className="deck-stats-below-heading">
+                Deck stats
+              </h3>
+              {renderAnalysis('stats')}
+            </section>
           </>
         ) : (
-          <DeckAnalysisView
-            view={activeView}
-            illegalCardNames={illegalCardNames}
-            formatLabel={formatConfig.label}
-            allCards={allCards}
-            manaData={manaData}
-            bracketEstimation={bracketEstimation}
-            deckCardsByName={deckCardsByName}
-            bracketOverride={bracketOverride}
-            onSetBracketOverride={onSetBracketOverride}
-            archetypeOverride={archetypeOverride}
-            onSetArchetypeOverride={onSetArchetypeOverride}
-            roleCounts={roleCounts}
-            roleTargets={roleTargets}
-            buildReport={buildReport}
-            rampSubtypeCounts={rampSubtypeCounts}
-            removalSubtypeCounts={removalSubtypeCounts}
-            boardwipeSubtypeCounts={boardwipeSubtypeCounts}
-            cardDrawSubtypeCounts={cardDrawSubtypeCounts}
-            averageSalt={averageSalt}
-            saltiestCards={saltiestCards}
-            planScore={planScore}
-            edhrecNumDecks={edhrecNumDecks}
-            combosSlot={combosSlot}
-            coachFeedSlot={coachFeedSlot}
-            engineSlot={engineSlot}
-            winConditionSlot={winConditionSlot}
-            powerHeroSlot={powerHeroSlot}
-            tableRecordSlot={tableRecordSlot}
-            aiReviewSlot={aiReviewSlot}
-            derivedRoles={derivedRoles}
-            validation={validation}
-            analysisState={analysisState}
-            onNavigateToTune={onNavigateToTune}
-            onRetryAnalysis={onRetryAnalysis}
-            commander={commander}
-            partnerCommander={partnerCommander}
-            deckName={title}
-            format={format}
-            deckColor={color ?? 'var(--accent)'}
-            identity={identity}
-            scoreRevealKey={scoreRevealKey}
-            onAddSuggestedCard={onAddSuggestedCard}
-            addingSuggestedCardNames={addingSuggestedCardNames}
-            oneAwayCombos={oneAwayCombos}
-            ownedOracleIds={ownedOracleIds}
-            landUpgradeCount={landUpgradeCount}
-          />
+          renderAnalysis(activeView)
         )}
 
         {/* Desktop-only floating hover-peek: a transient card-art preview in the
@@ -2526,6 +2543,15 @@ function BulkTagPopoverBody({
 /** The page-top analysis view ids. (Test hand is a separate standalone panel,
  *  not a view — goldfishing is a distinct activity.) */
 export type AnalysisTabId = 'stats' | 'power' | 'tune';
+
+/** The "Deck stats" heading under the list; 'stats' is a place on the Deck
+ *  tab now, not a tab of its own. */
+export const DECK_STATS_HEADING_ID = 'deck-stats-heading';
+
+/** Scroll the Deck tab down to its stats and move focus there. */
+export function scrollToDeckStats() {
+  scrollToHeading(DECK_STATS_HEADING_ID);
+}
 
 /** The full page-top view set: the card-list editing surface plus the analysis
  *  views. `DeckEditorPage` owns this state and renders the hub tab bar. */

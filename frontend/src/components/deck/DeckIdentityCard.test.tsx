@@ -71,16 +71,12 @@ const healthyPlan = makePlan(82, {
 
 const base: DeckIdentityCardProps = {
   commander: null,
-  deckName: 'Test deck',
   format: 'commander',
-  deckColor: '#3a7bd5',
   bracket: undefined,
   analysisState: 'ready',
   validation: makeValidation([PASS('size'), PASS('identity')]),
   planScore: healthyPlan,
-  manaCurve: {},
   identity: null,
-  averageCmc: 3.0,
 };
 
 function renderCard(overrides: Partial<DeckIdentityCardProps> = {}) {
@@ -265,19 +261,22 @@ describe('DeckIdentityCard', () => {
     expect(screen.queryByText(/Bracket 3/)).toBeNull();
   });
 
-  it('renders commander + partner names and the human format label', () => {
+  it('repeats none of the page hero: no commander names, deck name or art', () => {
+    // The card leads the stats under the deck list, and the hero right above
+    // the list already carries the commander art, the names and the format.
     const commander = {
       name: "Atraxa, Praetors' Voice",
       color_identity: ['W', 'U', 'B', 'G'],
+      image_uris: { art_crop: 'https://example.test/atraxa.jpg' },
     } as unknown as DeckIdentityCardProps['commander'];
     const partnerCommander = {
       name: 'Tymna the Weaver',
       color_identity: ['W', 'B'],
     } as unknown as DeckIdentityCardProps['partnerCommander'];
-    renderCard({ commander, partnerCommander });
-    expect(hasText(/Atraxa, Praetors' Voice · Tymna the Weaver/)).toBe(true);
-    // DECK_FORMAT_CONFIGS label, not the raw 'commander' id.
-    expect(hasText(/^Commander$/)).toBe(true);
+    const { container } = renderCard({ commander, partnerCommander });
+    expect(hasText(/Atraxa|Tymna/)).toBe(false);
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('h2')).toBeNull();
   });
 
   // ── Playstyle expander ────────────────────────────────────────────────────

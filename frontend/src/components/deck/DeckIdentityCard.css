@@ -1,7 +1,7 @@
 /* ── DeckIdentityCard ────────────────────────────────────────────────────────
-   Identity hero card: commander art band + color-identity arc + deck name +
-   sparkline + pillars (Functional + Build health). Ports the StatsHero pillar
-   logic and adds the new visual chrome.
+   Leads the deck stats under the list: identity line, playstyle, and the two
+   pillars (Functional + Build health). No art band or names; the page hero
+   above the list already carries them.
    Container-query responsive: child of `.deck-bento` (container-name: bento).
    Theme vars + --text-* scale only; see STYLE_GUIDE.md. */
 
@@ -14,107 +14,6 @@
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
-}
-
-/* ── Art band (3-layer recipe from BuildReportSheet) ──────────────────────── */
-
-.deck-identity-card-art-band {
-  position: relative;
-  min-height: clamp(6rem, 18cqi, 9rem);
-  overflow: hidden;
-  background: var(--surface-raised);
-  flex-shrink: 0;
-}
-
-/* Layer 1 — art image */
-.deck-identity-card-art-layer {
-  position: absolute;
-  inset: 0;
-}
-
-.deck-identity-card-art-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 25%;
-}
-
-/* Layer 2 — gradient fade */
-.deck-identity-card-art-fade {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to bottom,
-    transparent 20%,
-    color-mix(in srgb, var(--surface-raised) 70%, transparent) 60%,
-    var(--surface-raised) 100%
-  );
-}
-
-/* No-commander banner — uses deck.color as bg with ColorPips */
-.deck-identity-card-color-banner {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  opacity: 0.85;
-}
-
-/* Layer 3 — z-index:1 content overlaid on art */
-.deck-identity-card-art-content {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4) var(--space-2);
-  height: 100%;
-}
-
-/* ── Color identity arc (circular SVG ring) ──────────────────────────────── */
-
-.deck-identity-card-arc-wrap {
-  position: relative;
-  flex-shrink: 0;
-  width: 56px;
-  height: 56px;
-  margin-bottom: calc(-1 * var(--space-2));
-}
-
-/* ── Deck name + format row ───────────────────────────────────────────────── */
-
-.deck-identity-card-title-row {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.deck-identity-card-deck-name {
-  margin: 0;
-  font-size: var(--text-base);
-  font-weight: 700;
-  line-height: 1.2;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.deck-identity-card-commander-name {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.deck-identity-card-format {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
 }
 
 /* ── Main body ───────────────────────────────────────────────────────────── */
@@ -214,37 +113,6 @@
     height: 44px;
     transform: translate(-50%, -50%);
   }
-}
-
-/* ── Sparkline (8 CMC buckets, vertical micro-bars) ─────────────────────── */
-
-.deck-identity-card-sparkline-wrap {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.deck-identity-card-sparkline {
-  display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 24px;
-  flex-shrink: 0;
-}
-
-.deck-identity-card-spark-bar {
-  width: 6px;
-  min-height: 2px;
-  background: var(--accent);
-  border-radius: 2px 2px 0 0;
-  opacity: 0.75;
-  flex-shrink: 0;
-}
-
-.deck-identity-card-sparkline-label {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  white-space: nowrap;
 }
 
 /* ── Playstyle expander ──────────────────────────────────────────────────── */
@@ -556,36 +424,8 @@
   letter-spacing: 0.04em;
 }
 
-/* ── Phone: art-free header (E264) ──────────────────────────────────────────
-   On a phone the Stats tab's first screen was the page hero's art and then
-   this card's art band before any data. Below the mobile breakpoint the band
-   drops its art layers and collapses to its content: the identity arc (which
-   keeps the commander portrait as a glyph), name, commander, format. The art
-   returns at ≥601px where the band has room beside the data. */
+/* ── Phone (E264) ─────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
-  .deck-identity-card-art-band {
-    min-height: 0;
-  }
-
-  .deck-identity-card-art-layer,
-  .deck-identity-card-art-fade,
-  .deck-identity-card-color-banner {
-    display: none;
-  }
-
-  .deck-identity-card-art-content {
-    padding: var(--space-2) var(--space-4) 0;
-  }
-
-  .deck-identity-card-arc-wrap {
-    margin-bottom: 0;
-  }
-
-  /* The sparkline sits under the deck name here; the body has no row for it. */
-  .deck-identity-card-title-row .deck-identity-card-sparkline-wrap {
-    margin-top: 2px;
-  }
-
   /* One step tighter than desktop: the phone card is a column of short rows,
      and the desktop gap read as dead space between them. */
   .deck-identity-card-body {

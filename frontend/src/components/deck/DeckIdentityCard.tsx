@@ -1,4 +1,4 @@
-import { useId, useState, useEffect, lazy, Suspense, type JSX } from 'react';
+import { useState, useEffect, lazy, Suspense, type JSX } from 'react';
 import { ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
 import './DeckIdentityCard.css';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -12,18 +12,12 @@ import {
   type ValidationTone,
 } from '@/deck-builder/services/deckBuilder/validationChecklist';
 import type { LaneId } from '@/lib/deck-change';
-import { COLOR_INFO } from '../../lib/colors';
-import { ColorPip } from '../shared/ManaSymbol';
-import { useCardThumb } from '@/lib/card-thumbs';
-import { useMediaQuery } from '@/lib/use-media-query';
 import { InfoTip } from '@/components/InfoTip';
 import { SelectMenu, type SelectOption } from '@/components/SelectMenu';
 import type { Archetype } from '@/deck-builder/types';
 import { ARCHETYPE_LABEL } from '@/deck-builder/services/deckBuilder/strategyVocabulary';
-import { avgCmcBandWord } from './DeckCurvePhases';
 import type { DeckIdentity } from '@/deck-builder/services/deckBuilder/deckIdentity';
 import { buildIdentityLine } from '@/lib/deck-identity-line';
-import type { Pacing } from '@/deck-builder/services/deckBuilder/pacingDetector';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 
 // ── Lazy-loaded PlaystyleRadar (only imported when the expander is first opened) ──
@@ -36,9 +30,7 @@ const PlaystyleRadar = lazy(() =>
 export interface DeckIdentityCardProps {
   commander: ScryfallCard | null;
   partnerCommander?: ScryfallCard | null;
-  deckName: string;
   format: string;
-  deckColor: string; // deck.color hex for no-commander banner
   /** The effective bracket (1-5) from effectiveBracket(deck). */
   bracket?: number;
   /**
@@ -60,16 +52,12 @@ export interface DeckIdentityCardProps {
    * `null`/`undefined` reads as "unknown" (not "0 decks"), same as `0`.
    */
   edhrecNumDecks?: number | null;
-  /** manaCurve memo from DeckDisplay (Record<0..7, number>). */
-  manaCurve: Record<number, number>;
   /** The live-computed deck identity from deriveDeckIdentity(). null for non-commander decks. */
   identity: DeckIdentity | null;
   /** User-pinned archetype; null/absent = auto. Already folded into `identity` upstream. */
   archetypeOverride?: Archetype | null;
   /** Set/clear the manual archetype override. When absent the label is read-only. */
   onSetArchetypeOverride?: (archetype: Archetype | null) => void;
-  /** Mana analysis average CMC - used for sparkline band word. */
-  averageCmc: number;
   /** Deep-link handler for shortfall buttons → Tune lane. */
   onNavigate?: (lane: LaneId) => void;
   /**
@@ -108,8 +96,6 @@ const CHECK_TO_LANE: Record<string, LaneId> = {
   curve: 'fill-gaps',
 };
 
-const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G', 'C'];
-
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 /**
@@ -128,157 +114,30 @@ function weakestSubscore(plan: PlanScore): { key: SubScoreKey; bandLabel: string
   return weakest ? { key: weakest.key, bandLabel: weakest.bandLabel } : null;
 }
 
-/**
- * Map average CMC to a Pacing key for avgCmcBandWord.
- * lean < 2.8 → 'fast-tempo', balanced 2.8-3.5 → 'balanced', top-heavy > 3.5 → 'late-game'
- */
-function avgCmcToPacing(avgCmc: number): Pacing {
-  if (avgCmc < 2.8) return 'fast-tempo';
-  if (avgCmc <= 3.5) return 'balanced';
-  return 'late-game';
-}
-
-// ── Color identity arc SVG ─────────────────────────────────────────────────
-
-function ColorIdentityArc({
-  colorIdentity,
-  artUrl,
-}: {
-  colorIdentity: string[];
-  artUrl: string | undefined;
-}): JSX.Element {
-  const clipId = useId();
-  const radius = 24;
-  const stroke = 6;
-  const circ = 2 * Math.PI * radius;
-
-  // The colors to arc, filtered to what's in the identity
-  const colors = colorIdentity.length > 0 ? colorIdentity : ['C'];
-  const filtered = COLOR_ORDER.filter((k) => colors.includes(k));
-  const arcColors = filtered.length > 0 ? filtered : ['C'];
-
-  const segLen = circ / arcColors.length;
-
-  const segments = arcColors.reduce<Array<{ k: string; len: number; offset: number }>>((acc, k) => {
-    const offset = acc.length > 0 ? acc[acc.length - 1].offset + acc[acc.length - 1].len : 0;
-    acc.push({ k, len: segLen, offset });
-    return acc;
-  }, []);
-
-  const identityLabel =
-    arcColors
-      .filter((k) => k !== 'C')
-      .map((k) => COLOR_INFO[k]?.label ?? k)
-      .join(', ') || 'Colorless';
-
-  return (
-    <div className="deck-identity-card-arc-wrap">
-      <svg
-        viewBox="-32 -32 64 64"
-        width={56}
-        height={56}
-        role="img"
-        aria-label={`Color identity: ${identityLabel}`}
-      >
-        {/* Clip path for circular portrait */}
-        <defs>
-          <clipPath id={clipId}>
-            <circle r={radius - stroke / 2 - 1} />
-          </clipPath>
-        </defs>
-        {/* Background ring */}
-        <circle r={radius} fill="none" stroke="var(--border)" strokeWidth={stroke} />
-        {/* Color segments */}
-        {segments.map(({ k, len, offset }) => (
-          <circle
-            key={k}
-            r={radius}
-            fill="none"
-            stroke={COLOR_INFO[k]?.pip ?? 'var(--accent)'}
-            strokeWidth={stroke}
-            strokeDasharray={`${len} ${circ - len}`}
-            strokeDashoffset={-offset}
-            transform="rotate(-90)"
-          />
-        ))}
-        {/* Commander portrait in center */}
-        {artUrl && (
-          <image
-            href={artUrl}
-            x={-(radius - stroke / 2 - 1)}
-            y={-(radius - stroke / 2 - 1)}
-            width={(radius - stroke / 2 - 1) * 2}
-            height={(radius - stroke / 2 - 1) * 2}
-            clipPath={`url(#${clipId})`}
-            preserveAspectRatio="xMidYMid slice"
-            aria-hidden="true"
-          />
-        )}
-      </svg>
-    </div>
-  );
-}
-
-// ── Sparkline ──────────────────────────────────────────────────────────────
-
-function CurveSparkline({
-  manaCurve,
-  averageCmc,
-}: {
-  manaCurve: Record<number, number>;
-  averageCmc: number;
-}): JSX.Element {
-  const buckets = Array.from({ length: 8 }, (_, i) => manaCurve[i] ?? 0);
-  const max = Math.max(...buckets, 1);
-  const pacing = avgCmcToPacing(averageCmc);
-  const bandWord = avgCmcBandWord(pacing);
-
-  return (
-    <div className="deck-identity-card-sparkline-wrap">
-      <div className="deck-identity-card-sparkline" aria-hidden="true">
-        {buckets.map((count, i) => {
-          const heightPct = Math.round((count / max) * 100);
-          return (
-            <div
-              key={i}
-              className="deck-identity-card-spark-bar"
-              style={{ height: `${heightPct}%` }}
-            />
-          );
-        })}
-      </div>
-      <span className="deck-identity-card-sparkline-label">{bandWord} curve</span>
-    </div>
-  );
-}
-
 // ── Main component ─────────────────────────────────────────────────────────
 
 /**
- * The deck identity hero card for the Stats tab.
+ * The deck identity card at the top of the deck stats.
  *
- * Replaces StatsHero with a richer visual layout: commander art band, color-identity
- * arc, sparkline curve summary, and the two-pillar functional verdict / build health.
- * All sync data (art, arc, name, sparkline) renders immediately; bracket and build
- * health show skeleton shimmer during analysis.
+ * The identity line (archetype, bracket, checks), commander popularity,
+ * playstyle, and the two pillars: functional verdict and build health. It
+ * leads the stats under the deck list; the page hero above already carries
+ * the commander art, deck name and format, so the card repeats none of them.
+ * Bracket and build health show skeleton shimmer during analysis.
  */
 export function DeckIdentityCard({
   commander,
   partnerCommander,
-  deckName,
   format,
-  deckColor,
   bracket,
   analysisState,
   onRetryAnalysis,
   validation,
   planScore,
   edhrecNumDecks: edhrecNumDecksProp,
-  manaCurve,
   identity,
   archetypeOverride,
   onSetArchetypeOverride,
-  averageCmc,
   onNavigate,
   cards = [],
 }: DeckIdentityCardProps): JSX.Element {
@@ -339,26 +198,6 @@ export function DeckIdentityCard({
 
   const softSpot = planScore ? weakestSubscore(planScore) : null;
 
-  // Commander art
-  const commanderName = commander?.name;
-  const artCrop =
-    commander?.image_uris?.art_crop ?? commander?.card_faces?.[0]?.image_uris?.art_crop;
-  // Fallback via CDN thumb when art_crop not directly available on the card object
-  const cdnThumb = useCardThumb(artCrop ? undefined : commanderName, 'normal');
-  const artUrl = artCrop ?? cdnThumb;
-  // Phone header (E264): the art band is gone below the mobile breakpoint
-  // (DeckIdentityCard.css), and the curve sparkline joins the name and
-  // commander in the header instead of taking its own row below the identity
-  // line, so the stats panels start within the first screen.
-  const phone = useMediaQuery('(max-width: 600px)');
-  const sparkline = <CurveSparkline manaCurve={manaCurve} averageCmc={averageCmc} />;
-
-  // Color identity (union of commander + partner)
-  const colorIdentity = [
-    ...(commander?.color_identity ?? []),
-    ...(partnerCommander?.color_identity ?? []),
-  ].filter((v, i, a) => a.indexOf(v) === i);
-
   // Human format label ("Commander"), falling back to the raw id for unknown formats.
   const formatLabel =
     (DECK_FORMAT_CONFIGS as Partial<Record<string, { label: string }>>)[format]?.label ?? format;
@@ -386,53 +225,6 @@ export function DeckIdentityCard({
 
   return (
     <section className="deck-identity-card" aria-label="Deck identity">
-      {/* ── Art band ── */}
-      <div className="deck-identity-card-art-band">
-        {commander ? (
-          <>
-            <div className="deck-identity-card-art-layer">
-              {artUrl ? (
-                <img className="deck-identity-card-art-img" src={artUrl} alt={commander.name} />
-              ) : (
-                <div
-                  className="deck-identity-card-art-img"
-                  style={{ background: deckColor }}
-                  aria-hidden="true"
-                />
-              )}
-            </div>
-            <div className="deck-identity-card-art-fade" aria-hidden="true" />
-          </>
-        ) : (
-          <div
-            className="deck-identity-card-color-banner"
-            style={{ background: deckColor }}
-            aria-hidden="true"
-          >
-            {colorIdentity.length > 0 ? (
-              colorIdentity
-                .filter((k) => COLOR_ORDER.includes(k))
-                .map((k) => <ColorPip key={k} color={k} />)
-            ) : (
-              <ColorPip color="C" />
-            )}
-          </div>
-        )}
-        <div className="deck-identity-card-art-content">
-          {commander && <ColorIdentityArc colorIdentity={colorIdentity} artUrl={artUrl} />}
-          <div className="deck-identity-card-title-row">
-            {commander && (
-              <span className="deck-identity-card-commander-name">
-                {commander.name}
-                {partnerCommander ? ` · ${partnerCommander.name}` : ''}
-              </span>
-            )}
-            <h2 className="deck-identity-card-deck-name">{deckName}</h2>
-            {phone ? sparkline : <span className="deck-identity-card-format">{formatLabel}</span>}
-          </div>
-        </div>
-      </div>
-
       {/* ── Body ── */}
       <div className="deck-identity-card-body">
         {/* Identity line */}
@@ -474,9 +266,6 @@ export function DeckIdentityCard({
           loading={analysisState !== 'ready' || effectiveStatsLoading}
           variant="card"
         />
-
-        {/* Sparkline (in the header on phones) */}
-        {!phone && sparkline}
 
         {/* ── Playstyle expander ── */}
         <div className="deck-identity-card-playstyle">

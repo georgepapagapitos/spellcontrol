@@ -3151,7 +3151,8 @@ and `UnresolvedNameRow`:
 
 ## Deck view — one fact, one place (2026-09-08)
 
-The deck editor is four tabs (Deck · Stats · Power · Coach) under one hero.
+The deck editor is three tabs (Deck · Power · Coach) under one hero; Stats
+is no longer a tab (see the 2026-09-23 ruling below).
 A 2026-09-08 audit of a real generated deck found the same fact printed up to
 three times on one screen, so these rulings now hold:
 
@@ -3174,7 +3175,7 @@ three times on one screen, so these rulings now hold:
   (the collapsed-group-shows-its-value ruling above).
 - **Wedge hint strips are scoped to the tab they act on.** The resync strip
   acts on the list, so it renders on the Deck tab only — a strip above
-  Stats/Power/Coach that cannot act on what is below it is noise.
+  Power/Coach that cannot act on what is below it is noise.
 - **New arrivals are one stat, and they are tailored.** The per-column
   "✦ N new" chips are gone; the Deck-tab strip shows "N new arrivals" (accent,
   next to "missing") and opens the single all-category `NewArrivalsSheet`. The
@@ -3189,8 +3190,8 @@ three times on one screen, so these rulings now hold:
   `Fit & cut` (aria: "Will X fit this deck, and what would it replace?"), not
   `Fit?` — on a full deck every suggestion is really a swap, and the cut is
   the half the user is looking for.
-- **Empty states sit last.** `Table record` on Stats renders its empty state
-  below Build report, never between the composition panels.
+- **Empty states sit last.** `Table record` in the deck stats renders its
+  empty state below Build report, never between the composition panels.
 - **The list view is a command zone plus packed columns, not CSS multi-column
   flow.** The Commander section (one or two rows — a partner is just a second
   row with its existing "Partner" tag) is a full-width strip ABOVE the type
@@ -3208,6 +3209,39 @@ three times on one screen, so these rulings now hold:
   `useMediaQuery`). Never give the commander a bespoke card widget; never
   re-introduce `break-inside: avoid` masonry for sections of wildly unequal
   height.
+
+### Deck stats sit under the list (2026-09-23)
+
+Moxfield and Archidekt both lay a deck out as one scroll: the list, then the
+stats. We had the same stats one tab away, so editing the list and reading
+what it did to the curve meant switching tabs every time.
+
+- **Stats is a section of the Deck view, not a tab.** `DeckDisplay` renders a
+  "Deck stats" section (`.deck-stats-below`) after the list and its "Not in
+  the deck" zone: identity card, Mana curve, Color + Types, Saltiest, Build
+  report, Table record, in that order. The owner's page and the shared/public
+  page get it from the same component.
+- **Power and Coach stay tabs.** They are verdicts and actions, they load
+  async with skeleton and error states, and they are long. Stacking them under
+  the list would make one endless page with spinners in the middle.
+- **The checks verdict leads the stat strip** ("2 to fix" / "1 to tune" /
+  "All clear", coloured by tone, label "deck checks"). It replaces the old Stats
+  tab badge and is a button that jumps to the stats: on a phone the list is
+  one long column, and this is the way down.
+- **Old links still land.** `?view=stats` (and the older `overview` / `mana`)
+  resolve to the Deck tab and scroll to the section once the deck has loaded.
+  The param is left in the URL on purpose: rewriting it is a navigation, and
+  `Layout`'s scroll reset on navigation cancels the scroll. In-app jumps go
+  through `scrollToDeckStats` (built on `lib/scroll-to-heading.ts`).
+- **The identity card repeats nothing the hero says.** It has no art band,
+  commander or deck name, format, or curve sparkline (the Mana curve panel
+  sits right below it). It opens on the identity line.
+- **Under the list the board spans the list's width** (`--analysis-max: none`
+  inside `.deck-stats-below`). The 1320px cap centred a board on its own tab;
+  beside a full-width list it read as a ragged inset.
+- **A lone tab is not a choice.** A deck with no Power/Coach (any non-Commander
+  format, or a shared deck with no analysis) shows no view-tab bar at all, and
+  `DeckDisplay` drops its tabpanel role (`tabbed={false}`).
 
 ## Deck list on a wide screen (2026-09-19)
 

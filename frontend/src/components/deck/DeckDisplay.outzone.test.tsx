@@ -117,9 +117,11 @@ describe('DeckDisplay "Not in the deck" zone (E176)', () => {
 
   it('considering cards never reach the mainboard stats (E122)', () => {
     const { container } = renderDeck({ considering: ['Considering Card'] });
-    // The strip leads with avg mana value (the card count rides the page hero).
-    // Mainboard is one 1-drop; the 5-drop in Considering must not move it.
-    const statValue = container.querySelector('.deck-stat-value');
-    expect(statValue?.textContent).toBe('1.00');
+    // Mainboard is one 1-drop; the 5-drop in Considering must not move the
+    // strip's avg mana value (the card count rides the page hero).
+    const avg = [...container.querySelectorAll('.deck-stat')].find((el) =>
+      el.textContent?.includes('avg mana value')
+    );
+    expect(avg?.querySelector('.deck-stat-value')?.textContent).toBe('1.00');
   });
 });

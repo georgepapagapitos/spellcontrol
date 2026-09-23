@@ -50,10 +50,10 @@ import {
   type DeckDisplayCard,
   type AnalysisTabId,
   type DeckView,
+  scrollToDeckStats,
 } from '../components/deck/DeckDisplay';
 import { Tabs, type TabBadge } from '../components/Tabs';
 import { bracketLabel, bracketReasons } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import type { ValidationSummary } from '@/deck-builder/services/deckBuilder/validationChecklist';
 import { materializeBinders } from '../lib/materialize';
 import { formatMoney } from '../lib/format-money';
 import { buildCommanderKey } from '../lib/commander-key';
@@ -518,24 +518,29 @@ export function DeckEditorPage() {
   // state is slot-keyed, which BracketFitLane can't see). Tracked separately so a
   // swap-in-flight disables only its own row.
   const [bracketFitSwapName, setBracketFitSwapName] = useState<string | null>(null);
-  // Deck-health roll-up reported up by DeckDisplay (which computes the
-  // checklist for the Stats board) so the view tabs can badge it — E223. Held
-  // by value so an identical re-report doesn't re-render the page.
-  const [deckHealth, setDeckHealth] = useState<ValidationSummary | null>(null);
-  const handleDeckHealthChange = useCallback((next: ValidationSummary) => {
-    setDeckHealth((prev) =>
-      prev && prev.tone === next.tone && prev.label === next.label ? prev : next
-    );
-  }, []);
   const openView = useCallback(
     (next: DeckView) => {
       setView(next);
+      // Stats is a place on the Deck tab, not a tab: `?view=stats` renders the
+      // Deck tab and the arrival effect below scrolls to it after the commit.
+      if (next === 'stats') return;
       window.requestAnimationFrame(() => {
         viewScrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
     },
     [setView]
   );
+  // `?view=stats` (from openView, or a saved link to the old Stats tab and its
+  // older names, overview and mana) lands on the Deck tab at the stats under
+  // the list. The param stays in the URL until the next tab switch: rewriting
+  // it here is a navigation, and Layout's scroll reset on navigation cancels
+  // the scroll. The scroll waits for the deck, which hydrates after this
+  // page's first render.
+  const deckLoaded = !!deck;
+  const arrivedAtStats = ['stats', 'overview', 'mana'].includes(view);
+  useEffect(() => {
+    if (deckLoaded && arrivedAtStats) window.requestAnimationFrame(scrollToDeckStats);
+  }, [deckLoaded, arrivedAtStats]);
   // Chip / keyboard deep-links target a specific analysis view.
   const openAnalysisTab = useCallback((tab: AnalysisTabId) => openView(tab), [openView]);
 
@@ -2780,17 +2785,8 @@ export function DeckEditorPage() {
   // The Tune tab carries no count badge — a bare number there read as a
   // mystery (it was the in-deck combo count); the combo count is shown,
   // clearly labelled, on the "In deck" sub-tab of the embedded Combos panel.
-  // E223 — per-tab health badges. Each is an already-computed verdict for that
-  // tab's own view (nothing new is calculated here), so the strip answers
-  // "which view needs attention" before you open one. Coach stays bare: its
-  // only candidate number was the in-deck combo count, which read as a mystery.
-  const statsBadge: TabBadge | null = deckHealth
-    ? {
-        text: deckHealth.tone === 'success' ? '✓' : deckHealth.label.split(' ')[0],
-        description: `deck health: ${deckHealth.label.toLowerCase()}`,
-        tone: deckHealth.tone,
-      }
-    : null;
+  // E223 — Power's tab badge is its already-computed verdict. The checks
+  // verdict that used to badge Stats now leads the Deck tab's stat strip.
   const powerBadge: TabBadge | null =
     bracketValue !== undefined
       ? {
@@ -2801,7 +2797,6 @@ export function DeckEditorPage() {
       : null;
   const viewTabs: Array<{ id: DeckView; label: string; badge?: TabBadge | null }> = [
     { id: 'deck', label: 'Deck' },
-    { id: 'stats', label: 'Stats', badge: statsBadge },
     ...(showAnalysisExtras
       ? [
           { id: 'power' as DeckView, label: 'Power', badge: powerBadge },
@@ -2811,21 +2806,11 @@ export function DeckEditorPage() {
   ];
   // Guard against a stale view that no longer has a tab. Map any legacy
   // analysis id that might still be in `view` from an earlier restructure, then
-  // fall back to a real tab. (overview/mana → stats; improve → tune; the old
-  // "power" id now maps to the real Power tab again.)
-  const legacyViewMap: Record<string, DeckView> = {
-    overview: 'stats',
-    mana: 'stats',
-    improve: 'tune',
-  };
+  // fall back to the Deck tab. (improve → tune; stats and its older names are
+  // handled by the effect above, which scrolls to the stats under the list.)
+  const legacyViewMap: Record<string, DeckView> = { improve: 'tune' };
   const mappedView = legacyViewMap[view] ?? view;
-  // Default the analysis surface to Stats: if the active view isn't a real tab,
-  // prefer Stats over Deck so opening analysis lands somewhere useful.
-  const safeView: DeckView = viewTabs.some((t) => t.id === mappedView)
-    ? mappedView
-    : viewTabs.some((t) => t.id === 'stats')
-      ? 'stats'
-      : 'deck';
+  const safeView: DeckView = viewTabs.some((t) => t.id === mappedView) ? mappedView : 'deck';
 
   return (
     <div className="deck-editor-page">
@@ -3110,23 +3095,26 @@ export function DeckEditorPage() {
         </div>
       </header>
 
-      {/* Page-top distinct-view tabs (Deck · Stats · Power · Tune; Power/Tune
-          appear only with analysis extras), mirroring the Collection hub. Sticky
-          so it stays in reach as the active view scrolls. */}
-      <div className="deck-editor-view-tabs" ref={viewScrollRef}>
-        <Tabs
-          ariaLabel="Deck views"
-          variant="underline"
-          value={safeView}
-          onChange={setView}
-          tabs={viewTabs.map((t) => ({
-            id: t.id,
-            label: t.label,
-            badge: t.badge,
-            controls: `deck-view-panel-${t.id}`,
-          }))}
-        />
-      </div>
+      {/* Page-top distinct-view tabs (Deck · Power · Coach; Power/Coach appear
+          only with analysis extras), mirroring the Collection hub. Sticky so it
+          stays in reach as the active view scrolls. A lone Deck tab is not a
+          choice, so a non-Commander deck shows no bar at all. */}
+      {viewTabs.length > 1 && (
+        <div className="deck-editor-view-tabs" ref={viewScrollRef}>
+          <Tabs
+            ariaLabel="Deck views"
+            variant="underline"
+            value={safeView}
+            onChange={setView}
+            tabs={viewTabs.map((t) => ({
+              id: t.id,
+              label: t.label,
+              badge: t.badge,
+              controls: `deck-view-panel-${t.id}`,
+            }))}
+          />
+        </div>
+      )}
 
       <div className="deck-editor-layout">
         <div className="deck-editor-main">
@@ -3159,7 +3147,6 @@ export function DeckEditorPage() {
             title={deck.name}
             deckId={deck.id}
             format={deck.format}
-            color={deck.color}
             commander={deck.commander}
             partnerCommander={deck.partnerCommander}
             selectedThemes={deck.generationContext?.selectedThemes}
@@ -3246,7 +3233,7 @@ export function DeckEditorPage() {
             exportOpen={exportOpen}
             onExportOpenChange={setExportOpen}
             activeView={safeView}
-            onDeckHealthChange={handleDeckHealthChange}
+            tabbed={viewTabs.length > 1}
             onShowTestHand={() => setShowTestHand(true)}
             onAddCards={handleToggleAddPanel}
             analysisState={analysisState}
