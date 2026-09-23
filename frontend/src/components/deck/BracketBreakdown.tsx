@@ -27,6 +27,8 @@ const {
   curveCap: CMC_CAP,
   curveThreshold: CMC_THRESHOLD,
   interactionCap: INTERACTION_CAP,
+  enginePer: ENGINE_PER,
+  engineCap: ENGINE_CAP,
   bumpAt: ELEVATE_BUMP_THRESHOLD,
   cedhAt: ELEVATE_CEDH_THRESHOLD,
 } = SOFT_SCORE;
@@ -39,7 +41,7 @@ const SOFT_SCORE_TIP: ReactNode = (
   <>
     <p className="info-tip-lead">
       The power signal (0–100) can only push your bracket <strong>up</strong> from the hard floor,
-      never below it. It's built from four signals:
+      never below it. It's built from five signals:
     </p>
     <ul className="info-tip-list">
       <li>
@@ -57,6 +59,10 @@ const SOFT_SCORE_TIP: ReactNode = (
       <li>
         <strong>Interaction</strong>: removal, counterspells and board wipes; more answers = a more
         resilient deck. Up to 15 pts.
+      </li>
+      <li>
+        <strong>Combo engines</strong>: complete loops that don't end the game on their own, like
+        drawing your library. Loops through the same card count once. 10 pts each, max 20.
       </li>
     </ul>
   </>
@@ -160,6 +166,8 @@ export function BracketBreakdown({
   // Core (2) when nothing fires: the estimator never infers Exhibition.
   const floor = floorOf(hardFloors);
   const lowPowerCombos = breakdown.lowPowerComboCount ?? 0;
+  const loops = breakdown.loopCombos ?? [];
+  const engines = breakdown.loopEngineCount ?? 0;
 
   const pts = softScorePoints(breakdown);
   const fastManaPts = pts.fastMana;
@@ -169,7 +177,7 @@ export function BracketBreakdown({
   // breakdown doesn't carry, and softScore is rounded.
   const interactionPts = Math.max(
     0,
-    Math.min(INTERACTION_CAP, softScore - fastManaPts - tutorPts - lowCurvePts)
+    Math.min(INTERACTION_CAP, softScore - fastManaPts - tutorPts - lowCurvePts - pts.engines)
   );
 
   const elevatedToCedh = floor >= 4 && softScore >= ELEVATE_CEDH_THRESHOLD && bracket === 5;
@@ -250,14 +258,31 @@ export function BracketBreakdown({
             })}
           </div>
         )}
-        {lowPowerCombos > 0 && (
-          <p className="bracket-breakdown-footnote">
-            {lowPowerCombos === 1
-              ? '1 more combo is in the deck, but'
-              : `${lowPowerCombos} more combos are in the deck, but`}{' '}
-            Commander Spellbook rates {lowPowerCombos === 1 ? 'it' : 'them'} fine at Bracket 2 (they
-            loop without ending the game, or finish it slowly), so no floor.
-          </p>
+        {loops.length > 0 ? (
+          <div className="bracket-breakdown-loops">
+            <p className="bracket-breakdown-footnote">
+              {loops.length === 1
+                ? 'This loop sets no floor: it draws cards or repeats without ending the game on its own, and the brackets only limit combos that do. It adds to the power signal as a combo engine.'
+                : `These ${loops.length} loops set no floor: they draw cards or repeat without ending the game on their own, and the brackets only limit combos that do. They add to the power signal as combo engines.`}
+            </p>
+            <ul className="bracket-breakdown-loop-list">
+              {loops.map((cards) => (
+                <li key={cards.join('+')}>
+                  <CardChips names={cards} deckCardsByName={deckCardsByName} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          lowPowerCombos > 0 && (
+            <p className="bracket-breakdown-footnote">
+              {lowPowerCombos === 1
+                ? '1 more combo is in the deck, but'
+                : `${lowPowerCombos} more combos are in the deck, but`}{' '}
+              Commander Spellbook rates {lowPowerCombos === 1 ? 'it' : 'them'} fine at Bracket 2
+              (they loop without ending the game, or finish it slowly), so no floor.
+            </p>
+          )
         )}
       </div>
 
@@ -273,7 +298,7 @@ export function BracketBreakdown({
           <span className="bracket-breakdown-summary-score">{softScore}/100</span>
         </summary>
         <p className="bracket-breakdown-signal-lede">
-          Fast mana, tutors, a low curve and interaction each add points.
+          Fast mana, tutors, a low curve, interaction and combo engines each add points.
           <InfoTip label="the power signal" text={SOFT_SCORE_TIP} wide />
         </p>
         <div className="deck-bracket-table" role="table" aria-label="Power signal">
@@ -324,6 +349,20 @@ export function BracketBreakdown({
             value={interactionPts}
             max={INTERACTION_CAP}
             detail={`${breakdown.interactionCount} removal, counters + boardwipes`}
+          />
+          <SoftScoreRow
+            label="Combo engines"
+            value={pts.engines}
+            max={ENGINE_CAP}
+            detail={
+              engines > 0
+                ? `${engines} engine${engines === 1 ? '' : 's'} × ${ENGINE_PER} pts${
+                    loops.length > engines
+                      ? ` (${loops.length} loops; loops through one card count once)`
+                      : ''
+                  }`
+                : 'No loops that stop short of winning'
+            }
           />
           <div className="deck-bracket-row deck-bracket-total-row" role="row">
             <span className="deck-bracket-cell deck-bracket-total-label" role="cell">

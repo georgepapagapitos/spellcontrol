@@ -87,8 +87,10 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        at 4, Gideon, Champion of Justice and Whims of the Fates count as land
  *        denial, and a combo that needs an unnamed card sets no floor. The
  *        browser's combo data now carries bracketTag at all (it never had).
+ *   v9 — loops that set no floor (drawing your library) add combo-engine
+ *        points to the power signal and are named in the Bracket panel.
  */
-const ANALYSIS_ENGINE_VERSION = 'v8-spellbook-parity';
+const ANALYSIS_ENGINE_VERSION = 'v9-loop-engines';
 
 /**
  * Signature of every input that materially affects grade/bracket: commander(s)

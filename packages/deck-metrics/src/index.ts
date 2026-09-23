@@ -76,6 +76,11 @@ export interface BracketBreakdown {
   comboPieceNames?: string[];
   /** Complete combos Spellbook rates Exhibition/Core: shown, never a floor. */
   lowPowerComboCount?: number;
+  /** Those same combos' pieces, one array per combo, for the Bracket panel. */
+  loopCombos?: string[][];
+  /** Independent loop engines among them (lines through one card count once);
+   *  drives the power signal's combo-engine points. */
+  loopEngineCount?: number;
   fastManaCount: number;
   fastManaNames: string[];
   tutorCount: number;
@@ -397,23 +402,53 @@ export const SOFT_SCORE = {
   curvePer: 15,
   curveCap: 20,
   interactionCap: 15,
+  /** Per complete loop that sets no floor (drawing your library, say). A precon
+   *  run (2026-09-23) topped out at 50 with these, well under `bumpAt`. */
+  enginePer: 10,
+  engineCap: 20,
   /** A deck below floor 4 moves up one bracket at this score. */
   bumpAt: 66,
   /** A deck at floor 4 reads as cEDH at this score. */
   cedhAt: 80,
 } as const;
 
-/** The three soft-score components computable from the breakdown alone
+/** The soft-score components computable from the breakdown alone
  *  (interaction needs the deck's non-land count, so it isn't here). */
 export function softScorePoints(
-  b: Pick<BracketBreakdown, 'fastManaCount' | 'tutorCount' | 'averageCmc'>
-): { fastMana: number; tutors: number; curve: number } {
+  b: Pick<BracketBreakdown, 'fastManaCount' | 'tutorCount' | 'averageCmc' | 'loopEngineCount'>
+): { fastMana: number; tutors: number; curve: number; engines: number } {
   const s = SOFT_SCORE;
   return {
     fastMana: Math.min(s.fastManaCap, b.fastManaCount * s.fastManaPer),
     tutors: Math.min(s.tutorCap, b.tutorCount * s.tutorPer),
     curve: Math.min(s.curveCap, Math.max(0, (s.curveThreshold - b.averageCmc) * s.curvePer)),
+    engines: Math.min(s.engineCap, (b.loopEngineCount ?? 0) * s.enginePer),
   };
+}
+
+/**
+ * How many combo lines survive losing any one card: the total weight, with
+ * every line through the heaviest non-exempt piece counted once. Four combos
+ * that all need Gorma, the Gullet are one line with four partners, not four
+ * lines (that floored the Witherbloom Pestilence precon at B4). An exempt piece
+ * (the commander) is always available, so lines through it don't collapse.
+ */
+function independentLines(
+  combos: readonly DetectedCombo[],
+  weight: (c: DetectedCombo) => number,
+  exempt: ReadonlySet<string>
+): number {
+  let total = 0;
+  const pieceWeight = new Map<string, number>();
+  for (const c of combos) {
+    total += weight(c);
+    for (const piece of new Set(c.cards)) {
+      pieceWeight.set(piece, (pieceWeight.get(piece) ?? 0) + weight(c));
+    }
+  }
+  let hub = 0;
+  for (const [piece, w] of pieceWeight) if (!exempt.has(piece) && w > hub) hub = w;
+  return total - hub + Math.min(1, hub);
 }
 
 /**
@@ -552,6 +587,7 @@ const MULTI_CARD_COMBO_WEIGHT = 0.5;
  * Counting them did real damage: a 197-precon calibration run (2026-09-23)
  * floored 14 precons on E/C combos alone, and "Everyone's Invited!" reached
  * Bracket 4 on seven of them. Untagged combos still count (conservative).
+ * They still add power: see SOFT_SCORE.enginePer.
  */
 const LOW_POWER_COMBO_TAGS = new Set(['E', 'C']);
 
@@ -629,13 +665,17 @@ export function estimateBracket(
 
   let twoCardComboCount = 0;
   let multiCardComboCount = 0;
-  let lowPowerComboCount = 0;
   const counted: DetectedCombo[] = [];
+  // Complete loops Spellbook rates Exhibition/Core: no floor, but a deck that
+  // can draw its library is stronger than one that can't, so they add to the
+  // power signal as combo engines. A template variant is neither: we can't
+  // tell whether its unnamed card is in the deck.
+  const loops: DetectedCombo[] = [];
 
   for (const combo of detectedCombos ?? []) {
-    if (!combo.isComplete) continue;
+    if (!combo.isComplete || needsUnnamedCard(combo)) continue;
     if (!countsTowardComboFloor(combo)) {
-      lowPowerComboCount++;
+      loops.push(combo);
       continue;
     }
     counted.push(combo);
@@ -645,22 +685,8 @@ export function estimateBracket(
 
   const comboWeight = (c: DetectedCombo) => (c.cardCount <= 2 ? 1 : MULTI_CARD_COMBO_WEIGHT);
   const commanders = new Set(commanderNames);
-  // Weight of combos running through each piece. The heaviest non-commander
-  // piece is the deck's combo bottleneck: every line through it dies with one
-  // cut or one counterspell, so those lines count once toward redundancy. Four
-  // combos that all need Gorma, the Gullet are one combo with four partners,
-  // not four combos (floored the Witherbloom Pestilence precon at B4). A
-  // commander hub is the opposite case: always available, so it doesn't collapse.
-  const pieceWeight = new Map<string, number>();
-  for (const c of counted) {
-    for (const piece of new Set(c.cards)) {
-      pieceWeight.set(piece, (pieceWeight.get(piece) ?? 0) + comboWeight(c));
-    }
-  }
-  let hubWeight = 0;
-  for (const [piece, w] of pieceWeight) {
-    if (!commanders.has(piece) && w > hubWeight) hubWeight = w;
-  }
+  // Three Sensei's Divining Top loops are one engine: cut the Top and all stop.
+  const loopEngineCount = loops.length === 0 ? 0 : independentLines(loops, () => 1, commanders);
   const commanderCombos = counted.filter(
     (c) =>
       c.cards.some((p) => commanders.has(p)) &&
@@ -727,7 +753,7 @@ export function estimateBracket(
     const hasReliableTag = counted.some((c) => c.cardCount <= 2 && c.bracketTag === 'R');
     // Redundancy is its own form of speed: many interchangeable combos assemble
     // reliably without tutors/fast mana. Lines through one bottleneck count once.
-    const independentComboCount = effectiveComboCount - hubWeight + Math.min(1, hubWeight);
+    const independentComboCount = independentLines(counted, comboWeight, commanders);
     const isComboDense = independentComboCount >= COMBO_REDUNDANCY_THRESHOLD;
     const usesCommander = commanderCombos.length > 0;
     const isEarlyAssembly = accel >= 4 || hasReliableTag || isComboDense || usesCommander;
@@ -848,8 +874,12 @@ export function estimateBracket(
     fastManaCount: fastMana.length,
     tutorCount: tutors.length,
     averageCmc,
+    loopEngineCount,
   });
-  const softScore = Math.min(100, pts.fastMana + pts.tutors + pts.curve + interactionBonus);
+  const softScore = Math.min(
+    100,
+    pts.fastMana + pts.tutors + pts.curve + pts.engines + interactionBonus
+  );
 
   // ── 6. Final bracket ──
 
@@ -878,7 +908,9 @@ export function estimateBracket(
       twoCardComboCount,
       multiCardComboCount,
       comboPieceNames: [...new Set(counted.flatMap((c) => c.cards))],
-      lowPowerComboCount,
+      lowPowerComboCount: loops.length,
+      loopCombos: loops.map((c) => c.cards),
+      loopEngineCount,
       fastManaCount: fastMana.length,
       fastManaNames: fastMana,
       tutorCount: tutors.length,

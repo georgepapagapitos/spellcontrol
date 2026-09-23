@@ -162,6 +162,40 @@ describe('BracketBreakdown', () => {
     );
   });
 
+  // The Ulamog deck that raised this: three Sensei's Divining Top loops, all
+  // Spellbook Exhibition, read as "Infinite combo" elsewhere on the page.
+  it('names each loop that sets no floor and scores it as a combo engine', () => {
+    const top = "Sensei's Divining Top";
+    const est = makeEstimation({
+      bracket: 2,
+      label: 'Core',
+      softScore: 40,
+      hardFloors: [],
+      breakdown: {
+        ...makeEstimation({}).breakdown,
+        fastManaCount: 0,
+        fastManaNames: [],
+        tutorCount: 3,
+        tutorNames: [],
+        averageCmc: 4.69,
+        lowPowerComboCount: 3,
+        loopCombos: [
+          [top, 'Foundry Inspector', 'Mystic Forge'],
+          [top, 'Mystic Forge', 'Ugin, the Ineffable'],
+          [top, 'Echoes of Eternity', 'Foundry Inspector'],
+        ],
+        loopEngineCount: 1,
+      },
+    });
+    const { container } = render(<BracketBreakdown estimation={est} />);
+    expect(container.textContent).toContain('These 3 loops set no floor');
+    expect(container.querySelectorAll('.bracket-breakdown-loop-list > li')).toHaveLength(3);
+    expect(screen.getAllByRole('button', { name: `Preview ${top}` })).toHaveLength(3);
+    expect(
+      screen.getByText('1 engine × 10 pts (3 loops; loops through one card count once)')
+    ).toBeTruthy();
+  });
+
   it('names the combo pieces on a combo floor, and notes combos that set no floor', () => {
     const est = makeEstimation({
       bracket: 3,
