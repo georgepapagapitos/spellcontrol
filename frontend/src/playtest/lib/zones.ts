@@ -67,6 +67,23 @@ export const MOVE_DESTINATIONS: MoveDestination[] = [
   { key: 'command', label: 'Command' },
 ];
 
+/**
+ * Where a card DROPPED on a zone lands, as `MOVE_TO_ZONE`'s `toIndex`.
+ *
+ * The library is the one zone whose "top" is not the end of its array: it is
+ * drawn from index 0, so appending puts a card on the BOTTOM. Dropping a card
+ * on the library means putting it back on top — what a player does at a table
+ * after a tutor, a Brainstorm, or a change of mind — and a card silently
+ * landing under 90 others is a move nobody can see or undo by eye. The
+ * explicit other direction is the card menu's "Library (bottom)".
+ *
+ * Every other zone appends: the top of a graveyard or exile pile IS the card
+ * put there last.
+ */
+export function zoneDropIndex(to: Zone): number | undefined {
+  return to === 'library' ? 0 : undefined;
+}
+
 /** Stable React key — `key` alone collides now that two entries share the
  *  'library' zone. */
 export function destinationKey(d: { key: string; toIndex?: number }): string {
