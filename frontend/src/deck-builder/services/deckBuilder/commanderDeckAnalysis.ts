@@ -315,6 +315,8 @@ export interface GradeBracketInput {
    */
   bracketRoleCounts?: Record<string, number>;
   gameChangerNames: Set<string>;
+  /** The commander(s): a combo they're part of assembles faster. */
+  commanderNames?: string[];
   /** Mainboard non-commander cards used for grade analysis. */
   allCards: ScryfallCard[];
   roleCounts: Record<string, number>;
@@ -362,7 +364,8 @@ export function computeGradeAndBracket(input: GradeBracketInput): GradeBracketRe
     input.averageCmc,
     input.deckScore,
     input.bracketRoleCounts,
-    input.gameChangerNames
+    input.gameChangerNames,
+    input.commanderNames
   );
 
   let deckGrade: DeckGrade | undefined;
@@ -670,6 +673,9 @@ export async function analyzeCommanderDeck(
       deckScore: undefined,
       bracketRoleCounts: roleCounts,
       gameChangerNames,
+      commanderNames: params.partnerCommander
+        ? [params.commander.name, params.partnerCommander.name]
+        : [params.commander.name],
       allCards: params.cards,
       roleCounts,
       roleTargets,

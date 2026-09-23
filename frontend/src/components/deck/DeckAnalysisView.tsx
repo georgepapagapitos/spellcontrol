@@ -6,7 +6,10 @@ import type { ScryfallCard, Archetype } from '@/deck-builder/types';
 import type { ComboMatch } from '@/types/combos';
 import type { LaneId } from '@/lib/deck-change';
 import { usePanelCascade, panelCascadeClass } from '@/lib/use-panel-cascade';
-import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import {
+  bracketReasons,
+  type BracketEstimation,
+} from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { computeRoleDensity } from '@/deck-builder/services/deckBuilder/roleDensity';
@@ -305,7 +308,7 @@ export function DeckAnalysisView({
                     bracketEstimation &&
                     bracketEstimation.hardFloors.length > 0 && (
                       <span className="deck-stats-bracket-note">
-                        {bracketEstimation.hardFloors[0].reason}
+                        {bracketReasons(bracketEstimation)[0]}
                       </span>
                     )}
                   {/* UX-313: the target-bracket control moved to the PowerHero above

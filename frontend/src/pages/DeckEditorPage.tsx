@@ -52,7 +52,7 @@ import {
   type DeckView,
 } from '../components/deck/DeckDisplay';
 import { Tabs, type TabBadge } from '../components/Tabs';
-import { bracketLabel } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import { bracketLabel, bracketReasons } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import type { ValidationSummary } from '@/deck-builder/services/deckBuilder/validationChecklist';
 import { materializeBinders } from '../lib/materialize';
 import { formatMoney } from '../lib/format-money';
@@ -3265,7 +3265,9 @@ export function DeckEditorPage() {
                   bracket={effectiveBracket(deck) ?? null}
                   bracketOverridden={deck.bracketOverride != null}
                   revealKey={scoreRevealKey}
-                  bracketReasons={(deck.bracketEstimation?.hardFloors ?? []).map((f) => f.reason)}
+                  bracketReasons={
+                    deck.bracketEstimation ? bracketReasons(deck.bracketEstimation) : []
+                  }
                   engineLabel={deck.synergyAnalysis?.axes[0]?.label}
                   engineProducers={deck.synergyAnalysis?.axes[0]?.producers}
                   enginePayoffs={deck.synergyAnalysis?.axes[0]?.payoffs}

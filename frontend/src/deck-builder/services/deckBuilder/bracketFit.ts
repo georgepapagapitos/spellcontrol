@@ -30,7 +30,12 @@ import type {
   GapAnalysisCard,
 } from '@/deck-builder/types';
 import type { ComboMatch } from '@/types/combos';
-import { estimateBracket, isStaxPiece, type BracketEstimation } from './bracketEstimator';
+import {
+  countsTowardComboFloor,
+  estimateBracket,
+  isStaxPiece,
+  type BracketEstimation,
+} from './bracketEstimator';
 import { getCardRole, isMassLandDenial, isExtraTurn } from '@/deck-builder/services/tagger/client';
 import { frontFaceName } from '@/lib/card-text';
 import { getEdhrecCardPrice } from '@/deck-builder/lib/edhrecUtils';
@@ -117,7 +122,7 @@ export interface BracketFitInput {
   estimation: BracketEstimation;
   /** Game Changer name set (as passed to estimateBracket). */
   gameChangerNames: Set<string>;
-  /** All mainboard card names (excluding commanders). */
+  /** Every card name in the deck, commanders included (as estimateBracket gets it). */
   allCardNames: string[];
   /** Complete in-deck combos (from comboMatchesToDetected). */
   detectedCombos: DetectedCombo[];
@@ -207,7 +212,12 @@ function reestimate(
   cutSet: Set<string>,
   input: Pick<
     BracketFitInput,
-    'detectedCombos' | 'averageCmc' | 'roleCounts' | 'gameChangerNames' | 'cardCmcMap'
+    | 'detectedCombos'
+    | 'averageCmc'
+    | 'roleCounts'
+    | 'gameChangerNames'
+    | 'cardCmcMap'
+    | 'commanderNames'
   >
 ): BracketEstimation {
   const liveCombos =
@@ -220,7 +230,8 @@ function reestimate(
     recomputeAverageCmc(cardNames, input.cardCmcMap, input.averageCmc),
     undefined,
     input.roleCounts,
-    input.gameChangerNames
+    input.gameChangerNames,
+    input.commanderNames
   );
 }
 
@@ -445,7 +456,11 @@ function computeDownshiftPlanWithTarget(
   //    B3 permits late/setup combos.
   const comboTargets: { combo: DetectedCombo }[] = [];
   if (target <= 2) {
-    for (const c of input.detectedCombos) comboTargets.push({ combo: c });
+    // Only combos that actually floor the deck. An Exhibition/Core combo is
+    // fine at B2, and breaking one once cost a deck its Sol Ring.
+    for (const c of input.detectedCombos) {
+      if (countsTowardComboFloor(c)) comboTargets.push({ combo: c });
+    }
   } else if (target === 3) {
     for (const c of input.detectedCombos) if (isEarlyCombo(c)) comboTargets.push({ combo: c });
   }
