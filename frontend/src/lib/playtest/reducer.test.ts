@@ -619,13 +619,15 @@ describe('CREATE_TOKEN', () => {
 });
 
 describe('NEXT_TURN', () => {
-  it('increments turn and untaps all', () => {
+  /** Guard (user ruling 2026-09-23): the turn boundary never untaps. The
+   *  board is the player's; untapping is U or "Untap all". */
+  it('increments the turn and leaves tapped permanents tapped', () => {
     let s = init(20, 1, 3);
     const id = s.zones.hand[0].id;
     s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: id, x: 0, y: 0, tapped: true });
     const next = applyAction(s, { type: 'NEXT_TURN' });
     expect(next.turn).toBe(2);
-    expect(next.battlefield[0].tapped).toBe(false);
+    expect(next.battlefield[0].tapped).toBe(true);
   });
 
   /** Guard: the turn boundary never draws for the player. Drawing on their

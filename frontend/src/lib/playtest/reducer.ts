@@ -759,21 +759,23 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
     case 'NEXT_TURN': {
       const next = snapshot(state);
       next.turn = state.turn + 1;
-      next.battlefield = next.battlefield.map((b) => (b.tapped ? { ...b, tapped: false } : b));
+      // No untap. The board is the player's, and a new turn untapping every
+      // permanent undid things they had not asked to undo (a card that does
+      // not untap, a tapped attacker they were still reading). Untapping is
+      // U or "Untap all", as at EDHPlay's table (user ruling, 2026-09-23).
+      //
       // Mana empties as steps end (rule 500.4) — this app doesn't model steps,
       // so NEXT_TURN is the coarsest-but-honest proxy: a boundary the player
-      // themself chooses to cross, same as the untap it already does above.
-      // EMPTY_MANA_POOL below is the finer-grained manual escape hatch for
-      // "I'm done with this phase" moments the reducer can't see on its own —
-      // together they mean floating mana only ever disappears on a moment the
-      // player caused, never as a surprise mid-sequence.
+      // themself chooses to cross. EMPTY_MANA_POOL below is the finer-grained
+      // manual escape hatch for "I'm done with this phase" moments the reducer
+      // can't see on its own — together they mean floating mana only ever
+      // disappears on a moment the player caused, never as a surprise.
       next.manaPool = emptyManaPool();
-      // No draw. The turn boundary untaps and empties mana because those are
-      // unconditional; the draw is not — you skip it on turn one on the play,
-      // you have already drawn it off an effect, or you are counting the
-      // library for a mill line. Drawing for the player put a card in hand
-      // they did not ask for and could only fix with an undo. Draw is its own
-      // key (`d`) and its own button.
+      // No draw either. Emptying mana is unconditional; the draw is not — you
+      // skip it on turn one on the play, you have already drawn it off an
+      // effect, or you are counting the library for a mill line. Drawing for
+      // the player put a card in hand they did not ask for and could only fix
+      // with an undo. Draw is its own key (`d`) and its own button.
       return withHistory(state, next);
     }
     case 'ADJUST_LIFE': {
