@@ -49,6 +49,15 @@ describe('the power/toughness plate', () => {
     expect(plate).not.toMatch(/var\(--text-primary\)|var\(--art-scrim\)/);
   });
 
+  it('scales with the card, with a floor for the densest table', () => {
+    // A fixed step off the type scale read at ~70% of EDHPlay's size on a
+    // normal table and could not grow with the density setting. Sized off
+    // `--pt-card-w` instead, never below `--text-xs`.
+    expect(plate).toMatch(
+      /font-size:\s*max\(var\(--text-xs\),\s*calc\(var\(--pt-card-w, 100px\) \* 0\.1\d+\)\)/
+    );
+  });
+
   it('is two plates, not one box with a slash', () => {
     expect(badges).not.toMatch(/playtest-card-pt__slash/);
     expect(css).not.toMatch(/playtest-card-pt__slash/);
