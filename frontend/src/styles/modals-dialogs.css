@@ -561,11 +561,10 @@
 }
 
 /* ── Auto-link confirmation banner ─────────────────────────────────────── */
+/* A row of #root above the page (base-layout.css), never over it: nothing at
+   the root scrolls, so it needs no sticky positioning to stay in view. */
 .auto-link-banner {
-  position: sticky;
-  top: 0;
-  /* Sticky page chrome — use the scale, not a raw 50. See STYLE_GUIDE. */
-  z-index: var(--z-popover);
+  flex: none;
   padding: var(--space-3) var(--space-4);
   background: var(--accent-light, var(--surface-raised));
   border-bottom: 1px solid var(--accent, var(--border));
@@ -589,14 +588,11 @@
 }
 
 /* ── Account recovery banner ───────────────────────────────────────────────
-   Same sticky chrome as the auto-link banner above, in the warning tone
-   rather than the accent one: this is a standing condition to fix, not an
-   event to acknowledge, and it has no dismiss. */
+   Same chrome as the auto-link banner above, in the warning tone rather than
+   the accent one: this is a standing condition to fix, not an event to
+   acknowledge, and it has no dismiss. */
 .recovery-banner {
-  position: sticky;
-  top: 0;
-  /* Sticky page chrome — use the scale, not a raw 50. See STYLE_GUIDE. */
-  z-index: var(--z-popover);
+  flex: none;
   padding: var(--space-3) var(--space-4);
   background: var(--warn-bg, var(--surface-raised));
   border-bottom: 1px solid var(--warn-text, var(--border));

@@ -20,17 +20,32 @@ body {
   overflow: hidden;
 }
 
-/* App-shell layout: the shell is a fixed-height (100dvh) non-scrolling
-   flex column — header, the scrolling main region, and the mobile tab
-   bar — and .app-main is the single scroll container. Nothing is
-   position:fixed and the document never scrolls, so a mobile browser's
-   URL-bar show/hide animation cannot shift the tab bar. The shell height
-   tracks the dynamic viewport, so the bar stays glued to the visible
-   bottom edge with no jump. */
-.app-shell {
+/* #root IS the viewport: a 100dvh flex column. The account banners
+   (RecoveryBanner, AutoLinkBanner) render as its first children, above the
+   page, so the page root below them takes the REST of the height. When the
+   shell was its own 100dvh under a banner, the page overflowed by the
+   banner's height: the phone tab bar sat below the screen, and any
+   scrollIntoView scrolled the overflow and slid the sticky banner over its
+   target (E379). Page roots that still say `height: 100dvh` (auth, welcome,
+   boot splash) are scroll containers, so as flex items they shrink to fit. */
+#root {
   display: flex;
   flex-direction: column;
   height: 100dvh;
+}
+
+/* App-shell layout: the shell is a non-scrolling flex column filling the
+   rest of #root — header, the scrolling main region, and the mobile tab
+   bar — and .app-main is the single scroll container. Nothing is
+   position:fixed and the document never scrolls, so a mobile browser's
+   URL-bar show/hide animation cannot shift the tab bar. #root tracks the
+   dynamic viewport, so the bar stays glued to the visible bottom edge with
+   no jump. */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: hidden;
   /* Containing block for the native Scan FAB (components/ScanFab.tsx): it is
      position:absolute against this stable 100dvh box rather than

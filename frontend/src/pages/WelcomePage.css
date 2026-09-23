@@ -12,7 +12,7 @@
  */
 
 /* Fixed-height scroll viewport — NOT min-height. The app shell sets
-   `body { overflow: hidden }` and #root has no height cap, so a min-height
+   `body { overflow: hidden }` and #root is a fixedH0dvh column (base-layout.css), so a min-height
    page (this one is tall: hero + rails + feature grid + footer) just grows
    past the viewport into the clipped region with no way to scroll — the
    bottom gets cut off on short screens, native, and any browser whose chrome

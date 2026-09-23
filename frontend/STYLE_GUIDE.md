@@ -5287,6 +5287,17 @@ to scroll** — the bottom is silently cut off on short screens, on phones (unde
 the notch / home indicator), and in any browser whose chrome eats height.
 `align-items`/`justify-content: center` can't scroll into overflow; they strand it.
 
+**`#root` is the viewport** (2026-09-23, E379): a `100dvh` flex column whose
+first children are the account banners (`.recovery-banner`,
+`.auto-link-banner`, `flex: none`) and whose last is the page root. A page
+root fills the rest (`.app-shell` is `flex: 1 1 auto; min-height: 0`); the
+self-scrolling pages above keep `height: 100dvh` and shrink to fit as flex
+items, which works because they are scroll containers. Never give a page root
+its own full viewport height *beside* the banners without that shrink, and
+never make a banner `position: sticky`: the page overflowed `#root` by the
+banner's height, so the phone tab bar sat below the screen, and every
+`scrollIntoView` scrolled that overflow and slid the banner over its target.
+
 The canonical pattern (`.auth-page`, `.welcome-page`):
 
 ```css
