@@ -109,4 +109,5 @@ export const ZONE_VIEWER_LABEL: Record<Zone, string> = {
   graveyard: 'Graveyard',
   exile: 'Exile',
   command: 'Command zone',
+  sideboard: 'Sideboard',
 };

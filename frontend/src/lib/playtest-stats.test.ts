@@ -53,6 +53,7 @@ function makeMinimalState(overrides: Partial<PlaytestState> = {}): PlaytestState
       hand: [],
       graveyard: [],
       exile: [],
+      sideboard: [],
       command: [],
     },
     battlefield: [],
@@ -225,6 +226,7 @@ describe('computeDeckStats', () => {
         hand: [makePlaytestCard({ id: 'h1' })],
         graveyard: [makePlaytestCard({ id: 'g1' })],
         exile: [],
+        sideboard: [],
         command: [],
       },
       turn: 3,
@@ -245,6 +247,7 @@ describe('computeDeckStats', () => {
         hand: new Array(7).fill(null).map((_, i) => makePlaytestCard({ id: `h${i}` })),
         graveyard: [],
         exile: [],
+        sideboard: [],
         command: [],
       },
     });
@@ -259,6 +262,7 @@ describe('computeDeckStats', () => {
         hand: [makePlaytestCard({ id: 'h1' }), makePlaytestCard({ id: 'h2' })],
         graveyard: [makePlaytestCard({ id: 'g1' })],
         exile: [makePlaytestCard({ id: 'e1' })],
+        sideboard: [],
         command: [],
       },
     });
@@ -280,6 +284,7 @@ describe('computeDeckStats', () => {
         hand: new Array(7).fill(null).map((_, i) => makePlaytestCard({ id: `h${i}` })),
         graveyard: [],
         exile: [],
+        sideboard: [],
         command: [],
       },
       battlefield: [

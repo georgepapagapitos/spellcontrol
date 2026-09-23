@@ -378,7 +378,7 @@ describe('hydrate (E137 resume)', () => {
       resistanceLevel: 'standard',
       resistanceState: createResistanceState(5),
       state: {
-        zones: { library: [], hand: [], graveyard: [], exile: [], command: [] },
+        zones: { library: [], hand: [], graveyard: [], exile: [], sideboard: [], command: [] },
         battlefield: [],
         rngSeed: 5,
         turn: 4,

@@ -23,7 +23,7 @@ const MAX_STICKER_LENGTH = 30;
 const CLONE_OFFSET = 0.0225;
 /** Same idea as `CLONE_OFFSET`, sized off the pre-fraction 14px step. */
 const ATTACH_OFFSET = 0.0175;
-const ZONES: Zone[] = ['library', 'hand', 'graveyard', 'exile', 'command'];
+const ZONES: Zone[] = ['library', 'hand', 'graveyard', 'exile', 'command', 'sideboard'];
 
 /** Battlefield coordinates are fractions of the battlefield box — never let a
  *  card drift outside it. */
@@ -43,7 +43,7 @@ function isPermanentType(typeLine: string | undefined): boolean {
 }
 
 function emptyZones(): Record<Zone, PlaytestCard[]> {
-  return { library: [], hand: [], graveyard: [], exile: [], command: [] };
+  return { library: [], hand: [], graveyard: [], exile: [], command: [], sideboard: [] };
 }
 
 function emptyManaPool(): Record<ManaColor, number> {
@@ -63,6 +63,7 @@ export function createPlaytestState(init: PlaytestInit): PlaytestState {
       library,
       hand,
       command: init.command ?? [],
+      sideboard: init.sideboard ?? [],
     },
     battlefield: [],
     rngSeed: nextSeed(seed),
@@ -92,6 +93,7 @@ function snapshot(state: PlaytestState): Omit<PlaytestState, 'past'> {
       graveyard: state.zones.graveyard.slice(),
       exile: state.zones.exile.slice(),
       command: state.zones.command.slice(),
+      sideboard: state.zones.sideboard.slice(),
     },
     // Shallow copy only: every action already replaces (never mutates) the
     // bf entries it touches, so untouched cards can keep their object
@@ -227,18 +229,28 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
     }
     case 'RESET': {
       // RESET is irreversible by design — clears history along with everything else.
-      const all = [
+      // Every card goes back where it started: a cast commander to the
+      // command zone, a fetched sideboard card to the sideboard, the rest
+      // into the library.
+      const inPlay = [
         ...state.zones.library,
         ...state.zones.hand,
         ...state.zones.graveyard,
         ...state.zones.exile,
         ...state.battlefield.filter((b) => !b.card.isToken).map((b) => b.card),
       ];
-      const shuffled = shuffle(all, mulberry32(state.rngSeed));
+      const shuffled = shuffle(
+        inPlay.filter((c) => !c.origin),
+        mulberry32(state.rngSeed)
+      );
       const hand = shuffled.slice(0, DEFAULT_OPENING_HAND);
       const library = shuffled.slice(DEFAULT_OPENING_HAND);
+      const command = state.zones.command.concat(inPlay.filter((c) => c.origin === 'command'));
+      const sideboard = state.zones.sideboard.concat(
+        inPlay.filter((c) => c.origin === 'sideboard')
+      );
       return {
-        zones: { ...emptyZones(), library, hand, command: state.zones.command.slice() },
+        zones: { ...emptyZones(), library, hand, command, sideboard },
         battlefield: [],
         rngSeed: nextSeed(state.rngSeed),
         turn: 1,

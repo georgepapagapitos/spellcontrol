@@ -188,7 +188,12 @@ export function migrateSnapshotState(
   deck: Pick<Deck, 'format'> | undefined
 ): Omit<PlaytestState, 'past'> {
   const battlefield = migrateBattlefieldCoords(state.battlefield);
-  const withCoords = battlefield === state.battlefield ? state : { ...state, battlefield };
+  let withCoords = battlefield === state.battlefield ? state : { ...state, battlefield };
+  // The sideboard zone postdates most saved games. A resumed one gets an empty
+  // sideboard rather than a crash; the next fresh deal brings the deck's.
+  if (!withCoords.zones.sideboard) {
+    withCoords = { ...withCoords, zones: { ...withCoords.zones, sideboard: [] } };
+  }
   if (typeof withCoords.life === 'number') return withCoords;
   const cfg = playtestLifeConfig(deck?.format);
   return { ...withCoords, life: cfg.life, startingLife: cfg.life };

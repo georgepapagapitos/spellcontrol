@@ -9,7 +9,10 @@
  * containers (a full board, a rail slot, a phone strip) without translation.
  */
 
-export type Zone = 'library' | 'hand' | 'graveyard' | 'exile' | 'command';
+/** `sideboard` is the one zone with no pile on the table: it holds the cards
+ *  outside the game that Wishes, Karn, Learn and companions fetch, opened from
+ *  the table menu only when the deck has any. */
+export type Zone = 'library' | 'hand' | 'graveyard' | 'exile' | 'command' | 'sideboard';
 
 export interface PlaytestCard {
   /** Unique per instance — two physical copies of the same Scryfall card get distinct ids. */
@@ -37,6 +40,11 @@ export interface PlaytestCard {
   power?: string;
   toughness?: string;
   isToken?: boolean;
+  /** Where the card starts a game when that isn't the library — a commander
+   *  or a sideboard card. RESET returns it there instead of shuffling it into
+   *  the library. Absent on every library card and on snapshots saved before
+   *  it existed. */
+  origin?: 'command' | 'sideboard';
 }
 
 export interface BattlefieldCard {
@@ -363,6 +371,7 @@ export type PlaytestAction =
 export interface PlaytestInit {
   library: PlaytestCard[];
   command?: PlaytestCard[];
+  sideboard?: PlaytestCard[];
   seed?: number;
   openingHandSize?: number;
   /** Format-aware starting life — see `playtestLifeConfig`. Optional so

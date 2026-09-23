@@ -99,6 +99,7 @@ import { autoPlace } from '../lib/auto-place';
 import { makePlaytestCollision } from '../lib/attach-drop';
 import { clampGroupDelta, planGroupDrag } from '../lib/group-drag';
 import { handSlotFromDroppableId, hostFromDroppableId, zoneDropIndex } from '../lib/zones';
+import { sideboardInstanceId } from '../lib/deck-to-playtest';
 import { haptics } from '@/lib/haptics';
 import { suppressNativeContextMenu } from '@/lib/suppress-context-menu';
 import { cachedCardThumb } from '@/lib/card-thumbs';
@@ -250,7 +251,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // ScryfallCard, so the OpeningHandSheet can pass full card data to the
   // shared CardPreview component without changing reducer types. The keys
   // mirror what `deckToPlaytestInit` produces (slotId#copy for mainboard,
-  // cmd-<scryfallId> for commanders).
+  // cmd-<scryfallId> for commanders, sb-<slotId> for the sideboard).
   const cardLookup = useMemo(() => {
     if (!deck) return undefined;
     const map = new Map<string, ScryfallCard>();
@@ -259,6 +260,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     });
     if (deck.commander) map.set(`cmd-${deck.commander.id}`, deck.commander);
     if (deck.partnerCommander) map.set(`cmd-${deck.partnerCommander.id}`, deck.partnerCommander);
+    for (const slot of deck.sideboard ?? []) map.set(sideboardInstanceId(slot.slotId), slot.card);
     return map;
   }, [deck]);
 
@@ -921,12 +923,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const revealedIds = useMemo(() => new Set(state.revealed ?? []), [state.revealed]);
   // Every card of the deck behind this session, for the token picker's
   // "Deck tokens" grid. Commanders included — a commander is as likely to
-  // be the thing making tokens as anything in the ninety-nine.
+  // be the thing making tokens as anything in the ninety-nine. The sideboard
+  // too, so a card fetched into the game has its Create token row.
   const deckTokenSources = useMemo(() => {
     if (!deck) return [];
     const out = deck.cards.map((slot) => slot.card);
     if (deck.commander) out.push(deck.commander);
     if (deck.partnerCommander) out.push(deck.partnerCommander);
+    for (const slot of deck.sideboard ?? []) out.push(slot.card);
     return out;
   }, [deck]);
   // Which tokens each card makes, for the card menus' Create token submenu —
@@ -1883,6 +1887,12 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       onClick: () => setManaOpen((open) => !open),
     },
     { label: 'Create token', shortcut: keyFor('token'), onClick: () => setTokenCreator(true) },
+    // Cards outside the game (Wishes, Karn, Learn, companions). A menu row
+    // rather than a pile: most decks have no sideboard and the rest reach
+    // for it once a game, so it only appears while there is one to open.
+    ...(state.zones.sideboard.length > 0
+      ? [{ label: 'View sideboard', onClick: () => setViewer({ zone: 'sideboard' as const }) }]
+      : []),
     {
       label: 'Roll dice or flip a coin',
       shortcut: keyFor('dice'),

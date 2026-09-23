@@ -1575,3 +1575,40 @@ describe('face-down exile stops being face down when the card leaves', () => {
     ).toEqual([]);
   });
 });
+
+describe('sideboard (cards outside the game)', () => {
+  const lattice = card('sb-1', { name: 'Mycosynth Lattice', origin: 'sideboard' });
+  const cmdr = card('cmd-karn', { name: 'Karn, the Great Creator', origin: 'command' });
+  const start = () =>
+    createPlaytestState({ library: deck(20), command: [cmdr], sideboard: [lattice], seed: 1 });
+
+  it('starts in the sideboard, not the library or the opening hand', () => {
+    const s = start();
+    expect(s.zones.sideboard).toEqual([lattice]);
+    expect(s.zones.library.concat(s.zones.hand).some((c) => c.id === 'sb-1')).toBe(false);
+  });
+
+  it('fetches into hand, and undo puts it back', () => {
+    let s = applyAction(start(), { type: 'MOVE_TO_ZONE', cardId: 'sb-1', to: 'hand' });
+    expect(s.zones.sideboard).toEqual([]);
+    expect(s.zones.hand.map((c) => c.id)).toContain('sb-1');
+    s = applyAction(s, { type: 'UNDO' });
+    expect(s.zones.sideboard).toEqual([lattice]);
+  });
+
+  it('survives an unrelated action (the undo snapshot copies the zone)', () => {
+    const s = applyAction(start(), { type: 'DRAW' });
+    expect(s.zones.sideboard).toEqual([lattice]);
+  });
+
+  it('RESET returns a fetched card to the sideboard and a cast commander to the command zone', () => {
+    let s = start();
+    s = applyAction(s, { type: 'MOVE_TO_ZONE', cardId: 'sb-1', to: 'hand' });
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: 'sb-1', x: 0, y: 0 });
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: 'cmd-karn', x: 0, y: 0 });
+    s = applyAction(s, { type: 'RESET' });
+    expect(s.zones.sideboard.map((c) => c.id)).toEqual(['sb-1']);
+    expect(s.zones.command.map((c) => c.id)).toEqual(['cmd-karn']);
+    expect(s.zones.library.length + s.zones.hand.length).toBe(20);
+  });
+});

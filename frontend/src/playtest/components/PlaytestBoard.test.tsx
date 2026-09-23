@@ -1758,3 +1758,41 @@ describe('PlaytestBoard — the command zone with partners', () => {
     );
   });
 });
+
+/** Cards outside the game (Karn, Wishes, Learn, companions) live behind a
+ *  table-menu row rather than a pile, so a deck with no sideboard never
+ *  sees it (user ruling, 2026-09-23: a pile would clutter the table). */
+describe('PlaytestBoard — the sideboard', () => {
+  function openTableMenu(state: ReturnType<typeof seededState>) {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={state} />
+      </MemoryRouter>
+    );
+    fireEvent.contextMenu(document.querySelector('.playtest-battlefield')!, {
+      clientX: 100,
+      clientY: 100,
+    });
+  }
+
+  it('has no row and no pile when the deck has no sideboard', () => {
+    openTableMenu(seededState());
+    expect(screen.queryByRole('menuitem', { name: /sideboard/i })).toBeNull();
+    expect(screen.queryByText(/sideboard/i)).toBeNull();
+  });
+
+  it('opens the sideboard from the table menu and fetches a card to hand', () => {
+    const base = seededState();
+    openTableMenu({
+      ...base,
+      zones: { ...base.zones, sideboard: [{ id: 'sb-1', name: 'Mycosynth Lattice' }] },
+    });
+    fireEvent.click(screen.getByRole('menuitem', { name: /^View sideboard/ }));
+    const viewer = screen.getByRole('dialog', { name: 'Sideboard viewer' });
+    expect(viewer.textContent).toContain('Mycosynth Lattice');
+    fireEvent.click(screen.getByRole('button', { name: 'To hand' }));
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'MOVE_TO_ZONE', cardId: 'sb-1', to: 'hand' })
+    );
+  });
+});

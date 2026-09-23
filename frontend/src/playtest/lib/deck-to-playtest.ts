@@ -10,6 +10,12 @@ function instanceId(slotId: string, copy: number): string {
   return `${slotId}#${copy}`;
 }
 
+/** A sideboard slot's instance id. Exported for the board's card lookup,
+ *  which has to key the same card the same way. */
+export function sideboardInstanceId(slotId: string): string {
+  return `sb-${slotId}`;
+}
+
 /**
  * `owned` is the collection copy the deck slot is allocated to, if any. Its
  * printing is the one the deck view shows (deck-display-rows prefers it), so
@@ -63,26 +69,35 @@ export function deckToPlaytestInit(
   );
   const command: PlaytestCard[] = [];
   if (deck.commander) {
-    command.push(
-      toPlaytestCard(
+    command.push({
+      ...toPlaytestCard(
         deck.commander,
         `cmd-${deck.commander.id}`,
         ownedCopy(deck.commanderAllocatedCopyId)
-      )
-    );
+      ),
+      origin: 'command',
+    });
   }
   if (deck.partnerCommander) {
-    command.push(
-      toPlaytestCard(
+    command.push({
+      ...toPlaytestCard(
         deck.partnerCommander,
         `cmd-${deck.partnerCommander.id}`,
         ownedCopy(deck.partnerCommanderAllocatedCopyId)
-      )
-    );
+      ),
+      origin: 'command',
+    });
   }
+  // Cards outside the game, for Wishes, Karn, Learn and companions. Only the
+  // sideboard: "considering" is a deckbuilding shortlist, not part of the deck.
+  const sideboard: PlaytestCard[] = (deck.sideboard ?? []).map((slot) => ({
+    ...toPlaytestCard(slot.card, sideboardInstanceId(slot.slotId), ownedCopy(slot.allocatedCopyId)),
+    origin: 'sideboard',
+  }));
   return {
     library,
     command,
+    sideboard,
     seed: opts.seed,
     life: playtestLifeConfig(deck.format).life,
   };

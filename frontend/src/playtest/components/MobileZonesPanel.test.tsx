@@ -21,6 +21,7 @@ const ZONES: Record<Zone, PlaytestCard[]> = {
   hand: [],
   graveyard: [card('c')],
   exile: [],
+  sideboard: [],
   command: [],
 };
 
