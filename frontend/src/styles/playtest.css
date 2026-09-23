@@ -2489,6 +2489,14 @@ button.playtest-card-pt__value--editable:focus-visible {
     height: 90px;
   }
 
+  /* A big hand draws its cards smaller (Hand.tsx sets the two vars on the
+     fan). `min()`, because the vars say 72px here and a hand that only just
+     overflows must not grow past the tier's 64px. */
+  .playtest-hand--fan .playtest-card--sm {
+    width: min(64px, var(--pt-card-w));
+    height: min(90px, var(--pt-card-h));
+  }
+
   body:has(.playtest-page) {
     --pt-card-w: 72px;
     --pt-card-h: 100px;
@@ -3831,7 +3839,9 @@ button.playtest-card-pt__value--editable:focus-visible {
 .playtest-hand--fan {
   position: absolute;
   left: calc((100% - (4 * (var(--pt-card-w) + 13px) + var(--pt-hand-btn-w) + 44px)) / 2);
-  bottom: calc(var(--pt-card-h) * -0.38);
+  /* `--pt-hand-card-h` is set only while a big hand draws its cards smaller
+     (Hand.tsx), so the same share of each card hangs below the edge. */
+  bottom: calc(var(--pt-hand-card-h, var(--pt-card-h)) * -0.38);
   transform: translateX(-50%);
   z-index: 3;
   display: flex;

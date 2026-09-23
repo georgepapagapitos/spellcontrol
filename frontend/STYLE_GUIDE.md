@@ -2266,9 +2266,14 @@ absolute` inside `.playtest-battlefield-wrap`, not inside `.playtest-board`,
   `transform-origin: bottom center` and a negative `margin-left` after the
   first. **The overlap is adaptive, never a constant** (`lib/fan-layout.ts`):
   it spreads the hand into the width between the log dock's reserved band and
-  the pile row, capped at 52vw, and clamped to 0.12–0.45, so seven cards read
+  the pile row, capped at 52vw, and clamped to 0.12–0.6, so seven cards read
   as seven cards and fifteen still fit. A fixed 0.45 made a normal hand
-  unreadable on a wide table. The
+  unreadable on a wide table. **A big hand flattens and shrinks, never
+  overflows** (`fanTilt`, `fanCardWidth`): the outermost card turns at most
+  6° and drops at most 12px however many cards there are (a fixed 2° step
+  curled a 22-card hand 21° off the table edge), and once the tightest overlap
+  no longer fits, the hand's cards draw smaller, down to half the table size,
+  the way EDHPlay's do. Up to seven cards neither cap binds. The
   **lift is on the card, never the
   slot** — the slot owns the fan rotation, so lifting the card leaves every
   neighbour still. Hover and `:focus-visible` both lift. dnd-kit composes by

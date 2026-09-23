@@ -42,8 +42,11 @@ describe('table chrome at the wide tier', () => {
       'var(--accent)'
     );
     // Tucked: the lower part of each card hangs below the table edge, and the
-    // lift brings exactly that much back up.
-    expect(block('.playtest-hand--fan {')).toContain('bottom: calc(var(--pt-card-h) * -0.38)');
+    // lift brings exactly that much back up — at the hand's card height,
+    // which a big hand shrinks (Hand.tsx sets `--pt-hand-card-h` to match).
+    expect(block('.playtest-hand--fan {')).toContain(
+      'bottom: calc(var(--pt-hand-card-h, var(--pt-card-h)) * -0.38)'
+    );
     expect(
       block('.playtest-hand--fan .playtest-hand__slot:focus-within .playtest-hand__lift {')
     ).toContain('var(--pt-card-h) * -0.38');
