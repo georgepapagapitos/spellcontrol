@@ -2011,9 +2011,11 @@ Untap):
 - **Hover / focus preview on fine pointers lands in ONE slot.** `CardHoverPreview`
   shows the full face for any card carrying `data-preview-id` (set by
   `PlaytestCardFace`; absent when face-down, the URL resolves from React state,
-  never from the DOM) after a 220ms rest, immediately on keyboard focus, hidden
-  while dragging or while any modal sheet is open (the docked log is not a
-  sheet). The face is a fixed pane, `min(22rem, 24vw)` wide, vertically centred
+  never from the DOM) the instant the pointer lands or focus arrives, with no
+  delay and no fade (2026-09-23: the old 220ms rest plus a 120ms fade read as
+  a slow table), hidden while dragging or while any modal sheet is open (the
+  docked log is not a sheet). A two-faced card shows both faces side by side.
+  The face is a fixed pane, `min(22rem, 24vw)` wide, vertically centred
   at the table's right edge; it flips to the left edge only when the hovered
   card itself would sit under it (a permanent parked at the far right, a zone
   pile). A tooltip that floats beside the card was tried first and covers the

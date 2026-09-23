@@ -2,9 +2,6 @@ import { useEffect, useState } from 'react';
 import { useMediaQuery } from '@/lib/use-media-query';
 import './CardHoverPreview.css';
 
-/** Wait before showing so a pointer sweeping across the hand doesn't flicker
- *  a preview per card; focus (keyboard) shows immediately. */
-const HOVER_DELAY_MS = 220;
 const MARGIN = 12;
 /** Between the two faces of a two-faced card. */
 const FACE_GAP = 8;
@@ -41,6 +38,12 @@ interface Target extends PreviewFaces {
  * surface — battlefield, hand, drag overlay excluded by `suspended` — gets
  * it with no per-card wiring. Fine-pointer only: touch has no hover, and the
  * long-press → menu → Preview path already serves it.
+ *
+ * It shows the moment the pointer lands on a card, with no delay and no
+ * fade, and follows the pointer card to card (EDHPlay's; user feedback
+ * 2026-09-23, "it should appear immediately"). It used to wait 220ms and
+ * fade in over 120ms so a sweep across the hand would not flicker, which
+ * read as the table being slow.
  */
 export function CardHoverPreview({ suspended, resolve }: Props) {
   const finePointer = useMediaQuery('(hover: hover) and (pointer: fine)');
@@ -49,11 +52,6 @@ export function CardHoverPreview({ suspended, resolve }: Props) {
   useEffect(() => {
     if (!finePointer) return;
     const SELECTOR = '[data-preview-id]';
-    let timer: number | null = null;
-    const clear = () => {
-      if (timer != null) window.clearTimeout(timer);
-      timer = null;
-    };
     const read = (el: Element): Target | null => {
       const id = el.getAttribute('data-preview-id');
       const faces = id ? resolve(id) : null;
@@ -61,19 +59,14 @@ export function CardHoverPreview({ suspended, resolve }: Props) {
         ? { ...faces, rect: el.getBoundingClientRect(), isToken: el.hasAttribute('data-token') }
         : null;
     };
-    const show = (el: Element, delay: number) => {
-      clear();
+    const show = (el: Element) => {
       const next = read(el);
-      if (!next) return;
-      timer = window.setTimeout(() => setTarget(next), delay);
+      if (next) setTarget(next);
     };
-    const hide = () => {
-      clear();
-      setTarget(null);
-    };
+    const hide = () => setTarget(null);
     const onOver = (e: Event) => {
       const el = (e.target as Element | null)?.closest?.(SELECTOR);
-      if (el) show(el, HOVER_DELAY_MS);
+      if (el) show(el);
     };
     const onOut = (e: Event) => {
       const el = (e.target as Element | null)?.closest?.(SELECTOR);
@@ -84,7 +77,7 @@ export function CardHoverPreview({ suspended, resolve }: Props) {
     };
     const onFocusIn = (e: Event) => {
       const el = (e.target as Element | null)?.closest?.(SELECTOR);
-      if (el) show(el, 0);
+      if (el) show(el);
       else hide();
     };
     document.addEventListener('pointerover', onOver);
@@ -93,7 +86,6 @@ export function CardHoverPreview({ suspended, resolve }: Props) {
     document.addEventListener('focusin', onFocusIn);
     document.addEventListener('scroll', hide, true);
     return () => {
-      clear();
       document.removeEventListener('pointerover', onOver);
       document.removeEventListener('pointerout', onOut);
       document.removeEventListener('pointerdown', hide);
