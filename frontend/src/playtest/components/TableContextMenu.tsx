@@ -37,6 +37,8 @@ interface Props {
   x: number;
   y: number;
   variant: 'floating' | 'sheet';
+  /** See CtxMenuShell: `bottom-end` for a menu opened from a button. */
+  origin?: 'top-start' | 'bottom-end';
   items: MenuEntry[];
   /** Accessible name, and the sheet variant's visible heading. Defaults to
    *  the felt's own menu; a zone pile passes its zone ("Library") so the
@@ -208,7 +210,17 @@ function Flyout({
  * discovered — and `SEPARATOR` groups them the way the actions group at a
  * table.
  */
-export function TableContextMenu({ x, y, variant, items, title, header, openId, onClose }: Props) {
+export function TableContextMenu({
+  x,
+  y,
+  variant,
+  origin,
+  items,
+  title,
+  header,
+  openId,
+  onClose,
+}: Props) {
   const [path, setPath] = useState<number[]>(() => (openId && pathTo(items, openId)) || []);
   // The level whose first row takes focus when it opens: a click or → hands
   // the keyboard to the submenu, a hover leaves focus where it is.
@@ -371,7 +383,14 @@ export function TableContextMenu({ x, y, variant, items, title, header, openId, 
   }
 
   return (
-    <CtxMenuShell x={x} y={y} title={rootTitle} variant="floating" onClose={onClose}>
+    <CtxMenuShell
+      x={x}
+      y={y}
+      origin={origin}
+      title={rootTitle}
+      variant="floating"
+      onClose={onClose}
+    >
       {/* `display: contents`, so the shell's padding and gap still lay these
           rows out; the wrapper only marks which panel ↑/↓ walk. */}
       <div ref={rootRef} className="playtest-ctx-panel" data-menu-panel={0}>

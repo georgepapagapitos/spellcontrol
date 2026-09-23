@@ -9,8 +9,8 @@ import { describe, expect, it } from 'vitest';
 import { MAX_FAN_OVERLAP, MIN_FAN_OVERLAP, fanOverlap, pilesWidth } from './fan-layout';
 
 describe('pilesWidth', () => {
-  it('is four tiles of the card width plus their chrome and gaps', () => {
-    expect(pilesWidth(100)).toBe(4 * 113 + 24 + 12);
+  it('is the Hand button and four tiles of the card width, plus their chrome and gaps', () => {
+    expect(pilesWidth(100)).toBe(88 + 4 * 113 + 32 + 12);
   });
 });
 

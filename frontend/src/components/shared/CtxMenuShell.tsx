@@ -11,6 +11,11 @@ export interface CtxMenuShellProps {
   /** Anchor (pointer position, or the card's centre for keyboard opens). */
   x: number;
   y: number;
+  /** Which corner of the floating menu sits on (x, y). `top-start` (the
+   *  default) is a pointer's menu, opening down and right from the click.
+   *  `bottom-end` opens up and to the left of a button at the bottom of the
+   *  screen: pass the button's top-right corner. */
+  origin?: 'top-start' | 'bottom-end';
   /** Dialog / menu accessible name and the sheet variant's visible title. */
   title: string;
   /** `floating` = cursor-anchored popover clamped to the safe viewport
@@ -39,6 +44,7 @@ export interface CtxMenuShellProps {
 export function CtxMenuShell({
   x,
   y,
+  origin = 'top-start',
   title,
   variant,
   contentKey,
@@ -59,10 +65,12 @@ export function CtxMenuShell({
     if (!el) return;
     const rect = el.getBoundingClientRect();
     const safe = getSafeViewport();
-    const left = Math.max(MENU_MARGIN, Math.min(x, safe.right - rect.width - MENU_MARGIN));
-    const top = Math.max(MENU_MARGIN, Math.min(y, safe.bottom - rect.height - MENU_MARGIN));
+    const ax = origin === 'bottom-end' ? x - rect.width : x;
+    const ay = origin === 'bottom-end' ? y - rect.height : y;
+    const left = Math.max(MENU_MARGIN, Math.min(ax, safe.right - rect.width - MENU_MARGIN));
+    const top = Math.max(MENU_MARGIN, Math.min(ay, safe.bottom - rect.height - MENU_MARGIN));
     setClamped({ left, top });
-  }, [x, y, variant, contentKey]);
+  }, [x, y, origin, variant, contentKey]);
 
   // Keyboard-opened menus land with nothing focused unless something moves
   // focus in; a pointer open leaves focus where it was, which is fine since

@@ -287,8 +287,10 @@ export function toPublicBoard(state: PlaytestState, seat: number): PublicBoard {
     // Filtered against the live hand, not trusted from the list: a card that
     // left hand without going through `pluck` (an older snapshot, a future
     // action that forgets) must not keep leaking its name from here.
+    // Playing with the hand revealed shows all of it, read off the live hand
+    // so a card drawn after turning it on is shown too.
     revealed: state.zones.hand
-      .filter((c) => (state.revealed ?? []).includes(c.id))
+      .filter((c) => state.handRevealed || (state.revealed ?? []).includes(c.id))
       .map(toProjectedCard),
     // Read off the live library rather than carried alongside it, so the
     // revealed card is always the one actually on top — a draw or a shuffle

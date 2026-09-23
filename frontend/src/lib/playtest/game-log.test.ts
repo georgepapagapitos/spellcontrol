@@ -636,3 +636,40 @@ describe('buildLogEntries — a reveal says only what the table may hear', () =>
     expect(log(empty, { type: 'REVEAL_TOP_CARD' })).toEqual([]);
   });
 });
+
+describe('buildLogEntries — the hand menu', () => {
+  function log(before: PlaytestState, action: Parameters<typeof applyAction>[1]) {
+    return buildLogEntries(before, action, applyAction(before, action));
+  }
+
+  it('names every card when the hand is revealed', () => {
+    const s = init(10, 1, 3);
+    const [entry] = log(s, { type: 'REVEAL_HAND' });
+    expect(entry.kind).toBe('reveal');
+    for (const c of s.zones.hand) expect(entry.text).toContain(c.name);
+  });
+
+  it('says nothing for an empty hand', () => {
+    expect(log(init(10, 1, 0), { type: 'REVEAL_HAND' })).toEqual([]);
+  });
+
+  it('announces playing with the hand revealed, and stopping', () => {
+    const s = init(10);
+    expect(log(s, { type: 'SET_HAND_REVEALED', revealed: true })[0].text).toContain(
+      'hand revealed'
+    );
+    const on = applyAction(s, { type: 'SET_HAND_REVEALED', revealed: true });
+    expect(log(on, { type: 'SET_HAND_REVEALED', revealed: false })[0].text).toContain('Stopped');
+    expect(log(on, { type: 'SET_HAND_REVEALED', revealed: true })).toEqual([]);
+  });
+
+  it('names the card a random discard hit, and says it was random', () => {
+    const s = init(10, 1, 3);
+    const after = applyAction(s, { type: 'DISCARD_RANDOM' });
+    const [entry] = buildLogEntries(s, { type: 'DISCARD_RANDOM' }, after);
+    expect(entry.cardName).toBe(after.zones.graveyard[0].name);
+    expect(entry.text).toContain('at random');
+    expect(entry.from).toBe('hand');
+    expect(entry.to).toBe('graveyard');
+  });
+});

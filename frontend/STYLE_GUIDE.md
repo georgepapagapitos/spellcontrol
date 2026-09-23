@@ -2229,8 +2229,7 @@ absolute` inside `.playtest-battlefield-wrap`, not inside `.playtest-board`,
   real mana cost as mana-font pips (`ManaCost`, off the new optional
   `PlaytestCard.manaCost`; a pre-badge snapshot falls back to the bare mana
   value, and lands and tokens carry no badge at all). Bottom-left: the log
-  dock. The empty-table hint stays, quietly, and says nothing once the hand
-  is collapsed: it names a hand that is not on screen.
+  dock.
 - **The game menu is actions; anything you set once lives in Table
   settings.** The menu had grown to sixteen rows by absorbing every
   preference. It is now Back, Stats, Log, Keyboard shortcuts, Table
@@ -2269,15 +2268,23 @@ absolute` inside `.playtest-battlefield-wrap`, not inside `.playtest-board`,
   it spreads the hand into the width between the log dock's reserved band and
   the pile row, capped at 52vw, and clamped to 0.12–0.45, so seven cards read
   as seven cards and fifteen still fit. A fixed 0.45 made a normal hand
-  unreadable on a wide table. The `Hand (n)` toggle is bottom-anchored at the
-  fan's right end, on the same baseline as the pile row opposite it. The
+  unreadable on a wide table. The
   **lift is on the card, never the
   slot** — the slot owns the fan rotation, so lifting the card leaves every
   neighbour still. Hover and `:focus-visible` both lift. dnd-kit composes by
   construction: the source card is never transformed (the moving copy is the
-  top-level `<DragOverlay>`). A `Hand (n)` toggle collapses the fan to a pill
-  that is still a drop target; the state is a per-viewer localStorage
-  convenience and is ignored on the narrow tier.
+  top-level `<DragOverlay>`).
+- **`⌄ Hand (n)` is a menu button, never a collapse.** It opens the hand's
+  menu, EDHPlay's rows in EDHPlay's order: Reveal hand ▸ Everyone, Play with
+  hand revealed ▸ Everyone (both online only, like the library's reveals),
+  Discard at random, Move all to ▸, View all. It is the first thing in the
+  pile row, beside the library, at a fixed `--pt-hand-btn-w` that every fan
+  reservation adds in. On a phone that row has no room for it, so it stands
+  above the library's label instead. A menu opened from a button at the
+  bottom of the screen passes `origin="bottom-end"`: it opens up and to the
+  left, its corner on the button's top-right, rather than dropping down over
+  the button the way a pointer's menu would. The hand is never hidden: the
+  collapse it replaced hid the cards the button was named for.
 - **The table has a menu.** Right-click on bare felt (or the Context Menu key
   / Shift+F10, or a long-press on a touch tablet) opens `TableContextMenu` on
   the shared `CtxMenuShell`, each item naming its key: Draw `D`, Next turn `N`

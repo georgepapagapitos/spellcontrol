@@ -1612,3 +1612,47 @@ describe('sideboard (cards outside the game)', () => {
     expect(s.zones.library.length + s.zones.hand.length).toBe(20);
   });
 });
+
+describe('the hand menu', () => {
+  it('DISCARD_RANDOM puts one card from hand into the graveyard and advances the seed', () => {
+    const s = init();
+    const next = applyAction(s, { type: 'DISCARD_RANDOM' });
+    expect(next.zones.hand).toHaveLength(6);
+    expect(next.zones.graveyard).toHaveLength(1);
+    expect(s.zones.hand.map((c) => c.id)).toContain(next.zones.graveyard[0].id);
+    expect(next.rngSeed).not.toBe(s.rngSeed);
+    expect(allCardIds(next)).toEqual(allCardIds(s));
+  });
+
+  it('DISCARD_RANDOM discards the same card from the same seed, so undo cannot reroll it', () => {
+    const s = init();
+    const a = applyAction(s, { type: 'DISCARD_RANDOM' });
+    const again = applyAction(applyAction(a, { type: 'UNDO' }), { type: 'DISCARD_RANDOM' });
+    expect(again.zones.graveyard[0].id).toBe(a.zones.graveyard[0].id);
+  });
+
+  it('DISCARD_RANDOM is a no-op on an empty hand', () => {
+    const s = init(10, 1, 0);
+    expect(applyAction(s, { type: 'DISCARD_RANDOM' })).toBe(s);
+  });
+
+  it('DISCARD_RANDOM ends the reveal of the card it discards', () => {
+    const s = init(10, 1, 1);
+    const shown = applyAction(s, { type: 'TOGGLE_REVEAL', cardId: s.zones.hand[0].id });
+    expect(applyAction(shown, { type: 'DISCARD_RANDOM' }).revealed).toEqual([]);
+  });
+
+  it('SET_HAND_REVEALED is an undoable mode, and a new game turns it off', () => {
+    const s = init();
+    const on = applyAction(s, { type: 'SET_HAND_REVEALED', revealed: true });
+    expect(on.handRevealed).toBe(true);
+    expect(applyAction(on, { type: 'SET_HAND_REVEALED', revealed: true })).toBe(on);
+    expect(applyAction(on, { type: 'UNDO' }).handRevealed).toBe(false);
+    expect(applyAction(on, { type: 'RESET' }).handRevealed).toBe(false);
+  });
+
+  it('REVEAL_HAND changes nothing: the log line is the whole action', () => {
+    const s = init();
+    expect(applyAction(s, { type: 'REVEAL_HAND' })).toBe(s);
+  });
+});

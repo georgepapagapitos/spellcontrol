@@ -52,9 +52,10 @@ const DESTINATIONS: ViewerDestination[] = [
 /** The one contextual "just do the obvious thing" action per source zone —
  *  everything else lives in the tile's overflow menu. */
 function primaryDestination(zone: Zone): ViewerDestination {
-  return zone === 'command'
-    ? { key: 'battlefield', label: 'Cast' }
-    : { key: 'hand', label: 'To hand' };
+  if (zone === 'command') return { key: 'battlefield', label: 'Cast' };
+  // From the hand, "to hand" is where it already is.
+  if (zone === 'hand') return { key: 'battlefield', label: 'Play' };
+  return { key: 'hand', label: 'To hand' };
 }
 
 const EMPTY_TEXT: Record<Zone, string> = {

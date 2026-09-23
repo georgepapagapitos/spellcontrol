@@ -188,6 +188,37 @@ function buildRawLogEntries(
       ];
     }
 
+    case 'REVEAL_HAND': {
+      const hand = current.zones.hand;
+      if (hand.length === 0) return [];
+      return [
+        { turn, kind: 'reveal', text: `Revealed hand: ${hand.map((c) => c.name).join(', ')}` },
+      ];
+    }
+
+    case 'SET_HAND_REVEALED': {
+      if (next === current) return []; // already in that mode
+      const text = action.revealed
+        ? 'Playing with the hand revealed'
+        : 'Stopped revealing the hand';
+      return [{ turn, kind: 'reveal', text }];
+    }
+
+    case 'DISCARD_RANDOM': {
+      if (next === current) return []; // empty hand
+      const card = next.zones.graveyard[next.zones.graveyard.length - 1];
+      return [
+        {
+          turn,
+          kind: 'zone-move',
+          text: `Discarded ${card.name} at random`,
+          cardName: card.name,
+          from: 'hand',
+          to: 'graveyard',
+        },
+      ];
+    }
+
     case 'SET_LIBRARY_REVEAL': {
       if (next === current) return []; // already in that mode
       // `reveal` is a PUBLIC ticker kind, so a line here reaches the table.

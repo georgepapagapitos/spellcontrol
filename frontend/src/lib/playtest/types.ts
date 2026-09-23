@@ -173,6 +173,11 @@ export interface PlaytestState {
    *  back-compat; absent === nothing revealed. A card leaving hand drops
    *  off this list. */
   revealed?: string[];
+  /** Playing with the whole hand face up (Hand ▸ Play with hand revealed).
+   *  A mode, not a list: a card drawn while it is on is shown too, which a
+   *  list of ids fixed at the moment of turning it on could never do.
+   *  Optional for snapshot back-compat; absent === hand private. */
+  handRevealed?: boolean;
   /**
    * How much of the library its owner is currently showing the table. The
    * library is MTG's other private zone, so like `revealed` this is the one
@@ -249,6 +254,15 @@ export type PlaytestAction =
    *  effect, and it rides the public ticker out to the table. Distinct from
    *  `SET_LIBRARY_REVEAL`, which is the standing "play with it face up". */
   | { type: 'REVEAL_TOP_CARD' }
+  /** Show the table your whole hand, once. An event like REVEAL_TOP_CARD:
+   *  the log line naming the cards is the whole effect. */
+  | { type: 'REVEAL_HAND' }
+  /** The standing "play with your hand face up". See
+   *  `PlaytestState.handRevealed`. */
+  | { type: 'SET_HAND_REVEALED'; revealed: boolean }
+  /** Put a random card from hand into the graveyard, off the seeded RNG so a
+   *  replay discards the same card. No-op for an empty hand. */
+  | { type: 'DISCARD_RANDOM' }
   | {
       /** Resolve a look-at-the-top-N. Ids not currently in the library — and
        *  repeats across the three lists — are ignored; `top` keeps cards on

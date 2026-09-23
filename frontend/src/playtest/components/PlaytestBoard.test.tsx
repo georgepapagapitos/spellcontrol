@@ -1541,6 +1541,88 @@ describe('PlaytestBoard — who a reveal is for', () => {
 });
 
 /**
+ * EDHPlay's hand menu: a "Hand (7)" button beside the library that opens a
+ * menu. It used to collapse the fan instead, which is not what the button
+ * is for there.
+ */
+describe('PlaytestBoard — the Hand button', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    dispatch.mockClear();
+    onlineTable = seatedTable([opponent(1)]);
+  });
+
+  function openHandMenu(state = seededState()) {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={state} />
+      </MemoryRouter>
+    );
+    const button = screen.getByRole('button', { name: /^Hand \(\d+\)/ });
+    fireEvent.click(button);
+    return button;
+  }
+
+  it('opens a menu and leaves the hand on the table', () => {
+    const button = openHandMenu();
+    expect(button.getAttribute('aria-haspopup')).toBe('menu');
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(document.querySelectorAll('.playtest-hand__slot').length).toBeGreaterThan(0);
+    const rows = screen.getAllByRole('menuitem').map((r) => r.textContent);
+    expect(rows).toEqual([
+      expect.stringMatching(/^Reveal hand/),
+      expect.stringMatching(/^Play with hand revealed/),
+      'Discard at random',
+      expect.stringMatching(/^Move all to/),
+      'View all',
+    ]);
+  });
+
+  it('reveals the hand once, as an event', () => {
+    openHandMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Reveal hand/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Everyone' }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'REVEAL_HAND' });
+  });
+
+  it('marks the standing reveal once it is on, and turns it off from there', () => {
+    openHandMenu(applyAction(seededState(), { type: 'SET_HAND_REVEALED', revealed: true }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Play with hand revealed/ }));
+    const everyone = screen.getByRole('menuitemcheckbox', { name: 'Everyone' });
+    expect(everyone.getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(everyone);
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_HAND_REVEALED', revealed: false });
+  });
+
+  it('discards at random', () => {
+    openHandMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Discard at random' }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'DISCARD_RANDOM' });
+  });
+
+  it("offers EDHPlay's four destinations for Move all to", () => {
+    openHandMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Move all to/ }));
+    for (const name of [
+      'Graveyard',
+      'Exile',
+      'Library top (random order)',
+      'Library bottom (random order)',
+    ])
+      expect(screen.getByRole('menuitem', { name })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'Command zone' })).toBeNull();
+  });
+
+  it('leaves the reveals out solo, where there is nobody to show', () => {
+    onlineTable = null;
+    openHandMenu();
+    expect(screen.queryByRole('menuitem', { name: /^Reveal hand/ })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: /^Play with hand revealed/ })).toBeNull();
+    expect(screen.getByRole('menuitem', { name: 'Discard at random' })).toBeTruthy();
+  });
+});
+
+/**
  * The narrow tier reaches the same menu the table tier does, through the
  * zones drawer's kebab instead of a right-click, rendered as the shared
  * bottom sheet. The point of the hand-off is that there is ONE item list —

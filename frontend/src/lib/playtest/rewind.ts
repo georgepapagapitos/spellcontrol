@@ -170,6 +170,20 @@ export function classifyAction(
         'The table saw the top card. Taking that back is something the others have to agree to overlook.'
       );
 
+    case 'REVEAL_HAND':
+    case 'SET_HAND_REVEALED':
+      // TOGGLE_REVEAL for every card at once: the actor learned nothing, the
+      // table saw something, and unseeing it is theirs to overlook.
+      return classification(
+        'consent',
+        'The table saw your hand. Hiding it again is something the others have to agree to overlook.'
+      );
+
+    case 'DISCARD_RANDOM':
+      // A card went from hand to a public zone. Undo rewinds the seed with
+      // it, so taking it back and discarding again lands on the same card.
+      return moveToZoneVerdict('hand');
+
     case 'SET_LIBRARY_REVEAL':
       // The mirror of TOGGLE_REVEAL, for the other private zone: the actor
       // learned nothing, the table saw something, and hiding it again is

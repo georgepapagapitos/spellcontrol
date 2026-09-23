@@ -8,9 +8,11 @@
  *  hand and starts reading as a second battlefield row. */
 const MAX_FAN_VW = 0.52;
 
-/** Each tile is a card plus its 6px padding and hairline; four of them, three
- *  gaps, and the row's right inset. Mirrors `.playtest-piles` in playtest.css. */
+/** Each tile is a card plus its 6px padding and hairline; the Hand button
+ *  (`--pt-hand-btn-w`, 5.5rem) and four tiles, four gaps, and the row's right
+ *  inset. Mirrors `.playtest-piles` in playtest.css. */
 const PILE_CHROME = 13;
+const HAND_BUTTON = 88;
 const PILES_GAP = 8;
 const PILES_INSET = 12;
 
@@ -18,7 +20,7 @@ const PILES_INSET = 12;
  *  what the row leaves free (`.playtest-hand--fan` reads the same number off
  *  `--pt-card-w`), and the two must agree or the fan drifts under the piles. */
 export function pilesWidth(cardW: number): number {
-  return 4 * (cardW + PILE_CHROME) + 3 * PILES_GAP + PILES_INSET;
+  return HAND_BUTTON + 4 * (cardW + PILE_CHROME) + 4 * PILES_GAP + PILES_INSET;
 }
 
 /**

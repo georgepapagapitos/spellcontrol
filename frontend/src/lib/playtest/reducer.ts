@@ -78,6 +78,7 @@ export function createPlaytestState(init: PlaytestInit): PlaytestState {
     manaPool: emptyManaPool(),
     stack: [],
     revealed: [],
+    handRevealed: false,
     libraryReveal: 'none',
     faceDownExile: [],
     past: [],
@@ -112,6 +113,7 @@ function snapshot(state: PlaytestState): Omit<PlaytestState, 'past'> {
     manaPool: state.manaPool ? { ...state.manaPool } : undefined,
     stack: state.stack ? state.stack.slice() : undefined,
     revealed: state.revealed ? state.revealed.slice() : undefined,
+    handRevealed: state.handRevealed,
     libraryReveal: state.libraryReveal,
     faceDownExile: state.faceDownExile ? state.faceDownExile.slice() : undefined,
   };
@@ -269,6 +271,7 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         manaPool: emptyManaPool(),
         stack: [],
         revealed: [],
+        handRevealed: false,
         libraryReveal: 'none',
         faceDownExile: [],
         past: [],
@@ -367,6 +370,25 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       // nothing to undo. `buildLogEntries` still runs, and the line it
       // writes (naming the card, on the public ticker) is the whole action.
       return state;
+    case 'REVEAL_HAND':
+      // An event, like REVEAL_TOP_CARD: the log line is the whole action.
+      return state;
+    case 'SET_HAND_REVEALED': {
+      if (Boolean(state.handRevealed) === action.revealed) return state;
+      const next = snapshot(state);
+      next.handRevealed = action.revealed;
+      return withHistory(state, next);
+    }
+    case 'DISCARD_RANDOM': {
+      const hand = state.zones.hand;
+      if (hand.length === 0) return state;
+      const next = snapshot(state);
+      const index = Math.floor(mulberry32(state.rngSeed)() * hand.length);
+      next.rngSeed = nextSeed(state.rngSeed);
+      const { card } = pluck(next, { source: 'zone', zone: 'hand', index });
+      next.zones.graveyard = [...next.zones.graveyard, card];
+      return withHistory(state, next);
+    }
     case 'SET_LIBRARY_REVEAL': {
       if ((state.libraryReveal ?? 'none') === action.reveal) return state;
       const next = snapshot(state);
