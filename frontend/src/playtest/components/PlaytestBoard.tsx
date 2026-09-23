@@ -105,7 +105,7 @@ import { cachedCardThumb } from '@/lib/card-thumbs';
 import { Battlefield } from './Battlefield';
 import { Hand } from './Hand';
 import { HandCardMenu } from './HandCardMenu';
-import { CardHoverPreview } from './CardHoverPreview';
+import { CardHoverPreview, type PreviewFaces } from './CardHoverPreview';
 import { HandDrawer, SHORT_LANDSCAPE_QUERY } from './HandDrawer';
 import { useMediaQuery } from '@/lib/use-media-query';
 import { ZonePile } from './ZonePile';
@@ -141,6 +141,8 @@ import { TAKEBACK_MODE_LABEL } from '../lib/takeback';
 import { REACTION_EMOTES, REACTION_LABEL } from '../lib/table-signals';
 import { CardContextMenu, type CardMenuPage } from './CardContextMenu';
 import { printedBase } from '../lib/power-toughness';
+import { useDeckTokens } from '@/components/deck/use-deck-tokens';
+import type { MadeToken } from './menu-entries';
 import { CardInfoDialog } from './CardInfoDialog';
 import { MobileZonesPanel } from './MobileZonesPanel';
 import { CountPage } from './CountPage';
@@ -866,14 +868,24 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   }
 
   // Image per card instance for the hover preview — the DOM carries only ids.
+  // A two-faced card previews BOTH faces, the one showing first — EDHPlay's
+  // hover shows the pair, and the face you are not looking at is exactly
+  // the one you cannot read off the table.
   const previewSrcs = useMemo(() => {
-    const m = new Map<string, string>();
+    const m = new Map<string, PreviewFaces>();
     for (const b of state.battlefield) {
-      const src = b.showBackFace && b.card.backImageUrl ? b.card.backImageUrl : b.card.imageUrl;
-      if (src && !b.faceDown) m.set(b.card.id, src);
+      if (b.faceDown || !b.card.imageUrl) continue;
+      const back = b.card.backImageUrl;
+      m.set(
+        b.card.id,
+        back && b.showBackFace
+          ? { src: back, back: b.card.imageUrl }
+          : { src: b.card.imageUrl, ...(back && { back }) }
+      );
     }
     for (const c of [...state.zones.hand, ...state.zones.command])
-      if (c.imageUrl) m.set(c.id, c.imageUrl);
+      if (c.imageUrl)
+        m.set(c.id, { src: c.imageUrl, ...(c.backImageUrl && { back: c.backImageUrl }) });
     return m;
   }, [state.battlefield, state.zones.hand, state.zones.command]);
   // The opponents' permanents, by the seat-scoped id their quadrant publishes
@@ -894,7 +906,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const resolvePreview = useCallback(
     (cardId: string) => {
       const opponentCard = opponentPreviewNames.get(cardId);
-      if (opponentCard) return cachedCardThumb(opponentCard, 'normal') ?? null;
+      if (opponentCard) {
+        const src = cachedCardThumb(opponentCard, 'normal');
+        return src ? { src } : null;
+      }
       return previewSrcs.get(cardId) ?? null;
     },
     [opponentPreviewNames, previewSrcs]
@@ -918,6 +933,17 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     if (deck.partnerCommander) out.push(deck.partnerCommander);
     return out;
   }, [deck]);
+  // Which tokens each card makes, for the card menus' Create token submenu —
+  // the same Scryfall relationships the token picker's "Deck tokens" grid
+  // reads, resolved once for the deck.
+  const deckTokens = useDeckTokens(deckTokenSources);
+  const tokensMadeBy = useCallback(
+    (name: string): MadeToken[] =>
+      deckTokens
+        .filter((t) => t.producers.includes(name))
+        .map((t) => (t.typeLine ? { name: t.name, typeLine: t.typeLine } : { name: t.name })),
+    [deckTokens]
+  );
   const stackIdSet = useMemo(() => new Set(state.stack ?? []), [state.stack]);
 
   const ctxCard = ctx ? state.battlefield.find((b) => b.card.id === ctx.cardId) : null;
@@ -2312,6 +2338,30 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
 
   const openPileMenu = (zone: Zone) => (x: number, y: number) => setPileMenu({ zone, x, y });
 
+  /** A token onto the battlefield — from the token picker, or a card menu's
+   *  Create token row. */
+  const createToken = ({ name, typeLine, imageUrl }: MadeToken & { imageUrl?: string }) => {
+    const id = `tok-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const tokenCard: PlaytestCard = {
+      id,
+      name,
+      isToken: true,
+      // Carried through so auto-placement puts a creature token in the
+      // creature row rather than guessing from the name.
+      ...(typeLine !== undefined && { typeLine }),
+      ...(imageUrl !== undefined && { imageUrl }),
+    };
+    const { x, y } = placeOnBattlefield(tokenCard);
+    dispatch({ type: 'CREATE_TOKEN', card: tokenCard, x, y });
+    // A token picked from the grid already brought its art. Anything else
+    // needs resolving, and that never blocks the token appearing — the
+    // placeholder renders immediately and the art swaps in when (if) it lands.
+    if (imageUrl) return;
+    void resolveTokenArt(name).then((url) => {
+      if (url) dispatch({ type: 'SET_CARD_IMAGE', cardId: id, imageUrl: url });
+    });
+  };
+
   /** Out of the command zone onto the battlefield — the reducer bumps that
    *  commander's own tax. */
   const castCommander = (card: PlaytestCard) => {
@@ -2755,6 +2805,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           // Acting on a card that's part of the live selection copies the
           // whole selection — otherwise just the card you opened the menu on.
           selectionSize={selected.has(ctx.cardId) ? selected.size : 1}
+          tokens={tokensMadeBy(ctxCard.card.name)}
+          onCreateToken={createToken}
           onDuplicate={() => {
             cloneCards(selected.has(ctx.cardId) ? [...selected] : [ctx.cardId]);
             setCtx(null);
@@ -2803,6 +2855,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           cardName={handMenuCard.name}
           zone={handMenuZone}
           libraryCount={libraryCount}
+          tokens={tokensMadeBy(handMenuCard.name)}
+          onCreateToken={createToken}
           variant={isNarrow ? 'sheet' : 'floating'}
           keyFor={keyFor}
           onClose={() => setHandMenu(null)}
@@ -2877,28 +2931,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         <TokenCreator
           deckCards={deckTokenSources}
           onClose={() => setTokenCreator(false)}
-          onCreate={({ name, typeLine, imageUrl }) => {
-            const id = `tok-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-            const tokenCard: PlaytestCard = {
-              id,
-              name,
-              isToken: true,
-              // Carried through so auto-placement puts a creature token in
-              // the creature row rather than guessing from the name.
-              ...(typeLine !== undefined && { typeLine }),
-              ...(imageUrl !== undefined && { imageUrl }),
-            };
-            const { x, y } = placeOnBattlefield(tokenCard);
-            dispatch({ type: 'CREATE_TOKEN', card: tokenCard, x, y });
+          onCreate={(token) => {
+            createToken(token);
             setTokenCreator(false);
-            // A token picked from the grid already brought its art. Only a
-            // name typed by hand needs resolving, and that never blocks the
-            // token appearing — the placeholder renders immediately and the
-            // art swaps in when (if) it lands.
-            if (imageUrl) return;
-            void resolveTokenArt(name).then((url) => {
-              if (url) dispatch({ type: 'SET_CARD_IMAGE', cardId: id, imageUrl: url });
-            });
           }}
         />
       )}

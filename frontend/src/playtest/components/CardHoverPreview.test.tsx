@@ -22,7 +22,9 @@ const SRCS: Record<string, string> = {
   b: 'https://img/b.jpg',
   c: 'https://img/c.jpg',
 };
-const resolve = (id: string) => SRCS[id] ?? null;
+/** A two-faced card: the face showing, and the other one. */
+const DFC = { src: 'https://img/delver.jpg', back: 'https://img/aberration.jpg' };
+const resolve = (id: string) => (id === 'dfc' ? DFC : SRCS[id] ? { src: SRCS[id] } : null);
 
 function cardEl(id?: string, isToken = false) {
   const el = document.createElement('div');
@@ -154,6 +156,39 @@ describe('CardHoverPreview', () => {
     });
     const pane = document.querySelector<HTMLElement>('.playtest-hover-preview')!;
     expect(parseFloat(pane.style.top)).toBe(280 + 12);
+  });
+
+  // EDHPlay shows both faces of a two-faced card, and the face that is not
+  // showing is exactly the one the table cannot read. The pane is two faces
+  // wide, and still flips left for a card under it.
+  it('shows both faces of a two-faced card side by side, in a slot two wide', () => {
+    stubMatchMedia(true);
+    Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 900, configurable: true });
+    render(<CardHoverPreview suspended={false} resolve={resolve} />);
+    const el = cardEl('dfc');
+    el.getBoundingClientRect = () =>
+      ({ left: 300, right: 400, top: 400, bottom: 540, width: 100, height: 140 }) as DOMRect;
+    act(() => {
+      el.dispatchEvent(new Event('focusin', { bubbles: true }));
+      vi.advanceTimersByTime(0);
+    });
+    const pane = document.querySelector<HTMLElement>('.playtest-hover-preview')!;
+    expect([...pane.querySelectorAll('img')].map((i) => i.getAttribute('src'))).toEqual([
+      DFC.src,
+      DFC.back,
+    ]);
+    const paneWidth = 345.6 * 2 + 8;
+    expect(parseFloat(pane.style.width)).toBeCloseTo(paneWidth, 1);
+    expect(parseFloat(pane.style.left)).toBeCloseTo(1440 - 24 - paneWidth, 1);
+
+    // A single-faced card keeps the one-face slot.
+    const one = cardEl('a');
+    act(() => {
+      one.dispatchEvent(new Event('focusin', { bubbles: true }));
+      vi.advanceTimersByTime(0);
+    });
+    expect(document.querySelectorAll('.playtest-hover-preview img').length).toBe(1);
   });
 
   // The enlarged face is the art of the card the token copied, so this is

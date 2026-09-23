@@ -6,18 +6,26 @@ import './CardHoverPreview.css';
  *  a preview per card; focus (keyboard) shows immediately. */
 const HOVER_DELAY_MS = 220;
 const MARGIN = 12;
+/** Between the two faces of a two-faced card. */
+const FACE_GAP = 8;
+
+/** The art to enlarge: the face showing, and the other one when the card has
+ *  two (transform, modal double-faced). */
+export interface PreviewFaces {
+  src: string;
+  back?: string;
+}
 
 interface Props {
   /** Hidden while true — a drag in progress, or any sheet/menu open. */
   suspended: boolean;
-  /** Image URL for a card instance id, or null when it has none to show
+  /** The faces for a card instance id, or null when it has none to show
    *  (face-down, no art). The DOM carries only the id (`data-preview-id`);
-   *  the URL always comes from here, i.e. from React state. */
-  resolve(cardId: string): string | null;
+   *  the URLs always come from here, i.e. from React state. */
+  resolve(cardId: string): PreviewFaces | null;
 }
 
-interface Target {
-  src: string;
+interface Target extends PreviewFaces {
   rect: DOMRect;
   /** The hovered card is a token copy (`data-token`). The enlarged art is
    *  the art of the card it copied, so without this the one surface that
@@ -48,9 +56,9 @@ export function CardHoverPreview({ suspended, resolve }: Props) {
     };
     const read = (el: Element): Target | null => {
       const id = el.getAttribute('data-preview-id');
-      const src = id ? resolve(id) : null;
-      return src
-        ? { src, rect: el.getBoundingClientRect(), isToken: el.hasAttribute('data-token') }
+      const faces = id ? resolve(id) : null;
+      return faces
+        ? { ...faces, rect: el.getBoundingClientRect(), isToken: el.hasAttribute('data-token') }
         : null;
     };
     const show = (el: Element, delay: number) => {
@@ -104,7 +112,9 @@ export function CardHoverPreview({ suspended, resolve }: Props) {
   const vh = window.innerHeight;
   const width = Math.min(352, vw * 0.24);
   const height = width * 1.4;
-  const rightSlot = vw - MARGIN * 2 - width;
+  // A two-faced card shows both faces side by side, so the slot is two wide.
+  const paneWidth = target.back ? width * 2 + FACE_GAP : width;
+  const rightSlot = vw - MARGIN * 2 - paneWidth;
   const r = target.rect;
   const centred = Math.max(MARGIN, (vh - height) / 2);
   const underRightSlot =
@@ -118,18 +128,25 @@ export function CardHoverPreview({ suspended, resolve }: Props) {
   let top = centred;
   for (const el of document.querySelectorAll('.playtest-corner')) {
     const c = el.getBoundingClientRect();
-    if (c.right > left && c.left < left + width && c.bottom + MARGIN > top) {
+    if (c.right > left && c.left < left + paneWidth && c.bottom + MARGIN > top) {
       top = c.bottom + MARGIN;
     }
   }
   top = Math.min(top, Math.max(MARGIN, vh - height - MARGIN));
 
   return (
-    <div className="playtest-hover-preview" style={{ left, top, width }} aria-hidden>
-      <img src={target.src} alt="" draggable={false} decoding="async" />
-      {/* The same ribbon the card itself wears, on the same corner, at a
-          size that suits the bigger face. */}
-      {target.isToken && <span className="playtest-hover-preview__token">Token</span>}
+    <div className="playtest-hover-preview" style={{ left, top, width: paneWidth }} aria-hidden>
+      <div className="playtest-hover-preview__face">
+        <img src={target.src} alt="" draggable={false} decoding="async" />
+        {/* The same ribbon the card itself wears, on the same corner, at a
+            size that suits the bigger face. */}
+        {target.isToken && <span className="playtest-hover-preview__token">Token</span>}
+      </div>
+      {target.back && (
+        <div className="playtest-hover-preview__face">
+          <img src={target.back} alt="" draggable={false} decoding="async" />
+        </div>
+      )}
     </div>
   );
 }

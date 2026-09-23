@@ -9,14 +9,23 @@
 .playtest-hover-preview {
   position: fixed;
   z-index: var(--z-table-panel);
+  display: flex;
+  gap: var(--space-2);
   width: min(22rem, 24vw);
+  pointer-events: none;
+  animation: playtest-hover-preview-in 120ms ease-out;
+}
+
+/* One face; a two-faced card gets two, side by side (EDHPlay's hover). The
+   pane's width is set inline to one or two faces plus the gap. */
+.playtest-hover-preview__face {
+  position: relative;
+  flex: 1;
   aspect-ratio: 5 / 7;
   border-radius: 4.5% / 3.2%;
   overflow: hidden;
   box-shadow: var(--shadow-modal);
   background: var(--surface-raised);
-  pointer-events: none;
-  animation: playtest-hover-preview-in 120ms ease-out;
 }
 
 .playtest-hover-preview img {

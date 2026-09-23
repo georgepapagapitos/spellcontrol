@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { usePressRepeat } from '@/lib/use-press-repeat';
 import type { Zone } from '@/lib/playtest';
 import type { ShortcutId } from '../lib/shortcuts';
-import { moveToEntries } from './move-to-entries';
+import { createTokenEntries, moveToEntries, type MadeToken } from './menu-entries';
 import { SEPARATOR, TableContextMenu, type MenuEntry } from './TableContextMenu';
 
 interface Props {
@@ -68,6 +68,10 @@ interface Props {
   onDrawArrow?(): void;
   /** Put this card on the stack, or put a copy of it there. */
   onPutOnStack(copy: boolean): void;
+  /** The tokens this card makes, for EDHPlay's Create token submenu. Empty
+   *  or omitted (a card that makes none) shows no row. */
+  tokens?: readonly MadeToken[];
+  onCreateToken?(token: MadeToken): void;
   /** Token-copy this card. When a multi-card selection is active and includes
    *  this card, the whole selection is copied — `selectionSize` says so. */
   onDuplicate(): void;
@@ -199,6 +203,8 @@ export function CardContextMenu({
   onDrawArrow,
   onPutOnStack,
   onDuplicate,
+  tokens = [],
+  onCreateToken,
   selectionSize = 1,
   onMoveTo,
   libraryCount,
@@ -498,6 +504,7 @@ export function CardContextMenu({
       shortcut: key('clone'),
       onClick: onDuplicate,
     },
+    ...(onCreateToken ? createTokenEntries(tokens, onCreateToken) : []),
     ...(onDrawArrow
       ? [{ label: 'Draw an arrow', shortcut: key('arrow'), onClick: onDrawArrow }]
       : []),

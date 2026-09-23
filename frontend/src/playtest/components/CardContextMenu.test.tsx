@@ -105,6 +105,25 @@ describe('CardContextMenu — EDHPlay’s shape', () => {
     expect(screen.queryByLabelText('Sticker text')).toBeNull();
   });
 
+  it('puts Create token beside the token copy, only for a card that makes tokens', () => {
+    const onCreateToken = vi.fn();
+    render(
+      <CardContextMenu
+        {...baseProps()}
+        tokens={[{ name: 'Treasure', typeLine: 'Token Artifact — Treasure' }]}
+        onCreateToken={onCreateToken}
+      />
+    );
+    const shape = rootShape();
+    expect(shape.indexOf('Create token')).toBe(shape.indexOf('Make a token copy') + 1);
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Create token/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Treasure' }));
+    expect(onCreateToken).toHaveBeenCalledWith({
+      name: 'Treasure',
+      typeLine: 'Token Artifact — Treasure',
+    });
+  });
+
   it('offers Flip only on a two-faced card', () => {
     render(<CardContextMenu {...baseProps()} />);
     expect(screen.queryByRole('menuitem', { name: /^Flip/ })).toBeNull();
