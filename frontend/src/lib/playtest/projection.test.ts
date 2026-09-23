@@ -35,6 +35,7 @@ describe('toPublicBoard', () => {
         hand: [card('secrethand', { name: 'Secret Hand Card' })],
         graveyard: [],
         exile: [],
+        sideboard: [],
         command: [],
       },
     });
@@ -53,6 +54,7 @@ describe('toPublicBoard', () => {
         hand: [card('h0'), card('h1')],
         graveyard: [],
         exile: [],
+        sideboard: [],
         command: [],
       },
     });
@@ -193,6 +195,7 @@ describe('toPublicBoard', () => {
         hand: [],
         graveyard: [card('imggy')],
         exile: [card('imgex')],
+        sideboard: [],
         command: [card('imgcmd')],
       },
     });
@@ -208,7 +211,7 @@ describe('toPublicBoard', () => {
       past: [
         {
           ...baseState(),
-          zones: { library: [], hand: [], graveyard: [], exile: [], command: [] },
+          zones: { library: [], hand: [], graveyard: [], exile: [], sideboard: [], command: [] },
         },
       ],
     });

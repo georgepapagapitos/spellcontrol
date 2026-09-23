@@ -63,6 +63,7 @@ const EMPTY_TEXT: Record<Zone, string> = {
   graveyard: 'Your graveyard is empty.',
   exile: 'Nothing in exile.',
   command: 'Command zone is empty.',
+  sideboard: 'Your sideboard is empty.',
 };
 
 /** Order-of-the-pile hint shown under the title — null zones render nothing
@@ -73,6 +74,7 @@ const ORDER_HINT: Record<Zone, string | null> = {
   graveyard: 'Most recent on top.',
   exile: 'Most recent on top.',
   command: null,
+  sideboard: null,
 };
 
 /** Reducer APPENDS to graveyard/exile, so the last entry is the most

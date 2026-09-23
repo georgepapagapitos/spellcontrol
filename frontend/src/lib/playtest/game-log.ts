@@ -84,6 +84,7 @@ const ZONE_LABEL: Record<Zone, string> = {
   graveyard: 'graveyard',
   exile: 'exile',
   command: 'command zone',
+  sideboard: 'sideboard',
 };
 
 const DESIGNATION_LABEL = {

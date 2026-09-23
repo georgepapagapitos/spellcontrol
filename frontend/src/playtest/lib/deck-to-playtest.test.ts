@@ -99,3 +99,29 @@ describe('deckToPlaytestInit — printings', () => {
     expect(init.library[0].imageUrl).toBe('https://img/sol-cmr.jpg');
   });
 });
+
+/** Karn, Wishes, Learn and companions fetch from outside the game, so the
+ *  deck's sideboard comes to the table (user request, 2026-09-23). */
+describe('deckToPlaytestInit — outside the game', () => {
+  const karnTarget = printing('sf-lattice', 'Mycosynth Lattice', 'https://img/lattice.jpg');
+  const idea = printing('sf-idea', 'Grasp of Darkness', 'https://img/grasp.jpg');
+
+  it('deals the sideboard, and never the considering shortlist', () => {
+    const init = deckToPlaytestInit(
+      deck([], {
+        sideboard: [slot('sb1', karnTarget, null)],
+        considering: [slot('c1', idea, null)],
+      })
+    );
+    expect(init.sideboard).toEqual([
+      expect.objectContaining({ id: 'sb-sb1', name: 'Mycosynth Lattice', origin: 'sideboard' }),
+    ]);
+    expect(init.library).toEqual([]);
+  });
+
+  it('marks commanders so a reset returns them to the command zone', () => {
+    const cmdr = printing('sf-karn', 'Karn, the Great Creator', 'https://img/karn.jpg');
+    const init = deckToPlaytestInit(deck([], { commander: cmdr }));
+    expect(init.command?.[0].origin).toBe('command');
+  });
+});

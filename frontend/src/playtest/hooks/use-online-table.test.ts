@@ -245,6 +245,7 @@ describe('useOnlineTable', () => {
         hand: [card('secrethand', { name: 'Secret Hand Card' })],
         graveyard: [],
         exile: [],
+        sideboard: [],
         command: [],
       },
     });

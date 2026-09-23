@@ -16,7 +16,7 @@ function baseState(
   overrides: Partial<Omit<PlaytestState, 'past'>> = {}
 ): Omit<PlaytestState, 'past'> {
   return {
-    zones: { library: [], hand: [], graveyard: [], exile: [], command: [] },
+    zones: { library: [], hand: [], graveyard: [], exile: [], sideboard: [], command: [] },
     battlefield: [],
     rngSeed: 42,
     turn: 1,
@@ -421,5 +421,13 @@ describe('backfillManaCost', () => {
     expect(backfillManaCost(state, undefined)).toBe(state);
     const out = backfillManaCost(state, deck);
     expect(out.zones.library[0]).toBe(state.zones.library[0]);
+  });
+});
+
+describe('sideboard zone — backward compat', () => {
+  it('backfills an empty sideboard on a game saved before the zone existed', () => {
+    const legacy = baseState();
+    delete (legacy.zones as Partial<typeof legacy.zones>).sideboard;
+    expect(migrateSnapshotState(legacy, undefined).zones.sideboard).toEqual([]);
   });
 });

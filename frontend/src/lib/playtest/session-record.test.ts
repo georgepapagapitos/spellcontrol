@@ -18,7 +18,7 @@ function baseState(
   overrides: Partial<Omit<PlaytestState, 'past'>> = {}
 ): Omit<PlaytestState, 'past'> {
   return {
-    zones: { library: [], hand: [], graveyard: [], exile: [], command: [] },
+    zones: { library: [], hand: [], graveyard: [], exile: [], sideboard: [], command: [] },
     battlefield: [],
     rngSeed: 1,
     turn: 1,
@@ -257,6 +257,7 @@ describe('deriveSessionRecord', () => {
         hand: [{ id: 'h1', name: 'H' }],
         graveyard: [],
         exile: [],
+        sideboard: [],
         command: [],
       },
       battlefield: [{ card: { id: 'b1', name: 'B', isToken: false } } as never],
