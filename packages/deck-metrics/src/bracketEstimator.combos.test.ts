@@ -220,7 +220,58 @@ describe('explainability helpers', () => {
       new Set(),
       noTags
     );
-    expect(softScorePoints(r.breakdown)).toEqual({ fastMana: 16, tutors: 0, curve: 15 });
+    expect(softScorePoints(r.breakdown)).toEqual({
+      fastMana: 16,
+      tutors: 0,
+      curve: 15,
+      engines: 0,
+    });
     expect(r.softScore).toBe(31);
+  });
+});
+
+// A loop that doesn't end the game sets no floor, but a deck that can draw its
+// library is stronger than one that can't. The Ulamog deck that raised this ran
+// all three of these (Spellbook: E, "Infinite card draw").
+describe('loop combos add to the power signal as combo engines', () => {
+  const top = "Sensei's Divining Top";
+  const ulamogLoops = [
+    sb([top, 'Foundry Inspector', 'Mystic Forge'], 'E'),
+    sb([top, 'Mystic Forge', 'Ugin, the Ineffable'], 'E'),
+    sb([top, 'Echoes of Eternity', 'Foundry Inspector'], 'E'),
+  ];
+
+  it('three loops through the Top are one engine: 10 points, no floor', () => {
+    const without = estimate([]);
+    const r = estimate(ulamogLoops);
+    expect(r.hardFloors).toEqual([]);
+    expect(r.bracket).toBe(2);
+    expect(r.breakdown.loopEngineCount).toBe(1);
+    expect(r.breakdown.loopCombos).toEqual(ulamogLoops.map((c) => c.cards));
+    expect(r.softScore - without.softScore).toBe(10);
+  });
+
+  it('independent loops add up, capped at 20', () => {
+    const r = estimate([
+      sb(['A1', 'B1', 'C1'], 'E'),
+      sb(['A2', 'B2', 'C2'], 'C'),
+      sb(['A3', 'B3', 'C3'], 'E'),
+    ]);
+    expect(r.breakdown.loopEngineCount).toBe(3);
+    expect(softScorePoints(r.breakdown).engines).toBe(20);
+  });
+
+  it('a template variant is neither a floor nor an engine', () => {
+    const r = estimate([
+      { ...sb(['Hullbreaker Horror', 'Sol Ring'], 'E'), comboId: '513-5034--46' },
+    ]);
+    expect(r.breakdown.loopEngineCount).toBe(0);
+    expect(r.breakdown.lowPowerComboCount).toBe(0);
+  });
+
+  it('a combo that sets a floor is not also an engine', () => {
+    const r = estimate([sb(['Lightning Runner', 'Aetherwind Basker'], 'S')]);
+    expect(r.bracket).toBe(3);
+    expect(r.breakdown.loopEngineCount).toBe(0);
   });
 });

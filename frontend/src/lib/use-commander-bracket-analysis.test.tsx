@@ -40,7 +40,7 @@ function sig(
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null
 ): string {
   return [
-    'v8-spellbook-parity',
+    'v9-loop-engines',
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
     deck.cards

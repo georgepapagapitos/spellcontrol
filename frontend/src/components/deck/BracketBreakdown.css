@@ -33,6 +33,22 @@
   color: var(--text-muted);
 }
 
+/* The loops that set no floor, one row of card chips per loop. */
+.bracket-breakdown-loops {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.bracket-breakdown-loop-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 /* Context under a section: combos that don't count, and the estimate's limits. */
 .bracket-breakdown-footnote {
   margin: 0;
