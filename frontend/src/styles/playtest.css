@@ -79,6 +79,10 @@ body:has(.playtest-page) {
      below override both with their own fixed sizes. */
   --pt-card-w: calc(clamp(90px, min(7vw, (100vh - 40px) / 7.6), 140px) * var(--pt-zoom, 1));
   --pt-card-h: calc(var(--pt-card-w) * 1.4);
+  /* The Hand button at the head of the pile row. Fixed, so the room the fan
+     leaves for the row (here and `pilesWidth` in lib/fan-layout.ts) is a sum
+     rather than a measurement. */
+  --pt-hand-btn-w: 5.5rem;
   /* Half the extra width a tapped (90°-rotated) card sticks out past its
      slot: the battlefield keeps this much clear on each side so a tapped
      card at x = 0 or x = 1 is never clipped by the wrap's overflow. */
@@ -3779,7 +3783,7 @@ button.playtest-card-pt__value--editable:focus-visible {
   .playtest-corner-btn:hover,
   .playtest-mana-collapsed:hover,
   .playtest-life-table__details:hover,
-  .playtest-hand--fan .playtest-hand__toggle:hover {
+  .playtest-hand-menu-btn:hover {
     border-color: var(--border-strong);
     color: var(--text-primary);
   }
@@ -3788,7 +3792,7 @@ button.playtest-card-pt__value--editable:focus-visible {
 .playtest-corner-btn:active,
 .playtest-mana-collapsed:active,
 .playtest-life-table__step:active,
-.playtest-hand--fan .playtest-hand__toggle:active {
+.playtest-hand-menu-btn:active {
   transform: translateY(1px);
 }
 
@@ -3799,7 +3803,7 @@ button.playtest-card-pt__value--editable:focus-visible {
 .playtest-life-table__step:focus-visible,
 .playtest-life-table__total:focus-visible,
 .playtest-life-table__details:focus-visible,
-.playtest-hand__toggle:focus-visible {
+.playtest-hand-menu-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -3819,13 +3823,14 @@ button.playtest-card-pt__value--editable:focus-visible {
 }
 
 /* ── Bottom hand fan ────────────────────────────────────────────────────── */
-/* Centred in the width the zone-pile row leaves free (the row is four
-   card-width tiles: `pilesWidth` in lib/fan-layout.ts is the same sum), and
+/* Centred in the width the zone-pile row leaves free (the row is the Hand
+   button and four card-width tiles: `pilesWidth` in lib/fan-layout.ts is the
+   same sum), and
    tucked so the lower part of every card hangs below the table edge: the
    name and art show, the hover lift brings the whole card up. */
 .playtest-hand--fan {
   position: absolute;
-  left: calc((100% - (4 * (var(--pt-card-w) + 13px) + 36px)) / 2);
+  left: calc((100% - (4 * (var(--pt-card-w) + 13px) + var(--pt-hand-btn-w) + 44px)) / 2);
   bottom: calc(var(--pt-card-h) * -0.38);
   transform: translateX(-50%);
   z-index: 3;
@@ -3969,60 +3974,30 @@ button.playtest-card-pt__value--editable:focus-visible {
   white-space: nowrap;
 }
 
-/* Out of the flow (so the FAN is what's centred, not the fan plus its
-   toggle) and parked just past the fan's right end, on the table edge, the
-   way EDHPlay's "Hand (7)" sits beside the hand. Plain small text, no pill:
-   it is a caption, not a control competing with the cards, and it never
-   overlaps the last card the way an in-box toggle did. */
-.playtest-hand--fan .playtest-hand__toggle {
-  position: absolute;
-  left: 100%;
-  /* The fan hangs below the edge; the toggle stays on the table. */
-  bottom: calc(var(--pt-card-h) * 0.38 + var(--space-2));
-  /* Above every slot: the fan gives each card an ascending z-index, so a
-     z-index of 1 here left the toggle painted under most of the hand. */
-  z-index: 20;
-  min-height: 0;
-  padding: var(--space-1);
-  white-space: nowrap;
-  color: var(--text-secondary);
-  font-size: var(--text-xs);
-}
-
-.playtest-hand--fan.is-collapsed .playtest-hand__toggle {
-  position: static;
-  min-height: 44px;
-  padding: var(--space-1) var(--space-3);
-  font-size: var(--text-sm);
-  background: color-mix(in oklab, var(--surface) 88%, transparent);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-tooltip);
-  backdrop-filter: blur(6px);
-}
-
-.playtest-hand__toggle {
+/* The hand's count and menu (EDHPlay's "⌄ Hand (7)"), the first thing in the
+   pile row, beside the library. Plain small text, no pill: it is a caption
+   on the felt, not a control competing with the cards. Opens the hand menu;
+   it never hides the hand. */
+.playtest-hand-menu-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-1);
+  flex: none;
+  width: var(--pt-hand-btn-w);
   min-height: 44px;
-  padding: var(--space-1) var(--space-3);
+  padding: var(--space-1);
+  border: 0;
+  background: none;
   color: var(--text-secondary);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
-  flex: 0 0 auto;
 }
 
-.playtest-hand--fan.is-collapsed {
-  /* Still a drop target, still shows the count, just the pill. */
-  padding: 0;
-  bottom: var(--space-3);
-}
-
-.playtest-hand--fan.is-collapsed.is-over .playtest-hand__toggle {
-  border-color: var(--accent);
-  color: var(--accent);
+.playtest-hand-menu-btn[aria-expanded='true'] {
+  color: var(--text-primary);
 }
 
 /* ── The felt itself ───────────────────────────────────────────────────── */
@@ -4130,7 +4105,7 @@ button.playtest-card-pt__value--editable:focus-visible {
    of the piles instead — the same answer the 1024-1150px tier already uses,
    rather than shrinking the cards below what a hand has to be readable at. */
 .playtest-main--grid .playtest-hand--fan {
-  left: calc((100% - 21rem) / 2);
+  left: calc((100% - 21rem - var(--pt-hand-btn-w)) / 2);
 }
 
 /* The play ticker's home once there is no rail column to hold it: the top
@@ -4561,7 +4536,7 @@ button.playtest-card-pt__value--editable:focus-visible {
      depends on how many of them stand out here (four on a tablet, two on a
      phone). */
   .playtest-board {
-    --pt-pile-span: calc(4 * var(--pt-card-w) + 5 * var(--space-2));
+    --pt-pile-span: calc(4 * var(--pt-card-w) + var(--pt-hand-btn-w) + 6 * var(--space-2));
   }
 
   .playtest-hand--fan {
@@ -4572,14 +4547,6 @@ button.playtest-card-pt__value--editable:focus-visible {
   .playtest-piles {
     right: var(--space-2);
     gap: var(--space-2);
-  }
-
-  /* The toggle parks to the RIGHT of the fan at desk widths, on free felt.
-     Here that felt is the library, so it comes back over the fan's own last
-     card — where EDHPlay puts it too. */
-  .playtest-hand--fan .playtest-hand__toggle {
-    left: auto;
-    right: 0;
   }
 }
 
@@ -4592,6 +4559,16 @@ button.playtest-card-pt__value--editable:focus-visible {
 @media (max-width: 767px) {
   .playtest-board {
     --pt-pile-span: calc(2 * var(--pt-card-w) + 3 * var(--space-2));
+  }
+
+  /* A seven-card fan, the button and two piles do not fit one 390px row: in
+     the row, the fan covered the button. It stands above the library's label
+     instead, still beside the zones, and the fan keeps the width it had. */
+  .playtest-hand-menu-btn {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    justify-content: flex-start;
   }
 
   .playtest-zones-tab {

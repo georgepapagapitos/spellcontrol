@@ -23,16 +23,6 @@ function block(header: string): string {
   return css.slice(start, end);
 }
 
-/** Same, but the LAST rule with this header — several selectors appear once in
- *  the shared panel-surface group and again as their own positioned rule, and
- *  `indexOf` always answers with the group. */
-function lastBlock(header: string): string {
-  const start = css.lastIndexOf(header);
-  expect(start, `${header} is missing`).toBeGreaterThan(-1);
-  const end = css.indexOf('\n}\n', start);
-  return css.slice(start, end);
-}
-
 describe('table chrome at the wide tier', () => {
   it('fans the hand: overlap, rotation origin and a lift that leaves neighbours alone', () => {
     // Overlap is a negative margin in card widths, so it tracks the density
@@ -178,13 +168,24 @@ describe('table chrome at the wide tier', () => {
     expect(block('.playtest-mana-pool--column {')).toContain('flex-direction: column');
   });
 
-  it('bottom-anchors the hand toggle instead of floating it above the cards', () => {
-    // A leading newline pins this to the desktop rule: the phone tier
-    // re-anchors the same selector, indented, further down the file.
-    const toggle = lastBlock('\n.playtest-hand--fan .playtest-hand__toggle {');
-    // Anchored at the table edge while the fan itself hangs below it.
-    expect(toggle).toContain('bottom: calc(var(--pt-card-h) * 0.38 + var(--space-2))');
-    expect(toggle).not.toContain('bottom: 100%');
+  it('sizes the Hand button off the one width every fan reservation adds in', () => {
+    // It sits in the pile row, so the fan's room for that row has to count
+    // it: a fixed width keeps each reservation a sum, and every one in the
+    // row (desk, grid seat, tablet) must name it or the fan runs under it.
+    expect(block('.playtest-hand-menu-btn {')).toContain('width: var(--pt-hand-btn-w)');
+    expect(css).not.toContain('.playtest-hand__toggle');
+    expect(css).not.toContain('.playtest-hand--fan.is-collapsed');
+    // A phone has no room for it in the row (the fan covered it at 390px),
+    // so it stands above the library instead and the phone span leaves it out.
+    const [tablet, phone] = [...css.matchAll(/--pt-pile-span: calc\([^;]+;/g)].map((m) => m[0]);
+    expect(tablet).toContain('--pt-hand-btn-w');
+    expect(phone).not.toContain('--pt-hand-btn-w');
+    const phoneTier = css.slice(css.lastIndexOf('@media (max-width: 767px) {'));
+    expect(phoneTier).toContain(
+      '.playtest-hand-menu-btn {\n    position: absolute;\n    bottom: 100%;'
+    );
+    expect(block('\n.playtest-hand--fan {')).toContain('var(--pt-hand-btn-w)');
+    expect(block('.playtest-main--grid .playtest-hand--fan {')).toContain('var(--pt-hand-btn-w)');
   });
 
   // The hint it used to style ("Tap or drag a card from your hand to play
@@ -215,11 +216,9 @@ describe('table chrome at the wide tier', () => {
 
   it('keeps every new control on the 44px floor and with a visible focus ring', () => {
     expect(block('.playtest-corner-btn {')).toContain('min-height: 44px');
-    // Matched on the newline so the shared panel group (whose last selector
-    // is `.playtest-hand--fan .playtest-hand__toggle`) can't answer for it.
-    expect(block('\n.playtest-hand__toggle {')).toContain('min-height: 44px');
+    expect(block('.playtest-hand-menu-btn {')).toContain('min-height: 44px');
     expect(css).toContain('.playtest-corner-btn:focus-visible,');
-    expect(css).toContain('.playtest-hand__toggle:focus-visible {');
+    expect(css).toContain('.playtest-hand-menu-btn:focus-visible {');
     // The pile has no button of its own to size: the tile IS the target
     // (its click draws or opens the viewer), and the menu is reached by
     // right-click, the Context Menu key, or a finger's long-press. A kebab
@@ -362,7 +361,7 @@ describe('the desktop seat grid', () => {
 
   it('re-centres the fan clear of the pile row and lifts the log dock off it', () => {
     expect(block('.playtest-main--grid .playtest-hand--fan {')).toContain(
-      'left: calc((100% - 21rem) / 2)'
+      'left: calc((100% - 21rem - var(--pt-hand-btn-w)) / 2)'
     );
     const dock = readFileSync(join(here, '../playtest/components/LogDock.css'), 'utf8');
     // Below the grid the rail owns a 15rem column and the dock docked over it.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createPlaytestState } from './reducer';
+import { applyAction, createPlaytestState } from './reducer';
 import { toPublicBoard, toProjectedCard, toPublicTicker, TICKER_LIMIT } from './projection';
 import type { GameLogEntry } from './game-log';
 import type { PlaytestCard, PlaytestState } from './types';
@@ -461,5 +461,19 @@ describe('toPublicBoard — face-down exile', () => {
 
   it('keeps the count honest — a hidden card is still a card in exile', () => {
     expect(toPublicBoard(exiled(true), 1).exile).toHaveLength(2);
+  });
+});
+
+describe('toPublicBoard — playing with the hand revealed', () => {
+  it('shows the whole live hand, including a card drawn after turning it on', () => {
+    const on = applyAction(baseState(), { type: 'SET_HAND_REVEALED', revealed: true });
+    const drawn = applyAction(on, { type: 'DRAW' });
+    expect(toPublicBoard(drawn, 1).revealed?.map((c) => c.id)).toEqual(
+      drawn.zones.hand.map((c) => c.id)
+    );
+  });
+
+  it('shows nothing from hand while it is off', () => {
+    expect(toPublicBoard(baseState(), 1).revealed).toEqual([]);
   });
 });

@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useDroppable } from '@dnd-kit/core';
 import type { PlaytestCard } from '@/lib/playtest';
 import { ManaCost } from '@/components/ManaCost';
@@ -7,8 +6,6 @@ import { fanOverlap } from '../lib/fan-layout';
 import { isPlaytestLand } from '../lib/zones';
 import { PlaytestCardView } from './PlaytestCardView';
 
-/** Per-viewer convenience only — never read back by anything but this fan. */
-const COLLAPSED_KEY = 'spellcontrol:playtest:hand-collapsed';
 /** Degrees of rotation per card away from the fan's centre. */
 const FAN_STEP_DEG = 2;
 /** Pixels a card drops per squared step from centre, which is what arcs the fan. */
@@ -20,8 +17,9 @@ interface Props {
   cards: PlaytestCard[];
   /**
    * Table tier (≥1024px): the hand is an overlapping, rotated fan floating
-   * over the battlefield with its own collapse toggle, rather than the flat
-   * scrolling strip every narrow tier keeps.
+   * over the battlefield, rather than the flat scrolling strip the hand
+   * sheet keeps. Its count and menu live beside the library (the board's
+   * Hand button), not here.
    */
   fan?: boolean;
   /** Open the hand-card menu (HandCardMenu.tsx) — right-click, the Context
@@ -88,16 +86,6 @@ export function Hand({ cards, fan = false, onCardMenu, revealedIds, reorderable 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const containerW = useContainerWidth(rootRef);
   const [cardW, setCardW] = useState(FALLBACK_CARD_W);
-  const [collapsed, setCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem(COLLAPSED_KEY) === '1';
-    } catch {
-      return false;
-    }
-  });
-  // Collapsing is the fan's own affordance; the flat strip has no toggle, so a
-  // stored "collapsed" must never hide a narrow viewport's whole hand.
-  const isCollapsed = fan && collapsed;
 
   // `--pt-card-w` is a registered `@property`, so this reads back a resolved px
   // length rather than the `clamp()` text (the same contract PlaytestBoard's
@@ -111,18 +99,6 @@ export function Hand({ cards, fan = false, onCardMenu, revealedIds, reorderable 
   }, [fan, containerW]);
 
   const overlap = fanOverlap(cards.length, cardW, containerW);
-
-  function toggle() {
-    setCollapsed((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(COLLAPSED_KEY, next ? '1' : '0');
-      } catch {
-        // Private mode / blocked site data: the toggle still works this session.
-      }
-      return next;
-    });
-  }
 
   const renderCard = (c: PlaytestCard) => (
     <PlaytestCardView
@@ -174,62 +150,43 @@ export function Hand({ cards, fan = false, onCardMenu, revealedIds, reorderable 
         rootRef.current = el;
         setNodeRef(el);
       }}
-      className={`playtest-hand${fan ? ' playtest-hand--fan' : ''}${
-        isCollapsed ? ' is-collapsed' : ''
-      }${isOver ? ' is-over' : ''}`}
+      className={`playtest-hand${fan ? ' playtest-hand--fan' : ''}${isOver ? ' is-over' : ''}`}
       aria-label="Hand"
     >
       {!fan && <span className="playtest-hand__label">Hand ({cards.length})</span>}
-      {!isCollapsed && (
-        <div className="playtest-hand__cards">
-          {cards.map((c, i) =>
-            fan ? (
-              <div
-                key={c.id}
-                className="playtest-hand__slot"
-                style={fanStyle(i, cards.length, overlap)}
-              >
-                {/* The lift on hover/focus is on this wrapper, so the cost badge
-                    rises with its card instead of staying behind on the felt. */}
-                <div className="playtest-hand__lift">
-                  {renderCard(c)}
-                  {revealedBadge(c)}
-                  {/* A land has no cost worth reading and a token has no mana
-                      value at all, so neither gets a badge. */}
-                  {c.manaValue !== undefined && !isPlaytestLand(c.typeLine) && (
-                    <span
-                      className={`playtest-hand__mv${c.manaCost ? '' : ' playtest-hand__mv--plain'}`}
-                      aria-hidden
-                    >
-                      {c.manaCost ? <ManaCost cost={c.manaCost} /> : c.manaValue}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div key={c.id} className="playtest-hand__flat">
+      <div className="playtest-hand__cards">
+        {cards.map((c, i) =>
+          fan ? (
+            <div
+              key={c.id}
+              className="playtest-hand__slot"
+              style={fanStyle(i, cards.length, overlap)}
+            >
+              {/* The lift on hover/focus is on this wrapper, so the cost badge
+                  rises with its card instead of staying behind on the felt. */}
+              <div className="playtest-hand__lift">
                 {renderCard(c)}
                 {revealedBadge(c)}
+                {/* A land has no cost worth reading and a token has no mana
+                    value at all, so neither gets a badge. */}
+                {c.manaValue !== undefined && !isPlaytestLand(c.typeLine) && (
+                  <span
+                    className={`playtest-hand__mv${c.manaCost ? '' : ' playtest-hand__mv--plain'}`}
+                    aria-hidden
+                  >
+                    {c.manaCost ? <ManaCost cost={c.manaCost} /> : c.manaValue}
+                  </span>
+                )}
               </div>
-            )
-          )}
-        </div>
-      )}
-      {fan && (
-        <button
-          type="button"
-          className="playtest-hand__toggle"
-          onClick={toggle}
-          aria-expanded={!isCollapsed}
-        >
-          {isCollapsed ? (
-            <ChevronUp aria-hidden width={14} height={14} />
+            </div>
           ) : (
-            <ChevronDown aria-hidden width={14} height={14} />
-          )}
-          Hand ({cards.length})
-        </button>
-      )}
+            <div key={c.id} className="playtest-hand__flat">
+              {renderCard(c)}
+              {revealedBadge(c)}
+            </div>
+          )
+        )}
+      </div>
     </div>
   );
 }

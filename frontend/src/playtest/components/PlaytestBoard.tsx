@@ -11,6 +11,7 @@ import {
   LogOut,
   Maximize2,
   Menu,
+  ChevronDown,
   Minimize2,
   RotateCcw,
   Rows3,
@@ -371,7 +372,13 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const [tableMenu, setTableMenu] = useState<{ x: number; y: number } | null>(null);
   // Which zone pile's menu is open, and where. Same menu component the felt
   // uses; the pile just supplies its own title and its own items.
-  const [pileMenu, setPileMenu] = useState<{ zone: Zone; x: number; y: number } | null>(null);
+  const [pileMenu, setPileMenu] = useState<{
+    zone: Zone;
+    x: number;
+    y: number;
+    /** Set when a button opened it rather than a pointer (the Hand button). */
+    origin?: 'bottom-end';
+  } | null>(null);
   const [manaOpen, setManaOpen] = useState(false);
   // "View board" from an online opponent's LifeStrip panel — opens the same
   // full-board inspector OpponentRail's own tap-to-open already uses.
@@ -920,7 +927,12 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const handMenuCard = handMenu
     ? state.zones[handMenuZone].find((c) => c.id === handMenu.cardId)
     : null;
-  const revealedIds = useMemo(() => new Set(state.revealed ?? []), [state.revealed]);
+  // Playing with the hand revealed marks every card, the same way the
+  // projection shows every card.
+  const revealedIds = useMemo(
+    () => new Set(state.handRevealed ? state.zones.hand.map((c) => c.id) : (state.revealed ?? [])),
+    [state.handRevealed, state.zones.hand, state.revealed]
+  );
   // Every card of the deck behind this session, for the token picker's
   // "Deck tokens" grid. Commanders included — a commander is as likely to
   // be the thing making tokens as anything in the ninety-nine. The sideboard
@@ -2158,6 +2170,39 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const pileMenuItems = (zone: Zone): MenuEntry[] => {
     const empty = state.zones[zone].length === 0;
     const moveAll = { label: 'Move all to', items: moveAllItems(zone), disabled: empty };
+    if (zone === 'hand') {
+      // EDHPlay's hand menu, in its order. As on the library, the reveals
+      // need a table to show anything to, so solo play leaves them out.
+      const handRevealed = Boolean(state.handRevealed);
+      return [
+        ...(onlineTable
+          ? [
+              {
+                label: 'Reveal hand',
+                disabled: empty,
+                items: [{ label: 'Everyone', onClick: () => dispatch({ type: 'REVEAL_HAND' }) }],
+              },
+              {
+                label: 'Play with hand revealed',
+                items: [
+                  {
+                    label: 'Everyone',
+                    pressed: handRevealed,
+                    onClick: () => dispatch({ type: 'SET_HAND_REVEALED', revealed: !handRevealed }),
+                  },
+                ],
+              },
+            ]
+          : []),
+        {
+          label: 'Discard at random',
+          onClick: () => dispatch({ type: 'DISCARD_RANDOM' }),
+          disabled: empty,
+        },
+        moveAll,
+        { label: 'View all', onClick: () => setViewer({ zone }), disabled: empty },
+      ];
+    }
     if (zone !== 'library') {
       // EDHPlay's: View all / Select random card, Move all to. Shuffling the
       // pile into the library is ours.
@@ -2383,6 +2428,23 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
      has the width for all four, so it keeps them. */
   const piles = (
     <aside className="playtest-piles">
+      {/* The hand's count and its menu, beside the library as in EDHPlay. The
+          short-landscape drawer strip is the hand's control there. */}
+      {!shortLandscape && (
+        <button
+          type="button"
+          className="playtest-hand-menu-btn"
+          aria-haspopup="menu"
+          aria-expanded={pileMenu?.zone === 'hand'}
+          onClick={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            setPileMenu({ zone: 'hand', x: r.right, y: r.top, origin: 'bottom-end' });
+          }}
+        >
+          <ChevronDown aria-hidden width={14} height={14} />
+          Hand ({state.zones.hand.length})
+        </button>
+      )}
       <ZonePile
         zone="library"
         label="Library"
@@ -2689,6 +2751,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           // One menu, two presentations: a cursor-anchored popover where
           // there is a cursor, the shared bottom sheet where there is a thumb.
           variant={isNarrow ? 'sheet' : 'floating'}
+          origin={pileMenu.origin}
           title={ZONE_VIEWER_LABEL[pileMenu.zone]}
           items={pileMenuItems(pileMenu.zone)}
           onClose={() => setPileMenu(null)}
@@ -2879,8 +2942,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
             dispatch({ type: 'MOVE_TO_ZONE', cardId: handMenu.cardId, to: zone, toIndex })
           }
           revealed={(state.revealed ?? []).includes(handMenu.cardId)}
+          // With the whole hand revealed there is nothing one card can add.
           onToggleReveal={
-            onlineTable
+            onlineTable && !state.handRevealed
               ? () => dispatch({ type: 'TOGGLE_REVEAL', cardId: handMenu.cardId })
               : undefined
           }

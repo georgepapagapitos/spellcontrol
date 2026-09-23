@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * The fan's cost badge and collapse toggle. The spacing arithmetic behind the
+ * The fan's cost badge and click rule. The spacing arithmetic behind the
  * fan lives in `lib/fan-layout.ts` and is tested beside it.
  */
 import { describe, expect, it, vi } from 'vitest';
@@ -50,11 +50,11 @@ describe('the fan cost badge', () => {
   });
 });
 
-describe('the fan collapse toggle', () => {
-  it('keeps the count visible while collapsed, and stays a drop target', () => {
+describe('the fan', () => {
+  it('always shows its cards: the count and the menu live on the board, not here', () => {
     renderHand([card({ id: 'a' }), card({ id: 'b' })]);
-    const toggle = screen.getByRole('button', { name: /Hand \(2\)/ });
-    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.queryByRole('button', { name: /Hand/ })).toBeNull();
+    expect(document.querySelectorAll('.playtest-hand__slot')).toHaveLength(2);
   });
 });
 
