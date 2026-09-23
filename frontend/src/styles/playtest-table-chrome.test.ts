@@ -220,11 +220,11 @@ describe('table chrome at the wide tier', () => {
     expect(block('\n.playtest-hand__toggle {')).toContain('min-height: 44px');
     expect(css).toContain('.playtest-corner-btn:focus-visible,');
     expect(css).toContain('.playtest-hand__toggle:focus-visible {');
-    // The pile's touch target is its kebab — the menu is the only control
-    // on a tile now that the library's Draw is the tile's own click.
-    expect(block('@media (pointer: coarse) {\n  .playtest-pile__kebab {')).toContain(
-      'min-height: 44px'
-    );
+    // The pile has no button of its own to size: the tile IS the target
+    // (its click draws or opens the viewer), and the menu is reached by
+    // right-click, the Context Menu key, or a finger's long-press. A kebab
+    // parked on a card is chrome a real table does not have.
+    expect(css).not.toContain('.playtest-pile__kebab');
   });
 
   it('recomputes the density cap off the fan, not the deleted chrome rows', () => {

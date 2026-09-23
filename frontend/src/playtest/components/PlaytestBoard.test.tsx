@@ -247,7 +247,7 @@ describe('PlaytestBoard', () => {
     expect(screen.getByRole('dialog', { name: /Graveyard/ })).toBeTruthy();
   });
 
-  it('opens the library menu on a right-click, on the kebab, and on the Context Menu key', () => {
+  it('opens the library menu on a right-click, on a long-press, and on the Context Menu key', () => {
     render(
       <MemoryRouter>
         <PlaytestBoard state={seededState()} />
@@ -273,8 +273,15 @@ describe('PlaytestBoard', () => {
     expect(within(menu).getByRole('menuitem', { name: /^Shuffle/ }).textContent).toContain('S');
     fireEvent.keyDown(window, { key: 'Escape' });
 
-    // 2. The kebab, which is what a keyboard or a touchscreen reaches for.
-    fireEvent.click(screen.getByRole('button', { name: 'Library actions' }));
+    // 2. Press and hold — a finger has no right-click, and the pile carries
+    // no button of its own to tap (#2122 took the kebab off the card).
+    vi.useFakeTimers();
+    try {
+      fireEvent.touchStart(tile, { touches: [{ clientX: 40, clientY: 40 }] });
+      vi.advanceTimersByTime(600);
+    } finally {
+      vi.useRealTimers();
+    }
     fireEvent.click(screen.getByRole('menuitem', { name: /^Shuffle/ }));
     expect(dispatch).toHaveBeenCalledWith({ type: 'SHUFFLE_LIBRARY' });
   });
@@ -786,7 +793,10 @@ describe('PlaytestBoard — rebindable shortcuts', () => {
     expect(dispatch).toHaveBeenCalledWith({ type: 'DRAW', n: 1 });
     // The library menu's Draw prints the live key, not the default — the
     // menu is the only place a Draw key is written down now.
-    fireEvent.click(screen.getByRole('button', { name: 'Library actions' }));
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^Draw a card\./ }), {
+      clientX: 20,
+      clientY: 20,
+    });
     expect(screen.getByRole('menuitem', { name: /^Draw a card/ }).textContent).toContain('J');
   });
 });
@@ -1534,9 +1544,15 @@ describe('PlaytestBoard — the phone gets the same zone menus', () => {
   });
 
   /** The library stands on the felt at every width now, so its menu comes
-   *  off its own kebab rather than out of the zones drawer. */
+   *  off the pile itself rather than out of the zones drawer. The pile has
+   *  no button for it: `contextmenu` is the event a right-click, the Context
+   *  Menu key and Shift+F10 all raise, and the press-and-hold routes to the
+   *  same handler (covered in ZonePile.test.tsx). */
   function openLibrarySheet() {
-    fireEvent.click(screen.getByRole('button', { name: 'Library actions' }));
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^Draw a card\./ }), {
+      clientX: 20,
+      clientY: 20,
+    });
   }
 
   it('opens the library menu as a sheet, with every row the table tier has', () => {
@@ -1597,7 +1613,10 @@ describe('PlaytestBoard — the phone gets the same zone menus', () => {
         <PlaytestBoard state={seededState()} />
       </MemoryRouter>
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Graveyard actions' }));
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^View the graveyard\./ }), {
+      clientX: 20,
+      clientY: 20,
+    });
     expect(screen.getByRole('dialog', { name: 'Graveyard' })).toBeTruthy();
     expect(screen.getByRole('menuitem', { name: /^Move all to/ })).toBeTruthy();
   });
@@ -1611,6 +1630,9 @@ describe('PlaytestBoard — the phone gets the same zone menus', () => {
       </MemoryRouter>
     );
     fireEvent.click(screen.getByRole('button', { name: 'Show exile and the command zone' }));
+    // Exile and the command zone live in the phone's zones DRAWER, which
+    // keeps its kebab: it is a header row in a panel you opened on purpose,
+    // not a button parked on a card.
     fireEvent.click(screen.getByRole('button', { name: 'Exile actions' }));
     expect(screen.getByRole('dialog', { name: 'Exile' })).toBeTruthy();
   });

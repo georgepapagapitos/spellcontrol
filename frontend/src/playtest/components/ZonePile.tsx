@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { MoreVertical } from 'lucide-react';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
+import { useLongPress } from '@/lib/use-long-press';
 import { commanderTaxAmount } from '../lib/zones';
 
 /** How many command-zone cards the corner row draws. Two, because that is a
@@ -24,7 +24,7 @@ interface Props {
   click: { label: string; onClick(): void; disabled?: boolean };
   /**
    * Opens this zone's menu at a point on screen. Right-click, the Context
-   * Menu key and the tile's own kebab all route here, so there is one menu
+   * Menu key and a finger's long-press all route here, so there is one menu
    * with one list of items rather than a popover for the pointer and a
    * different panel for everyone else.
    */
@@ -56,6 +56,11 @@ export function ZonePile({
   onCastCommander,
 }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: `zone:${zone}` });
+  // A finger has no right-click, so the press-and-hold is the touch half of
+  // the same gesture — opening the same menu at the same point. It replaces
+  // the kebab the tile used to wear: a pile IS the control, and a button
+  // parked on top of a card is chrome the table does not have.
+  const longPress = useLongPress({ onLongPress: (x, y) => onMenu(x, y) });
   // Which end is "top" differs by zone: the library is drawn from index 0,
   // while a discard pile's top is the card put there last.
   const top = zone === 'library' ? cards[0] : cards[cards.length - 1];
@@ -80,21 +85,13 @@ export function ZonePile({
         e.preventDefault();
         onMenu(e.clientX, e.clientY);
       }}
+      // Touch's half of the same gesture. On the tile root, so the hold
+      // works anywhere on the pile — the card, its label, the empty well.
+      onTouchStart={longPress.onTouchStart}
+      onTouchMove={longPress.onTouchMove}
+      onTouchEnd={longPress.onTouchEnd}
+      onTouchCancel={longPress.onTouchCancel}
     >
-      <button
-        type="button"
-        className="playtest-pile__kebab"
-        aria-haspopup="menu"
-        aria-label={`${label} actions`}
-        onClick={(e) => {
-          // Anchored under the kebab rather than at the pointer, so a click
-          // and a keyboard activation put the menu in the same place.
-          const r = e.currentTarget.getBoundingClientRect();
-          onMenu(r.left, r.bottom);
-        }}
-      >
-        <MoreVertical width={16} height={16} strokeWidth={2} aria-hidden />
-      </button>
       {/* The command zone is a row of commanders, not a pile with a top card:
           partners put two there at once, each with its own tax, and either
           may be the one you are casting. Every other zone keeps the single
@@ -119,7 +116,12 @@ export function ZonePile({
                   key={c.id}
                   type="button"
                   className="playtest-pile__commander"
-                  onClick={() => onCastCommander?.(c)}
+                  onClick={() => {
+                    // Same suppression as the pile's own button: a hold that
+                    // opened the menu must not also cast the commander.
+                    if (longPress.consumedClick()) return;
+                    onCastCommander?.(c);
+                  }}
                   aria-label={`Cast ${c.name}${ctax > 0 ? `, tax +${ctax}` : ''}`}
                 >
                   {/* Above the art, as the coin counters are — the tax is a
@@ -154,7 +156,12 @@ export function ZonePile({
       ) : (
         <button
           type="button"
-          onClick={click.onClick}
+          onClick={() => {
+            // The menu already handled this press; without this the release
+            // would ALSO draw a card or open the viewer behind it.
+            if (longPress.consumedClick()) return;
+            click.onClick();
+          }}
           disabled={click.disabled}
           className="playtest-pile__open"
           aria-label={`${click.label}. ${label}, ${cards.length} cards${
