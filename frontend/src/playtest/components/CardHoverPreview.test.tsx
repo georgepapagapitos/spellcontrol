@@ -43,16 +43,14 @@ describe('CardHoverPreview', () => {
     document.body.innerHTML = '';
   });
 
-  it('shows the full face after a short hover on a fine pointer, and hides on leave', () => {
+  // User feedback 2026-09-23: "it should appear immediately". No timer is
+  // advanced here on purpose: the face is up the moment the pointer lands.
+  it('shows the full face the instant the pointer lands on a card, and hides on leave', () => {
     stubMatchMedia(true);
     render(<CardHoverPreview suspended={false} resolve={resolve} />);
     const el = cardEl('sol');
     act(() => {
       el.dispatchEvent(new Event('pointerover', { bubbles: true }));
-    });
-    expect(document.querySelector('.playtest-hover-preview')).toBeNull(); // not yet
-    act(() => {
-      vi.advanceTimersByTime(250);
     });
     const img = document.querySelector<HTMLImageElement>('.playtest-hover-preview img');
     expect(img?.getAttribute('src')).toBe('https://img/sol-ring.jpg');

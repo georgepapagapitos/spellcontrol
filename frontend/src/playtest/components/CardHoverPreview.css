@@ -13,7 +13,6 @@
   gap: var(--space-2);
   width: min(22rem, 24vw);
   pointer-events: none;
-  animation: playtest-hover-preview-in 120ms ease-out;
 }
 
 /* One face; a two-faced card gets two, side by side (EDHPlay's hover). The
@@ -54,17 +53,4 @@
   text-transform: uppercase;
   color: #f3f4f6;
   background: rgba(31, 41, 55, 0.92);
-}
-
-@keyframes playtest-hover-preview-in {
-  from {
-    opacity: 0;
-    translate: 0 4px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .playtest-hover-preview {
-    animation: none;
-  }
 }
