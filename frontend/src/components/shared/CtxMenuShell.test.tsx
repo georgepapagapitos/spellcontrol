@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { useState } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import { CtxMenuShell } from './CtxMenuShell';
@@ -62,6 +63,69 @@ describe('CtxMenuShell', () => {
     expect(onClose).not.toHaveBeenCalled();
     fireEvent.click(container.querySelector('.ctx-menu__backdrop')!);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes a right-click on the backdrop through to the element under it', () => {
+    const onClose = vi.fn();
+    const onBelow = vi.fn();
+    const { container } = render(
+      <>
+        <div data-testid="felt" onContextMenu={(e) => onBelow(e.clientX, e.clientY)} />
+        <CtxMenuShell x={10} y={10} title="Brago" variant="floating" onClose={onClose}>
+          {items()}
+        </CtxMenuShell>
+      </>
+    );
+    const backdrop = container.querySelector('.ctx-menu__backdrop')!;
+    const felt = container.querySelector('[data-testid="felt"]')!;
+    // happy-dom does no layout, so say what is stacked at the point.
+    document.elementsFromPoint = vi.fn(() => [backdrop, felt]);
+    const e = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 300,
+      clientY: 200,
+    });
+    backdrop.dispatchEvent(e);
+    expect(e.defaultPrevented).toBe(true);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onBelow).toHaveBeenCalledWith(300, 200);
+  });
+
+  it('opens the next menu fresh when the right-click lands on another menu’s owner', () => {
+    function Stepper() {
+      const [n, setN] = useState(0);
+      return <button type="button" onClick={() => setN(n + 1)}>{`Step ${n}`}</button>;
+    }
+    function Harness() {
+      const [open, setOpen] = useState(true);
+      return (
+        <>
+          <div data-testid="card" onContextMenu={() => setOpen(true)} />
+          {open && (
+            <CtxMenuShell
+              x={10}
+              y={10}
+              title="Brago"
+              variant="floating"
+              onClose={() => setOpen(false)}
+            >
+              <Stepper />
+            </CtxMenuShell>
+          )}
+        </>
+      );
+    }
+    const { container, getByText } = render(<Harness />);
+    fireEvent.click(getByText('Step 0'));
+    expect(getByText('Step 1')).toBeTruthy();
+    const backdrop = container.querySelector('.ctx-menu__backdrop')!;
+    document.elementsFromPoint = vi.fn(() => [
+      backdrop,
+      container.querySelector('[data-testid="card"]')!,
+    ]);
+    fireEvent.contextMenu(backdrop);
+    expect(getByText('Step 0')).toBeTruthy();
   });
 
   it('moves focus to the first control, so a keyboard open is operable', () => {
