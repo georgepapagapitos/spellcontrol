@@ -94,5 +94,9 @@ export interface OfflineCombo {
   legalities: Record<string, string>;
   cardCount: number;
   bracket: number | null;
+  /** Spellbook's bracket tag (E/C/O/P/S/R): the estimator's combo floor reads it. */
+  bracketTag: string | null;
+  /** Unnamed-card requirements (Spellbook templates), null when none. */
+  templates: string[] | null;
   cards: OfflineComboCard[];
 }

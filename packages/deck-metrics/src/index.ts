@@ -285,11 +285,14 @@ const EXTRA_TURN_FLOOR_BRACKET = 3;
  * not mass land denial, but the tag (108 cards) sweeps in a planeswalker, a
  * spot-land-destruction walker, an untap-lock walker, and a spell-tax artifact.
  * Because mass land denial is the single harshest floor (→ Bracket 4), one bad
- * tag turns a Bracket 2 precon into Bracket 4 (audit/E48: Gideon floored the
- * Silverquill precon). Guard the known false positives here.
+ * tag turns a Bracket 2 precon into Bracket 4. Guard the known false positives here.
+ *
+ * Gideon, Champion of Justice and Whims of the Fates are deliberately NOT here
+ * (ruling of 2026-09-23): Gideon's −15 exiles every land, and Whims can take a
+ * whole pile of them, and Commander Spellbook's land-denial list counts both.
+ * Matching it keeps our floor the one players see on Spellbook and Archidekt.
  */
 const MLD_FALSE_POSITIVES = new Set([
-  'Gideon, Champion of Justice', // -15 exiles all *other* permanents — a one-sided wipe, not land denial
   'Ajani Vengeant', // -2 destroys a *single* land — spot, not mass
   'Dovin Baan', // -7 locks untap of permanents — not land-specific
   'Damping Sphere', // taxes spells / slows fast mana — a tax, not land denial
@@ -299,9 +302,6 @@ const MLD_FALSE_POSITIVES = new Set([
   // -6 forces a *single* target player to sac half their permanents (their own
   // choice of pile) — same "not actually land-specific" overreach as above
   'Liliana of the Veil',
-  // Each player sacrifices a random pile of their permanents: the same "lands
-  // are incidental" overreach as the two above. Floored the Entropic Uprising precon.
-  'Whims of the Fates',
 ]);
 
 /**
@@ -555,16 +555,37 @@ const MULTI_CARD_COMBO_WEIGHT = 0.5;
  */
 const LOW_POWER_COMBO_TAGS = new Set(['E', 'C']);
 
+/**
+ * Does this combo need a card we can't name? Spellbook variant ids are the named
+ * card ids, then `--` and the ids of "template" requirements ("an instant or
+ * sorcery that untaps a creature"). A template is a Scryfall query we can't run
+ * against a card list, so a variant whose named cards are all present is still
+ * unverified. Spellbook's own matcher left all ten of these out of the precons
+ * it checked; counting them floored Quick Draw and Witherbloom Pestilence.
+ */
+export function needsUnnamedCard(combo: Pick<DetectedCombo, 'comboId'>): boolean {
+  return combo.comboId.includes('--');
+}
+
 /** Does this combo count toward the combo floor? One predicate for the
  *  estimator and for Bracket Fit's "break this combo" list, so the coach never
  *  cuts a piece of a combo that isn't raising the bracket. */
 export function countsTowardComboFloor(combo: DetectedCombo): boolean {
-  return combo.isComplete && !LOW_POWER_COMBO_TAGS.has(combo.bracketTag ?? '');
+  return (
+    combo.isComplete &&
+    !LOW_POWER_COMBO_TAGS.has(combo.bracketTag ?? '') &&
+    !needsUnnamedCard(combo)
+  );
 }
 
-/** A combo with the commander as a piece counts this much toward acceleration:
- *  the commander is always available, so the deck only has to find the rest. */
-const COMMANDER_PIECE_ACCEL = 2;
+/**
+ * A counted combo that uses the commander plus at most this many other cards
+ * floors at Bracket 4 outright. The commander is always available, so the deck
+ * only has to draw the rest, and Commander Spellbook rates every such combo
+ * Ruthless (it did for Satya + Lightning Runner and for Zimone + Yedora + one
+ * more). Matched to Spellbook by ruling of 2026-09-23.
+ */
+const COMMANDER_COMBO_MAX_OTHER_PIECES = 2;
 
 export function estimateBracket(
   allCardNames: string[],
@@ -641,7 +662,9 @@ export function estimateBracket(
     if (!commanders.has(piece) && w > hubWeight) hubWeight = w;
   }
   const commanderCombos = counted.filter(
-    (c) => c.cardCount <= 2 && c.cards.some((p) => commanders.has(p))
+    (c) =>
+      c.cards.some((p) => commanders.has(p)) &&
+      c.cards.filter((p) => !commanders.has(p)).length <= COMMANDER_COMBO_MAX_OTHER_PIECES
   );
 
   // ── 3. Interaction count (removal + counterspell + boardwipe) ──
@@ -687,13 +710,12 @@ export function estimateBracket(
   // unaffected (multiCardComboCount contributes 0).
   const effectiveComboCount = twoCardComboCount + multiCardComboCount * MULTI_CARD_COMBO_WEIGHT;
 
-  if (effectiveComboCount >= 1) {
+  // A commander combo clears the gate on its own, even at three cards.
+  if (effectiveComboCount >= 1 || commanderCombos.length > 0) {
     // Deck-relative speed: can the deck assemble a 2-card combo before ~turn 6?
     // R/S bracketTag = Spellbook's signal that the combo is near-guaranteed early.
     // High acceleration (fastMana + tutors) escalates the same combo to B4.
-    const accel =
-      accelerationScore(fastMana, tutors) +
-      (commanderCombos.length > 0 ? COMMANDER_PIECE_ACCEL : 0);
+    const accel = accelerationScore(fastMana, tutors);
     // Only 'R' (Ruthless) — Spellbook's tag for genuinely fast / infinite-turns
     // combos — auto-escalates to B4. 'S' (Spicy) is the casual↔competitive bridge:
     // it covers slow, fragile two-creature combos (e.g. Lightning Runner +
@@ -707,7 +729,8 @@ export function estimateBracket(
     // reliably without tutors/fast mana. Lines through one bottleneck count once.
     const independentComboCount = effectiveComboCount - hubWeight + Math.min(1, hubWeight);
     const isComboDense = independentComboCount >= COMBO_REDUNDANCY_THRESHOLD;
-    const isEarlyAssembly = accel >= 4 || hasReliableTag || isComboDense;
+    const usesCommander = commanderCombos.length > 0;
+    const isEarlyAssembly = accel >= 4 || hasReliableTag || isComboDense || usesCommander;
 
     // Byte-identical to the pre-E97 text when there are no multi-card combos;
     // names both counts once multi-card lines contribute. Never prints a
@@ -725,15 +748,18 @@ export function estimateBracket(
     if (isEarlyAssembly) {
       // When redundancy (not raw speed) is what tips it, say so — the deck may have
       // zero "fast mana" yet still be a combo deck, and "fast combos" would mislead.
-      const byRedundancyOnly = isComboDense && accel < 4 && !hasReliableTag;
+      const byRedundancyOnly = isComboDense && accel < 4 && !hasReliableTag && !usesCommander;
+      const byCommanderOnly = usesCommander && accel < 4 && !hasReliableTag && !isComboDense;
       // Name the evidence, not a verdict: "fires before opponents can respond"
       // overclaimed for a deck that merely runs six tutors.
       const evidence: string[] = [];
       if (hasReliableTag) evidence.push('Commander Spellbook rates a combo here Ruthless');
+      if (usesCommander) {
+        evidence.push('your commander is a combo piece, so the deck only has to draw the rest');
+      }
       if (accel >= 4) {
         if (tutors.length > 0) evidence.push(plural(tutors.length, 'tutor'));
         if (fastMana.length > 0) evidence.push(plural(fastMana.length, 'fast mana source'));
-        if (commanderCombos.length > 0) evidence.push('your commander is a combo piece');
       }
       if (isComboDense) {
         evidence.push(`${Math.floor(independentComboCount)} independent combo lines`);
@@ -742,9 +768,11 @@ export function estimateBracket(
         bracket: 4,
         reason: byRedundancyOnly
           ? `${comboLabel} (highly redundant)`
-          : multiCardComboCount > 0
-            ? `${comboLabel} (fast assembly)`
-            : `${twoCardComboCount} fast two-card combo${twoCardComboCount === 1 ? '' : 's'}`,
+          : byCommanderOnly
+            ? `${comboLabel} with your commander`
+            : multiCardComboCount > 0
+              ? `${comboLabel} (fast assembly)`
+              : `${twoCardComboCount} fast two-card combo${twoCardComboCount === 1 ? '' : 's'}`,
         detail: `Early assembly is likely: ${evidence.join(', ')}. Bracket 3 allows two-card combos only when they come together late.`,
       });
     } else {
@@ -752,9 +780,7 @@ export function estimateBracket(
         bracket: 3,
         reason: comboLabel,
         detail:
-          commanderCombos.length > 0
-            ? 'A combo that ends the game keeps a deck out of Bracket 2. Your commander is a piece, so more tutors or fast mana would make it an early combo (Bracket 4).'
-            : 'A combo that ends the game keeps a deck out of Bracket 2. Nothing here speeds up the assembly, so it reads as a late-game combo, which Bracket 3 allows.',
+          'A combo that ends the game keeps a deck out of Bracket 2. Nothing here speeds up the assembly, so it reads as a late-game combo, which Bracket 3 allows.',
       });
     }
   }

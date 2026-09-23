@@ -15,7 +15,7 @@ export interface ValidationResult {
   checks: ValidationCheck[];
   passCount: number;
   total: number;
-  /** Hard-rule failures (size / identity / singleton). */
+  /** Hard-rule failures (size / identity / singleton / card legality). */
   hardFails: number;
   /** Soft-target shortfalls (role counts / curve). */
   softWarns: number;
@@ -62,7 +62,10 @@ export interface ValidationInput {
   averageCmc?: number;
   /** The deck's format rules — total size (commander[s] included) and the
    *  per-name copy limit. Omit to gate as Commander (100 cards, singleton). */
-  format?: Pick<DeckFormatConfig, 'deckSize' | 'maxCopies'>;
+  format?: Pick<DeckFormatConfig, 'deckSize' | 'maxCopies'> & { label?: string };
+  /** Names of cards not legal in the format (banned included), from the deck's
+   *  legality check. Omit to skip the legality gate. */
+  illegalCardNames?: string[];
 }
 
 /** Decks with an average MV above this read as top-heavy. Mirrors the bracket
@@ -80,12 +83,12 @@ function roleValue(map: Record<string, number> | undefined, ...keys: string[]): 
 
 /**
  * A pass/fail deck-health checklist for the Stats board: a legality gate
- * (size / color identity / singleton) plus the soft role + curve targets. Pure —
+ * (size / color identity / singleton / card legality) plus the soft role + curve targets. Pure —
  * derived from the live card list and the role analysis, no decision logic.
  */
 export function buildValidationChecklist(input: ValidationInput): ValidationResult {
   const { cards, commanderIdentity, roleCounts, roleTargets, averageCmc } = input;
-  const { deckSize, maxCopies } = input.format ?? DEFAULT_FORMAT;
+  const { deckSize, maxCopies, label: formatLabel = 'Commander' } = input.format ?? DEFAULT_FORMAT;
   const checks: ValidationCheck[] = [];
 
   // ── Hard rules ──────────────────────────────────────────────────────────
@@ -130,6 +133,21 @@ export function buildValidationChecklist(input: ValidationInput): ValidationResu
           ? `${over} duplicate name${over === 1 ? '' : 's'}`
           : `${over} name${over === 1 ? '' : 's'} over ${maxCopies} copies`,
   });
+
+  if (input.illegalCardNames) {
+    const illegal = input.illegalCardNames.length;
+    checks.push({
+      id: 'legal',
+      label: 'Card legality',
+      status: illegal === 0 ? 'pass' : 'fail',
+      detail:
+        illegal === 0
+          ? `every card legal in ${formatLabel}`
+          : illegal === 1
+            ? `${input.illegalCardNames[0]} isn't legal in ${formatLabel}`
+            : `${illegal} cards not legal in ${formatLabel}`,
+    });
+  }
 
   // ── Soft targets ────────────────────────────────────────────────────────
   const roleSpecs: Array<{ id: string; label: string; have?: number; want?: number }> = [

@@ -83,8 +83,12 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        floor, lines through one bottleneck card count once for redundancy,
  *        a commander combo piece speeds assembly. Moved 11 of 197 precons off
  *        a false floor, so every persisted estimate needs the recompute.
+ *   v8 — matched to Commander Spellbook: a commander + up to two cards floors
+ *        at 4, Gideon, Champion of Justice and Whims of the Fates count as land
+ *        denial, and a combo that needs an unnamed card sets no floor. The
+ *        browser's combo data now carries bracketTag at all (it never had).
  */
-const ANALYSIS_ENGINE_VERSION = 'v7-bracket-combo-relevance';
+const ANALYSIS_ENGINE_VERSION = 'v8-spellbook-parity';
 
 /**
  * Signature of every input that materially affects grade/bracket: commander(s)

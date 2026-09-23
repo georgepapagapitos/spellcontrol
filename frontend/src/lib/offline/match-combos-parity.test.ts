@@ -50,3 +50,24 @@ describe('offline matcher stays in lockstep with the backend matcher (E213)', ()
     ).toMatch(totalField);
   });
 });
+
+/** Field names in the object literal `toSummary` returns in a matcher source file. */
+function summaryKeys(src: string): string[] {
+  const body = src.match(/function toSummary\([^)]*\)[^{]*\{\s*return \{([\s\S]*?)\n {2}\};/)?.[1];
+  if (!body) return [];
+  return [...body.matchAll(/^ {4}(\w+):/gm)].map((m) => m[1]!).sort();
+}
+
+describe('both matchers hand back the same combo summary fields', () => {
+  // The browser prefers this local matcher, and until 2026-09-23 its toSummary
+  // dropped bracketTag: every combo reached the bracket estimate untagged, so
+  // the Exhibition/Core rule and the Ruthless escalation never ran in the app.
+  it('toSummary returns the same keys in both files', () => {
+    const local = summaryKeys(localSrc);
+    const backend = summaryKeys(backendSrc);
+    expect(backend, 'could not read backend toSummary').toContain('bracketTag');
+    expect(local, 'frontend match-combos.ts toSummary has drifted from the backend').toEqual(
+      backend
+    );
+  });
+});

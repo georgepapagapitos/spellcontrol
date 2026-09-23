@@ -421,12 +421,13 @@ describe('estimateBracket — hard floors', () => {
   });
 
   it('known mass-land-denial false positives do not floor B4 (tagger noise guard)', () => {
-    // The upstream otag mislabels Gideon, Champion of Justice (a one-sided wipe) as
-    // mass land denial; since MLD → B4 is the harshest floor, that turned a B2 precon
-    // into B4 (E48). The denylist neutralizes the known false positives.
-    mockIsMLD.mockImplementation((n: string) => n === 'Gideon, Champion of Justice');
+    // The upstream otag mislabels Dovin Baan (a -7 untap lock on every permanent,
+    // not land-specific) as mass land denial; since MLD → B4 is the harshest floor,
+    // one bad tag turns a B2 deck into B4. The denylist neutralizes it. (Gideon,
+    // Champion of Justice used to be the example here; since 2026-09-23 it counts.)
+    mockIsMLD.mockImplementation((n: string) => n === 'Dovin Baan');
     const r = estimateBracket(
-      ['Gideon, Champion of Justice', 'Forest'],
+      ['Dovin Baan', 'Forest'],
       undefined,
       4,
       undefined,

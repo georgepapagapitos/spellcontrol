@@ -220,6 +220,20 @@ describe('parseVariant', () => {
     expect(result?.bracketTag).toBe('R');
   });
 
+  it('reads template requirement names from `requires` (null when there are none)', () => {
+    // Real shape of Spellbook 5534--28 (Stella Lee, Wild Card).
+    const withTemplate = parseVariant({
+      id: '5534--28',
+      uses: [{ card: { name: 'Stella Lee, Wild Card', oracleId: 'os' } }],
+      requires: [
+        { quantity: 1, template: { id: 28, name: 'Instant or Sorcery that untaps a Creature' } },
+      ],
+    });
+    expect(withTemplate?.templates).toEqual(['Instant or Sorcery that untaps a Creature']);
+    const plain = parseVariant({ id: 'y', uses: [{ card: { name: 'Card', oracleId: 'oa' } }] });
+    expect(plain?.templates).toBeNull();
+  });
+
   it('variant with bracketTag B is excluded (returns null)', () => {
     expect(
       parseVariant({
@@ -293,6 +307,7 @@ describe('ingestCombos (db)', () => {
         card_count INTEGER NOT NULL,
         bracket INTEGER,
         bracket_tag TEXT,
+        templates JSONB,
         updated_at BIGINT NOT NULL
       );
       CREATE TABLE combo_cards (

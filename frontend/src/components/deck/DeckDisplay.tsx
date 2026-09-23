@@ -15,6 +15,7 @@ import { DeckTagManager } from './DeckTagManager';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { buildManaData, tallyNames } from '@/lib/build-mana-data';
 import { useProducedMana } from './use-produced-mana';
+import { useBanList } from '@/lib/use-ban-list';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
   validateDeck as runValidation,
@@ -877,7 +878,9 @@ export function DeckDisplay({
     [considering, collectionByCopyId, crossDeck, currency]
   );
 
-  // Legality issues for the current format.
+  // Legality issues for the current format. The live ban list catches a card
+  // banned after it was added, which its own stored legalities still call legal.
+  const bannedNames = useBanList(formatConfig.legalityKey);
   const legalityIssues = useMemo(() => {
     const mainDeckCards: DeckCard[] = cards.map((c) => ({
       slotId: c.slotId ?? '',
@@ -892,8 +895,16 @@ export function DeckDisplay({
     return runValidation(mainDeckCards, sideDeckCards, formatConfig, {
       commander,
       partnerCommander: partnerCommander ?? null,
+      bannedNames: bannedNames ?? undefined,
     });
-  }, [cards, sideboard, formatConfig, commander, partnerCommander]);
+  }, [cards, sideboard, formatConfig, commander, partnerCommander, bannedNames]);
+
+  const illegalCardNames = useMemo(
+    () => [
+      ...new Set(legalityIssues.filter((i) => i.issue === 'not-legal').map((i) => i.cardName)),
+    ],
+    [legalityIssues]
+  );
 
   const legalityBySlot = useMemo(() => {
     const map = new Map<string, LegalityIssue>();
@@ -1147,6 +1158,7 @@ export function DeckDisplay({
         roleTargets,
         averageCmc: manaData.averageCmc,
         format: formatConfig,
+        illegalCardNames,
       }),
     [
       allCards,
@@ -1156,6 +1168,7 @@ export function DeckDisplay({
       roleTargets,
       manaData.averageCmc,
       formatConfig,
+      illegalCardNames,
     ]
   );
 
@@ -2134,6 +2147,8 @@ export function DeckDisplay({
         ) : (
           <DeckAnalysisView
             view={activeView}
+            illegalCardNames={illegalCardNames}
+            formatLabel={formatConfig.label}
             allCards={allCards}
             manaData={manaData}
             bracketEstimation={bracketEstimation}

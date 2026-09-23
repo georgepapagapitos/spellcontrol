@@ -275,6 +275,7 @@ export async function ensureSchema(): Promise<void> {
       card_count INTEGER NOT NULL,
       bracket INTEGER,
       bracket_tag TEXT,
+      templates JSONB,
       updated_at BIGINT NOT NULL
     );
     /* Migrate from the original text-only prerequisites column if it exists. */
@@ -302,6 +303,7 @@ export async function ensureSchema(): Promise<void> {
     );
     ALTER TABLE combo_cards ADD COLUMN IF NOT EXISTS quantity INTEGER NOT NULL DEFAULT 1;
     ALTER TABLE combos ADD COLUMN IF NOT EXISTS bracket_tag TEXT;
+    ALTER TABLE combos ADD COLUMN IF NOT EXISTS templates JSONB;
     CREATE INDEX IF NOT EXISTS combo_cards_oracle_idx ON combo_cards(oracle_id);
     CREATE TABLE IF NOT EXISTS combo_ingest_runs (
       id TEXT PRIMARY KEY,

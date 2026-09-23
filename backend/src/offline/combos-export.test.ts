@@ -24,6 +24,8 @@ beforeAll(async () => {
       legalities: { commander: 'legal' },
       cardCount: 2,
       bracket: 3,
+      bracketTag: 'S',
+      templates: ['Instant or Sorcery that untaps a Creature'],
       updatedAt: Date.now(),
     },
     {
@@ -93,6 +95,19 @@ describe('getCombosBulk', () => {
     const decoded = gunzipSync(bulk.gzipped).toString('utf-8');
     const rows = JSON.parse(decoded) as OfflineCombo[];
     expect(rows.map((r) => r.id).sort()).toEqual(['c-niche', 'c-popular']);
+  });
+
+  // The browser matches combos against this export, so it must carry every
+  // field the bracket estimate reads. bracketTag was missing until 2026-09-23.
+  it('carries the bracket tag and template requirements', async () => {
+    const bulk = await getCombosBulk();
+    const rows = JSON.parse(gunzipSync(bulk.gzipped).toString('utf-8')) as OfflineCombo[];
+    const popular = rows.find((r) => r.id === 'c-popular')!;
+    expect(popular.bracketTag).toBe('S');
+    expect(popular.templates).toEqual(['Instant or Sorcery that untaps a Creature']);
+    const niche = rows.find((r) => r.id === 'c-niche')!;
+    expect(niche.bracketTag).toBeNull();
+    expect(niche.templates).toBeNull();
   });
 
   it('ships the same rows as gzipped NDJSON, one combo per line', async () => {

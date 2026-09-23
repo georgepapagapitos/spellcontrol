@@ -404,6 +404,12 @@
   white-space: nowrap;
 }
 
+/* A template requirement ("Instant or Sorcery that untaps a Creature") is a
+   sentence, not a card name: let it wrap instead of truncating. */
+.deck-combos-missing-name--wrap {
+  white-space: normal;
+}
+
 /* Market price of the missing piece (collection combos view). Sits at the end
    of the missing-piece line; flex-shrink:0 so the card name ellipsizes into it
    rather than the price wrapping to its own line. */

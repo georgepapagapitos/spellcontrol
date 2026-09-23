@@ -37,6 +37,25 @@ describe('buildValidationChecklist', () => {
     expect(r.hardFails).toBe(0);
   });
 
+  it('gates card legality when the illegal names are given', () => {
+    const clean = buildValidationChecklist({ cards: legalDeck(), illegalCardNames: [] });
+    expect(clean.checks.find((c) => c.id === 'legal')).toMatchObject({
+      status: 'pass',
+      detail: 'every card legal in Commander',
+    });
+    const one = buildValidationChecklist({
+      cards: legalDeck(),
+      illegalCardNames: ['Dockside Extortionist'],
+    });
+    expect(one.checks.find((c) => c.id === 'legal')).toMatchObject({
+      status: 'fail',
+      detail: "Dockside Extortionist isn't legal in Commander",
+    });
+    expect(one.hardFails).toBe(1);
+    const skipped = buildValidationChecklist({ cards: legalDeck() });
+    expect(skipped.checks.some((c) => c.id === 'legal')).toBe(false);
+  });
+
   it('fails deck size when not 100 cards', () => {
     const r = buildValidationChecklist({ cards: legalDeck().slice(0, 98) });
     expect(r.checks.find((c) => c.id === 'size')?.status).toBe('fail');

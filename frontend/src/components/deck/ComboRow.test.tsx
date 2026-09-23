@@ -66,6 +66,26 @@ describe('ComboRow', () => {
     expect(screen.queryByRole('button', { name: /^Add / })).toBeNull();
   });
 
+  it('names a template requirement instead of calling the combo complete', () => {
+    // Spellbook 5534--28: Stella Lee + "an instant or sorcery that untaps a creature".
+    const base = match();
+    renderRow({
+      match: {
+        ...base,
+        combo: {
+          ...base.combo,
+          id: '5534--28',
+          templates: ['Instant or Sorcery that untaps a Creature'],
+        },
+      },
+    });
+
+    expect(screen.queryByLabelText('Complete')).toBeNull();
+    expect(screen.getByLabelText('Also needs a card by type')).toBeTruthy();
+    expect(screen.getByText('Also needs:')).toBeTruthy();
+    expect(screen.getByText('Instant or Sorcery that untaps a Creature')).toBeTruthy();
+  });
+
   it('renders the missing piece and add CTA when one away', () => {
     const { onAddMissing } = renderRow({
       isOneAway: true,

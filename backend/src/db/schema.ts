@@ -315,6 +315,9 @@ export const combos = pgTable('combos', {
   cardCount: integer('card_count').notNull(),
   bracket: integer('bracket'),
   bracketTag: text('bracket_tag'),
+  /** Names of the unnamed-card requirements (Spellbook "templates"), e.g.
+   *  "Instant or Sorcery that untaps a Creature". Null when there are none. */
+  templates: jsonb('templates').$type<string[]>(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
 });
 
