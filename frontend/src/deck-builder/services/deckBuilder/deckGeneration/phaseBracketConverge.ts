@@ -240,7 +240,8 @@ export function applyBracketConvergence(
       nonLandAvgCmc(),
       undefined,
       state.currentRoleCounts,
-      state.gameChangerNames
+      state.gameChangerNames,
+      commanderNames
     );
   };
 

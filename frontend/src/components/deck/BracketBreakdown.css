@@ -33,6 +33,13 @@
   color: var(--text-muted);
 }
 
+/* Context under a section: combos that don't count, and the estimate's limits. */
+.bracket-breakdown-footnote {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
 /* ── Hard floors ── */
 .bracket-breakdown-floors {
   list-style: none;

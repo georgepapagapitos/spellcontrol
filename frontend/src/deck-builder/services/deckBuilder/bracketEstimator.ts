@@ -35,6 +35,11 @@ export {
   isStaxPiece,
   isGameChangerCard,
   isFastMana,
+  countsTowardComboFloor,
+  floorOf,
+  bracketReasons,
+  softScorePoints,
+  SOFT_SCORE,
   type BracketEstimation,
   type BracketFloor,
   type BracketBreakdown,
@@ -66,7 +71,8 @@ export function estimateBracket(
   averageCmc: number,
   deckScore: number | undefined,
   roleCounts: Record<string, number> | undefined,
-  gameChangerNames: Set<string>
+  gameChangerNames: Set<string>,
+  commanderNames?: readonly string[]
 ): BracketEstimation {
   return estimateBracketCore(
     allCardNames,
@@ -75,7 +81,8 @@ export function estimateBracket(
     deckScore,
     roleCounts,
     gameChangerNames,
-    taggerLookup
+    taggerLookup,
+    commanderNames
   );
 }
 

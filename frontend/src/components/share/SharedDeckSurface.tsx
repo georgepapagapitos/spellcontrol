@@ -39,6 +39,7 @@ import { useCollectionStore } from '../../store/collection';
 import { useDeckCombos } from '../../lib/use-deck-combos';
 import type { ChangeOwnership } from '../../lib/deck-change';
 import type { CardOwnership } from './SharedCardTile';
+import { bracketReasons } from '@spellcontrol/deck-metrics';
 
 // Below this, a platform count (views/copies) reads as more "ghost town" than
 // informative, so each is hidden entirely rather than shown as a tiny number
@@ -413,7 +414,7 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
             <PowerHero
               bracket={effectiveBracket(deck) ?? null}
               bracketOverridden={deck.bracketOverride != null}
-              bracketReasons={(deck.bracketEstimation?.hardFloors ?? []).map((f) => f.reason)}
+              bracketReasons={deck.bracketEstimation ? bracketReasons(deck.bracketEstimation) : []}
               engineLabel={deck.synergyAnalysis?.axes[0]?.label}
               engineProducers={deck.synergyAnalysis?.axes[0]?.producers}
               enginePayoffs={deck.synergyAnalysis?.axes[0]?.payoffs}

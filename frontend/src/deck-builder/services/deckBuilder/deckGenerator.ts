@@ -4497,6 +4497,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     deckScore,
     bracketRoleCounts: roleTargets ? finalRoleCounts : undefined,
     gameChangerNames: state.gameChangerNames,
+    commanderNames: [commander?.name, partnerCommander?.name].filter((n): n is string => !!n),
     allCards: Object.values(categories).flat(),
     roleCounts: finalRoleCounts,
     roleTargets,

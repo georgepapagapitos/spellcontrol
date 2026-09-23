@@ -229,7 +229,8 @@ export function swapCard(
       newStats.averageCmc,
       newDeckScore,
       newRoleCounts ?? undefined,
-      gcSet
+      gcSet,
+      [deck.commander?.name, deck.partnerCommander?.name].filter((n): n is string => !!n)
     );
   }
 

@@ -142,20 +142,44 @@ describe('BracketBreakdown', () => {
   });
 
   it('shows the no-floor message when there are no hard floors', () => {
+    // The estimator's floor with nothing firing is Core (2), never Exhibition;
+    // this once read "Floor Bracket 1", which the estimator never produces.
     const est = makeEstimation({
-      bracket: 1,
-      label: 'Exhibition',
+      bracket: 2,
+      label: 'Core',
       softScore: 5,
       hardFloors: [],
     });
     const { container } = render(<BracketBreakdown estimation={est} />);
 
-    expect(screen.getByText('No hard floors. Bracket set by soft score.')).toBeTruthy();
+    expect(
+      container.querySelector('.bracket-breakdown-empty')?.textContent?.replace(/\s+/g, ' ')
+    ).toBe('No hard floors, so the deck starts at Bracket 2 · Core.');
     const line = container.querySelector('.bracket-breakdown-summary-line');
     // UX-315: summary uses "power signal" language
     expect(line?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-      'Floor Bracket 1 + power signal 5/100 → Bracket 1 · Exhibition'
+      'Floor Bracket 2 + power signal 5/100 → Bracket 2 · Core'
     );
+  });
+
+  it('names the combo pieces on a combo floor, and notes combos that set no floor', () => {
+    const est = makeEstimation({
+      bracket: 3,
+      label: 'Upgraded',
+      softScore: 20,
+      hardFloors: [{ bracket: 3, reason: '1 two-card combo' }],
+      breakdown: {
+        ...makeEstimation({}).breakdown,
+        twoCardComboCount: 1,
+        comboPieceNames: ['Lightning Runner', 'Aetherwind Basker'],
+        lowPowerComboCount: 2,
+      },
+    });
+    const { container } = render(<BracketBreakdown estimation={est} />);
+    expect(screen.getByRole('button', { name: 'Preview Lightning Runner' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Preview Aetherwind Basker' })).toBeTruthy();
+    expect(screen.queryByText(/two-card combo detected/)).toBeNull();
+    expect(container.textContent).toContain('2 more combos are in the deck');
   });
 });
 
@@ -233,13 +257,16 @@ describe('BracketBreakdown — distance to the next threshold', () => {
     const { container } = render(
       <BracketBreakdown
         estimation={makeEstimation({
-          bracket: 1,
-          label: 'Exhibition',
+          bracket: 2,
+          label: 'Core',
           softScore: 65,
           hardFloors: [],
         })}
       />
     );
+    // A no-floor Core deck gets the distance line too (it used to compare
+    // against a floor of 1 and drop it).
     expect(distanceText(container)).toContain('1 more power point (65 → 66)');
+    expect(distanceText(container)).toContain('Bracket 3');
   });
 });

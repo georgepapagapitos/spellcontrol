@@ -79,8 +79,12 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *   v6 — combo-label audit: +1/+1-counter / infinitely-large / combat-phase
  *        loops are win paths, self-library exile and opponent-gifted tokens
  *        are not.
+ *   v7 — bracket combo relevance: Spellbook Exhibition/Core combos no longer
+ *        floor, lines through one bottleneck card count once for redundancy,
+ *        a commander combo piece speeds assembly. Moved 11 of 197 precons off
+ *        a false floor, so every persisted estimate needs the recompute.
  */
-const ANALYSIS_ENGINE_VERSION = 'v6-combo-labels';
+const ANALYSIS_ENGINE_VERSION = 'v7-bracket-combo-relevance';
 
 /**
  * Signature of every input that materially affects grade/bracket: commander(s)

@@ -186,7 +186,8 @@ export async function enrichDeckCards(
       avgCmc,
       undefined,
       roleCounts,
-      gcSet
+      gcSet,
+      [commanderName, partnerCommanderName].filter((n): n is string => !!n)
     );
   }
 

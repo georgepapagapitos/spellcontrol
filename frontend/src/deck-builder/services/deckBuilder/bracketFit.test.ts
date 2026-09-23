@@ -425,6 +425,32 @@ describe('downshift — combos', () => {
     expect(comboCut!.name).toBe('Hullbreaker Horror');
   });
 
+  // Spellbook tags Hullbreaker Horror + Sol Ring Exhibition: it loops without
+  // ending the game, so it sets no floor and a B2 target has nothing to break.
+  it('an Exhibition-tagged combo is never a cut target, even at a B2 target', () => {
+    // A real Spicy combo keeps the deck above target, so the combo queue runs;
+    // the Exhibition loop sits first in it and used to lose a piece first.
+    const combos = [
+      { ...combo('hullbreaker', null, ['Hullbreaker Horror', 'Sol Ring']), bracketTag: 'E' },
+      { ...combo('runner', null, ['Lightning Runner', 'Aetherwind Basker']), bracketTag: 'S' },
+    ];
+    const input = makeInput({
+      allCardNames: [
+        'Hullbreaker Horror',
+        'Sol Ring',
+        'Lightning Runner',
+        'Aetherwind Basker',
+        'Forest',
+      ],
+      detectedCombos: combos,
+      cardInclusionMap: { 'Hullbreaker Horror': 1, 'Sol Ring': 1 },
+    });
+    const plan = computeDownshiftPlan(input, 2);
+    const cuts = plan.moves.filter((m) => m.signal === 'combo').map((m) => m.name);
+    expect(cuts).toHaveLength(1);
+    expect(['Lightning Runner', 'Aetherwind Basker']).toContain(cuts[0]);
+  });
+
   it('stapleNames undefined ⇒ unchanged behavior (lowest inclusion still wins)', () => {
     const combos = [combo('hullbreaker', 4, ['Hullbreaker Horror', 'Sol Ring'])];
     const input = makeInput({

@@ -26,15 +26,19 @@ beforeEach(() => {
   mockGetRole.mockReset().mockReturnValue(null);
 });
 
+// Each call gets its own pieces: combos sharing a piece collapse toward one line
+// for redundancy, so identical fixtures would stop testing combo density.
+let comboSeq = 0;
 function combo(
   bracketNum: number | null = null,
   isComplete = true,
   cardCount = 2,
   bracketTag?: string
 ): DetectedCombo {
+  const n = ++comboSeq;
   return {
     comboId: `c-${bracketNum}`,
-    cards: cardCount <= 2 ? ['A', 'B'] : ['A', 'B', 'C'],
+    cards: cardCount <= 2 ? [`A${n}`, `B${n}`] : [`A${n}`, `B${n}`, `C${n}`],
     results: ['Win'],
     isComplete,
     missingCards: [],

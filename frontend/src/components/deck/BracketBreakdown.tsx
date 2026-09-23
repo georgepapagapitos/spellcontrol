@@ -2,7 +2,12 @@ import './BracketBreakdown.css';
 import type { JSX, ReactNode } from 'react';
 import { InfoTip } from '../InfoTip';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { bracketLabel } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import {
+  bracketLabel,
+  floorOf,
+  softScorePoints,
+  SOFT_SCORE,
+} from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { formatBracketLabel } from '@/lib/format-bracket-label';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useCardCarousel } from './useCardCarousel';
@@ -12,22 +17,19 @@ import { MeterBar } from '../shared/MeterBar';
  *  printing in the deck instead of re-fetching the default printing by name. */
 type DeckCardMap = ReadonlyMap<string, ScryfallCard>;
 
-// Mirror the soft-score formula in estimateBracket() so the bars reflect the
-// actual per-component contributions. Keep these in lockstep with
-// bracketEstimator.ts (the source of truth).
-const FAST_MANA_CAP = 40;
-const FAST_MANA_PER = 8;
-const TUTOR_CAP = 25;
-const TUTOR_PER = 5;
-const CMC_CAP = 20;
-const CMC_THRESHOLD = 3.5;
-const CMC_PER = 15;
-// Interaction is the residual: softScore is rounded, so we derive the
-// interaction points from what the other three components didn't cover.
-const INTERACTION_CAP = 15;
-
-const ELEVATE_BUMP_THRESHOLD = 66;
-const ELEVATE_CEDH_THRESHOLD = 80;
+// The soft-score weights come from the estimator package itself, so the bars
+// can't drift from the score they explain.
+const {
+  fastManaCap: FAST_MANA_CAP,
+  fastManaPer: FAST_MANA_PER,
+  tutorCap: TUTOR_CAP,
+  tutorPer: TUTOR_PER,
+  curveCap: CMC_CAP,
+  curveThreshold: CMC_THRESHOLD,
+  interactionCap: INTERACTION_CAP,
+  bumpAt: ELEVATE_BUMP_THRESHOLD,
+  cedhAt: ELEVATE_CEDH_THRESHOLD,
+} = SOFT_SCORE;
 
 const HARD_FLOOR_TIP =
   'A hard floor is a deterministic signal (Game Changers, mass land denial, infinite combos, stax, or extra-turn cards) that forces a MINIMUM bracket. No amount of tuning can drop the deck below it; the only way down is to cut the offending cards.';
@@ -41,8 +43,8 @@ const SOFT_SCORE_TIP: ReactNode = (
     </p>
     <ul className="info-tip-list">
       <li>
-        <strong>Fast mana</strong>: rocks/rituals that make more mana than they cost (Mana Crypt,
-        Jeweled Lotus). Sol Ring is exempt as a precon staple. 8 pts each, max 40.
+        <strong>Fast mana</strong>: rocks/rituals that make more mana than they cost (Mana Vault,
+        Chrome Mox). Sol Ring is exempt as a precon staple. 8 pts each, max 40.
       </li>
       <li>
         <strong>Tutors</strong>: cards that search your library for anything (Demonic Tutor). They
@@ -98,13 +100,14 @@ function floorChips(reason: string, breakdown: BracketEstimation['breakdown']): 
   if (r.includes('land denial')) return breakdown.massLandDenialNames;
   if (r.includes('extra turn')) return breakdown.extraTurnNames;
   if (r.includes('stax')) return breakdown.staxPieceNames;
+  if (r.includes('combo')) return breakdown.comboPieceNames ?? [];
   return [];
 }
 
-/** Combo floors have no card names in the breakdown — show counts instead. */
+/** An estimation persisted before combo pieces were recorded: show counts instead. */
 function comboFloorNote(reason: string, breakdown: BracketEstimation['breakdown']): string | null {
   const r = reason.toLowerCase();
-  if (!r.includes('combo')) return null;
+  if (!r.includes('combo') || breakdown.comboPieceNames) return null;
   const { twoCardComboCount: two, multiCardComboCount: multi } = breakdown;
   // Byte-identical to the pre-E97 note when the floor is two-card-only.
   if (multi === 0) return `${two} two-card combo${two === 1 ? '' : 's'} detected`;
@@ -154,15 +157,16 @@ export function BracketBreakdown({
 }): JSX.Element {
   const { breakdown, hardFloors, softScore, bracket } = estimation;
 
-  const floor = hardFloors.length > 0 ? Math.max(...hardFloors.map((f) => f.bracket)) : 1;
+  // Core (2) when nothing fires: the estimator never infers Exhibition.
+  const floor = floorOf(hardFloors);
+  const lowPowerCombos = breakdown.lowPowerComboCount ?? 0;
 
-  // Per-component soft-score points (mirrors estimateBracket).
-  const fastManaPts = Math.min(FAST_MANA_CAP, breakdown.fastManaCount * FAST_MANA_PER);
-  const tutorPts = Math.min(TUTOR_CAP, breakdown.tutorCount * TUTOR_PER);
-  const lowCurvePts = Math.round(
-    Math.min(CMC_CAP, Math.max(0, (CMC_THRESHOLD - breakdown.averageCmc) * CMC_PER))
-  );
-  // Interaction bonus = total soft score minus the three computable parts.
+  const pts = softScorePoints(breakdown);
+  const fastManaPts = pts.fastMana;
+  const tutorPts = pts.tutors;
+  const lowCurvePts = Math.round(pts.curve);
+  // Interaction is the residual: it needs the deck's non-land count, which the
+  // breakdown doesn't carry, and softScore is rounded.
   const interactionPts = Math.max(
     0,
     Math.min(INTERACTION_CAP, softScore - fastManaPts - tutorPts - lowCurvePts)
@@ -205,7 +209,9 @@ export function BracketBreakdown({
           <InfoTip label="a hard floor" text={HARD_FLOOR_TIP} />
         </h4>
         {sortedFloors.length === 0 ? (
-          <p className="bracket-breakdown-empty">No hard floors. Bracket set by soft score.</p>
+          <p className="bracket-breakdown-empty">
+            No hard floors, so the deck starts at {formatBracketLabel(floor)}.
+          </p>
         ) : (
           <div className="deck-bracket-table" role="table" aria-label="Hard floors">
             <div className="deck-bracket-row deck-bracket-head" role="row">
@@ -243,6 +249,15 @@ export function BracketBreakdown({
               );
             })}
           </div>
+        )}
+        {lowPowerCombos > 0 && (
+          <p className="bracket-breakdown-footnote">
+            {lowPowerCombos === 1
+              ? '1 more combo is in the deck, but'
+              : `${lowPowerCombos} more combos are in the deck, but`}{' '}
+            Commander Spellbook rates {lowPowerCombos === 1 ? 'it' : 'them'} fine at Bracket 2 (they
+            loop without ending the game, or finish it slowly), so no floor.
+          </p>
         )}
       </div>
 
@@ -346,6 +361,10 @@ export function BracketBreakdown({
           )}
         </div>
       </details>
+      <p className="bracket-breakdown-footnote">
+        Estimated from the card list alone. Pilot skill and what your table plays aren&rsquo;t in
+        it, so treat it as the start of the Rule 0 talk.
+      </p>
     </section>
   );
 }

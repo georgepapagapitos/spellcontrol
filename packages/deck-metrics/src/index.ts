@@ -71,6 +71,11 @@ export interface BracketBreakdown {
   extraTurnNames: string[];
   twoCardComboCount: number;
   multiCardComboCount: number;
+  /** Pieces of the combos counted above, deduped, for the floor's card chips.
+   *  Optional: estimations persisted before it existed don't carry it. */
+  comboPieceNames?: string[];
+  /** Complete combos Spellbook rates Exhibition/Core: shown, never a floor. */
+  lowPowerComboCount?: number;
   fastManaCount: number;
   fastManaNames: string[];
   tutorCount: number;
@@ -248,6 +253,10 @@ const FAST_MANA = new Set([
   'Simian Spirit Guide',
   'Elvish Spirit Guide',
   'Rite of Flame',
+  'Pyretic Ritual',
+  'Desperate Ritual',
+  'Culling the Weak',
+  'Gemstone Caverns',
   'Ancient Tomb',
   'Jeweled Lotus',
 ]);
@@ -290,6 +299,9 @@ const MLD_FALSE_POSITIVES = new Set([
   // -6 forces a *single* target player to sac half their permanents (their own
   // choice of pile) — same "not actually land-specific" overreach as above
   'Liliana of the Veil',
+  // Each player sacrifices a random pile of their permanents: the same "lands
+  // are incidental" overreach as the two above. Floored the Entropic Uprising precon.
+  'Whims of the Fates',
 ]);
 
 /**
@@ -365,7 +377,57 @@ const STAX_FLOOR_BRACKET_4_THRESHOLD = 5;
  * See the rationale at the `floor` computation in `estimateBracket`. Bracket 1 is a
  * theme-build intent, never inferred from card power, so the estimator floors here.
  */
-const CORE_BASELINE = 2;
+export const CORE_BASELINE = 2;
+
+/** The bracket the hard floors force: the strongest one, or Core when none fire. */
+export function floorOf(hardFloors: readonly BracketFloor[]): number {
+  return hardFloors.length > 0 ? Math.max(...hardFloors.map((f) => f.bracket)) : CORE_BASELINE;
+}
+
+/**
+ * The soft score's weights and thresholds. Exported so the breakdown UI reads
+ * the same numbers instead of mirroring them by hand.
+ */
+export const SOFT_SCORE = {
+  fastManaPer: 8,
+  fastManaCap: 40,
+  tutorPer: 5,
+  tutorCap: 25,
+  curveThreshold: 3.5,
+  curvePer: 15,
+  curveCap: 20,
+  interactionCap: 15,
+  /** A deck below floor 4 moves up one bracket at this score. */
+  bumpAt: 66,
+  /** A deck at floor 4 reads as cEDH at this score. */
+  cedhAt: 80,
+} as const;
+
+/** The three soft-score components computable from the breakdown alone
+ *  (interaction needs the deck's non-land count, so it isn't here). */
+export function softScorePoints(
+  b: Pick<BracketBreakdown, 'fastManaCount' | 'tutorCount' | 'averageCmc'>
+): { fastMana: number; tutors: number; curve: number } {
+  const s = SOFT_SCORE;
+  return {
+    fastMana: Math.min(s.fastManaCap, b.fastManaCount * s.fastManaPer),
+    tutors: Math.min(s.tutorCap, b.tutorCount * s.tutorPer),
+    curve: Math.min(s.curveCap, Math.max(0, (s.curveThreshold - b.averageCmc) * s.curvePer)),
+  };
+}
+
+/**
+ * Why the deck sits where it does, strongest first: each hard floor, then the
+ * power signal when it lifted the bracket above the floors. Works on persisted
+ * estimations too, since it reads only fields every estimation carries.
+ */
+export function bracketReasons(est: BracketEstimation): string[] {
+  const reasons = [...est.hardFloors].sort((a, b) => b.bracket - a.bracket).map((f) => f.reason);
+  if (est.bracket > floorOf(est.hardFloors)) {
+    reasons.push(`power signal ${est.softScore}/100`);
+  }
+  return reasons;
+}
 
 /**
  * True when `name` is a canonical stax / lock piece (the same curated pool the
@@ -433,6 +495,10 @@ export function isTutor(name: string, tags: TagLookup): boolean {
  * - fastMana.length >= 5: +3; 3–4: +2; <3: +0
  * - tutors.length  >= 6: +2; 4–5: +1; <4: +0
  */
+function plural(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? '' : 's'}`;
+}
+
 function accelerationScore(fastMana: string[], tutors: string[]): number {
   const fastScore = fastMana.length >= 5 ? 3 : fastMana.length >= 3 ? 2 : 0;
   const tutorScore = tutors.length >= 6 ? 2 : tutors.length >= 4 ? 1 : 0;
@@ -475,6 +541,31 @@ const COMBO_REDUNDANCY_THRESHOLD = 4;
  */
 const MULTI_CARD_COMBO_WEIGHT = 0.5;
 
+/**
+ * Spellbook's bracket tags for combos it rates as fine at Bracket 1–2:
+ * `E` Exhibition (a loop that does not end the game on its own, e.g. Hullbreaker
+ * Horror + Sol Ring, Gravecrawler + Phyrexian Altar) and `C` Core (a
+ * precon-level finisher, e.g. The World Tree + Maskwood Nexus). The RC's combo
+ * rule is about combos that END the game, and Spellbook tags every variant
+ * against that rule, so these never set a floor.
+ *
+ * Counting them did real damage: a 197-precon calibration run (2026-09-23)
+ * floored 14 precons on E/C combos alone, and "Everyone's Invited!" reached
+ * Bracket 4 on seven of them. Untagged combos still count (conservative).
+ */
+const LOW_POWER_COMBO_TAGS = new Set(['E', 'C']);
+
+/** Does this combo count toward the combo floor? One predicate for the
+ *  estimator and for Bracket Fit's "break this combo" list, so the coach never
+ *  cuts a piece of a combo that isn't raising the bracket. */
+export function countsTowardComboFloor(combo: DetectedCombo): boolean {
+  return combo.isComplete && !LOW_POWER_COMBO_TAGS.has(combo.bracketTag ?? '');
+}
+
+/** A combo with the commander as a piece counts this much toward acceleration:
+ *  the commander is always available, so the deck only has to find the rest. */
+const COMMANDER_PIECE_ACCEL = 2;
+
 export function estimateBracket(
   allCardNames: string[],
   detectedCombos: DetectedCombo[] | undefined,
@@ -482,7 +573,9 @@ export function estimateBracket(
   _deckScore: number | undefined,
   roleCounts: Record<string, number> | undefined,
   gameChangerNames: Set<string>,
-  tags: TagLookup
+  tags: TagLookup,
+  /** The deck's commander(s). Optional; a combo they're part of assembles faster. */
+  commanderNames: readonly string[] = []
 ): BracketEstimation {
   // ── 1. Count signals ──
 
@@ -515,18 +608,41 @@ export function estimateBracket(
 
   let twoCardComboCount = 0;
   let multiCardComboCount = 0;
+  let lowPowerComboCount = 0;
+  const counted: DetectedCombo[] = [];
 
-  if (detectedCombos) {
-    for (const combo of detectedCombos) {
-      if (!combo.isComplete) continue;
-      const is2Card = combo.cardCount <= 2;
-      if (is2Card) {
-        twoCardComboCount++;
-      } else {
-        multiCardComboCount++;
-      }
+  for (const combo of detectedCombos ?? []) {
+    if (!combo.isComplete) continue;
+    if (!countsTowardComboFloor(combo)) {
+      lowPowerComboCount++;
+      continue;
+    }
+    counted.push(combo);
+    if (combo.cardCount <= 2) twoCardComboCount++;
+    else multiCardComboCount++;
+  }
+
+  const comboWeight = (c: DetectedCombo) => (c.cardCount <= 2 ? 1 : MULTI_CARD_COMBO_WEIGHT);
+  const commanders = new Set(commanderNames);
+  // Weight of combos running through each piece. The heaviest non-commander
+  // piece is the deck's combo bottleneck: every line through it dies with one
+  // cut or one counterspell, so those lines count once toward redundancy. Four
+  // combos that all need Gorma, the Gullet are one combo with four partners,
+  // not four combos (floored the Witherbloom Pestilence precon at B4). A
+  // commander hub is the opposite case: always available, so it doesn't collapse.
+  const pieceWeight = new Map<string, number>();
+  for (const c of counted) {
+    for (const piece of new Set(c.cards)) {
+      pieceWeight.set(piece, (pieceWeight.get(piece) ?? 0) + comboWeight(c));
     }
   }
+  let hubWeight = 0;
+  for (const [piece, w] of pieceWeight) {
+    if (!commanders.has(piece) && w > hubWeight) hubWeight = w;
+  }
+  const commanderCombos = counted.filter(
+    (c) => c.cardCount <= 2 && c.cards.some((p) => commanders.has(p))
+  );
 
   // ── 3. Interaction count (removal + counterspell + boardwipe) ──
 
@@ -575,7 +691,9 @@ export function estimateBracket(
     // Deck-relative speed: can the deck assemble a 2-card combo before ~turn 6?
     // R/S bracketTag = Spellbook's signal that the combo is near-guaranteed early.
     // High acceleration (fastMana + tutors) escalates the same combo to B4.
-    const accel = accelerationScore(fastMana, tutors);
+    const accel =
+      accelerationScore(fastMana, tutors) +
+      (commanderCombos.length > 0 ? COMMANDER_PIECE_ACCEL : 0);
     // Only 'R' (Ruthless) — Spellbook's tag for genuinely fast / infinite-turns
     // combos — auto-escalates to B4. 'S' (Spicy) is the casual↔competitive bridge:
     // it covers slow, fragile two-creature combos (e.g. Lightning Runner +
@@ -584,12 +702,11 @@ export function estimateBracket(
     // (E48 calibration: living-energy/creative-energy/goth-girl). cEDH decks still
     // reach B4 via 'R' tags or high acceleration, so dropping 'S' here regressed no
     // high-power deck in the 48-deck reference set.
-    const hasReliableTag = detectedCombos?.some(
-      (c) => c.isComplete && c.cardCount <= 2 && c.bracketTag === 'R'
-    );
+    const hasReliableTag = counted.some((c) => c.cardCount <= 2 && c.bracketTag === 'R');
     // Redundancy is its own form of speed: many interchangeable combos assemble
-    // reliably without tutors/fast mana.
-    const isComboDense = effectiveComboCount >= COMBO_REDUNDANCY_THRESHOLD;
+    // reliably without tutors/fast mana. Lines through one bottleneck count once.
+    const independentComboCount = effectiveComboCount - hubWeight + Math.min(1, hubWeight);
+    const isComboDense = independentComboCount >= COMBO_REDUNDANCY_THRESHOLD;
     const isEarlyAssembly = accel >= 4 || hasReliableTag || isComboDense;
 
     // Byte-identical to the pre-E97 text when there are no multi-card combos;
@@ -609,6 +726,18 @@ export function estimateBracket(
       // When redundancy (not raw speed) is what tips it, say so — the deck may have
       // zero "fast mana" yet still be a combo deck, and "fast combos" would mislead.
       const byRedundancyOnly = isComboDense && accel < 4 && !hasReliableTag;
+      // Name the evidence, not a verdict: "fires before opponents can respond"
+      // overclaimed for a deck that merely runs six tutors.
+      const evidence: string[] = [];
+      if (hasReliableTag) evidence.push('Commander Spellbook rates a combo here Ruthless');
+      if (accel >= 4) {
+        if (tutors.length > 0) evidence.push(plural(tutors.length, 'tutor'));
+        if (fastMana.length > 0) evidence.push(plural(fastMana.length, 'fast mana source'));
+        if (commanderCombos.length > 0) evidence.push('your commander is a combo piece');
+      }
+      if (isComboDense) {
+        evidence.push(`${Math.floor(independentComboCount)} independent combo lines`);
+      }
       hardFloors.push({
         bracket: 4,
         reason: byRedundancyOnly
@@ -616,18 +745,16 @@ export function estimateBracket(
           : multiCardComboCount > 0
             ? `${comboLabel} (fast assembly)`
             : `${twoCardComboCount} fast two-card combo${twoCardComboCount === 1 ? '' : 's'}`,
-        detail: byRedundancyOnly
-          ? 'With this many interchangeable combos, the deck assembles one reliably even without tutors — competitive-level consistency.'
-          : 'This combo can fire before opponents can respond — equivalent to competitive power.',
+        detail: `Early assembly is likely: ${evidence.join(', ')}. Bracket 3 allows two-card combos only when they come together late.`,
       });
     } else {
       hardFloors.push({
         bracket: 3,
         reason: comboLabel,
         detail:
-          multiCardComboCount > 0
-            ? 'An infinite combo bumps the power level — even if the deck isn’t optimized to assemble it quickly.'
-            : 'An infinite combo with two cards bumps the power level — even if the deck isn’t optimized to assemble it quickly.',
+          commanderCombos.length > 0
+            ? 'A combo that ends the game keeps a deck out of Bracket 2. Your commander is a piece, so more tutors or fast mana would make it an early combo (Bracket 4).'
+            : 'A combo that ends the game keeps a deck out of Bracket 2. Nothing here speeds up the assembly, so it reads as a late-game combo, which Bracket 3 allows.',
       });
     }
   }
@@ -671,8 +798,7 @@ export function estimateBracket(
   // is reachable only as a user-declared intent, e.g. a manual bracket override.)
   //   - https://magic.wizards.com/en/news/announcements/commander-brackets-beta-update-february-9-2026
   //   - https://edhrec.com/articles/adapting-your-decks-to-core-bracket-2
-  const floor =
-    hardFloors.length > 0 ? Math.max(...hardFloors.map((f) => f.bracket)) : CORE_BASELINE;
+  const floor = floorOf(hardFloors);
 
   // ── 5. Soft score (0-100) ──
 
@@ -692,21 +818,20 @@ export function estimateBracket(
     )
   );
 
-  const softScore = Math.min(
-    100,
-    Math.min(40, fastMana.length * 8) +
-      Math.min(25, tutors.length * 5) +
-      Math.min(20, Math.max(0, (3.5 - averageCmc) * 15)) +
-      interactionBonus
-  );
+  const pts = softScorePoints({
+    fastManaCount: fastMana.length,
+    tutorCount: tutors.length,
+    averageCmc,
+  });
+  const softScore = Math.min(100, pts.fastMana + pts.tutors + pts.curve + interactionBonus);
 
   // ── 6. Final bracket ──
 
   let bracket: number = floor;
 
-  if (floor >= 4 && softScore >= 80) {
+  if (floor >= 4 && softScore >= SOFT_SCORE.cedhAt) {
     bracket = 5;
-  } else if (floor < 4 && softScore >= 66) {
+  } else if (floor < 4 && softScore >= SOFT_SCORE.bumpAt) {
     bracket = Math.min(floor + 1, 4);
   }
 
@@ -726,6 +851,8 @@ export function estimateBracket(
       extraTurnNames: extraTurns,
       twoCardComboCount,
       multiCardComboCount,
+      comboPieceNames: [...new Set(counted.flatMap((c) => c.cards))],
+      lowPowerComboCount,
       fastManaCount: fastMana.length,
       fastManaNames: fastMana,
       tutorCount: tutors.length,
