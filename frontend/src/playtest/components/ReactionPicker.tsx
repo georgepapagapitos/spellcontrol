@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
@@ -16,13 +16,7 @@ type PanelPos = { top?: number; bottom?: number; left?: number; right?: number }
  * is a grid of emote buttons instead of a menu list. Renders nothing outside
  * an online, seated game — see `useOnlineSignals`.
  */
-interface Props {
-  /** Bump to open the panel from somewhere else (the table context menu's
-   *  "Reactions" item). Starts at 0, which never opens it. */
-  openToken?: number;
-}
-
-export function ReactionPicker({ openToken = 0 }: Props = {}) {
+export function ReactionPicker() {
   const linked = useOnlineSignals();
   const [open, setOpen] = useState(false);
   const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
@@ -54,16 +48,6 @@ export function ReactionPicker({ openToken = 0 }: Props = {}) {
       right: placement.right,
     });
   }, [open]);
-
-  // Seed a position before opening, exactly as handleToggle does: the layout
-  // effect above can only measure a panel that is already rendered, and the
-  // panel only renders once panelPos is set.
-  useEffect(() => {
-    if (openToken === 0) return;
-    const r = buttonRef.current?.getBoundingClientRect();
-    if (r) setPanelPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
-    setOpen(true);
-  }, [openToken]);
 
   if (!linked) return null;
 

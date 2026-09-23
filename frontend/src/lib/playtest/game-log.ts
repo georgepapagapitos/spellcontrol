@@ -373,6 +373,15 @@ function buildRawLogEntries(
     case 'ADJUST_ALL_COUNTERS': {
       const after = next.battlefield.find((b) => b.card.id === action.cardId);
       if (!after || next === current) return [];
+      if (action.op === 'clear')
+        return [
+          {
+            turn,
+            kind: 'card-counter',
+            text: `${after.card.name}: every counter removed`,
+            cardName: after.card.name,
+          },
+        ];
       const verb =
         action.op === 'double' ? 'doubled' : action.op === 'inc' ? 'stepped up' : 'stepped down';
       const tally = Object.entries(after.counters)

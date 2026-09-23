@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Plus, X } from 'lucide-react';
 import { useSheetExit } from '@/lib/use-sheet-exit';
+import { restoreFocus } from '@/lib/overlay-layer';
 import { useCardThumb } from '@/lib/card-thumbs';
 import type { ArrivalRow } from '@/lib/new-arrivals';
 import { OWNERSHIP_BADGE, type ChangeOwnership } from '@/lib/deck-change';
@@ -76,7 +77,7 @@ export function NewArrivalsSheet({
     previouslyFocused.current = document.activeElement;
     closeBtnRef.current?.focus();
     return () => {
-      if (previouslyFocused.current instanceof HTMLElement) previouslyFocused.current.focus();
+      restoreFocus(previouslyFocused.current);
     };
   }, []);
 

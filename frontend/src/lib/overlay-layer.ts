@@ -44,6 +44,17 @@ export function focusInto(panel: HTMLElement): void {
 }
 
 /**
+ * Hand focus back to what had it before an overlay opened, WITHOUT scrolling
+ * to it. The element was where the person left it; a plain `focus()` scrolls
+ * it into view, which on the playtest board jumped the whole battlefield
+ * every time a hand-card menu closed (the hand sits half off the felt's
+ * bottom edge). Every overlay's close path goes through here for that reason.
+ */
+export function restoreFocus(el: Element | null | undefined): void {
+  if (el instanceof HTMLElement && el.isConnected) el.focus({ preventScroll: true });
+}
+
+/**
  * Keep Tab / Shift+Tab inside `panel`, so `aria-modal` is actually true.
  * Call from a keydown handler; returns true if it handled the event.
  */

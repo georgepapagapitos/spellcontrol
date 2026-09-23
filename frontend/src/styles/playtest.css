@@ -1790,6 +1790,33 @@ button.playtest-card-pt__value--editable:focus-visible {
   color: var(--text-muted);
 }
 
+/* The root rows' wrapper exists for arrow keys and hover to scope to; it must
+   not become a box of its own inside the shell's item column. */
+.playtest-ctx-panel {
+  display: contents;
+}
+
+/* A line between groups of rows (EDHPlay's grouping: tap / counters and
+   power / move / face / copies and the stack / information). */
+.playtest-ctx-sep {
+  height: 0;
+  margin: var(--space-1) 0.4rem;
+  border-top: 0.5px solid var(--border);
+}
+
+/* A submenu beside its row. The shell's .ctx-menu gives it the panel chrome;
+   this only keeps a long page (a card with many counter kinds) scrollable. */
+.playtest-ctx-flyout {
+  max-height: calc(100dvh - 1rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The row whose submenu is open stays lit, so the path you took is visible. */
+.playtest-ctx-action.is-open {
+  background: var(--surface-raised);
+}
+
 /* The row back out of a submenu, named after the card so the menu always
    says which permanent it belongs to. */
 .playtest-ctx-back {
@@ -1827,14 +1854,22 @@ button.playtest-card-pt__value--editable:focus-visible {
   outline-offset: 3px;
 }
 @media (hover: hover) and (pointer: fine) {
-  .playtest-ctx-action:hover {
+  .playtest-ctx-action:hover:not(:disabled) {
     background: var(--surface-raised);
     outline: none;
   }
 }
 
-.playtest-ctx-action:active {
+.playtest-ctx-action:active:not(:disabled) {
   background: var(--accent-light);
+}
+
+/* A row that does nothing right now (a card with no counters, an empty pile)
+   stays in place so the menu keeps its shape, and reads as off. */
+.playtest-ctx-action:disabled {
+  color: var(--text-muted);
+  opacity: 0.55;
+  cursor: default;
 }
 
 /* Says, before anything is clicked, that this menu is the selection's and not
@@ -3973,20 +4008,6 @@ button.playtest-card-pt__value--editable:focus-visible {
   color: var(--accent);
 }
 
-/* ── Table context menu ────────────────────────────────────────────────── */
-.playtest-ctx-action--table {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-
-.playtest-ctx-action--table kbd {
-  font-family: inherit;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-}
-
 /* ── The felt itself ───────────────────────────────────────────────────── */
 @media (min-width: 1024px) {
   /* Full-bleed table: the two theme accent glows it already had, plus a faint
@@ -4199,6 +4220,37 @@ button.playtest-card-pt__value--editable:focus-visible {
 .playtest-shortcuts-notice {
   min-height: 1.4em;
   color: var(--text-primary);
+}
+
+/* EDHPlay's sheet shape: every section in view at once on a desktop, flowed
+   into as many columns as fit, each row keycap first. The shared overlay's
+   520px cap is for the app's short ⌘/ list; this one has sixty rows. A
+   phone gets the one column it always had. */
+.shortcuts-overlay.playtest-shortcuts {
+  max-width: min(96rem, 100%);
+}
+
+.playtest-shortcuts .shortcuts-overlay-body {
+  display: block;
+  columns: 16rem;
+  column-gap: var(--space-6);
+}
+
+.playtest-shortcuts .shortcuts-overlay-section-title {
+  break-after: avoid;
+  margin-top: var(--space-4);
+}
+
+.playtest-shortcuts section:first-child .shortcuts-overlay-section-title {
+  margin-top: 0;
+}
+
+.playtest-shortcuts .shortcuts-overlay-row {
+  justify-content: flex-start;
+  gap: var(--space-3);
+  border-bottom: 0;
+  padding: var(--space-1) 0;
+  break-inside: avoid;
 }
 
 /* The one sentence that explains the whole "card in view" section — set

@@ -118,13 +118,13 @@ describe('ZoneViewerModal — one primary action per tile, not a stacked list', 
     const cards = [ptCard('c1', 'Atraxa')];
     render(<ZoneViewerModal zone="command" cards={cards} onClose={() => {}} onMove={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Move Atraxa' }));
-    for (const label of ['Hand', 'Graveyard', 'Exile', 'Library (top)', 'Library (bottom)']) {
+    for (const label of ['Hand', 'Graveyard', 'Exile', 'Library top', 'Library bottom']) {
       expect(screen.getByRole('menuitem', { name: label })).toBeTruthy();
     }
-    // "Battlefield" (the primary, "Cast") and "Command" (the zone itself) are
+    // "Battlefield" (the primary, "Cast") and "Command zone" (the zone itself) are
     // not duplicated in the overflow.
     expect(screen.queryByRole('menuitem', { name: 'Battlefield' })).toBeNull();
-    expect(screen.queryByRole('menuitem', { name: 'Command' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Command zone' })).toBeNull();
   });
 });
 

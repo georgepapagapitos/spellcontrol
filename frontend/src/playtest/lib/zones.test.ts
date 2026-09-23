@@ -50,7 +50,7 @@ describe('a card put back into the library', () => {
   });
 
   it('goes to the BOTTOM when that is what was asked for', () => {
-    // The card menu's "Library (bottom)" passes no index, which the reducer
+    // The card menu's "Library bottom" passes no index, which the reducer
     // reads as "the end" — the drop default must not take that away.
     let s = stateWithLibrary();
     s = applyAction(s, { type: 'DRAW' });

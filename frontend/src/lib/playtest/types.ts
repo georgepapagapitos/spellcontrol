@@ -281,7 +281,7 @@ export type PlaytestAction =
    *  because "add one to every counter" has no answer on a card with no
    *  counters. Floors at zero and drops a kind that reaches it, same as
    *  SET_COUNTER. */
-  | { type: 'ADJUST_ALL_COUNTERS'; cardId: string; op: 'inc' | 'dec' | 'double' }
+  | { type: 'ADJUST_ALL_COUNTERS'; cardId: string; op: 'inc' | 'dec' | 'double' | 'clear' }
   /** Adjust the running power/toughness modifier on a permanent (see
    *  `BattlefieldCard.pt`). Deltas, not absolutes; a modifier back at 0/0
    *  is removed rather than stored. */

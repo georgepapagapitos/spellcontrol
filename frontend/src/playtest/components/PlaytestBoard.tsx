@@ -110,7 +110,7 @@ import { HandDrawer, SHORT_LANDSCAPE_QUERY } from './HandDrawer';
 import { useMediaQuery } from '@/lib/use-media-query';
 import { ZonePile } from './ZonePile';
 import { ZoneViewerModal } from './ZoneViewerModal';
-import { TableContextMenu, type TableMenuItem } from './TableContextMenu';
+import { SEPARATOR, TableContextMenu, type MenuEntry } from './TableContextMenu';
 import { LogDock } from './LogDock';
 import { Modal } from '@/components/Modal';
 import { EndGameDialog } from '@/components/play/EndGameDialog';
@@ -138,8 +138,9 @@ import { HoldButton } from './HoldButton';
 import { HoldBanner } from './HoldBanner';
 import { TableSignals } from './TableSignals';
 import { TAKEBACK_MODE_LABEL } from '../lib/takeback';
-import { REACTION_EMOTES } from '../lib/table-signals';
+import { REACTION_EMOTES, REACTION_LABEL } from '../lib/table-signals';
 import { CardContextMenu, type CardMenuPage } from './CardContextMenu';
+import { printedBase } from '../lib/power-toughness';
 import { CardInfoDialog } from './CardInfoDialog';
 import { MobileZonesPanel } from './MobileZonesPanel';
 import { CountPage } from './CountPage';
@@ -175,7 +176,8 @@ interface Props {
 
 type ViewerMode = { zone: Zone } | null;
 type ContextState = { cardId: string; x: number; y: number; page?: CardMenuPage } | null;
-type HandMenuState = { cardId: string; x: number; y: number } | null;
+/** The hand-card menu, which also serves a commander in the command zone. */
+type HandMenuState = { cardId: string; x: number; y: number; zone?: 'hand' | 'command' } | null;
 
 // Backfill for a session snapshot saved before the mana pool existed —
 // `state.manaPool` is optional for exactly that reason (see types.ts).
@@ -367,8 +369,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // uses; the pile just supplies its own title and its own items.
   const [pileMenu, setPileMenu] = useState<{ zone: Zone; x: number; y: number } | null>(null);
   const [manaOpen, setManaOpen] = useState(false);
-  // Bumped to open the online ReactionPicker from the table menu.
-  const [reactionToken, setReactionToken] = useState(0);
   // "View board" from an online opponent's LifeStrip panel — opens the same
   // full-board inspector OpponentRail's own tap-to-open already uses.
   const [viewingBoardSeat, setViewingBoardSeat] = useState<number | null>(null);
@@ -872,9 +872,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       const src = b.showBackFace && b.card.backImageUrl ? b.card.backImageUrl : b.card.imageUrl;
       if (src && !b.faceDown) m.set(b.card.id, src);
     }
-    for (const c of state.zones.hand) if (c.imageUrl) m.set(c.id, c.imageUrl);
+    for (const c of [...state.zones.hand, ...state.zones.command])
+      if (c.imageUrl) m.set(c.id, c.imageUrl);
     return m;
-  }, [state.battlefield, state.zones.hand]);
+  }, [state.battlefield, state.zones.hand, state.zones.command]);
   // The opponents' permanents, by the seat-scoped id their quadrant publishes
   // as `data-preview-id`. Names, not URLs: `PublicBoard` never carries image
   // URLs (projection.ts), so the quadrant resolves art through the shared CDN
@@ -902,7 +903,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const handleHandCardMenu = useCallback((cardId: string, x: number, y: number) => {
     setHandMenu({ cardId, x, y });
   }, []);
-  const handMenuCard = handMenu ? state.zones.hand.find((c) => c.id === handMenu.cardId) : null;
+  const handMenuZone = handMenu?.zone ?? 'hand';
+  const handMenuCard = handMenu
+    ? state.zones[handMenuZone].find((c) => c.id === handMenu.cardId)
+    : null;
   const revealedIds = useMemo(() => new Set(state.revealed ?? []), [state.revealed]);
   // Every card of the deck behind this session, for the token picker's
   // "Deck tokens" grid. Commanders included — a commander is as likely to
@@ -917,6 +921,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const stackIdSet = useMemo(() => new Set(state.stack ?? []), [state.stack]);
 
   const ctxCard = ctx ? state.battlefield.find((b) => b.card.id === ctx.cardId) : null;
+  // The printed body as numbers, for "Set power / toughness". A `*` has no
+  // number to set from, so that card gets no such row.
+  const ctxPower = ctxCard ? printedBase(ctxCard.card.power) : null;
+  const ctxToughness = ctxCard ? printedBase(ctxCard.card.toughness) : null;
   // Candidate hosts exclude the card itself and its current host (re-attaching
   // to where it already is would be a no-op menu entry).
   const attachTargets = ctxCard
@@ -1179,14 +1187,16 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
    */
   const putOnStack = useCallback(
     (cardIds: readonly string[]) => {
+      // A card in hand or a commander is cast onto the stack by way of the
+      // battlefield, which is also what bumps a commander's tax.
+      const castable = (id: string) =>
+        state.zones.hand.find((c) => c.id === id) ?? state.zones.command.find((c) => c.id === id);
       const usable = cardIds.filter(
-        (id) =>
-          state.battlefield.some((b) => b.card.id === id) ||
-          state.zones.hand.some((c) => c.id === id)
+        (id) => state.battlefield.some((b) => b.card.id === id) || castable(id)
       );
       if (usable.length === 0) return false;
       for (const cardId of usable) {
-        const handCard = state.zones.hand.find((c) => c.id === cardId);
+        const handCard = castable(cardId);
         if (handCard) {
           const { x, y } = placeOnBattlefield(handCard);
           dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId, x, y });
@@ -1290,7 +1300,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   );
 
   const adjustAllCounters = useCallback(
-    (cardIds: readonly string[], op: 'inc' | 'dec' | 'double') => {
+    (cardIds: readonly string[], op: 'inc' | 'dec' | 'double' | 'clear') => {
       const withCounters = cardIds.filter((id) =>
         state.battlefield.some((b) => b.card.id === id && Object.keys(b.counters).length > 0)
       );
@@ -1833,18 +1843,43 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // Drawing and every library peek are on the library pile (and on their own
   // keys); the log and the shortcuts sheet are in the game menu. What is left
   // is what you reach for with the pointer already on the felt.
-  const tableMenuItems: TableMenuItem[] = [
+  // EDHPlay's felt menu, row for row, then the two this table adds.
+  const tableMenuItems: MenuEntry[] = [
     canPassTurn
       ? { label: 'Pass turn', shortcut: keyFor('pass-turn'), onClick: doPassTurn }
-      : { label: 'Next turn', shortcut: keyFor('next-turn'), onClick: doNextTurn },
+      : {
+          label: 'Next turn',
+          // Solo, Space is the next turn too (EDHPlay's key for this row);
+          // online and not your turn it does nothing, so Shift+N is the key.
+          shortcut: keyFor(onlineTable ? 'next-turn' : 'pass-turn'),
+          onClick: doNextTurn,
+        },
     { label: 'Untap all', shortcut: keyFor('untap-all'), onClick: doUntapAll },
     {
-      label: manaOpen ? 'Hide mana pool' : 'Mana pool',
+      label: manaOpen ? 'Hide mana pool' : 'Show mana pool',
       shortcut: keyFor('mana'),
       onClick: () => setManaOpen((open) => !open),
     },
     { label: 'Create token', shortcut: keyFor('token'), onClick: () => setTokenCreator(true) },
-    { label: 'Roll dice', shortcut: keyFor('dice'), onClick: () => setShowDice(true) },
+    {
+      label: 'Roll dice or flip a coin',
+      shortcut: keyFor('dice'),
+      onClick: () => setShowDice(true),
+    },
+    ...(onlineTable
+      ? [
+          {
+            label: 'Reactions',
+            // The four with keys first, as their keys run (7 to 0).
+            items: REACTION_EMOTES.map((emote, i) => ({
+              label: `${emote} ${REACTION_LABEL[emote]}`,
+              shortcut: i < 4 ? keyFor(`react-${i + 1}` as ShortcutId) : undefined,
+              onClick: () => sendReaction(i),
+            })),
+          },
+        ]
+      : []),
+    SEPARATOR,
     { label: selectMode ? 'Done selecting' : 'Select cards', onClick: toggleSelectMode },
     {
       label: takebackBadge ? `Take back (${takebackBadge})` : 'Take back',
@@ -1852,7 +1887,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       onClick: handleTakebackClick,
       disabled: takeback.mode === 'off' || takeback.verdict === 'none',
     },
-    ...(onlineTable ? [{ label: 'Reactions', onClick: () => setReactionToken((t) => t + 1) }] : []),
   ];
 
   // The table tier's mana tracker, in its own bottom-left dock above the log
@@ -2031,7 +2065,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         />
       )}
       {/* Both self-gate on an online, seated game (see their own docs). */}
-      <ReactionPicker openToken={reactionToken} />
+      <ReactionPicker />
       <HoldButton />
       <HoldBanner />
       {/* Take back and Select used to sit here too. Both are in the table
@@ -2067,15 +2101,16 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
    * the battlefield, which `MOVE_DESTINATIONS` already leaves out and which
    * has no sensible layout for N cards landing at once.
    */
-  const moveAllItems = (from: Zone): TableMenuItem[] =>
-    MOVE_DESTINATIONS.filter((d) => d.key !== from).map((d) => {
+  const moveAllItems = (from: Zone): MenuEntry[] =>
+    // Not the command zone: nobody moves a whole graveyard there.
+    MOVE_DESTINATIONS.filter((d) => d.key !== from && d.key !== 'command').map((d) => {
       // Everyone watched these cards go in, so a block that keeps its order
       // would hand the caster a known deck order. The row says so, because
       // "my graveyard is now the top of my library, in order" is a very
       // different promise from what actually happens.
       const random = d.key === 'library';
       return {
-        label: random ? `${d.label}, random order` : d.label,
+        label: random ? `${d.label} (random order)` : d.label,
         onClick: () =>
           dispatch({ type: 'MOVE_ALL_TO', from, to: d.key, toIndex: d.toIndex, random }),
       };
@@ -2088,16 +2123,15 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
    * which is how both grew past reading. Rows print their key, so the menu
    * is also where the library's shortcuts are discovered.
    */
-  const pileMenuItems = (zone: Zone): TableMenuItem[] => {
+  const pileMenuItems = (zone: Zone): MenuEntry[] => {
     const empty = state.zones[zone].length === 0;
     const moveAll = { label: 'Move all to', items: moveAllItems(zone), disabled: empty };
     if (zone !== 'library') {
+      // EDHPlay's: View all / Select random card, Move all to. Shuffling the
+      // pile into the library is ours.
       return [
-        {
-          label: `View the ${zone === 'command' ? 'command zone' : zone}`,
-          onClick: () => setViewer({ zone }),
-          disabled: empty,
-        },
+        { label: 'View all', onClick: () => setViewer({ zone }), disabled: empty },
+        SEPARATOR,
         ...(zone === 'graveyard' || zone === 'exile'
           ? [
               {
@@ -2105,14 +2139,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                 onClick: () => void peekZone('random', zone),
                 disabled: empty,
               },
+              moveAll,
               {
                 label: 'Shuffle into the library',
                 onClick: () => dispatch({ type: 'SHUFFLE_ZONE_INTO_LIBRARY', zone }),
                 disabled: empty,
               },
             ]
-          : []),
-        moveAll,
+          : [moveAll]),
       ];
     }
 
@@ -2278,6 +2312,13 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
 
   const openPileMenu = (zone: Zone) => (x: number, y: number) => setPileMenu({ zone, x, y });
 
+  /** Out of the command zone onto the battlefield — the reducer bumps that
+   *  commander's own tax. */
+  const castCommander = (card: PlaytestCard) => {
+    const pos = placeOnBattlefield(card);
+    dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: card.id, x: pos.x, y: pos.y });
+  };
+
   /* Which piles stand on the felt, and which live behind the edge tab. Four
      card-width tiles plus a hand do not fit a PHONE, and the two that earn
      the room are the ones you touch every turn: the library (its click
@@ -2329,10 +2370,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
             // with partners the pile cannot guess which of the two you meant
             // — so the choice IS the click. The reducer bumps that
             // commander's own tax.
-            onCastCommander={(card) => {
-              const pos = placeOnBattlefield(card);
-              dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: card.id, x: pos.x, y: pos.y });
-            }}
+            onCastCommander={castCommander}
+            // A right-click on one commander is that card's menu, as it is in
+            // EDHPlay; anywhere else on the tile is still the zone's.
+            onCardMenu={(card, x, y) => setHandMenu({ cardId: card.id, x, y, zone: 'command' })}
           />
         </>
       )}
@@ -2667,6 +2708,11 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
             setCtx(null);
           }}
           tax={commanderTaxAmount(state.commanderTax, ctxCard.card.id)}
+          printedPt={
+            ctxPower !== null && ctxToughness !== null
+              ? { power: ctxPower, toughness: ctxToughness }
+              : undefined
+          }
           onPreview={
             cardLookup?.has(ctxCard.card.id)
               ? () => {
@@ -2755,6 +2801,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           x={handMenu.x}
           y={handMenu.y}
           cardName={handMenuCard.name}
+          zone={handMenuZone}
+          libraryCount={libraryCount}
           variant={isNarrow ? 'sheet' : 'floating'}
           keyFor={keyFor}
           onClose={() => setHandMenu(null)}
@@ -2762,6 +2810,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
             cardLookup?.has(handMenu.cardId) ? () => setPreviewCardId(handMenu.cardId) : undefined
           }
           onPlay={(opts) => {
+            if (handMenuZone === 'command') {
+              castCommander(handMenuCard);
+              return;
+            }
             setHandOpen(false);
             playFromHand(handMenu.cardId, opts);
           }}
@@ -2775,15 +2827,19 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               : undefined
           }
           onPutOnStack={() => putOnStack([handMenu.cardId])}
-          onMove={(direction) => {
-            const from = state.zones.hand.findIndex((c) => c.id === handMenu.cardId);
-            if (from >= 0)
-              dispatch({
-                type: 'REORDER_HAND',
-                cardId: handMenu.cardId,
-                toIndex: from + direction,
-              });
-          }}
+          onMove={
+            handMenuZone === 'hand'
+              ? (direction) => {
+                  const from = state.zones.hand.findIndex((c) => c.id === handMenu.cardId);
+                  if (from >= 0)
+                    dispatch({
+                      type: 'REORDER_HAND',
+                      cardId: handMenu.cardId,
+                      toIndex: from + direction,
+                    });
+                }
+              : undefined
+          }
           canMoveEarlier={state.zones.hand.findIndex((c) => c.id === handMenu.cardId) > 0}
           canMoveLater={
             state.zones.hand.findIndex((c) => c.id === handMenu.cardId) <

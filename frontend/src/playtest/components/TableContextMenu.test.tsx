@@ -5,8 +5,13 @@
  * as load-bearing as the items themselves.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
-import { TableContextMenu, type TableMenuItem } from './TableContextMenu';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import {
+  SEPARATOR,
+  TableContextMenu,
+  type MenuEntry,
+  type TableMenuItem,
+} from './TableContextMenu';
 
 function items(overrides: Partial<TableMenuItem>[] = []): TableMenuItem[] {
   const base: TableMenuItem[] = [
@@ -100,12 +105,12 @@ describe('TableContextMenu', () => {
 });
 
 /**
- * A row with `items` drills into a page instead of acting — the same shape
- * `CardContextMenu` uses, so a list of destinations doesn't have to be spent
- * as a dozen rows on the root.
+ * A row with `items` opens a submenu. With a pointer it flies out BESIDE the
+ * menu, EDHPlay's way, and the root stays in view; in the bottom sheet the
+ * same tree drills down a page at a time.
  */
-describe('TableContextMenu — submenu pages', () => {
-  function nested(onMove = vi.fn()): TableMenuItem[] {
+describe('TableContextMenu — submenus', () => {
+  function nested(onMove = vi.fn()): MenuEntry[] {
     return [
       { label: 'Shuffle', onClick: vi.fn() },
       {
@@ -118,46 +123,137 @@ describe('TableContextMenu — submenu pages', () => {
     ];
   }
 
-  it('opens a page, runs the row on it, and never fires the parent', () => {
+  it('flies a submenu out beside the menu, runs its row, and never fires the parent', () => {
     const onMove = vi.fn();
     const onClose = vi.fn();
-    const list = nested(onMove);
-    render(<TableContextMenu x={0} y={0} variant="floating" items={list} onClose={onClose} />);
+    render(
+      <TableContextMenu x={0} y={0} variant="floating" items={nested(onMove)} onClose={onClose} />
+    );
 
     const parent = screen.getByRole('menuitem', { name: /Move all to/ });
     expect(parent.getAttribute('aria-haspopup')).toBe('menu');
     fireEvent.click(parent);
-    // Drilling in is navigation, not an action: nothing ran and nothing closed.
+    // Opening is navigation, not an action: nothing ran and nothing closed,
+    // and the menu it came from is still there beside it.
     expect(onClose).not.toHaveBeenCalled();
-    expect(screen.queryByRole('menuitem', { name: 'Shuffle' })).toBeNull();
+    expect(parent.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('menu', { name: 'Move all to' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Shuffle' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('menuitem', { name: 'Hand' }));
     expect(onMove).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
   });
 
-  it('renames itself for the page and offers a way back to the root', () => {
+  it('opens on hover and closes when the pointer rests on a sibling row', () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <TableContextMenu x={0} y={0} variant="floating" items={nested()} onClose={vi.fn()} />
+      );
+      fireEvent.pointerEnter(screen.getByRole('menuitem', { name: /Move all to/ }), {
+        pointerType: 'mouse',
+      });
+      act(() => void vi.advanceTimersByTime(200));
+      expect(screen.getByRole('menu', { name: 'Move all to' })).toBeTruthy();
+
+      fireEvent.pointerEnter(screen.getByRole('menuitem', { name: 'Shuffle' }), {
+        pointerType: 'mouse',
+      });
+      act(() => void vi.advanceTimersByTime(200));
+      expect(screen.queryByRole('menu', { name: 'Move all to' })).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('opens with → and backs out with ←, handing focus each way', () => {
+    render(<TableContextMenu x={0} y={0} variant="floating" items={nested()} onClose={vi.fn()} />);
+    const parent = screen.getByRole('menuitem', { name: /Move all to/ });
+    fireEvent.keyDown(parent, { key: 'ArrowRight' });
+    const hand = screen.getByRole('menuitem', { name: 'Hand' });
+    expect(document.activeElement).toBe(hand);
+
+    fireEvent.keyDown(hand, { key: 'ArrowLeft' });
+    expect(screen.queryByRole('menu', { name: 'Move all to' })).toBeNull();
+    expect(document.activeElement).toBe(parent);
+  });
+
+  it('walks its rows with ↑ and ↓, wrapping at the ends', () => {
+    render(<TableContextMenu x={0} y={0} variant="floating" items={items()} onClose={vi.fn()} />);
+    const rows = screen.getAllByRole('menuitem');
+    rows[0].focus();
+    fireEvent.keyDown(rows[0], { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(rows[rows.length - 1]);
+    fireEvent.keyDown(rows[rows.length - 1], { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(rows[0]);
+  });
+
+  it('opens with a submenu already open when asked for one by id', () => {
+    const list: MenuEntry[] = [
+      { label: 'Tap', onClick: vi.fn() },
+      { id: 'counters', label: 'Counters', content: <p>steppers</p> },
+    ];
     render(
       <TableContextMenu
         x={0}
         y={0}
         variant="floating"
+        items={list}
+        openId="counters"
+        onClose={vi.fn()}
+      />
+    );
+    expect(screen.getByText('steppers')).toBeTruthy();
+  });
+
+  it('drills down a page at a time in the sheet, with a way back', () => {
+    render(
+      <TableContextMenu
+        x={0}
+        y={0}
+        variant="sheet"
         title="Graveyard"
         items={nested()}
         onClose={vi.fn()}
       />
     );
     fireEvent.click(screen.getByRole('menuitem', { name: /Move all to/ }));
-    expect(screen.getByRole('menu', { name: 'Move all to' })).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Move all to' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'Shuffle' })).toBeNull();
 
     fireEvent.click(screen.getByRole('menuitem', { name: 'Back to Graveyard' }));
-    expect(screen.getByRole('menu', { name: 'Graveyard' })).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Graveyard' })).toBeTruthy();
     expect(screen.getByRole('menuitem', { name: 'Shuffle' })).toBeTruthy();
   });
 
-  it('renders a page that is a control instead of a list of rows', () => {
-    const list: TableMenuItem[] = [{ label: 'Draw several', content: <p>count goes here</p> }];
+  it('renders a submenu that is a control instead of a list of rows', () => {
+    const list: MenuEntry[] = [{ label: 'Draw several', content: <p>count goes here</p> }];
     render(<TableContextMenu x={0} y={0} variant="floating" items={list} onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('menuitem', { name: /Draw several/ }));
     expect(screen.getByText('count goes here')).toBeTruthy();
+  });
+});
+
+/**
+ * EDHPlay draws a line between groups of rows. Conditional rows come and go
+ * from a caller's list, and a line must never end up first, last or doubled.
+ */
+describe('TableContextMenu — separators', () => {
+  it('draws a line between groups and none at either end or twice in a row', () => {
+    const list: MenuEntry[] = [
+      SEPARATOR,
+      { label: 'Tap', onClick: vi.fn() },
+      SEPARATOR,
+      SEPARATOR,
+      { label: 'Flip', onClick: vi.fn() },
+      SEPARATOR,
+    ];
+    render(<TableContextMenu x={0} y={0} variant="floating" items={list} onClose={vi.fn()} />);
+    const menu = screen.getByRole('menu');
+    const kinds = [...menu.querySelectorAll('[role="menuitem"], [role="separator"]')].map((el) =>
+      el.getAttribute('role')
+    );
+    expect(kinds).toEqual(['menuitem', 'separator', 'menuitem']);
   });
 });

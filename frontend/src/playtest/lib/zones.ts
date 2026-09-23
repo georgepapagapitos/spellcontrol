@@ -62,9 +62,9 @@ export const MOVE_DESTINATIONS: MoveDestination[] = [
   // Top and bottom are separate entries against the same zone: "put it back on
   // top" is a routine action (tutors, Brainstorm) that previously forced a trip
   // through the scry sheet. `toIndex` feeds MOVE_TO_ZONE directly.
-  { key: 'library', label: 'Library (top)', toIndex: 0 },
-  { key: 'library', label: 'Library (bottom)' },
-  { key: 'command', label: 'Command' },
+  { key: 'library', label: 'Library top', toIndex: 0 },
+  { key: 'library', label: 'Library bottom' },
+  { key: 'command', label: 'Command zone' },
 ];
 
 /**
@@ -75,7 +75,7 @@ export const MOVE_DESTINATIONS: MoveDestination[] = [
  * on the library means putting it back on top — what a player does at a table
  * after a tutor, a Brainstorm, or a change of mind — and a card silently
  * landing under 90 others is a move nobody can see or undo by eye. The
- * explicit other direction is the card menu's "Library (bottom)".
+ * explicit other direction is the card menu's "Library bottom".
  *
  * Every other zone appends: the top of a graveyard or exile pile IS the card
  * put there last.

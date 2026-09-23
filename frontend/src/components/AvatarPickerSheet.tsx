@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
+import { restoreFocus } from '../lib/overlay-layer';
 import { useCollectionStore } from '../store/collection';
 import { useSearchCards } from '../lib/use-search-cards';
 import { imageFromCard, loadCard, useCardThumb } from '../lib/card-thumbs';
@@ -164,7 +165,7 @@ export function AvatarPickerSheet({ current, onPick, onClose }: Props) {
   useEffect(() => {
     const prevFocused = document.activeElement as HTMLElement | null;
     return () => {
-      if (prevFocused?.isConnected) prevFocused.focus?.();
+      restoreFocus(prevFocused);
     };
   }, []);
 

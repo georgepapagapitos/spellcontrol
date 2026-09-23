@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { focusInto, trapTab, useOverlayLayer } from '../lib/overlay-layer';
+import { focusInto, restoreFocus, trapTab, useOverlayLayer } from '../lib/overlay-layer';
 
 interface Props {
   onClose: () => void;
@@ -120,7 +120,7 @@ export function Modal({
       // keyboard / screen-reader users aren't dropped at the top of the page
       // when it closes. (Runs after the exit animation — unmount is what
       // ends a close.)
-      if (prevFocused?.isConnected) prevFocused.focus?.();
+      restoreFocus(prevFocused);
     };
   }, []);
 

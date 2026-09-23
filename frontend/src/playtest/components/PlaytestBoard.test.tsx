@@ -521,7 +521,7 @@ describe('PlaytestBoard', () => {
     });
     fireEvent.click(screen.getByRole('menuitem', { name: /^Move all to/ }));
     // The promise is on the label, not just in the action.
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Library (top), random order' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Library top (random order)' }));
     expect(dispatch).toHaveBeenCalledWith({
       type: 'MOVE_ALL_TO',
       from: 'graveyard',
@@ -1070,7 +1070,7 @@ describe('PlaytestBoard — drag a box across the felt', () => {
 
     fireEvent.contextMenu(screen.getByRole('button', { name: 'Card 0' }));
     expect(screen.getByText('2 cards selected')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /^Tap/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Tap/ }));
     expect(dispatch).toHaveBeenCalledWith({ type: 'TAP', cardId: 'card-0', tapped: true });
     expect(dispatch).toHaveBeenCalledWith({ type: 'TAP', cardId: 'card-1', tapped: true });
   });
@@ -1709,12 +1709,28 @@ describe('PlaytestBoard — the command zone with partners', () => {
     expect(screen.getByRole('button', { name: /^View the command zone\./ })).toBeTruthy();
   });
 
-  it('keeps its menu — the row does not swallow the right-click', () => {
+  it('keeps its menu off the commanders, on the rest of the tile', () => {
     mount(withCommanders(['Halana', 'Alena']));
-    fireEvent.contextMenu(screen.getByRole('button', { name: /^Cast Halana/ }), {
+    fireEvent.contextMenu(screen.getByText('Command', { exact: false, selector: 'span' }), {
       clientX: 10,
       clientY: 10,
     });
     expect(screen.getByRole('menu', { name: 'Command zone' })).toBeTruthy();
+  });
+
+  // EDHPlay's: a right-click on one commander is that card's menu, and its
+  // Move to leads with the battlefield, which from here is casting it.
+  it('gives each commander its own card menu', () => {
+    mount(withCommanders(['Halana', 'Alena']));
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^Cast Alena/ }), {
+      clientX: 10,
+      clientY: 10,
+    });
+    expect(screen.getByRole('menu', { name: 'Alena' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Move to/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Battlefield/ }));
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'MOVE_TO_BATTLEFIELD', cardId: 'cmd-1' })
+    );
   });
 });
