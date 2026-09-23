@@ -31,6 +31,7 @@ const {
   engineCap: ENGINE_CAP,
   bumpAt: ELEVATE_BUMP_THRESHOLD,
   cedhAt: ELEVATE_CEDH_THRESHOLD,
+  cedhMinGameChangers: CEDH_MIN_GAME_CHANGERS,
 } = SOFT_SCORE;
 
 const HARD_FLOOR_TIP =
@@ -61,8 +62,8 @@ const SOFT_SCORE_TIP: ReactNode = (
         resilient deck. Up to 15 pts.
       </li>
       <li>
-        <strong>Combo engines</strong>: complete loops that don't end the game on their own, like
-        drawing your library. Loops through the same card count once. 10 pts each, max 20.
+        <strong>Combo engines</strong>: complete combos that set no floor, like a loop that draws
+        your library. Combos through the same card count once. 10 pts each, max 20.
       </li>
     </ul>
   </>
@@ -188,9 +189,12 @@ export function BracketBreakdown({
   // cEDH at 80, floor < 4 bumps one bracket at 66. Once a deck has crossed its
   // applicable threshold there's no further score-driven move, so this is null
   // — the "elevated" notes below already say what happened.
+  // cEDH also needs the Game Changers; points alone can't get a deck there.
+  const cedhNeedsGameChangers =
+    floor >= 4 && bracket < 5 && breakdown.gameChangerCount < CEDH_MIN_GAME_CHANGERS;
   const nextThreshold: { need: number; at: number; target: string } | null =
     floor >= 4
-      ? bracket < 5
+      ? bracket < 5 && !cedhNeedsGameChangers
         ? {
             need: ELEVATE_CEDH_THRESHOLD - softScore,
             at: ELEVATE_CEDH_THRESHOLD,
@@ -262,8 +266,8 @@ export function BracketBreakdown({
           <div className="bracket-breakdown-loops">
             <p className="bracket-breakdown-footnote">
               {loops.length === 1
-                ? 'This loop sets no floor: it draws cards or repeats without ending the game on its own, and the brackets only limit combos that do. It adds to the power signal as a combo engine.'
-                : `These ${loops.length} loops set no floor: they draw cards or repeat without ending the game on their own, and the brackets only limit combos that do. They add to the power signal as combo engines.`}
+                ? 'This combo sets no floor: the brackets only limit two-card combos that end the game, and this one loops without ending it or needs more cards. It adds to the power signal as a combo engine.'
+                : `These ${loops.length} combos set no floor: the brackets only limit two-card combos that end the game, and these loop without ending it or need more cards. They add to the power signal as combo engines.`}
             </p>
             <ul className="bracket-breakdown-loop-list">
               {loops.map((cards) => (
@@ -358,10 +362,10 @@ export function BracketBreakdown({
               engines > 0
                 ? `${engines} engine${engines === 1 ? '' : 's'} × ${ENGINE_PER} pts${
                     loops.length > engines
-                      ? ` (${loops.length} loops; loops through one card count once)`
+                      ? ` (${loops.length} combos; combos through one card count once)`
                       : ''
                   }`
-                : 'No loops that stop short of winning'
+                : 'No combos outside the floor'
             }
           />
           <div className="deck-bracket-row deck-bracket-total-row" role="row">
@@ -389,6 +393,12 @@ export function BracketBreakdown({
             <p className="bracket-breakdown-summary-note">
               Power signal ≥ {ELEVATE_BUMP_THRESHOLD} bumped the floor from Bracket {floor} up to
               Bracket {bracket}.
+            </p>
+          )}
+          {cedhNeedsGameChangers && (
+            <p className="bracket-breakdown-summary-note bracket-breakdown-distance">
+              {bracketLabel(5)} also needs at least {CEDH_MIN_GAME_CHANGERS} Game Changers; this
+              deck runs {breakdown.gameChangerCount}.
             </p>
           )}
           {nextThreshold && (

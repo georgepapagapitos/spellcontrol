@@ -24,6 +24,7 @@ export const OTAG_DESCRIPTIONS: Record<string, string> = {
   'card-advantage': 'Nets you more cards than it cost',
   draw: 'Draws you extra cards',
   tutor: 'Searches your library for a specific card',
+  'land-tutor': 'Searches your library for lands only',
   cantrip: 'Cheap effect that replaces itself by drawing a card',
   wheel: 'Discards hands and refills them with fresh cards',
   lifegain: 'Gains you life',

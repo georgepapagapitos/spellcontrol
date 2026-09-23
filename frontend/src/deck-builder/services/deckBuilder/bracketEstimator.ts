@@ -36,6 +36,7 @@ export {
   isGameChangerCard,
   isFastMana,
   countsTowardComboFloor,
+  floorsAtFourAlone,
   floorOf,
   bracketReasons,
   softScorePoints,

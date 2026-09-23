@@ -11,6 +11,7 @@ import type { BracketEstimation, DetectedCombo, TagLookup } from './index';
 import {
   bracketReasons,
   countsTowardComboFloor,
+  floorsAtFourAlone,
   needsUnnamedCard,
   estimateBracket,
   floorOf,
@@ -273,5 +274,103 @@ describe('loop combos add to the power signal as combo engines', () => {
     const r = estimate([sb(['Lightning Runner', 'Aetherwind Basker'], 'S')]);
     expect(r.bracket).toBe(3);
     expect(r.breakdown.loopEngineCount).toBe(0);
+  });
+});
+
+describe('floorsAtFourAlone', () => {
+  it('is a Ruthless two-card combo or a commander combo that counts toward the floor', () => {
+    expect(floorsAtFourAlone(sb(['A', 'B'], 'R'))).toBe(true);
+    expect(floorsAtFourAlone(sb(['A', 'B'], 'S'))).toBe(false);
+    expect(floorsAtFourAlone(sb(['Cmdr', 'B', 'C'], 'P'), ['Cmdr'])).toBe(true);
+    expect(floorsAtFourAlone(sb(['Cmdr', 'B', 'C', 'D'], 'P'), ['Cmdr'])).toBe(false);
+    // An Exhibition loop sets no floor at all, commander or not.
+    expect(floorsAtFourAlone(sb(['Cmdr', 'B'], 'E'), ['Cmdr'])).toBe(false);
+  });
+});
+
+describe('interaction density on a half-built deck', () => {
+  it('divides by at least a full deck of non-lands, so one removal spell is not 100%', () => {
+    // Ten cards, one removal spell. The old denominator was max(1, 10 - 37) = 1.
+    const names = ['Swords to Plowshares', ...Array.from({ length: 9 }, (_, i) => `Filler ${i}`)];
+    const r = estimateBracket(names, [], 4, undefined, { removal: 1 }, new Set(), noTags);
+    expect(r.breakdown.interactionCount).toBe(1);
+    expect(r.softScore).toBe(0);
+  });
+});
+
+describe('stress-test fixes (2026-09-23)', () => {
+  it('a search that only finds lands is not a tutor (Expedition Map, Urza’s Cave)', () => {
+    const tags: TagLookup = {
+      ...noTags,
+      hasTag: (name, tag) =>
+        (tag === 'tutor' && ['Expedition Map', 'Demonic Tutor'].includes(name)) ||
+        (tag === 'land-tutor' && name === 'Expedition Map'),
+      getCardRole: () => 'cardDraw',
+    };
+    const r = estimateBracket(
+      ['Expedition Map', 'Demonic Tutor'],
+      [],
+      4,
+      undefined,
+      {},
+      new Set(),
+      tags
+    );
+    expect(r.breakdown.tutorNames).toEqual(['Demonic Tutor']);
+  });
+
+  it('two separate combo packages are two engines, not five lines', () => {
+    const hubA = ['A1', 'A2', 'A3', 'A4'].map((p) => sb(['HubA', p], 'S'));
+    const hubB = ['B1', 'B2', 'B3', 'B4'].map((p) => sb(['HubB', p], 'S'));
+    const r = estimate([...hubA, ...hubB]);
+    expect(r.bracket).toBe(3);
+    expect(r.hardFloors[0].reason).toBe('8 two-card combos');
+  });
+
+  it('a name listed twice is still one Game Changer', () => {
+    const gc = new Set(['Rhystic Study', 'Smothering Tithe', 'Cyclonic Rift']);
+    const names = ['Rhystic Study', 'Smothering Tithe', 'Cyclonic Rift', 'Cyclonic Rift'];
+    const r = estimateBracket(names, [], 3, undefined, {}, gc, noTags);
+    expect(r.breakdown.gameChangerCount).toBe(3);
+    expect(r.bracket).toBe(3);
+  });
+
+  it('an unknown average mana value adds no curve points instead of NaN', () => {
+    const r = estimateBracket(['Forest'], [], Number.NaN, undefined, {}, new Set(), noTags);
+    expect(r.softScore).toBe(0);
+  });
+
+  it('a lone winning three-card combo under the floor gate adds power instead of nothing', () => {
+    const r = estimate([sb(['A', 'B', 'C'], 'S')]);
+    expect(r.hardFloors).toEqual([]);
+    expect(r.breakdown.loopEngineCount).toBe(1);
+    expect(r.breakdown.loopCombos).toEqual([['A', 'B', 'C']]);
+  });
+});
+
+describe('cEDH needs Game Changers as well as a high power signal', () => {
+  const fast = ['Mana Vault', 'Chrome Mox', 'Mox Diamond', 'Grim Monolith', "Lion's Eye Diamond"];
+  const tutors = ['T1', 'T2', 'T3', 'T4', 'T5'];
+  const tags: TagLookup = {
+    ...noTags,
+    hasTag: (name, tag) => tag === 'tutor' && tutors.includes(name),
+    getCardRole: (name) => (tutors.includes(name) ? 'cardDraw' : null),
+  };
+  const combo = sb(['A', 'B'], 'R');
+
+  it('reads cEDH at 80+ with 4 or more Game Changers', () => {
+    const gc = new Set(['GC1', 'GC2', 'GC3', 'GC4']);
+    const names = [...fast, ...tutors, 'A', 'B', ...gc];
+    const r = estimateBracket(names, [combo], 1.5, undefined, {}, gc, tags);
+    expect(r.softScore).toBeGreaterThanOrEqual(80);
+    expect(r.bracket).toBe(5);
+  });
+
+  it('stays Optimized with the same power but only 2 Game Changers (Fire Lord Azula)', () => {
+    const gc = new Set(['GC1', 'GC2']);
+    const names = [...fast, ...tutors, 'A', 'B', ...gc];
+    const r = estimateBracket(names, [combo], 1.5, undefined, {}, gc, tags);
+    expect(r.softScore).toBeGreaterThanOrEqual(80);
+    expect(r.bracket).toBe(4);
   });
 });

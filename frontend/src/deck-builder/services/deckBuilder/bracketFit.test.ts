@@ -143,9 +143,18 @@ function estimate(
   detectedCombos: DetectedCombo[] = [],
   averageCmc = 3.5,
   roleCounts?: Record<string, number>,
-  gcNames = new Set<string>()
+  gcNames = new Set<string>(),
+  commanderNames?: string[]
 ) {
-  return estimateBracket(cards, detectedCombos, averageCmc, undefined, roleCounts, gcNames);
+  return estimateBracket(
+    cards,
+    detectedCombos,
+    averageCmc,
+    undefined,
+    roleCounts,
+    gcNames,
+    commanderNames
+  );
 }
 
 interface InputOverrides {
@@ -175,7 +184,8 @@ function makeInput(o: InputOverrides): BracketFitInput {
     detectedCombos,
     averageCmc,
     roleCounts,
-    gameChangerNames
+    gameChangerNames,
+    o.commanderNames
   );
   return {
     estimation,
@@ -379,6 +389,41 @@ describe('downshift — combos', () => {
     expect(plan.achievable).toBe(true);
   });
 
+  // A commander + one card floors at 4. The commander reads inclusion 0 (it's
+  // not in its own EDHREC card list), so the old "lowest inclusion first" sort
+  // offered it as the cut.
+  it('target == 3, commander combo → cuts the other piece, never the commander', () => {
+    const combos = [
+      { ...combo('cmdr', null, ['Satya, Aetherflux Genius', 'Lightning Runner']), bracketTag: 'S' },
+    ];
+    const input = makeInput({
+      allCardNames: ['Satya, Aetherflux Genius', 'Lightning Runner', 'Forest'],
+      detectedCombos: combos,
+      commanderNames: ['Satya, Aetherflux Genius'],
+      cardInclusionMap: { 'Lightning Runner': 40 },
+    });
+    expect(input.estimation.bracket).toBe(4);
+    const plan = computeDownshiftPlan(input, 3);
+    expect(plan.moves.map((m) => [m.signal, m.name])).toEqual([['combo', 'Lightning Runner']]);
+    expect(plan.achievable).toBe(true);
+  });
+
+  it('target == 3, a Powerful commander combo is broken, not answered with tutor cuts', () => {
+    const combos = [
+      { ...combo('cmdr', null, ['Cmdr', 'PieceA', 'PieceB']), bracketTag: 'P', cardCount: 3 },
+    ];
+    const input = makeInput({
+      allCardNames: ['Cmdr', 'PieceA', 'PieceB', 'Forest'],
+      detectedCombos: combos,
+      commanderNames: ['Cmdr'],
+      cardInclusionMap: { PieceA: 5, PieceB: 50 },
+    });
+    expect(input.estimation.bracket).toBe(4);
+    const plan = computeDownshiftPlan(input, 3);
+    expect(plan.moves.map((m) => m.name)).toEqual(['PieceA']);
+    expect(plan.achievable).toBe(true);
+  });
+
   it('target == 3, only late combo → no combo cut required', () => {
     const combos = [combo('late', 3, ['ComboA', 'ComboB'])];
     const input = makeInput({
@@ -540,7 +585,10 @@ describe('downshift — soft bump', () => {
     const input = makeInput({
       allCardNames: [...fast, 'Forest'],
       averageCmc: 1.0, // lowCurve bonus = (3.5-1)*15 = capped at 20
-      roleCounts: { removal: 1 }, // tiny-deck interaction → +15 soft → promotes to 3
+      // 14 removal against a full deck's 63 non-lands → +15 soft → promotes to 3.
+      // (One removal spell in a 6-card list used to score the same: the old
+      // denominator was max(1, 6 − 37) = 1, fixed 2026-09-23.)
+      roleCounts: { removal: 14 },
     });
     expect(input.estimation.bracket).toBe(3);
 
@@ -558,7 +606,7 @@ describe('downshift — soft bump', () => {
     const input = makeInput({
       allCardNames: [...fast, 'Forest'],
       averageCmc: 1.0,
-      roleCounts: { removal: 1 },
+      roleCounts: { removal: 14 },
     });
     const plan = computeDownshiftPlan(input, 1);
     const remaining = input.allCardNames.filter((n) => !plan.moves.some((m) => m.name === n));
@@ -573,7 +621,7 @@ describe('downshift — soft bump', () => {
 
 describe('downshift — verify loop recomputes averageCmc after cuts', () => {
   it('re-estimates with the post-cut non-land average, not the stale pre-cut value', () => {
-    // Deck: 5 fast mana (cmc 0) + 1 filler (cmc 5), plus tiny-deck interaction so the
+    // Deck: 5 fast mana (cmc 0) + 1 filler (cmc 5), plus full interaction (14 removal) so the
     // Core (2) baseline is soft-promoted to Upgraded (3). Cutting any fast-mana 0-drop
     // raises the true average, shrinking the soft curve bonus. The verify loop must
     // score the *remaining* deck with that higher average — otherwise it scores a
@@ -593,7 +641,7 @@ describe('downshift — verify loop recomputes averageCmc after cuts', () => {
       allCardNames: cards,
       averageCmc: avg0,
       cardCmcMap,
-      roleCounts: { removal: 1 },
+      roleCounts: { removal: 14 },
     });
     expect(input.estimation.bracket).toBe(3);
 
@@ -617,7 +665,7 @@ describe('downshift — verify loop recomputes averageCmc after cuts', () => {
     const input = makeInput({
       allCardNames: [...fast, 'Filler'],
       averageCmc: 1.0,
-      roleCounts: { removal: 1 },
+      roleCounts: { removal: 14 },
     });
     expect(input.estimation.bracket).toBe(3);
     const plan = computeDownshiftPlan(input, 2);

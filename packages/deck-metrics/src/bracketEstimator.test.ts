@@ -848,7 +848,15 @@ describe('estimateBracket — soft score promotion', () => {
       1.5,
       undefined,
       { removal: 12, boardwipe: 5 },
-      new Set(),
+      // The real Game Changers in this list: cEDH also needs 4+ of them.
+      new Set([
+        'Mana Vault',
+        'Mox Diamond',
+        'Chrome Mox',
+        'Demonic Tutor',
+        'Vampiric Tutor',
+        'Imperial Seal',
+      ]),
       tags
     );
     expect(r.softScore).toBeGreaterThanOrEqual(80);

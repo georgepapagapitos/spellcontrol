@@ -188,11 +188,11 @@ describe('BracketBreakdown', () => {
       },
     });
     const { container } = render(<BracketBreakdown estimation={est} />);
-    expect(container.textContent).toContain('These 3 loops set no floor');
+    expect(container.textContent).toContain('These 3 combos set no floor');
     expect(container.querySelectorAll('.bracket-breakdown-loop-list > li')).toHaveLength(3);
     expect(screen.getAllByRole('button', { name: `Preview ${top}` })).toHaveLength(3);
     expect(
-      screen.getByText('1 engine × 10 pts (3 loops; loops through one card count once)')
+      screen.getByText('1 engine × 10 pts (3 combos; combos through one card count once)')
     ).toBeTruthy();
   });
 
@@ -251,6 +251,8 @@ describe('BracketBreakdown — distance to the next threshold', () => {
           bracket: 4,
           softScore: 66,
           hardFloors: [{ bracket: 4, reason: 'Mass land denial (Armageddon)' }],
+          // cEDH needs 4+ Game Changers; with them, points are what's left.
+          breakdown: { ...makeEstimation({}).breakdown, gameChangerCount: 4 },
         })}
       />
     );
@@ -285,6 +287,23 @@ describe('BracketBreakdown — distance to the next threshold', () => {
       />
     );
     expect(distanceText(cedh.container)).toBeUndefined();
+  });
+
+  it('says cEDH needs Game Changers instead of promising points will get there', () => {
+    const { container } = render(
+      <BracketBreakdown
+        estimation={makeEstimation({
+          bracket: 4,
+          label: 'Optimized',
+          softScore: 88,
+          hardFloors: [{ bracket: 4, reason: '1 fast two-card combo' }],
+          breakdown: { ...makeEstimation({}).breakdown, gameChangerCount: 2 },
+        })}
+      />
+    );
+    expect(distanceText(container)).toBe(
+      'cEDH also needs at least 4 Game Changers; this deck runs 2.'
+    );
   });
 
   it('singularizes a one-point gap', () => {

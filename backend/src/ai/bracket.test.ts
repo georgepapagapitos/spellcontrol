@@ -40,9 +40,27 @@ beforeEach(() => {
     }),
     card({ id: 'i3', name: 'Rhystic Study', oracle_id: 'o3', type_line: 'Enchantment', cmc: 3 }),
     card({ id: 'i4', name: 'Armageddon', oracle_id: 'o4', type_line: 'Sorcery', cmc: 4 }),
+    // An MDFC spell: Scryfall's top-level type line combines both faces.
+    card({
+      id: 'i5',
+      name: 'Bala Ged Recovery // Bala Ged Sanctuary',
+      oracle_id: 'o5',
+      type_line: 'Sorcery // Land',
+      cmc: 3,
+      card_faces: [
+        { name: 'Bala Ged Recovery', type_line: 'Sorcery' },
+        { name: 'Bala Ged Sanctuary', type_line: 'Land' },
+      ],
+    }),
   ];
   cache.setMany(cards);
-  cache.setLookups(cards.map((c) => ({ key: `ns:${c.name.toLowerCase()}|tst`, scryfallId: c.id })));
+  // Multi-face cards are looked up under their front face, as the real cache does.
+  cache.setLookups(
+    cards.map((c) => ({
+      key: `ns:${c.name.split(' // ')[0].toLowerCase()}|tst`,
+      scryfallId: c.id,
+    }))
+  );
 });
 
 afterEach(() => {
@@ -93,9 +111,43 @@ describe('estimateForNames', () => {
     expect(est.breakdown.averageCmc).toBe(1);
   });
 
+  it('counts an MDFC by its front face, like the deck page does', async () => {
+    // "Sorcery // Land" once matched /Land/ and the spell left the average.
+    const est = await estimateForNames(
+      ['Forest', 'Llanowar Elves', 'Bala Ged Recovery // Bala Ged Sanctuary'],
+      inputs()
+    );
+    expect(est.breakdown.averageCmc).toBe(2);
+  });
+
   it('ignores a name the cache has never heard of rather than throwing', async () => {
     const est = await estimateForNames(['Forest', 'Not A Real Card At All'], inputs());
     expect(est.bracket).toBeGreaterThanOrEqual(1);
+  });
+
+  it('knows the commander: a commander + one-card combo floors at 4, as on the deck page', async () => {
+    const combo = {
+      id: '1-2',
+      identity: 'g',
+      produces: ['Infinite mana'],
+      prerequisites: null,
+      description: null,
+      manaNeeded: null,
+      popularity: 1,
+      legalities: { commander: 'legal' },
+      cardCount: 2,
+      bracket: 3,
+      bracketTag: 'S',
+      cards: [
+        { oracleId: 'o2', cardName: 'Llanowar Elves', quantity: 1 },
+        { oracleId: 'o1', cardName: 'Forest', quantity: 1 },
+      ],
+    };
+    const withCombo = { ...inputs(), loadCombos: async () => [combo] };
+    const names = ['Llanowar Elves', 'Forest'];
+    expect((await estimateForNames(names, withCombo)).bracket).toBe(3);
+    const est = await estimateForNames(names, { ...withCombo, commanderNames: ['Llanowar Elves'] });
+    expect(est.bracket).toBe(4);
   });
 
   it('survives a combo lookup that throws — a floor is lost, not the answer', async () => {

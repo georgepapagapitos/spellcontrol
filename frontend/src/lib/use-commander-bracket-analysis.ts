@@ -89,8 +89,12 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        browser's combo data now carries bracketTag at all (it never had).
  *   v9 — loops that set no floor (drawing your library) add combo-engine
  *        points to the power signal and are named in the Bracket panel.
+ *   v10 — stress test: land-only searches aren't tutors (504 → 79 across the
+ *        precons), cEDH needs 4+ Game Changers, separate combo packages count
+ *        as separate engines, a lone sub-gate combo adds power, and a half-built
+ *        deck no longer divides its interaction by 1.
  */
-const ANALYSIS_ENGINE_VERSION = 'v9-loop-engines';
+const ANALYSIS_ENGINE_VERSION = 'v10-stress-test';
 
 /**
  * Signature of every input that materially affects grade/bracket: commander(s)
