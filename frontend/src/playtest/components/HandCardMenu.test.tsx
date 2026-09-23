@@ -24,21 +24,28 @@ const labels = (menu: HTMLElement) =>
   );
 
 describe('HandCardMenu', () => {
-  it('offers the three ways to play and closes after acting', () => {
+  // EDHPlay's hand menu has no Play row: the battlefield leads Move to, with
+  // its A key. Face down stays on the root, as EDHPlay's Turn Face Down does.
+  it('plays from Move to, tapped or not, and face down from the root', () => {
     const p = renderMenu();
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Play tapped' }));
-    expect(p.onPlay).toHaveBeenCalledWith({ tapped: true });
+    expect(screen.queryByRole('menuitem', { name: 'Play' })).toBeNull();
     fireEvent.click(screen.getByRole('menuitem', { name: 'Play face down' }));
     expect(p.onPlay).toHaveBeenCalledWith({ faceDown: true });
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Play' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Move to/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Battlefield, tapped' }));
+    expect(p.onPlay).toHaveBeenLastCalledWith({ tapped: true });
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Move to/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Battlefield$/ }));
     expect(p.onPlay).toHaveBeenLastCalledWith();
     expect(p.onClose).toHaveBeenCalledTimes(3);
   });
 
-  it('moves out of hand from Move to: every zone but the hand, then the command zone', () => {
+  it('moves out of hand from Move to, in EDHPlay’s order', () => {
     const p = renderMenu({ libraryCount: 30 });
     fireEvent.click(screen.getByRole('menuitem', { name: /^Move to/ }));
     expect(labels(screen.getByRole('menu', { name: 'Move to' }))).toEqual([
+      'Battlefield',
+      'Battlefield, tapped',
       'Graveyard',
       'Exile',
       'Library top',
@@ -61,6 +68,53 @@ describe('HandCardMenu', () => {
     expect(everyone.getAttribute('aria-checked')).toBe('true');
     fireEvent.click(everyone);
     expect(onToggleReveal).toHaveBeenCalled();
+  });
+
+  // EDHPlay lists the tokens THIS card makes (Tireless Provisioner: Food,
+  // Treasure). A card that makes none has no row, not an empty submenu.
+  it('creates the tokens this card makes, and offers nothing for a card that makes none', () => {
+    const onCreateToken = vi.fn();
+    const food = { name: 'Food', typeLine: 'Token Artifact — Food' };
+    const treasure = { name: 'Treasure', typeLine: 'Token Artifact — Treasure' };
+    const { unmount } = render(
+      <HandCardMenu
+        x={0}
+        y={0}
+        cardName="Tireless Provisioner"
+        variant="floating"
+        onClose={vi.fn()}
+        onPlay={vi.fn()}
+        onMoveTo={vi.fn()}
+        tokens={[food, treasure]}
+        onCreateToken={onCreateToken}
+      />
+    );
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Create token/ }));
+    expect(labels(screen.getByRole('menu', { name: 'Create token' }))).toEqual([
+      'Food',
+      'Treasure',
+    ]);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Treasure' }));
+    expect(onCreateToken).toHaveBeenCalledWith(treasure);
+    unmount();
+
+    renderMenu({ tokens: [], onCreateToken });
+    expect(screen.queryByRole('menuitem', { name: /^Create token/ })).toBeNull();
+  });
+
+  it('tells two tokens with one name apart by their type line', () => {
+    renderMenu({
+      tokens: [
+        { name: 'Soldier', typeLine: 'Token Creature — Soldier' },
+        { name: 'Soldier', typeLine: 'Token Artifact Creature — Soldier' },
+      ],
+      onCreateToken: vi.fn(),
+    });
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Create token/ }));
+    expect(labels(screen.getByRole('menu', { name: 'Create token' }))).toEqual([
+      'Soldier (Creature — Soldier)',
+      'Soldier (Artifact Creature — Soldier)',
+    ]);
   });
 
   it('shows Preview only when the card resolves, and names the card as the menu', () => {

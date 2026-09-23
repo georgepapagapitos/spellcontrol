@@ -1,6 +1,6 @@
 import type { Zone } from '@/lib/playtest';
 import type { ShortcutId } from '../lib/shortcuts';
-import { moveToEntries } from './move-to-entries';
+import { createTokenEntries, moveToEntries, type MadeToken } from './menu-entries';
 import { SEPARATOR, TableContextMenu, type MenuEntry } from './TableContextMenu';
 
 interface Props {
@@ -21,6 +21,10 @@ interface Props {
    *  the reducer bumps that commander's tax. */
   onPlay(opts?: { tapped?: boolean; faceDown?: boolean }): void;
   onMoveTo(zone: Zone, toIndex?: number): void;
+  /** The tokens this card makes, for EDHPlay's Create token submenu. Empty
+   *  or omitted (a card that makes none) shows no row. */
+  tokens?: readonly MadeToken[];
+  onCreateToken?(token: MadeToken): void;
   /** Caps "Library X from top"; omitted hides that row. */
   libraryCount?: number;
   /** Whether the table is currently being shown this card. */
@@ -43,12 +47,12 @@ interface Props {
 /**
  * Right-click / long-press / Shift+Enter menu for a card in hand or in the
  * command zone, grouped the way EDHPlay groups it: where it goes / how it is
- * shown / the stack / information.
+ * shown / tokens and the stack / information. Playing a card is Move to ▸
+ * Battlefield (A), as it is there; a click on a hand card still plays it.
  *
- * The hand keeps two things EDHPlay does without: Play and Play tapped at the
- * top (a click already plays a hand card, so the menu names that, and
- * "enters tapped" is a land's everyday case), and Move it left / right at the
- * end, the keyboard's way of arranging a hand.
+ * The hand keeps two things EDHPlay does without: "Battlefield, tapped" under
+ * Move to (a land's everyday case), and Move it left / right at the end, the
+ * keyboard's way of arranging a hand.
  */
 export function HandCardMenu({
   x,
@@ -62,6 +66,8 @@ export function HandCardMenu({
   onPlay,
   onMoveTo,
   libraryCount,
+  tokens = [],
+  onCreateToken,
   revealed = false,
   onToggleReveal,
   onPutOnStack,
@@ -72,13 +78,6 @@ export function HandCardMenu({
   const key = (id: ShortcutId) => keyFor?.(id);
   const inHand = zone === 'hand';
   const items: MenuEntry[] = [
-    ...(inHand
-      ? [
-          { label: 'Play', shortcut: key('to-battlefield'), onClick: () => onPlay() },
-          { label: 'Play tapped', onClick: () => onPlay({ tapped: true }) },
-          SEPARATOR,
-        ]
-      : []),
     {
       label: 'Move to',
       items: moveToEntries({
@@ -89,8 +88,10 @@ export function HandCardMenu({
           onMoveTo(to, toIndex);
           onClose();
         },
-        // In hand the battlefield row is Play, one level up.
-        onBattlefield: inHand ? undefined : () => onPlay(),
+        // Out of the command zone this is casting it; a commander never
+        // needs the tapped way in.
+        onBattlefield: () => onPlay(),
+        onBattlefieldTapped: inHand ? () => onPlay({ tapped: true }) : undefined,
       }),
     },
     SEPARATOR,
@@ -115,6 +116,7 @@ export function HandCardMenu({
         ]
       : []),
     SEPARATOR,
+    ...(onCreateToken ? createTokenEntries(tokens, onCreateToken) : []),
     ...(onPutOnStack
       ? [
           {

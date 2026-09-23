@@ -19,7 +19,8 @@ const MOVE_SHORTCUT: Record<string, ShortcutId | undefined> = {
  * The "Move to" submenu every card menu shares, in EDHPlay's order: the
  * zones, the two ends of the library, anywhere between them, then the
  * command zone. `from` is left out, since the card is already there;
- * `onBattlefield` puts the battlefield first for a card that is not on it.
+ * `onBattlefield` puts the battlefield first for a card that is not on it
+ * (and `onBattlefieldTapped` the tapped way in, a land's everyday case).
  * The caller closes the menu in `onMoveTo` (the "X from top" confirm is a
  * control, not a row, so the menu does not close for it).
  */
@@ -29,12 +30,14 @@ export function moveToEntries({
   libraryCount,
   onMoveTo,
   onBattlefield,
+  onBattlefieldTapped,
 }: {
   from: Zone | 'battlefield';
   keyFor?(id: ShortcutId): string | undefined;
   libraryCount?: number;
   onMoveTo(zone: Zone, toIndex?: number): void;
   onBattlefield?(): void;
+  onBattlefieldTapped?(): void;
 }): MenuEntry[] {
   const dests = MOVE_DESTINATIONS.filter((z) => z.key !== from);
   const row = (z: (typeof MOVE_DESTINATIONS)[number]): MenuEntry => {
@@ -48,6 +51,9 @@ export function moveToEntries({
   return [
     ...(onBattlefield
       ? [{ label: 'Battlefield', shortcut: keyFor?.('to-battlefield'), onClick: onBattlefield }]
+      : []),
+    ...(onBattlefieldTapped
+      ? [{ label: 'Battlefield, tapped', onClick: onBattlefieldTapped }]
       : []),
     ...dests.filter((z) => z.key !== 'command').map(row),
     // Top and bottom are the two ends; this is everywhere between them — a
@@ -74,5 +80,37 @@ export function moveToEntries({
         ]
       : []),
     ...dests.filter((z) => z.key === 'command').map(row),
+  ];
+}
+
+/** A token a card makes, as Scryfall relates it to the card. */
+export interface MadeToken {
+  name: string;
+  typeLine?: string;
+}
+
+/**
+ * EDHPlay's "Create Token" submenu: the tokens THIS card makes (Tireless
+ * Provisioner: Food, Treasure), each one a row. A card that makes none gets
+ * no row at all rather than an empty submenu. Two tokens with one name (two
+ * different Soldiers) are told apart by their type line.
+ */
+export function createTokenEntries(
+  tokens: readonly MadeToken[],
+  onCreate: (token: MadeToken) => void
+): MenuEntry[] {
+  if (tokens.length === 0) return [];
+  const shared = (name: string) => tokens.filter((t) => t.name === name).length > 1;
+  return [
+    {
+      label: 'Create token',
+      items: tokens.map((t) => ({
+        label:
+          shared(t.name) && t.typeLine
+            ? `${t.name} (${t.typeLine.replace(/^Token\s+/, '')})`
+            : t.name,
+        onClick: () => onCreate(t),
+      })),
+    },
   ];
 }
