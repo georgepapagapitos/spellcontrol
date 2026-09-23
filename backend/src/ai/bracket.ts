@@ -52,6 +52,9 @@ export interface BracketInputs {
   tags: TagLookup;
   /** Loads the combos touching these oracle ids — `loadRelevantCombos`. */
   loadCombos: (oracleIds: string[]) => Promise<ComboInput[]>;
+  /** The deck's commander(s). Without them a commander + one-card combo reads as
+   *  Bracket 3 here while the deck page, which passes them, shows Bracket 4. */
+  commanderNames?: readonly string[];
 }
 
 /**
@@ -64,7 +67,7 @@ export interface BracketInputs {
  */
 export async function estimateForNames(
   names: string[],
-  { cache, tags, loadCombos }: BracketInputs
+  { cache, tags, loadCombos, commanderNames }: BracketInputs
 ): Promise<BracketEstimation> {
   const oracleIds: string[] = [];
   let cmcTotal = 0;
@@ -74,7 +77,10 @@ export async function estimateForNames(
     const card = cache.getCheapestByName(name, ORACLE_MAX_AGE_MS);
     if (!card) continue;
     if (card.oracle_id) oracleIds.push(card.oracle_id);
-    if (!/\bLand\b/.test(card.type_line ?? '')) {
+    // The FRONT face decides: an MDFC's combined type line reads "Sorcery // Land",
+    // and every frontend call site counts that card as a spell.
+    const frontType = card.card_faces?.[0]?.type_line ?? card.type_line ?? '';
+    if (!/\bLand\b/.test(frontType)) {
       cmcTotal += card.cmc ?? 0;
       nonLandCount++;
     }
@@ -115,7 +121,8 @@ export async function estimateForNames(
     undefined,
     roleCounts,
     new Set(HARDCODED_GAME_CHANGERS),
-    tags
+    tags,
+    commanderNames
   );
 }
 

@@ -76,9 +76,10 @@ export interface BracketBreakdown {
   comboPieceNames?: string[];
   /** Complete combos Spellbook rates Exhibition/Core: shown, never a floor. */
   lowPowerComboCount?: number;
-  /** Those same combos' pieces, one array per combo, for the Bracket panel. */
+  /** Every complete combo that set no floor (those loops, plus a lone combo
+   *  under the floor gate), one array of pieces per combo, for the Bracket panel. */
   loopCombos?: string[][];
-  /** Independent loop engines among them (lines through one card count once);
+  /** Independent engines among them (lines through one card count once);
    *  drives the power signal's combo-engine points. */
   loopEngineCount?: number;
   fastManaCount: number;
@@ -410,6 +411,11 @@ export const SOFT_SCORE = {
   bumpAt: 66,
   /** A deck at floor 4 reads as cEDH at this score. */
   cedhAt: 80,
+  /** ...and runs at least this many Game Changers. The premier tutors and fast
+   *  mana cEDH is built on are mostly on the list: all 17 decks declared cEDH in
+   *  a 71-deck Archidekt corpus (2026-09-23) ran 5 or more, and a 2-Game-Changer
+   *  list with ten tutors was the one cEDH reading its owner called Bracket 4. */
+  cedhMinGameChangers: 4,
 } as const;
 
 /** The soft-score components computable from the breakdown alone
@@ -421,34 +427,49 @@ export function softScorePoints(
   return {
     fastMana: Math.min(s.fastManaCap, b.fastManaCount * s.fastManaPer),
     tutors: Math.min(s.tutorCap, b.tutorCount * s.tutorPer),
-    curve: Math.min(s.curveCap, Math.max(0, (s.curveThreshold - b.averageCmc) * s.curvePer)),
+    curve: Number.isFinite(b.averageCmc)
+      ? Math.min(s.curveCap, Math.max(0, (s.curveThreshold - b.averageCmc) * s.curvePer))
+      : 0,
     engines: Math.min(s.engineCap, (b.loopEngineCount ?? 0) * s.enginePer),
   };
 }
 
 /**
- * How many combo lines survive losing any one card: the total weight, with
- * every line through the heaviest non-exempt piece counted once. Four combos
- * that all need Gorma, the Gullet are one line with four partners, not four
- * lines (that floored the Witherbloom Pestilence precon at B4). An exempt piece
- * (the commander) is always available, so lines through it don't collapse.
+ * How many independent combo engines the deck has: every group of lines that
+ * runs through one shared card counts once, since one cut or one counterspell
+ * stops them all. Four combos that all need Gorma, the Gullet are one engine
+ * (that floored the Witherbloom Pestilence precon at B4); two separate packages
+ * of four are two engines, not five. Hubs are taken heaviest first, ties by
+ * name so the answer doesn't depend on input order. An exempt piece (the
+ * commander) is always available, so lines through it don't collapse.
  */
 function independentLines(
   combos: readonly DetectedCombo[],
   weight: (c: DetectedCombo) => number,
   exempt: ReadonlySet<string>
 ): number {
-  let total = 0;
-  const pieceWeight = new Map<string, number>();
-  for (const c of combos) {
-    total += weight(c);
-    for (const piece of new Set(c.cards)) {
-      pieceWeight.set(piece, (pieceWeight.get(piece) ?? 0) + weight(c));
+  let remaining = [...combos];
+  let lines = 0;
+  for (;;) {
+    const shared = new Map<string, { weight: number; count: number }>();
+    for (const c of remaining) {
+      for (const piece of new Set(c.cards)) {
+        if (exempt.has(piece)) continue;
+        const e = shared.get(piece) ?? { weight: 0, count: 0 };
+        e.weight += weight(c);
+        e.count += 1;
+        shared.set(piece, e);
+      }
     }
+    const hub = [...shared.entries()]
+      .filter(([, e]) => e.count >= 2)
+      .sort(([a, x], [b, y]) => y.weight - x.weight || a.localeCompare(b))[0];
+    if (!hub) break;
+    const [piece, e] = hub;
+    lines += Math.min(1, e.weight);
+    remaining = remaining.filter((c) => !c.cards.includes(piece));
   }
-  let hub = 0;
-  for (const [piece, w] of pieceWeight) if (!exempt.has(piece) && w > hub) hub = w;
-  return total - hub + Math.min(1, hub);
+  return lines + remaining.reduce((sum, c) => sum + weight(c), 0);
 }
 
 /**
@@ -499,8 +520,15 @@ export function isFastMana(name: string): boolean {
 
 export function isTutor(name: string, tags: TagLookup): boolean {
   // Mirror the estimator's tutor count: only cardDraw-role tutors. Cards like
-  // Cultivate carry the tutor tag but are primarily ramp, not tutoring.
-  return tags.hasTag(name, 'tutor') && tags.getCardRole(name) === 'cardDraw';
+  // Cultivate carry the tutor tag but are primarily ramp, not tutoring. And not
+  // a search that only finds lands (Expedition Map, Urza's Cave, fetch lands):
+  // 84% of the "tutors" counted across 197 precons were those (2026-09-23), so
+  // three-quarters of precons scored tutor points with no real tutor at all.
+  return (
+    tags.hasTag(name, 'tutor') &&
+    !tags.hasTag(name, 'land-tutor') &&
+    tags.getCardRole(name) === 'cardDraw'
+  );
 }
 
 /**
@@ -623,6 +651,30 @@ export function countsTowardComboFloor(combo: DetectedCombo): boolean {
  */
 const COMMANDER_COMBO_MAX_OTHER_PIECES = 2;
 
+/** Is this the commander plus at most two other cards (see above)? */
+function isCommanderCombo(combo: DetectedCombo, commanders: ReadonlySet<string>): boolean {
+  return (
+    combo.cards.some((p) => commanders.has(p)) &&
+    combo.cards.filter((p) => !commanders.has(p)).length <= COMMANDER_COMBO_MAX_OTHER_PIECES
+  );
+}
+
+/**
+ * Does this combo floor the deck at Bracket 4 by itself, whatever else the deck
+ * runs? True for a two-card combo Spellbook rates Ruthless and for a commander
+ * combo. (A deck can also reach the B4 combo floor through tutors, fast mana or
+ * redundancy; that depends on the whole list, so it isn't a property of one
+ * combo.) Bracket Fit breaks these first when the target is Bracket 3.
+ */
+export function floorsAtFourAlone(
+  combo: DetectedCombo,
+  commanderNames: readonly string[] = []
+): boolean {
+  if (!countsTowardComboFloor(combo)) return false;
+  if (combo.cardCount <= 2 && combo.bracketTag === 'R') return true;
+  return isCommanderCombo(combo, new Set(commanderNames));
+}
+
 export function estimateBracket(
   allCardNames: string[],
   detectedCombos: DetectedCombo[] | undefined,
@@ -648,7 +700,8 @@ export function estimateBracket(
   // undercounted blue control decks (audit P2 #6). Counted once, deduped.
   const counterspells = new Set<string>();
 
-  for (const name of allCardNames) {
+  // Each distinct card once: a name listed twice is still one Game Changer.
+  for (const name of new Set(allCardNames)) {
     if (isGameChangerCard(name, gameChangerNames)) gameChangers.push(name);
     if (isMassLandDenialFloor(name, tags)) massLandDenial.push(name);
     if (tags.isExtraTurn(name)) extraTurns.push(name);
@@ -685,13 +738,24 @@ export function estimateBracket(
 
   const comboWeight = (c: DetectedCombo) => (c.cardCount <= 2 ? 1 : MULTI_CARD_COMBO_WEIGHT);
   const commanders = new Set(commanderNames);
-  // Three Sensei's Divining Top loops are one engine: cut the Top and all stop.
-  const loopEngineCount = loops.length === 0 ? 0 : independentLines(loops, () => 1, commanders);
-  const commanderCombos = counted.filter(
-    (c) =>
-      c.cards.some((p) => commanders.has(p)) &&
-      c.cards.filter((p) => !commanders.has(p)).length <= COMMANDER_COMBO_MAX_OTHER_PIECES
-  );
+  const commanderCombos = counted.filter((c) => isCommanderCombo(c, commanders));
+
+  // See MULTI_CARD_COMBO_WEIGHT: multi-card completed combos count toward the
+  // same gate/redundancy thresholds as two-card combos, at half value. A lone
+  // multi-card combo (0.5) stays below the >=1 gate; two-card-only decks are
+  // unaffected (multiCardComboCount contributes 0). A commander combo clears the
+  // gate on its own, even at three cards.
+  const effectiveComboCount = twoCardComboCount + multiCardComboCount * MULTI_CARD_COMBO_WEIGHT;
+  const comboFloorFires = effectiveComboCount >= 1 || commanderCombos.length > 0;
+
+  // A complete combo raises the floor or adds power, never neither. A lone
+  // three-card combo that wins sits under the floor gate, so it counts as an
+  // engine like a loop does (it used to count for nothing while an Exhibition
+  // loop earned 10). Three Sensei's Divining Top loops are one engine: cut the
+  // Top and all stop.
+  const engineCombos = comboFloorFires ? loops : [...loops, ...counted];
+  const loopEngineCount =
+    engineCombos.length === 0 ? 0 : independentLines(engineCombos, () => 1, commanders);
 
   // ── 3. Interaction count (removal + counterspell + boardwipe) ──
 
@@ -730,14 +794,7 @@ export function estimateBracket(
     });
   }
 
-  // See MULTI_CARD_COMBO_WEIGHT: multi-card completed combos count toward the
-  // same gate/redundancy thresholds as two-card combos, at half value. A lone
-  // multi-card combo (0.5) stays below the >=1 gate; two-card-only decks are
-  // unaffected (multiCardComboCount contributes 0).
-  const effectiveComboCount = twoCardComboCount + multiCardComboCount * MULTI_CARD_COMBO_WEIGHT;
-
-  // A commander combo clears the gate on its own, even at three cards.
-  if (effectiveComboCount >= 1 || commanderCombos.length > 0) {
+  if (comboFloorFires) {
     // Deck-relative speed: can the deck assemble a 2-card combo before ~turn 6?
     // R/S bracketTag = Spellbook's signal that the combo is near-guaranteed early.
     // High acceleration (fastMana + tutors) escalates the same combo to B4.
@@ -857,9 +914,11 @@ export function estimateBracket(
   // Interaction density as a proportion of non-land cards (per ScrollVault):
   // bracket 1–2 sits at 8–15%, bracket 4–5 at 15–28%. Linearly map
   // [INTERACTION_PCT_MIN, INTERACTION_PCT_MAX] to [0, INTERACTION_CAP] points.
-  // Falls back to the Commander-default non-land count when the deck size
-  // hint is missing, since brackets are a Commander concept.
-  const nonLandCount = Math.max(1, allCardNames.length - 37) || COMMANDER_NONLAND_COUNT;
+  // Never below the Commander default: brackets are a Commander concept, and a
+  // half-built deck of ten cards once divided its interaction by 1
+  // (`Math.max(1, …)` made the old `|| 63` fallback unreachable), so a single
+  // removal spell saturated the whole bonus.
+  const nonLandCount = Math.max(COMMANDER_NONLAND_COUNT, allCardNames.length - 37);
   const interactionPct = interactionCount / nonLandCount;
   const interactionBonus = Math.min(
     INTERACTION_CAP,
@@ -885,7 +944,11 @@ export function estimateBracket(
 
   let bracket: number = floor;
 
-  if (floor >= 4 && softScore >= SOFT_SCORE.cedhAt) {
+  if (
+    floor >= 4 &&
+    softScore >= SOFT_SCORE.cedhAt &&
+    gameChangers.length >= SOFT_SCORE.cedhMinGameChangers
+  ) {
     bracket = 5;
   } else if (floor < 4 && softScore >= SOFT_SCORE.bumpAt) {
     bracket = Math.min(floor + 1, 4);
@@ -909,7 +972,7 @@ export function estimateBracket(
       multiCardComboCount,
       comboPieceNames: [...new Set(counted.flatMap((c) => c.cards))],
       lowPowerComboCount: loops.length,
-      loopCombos: loops.map((c) => c.cards),
+      loopCombos: engineCombos.map((c) => c.cards),
       loopEngineCount,
       fastManaCount: fastMana.length,
       fastManaNames: fastMana,

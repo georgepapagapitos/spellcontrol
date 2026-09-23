@@ -47,6 +47,14 @@ const TAG_QUERIES = {
   'card-advantage': 'otag:card-advantage',
   draw: 'otag:draw',
   tutor: 'otag:tutor',
+  // A tutor whose only search is for lands (Expedition Map, Urza's Cave, every
+  // fetch land): ramp, not the "find a key card" consistency the bracket power
+  // signal counts tutors for. Scryfall splits tutors by what they find, so this
+  // is "tutor-land and no other tutor-* type".
+  'land-tutor':
+    'otag:tutor-land -otag:tutor-card -otag:tutor-creature -otag:tutor-artifact ' +
+    '-otag:tutor-enchantment -otag:tutor-instant -otag:tutor-sorcery ' +
+    '-otag:tutor-planeswalker -otag:tutor-permanent',
   cantrip: 'otag:cantrip',
   wheel: 'otag:wheel',
   lifegain: 'otag:lifegain',

@@ -623,7 +623,12 @@ function bracketTools(
   const tags = getTagLookup();
   if (!tags) return [];
   const deckNames = [request.commander, ...request.cards.map((c) => c.name)];
-  const inputs = { cache, tags, loadCombos: loadRelevantCombos };
+  const inputs = {
+    cache,
+    tags,
+    loadCombos: loadRelevantCombos,
+    commanderNames: [request.commander],
+  };
   return [
     checkBracketTool(deckNames, (names) => estimateForNames(names, inputs), renderBracketCheck),
   ];

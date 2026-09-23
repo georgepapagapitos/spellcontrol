@@ -124,7 +124,9 @@ describe('TagLookup injection', () => {
     // silently mis-score decks rather than throw. A caller-supplied lookup is
     // the only source, so a stub with no data yields no signal, and a stub with
     // data yields signal, with nothing ambient in between.
-    const spy = vi.fn<(name: string, tag: string) => boolean>().mockReturnValue(true);
+    const spy = vi
+      .fn<(name: string, tag: string) => boolean>()
+      .mockImplementation((_name, tag) => tag === 'tutor');
     const tags: TagLookup = {
       hasTag: spy,
       getCardRole: () => 'cardDraw',

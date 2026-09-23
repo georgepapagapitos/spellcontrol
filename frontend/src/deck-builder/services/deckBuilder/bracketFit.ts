@@ -32,6 +32,7 @@ import type {
 import type { ComboMatch } from '@/types/combos';
 import {
   countsTowardComboFloor,
+  floorsAtFourAlone,
   estimateBracket,
   isStaxPiece,
   type BracketEstimation,
@@ -277,20 +278,6 @@ function comboCardNames(combo: DetectedCombo): string[] {
   return combo.cards;
 }
 
-/** Combos that floor at bracket >= 4 (the "early" combos — require cutting to reach B3). */
-function isEarlyCombo(combo: DetectedCombo): boolean {
-  // A combo is "early" (floors at B4+) when it carries an R or S bracketTag, or
-  // has an explicit bracket >= 4 assigned by the estimator. A 2-card combo with
-  // bracket 3 and no R/S tag only floors at B3, so cutting it is not required to
-  // reach B3 and is not counted as "early" here.
-  const b = combo.bracket;
-  if (b == null) return false;
-  if (b >= 4) return true;
-  // R/S bracketTag = Spellbook's signal for near-guaranteed early assembly → B4.
-  if (combo.bracketTag === 'R' || combo.bracketTag === 'S') return true;
-  return false;
-}
-
 // ── Replacement matching ──────────────────────────────────────────────────────
 
 /**
@@ -449,21 +436,23 @@ function computeDownshiftPlanWithTarget(
     : [];
 
   // 3. Combos — break the lowest-value piece, preferring a piece unique to one
-  //    combo. target <= 2 → break ALL combos, including late-game ones
-  //    (bracket=3): B1/B2 prohibit all intentional 2-card combos per the
-  //    official rule, and a complete late combo already floors the estimator at
-  //    B3, so it sits above a B2 target. target == 3 → early combos only, since
-  //    B3 permits late/setup combos.
-  const comboTargets: { combo: DetectedCombo }[] = [];
-  if (target <= 2) {
-    // Only combos that actually floor the deck. An Exhibition/Core combo is
-    // fine at B2, and breaking one once cost a deck its Sol Ring.
-    for (const c of input.detectedCombos) {
-      if (countsTowardComboFloor(c)) comboTargets.push({ combo: c });
-    }
-  } else if (target === 3) {
-    for (const c of input.detectedCombos) if (isEarlyCombo(c)) comboTargets.push({ combo: c });
-  }
+  //    combo, and never the commander. Only combos that actually floor the deck:
+  //    an Exhibition/Core combo is fine at B2, and breaking one once cost a deck
+  //    its Sol Ring. target <= 2 → every floor-setting combo (B1/B2 allow none).
+  //    target == 3 → the ones that floor at 4 by themselves go first (a Ruthless
+  //    two-card combo, a commander combo); the rest follow, because a deck can
+  //    also reach the B4 combo floor through tutors or redundancy, and the
+  //    verify loop stops the moment the bracket is low enough.
+  const commanderSet = new Set(input.commanderNames ?? []);
+  const floorCombos = target <= 3 ? input.detectedCombos.filter(countsTowardComboFloor) : [];
+  const comboTargets: { combo: DetectedCombo }[] = (
+    target === 3
+      ? [
+          ...floorCombos.filter((c) => floorsAtFourAlone(c, input.commanderNames)),
+          ...floorCombos.filter((c) => !floorsAtFourAlone(c, input.commanderNames)),
+        ]
+      : floorCombos
+  ).map((combo) => ({ combo }));
   // Count how many combos each card appears in (prefer cutting a unique piece).
   const comboPieceFreq = new Map<string, number>();
   for (const { combo } of comboTargets) {
@@ -474,14 +463,17 @@ function computeDownshiftPlanWithTarget(
   const comboQueue: { piece: string; combo: DetectedCombo }[] = [];
   for (const { combo } of comboTargets) {
     const allPieces = comboCardNames(combo);
-    const pieces = allPieces.filter((p) => deckNames.has(p));
+    const inDeck = allPieces.filter((p) => deckNames.has(p));
     // Only fully-assembled combos floor the bracket — a combo that already
     // lost a piece (e.g. cut in a previous converge round; the caller's
     // detectedCombos are computed once and go stale across rounds) is broken,
     // and cutting its survivors achieves nothing. This once cost a bracket-2
     // deck its Sol Ring: round 1 cut Hullbreaker Horror, round 2 re-targeted
     // the now-broken combo and cut its only remaining piece.
-    if (pieces.length < allPieces.length) continue;
+    if (inDeck.length < allPieces.length) continue;
+    // The commander is never a cut: with only commander pieces there's nothing to offer.
+    const pieces = inDeck.filter((p) => !commanderSet.has(p));
+    if (pieces.length === 0) continue;
     // Staple pieces sort LAST (higher precedence than uniqueness/inclusion
     // below) — a staple is only ever the victim once every other piece of
     // this combo is also a staple. Then prefer a piece unique to this combo
@@ -508,8 +500,8 @@ function computeDownshiftPlanWithTarget(
   else if (target === 3) staxToCut = Math.max(0, breakdown.staxPieceCount - 4); // below 5
   const staxQueue = staxSorted.slice(0, staxToCut);
 
-  // 5. Extra turns — floor B4 at >= 3. Cut to drop below the threshold when
-  // the target is lower than B4.
+  // 5. Extra turns — floor B3 at >= 3. Cut to drop below the threshold when
+  // the target is lower than that.
   const extraTurnSorted = [...breakdown.extraTurnNames].sort(
     (a, b) => (input.cardInclusionMap[a] ?? 0) - (input.cardInclusionMap[b] ?? 0)
   );
