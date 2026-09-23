@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import './CtxMenuShell.css';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
@@ -118,7 +119,34 @@ export function CtxMenuShell({
 
   return (
     <>
-      <div className="ctx-menu__backdrop" role="presentation" onClick={onClose} />
+      <div
+        className="ctx-menu__backdrop"
+        role="presentation"
+        onClick={onClose}
+        // A right-click outside the menu is a right-click on whatever is under
+        // the backdrop, as in every desktop menu: this one closes and that
+        // element's own menu opens. The backdrop used to swallow it, so a
+        // second menu took a left-click to dismiss the first. The close is
+        // flushed first so a menu of the same kind (card to card) mounts
+        // fresh, not with the last card's open submenu or half-typed P/T.
+        onContextMenu={(e) => {
+          e.preventDefault();
+          const { clientX, clientY } = e;
+          const below = document
+            .elementsFromPoint(clientX, clientY)
+            .find((el) => el !== e.currentTarget);
+          flushSync(onClose);
+          below?.dispatchEvent(
+            new MouseEvent('contextmenu', {
+              bubbles: true,
+              cancelable: true,
+              button: 2,
+              clientX,
+              clientY,
+            })
+          );
+        }}
+      />
       <div
         ref={menuRef}
         className="ctx-menu ctx-menu-items"
