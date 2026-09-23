@@ -117,3 +117,38 @@ describe('ZonePile — reaching the menu without a kebab', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * A card put back on the library is face down there, like any other card in
+ * a deck — the pile draws its back, not the card. Turning it up is a
+ * deliberate act (the library menu's reveal), and only then does the top
+ * card show its face.
+ */
+describe('ZonePile — the library keeps its top card face down', () => {
+  function renderLibrary(revealTop: boolean) {
+    render(
+      <DndContext>
+        <ZonePile
+          zone="library"
+          label="Library"
+          cards={[{ id: 'top', name: 'Ulamog', imageUrl: 'https://example.test/ulamog.jpg' }]}
+          click={{ label: 'Draw a card', onClick: vi.fn() }}
+          onMenu={vi.fn()}
+          revealTop={revealTop}
+        />
+      </DndContext>
+    );
+  }
+
+  it('draws a card back, not the card, however the card got there', () => {
+    renderLibrary(false);
+    expect(document.querySelector('.playtest-pile__back--library')).toBeTruthy();
+    expect(screen.queryByAltText('Ulamog')).toBeNull();
+  });
+
+  it('shows the face once the top is revealed', () => {
+    renderLibrary(true);
+    expect(screen.getByAltText('Ulamog')).toBeTruthy();
+    expect(document.querySelector('.playtest-pile__back--library')).toBeNull();
+  });
+});

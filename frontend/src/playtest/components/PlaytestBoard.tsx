@@ -98,7 +98,7 @@ import { toast } from '@/store/toasts';
 import { autoPlace } from '../lib/auto-place';
 import { makePlaytestCollision } from '../lib/attach-drop';
 import { clampGroupDelta, planGroupDrag } from '../lib/group-drag';
-import { handSlotFromDroppableId, hostFromDroppableId } from '../lib/zones';
+import { handSlotFromDroppableId, hostFromDroppableId, zoneDropIndex } from '../lib/zones';
 import { haptics } from '@/lib/haptics';
 import { suppressNativeContextMenu } from '@/lib/suppress-context-menu';
 import { cachedCardThumb } from '@/lib/card-thumbs';
@@ -647,7 +647,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       if (overId === 'hand') {
         dispatch({ type: 'MOVE_TO_ZONE', cardId: parsed.cardId, to: 'hand' });
       } else if (zoneMatch) {
-        dispatch({ type: 'MOVE_TO_ZONE', cardId: parsed.cardId, to: zoneMatch[1] as Zone });
+        const to = zoneMatch[1] as Zone;
+        // `zoneDropIndex` puts a card dropped on the library on TOP; every
+        // other zone appends.
+        dispatch({ type: 'MOVE_TO_ZONE', cardId: parsed.cardId, to, toIndex: zoneDropIndex(to) });
       }
       return;
     }
@@ -674,7 +677,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     }
     const zoneMatch = overId ? /^zone:(.+)$/.exec(overId) : null;
     if (zoneMatch) {
-      dispatch({ type: 'MOVE_TO_ZONE', cardId: parsed.cardId, to: zoneMatch[1] as Zone });
+      const to = zoneMatch[1] as Zone;
+      dispatch({ type: 'MOVE_TO_ZONE', cardId: parsed.cardId, to, toIndex: zoneDropIndex(to) });
     }
   }
 
