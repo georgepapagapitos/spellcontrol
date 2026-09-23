@@ -36,6 +36,8 @@ interface SpellbookVariant {
   legalities?: unknown;
   bracketTag?: unknown;
   bracket?: unknown;
+  /** Unnamed-card requirements: `[{ template: { name } }]`. */
+  requires?: unknown;
 }
 
 interface ParsedPrerequisites {
@@ -55,6 +57,7 @@ interface ParsedCombo {
   cardCount: number;
   bracket: number | null;
   bracketTag: string | null;
+  templates: string[] | null;
   cards: Array<{ oracleId: string; cardName: string; quantity: number; position: number }>;
 }
 
@@ -294,8 +297,24 @@ export function parseVariant(raw: unknown): ParsedCombo | null {
     cardCount: cards.length,
     bracketTag: typeof v.bracketTag === 'string' ? v.bracketTag : null,
     bracket: bracketTagToNumber(v.bracketTag),
+    templates: parseTemplates(v.requires),
     cards,
   };
+}
+
+/**
+ * Names of the cards a variant needs but doesn't name ("Instant or Sorcery that
+ * untaps a Creature"). Without them a variant whose named cards are all in a
+ * deck reads as complete when it isn't, so the combos panel shows them.
+ */
+function parseTemplates(raw: unknown): string[] | null {
+  if (!Array.isArray(raw)) return null;
+  const names: string[] = [];
+  for (const entry of raw) {
+    const name = (entry as { template?: { name?: unknown } } | null)?.template?.name;
+    if (typeof name === 'string' && name.length > 0) names.push(name);
+  }
+  return names.length > 0 ? names : null;
 }
 
 function parseLegalities(raw: unknown): Record<string, string> {
@@ -424,6 +443,7 @@ export async function ingestCombos(
             cardCount: p.cardCount,
             bracket: p.bracket,
             bracketTag: p.bracketTag ?? null,
+            templates: p.templates,
             updatedAt: startedAt,
           }))
         );

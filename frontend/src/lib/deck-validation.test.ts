@@ -126,6 +126,36 @@ describe('validateDeck', () => {
     expect(issues).toHaveLength(0);
   });
 
+  // A deck stores each card as the cache had it when it was added: Dockside
+  // Extortionist added before its 2024 ban still carries `commander: 'legal'`.
+  it('flags a card on the live ban list even when its stored legality says legal', () => {
+    const cmdr = card({ name: 'Sevinne, the Chronoclasm', color_identity: ['U', 'R', 'W'] });
+    const dockside = card({ name: 'Dockside Extortionist', color_identity: ['R'] });
+    const bannedNames = new Set(['Dockside Extortionist']);
+    expect(validateDeck([slot(dockside, 'a')], [], commander, { commander: cmdr })).toEqual([]);
+    const issues = validateDeck([slot(dockside, 'a')], [], commander, {
+      commander: cmdr,
+      bannedNames,
+    });
+    expect(issues).toEqual([
+      {
+        slotId: 'a',
+        cardName: 'Dockside Extortionist',
+        issue: 'not-legal',
+        detail: 'Banned in Commander',
+      },
+    ]);
+  });
+
+  it('flags a banned commander', () => {
+    const golos = card({ name: 'Golos, Tireless Pilgrim' });
+    const issues = validateDeck([], [], commander, {
+      commander: golos,
+      bannedNames: new Set(['Golos, Tireless Pilgrim']),
+    });
+    expect(issues.map((i) => [i.slotId, i.detail])).toEqual([['commander', 'Banned in Commander']]);
+  });
+
   it('flags cards outside commander color identity', () => {
     const cmdr = card({ name: 'Talrand', color_identity: ['U'] });
     const offColor = card({ name: 'Lightning Bolt', color_identity: ['R'] });

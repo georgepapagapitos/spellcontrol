@@ -707,6 +707,13 @@
   color: var(--text-muted);
 }
 
+/* A banned or illegal card: the bracket describes a legal deck, so this leads. */
+.deck-stats-bracket-illegal {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--warn-text);
+}
+
 /* UX-313: the target-bracket control moved to the PowerHero. The Bracket panel
    shows only a small note + "Clear target" link when an override is active. */
 .deck-stats-bracket-override-note {

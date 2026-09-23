@@ -85,5 +85,10 @@ export interface OfflineCombo {
   legalities: Record<string, string>;
   cardCount: number;
   bracket: number | null;
+  /** Spellbook's bracket tag. Optional: a cache written before 2026-09-23 lacks it
+   *  (the export's content hash changed, so clients re-download on next visit). */
+  bracketTag?: string | null;
+  /** Unnamed-card requirements (Spellbook templates). Same optionality. */
+  templates?: string[] | null;
   cards: OfflineComboCard[];
 }

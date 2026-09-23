@@ -105,6 +105,11 @@ async function buildPayload(): Promise<CombosPayload> {
           : {},
       cardCount: c.cardCount,
       bracket: c.bracket ?? null,
+      // The browser matches combos against this export, so every field the
+      // bracket estimate reads has to be here. bracketTag was missing until
+      // 2026-09-23, which left every combo untagged in the app.
+      bracketTag: c.bracketTag ?? null,
+      templates: c.templates ?? null,
       cards,
     });
   }

@@ -31,6 +31,9 @@ export interface ComboSummary {
   cardCount: number;
   bracket: number | null;
   bracketTag?: string | null;
+  /** Cards the combo needs but doesn't name (Spellbook templates), e.g.
+   *  "Instant or Sorcery that untaps a Creature". Absent/null when none. */
+  templates?: string[] | null;
   cards: ComboCardRef[];
 }
 

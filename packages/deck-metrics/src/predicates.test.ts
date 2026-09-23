@@ -87,12 +87,13 @@ describe('isMassLandDenialFloor', () => {
   });
 
   it('subtracts the curated upstream false positives', () => {
-    // The Scryfall tag sweeps in a planeswalker whose -15 is a one-sided wipe,
+    // The Scryfall tag sweeps in a planeswalker whose -7 locks every permanent,
     // not land denial. MLD is the harshest floor (-> Bracket 4), so one bad tag
-    // turned a Bracket 2 precon into Bracket 4 (E48).
-    const tags = lookup({ mld: ['Gideon, Champion of Justice', 'Damping Sphere'] });
-    expect(isMassLandDenialFloor('Gideon, Champion of Justice', tags)).toBe(false);
+    // turns a Bracket 2 deck into Bracket 4.
+    const tags = lookup({ mld: ['Dovin Baan', 'Damping Sphere', 'Armageddon'] });
+    expect(isMassLandDenialFloor('Dovin Baan', tags)).toBe(false);
     expect(isMassLandDenialFloor('Damping Sphere', tags)).toBe(false);
+    expect(isMassLandDenialFloor('Armageddon', tags)).toBe(true);
   });
 
   it('is false when the tag data has no opinion', () => {

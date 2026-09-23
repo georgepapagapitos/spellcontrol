@@ -116,6 +116,11 @@ export function ComboRow({
     ? combo.cards.find((c) => c.oracleId === missingOracleId)?.cardName
     : null;
   const missingIsOwned = missingOracleId ? ownedOracleIds.has(missingOracleId) : false;
+  // Cards the combo needs but doesn't name ("Instant or Sorcery that untaps a
+  // Creature"). We can't check a list for them, so the combo isn't shown as
+  // complete, and it sets no bracket floor.
+  const templates = combo.templates ?? [];
+  const needsTemplate = templates.length > 0;
 
   const steps = useMemo(() => splitSteps(combo.description), [combo.description]);
   // One unified collapsible covering Prerequisites + Steps so the user toggles
@@ -181,16 +186,18 @@ export function ComboRow({
       {/* ── Row header — status icon + color identity + combo name ── */}
       <header className="deck-combos-row-header">
         <span
-          className={`deck-combos-row-status ${missingCount > 0 ? 'is-near-miss' : 'is-complete'}`}
+          className={`deck-combos-row-status ${missingCount > 0 || needsTemplate ? 'is-near-miss' : 'is-complete'}`}
           aria-label={
             missingCount === 0
-              ? 'Complete'
+              ? needsTemplate
+                ? 'Also needs a card by type'
+                : 'Complete'
               : missingCount === 1
                 ? 'One card away'
                 : `${missingCount} cards away`
           }
         >
-          {missingCount > 0 ? (
+          {missingCount > 0 || needsTemplate ? (
             <AlertTriangle width={14} height={14} aria-hidden />
           ) : (
             <CheckCircle2 width={14} height={14} aria-hidden />
@@ -313,6 +320,15 @@ export function ComboRow({
               {formatMoney(missingPrice)}
             </span>
           )}
+        </div>
+      )}
+
+      {needsTemplate && (
+        <div className="deck-combos-missing-footer">
+          <span className="deck-combos-missing-label">Also needs:</span>
+          <span className="deck-combos-missing-name deck-combos-missing-name--wrap">
+            {templates.join(', ')}
+          </span>
         </div>
       )}
 

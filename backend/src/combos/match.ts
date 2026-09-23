@@ -34,6 +34,8 @@ export interface ComboInput {
   cardCount: number;
   bracket: number | null;
   bracketTag?: string | null;
+  /** Unnamed-card requirements (Spellbook templates); absent when none. */
+  templates?: string[] | null;
   cards: ComboCardRef[];
 }
 
@@ -48,6 +50,8 @@ export interface ComboSummary {
   cardCount: number;
   bracket: number | null;
   bracketTag?: string | null;
+  /** Unnamed-card requirements (Spellbook templates); absent when none. */
+  templates?: string[] | null;
   cards: ComboCardRef[];
 }
 
@@ -159,6 +163,7 @@ function toSummary(combo: ComboInput): ComboSummary {
     cardCount: combo.cardCount,
     bracket: combo.bracket,
     bracketTag: combo.bracketTag ?? null,
+    templates: combo.templates ?? null,
     cards: combo.cards,
   };
 }

@@ -11,6 +11,7 @@ import type { BracketEstimation, DetectedCombo, TagLookup } from './index';
 import {
   bracketReasons,
   countsTowardComboFloor,
+  needsUnnamedCard,
   estimateBracket,
   floorOf,
   softScorePoints,
@@ -85,6 +86,16 @@ describe('Spellbook-tagged combo relevance', () => {
     expect(countsTowardComboFloor(sb(['A', 'B'], 'C'))).toBe(false);
     expect(countsTowardComboFloor({ ...sb(['A', 'B'], 'R'), isComplete: false })).toBe(false);
   });
+
+  it('a variant that also needs an unnamed template card sets no floor (Quick Draw)', () => {
+    // 5534--28: Stella Lee, Wild Card + "an instant or sorcery that untaps a creature".
+    const stella = { ...sb(['Stella Lee, Wild Card'], 'S'), comboId: '5534--28' };
+    expect(needsUnnamedCard(stella)).toBe(true);
+    expect(needsUnnamedCard(sb(['A', 'B'], 'S'))).toBe(false);
+    const r = estimate([stella]);
+    expect(r.bracket).toBe(2);
+    expect(r.breakdown.twoCardComboCount).toBe(0);
+  });
 });
 
 describe('hub-aware combo redundancy', () => {
@@ -119,34 +130,49 @@ describe('hub-aware combo redundancy', () => {
   });
 });
 
+// Ruling of 2026-09-23: match Commander Spellbook, which rates every combo of
+// the commander plus up to two more cards Ruthless (Creative Energy, Jump Scare!).
 describe('commander as a combo piece', () => {
   const satya = sb(['Satya, Aetherflux Genius', 'Lightning Runner'], 'S');
 
-  it('alone it stays a late-game combo, and the detail says what would tip it', () => {
+  it('commander + one card floors at 4 with no tutors (Creative Energy)', () => {
     const r = estimate([satya], { commanders: ['Satya, Aetherflux Genius'] });
-    expect(r.bracket).toBe(3);
-    expect(r.hardFloors[0].detail).toContain('Your commander is a piece');
+    expect(r.bracket).toBe(4);
+    expect(r.hardFloors[0].reason).toBe('1 two-card combo with your commander');
+    expect(r.hardFloors[0].detail).toBe(
+      'Early assembly is likely: your commander is a combo piece, so the deck only has to draw the rest. Bracket 3 allows two-card combos only when they come together late.'
+    );
   });
 
-  it('with tutors it assembles early: 6 tutors + commander piece reaches the B4 bar', () => {
-    const without = estimate([satya], { tutors: 6 });
-    const withCmd = estimate([satya], { tutors: 6, commanders: ['Satya, Aetherflux Genius'] });
-    expect(without.bracket).toBe(3);
-    expect(withCmd.bracket).toBe(4);
-    expect(withCmd.hardFloors[0].detail).toBe(
-      'Early assembly is likely: 6 tutors, your commander is a combo piece. Bracket 3 allows two-card combos only when they come together late.'
+  it('commander + two cards floors at 4 on its own (one Jump Scare! line)', () => {
+    const zimone = sb(
+      ['Zimone, Mystery Unraveler', 'Yedora, Grave Gardener', 'Sakura-Tribe Elder'],
+      'S'
     );
+    expect(estimate([zimone], { commanders: ['Zimone, Mystery Unraveler'] }).bracket).toBe(4);
+    // The same three cards without the commander are a lone multi-card combo: no floor.
+    expect(estimate([zimone]).bracket).toBe(2);
+  });
+
+  it('commander + three cards is not a commander combo', () => {
+    const r = estimate([sb(['Cmdr', 'A', 'B', 'C'], 'S')], { commanders: ['Cmdr'] });
+    expect(r.bracket).toBe(2);
+  });
+
+  it('the same combo without the commander in it stays at 3', () => {
+    expect(estimate([satya]).bracket).toBe(3);
   });
 });
 
-describe('mass land denial false positives', () => {
-  it('Whims of the Fates is a random pile sacrifice, not land denial (Entropic Uprising)', () => {
-    const r = estimateBracket(['Whims of the Fates'], [], 3, undefined, {}, new Set(), {
+// Ruling of 2026-09-23: count what Commander Spellbook's land-denial list counts.
+describe('mass land denial matches Spellbook', () => {
+  it.each(['Whims of the Fates', 'Gideon, Champion of Justice'])('%s floors at 4', (card) => {
+    const r = estimateBracket([card], [], 3, undefined, {}, new Set(), {
       ...noTags,
       isMassLandDenial: () => true,
     });
-    expect(r.breakdown.massLandDenialCount).toBe(0);
-    expect(r.bracket).toBe(2);
+    expect(r.breakdown.massLandDenialNames).toEqual([card]);
+    expect(r.bracket).toBe(4);
   });
 });
 

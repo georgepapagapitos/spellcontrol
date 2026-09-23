@@ -36,6 +36,8 @@ export function DeckAnalysisView({
   manaData,
   bracketEstimation,
   deckCardsByName,
+  illegalCardNames = [],
+  formatLabel = 'Commander',
   bracketOverride,
   onSetBracketOverride,
   archetypeOverride,
@@ -81,6 +83,11 @@ export function DeckAnalysisView({
   manaData: DeckManaData;
   bracketEstimation?: BracketEstimation;
   deckCardsByName?: ReadonlyMap<string, ScryfallCard>;
+  /** Cards not legal in the format (banned included). A bracket describes a
+   *  legal deck, so the Bracket panel says these come first. */
+  illegalCardNames?: string[];
+  /** The format's display name, for that note ("Commander"). */
+  formatLabel?: string;
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
   onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
   archetypeOverride?: Archetype | null;
@@ -298,6 +305,15 @@ export function DeckAnalysisView({
                     above already says it, and the verdict strip carries the
                     target/detected pair (including a manual target). */}
                 <div className="deck-stats-bracket">
+                  {illegalCardNames.length > 0 && (
+                    <p className="deck-stats-bracket-illegal" role="note">
+                      {illegalCardNames.length === 1
+                        ? `${illegalCardNames[0]} isn't legal in ${formatLabel}. `
+                        : `${illegalCardNames.length} cards aren't legal in ${formatLabel} (${illegalCardNames.join(', ')}). `}
+                      The deck can't be played at any bracket until{' '}
+                      {illegalCardNames.length === 1 ? 'it is' : 'they are'} cut.
+                    </p>
+                  )}
                   <BracketVerdictStrip
                     target={bracketOverride}
                     detected={bracketEstimation?.bracket}

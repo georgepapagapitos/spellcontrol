@@ -137,6 +137,10 @@ export function validateDeck(
   options: {
     commander?: ScryfallCard | null;
     partnerCommander?: ScryfallCard | null;
+    /** The format's current ban list. A deck stores each card as the cache had
+     *  it when the card was added, so a card banned since then still reads
+     *  `legal` in its own legalities; this catches it. */
+    bannedNames?: ReadonlySet<string>;
   } = {}
 ): LegalityIssue[] {
   const issues: LegalityIssue[] = [];
@@ -146,14 +150,28 @@ export function validateDeck(
     ...sideboard.map((c) => ({ ...c, zone: 'side' as const })),
   ];
 
-  // Legality against Scryfall's per-format key.
+  // Legality against Scryfall's per-format key, and the live ban list.
   for (const entry of allCards) {
-    if (!isCardLegal(entry.card, config.legalityKey)) {
+    const banned = options.bannedNames?.has(entry.card.name) ?? false;
+    if (banned || !isCardLegal(entry.card, config.legalityKey)) {
       issues.push({
         slotId: entry.slotId,
         cardName: entry.card.name,
         issue: 'not-legal',
-        detail: `Not legal in ${config.label}`,
+        detail: banned ? `Banned in ${config.label}` : `Not legal in ${config.label}`,
+      });
+    }
+  }
+  for (const [card, slotId] of [
+    [options.commander, COMMANDER_SLOT_ID],
+    [options.partnerCommander, PARTNER_COMMANDER_SLOT_ID],
+  ] as const) {
+    if (card && options.bannedNames?.has(card.name)) {
+      issues.push({
+        slotId,
+        cardName: card.name,
+        issue: 'not-legal',
+        detail: `Banned in ${config.label}`,
       });
     }
   }

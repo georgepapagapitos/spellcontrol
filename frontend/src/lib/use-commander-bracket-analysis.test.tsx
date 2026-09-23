@@ -40,7 +40,7 @@ function sig(
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null
 ): string {
   return [
-    'v7-bracket-combo-relevance',
+    'v8-spellbook-parity',
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
     deck.cards
