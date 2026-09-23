@@ -24,10 +24,12 @@ interface Props {
    * scrolling strip every narrow tier keeps.
    */
   fan?: boolean;
-  onCardClick?(cardId: string, index: number): void;
   /** Open the hand-card menu (HandCardMenu.tsx) — right-click, the Context
-   *  Menu key / Shift+Enter, or a touch long-press, mirroring how battlefield
-   *  cards open theirs. Tap/click still plays the card. */
+   *  Menu key / Shift+Enter, a touch long-press, or a tap or Enter on the card.
+   *  Nothing on a hand card plays it by itself: a mouse click does nothing
+   *  (EDHPlay's rule — you drag it, press A, or pick Move to ▸ Battlefield),
+   *  and a finger or a keyboard, which have no drag and no hover key, get the
+   *  menu, where playing it is one more tap. */
   onCardMenu?(cardId: string, x: number, y: number): void;
   /** Cards currently being shown to the table (R). Marked in place rather
    *  than moved: it is still in your hand, everyone can just see it. */
@@ -81,14 +83,7 @@ function useContainerWidth(ref: React.RefObject<HTMLDivElement | null>): number 
   return width;
 }
 
-export function Hand({
-  cards,
-  fan = false,
-  onCardClick,
-  onCardMenu,
-  revealedIds,
-  reorderable = false,
-}: Props) {
+export function Hand({ cards, fan = false, onCardMenu, revealedIds, reorderable = false }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: 'hand' });
   const rootRef = useRef<HTMLDivElement | null>(null);
   const containerW = useContainerWidth(rootRef);
@@ -129,14 +124,24 @@ export function Hand({
     });
   }
 
-  const renderCard = (c: PlaytestCard, i: number) => (
+  const renderCard = (c: PlaytestCard) => (
     <PlaytestCardView
       key={c.id}
       card={c}
       draggableId={`hand:${c.id}`}
       handSlot={reorderable}
       size="sm"
-      onClick={onCardClick ? (cardId) => onCardClick(cardId, i) : undefined}
+      onClick={
+        onCardMenu
+          ? (cardId, e) => {
+              // A click from an actual mouse does nothing. Anything else (a
+              // tap, Enter) opens the menu at the card.
+              if ((e.nativeEvent as PointerEvent).pointerType === 'mouse') return;
+              const r = e.currentTarget.getBoundingClientRect();
+              onCardMenu(cardId, r.left + r.width / 2, r.top + r.height / 2);
+            }
+          : undefined
+      }
       onContextMenu={
         onCardMenu
           ? (cardId, e) => {
@@ -148,7 +153,7 @@ export function Hand({
       onLongPress={onCardMenu}
       title={
         onCardMenu
-          ? `Click to play${reorderable ? ' · drag onto another card to arrange' : ''} · right-click or hold for options`
+          ? `Drag to play${reorderable ? ' · drag onto another card to arrange' : ''} · right-click or hold for options`
           : undefined
       }
     />
@@ -187,7 +192,7 @@ export function Hand({
                 {/* The lift on hover/focus is on this wrapper, so the cost badge
                     rises with its card instead of staying behind on the felt. */}
                 <div className="playtest-hand__lift">
-                  {renderCard(c, i)}
+                  {renderCard(c)}
                   {revealedBadge(c)}
                   {/* A land has no cost worth reading and a token has no mana
                       value at all, so neither gets a badge. */}
@@ -203,7 +208,7 @@ export function Hand({
               </div>
             ) : (
               <div key={c.id} className="playtest-hand__flat">
-                {renderCard(c, i)}
+                {renderCard(c)}
                 {revealedBadge(c)}
               </div>
             )

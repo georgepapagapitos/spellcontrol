@@ -17,7 +17,6 @@ interface Props {
   open: boolean;
   onOpen(): void;
   onClose(): void;
-  onCardClick(cardId: string, index: number): void;
   onCardMenu?(cardId: string, x: number, y: number): void;
   /** Cards currently shown to the table — passed straight through to the
    *  fan, which is what marks them. */
@@ -27,27 +26,13 @@ interface Props {
 /**
  * Short-landscape replacement for the always-open hand strip (E264): a 44px
  * row with the count and the first few card names, which opens the real hand
- * as a sheet over the battlefield. Tapping a card plays it and closes the
- * sheet; the strip stays a drop target so a permanent can still be dragged
+ * as a sheet over the battlefield. Tapping a card opens its menu (playing it
+ * from there closes the sheet); the strip stays a drop target so a permanent can still be dragged
  * back to hand while the sheet is closed.
  */
-export function HandDrawer({
-  cards,
-  open,
-  onOpen,
-  onClose,
-  onCardClick,
-  onCardMenu,
-  revealedIds,
-}: Props) {
+export function HandDrawer({ cards, open, onOpen, onClose, onCardMenu, revealedIds }: Props) {
   return open ? (
-    <HandSheet
-      cards={cards}
-      onClose={onClose}
-      onCardClick={onCardClick}
-      onCardMenu={onCardMenu}
-      revealedIds={revealedIds}
-    />
+    <HandSheet cards={cards} onClose={onClose} onCardMenu={onCardMenu} revealedIds={revealedIds} />
   ) : (
     <HandStrip cards={cards} onOpen={onOpen} />
   );
@@ -84,13 +69,7 @@ function HandStrip({ cards, onOpen }: Pick<Props, 'cards' | 'onOpen'>) {
   );
 }
 
-function HandSheet({
-  cards,
-  onClose,
-  onCardClick,
-  onCardMenu,
-  revealedIds,
-}: Omit<Props, 'open' | 'onOpen'>) {
+function HandSheet({ cards, onClose, onCardMenu, revealedIds }: Omit<Props, 'open' | 'onOpen'>) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   useEscapeKey(beginClose);
   return (
@@ -111,16 +90,7 @@ function HandSheet({
         {cards.length === 0 ? (
           <p className="playtest-hand-sheet__empty">No cards in hand.</p>
         ) : (
-          <Hand
-            cards={cards}
-            reorderable
-            revealedIds={revealedIds}
-            onCardClick={(cardId, index) => {
-              onCardClick(cardId, index);
-              beginClose();
-            }}
-            onCardMenu={onCardMenu}
-          />
+          <Hand cards={cards} reorderable revealedIds={revealedIds} onCardMenu={onCardMenu} />
         )}
         <div className="card-picker-footer">
           <button type="button" className="btn" onClick={() => beginClose()}>

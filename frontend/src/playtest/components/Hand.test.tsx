@@ -3,8 +3,8 @@
  * The fan's cost badge and collapse toggle. The spacing arithmetic behind the
  * fan lives in `lib/fan-layout.ts` and is tested beside it.
  */
-import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { DndContext } from '@dnd-kit/core';
 import type { PlaytestCard } from '@/lib/playtest';
 import { Hand } from './Hand';
@@ -55,5 +55,47 @@ describe('the fan collapse toggle', () => {
     renderHand([card({ id: 'a' }), card({ id: 'b' })]);
     const toggle = screen.getByRole('button', { name: /Hand \(2\)/ });
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  });
+});
+
+/**
+ * Nothing on a hand card plays it by itself (user ruling, 2026-09-23: "tapping
+ * a card from hand should not play it to the field"). A mouse click does
+ * nothing, as in EDHPlay: you drag it, press A, or use Move to ▸ Battlefield.
+ * A finger or a keyboard has no drag and no hover key, so a tap or Enter opens
+ * the card's menu instead, where playing it is one more tap.
+ */
+describe('a click on a hand card', () => {
+  function mount() {
+    const onCardMenu = vi.fn();
+    render(
+      <DndContext>
+        <Hand cards={[card({ id: 'a', name: 'Shock' })]} fan onCardMenu={onCardMenu} />
+      </DndContext>
+    );
+    const el = document.querySelector<HTMLElement>('[data-card-id="a"]')!;
+    return { onCardMenu, el };
+  }
+
+  it('does nothing from a mouse', () => {
+    const { onCardMenu, el } = mount();
+    act(() => {
+      el.dispatchEvent(new PointerEvent('click', { bubbles: true, pointerType: 'mouse' }));
+    });
+    expect(onCardMenu).not.toHaveBeenCalled();
+  });
+
+  it('opens the card menu from a tap', () => {
+    const { onCardMenu, el } = mount();
+    act(() => {
+      el.dispatchEvent(new PointerEvent('click', { bubbles: true, pointerType: 'touch' }));
+    });
+    expect(onCardMenu).toHaveBeenCalledWith('a', expect.any(Number), expect.any(Number));
+  });
+
+  it('opens the card menu from Enter', () => {
+    const { onCardMenu, el } = mount();
+    fireEvent.keyDown(el.closest('[tabindex]') ?? el, { key: 'Enter' });
+    expect(onCardMenu).toHaveBeenCalledWith('a', expect.any(Number), expect.any(Number));
   });
 });

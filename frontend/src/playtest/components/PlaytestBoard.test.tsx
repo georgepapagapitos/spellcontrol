@@ -187,6 +187,30 @@ describe('PlaytestBoard', () => {
     expect(pileLabel('Command (0)')).toBeTruthy();
   });
 
+  // User ruling, 2026-09-23: "tapping a card from hand should not play it to
+  // the field". Neither a mouse click nor a tap plays it; a tap opens the
+  // card's menu instead, where Move to ▸ Battlefield does.
+  it('never plays a hand card on a click or a tap', () => {
+    const state = seededState();
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={state} />
+      </MemoryRouter>
+    );
+    const id = state.zones.hand[0].id;
+    const el = document.querySelector<HTMLElement>(`[data-card-id="${id}"]`)!;
+    for (const pointerType of ['mouse', 'touch']) {
+      act(() => {
+        el.dispatchEvent(new PointerEvent('click', { bubbles: true, pointerType }));
+      });
+    }
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'MOVE_TO_BATTLEFIELD' })
+    );
+    // The tap opened the card's menu instead.
+    expect(screen.getByRole('menu', { name: state.zones.hand[0].name })).toBeTruthy();
+  });
+
   it('puts the game menu and the turn chip in the corner instead of a toolbar row', () => {
     render(
       <MemoryRouter>

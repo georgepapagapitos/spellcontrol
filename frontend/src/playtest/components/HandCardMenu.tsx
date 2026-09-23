@@ -47,8 +47,9 @@ interface Props {
 /**
  * Right-click / long-press / Shift+Enter menu for a card in hand or in the
  * command zone, grouped the way EDHPlay groups it: where it goes / how it is
- * shown / tokens and the stack / information. Playing a card is Move to ▸
- * Battlefield (A), as it is there; a click on a hand card still plays it.
+ * shown / tokens and the stack / information. A hand card is played by
+ * dragging it, by A, or from Move to ▸ Battlefield, as in EDHPlay; a click
+ * or tap never plays it (a tap opens this menu).
  *
  * The hand keeps two things EDHPlay does without: "Battlefield, tapped" under
  * Move to (a land's everyday case), and Move it left / right at the end, the

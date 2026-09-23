@@ -863,10 +863,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId, x, y, ...opts });
   }
 
-  function handleHandCardClick(cardId: string) {
-    playFromHand(cardId);
-  }
-
   // Image per card instance for the hover preview — the DOM carries only ids.
   // A two-faced card previews BOTH faces, the one showing first — EDHPlay's
   // hover shows the pair, and the face you are not looking at is exactly
@@ -2579,7 +2575,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                     cards={state.zones.hand}
                     fan
                     reorderable
-                    onCardClick={handleHandCardClick}
                     onCardMenu={handleHandCardMenu}
                     revealedIds={revealedIds}
                   />
@@ -2599,7 +2594,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
             open={handOpen}
             onOpen={() => setHandOpen(true)}
             onClose={() => setHandOpen(false)}
-            onCardClick={handleHandCardClick}
             onCardMenu={handleHandCardMenu}
             revealedIds={revealedIds}
           />

@@ -2103,6 +2103,12 @@ cleaner with the sub menus"). Three rulings, all on the battlefield:
   click tapping a creature was the misfire). A finger has neither a key nor a
   right-click, so on a coarse pointer a tap still taps — the board branches on
   `(hover: hover) and (pointer: fine)`, and both halves are pinned by tests.
+- **Nothing on a hand card plays it by itself (2026-09-23).** A mouse click on
+  a hand card does nothing (EDHPlay's rule: drag it, press A, or Move to ▸
+  Battlefield). A finger or a keyboard has no drag and no hover key, so a tap
+  or Enter opens the card's menu, where playing it is one more tap. A stray
+  click putting a card onto the table was the misfire; `PlaytestBoard.test.tsx`
+  ("never plays a hand card on a click or a tap") pins it.
 
 ### The table's look is per-device, never table-wide (2026-09-20, E347)
 
