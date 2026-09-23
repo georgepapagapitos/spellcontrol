@@ -2,14 +2,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import type { PlaytestCard } from '@/lib/playtest';
 import { ManaCost } from '@/components/ManaCost';
-import { fanOverlap } from '../lib/fan-layout';
+import { fanCardWidth, fanOverlap, fanTilt } from '../lib/fan-layout';
 import { isPlaytestLand } from '../lib/zones';
 import { PlaytestCardView } from './PlaytestCardView';
 
-/** Degrees of rotation per card away from the fan's centre. */
-const FAN_STEP_DEG = 2;
-/** Pixels a card drops per squared step from centre, which is what arcs the fan. */
-const FAN_ARC_PX = 1.2;
 /** Desktop density fallback, before the fan has measured `--pt-card-w`. */
 const FALLBACK_CARD_W = 100;
 
@@ -46,10 +42,9 @@ interface Props {
  * the fan by construction.
  */
 function fanStyle(i: number, n: number, overlap: number): React.CSSProperties {
-  const off = i - (n - 1) / 2;
-  const arc = (off * off * FAN_ARC_PX).toFixed(1);
+  const { deg, drop } = fanTilt(i, n);
   return {
-    transform: `rotate(${(off * FAN_STEP_DEG).toFixed(2)}deg) translateY(${arc}px)`,
+    transform: `rotate(${deg.toFixed(2)}deg) translateY(${drop.toFixed(1)}px)`,
     marginLeft: i === 0 ? undefined : `calc(var(--pt-card-w) * ${(-overlap).toFixed(3)})`,
     zIndex: i,
   };
@@ -98,7 +93,18 @@ export function Hand({ cards, fan = false, onCardMenu, revealedIds, reorderable 
     if (w > 0) setCardW(w);
   }, [fan, containerW]);
 
-  const overlap = fanOverlap(cards.length, cardW, containerW);
+  const handW = fanCardWidth(cards.length, cardW, containerW);
+  const overlap = fanOverlap(cards.length, cardW, containerW, handW);
+  // A big hand draws its cards smaller (see `fanCardWidth`). Both sizes are
+  // set because each is a registered, inherited length: overriding the width
+  // alone would leave every card the full table height.
+  const shrunk = fan && handW < cardW;
+  const handSize = shrunk
+    ? ({
+        '--pt-card-w': `${handW.toFixed(1)}px`,
+        '--pt-card-h': `${(handW * 1.4).toFixed(1)}px`,
+      } as React.CSSProperties)
+    : undefined;
 
   const renderCard = (c: PlaytestCard) => (
     <PlaytestCardView
@@ -151,10 +157,18 @@ export function Hand({ cards, fan = false, onCardMenu, revealedIds, reorderable 
         setNodeRef(el);
       }}
       className={`playtest-hand${fan ? ' playtest-hand--fan' : ''}${isOver ? ' is-over' : ''}`}
+      // The tuck below the table edge follows the hand's card height. Not
+      // `--pt-card-*` itself: the root reads the table's size back off its
+      // own style (above) and places itself by the pile row's width.
+      style={
+        shrunk
+          ? ({ '--pt-hand-card-h': `${(handW * 1.4).toFixed(1)}px` } as React.CSSProperties)
+          : undefined
+      }
       aria-label="Hand"
     >
       {!fan && <span className="playtest-hand__label">Hand ({cards.length})</span>}
-      <div className="playtest-hand__cards">
+      <div className="playtest-hand__cards" style={handSize}>
         {cards.map((c, i) =>
           fan ? (
             <div

@@ -35,15 +35,66 @@ function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
 }
 
+/** The width the fan may spread across: what the pile row leaves, capped. */
+function fanRoom(cardW: number, containerW: number): number {
+  const band = containerW - pilesWidth(cardW) - 2 * PILES_INSET;
+  return Math.min(containerW * MAX_FAN_VW, Math.max(cardW, band));
+}
+
 /**
  * How much of a card the next one covers, as a fraction of the card's width.
  * Spread to fill the width the table actually has left of the pile row, so a
  * normal hand sits nearly side by side where there is room and a big one
- * tucks tighter instead of running under the piles.
+ * tucks tighter instead of running under the piles. `cardW` is the table's
+ * card size (the piles are drawn at it); `handW` is the hand's, which
+ * `fanCardWidth` shrinks for a big hand.
  */
-export function fanOverlap(count: number, cardW: number, containerW: number): number {
-  if (count < 2 || cardW <= 0) return MIN_FAN_OVERLAP;
+export function fanOverlap(
+  count: number,
+  cardW: number,
+  containerW: number,
+  handW = cardW
+): number {
+  if (count < 2 || handW <= 0) return MIN_FAN_OVERLAP;
+  const room = fanRoom(cardW, containerW);
+  return clamp(1 - (room - handW) / (handW * (count - 1)), MIN_FAN_OVERLAP, MAX_FAN_OVERLAP);
+}
+
+/** The smallest a big hand's cards get, as a share of the table's card size. */
+const MIN_HAND_CARD_SCALE = 0.5;
+
+/**
+ * The hand's card width. The table's size until the fan, at its tightest
+ * overlap, no longer fits the room it has; past that the cards shrink so it
+ * does, as EDHPlay draws a big hand smaller rather than letting it run off
+ * the screen (a 22-card hand ran 56px off the left edge at full size).
+ */
+export function fanCardWidth(count: number, cardW: number, containerW: number): number {
+  // No band left of the pile row means this width lays the row out some
+  // other way (a phone stacks the Hand button above two piles), so there is
+  // no room figure to shrink to, and a normal phone hand must not shrink.
   const band = containerW - pilesWidth(cardW) - 2 * PILES_INSET;
-  const maxFanWidth = Math.min(containerW * MAX_FAN_VW, Math.max(cardW, band));
-  return clamp(1 - (maxFanWidth - cardW) / (cardW * (count - 1)), MIN_FAN_OVERLAP, MAX_FAN_OVERLAP);
+  if (count < 2 || band <= cardW) return cardW;
+  const fits = fanRoom(cardW, containerW) / (1 + (count - 1) * (1 - MAX_FAN_OVERLAP));
+  return Math.max(cardW * MIN_HAND_CARD_SCALE, Math.min(cardW, fits));
+}
+
+/** Rotation per card away from the centre, and the drop per squared step that
+ *  arcs the fan. What a normal hand gets. */
+const FAN_STEP_DEG = 2;
+const FAN_ARC_PX = 1.2;
+/** The most the OUTERMOST card may turn and drop. A fixed per-card step turned
+ *  the end cards of a 22-card hand 21° and dropped them 130px, off the table
+ *  edge. Capping the edge flattens a big hand the way EDHPlay's does; up to
+ *  seven cards the caps never bind, so a normal hand keeps its curve. */
+const MAX_EDGE_DEG = 6;
+const MAX_EDGE_DROP_PX = 12;
+
+/** Card `i` of `n`: how far it turns (degrees) and how far it drops (px). */
+export function fanTilt(i: number, n: number): { deg: number; drop: number } {
+  const off = i - (n - 1) / 2;
+  const edge = Math.max((n - 1) / 2, 1);
+  const step = Math.min(FAN_STEP_DEG, MAX_EDGE_DEG / edge);
+  const arc = Math.min(FAN_ARC_PX, MAX_EDGE_DROP_PX / (edge * edge));
+  return { deg: off * step, drop: off * off * arc };
 }

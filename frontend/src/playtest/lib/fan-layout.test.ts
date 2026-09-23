@@ -6,7 +6,14 @@
  * four cards wide now that the piles match the hand's card size.
  */
 import { describe, expect, it } from 'vitest';
-import { MAX_FAN_OVERLAP, MIN_FAN_OVERLAP, fanOverlap, pilesWidth } from './fan-layout';
+import {
+  MAX_FAN_OVERLAP,
+  MIN_FAN_OVERLAP,
+  fanCardWidth,
+  fanOverlap,
+  fanTilt,
+  pilesWidth,
+} from './fan-layout';
 
 describe('pilesWidth', () => {
   it('is the Hand button and four tiles of the card width, plus their chrome and gaps', () => {
@@ -41,5 +48,53 @@ describe('fanOverlap', () => {
   it('is a no-op for a hand that cannot overlap itself', () => {
     expect(fanOverlap(1, 100, 1440)).toBe(MIN_FAN_OVERLAP);
     expect(fanOverlap(0, 100, 1440)).toBe(MIN_FAN_OVERLAP);
+  });
+});
+
+/**
+ * User report 2026-09-23, against EDHPlay: at 22 cards our fan's ends turned
+ * 21° and dropped ~130px, off the table edge, where EDHPlay's big hand runs
+ * nearly flat. The edge card's tilt is capped, so the fan flattens as it grows.
+ */
+describe('fanTilt', () => {
+  const edge = (n: number) => fanTilt(n - 1, n);
+
+  it('leaves a normal hand its full curve', () => {
+    expect(edge(7)).toEqual({ deg: 6, drop: 1.2 * 9 });
+    expect(fanTilt(3, 7)).toEqual({ deg: 0, drop: 0 });
+  });
+
+  it('keeps the ends of a big hand nearly flat and on the table', () => {
+    for (const n of [8, 12, 22, 40]) {
+      expect(edge(n).deg).toBeLessThanOrEqual(6 + 1e-9);
+      expect(edge(n).drop).toBeLessThanOrEqual(12 + 1e-9);
+    }
+  });
+
+  it('mirrors about the centre', () => {
+    expect(fanTilt(0, 22).deg).toBeCloseTo(-edge(22).deg);
+    expect(fanTilt(0, 22).drop).toBeCloseTo(edge(22).drop);
+  });
+});
+
+describe('fanCardWidth', () => {
+  it('keeps a normal hand at the table card size', () => {
+    expect(fanCardWidth(7, 116, 1656)).toBe(116);
+  });
+
+  it('shrinks a big hand until, at the tightest overlap, it fits the room it has', () => {
+    const handW = fanCardWidth(22, 116, 1656);
+    expect(handW).toBeLessThan(116);
+    expect(fanOverlap(22, 116, 1656, handW)).toBeCloseTo(MAX_FAN_OVERLAP);
+    const fanWidth = handW * (1 + 21 * (1 - MAX_FAN_OVERLAP));
+    expect(fanWidth).toBeLessThanOrEqual(1656 - pilesWidth(116));
+  });
+
+  it('leaves a phone hand alone, where the pile row leaves no band to fit', () => {
+    expect(fanCardWidth(7, 56, 390)).toBe(56);
+  });
+
+  it('never shrinks a card below half the table size', () => {
+    expect(fanCardWidth(60, 116, 1024)).toBeCloseTo(116 * 0.5);
   });
 });
