@@ -84,6 +84,14 @@ vi.mock('@/lib/use-awaiting-first-pull', () => ({
   useAwaitingFirstPull: () => firstPull.awaiting,
 }));
 
+// The session waits for the collection so it can deal the printings you own
+// (deck-to-playtest). `undefined` = still loading. Flipped per test.
+const collection: { byId: Map<string, unknown> | undefined } = { byId: new Map() };
+vi.mock('@/lib/allocations', async (orig) => ({
+  ...(await orig<typeof import('@/lib/allocations')>()),
+  useCollectionByCopyId: () => collection.byId,
+}));
+
 import { PlaytestPage } from './PlaytestPage';
 
 function renderAt(path: string) {
@@ -171,5 +179,24 @@ describe('PlaytestPage', () => {
     renderAt('/decks/deck-1/playtest');
     await screen.findByTestId('board');
     expect(document.title).toBe('Playtest · Krenko · SpellControl');
+  });
+
+  // Dealing before the collection loads would put one printing on the table
+  // and your own a moment later (or never). It waits, then deals.
+  it('waits for your collection before dealing, then deals', async () => {
+    fakePlaytestStore.getState().teardown();
+    collection.byId = undefined;
+    const { rerender } = renderAt('/decks/deck-1/playtest');
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByTestId('board')).toBeNull();
+    collection.byId = new Map();
+    rerender(
+      <MemoryRouter initialEntries={['/decks/deck-1/playtest']}>
+        <Routes>
+          <Route path="/decks/:id/playtest" element={<PlaytestPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByTestId('board')).toBeTruthy();
   });
 });

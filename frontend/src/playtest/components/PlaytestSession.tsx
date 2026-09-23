@@ -10,6 +10,7 @@ import {
 } from '@/lib/playtest/session-snapshot';
 import type { Deck } from '@/store/decks';
 import { deckToPlaytestInit } from '@/playtest/lib/deck-to-playtest';
+import { useCollectionByCopyId } from '@/lib/allocations';
 import { usePlaytestStore, flushPendingPlaytestSnapshot, tryRecordSession } from '@/playtest/store';
 import { PlaytestBoard } from '@/playtest/components/PlaytestBoard';
 import { useNarrowViewport } from '@/playtest/hooks/use-narrow-viewport';
@@ -67,6 +68,14 @@ export function PlaytestSession({ deck, external: isExternal, back, title, empty
   // Backfills printed power/toughness the deck's own cards are missing, so a
   // creature on the board shows a P/T box whatever era the deck was built in.
   usePrintedBodies(deck);
+  // Your collection by copy id, so each allocated slot is dealt as the
+  // printing you own — the one the deck view shows. Undefined while the
+  // collection loads; the session waits for it rather than dealing one
+  // printing and swapping to another. A shared or public deck's allocations
+  // point into its OWNER's collection, so it never waits and never looks.
+  const collectionById = useCollectionByCopyId();
+  const awaitingCollection = !isExternal && collectionById === undefined;
+  const ownedCopies = isExternal ? undefined : collectionById;
 
   // The deck id a resume-vs-fresh prompt is currently open for. It gates only
   // the prompt: while the confirm dialog is up the effect below can re-run
@@ -84,6 +93,7 @@ export function PlaytestSession({ deck, external: isExternal, back, title, empty
 
   useEffect(() => {
     if (storeDeckId === deck.id) return;
+    if (awaitingCollection) return;
     if (promptingForRef.current === deck.id) return; // resume prompt already open
     // Commit any still-debounced write for whatever deck was previously
     // loaded before we touch the store for this one (route can swap decks
@@ -129,7 +139,9 @@ export function PlaytestSession({ deck, external: isExternal, back, title, empty
           forDeck
         );
         clearPlaytestSnapshot(forDeck.id);
-        startSession(() => init(forDeck.id, deckToPlaytestInit(forDeck), external));
+        startSession(() =>
+          init(forDeck.id, deckToPlaytestInit(forDeck, { collectionById: ownedCopies }), external)
+        );
       }
     }
 
@@ -138,8 +150,10 @@ export function PlaytestSession({ deck, external: isExternal, back, title, empty
       void offerResume(deck, snapshot);
       return;
     }
-    startSession(() => init(deck.id, deckToPlaytestInit(deck), external));
-  }, [deck, external, storeDeckId, init, hydrate, confirm]);
+    startSession(() =>
+      init(deck.id, deckToPlaytestInit(deck, { collectionById: ownedCopies }), external)
+    );
+  }, [deck, external, storeDeckId, init, hydrate, confirm, awaitingCollection, ownedCopies]);
 
   useEffect(
     () => () => {
