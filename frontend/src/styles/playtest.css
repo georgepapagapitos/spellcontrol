@@ -1205,9 +1205,8 @@ body[data-felt='slate'] {
   z-index: 2;
   display: flex;
   align-items: center;
-  /* Scales with the plates, so the two numbers read as two plates rather
-     than one box with a divider down the middle. */
-  gap: calc(var(--pt-card-w, 100px) * 0.03);
+  /* A 1px seam — see the pair rule below the plate. */
+  gap: 1px;
 }
 
 /* The body plate — the power and the toughness, each on its own solid black
@@ -1226,13 +1225,14 @@ body[data-felt='slate'] {
 .playtest-card-pt__input {
   /* Sized off the CARD, not the type scale: the table's density setting runs
      a card from 64px to 140px wide, and a fixed size that reads on the large
-     end is a blot on the small one. ~14% of the card's width is EDHPlay's
-     proportion; `--text-xs` is the floor so the densest table still reads.
+     end is a blot on the small one. 12% of the card's width, set by eye
+     against EDHPlay (14% read a touch heavy); `--text-xs` is the floor so the
+     densest table still reads.
      The fallback covers a face drawn outside the board (a portaled modal).
      `em` padding keeps each plate square at every size. */
   min-width: 1.3em;
   padding: 0.08em 0.25em;
-  font-size: max(var(--text-xs), calc(var(--pt-card-w, 100px) * 0.14));
+  font-size: max(var(--text-xs), calc(var(--pt-card-w, 100px) * 0.12));
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   line-height: 1.15;
@@ -1249,6 +1249,23 @@ body[data-felt='slate'] {
 .playtest-card-pt.is-modified .playtest-card-pt__value,
 .playtest-card__pt.is-modified .playtest-card__pt-half {
   color: var(--mtg-counter-gold);
+}
+
+/* A pair, not two chips. The plates meet along the 1px seam, SQUARE where
+   they touch and rounded only on the outside — two fully rounded plates
+   leave a notch at the top and bottom of the join that reads as a gap however
+   small the gap is set. The way EDHPlay prints a body. Per child rather than
+   a clipped container, which would cut off the editable plates' focus ring. */
+.playtest-card__pt > :first-child,
+.playtest-card-pt > :first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.playtest-card__pt > :last-child,
+.playtest-card-pt > :last-child {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 
 button.playtest-card-pt__value--editable {
@@ -1287,7 +1304,7 @@ button.playtest-card-pt__value--editable:focus-visible {
   right: var(--space-1);
   z-index: 1;
   display: flex;
-  gap: calc(var(--pt-card-w, 100px) * 0.03);
+  gap: 1px;
   pointer-events: none;
 }
 
