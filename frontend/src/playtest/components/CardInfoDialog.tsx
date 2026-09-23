@@ -31,10 +31,15 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  */
 export function CardInfoDialog({
   card,
+  art,
   status,
   onClose,
 }: {
   card: ScryfallCard;
+  /** The faces the table is showing for this copy — the printing you own,
+   *  which can differ from `card` (the deck slot's stored printing). Omitted
+   *  falls back to `card`'s own art. */
+  art?: { front?: string; back?: string };
   /** Live board facts for this card, when it has any — forwarded straight to
    *  `CardStatusStrip`, which renders nothing when they're all empty. */
   status?: CardStatusStripProps;
@@ -50,7 +55,10 @@ export function CardInfoDialog({
     [card]
   );
   const [face, setFace] = useState(0);
-  const image = artFaces.length > 1 ? artFaces[face].image_uris?.normal : enriched.imageNormal;
+  const image =
+    artFaces.length > 1
+      ? ((face === 0 ? art?.front : art?.back) ?? artFaces[face].image_uris?.normal)
+      : (art?.front ?? enriched.imageNormal);
 
   // Front face only, both of them: `EnrichedCard.manaCost` joins a DFC's
   // faces with "//", and a transform card's back face has no cost — so the

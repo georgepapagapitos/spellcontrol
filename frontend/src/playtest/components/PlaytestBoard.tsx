@@ -2907,9 +2907,16 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           const host = bf?.attachedTo
             ? state.battlefield.find((b) => b.card.id === bf.attachedTo)?.card.name
             : undefined;
+          // The copy's own art (the printing you own), wherever it sits.
+          const copy =
+            bf?.card ??
+            Object.values(state.zones)
+              .flat()
+              .find((c) => c.id === previewCardId);
           return (
             <CardInfoDialog
               card={card}
+              art={copy && { front: copy.imageUrl, back: copy.backImageUrl }}
               status={{
                 card: bf?.card ?? { id: previewCardId, name: card.name },
                 bf,
