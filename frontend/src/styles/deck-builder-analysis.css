@@ -271,6 +271,50 @@
   color: var(--warn-text, #b85c00);
 }
 
+/* The checks verdict ("2 to fix" / "1 to tune" / "All clear") leads the strip
+   and jumps to the stats under the list. Coloured by tone; a clean deck reads
+   in the plain value colour, since "All clear" needs no alarm. */
+.deck-stat-health--err .deck-stat-value,
+.deck-stat-health--err .deck-stat-label {
+  color: var(--err-text);
+}
+.deck-stat-health--warn .deck-stat-value,
+.deck-stat-health--warn .deck-stat-label {
+  color: var(--warn-text);
+}
+
+/* Deck stats under the list (was the Stats tab). A rule and a section title
+   separate it from the list, in the same serif/uppercase family as the list's
+   own "Not in the deck" title. The scroll margin clears the sticky view tabs
+   when the checks stat jumps here. */
+.deck-stats-below {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 0.5px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* Under the list the board lines up with the list's edges. The 1320px cap
+   centred it on its own tab; here it left a ragged inset beside a full-width
+   list. */
+.deck-stats-below .deck-analysis-view {
+  --analysis-max: none;
+}
+
+.deck-stats-below-heading {
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-primary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  scroll-margin-top: 4.5rem;
+}
+
 /* "N new arrivals" — the one entry point to the new-arrivals review (E140).
    It used to be a "✦ N new" chip over every card column; one deck-relative
    metric in the strip, next to "missing", is where a number about the deck

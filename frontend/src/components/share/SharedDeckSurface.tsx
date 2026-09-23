@@ -194,7 +194,6 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
 
   const viewTabs: Array<{ id: DeckView; label: string }> = [
     { id: 'deck', label: 'Deck' },
-    { id: 'stats', label: 'Stats' },
     ...(hasPowerContent ? [{ id: 'power' as DeckView, label: 'Power' }] : []),
   ];
   const requestedView = searchParams.get('view') as DeckView | null;
@@ -365,31 +364,34 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
       )}
 
       {/* Same sticky underline tab bar the owner's deck page uses, so the two
-          read as one surface rather than two designs of the same thing. */}
-      <div className="shared-deck-surface-tabs">
-        <Tabs
-          ariaLabel="Deck views"
-          variant="underline"
-          value={view}
-          onChange={setView}
-          tabs={viewTabs.map((t) => ({
-            id: t.id,
-            label: t.label,
-            controls: `deck-view-panel-${t.id}`,
-          }))}
-        />
-      </div>
+          read as one surface rather than two designs of the same thing. Stats
+          sit under the list; with no Power tab there is nothing to switch to. */}
+      {viewTabs.length > 1 && (
+        <div className="shared-deck-surface-tabs">
+          <Tabs
+            ariaLabel="Deck views"
+            variant="underline"
+            value={view}
+            onChange={setView}
+            tabs={viewTabs.map((t) => ({
+              id: t.id,
+              label: t.label,
+              controls: `deck-view-panel-${t.id}`,
+            }))}
+          />
+        </div>
+      )}
 
       <DeckDisplay
         title={deck.name}
         deckId={deck.id}
         format={deck.format}
-        color={deck.color}
         commander={deck.commander}
         partnerCommander={deck.partnerCommander}
         cards={deck.cards}
         sideboard={deck.sideboard}
         activeView={view}
+        tabbed={viewTabs.length > 1}
         ownershipFor={ownershipFor}
         // ── Deck-describing analysis, straight off the payload ──────────────
         bracketEstimation={deck.bracketEstimation}

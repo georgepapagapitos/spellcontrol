@@ -65,9 +65,7 @@ export function DeckAnalysisView({
   onRetryAnalysis,
   commander,
   partnerCommander,
-  deckName,
   format,
-  deckColor,
   identity,
   scoreRevealKey,
   onAddSuggestedCard,
@@ -127,16 +125,12 @@ export function DeckAnalysisView({
   landUpgradeCount?: number;
   /** Session-scoped reveal key for score animations. Null/undefined suppresses the reveal. */
   scoreRevealKey?: string | null;
-  /** Commander card for DeckIdentityCard art + arc. */
+  /** Commander card, for DeckIdentityCard's commander popularity. */
   commander?: ScryfallCard | null;
-  /** Partner commander card for DeckIdentityCard arc. */
+  /** Partner commander card, for the same commander key. */
   partnerCommander?: ScryfallCard | null;
-  /** Deck name for DeckIdentityCard header. */
-  deckName: string;
   /** Deck format label for DeckIdentityCard. */
   format: string;
-  /** Deck color hex for DeckIdentityCard no-commander banner. */
-  deckColor: string;
   /** Live-computed deck identity for DeckIdentityCard. */
   identity: import('@/deck-builder/services/deckBuilder/deckIdentity').DeckIdentity | null;
   /** One-tap add on a Build Report suggestion row. Omitted → rows stay read-only. */
@@ -198,20 +192,16 @@ export function DeckAnalysisView({
             <DeckIdentityCard
               commander={commander ?? null}
               partnerCommander={partnerCommander}
-              deckName={deckName}
               format={format}
-              deckColor={deckColor}
               bracket={effectiveBracketValue}
               analysisState={analysisState}
               onRetryAnalysis={onRetryAnalysis}
               validation={validation}
               planScore={planScore ?? null}
               edhrecNumDecks={edhrecNumDecks ?? null}
-              manaCurve={manaData.manaCurve}
               identity={identity}
               archetypeOverride={archetypeOverride}
               onSetArchetypeOverride={onSetArchetypeOverride}
-              averageCmc={manaData.averageCmc}
               onNavigate={onNavigateToTune}
               cards={allCards}
             />
