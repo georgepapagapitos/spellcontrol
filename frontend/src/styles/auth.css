@@ -9,7 +9,7 @@
    which clip overflow and stranded the bottom of the form — the bug this
    redesign fixes). Padding carries safe-area + keyboard insets on native. */
 /* Fixed-height scroll viewport — NOT min-height. `body { overflow:hidden }`
-   clips the page, and #root has no height cap, so a min-height page just
+   clips the page, and #root is a fixedH0dvh column (base-layout.css), so a min-height page just
    grows past the viewport into the clipped region (the bug: register mode
    was cut off with no scroll). height:100dvh pins it to the viewport so its
    own overflow-y scrolls — a safety net for short screens / keyboard open.

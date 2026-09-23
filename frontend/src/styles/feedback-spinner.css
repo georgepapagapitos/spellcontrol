@@ -97,8 +97,7 @@
 
 /* Global crash fallback (ErrorBoundary) — the same full-viewport
    self-scrolling centered-card pattern as .auth-page/.auth-card (STYLE_GUIDE
-   § Full-viewport centered pages): body has overflow:hidden and #root has no
-   height cap, so a min-height page here would risk the same "bottom
+   § Full-viewport centered pages): body has overflow:hidden and #root is a fixedH0dvh column (base-layout.css), so a min-height page here would risk the same "bottom
    silently clipped, no way to scroll" bug on a short/native screen. This is
    an uncaught-error fallback, so it deliberately doesn't share the .auth-*
    class names (a crash has nothing to do with signing in) even though the
