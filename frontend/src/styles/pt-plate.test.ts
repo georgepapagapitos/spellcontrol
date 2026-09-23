@@ -58,6 +58,20 @@ describe('the power/toughness plate', () => {
     );
   });
 
+  it('sits as a pair: a 1px seam, square where the plates meet', () => {
+    // Set by eye against EDHPlay (2026-09-23): a spaced gap and four rounded
+    // corners each read as two separate chips. Both surfaces, same shape.
+    for (const box of ['.playtest-card__pt', '.playtest-card-pt']) {
+      expect(rule(box), box).toMatch(/(?<![-\w])gap:\s*1px/);
+    }
+    expect(rule('.playtest-card__pt > :first-child, .playtest-card-pt > :first-child')).toMatch(
+      /border-top-right-radius:\s*0;[\s\S]*border-bottom-right-radius:\s*0/
+    );
+    expect(rule('.playtest-card__pt > :last-child, .playtest-card-pt > :last-child')).toMatch(
+      /border-top-left-radius:\s*0;[\s\S]*border-bottom-left-radius:\s*0/
+    );
+  });
+
   it('is two plates, not one box with a slash', () => {
     expect(badges).not.toMatch(/playtest-card-pt__slash/);
     expect(css).not.toMatch(/playtest-card-pt__slash/);
