@@ -121,6 +121,12 @@ export const PlaytestCardView = memo(function PlaytestCardView({
           .filter(Boolean)
           .join(' ') || undefined
       }
+      // Read by `.playtest-card-slot` to hide what sits BESIDE the card while
+      // it is in flight: the editable power/toughness badges are the card's
+      // sibling, not its child (a control can't nest in this role="button"),
+      // so the source's `opacity: 0` alone left them standing on the felt
+      // where the card used to be. The drag copy carries its own P/T box.
+      data-dragging={isDragging || undefined}
       onClick={activate}
       onKeyDown={(e) => {
         // Keyboard route to the context menu (counters/stickers/move/attach) —

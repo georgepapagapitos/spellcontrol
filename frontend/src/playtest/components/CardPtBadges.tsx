@@ -130,9 +130,6 @@ export function CardPtBadges({ card, bf, onAdjustPT }: Props) {
   return (
     <div className={`playtest-card-pt${pt.modified ? ' is-modified' : ''}`}>
       {badge('power', pt.power)}
-      <span className="playtest-card-pt__slash" aria-hidden>
-        /
-      </span>
       {badge('toughness', pt.toughness)}
     </div>
   );
