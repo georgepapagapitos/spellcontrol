@@ -221,6 +221,15 @@ describe('ADJUST_ALL_COUNTERS', () => {
     expect(s.battlefield[0].counters).toEqual({ '+1/+1': 2 });
   });
 
+  it('removes every kind at once', () => {
+    const s = applyAction(withCounters(), {
+      type: 'ADJUST_ALL_COUNTERS',
+      cardId: 'a',
+      op: 'clear',
+    });
+    expect(s.battlefield[0].counters).toEqual({});
+  });
+
   // "Add one to every counter" has no answer on a card with none — creating
   // a +1/+1 here would quietly make Ctrl+1 a pump spell.
   it('never invents a counter on a card that has none', () => {

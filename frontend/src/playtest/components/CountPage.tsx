@@ -53,7 +53,7 @@ export function CountPage({ max, label, initial = 1, onConfirm }: Props) {
       </div>
       <button
         type="button"
-        className="playtest-ctx-action playtest-ctx-action--table"
+        className="playtest-ctx-action"
         disabled={max === 0}
         onClick={() => onConfirm(count)}
       >

@@ -13,7 +13,7 @@ import {
   RotateCcw,
   X,
 } from 'lucide-react';
-import { focusInto, trapTab, useOverlayLayer } from '../lib/overlay-layer';
+import { focusInto, restoreFocus, trapTab, useOverlayLayer } from '../lib/overlay-layer';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useWakeLock } from '../lib/use-wake-lock';
 import { getCardById } from '../lib/api';
@@ -392,7 +392,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       document.removeEventListener('keydown', onKey);
       // Don't drop keyboard/screen-reader users at the top of the page when
       // the scanner closes.
-      if (prevFocused?.isConnected) prevFocused.focus?.();
+      restoreFocus(prevFocused);
     };
   }, [onClose, isTopmost]);
 

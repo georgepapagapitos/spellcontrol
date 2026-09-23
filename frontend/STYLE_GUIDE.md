@@ -2061,16 +2061,25 @@ Untap):
 Settled against EDHPlay's card menu, which the user asked for by name ("much
 cleaner with the sub menus"). Three rulings, all on the battlefield:
 
-- **A card menu is a short list of actions plus drill-downs, never one
-  scrolling panel.** `CardContextMenu` opens on ~10 single-line rows — Tap,
-  Counters ▸, Power / toughness ▸, Move to ▸, Turn face down, Make a token
-  copy, Draw an arrow (online), Put on the stack, View information, More ▸ —
-  and every stepper, picker and text field lives one page down, reached by a
-  `▸` row and left by a back row named after the card. `CtxMenuShell` takes a
-  `contentKey` so a page swap re-clamps the floating popover and moves focus
-  into the new page. The root list's length is a test
-  (`CardContextMenu.test.tsx`, `ROOT_MAX_ROWS`), not a habit: a menu grows one
-  row at a time and that is how it became a scrolling panel the first time.
+- **A card menu is a short list of actions plus submenus, never one
+  scrolling panel.** `CardContextMenu` opens on EDHPlay's rows in EDHPlay's
+  groups — Tap / Counters ▸, Power / toughness ▸ / Move to ▸ / Flip (two-faced
+  only), Turn face down / Make a token copy, Draw an arrow (online), Add to the
+  stack / View information / More ▸ — and every stepper, picker and text field
+  lives one submenu down. The root order and its groups are a test
+  (`CardContextMenu.test.tsx`, `rootShape`), not a habit: a menu grows one row
+  at a time and that is how it became a scrolling panel the first time.
+- **Submenus fly out beside the menu with a pointer, and drill down in the
+  sheet (2026-09-23).** Every table menu (felt, piles, battlefield, hand,
+  command zone) is one engine, `TableContextMenu`: with a pointer a `▸` row
+  opens its submenu beside the root on a 150ms hover, a click or →, and ← or
+  resting on a sibling backs out, so the path stays in view (EDHPlay's
+  behaviour). In the bottom sheet there is no room beside anything, so the
+  same tree goes a page at a time behind a back row. Groups are separated by a
+  hairline (`SEPARATOR`), never by headings, and the engine drops a line that
+  would land first, last or doubled. A row that does nothing right now (a card
+  with no counters, an empty pile) stays in place and reads as off
+  (`.playtest-ctx-action:disabled`) so the menu keeps one shape.
 - **Every menu row prints its live key.** Rows take the binding from
   `keyFor(id)` (the board's resolved shortcut map), so a rebind moves the key
   on the row too. The menu is the discoverable face of the keyboard map —

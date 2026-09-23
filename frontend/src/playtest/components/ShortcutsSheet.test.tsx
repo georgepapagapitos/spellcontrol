@@ -15,7 +15,16 @@ describe('ShortcutsSheet', () => {
   it('lists every shortcut with its key, in named groups', () => {
     renderSheet();
     expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeTruthy();
-    expect(screen.getByText('Your turn')).toBeTruthy();
+    // EDHPlay's sections, so a player arriving from that table finds each key
+    // under the heading they learned it under.
+    for (const heading of [
+      'Global actions',
+      'Card actions (on hover)',
+      'Counters and power / toughness',
+      'Focus players',
+      'Reactions',
+    ])
+      expect(screen.getByRole('heading', { name: heading })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Draw a card: D. Change' })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Pass the turn.*: Space/ })).toBeTruthy();
   });

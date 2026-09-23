@@ -134,7 +134,7 @@ describe('the binding table', () => {
   });
 
   it('every shortcut has a group the sheet renders', () => {
-    const groups = new Set(['turn', 'table', 'stack', 'card', 'counters', 'players', 'view']);
+    const groups = new Set(['global', 'card', 'counters', 'players', 'reactions']);
     for (const def of SHORTCUTS) {
       expect(groups.has(def.group), `${def.id} is in unknown group ${def.group}`).toBe(true);
     }

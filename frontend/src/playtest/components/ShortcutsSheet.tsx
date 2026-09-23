@@ -19,15 +19,7 @@ interface Props {
   onClose(): void;
 }
 
-const GROUP_ORDER: ShortcutGroup[] = [
-  'turn',
-  'table',
-  'stack',
-  'card',
-  'counters',
-  'players',
-  'view',
-];
+const GROUP_ORDER: ShortcutGroup[] = ['global', 'card', 'counters', 'players', 'reactions'];
 
 /**
  * The table's keyboard shortcuts, each one rebindable in place: press the key
@@ -87,7 +79,11 @@ export function ShortcutsSheet({ overrides, onChange, onClose }: Props) {
   const changed = Object.keys(overrides).length > 0;
 
   return (
-    <Modal onClose={onClose} labelledBy="playtest-shortcuts-title" className="shortcuts-overlay">
+    <Modal
+      onClose={onClose}
+      labelledBy="playtest-shortcuts-title"
+      className="shortcuts-overlay playtest-shortcuts"
+    >
       <header className="shortcuts-overlay-head">
         <h2 id="playtest-shortcuts-title" className="shortcuts-overlay-title">
           Keyboard shortcuts
@@ -102,7 +98,7 @@ export function ShortcutsSheet({ overrides, onChange, onClose }: Props) {
         </button>
       </header>
       <p className="playtest-shortcuts-help">
-        Press a key to change it. Esc cancels. Backspace turns an optional shortcut off.
+        Press any key to change it. Esc cancels. Backspace or Delete turns an optional shortcut off.
       </p>
       <p className="playtest-shortcuts-notice" role="status" aria-live="polite">
         {notice ?? ''}
@@ -118,7 +114,6 @@ export function ShortcutsSheet({ overrides, onChange, onClose }: Props) {
                 const isListening = listening === def.id;
                 return (
                   <li key={def.id} className="shortcuts-overlay-row">
-                    <span className="shortcuts-overlay-desc">{def.label}</span>
                     <button
                       type="button"
                       className={`playtest-shortcut-key${isListening ? ' is-listening' : ''}${
@@ -135,6 +130,7 @@ export function ShortcutsSheet({ overrides, onChange, onClose }: Props) {
                     >
                       {isListening ? 'Press a key…' : formatChord(chord)}
                     </button>
+                    <span className="shortcuts-overlay-desc">{def.label}</span>
                   </li>
                 );
               })}

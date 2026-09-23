@@ -43,6 +43,9 @@ interface Props {
    * a pile and the tile's own click is the whole interaction.
    */
   onCastCommander?(card: PlaytestCard): void;
+  /** Opens one commander's own card menu. Right-click or a long-press on a
+   *  commander reaches it; anywhere else on the tile is the zone's menu. */
+  onCardMenu?(card: PlaytestCard, x: number, y: number): void;
 }
 
 export function ZonePile({
@@ -54,13 +57,25 @@ export function ZonePile({
   onMenu,
   revealTop = false,
   onCastCommander,
+  onCardMenu,
 }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: `zone:${zone}` });
   // A finger has no right-click, so the press-and-hold is the touch half of
   // the same gesture — opening the same menu at the same point. It replaces
   // the kebab the tile used to wear: a pile IS the control, and a button
   // parked on top of a card is chrome the table does not have.
-  const longPress = useLongPress({ onLongPress: (x, y) => onMenu(x, y) });
+  const longPress = useLongPress({
+    onLongPress: (x, y) => {
+      // A hold on one commander is that card's menu, as a right-click is.
+      const id = document
+        .elementFromPoint(x, y)
+        ?.closest('.playtest-pile__commander')
+        ?.getAttribute('data-card-id');
+      const card = id ? cards.find((c) => c.id === id) : undefined;
+      if (card && onCardMenu) onCardMenu(card, x, y);
+      else onMenu(x, y);
+    },
+  });
   // Which end is "top" differs by zone: the library is drawn from index 0,
   // while a discard pile's top is the card put there last.
   const top = zone === 'library' ? cards[0] : cards[cards.length - 1];
@@ -116,6 +131,16 @@ export function ZonePile({
                   key={c.id}
                   type="button"
                   className="playtest-pile__commander"
+                  // The card under the pointer for the per-card keys (A, H,
+                  // K…), and the art the hover preview enlarges.
+                  data-card-id={c.id}
+                  data-preview-id={c.imageUrl ? c.id : undefined}
+                  onContextMenu={(e) => {
+                    if (!onCardMenu) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onCardMenu(c, e.clientX, e.clientY);
+                  }}
                   onClick={() => {
                     // Same suppression as the pile's own button: a hold that
                     // opened the menu must not also cast the commander.

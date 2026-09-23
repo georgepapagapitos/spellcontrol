@@ -72,6 +72,23 @@ describe('useFocusTrap', () => {
     expect(document.activeElement?.id).toBe('trigger');
   });
 
+  // Restoring focus must not scroll the page to the trigger. On the playtest
+  // board a hand card sits half off the felt's bottom edge, and a plain
+  // focus() jumped the battlefield 43px every time a hand-card menu closed.
+  it('restores focus without scrolling to the trigger', () => {
+    const trigger = document.createElement('button');
+    document.body.appendChild(trigger);
+    trigger.focus();
+    const focus = vi.spyOn(trigger, 'focus');
+
+    const panel = dialog('<button id="a">a</button>');
+    const { unmount } = renderHook(() => useFocusTrap(() => true));
+    panel.remove();
+    unmount();
+
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+  });
+
   it('does not restore focus to a trigger that is no longer in the document', () => {
     const trigger = document.createElement('button');
     document.body.appendChild(trigger);

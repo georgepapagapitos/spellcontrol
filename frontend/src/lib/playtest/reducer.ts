@@ -507,7 +507,11 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         const counters: Record<string, number> = {};
         for (const [kind, value] of Object.entries(b.counters)) {
           const updated =
-            action.op === 'double' ? value * 2 : value + (action.op === 'inc' ? 1 : -1);
+            action.op === 'clear'
+              ? 0
+              : action.op === 'double'
+                ? value * 2
+                : value + (action.op === 'inc' ? 1 : -1);
           if (updated > 0) counters[kind] = updated;
         }
         return { ...b, counters };

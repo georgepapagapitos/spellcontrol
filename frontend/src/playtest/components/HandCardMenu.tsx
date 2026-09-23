@@ -1,11 +1,15 @@
 import type { Zone } from '@/lib/playtest';
 import type { ShortcutId } from '../lib/shortcuts';
-import { CtxMenuShell } from '@/components/shared/CtxMenuShell';
+import { moveToEntries } from './move-to-entries';
+import { SEPARATOR, TableContextMenu, type MenuEntry } from './TableContextMenu';
 
 interface Props {
   x: number;
   y: number;
   cardName: string;
+  /** Where the card is. The hand gets the hand's whole vocabulary; a
+   *  commander in the command zone gets EDHPlay's shorter list for it. */
+  zone?: 'hand' | 'command';
   variant: 'floating' | 'sheet';
   /** The live binding for a shortcut, formatted for display — the same keys
    *  the board listens for on the card under the pointer. */
@@ -13,8 +17,12 @@ interface Props {
   onClose(): void;
   /** Omitted (no item) when the card has no resolvable ScryfallCard. */
   onPreview?(): void;
+  /** Onto the battlefield. Out of the command zone that is casting it, and
+   *  the reducer bumps that commander's tax. */
   onPlay(opts?: { tapped?: boolean; faceDown?: boolean }): void;
   onMoveTo(zone: Zone, toIndex?: number): void;
+  /** Caps "Library X from top"; omitted hides that row. */
+  libraryCount?: number;
   /** Whether the table is currently being shown this card. */
   revealed?: boolean;
   /** Show it to the table, or stop. Omitted off a table — there is nobody
@@ -33,23 +41,27 @@ interface Props {
 }
 
 /**
- * Right-click / long-press / Shift+Enter menu for a card in hand. A hand
- * card's whole vocabulary is here: the three ways to play it (face up,
- * tapped for a land that enters tapped, face down for morph/manifest), and
- * the moves out of hand a real game asks for constantly — discard, exile
- * (Chrome Mox, Force of Will pitch), back on top or bottom of the library
- * (Brainstorm, Ponder). A plain tap still plays the card.
+ * Right-click / long-press / Shift+Enter menu for a card in hand or in the
+ * command zone, grouped the way EDHPlay groups it: where it goes / how it is
+ * shown / the stack / information.
+ *
+ * The hand keeps two things EDHPlay does without: Play and Play tapped at the
+ * top (a click already plays a hand card, so the menu names that, and
+ * "enters tapped" is a land's everyday case), and Move it left / right at the
+ * end, the keyboard's way of arranging a hand.
  */
 export function HandCardMenu({
   x,
   y,
   cardName,
+  zone = 'hand',
   variant,
   keyFor,
   onClose,
   onPreview,
   onPlay,
   onMoveTo,
+  libraryCount,
   revealed = false,
   onToggleReveal,
   onPutOnStack,
@@ -57,118 +69,75 @@ export function HandCardMenu({
   canMoveEarlier = false,
   canMoveLater = false,
 }: Props) {
-  const act = (fn: () => void) => () => {
-    fn();
-    onClose();
-  };
-  const key = (id: ShortcutId) => {
-    const k = keyFor?.(id);
-    return k ? <kbd className="playtest-ctx-key">{k}</kbd> : null;
-  };
+  const key = (id: ShortcutId) => keyFor?.(id);
+  const inHand = zone === 'hand';
+  const items: MenuEntry[] = [
+    ...(inHand
+      ? [
+          { label: 'Play', shortcut: key('to-battlefield'), onClick: () => onPlay() },
+          { label: 'Play tapped', onClick: () => onPlay({ tapped: true }) },
+          SEPARATOR,
+        ]
+      : []),
+    {
+      label: 'Move to',
+      items: moveToEntries({
+        from: zone,
+        keyFor,
+        libraryCount,
+        onMoveTo: (to, toIndex) => {
+          onMoveTo(to, toIndex);
+          onClose();
+        },
+        // In hand the battlefield row is Play, one level up.
+        onBattlefield: inHand ? undefined : () => onPlay(),
+      }),
+    },
+    SEPARATOR,
+    ...(inHand
+      ? [
+          {
+            label: 'Play face down',
+            shortcut: key('face-down'),
+            onClick: () => onPlay({ faceDown: true }),
+          },
+        ]
+      : []),
+    ...(inHand && onToggleReveal
+      ? [
+          {
+            label: 'Reveal',
+            shortcut: key('reveal'),
+            // EDHPlay's shape, Reveal ▸ Everyone, and the library menu's: a
+            // reveal names who sees it.
+            items: [{ label: 'Everyone', pressed: revealed, onClick: onToggleReveal }],
+          },
+        ]
+      : []),
+    SEPARATOR,
+    ...(onPutOnStack
+      ? [
+          {
+            label: 'Add to the stack',
+            shortcut: key('stack-add'),
+            onClick: () => onPutOnStack(false),
+          },
+        ]
+      : []),
+    SEPARATOR,
+    ...(onPreview ? [{ label: 'View information', onClick: onPreview }] : []),
+    SEPARATOR,
+    ...(onMove && canMoveEarlier ? [{ label: 'Move it left', onClick: () => onMove(-1) }] : []),
+    ...(onMove && canMoveLater ? [{ label: 'Move it right', onClick: () => onMove(1) }] : []),
+  ];
   return (
-    <CtxMenuShell x={x} y={y} title={cardName} variant={variant} onClose={onClose}>
-      {onPreview && (
-        <button type="button" className="playtest-ctx-action" onClick={act(onPreview)}>
-          <span>View information</span>
-        </button>
-      )}
-      <button type="button" className="playtest-ctx-action" onClick={act(() => onPlay())}>
-        <span>Play</span>
-        {key('to-battlefield')}
-      </button>
-      <button
-        type="button"
-        className="playtest-ctx-action"
-        onClick={act(() => onPlay({ tapped: true }))}
-      >
-        <span>Play tapped</span>
-      </button>
-      <button
-        type="button"
-        className="playtest-ctx-action"
-        onClick={act(() => onPlay({ faceDown: true }))}
-      >
-        <span>Play face down</span>
-        {key('face-down')}
-      </button>
-      {onPutOnStack && (
-        <button
-          type="button"
-          className="playtest-ctx-action"
-          onClick={act(() => onPutOnStack(false))}
-        >
-          <span>Put on the stack</span>
-          {key('stack-add')}
-        </button>
-      )}
-      {onToggleReveal && (
-        <button
-          type="button"
-          className="playtest-ctx-action"
-          onClick={act(onToggleReveal)}
-          aria-pressed={revealed}
-        >
-          <span>{revealed ? 'Stop showing it' : 'Show the table'}</span>
-          {key('reveal')}
-        </button>
-      )}
-      {onMove && (canMoveEarlier || canMoveLater) && (
-        <div className="playtest-ctx-group">
-          <div className="playtest-ctx-heading">Arrange</div>
-          {canMoveEarlier && (
-            <button type="button" className="playtest-ctx-action" onClick={act(() => onMove(-1))}>
-              Move it left
-            </button>
-          )}
-          {canMoveLater && (
-            <button type="button" className="playtest-ctx-action" onClick={act(() => onMove(1))}>
-              Move it right
-            </button>
-          )}
-        </div>
-      )}
-      <div className="playtest-ctx-group">
-        <div className="playtest-ctx-heading">Move to</div>
-        <button
-          type="button"
-          className="playtest-ctx-action"
-          onClick={act(() => onMoveTo('graveyard'))}
-        >
-          <span>Discard</span>
-          {key('to-graveyard')}
-        </button>
-        <button
-          type="button"
-          className="playtest-ctx-action"
-          onClick={act(() => onMoveTo('exile'))}
-        >
-          <span>Exile</span>
-          {key('to-exile')}
-        </button>
-        <button
-          type="button"
-          className="playtest-ctx-action"
-          onClick={act(() => onMoveTo('library', 0))}
-        >
-          <span>Top of library</span>
-          {key('to-library-top')}
-        </button>
-        <button
-          type="button"
-          className="playtest-ctx-action"
-          onClick={act(() => onMoveTo('library'))}
-        >
-          <span>Bottom of library</span>
-          {key('to-library-bottom')}
-        </button>
-        <button
-          type="button"
-          className="playtest-ctx-action"
-          onClick={act(() => onMoveTo('command'))}
-        >
-          <span>Command zone</span>
-        </button>
-      </div>
-    </CtxMenuShell>
+    <TableContextMenu
+      x={x}
+      y={y}
+      variant={variant}
+      title={cardName}
+      items={items}
+      onClose={onClose}
+    />
   );
 }

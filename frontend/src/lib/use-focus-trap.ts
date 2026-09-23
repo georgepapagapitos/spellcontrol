@@ -1,5 +1,5 @@
 import { useEffect, type RefObject } from 'react';
-import { focusInto, trapTab } from './overlay-layer';
+import { focusInto, restoreFocus, trapTab } from './overlay-layer';
 
 const DIALOG_SELECTOR = '[role="dialog"][aria-modal="true"]';
 
@@ -57,7 +57,7 @@ export function useFocusTrap(
     document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      if (prevFocused?.isConnected) prevFocused.focus?.();
+      restoreFocus(prevFocused);
     };
   }, [isTopmost, panelRef]);
 }

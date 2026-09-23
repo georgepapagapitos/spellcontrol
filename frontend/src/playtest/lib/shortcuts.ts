@@ -22,7 +22,9 @@ import { logger } from '@/lib/logger';
  * the defaults — but a browser that keeps them is expected, not a bug.
  */
 
-export type ShortcutGroup = 'turn' | 'table' | 'stack' | 'card' | 'counters' | 'players' | 'view';
+/** The sheet's sections: EDHPlay's own, so a player arriving from that table
+ *  finds each key under the heading they learned it under. */
+export type ShortcutGroup = 'global' | 'card' | 'counters' | 'players' | 'reactions';
 
 export interface ShortcutDef {
   id: ShortcutId;
@@ -98,108 +100,119 @@ export type ShortcutId =
   | 'menu';
 
 export const SHORTCUT_GROUP_LABEL: Record<ShortcutGroup, string> = {
-  turn: 'Your turn',
-  table: 'The table',
-  stack: 'The stack',
-  card: 'The card in view',
-  counters: 'Counters and power',
-  players: 'Players',
-  view: 'View',
+  global: 'Global actions',
+  card: 'Card actions (on hover)',
+  counters: 'Counters and power / toughness',
+  players: 'Focus players',
+  reactions: 'Reactions',
 };
 
 /**
- * What "the card in view" means, printed once at the top of its section: the
- * selection when there is one, otherwise whatever the pointer is resting on.
- * One sentence, because it is the single rule that makes half this table
- * make sense.
+ * What "on hover" means, printed once at the top of its section. EDHPlay
+ * lists a "Multi-select actions" section that repeats T, H, G, E and A; here
+ * every card key already acts on the whole selection when there is one, so
+ * this one sentence says so instead of a second copy of five rows that could
+ * never be rebound apart from the first.
  */
 export const CARD_GROUP_HELP =
-  'These act on your selection. With nothing selected, they act on the card under the pointer.';
+  'These act on the card under the pointer, or on every selected card when there is a selection.';
 
+// In EDHPlay's order within each section; this table's own additions come
+// last in the section they belong to.
 export const SHORTCUTS: readonly ShortcutDef[] = [
-  // ── Your turn ─────────────────────────────────────────────────────────
-  { id: 'pass-turn', key: 'space', label: 'Pass the turn, or next turn solo', group: 'turn' },
-  { id: 'advance-phase', key: 'q', label: 'Advance phase (online)', group: 'turn' },
-  { id: 'next-turn', key: 'shift+n', label: 'Next turn', group: 'turn' },
-  { id: 'draw', key: 'd', label: 'Draw a card', group: 'turn' },
-  { id: 'untap-all', key: 'u', label: 'Untap all', group: 'turn' },
-  { id: 'life-up', key: 'arrowup', label: 'Life +1', group: 'turn' },
-  { id: 'life-down', key: 'arrowdown', label: 'Life −1', group: 'turn' },
-
-  // ── The table ─────────────────────────────────────────────────────────
-  { id: 'shuffle', key: 's', label: 'Shuffle library', group: 'table' },
-  { id: 'view-library', key: 'v', label: 'View the library', group: 'table' },
-  { id: 'scry', key: 'p', label: 'Look at the top cards', group: 'table' },
-  { id: 'scry-bottom', key: 'shift+p', label: 'Look at the bottom cards', group: 'table' },
+  // ── Global actions ────────────────────────────────────────────────────
+  { id: 'pass-turn', key: 'space', label: 'Pass the turn, or next turn solo', group: 'global' },
+  { id: 'draw', key: 'd', label: 'Draw a card', group: 'global' },
+  { id: 'untap-all', key: 'u', label: 'Untap all', group: 'global' },
+  {
+    id: 'size-up',
+    key: '=',
+    label: 'Bigger cards; with a card targeted, a +1/+1 counter',
+    group: 'global',
+  },
+  {
+    id: 'size-down',
+    key: '-',
+    label: 'Smaller cards; with a card targeted, a −1/−1 counter',
+    group: 'global',
+  },
+  { id: 'mana', key: 'm', label: 'Show or hide the mana pool', group: 'global' },
+  {
+    id: 'toggle-layout',
+    key: '',
+    label: 'Switch between the seat grid and the rail',
+    group: 'global',
+    optional: true,
+  },
+  { id: 'advance-phase', key: 'q', label: 'Advance phase (online)', group: 'global' },
+  { id: 'life-up', key: 'arrowup', label: 'Life +1', group: 'global' },
+  { id: 'life-down', key: 'arrowdown', label: 'Life −1', group: 'global' },
+  { id: 'log', key: 'c', label: 'Open the log and chat', group: 'global' },
+  { id: 'shuffle', key: 's', label: 'Shuffle library', group: 'global' },
+  { id: 'view-library', key: 'v', label: 'View the library', group: 'global' },
+  { id: 'scry', key: 'p', label: 'Look at the top cards', group: 'global' },
+  { id: 'scry-bottom', key: 'shift+p', label: 'Look at the bottom cards', group: 'global' },
+  { id: 'dice', key: 'o', label: 'Roll dice or flip a coin', group: 'global' },
+  { id: 'token', key: 'n', label: 'Create a token', group: 'global' },
+  { id: 'shortcuts', key: 'i', label: 'Open this list', group: 'global' },
+  {
+    id: 'arrows-clear',
+    key: '',
+    label: 'Remove every arrow you drew (online)',
+    group: 'global',
+    optional: true,
+  },
   {
     id: 'view-top-card',
     key: '',
     label: 'View the top card of the library',
-    group: 'table',
+    group: 'global',
     optional: true,
   },
   {
     id: 'view-bottom-card',
     key: '',
     label: 'View the bottom card of the library',
-    group: 'table',
+    group: 'global',
     optional: true,
   },
+  { id: 'menu', key: 'escape', label: 'Clear the selection', group: 'global' },
   {
-    id: 'size-up',
-    key: '=',
-    label: 'Bigger cards; with a card targeted, a +1/+1 counter',
-    group: 'table',
+    id: 'select-all',
+    key: 'mod+a',
+    label: 'Select every card on the battlefield',
+    group: 'global',
   },
-  {
-    id: 'size-down',
-    key: '-',
-    label: 'Smaller cards; with a card targeted, a −1/−1 counter',
-    group: 'table',
-  },
-  { id: 'dice', key: 'o', label: 'Roll dice or flip a coin', group: 'table' },
-  { id: 'token', key: 'n', label: 'Create a token', group: 'table' },
-  { id: 'mana', key: 'm', label: 'Show or hide the mana pool', group: 'table' },
-  { id: 'log', key: 'c', label: 'Open the log and chat', group: 'table' },
-  { id: 'undo', key: 'mod+z', label: 'Undo (take back)', group: 'table' },
-
-  // ── The stack ─────────────────────────────────────────────────────────
-  { id: 'stack-add', key: 'k', label: 'Put it on the stack', group: 'stack' },
-  { id: 'stack-copy', key: 'shift+k', label: 'Copy it onto the stack', group: 'stack' },
+  { id: 'next-turn', key: 'shift+n', label: 'Next turn', group: 'global' },
+  { id: 'undo', key: 'mod+z', label: 'Undo (take back)', group: 'global' },
   {
     id: 'stack-resolve',
     key: '',
     label: 'Resolve the top of the stack',
-    group: 'stack',
+    group: 'global',
     optional: true,
   },
 
-  // ── The card in view ──────────────────────────────────────────────────
+  // ── Card actions (on hover) ───────────────────────────────────────────
   { id: 'tap-selection', key: 't', label: 'Tap or untap', group: 'card' },
   { id: 'transform', key: 'f', label: 'Flip (double-faced cards)', group: 'card' },
   { id: 'face-down', key: 'z', label: 'Turn face down or face up', group: 'card' },
   { id: 'clone', key: 'x', label: 'Make a token copy', group: 'card' },
   { id: 'reveal', key: 'r', label: 'Reveal it from your hand', group: 'card' },
-  { id: 'to-battlefield', key: 'a', label: 'Move to the battlefield', group: 'card' },
   { id: 'to-hand', key: 'h', label: 'Move to hand', group: 'card' },
   { id: 'to-graveyard', key: 'g', label: 'Move to graveyard', group: 'card' },
   { id: 'to-exile', key: 'e', label: 'Move to exile', group: 'card' },
+  { id: 'to-battlefield', key: 'a', label: 'Move to the battlefield', group: 'card' },
   { id: 'to-library-top', key: 'l', label: 'Move to top of library', group: 'card' },
   { id: 'to-library-bottom', key: 'b', label: 'Move to bottom of library', group: 'card' },
   { id: 'arrow', key: 'w', label: 'Draw an arrow from it (online)', group: 'card' },
-  {
-    id: 'arrows-clear',
-    key: '',
-    label: 'Remove every arrow you drew (online)',
-    group: 'card',
-    optional: true,
-  },
-  { id: 'select-all', key: 'mod+a', label: 'Select every card on the battlefield', group: 'card' },
+  { id: 'stack-add', key: 'k', label: 'Add to the stack', group: 'card' },
+  { id: 'stack-copy', key: 'shift+k', label: 'Copy onto the stack', group: 'card' },
+  { id: 'counters', key: 'j', label: 'Open counters', group: 'card' },
   { id: 'copy', key: 'mod+c', label: 'Copy', group: 'card' },
   { id: 'paste', key: 'mod+v', label: 'Paste as token copies', group: 'card' },
 
-  // ── Counters and power ────────────────────────────────────────────────
-  { id: 'counters', key: 'j', label: 'Open counters', group: 'counters' },
+  // ── Counters and power / toughness ────────────────────────────────────
   // `plus`, not `+`: the chord separator IS `+`, so the bare character
   // cannot be a key name without `+`.split('+') tearing it in half.
   // The unshifted `=` / `-` already do these on a targeted card; these stay
@@ -214,7 +227,7 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
   { id: 'power-dec', key: 'alt+3', label: 'Power −1', group: 'counters' },
   { id: 'toughness-dec', key: 'alt+4', label: 'Toughness −1', group: 'counters' },
 
-  // ── Players ───────────────────────────────────────────────────────────
+  // ── Focus players ─────────────────────────────────────────────────────
   ...([1, 2, 3, 4, 5, 6] as const).map(
     (n) =>
       ({
@@ -225,21 +238,12 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
         optional: true,
       }) as ShortcutDef
   ),
-  { id: 'react-1', key: '7', label: 'React: thumbs up (online)', group: 'players', optional: true },
-  { id: 'react-2', key: '8', label: 'React: thinking (online)', group: 'players', optional: true },
-  { id: 'react-3', key: '9', label: 'React: wow (online)', group: 'players', optional: true },
-  { id: 'react-4', key: '0', label: 'React: crying (online)', group: 'players', optional: true },
 
-  // ── View ──────────────────────────────────────────────────────────────
-  {
-    id: 'toggle-layout',
-    key: '',
-    label: 'Switch between the seat grid and the rail',
-    group: 'view',
-    optional: true,
-  },
-  { id: 'shortcuts', key: 'i', label: 'Open this list', group: 'view' },
-  { id: 'menu', key: 'escape', label: 'Clear the selection', group: 'view' },
+  // ── Reactions ─────────────────────────────────────────────────────────
+  { id: 'react-1', key: '7', label: 'Thumbs up (online)', group: 'reactions', optional: true },
+  { id: 'react-2', key: '8', label: 'Thinking (online)', group: 'reactions', optional: true },
+  { id: 'react-3', key: '9', label: 'Wow (online)', group: 'reactions', optional: true },
+  { id: 'react-4', key: '0', label: 'Crying (online)', group: 'reactions', optional: true },
 ];
 
 const STORAGE_KEY = 'playtest-shortcuts-v1';
