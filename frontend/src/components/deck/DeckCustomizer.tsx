@@ -23,6 +23,7 @@ import { useCollectionStore } from '../../store/collection';
 import { useCubeStore } from '../../store/cube';
 import { useDecksStore } from '../../store/decks';
 import { EXHIBITION_BRACKET_NOTE } from '@/lib/format-bracket-label';
+import { useCollapsedPref } from '../../lib/use-collapsed-pref';
 
 type Update = (patch: Partial<Customization>) => void;
 
@@ -34,6 +35,14 @@ interface DeckCustomizerProps {
 export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
   const suggestion = useDeckBuilderStore((s) => s.edhrecLandSuggestion);
   const setUserEditedLands = useDeckBuilderStore((s) => s.setUserEditedLands);
+  // Bracket, the dial and the collection toggle are the levers most builds
+  // touch; the rest (lands, budget, pool, tempo, salt, filters, card lists)
+  // folds away. Open, the page ran 1,400px before Themes and Generate.
+  const [moreCollapsed, setMoreCollapsed] = useCollapsedPref(
+    'spellcontrol-customize-more-collapsed',
+    true
+  );
+  const moreBodyId = useId();
 
   // When collection mode constrains the build to owned cards, the must-include
   // picker searches that same pool instead of all of Scryfall — a pick outside
@@ -128,99 +137,128 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
         <BrewGroup customization={customization} update={update} />
         <CollectionGroup customization={customization} update={update} />
 
-        <div className="deck-customizer-group">
-          <div className="deck-customizer-group-header">
-            <h3 className="deck-customizer-group-title">Lands</h3>
-            {suggestion && (
-              <button
-                type="button"
-                className="deck-customizer-group-reset"
-                onClick={handleResetLands}
-                title={`Reset to EDHREC suggestion (${suggestion.landCount} / ${suggestion.nonBasicLandCount})`}
-              >
-                <RotateCcw width={12} height={12} strokeWidth={2} aria-hidden />
-                Reset
-              </button>
+        <div className={`deck-customizer-more${moreCollapsed ? '' : ' open'}`}>
+          <button
+            type="button"
+            className="deck-customizer-more-toggle"
+            aria-expanded={!moreCollapsed}
+            aria-controls={moreBodyId}
+            onClick={() => setMoreCollapsed((v) => !v)}
+          >
+            <span className="deck-customizer-more-title">More settings</span>
+            {moreCollapsed && (
+              <span className="deck-customizer-group-summary">
+                {moreSettingsSummary(customization)}
+              </span>
             )}
-          </div>
-          <div className="deck-customizer-group-body">
-            <SizeAndLandsGroup customization={customization} update={update} />
-          </div>
+            <ChevronDown width={14} height={14} strokeWidth={2} aria-hidden />
+          </button>
+          {!moreCollapsed && (
+            <div id={moreBodyId} className="deck-customizer-more-body">
+              <div className="deck-customizer-group">
+                <div className="deck-customizer-group-header">
+                  <h3 className="deck-customizer-group-title">Lands</h3>
+                  {suggestion && (
+                    <button
+                      type="button"
+                      className="deck-customizer-group-reset"
+                      onClick={handleResetLands}
+                      title={`Reset to EDHREC suggestion (${suggestion.landCount} / ${suggestion.nonBasicLandCount})`}
+                    >
+                      <RotateCcw width={12} height={12} strokeWidth={2} aria-hidden />
+                      Reset
+                    </button>
+                  )}
+                </div>
+                <div className="deck-customizer-group-body">
+                  <SizeAndLandsGroup customization={customization} update={update} />
+                </div>
+              </div>
+
+              <CollapsibleGroup
+                title="Mana philosophy"
+                defaultOpen={false}
+                summary={manaPhilosophySummary(customization)}
+              >
+                <ManaPhilosophyGroup customization={customization} update={update} />
+              </CollapsibleGroup>
+
+              <CollapsibleGroup
+                title="Budget"
+                defaultOpen={false}
+                summary={budgetSummary(customization)}
+              >
+                <BudgetGroup customization={customization} update={update} />
+              </CollapsibleGroup>
+              <CollapsibleGroup
+                title="Card pool"
+                defaultOpen={false}
+                summary={poolSummary(customization)}
+              >
+                <PoolGroup customization={customization} update={update} />
+              </CollapsibleGroup>
+              <CollapsibleGroup
+                title="Tempo"
+                defaultOpen={false}
+                summary={tempoSummary(customization)}
+              >
+                <TempoGroup customization={customization} update={update} />
+              </CollapsibleGroup>
+              <CollapsibleGroup
+                title="Salt"
+                defaultOpen={false}
+                summary={SALT_LABELS[customization.saltTolerance ?? 2]}
+              >
+                <SaltGroup customization={customization} update={update} />
+              </CollapsibleGroup>
+              <CollapsibleGroup
+                title="Scryfall filter"
+                defaultOpen={false}
+                summary={customization.scryfallQuery.trim() || 'None'}
+              >
+                <ScryfallGroup customization={customization} update={update} />
+              </CollapsibleGroup>
+              <CollapsibleGroup
+                title="Must-include cards"
+                defaultOpen={false}
+                count={customization.mustIncludeCards.length}
+              >
+                <CardListGroup
+                  hint={
+                    poolFetcher
+                      ? `These cards are forced into the deck before EDHREC suggestions are considered. While "Build from my collection" is on, search is limited to ${
+                          customization.collectionStrategy === 'available'
+                            ? 'free copies in your collection'
+                            : 'cards you own'
+                        }.`
+                      : 'These cards are forced into the deck before EDHREC suggestions are considered.'
+                  }
+                  values={customization.mustIncludeCards}
+                  onChange={(next) => update({ mustIncludeCards: next })}
+                  fetcher={poolFetcher}
+                />
+              </CollapsibleGroup>
+              <CollapsibleGroup
+                title="Excluded cards"
+                defaultOpen={false}
+                count={customization.bannedCards.length}
+              >
+                <CardListGroup
+                  hint="These cards will never be suggested by the generator."
+                  values={customization.bannedCards}
+                  onChange={(next) => update({ bannedCards: next })}
+                />
+              </CollapsibleGroup>
+              <CollapsibleGroup
+                title="Ban lists"
+                defaultOpen={false}
+                count={(customization.banLists ?? []).length}
+              >
+                <BanListsGroup customization={customization} update={update} />
+              </CollapsibleGroup>
+            </div>
+          )}
         </div>
-
-        <CollapsibleGroup
-          title="Mana philosophy"
-          defaultOpen={false}
-          summary={manaPhilosophySummary(customization)}
-        >
-          <ManaPhilosophyGroup customization={customization} update={update} />
-        </CollapsibleGroup>
-
-        <CollapsibleGroup title="Budget" defaultOpen={false} summary={budgetSummary(customization)}>
-          <BudgetGroup customization={customization} update={update} />
-        </CollapsibleGroup>
-        <CollapsibleGroup
-          title="Card pool"
-          defaultOpen={false}
-          summary={poolSummary(customization)}
-        >
-          <PoolGroup customization={customization} update={update} />
-        </CollapsibleGroup>
-        <CollapsibleGroup title="Tempo" defaultOpen={false} summary={tempoSummary(customization)}>
-          <TempoGroup customization={customization} update={update} />
-        </CollapsibleGroup>
-        <CollapsibleGroup
-          title="Salt"
-          defaultOpen={false}
-          summary={SALT_LABELS[customization.saltTolerance ?? 2]}
-        >
-          <SaltGroup customization={customization} update={update} />
-        </CollapsibleGroup>
-        <CollapsibleGroup
-          title="Scryfall filter"
-          defaultOpen={false}
-          summary={customization.scryfallQuery.trim() || 'None'}
-        >
-          <ScryfallGroup customization={customization} update={update} />
-        </CollapsibleGroup>
-        <CollapsibleGroup
-          title="Must-include cards"
-          defaultOpen={false}
-          count={customization.mustIncludeCards.length}
-        >
-          <CardListGroup
-            hint={
-              poolFetcher
-                ? `These cards are forced into the deck before EDHREC suggestions are considered. While "Build from my collection" is on, search is limited to ${
-                    customization.collectionStrategy === 'available'
-                      ? 'free copies in your collection'
-                      : 'cards you own'
-                  }.`
-                : 'These cards are forced into the deck before EDHREC suggestions are considered.'
-            }
-            values={customization.mustIncludeCards}
-            onChange={(next) => update({ mustIncludeCards: next })}
-            fetcher={poolFetcher}
-          />
-        </CollapsibleGroup>
-        <CollapsibleGroup
-          title="Excluded cards"
-          defaultOpen={false}
-          count={customization.bannedCards.length}
-        >
-          <CardListGroup
-            hint="These cards will never be suggested by the generator."
-            values={customization.bannedCards}
-            onChange={(next) => update({ bannedCards: next })}
-          />
-        </CollapsibleGroup>
-        <CollapsibleGroup
-          title="Ban lists"
-          defaultOpen={false}
-          count={(customization.banLists ?? []).length}
-        >
-          <BanListsGroup customization={customization} update={update} />
-        </CollapsibleGroup>
       </div>
     </section>
   );
@@ -315,6 +353,31 @@ function poolSummary(c: Customization): string {
     c.tinyLeaders ? 'Tiny Leaders' : null,
   ].filter(Boolean);
   return parts.length ? parts.join(' · ') : 'Any card';
+}
+
+const count = (n: number, one: string, many: string): string | null =>
+  n > 0 ? `${n} ${n === 1 ? one : many}` : null;
+
+/** The folded "More settings" line: the land count, then only what differs
+ *  from the defaults, so a changed setting is never hidden behind the fold. */
+export function moreSettingsSummary(c: Customization): string {
+  const budget = budgetSummary(c);
+  const pool = poolSummary(c);
+  const salt = c.saltTolerance ?? 2;
+  return [
+    `${c.landCount} lands`,
+    budget === 'No limits' ? null : budget,
+    pool === 'Any card' ? null : pool,
+    c.tempoAutoDetect ? null : `${tempoSummary(c)} tempo`,
+    salt === 2 ? null : `Salt: ${SALT_LABELS[salt]}`,
+    c.manaPhilosophy ? `Mana: ${manaPhilosophySummary(c)}` : null,
+    c.scryfallQuery.trim() ? 'Scryfall filter' : null,
+    count(c.mustIncludeCards.length, 'must-include', 'must-includes'),
+    count(c.bannedCards.length, 'excluded card', 'excluded cards'),
+    count((c.banLists ?? []).length, 'ban list', 'ban lists'),
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 function tempoSummary(c: Customization): string {

@@ -64,6 +64,63 @@ function baseCustomization(overrides: Partial<Customization> = {}): Customizatio
 beforeEach(() => {
   collectionCards = [{ name: 'Sol Ring' }, { name: 'Arcane Signet' }];
   vi.mocked(getBanList).mockReset().mockResolvedValue([]);
+  // Most suites below drive a group behind "More settings"; they start with
+  // the fold open, the way it stays once a player has opened it.
+  localStorage.setItem(MORE_KEY, '0');
+});
+
+const MORE_KEY = 'spellcontrol-customize-more-collapsed';
+
+// Open, Customize ran 1,400px before Themes and Generate. The primary levers
+// stay out; everything else folds behind one line that names what changed.
+describe('DeckCustomizer — More settings fold', () => {
+  beforeEach(() => localStorage.removeItem(MORE_KEY));
+
+  it('starts folded, with the levers most builds touch still open', () => {
+    render(<DeckCustomizer customization={baseCustomization()} update={vi.fn()} />);
+    const toggle = screen.getByRole('button', { name: /More settings/ });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByText('Lands')).toBeNull();
+    expect(screen.getByText('Power bracket')).toBeTruthy();
+    expect(screen.getByText('Build from my collection')).toBeTruthy();
+    expect(toggle.textContent).toContain('37 lands');
+  });
+
+  it('names every changed setting while folded, so nothing hides behind it', () => {
+    render(
+      <DeckCustomizer
+        customization={baseCustomization({
+          deckBudget: 150,
+          maxRarity: 'rare',
+          tempoAutoDetect: false,
+          tempoPacing: 'fast-tempo',
+          saltTolerance: 0,
+          mustIncludeCards: ['Sol Ring', 'Arcane Signet'],
+          bannedCards: ['Cyclonic Rift'],
+        })}
+        update={vi.fn()}
+      />
+    );
+    const summary = screen.getByRole('button', { name: /More settings/ }).textContent ?? '';
+    expect(summary).toContain('$150 deck');
+    expect(summary).toContain('Rare max');
+    expect(summary).toContain('Fast tempo');
+    expect(summary).toContain('Salt: Unsalted');
+    expect(summary).toContain('2 must-includes');
+    expect(summary).toContain('1 excluded card');
+  });
+
+  it('opens to the full settings and remembers it', () => {
+    const { unmount } = render(
+      <DeckCustomizer customization={baseCustomization()} update={vi.fn()} />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /More settings/ }));
+    expect(screen.getByText('Lands')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Budget/ })).toBeTruthy();
+    unmount();
+    render(<DeckCustomizer customization={baseCustomization()} update={vi.fn()} />);
+    expect(screen.getByText('Lands')).toBeTruthy();
+  });
 });
 
 describe('DeckCustomizer — collection controls', () => {
