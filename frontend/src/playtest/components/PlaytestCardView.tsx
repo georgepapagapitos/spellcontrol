@@ -41,6 +41,24 @@ interface Props {
   /** Wears the fixed red attacking ring (horde table only — see
    *  `Battlefield.attackingIds`). */
   attacking?: boolean;
+  /**
+   * False disables dnd-kit's drag activation for this card entirely — no
+   * pointer/touch listeners are attached at all (`useDraggable`'s own
+   * `disabled` option). The horde table's permanents are auto-placed and
+   * never repositioned, and leaving drag on with no `activationConstraint`
+   * (this component has none of its own; the board that mounts a
+   * `<DndContext>` owns that) meant dnd-kit's `PointerSensor` "activated"
+   * on the very first pointerdown — with no distance threshold to clear
+   * first, `AbstractPointerSensor.attach()` calls `handleStart()`
+   * immediately, which installs a capturing `click` listener on `document`
+   * that calls `stopPropagation()` — so the click/tap that should have
+   * opened the horde card menu was captured and killed before it ever
+   * reached this element's own `onClick`. Right-click and Enter were
+   * unaffected (dnd-kit only swallows `click`). Defaults to true — every
+   * other board keeps drag exactly as it was, at whatever
+   * `activationConstraint` its own `<DndContext>` sets.
+   */
+  draggable?: boolean;
 }
 
 export const PlaytestCardView = memo(function PlaytestCardView({
@@ -59,10 +77,12 @@ export const PlaytestCardView = memo(function PlaytestCardView({
   size = 'md',
   onStack = false,
   attacking = false,
+  draggable = true,
 }: Props) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: draggableId,
     data: { cardId: card.id },
+    disabled: !draggable,
   });
   // A battlefield permanent is also a drop target for an Aura / Equipment
   // dragged onto it (drag-to-attach). PlaytestBoard's collision detection
@@ -172,6 +192,11 @@ export const PlaytestCardView = memo(function PlaytestCardView({
       onTouchCancel={onLongPress ? longPress.onTouchCancel : undefined}
       role="button"
       tabIndex={0}
+      // `useDraggable`'s own `attributes` set `aria-disabled` to mirror ITS
+      // `disabled` option (drag-disabled) — override it back to false here,
+      // since a non-draggable card is still fully clickable; `aria-disabled`
+      // would otherwise tell assistive tech this control does nothing.
+      aria-disabled={false}
       aria-label={[
         card.name,
         card.isToken && !bf?.faceDown && 'token',

@@ -152,11 +152,28 @@ describe('HordeTable', () => {
     }));
   }
 
-  it("opens a card's menu from a mouse click on the battlefield and records it destroyed", () => {
+  /** What a real browser actually dispatches for a mouse click or a touch
+   *  tap: a `pointerdown` first, THEN the `click` the browser synthesizes on
+   *  release. A bare `fireEvent.click` skips the pointerdown entirely, which
+   *  is exactly why the first version of these tests passed while the real
+   *  app didn't: dnd-kit's `PointerSensor` (mounted with no
+   *  `activationConstraint` on the horde table's `<DndContext>`) "activates"
+   *  the instant a pointerdown fires — with no distance threshold to clear
+   *  first — and installs a capturing `document` listener that calls
+   *  `stopPropagation()` on the very next `click`, so the click never
+   *  reaches the card's own `onClick`. Only reproduces with the real
+   *  sequence; see `Battlefield.cardsDraggable` / `PlaytestCardView.draggable`. */
+  function realPointerActivate(el: Element, pointerType: 'mouse' | 'touch') {
+    fireEvent.pointerDown(el, { pointerId: 1, isPrimary: true, button: 0, pointerType });
+    fireEvent.pointerUp(el, { pointerId: 1, isPrimary: true, button: 0, pointerType });
+    fireEvent.click(el);
+  }
+
+  it("opens a card's menu from a real mouse pointerdown+click on the battlefield and records it destroyed", () => {
     seedBattlefieldCard();
     render(<HordeTable />);
     const cardEl = document.querySelector('[data-card-id="onboard-1"]') as HTMLElement;
-    fireEvent.click(cardEl);
+    realPointerActivate(cardEl, 'mouse');
     expect(screen.getByRole('dialog', { name: 'Zombie' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Destroyed' }));
     expect(useHordeGameStore.getState().board?.battlefield).toEqual([]);
@@ -180,14 +197,11 @@ describe('HordeTable', () => {
     expect(screen.getByRole('dialog', { name: 'Zombie' })).toBeTruthy();
   });
 
-  it("opens a card's menu from a touch tap (a release that never reached the long-press delay)", () => {
+  it("opens a card's menu from a real touch pointerdown+click (a tap that never reached the long-press delay)", () => {
     seedBattlefieldCard();
     render(<HordeTable />);
     const cardEl = document.querySelector('[data-card-id="onboard-1"]') as HTMLElement;
-    fireEvent.touchStart(cardEl, { touches: [{ clientX: 10, clientY: 10 }] });
-    fireEvent.touchEnd(cardEl);
-    // A quick tap synthesizes a click, same as a real touchscreen.
-    fireEvent.click(cardEl);
+    realPointerActivate(cardEl, 'touch');
     expect(screen.getByRole('dialog', { name: 'Zombie' })).toBeTruthy();
   });
 });

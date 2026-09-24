@@ -46,6 +46,13 @@ interface Props {
    *  on the same page (the horde table, alongside the real one) needs a
    *  distinct id so dnd-kit doesn't collide the two. */
   dropId?: string;
+  /** False renders every card non-draggable (see `PlaytestCardView.draggable`
+   *  for why this matters beyond "cards don't move": with no
+   *  `activationConstraint` on the mounting `<DndContext>`'s sensors, a
+   *  draggable card swallows the click that should activate it). The horde
+   *  table (auto-placed, never repositioned) sets this false; every other
+   *  board defaults to true, unchanged. */
+  cardsDraggable?: boolean;
 }
 
 export function Battlefield({
@@ -63,6 +70,7 @@ export function Battlefield({
   onStepCounter,
   attackingIds,
   dropId = 'battlefield',
+  cardsDraggable = true,
 }: Props) {
   // No `isOver` here on purpose: the felt does not light up as a drop target.
   // It is the whole board, always the destination, and the card already
@@ -233,6 +241,7 @@ export function Battlefield({
             card={bf.card}
             bf={bf}
             draggableId={`bf:${bf.card.id}`}
+            draggable={cardsDraggable}
             positioned
             ptHidden={Boolean(onAdjustPT)}
             countersHidden={Boolean(onStepCounter)}

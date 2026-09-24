@@ -277,6 +277,7 @@ export function HordeTable() {
             stackIds={EMPTY_SET}
             attackingIds={new Set(attackingIds)}
             dropId="horde-battlefield"
+            cardsDraggable={false}
             onBackgroundClick={() => {}}
             onCardClick={(cardId) => setCardMenuId(cardId)}
             onCardContextMenu={(cardId, e) => {
