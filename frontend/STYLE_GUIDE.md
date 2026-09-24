@@ -6959,3 +6959,11 @@ tapping it now opens a fan of labelled petals first, Lotus's radial menu.
   genuine gesture and re-asking after someone backs out of it reads as a nag.
   The menu keeps a manual "Full screen" / "Exit full screen" toggle for
   anyone who dismissed the browser's own prompt or wants back in later.
+- **The board leaves fullscreen the way it found it.** Every way off the
+  board — Minimize, Clear the table, finishing and navigating away — exits
+  fullscreen if and only if the board's own request (first-gesture or the
+  menu's manual toggle, one shared `useFullscreen({ exitOnUnmount: true })`
+  instance for both) is what caused it. Ownership is confirmed by
+  `fullscreenchange`, never assumed the instant `enter()` is called — the
+  request is async and can be silently rejected — so a fullscreen the user
+  entered some other way is never yanked out from under them on the way out.

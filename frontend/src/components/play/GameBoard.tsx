@@ -146,7 +146,14 @@ export function GameBoard({
   // player to find the toggle in the menu. Capture phase so it fires ahead of
   // any panel's own onClick calling stopPropagation, and a ref (not state) so
   // it fires at most once per board mount regardless of what else changes.
-  const fullscreen = useFullscreen();
+  // `exitOnUnmount` covers every way off the board (Minimize, Clear the
+  // table, finishing and navigating away) with one rule instead of one per
+  // exit path — and only fires if THIS request is what caused fullscreen, so
+  // it never yanks one the user entered some other way. One hook instance
+  // for the whole board (including the menu's manual toggle below, which
+  // reads/calls this same instance rather than opening its own) so ownership
+  // tracking has a single source of truth.
+  const fullscreen = useFullscreen({ exitOnUnmount: true });
   const firstGestureRef = useRef(false);
   const handleFirstGesture = useCallback(() => {
     if (firstGestureRef.current) return;
@@ -507,6 +514,9 @@ export function GameBoard({
           dispatch={dispatchTracked}
           onShowGestures={() => setHintOpen(true)}
           initialTab={menuInitialTab}
+          fullscreenSupported={fullscreen.supported}
+          isFullscreen={fullscreen.isFullscreen}
+          onToggleFullscreen={fullscreen.toggle}
         />
       )}
 

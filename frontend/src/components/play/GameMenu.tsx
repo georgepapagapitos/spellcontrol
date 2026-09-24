@@ -6,7 +6,6 @@ import { resolveLayout } from '../../lib/board-layouts';
 import { usePlayStore } from '../../store/play';
 import { useRulesReferenceStore } from '../../store/rules-reference';
 import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
-import { useFullscreen } from '../../lib/use-fullscreen';
 import { GameHistory } from './GameHistory';
 import { TurnTimes } from './TurnTimes';
 import { GameTools } from './GameTools';
@@ -32,6 +31,9 @@ export function GameMenu({
   undoLabel,
   onShowGestures,
   initialTab,
+  fullscreenSupported,
+  isFullscreen,
+  onToggleFullscreen,
 }: {
   game: GameState;
   canControlAll: boolean;
@@ -48,6 +50,13 @@ export function GameMenu({
   /** Which tab the sheet opens on — the hub's Players petal jumps straight
    *  to Setup instead of making the host click through from Now. */
   initialTab?: MenuTab;
+  /** The board's own `useFullscreen()` instance, threaded through as props
+   *  rather than a second hook call here — GameBoard's `exitOnUnmount`
+   *  ownership tracking only works as a single source of truth, and this
+   *  toggle needs to count as "the board" for it. */
+  fullscreenSupported: boolean;
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
 }) {
   const isFinished = game.status === 'finished';
   const hapticsEnabled = usePlayStore((s) => s.hapticsEnabled);
@@ -57,7 +66,6 @@ export function GameMenu({
   const setShowClock = usePlayStore((s) => s.setShowClock);
   const setPreferredLayout = usePlayStore((s) => s.setPreferredLayout);
   const openRules = useRulesReferenceStore((s) => s.open);
-  const fullscreen = useFullscreen();
   const [editorOpen, setEditorOpen] = useState(false);
   // Reset wipes every life total, counter and elimination and clears Undo —
   // one tap next to "End game" on the Now tab. It asks, like Discard does.
@@ -248,16 +256,16 @@ export function GameMenu({
                     works
                   </button>
                 )}
-                {fullscreen.supported && (
+                {fullscreenSupported && (
                   <button
                     type="button"
                     className="game-menu-btn is-wide"
                     onClick={() => {
-                      fullscreen.toggle();
+                      onToggleFullscreen();
                       onClose();
                     }}
                   >
-                    {fullscreen.isFullscreen ? (
+                    {isFullscreen ? (
                       <>
                         <Minimize width={16} height={16} strokeWidth={1.8} aria-hidden /> Exit full
                         screen

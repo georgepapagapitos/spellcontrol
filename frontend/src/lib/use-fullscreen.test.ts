@@ -33,6 +33,11 @@ function installFullscreenElement(el: Element | null) {
   Object.defineProperty(document, 'fullscreenElement', { configurable: true, value: el });
 }
 
+/** Simulate the browser confirming a fullscreen transition. */
+function fireFullscreenChange() {
+  document.dispatchEvent(new Event('fullscreenchange'));
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
   installFullscreenElement(null);
@@ -95,5 +100,84 @@ describe('useFullscreen', () => {
     const { result } = renderHook(() => useFullscreen());
     act(() => result.current.exit());
     expect(document.exitFullscreen).not.toHaveBeenCalled();
+  });
+
+  describe('exitOnUnmount', () => {
+    it('exits fullscreen on unmount when this hook is the one that entered it', () => {
+      installFullscreenEnabled(true);
+      installMatchMedia(true);
+      document.documentElement.requestFullscreen = vi.fn().mockResolvedValue(undefined);
+      document.exitFullscreen = vi.fn().mockResolvedValue(undefined);
+      const { result, unmount } = renderHook(() => useFullscreen({ exitOnUnmount: true }));
+
+      act(() => result.current.enter());
+      // The browser confirms the transition asynchronously — ownership is
+      // only real once `fullscreenchange` says so, not the moment `enter()`
+      // is called.
+      act(() => {
+        installFullscreenElement(document.documentElement);
+        fireFullscreenChange();
+      });
+
+      unmount();
+      expect(document.exitFullscreen).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not exit a fullscreen entered some other way', () => {
+      installFullscreenEnabled(true);
+      installMatchMedia(true);
+      document.exitFullscreen = vi.fn().mockResolvedValue(undefined);
+      const { unmount } = renderHook(() => useFullscreen({ exitOnUnmount: true }));
+
+      // Fullscreen shows up without this hook's `enter()` ever being called —
+      // some other feature, or the user's own F11/pinch gesture.
+      act(() => {
+        installFullscreenElement(document.documentElement);
+        fireFullscreenChange();
+      });
+
+      unmount();
+      expect(document.exitFullscreen).not.toHaveBeenCalled();
+    });
+
+    it('does not exit on unmount when the option is left off, even if this hook entered it', () => {
+      installFullscreenEnabled(true);
+      installMatchMedia(true);
+      document.documentElement.requestFullscreen = vi.fn().mockResolvedValue(undefined);
+      document.exitFullscreen = vi.fn().mockResolvedValue(undefined);
+      const { result, unmount } = renderHook(() => useFullscreen());
+
+      act(() => result.current.enter());
+      act(() => {
+        installFullscreenElement(document.documentElement);
+        fireFullscreenChange();
+      });
+
+      unmount();
+      expect(document.exitFullscreen).not.toHaveBeenCalled();
+    });
+
+    it('stays quiet on unmount once fullscreen has already ended for any reason', () => {
+      installFullscreenEnabled(true);
+      installMatchMedia(true);
+      document.documentElement.requestFullscreen = vi.fn().mockResolvedValue(undefined);
+      document.exitFullscreen = vi.fn().mockResolvedValue(undefined);
+      const { result, unmount } = renderHook(() => useFullscreen({ exitOnUnmount: true }));
+
+      act(() => result.current.enter());
+      act(() => {
+        installFullscreenElement(document.documentElement);
+        fireFullscreenChange();
+      });
+      // Exits before the board ever unmounts (Escape, the menu's own toggle,
+      // another feature) — nothing left that's "ours" to give back.
+      act(() => {
+        installFullscreenElement(null);
+        fireFullscreenChange();
+      });
+
+      unmount();
+      expect(document.exitFullscreen).not.toHaveBeenCalled();
+    });
   });
 });
