@@ -8,42 +8,6 @@
   border-bottom: 0.5px solid var(--border);
 }
 
-/* Three checkboxes under one "Behaviour" heading. They used to be three
-   consecutive uppercase section headings each gating a single checkbox, which
-   spent most of the editor's first screen on rarely-touched booleans and
-   pushed the rule groups — the point of a binder — below the fold. */
-.binder-behaviour-options {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-/* The InfoTip is a SIBLING of the label, not a child of it: a button inside a
-   <label> is still part of the label, so tapping the tip would toggle the
-   checkbox — and its text would land in the checkbox's accessible name. */
-.binder-behaviour-option {
-  display: flex;
-  align-items: center;
-  /* The tip sits right after the label it explains. `space-between` parked
-     it at the modal's far edge — 350px of dead space after a short label in
-     the 700px dialog, so the (i) read as row decoration rather than as
-     "about THIS option". A ragged tip column is the lesser evil. */
-  gap: var(--space-1);
-}
-
-.binder-behaviour-options .field-checkbox {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-@media (pointer: coarse) {
-  .binder-behaviour-options .field-checkbox {
-    min-height: 44px;
-  }
-}
-
 .editor-section:last-child {
   border-bottom: none;
   padding-bottom: 0;
@@ -196,12 +160,8 @@
   }
 }
 
-/* Were inline style={{}} objects on the elements themselves, with invented
-   rem values that stylelint cannot see because they lived in JS. */
-.sort-editor-intro {
-  margin-bottom: var(--space-2);
-}
-
+/* Was an inline style={{}} object on the element itself, with invented rem
+   values that stylelint cannot see because they lived in JS. */
 .sort-editor-tiebreakers {
   display: flex;
   align-items: center;
@@ -231,6 +191,14 @@
 
 .sort-editor-row .toolbar-popover {
   min-width: 10rem;
+}
+
+/* The pill fills its track. The wrapper's 10rem floor used to size the
+   column while the pill inside stayed content-width, which left a gap of up
+   to 90px between the field and the direction chip that acts on it. */
+.sort-editor-row .toolbar-popover > .toolbar-pill {
+  width: 100%;
+  justify-content: space-between;
 }
 
 .sort-editor-list .btn-add-group {
@@ -269,13 +237,14 @@
   padding: 6px 0;
 }
 
+/* A condition's field name, in sentence case: uppercase is the heading role
+   in a form (STYLE_GUIDE § Config surfaces), and "RARITY" beside a chip read
+   as a heading over the row rather than the first word of it. */
 .rule-label {
+  font-family: var(--font-serif);
   font-size: var(--text-sm);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  width: 180px;
+  color: var(--text-secondary);
+  width: 8.5rem;
   flex-shrink: 0;
 }
 
@@ -296,93 +265,6 @@
   .rule-row > input[type='number'] {
     max-width: 100%;
   }
-}
-
-/* Compact segmented toggle for tri-state rule fields (e.g. Commander).
-   Sized to match the chip controls in a rule-row — content width, never
-   stretches, never wraps. Distinct from the full-width .binder-mode-toggle
-   used for the binder creation-mode selector. */
-/* A <fieldset>: strip its default chrome, same as .settings-currency-toggle.
-   Track-style segmented control — padded track + inset raised chip, per the
-   STYLE_GUIDE ruling. Reference: .share-audience. */
-.rule-segmented {
-  display: inline-flex;
-  align-items: stretch;
-  gap: var(--space-1);
-  padding: var(--space-1);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  /* Segmented-control WRAPPER = container tier (see .binder-mode-toggle). */
-  border-radius: var(--radius-lg);
-  margin: 0;
-  min-inline-size: 0;
-}
-
-/* A <label> wrapping a visually-hidden radio, so the whole segment stays the
-   hit target while keyboard/AT semantics are native. */
-.rule-segmented-pill {
-  position: relative;
-  display: inline-flex;
-  border-radius: var(--radius);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition:
-    background var(--motion-fast),
-    color var(--motion-fast);
-}
-
-.rule-segmented-pill input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.rule-segmented-pill span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px var(--space-3);
-  color: inherit;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-/* Coarse floor on the span — see .share-audience-option span. */
-@media (pointer: coarse) {
-  .rule-segmented-pill span {
-    min-height: 44px;
-  }
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .rule-segmented-pill:not(.active):hover {
-    color: var(--text-primary);
-  }
-}
-
-/* Selected = raised chip on the track, NOT an accent fill: accent stays
-   reserved for primary actions (STYLE_GUIDE § Segmented controls). */
-.rule-segmented-pill.active {
-  background: var(--surface-raised);
-  color: var(--text-primary);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
-}
-
-.rule-segmented-pill input:focus-visible + span {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: var(--radius);
-}
-
-/* ── Chip group ─────────────────────────────────────────────────────────── */
-.chip-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
 }
 
 .chip {
@@ -582,69 +464,6 @@
   min-width: 0;
 }
 
-/* ── Rule groups (OR-able) ──────────────────────────────────────────────── */
-.rule-group {
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--space-3) var(--space-4);
-  background: var(--bg);
-  margin-bottom: var(--space-3);
-  position: relative;
-}
-
-.rule-group-or {
-  position: absolute;
-  top: -10px;
-  left: var(--space-4);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-size: var(--text-xs);
-  font-family: var(--font-mono);
-  padding: 2px var(--space-2);
-  border-radius: 999px;
-  letter-spacing: 0.1em;
-}
-
-.rule-group-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-2);
-  padding-bottom: 0.4rem;
-  border-bottom: 0.5px solid var(--border);
-}
-
-.rule-group-title {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.btn-link-danger {
-  background: none;
-  border: none;
-  color: var(--err-text);
-  font-size: var(--text-sm);
-  font-family: var(--font-serif);
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: var(--radius);
-  transition: transform var(--motion-fast);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .btn-link-danger:hover {
-    background: var(--err-bg);
-  }
-}
-
-/* Press feedback (STYLE_GUIDE § Motion pattern 6). */
-.btn-link-danger:active {
-  transform: scale(0.97);
-}
-
 .btn-add-group {
   font-family: var(--font-serif);
   font-size: var(--text-base);
@@ -712,24 +531,45 @@
 }
 
 .filter-group {
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  background: var(--surface);
-  padding: var(--space-3) var(--space-4) var(--space-2);
+  /* A sleeve, not an outlined box (STYLE_GUIDE § Layout system, "Surfaces:
+     one frame"): outlines belong to the controls inside it. */
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  padding: var(--space-2) var(--space-4) var(--space-3);
   margin: 0;
   min-width: 0;
 }
 
-.filter-group-legend {
+/* The rule's title line: its name (or "Match all of"), the live count and
+   the ⋯ menu that holds Rename / Duplicate / Remove. */
+.filter-group-head {
   display: flex;
   align-items: center;
-  /* The count and actions drop to a second line before the name field is
-     squeezed below its placeholder at 360px. */
-  flex-wrap: wrap;
   gap: var(--space-2);
-  width: 100%;
-  padding: 0 var(--space-1);
+  min-height: 36px;
+}
+
+.filter-group-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
   font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-group-title.is-generic {
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.filter-group-sub {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
 }
 
 .filter-group-name {
@@ -737,8 +577,8 @@
   /* Below this the auto-summary clips to "legendary creat…"; the count and
      actions wrap under it instead (the legend is flex-wrap). */
   min-width: min(100%, 12rem);
-  background: transparent;
-  border: 1px solid transparent;
+  background: var(--surface);
+  border: 1px solid var(--accent);
   border-radius: var(--radius);
   padding: var(--space-1) 6px;
   font-family: var(--font-serif);
@@ -756,36 +596,15 @@
   }
 }
 
-/* On a phone the auto-summary owns the whole first line and the count and
-   actions sit under it — an <input> can't wrap, so anything less clips it. */
-@media (max-width: 600px) {
-  .filter-group-name {
-    flex-basis: 100%;
-  }
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .filter-group-name:hover {
-    border-color: var(--border);
-  }
-}
-
-.filter-group-name:focus {
-  border-color: var(--accent);
-  background: var(--bg);
-}
-
 .filter-group-name:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-/* When the user hasn't typed a name, the input's placeholder carries the
- * auto-summary of the group's filters. Style it to read as a real label
- * (full color, full weight) so the group looks named. The user can still
- * click in to type their own — the placeholder vanishes on focus/input. */
+/* The field only exists while renaming; its placeholder offers the rule's
+   auto-summary as a suggestion, so it reads as a hint, not a value. */
 .filter-group-name::placeholder {
-  color: var(--text-primary);
+  color: var(--text-muted);
   opacity: 1;
 }
 
@@ -794,12 +613,6 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
   white-space: nowrap;
-}
-
-.filter-group-actions {
-  display: inline-flex;
-  gap: var(--space-1);
-  flex-shrink: 0;
 }
 
 .filter-group-or {
@@ -845,110 +658,11 @@
   margin-top: 0;
 }
 
-/* Small inline-help line explaining when to reach for an OR rule vs the
-   per-chip AND/OR pill inside a field. Sits next to the "+ Add OR rule"
-   button so the answer is right where the question is. */
-.filter-group-help {
-  flex: 1 1 14rem;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  line-height: 1.4;
-}
-
-.filter-group-help strong {
-  font-family: var(--font-mono);
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
 .filter-group-total {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   color: var(--text-secondary);
   white-space: nowrap;
-}
-
-/* ── Filter section heading (h3 with inline InfoTip) ────────────────────── */
-.filter-section-heading {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  flex-wrap: wrap;
-}
-
-/* ── Starter templates ───────────────────────────────────────────────────── */
-/* One-tap pre-fill templates shown on a new binder's first rule group when
-   no rule content exists. Disappear as soon as any field has a value. */
-.starter-templates {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-  padding: var(--space-2) 0 var(--space-3);
-  border-bottom: 1px solid var(--border);
-  margin-bottom: var(--space-2);
-}
-
-.starter-templates-label {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.starter-templates-list {
-  display: flex;
-  gap: var(--space-1);
-  flex-wrap: wrap;
-}
-
-.starter-template-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
-  padding: 6px var(--space-3);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  background: var(--surface-raised);
-  color: var(--text-secondary);
-  text-align: left;
-  cursor: pointer;
-  transition:
-    background var(--motion-fast) ease,
-    border-color var(--motion-fast) ease,
-    color var(--motion-fast) ease;
-}
-
-.starter-template-label {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.starter-template-desc {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  line-height: 1.2;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .starter-template-btn:hover {
-    background: var(--accent-light, var(--surface-raised));
-    border-color: var(--accent);
-  }
-}
-@media (hover: hover) and (pointer: fine) {
-  .starter-template-btn:hover .starter-template-label,
-  .starter-template-btn:hover .starter-template-desc {
-    color: var(--accent);
-  }
-}
-
-@media (pointer: coarse) {
-  .starter-template-btn {
-    min-height: 44px;
-    padding: var(--space-2) 14px;
-  }
 }
 
 /* ── Add rule ────────────────────────────────────────────────────────────── */
@@ -1471,27 +1185,12 @@
   flex: 1;
 }
 
-/* ── Tooltip marker on labels ───────────────────────────────────────────── */
-.has-tooltip {
-  cursor: help;
-  border-bottom: 1px dotted var(--border-strong);
-}
-
-.tooltip-marker {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  margin-left: 2px;
-}
-
 /* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
 .btn-add-group:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-.btn-link-danger:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
+
 .chip:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -1512,15 +1211,8 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-.rule-expander-toggle:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
+
 .set-dropdown-item:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.starter-template-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }

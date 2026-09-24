@@ -1,0 +1,353 @@
+/* BinderEditor.css — the binder editor's own layout (board T139). The form
+   pieces themselves (switch rows, segmented controls, disclosures) come from
+   components/shared/form.css; this file only arranges them. */
+
+/* ── Header: the binder's identity, edited in place ────────────────────── */
+.binder-editor-header {
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+}
+
+.binder-editor-back {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-left: calc(var(--space-2) * -1);
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.binder-color-dot {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: flex-end;
+  justify-content: flex-end;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--dot-color);
+  box-shadow: 0 0 0 1px var(--border-strong);
+  cursor: pointer;
+}
+
+/* The chevron badge says "this opens something" without a word. */
+.binder-color-dot > svg {
+  margin: 0 -6px -6px 0;
+  padding: 1px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  box-sizing: content-box;
+}
+
+.binder-color-panel {
+  z-index: var(--z-portal-popover);
+  width: min(20rem, calc(100vw - 1.5rem));
+  padding: var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-panel);
+}
+
+/* Two classes: the global input[type='text'] box rule outweighs one. The
+   dashed underline stays visible so a touch user, who never hovers, can
+   still tell the title is editable. */
+.binder-editor-header .binder-editor-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--space-1) 0;
+  border: 0;
+  border-bottom: 1px dashed var(--border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+}
+
+.binder-editor-header .binder-editor-name::placeholder {
+  color: var(--text-muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .binder-editor-back:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+  }
+
+  .binder-color-dot:hover {
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
+  .binder-editor-header .binder-editor-name:hover {
+    border-bottom-color: var(--border-strong);
+  }
+}
+
+.binder-editor-header .binder-editor-name:focus {
+  border-bottom-color: var(--accent);
+}
+
+.binder-editor-header .binder-editor-name:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.binder-editor-back:focus-visible,
+.binder-color-dot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A text field grows on touch; a caret can't live on a ghost (E321). */
+@media (pointer: coarse) {
+  .binder-editor-back,
+  .binder-editor-header .binder-editor-name {
+    min-height: 44px;
+  }
+
+  .binder-editor-back {
+    width: 44px;
+  }
+
+  .binder-color-dot::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+  }
+}
+
+/* ── Body ───────────────────────────────────────────────────────────────── */
+.binder-editor-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.binder-editor-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.binder-editor-cards > .form-section-heading {
+  margin-bottom: 0;
+}
+
+.binder-seed-note,
+.binder-editor-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* Manual mode: the rules stay visible but inert until switched back. */
+.binder-editor-paused {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.binder-editor-warn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+}
+
+.binder-editor-warn > span {
+  flex: 1 1 16rem;
+}
+
+.binder-capacity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.binder-capacity-count {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* ── Import ─────────────────────────────────────────────────────────────── */
+.binder-import-drop {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.binder-import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ── Footer: the answer beside the button ──────────────────────────────── */
+.binder-editor-footer {
+  align-items: center;
+}
+
+.binder-editor-result {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  margin-right: auto;
+  line-height: 1.3;
+}
+
+.binder-editor-result strong {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.binder-editor-result-n {
+  font-family: var(--font-mono);
+}
+
+.binder-editor-result small {
+  overflow: hidden;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Amber at zero (STYLE_GUIDE § Rule & filter editors). */
+.binder-editor-result.is-zero strong {
+  color: var(--warn-text);
+}
+
+/* ── Start: what goes in it ─────────────────────────────────────────────── */
+.binder-start {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.binder-start-title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.binder-start-sub {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.binder-start-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+/* A sleeve (§ Layout system): raised surface, no outline until it is the
+   one under the pointer or the keyboard. */
+.binder-start-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 88px;
+  padding: var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--motion-fast);
+}
+
+.binder-start-tile-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.binder-start-tile-desc {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.binder-start-tile-count {
+  margin-top: auto;
+  padding-top: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+/* Blank and From a list are ways to start without a preset: drawn as open
+   slots so they read as different from the templates. */
+.binder-start-tile--alt {
+  border: 1px dashed var(--border-strong);
+  background: transparent;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .binder-start-tile:hover {
+    border-color: var(--accent);
+  }
+}
+
+.binder-start-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@container (max-width: 34rem) {
+  .binder-start-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .binder-start-tile--wide {
+    grid-column: 1 / -1;
+    min-height: 0;
+  }
+}
+
+/* ── Phone: a bottom sheet ──────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  /* The sheet backdrop pads the dialog for the home indicator; here the
+     footer is the bottom edge, so it takes that inset instead. */
+  .modal-backdrop.modal-backdrop--sheet > .modal.binder-editor {
+    padding-bottom: 0;
+  }
+
+  .binder-editor .binder-editor-footer {
+    padding-bottom: calc(var(--space-4) + var(--safe-bottom));
+    border-radius: 0;
+  }
+
+  /* Cancel leaves the phone footer: the ×, the backdrop and the back gesture
+     all dismiss, and the row needs its width for the answer. */
+  .binder-editor-footer .binder-editor-cancel {
+    display: none;
+  }
+}

@@ -72,7 +72,6 @@ export function SortPopover({ sorts, valueOrders, onSortsChange, onValueOrdersCh
             style={panelStyle}
           >
             <SortEditor
-              compact
               sorts={sorts}
               valueOrders={valueOrders}
               onSortsChange={onSortsChange}

@@ -13,7 +13,7 @@ import { useCollectionStore } from '../store/collection';
 import { BinderEditor } from './BinderEditor';
 
 const countEffectiveLanding = vi.hoisted(() =>
-  vi.fn(() => ({ matches: 1, lands: 1, caughtAbove: 0, pulledIn: 0 }))
+  vi.fn(() => ({ matches: 1, lands: 1, caughtAbove: 0, pulledIn: 0, caughtBy: [] }))
 );
 const countBinderMatches = vi.hoisted(() => vi.fn(() => ({ total: 1, perGroup: [1] })));
 vi.mock('../lib/binder-counts', () => ({ countEffectiveLanding, countBinderMatches }));

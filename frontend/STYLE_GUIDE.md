@@ -53,6 +53,11 @@ primitives directory.
 | `components/Tabs`                                   | bespoke tab markup                | § Tabs / view switchers                                       |
 | `components/ViewModeToggle`                         | a bespoke layout switcher         | § View-mode toggle option order                               |
 | `components/shared/FilterChipsRow`                  | a bespoke active-filter row       | § Tag chips                                                   |
+| `components/shared/form` (`SwitchRow`)              | a checkbox for an on/off setting  | § Config surfaces                                             |
+| `components/shared/form` (`SegmentedControl`)       | a new segmented-pill CSS family   | § Config surfaces                                             |
+| `components/shared/form` (`ChoiceList`)             | a hint that rewrites per option   | § Config surfaces                                             |
+| `components/shared/form` (`Disclosure`)             | a hand-rolled collapsible group   | § Config surfaces                                             |
+| `components/shared/form` (`Field`)                  | an uppercase `.field label`       | § Config surfaces                                             |
 
 ### Overlays
 
@@ -2956,7 +2961,7 @@ to anything new that edits a predicate.
 - **A field's row exists because the field is SET**, not because the field
   exists. The binder/list editor renders only fields with a value (plus ones
   the user just added); the rest live behind a searchable, grouped
-  `+ Add rule` picker. The old fixed form rendered 22 rows for a binder with
+  `Add condition` picker. The old fixed form rendered 22 rows for a binder with
   two rules. The vocabulary is data — `lib/filter-fields.ts`; a field absent
   from that registry is unreachable in the editor.
   (The collection Filters dialog stays a flat always-visible form: it is a
@@ -2968,7 +2973,13 @@ to anything new that edits a predicate.
 - **Related booleans get ONE heading**, not one heading per checkbox. Four
   consecutive uppercase section labels each gating a single checkbox is how
   the binder editor spent its first screen on rarely-touched options and
-  pushed the rules below the fold.
+  pushed the rules below the fold. They are switch rows now (§ Config
+  surfaces).
+- **One vocabulary for rules.** A binder or list has **rules**; a rule is
+  "Match all of" its **conditions**, and more rules are alternatives ("Or
+  match other cards too"). "Rule" used to mean both the group and the field
+  inside it, and "AND/OR rule" asked for boolean logic before anything could
+  be built. The one explanation lives in the ⓘ on the "Cards" heading.
 - **A predicate has one name across surfaces.** It was "Legalities" in the
   binder editor and "Format" in the collection dialog for the same field.
 - **An editing surface shows a live match count.** You should never have to
@@ -2976,15 +2987,15 @@ to anything new that edits a predicate.
 - **A control that can only ever produce the empty set is a bug, not a
   freedom.** Rarity's joiner is locked to `OR` because a card has exactly one
   rarity, so "rare AND mythic" matches nothing by construction.
-- **A segmented control that would wrap its labels stacks instead.** Three
-  options in a 390px track turned "New page per section" into three lines
-  apiece; below 600px `.binder-mode-toggle--inline` goes column, full width.
-  The inline variant also drops the modal track margin so it sits flush with
-  its own field label.
-- **A rule group's auto-summary owns the whole first line on a phone.** It is
-  an `<input>` (the name is editable in place) and an input cannot wrap, so
-  the count and actions wrap under it rather than clipping it to
-  "legendary creat…".
+- **Options that need a sentence each are a `ChoiceList`, not a segmented
+  control.** Three options in a 390px track turned "New page per section" into
+  three lines apiece, and the one hint under it rewrote itself per option so
+  the three could never be compared. Page filling is three radio rows with
+  their hints always visible.
+- **A rule's title line is its name (or "Match all of"), its live count and a
+  `⋯` menu** holding Rename, Duplicate and Remove. The group used to open with
+  an always-editable name field and two 12px icons (⎘ ×), which made every
+  rule look like a form to fill in before it could do anything.
 - **An info-tip sits beside the label it explains, never at the row's far
   edge.** `justify-content: space-between` on the Behaviour rows parked each
   (i) 350px from its short checkbox label in the 700px modal, where it read
@@ -2993,8 +3004,9 @@ to anything new that edits a predicate.
 - **Every section of an editor carries a heading, including the first.** The
   binder editor's name / layout / capacity / behaviour / colour block was the
   only unheaded section next to "Filters" and "Sort within binder", so it
-  read as the dialog's loose top and the others as sub-sections. It is
-  "Basics" now; peers look like peers.
+  read as the dialog's loose top and the others as sub-sections. (Since T139
+  the name and colour are the dialog's header, and the rest is Cards, Order
+  and Pages; peers still look like peers.)
 - **A warning about a state the user has not authored yet waits for them.**
   "This binder has no filters" fired the instant "New binder" opened, before
   a single keystroke. It now waits until the binder is named, a rule group is
@@ -3006,6 +3018,62 @@ to anything new that edits a predicate.
   picker's predicate (folded name, set code, collector number). The Order
   tab stays unfiltered: a drag-sortable list with hidden rows can't say where
   a drop lands.
+
+## Config surfaces (T139)
+
+Every dialog that creates or edits a thing (a binder, a list rule, filters, a
+card, a game night) is built from one kit in `components/shared/form`. The
+binder editor was the first surface on it; the rest move one PR at a time.
+
+**A config dialog answers its questions in order of how often they change.**
+The binder editor is the reference:
+
+1. **Identity is the header.** Name and colour are a colour dot and an inline
+   name field in the dialog's title bar, the way the deck hero edits both. Not
+   a "Basics" form section.
+2. **The main job is always open.** For a binder that is "Cards": its rules,
+   plus the two switches that change membership (include deck and cube cards,
+   keep printings together).
+3. **Defaults most people keep are `Disclosure` rows that state their value**
+   ("Order · Color (WUBRG), then Name", "Pages · 9-pocket · one side · …").
+   Settings are grouped by what they are about: page filling and page breaks
+   are Pages (paper), not Sort. A control that only applies in some states
+   (sections by rule with two or more rules; page breaks with two or more
+   sorts) is hidden until it applies, and its parent says how to unlock it.
+4. **The answer sits in the footer, beside the primary button.** "300 cards
+   land here · 400 match · 100 go to Secret Lair, above", amber at zero. It is
+   the one place the count is stated; a rule's own count is its title line.
+5. **A warning offers its fix as a button.** "Every matching card already
+   lands in Secret Lair" carries "Move above Secret Lair"; the move previews in
+   the counts at once and applies on Save like every other edit.
+
+**A new X with presets starts from a chooser**, not from a blank form: the
+preset tiles first (each with a live count of the user's own cards where one
+means something), then "Blank", then any other way to start ("From a list").
+A mode that shares almost nothing with the default (an import) is a start of
+its own and shows only the controls it uses; never a segmented toggle halfway
+down the form with the rest of the form still showing and ignored. Editing
+never shows the chooser.
+
+**The kit, one job each:**
+
+| Piece              | Use it for                                                                                                        | Never                                                                   |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Section heading    | The heading over a block of fields. The ONLY uppercase role in a form (`.form-section-heading`).                  | Field labels or option text in uppercase.                               |
+| `Field`            | A sentence-case label, the control, a visible hint.                                                               | An InfoTip where one line of hint fits.                                 |
+| `SwitchRow`        | A setting that is on or off: full-width `role="switch"`, label, one-line hint, On / Off value (§ Table settings). | A checkbox for a setting. Checkboxes are for picking items from a list. |
+| `SegmentedControl` | Two or three short options: native radios in a track, raised chip.                                                | aria-pressed button pairs; options needing a sentence.                  |
+| `ChoiceList`       | One-of where each option needs a sentence.                                                                        | A single hint that rewrites itself per option.                          |
+| `Disclosure`       | A group of settings most people leave alone; summary while closed.                                                | Identity, or the dialog's main job.                                     |
+| `SelectMenu`       | Five or more options.                                                                                             | A native `<select>`.                                                    |
+
+- **`.field label` never uppercases a checkbox.** The old descendant rule
+  caught every label inside a field, so the binder editor's "Double-sided" and
+  "Fixed" read as headings (guard: `styles/form-labels.test.ts`).
+- **A dialog on this kit opens as a bottom sheet on a phone**
+  (`backdropClassName="modal-backdrop--sheet"`). Its footer keeps the answer
+  and the primary action; Cancel leaves the phone footer because ×, the
+  backdrop and the back gesture all dismiss.
 
 ### Binder views
 
@@ -6860,7 +6928,7 @@ correctness bug the capacity work exposed.
   ~104px-tall cells, and 7p/8p ~132px ones — shorter than the 5p/6p cells
   (~179px) the existing `@container (max-height: 12rem)` tier was tuned for.
   A further `@container (max-height: 9rem)` step (`--life-size: min(30cqh,
-  38cqw)`) cuts the 320px numeral/name overlap from ~440px² to ~190px² on
+38cqw)`) cuts the 320px numeral/name overlap from ~440px² to ~190px² on
   9p/10p's shortest cells, and eliminates it entirely on 7p/8p's — measured
   with the board probe, not read off the CSS. The fixed seam-keepout corner
   offset alone costs ~45px of a 104px cell regardless of numeral size, so a
@@ -6884,7 +6952,7 @@ correctness bug the capacity work exposed.
   this by computing each seat's angle around the grid centre and asserting it
   increases monotonically (mod 360) in seat order, for every preset. A local
   game already mid-play when this ships will see seats 3/4 (and similar)
-  swap screen position on the next load — seat *state* follows the seat
+  swap screen position on the next load — seat _state_ follows the seat
   number, so nothing is lost, only where it's drawn. Counterclockwise seating
   is not supported; if it's ever wanted, it's a second `seats` ordering per
   preset, not a reducer change.

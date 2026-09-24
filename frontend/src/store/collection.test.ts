@@ -1488,6 +1488,32 @@ describe('binder CRUD', () => {
     useCollectionStore.getState().moveBinder('ghost', 'down');
     expect(useCollectionStore.getState().binders.map((b) => b.id)).toEqual(['b2', 'b1']);
   });
+
+  it('moveBinderAbove re-seats a binder ahead of its target and renumbers', () => {
+    useCollectionStore.setState({
+      binders: [
+        makeBinder({ id: 'a', position: 0 }),
+        makeBinder({ id: 'b', position: 1 }),
+        makeBinder({ id: 'c', position: 2 }),
+      ],
+    });
+    useCollectionStore.getState().moveBinderAbove('c', 'b');
+    const order = () =>
+      [...useCollectionStore.getState().binders]
+        .sort((x, y) => x.position - y.position)
+        .map((b) => `${b.id}${b.position}`);
+    expect(order()).toEqual(['a0', 'c1', 'b2']);
+
+    // Moving down works the same way: above its new neighbour.
+    useCollectionStore.getState().moveBinderAbove('a', 'b');
+    expect(order()).toEqual(['c0', 'a1', 'b2']);
+
+    // Unknown ids and self-targets change nothing.
+    useCollectionStore.getState().moveBinderAbove('ghost', 'b');
+    useCollectionStore.getState().moveBinderAbove('a', 'ghost');
+    useCollectionStore.getState().moveBinderAbove('a', 'a');
+    expect(order()).toEqual(['c0', 'a1', 'b2']);
+  });
 });
 
 describe('loadSampleBinders', () => {
@@ -1791,5 +1817,38 @@ describe('destructive-op undo', () => {
           .sort()
       ).toEqual(['add', 'old']);
     });
+  });
+});
+
+describe('importCards into a new binder', () => {
+  it('keeps the page settings and trade flag chosen on the import screen', async () => {
+    useCollectionStore.setState({ binders: [], cards: [] });
+    const card = enriched({ copyId: 'c1', scryfallId: 's1' });
+    await useCollectionStore.getState().importCards(uploadResponse([card]), 'list.csv', 'binder', {
+      binderName: 'Trade binder',
+      binderColor: '#123456',
+      binderLayout: { pocketSize: 12, doubleSided: true, fixedCapacity: 480, tradeable: true },
+    });
+    const [binder] = useCollectionStore.getState().binders;
+    expect(binder).toMatchObject({
+      name: 'Trade binder',
+      color: '#123456',
+      mode: 'manual',
+      pocketSize: 12,
+      doubleSided: true,
+      fixedCapacity: 480,
+      tradeable: true,
+    });
+  });
+
+  it('falls back to the old defaults when no layout is given', async () => {
+    useCollectionStore.setState({ binders: [], cards: [] });
+    const card = enriched({ copyId: 'c2', scryfallId: 's2' });
+    await useCollectionStore
+      .getState()
+      .importCards(uploadResponse([card]), 'list.csv', 'binder', { binderName: 'Plain' });
+    const [binder] = useCollectionStore.getState().binders;
+    expect(binder).toMatchObject({ pocketSize: null, doubleSided: false, fixedCapacity: null });
+    expect(binder.tradeable).toBeUndefined();
   });
 });

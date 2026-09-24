@@ -166,6 +166,8 @@ interface CollectionState {
       isSample?: boolean;
       binderName?: string;
       binderColor?: string;
+      /** Page settings for the binder a 'binder' import creates. */
+      binderLayout?: Pick<BinderDef, 'pocketSize' | 'doubleSided' | 'fixedCapacity' | 'tradeable'>;
     }
   ) => Promise<string>;
   /**
@@ -351,6 +353,9 @@ interface CollectionState {
   /** Removes every binder. Cards are unaffected — they fall back to Uncategorized. */
   deleteAllBinders: () => void;
   moveBinder: (id: string, direction: 'up' | 'down') => void;
+  /** Re-seat a binder directly above another in the waterfall, renumbering
+   *  positions. No-op when either id is unknown or they are the same. */
+  moveBinderAbove: (id: string, targetId: string) => void;
 
   // UI actions
   setActiveTab: (tab: string) => void;
@@ -631,9 +636,10 @@ export const useCollectionStore = create<CollectionState>()(
             position: get().binders.length,
             filterGroups: [{ filter: {} }],
             sorts: [],
-            pocketSize: null,
-            doubleSided: false,
-            fixedCapacity: null,
+            pocketSize: options.binderLayout?.pocketSize ?? null,
+            doubleSided: options.binderLayout?.doubleSided ?? false,
+            fixedCapacity: options.binderLayout?.fixedCapacity ?? null,
+            ...(options.binderLayout?.tradeable ? { tradeable: true } : {}),
             color: options.binderColor ?? '#6366f1',
             // Imported binders hold exactly the imported copies — 'manual' so
             // the empty filterGroups can't vacuum unrelated collection cards.
@@ -1740,6 +1746,24 @@ export const useCollectionStore = create<CollectionState>()(
             b.position === i ? b : { ...b, position: i, updatedAt: now }
           );
           return { binders: renumbered };
+        });
+      },
+
+      moveBinderAbove: (id, targetId) => {
+        set((s) => {
+          if (id === targetId) return s;
+          const sorted = [...s.binders].sort((a, b) => a.position - b.position);
+          const moving = sorted.find((b) => b.id === id);
+          if (!moving || !sorted.some((b) => b.id === targetId)) return s;
+          const rest = sorted.filter((b) => b.id !== id);
+          const at = rest.findIndex((b) => b.id === targetId);
+          rest.splice(at, 0, moving);
+          const now = Date.now();
+          return {
+            binders: rest.map((b, i) =>
+              b.position === i ? b : { ...b, position: i, updatedAt: now }
+            ),
+          };
         });
       },
 

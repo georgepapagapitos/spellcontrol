@@ -69,6 +69,9 @@ export interface DraftBinder {
   groups: BinderFilterGroup[];
   keepPrintingsTogether: boolean;
   mode?: 'rules' | 'manual';
+  /** Preview the draft just above this binder instead of where it sits (an
+   *  existing binder) or last (a new one). The editor's "Move above" fix. */
+  placeAboveId?: string | null;
 }
 
 export interface EffectiveLandingCounts {
@@ -118,6 +121,9 @@ export function countEffectiveLanding(
   const draftId = draft.id ?? '__draft__';
   const existingIdx = draft.id ? allBinders.findIndex((b) => b.id === draft.id) : -1;
   const maxPosition = allBinders.reduce((m, b) => Math.max(m, b.position), -1);
+  const placeAbove = draft.placeAboveId
+    ? allBinders.find((b) => b.id === draft.placeAboveId)
+    : undefined;
 
   const buildDefs = (keepPrintingsTogether: boolean): BinderDef[] => {
     const now = Date.now();
@@ -125,8 +131,14 @@ export function countEffectiveLanding(
       id: draftId,
       name: '',
       // Editing an existing binder keeps its position (waterfall order
-      // unchanged by the preview); a new binder is appended last.
-      position: existingIdx === -1 ? maxPosition + 1 : allBinders[existingIdx].position,
+      // unchanged by the preview); a new binder is appended last. A pending
+      // "Move above" previews it half a step ahead of its target.
+      position:
+        placeAbove !== undefined
+          ? placeAbove.position - 0.5
+          : existingIdx === -1
+            ? maxPosition + 1
+            : allBinders[existingIdx].position,
       filterGroups: draft.groups,
       sorts: [],
       pocketSize: null,

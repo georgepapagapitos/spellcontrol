@@ -449,8 +449,7 @@ describe('segmented-control options carry the coarse floor on the SPAN', () => {
   // and .settings-currency-option).
   const OPTIONS: Array<[string, string]> = [
     ['styles/shared.css', '.share-audience-option'],
-    ['styles/binder-card-management.css', '.binder-mode-pill'],
-    ['styles/binder-rules-editor.css', '.rule-segmented-pill'],
+    ['components/shared/form.css', '.segmented-option'],
     ['playtest/components/ScrySheet.css', '.playtest-scry-mode'],
     ['styles/settings-sync.css', '.settings-currency-option'],
   ];
