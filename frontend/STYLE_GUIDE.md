@@ -138,6 +138,30 @@ meanwhile.
 - **Surfaces: one frame.** Tiles are sleeves (`--surface-raised` +
   `--shadow-card`, no outline). A list is hairline rows under a section header,
   never a bordered card holding bordered rows. Outlines belong to controls.
+- **One fact, one place, on every screen.** A number or a list appears once
+  per screen, in the place that owns it; everything else links to it. First
+  settled for the deck view (§ Deck view — one fact, one place), then found
+  again on Home, where the collection value was printed twice word for word
+  and Discover repeated the decks shown beside it. A per-item count belongs on
+  its item (a deck's new-card count on that deck's tile), never summed into a
+  page-level figure that counts the same thing more than once.
+- **A row of tiles is a grid on desktop and a swipe row below it.** On a
+  phone each tile is under three-quarters of the width (72%) and on a tablet
+  30%, so the next tile always peeks in and the row reads as scrollable; a
+  desktop grid squeezed down to a phone is never the answer. The row runs out
+  to the screen edge past `--page-gutter` (negative margin, matching padding),
+  snaps per tile,
+  hides its scrollbar, and sets `overflow-y: hidden` (a strip with only
+  `overflow-x: auto` becomes an accidental two-axis scroller; the
+  `overlay-containment` strip guard enforces it). Tiles in the row are the
+  surface's own tiles, never a second design of the same object.
+  **Not built yet:** Home's `.home-rail` (HomePage.css) is the reference; T135
+  promotes it to a shared primitive.
+- **Section header: title · meta · tools.** A section inside a page is a
+  title, one short meta, and on the right its tools: the section's own search
+  (§ Toolbars, search beside its list) and one door. The meta hides on a
+  phone before anything wraps. **Not built yet:** Home's `.home-section-head`
+  is the reference; T135 builds it once.
 - **The camera button lives on the collection pages, on phones, only**, with
   bottom padding on the content so the last row scrolls clear of it. Everywhere
   else, scanning is reached through Add cards. **Built** (`ScanFab`): it tucks
@@ -1180,6 +1204,16 @@ just card footers.
 
 Verify all three at the **320px floor** in the Responsive section — that's where
 the clip shows up first.
+
+**A search sits beside the list it searches.** One search box serving two
+lists needs a scope toggle to say which one, and the toggle is the tell: split
+it, and give each list its own search in its own header (Home's hero once had
+My decks / Discover over one box; each section now carries its own,
+`HomeSectionSearch`). From 600px it is a `SearchPill` that submits to the
+list's page; on a phone a second full-width pill in every section header costs
+more than it earns, so it is a 44px search button that opens the list's page,
+where search is the first control. The app-wide header search (⌘K / Search) is
+a different thing and stays.
 
 ## Sticky chrome stacks (collection hub)
 
@@ -3198,6 +3232,21 @@ A rail on a guest-landing or marketing surface hides itself below its data thres
 a large fixed-height sheet fills the remaining height with skeleton rows, never one line
 of text.
 
+**Secondary sections: nothing, or one quiet line.** On a page made of
+several sections (Home), a section with nothing in it takes one of two shapes,
+never a full empty card and never a 44px row holding a grid cell (the old Home
+bento left holes beside tall neighbours that way):
+
+- **It renders nothing** when it only reports (price movers, recently added,
+  things waiting on you). "All caught up" is reassurance, not content.
+- **It keeps one quiet line** when it is also a way somewhere (Discover's
+  door to browse, Around the table's Plan a game night and Find friends): one
+  line, dashed like an empty sleeve (`--border-strong`, `--radius-lg`), with
+  its doors on the right, and not a card, since there is no content to frame.
+
+Either way, the doors a removed empty state carried have to live somewhere
+with content (a header ⋮, a neighbouring section), or they are lost.
+
 ## Build-time coach strip (E169 Half B) — a NAVIGATING insight strip
 
 A **second** insight-strip variant, distinct from UX-334 above: the moment a
@@ -4725,6 +4774,13 @@ share one content cap, the `.social-page-shell` class in `social-shared.css` (64
 (`/pods` did) or a pixel off its siblings (Pods sat 16px left of Friends when each page
 hand-wrote its own cap and padding).
 
+- **`role="status"` goes on a wrapper, never on a list.** A loading row of
+  skeleton tiles is a `<ul>`, and ARIA does not allow `status` on a list
+  element (axe `aria-allowed-role`; `a11y.routes.test.tsx` caught Home's tile
+  rows doing it). Wrap the skeleton list in a `<div role="status"
+aria-label="Loading" aria-busy="true">` and mark the list itself
+  `aria-hidden="true"`.
+
 ## CSS file layout
 
 - **`src/styles/` holds the global (unscoped) stylesheets**, imported once in
@@ -5006,7 +5062,8 @@ Rulings:
   ribbons). Recently added headlines the latest import's own `count`, never a
   sum across decks. A deck appears in one list: Discover asks the server for
   `exclude: 'mine'`.
-- **Nothing to show renders nothing.** A `HomeCard` with `empty` renders
+- **Nothing to show renders nothing** (the general rule: § Empty states,
+  secondary sections). A `HomeCard` with `empty` renders
   `null` (the collapsed invitation row is retired, along with
   `.home-card--empty`). Every door those rows carried moved somewhere with
   content: Plan a game night and Friends into the hero's ⋮, Find friends into
@@ -5023,14 +5080,15 @@ Rulings:
   source has settled and holds its line while loading if the last visit had
   one (`home-shape` slot `waiting`), so it never pushes the decks down after
   first paint.
-- **Tiles are the index's tiles.** Your decks renders the decks index's own
+- **Tiles are the index's tiles** (the row itself: § Layout system, a row of
+  tiles). Your decks renders the decks index's own
   `.decks-index-card` markup and Discover renders `DiscoverDeckTile` — one
   tile for a deck everywhere it appears. Both sit in `.home-rail`: five
   across on desktop, a swipe row below it with the next tile peeking (72% of
   a phone, 30% of a tablet) so the row reads as scrollable. The rail runs
   out to the screen edge past `--page-gutter` and sets `overflow-y: hidden`
   (one-axis strip guard).
-- **Each list carries its own search.** The hero's one search box with a My
+- **Each list carries its own search** (§ Toolbars). The hero's one search box with a My
   decks / Discover scope toggle is retired: "Search your decks" sits in the
   Your decks head, "Search commanders" in the Discover head
   (`HomeSectionSearch`). From 600px it is a SearchPill; on a phone it is a
@@ -6746,8 +6804,8 @@ besides. Every other pixel is a −1/+1.
   chip are gone. What a seat is carrying still shows, as **read-only badges**
   for non-zero counts (`.pp-counter-badge`, `pointer-events: none`, so a tap on
   one is a life tap). Zero counts don't show at all.
-- **Two swipes, both in the seat's own axes** (`toPanelSpace`). *Away from its
-  player*: commander damage. *Toward its player*: the seat's drawer, which slides
+- **Two swipes, both in the seat's own axes** (`toPanelSpace`). _Away from its
+  player_: commander damage. _Toward its player_: the seat's drawer, which slides
   down over the seat like a shade and leaves a 44px strip at the player's edge
   (tap it or drag it back to close). The drawer holds everything the seat used
   to have buttons for: commander damage (for anyone who can't swipe), pass /
