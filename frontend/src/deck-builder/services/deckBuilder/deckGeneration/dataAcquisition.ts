@@ -22,7 +22,7 @@ import {
 } from '@/deck-builder/services/edhrec/client';
 import { prefetchBasicLands, getGameChangerNames } from '@/deck-builder/services/scryfall/client';
 import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
-import { ensureCombosCached, offlineGetCombosByIds } from '@/lib/offline';
+import { offlineCombosCached, offlineGetCombosByIds } from '@/lib/offline';
 import { bracketLabel } from '../bracketEstimator';
 import { calculateCardPriority } from '../cardPicking';
 import { loadCardSimilar, hasCardSimilar } from '../cardSimilar';
@@ -378,6 +378,11 @@ export function setGenerationCacheCardMap(cardMap: Map<string, ScryfallCard>): v
  * Bracket 4 the tag means — so generation and the deck page (which sees the
  * real Spellbook tag) disagree on the same deck.
  *
+ * Only a dataset already on the device is used. It is 17 MB gzipped, and a
+ * device that has never cached it must not make generation wait for (or share
+ * its bandwidth with) that download; the deck page fetches it and re-estimates
+ * with the tags anyway.
+ *
  * Runs once per generation, right after the EDHREC fetch, so every downstream
  * phase (combo detection, the combo floor, bracket convergence, the build
  * report) reads an already-tagged `state.combos` — nothing else needs to know
@@ -388,7 +393,7 @@ export function setGenerationCacheCardMap(cardMap: Map<string, ScryfallCard>): v
 async function enrichCombosWithBracketTags(combos: EDHRECCombo[]): Promise<EDHRECCombo[]> {
   if (combos.length === 0) return combos;
   try {
-    if (!(await ensureCombosCached())) return combos;
+    if (!(await offlineCombosCached())) return combos;
     const rows = await offlineGetCombosByIds(combos.map((c) => c.comboId));
     if (rows.size === 0) return combos;
     return combos.map((c) => {

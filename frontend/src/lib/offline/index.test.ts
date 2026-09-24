@@ -7,11 +7,17 @@ import {
   offlineGetCardByOracleId,
   offlineGetCardsByNames,
   offlineGetCardsByOracleIds,
+  offlineCombosCached,
   offlineGetCombosByIds,
   offlineGetManifest,
   offlineSearchCards,
 } from './index';
-import { replaceCombos, replaceOracleCards, writeManifest } from './db';
+import {
+  replaceCombos,
+  replaceOracleCards,
+  writeManifest,
+  writeStandaloneCombosVersion,
+} from './db';
 import type { OfflineCombo, SlimCard } from './types';
 
 function slim(oracleId: string, name: string, overrides: Partial<SlimCard> = {}): SlimCard {
@@ -234,5 +240,14 @@ describe('offlineGetCombosByIds', () => {
     expect(rows.get('1-2')?.bracketTag).toBe('E');
     expect(rows.get('3-4')?.bracketTag).toBe('R');
     expect(rows.has('not-cached')).toBe(false);
+  });
+
+  it('offlineCombosCached reads the device without fetching: rows AND a version stamp', async () => {
+    expect(await offlineCombosCached()).toBe(false);
+    // Rows with no stamp are a download that died mid-stream, not a cache.
+    await replaceCombos([combo('1-2', 'E')]);
+    expect(await offlineCombosCached()).toBe(false);
+    await writeStandaloneCombosVersion('v1');
+    expect(await offlineCombosCached()).toBe(true);
   });
 });

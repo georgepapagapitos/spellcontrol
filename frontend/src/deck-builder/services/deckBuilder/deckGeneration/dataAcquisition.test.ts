@@ -32,10 +32,10 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   isExtraTurn: () => false,
 }));
 
-const ensureCombosCachedMock = vi.fn();
+const offlineCombosCachedMock = vi.fn();
 const offlineGetCombosByIdsMock = vi.fn();
 vi.mock('@/lib/offline', () => ({
-  ensureCombosCached: () => ensureCombosCachedMock(),
+  offlineCombosCached: () => offlineCombosCachedMock(),
   offlineGetCombosByIds: (...args: unknown[]) => offlineGetCombosByIdsMock(...args),
 }));
 
@@ -243,7 +243,7 @@ describe('acquireCommanderDataPhase', () => {
     hasTaggerDataMock.mockReturnValue(true);
     loadCardSimilarMock.mockResolvedValue({});
     hasCardSimilarMock.mockReturnValue(true);
-    ensureCombosCachedMock.mockResolvedValue(false);
+    offlineCombosCachedMock.mockResolvedValue(false);
     offlineGetCombosByIdsMock.mockResolvedValue(new Map());
   });
 
@@ -309,7 +309,7 @@ describe('acquireCommanderDataPhase — combo bracketTag enrichment', () => {
 
   it('tags an EDHREC combo with the real Spellbook bracketTag looked up by id', async () => {
     fetchCommanderCombosRawMock.mockResolvedValue([edhrecCombo('1-2', ['Card A', 'Card B'])]);
-    ensureCombosCachedMock.mockResolvedValue(true);
+    offlineCombosCachedMock.mockResolvedValue(true);
     offlineGetCombosByIdsMock.mockResolvedValue(new Map([['1-2', offlineComboRow('1-2', 'E')]]));
 
     const state = makeState();
@@ -322,7 +322,7 @@ describe('acquireCommanderDataPhase — combo bracketTag enrichment', () => {
 
   it('leaves bracketTag null and never fails generation when the local dataset is not cached', async () => {
     fetchCommanderCombosRawMock.mockResolvedValue([edhrecCombo('1-2', ['Card A', 'Card B'])]);
-    ensureCombosCachedMock.mockResolvedValue(false);
+    offlineCombosCachedMock.mockResolvedValue(false);
 
     const state = makeState();
     const result = await acquireCommanderDataPhase(state);
@@ -334,7 +334,7 @@ describe('acquireCommanderDataPhase — combo bracketTag enrichment', () => {
 
   it('leaves bracketTag null and never fails generation when the id lookup throws', async () => {
     fetchCommanderCombosRawMock.mockResolvedValue([edhrecCombo('1-2', ['Card A', 'Card B'])]);
-    ensureCombosCachedMock.mockResolvedValue(true);
+    offlineCombosCachedMock.mockResolvedValue(true);
     offlineGetCombosByIdsMock.mockRejectedValue(new Error('IDB wedged'));
 
     const state = makeState();
@@ -348,7 +348,7 @@ describe('acquireCommanderDataPhase — combo bracketTag enrichment', () => {
     fetchCommanderCombosRawMock.mockResolvedValue([
       edhrecCombo('1-2', ['Hullbreaker Horror', 'Sol Ring']),
     ]);
-    ensureCombosCachedMock.mockResolvedValue(true);
+    offlineCombosCachedMock.mockResolvedValue(true);
     offlineGetCombosByIdsMock.mockResolvedValue(new Map([['1-2', offlineComboRow('1-2', 'E')]]));
 
     const state = makeState({
@@ -385,7 +385,7 @@ describe('acquireCommanderDataPhase — combo bracketTag enrichment', () => {
     fetchCommanderCombosRawMock.mockResolvedValue([
       edhrecCombo('3-4', ['Combo Piece A', 'Combo Piece B']),
     ]);
-    ensureCombosCachedMock.mockResolvedValue(true);
+    offlineCombosCachedMock.mockResolvedValue(true);
     offlineGetCombosByIdsMock.mockResolvedValue(new Map([['3-4', offlineComboRow('3-4', 'R')]]));
 
     const state = makeState({

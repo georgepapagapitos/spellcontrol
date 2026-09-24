@@ -30,9 +30,11 @@ export type EdhrecComboOverlay = Map<string, EdhrecComboStat>;
 /**
  * Join key for matching an EDHREC combo to a Spellbook combo: the set of card
  * names, normalized (lowercased, trimmed) and sorted so order doesn't matter.
- * The two datasets use different combo id spaces (EDHREC "250-779" vs Spellbook
- * UUID), so a name-set join is the only cross-link. Combos whose names don't
- * line up (rare spelling/DFC differences) just don't get overlaid.
+ * EDHREC's combo ids ARE Spellbook variant ids (checked 2026-09-24: "1529-1887"
+ * on both), and deck generation joins on them. This overlay keeps the name-set
+ * join on purpose: Spellbook variants that share a card set (a template
+ * variant beside its named twin) all pick up the one EDHREC stat. Combos whose
+ * names don't line up (rare spelling/DFC differences) just don't get overlaid.
  */
 export function comboNameKey(cardNames: string[]): string {
   return cardNames

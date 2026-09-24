@@ -17,6 +17,8 @@ import {
   getCardByOracleId as idbGetCardByOracleId,
   getCardsByOracleIds as idbGetCardsByOracleIds,
   getCombosByIds as idbGetCombosByIds,
+  getOfflineDataStats,
+  readStandaloneCombosVersion,
   iterateAllCards,
   readManifest,
 } from './db';
@@ -71,6 +73,19 @@ export async function offlineGetCardsByOracleIds(
   const out = new Map<string, ScryfallCard>();
   for (const [id, slim] of slims) out.set(id, slimToScryfall(slim));
   return out;
+}
+
+/**
+ * Is the combo dataset already on this device? Rows AND a version stamp, the
+ * test `ensureCombosCached` uses, but it never fetches: a caller that must not
+ * wait on the 17 MB download (deck generation) asks this instead.
+ */
+export async function offlineCombosCached(): Promise<boolean> {
+  const { comboCount } = await getOfflineDataStats();
+  if (comboCount === 0) return false;
+  const version =
+    (await readStandaloneCombosVersion()) ?? (await readManifest())?.combosVersion ?? null;
+  return version !== null;
 }
 
 /** Full Spellbook rows (bracketTag, templates, …) for a handful of combo ids —
