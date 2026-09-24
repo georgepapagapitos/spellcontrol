@@ -335,46 +335,6 @@
   }
 }
 
-@media (max-height: 420px) and (orientation: landscape) {
-  /* B6-05: the opening-hand sheet's own chrome (header, hint, two-line rule
-     toggles, footer) ate ~270px of a ~306px sheet, leaving the card row a
-     38px sliver — barely a name label, not a hand you can read to decide
-     Keep/Mulligan. Scoped to `.playtest-opening-sheet` since
-     `.card-picker-header`/`.card-picker-footer` are shared with every other
-     sheet built on this primitive. */
-  .playtest-opening-sheet .card-picker-header {
-    padding: var(--space-1) var(--space-3);
-    gap: 2px;
-  }
-
-  .playtest-opening-hint {
-    display: none;
-  }
-
-  .playtest-opening-variants {
-    margin: var(--space-1) var(--space-3);
-  }
-
-  /* Label only — the description ("Redraw a full seven...") is the one
-     droppable line here; the row keeps its real 44px touch target since the
-     whole row (not just the checkbox) is what you tap. */
-  .playtest-opening-variant {
-    padding: 0 var(--space-2);
-  }
-
-  .playtest-opening-variant__desc {
-    display: none;
-  }
-
-  .playtest-opening-stats {
-    font-size: var(--text-xs);
-  }
-
-  .playtest-opening-sheet .card-picker-footer {
-    padding: var(--space-1) var(--space-3);
-  }
-}
-
 /* ── Takeover (tablet and up) ────────────────────────────────────────────── */
 /*  At 1024px and wider the opening hand stops being a sheet docked over the
  *  board and becomes the screen: the table dims to near-black, the seven
@@ -727,5 +687,123 @@
 
   .is-takeover .card-picker-title {
     font-size: var(--text-xl);
+  }
+}
+
+/* ── A phone on its side ──────────────────────────────────────────────────
+   About 800x380, and the tier above sized it wrong on every axis: the card
+   width came from the screen WIDTH alone (140px wide, 196px tall on a 380px
+   screen), so the fan ran under the actions, which the footer's z-index
+   paints on top of the cards. Desk-sized buttons (15rem x 3.5rem) spanned
+   the screen, and the stats line and toggles were squeezed against the
+   bottom edge.
+
+   So here the card is bounded by HEIGHT as well, and the rest of the column
+   is spent as tightly as the screen allows:
+
+     height term = (screen height - 176px) / 1.4
+
+   where 176px is everything outside the cards: 16 sheet padding + 20 title
+   + three 8px row gaps + 16 fan padding + 44 actions + 44 settings row,
+   plus 12 of slack. The width term lays the seven side by side with an 8px
+   gap and room for the end cards' tilt. Lands at 106px on 825x380 (width-
+   bound) and 119px on 915x412.
+
+   500px matches RotatePrompt's "phone on its side": it clears the tallest
+   phones (about 430px) and stays under every tablet. The stats line and the
+   toggles share one row; status (online) drops below them. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .is-takeover .playtest-opening-sheet {
+    flex-flow: row wrap;
+    align-content: center;
+    column-gap: var(--space-4);
+    row-gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .is-takeover .card-picker-header,
+  .is-takeover .playtest-opening-cards,
+  .is-takeover .playtest-opening-footer,
+  .is-takeover .playtest-opening-status {
+    flex: 0 0 100%;
+  }
+
+  /* After the settings row, not between the stats and the toggles. */
+  .is-takeover .playtest-opening-status {
+    order: 1;
+    font-size: var(--text-sm);
+  }
+
+  .is-takeover .card-picker-title {
+    font-size: var(--text-lg);
+  }
+
+  /* "Tap a card to enlarge" goes; the mulligan-bottom instruction stays,
+     since it is the one line that says what to tap. */
+  .is-takeover .playtest-opening-hint:not(.is-instruction) {
+    display: none;
+  }
+
+  .is-takeover .playtest-opening-hint.is-instruction {
+    font-size: var(--text-xs);
+  }
+
+  /* The way out keeps its corner but shrinks to a line that cannot reach the
+     centred title. */
+  .is-takeover .playtest-opening-back {
+    top: 0;
+    left: var(--space-2);
+    max-width: 28vw;
+    overflow: hidden;
+    font-size: var(--text-xs);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .is-takeover .playtest-opening-cards {
+    --oh-w: clamp(
+      56px,
+      min(
+        calc(
+          (100vw - var(--safe-left) - var(--safe-right) - 4 * var(--space-4) - 6 * var(--space-2)) /
+            var(--hand-n, 7)
+        ),
+        calc((var(--vh-safe) - 176px) / 1.4)
+      ),
+      140px
+    );
+    padding: var(--space-1) 0 var(--space-3);
+  }
+
+  /* Side by side with a gentle arc, not a 35% shingle: there is room for
+     all seven, so none of them hides another. */
+  .is-takeover .playtest-opening-slot {
+    --oh-rot: calc((var(--oh-i) - (var(--oh-n) - 1) / 2) * 1.5deg);
+
+    transform: rotate(var(--oh-rot)) translateY(calc(var(--oh-lift, 0px) / 4));
+  }
+
+  .is-takeover .playtest-opening-slot + .playtest-opening-slot {
+    margin-left: var(--space-2);
+  }
+
+  .is-takeover .playtest-opening-footer {
+    gap: var(--space-2);
+  }
+
+  /* Sized to the label, not to a desk. */
+  .is-takeover .playtest-opening-footer .btn {
+    min-width: 9rem;
+    min-height: 44px;
+    padding-inline: var(--space-4);
+    font-size: var(--text-sm);
+  }
+
+  .is-takeover .playtest-opening-stats {
+    font-size: var(--text-sm);
+  }
+
+  .is-takeover .playtest-opening-variant {
+    padding: 0 var(--space-2);
   }
 }

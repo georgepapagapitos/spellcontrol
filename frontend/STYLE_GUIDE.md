@@ -2427,6 +2427,20 @@ sheet is unchanged — a phone has no room for the fan.
   `visibility: hidden` behind a transparent scrim with one "Back to hand"
   pill top-centre, and Esc returns. Esc does nothing else — the opening hand
   is non-dismissable, you leave it by keeping, mulliganing or exiting.
+- **On a phone on its side the whole hand is readable, and nothing covers a
+  card.** Under `(max-height: 500px) and (orientation: landscape)` (the same
+  "phone on its side" as `RotatePrompt`):
+  - The card width is bounded by the screen's height as well as its width
+    (`(var(--vh-safe) - 176px) / 1.4`), so the fan always ends above the
+    actions.
+  - The seven sit side by side with an 8px gap and a 1.5° arc, not the 35%
+    shingle.
+  - The actions are sized to their labels (9rem minimum, the 44px touch
+    floor) instead of the desk's 15rem × 3.5rem.
+  - The stats line and the two toggles share one row.
+  - "Tap a card to enlarge" goes, but the mulligan-bottom instruction
+    (`.is-instruction`) stays.
+  - Pinned by `styles/opening-hand-short-landscape.test.ts`.
 - **Online, keeping does not start the game.** The takeover stays up as a
   smaller "Waiting for Bo and Cy" curtain (`is-waiting`: cards shrink, the
   actions go) until every seat's published board carries `keptHand`, then

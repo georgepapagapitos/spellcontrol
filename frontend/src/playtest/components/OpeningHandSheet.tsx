@@ -330,7 +330,7 @@ export function OpeningHandSheet({
             )}
           </div>
           {waiting ? null : isMulliganBottom ? (
-            <p className="playtest-opening-hint">
+            <p className="playtest-opening-hint is-instruction">
               Tap {requiredBottom} card{requiredBottom === 1 ? '' : 's'} to send to the bottom, in
               order. Long-press to preview.{' '}
               <strong>
