@@ -1185,6 +1185,19 @@ body[data-felt='slate'] {
   visibility: hidden;
 }
 
+/* A tapped card turns 90° about its centre inside this portrait slot, so its
+   box sticks out past the slot at the sides and stops short of it top and
+   bottom. Pinned to the SLOT's corner, the body hung below the card, off it
+   entirely. It follows the printed corner instead, which the turn carries to
+   the bottom-left, the way EDHPlay shows a tapped body. The numbers stay
+   upright. The half-difference is spelled out rather than read from
+   `--pt-edge`, which the fixed-size tiers do not redeclare. */
+.playtest-card-slot:has(> .playtest-card--tapped) > .playtest-card-pt {
+  right: auto;
+  left: calc(var(--space-1) - (var(--pt-card-h) - var(--pt-card-w)) / 2);
+  bottom: calc(var(--space-1) + (var(--pt-card-h) - var(--pt-card-w)) / 2);
+}
+
 /* Dragging a card that is part of the selection drags the selection. dnd-kit
    only moves the grabbed card (as a <DragOverlay> copy over a dimmed source),
    so the rest of the group follows the pointer here: one delta, written onto

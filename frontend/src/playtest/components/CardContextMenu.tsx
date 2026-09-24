@@ -226,6 +226,8 @@ export function CardContextMenu({
     if (!kind) return;
     onAddCounter(kind);
     setCounterText('');
+    // Done: the counter is on the card, and Custom counters steps it from here.
+    onClose();
   }
 
   // The four presets plus whatever custom kinds are already on the card, so a
@@ -267,30 +269,33 @@ export function CardContextMenu({
           </div>
         );
       })}
-      {/* EDHPlay's "Add New Counter". The reducer accepts any counter name,
-          so saga chapters, ascend, fade and the rest need only this field. */}
-      <div className="playtest-ctx-counter-add">
-        <input
-          type="text"
-          value={counterText}
-          onChange={(e) => setCounterText(e.target.value)}
-          placeholder="New counter"
-          maxLength={MAX_COUNTER_NAME}
-          aria-label="Counter name"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') submitCounter();
-          }}
-        />
-        <button
-          type="button"
-          disabled={!counterText.trim()}
-          onClick={submitCounter}
-          aria-label="Add counter"
-        >
-          Add
-        </button>
-      </div>
     </>
+  );
+
+  // EDHPlay's "Add New Counter". The reducer accepts any counter name, so
+  // saga chapters, ascend, fade and the rest need only this field.
+  const newCounterPage = (
+    <div className="playtest-ctx-counter-add">
+      <input
+        type="text"
+        value={counterText}
+        onChange={(e) => setCounterText(e.target.value)}
+        placeholder="New counter"
+        maxLength={MAX_COUNTER_NAME}
+        aria-label="Counter name"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') submitCounter();
+        }}
+      />
+      <button
+        type="button"
+        disabled={!counterText.trim()}
+        onClick={submitCounter}
+        aria-label="Add counter"
+      >
+        Add
+      </button>
+    </div>
   );
 
   const ptPage = (
@@ -426,37 +431,60 @@ export function CardContextMenu({
     { label: tapped ? 'Untap' : 'Tap', shortcut: key('tap-selection'), onClick: onTap },
     SEPARATOR,
     {
-      id: 'counters',
       label: 'Counters',
       shortcut: key('counters'),
-      content: countersPage,
-      // A card with no counters has nothing to step, so these stay in place
-      // switched off: the submenu is the same shape on every card.
-      items: onAdjustAllCounters && [
+      // EDHPlay's list: every row a verb, with the steppers and the name field
+      // one level further down, so the everyday +1/+1 is a single click.
+      items: [
         {
-          label: 'Add one to each',
-          shortcut: key('counters-all-inc'),
-          disabled: !hasCounters,
-          onClick: () => onAdjustAllCounters('inc'),
+          // J lands here, as it does on EDHPlay, rather than on the list.
+          id: 'counters',
+          label: 'Custom counters',
+          shortcut: key('counters'),
+          content: countersPage,
+        },
+        { label: 'Add new counter', content: newCounterPage },
+        {
+          label: 'Add a +1/+1 counter',
+          shortcut: key('counter-plus'),
+          onClick: () => onAddCounter('+1/+1'),
         },
         {
-          label: 'Take one off each',
-          shortcut: key('counters-all-dec'),
-          disabled: !hasCounters,
-          onClick: () => onAdjustAllCounters('dec'),
-        },
-        {
-          label: 'Double each',
-          shortcut: key('counters-all-double'),
-          disabled: !hasCounters,
-          onClick: () => onAdjustAllCounters('double'),
+          label: 'Add a −1/−1 counter',
+          shortcut: key('counter-minus'),
+          onClick: () => onAddCounter('-1/-1'),
         },
         SEPARATOR,
-        {
-          label: 'Remove every counter',
-          disabled: !hasCounters,
-          onClick: () => onAdjustAllCounters('clear'),
-        },
+        // A card with no counters has nothing to step, so these stay in place
+        // switched off: the submenu is the same shape on every card.
+        ...(onAdjustAllCounters
+          ? [
+              {
+                label: 'Add one to each',
+                shortcut: key('counters-all-inc'),
+                disabled: !hasCounters,
+                onClick: () => onAdjustAllCounters('inc'),
+              },
+              {
+                label: 'Take one off each',
+                shortcut: key('counters-all-dec'),
+                disabled: !hasCounters,
+                onClick: () => onAdjustAllCounters('dec'),
+              },
+              {
+                label: 'Double each',
+                shortcut: key('counters-all-double'),
+                disabled: !hasCounters,
+                onClick: () => onAdjustAllCounters('double'),
+              },
+              SEPARATOR,
+              {
+                label: 'Remove every counter',
+                disabled: !hasCounters,
+                onClick: () => onAdjustAllCounters('clear'),
+              },
+            ]
+          : []),
       ],
     },
     {

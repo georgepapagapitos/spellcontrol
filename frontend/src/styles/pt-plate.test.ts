@@ -86,4 +86,16 @@ describe('the power/toughness plate', () => {
       /\.playtest-card-slot:has\(> \[data-dragging\]\) > \.playtest-card-pt\s*\{\s*visibility:\s*hidden;/
     );
   });
+
+  it('rides a tapped card’s corner, not the slot’s', () => {
+    // The card rotates inside a portrait slot; the badges are pinned to the
+    // slot. Left at the slot's bottom-right they hung below a tapped card,
+    // off it entirely (2026-09-24). A tapped card moves them onto its own
+    // printed corner: out by the half-difference on the left, up by it below.
+    const tapped = rule('.playtest-card-slot:has(> .playtest-card--tapped) > .playtest-card-pt');
+    const half = String.raw`\(var\(--pt-card-h\) - var\(--pt-card-w\)\) / 2`;
+    expect(tapped).toMatch(/right:\s*auto/);
+    expect(tapped).toMatch(new RegExp(String.raw`left:\s*calc\(var\(--space-1\) - ${half}\)`));
+    expect(tapped).toMatch(new RegExp(String.raw`bottom:\s*calc\(var\(--space-1\) \+ ${half}\)`));
+  });
 });

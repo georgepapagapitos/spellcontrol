@@ -145,13 +145,78 @@ describe('CardContextMenu — EDHPlay’s shape', () => {
   it('opens Counters beside the menu and leaves the root where it was', () => {
     render(<CardContextMenu {...baseProps()} />);
     fireEvent.click(screen.getByRole('menuitem', { name: /^Counters/ }));
-    expect(screen.getByLabelText('Counter name')).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: /^Custom counters/ })).toBeTruthy();
     expect(screen.getByRole('menuitem', { name: /^Tap/ })).toBeTruthy();
   });
 
-  it('opens straight on Counters when the caller asks (the J key)', () => {
-    render(<CardContextMenu {...baseProps()} initialPage="counters" />);
-    expect(screen.getByLabelText('Counter name')).toBeTruthy();
+  it('lists Counters as EDHPlay does: verbs, no steppers or field until asked', () => {
+    // The user's pick over our old submenu (2026-09-24), which put four
+    // steppers and a name field in it directly.
+    render(<CardContextMenu {...baseProps()} onAdjustAllCounters={vi.fn()} />);
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Counters/ }));
+    const panel = screen.getByRole('menu', { name: 'Counters' });
+    const shape = [...panel.querySelectorAll(':scope > [role]')].map((el) =>
+      el.getAttribute('role') === 'separator' ? '—' : (el.querySelector('span')?.textContent ?? '')
+    );
+    expect(shape).toEqual([
+      'Custom counters',
+      'Add new counter',
+      'Add a +1/+1 counter',
+      'Add a −1/−1 counter',
+      '—',
+      'Add one to each',
+      'Take one off each',
+      'Double each',
+      '—',
+      'Remove every counter',
+    ]);
+    expect(screen.queryByLabelText('Counter name')).toBeNull();
+    expect(screen.queryByRole('button', { name: /currently/ })).toBeNull();
+  });
+
+  it('adds a +1/+1 or −1/−1 in one click, and prints their keys', () => {
+    const onAddCounter = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <CardContextMenu
+        {...baseProps()}
+        onAddCounter={onAddCounter}
+        onClose={onClose}
+        keyFor={(id) => ({ 'counter-plus': '+', 'counter-minus': '_' })[id as string]}
+        initialPage="counters"
+      />
+    );
+    const plus = screen.getByRole('menuitem', { name: /^Add a \+1\/\+1 counter/ });
+    expect(plus.querySelector('kbd')?.textContent).toBe('+');
+    expect(
+      screen.getByRole('menuitem', { name: /^Add a −1\/−1 counter/ }).querySelector('kbd')
+        ?.textContent
+    ).toBe('_');
+    fireEvent.click(plus);
+    expect(onAddCounter).toHaveBeenCalledWith('+1/+1');
+    expect(onClose).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Add a −1\/−1 counter/ }));
+    // The stored kind keeps its ASCII hyphen; only the label prints a minus.
+    expect(onAddCounter).toHaveBeenCalledWith('-1/-1');
+  });
+
+  it('adds a counter by name from Add new counter, then closes', () => {
+    const onAddCounter = vi.fn();
+    const onClose = vi.fn();
+    render(<CardContextMenu {...baseProps()} onAddCounter={onAddCounter} onClose={onClose} />);
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Counters/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Add new counter/ }));
+    fireEvent.change(screen.getByLabelText('Counter name'), { target: { value: 'lore' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add counter' }));
+    expect(onAddCounter).toHaveBeenCalledWith('lore');
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('opens straight on Custom counters when the caller asks (the J key)', () => {
+    render(<CardContextMenu {...baseProps()} counters={{ lore: 2 }} initialPage="counters" />);
+    // The steppers, including a custom kind already on the card.
+    expect(screen.getByRole('button', { name: 'Add +1/+1, currently 0' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Remove lore, currently 2' })).toBeTruthy();
   });
 
   it('keeps the bulk counter rows in place, off on a card with none', () => {
