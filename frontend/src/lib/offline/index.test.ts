@@ -7,11 +7,12 @@ import {
   offlineGetCardByOracleId,
   offlineGetCardsByNames,
   offlineGetCardsByOracleIds,
+  offlineGetCombosByIds,
   offlineGetManifest,
   offlineSearchCards,
 } from './index';
-import { replaceOracleCards, writeManifest } from './db';
-import type { SlimCard } from './types';
+import { replaceCombos, replaceOracleCards, writeManifest } from './db';
+import type { OfflineCombo, SlimCard } from './types';
 
 function slim(oracleId: string, name: string, overrides: Partial<SlimCard> = {}): SlimCard {
   return {
@@ -205,5 +206,33 @@ describe('offlineSearchCards', () => {
       skipFormatFilter: true,
     });
     expect(noFmt.data.map((c) => c.name).sort()).toEqual(['Banned', 'Legal']);
+  });
+});
+
+describe('offlineGetCombosByIds', () => {
+  function combo(id: string, bracketTag: string | null): OfflineCombo {
+    return {
+      id,
+      identity: 'C',
+      produces: ['Win the game'],
+      prerequisites: null,
+      description: null,
+      manaNeeded: null,
+      popularity: 100,
+      legalities: { commander: 'legal' },
+      cardCount: 2,
+      bracket: null,
+      bracketTag,
+      cards: [],
+    };
+  }
+
+  it('returns the full Spellbook row (bracketTag included) for each cached id, skipping the rest', async () => {
+    await replaceCombos([combo('1-2', 'E'), combo('3-4', 'R')]);
+    const rows = await offlineGetCombosByIds(['1-2', '3-4', 'not-cached']);
+    expect(rows.size).toBe(2);
+    expect(rows.get('1-2')?.bracketTag).toBe('E');
+    expect(rows.get('3-4')?.bracketTag).toBe('R');
+    expect(rows.has('not-cached')).toBe(false);
   });
 });

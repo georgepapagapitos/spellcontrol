@@ -16,13 +16,14 @@ import {
   getCardByName as idbGetCardByName,
   getCardByOracleId as idbGetCardByOracleId,
   getCardsByOracleIds as idbGetCardsByOracleIds,
+  getCombosByIds as idbGetCombosByIds,
   iterateAllCards,
   readManifest,
 } from './db';
 import { matchesQuery, parseQuery, queryUsesOtag } from './scryfall-query';
 import { ensureCardTags, getCardTags, isCardTagsReady } from '../card-tags';
 import { slimToScryfall } from './slim-to-scryfall';
-import type { OfflineManifest, SlimCard } from './types';
+import type { OfflineCombo, OfflineManifest, SlimCard } from './types';
 
 export { syncOfflineData } from './download';
 export type { DownloadPhase, DownloadProgress } from './download';
@@ -70,6 +71,15 @@ export async function offlineGetCardsByOracleIds(
   const out = new Map<string, ScryfallCard>();
   for (const [id, slim] of slims) out.set(id, slimToScryfall(slim));
   return out;
+}
+
+/** Full Spellbook rows (bracketTag, templates, …) for a handful of combo ids —
+ *  how generation looks up the tag EDHREC itself never returns (see
+ *  dataAcquisition.ts's combo enrichment). */
+export async function offlineGetCombosByIds(
+  ids: readonly string[]
+): Promise<Map<string, OfflineCombo>> {
+  return idbGetCombosByIds(ids);
 }
 
 /**

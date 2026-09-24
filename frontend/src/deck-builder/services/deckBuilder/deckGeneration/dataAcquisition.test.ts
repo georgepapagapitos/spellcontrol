@@ -22,6 +22,21 @@ const hasTaggerDataMock = vi.fn(() => true);
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   loadTaggerData: () => loadTaggerDataMock(),
   hasTaggerData: () => hasTaggerDataMock(),
+  // No-op defaults so bracketEstimator.ts's wrapped calls (used by the
+  // enrichment + estimateBracket integration tests below) don't blow up on
+  // an unmocked export — every signal in those tests comes from the explicit
+  // combos/gameChangerNames passed in, not from tag data.
+  hasTag: () => false,
+  getCardRole: () => null,
+  isMassLandDenial: () => false,
+  isExtraTurn: () => false,
+}));
+
+const ensureCombosCachedMock = vi.fn();
+const offlineGetCombosByIdsMock = vi.fn();
+vi.mock('@/lib/offline', () => ({
+  ensureCombosCached: () => ensureCombosCachedMock(),
+  offlineGetCombosByIds: (...args: unknown[]) => offlineGetCombosByIdsMock(...args),
 }));
 
 const loadCardSimilarMock = vi.fn(async () => ({}));
@@ -42,7 +57,11 @@ import {
   populateGenerationCachePhase,
   clearGenerationCache,
 } from './dataAcquisition';
+import { detectCombosPhase } from './phaseDetectCombos';
+import { estimateBracket } from '../bracketEstimator';
 import type { GenerationState } from './state';
+import type { EDHRECCombo } from '@/deck-builder/types';
+import type { OfflineCombo } from '@/lib/offline/types';
 
 function scryfallCard(name: string): ScryfallCard {
   return {
@@ -59,6 +78,41 @@ function scryfallCard(name: string): ScryfallCard {
     prices: {},
     legalities: { commander: 'legal' },
   } as ScryfallCard;
+}
+
+// EDHREC always returns bracketTag: null (client.ts hard-codes it) — its
+// comboId is verbatim the Commander Spellbook variant id, which is what the
+// enrichment below looks up.
+function edhrecCombo(comboId: string, cardNames: string[]): EDHRECCombo {
+  return {
+    comboId,
+    cards: cardNames.map((name) => ({ name, id: name })),
+    results: ['Win the game'],
+    deckCount: 500,
+    rank: 1,
+    bracket: null,
+    bracketTag: null,
+    prereqCount: 0,
+    cardCount: cardNames.length,
+    href: null,
+  };
+}
+
+function offlineComboRow(id: string, bracketTag: string | null, cardCount = 2): OfflineCombo {
+  return {
+    id,
+    identity: 'C',
+    produces: ['Win the game'],
+    prerequisites: null,
+    description: null,
+    manaNeeded: null,
+    popularity: 500,
+    legalities: { commander: 'legal' },
+    cardCount,
+    bracket: null,
+    bracketTag,
+    cards: [],
+  };
 }
 
 function edhrecData(): EDHRECCommanderData {
@@ -189,6 +243,8 @@ describe('acquireCommanderDataPhase', () => {
     hasTaggerDataMock.mockReturnValue(true);
     loadCardSimilarMock.mockResolvedValue({});
     hasCardSimilarMock.mockReturnValue(true);
+    ensureCombosCachedMock.mockResolvedValue(false);
+    offlineGetCombosByIdsMock.mockResolvedValue(new Map());
   });
 
   it('fetches fresh data on a cache miss and surfaces no integrity notes when everything succeeds', async () => {
@@ -228,6 +284,136 @@ describe('acquireCommanderDataPhase', () => {
     // Cache hit skips the fresh-fetch battery entirely.
     expect(prefetchBasicLandsMock).not.toHaveBeenCalled();
     expect(fetchCommanderCombosRawMock).not.toHaveBeenCalled();
+  });
+});
+
+// Regression coverage for the generation/deck-page bracket disagreement:
+// EDHREC's own combo feed hard-codes bracketTag: null (client.ts), so before
+// this enrichment every combo generation saw was untagged — an Exhibition/Core
+// loop wrongly floored the deck, and a Ruthless two-card combo read as a slow
+// Bracket 3 line instead of the automatic Bracket 4 its tag means. Verified
+// live 2026-09-24 that EDHREC's comboId IS the Commander Spellbook variant id
+// verbatim (e.g. "1529-1887" for both), which is what makes this id lookup
+// against the local Spellbook dataset (lib/offline) possible.
+describe('acquireCommanderDataPhase — combo bracketTag enrichment', () => {
+  beforeEach(() => {
+    clearGenerationCache();
+    vi.clearAllMocks();
+    prefetchBasicLandsMock.mockResolvedValue(undefined);
+    getGameChangerNamesMock.mockResolvedValue(new Set());
+    loadTaggerDataMock.mockResolvedValue({});
+    hasTaggerDataMock.mockReturnValue(true);
+    loadCardSimilarMock.mockResolvedValue({});
+    hasCardSimilarMock.mockReturnValue(true);
+  });
+
+  it('tags an EDHREC combo with the real Spellbook bracketTag looked up by id', async () => {
+    fetchCommanderCombosRawMock.mockResolvedValue([edhrecCombo('1-2', ['Card A', 'Card B'])]);
+    ensureCombosCachedMock.mockResolvedValue(true);
+    offlineGetCombosByIdsMock.mockResolvedValue(new Map([['1-2', offlineComboRow('1-2', 'E')]]));
+
+    const state = makeState();
+    await acquireCommanderDataPhase(state);
+
+    expect(offlineGetCombosByIdsMock).toHaveBeenCalledWith(['1-2']);
+    expect(state.combos).toHaveLength(1);
+    expect(state.combos[0].bracketTag).toBe('E');
+  });
+
+  it('leaves bracketTag null and never fails generation when the local dataset is not cached', async () => {
+    fetchCommanderCombosRawMock.mockResolvedValue([edhrecCombo('1-2', ['Card A', 'Card B'])]);
+    ensureCombosCachedMock.mockResolvedValue(false);
+
+    const state = makeState();
+    const result = await acquireCommanderDataPhase(state);
+
+    expect(offlineGetCombosByIdsMock).not.toHaveBeenCalled();
+    expect(state.combos[0].bracketTag).toBeNull();
+    expect(result.cacheableIntegrityNotes).toEqual([]); // still a success, not a fetch failure
+  });
+
+  it('leaves bracketTag null and never fails generation when the id lookup throws', async () => {
+    fetchCommanderCombosRawMock.mockResolvedValue([edhrecCombo('1-2', ['Card A', 'Card B'])]);
+    ensureCombosCachedMock.mockResolvedValue(true);
+    offlineGetCombosByIdsMock.mockRejectedValue(new Error('IDB wedged'));
+
+    const state = makeState();
+    const result = await acquireCommanderDataPhase(state);
+
+    expect(state.combos[0].bracketTag).toBeNull();
+    expect(result.usingCache).toBe(false);
+  });
+
+  it('an EDHREC combo enriched with the E (Exhibition) tag sets no combo floor once detected', async () => {
+    fetchCommanderCombosRawMock.mockResolvedValue([
+      edhrecCombo('1-2', ['Hullbreaker Horror', 'Sol Ring']),
+    ]);
+    ensureCombosCachedMock.mockResolvedValue(true);
+    offlineGetCombosByIdsMock.mockResolvedValue(new Map([['1-2', offlineComboRow('1-2', 'E')]]));
+
+    const state = makeState({
+      categories: {
+        lands: [],
+        ramp: [],
+        cardDraw: [],
+        singleRemoval: [],
+        boardWipes: [],
+        creatures: [],
+        synergy: [scryfallCard('Hullbreaker Horror'), scryfallCard('Sol Ring')],
+        utility: [],
+      },
+    });
+    await acquireCommanderDataPhase(state);
+    const detected = detectCombosPhase(state);
+    expect(detected?.[0].bracketTag).toBe('E');
+    expect(detected?.[0].isComplete).toBe(true);
+
+    const est = estimateBracket(
+      ['Hullbreaker Horror', 'Sol Ring'],
+      detected,
+      2,
+      undefined,
+      { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 },
+      new Set(),
+      []
+    );
+    expect(est.hardFloors).toEqual([]);
+    expect(est.bracket).toBe(2); // Core baseline — no floor fired
+  });
+
+  it('an EDHREC two-card combo enriched with the R (Ruthless) tag floors the estimate at Bracket 4', async () => {
+    fetchCommanderCombosRawMock.mockResolvedValue([
+      edhrecCombo('3-4', ['Combo Piece A', 'Combo Piece B']),
+    ]);
+    ensureCombosCachedMock.mockResolvedValue(true);
+    offlineGetCombosByIdsMock.mockResolvedValue(new Map([['3-4', offlineComboRow('3-4', 'R')]]));
+
+    const state = makeState({
+      categories: {
+        lands: [],
+        ramp: [],
+        cardDraw: [],
+        singleRemoval: [],
+        boardWipes: [],
+        creatures: [],
+        synergy: [scryfallCard('Combo Piece A'), scryfallCard('Combo Piece B')],
+        utility: [],
+      },
+    });
+    await acquireCommanderDataPhase(state);
+    const detected = detectCombosPhase(state);
+    expect(detected?.[0].bracketTag).toBe('R');
+
+    const est = estimateBracket(
+      ['Combo Piece A', 'Combo Piece B'],
+      detected,
+      2,
+      undefined,
+      { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 },
+      new Set(),
+      []
+    );
+    expect(est.bracket).toBe(4);
   });
 });
 
