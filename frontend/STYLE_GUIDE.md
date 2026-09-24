@@ -94,6 +94,51 @@ exists to prevent.
 
 ---
 
+## Layout system (T135) — one build of each pattern, every screen
+
+**Why this section exists.** A 2026-09-24 sweep of every route at phone, tablet
+and desktop found the same nine patterns on almost every screen, each built by
+hand per page: the page header (its markup copied into 19 pages, tabs above the
+title on some hubs, below on others, beside it on tablet), tabs in three
+visual styles, ten toolbar implementations that wrap into orphan rows, chip
+rows in two shapes, cards inside cards, tile grids with stranded last items,
+two stat-strip styles, a camera button covering content on every route, and a
+density swing (tablet inherits phone-size controls, desktop drops to ~13px
+text). The CSS carried ~1,900 off-scale spacing values and 32 distinct
+viewport widths. The fix is structural: each pattern is built once and every
+screen composes it. The rulings below are the target; screens move onto them
+one PR at a time, and `styles/layout-ratchet.test.ts` stops the debt growing
+meanwhile.
+
+- **Page header: title → meta → actions → tabs, in that order, on every hub and
+  every tier.** One meta line under the title. At most two visible actions
+  (primary + one secondary) plus a `⋮` for the rest. The tab bar sits directly
+  under the header, never above the title and never beside it. With art, the
+  header follows § Page hero art.
+- **Toolbar: search grows, the order after it is fixed, and it never wraps.**
+  What doesn't fit the width folds into one control (a sort/view pill on
+  phone, a `⋯` pill wider up) instead of breaking onto a second row. A
+  primary (filled) button never sits in a toolbar; it belongs to the header.
+- **Chip rows are one line.** Past the width they scroll horizontally with an
+  edge fade; they never wrap into a second row with one chip left over.
+  Explanatory text for a chip row goes in an `InfoTip`, not a sentence under it.
+- **Surfaces: one frame.** Tiles are sleeves (`--surface-raised` +
+  `--shadow-card`, no outline). A list is hairline rows under a section header,
+  never a bordered card holding bordered rows. Outlines belong to controls.
+- **The camera button lives on the collection pages, on phones, only**, with
+  bottom padding on the content so it never covers a row. Everywhere else,
+  scanning is reached through Add cards.
+- **Density tiers: phone ≤599 · tablet 600–1023 · desktop ≥1024.** Controls
+  44 / 40 / 36px, rows 44 / 40 / 36px, body text 16 / 15 / 15px, page gutter
+  16 / 24 / 32px, all driven by tier tokens rather than per-component media
+  queries. Tablet is its own tier: it does not inherit phone-size controls.
+- **Shape follows role** (§ Shape language — corners): actions are rects;
+  filters, sort, toggles, chips and search are pills; circles are only the
+  camera button and avatars. An icon-only action such as `⋮` is a rect the
+  height of its row.
+
+---
+
 ## Voice & copy
 
 SpellControl talks to a Magic player who knows the game. Copy is **confident,
@@ -394,7 +439,10 @@ pill tier is retired: hero CTAs are stamped rects like every other button
 role-not-name ruling below covers them). The only pill-shaped _buttons_ left
 are genuinely **circular icon-only** ones (equal width/height, no text — the
 `⋮` overflow, the round `+`) and the toolbar-control family in the next
-section.
+section. **T135 retires the circular icon-only button** (§ Layout system): a
+`⋮` beside a rect "Add cards" read as two controls from different apps. As
+screens migrate, an icon-only action becomes a rect the height of its row;
+the only circles left are the camera button and avatars.
 
 **Fill vs outline carries INTENT — the material pass maps onto it, never
 changes it.** The two-tier semantic is unchanged and load-bearing: an
@@ -4162,9 +4210,13 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
 
 ### Device tiers (what to build + test against)
 
-There are only **two viewport media-query boundaries** in the codebase — **600px**
-and **1024px** (each used ~30× across many files). Everything else is refinement
-_within_ a tier, not a tier wall. "XL desktop" is **not** a breakpoint: it's where
+There are **two viewport tier boundaries** — **600px** and **1024px** — and the
+code is supposed to use only those. It doesn't yet: the 2026-09-24 count (T135)
+found 63 media queries in 37 files keyed to other widths (480, 640, 700, 720,
+380, …). `styles/layout-ratchet.test.ts` freezes that per file, so no file gains
+one, and a file that sheds one must lower its baseline. A component that needs
+its own threshold should ask its container (`@container`), which the ratchet
+does not count. Everything else is refinement _within_ a tier, not a tier wall. "XL desktop" is **not** a breakpoint: it's where
 content hits its `max-width` cap and centers with side gutters (`--analysis-max:
 1320px` for deck-analysis boards, `--page-max: 1400px` for page containers).
 
@@ -4178,10 +4230,12 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
 - **The two real breakpoints:** `max-width: 600px` (mobile) and `min-width: 1024px`
   (desktop). Use **600**, not 599 — the codebase tolerates the 1px overlap with
   `min-width: 600px` rules. Tablet is the implied `601–1023` gap.
-- **Secondary refinement widths** (reuse before inventing new): **480** (tight
-  phone), **640** (bento container query + early tablet), **700** (Cost/Optimize/
-  Substitution panels), **1101** (deck editor). Don't add bespoke widths casually —
-  if you need one, prefer snapping to this set.
+- **Legacy refinement widths** — **480** (tight phone), **640** (early tablet),
+  **700** (Cost/Optimize/Substitution panels), **1101** (deck editor) — are
+  existing debt, not a menu. The ratchet counts every viewport width that isn't
+  a tier boundary, so a new `@media` at 480 fails the gate the same as one at
+  517. Snap to 600 / 1024, or gate on the container (640 stays legitimate as a
+  **container** threshold for the bento; see below).
 - **Container queries ≠ viewport.** The deck bento (`.deck-bento`,
   `container-type: inline-size`) reflows on its **own** width at `640` / `1040`
   container px — independent of viewport tier. This is why a half-width panel on a

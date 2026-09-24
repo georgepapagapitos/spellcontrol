@@ -96,7 +96,8 @@
 
   /* ── Spacing ──────────────────────────────────────────────────────────── */
   /* 4px-base spacing scale. New code uses these for margin/padding/gap; legacy
-     freehand rems get snapped opportunistically when a surface is touched. */
+     freehand rems get snapped when a surface is touched, and
+     styles/layout-ratchet.test.ts stops any file gaining a new one (T135). */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
