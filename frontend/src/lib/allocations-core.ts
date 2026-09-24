@@ -71,6 +71,9 @@ export interface AllocationInfo {
   /** Legacy alias = ownerColor. */
   deckColor: string;
   cardName: string;
+  /** Where the badge links, when the deck isn't the viewer's own (a friend's
+   *  published or shared deck). Absent means the owner's `/decks/:id`. */
+  href?: string;
 }
 
 /**

@@ -29,7 +29,12 @@ import {
   type WantMatch,
 } from '../lib/trade-radar';
 import { groupOwnedForTrade } from '../lib/trade-picker';
-import { useAllocations, computeSurplusByName } from '../lib/allocations';
+import {
+  useAllocations,
+  computeSurplusByName,
+  makeDeckAllocationInfo,
+  type AllocationInfo,
+} from '../lib/allocations';
 import { listTrades, subscribeTradesChanged, type TradeOffer } from '../lib/trades-client';
 import { TradeComposer } from '../components/trade/TradeComposer';
 import { TradeOfferList } from '../components/trade/TradeOfferList';
@@ -375,6 +380,22 @@ export function FriendHubPage() {
     (friendCards ?? []).forEach((c, i) => m.set(c, friendPublicCards[i]));
     return m;
   }, [friendCards, friendPublicCards]);
+  // Which of THEIR decks each card is in, as the same deck badge the owner
+  // sees on their own collection, linking to the deck page the friend can
+  // open. The server names only decks on the shelf above; a card whose deck
+  // hasn't loaded (or failed to) simply shows no badge.
+  const friendDeckBadges = useMemo(() => {
+    const byId = new Map((friendDecks ?? []).map((d) => [d.deckId, d]));
+    const m = new Map<FriendCard, AllocationInfo[]>();
+    for (const c of friendCards ?? []) {
+      const infos = (c.deckIds ?? []).flatMap((id) => {
+        const d = byId.get(id);
+        return d ? [{ ...makeDeckAllocationInfo(d.deckId, d.name, '', c.name), href: d.href }] : [];
+      });
+      if (infos.length > 0) m.set(c, infos);
+    }
+    return m;
+  }, [friendCards, friendDecks]);
   // Rules text and legality ride the payload only since the endpoint started
   // sending them; probe what this payload actually has so the dialog and the
   // `o:` / `f:` search agree on what can be answered.
@@ -894,6 +915,8 @@ export function FriendHubPage() {
                           card={friendPublicByCard.get(c)!}
                           onClick={() => inspectFriendCard(c)}
                           hideValue
+                          allocations={friendDeckBadges.get(c)}
+                          spare={c.spare}
                         />
                       </li>
                     ))}
@@ -904,6 +927,8 @@ export function FriendHubPage() {
                       key: c.oracleId,
                       card: friendPublicByCard.get(c)!,
                       quantity: 1,
+                      allocations: friendDeckBadges.get(c),
+                      spare: c.spare,
                     }))}
                     onPreview={(i) => inspectFriendCard(visibleFriendCards[i])}
                     table={collectionView === 'compact'}

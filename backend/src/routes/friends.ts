@@ -5,6 +5,7 @@ import { users } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { getScryfallCache } from '../scryfall-cache';
 import { areFriends } from '../friends/relations';
+import { summarizeCardUse } from '../friends/card-use';
 import { resolveShareLabels } from '../shares/labels';
 import { asRecord, pickLegalities } from '../shares/projections';
 import { extractListingFields } from '../publications/listing-fields';
@@ -533,6 +534,18 @@ interface FriendCard {
    */
   oracleText?: string;
   legalities?: Record<string, string>;
+  /**
+   * They have a copy to spare: one past the kept copy, in no deck or physical
+   * cube. A yes/no on purpose, never a count; see `summarizeCardUse`.
+   */
+  spare: boolean;
+  /**
+   * Ids of THEIR decks this card is in, limited to decks the viewer can open
+   * (published or friends-shared). Resolved client-side against the
+   * `/:friendId/decks` shelf, which carries the names and links. Absent when
+   * empty.
+   */
+  deckIds?: string[];
 }
 
 interface FriendCollectionResponse {
@@ -598,11 +611,30 @@ friendsRouter.get(
     const target = await requireFriendship(res, callerId, friendId);
     if (!target) return;
 
-    // 3. Fetch friend's non-deleted cards
-    const cardRows = await pool.query<{ data: unknown; id: string }>(
-      `SELECT id, data FROM user_cards
-       WHERE user_id = $1 AND deleted_at IS NULL`,
-      [friendId]
+    // 3. Fetch friend's non-deleted cards, plus what claims them: every deck
+    //    and cube (for "spare") and the deck shelf the viewer may see (for
+    //    which decks a card may be named in).
+    const [cardRows, deckRows, cubeRows, shelf] = await Promise.all([
+      pool.query<{ data: unknown; id: string }>(
+        `SELECT id, data FROM user_cards
+         WHERE user_id = $1 AND deleted_at IS NULL`,
+        [friendId]
+      ),
+      pool.query<{ data: unknown; id: string }>(
+        `SELECT id, data FROM user_decks WHERE user_id = $1 AND deleted_at IS NULL`,
+        [friendId]
+      ),
+      pool.query<{ data: unknown; id: string }>(
+        `SELECT id, data FROM user_cubes WHERE user_id = $1 AND deleted_at IS NULL`,
+        [friendId]
+      ),
+      loadFriendDeckShelf(friendId),
+    ]);
+    const cardUse = summarizeCardUse(
+      cardRows.rows,
+      deckRows.rows,
+      cubeRows.rows,
+      new Set(shelf.map((d) => d.deckId))
     );
 
     // 4. Dedupe by oracleId; collect scryfallIds for rank fallback
@@ -691,7 +723,17 @@ friendsRouter.get(
         }
       }
 
-      const card: FriendCard = { name, oracleId, colors, colorIdentity: identity, cmc, typeLine };
+      const use = cardUse.get(oracleId);
+      const card: FriendCard = {
+        name,
+        oracleId,
+        colors,
+        colorIdentity: identity,
+        cmc,
+        typeLine,
+        spare: use?.spare ?? false,
+      };
+      if (use && use.deckIds.length > 0) card.deckIds = use.deckIds;
       if (rarity !== undefined) card.rarity = rarity;
       if (edhrecRank !== undefined) card.edhrecRank = edhrecRank;
       if (oracleText !== undefined) card.oracleText = oracleText;
@@ -886,6 +928,101 @@ interface FriendDeckSummary {
 }
 
 /**
+ * The decks a friend may see of `ownerId`'s: published ∪ friends-rung, newest
+ * first. The ONE definition of that boundary, read by the deck library below
+ * and by the collection's per-card deck badges, so the two can never disagree
+ * about which decks a friend is allowed to know exist.
+ */
+async function loadFriendDeckShelf(ownerId: string): Promise<FriendDeckSummary[]> {
+  const pool = getPool();
+
+  // 1. Published decks — the listing columns were resolved at publish time,
+  //    so this is the same cheap read `/api/public/users/:username` makes.
+  const published = await pool.query<{
+    deck_id: string;
+    slug: string;
+    deck_name: string;
+    format: string;
+    commander_name: string | null;
+    og_art_crop: string | null;
+    color_identity: string[];
+    card_count: number;
+    bracket: number | null;
+    updated_at: string;
+  }>(
+    `SELECT deck_id, slug, deck_name, format, commander_name, og_art_crop,
+            color_identity, card_count, bracket, updated_at
+       FROM deck_publications
+      WHERE user_id = $1 AND unpublished_at IS NULL
+      ORDER BY updated_at DESC
+      LIMIT 200`,
+    [ownerId]
+  );
+
+  // 2. Friends-rung shares, joined to the deck itself. The listing fields
+  //    are NOT precomputed for these (only publishing does that), so they
+  //    come out of the deck JSONB through the very same extractor publishing
+  //    uses — one definition of "what a deck tile says", not two.
+  const shared = await pool.query<{
+    token: string;
+    deck_id: string;
+    data: unknown;
+    updated_at: string | null;
+  }>(
+    `SELECT s.token, s.resource_id AS deck_id, d.data, d.updated_at
+       FROM shares s
+       JOIN user_decks d ON d.user_id = s.user_id AND d.id = s.resource_id
+      WHERE s.user_id = $1
+        AND s.kind = 'deck'
+        AND s.audience = 'friends'
+        AND s.revoked_at IS NULL
+        AND d.deleted_at IS NULL
+      ORDER BY s.created_at DESC
+      LIMIT 200`,
+    [ownerId]
+  );
+
+  const byDeckId = new Map<string, FriendDeckSummary>();
+
+  for (const r of published.rows) {
+    byDeckId.set(r.deck_id, {
+      deckId: r.deck_id,
+      href: `/d/${r.slug}`,
+      name: r.deck_name,
+      format: r.format,
+      commanderName: r.commander_name,
+      commanderImage: r.og_art_crop,
+      colorIdentity: Array.isArray(r.color_identity) ? r.color_identity : [],
+      cardCount: r.card_count,
+      bracket: r.bracket,
+      visibility: 'published',
+      updatedAt: Number(r.updated_at),
+    });
+  }
+
+  for (const r of shared.rows) {
+    if (byDeckId.has(r.deck_id)) continue; // published wins — it has a slug
+    const fields = extractListingFields(r.data);
+    if (!fields) continue; // unnamed/malformed deck — don't advertise it
+    byDeckId.set(r.deck_id, {
+      deckId: r.deck_id,
+      href: `/s/${r.token}`,
+      name: fields.name,
+      format: fields.format,
+      commanderName: fields.commanderName,
+      commanderImage: fields.ogArtCrop,
+      colorIdentity: fields.colorIdentity,
+      cardCount: fields.cardCount,
+      bracket: fields.bracket,
+      visibility: 'friends',
+      updatedAt: Number(r.updated_at ?? 0),
+    });
+  }
+
+  return [...byDeckId.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+/**
  * A friend's decks, merged from the two rungs of the visibility ladder they
  * can see — **published** and **friends**.
  *
@@ -900,8 +1037,8 @@ interface FriendDeckSummary {
  * It does NOT widen the ladder (see the deck-visibility ruling): `link` and
  * `private` decks stay invisible, and `direct` shares remain the recipient's
  * business. Publishing already revokes a deck's lesser rungs server-side
- * (`retireLesserRungs`), so overlap should be impossible — the dedupe below is
- * belt-and-braces, and prefers the published row because it carries a stable
+ * (`retireLesserRungs`), so overlap should be impossible — the dedupe in
+ * `loadFriendDeckShelf` is belt-and-braces, and prefers the published row because it carries a stable
  * slug URL.
  */
 friendsRouter.get(
@@ -915,92 +1052,7 @@ friendsRouter.get(
     const owner = await requireFriendship(res, callerId, friendId);
     if (!owner) return;
 
-    const pool = getPool();
-
-    // 1. Published decks — the listing columns were resolved at publish time,
-    //    so this is the same cheap read `/api/public/users/:username` makes.
-    const published = await pool.query<{
-      deck_id: string;
-      slug: string;
-      deck_name: string;
-      format: string;
-      commander_name: string | null;
-      og_art_crop: string | null;
-      color_identity: string[];
-      card_count: number;
-      bracket: number | null;
-      updated_at: string;
-    }>(
-      `SELECT deck_id, slug, deck_name, format, commander_name, og_art_crop,
-              color_identity, card_count, bracket, updated_at
-         FROM deck_publications
-        WHERE user_id = $1 AND unpublished_at IS NULL
-        ORDER BY updated_at DESC
-        LIMIT 200`,
-      [friendId]
-    );
-
-    // 2. Friends-rung shares, joined to the deck itself. The listing fields
-    //    are NOT precomputed for these (only publishing does that), so they
-    //    come out of the deck JSONB through the very same extractor publishing
-    //    uses — one definition of "what a deck tile says", not two.
-    const shared = await pool.query<{
-      token: string;
-      deck_id: string;
-      data: unknown;
-      updated_at: string | null;
-    }>(
-      `SELECT s.token, s.resource_id AS deck_id, d.data, d.updated_at
-         FROM shares s
-         JOIN user_decks d ON d.user_id = s.user_id AND d.id = s.resource_id
-        WHERE s.user_id = $1
-          AND s.kind = 'deck'
-          AND s.audience = 'friends'
-          AND s.revoked_at IS NULL
-          AND d.deleted_at IS NULL
-        ORDER BY s.created_at DESC
-        LIMIT 200`,
-      [friendId]
-    );
-
-    const byDeckId = new Map<string, FriendDeckSummary>();
-
-    for (const r of published.rows) {
-      byDeckId.set(r.deck_id, {
-        deckId: r.deck_id,
-        href: `/d/${r.slug}`,
-        name: r.deck_name,
-        format: r.format,
-        commanderName: r.commander_name,
-        commanderImage: r.og_art_crop,
-        colorIdentity: Array.isArray(r.color_identity) ? r.color_identity : [],
-        cardCount: r.card_count,
-        bracket: r.bracket,
-        visibility: 'published',
-        updatedAt: Number(r.updated_at),
-      });
-    }
-
-    for (const r of shared.rows) {
-      if (byDeckId.has(r.deck_id)) continue; // published wins — it has a slug
-      const fields = extractListingFields(r.data);
-      if (!fields) continue; // unnamed/malformed deck — don't advertise it
-      byDeckId.set(r.deck_id, {
-        deckId: r.deck_id,
-        href: `/s/${r.token}`,
-        name: fields.name,
-        format: fields.format,
-        commanderName: fields.commanderName,
-        commanderImage: fields.ogArtCrop,
-        colorIdentity: fields.colorIdentity,
-        cardCount: fields.cardCount,
-        bracket: fields.bracket,
-        visibility: 'friends',
-        updatedAt: Number(r.updated_at ?? 0),
-      });
-    }
-
-    const decks = [...byDeckId.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+    const decks = await loadFriendDeckShelf(friendId);
 
     return res.json({
       ownerUsername: owner.username,

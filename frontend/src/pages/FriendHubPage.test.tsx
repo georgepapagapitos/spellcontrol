@@ -59,6 +59,16 @@ vi.mock('../lib/cube/pool', async () => {
   };
 });
 
+// Their deck shelf. Fails by default, as the unmocked fetch always did here;
+// the deck-badge test resolves it.
+const fetchFriendDecks = vi.fn((_id: string): Promise<unknown> => Promise.reject(new Error('no')));
+vi.mock('../lib/friend-decks-client', async () => {
+  const actual = await vi.importActual<typeof import('../lib/friend-decks-client')>(
+    '../lib/friend-decks-client'
+  );
+  return { ...actual, fetchFriendDecks: (id: string) => fetchFriendDecks(id) };
+});
+
 // The first-pull window: flipped on by the test that models a fresh device.
 const firstPull = vi.hoisted(() => ({ awaiting: false }));
 vi.mock('../lib/use-awaiting-first-pull', () => ({
@@ -174,6 +184,50 @@ describe('FriendHubPage — Collection browser', () => {
     const tile = await within(panel).findByRole('button', { name: /sol ring/i });
     expect(tile.className).toContain('collection-grid-item');
     expect(tile.getAttribute('aria-label')).not.toMatch(/quantity/i);
+  });
+
+  it('marks what they can spare and which of their visible decks a card is in', async () => {
+    // The friend's question was "which of these are already in a deck?". The
+    // server answers with a yes/no `spare` and ids of decks the viewer can
+    // open; the page names them from the shelf and links to that deck's page.
+    fetchFriendDecks.mockResolvedValueOnce({
+      ownerUsername: 'friendo',
+      ownerDisplayName: null,
+      decks: [
+        {
+          deckId: 'deck-krenko',
+          href: '/d/krenko-goes-wide',
+          name: 'Krenko Goes Wide',
+          format: 'commander',
+          commanderName: 'Krenko, Mob Boss',
+          commanderImage: null,
+          colorIdentity: ['R'],
+          cardCount: 100,
+          bracket: 3,
+          visibility: 'published',
+          updatedAt: 1,
+        },
+      ],
+    });
+    fetchFriendCollection.mockResolvedValue({
+      ownerUsername: 'friendo',
+      cards: [
+        makeCard({ name: 'Sol Ring', oracleId: 'sol', spare: true, deckIds: ['deck-krenko'] }),
+        // An id the shelf doesn't have: named by nothing, so no badge.
+        makeCard({ name: 'Mana Crypt', oracleId: 'crypt', spare: false, deckIds: ['gone'] }),
+      ],
+    });
+    renderPage();
+    await openCollectionTab();
+
+    const panel = document.getElementById('friend-hub-panel-collection')!;
+    const deckLink = await within(panel).findByRole('link', { name: 'In deck: Krenko Goes Wide' });
+    expect(deckLink.getAttribute('href')).toBe('/d/krenko-goes-wide');
+    expect(within(panel).getAllByRole('link', { name: /^In deck/ })).toHaveLength(1);
+    expect(within(panel).getAllByText('Spare')).toHaveLength(1);
+    expect(within(panel).getByRole('button', { name: /sol ring.*has a spare copy/i })).toBeTruthy();
+    // Spare is a yes/no: no count rides along with it.
+    expect(panel.textContent).not.toMatch(/\d+ (free|spare)/);
   });
 
   it('shows the contract line and the empty state when the friend owns nothing', async () => {

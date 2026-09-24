@@ -29,6 +29,12 @@ export interface FriendCard {
    *  `f:` and the browser hides those facets when the payload has none. */
   oracleText?: string;
   legalities?: Record<string, string>;
+  /** They have a copy to spare (one past the kept copy, in no deck or cube).
+   *  A yes/no by contract, never a count. Optional for cached payloads. */
+  spare?: boolean;
+  /** Their decks this card is in, limited to ones the viewer can open;
+   *  resolved against the `/decks` shelf for names and links. */
+  deckIds?: string[];
   // Populated during Scryfall enrichment (see CubePage), not by the API.
   synergyProducers?: CubeCard['synergyProducers'];
   synergyPayoffs?: CubeCard['synergyPayoffs'];

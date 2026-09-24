@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import type { PublicCard } from '../../lib/shared-types';
 import { publicCardToEnriched } from '../../lib/shared-filter';
 import { BinderBadge, type BinderInfo } from '../BinderBadge';
+import { DeckBadge } from '../DeckBadge';
+import type { AllocationInfo } from '../../lib/allocations-core';
 import { CardGridCell, gridSetLabel, useGridCaptionPrefs } from '../shared/CardGridCell';
 import { formatMoney } from '../../lib/format-money';
 
@@ -26,7 +28,16 @@ interface Props {
    * otherwise caption as `$0.00`. Sibling of `CardPreview`'s `hidePrice`.
    */
   hideValue?: boolean;
+  /** The OWNER's decks this card is in (friend hub): only ones the viewer can
+   *  open, each carrying its own `href`. */
+  allocations?: AllocationInfo[];
+  /** The owner has a copy to spare (friend hub). A yes/no, never a count. */
+  spare?: boolean;
 }
+
+/** Tooltip for the "Spare" chip. Says what the word means here, since the
+ *  friend can't see the counts behind it. */
+export const SPARE_TITLE = 'A copy to spare: not in any of their decks, past the one they keep';
 
 /** Folds the ownership fact into the tile's accessible name (rather than a
  *  second separately-focusable element per card), e.g. "Sol Ring · owned,
@@ -65,7 +76,15 @@ export function ownedAriaSuffix(ownership?: CardOwnership): string {
  * root is a `role="button"` div — exactly how the owner's collection already
  * nests that same badge — so the wrapper has no job left.
  */
-export function SharedCardTile({ card, quantity, onClick, ownership, hideValue }: Props) {
+export function SharedCardTile({
+  card,
+  quantity,
+  onClick,
+  ownership,
+  hideValue,
+  allocations,
+  spare,
+}: Props) {
   const [captionPrefs] = useGridCaptionPrefs();
   const enriched = useMemo(() => publicCardToEnriched(card), [card]);
 
@@ -90,12 +109,22 @@ export function SharedCardTile({ card, quantity, onClick, ownership, hideValue }
       onActivate={() => onClick?.()}
       caption={caption}
       setLabel={setLabel}
-      ariaExtra={ownedAriaSuffix(ownership)}
+      ariaExtra={`${ownedAriaSuffix(ownership)}${spare ? ' · has a spare copy' : ''}`}
+      cornerExtras={
+        spare ? (
+          <span className="collection-grid-surplus" title={SPARE_TITLE}>
+            Spare
+          </span>
+        ) : null
+      }
       badges={
-        ownership?.owned ? (
+        ownership?.owned || allocations?.length ? (
           <>
-            <span className="shared-tile-owned-dot" aria-hidden="true" />
-            {ownership.binders.length > 0 && <BinderBadge binders={ownership.binders} />}
+            {allocations && <DeckBadge allocations={allocations} />}
+            {ownership?.owned && <span className="shared-tile-owned-dot" aria-hidden="true" />}
+            {ownership?.owned && ownership.binders.length > 0 && (
+              <BinderBadge binders={ownership.binders} />
+            )}
           </>
         ) : undefined
       }

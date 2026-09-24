@@ -5,7 +5,8 @@ import { BinderBadge } from '../BinderBadge';
 import { CardRow } from '../shared/CardRow';
 import { CardTableFrame, CardTableHead, SHARED_TABLE_COLUMNS } from '../shared/CardTable';
 import { useMediaQuery } from '../../lib/use-media-query';
-import { ownedAriaSuffix, type CardOwnership } from './SharedCardTile';
+import { ownedAriaSuffix, SPARE_TITLE, type CardOwnership } from './SharedCardTile';
+import type { AllocationInfo } from '../../lib/allocations-core';
 
 export interface SharedCardListItem {
   /** Stable React key (printing+finish, or section-local index). */
@@ -14,6 +15,10 @@ export interface SharedCardListItem {
   quantity: number;
   /** Viewer's ownership of this card (w1-ownership-lens) — see SharedCardTile. */
   ownership?: CardOwnership;
+  /** The owner's viewer-visible decks holding this card — see SharedCardTile. */
+  allocations?: AllocationInfo[];
+  /** The owner has a copy to spare — see SharedCardTile. */
+  spare?: boolean;
 }
 
 interface Props {
@@ -98,9 +103,10 @@ export function SharedCardList({
             card={it.enriched}
             qty={it.quantity}
             columns={isTable ? columns : undefined}
-            // Read-only surfaces: no deck allocations to show, and no per-row
-            // action menu (nothing here is the viewer's to edit).
-            allocations={[]}
+            // Read-only surfaces: only the owner's decks the caller chose to
+            // name, and no per-row action menu (nothing here is the viewer's
+            // to edit).
+            allocations={it.allocations ?? []}
             menu={null}
             onActivate={() => onPreview(i)}
             isLastRow={i === rows.length - 1}
@@ -110,20 +116,29 @@ export function SharedCardList({
             // viewer's own cost basis — so the price cell says so on hover.
             priceTitle="Market price at the time this was shared"
             ownedBadge={
-              it.ownership?.owned ? (
-                <span className="shared-list-owned-badges">
-                  <span className="shared-tile-owned-dot" aria-hidden="true" />
-                  {/* The dot is decorative and `CardRow` has no aria-label (its
+              it.spare || it.ownership?.owned ? (
+                <>
+                  {it.spare && (
+                    <span className="collection-list-surplus" title={SPARE_TITLE}>
+                      Spare
+                    </span>
+                  )}
+                  {it.ownership?.owned && (
+                    <span className="shared-list-owned-badges">
+                      <span className="shared-tile-owned-dot" aria-hidden="true" />
+                      {/* The dot is decorative and `CardRow` has no aria-label (its
                     accessible name is its content), so without this the
                     ownership fact — which the old table spelled out in a
                     per-row label — would reach a screen reader only by
                     accident, via BinderBadge, and not at all for a card owned
                     in no binder. */}
-                  <span className="sr-only">{ownedAriaSuffix(it.ownership)}</span>
-                  {it.ownership.binders.length > 0 && (
-                    <BinderBadge binders={it.ownership.binders} />
+                      <span className="sr-only">{ownedAriaSuffix(it.ownership)}</span>
+                      {it.ownership.binders.length > 0 && (
+                        <BinderBadge binders={it.ownership.binders} />
+                      )}
+                    </span>
                   )}
-                </span>
+                </>
               ) : undefined
             }
           />

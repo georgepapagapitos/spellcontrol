@@ -964,6 +964,54 @@ describe('GET /api/friends/:friendId/collection', () => {
     expect(res.body.cards).toHaveLength(1);
     expect(res.body.cards[0].name).toBe('Valid Card');
   }, 15000);
+
+  it('200 — says which cards are spare and names only decks the friend can open', async () => {
+    const alice = await makeUserFull('fc-use-alice');
+    const bob = await makeUserFull('fc-use-bob');
+    await befriend(alice, bob);
+    const base = { colors: [], cmc: 1, typeLine: 'Artifact' };
+    await seedUserCards(bob.id, [
+      { ...base, name: 'Sol Ring', oracleId: 'oracle-sol' },
+      { ...base, name: 'Sol Ring', oracleId: 'oracle-sol' },
+      { ...base, name: 'Sol Ring', oracleId: 'oracle-sol' },
+      { ...base, name: 'Rhystic Study', oracleId: 'oracle-rhystic' },
+    ]);
+    const deck = (id: string, oracleIds: string[]) =>
+      pool.query(
+        `INSERT INTO user_decks (user_id, id, data, rev, updated_at)
+         VALUES ($1, $2, $3, nextval('user_data_rev_seq'), $4)`,
+        [
+          bob.id,
+          id,
+          JSON.stringify({
+            id,
+            name: id,
+            cards: oracleIds.map((o) => ({ card: { oracle_id: o }, allocatedCopyId: null })),
+          }),
+          Date.now(),
+        ]
+      );
+    await deck('fc-use-public', ['oracle-sol']);
+    await deck('fc-use-private', ['oracle-sol', 'oracle-rhystic']);
+    await seedDeckPublication(bob.id, 'fc-use-public');
+
+    const res = await request(app)
+      .get(`/api/friends/${bob.id}/collection`)
+      .set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    const byOracle = new Map(
+      (res.body.cards as Array<{ oracleId: string; spare?: unknown }>).map((c) => [c.oracleId, c])
+    );
+    // The private deck is never named, not even for the card only it holds.
+    expect(byOracle.get('oracle-sol')).toMatchObject({
+      spare: true,
+      deckIds: ['fc-use-public'],
+    });
+    expect(byOracle.get('oracle-rhystic')).toMatchObject({ spare: false });
+    expect(byOracle.get('oracle-rhystic')).not.toHaveProperty('deckIds');
+    // Spare is a yes/no, never how many.
+    expect(typeof byOracle.get('oracle-sol')?.spare).toBe('boolean');
+  }, 15000);
 });
 
 // ─── GET /api/friends/:friendId/wants ────────────────────────────────────────
