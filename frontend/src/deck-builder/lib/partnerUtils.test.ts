@@ -5,6 +5,9 @@ import {
   canHavePartner,
   areValidPartners,
   getPartnerTypeLabel,
+  choosesColorBeforeGame,
+  withChosenColor,
+  chosenColorOf,
   type PartnerType,
 } from './partnerUtils';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -152,5 +155,53 @@ describe('getPartnerTypeLabel', () => {
     ['none', ''],
   ])('labels %s as "%s"', (type, label) => {
     expect(getPartnerTypeLabel(type)).toBe(label);
+  });
+});
+
+// Real oracle text (Scryfall, 2026-09-24). Scryfall gives all three an empty
+// color identity, which is why the choice has to be stamped onto the card.
+const PIPER = card({
+  name: 'The Prismatic Piper',
+  type_line: 'Legendary Creature — Shapeshifter',
+  keywords: ['Partner'],
+  color_identity: [],
+  oracle_text:
+    'If The Prismatic Piper is your commander, choose a color before the game begins. The Prismatic Piper is the chosen color.\nPartner (You can have two commanders if both have partner.)',
+});
+const FACELESS_ONE = card({
+  name: 'Faceless One',
+  type_line: 'Legendary Enchantment Creature — Background',
+  keywords: ['Choose a background'],
+  color_identity: [],
+  oracle_text:
+    'If Faceless One is your commander, choose a color before the game begins. Faceless One is the chosen color.\nChoose a Background (You can have a Background as a second commander.)',
+});
+
+describe('choose-a-color commanders', () => {
+  it('detects the before-the-game color choice from oracle text', () => {
+    expect(choosesColorBeforeGame(PIPER)).toBe(true);
+    expect(choosesColorBeforeGame(FACELESS_ONE)).toBe(true);
+    expect(
+      choosesColorBeforeGame(card({ oracle_text: 'Choose a color. Add one mana of that color.' }))
+    ).toBe(false);
+    expect(choosesColorBeforeGame(null)).toBe(false);
+  });
+
+  it('stamps the chosen color as both color and color identity, without mutating', () => {
+    const red = withChosenColor(PIPER, 'R');
+    expect(red.color_identity).toEqual(['R']);
+    expect(red.colors).toEqual(['R']);
+    expect(PIPER.color_identity).toEqual([]);
+    expect(chosenColorOf(red)).toBe('R');
+    expect(chosenColorOf(PIPER)).toBeNull();
+    // An ordinary mono-red commander is not "a chosen color".
+    expect(chosenColorOf(card({ color_identity: ['R'], oracle_text: 'Haste' }))).toBeNull();
+  });
+
+  it('treats Faceless One as the side that chooses a Background, and pairs it with one', () => {
+    expect(getPartnerType(FACELESS_ONE)).toBe('choose-background');
+    const bg = card({ name: 'Raised by Giants', type_line: 'Legendary Enchantment — Background' });
+    expect(areValidPartners(FACELESS_ONE, bg)).toBe(true);
+    expect(areValidPartners(bg, FACELESS_ONE)).toBe(true);
   });
 });

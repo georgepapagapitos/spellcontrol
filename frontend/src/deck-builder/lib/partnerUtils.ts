@@ -32,14 +32,16 @@ export function getPartnerType(card: ScryfallCard): PartnerType {
   const oracleText = getOracleText(card);
   const typeLine = card.type_line || '';
 
-  // Check for Background type (these are the partners for "Choose a Background" commanders)
-  if (typeLine.includes('Background')) {
-    return 'background';
-  }
-
-  // Check for "Choose a Background" in oracle text
+  // "Choose a Background" first: Faceless One is itself a Background creature
+  // AND chooses one, and as a commander it's the side that picks — checking
+  // the type line first left it offering commanders instead of Backgrounds.
   if (oracleText.includes('Choose a Background')) {
     return 'choose-background';
+  }
+
+  // Background type (the partners for "Choose a Background" commanders)
+  if (typeLine.includes('Background')) {
+    return 'background';
   }
 
   // Check for "Doctor's companion" keyword
@@ -133,11 +135,14 @@ export function areValidPartners(card1: ScryfallCard, card2: ScryfallCard): bool
     return true;
   }
 
-  // Choose a Background pairs with Background
-  if (type1 === 'choose-background' && type2 === 'background') {
+  // Choose a Background pairs with any Background — read off the type line
+  // rather than `type2 === 'background'`, since a Background that also chooses
+  // one (Faceless One) classifies as the chooser.
+  const isBackground = (c: ScryfallCard) => (c.type_line || '').includes('Background');
+  if (type1 === 'choose-background' && isBackground(card2)) {
     return true;
   }
-  if (type1 === 'background' && type2 === 'choose-background') {
+  if (type2 === 'choose-background' && isBackground(card1)) {
     return true;
   }
 
@@ -150,6 +155,32 @@ export function areValidPartners(card1: ScryfallCard, card2: ScryfallCard): bool
   }
 
   return false;
+}
+
+/**
+ * The Prismatic Piper, Clara Oswald and Faceless One: "If ~ is your
+ * commander, choose a color before the game begins. ~ is the chosen color."
+ * Scryfall gives them an empty color identity, so without a choice the deck
+ * would be built (and validated) as colorless.
+ */
+export function choosesColorBeforeGame(card: ScryfallCard | null | undefined): boolean {
+  return !!card && /choose a color before the game begins/i.test(getOracleText(card));
+}
+
+/**
+ * The commander as it plays once its color is chosen: that color is both its
+ * color and its color identity. Stamped onto the card itself (not kept beside
+ * it) because a saved deck stores its commander card, and every identity
+ * check in the app reads `commander.color_identity`.
+ */
+export function withChosenColor(card: ScryfallCard, color: string): ScryfallCard {
+  return { ...card, colors: [color], color_identity: [color] };
+}
+
+/** The color already stamped onto a choose-a-color commander, if any. */
+export function chosenColorOf(card: ScryfallCard | null | undefined): string | null {
+  if (!card || !choosesColorBeforeGame(card)) return null;
+  return card.color_identity?.length === 1 ? card.color_identity[0] : null;
 }
 
 /**
