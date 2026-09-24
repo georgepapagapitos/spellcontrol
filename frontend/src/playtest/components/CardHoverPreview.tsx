@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useMediaQuery } from '@/lib/use-media-query';
+import type { PtDisplay } from '../lib/power-toughness';
 import { CardCounters } from './CardCounters';
+import { CardPtBox } from './PlaytestCardFace';
 import './CardHoverPreview.css';
 
 const MARGIN = 12;
@@ -14,6 +16,9 @@ export interface PreviewFaces {
   back?: string;
   /** A permanent's counters, drawn on the enlarged face as on the card. */
   counters?: Record<string, number>;
+  /** The body the board reads (counters and pumps folded in), in the same
+   *  plates as the card, since the art only prints what the card started as. */
+  pt?: PtDisplay;
 }
 
 interface Props {
@@ -137,6 +142,7 @@ export function CardHoverPreview({ suspended, resolve }: Props) {
             size that suits the bigger face. */}
         {target.isToken && <span className="playtest-hover-preview__token">Token</span>}
         {target.counters && <CardCounters counters={target.counters} placement="inset" />}
+        {target.pt && <CardPtBox pt={target.pt} />}
       </div>
       {target.back && (
         <div className="playtest-hover-preview__face">

@@ -60,6 +60,31 @@ describe('CardHoverPreview', () => {
     expect(document.querySelector('.playtest-hover-preview')).toBeNull();
   });
 
+  // EDHPlay's preview reads the body the board does (2026-09-24): the art
+  // prints 2/2, the plates say what a pumped bear is now.
+  it('carries the card’s live body and counters onto the enlarged face', () => {
+    stubMatchMedia(true);
+    render(
+      <CardHoverPreview
+        suspended={false}
+        resolve={() => ({
+          src: SRCS.a,
+          pt: { power: '3', toughness: '3', modified: true },
+          counters: { '+1/+1': 1 },
+        })}
+      />
+    );
+    const el = cardEl('a');
+    act(() => {
+      el.dispatchEvent(new Event('pointerover', { bubbles: true }));
+    });
+    const face = document.querySelector('.playtest-hover-preview__face');
+    const box = face?.querySelector('.playtest-card__pt');
+    expect(box?.getAttribute('aria-label')).toBe('3 by 3');
+    expect(box?.className).toContain('is-modified');
+    expect(face?.querySelector('.ms-counter-plus')).toBeTruthy();
+  });
+
   it('shows immediately on keyboard focus', () => {
     stubMatchMedia(true);
     render(<CardHoverPreview suspended={false} resolve={resolve} />);

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -119,5 +119,18 @@ describe('PlaytestCardFace — the token ribbon', () => {
     const ribbon = /\.playtest-card__token-ribbon\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
     expect(ribbon).toContain('right: 0');
     expect(ribbon).not.toContain('left: 0');
+  });
+});
+
+describe('PlaytestCardFace — art that fails to load', () => {
+  it('falls back to the name, and gives the next image its own try', () => {
+    const c = card({ imageUrl: 'https://img/front.jpg', backImageUrl: 'https://img/back.jpg' });
+    const { container, rerender } = render(<PlaytestCardFace card={c} bf={bf({ card: c })} />);
+    fireEvent.error(container.querySelector('img')!);
+    expect(container.querySelector('img')).toBeNull();
+    expect(screen.getByText('Reckless Imp')).toBeTruthy();
+    // Transformed: a different image, which must not inherit the failure.
+    rerender(<PlaytestCardFace card={c} bf={bf({ card: c, showBackFace: true })} />);
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('https://img/back.jpg');
   });
 });
