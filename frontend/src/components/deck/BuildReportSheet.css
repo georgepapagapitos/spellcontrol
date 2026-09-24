@@ -116,7 +116,7 @@
 
 .build-report-sheet-commander {
   margin: 0;
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: var(--text-xs);
   /* Muted small mono has no contrast headroom over art — one token up. */
   color: var(--text-secondary);

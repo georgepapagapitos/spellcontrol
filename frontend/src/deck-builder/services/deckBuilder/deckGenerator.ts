@@ -596,7 +596,7 @@ export function resolvePriceSanity(
  */
 export function buildPriceSanityNote(decidedCount: number): string | undefined {
   if (decidedCount <= 0) return undefined;
-  return `Preferred ${decidedCount} cheaper near-equivalent${decidedCount === 1 ? '' : 's'} over premium picks. Set budget preference to "expensive" to disable.`;
+  return `Picked ${decidedCount} cheaper card${decidedCount === 1 ? '' : 's'} over near-identical pricier ones. Set Card pool to Expensive to keep the pricier picks.`;
 }
 
 /**
@@ -733,15 +733,17 @@ export function buildWipeAsymmetryNote(
 ): string | undefined {
   if (!targetShaved && oneSidedWipeCount <= 0) return undefined;
   const clauses: string[] = [];
-  if (targetShaved) clauses.push('trimmed the board wipe target by one');
+  if (targetShaved) clauses.push('it runs one fewer board wipe');
   if (oneSidedWipeCount > 0) {
-    const verb = oneSidedWipeCount === 1 ? 'spares' : 'spare';
-    const noun = totalWipeCount === 1 ? 'wipe' : 'wipes';
     clauses.push(
-      `${oneSidedWipeCount} of the deck's ${totalWipeCount} ${noun} ${verb} your own board`
+      oneSidedWipeCount < totalWipeCount
+        ? `${oneSidedWipeCount} of its ${totalWipeCount} wipes ${oneSidedWipeCount === 1 ? 'spares' : 'spare'} your own board`
+        : totalWipeCount === 1
+          ? 'its wipe spares your own board'
+          : `all ${totalWipeCount} of its wipes spare your own board`
     );
   }
-  return `This plan protects your own board: ${clauses.join(' and ')}.`;
+  return `This deck builds a board, so ${clauses.join(' and ')}.`;
 }
 
 /**

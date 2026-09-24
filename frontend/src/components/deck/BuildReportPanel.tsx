@@ -10,7 +10,7 @@ import { OwnershipBadge } from './OwnershipBadge';
 import { ColorPip } from '@/components/shared/ManaSymbol';
 import { THIN_SAMPLE_FLOOR } from '@/components/shared/ThinDataNote';
 import { InfoTip } from '../InfoTip';
-import { EXHIBITION_BRACKET_NOTE } from '@/lib/format-bracket-label';
+import { EXHIBITION_BRACKET_NOTE, formatBracketLabel } from '@/lib/format-bracket-label';
 
 const COLOR_WORDS: Record<string, string> = {
   W: 'White',
@@ -70,23 +70,27 @@ function synergyFillReason(f: { matchedTags: string[]; liftedBy?: string[] }): s
   );
 }
 
-/** Plain-English description of which EDHREC pool the generator ended up using. */
-function humanizeDataSource(source: DeckDataSource): string {
+/** Which cards the deck was drawn from, in the player's terms. Null when it
+ *  adds nothing: with no bracket asked for, "EDHREC's decks for this
+ *  commander" is what the archetype line above already says. The old
+ *  "(bracket list unavailable)" read as a failure on every default build. */
+export function describeDataSource(source: DeckDataSource, bracketAsked: boolean): string | null {
+  const noBracketList = bracketAsked ? ' EDHREC has no list for your bracket.' : '';
   switch (source) {
     case 'theme+bracket':
-      return 'used theme-specific EDHREC pool at your bracket';
+      return "Drawn from EDHREC's decks for this theme at your bracket.";
     case 'theme':
-      return 'used theme-specific EDHREC pool (bracket list unavailable)';
+      return `Drawn from EDHREC's decks for this theme.${noBracketList}`;
     case 'base+bracket':
-      return 'used base EDHREC pool at your bracket';
+      return "Drawn from EDHREC's decks for this commander at your bracket.";
     case 'base':
-      return 'used base EDHREC pool (bracket list unavailable)';
+      return bracketAsked ? `Drawn from EDHREC's decks for this commander.${noBracketList}` : null;
     case 'scryfall':
-      return 'used Scryfall search (no EDHREC data available)';
+      return 'Drawn from Scryfall by card function.';
     case 'paupercommander':
-      return 'used the Pauper Commander card pool, chosen by function (EDHREC has no PDH data)';
+      return 'Drawn from Pauper Commander–legal cards, chosen by function. EDHREC has no PDH data.';
     default:
-      return source;
+      return null;
   }
 }
 
@@ -235,6 +239,7 @@ export function BuildReportPanel({
     protectionCount,
     protectionZeroNote,
   } = report;
+  const sourceLine = describeDataSource(dataSource, targetBracket !== 'all');
 
   const isPartial = collectionStrategy === 'partial';
 
@@ -311,19 +316,19 @@ export function BuildReportPanel({
         </p>
       ) : targetBracket === 'all' ? (
         <p className="build-report-line build-report-bracket">
-          No bracket target &rarr; estimated <strong>{estimatedBracket}</strong>
+          Estimated <strong>{formatBracketLabel(estimatedBracket)}</strong>
         </p>
       ) : (
         <p className="build-report-line build-report-bracket">
-          Aimed Bracket <strong>{targetBracket}</strong> &rarr; estimated{' '}
-          <strong>{estimatedBracket}</strong>
+          Aimed for Bracket <strong>{targetBracket}</strong>, estimated{' '}
+          <strong>{formatBracketLabel(estimatedBracket)}</strong>
         </p>
       )}
 
       {archetypeNote && <p className="build-report-line build-report-source">{archetypeNote}</p>}
 
-      {(!generationMode || generationMode === 'edhrec') && (
-        <p className="build-report-line build-report-source">{humanizeDataSource(dataSource)}</p>
+      {(!generationMode || generationMode === 'edhrec') && sourceLine && (
+        <p className="build-report-line build-report-source">{sourceLine}</p>
       )}
 
       {dialSeedNote && <p className="build-report-line build-report-source">{dialSeedNote}</p>}
@@ -372,8 +377,8 @@ export function BuildReportPanel({
       ))}
 
       <p className="build-report-line build-report-source">
-        Protection/interaction: <strong>{protectionCount ?? 0}</strong>{' '}
-        {(protectionCount ?? 0) === 1 ? 'piece' : 'pieces'}
+        <strong>{protectionCount ?? 0}</strong> protection or free-interaction{' '}
+        {(protectionCount ?? 0) === 1 ? 'card' : 'cards'}
       </p>
 
       {protectionZeroNote && (
@@ -383,8 +388,9 @@ export function BuildReportPanel({
       {surplusConversions && surplusConversions.length > 0 && (
         <details className="build-report-subs">
           <summary>
-            <strong>{surplusConversions.length}</strong> role-surplus card
-            {surplusConversions.length === 1 ? '' : 's'} converted into a stronger payoff
+            <strong>{surplusConversions.length}</strong> card
+            {surplusConversions.length === 1 ? '' : 's'} from an overfilled role swapped for a
+            payoff
           </summary>
           <ul className="build-report-subs-list">
             {surplusConversions.map((r) => (
@@ -474,7 +480,7 @@ export function BuildReportPanel({
       {comboCompletionNotes && comboCompletionNotes.length > 0 && (
         <details className="build-report-subs">
           <summary>
-            Build picks completed <strong>{comboCompletionNotes.length}</strong> combo
+            Completes <strong>{comboCompletionNotes.length}</strong> combo
             {comboCompletionNotes.length === 1 ? '' : 's'} with cards already in the deck
           </summary>
           <ul className="build-report-subs-list">
@@ -555,9 +561,8 @@ export function BuildReportPanel({
       {packagePicks && packagePicks.length > 0 && (
         <details className="build-report-subs">
           <summary>
-            <strong>{packagePicks.length}</strong> hidden-synergy pick
-            {packagePicks.length === 1 ? '' : 's'}: not in your EDHREC pool, but strongly paired
-            with cards already in the deck
+            <strong>{packagePicks.length}</strong> pick{packagePicks.length === 1 ? '' : 's'} from
+            outside EDHREC's list for this commander, played alongside cards in this deck
           </summary>
           <ul className="build-report-subs-list">
             {packagePicks.map((p) => (
@@ -639,8 +644,8 @@ export function BuildReportPanel({
           <summary>
             {coherenceFindings && coherenceFindings.length > 0 && (
               <>
-                <strong>{coherenceFindings.length}</strong> coherence flag
-                {coherenceFindings.length === 1 ? '' : 's'}: cards this exact build may not support
+                <strong>{coherenceFindings.length}</strong> card
+                {coherenceFindings.length === 1 ? '' : 's'} this build may not support
               </>
             )}
             {coherenceFindings &&
@@ -650,8 +655,7 @@ export function BuildReportPanel({
               ' · '}
             {coherenceRepairs && coherenceRepairs.length > 0 && (
               <>
-                <strong>{coherenceRepairs.length}</strong> coherence swap
-                {coherenceRepairs.length === 1 ? '' : 's'} auto-applied during generation
+                <strong>{coherenceRepairs.length}</strong> swapped for a better fit
               </>
             )}
           </summary>

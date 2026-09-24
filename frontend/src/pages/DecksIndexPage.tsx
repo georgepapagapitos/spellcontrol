@@ -1,4 +1,5 @@
 // Shared with DeckNewPage / DeckEditorPage; ships with those chunks, not the boot payload (E265).
+import { canRegenerate, regenerateState } from '../lib/regenerate-prefill';
 import '@/styles/deck-builder-import-dialog.css';
 import {
   AlignJustify,
@@ -470,27 +471,7 @@ export function DecksIndexPage() {
 
   const handleRegenerate = (deck: Deck) => {
     if (!deck.commander) return;
-    navigate('/decks/new', {
-      state: {
-        prefill: {
-          sourceDeckId: deck.id,
-          format: deck.format,
-          commander: deck.commander,
-          partnerCommander: deck.partnerCommander,
-          customization: deck.generationContext?.customization,
-          themes: (deck.generationContext?.selectedThemes ?? []).map((t) => ({
-            name: t.name,
-            slug: t.slug ?? '',
-            count: t.deckCount ?? 0,
-            url: '',
-            popularityPercent: t.popularityPercent,
-          })),
-          targetBracket: deck.generationContext?.targetBracket ?? 'all',
-          landCount: deck.generationContext?.landCount ?? 37,
-          collectionMode: deck.generationContext?.collectionMode ?? false,
-        },
-      },
-    });
+    navigate('/decks/new', { state: regenerateState(deck) });
   };
 
   const handleDelete = (deck: Deck) => {
@@ -964,7 +945,7 @@ export function DecksIndexPage() {
                       triggerClassName="decks-index-card-menu-btn"
                       ariaLabel={`Actions for ${deck.name}`}
                       items={[
-                        ...(deck.source === 'generated' && deck.commander
+                        ...(canRegenerate(deck)
                           ? [
                               {
                                 label: 'Regenerate',

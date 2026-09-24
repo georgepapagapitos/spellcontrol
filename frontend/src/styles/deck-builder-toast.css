@@ -21,6 +21,19 @@
   z-index: var(--z-tooltip);
 }
 
+/* A modal sheet owns the bottom of a phone screen: the post-generation build
+   report arrived with "Published. Anyone can view it at …" painted over its
+   last lines, right above its own button. While any aria-modal dialog is
+   open, the stack moves to the top. Desktop dialogs are centred, so the
+   bottom corner stays clear there. */
+@media (max-width: 599px) {
+  body:has([aria-modal='true']) .toast-viewport {
+    inset: calc(var(--space-4) + var(--safe-top)) calc(var(--space-4) + var(--safe-right)) auto
+      calc(var(--space-4) + var(--safe-left));
+    flex-direction: column;
+  }
+}
+
 .toast-list {
   list-style: none;
   margin: 0;
