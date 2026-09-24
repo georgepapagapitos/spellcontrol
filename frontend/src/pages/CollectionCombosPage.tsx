@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CollectionHubTabs } from '@/components/CollectionHubTabs';
 import { PageHeader } from '@/components/PageHeader';
 // Shared with the deck editor; ships with the two chunks, not the boot payload (E265).
 import '@/styles/deck-builder-combos-list.css';
@@ -330,6 +331,7 @@ export function CollectionCombosPage() {
           </span>
         }
       />
+      <CollectionHubTabs />
 
       {partial && (
         <div className="deck-combos-partial-banner" role="status" aria-live="polite">

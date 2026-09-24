@@ -14,9 +14,9 @@ import { SocialHubTabs } from '../components/SocialHubTabs';
 export function FriendsPage() {
   return (
     <>
-      <SocialHubTabs />
       <div className="friends-page social-page-shell">
         <PageHeader title="Friends" titleId="friends-page-heading-title" />
+        <SocialHubTabs />
         <FriendsManagement />
       </div>
     </>

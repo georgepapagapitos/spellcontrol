@@ -121,7 +121,13 @@ meanwhile.
   itself: the primary is always shown, wider than a phone the first secondary
   sits beside it, and the `⋮` holds exactly what isn't on screen. Every hub
   and detail header uses it except the deck editor and the shared deck view,
-  whose art headers migrate separately.
+  whose art headers migrate separately. **Hub tabs, built:** each hub index
+  page renders its strip (`CollectionHubTabs`, `DecksHubTabs`,
+  `SocialHubTabs`) directly after its `PageHeader`; the pair owns its spacing
+  (8px header → tabs on every hub; hosts with a flex gap declare it as
+  `--host-gap` so it cancels instead of stacking). Detail pages (a binder, a
+  list, a set) render no hub strip: the back link goes up a level and the
+  main nav names the hub. Guard: `styles/hub-tabs-placement.test.ts`.
 - **Toolbar: search grows, the order after it is fixed, and it never wraps.**
   What doesn't fit the width folds into one control (a sort/view pill on
   phone, a `⋯` pill wider up) instead of breaking onto a second row. A
@@ -1200,11 +1206,15 @@ Those heights are **layout contracts, not styling**:
   the list anyway. Precedent: the binders/lists index ("only the search bar
   pins; the sort/view row scrolls away"). With the bottom tab bar, tabs, and
   search already pinned on a phone, do not add further sticky rows there.
-- **Under the hub, pin below the tabs.** Any sticky row rendered inside the
-  hub's outlet must offset by the tab strip via a `.collection-hub-tabs ~ *`
+- **Under the hub, pin below the tabs.** Any sticky row on a page that shows a
+  hub tab strip must offset by it via an `.app-main:has(.collection-hub-tabs)`
   scoped rule pinning at `calc(var(--hub-tabs-sticky-h) - 1px)` (see
   `.collection-toolbar-row`, `.binders-index-search-row`). A bare `top: 0`
-  slides **over** the tab strip when scrolled — same z tier, later in DOM.
+  slides **over** the tab strip when scrolled — same z tier, later in DOM. The
+  old `.collection-hub-tabs ~ *` form relied on the strip coming BEFORE the
+  page root; since T135 step 3 it sits inside the page under the header, so
+  that form matches nothing (`styles/hub-tabs-placement.test.ts` bans it). A
+  detail page has no strip, so its sticky rows keep their no-tabs default.
 - **The seam rule binds measured offsets too.** A bar whose pin is computed in
   JS (the card table's header, pinned under the auto-height controls row)
   subtracts the same 1px, and re-measures whenever a bar above it changes

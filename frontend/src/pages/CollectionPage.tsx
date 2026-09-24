@@ -1,4 +1,5 @@
 import { BarChart3, Download, Plus, Share2 } from 'lucide-react';
+import { CollectionHubTabs } from '@/components/CollectionHubTabs';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAnimatedNumber } from '../lib/use-animated-number';
@@ -236,6 +237,7 @@ export function CollectionPage() {
               </>
             }
           />
+          <CollectionHubTabs />
           <CardListTable
             cards={cards}
             binders={materialized}

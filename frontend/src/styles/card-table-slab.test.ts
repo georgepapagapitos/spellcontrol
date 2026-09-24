@@ -60,13 +60,21 @@ describe('the framed table is one slab', () => {
 describe('a binder group row pins under the column header', () => {
   const group = rule(/\.collection-table\.is-framed \.binder-table-section/);
 
-  it('is sticky below the hub tabs AND the header, not at either alone', () => {
+  it('is sticky below the column header on a page with no hub tabs', () => {
+    // A binder is a detail page, so it has no hub tabs since T135: the header
+    // pins at the scrollport top and the group row directly beneath it.
     expect(group).toMatch(/position:\s*sticky/);
-    // Both terms: the tab strip the page sits under, and the header's own
-    // height. Dropping either parks the group row on top of the columns or
-    // halfway down the list.
-    expect(group).toMatch(/top:\s*calc\([^)]*--hub-tabs-sticky-h/);
-    expect(group).toMatch(/--ct-head-h/);
+    expect(group).toMatch(/top:\s*var\(--ct-head-h\)/);
+  });
+
+  it('under hub tabs, is sticky below the tabs AND the header, not at either alone', () => {
+    // Both terms: the tab strip, and the header's own height. Dropping either
+    // parks the group row on top of the columns or halfway down the list.
+    const underTabs = rule(
+      /\.app-main:has\(\.collection-hub-tabs\) \.collection-table\.is-framed \.binder-table-section/
+    );
+    expect(underTabs).toMatch(/top:\s*calc\([^)]*--hub-tabs-sticky-h/);
+    expect(underTabs).toMatch(/--ct-head-h/);
   });
 
   it('layers under the column header and over the rows', () => {

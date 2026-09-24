@@ -6,12 +6,11 @@ import { listPods, pendingPodInviteCount, type Pod } from '../lib/pods-client';
 import { HubTabsNav } from './HubTabsNav';
 
 /**
- * Friends / Trades / Pods section-nav pills above the social pages — the same
+ * Friends / Trades / Pods section-nav pills on the social pages — the same
  * hub treatment Collection and Decks get, replacing the ad-hoc shortcut links
- * FriendsPage used to own. Rendered by each page as a sibling before its root
- * element (the DecksHubTabs pattern), so the strip stays put as you move
- * between the three destinations instead of appearing on one and vanishing on
- * the others.
+ * FriendsPage used to own. Each page renders it directly under its PageHeader
+ * (STYLE_GUIDE § Layout system), so the strip sits in the same place as you
+ * move between the three destinations.
  *
  * Count chips carry the action-required numbers the old shortcut badges did:
  * trade offers waiting on the viewer, pod invites pending a reply. Trades

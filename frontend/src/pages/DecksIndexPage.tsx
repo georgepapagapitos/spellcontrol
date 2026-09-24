@@ -509,7 +509,6 @@ export function DecksIndexPage() {
 
   return (
     <>
-      <DecksHubTabs />
       <div className="decks-index-page">
         <PageHeader
           title="Decks"
@@ -557,6 +556,7 @@ export function DecksIndexPage() {
               : []),
           ]}
         />
+        <DecksHubTabs />
 
         {decks.length > 0 && (
           <div className="decks-index-search-row">

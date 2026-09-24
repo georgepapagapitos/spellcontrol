@@ -526,6 +526,27 @@
   }
 }
 
+/* Under a PageHeader (T135: title → meta → actions → tabs) the pair owns its
+   spacing, so every hub reads the same: 8px from the header to the strip, and
+   the strip's usual clearance to the content. The hosts differ (some are flex
+   columns with a gap, some are plain blocks), so a host with a gap declares it
+   as --host-gap and the strip's margins subtract it rather than stacking on
+   it. Measured before this: header → tabs ran 6 to 30px across the hubs. */
+.page-header:has(+ .collection-hub-tabs) {
+  margin-bottom: 0;
+}
+
+.page-header + .collection-hub-tabs {
+  margin-top: calc(var(--space-2) - var(--host-gap, 0px));
+  margin-bottom: calc(var(--space-4) - var(--host-gap, 0px));
+}
+
+@media (max-width: 1023px) {
+  .page-header + .collection-hub-tabs {
+    margin-bottom: calc(var(--space-2) - var(--host-gap, 0px));
+  }
+}
+
 /* ── Mobile bottom tab bar ─────────────────────────────────────────────── */
 .mobile-tab-bar {
   display: none;

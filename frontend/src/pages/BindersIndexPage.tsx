@@ -9,6 +9,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
+import { CollectionHubTabs } from '@/components/CollectionHubTabs';
 import { useCallback, useMemo, useState } from 'react';
 import { usePanelCascade, panelCascadeClass } from '../lib/use-panel-cascade';
 import { useStoredSort } from '../lib/use-stored-sort';
@@ -287,6 +288,7 @@ export function BindersIndexPage() {
             : []),
         ]}
       />
+      <CollectionHubTabs />
 
       {binders.length > 0 && (
         <div className="binders-index-search-row">

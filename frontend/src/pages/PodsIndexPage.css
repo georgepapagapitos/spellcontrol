@@ -12,7 +12,9 @@
 .pods-index-page {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  /* Also read by the hub tab strip (responsive-nav.css) to cancel it. */
+  --host-gap: var(--space-4);
+  gap: var(--host-gap);
 }
 
 .pods-index-section {
