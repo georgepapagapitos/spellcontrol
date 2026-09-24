@@ -16,7 +16,7 @@ import { VALID_FORMATS } from '../routes/games';
  */
 
 export const MAX_LOCAL_RESULT_BYTES = 256 * 1024;
-const MAX_PLAYERS = 8;
+const MAX_PLAYERS = 10;
 const MIN_PLAYERS = 2;
 const MAX_EVENTS = 5000;
 const MAX_NAME_LEN = 40;

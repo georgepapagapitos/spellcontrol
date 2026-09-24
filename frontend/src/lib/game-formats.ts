@@ -27,7 +27,7 @@ export const FORMAT_OPTIONS: FormatOption[] = [
 ];
 
 /** The local game setup's player-count ceiling (also the "Start game" seed cap). */
-export const MAX_LOCAL_PLAYERS = 6;
+export const MAX_LOCAL_PLAYERS = 10;
 export const MIN_LOCAL_PLAYERS = 2;
 
 /** Display label for a stored format id, or the raw value if it's unknown. */

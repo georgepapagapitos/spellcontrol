@@ -94,9 +94,9 @@ function renderPod(dispatch = vi.fn(), alice: Partial<GamePlayer> = {}) {
 
 /**
  * Tap zones in seat order. In the default 3p layout ("wide top + 2 sideways")
- * seat 0 is rotated 180° and seats 1–2 face each other at 90° / 270°, which is
- * exactly why the gesture is interpreted in panel-local space rather than
- * screen space.
+ * seat 0 is rotated 180° and seats 1–2 face each other at 270° / 90° (seat
+ * order is clockwise from above: top, right, left), which is exactly why the
+ * gesture is interpreted in panel-local space rather than screen space.
  */
 function tapZone(seat: number, label = '+1 life') {
   // The +1 step button carries the same label as the tap zone, so filter to
@@ -146,12 +146,13 @@ describe('entering commander-damage focus mode', () => {
   it('reads the gesture in panel space, so a sideways seat swipes across the screen', () => {
     renderPod();
 
-    // Bob (seat 1) sits on the left long edge (90°): away from him is screen
-    // RIGHT. A screen-vertical drag is sideways for him and must not fire.
+    // Bob (seat 1) sits on the right long edge (270°, clockwise from Alice's
+    // top seat): away from him is screen LEFT. A screen-vertical drag is
+    // sideways for him and must not fire.
     drag(tapZone(1), -60);
     expect(focusBar()).toBeNull();
 
-    drag(tapZone(1), 0, 60);
+    drag(tapZone(1), 0, -60);
 
     // Bob is now the anchor (his life), and the OTHER seats became sources.
     expect(screen.getByLabelText('Bob: 40 life')).toBeTruthy();
@@ -175,9 +176,10 @@ describe('entering commander-damage focus mode', () => {
       Array.from(document.querySelectorAll('.player-panel[data-seat]')).map((el) =>
         (el as HTMLElement).style.getPropertyValue('--pp-rot')
       );
-    // Default 3p layout: seat 0 rotated 180°, seats 1–2 sideways.
+    // Default 3p layout: seat 0 rotated 180°, seats 1–2 sideways (clockwise
+    // order: top, right (270°), left (90°)).
     const before = rotations();
-    expect(before).toEqual(['180deg', '90deg', '270deg']);
+    expect(before).toEqual(['180deg', '270deg', '90deg']);
 
     drag(tapZone(0), ALICE_UP);
 

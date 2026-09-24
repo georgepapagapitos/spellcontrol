@@ -437,7 +437,7 @@ function TapZoneIcon({ orientation }: { orientation: 'horizontal' | 'vertical' }
 
 // ── Player roster (add / remove players mid-game) ────────────────────────
 
-const MAX_PLAYERS = 6;
+const MAX_PLAYERS = 10;
 const MIN_PLAYERS = 2;
 
 function PlayerRoster({ game, dispatch }: { game: GameState; dispatch: (a: GameAction) => void }) {

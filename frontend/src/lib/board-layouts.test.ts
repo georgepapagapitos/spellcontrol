@@ -216,13 +216,13 @@ describe('resolveLayout with custom ids', () => {
 describe('homeSlotIndex', () => {
   it('picks the bottom-most upright seat, left column on ties', () => {
     expect(homeSlotIndex(resolveLayout(2, '2p-stacked'))).toBe(1);
-    expect(homeSlotIndex(resolveLayout(4, '4p-pod'))).toBe(2); // bottom-left
-    expect(homeSlotIndex(resolveLayout(5, '5p-wide-bottom'))).toBe(4); // wide bottom
+    expect(homeSlotIndex(resolveLayout(4, '4p-pod'))).toBe(3); // bottom-left, now last (clockwise)
+    expect(homeSlotIndex(resolveLayout(5, '5p-wide-bottom'))).toBe(3); // wide bottom
   });
 
   it('picks the bottom-left slot when no seat is upright (side-by-side layouts)', () => {
     expect(homeSlotIndex(resolveLayout(2, '2p-side'))).toBe(0);
-    expect(homeSlotIndex(resolveLayout(4, '4p-sides'))).toBe(2);
+    expect(homeSlotIndex(resolveLayout(4, '4p-sides'))).toBe(3); // bottom-left, now last (clockwise)
   });
 
   it('works on decoded custom layouts', () => {
@@ -240,15 +240,58 @@ describe('3p default', () => {
     const def = layoutsForCount(3)[0];
     expect(def.id).toBe('3p-wide-top-sides');
     expect(def.seam).toEqual({ row: 1 });
-    expect(def.seats.map((s) => s.rot)).toEqual([180, 90, 270]);
+    // Clockwise: top, then right (270°), then left (90°).
+    expect(def.seats.map((s) => s.rot)).toEqual([180, 270, 90]);
   });
 
   it('every preset fills its grid exactly, with no overlap and no stray cell', () => {
-    for (const count of [2, 3, 4, 5, 6]) {
+    for (const count of [2, 3, 4, 5, 6, 7, 8, 9, 10]) {
       for (const l of layoutsForCount(count)) {
         const encoded = encodeCustomLayout(l);
         expect(decodeCustomLayout(encoded, count), l.id).not.toBeNull();
       }
+    }
+  });
+
+  it('every count has a default layout', () => {
+    for (const count of [2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+      expect(layoutsForCount(count).length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('clockwise seat order (T-tenplayers)', () => {
+  // Turn order (seat index + 1, see packages/game-core) must read as
+  // clockwise around the table as seen from above, top edge = far side:
+  // far row left→right, down the right side, near row right→left, up the
+  // left side. Verified geometrically: seat 0 is the anchor (relative angle
+  // 0) and every other seat's angle, measured clockwise from seat 0 around
+  // the grid's centre, must be non-decreasing. A Wide (colSpan-2) seat's
+  // angle is taken from its right-hand cell — the corner that keeps its
+  // clockwise position well-defined even when the seat sits exactly on the
+  // grid's centre line (5p-wide-middle).
+  function angleDeg(seat: SeatSlot, rows: number): number {
+    const cx = seat.col + (seat.colSpan ?? 1) - 1;
+    const cy = seat.row + (seat.rowSpan ?? 1) - 1;
+    const dx = cx - 1.5; // cols is always 2, centre col = 1.5
+    const dyNorth = (rows + 1) / 2 - cy;
+    return (Math.atan2(dx, dyNorth) * (180 / Math.PI) + 360) % 360;
+  }
+
+  function assertClockwise(layout: ReturnType<typeof layoutsForCount>[number]) {
+    const angles = layout.seats.map((seat) => angleDeg(seat, layout.rows));
+    const relative = angles.map((a) => (a - angles[0] + 360) % 360);
+    for (let i = 1; i < relative.length; i++) {
+      expect(
+        relative[i],
+        `${layout.id}: seat ${i} not clockwise from seat ${i - 1}`
+      ).toBeGreaterThanOrEqual(relative[i - 1]);
+    }
+  }
+
+  it('every preset (2-10) seats clockwise from the top-left seat', () => {
+    for (const count of [2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+      for (const l of layoutsForCount(count)) assertClockwise(l);
     }
   });
 });

@@ -121,6 +121,16 @@ describe('numeral size', () => {
     );
   });
 
+  it('a 7-10 player board shrinks the numeral further on its ~104-140px cells', () => {
+    // 7-10 players push rows to 4-5, so a 320px-wide board's cells are
+    // shorter than the 42% tier above was tuned for (measured with the
+    // board probe: ~440px² of numeral/name overlap at a 104px cell). This
+    // tier is placed AFTER the 12rem one so it wins where both match.
+    expect(board).toMatch(
+      /@container \(max-height: 9rem\) \{\s*\.game-board:not\(\.game-board-2\) \.player-panel:not\(\[data-sideways\]\) \{\s*--life-size: min\(30cqh, 38cqw\);/
+    );
+  });
+
   it('the ± hug the numeral at every player count, never pinned to the panel ends', () => {
     // A sideways seat keeps its corner controls at the panel ends; 2p-side
     // pinned the ± there and ran them into ⋯ and the turn chip.
