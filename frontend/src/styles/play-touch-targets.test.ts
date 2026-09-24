@@ -95,6 +95,17 @@ describe('play board touch targets', () => {
     expect(ruleBody(panelMenus, '.seat-menu-strip')).toMatch(/flex:\s*0 0 2\.75rem/);
   });
 
+  it('the clock total (pause/resume) carries a ghost inside a coarse-pointer block', () => {
+    // Tapping the total pauses/resumes the game clock (the board-timer
+    // program) — a ~24px readout inside the same pill that must not grow.
+    const at = enhancements.indexOf('button.game-clock-total::after');
+    expect(at, 'button.game-clock-total::after is missing').toBeGreaterThan(-1);
+    expect(enhancements.lastIndexOf('@media (pointer: coarse)', at)).toBeGreaterThan(-1);
+    expect(ruleBody(enhancements, 'button.game-clock-total::after')).toMatch(/height:\s*2\.75rem/);
+    expect(ruleBody(enhancements, 'button.game-clock-total::after')).toMatch(/width:\s*2\.75rem/);
+    expect(ruleBody(enhancements, 'button.game-clock-total')).toContain('pointer-events: auto');
+  });
+
   it("the clock's pass-turn segment carries a ghost inside a coarse-pointer block", () => {
     // Passing the turn moved off the seat and into the clock's turn segment,
     // a ~20px line inside a pill that must not grow.
@@ -122,11 +133,12 @@ describe('play board touch targets', () => {
     expect(enhancements).toMatch(/\.game-clock-start\s*\{[^}]*position:\s*relative/);
   });
 
-  it('the clock stays pass-through except for the control inside it', () => {
-    // The pill sits over the panels; taps must fall through to them. The one
-    // button in it opts back in, and nothing else may.
+  it('the clock stays pass-through except for the controls inside it', () => {
+    // The pill sits over the panels; taps must fall through to them. Each
+    // control inside it opts back in individually, and nothing else may.
     expect(ruleBody(enhancements, '.game-board-clock')).toContain('pointer-events: none');
     expect(ruleBody(enhancements, '.game-clock-start')).toContain('pointer-events: auto');
+    expect(ruleBody(enhancements, 'button.game-clock-total')).toContain('pointer-events: auto');
   });
 
   it('every board touch floor lives inside a coarse-pointer block', () => {

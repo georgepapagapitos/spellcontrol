@@ -132,9 +132,58 @@
 }
 
 .game-clock-total {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
   font-size: var(--text-base);
   font-weight: 650;
   letter-spacing: 0.01em;
+}
+
+/* Tapping the total pauses/resumes the clock (the board-timer program). Reset
+   to a plain inline control, same shape as `button.game-clock-turn` below. */
+button.game-clock-total {
+  font: inherit;
+  font-size: var(--text-base);
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  position: relative;
+}
+
+button.game-clock-total:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+
+/* The 44px floor is a ghost (the UX-320 pattern also used by the turn segment
+   and the cold-start button): the pill itself must not grow. */
+@media (pointer: coarse) {
+  button.game-clock-total::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2.75rem;
+    height: 2.75rem;
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* Paused state: the pause glyph carries it, dimming is a second, non-color
+   signal — never colour alone. */
+.game-clock-total.is-paused {
+  opacity: 0.6;
+}
+
+.game-clock-pause-icon {
+  flex: 0 0 auto;
 }
 
 .game-clock-turn {

@@ -36,6 +36,8 @@ describe('undo-stack', () => {
     expect(isUndoable({ type: 'eliminate', seat: 0, eliminated: true })).toBe(true);
     expect(isUndoable({ type: 'start' })).toBe(false);
     expect(isUndoable({ type: 'note', actorSeat: null, message: 'hi' })).toBe(false);
+    // A pause/resume is a table decision, not a misclick to compensate.
+    expect(isUndoable({ type: 'clock', paused: true, actorSeat: null })).toBe(false);
   });
 
   it('restores a single life change', () => {

@@ -13,13 +13,13 @@ import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
  */
 export function BoardGestureHint({
   vertical,
-  showClock,
+  showTurnTracker,
   onClose,
 }: {
   /** Tap zones are top/bottom rather than left/right. */
   vertical: boolean;
-  /** The clock is on the board, so passing the turn there is worth a line. */
-  showClock: boolean;
+  /** The turn tracker is on, so passing the turn from the clock is worth a line. */
+  showTurnTracker: boolean;
   onClose: () => void;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -63,7 +63,7 @@ export function BoardGestureHint({
           <li>
             <strong>Swipe it away from you</strong> for commander damage.
           </li>
-          {showClock && (
+          {showTurnTracker && (
             <li>
               <strong>Tap the turn on the clock</strong> to pass it.
             </li>

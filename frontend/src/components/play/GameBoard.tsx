@@ -111,7 +111,9 @@ export function GameBoard({
   // layout ids fall back to the count's default.
   const board = resolveLayout(total, game.layout);
   const [menuOpen, setMenuOpen] = useState(false);
-  const showClock = usePlayStore((st) => st.showClock);
+  const gameTimerEnabled = usePlayStore((st) => st.gameTimerEnabled);
+  const turnTrackerEnabled = usePlayStore((st) => st.turnTrackerEnabled);
+  const showClockSatellite = gameTimerEnabled || turnTrackerEnabled;
   // Seats carry no buttons, so a shared board teaches its gestures once per
   // device; the game menu brings the card back.
   const [hintOpen, setHintOpen] = useState(
@@ -443,7 +445,7 @@ export function GameBoard({
             commander-damage focus mode (strips the board down to the damage
             question) and while the hub's ring is open (the ring hides them
             rather than risk a petal landing on top of one). */}
-        {showClock && !cmdFocus && !hubOpen && (
+        {showClockSatellite && !cmdFocus && !hubOpen && (
           <div
             className={`game-board-clock ${'col' in board.seam ? 'is-col-seam' : 'is-row-seam'}`}
             style={{
@@ -456,7 +458,13 @@ export function GameBoard({
               ['--clock-ty-lg' as never]: clockPlaceLg.ty,
             }}
           >
-            <GameClock game={game} dispatch={dispatchTracked} canEdit={canControlAll} />
+            <GameClock
+              game={game}
+              dispatch={dispatchTracked}
+              canEdit={canControlAll}
+              showTotal={gameTimerEnabled}
+              showTurn={turnTrackerEnabled}
+            />
           </div>
         )}
 
@@ -523,7 +531,7 @@ export function GameBoard({
       {hintOpen && (
         <BoardGestureHint
           vertical={(game.tapOrientation ?? 'horizontal') === 'vertical'}
-          showClock={showClock}
+          showTurnTracker={turnTrackerEnabled}
           onClose={() => setHintOpen(false)}
         />
       )}

@@ -7170,3 +7170,39 @@ tapping it now opens a fan of labelled petals first, Lotus's radial menu.
   `fullscreenchange`, never assumed the instant `enter()` is called — the
   request is async and can be silently rejected — so a fullscreen the user
   entered some other way is never yanked out from under them on the way out.
+
+## Play board: the table clock is pausable and optional at setup (2026-09-24)
+
+Two independent device preferences replace the single `showClock` flag: **Game
+timer** (the total, and lets it be paused) and **Turn tracker** (the active
+seat's turn time and the pass-turn control). Either can be off; the satellite
+itself disappears only when both are.
+
+- **Pausing is a logged EVENT, never a stored field.** `{ type: 'clock',
+  paused, actorSeat }` pushes one `clock` event per tap; `isClockPaused` folds
+  the log for "is it paused right now", the same design as `activeSeat` being
+  a fold over `turn` events. A state with no `clock` events reads as "never
+  paused" by construction, so a persisted row from before this shipped needs
+  no migration.
+- **Every derived reading subtracts paused time**, including a pause that
+  spans a turn change (each interval's own subtraction only counts the
+  overlap that falls inside it, so the paused stretch splits correctly
+  between the outgoing and incoming seat) and a game that ends mid-pause
+  (the interval's own end caps it, so the clock freezes exactly where it
+  was). Read `clockView(game, now)` rather than re-deriving any of this by
+  hand — it bundles total, paused, active seat, turn and per-seat totals in
+  one call.
+- **Tapping the total pauses/resumes it.** A real button (`aria-label`
+  "Pause the game clock, 12:04" / "Resume…"), 44px ghost hit area on coarse
+  pointers like every other clock control, and a paused state that pairs a
+  pause glyph with dimmed digits — never colour alone.
+- **Not undoable.** Pausing is a table decision, not a misclick to
+  compensate; it is deliberately excluded from `isUndoable`'s five kinds.
+- **Passing the turn stays reachable with the tracker off**, from the seat
+  drawer's "Start turn here" — the clock's pass-turn segment is one route to
+  it, not the only one.
+- **Defaults both on.** The board has shown the clock since it shipped, so an
+  upgrading device keeps exactly what it already showed (its old `showClock`
+  value carries into both new flags); a fresh install also starts both on,
+  since the app isn't asking someone to opt into a feature they already had
+  by another name.

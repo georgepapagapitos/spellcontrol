@@ -13,7 +13,8 @@
  * lives in the board's one control cluster instead.
  *
  * Mirrors the mock harness in GameBoard.test.tsx; this file additionally turns
- * `showClock` on, since the board clock is half the subject.
+ * `gameTimerEnabled` and `turnTrackerEnabled` on, since the board clock is
+ * half the subject.
  */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -52,8 +53,10 @@ vi.mock('../../store/play', () => {
       setHaptics: vi.fn(),
       preferredLayouts: {},
       setPreferredLayout: vi.fn(),
-      showClock: true,
-      setShowClock: vi.fn(),
+      gameTimerEnabled: true,
+      turnTrackerEnabled: true,
+      setGameTimerEnabled: vi.fn(),
+      setTurnTrackerEnabled: vi.fn(),
     });
   usePlayStore.getState = getState;
   return { usePlayStore };

@@ -587,6 +587,11 @@ function sanitizeAction(action: GameAction): GameAction {
     // everywhere. Only an explicit `true` counts as ready.
     return { ...action, ready: (action.ready as unknown) === true };
   }
+  if (action.type === 'clock') {
+    // Same coercion as `set-ready`, for the same reason: the reducer's
+    // `isClockPaused` reads this field back verbatim from the log.
+    return { ...action, paused: (action.paused as unknown) === true };
+  }
   if (action.type === 'add-player' && action.player) {
     return { ...action, player: sanitizeAddedPlayer(action.player) };
   }
