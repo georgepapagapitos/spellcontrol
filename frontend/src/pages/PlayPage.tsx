@@ -912,7 +912,7 @@ function LocalSetup({
               on={turnTrackerEnabled}
               onChange={setTurnTrackerEnabled}
               label="Turn tracker"
-              hint="Show whose turn it is, and pass it from the clock."
+              hint="Show whose turn it is and how long, and pass it from the clock."
             />
             <RulePill
               on={poisonEnabled}

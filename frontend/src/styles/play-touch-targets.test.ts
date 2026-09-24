@@ -95,50 +95,15 @@ describe('play board touch targets', () => {
     expect(ruleBody(panelMenus, '.seat-menu-strip')).toMatch(/flex:\s*0 0 2\.75rem/);
   });
 
-  it('the clock total (pause/resume) carries a ghost inside a coarse-pointer block', () => {
-    // Tapping the total pauses/resumes the game clock (the board-timer
-    // program) — a ~24px readout inside the same pill that must not grow.
-    const at = enhancements.indexOf('button.game-clock-total::after');
-    expect(at, 'button.game-clock-total::after is missing').toBeGreaterThan(-1);
+  it('the clock strip buttons take a real 44px floor on coarse pointers, no ghost needed', () => {
+    // Unlike the old floating seam pill, the strip has genuine room below the
+    // grid, so Start/Pause/Pass are real 44px boxes rather than a compact
+    // chip with an invisible ghost.
+    const body = ruleBody(enhancements, '.game-clock-strip-btn');
+    expect(body, '.game-clock-strip-btn is missing').toBeTruthy();
+    const at = enhancements.indexOf('min-height: 2.75rem');
+    expect(at, 'no min-height: 2.75rem floor on the strip button').toBeGreaterThan(-1);
     expect(enhancements.lastIndexOf('@media (pointer: coarse)', at)).toBeGreaterThan(-1);
-    expect(ruleBody(enhancements, 'button.game-clock-total::after')).toMatch(/height:\s*2\.75rem/);
-    expect(ruleBody(enhancements, 'button.game-clock-total::after')).toMatch(/width:\s*2\.75rem/);
-    expect(ruleBody(enhancements, 'button.game-clock-total')).toContain('pointer-events: auto');
-  });
-
-  it("the clock's pass-turn segment carries a ghost inside a coarse-pointer block", () => {
-    // Passing the turn moved off the seat and into the clock's turn segment,
-    // a ~20px line inside a pill that must not grow.
-    const at = enhancements.indexOf('button.game-clock-turn::after');
-    expect(at, 'button.game-clock-turn::after is missing').toBeGreaterThan(-1);
-    expect(enhancements.lastIndexOf('@media (pointer: coarse)', at)).toBeGreaterThan(-1);
-    expect(ruleBody(enhancements, 'button.game-clock-turn::after')).toMatch(/height:\s*2\.75rem/);
-    expect(ruleBody(enhancements, 'button.game-clock-turn')).toContain('pointer-events: auto');
-  });
-
-  it('the clock cold-start button carries a ghost, being icon-only', () => {
-    const body = ruleBody(enhancements, '.game-clock-start::after');
-    expect(
-      body,
-      '.game-clock-start is a 1.5rem icon button inside a pill that must not grow — it needs a ghost, not a bigger box.'
-    ).toBeTruthy();
-    expect(body).toMatch(/width:\s*2\.75rem/);
-    expect(body).toMatch(/height:\s*2\.75rem/);
-    expect(body).toContain('position: absolute');
-    expect(body).toContain('translate(-50%, -50%)');
-    // The ghost centres only against a positioned button, and the floor is
-    // coarse-only so a mouse board keeps its compact chip.
-    const at = enhancements.indexOf('.game-clock-start::after');
-    expect(enhancements.lastIndexOf('@media (pointer: coarse)', at)).toBeGreaterThan(-1);
-    expect(enhancements).toMatch(/\.game-clock-start\s*\{[^}]*position:\s*relative/);
-  });
-
-  it('the clock stays pass-through except for the controls inside it', () => {
-    // The pill sits over the panels; taps must fall through to them. Each
-    // control inside it opts back in individually, and nothing else may.
-    expect(ruleBody(enhancements, '.game-board-clock')).toContain('pointer-events: none');
-    expect(ruleBody(enhancements, '.game-clock-start')).toContain('pointer-events: auto');
-    expect(ruleBody(enhancements, 'button.game-clock-total')).toContain('pointer-events: auto');
   });
 
   it('every board touch floor lives inside a coarse-pointer block', () => {
@@ -178,22 +143,6 @@ describe('panel corners hold back from the seam', () => {
     expect(chips).toMatch(/right:\s*calc\([^;]*--seam-keepout/);
   });
 
-  it('the edge-anchored clock is capped against the board edge', () => {
-    // Anchoring by the near edge pushed the pill 5px off a 320px screen. The
-    // cap plus min-width:0 down the flex chain lets the name ellipsis absorb
-    // it instead — without the min-width:0 the nowrap children refuse to
-    // shrink and the cap does nothing.
-    const pill = enhancements.match(/\.game-board-clock\.is-row-seam\s*\{([^}]*)\}/)?.[1];
-    expect(pill, 'the row-seam clock needs a width cap').toBeTruthy();
-    expect(pill).toMatch(/max-width:\s*calc\(50%/);
-    for (const sel of ['.game-clock', '.game-clock-turn', '.game-clock-turn-name']) {
-      const body = enhancements.match(
-        new RegExp(`${sel.replace('.', '\\.')}\\s*\\{([^}]*)\\}`)
-      )?.[1];
-      expect(body, `${sel} must allow shrinking`).toMatch(/min-width:\s*0/);
-    }
-  });
-
   it('applies on every layout, not only the grid ones', () => {
     // An earlier attempt gated this on `cols > 1`, which reads as "grid boards
     // only" but silently included 2p-stacked (its seats span both columns) —
@@ -204,30 +153,46 @@ describe('panel corners hold back from the seam', () => {
 });
 
 /**
- * The seam is the board's only gutter and it runs along ONE axis. A wide pill
- * fits a row seam's horizontal gutter and spills onto the panels either side
- * of a column seam's vertical one — where it landed on a seat's name label
- * (4p-sides, 2p side-by-side). The clock therefore has to know which it is.
+ * The table clock: an edge strip along the board's bottom (2026-09-24
+ * ruling), replacing the old seam-satellite pill that used to need a
+ * row/column-seam variant. These pin the three properties that ruling
+ * depends on: it's a flex sibling that shrinks the grid rather than
+ * overlaying it, it sits inside `.game-board`'s existing safe-area padding,
+ * and its buttons take a real touch floor (covered above).
  */
-describe('table clock follows the seam orientation', () => {
-  it('declares a column-seam variant that stacks and narrows', () => {
-    expect(enhancements).toContain('.game-board-clock.is-col-seam');
-    const stacked = enhancements.match(
-      /\.game-board-clock\.is-col-seam \.game-clock\s*\{([^}]*)\}/
-    )?.[1];
-    expect(stacked, 'the col-seam clock must stack its two readings').toBeTruthy();
-    expect(stacked).toContain('flex-direction: column');
-    const pill = enhancements.match(/\.game-board-clock\.is-col-seam\s*\{([^}]*)\}/)?.[1];
-    expect(pill, 'the col-seam pill must be capped in width').toBeTruthy();
-    expect(pill).toMatch(/max-width:/);
+describe('table clock is an edge strip, not a seam satellite', () => {
+  it('the old seam-satellite classes are gone', () => {
+    for (const gone of [
+      '.game-board-clock',
+      'game-clock-total',
+      'game-clock-turn',
+      'game-clock-start',
+    ]) {
+      expect(enhancements, `${gone} should have been removed with the seam pill`).not.toContain(
+        gone
+      );
+    }
   });
 
-  it('rotates the turn divider with the stack instead of keeping a left border', () => {
-    const turn = enhancements.match(
-      /\.game-board-clock\.is-col-seam \.game-clock-turn\s*\{([^}]*)\}/
-    )?.[1];
-    expect(turn).toBeTruthy();
-    expect(turn).toContain('border-left: 0');
-    expect(turn).toMatch(/border-top:/);
+  it('the board stacks the grid and the strip in a column, not an overlay', () => {
+    const gameBoard = board.match(/\.game-board\s*\{([^}]*)\}/)?.[1];
+    expect(gameBoard, '.game-board is missing').toBeTruthy();
+    expect(gameBoard).toMatch(/flex-direction:\s*column/);
+    // The strip has no position: absolute / fixed anywhere — it takes its
+    // place in the flex flow instead of floating over the seat grid.
+    const strip = enhancements.match(/\.game-clock-strip\s*\{([^}]*)\}/)?.[1];
+    expect(strip, '.game-clock-strip is missing').toBeTruthy();
+    expect(strip).not.toMatch(/position:\s*(absolute|fixed)/);
+    expect(strip).toMatch(/flex:\s*0 0 auto/);
+  });
+
+  it("sits inside .game-board's existing safe-area padding rather than adding its own", () => {
+    // .game-board already pads every side for env(safe-area-inset-*); the
+    // strip being a normal flex child of that padded box is what keeps it
+    // clear of a home indicator, so this only needs to hold that padding
+    // still covers the bottom edge — no separate inset on the strip itself.
+    const gameBoard = board.match(/\.game-board\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(gameBoard).toMatch(/--safe-bottom/);
+    expect(enhancements).not.toMatch(/\.game-clock-strip[^{]*\{[^}]*safe-area-inset/);
   });
 });

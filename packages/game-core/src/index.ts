@@ -598,8 +598,12 @@ function updatePlayer(
  * Find the next non-eliminated seat after `currentSeat` in sorted seat order,
  * wrapping. Returns `null` if no eligible seat exists (everyone is eliminated).
  * When `currentSeat` is null, returns the first non-eliminated seat.
+ *
+ * Exported (not just an internal `pass-turn` helper) so the board can render
+ * a read-only "up next" marker on the seat this would move to, without
+ * duplicating the alive/sort/wrap logic — see `GameBoard.tsx`.
  */
-function nextActiveSeat(players: GamePlayer[], currentSeat: number | null): number | null {
+export function nextActiveSeat(players: GamePlayer[], currentSeat: number | null): number | null {
   const alive = players.filter((p) => !p.eliminated).sort((a, b) => a.seat - b.seat);
   if (alive.length === 0) return null;
   if (currentSeat === null) return alive[0].seat;

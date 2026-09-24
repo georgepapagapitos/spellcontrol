@@ -1,4 +1,5 @@
 import {
+  ChevronRight,
   CircleHelp,
   Compass,
   Crown,
@@ -13,7 +14,7 @@ import {
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { GameAction, GamePlayer, GameState } from '../../lib/game-state';
-import { cmdDamageKey } from '../../lib/game-state';
+import { cmdDamageKey, nextActiveSeat } from '../../lib/game-state';
 import type { EmptyCell, SeatSlot } from '../../lib/board-layouts';
 import {
   isCustomLayout,
@@ -113,7 +114,7 @@ export function GameBoard({
   const [menuOpen, setMenuOpen] = useState(false);
   const gameTimerEnabled = usePlayStore((st) => st.gameTimerEnabled);
   const turnTrackerEnabled = usePlayStore((st) => st.turnTrackerEnabled);
-  const showClockSatellite = gameTimerEnabled || turnTrackerEnabled;
+  const showClockStrip = gameTimerEnabled || turnTrackerEnabled;
   // Seats carry no buttons, so a shared board teaches its gestures once per
   // device; the game menu brings the card back.
   const [hintOpen, setHintOpen] = useState(
@@ -269,10 +270,18 @@ export function GameBoard({
   useLockBodyScroll();
 
   // Seam satellite placement, at both size steps the CSS switches between.
+  // The clock used to be the seam's other satellite; it's an edge strip now
+  // (see the render below), so undo is the only satellite left.
   const undoPlace = seamSatellite(board.seam, board.rows, -1, '3.4rem');
   const undoPlaceLg = seamSatellite(board.seam, board.rows, -1, '4rem');
-  const clockPlace = seamSatellite(board.seam, board.rows, 1, '3.4rem');
-  const clockPlaceLg = seamSatellite(board.seam, board.rows, 1, '4rem');
+  // Read-only "up next" marker: the seat `pass-turn` would move to right now.
+  // Null (no marker anywhere) with the turn tracker off, before turn tracking
+  // starts, or once only one seat survives — "next" means nothing when
+  // there's no one else to pass to.
+  const nextSeat =
+    turnTrackerEnabled && game.status === 'active' && game.activeSeat != null
+      ? nextActiveSeat(game.players, game.activeSeat)
+      : null;
 
   // The hub ring's petals. Restart/Players mirror the game menu's own
   // gating (host-only, meaningless once the game is over); High Roll is a
@@ -380,6 +389,7 @@ export function GameBoard({
               onUndo={onUndo}
               undoLabel={undoLabel}
               isActiveTurn={activeSeat === p.seat}
+              isNextTurn={nextSeat === p.seat && activeSeat !== p.seat}
               isMonarch={designations.monarch === p.seat}
               isInitiative={designations.initiative === p.seat}
               highRollValue={highRollState ? (highRollState.rolls[p.seat] ?? null) : null}
@@ -438,36 +448,14 @@ export function GameBoard({
           <BoardHubMenu hubRef={hubBtnRef} onClose={() => setHubOpen(false)} petals={hubPetals} />
         )}
 
-        {/* Clock and undo are the seam's two satellites. On a row seam they sit
-            either side of the hub, over the gutter. On a column seam the hub is
-            a four-corner crossing, so they take the middle of an adjacent
-            panel's edge instead — see `seamSatellite`. Hidden in
-            commander-damage focus mode (strips the board down to the damage
-            question) and while the hub's ring is open (the ring hides them
-            rather than risk a petal landing on top of one). */}
-        {showClockSatellite && !cmdFocus && !hubOpen && (
-          <div
-            className={`game-board-clock ${'col' in board.seam ? 'is-col-seam' : 'is-row-seam'}`}
-            style={{
-              ['--seam-top-pct' as never]: clockPlace.topPct,
-              ['--seam-left-pct' as never]:
-                'col' in board.seam ? `${(board.seam.col / board.cols) * 100}%` : '50%',
-              ['--clock-tx' as never]: clockPlace.tx,
-              ['--clock-ty' as never]: clockPlace.ty,
-              ['--clock-tx-lg' as never]: clockPlaceLg.tx,
-              ['--clock-ty-lg' as never]: clockPlaceLg.ty,
-            }}
-          >
-            <GameClock
-              game={game}
-              dispatch={dispatchTracked}
-              canEdit={canControlAll}
-              showTotal={gameTimerEnabled}
-              showTurn={turnTrackerEnabled}
-            />
-          </div>
-        )}
-
+        {/* Undo is the seam's one remaining satellite (the clock moved to the
+            edge strip below, see the ruling in STYLE_GUIDE). On a row seam it
+            sits beside the hub, over the gutter; on a column seam the hub is a
+            four-corner crossing, so it takes the middle of an adjacent panel's
+            edge instead — see `seamSatellite`. Hidden while the hub's ring is
+            open (the ring hides it rather than risk a petal landing on top of
+            it) — the clock strip below is NOT hidden for this: it moved out
+            of the seam entirely, so a petal can't reach it. */}
         {undoLabel && !hubOpen && (
           <button
             type="button"
@@ -500,6 +488,22 @@ export function GameBoard({
           </button>
         )}
       </div>
+
+      {/* The table clock: a full-width edge strip along the board's bottom
+          (the device holder's edge), screen-relative and never rotated. A
+          flex sibling of the grid above, not an overlay — the grid shrinks to
+          make room for it, it never sits on top of a seat. Hidden in
+          commander-damage focus mode, same as the old seam satellite: that
+          mode strips the board down to the damage question. */}
+      {showClockStrip && !cmdFocus && (
+        <GameClock
+          game={game}
+          dispatch={dispatchTracked}
+          canEdit={canControlAll}
+          showTotal={gameTimerEnabled}
+          showTurn={turnTrackerEnabled}
+        />
+      )}
 
       {game.status === 'finished' && (
         // Whole-table moment, not per-seat gameplay: screen-relative, never
@@ -576,6 +580,7 @@ function PlayerPanel({
   onUndo,
   undoLabel,
   isActiveTurn,
+  isNextTurn,
   isMonarch,
   isInitiative,
   highRollValue,
@@ -603,6 +608,9 @@ function PlayerPanel({
   undoLabel: string | null;
   /** Whether this seat is the active (current turn) seat. */
   isActiveTurn: boolean;
+  /** Whether `pass-turn` would move to this seat right now — a quiet,
+   *  read-only cue, never a control. */
+  isNextTurn: boolean;
   /** Designations held by this player. */
   isMonarch: boolean;
   isInitiative: boolean;
@@ -1091,8 +1099,12 @@ function PlayerPanel({
             )}
 
           {/* Designations read on the seat that holds them, rotated to face
-              that player. Marks only: the drawer is where they change hands. */}
-          {(isMonarch || isInitiative) && (
+              that player. Marks only: the drawer is where they change hands.
+              "Up next" shares the same rail (and so the same seam-keepout
+              placement, already collision-tested against every layout) —
+              deliberately faint and icon-only, a quiet cue rather than a
+              third designation. */}
+          {(isMonarch || isInitiative || isNextTurn) && (
             <div className="pp-designation-chips">
               {isMonarch && (
                 <span className="pp-designation-chip is-monarch" role="img" aria-label="Monarch">
@@ -1106,6 +1118,11 @@ function PlayerPanel({
                   aria-label="Initiative"
                 >
                   <Compass width={14} height={14} aria-hidden />
+                </span>
+              )}
+              {isNextTurn && (
+                <span className="pp-designation-chip is-next" role="img" aria-label="Up next">
+                  <ChevronRight width={14} height={14} aria-hidden />
                 </span>
               )}
             </div>

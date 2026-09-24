@@ -65,7 +65,7 @@ export function BoardGestureHint({
           </li>
           {showTurnTracker && (
             <li>
-              <strong>Tap the turn on the clock</strong> to pass it.
+              <strong>Pass</strong> on the clock strip moves the turn to the next seat.
             </li>
           )}
         </ul>

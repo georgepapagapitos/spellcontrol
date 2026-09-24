@@ -793,6 +793,14 @@
   backdrop-filter: blur(4px);
 }
 
+/* "Up next" (board-timer program): a quiet cue, not a claimed designation
+   like Monarch/Initiative — fainter so it never reads as a third one. */
+.pp-designation-chip.is-next {
+  opacity: 0.55;
+  background: rgba(0, 0, 0, 0.25);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
 /* Gentle entrance — not mandatory, gated for reduced-motion */
 @media (prefers-reduced-motion: no-preference) {
   .pp-designation-chip {
