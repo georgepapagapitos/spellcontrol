@@ -1,0 +1,338 @@
+{
+  "id": "zombies",
+  "name": "Zombies",
+  "badge": "Classic",
+  "themeColors": ["B"],
+  "credit": "After Peter Knudson's original horde (2011)",
+  "specialRule": "Every Zombie has haste and must attack each turn if able. When a card forces the Horde to choose (which creature to sacrifice, which mode of a spell), make that choice at random.",
+  "tokens": [
+    {
+      "name": "Zombie",
+      "scryfallId": "f7a49477-b7b5-4f0e-885f-e1d2b580c52e",
+      "imageUrl": "https://cards.scryfall.io/normal/front/f/7/f7a49477-b7b5-4f0e-885f-e1d2b580c52e.jpg?1789754539",
+      "typeLine": "Token Creature \u2014 Zombie",
+      "power": "2",
+      "toughness": "2",
+      "count": 55
+    },
+    {
+      "name": "Zombie Giant",
+      "scryfallId": "be7e26e1-5db6-49ba-a88e-c79d889cd364",
+      "imageUrl": "https://cards.scryfall.io/normal/front/b/e/be7e26e1-5db6-49ba-a88e-c79d889cd364.jpg?1783934653",
+      "typeLine": "Token Creature \u2014 Zombie Giant",
+      "power": "5",
+      "toughness": "5",
+      "count": 5
+    }
+  ],
+  "spells": [
+    {
+      "name": "Call to the Grave",
+      "scryfallId": "5e1324b6-dba0-4aff-a403-a45d2b405f5b",
+      "imageUrl": "https://cards.scryfall.io/normal/front/5/e/5e1324b6-dba0-4aff-a403-a45d2b405f5b.jpg?1783941084",
+      "typeLine": "Enchantment",
+      "manaCost": "{4}{B}",
+      "count": 1
+    },
+    {
+      "name": "Bad Moon",
+      "scryfallId": "8f8a75da-ea3c-43e7-9d32-1c92f8ec0fd2",
+      "imageUrl": "https://cards.scryfall.io/normal/front/8/f/8f8a75da-ea3c-43e7-9d32-1c92f8ec0fd2.jpg?1783938752",
+      "typeLine": "Enchantment",
+      "manaCost": "{1}{B}",
+      "count": 2
+    },
+    {
+      "name": "Plague Wind",
+      "scryfallId": "72d21d0d-7de7-4f03-8663-002c9290512f",
+      "imageUrl": "https://cards.scryfall.io/normal/front/7/2/72d21d0d-7de7-4f03-8663-002c9290512f.jpg?1783935158",
+      "typeLine": "Sorcery",
+      "manaCost": "{7}{B}{B}",
+      "count": 1
+    },
+    {
+      "name": "Damnation",
+      "scryfallId": "d3c0aac5-b9f1-4446-bfea-3e1dd1cf1f2f",
+      "imageUrl": "https://cards.scryfall.io/normal/front/d/3/d3c0aac5-b9f1-4446-bfea-3e1dd1cf1f2f.jpg?1783921909",
+      "typeLine": "Sorcery",
+      "manaCost": "{2}{B}{B}",
+      "count": 1
+    },
+    {
+      "name": "Yixlid Jailer",
+      "scryfallId": "3f2ef91f-d113-4e8d-a164-c6e261aa9c12",
+      "imageUrl": "https://cards.scryfall.io/normal/front/3/f/3f2ef91f-d113-4e8d-a164-c6e261aa9c12.jpg?1783927806",
+      "typeLine": "Creature \u2014 Zombie Wizard",
+      "power": "2",
+      "toughness": "1",
+      "manaCost": "{1}{B}",
+      "count": 1
+    },
+    {
+      "name": "Forsaken Wastes",
+      "scryfallId": "c9dbfc7c-164d-47b8-8f05-987864fca89b",
+      "imageUrl": "https://cards.scryfall.io/normal/front/c/9/c9dbfc7c-164d-47b8-8f05-987864fca89b.jpg?1783947093",
+      "typeLine": "World Enchantment",
+      "manaCost": "{2}{B}",
+      "count": 1
+    },
+    {
+      "name": "Nested Ghoul",
+      "scryfallId": "c035ff58-9df3-4db4-b9d0-97d58080ecfe",
+      "imageUrl": "https://cards.scryfall.io/normal/front/c/0/c035ff58-9df3-4db4-b9d0-97d58080ecfe.jpg?1783941383",
+      "typeLine": "Creature \u2014 Phyrexian Zombie Warrior",
+      "power": "4",
+      "toughness": "2",
+      "manaCost": "{3}{B}{B}",
+      "count": 2
+    },
+    {
+      "name": "Infectious Horror",
+      "scryfallId": "d17aaa92-10ca-4f70-b45e-5a51e9192efb",
+      "imageUrl": "https://cards.scryfall.io/normal/front/d/1/d17aaa92-10ca-4f70-b45e-5a51e9192efb.jpg?1783934569",
+      "typeLine": "Creature \u2014 Zombie Horror",
+      "power": "2",
+      "toughness": "2",
+      "manaCost": "{3}{B}",
+      "count": 2
+    },
+    {
+      "name": "Delirium Skeins",
+      "scryfallId": "64b0d9e7-4a0f-4f07-99ae-31c3c9f0037a",
+      "imageUrl": "https://cards.scryfall.io/normal/front/6/4/64b0d9e7-4a0f-4f07-99ae-31c3c9f0037a.jpg?1783936657",
+      "typeLine": "Sorcery",
+      "manaCost": "{2}{B}",
+      "count": 1
+    },
+    {
+      "name": "Blind Creeper",
+      "scryfallId": "86d5440a-7460-4b4f-a167-a6c4fb2d855e",
+      "imageUrl": "https://cards.scryfall.io/normal/front/8/6/86d5440a-7460-4b4f-a167-a6c4fb2d855e.jpg?1783944401",
+      "typeLine": "Creature \u2014 Zombie Beast",
+      "power": "3",
+      "toughness": "3",
+      "manaCost": "{1}{B}",
+      "count": 1
+    },
+    {
+      "name": "Soulless One",
+      "scryfallId": "410a214b-09c4-49bd-a461-3330d0249ae5",
+      "imageUrl": "https://cards.scryfall.io/normal/front/4/1/410a214b-09c4-49bd-a461-3330d0249ae5.jpg?1783942327",
+      "typeLine": "Creature \u2014 Zombie Avatar",
+      "power": "*",
+      "toughness": "*",
+      "manaCost": "{3}{B}",
+      "count": 2
+    },
+    {
+      "name": "Vengeful Dead",
+      "scryfallId": "7c11c11d-9809-4031-8cbc-21aef07d7f1f",
+      "imageUrl": "https://cards.scryfall.io/normal/front/7/c/7c11c11d-9809-4031-8cbc-21aef07d7f1f.jpg?1783944877",
+      "typeLine": "Creature \u2014 Zombie",
+      "power": "3",
+      "toughness": "2",
+      "manaCost": "{3}{B}",
+      "count": 2
+    },
+    {
+      "name": "Fleshbag Marauder",
+      "scryfallId": "fce2baa4-2976-4bbd-b6c5-a5a3c6a901be",
+      "imageUrl": "https://cards.scryfall.io/normal/front/f/c/fce2baa4-2976-4bbd-b6c5-a5a3c6a901be.jpg?1783912547",
+      "typeLine": "Creature \u2014 Zombie Warrior",
+      "power": "3",
+      "toughness": "1",
+      "manaCost": "{2}{B}",
+      "count": 1
+    },
+    {
+      "name": "Carrion Wurm",
+      "scryfallId": "37c2b228-94c0-4e84-ad6d-80b170bb6c0c",
+      "imageUrl": "https://cards.scryfall.io/normal/front/3/7/37c2b228-94c0-4e84-ad6d-80b170bb6c0c.jpg?1783945158",
+      "typeLine": "Creature \u2014 Zombie Wurm",
+      "power": "6",
+      "toughness": "5",
+      "manaCost": "{3}{B}{B}",
+      "count": 1
+    },
+    {
+      "name": "Cackling Fiend",
+      "scryfallId": "c7e4fa7f-a5d7-46cd-bc46-d3d231235460",
+      "imageUrl": "https://cards.scryfall.io/normal/front/c/7/c7e4fa7f-a5d7-46cd-bc46-d3d231235460.jpg?1783918482",
+      "typeLine": "Creature \u2014 Zombie",
+      "power": "2",
+      "toughness": "1",
+      "manaCost": "{2}{B}{B}",
+      "count": 4
+    },
+    {
+      "name": "Death Baron",
+      "scryfallId": "34a27142-cf45-4164-9e10-373e5c8bf7c6",
+      "imageUrl": "https://cards.scryfall.io/normal/front/3/4/34a27142-cf45-4164-9e10-373e5c8bf7c6.jpg?1783908959",
+      "typeLine": "Creature \u2014 Zombie Wizard",
+      "power": "2",
+      "toughness": "2",
+      "manaCost": "{1}{B}{B}",
+      "count": 1
+    },
+    {
+      "name": "Noxious Ghoul",
+      "scryfallId": "7d67511b-c130-44d5-8536-4278a695627c",
+      "imageUrl": "https://cards.scryfall.io/normal/front/7/d/7d67511b-c130-44d5-8536-4278a695627c.jpg?1783942328",
+      "typeLine": "Creature \u2014 Zombie",
+      "power": "3",
+      "toughness": "3",
+      "manaCost": "{3}{B}{B}",
+      "count": 1
+    },
+    {
+      "name": "Severed Legion",
+      "scryfallId": "82633f38-5af1-429e-8c9d-db536af85309",
+      "imageUrl": "https://cards.scryfall.io/normal/front/8/2/82633f38-5af1-429e-8c9d-db536af85309.jpg?1783943028",
+      "typeLine": "Creature \u2014 Zombie",
+      "power": "2",
+      "toughness": "2",
+      "manaCost": "{1}{B}{B}",
+      "count": 1
+    },
+    {
+      "name": "Skulking Knight",
+      "scryfallId": "a7f7927b-64ae-4448-9540-8d7bbe88c9cc",
+      "imageUrl": "https://cards.scryfall.io/normal/front/a/7/a7f7927b-64ae-4448-9540-8d7bbe88c9cc.jpg?1783943227",
+      "typeLine": "Creature \u2014 Zombie Knight",
+      "power": "3",
+      "toughness": "3",
+      "manaCost": "{2}{B}",
+      "count": 1
+    },
+    {
+      "name": "Undead Warchief",
+      "scryfallId": "01482b0c-d05b-4356-9144-e044159f4dcb",
+      "imageUrl": "https://cards.scryfall.io/normal/front/0/1/01482b0c-d05b-4356-9144-e044159f4dcb.jpg?1783942326",
+      "typeLine": "Creature \u2014 Zombie",
+      "power": "1",
+      "toughness": "1",
+      "manaCost": "{2}{B}{B}",
+      "count": 1
+    },
+    {
+      "name": "Twilight's Call",
+      "scryfallId": "a6e04dd2-75ad-4427-93cc-37226340c2fb",
+      "imageUrl": "https://cards.scryfall.io/normal/front/a/6/a6e04dd2-75ad-4427-93cc-37226340c2fb.jpg?1783940393",
+      "typeLine": "Sorcery",
+      "manaCost": "{4}{B}{B}",
+      "count": 1
+    },
+    {
+      "name": "Army of the Damned",
+      "scryfallId": "bf818314-1eb4-48da-8e6f-ff7b89873b63",
+      "imageUrl": "https://cards.scryfall.io/normal/front/b/f/bf818314-1eb4-48da-8e6f-ff7b89873b63.jpg?1783923272",
+      "typeLine": "Sorcery",
+      "manaCost": "{5}{B}{B}{B}",
+      "count": 1
+    },
+    {
+      "name": "Endless Ranks of the Dead",
+      "scryfallId": "155ae16c-f32b-421d-a92a-bf13d9f32891",
+      "imageUrl": "https://cards.scryfall.io/normal/front/1/5/155ae16c-f32b-421d-a92a-bf13d9f32891.jpg?1783925339",
+      "typeLine": "Enchantment",
+      "manaCost": "{2}{B}{B}",
+      "count": 1
+    },
+    {
+      "name": "Unbreathing Horde",
+      "scryfallId": "dd119aa8-8414-4942-9a28-3e68a9a52a8e",
+      "imageUrl": "https://cards.scryfall.io/normal/front/d/d/dd119aa8-8414-4942-9a28-3e68a9a52a8e.jpg?1783937836",
+      "typeLine": "Creature \u2014 Zombie",
+      "power": "0",
+      "toughness": "0",
+      "manaCost": "{2}{B}",
+      "count": 1
+    },
+    {
+      "name": "Vulturous Zombie",
+      "scryfallId": "7f562c38-3c53-4dc6-9816-6e4be3355e2e",
+      "imageUrl": "https://cards.scryfall.io/normal/front/7/f/7f562c38-3c53-4dc6-9816-6e4be3355e2e.jpg?1783934716",
+      "typeLine": "Creature \u2014 Plant Zombie",
+      "power": "3",
+      "toughness": "3",
+      "manaCost": "{3}{B}{G}",
+      "count": 1
+    },
+    {
+      "name": "Smallpox",
+      "scryfallId": "c28db9a4-6696-460b-a9d3-98f4a31abe75",
+      "imageUrl": "https://cards.scryfall.io/normal/front/c/2/c28db9a4-6696-460b-a9d3-98f4a31abe75.jpg?1783927810",
+      "typeLine": "Sorcery",
+      "manaCost": "{B}{B}",
+      "count": 1
+    },
+    {
+      "name": "Living Death",
+      "scryfallId": "4ac29c46-f8ee-42ba-a98c-d785ba65485e",
+      "imageUrl": "https://cards.scryfall.io/normal/front/4/a/4ac29c46-f8ee-42ba-a98c-d785ba65485e.jpg?1783907088",
+      "typeLine": "Sorcery",
+      "manaCost": "{3}{B}{B}",
+      "count": 1
+    },
+    {
+      "name": "Diregraf Captain",
+      "scryfallId": "158407ad-35a9-40e1-9762-1c0572b56ecb",
+      "imageUrl": "https://cards.scryfall.io/normal/front/1/5/158407ad-35a9-40e1-9762-1c0572b56ecb.jpg?1783925325",
+      "typeLine": "Creature \u2014 Zombie Soldier",
+      "power": "2",
+      "toughness": "2",
+      "manaCost": "{1}{U}{B}",
+      "count": 2
+    },
+    {
+      "name": "Plague Belcher",
+      "scryfallId": "280ae211-f025-4971-83e6-118ca08a1911",
+      "imageUrl": "https://cards.scryfall.io/normal/front/2/8/280ae211-f025-4971-83e6-118ca08a1911.jpg?1783936500",
+      "typeLine": "Creature \u2014 Zombie Beast",
+      "power": "5",
+      "toughness": "4",
+      "manaCost": "{2}{B}",
+      "count": 2
+    },
+    {
+      "name": "Josu Vess, Lich Knight",
+      "scryfallId": "30553f61-6edf-4e7b-b60f-b8f62ca2bcad",
+      "imageUrl": "https://cards.scryfall.io/normal/front/3/0/30553f61-6edf-4e7b-b60f-b8f62ca2bcad.jpg?1783917158",
+      "typeLine": "Legendary Creature \u2014 Zombie Knight",
+      "power": "4",
+      "toughness": "5",
+      "manaCost": "{2}{B}{B}",
+      "count": 1
+    }
+  ],
+  "bosses": [
+    {
+      "name": "Grave Titan",
+      "scryfallId": "3b4faa6e-5013-4c59-80f5-662a386672eb",
+      "imageUrl": "https://cards.scryfall.io/normal/front/3/b/3b4faa6e-5013-4c59-80f5-662a386672eb.jpg?1783904558",
+      "typeLine": "Creature \u2014 Giant",
+      "power": "6",
+      "toughness": "6",
+      "manaCost": "{4}{B}{B}"
+    },
+    {
+      "name": "Sheoldred, Whispering One",
+      "scryfallId": "8b207a4a-47d1-4905-81d3-455c59bfd7da",
+      "imageUrl": "https://cards.scryfall.io/normal/front/8/b/8b207a4a-47d1-4905-81d3-455c59bfd7da.jpg?1783930409",
+      "typeLine": "Legendary Creature \u2014 Phyrexian Praetor",
+      "power": "6",
+      "toughness": "6",
+      "manaCost": "{5}{B}{B}"
+    }
+  ],
+  "lateGame": [
+    "Plague Wind",
+    "Damnation",
+    "Army of the Damned",
+    "Endless Ranks of the Dead",
+    "Noxious Ghoul",
+    "Living Death",
+    "Smallpox",
+    "Josu Vess, Lich Knight"
+  ]
+}

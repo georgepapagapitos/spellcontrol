@@ -1,0 +1,177 @@
+{
+  "id": "slivers",
+  "name": "Slivers",
+  "badge": "Horde",
+  "themeColors": ["W", "U", "B", "R", "G"],
+  "credit": "SpellControl",
+  "specialRule": "Some Sliver lords read \"All Sliver creatures\" rather than \"Sliver creatures you control.\" Those buff every Sliver on the battlefield, including any the survivors control, not just the Horde's own.",
+  "tokens": [
+    {
+      "name": "Sliver",
+      "scryfallId": "bf7501ee-783d-49c6-b381-1db056360b40",
+      "imageUrl": "https://cards.scryfall.io/normal/front/b/f/bf7501ee-783d-49c6-b381-1db056360b40.jpg?1783905787",
+      "typeLine": "Token Creature \u2014 Sliver",
+      "power": "1",
+      "toughness": "1",
+      "count": 60
+    }
+  ],
+  "spells": [
+    {
+      "name": "Muscle Sliver",
+      "scryfallId": "f36faada-4f9c-43f9-b3e4-55714737a5c9",
+      "imageUrl": "https://cards.scryfall.io/normal/front/f/3/f36faada-4f9c-43f9-b3e4-55714737a5c9.jpg?1783938458",
+      "typeLine": "Creature \u2014 Sliver",
+      "power": "1",
+      "toughness": "1",
+      "manaCost": "{1}{G}",
+      "count": 5
+    },
+    {
+      "name": "Winged Sliver",
+      "scryfallId": "eb1fcaf2-fee3-4088-83e1-bcb72e8c0e88",
+      "imageUrl": "https://cards.scryfall.io/normal/front/e/b/eb1fcaf2-fee3-4088-83e1-bcb72e8c0e88.jpg?1783915437",
+      "typeLine": "Creature \u2014 Sliver",
+      "power": "1",
+      "toughness": "1",
+      "manaCost": "{1}{U}",
+      "count": 5
+    },
+    {
+      "name": "Sinew Sliver",
+      "scryfallId": "1ecc983e-bbe3-4bc1-97e9-e40ead987ef0",
+      "imageUrl": "https://cards.scryfall.io/normal/front/1/e/1ecc983e-bbe3-4bc1-97e9-e40ead987ef0.jpg?1783915445",
+      "typeLine": "Creature \u2014 Sliver",
+      "power": "1",
+      "toughness": "1",
+      "manaCost": "{1}{W}",
+      "count": 5
+    },
+    {
+      "name": "Predatory Sliver",
+      "scryfallId": "a2e37de8-66a1-4afa-aa6f-1151f849dfa8",
+      "imageUrl": "https://cards.scryfall.io/normal/front/a/2/a2e37de8-66a1-4afa-aa6f-1151f849dfa8.jpg?1783939902",
+      "typeLine": "Creature \u2014 Sliver",
+      "power": "1",
+      "toughness": "1",
+      "manaCost": "{1}{G}",
+      "count": 4
+    },
+    {
+      "name": "Two-Headed Sliver",
+      "scryfallId": "1fd73d00-feb0-4ec6-8031-6af5b334bba3",
+      "imageUrl": "https://cards.scryfall.io/normal/front/1/f/1fd73d00-feb0-4ec6-8031-6af5b334bba3.jpg?1783915431",
+      "typeLine": "Creature \u2014 Sliver",
+      "power": "1",
+      "toughness": "1",
+      "manaCost": "{1}{R}",
+      "count": 4
+    },
+    {
+      "name": "Sentinel Sliver",
+      "scryfallId": "7cb2cc85-f4a6-47ad-b94e-f16534d02ae2",
+      "imageUrl": "https://cards.scryfall.io/normal/front/7/c/7cb2cc85-f4a6-47ad-b94e-f16534d02ae2.jpg?1783915447",
+      "typeLine": "Creature \u2014 Sliver",
+      "power": "2",
+      "toughness": "2",
+      "manaCost": "{1}{W}",
+      "count": 3
+    },
+    {
+      "name": "Blur Sliver",
+      "scryfallId": "d44db4fa-8b13-4eb2-a66e-a55b2e0c0fb3",
+      "imageUrl": "https://cards.scryfall.io/normal/front/d/4/d44db4fa-8b13-4eb2-a66e-a55b2e0c0fb3.jpg?1783915432",
+      "typeLine": "Creature \u2014 Sliver",
+      "power": "2",
+      "toughness": "2",
+      "manaCost": "{2}{R}",
+      "count": 3
+    },
+    {
+      "name": "Crystalline Sliver",
+      "scryfallId": "a0c7f341-c61e-491d-850a-221c6a57ac64",
+      "imageUrl": "https://cards.scryfall.io/normal/front/a/0/a0c7f341-c61e-491d-850a-221c6a57ac64.jpg?1783915415",
+      "typeLine": "Creature \u2014 Sliver",
+      "power": "2",
+      "toughness": "2",
+      "manaCost": "{W}{U}",
+      "count": 2
+    },
+    {
+      "name": "Bonescythe Sliver",
+      "scryfallId": "7ae24f37-0788-4f53-af5a-c6c1f2b64894",
+      "imageUrl": "https://cards.scryfall.io/normal/front/7/a/7ae24f37-0788-4f53-af5a-c6c1f2b64894.jpg?1783915453",
+      "typeLine": "Creature \u2014 Sliver",
+      "power": "2",
+      "toughness": "2",
+      "manaCost": "{3}{W}",
+      "count": 2
+    },
+    {
+      "name": "Battle Sliver",
+      "scryfallId": "68490b8c-e9d1-4f5c-9001-750be0e0569f",
+      "imageUrl": "https://cards.scryfall.io/normal/front/6/8/68490b8c-e9d1-4f5c-9001-750be0e0569f.jpg?1783939916",
+      "typeLine": "Creature \u2014 Sliver",
+      "power": "3",
+      "toughness": "3",
+      "manaCost": "{4}{R}",
+      "count": 2
+    },
+    {
+      "name": "Galerider Sliver",
+      "scryfallId": "566dc671-b666-4003-a3a6-ff5b081bca54",
+      "imageUrl": "https://cards.scryfall.io/normal/front/5/6/566dc671-b666-4003-a3a6-ff5b081bca54.jpg?1783915441",
+      "typeLine": "Creature \u2014 Sliver",
+      "power": "1",
+      "toughness": "1",
+      "manaCost": "{U}",
+      "count": 3
+    },
+    {
+      "name": "Wrath of God",
+      "scryfallId": "537d2b05-3f52-45d6-8fe3-26282085d0c6",
+      "imageUrl": "https://cards.scryfall.io/normal/front/5/3/537d2b05-3f52-45d6-8fe3-26282085d0c6.jpg?1783915706",
+      "typeLine": "Sorcery",
+      "manaCost": "{2}{W}{W}",
+      "count": 1
+    },
+    {
+      "name": "In Garruk's Wake",
+      "scryfallId": "57a6f727-8239-45e6-9dbb-67d2d3c9239d",
+      "imageUrl": "https://cards.scryfall.io/normal/front/5/7/57a6f727-8239-45e6-9dbb-67d2d3c9239d.jpg?1783922445",
+      "typeLine": "Sorcery",
+      "manaCost": "{7}{B}{B}",
+      "count": 1
+    }
+  ],
+  "bosses": [
+    {
+      "name": "Sliver Legion",
+      "scryfallId": "87545415-2e27-4841-a3af-7653af2ba6d3",
+      "imageUrl": "https://cards.scryfall.io/normal/front/8/7/87545415-2e27-4841-a3af-7653af2ba6d3.jpg?1783927759",
+      "typeLine": "Legendary Creature \u2014 Sliver",
+      "power": "7",
+      "toughness": "7",
+      "manaCost": "{W}{U}{B}{R}{G}"
+    },
+    {
+      "name": "Sliver Hivelord",
+      "scryfallId": "2b902f64-7795-4f1f-81e6-26db7c78a10c",
+      "imageUrl": "https://cards.scryfall.io/normal/front/2/b/2b902f64-7795-4f1f-81e6-26db7c78a10c.jpg?1783915410",
+      "typeLine": "Legendary Creature \u2014 Sliver",
+      "power": "5",
+      "toughness": "5",
+      "manaCost": "{W}{U}{B}{R}{G}"
+    },
+    {
+      "name": "The First Sliver",
+      "scryfallId": "06d4fbe1-8a2f-4958-bb85-1a1e5f1e8d87",
+      "imageUrl": "https://cards.scryfall.io/normal/front/0/6/06d4fbe1-8a2f-4958-bb85-1a1e5f1e8d87.jpg?1783933086",
+      "typeLine": "Legendary Creature \u2014 Sliver",
+      "power": "7",
+      "toughness": "7",
+      "manaCost": "{W}{U}{B}{R}{G}"
+    }
+  ],
+  "lateGame": ["Wrath of God", "In Garruk's Wake"]
+}
