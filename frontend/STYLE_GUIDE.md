@@ -2382,6 +2382,15 @@ sheet is unchanged — a phone has no room for the fan.
   still choosing: absent is never "ready". Seated alone, the curtain says
   "Waiting for players to join" and never counts down — `every()` over no
   opponents is `true`, so the count is checked first.
+- **An upright phone is asked to turn sideways, once per visit.**
+  `RotatePrompt` is a centred `Modal` over the whole board (opening hand
+  included) while `(orientation: portrait) and (max-width: 767px) and
+  (pointer: coarse)` matches. It is a suggestion, not a wall: the upright
+  layout works, so "Play upright", Esc or the backdrop dismisses it for the
+  session (`sessionStorage`), and turning the phone clears it on its own.
+  "Go fullscreen" is drawn only where `document.fullscreenEnabled` (never on
+  iPhone Safari) and also locks the orientation to landscape, since Android
+  Chrome allows the lock only in fullscreen.
 
 - **The log can leave the table.** The docked log's pop-out opens
   `/decks/:id/playtest/log` as a named popup window; that page renders the same

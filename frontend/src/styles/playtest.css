@@ -4232,6 +4232,54 @@ button.playtest-card-pt__value--editable:focus-visible {
   gap: var(--space-2);
 }
 
+/* ── Rotate prompt: a phone held upright is asked to turn sideways ─────── */
+
+/* Centred, not top-anchored: it is the only thing to read on the screen. */
+.modal-backdrop.playtest-rotate-backdrop {
+  align-items: center;
+}
+
+.playtest-rotate {
+  align-items: center;
+  align-self: center;
+  text-align: center;
+}
+
+.playtest-rotate__icon {
+  color: var(--text-primary);
+  animation: playtest-rotate-turn 2.4s var(--ease-out-soft) infinite;
+}
+
+/* Upright, a turn to landscape, a hold, and back: the gesture being asked for. */
+@keyframes playtest-rotate-turn {
+  0%,
+  20% {
+    transform: rotate(0);
+  }
+
+  45%,
+  80% {
+    transform: rotate(-90deg);
+  }
+
+  100% {
+    transform: rotate(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playtest-rotate__icon {
+    animation: none;
+  }
+}
+
+.playtest-rotate__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
 /* ── Keyboard shortcuts sheet: rebindable key chips ─────────────────────── */
 
 .playtest-shortcuts-help,
