@@ -25,6 +25,8 @@ import { Modal } from './Modal';
 import { SearchPill } from './SearchPill';
 import { Tabs } from './Tabs';
 import type { BinderDef, EnrichedCard, MaterializedBinder } from '../types';
+import { nameMatchesNormalized } from '@spellcontrol/binder-routing';
+import { CardName } from '@/components/shared/CardName';
 
 interface Props {
   binder: MaterializedBinder;
@@ -144,7 +146,7 @@ export function BinderCardEditor({ binder, allCards, onClose }: Props) {
   const nq = normalizeForSearch(query);
   const matches = (c: EnrichedCard) =>
     !q ||
-    normalizeForSearch(c.name).includes(nq) ||
+    nameMatchesNormalized(c, nq) ||
     c.setCode.toLowerCase().includes(q) ||
     c.collectorNumber.toLowerCase().includes(q);
   const hasCards = activeCards.length > 0 || excludedCards.length > 0;
@@ -314,7 +316,9 @@ function CardsTab({
                   className={`binder-card-editor-status-dot rarity-${card.rarity}`}
                   aria-hidden
                 />
-                <span className="binder-card-editor-name">{card.name}</span>
+                <span className="binder-card-editor-name">
+                  <CardName card={card} />
+                </span>
                 <span className="binder-card-editor-meta">
                   {card.setCode.toUpperCase()} #{card.collectorNumber}
                   {card.foil ? <span className="binder-card-editor-foil"> foil</span> : null}
@@ -365,7 +369,9 @@ function CardsTab({
                   className={`binder-card-editor-status-dot rarity-${card.rarity}`}
                   aria-hidden
                 />
-                <span className="binder-card-editor-name">{card.name}</span>
+                <span className="binder-card-editor-name">
+                  <CardName card={card} />
+                </span>
                 <span className="binder-card-editor-meta">
                   {card.setCode.toUpperCase()} #{card.collectorNumber}
                   {card.foil ? <span className="binder-card-editor-foil"> foil</span> : null}
@@ -444,7 +450,9 @@ function OrderTab({
           {activeCards.map((card) => (
             <li key={card.copyId} className="binder-card-editor-row">
               <span className={`binder-card-editor-status-dot rarity-${card.rarity}`} aria-hidden />
-              <span className="binder-card-editor-name">{card.name}</span>
+              <span className="binder-card-editor-name">
+                <CardName card={card} />
+              </span>
               <span className="binder-card-editor-meta">
                 {card.setCode.toUpperCase()} #{card.collectorNumber}
                 {card.foil ? <span className="binder-card-editor-foil"> foil</span> : null}
@@ -486,7 +494,9 @@ function SortableCardRow({ card }: { card: EnrichedCard }) {
         <GripVertical width={14} height={14} strokeWidth={1.6} aria-hidden />
       </button>
       <span className={`binder-card-editor-status-dot rarity-${card.rarity}`} aria-hidden />
-      <span className="binder-card-editor-name">{card.name}</span>
+      <span className="binder-card-editor-name">
+        <CardName card={card} />
+      </span>
       <span className="binder-card-editor-meta">
         {card.setCode.toUpperCase()} #{card.collectorNumber}
         {card.foil ? <span className="binder-card-editor-foil"> foil</span> : null}

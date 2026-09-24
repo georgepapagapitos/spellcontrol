@@ -7,6 +7,8 @@ import { normalizeForSearch } from '../lib/normalize-search';
 import type { EnrichedCard } from '../types';
 import { FoilBadge } from './FoilBadge';
 import { SearchPill } from './SearchPill';
+import { nameMatchesNormalized, printedName } from '@spellcontrol/binder-routing';
+import { CardName } from '@/components/shared/CardName';
 
 interface Props {
   binderId: string;
@@ -41,7 +43,7 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
     const results = q
       ? allCards.filter(
           (c) =>
-            normalizeForSearch(c.name).includes(nq) ||
+            nameMatchesNormalized(c, nq) ||
             c.setCode.toLowerCase().includes(q) ||
             c.collectorNumber.toLowerCase().includes(q)
         )
@@ -52,7 +54,7 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
       const aIn = currentBoundSet.has(a.copyId) ? 1 : 0;
       const bIn = currentBoundSet.has(b.copyId) ? 1 : 0;
       if (aIn !== bIn) return aIn - bIn;
-      return a.name.localeCompare(b.name);
+      return printedName(a).localeCompare(printedName(b));
     });
   }, [allCards, query, currentBoundSet]);
 
@@ -98,7 +100,9 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
             return (
               <li key={card.copyId} className="card-picker-row">
                 <span className={`card-picker-rarity rarity-${card.rarity}`} aria-hidden />
-                <span className="card-picker-name">{card.name}</span>
+                <span className="card-picker-name">
+                  <CardName card={card} />
+                </span>
                 <span className="card-picker-meta">
                   {card.setCode.toUpperCase()} #{card.collectorNumber}
                   {card.foil ? <FoilBadge card={card} /> : null}

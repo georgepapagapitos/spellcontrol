@@ -21,6 +21,7 @@ import {
 } from './offline/scryfall-query';
 import { normalizeForSearch } from './normalize-search';
 import type { EnrichedCard } from '../types';
+import { nameMatchesNormalized } from '@spellcontrol/binder-routing';
 
 /** Does the query use operator syntax (vs a plain name/text search)? */
 export function hasQuerySyntax(query: string): boolean {
@@ -93,7 +94,7 @@ export function buildCollectionSearch(
     kind: 'name',
     usesTags: false,
     match: (card) => {
-      if (normalizeForSearch(card.name).includes(nq)) return { hit: true, nameHit: true };
+      if (nameMatchesNormalized(card, nq)) return { hit: true, nameHit: true };
       if ((card.oracleText ?? '').toLowerCase().includes(lq)) return MATCH;
       return MISS;
     },

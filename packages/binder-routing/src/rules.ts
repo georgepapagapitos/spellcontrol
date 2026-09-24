@@ -3,6 +3,7 @@ import { getColorKey } from './colors.js';
 import { isCommanderEligible } from './commanders-core.js';
 import { parseTypeLine } from './card-types.js';
 import { normalizeForSearch } from './normalize-search.js';
+import { nameMatchesNormalized } from './printed-name.js';
 import { getFinishKey } from './sorting.js';
 
 /**
@@ -161,7 +162,7 @@ export function cardMatchesCompiled(
   }
 
   if (f.nameContainsNormalized !== undefined) {
-    if (!normalizeForSearch(card.name).includes(f.nameContainsNormalized)) return false;
+    if (!nameMatchesNormalized(card, f.nameContainsNormalized)) return false;
   }
 
   if (f.setCodesLower) {

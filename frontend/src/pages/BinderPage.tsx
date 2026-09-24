@@ -42,6 +42,7 @@ import { useSetMap } from '../lib/api';
 import { useConfirm } from '../lib/use-confirm';
 import { useStoredView } from '../lib/use-stored-view';
 import { ShareDialog } from '../components/ShareDialog';
+import { CardName } from '@/components/shared/CardName';
 
 type BinderViewMode = 'pages' | 'list' | 'compact';
 
@@ -520,7 +521,9 @@ export function BinderPage() {
                 {g.rows.map((row) => (
                   <li key={`${row.name}|${row.setCode}|${row.collectorNumber}`}>
                     <span className="print-list-qty">{row.qty}</span>
-                    <span className="print-list-name">{row.name}</span>
+                    <span className="print-list-name">
+                      <CardName card={row} />
+                    </span>
                     <span className="print-list-printing">
                       {row.setCode.toUpperCase()} {row.collectorNumber}
                     </span>

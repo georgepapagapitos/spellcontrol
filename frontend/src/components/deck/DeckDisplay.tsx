@@ -130,6 +130,7 @@ import { CategorySection } from './DeckMainboardRow';
 import { DeckCardMenu } from './DeckCardMenu';
 import type { DeckCardActionCtx } from './deck-card-actions';
 import { DeckAnalysisView } from './DeckAnalysisView';
+import { CardName } from '@/components/shared/CardName';
 
 /** Deck ids whose completion moment already played this app-open — an edit
  *  that re-crosses the complete boundary doesn't re-celebrate (mirrors the
@@ -2443,7 +2444,9 @@ export function DeckDisplay({
                   {g.rows.map((row) => (
                     <li key={row.slotIds[0] ?? row.name}>
                       <span className="print-list-qty">{row.qty}</span>
-                      <span className="print-list-name">{row.name}</span>
+                      <span className="print-list-name">
+                        <CardName card={row} />
+                      </span>
                       <span className="print-list-printing">
                         {row.setCode.toUpperCase()} {row.collectorNumber}
                       </span>
@@ -2461,7 +2464,9 @@ export function DeckDisplay({
                   .map((row) => (
                     <li key={row.slotIds[0] ?? row.name}>
                       <span className="print-list-qty">{row.qty}</span>
-                      <span className="print-list-name">{row.name}</span>
+                      <span className="print-list-name">
+                        <CardName card={row} />
+                      </span>
                       <span className="print-list-printing">
                         {row.setCode.toUpperCase()} {row.collectorNumber}
                       </span>

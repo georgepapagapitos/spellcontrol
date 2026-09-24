@@ -35,6 +35,7 @@ import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import type { AllocationInfo } from '../lib/allocations';
 import type { BinderInfo } from './BinderBadge';
+import { CardName } from '@/components/shared/CardName';
 
 /** Scryfall card UUID — gates the rulings fetch to real printings. */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -666,7 +667,9 @@ export function CardPreview({
             ref={panelInnerRef}
           >
             <div className="card-preview-name-row">
-              <div className="card-preview-name">{current.name}</div>
+              <div className="card-preview-name">
+                <CardName card={current} stacked />
+              </div>
             </div>
             {(current.typeLine || current.manaCost) && (
               <div className="card-preview-typeline">

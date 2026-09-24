@@ -1,0 +1,66 @@
+/* A flavor-named printing's name: printed name first, oracle name quieter
+   after it, on one line so a fixed-height row keeps its height.
+
+   Only the oracle half gives way. The printed half never shrinks (a lopsided
+   flex-shrink still handed it a sub-pixel share, and an ellipsis, at 375px);
+   it ellipsizes only once it alone is wider than the row. The oracle half
+   starts from a 4em basis and grows into whatever the row has left,
+   ellipsizing within it; with less than 4em left it wraps to a second line
+   that the one-line cap clips, rather than showing as a two-pixel sliver. */
+.card-name {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.4em;
+  max-width: 100%;
+  min-width: 0;
+  max-height: 1lh;
+  overflow: hidden;
+  vertical-align: top;
+}
+
+.card-name-printed,
+.card-name-oracle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-name-printed {
+  flex-shrink: 0;
+  max-width: 100%;
+}
+
+.card-name-oracle {
+  flex: 1 1 4em;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 400;
+}
+
+.card-name.is-stacked {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  /* Stretch, so both lines follow the header's own text-align (the card
+     preview centres its name). */
+  align-items: stretch;
+  max-height: none;
+}
+
+.card-name.is-stacked .card-name-oracle {
+  flex: none;
+  max-width: 100%;
+  font-size: var(--text-sm);
+}
+
+/* A pause between the two names for a screen reader; the tone and size
+   already separate them on screen. */
+.card-name-sep {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

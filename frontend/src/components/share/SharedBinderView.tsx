@@ -14,6 +14,7 @@ import { publicCardToEnriched } from '../../lib/shared-filter';
 import { useSharedFilters } from './use-shared-filters';
 import { SearchPill } from '../SearchPill';
 import { ViewModeToggle } from '../ViewModeToggle';
+import { nameMatchesNormalized } from '@spellcontrol/binder-routing';
 
 interface Props {
   data: PublicBinder;
@@ -44,7 +45,7 @@ export function SharedBinderView({ data }: Props) {
     const withGroups = data.sections
       .map((s) => ({
         ...s,
-        cards: s.cards.filter((c) => (!q || normalizeForSearch(c.name).includes(q)) && matches(c)),
+        cards: s.cards.filter((c) => (!q || nameMatchesNormalized(c, q)) && matches(c)),
       }))
       .filter((s) => s.cards.length > 0)
       .map((s) => ({ ...s, groups: groupCards(s.cards) }));

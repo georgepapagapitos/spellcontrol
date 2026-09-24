@@ -1,5 +1,6 @@
 import type { PublicCard } from './shared-types';
 import { normalizeForSearch } from './normalize-search';
+import { nameMatchesNormalized, printedName } from '@spellcontrol/binder-routing';
 
 /**
  * Pure helpers for the shared-view components. PublicCard is a per-physical-
@@ -62,7 +63,7 @@ export function sortGrouped(
     let diff = 0;
     switch (field) {
       case 'name':
-        diff = a.card.name.localeCompare(b.card.name);
+        diff = printedName(a.card).localeCompare(printedName(b.card));
         break;
       case 'cmc':
         diff = (a.card.cmc ?? 0) - (b.card.cmc ?? 0);
@@ -82,7 +83,7 @@ export function sortGrouped(
     }
     // Stable tie-break by name then setCode/collectorNumber so the order is
     // deterministic across renders (avoids List rendering shuffle on rerender).
-    if (diff === 0) diff = a.card.name.localeCompare(b.card.name);
+    if (diff === 0) diff = printedName(a.card).localeCompare(printedName(b.card));
     if (diff === 0) diff = a.card.setCode.localeCompare(b.card.setCode);
     if (diff === 0) diff = a.card.collectorNumber.localeCompare(b.card.collectorNumber);
     return diff * sign;
@@ -92,7 +93,7 @@ export function sortGrouped(
 export function filterBySearch(grouped: GroupedCard[], query: string): GroupedCard[] {
   const nq = normalizeForSearch(query);
   if (!nq) return grouped;
-  return grouped.filter((g) => normalizeForSearch(g.card.name).includes(nq));
+  return grouped.filter((g) => nameMatchesNormalized(g.card, nq));
 }
 
 /**

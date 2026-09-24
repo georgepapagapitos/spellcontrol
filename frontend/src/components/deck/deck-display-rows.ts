@@ -22,6 +22,11 @@ import { COMMANDER_SLOT_ID, PARTNER_COMMANDER_SLOT_ID } from '../../lib/deck-val
 import { rolesForCard, ROLE_TITLES, type RoleKey } from '../../lib/role-badges';
 import { effectiveSortIndex } from '@/lib/deck-reorder';
 import type { DeckDisplayCard } from './DeckDisplay';
+import {
+  nameMatchesNormalized,
+  normalizeForSearch,
+  printedName,
+} from '@spellcontrol/binder-routing';
 
 /**
  * Resolves a card's EDHREC inclusion % against the deck's `cardInclusionMap`,
@@ -615,37 +620,36 @@ export const SORT_DEFAULT_DIR: Record<SortMode, 'asc' | 'desc'> = {
   custom: 'asc',
 };
 
+// Rows sort by the name printed on their card (a flavor-named printing files
+// under its flavor name), matching what the row shows.
+const byName = (a: Row, b: Row): number => printedName(a.card).localeCompare(printedName(b.card));
+
 export function sortRows(rows: Row[], mode: SortMode, dir: 'asc' | 'desc'): Row[] {
   const sorted = [...rows];
   const sign = dir === 'asc' ? 1 : -1;
   switch (mode) {
     case 'cmc':
-      sorted.sort((a, b) => (a.cmc - b.cmc) * sign || a.name.localeCompare(b.name));
+      sorted.sort((a, b) => (a.cmc - b.cmc) * sign || byName(a, b));
       break;
     case 'price':
-      sorted.sort((a, b) => (a.price - b.price) * sign || a.name.localeCompare(b.name));
+      sorted.sort((a, b) => (a.price - b.price) * sign || byName(a, b));
       break;
     case 'color': {
       const order = (key: string) => COLOR_INFO[key]?.order ?? 99;
-      sorted.sort(
-        (a, b) => (order(a.colorKey) - order(b.colorKey)) * sign || a.name.localeCompare(b.name)
-      );
+      sorted.sort((a, b) => (order(a.colorKey) - order(b.colorKey)) * sign || byName(a, b));
       break;
     }
     case 'added':
-      sorted.sort((a, b) => (a.addedAt - b.addedAt) * sign || a.name.localeCompare(b.name));
+      sorted.sort((a, b) => (a.addedAt - b.addedAt) * sign || byName(a, b));
       break;
     case 'custom':
       // Dragged rows compare by their persisted sortIndex; never-dragged rows
       // fall back to addedAt (same ms scale — see lib/deck-reorder.ts).
-      sorted.sort(
-        (a, b) =>
-          (effectiveSortIndex(a) - effectiveSortIndex(b)) * sign || a.name.localeCompare(b.name)
-      );
+      sorted.sort((a, b) => (effectiveSortIndex(a) - effectiveSortIndex(b)) * sign || byName(a, b));
       break;
     case 'name':
     default:
-      sorted.sort((a, b) => a.name.localeCompare(b.name) * sign);
+      sorted.sort((a, b) => byName(a, b) * sign);
   }
   return sorted;
 }
@@ -952,6 +956,7 @@ export function applyFilterSort(
   sortDir: 'asc' | 'desc'
 ): TypedGroup[] {
   const q = search.trim().toLowerCase();
+  const nq = normalizeForSearch(search);
   return groups.map((g) => {
     // Matches a card's name OR any of its tags. The tag half is what replaced
     // the old overlapping tag lens: "show me everything tagged Combo" is a
@@ -959,7 +964,8 @@ export function applyFilterSort(
     // grouping, instead of being a grouping mode whose counts did not sum.
     const filtered = q
       ? g.rows.filter(
-          (r) => r.name.toLowerCase().includes(q) || r.tags.some((t) => t.toLowerCase().includes(q))
+          (r) =>
+            nameMatchesNormalized(r.card, nq) || r.tags.some((t) => t.toLowerCase().includes(q))
         )
       : g.rows;
     return { ...g, rows: sortRows(filtered, sort, sortDir) };

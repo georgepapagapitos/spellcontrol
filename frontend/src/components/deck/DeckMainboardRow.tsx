@@ -63,6 +63,7 @@ import {
 } from './deck-display-rows';
 import { SectionIcon, AllocationChip } from './deck-display-icons';
 import { RoleBadge, LegalityBadge } from './deck-display-icons';
+import { CardName } from '@/components/shared/CardName';
 
 // ── Category section ──────────────────────────────────────────────────────
 export function CategorySection({
@@ -686,7 +687,7 @@ function DeckCardRow({
           ))}
         <span className="deck-row-name" title={row.card.type_line}>
           <span className="deck-row-name-text" title={row.name}>
-            {row.name}
+            <CardName card={row.card} />
           </span>
           {multiPrinting && (
             <button

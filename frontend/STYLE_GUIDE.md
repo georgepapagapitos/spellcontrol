@@ -1308,6 +1308,27 @@ The full card name must remain reachable: expose it with `title` on the name
 element for desktop hover, and keep any existing tap-to-preview/card carousel
 affordance for touch. `title` is never the sole path to the full name.
 
+## Printed names: sort and label by what the card says (2026-09-24)
+
+About 660 printings carry a Scryfall `flavor_name`: the Final Fantasy "through
+the ages" Light Up the Stage reads **A Promise Fulfilled**, plus Godzilla,
+Secret Lair and the rest. The ruling:
+
+- **Sort by the printed name.** `printedName(card)` from
+  `@spellcontrol/binder-routing` (flavor name, else oracle name). The engine's
+  Name sort, A–Z sections, deck rows and the shared views all read it.
+- **Search matches either name.** `nameMatchesNormalized(card, q)`, never a
+  bare `normalizeForSearch(card.name)` on a card that has a printing.
+- **Label with `<CardName card={…} />`.** It leads with the printed name and
+  keeps the oracle name alongside in `--text-secondary` at `--text-xs`, on the
+  same line, so fixed-height rows keep their height. The oracle half gives way
+  first: it ellipsizes, and below 4em it drops out entirely instead of leaving
+  a sliver. `stacked` puts it on its own line, only in a header with room for
+  it (the card preview). Every other card renders as its bare name.
+- **Exports, deck checks and anything oracle-level keep the oracle name.**
+  Other tools do not resolve flavor names, and a row grouped by oracle name
+  (trades, friends' collections, EDHREC data) has no single printing to name.
+
 ## Trade offer rows (T120)
 
 The offer card (`TradeOfferList`) is one object that reads as two things

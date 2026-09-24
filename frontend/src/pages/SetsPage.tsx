@@ -50,6 +50,7 @@ import { RarityBadge } from '../components/shared/RarityBadge';
 import { Tabs } from '../components/Tabs';
 import { MeterBar } from '../components/shared/MeterBar';
 import { useSealMoment } from '../components/shared/SealMoment';
+import { CardName } from '@/components/shared/CardName';
 
 /** Sets whose 100%-completion seal already fired this app-open (STYLE_GUIDE
  *  "Completion moments": once per subject per app-open). */
@@ -847,7 +848,9 @@ function SetListRow({ row, onOpen }: { row: SetGridRow; onOpen: () => void }) {
           <span className="set-list-thumb set-list-thumb-ph" aria-hidden />
         )}
         <span className="set-list-num">#{card.collector_number}</span>
-        <span className="set-list-name">{card.name}</span>
+        <span className="set-list-name">
+          <CardName card={card} />
+        </span>
         {qty > 1 && <span className="set-list-qty">×{qty}</span>}
         {card.rarity && <RarityBadge rarity={card.rarity} />}
         <span className={`sets-card-badge ${missing ? 'is-missing' : 'is-owned'}`}>

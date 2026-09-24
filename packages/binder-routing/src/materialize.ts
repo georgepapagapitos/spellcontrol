@@ -17,6 +17,8 @@ import {
   cardMatchesCompiled,
   PRICE_STICKINESS_MARGIN,
 } from './rules.js';
+import { normalizeForSearch } from './normalize-search.js';
+import { nameMatchesNormalized } from './printed-name.js';
 import { ALL_SECTION, UNKNOWN_ORDER, getSectionMeta, type SectionMeta } from './sections.js';
 import {
   sortCards,
@@ -84,10 +86,8 @@ export function materializeBinders(
   binderDefs: BinderDef[],
   opts: MaterializeOptions
 ): { binders: MaterializedBinder[]; uncategorized: UncategorizedBucket } {
-  const search = opts.search.trim().toLowerCase();
-  const isMatch = search
-    ? (c: EnrichedCard) => (c.name ?? '').toLowerCase().includes(search)
-    : () => true;
+  const search = normalizeForSearch(opts.search);
+  const isMatch = search ? (c: EnrichedCard) => nameMatchesNormalized(c, search) : () => true;
 
   const orderedDefs = [...binderDefs].sort((a, b) => a.position - b.position);
   // Compile each binder's groups once. Outer index = binder, inner = OR-branches.

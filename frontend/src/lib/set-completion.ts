@@ -9,6 +9,7 @@ import {
   type SldDropsIndex,
 } from './sld-drops';
 import { normalizeForSearch } from './normalize-search';
+import { nameMatchesNormalized } from '@spellcontrol/binder-routing';
 
 /**
  * Set-completion math (E131). Ownership is printing-keyed: you "have" a
@@ -270,7 +271,7 @@ export function filterSetRows(rows: SetGridRow[], query: string): SetGridRow[] {
   const lower = q.toLowerCase();
   return rows.filter(
     (r) =>
-      normalizeForSearch(r.card.name).includes(nq) ||
+      nameMatchesNormalized(r.card, nq) ||
       (r.card.collector_number ?? '').toLowerCase().startsWith(lower)
   );
 }

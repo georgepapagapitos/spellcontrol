@@ -91,6 +91,13 @@ jobs:
         working-directory: frontend
         run: node scripts/refresh-cube-signal.mjs
 
+      # Every run, not age-gated: the table is small and a new Secret Lair drop
+      # adds flavor names between refreshes. Fails loudly (nothing builds from
+      # the network), and refuses to write a collapsed table.
+      - name: Refresh flavor names (Scryfall)
+        working-directory: packages/binder-routing
+        run: node scripts/refresh-flavor-names.mjs
+
       # Gate quality BEFORE opening a PR — mirrors refresh-card-similar.yml. The
       # scripts' own shrink guard catches a collapsed tag pool; this catches the
       # coarser failure of a file that no longer parses or lost its stamp.
@@ -193,6 +200,7 @@ jobs:
             frontend/public/comprehensive-rules.json
             frontend/public/sld-drops.json
             frontend/public/cube-signal.json
+            packages/binder-routing/src/flavor-names.ts
           body: |
             Automated refresh of the age-gated build snapshots, via the **Refresh build snapshots** workflow.
 
