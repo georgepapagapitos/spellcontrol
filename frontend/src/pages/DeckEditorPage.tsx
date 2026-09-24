@@ -939,7 +939,8 @@ export function DeckEditorPage() {
   // The Power hero's summary lines deep-link to their detail panels below.
   // Bracket and Engine are always-open panels, so a scroll suffices; Combos is
   // collapsible, so reuse its reveal() handle (expand + scroll + focus), landing
-  // on the one-away tab when the user owns completable pieces.
+  // on the one-away tab when the user owns completable pieces or the deck has
+  // no complete combo to show.
   const scrollToPowerPanel = useCallback((id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, []);
@@ -955,9 +956,12 @@ export function DeckEditorPage() {
     () => scrollToPowerPanel('deck-power-wincon'),
     [scrollToPowerPanel]
   );
+  const comboInDeckCount = comboData.data?.inDeck.length ?? 0;
   const handleViewCombos = useCallback(() => {
-    combosRef.current?.reveal(comboOwnedMissingCount > 0 ? 'oneAway' : 'inDeck');
-  }, [comboOwnedMissingCount]);
+    combosRef.current?.reveal(
+      comboOwnedMissingCount > 0 || comboInDeckCount === 0 ? 'oneAway' : 'inDeck'
+    );
+  }, [comboOwnedMissingCount, comboInDeckCount]);
 
   // Keep grade/bracket live for any commander deck as its cards change —
   // generated and manual alike (the user's bracketOverride layers on top).
@@ -3260,6 +3264,7 @@ export function DeckEditorPage() {
                   enginePayoffs={deck.synergyAnalysis?.axes[0]?.payoffs}
                   engineLopsided={(deck.synergyAnalysis?.warnings.length ?? 0) > 0}
                   comboInDeck={comboData.data?.inDeck.length ?? 0}
+                  comboOneAway={comboData.data?.oneAway.length ?? 0}
                   comboOwnedMissing={comboOwnedMissingCount}
                   combosLoading={!!formatConfig?.hasCommander && comboData.loading}
                   // Link a pillar to its panel only when that panel actually renders below.

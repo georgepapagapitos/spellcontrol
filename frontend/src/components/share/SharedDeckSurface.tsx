@@ -422,6 +422,7 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
               enginePayoffs={deck.synergyAnalysis?.axes[0]?.payoffs}
               engineLopsided={(deck.synergyAnalysis?.warnings.length ?? 0) > 0}
               comboInDeck={comboData.data?.inDeck.length ?? 0}
+              comboOneAway={comboData.data?.oneAway.length ?? 0}
               comboOwnedMissing={comboOwnedMissingCount}
               combosLoading={combosEnabled && comboData.loading}
               winConditionSummary={buildWinConditionSummary(deck.winConditions)}

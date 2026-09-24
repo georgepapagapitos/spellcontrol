@@ -12,6 +12,7 @@ const base: PowerHeroProps = {
   enginePayoffs: 8,
   engineLopsided: false,
   comboInDeck: 2,
+  comboOneAway: 3,
   comboOwnedMissing: 0,
   combosLoading: false,
 };
@@ -84,15 +85,30 @@ describe('PowerHero', () => {
     expect(hasText(/in deck/)).toBe(false);
   });
 
-  it('renders the in-deck count and "none you can complete now" with no owned pieces', () => {
-    renderHero();
-    expect(hasText(/^2 combos in deck · none you can complete now$/)).toBe(true);
+  // E380/E385: an Ulamog deck with three complete Sensei's Top loops and 17
+  // one-away combos, none of whose missing pieces the guest owned, read
+  // "3 combos in deck · none you can complete now", as if the three complete
+  // combos were the unfinished ones. The second clause names its own bucket.
+  it('names the one-card-away bucket when none of it is in the collection', () => {
+    renderHero({ comboInDeck: 3, comboOneAway: 17, comboOwnedMissing: 0 });
+    expect(hasText(/^3 combos in deck · 17 one card away$/)).toBe(true);
+    expect(hasText(/complete now/)).toBe(false);
     expect(screen.queryByText('Checking for combos…')).toBeNull();
   });
 
-  it('shows the completable count when the user owns missing pieces', () => {
-    renderHero({ comboOwnedMissing: 3 });
-    expect(hasText(/^2 combos in deck · 3 you can complete$/)).toBe(true);
+  it('says how many more the collection can finish when it owns missing pieces', () => {
+    renderHero({ comboOneAway: 5, comboOwnedMissing: 3 });
+    expect(hasText(/^2 combos in deck · 3 more you can finish from your collection$/)).toBe(true);
+  });
+
+  it('drops "more" when nothing is complete yet', () => {
+    renderHero({ comboInDeck: 0, comboOneAway: 4, comboOwnedMissing: 1 });
+    expect(hasText(/^No combos in deck · 1 you can finish from your collection$/)).toBe(true);
+  });
+
+  it('says only the in-deck count when no combo is one card away', () => {
+    renderHero({ comboOneAway: 0, comboOwnedMissing: 0 });
+    expect(hasText(/^2 combos in deck$/)).toBe(true);
   });
 
   it('singularizes a single in-deck combo', () => {
@@ -101,8 +117,8 @@ describe('PowerHero', () => {
   });
 
   it('never repeats the completable count as a separate collection chip', () => {
-    renderHero({ comboOwnedMissing: 2 });
-    expect(hasText(/^2 combos in deck · 2 you can complete$/)).toBe(true);
+    renderHero({ comboOneAway: 2, comboOwnedMissing: 2 });
+    expect(hasText(/^2 combos in deck · 2 more you can finish from your collection$/)).toBe(true);
     expect(hasText(/You own the missing piece/)).toBe(false);
   });
 
