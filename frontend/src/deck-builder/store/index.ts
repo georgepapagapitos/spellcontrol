@@ -11,6 +11,7 @@ import type {
 } from '@/deck-builder/types';
 import { getCurrency, useCurrencyStore } from '@/lib/currency';
 import { swapCard } from '@/deck-builder/services/deckBuilder/cardSwap';
+import { choosesColorBeforeGame, withChosenColor } from '@/deck-builder/lib/partnerUtils';
 
 const LS = {
   bannedCards: 'mtg-deck-builder-banned-cards',
@@ -164,6 +165,27 @@ export const useDeckBuilderStore = create<AppState>((set, get) => ({
         edhrecStats: null,
         deckHistory: [],
       };
+    }),
+
+  setChosenColor: (color) =>
+    set((state) => {
+      // Only the side that actually chooses gets stamped; the rest of the
+      // build (partner, themes, land suggestion, must-includes) stays put.
+      const commander =
+        state.commander && choosesColorBeforeGame(state.commander)
+          ? withChosenColor(state.commander, color)
+          : state.commander;
+      const partnerCommander =
+        state.partnerCommander && choosesColorBeforeGame(state.partnerCommander)
+          ? withChosenColor(state.partnerCommander, color)
+          : state.partnerCommander;
+      const colorIdentity = [
+        ...new Set([
+          ...(commander?.color_identity ?? []),
+          ...(partnerCommander?.color_identity ?? []),
+        ]),
+      ];
+      return { commander, partnerCommander, colorIdentity, generatedDeck: null };
     }),
 
   setEdhrecThemes: (themes: EDHRECTheme[]) =>

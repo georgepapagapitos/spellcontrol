@@ -15,6 +15,8 @@ import { ThemePicker } from '../components/deck/ThemePicker';
 import { DeckCustomizer } from '../components/deck/DeckCustomizer';
 import { GenerationModePicker } from '../components/deck/GenerationModePicker';
 import { GenerationTakeover } from '../components/deck/GenerationTakeover';
+import { ChosenColorPicker, colorChooserOf } from '../components/deck/ChosenColorPicker';
+import { choosesColorBeforeGame, chosenColorOf } from '@/deck-builder/lib/partnerUtils';
 import { useDeckGeneration } from '../lib/use-deck-generation';
 import { useGenerationTakeoverExit } from '../lib/use-generation-takeover-exit';
 import { imageFromCard } from '@/lib/card-thumbs';
@@ -70,6 +72,7 @@ export function DeckNewPage() {
   const setCommander = useDeckBuilderStore((s) => s.setCommander);
   const updateCustomizationStore = useDeckBuilderStore((s) => s.updateCustomization);
   const resetDeckBuilder = useDeckBuilderStore((s) => s.reset);
+  const setChosenColor = useDeckBuilderStore((s) => s.setChosenColor);
 
   const collectionCards = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
@@ -172,6 +175,11 @@ export function DeckNewPage() {
     initialVisibility: visibility,
   });
 
+  // The Prismatic Piper, Clara Oswald, Faceless One: no colors until one is
+  // chosen, so both build buttons wait for it.
+  const colorChooser = colorChooserOf(commander, partnerCommander);
+  const colorReady = !colorChooser || chosenColorOf(colorChooser) !== null;
+
   const [showImport, setShowImport] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<DeckFormat>(prefill?.format ?? 'commander');
   // Below 600px the format grid claims most of the first screen before the
@@ -233,6 +241,7 @@ export function DeckNewPage() {
   // ── Start-blank ───────────────────────────────────────────────────────
   const handleStartBlank = useCallback(async () => {
     if (formatConfig.hasCommander && !commander) return;
+    if (!colorReady) return;
     const allocationMap = buildAllocationMap(decks);
     let commanderAlloc: string | null = null;
     if (commander) {
@@ -280,6 +289,7 @@ export function DeckNewPage() {
     visibility,
     canPublish,
     publishAfterCreate,
+    colorReady,
   ]);
 
   // Per-mode CTA copy + readiness. Art Theme can't build without a motif chosen.
@@ -511,6 +521,10 @@ export function DeckNewPage() {
         </section>
       )}
 
+      {formatConfig.hasCommander && choosesColorBeforeGame(commander) && (
+        <ChosenColorPicker commander={commander} partner={null} onChoose={setChosenColor} />
+      )}
+
       {/* Brew walks the EDHREC-driven Commander flow — no PDH data there. It
           sits BELOW the commander picker, not above it: the subtitle's first
           instruction is "Pick a commander", and on a 360px phone the promo
@@ -571,6 +585,16 @@ export function DeckNewPage() {
         />
       )}
 
+      {formatConfig.hasCommander &&
+        !choosesColorBeforeGame(commander) &&
+        choosesColorBeforeGame(partnerCommander) && (
+          <ChosenColorPicker
+            commander={null}
+            partner={partnerCommander}
+            onChoose={setChosenColor}
+          />
+        )}
+
       {/* Themes only steer the EDHREC generator — the Scryfall-driven modes
           define their own pool, so the theme picker is irrelevant there. */}
       {formatConfig.hasCommander &&
@@ -596,7 +620,7 @@ export function DeckNewPage() {
                   type="button"
                   className="btn btn-primary"
                   onClick={build}
-                  disabled={isBuilding || publishing || !modeReady}
+                  disabled={isBuilding || publishing || !modeReady || !colorReady}
                 >
                   {isBuilding ? 'Building…' : publishing ? 'Publishing…' : generateLabel}
                 </button>
@@ -604,13 +628,14 @@ export function DeckNewPage() {
                   type="button"
                   className="btn"
                   onClick={() => void handleStartBlank()}
-                  disabled={isBuilding || publishing}
+                  disabled={isBuilding || publishing || !colorReady}
                 >
                   {publishing ? 'Creating…' : 'Start blank'}
                 </button>
                 <p className="deck-builder-actions-hint">
-                  {generateHint} Start blank gives you just the commander so you can pick every card
-                  by hand.
+                  {colorChooser && !colorReady
+                    ? `Choose ${colorChooser.name.split(' // ')[0]}'s color above to build.`
+                    : `${generateHint} Start blank gives you just the commander so you can pick every card by hand.`}
                 </p>
                 {error && <div className="error-banner deck-builder-error">{error}</div>}
               </section>

@@ -45,6 +45,12 @@
   }
 }
 
+/* Five colors, one row at every width (two-class selector outranks the
+   640px three-column rule above). */
+.bracket-pill-row.color-choice-row {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 /* A <label> wrapping a visually-hidden radio, so the whole pill stays the hit
    target while keyboard/AT semantics are native. */
 .bracket-pill {

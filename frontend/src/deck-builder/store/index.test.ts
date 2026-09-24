@@ -43,6 +43,25 @@ describe('useDeckBuilderStore — commander selection', () => {
     expect(store().colorIdentity.sort()).toEqual(['B', 'W']);
   });
 
+  it('setChosenColor stamps only the commander that chooses, and keeps the partner', () => {
+    const chooses =
+      'If Clara Oswald is your commander, choose a color before the game begins. Clara Oswald is the chosen color.';
+    store().setCommander(card({ name: 'The Tenth Doctor', color_identity: ['U', 'R'] }));
+    store().setPartnerCommander(card({ name: 'Clara Oswald', oracle_text: chooses }));
+    expect(store().colorIdentity.sort()).toEqual(['R', 'U']);
+
+    store().setChosenColor('W');
+    const s = store();
+    expect(s.partnerCommander?.name).toBe('Clara Oswald');
+    expect(s.partnerCommander?.color_identity).toEqual(['W']);
+    expect(s.commander?.color_identity).toEqual(['U', 'R']);
+    expect(s.colorIdentity.sort()).toEqual(['R', 'U', 'W']);
+
+    // Changing the choice replaces it rather than accumulating colors.
+    store().setChosenColor('G');
+    expect(store().colorIdentity.sort()).toEqual(['G', 'R', 'U']);
+  });
+
   it('setCommander(null) clears the commander', () => {
     store().setCommander(card({ color_identity: ['G'] }));
     store().setCommander(null);

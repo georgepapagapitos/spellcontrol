@@ -1128,6 +1128,9 @@ export interface AppState {
   // Actions
   setCommander: (card: ScryfallCard | null) => void;
   setPartnerCommander: (card: ScryfallCard | null) => void;
+  /** Stamp the chosen color onto whichever commander chooses one before the
+   *  game begins (The Prismatic Piper, Clara Oswald, Faceless One). */
+  setChosenColor: (color: string) => void;
   setEdhrecThemes: (themes: EDHRECTheme[]) => void;
   setEdhrecNumDecks: (count: number | null) => void;
   setSelectedThemes: (themes: ThemeResult[]) => void;

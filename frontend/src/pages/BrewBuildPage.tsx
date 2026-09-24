@@ -8,6 +8,8 @@ import './BrewBuildPage.css';
 import { BackLink } from '../components/BackLink';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { CommanderSearch } from '../components/deck/CommanderSearch';
+import { ChosenColorPicker } from '../components/deck/ChosenColorPicker';
+import { choosesColorBeforeGame, chosenColorOf } from '@/deck-builder/lib/partnerUtils';
 import { CommanderProfileCard } from '../components/deck/CommanderProfileCard';
 import { ThemePicker } from '../components/deck/ThemePicker';
 import { useDeckGeneration } from '../lib/use-deck-generation';
@@ -71,6 +73,7 @@ export function BrewBuildPage(): JSX.Element {
     (location.state as { commander?: ScryfallCard } | null)?.commander ?? null;
   const resetDeckBuilder = useDeckBuilderStore((s) => s.reset);
   const setCommanderInStore = useDeckBuilderStore((s) => s.setCommander);
+  const setChosenColor = useDeckBuilderStore((s) => s.setChosenColor);
   useEffect(() => {
     resetDeckBuilder();
     // The reset above wipes the store's commander, so the carried pick is
@@ -266,6 +269,8 @@ export function BrewBuildPage(): JSX.Element {
             <CommanderSearch value={commander} onSelect={selectCommander} />
           </section>
 
+          <ChosenColorPicker commander={commander} partner={null} onChoose={setChosenColor} />
+
           {commander && commanderProfile && <CommanderProfileCard profile={commanderProfile} />}
 
           {commander && (
@@ -282,7 +287,9 @@ export function BrewBuildPage(): JSX.Element {
                 type="button"
                 className="btn btn-primary"
                 onClick={() => void startBrewing()}
-                disabled={loading}
+                disabled={
+                  loading || (choosesColorBeforeGame(commander) && !chosenColorOf(commander))
+                }
               >
                 {loading ? (
                   'Loading EDHREC data…'
