@@ -66,24 +66,22 @@ export function RotatePrompt({ fullscreen }: Props) {
     <Modal
       onClose={skip}
       labelledBy="playtest-rotate-title"
-      className="choice-dialog playtest-rotate"
+      className="playtest-rotate"
       backdropClassName="playtest-rotate-backdrop"
     >
       <Smartphone className="playtest-rotate__icon" size={48} aria-hidden="true" />
-      <h2 id="playtest-rotate-title" className="choice-dialog-title">
+      <h2 id="playtest-rotate-title" className="playtest-rotate__title">
         Turn your phone sideways
       </h2>
-      <p className="choice-dialog-body">The battlefield gets the whole width.</p>
-      <div className="playtest-rotate__actions">
-        {canFullscreen && (
-          <button type="button" className="btn btn-primary" onClick={() => void goFullscreen()}>
-            Go fullscreen
-          </button>
-        )}
-        <button type="button" className="btn" onClick={skip}>
-          Play upright
+      <p className="playtest-rotate__body">The battlefield gets the whole width.</p>
+      {canFullscreen && (
+        <button type="button" className="btn btn-primary" onClick={() => void goFullscreen()}>
+          Go fullscreen
         </button>
-      </div>
+      )}
+      <button type="button" className="btn-link playtest-rotate__skip" onClick={skip}>
+        Play upright
+      </button>
     </Modal>
   );
 }
